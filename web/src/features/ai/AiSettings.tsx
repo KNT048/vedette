@@ -33,13 +33,14 @@ const HARNESS: Record<Exclude<Tab, 'profiles'>, React.LazyExoticComponent<() => 
 //  Anthropic: platform.claude.com/docs/en/about-claude/models/overview (claude-haiku-5-5, API https://api.anthropic.com)
 //  OpenAI:    developers.openai.com/api/docs/models (gpt-6-luna là model gọn nhẹ), API https://api.openai.com/v1
 //  Gemini:    aistudio.google.com/docs/models (gemini-3.6-flash), REST https://generativelanguage.googleapis.com/v1beta
-//  Ollama:    docs.ollama.com/api/openai-compatibility (http://localhost:11434/v1, ví dụ model qwen3:8b); vLLM mặc định http://localhost:8000/v1
+//  Ollama:    docs.ollama.com/api/openai-compatibility (cổng 11434, ví dụ model qwen3:8b); vLLM cổng 8000. Core luôn chạy trong container (cả bản cài install.sh,
+//             Podman root): Ollama trên cùng máy là host.containers.internal, không phải localhost (walk 2, D-226)
 const KINDS: ProfileKind[] = ['anthropic', 'openai', 'gemini', 'openai-compatible', 'custom']
 const DEFAULTS: Record<ProfileKind, { base_url: string; model: string; api_style: ApiStyle; location: 'internal' | 'cloud'; name: string }> = {
   anthropic: { base_url: 'https://api.anthropic.com', model: 'claude-haiku-5-5', api_style: 'anthropic', location: 'cloud', name: 'Claude' },
   openai: { base_url: 'https://api.openai.com/v1', model: 'gpt-6-luna', api_style: 'openai', location: 'cloud', name: 'OpenAI' },
   gemini: { base_url: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-3.6-flash', api_style: 'gemini', location: 'cloud', name: 'Gemini' },
-  'openai-compatible': { base_url: 'http://localhost:11434/v1', model: 'qwen3:8b', api_style: 'openai', location: 'internal', name: 'Local model' },
+  'openai-compatible': { base_url: 'http://host.containers.internal:11434/v1', model: 'qwen3:8b', api_style: 'openai', location: 'internal', name: 'Local model' },
   custom: { base_url: '', model: '', api_style: 'openai', location: 'cloud', name: '' },
 }
 const TIERS: AiTier[] = ['min', 'med', 'max']

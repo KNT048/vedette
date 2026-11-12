@@ -23,7 +23,7 @@ export function answerQuestion(question: string): Answer {
   const q = norm(question)
   const assets = assetsStore.get()
   const findings = findingsStore.get()
-  const inv = { title: `Inventory: ${plural(assets.length, 'device')}` }
+  const inv = { title: `Inventory: ${plural(assets.length, 'device')} searched` }
   const tc = (tool: string, args: string, n: number): ToolCall => ({ tool, args, result: DEV(n) })
 
   function assetTable(rows: Asset[], extra?: { col: string; of: (a: Asset) => string }): AskTable {
@@ -65,7 +65,7 @@ export function answerQuestion(question: string): Answer {
     return {
       answer: rows.length ? [onlyConfirmed ? `${plural(rows.length, 'finding')} ${rows.length === 1 ? 'is' : 'are'} confirmed: ${lst}.` : `${plural(rows.length, 'finding')} ${rows.length === 1 ? 'is' : 'are'} unresolved, ${conf.length} of them confirmed: ${lst}.`, conf.length ? 'A confirmed finding means a safe scan sample saw signs of the vulnerability; handle these first, then the suspected ones.' : 'All findings are suspected from the version or product; none is confirmed by a scan yet.'] : ['There are no unresolved findings.'],
       table: rows.length ? { columns: ['Device', 'CVE', 'Status', 'Severity'], rows: rows.map((f) => ({ href: `/findings/${f.id}`, cells: [nameOf(f.asset_id), f.cve, f.status === 'confirmed' ? 'Confirmed' : 'Suspected', SEV[f.severity] ?? f.severity] })) } : null,
-      tool_calls: [{ tool: 'list_findings', args: onlyConfirmed ? '{"status": "confirmed"}' : '{"status": ["confirmed", "suspected"]}', result: plural(rows.length, 'finding') }], citations: [{ title: `Findings: ${plural(findings.length, 'record')}` }, inv],
+      tool_calls: [{ tool: 'list_findings', args: onlyConfirmed ? '{"status": "confirmed"}' : '{"status": ["confirmed", "suspected"]}', result: plural(rows.length, 'finding') }], citations: [{ title: `Findings: ${plural(findings.length, 'record')}` }],
     }
   }
 

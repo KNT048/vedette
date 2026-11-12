@@ -231,12 +231,17 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.OIDC, err = authoidc.New(authoidc.Deps{DB: d.DB, Secrets: d.Secrets, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Clock: d.Clock}); err != nil {
 		return fmt.Errorf("auth-oidc: %w", err)
 	}
-	if d.AgentIntake, err = agentintake.New(agentintake.Config{DB: d.DB, Audit: d.Audit, Sink: d.Inventory, Software: d.Inventory, Secrets: d.Secrets, Conn: d.Conn, Clock: d.Clock, Log: d.Log}); err != nil {
+	if d.AgentIntake, err = agentintake.New(agentintake.Config{DB: d.DB, Audit: d.Audit, Sink: d.Inventory, Software: d.Inventory, Secrets: d.Secrets, Conn: d.Conn, Clock: d.Clock, Log: d.Log,
+		TrustAnchor: d.TrustAnchor, HostAllowed: d.HostAllowed, BoxURL: d.BaseURL, MirrorDir: d.OsqueryDir}); err != nil {
 		return fmt.Errorf("agent-intake: %w", err)
 	}
 	d.Logs = logexport.New()
 	d.PurgeGate = &core.PurgeGate{}
-	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{Logs: d.Logs, SpoolDir: logSpoolDir(d.DataDir), DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn, d: d}, Conns: d.Conn,
+	var scope core.SetupScope // the wizard's LAN ranges become the inventory's scope (INV-15, #350)
+	if d.Inventory != nil {
+		scope = d.Inventory
+	}
+	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{Scope: scope, Logs: d.Logs, SpoolDir: logSpoolDir(d.DataDir), DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn, d: d}, Conns: d.Conn,
 		DataDir: d.DataDir, DataFiles: moduleDataFiles, Schema: schemaSets(wiredModules()), Restart: d.Restart, KeyPath: d.KeyPath,
 		Host: purgeHost(d), OSBusy: func(ctx context.Context) bool { return d.OS != nil && d.OS.Busy(ctx) }, BeforeWipe: purgeBeforeWipe(d), Gate: d.PurgeGate, AlsoKept: purgeAlsoKept(d), KeepRows: purgeKeptRows(d), AlsoFreeze: purgeFreezes(d)}); err != nil {
 		return fmt.Errorf("core: %w", err)
@@ -292,6 +297,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.MitigationHandlers, err = mitigation.NewActionHandlers(d.DB, d.Audit, d.Findings, d.FindingHandlers, aiDoor, d.Clock); err != nil {
 		return err
 	}
+	d.PackLoader = mitigation.NewLoader(d.DB, d.Audit, packVerifier{trust: d.PackTrust}, d.Log, d.Clock)
 	if d.Response, err = newResponse(d); err != nil { //nolint:contextcheck // response's BoxAddrs port has no context: it reads the decoys with its own short budget
 		return fmt.Errorf("response: %w", err)
 	}
@@ -346,7 +352,8 @@ func subscribe(d deps) {
 		_, err := d.Inventory.RematchCVE(ctx, ev.CVE, ev.Vendor, ev.Product)
 		return err
 	}))
-	d.Bus.Subscribe(feeds.EventNewKEV, on("scan", onNewKEVForScan(d))) // after inventory's: the findings of the new entry exist when the job looks
+	d.Bus.Subscribe(feeds.EventNewKEV, on("scan", onNewKEVForScan(d)))          // after inventory's: the findings of the new entry exist when the job looks
+	d.Bus.Subscribe(feeds.EventVulnUpdated, on("inventory", rematchUpdated(d))) // D-328: a CVE whose vendor or product changed
 	d.Bus.Subscribe(feeds.EventSyncBaseline, on("inventory", func(ctx context.Context, _ any) error {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
 		defer cancel()
@@ -356,9 +363,81 @@ func subscribe(d deps) {
 	}))
 }
 
-// privacyFacts answers what the Privacy page asks of modules that have no backend yet, with what is true today:
-// the AI flow is on when a profile is usable, the NTP servers are the default ones (the host module is not built), flow 11 when
-// auth-oidc has an issuer. Each answer moves to its module's service when that module gets a backend.
+// rematchUpdated handles feeds.vuln.updated (D-328): the payload names the CISA entries that changed, any field, and the has_template flips
+// of a template pull (hundreds at once). Each is announced (inventory.match.changed) to the devices that run its current product and do
+// not already have a finding for it, at most once per device per event, so a CVE whose vendor or product changed reaches its new devices.
+// A change that moved no key announces nothing to a device that has the finding; a device whose software matches the CVE and has no
+// finding for it (a "Multiple Products" entry of its vendor that findings did not turn into a finding, or a missed baseline) is
+// announced once per event, and findings then matches the whole device. A finding on a device of the old product stays: findings'
+// matcher only adds (its INV-6), and a person or a scan closes a finding. With findings off nothing is left out (its own subscription is off too).
+func rematchUpdated(d deps) func(ctx context.Context, data any) error {
+	return func(ctx context.Context, data any) error {
+		ev, ok := data.(feeds.VulnUpdatedEvent)
+		if !ok {
+			return fmt.Errorf("unexpected payload %T", data)
+		}
+		st, ok := feedsKEV{&d}.store()
+		if !ok || len(ev.CVEs) == 0 {
+			return nil
+		}
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
+		defer cancel()
+		rows, err := st.KevVulnsByCVE(ctx, ev.CVEs)
+		if err != nil {
+			return err
+		}
+		known := findingKnown(d)
+		var errs []error
+		for _, v := range rows {
+			if _, err := d.Inventory.RematchCVEExcept(ctx, v.CVE, v.Vendor, v.Product, known); err != nil {
+				errs = append(errs, fmt.Errorf("%s: %w", v.CVE, err))
+				if ctx.Err() != nil {
+					break
+				}
+			}
+		}
+		return errors.Join(errs...)
+	}
+}
+
+// findingKnown says whether the device needs no announcement for the CVE: it already has a finding for it, open or closed (findings
+// never re-creates a pair, INV-6), or it was already announced in this event (findings' OnMatchChanged matches the whole device against
+// every CVE, so one announcement per device per event is enough). nil when findings is off or absent, so nothing is left out. Make one
+// per event: it remembers what it read and what it let through.
+func findingKnown(d deps) func(ctx context.Context, assetID, cve string) (bool, error) {
+	if d.Findings == nil || (d.Reg != nil && !d.Reg.Enabled("findings")) {
+		return nil
+	}
+	have := map[string]map[string]bool{} // one read per device for the whole event: a flip of hundreds of CVEs reads each device once
+	announced := map[string]bool{}
+	return func(ctx context.Context, assetID, cve string) (bool, error) {
+		if announced[assetID] {
+			return true, nil
+		}
+		cves, ok := have[assetID]
+		if !ok {
+			recs, err := d.Findings.List(ctx, assetID)
+			if err != nil {
+				return false, err
+			}
+			cves = make(map[string]bool, len(recs))
+			for _, r := range recs {
+				cves[r.CVE] = true
+			}
+			have[assetID] = cves
+		}
+		if cves[cve] {
+			return true, nil
+		}
+		announced[assetID] = true
+		return false, nil
+	}
+}
+
+// privacyFacts answers what the Privacy page asks of other modules: the AI flow is on when a profile is usable, flow 11 when
+// auth-oidc has an issuer, flow 12 while a connection is enabled. NTP (flow 10) is always on: the servers of Box network are added
+// to the distribution's own chrony sources, which the box never removes (D-166, PRIVACY.md), and core cannot see whether the
+// owner removed them by hand. ponytail: "off" needs the host to report chrony's whole source list (`chronyc sources`), a host API change.
 type privacyFacts struct {
 	conns *conn.Service
 	d     *deps // read lazily: the ai service is built after core, which takes this value
@@ -369,7 +448,7 @@ func (p privacyFacts) AIConfigured(context.Context) bool {
 	return p.d != nil && p.d.AI != nil && p.d.AI.Configured()
 }
 
-func (privacyFacts) NTPPublic(context.Context) bool { return true }
+func (privacyFacts) NTPPublic(context.Context) bool { return true } // see privacyFacts
 
 // OIDCConfigured: flow 11 and the SSO button (auth-options) while auth-oidc has an issuer saved; the caller checks that the module is
 // on. A store that cannot be read counts as "yes", like ConnectionsConfigured: the page must not say nothing leaves when it does not know.

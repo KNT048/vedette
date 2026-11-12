@@ -98,6 +98,10 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 		msg       channel.Message // what is sent (may hold a token)
 		recipient string          // the approver's address, for a message to one person
 		buttons   bool            // Telegram with buttons: where the message is gets kept, so they can be removed later (tgbuttons.go)
+		// fallback and fbMsg: when the first send fails, this one goes out instead (Slack: the webhook, without buttons, when the bot
+		// post fails: not_in_channel, a revoked token). nil = no second try.
+		fallback channel.Sender
+		fbMsg    channel.Message
 	}
 	var plan []outgoing
 	type skipped struct{ user, reason string }
@@ -152,12 +156,18 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 					return nil, err
 				}
 			}
+			var fb channel.Sender
+			var fbMsg channel.Message
 			if ac.Type == channel.Slack && !req.NoChatButtons && channel.SlackFits(m) { // buttons through the bot; the posted message is kept (slacklisten.go)
 				if bs, btns := s.slackApprovalSender(ctx, c, req); bs != nil {
+					// the bot post can fail while the webhook works (not_in_channel, a revoked bot token): then the request still reaches the
+					// channel, through the webhook and without buttons, and says so
+					fb, fbMsg = snd, m
+					fbMsg.Action = "Open Vedette to approve. The Approve and Reject buttons could not be posted to this channel."
 					snd, m.Buttons = bs, btns
 				}
 			}
-			plan = append(plan, outgoing{snd: snd, msg: m, buttons: len(m.Buttons) > 0})
+			plan = append(plan, outgoing{snd: snd, msg: m, buttons: len(m.Buttons) > 0, fallback: fb, fbMsg: fbMsg})
 			continue
 		}
 		var key []byte
@@ -193,12 +203,19 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 	var recs []SendRecord
 	var to []string
 	var withButtons []bool
+	var fellBack []string // why the bot post failed, for each approval message that went out through its fallback
 	for _, p := range plan {
 		if ctx.Err() != nil {
 			break // not started: nothing was sent, so there is nothing to record
 		}
-		recs = append(recs, Deliver(ctx, store.NewID("sd"), p.snd, p.msg, s.now))
+		rec := Deliver(ctx, store.NewID("sd"), p.snd, p.msg, s.now)
+		recs = append(recs, rec)
 		to, withButtons = append(to, p.recipient), append(withButtons, p.buttons)
+		if p.fallback != nil && !rec.OK && ctx.Err() == nil { // the failed attempt keeps its own history row; the fallback is a second one
+			fellBack = append(fellBack, rec.Error)
+			recs = append(recs, Deliver(ctx, store.NewID("sd"), p.fallback, p.fbMsg, s.now))
+			to, withButtons = append(to, p.recipient), append(withButtons, false)
+		}
 	}
 	if len(recs) == 0 && len(skips) == 0 {
 		return nil, ctx.Err()
@@ -233,6 +250,11 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 				}
 			}
 			out = append(out, SendView{ID: r.ID, Channel: r.Channel, To: r.To, At: store.FormatTS(r.At), OK: r.OK, Error: r.Error})
+		}
+		for _, why := range fellBack {
+			if err := s.record(wctx, tx, systemUser, "notify.approval_fallback", clip(req.Title, 400), "the Slack bot post failed ("+clip(why, 200)+"); sent through the webhook without buttons"); err != nil {
+				return err
+			}
 		}
 		ob.Add(events.Event{Name: "notify.approval.requested", Data: map[string]string{"request_id": req.ID}})
 		return s.record(wctx, tx, systemUser, "notify.approval_request", clip(req.Title, 400), fmt.Sprintf("%d message(s)", len(recs)))

@@ -36,6 +36,8 @@ type handler struct {
 	*inventory.Handlers
 	*agentintake.IntakeHandlers
 	*agentintake.WazuhHandlers
+	*agentintake.AdminHandlers
+	*agentintake.InstallHandlers
 	*feeds.FeedHandlers
 	*findings.FindingHandlers
 	*mitigation.ActionHandlers
@@ -64,6 +66,8 @@ func newHandler(d deps) handler {
 		Handlers:        inventory.NewHandlers(d.Inventory),
 		IntakeHandlers:  agentintake.NewIntakeHandlers(d.AgentIntake),
 		WazuhHandlers:   agentintake.NewWazuhHandlers(d.AgentIntake),
+		AdminHandlers:   agentintake.NewAdminHandlers(d.AgentIntake),
+		InstallHandlers: agentintake.NewInstallHandlers(d.AgentIntake),
 		FeedHandlers:    feedsHandlers(d),
 
 		FindingHandlers:  d.FindingHandlers,

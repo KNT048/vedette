@@ -425,16 +425,26 @@ func (s *Service) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string,
 	if err := s.auditTx(ctx, tx, actor, "inventory.add_manual", a.entry.display, ""); err != nil {
 		return err
 	}
-	s.pendMu.Lock()
-	if s.pending == nil {
-		s.pending = map[*sql.Tx]*outbox{}
-	}
-	s.pending[tx] = &o
-	s.pendMu.Unlock()
+	s.keep(tx, &o)
 	return nil
 }
 
-// Settle ends AddManualDevice for tx: when the caller's transaction committed the events go out, when it rolled
+// keep holds o's events until Settle(tx) (AddManualDevice, SetupScope); a second call in the same transaction adds to the first.
+func (s *Service) keep(tx *sql.Tx, o *outbox) {
+	s.pendMu.Lock()
+	defer s.pendMu.Unlock()
+	if s.pending == nil {
+		s.pending = map[*sql.Tx]*outbox{}
+	}
+	if p := s.pending[tx]; p != nil {
+		p.events = append(p.events, o.events...)
+		p.after = append(p.after, o.after...)
+		return
+	}
+	s.pending[tx] = o
+}
+
+// Settle ends AddManualDevice and SetupScope for tx: when the caller's transaction committed the events go out, when it rolled
 // back they are dropped. The caller must call it once it knows which; a transaction with no pending events is
 // a no-op.
 func (s *Service) Settle(ctx context.Context, tx *sql.Tx, committed bool) {
@@ -499,6 +509,14 @@ func (s *Service) RematchAll(ctx context.Context) (int, error) {
 // RematchCVE announces inventory.match.changed for the devices that run the product of a CVE feeds has just
 // listed (feeds.vuln.new_kev). A "Multiple products" entry matches every device with software of the vendor.
 func (s *Service) RematchCVE(ctx context.Context, cve, vendor, product string) (int, error) {
+	return s.RematchCVEExcept(ctx, cve, vendor, product, nil)
+}
+
+// RematchCVEExcept is RematchCVE that leaves out the devices known says already match the CVE (D-328: a CVE whose vendor or product
+// changed is announced to the devices of its new product that have no finding for it, so a flag that changed on hundreds of entries does
+// not announce each device once per entry).
+// known returning an error is that error; nil known leaves nobody out.
+func (s *Service) RematchCVEExcept(ctx context.Context, cve, vendor, product string, known func(ctx context.Context, assetID, cve string) (bool, error)) (int, error) {
 	if s.kev == nil {
 		return 0, nil
 	}
@@ -510,8 +528,19 @@ func (s *Service) RematchCVE(ctx context.Context, cve, vendor, product string) (
 	if err != nil {
 		return 0, err
 	}
+	n := 0
 	for _, id := range ids {
+		if known != nil {
+			has, err := known(ctx, id, cve)
+			if err != nil {
+				return n, err
+			}
+			if has {
+				continue
+			}
+		}
 		s.publish(ctx, []Event{{Name: EventMatchChanged, Data: MatchEvent{AssetID: id, CVE: cve, Basis: "product"}}})
+		n++
 	}
-	return len(ids), nil
+	return n, nil
 }

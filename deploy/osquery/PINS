@@ -1,0 +1,19 @@
+# The osquery packages the core image ships to the servers of the customer (WP-26 slice 3, D-169 (10)). The core Containerfile sources this
+# file (KEY=VALUE only, no spaces, quotes or $: a test holds it to that), downloads the three files from the official release, checks each
+# against the SHA-256 below BEFORE it copies it into the image, and fails the build on any mismatch. Nothing is downloaded at run time.
+#
+# OSQUERY_VERSION is one number with OSQUERY_VERSION in web/src/features/inventory/installScripts.ts and agentintake.OsqueryVersion
+# (modules/agent-intake/install.go); TestInstall_VersionsAgree fails when they differ. To bump it: change the three together with the three
+# hashes in one commit, then `make core-image` (the build checks the hashes) and the local real-osqueryd run of
+# .ai/deferred/feat-agent-intake-osquery.md.
+#
+# Source of the hashes (2026-11-11): the three files of the official release https://github.com/osquery/osquery/releases/tag/5.12.1
+# (osquery_5.12.1-1.linux_amd64.deb 30579058 bytes, osquery-5.12.1-1.linux.x86_64.rpm 30439995 bytes, osquery-5.12.1.msi 18853888 bytes)
+# downloaded over HTTPS from github.com/osquery/osquery/releases/download/5.12.1/ and hashed with sha256sum. The release publishes no checksum
+# file and no asset digest (gh api repos/osquery/osquery/releases/tags/5.12.1: digest empty), so the same three files were also downloaded from the
+# official package site (https://pkg.osquery.io/deb/, /rpm/, /windows/) and gave the same three hashes.
+# Measured cost (2026-11-12, make core-image): the osquery layer is 79.9 MB, the whole core image 127 MB.
+OSQUERY_VERSION=5.12.1
+OSQUERY_DEB_AMD64_SHA256=051c287741d71b09184cb6bc53065cda972e3c27592b1e558696aaec9f0eb013
+OSQUERY_RPM_X86_64_SHA256=eb3dccd38dec8f92bfd8616fd24f1210486f5f02ffc9d6c016827ab668f67c08
+OSQUERY_MSI_SHA256=e9b0acfee492bd375714dc3d92d477272623b301b31a459fcc989cc6aa7dd0c0

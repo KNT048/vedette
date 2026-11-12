@@ -199889,17 +199889,27 @@ func (s *ResponseGetResponseTriggersOKItemsItemFieldsItem) encodeFields(e *jx.En
 		e.Str(s.Label)
 	}
 	{
+		e.FieldStart("max")
+		s.Max.Encode(e)
+	}
+	{
+		e.FieldStart("min")
+		s.Min.Encode(e)
+	}
+	{
 		e.FieldStart("type")
 		s.Type.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponseTriggersOKItemsItemFieldsItem = [5]string{
+var jsonFieldsNameOfResponseGetResponseTriggersOKItemsItemFieldsItem = [7]string{
 	0: "choices",
 	1: "example",
 	2: "key",
 	3: "label",
-	4: "type",
+	4: "max",
+	5: "min",
+	6: "type",
 }
 
 // Decode decodes ResponseGetResponseTriggersOKItemsItemFieldsItem from json.
@@ -199967,8 +199977,28 @@ func (s *ResponseGetResponseTriggersOKItemsItemFieldsItem) Decode(d *jx.Decoder)
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"label\"")
 			}
-		case "type":
+		case "max":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Max.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"max\"")
+			}
+		case "min":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.Min.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"min\"")
+			}
+		case "type":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Type.Decode(d); err != nil {
 					return err
@@ -199987,7 +200017,7 @@ func (s *ResponseGetResponseTriggersOKItemsItemFieldsItem) Decode(d *jx.Decoder)
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

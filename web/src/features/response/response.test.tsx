@@ -12,7 +12,7 @@ import { connectorsStore, type Connector } from '@/mocks/connectors'
 import { assetsStore, auditStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
 import { checkValues, evalCondition, resolveParam, validateTpl, verifyChain, EMPTY_TPL, PARAM_CHECK, PARAM_TYPES, TOKEN_RE } from './logic'
 import type { Role } from '@/lib/session'
-import type { ActionRequest, AiState, Blocklist, Catalog, LogEntry, PlanList, ProposeResult, Rule, RuleInput, RunSummary, SettingsView, Simulation } from './types'
+import type { ActionRequest, AiState, Blocklist, Catalog, Condition, LogEntry, PlanList, ProposeResult, Rule, RuleInput, RunSummary, SettingsView, Simulation } from './types'
 import ResponseSettings from './ResponseSettings'
 import { ActionDialog } from './CatalogEditor'
 import { RequestCard } from './RequestCard'
@@ -1537,10 +1537,10 @@ describe('response: custom action form follows the connection kind', () => {
     await userEvent.type(within(screen.getByRole('group', { name: 'Action' })).getByLabelText(L.command), 'interface {{interface}{enter}shutdown')
     await userEvent.type(within(screen.getByRole('group', { name: 'Rollback (undo)' })).getByLabelText(L.command), 'interface {{interface}{enter}no shutdown')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/needs a check before it/)
+    expect(await within(pre()).findByText(/needs a check before it/)).toBeInTheDocument() // under the group it is about (D-390)
     await userEvent.type(within(pre()).getByLabelText(L.command), 'show interfaces {{interface} switchport')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/at least one text that makes it refuse/)
+    expect(await within(pre()).findByText(/at least one text that makes it refuse/)).toBeInTheDocument()
     await userEvent.type(within(pre()).getByLabelText(REFUSE), 'Administrative Mode: trunk')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
@@ -1639,5 +1639,61 @@ describe('response: rule editor form matrix (docs/QA.md §2)', () => {
     const risky = cat.items.find((c) => c.risk !== 'low')!
     const input = { name: 'Risky', enabled: false, live: false, trigger: 'ioc_connection', match: 'all', conditions: [], actions: [{ action_id: risky.id, params: {}, ttl_min: null }], pre_approved: true, max_per_hour: 5, schedule_min: null }
     expect((await call('admin', 'POST', '/response/rules', input)).status).toBe(400)
+  })
+
+  it('a condition value must fit its field: the range or the choices of the trigger catalog (D-390)', async () => {
+    const trig = (await list<{ id: string; fields: { key: string; min: number | null; max: number | null }[] }>('viewer', '/response/triggers')).find((x) => x.id === 'ioc_connection')!
+    expect(trig.fields.find((f) => f.key === 'confidence')).toMatchObject({ min: 0, max: 1 })
+    expect(trig.fields.find((f) => f.key === 'device')).toMatchObject({ min: null, max: null })
+    const cond = (field: string, op: Condition['op'], value: string) => addRule({ conditions: [{ field, op, value, n: null, window_min: null }] })
+    for (const [field, op, value, msg] of [['confidence', 'gte', '7', 'Confidence (0 to 1): give a number from 0 to 1.'], ['confidence', 'lte', '-3', 'Confidence (0 to 1): give a number from 0 to 1.'], ['confidence', 'gte', '1e0', 'Confidence (0 to 1): give a number from 0 to 1.'],
+      ['confidence', 'in', '0.5, 2', 'Confidence (0 to 1): give numbers from 0 to 1, separated by commas.'], ['device', 'gte', '3', 'At least / at most: only for a number field.'], ['dest_kind', 'eq', 'ipv4', 'Destination kind: use one of ip, domain.']] as const) {
+      const r = await cond(field, op, value)
+      expect([r.status, r.json.error?.message], `${field} ${op} ${value}`).toEqual([400, msg])
+    }
+    expect((await cond('confidence', 'gte', '0')).status).toBe(201)
+    expect((await cond('dest_kind', 'in', 'IP, domain')).status).toBe(201)
+  })
+
+  it('form errors show under their input: the name, a confidence of 7, an empty action value; fixing one clears it (D-390)', async () => {
+    renderUi(<RuleDialog rule={null} onClose={() => undefined} />)
+    const dlg = await screen.findByRole('dialog')
+    await screen.findByRole('heading', { name: 'IF' })
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add a condition' }))
+    await pickIn('Field', 'Confidence (0 to 1)', dlg)
+    await pickIn('Test', 'is at least', dlg)
+    await userEvent.type(within(dlg).getByLabelText('Value'), '7')
+    const param = within(dlg).getByLabelText(/^Value for /)
+    await userEvent.clear(param)
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    expect(await within(dlg).findByText(/^Give a name of 1 to 80 letters/)).toBeInTheDocument()
+    expect(within(dlg).getByLabelText('Name')).toHaveAttribute('aria-invalid', 'true')
+    expect(within(dlg).getByText('Confidence (0 to 1): give a number from 0 to 1.')).toBeInTheDocument()
+    expect(within(dlg).getByLabelText('Value')).toHaveAttribute('aria-describedby', 'rc-0-error')
+    expect(within(dlg).getByText('Fill in this value.')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull() // nothing is left for the box at the bottom
+    await userEvent.clear(within(dlg).getByLabelText('Value'))
+    await userEvent.type(within(dlg).getByLabelText('Value'), '0.9')
+    expect(within(dlg).queryByText(/give a number from 0 to 1/)).toBeNull()
+    expect(within(dlg).getByText('Fill in this value.')).toBeInTheDocument()
+    expect((await list<Rule>('admin', '/response/rules')).some((r) => r.conditions.some((c) => c.value === '7'))).toBe(false)
+  })
+
+  it('a rule card asks before Delete and says when a rule is switched or a template cloned (D-390)', async () => {
+    renderApp('/response')
+    const name = (await list<Rule>('admin', '/response/rules')).find((r) => r.enabled)!.name
+    await userEvent.click(await screen.findByRole('switch', { name: `Rule ${name} is on` }))
+    expect(await screen.findByText(`Rule ${name} is off`)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: `Delete rule ${name}` }))
+    const confirm = await screen.findByRole('dialog', { name: `Delete rule ${name}?` })
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect((await list<Rule>('admin', '/response/rules')).some((r) => r.name === name)).toBe(true) // Cancel deletes nothing
+    await userEvent.click(screen.getByRole('button', { name: `Delete rule ${name}` }))
+    await userEvent.click(within(await screen.findByRole('dialog', { name: `Delete rule ${name}?` })).getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByText('Rule deleted')).toBeInTheDocument()
+    expect((await list<Rule>('admin', '/response/rules')).some((r) => r.name === name)).toBe(false)
+    await userEvent.click(screen.getAllByRole('button', { name: /^Clone / }).find((b) => !(b as HTMLButtonElement).disabled)!)
+    expect(await screen.findByText('Cloned: switched off, in dry run')).toBeInTheDocument()
   })
 })

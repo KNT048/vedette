@@ -10,7 +10,7 @@ import { RISK_PHRASE } from './contract'
 import type { StoredCat } from './data'
 import { CLI_BAN, seedCatalog } from './templates'
 import {
-  approvalToken, EMPTY_TPL, fill as fillTyped, type Transport, GENESIS, isMcp, KIND_FIELDS, kindProblem, logHashSync, needsPrecheck, oneLine, randomToken, readBackProblem, cliProblem, READ_ONLY, RUNTIME_VALUES, tplEmpty, tplParams, TOKEN_RE, validatePrecheck, validateTpl, verifyChain,
+  approvalToken, EMPTY_TPL, fill as fillTyped, type Transport, GENESIS, isMcp, KIND_FIELDS, kindProblem, logHashSync, needsPrecheck, oneLine, randomToken, readBackProblem, cliProblem, READ_ONLY, RUNTIME_VALUES, TEXT_RE, tplEmpty, tplParams, TOKEN_RE, validatePrecheck, validateTpl, verifyChain,
   type ConnKind, type ParamType, type Tpl,
 } from './logic'
 import type { ActionRequest, CatalogAction, Change, Connection, LogEntry, RequestItem, Risk, Settings, SettingsView, Trigger } from './types'
@@ -159,7 +159,6 @@ export const catView = (c: StoredCat): CatalogAction => {
   return { ...c, precheck: preOf(c), precheck_refuse: refuseOf(c), precheck_expect: expectOf(c), connection: conn?.name ?? null, connection_kind: conn?.kind ?? null, params: paramsOf(c), reversible: reversible(c), device: c.kind === 'device', available: unavailable(c) === null, unavailable_reason: unavailable(c) }
 }
 
-const TEXT_RE = /^[A-Za-z0-9 _.,:'()/-]{1,80}$/
 export { TEXT_RE }
 export interface CatErr { error: string; code: string }
 export type CatClean = { name: string; description: string; connection_id: string; tool: string | null; rollback_tool: string | null; run: Tpl; rollback: Tpl; verify: Tpl; precheck: Tpl; precheck_refuse: string[]; precheck_expect: string; risk: Risk; enabled: boolean; ai_may_propose: boolean }

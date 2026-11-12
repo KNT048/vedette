@@ -149,7 +149,7 @@ export const SettingsInput = z.object({
 })
 
 // ---- Trigger catalog ----
-export const TriggerField = z.object({ key: z.string(), label: z.string(), type: FieldType, example: z.string(), choices: z.array(z.string()) })
+export const TriggerField = z.object({ key: z.string(), label: z.string(), type: FieldType, example: z.string(), choices: z.array(z.string()), min: z.number().nullable(), max: z.number().nullable() })
 export const TriggerInfo = z.object({ id: TriggerKind, name: z.string(), description: z.string(), fields: z.array(TriggerField), ai_allowed: z.boolean() })
 export const TriggerList = z.object({ items: z.array(TriggerInfo) })
 

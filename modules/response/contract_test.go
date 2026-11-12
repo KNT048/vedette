@@ -512,6 +512,25 @@ func TestRuleIsCheckedWhenSaved(t *testing.T) {
 		"count": func(in *response.RuleInput) {
 			in.Conditions = []response.Condition{{Field: "dest_ip", Op: "count_window", Value: "", N: intp(0)}}
 		},
+		// D-390: a value outside the field's range or choices would match every event (-3) or none (7)
+		"confidence 7": func(in *response.RuleInput) {
+			in.Conditions = []response.Condition{{Field: "confidence", Op: "gte", Value: "7"}}
+		},
+		"confidence -3": func(in *response.RuleInput) {
+			in.Conditions = []response.Condition{{Field: "confidence", Op: "lte", Value: "-3"}}
+		},
+		"confidence NaN": func(in *response.RuleInput) {
+			in.Conditions = []response.Condition{{Field: "confidence", Op: "gte", Value: "NaN"}}
+		},
+		"confidence in 2": func(in *response.RuleInput) {
+			in.Conditions = []response.Condition{{Field: "confidence", Op: "in", Value: "0.5, 2"}}
+		},
+		"at least on text": func(in *response.RuleInput) {
+			in.Conditions = []response.Condition{{Field: "device", Op: "gte", Value: "3"}}
+		},
+		"choice": func(in *response.RuleInput) {
+			in.Conditions = []response.Condition{{Field: "dest_kind", Op: "eq", Value: "ipv4"}}
+		},
 	}
 	for name, mod := range bad {
 		in := base()
@@ -523,6 +542,11 @@ func TestRuleIsCheckedWhenSaved(t *testing.T) {
 	}
 	if len(mustRules(e)) != 0 {
 		t.Fatal("a refused rule was saved")
+	}
+	ok := base() // the ends of the range and a choice in another case are accepted
+	ok.Conditions = []response.Condition{{Field: "confidence", Op: "gte", Value: "0"}, {Field: "confidence", Op: "lte", Value: "1"}, {Field: "dest_kind", Op: "in", Value: "IP, domain"}}
+	if _, err := e.svc.AddRule(e.ctx(), admin, ok); err != nil {
+		t.Fatal(err)
 	}
 	// The schedule trigger needs an interval of 15 minutes to 7 days.
 	in := base()

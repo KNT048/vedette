@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/netip"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/knt048/vedette/core/apierr"
@@ -123,6 +124,14 @@ func (s *Service) loadData() error {
 		return err
 	}
 	s.triggers, s.kinds = tr.Triggers, tr.Kinds
+	for _, t := range tr.Triggers {
+		for _, f := range t.Fields { // D-390: a number or port field without a range would let any value through
+			numeric := f.Type == "number" || f.Type == "port"
+			if numeric != (f.Min != nil && f.Max != nil) || numeric && *f.Min > *f.Max {
+				return fmt.Errorf("response: triggers.json: %s.%s: a number or port field needs min <= max, other fields none", t.ID, f.Key)
+			}
+		}
+	}
 	for _, t := range tl.Templates {
 		for _, a := range t.Rule.Actions {
 			if !seen[a.ActionID] {
@@ -131,6 +140,14 @@ func (s *Service) loadData() error {
 		}
 		if t.Rule.Trigger == "" || s.trigger(t.Rule.Trigger) == nil {
 			return fmt.Errorf("response: rule-templates.json: %q has an unknown trigger", t.Name)
+		}
+		for _, c := range t.Rule.Conditions {
+			tr := s.trigger(t.Rule.Trigger)
+			if i := slices.IndexFunc(tr.Fields, func(f TriggerField) bool { return f.Key == c.Field }); i >= 0 {
+				if why := condValueProblem(tr.Fields[i], c.Op, c.Value); why != "" {
+					return fmt.Errorf("response: rule-templates.json: %q: %s", t.Name, why)
+				}
+			}
 		}
 	}
 	s.templates = tl.Templates

@@ -7,12 +7,12 @@ import { Panel, Section } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { useModules } from '@/lib/modules'
+import { useModuleAvailable } from '@/lib/modules'
 import { errText, useCatalog, useCloneTemplate, useDeleteRule, useEvents, useRules, useRunManual, useRunRules, useSaveRule, useSimulate, useTemplates, useTriggers } from './api'
 import { condText } from './logic'
 import { RiskChip } from './parts'
@@ -69,6 +69,7 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
   const cat = useCatalog()
   const trig = useTriggers()
   const [live, setLive] = useState(false)
+  const [confirmDel, setConfirmDel] = useState(false)
   const [result, setResult] = useState<Simulation | null>(null)
   const name = (id: string) => cat.data?.items.find((a) => a.id === id)?.name ?? id
   const tname = trig.data?.items.find((x) => x.id === rule.trigger)?.name ?? rule.trigger
@@ -77,7 +78,7 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-3">
           <Switch id={`rs-${rule.id}`} checked={rule.enabled} disabled={!admin || save.isPending} aria-label={t('rules.enabledLabel', { name: rule.name })}
-            onCheckedChange={(v) => save.mutate({ id: rule.id, rule: { ...toInput(rule), enabled: v } }, { onError: (e) => toast.error(errText(e)) })} />
+            onCheckedChange={(v) => save.mutate({ id: rule.id, rule: { ...toInput(rule), enabled: v } }, { onSuccess: () => toast.success(t(v ? 'rules.nowOn' : 'rules.nowOff', { name: rule.name })), onError: (e) => toast.error(errText(e)) })} />
           <h3 className="text-sm font-semibold">{rule.name}</h3>
           <Chip tone={rule.live ? 'warn' : 'off'}>{rule.live ? t('rules.live') : t('rules.dryRun')}</Chip>
           {rule.pre_approved ? <Chip tone="danger">{t('request.preApproved')}</Chip> : <Chip tone="ok">{t('rules.needsApproval')}</Chip>}
@@ -90,7 +91,7 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
             <>
               <Button size="sm" variant="ghost" onClick={() => setLive(true)} aria-label={t(rule.live ? 'rules.backToDryFor' : 'rules.goLiveFor', { name: rule.name })}>{rule.live ? t('rules.backToDry') : t('rules.goLive')}</Button>
               <Button size="sm" variant="ghost" onClick={onEdit} aria-label={t('rules.edit', { name: rule.name })}><Pencil className="size-4" aria-hidden />{t('common:edit')}</Button>
-              <Button size="sm" variant="ghost" disabled={del.isPending} aria-label={t('rules.delete', { name: rule.name })} onClick={() => del.mutate(rule.id, { onSuccess: () => toast.success(t('rules.deleted')), onError: (e) => toast.error(errText(e)) })}><Trash2 className="size-4" aria-hidden />{t('common:delete')}</Button>
+              <Button size="sm" variant="ghost" disabled={del.isPending} aria-label={t('rules.delete', { name: rule.name })} onClick={() => { del.reset(); setConfirmDel(true) }}><Trash2 className="size-4" aria-hidden />{t('common:delete')}</Button>
             </>
           ) : null}
         </div>
@@ -106,6 +107,17 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
       {rule.trigger === 'manual' ? <ManualRun rule={rule} /> : null}
       {result ? <SimResult s={result} /> : null}
       {live ? <LiveDialog rule={rule} onClose={() => setLive(false)} /> : null}
+      {confirmDel ? (
+        <Dialog open onOpenChange={(o) => { if (!o) setConfirmDel(false) }}>
+          <DialogContent title={t('rules.deleteTitle', { name: rule.name })} description={t('rules.deleteBody')}>
+            {del.error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{errText(del.error)}</p> : null}
+            <DialogFooter>
+              <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
+              <Button variant="danger" disabled={del.isPending} onClick={() => del.mutate(rule.id, { onSuccess: () => { setConfirmDel(false); toast.success(t('rules.deleted')) } })}>{t('common:delete')}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </Panel>
   )
 }
@@ -115,9 +127,9 @@ function Templates() {
   const admin = useCan('admin')
   const q = useTemplates()
   const clone = useCloneTemplate()
-  const modules = useModules().data?.modules
   // S-CORE-9 G5: a template whose trigger needs a module this install cannot run (the honeypot on a container-only install) is shown but cannot be cloned
-  const unavailable = (trigger: string) => trigger === 'honeypot' && modules?.find((m) => m.id === 'honeypot')?.available === false
+  const noHoneypot = useModuleAvailable('honeypot') === false
+  const unavailable = (trigger: string) => trigger === 'honeypot' && noHoneypot
   return (
     <Section id="templates" title={t('templates.title')} description={t('templates.description')} stories={['S-RESP-3']}>
       {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : (
@@ -147,8 +159,9 @@ function Events() {
   const operator = useCan('operator')
   const q = useEvents()
   const run = useRunRules()
+  const noHoneypot = useModuleAvailable('honeypot') === false // D-390: the text does not promise honeypot touches where there are none
   return (
-    <Section title={t('det.title')} description={t('det.description')} stories={['S-RESP-3']}
+    <Section title={t('det.title')} description={t(noHoneypot ? 'det.descriptionNoTraps' : 'det.description')} stories={['S-RESP-3']}
       actions={import.meta.env.VITE_API_MOCK !== 'off' ? <Button disabled={!operator || run.isPending} title={!operator ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
         onClick={() => run.mutate(undefined, { onSuccess: (r) => toast.success(t('det.ran', r)), onError: (e) => toast.error(errText(e)) })}>{t('det.run')}</Button> : undefined}>
       {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : q.data.items.length ? (

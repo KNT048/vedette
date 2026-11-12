@@ -30,6 +30,10 @@
 - `readonly.go` (`cliProblem`, `readBackProblem`, `normalizeOutput`, `precheckVerdict`, `readBackHolds`) + `data/cli-ban.json` (và bản mock `cli-ban.sample.json`, test lệch): đổi danh sách lệnh cấm hay luật so khớp đầu ra là đổi hợp đồng của 13b-6 (executor gọi `normalizeOutput`/`precheckVerdict`/`readBackHolds` với đầu ra thiết bị rồi bỏ đầu ra, INV-22). `normalizeOutput` phải giữ phân biệt hoa thường và không được nới lỏng so khớp.
 - `portLikeParams` (`params.go`): thêm kiểu tham số mới có thể gọi tên cổng thì thêm vào đây.
 
+## Modifying: `TriggerField{Min, Max, Choices}`, `data/triggers.json`, `condValueProblem` (D-390)
+- **GUI** (`web/src/features/response/contract.ts` `TriggerField`, `logic.ts` `condProblem`/`condValueProblem`, mock `data.ts`): form Rule kiểm cùng câu với hộp và hiện dưới ô; đổi khoảng hay câu ở Go thì đổi `logic.ts` + `data.ts` cùng commit (không có test so hai bản danh mục trigger). `api/openapi.json` + `core/api/oas` sinh lại khi đổi hình dạng trường.
+- **Quy tắc đã lưu, mẫu (`rule-templates.json`)**: thu hẹp khoảng làm mẫu vi phạm → `loadData` lỗi, hộp không khởi động; quy tắc đã lưu không bị kiểm lại tới khi được lưu lại (bật/tắt trên thẻ cũng là lưu lại).
+
 ## Modifying: `Fill(tpl, values, transport) (string, error)` / `ValidateParam(type, v)` (D-47, INV-14)
 - **Rule engine**, **Catalog editor** (kiểm mẫu khi lưu), **Simulate**, **AI proposals**: đổi tập ký tự cho phép hoặc quy tắc escape → có thể mở đường tiêm lệnh từ dữ liệu của kẻ tấn công (tên máy, tên miền). Phải chạy lại fuzz với dữ liệu trigger độc hại.
 

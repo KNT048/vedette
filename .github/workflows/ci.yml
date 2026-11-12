@@ -6,6 +6,7 @@
 #
 # Shape (D-140, D-365): `changes` decides what a run needs (scripts/ci, no third-party action);
 # go-static, go-test (4 shards, weighted by scripts/ci/testtime.tsv) and go-release run in parallel; web-verify runs the web suite.
+# go-test runs -race everywhere except on a pull request (D-371): the merge queue, which gates main, runs it with -race.
 # A push to main runs only go-test, mostly from the cache, to save main's Go test cache (the merge queue already ran every job on
 # that tree); the daily schedule runs everything twice, uncached and shuffled (-count=2 -shuffle=on), and its failed tests go to
 # the issue labelled flaky.
@@ -110,12 +111,15 @@ jobs:
             ~/go/pkg/mod
           key: go-test-${{ runner.os }}-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: go-test-${{ runner.os }}-${{ matrix.shard }}-
-      - name: go test -race, shard ${{ matrix.shard }} of 4
+      - name: go test (-race except on a pull request), shard ${{ matrix.shard }} of 4
         env:
+          # D-371: a pull request tests without the race detector (several times faster); the merge queue tests every PR with
+          # -race on the merged tree before it reaches main (D-245), and main and the daily run keep it, so the merge gate is the same.
+          RACE: ${{ github.event_name != 'pull_request' && '-race' || '' }}
           # The daily run tests everything twice, uncached, in a shuffled order, to find flaky tests (the flaky job lists them).
           # -shuffle stays off elsewhere: it is not a cacheable flag, so it would turn the test cache off (go help test).
           GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=2 -shuffle=on -timeout=40m' || '' }}
-        run: make test-go-shard SHARD=${{ matrix.shard }}
+        run: make test-go-shard SHARD=${{ matrix.shard }} RACE="$RACE"
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule')
         with:

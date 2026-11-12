@@ -298,12 +298,14 @@ var codeRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 
 // RunContext is what a running command gets to report progress.
 type RunContext struct {
-	RunID  string
-	Actor  string
-	log    func(line string)
-	prog   func(percent int)
-	after  []func(context.Context, api.Status)
-	parked []func()
+	RunID string
+	Actor string
+	// RequestID is the X-Request-Id the run was accepted with (host.self_update keeps it in its journal).
+	RequestID string
+	log       func(line string)
+	prog      func(percent int)
+	after     []func(context.Context, api.Status)
+	parked    []func()
 }
 
 // AfterFinish registers fn to run once the run is recorded as final: audit line and run file

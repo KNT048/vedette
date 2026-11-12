@@ -46,7 +46,8 @@ type Binary struct {
 	// stdout). 0 keeps the one MaxOutput limit for both streams, and either of them sets Truncated.
 	MaxStderr int64
 	// Env adds KEY=value entries after the fixed PATH and LANG. Only keys on the allowlist
-	// (DEBIAN_FRONTEND, and HOME with an absolute path) are accepted; the parent environment is never inherited.
+	// (DEBIAN_FRONTEND, HOME with an absolute path, and NEEDRESTART_MODE=l and NEEDRESTART_SUSPEND=1 with exactly
+	// those values) are accepted; the parent environment is never inherited.
 	Env []string
 }
 
@@ -112,7 +113,11 @@ func NewRunner(log *slog.Logger, bins ...Binary) (*Runner, error) {
 // scan container's nuclei (an absolute path on a tmpfs, so that no ~/.config of the image is read: D-125 (2), D-136 (5)).
 // Everything else (LD_*, LC_*, PATH, LANG, PYTHON*, ...) is refused by name,
 // so a typo or a hostile caller cannot reshape how the child loads code or localises output.
-var allowedEnv = map[string]bool{"DEBIAN_FRONTEND": true, "HOME": true}
+var allowedEnv = map[string]bool{"DEBIAN_FRONTEND": true, "HOME": true, "NEEDRESTART_MODE": true, "NEEDRESTART_SUSPEND": true}
+
+// constEnv are the keys of allowedEnv that take one value only: the applier of vedette-host's self-update runs apt and
+// dpkg with needrestart told to list, not restart, and to stay out of the way (as install.sh apt_run does, D-316).
+var constEnv = map[string]string{"NEEDRESTART_MODE": "l", "NEEDRESTART_SUSPEND": "1"}
 
 // checkEnv accepts KEY=value entries whose key is on allowedEnv, once each, without NUL.
 func checkEnv(env []string) error {
@@ -126,6 +131,8 @@ func checkEnv(env []string) error {
 			return fmt.Errorf("env value of %s contains NUL", k)
 		case k == "HOME" && (!filepath.IsAbs(v) || v == "/" || filepath.Clean(v) != v):
 			return fmt.Errorf("env value of HOME must be a clean absolute path other than /")
+		case constEnv[k] != "" && v != constEnv[k]:
+			return fmt.Errorf("env value of %s must be %s", k, constEnv[k])
 		case seen[k]:
 			return fmt.Errorf("env key %s listed twice", k)
 		}

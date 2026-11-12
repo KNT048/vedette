@@ -51,6 +51,10 @@ var prodPaths = map[string]string{
 	binIptables:  "/usr/sbin/iptables", // Ubuntu 24.04 and 26.04, Debian 13: the alternatives link, nft or legacy flavour
 	// binConntrack is conntrack-tools' conntrack (D-268): one fixed delete, conntrack.go. The Debian and Ubuntu package puts it in /usr/sbin.
 	binConntrack: "/usr/sbin/conntrack",
+	// host.self_update (D-316, spec 6.14): systemd, dpkg and dpkg-deb put them in /usr/bin on Debian and Ubuntu.
+	binSystemdRun: "/usr/bin/systemd-run",
+	binDpkgDeb:    "/usr/bin/dpkg-deb",
+	binDpkgQuery:  "/usr/bin/dpkg-query",
 }
 
 // The fixed timers of unattended security updates (spec 6.3).
@@ -90,10 +94,19 @@ func validateApt(args []string) error {
 			if !pkgNameRE.MatchString(n) {
 				return fmt.Errorf("package name %q is not valid", clipText(n, 40))
 			}
+			if isHostPkg(n) { // only the applier of host.self_update installs it (FORBID-7, D-316)
+				return errors.New("vedette-host is never upgraded by os.install")
+			}
 		}
 		return nil
 	}
 	return errors.New("not one of the fixed apt command lines")
+}
+
+// isHostPkg says whether an apt package name (with or without ":<arch>") is vedette-host.
+func isHostPkg(name string) bool {
+	base, _, _ := strings.Cut(name, ":")
+	return base == hostPkg
 }
 
 func exactly(want ...string) func([]string) error {
@@ -129,7 +142,8 @@ func isServiceUnit(u string) bool {
 
 // validateSystemctl accepts the few verbs the OS and container commands need, on fixed units only:
 // the core unit from host.conf (stop/start/is-active, for restores and health), the two apt timers,
-// reboot, daemon-reload, and restart/stop/is-active of the five vedette-<service>.service units.
+// reboot, daemon-reload, restart/stop/is-active of the five vedette-<service>.service units, and
+// is-active of the self-update's transient unit. Never anything of vedette-host.service itself (INV-27).
 func validateSystemctl(coreUnit string) func([]string) error {
 	return func(args []string) error {
 		switch {
@@ -137,7 +151,9 @@ func validateSystemctl(coreUnit string) func([]string) error {
 			return nil
 		case len(args) == 2 && (args[0] == "restart" || args[0] == "stop" || args[0] == "is-active") && isServiceUnit(args[1]):
 			return nil
-		case len(args) == 2 && coreUnit != "" && args[1] == coreUnit && (args[0] == "stop" || args[0] == "start" || args[0] == "is-active"):
+		case len(args) == 2 && coreUnit != "" && args[1] == coreUnit && args[1] != hostUnit && (args[0] == "stop" || args[0] == "start" || args[0] == "is-active"):
+			return nil
+		case slices.Equal(args, []string{"is-active", upgradeUnit}): // host.self_update: is the applier still running (D-316)
 			return nil
 		case len(args) == 2 && args[0] == "is-enabled" && slices.Contains(aptTimers, args[1]):
 			return nil
@@ -189,26 +205,30 @@ func validateNetplanGenerate(args []string) error {
 
 // newRunner builds the runner of the OS commands: PATH, LANG=C and DEBIAN_FRONTEND=noninteractive,
 // no shell. paths overrides the constant paths (tests).
-func newRunner(log logger, coreUnit string, paths map[string]string, streamLimit int64) (*vexec.Runner, error) {
-	p := func(name string) string {
-		if v, ok := paths[name]; ok {
-			return v
-		}
-		return prodPaths[name]
+func newRunner(log logger, stateDir, coreUnit string, paths map[string]string, streamLimit int64) (*vexec.Runner, error) {
+	return newCommandRunner(log, hostBinaries(stateDir, coreUnit, paths, streamLimit)...)
+}
+
+// hostBinaries are the binaries of the host's runner, with their validators (ValidateHostArgv reads the same list).
+func hostBinaries(stateDir, coreUnit string, paths map[string]string, streamLimit int64) []vexec.Binary {
+	p := func(name string) string { return pathOf(paths, name) }
+	return []vexec.Binary{
+		{Name: binAptGet, Path: p(binAptGet), Validate: validateHostApt(stateDir), MaxOutput: 16 << 20},
+		{Name: binAptConfig, Path: p(binAptConfig), Validate: exactly("dump")},
+		{Name: binDpkg, Path: p(binDpkg), Validate: exactly("--audit")},
+		{Name: binSystemctl, Path: p(binSystemctl), Validate: validateSystemctl(coreUnit)},
+		{Name: binJournal, Path: p(binJournal), Validate: validateJournal, MaxOutput: streamLimit + 1},
+		{Name: binNetplan, Path: p(binNetplan), Validate: validateNetplan},
+		{Name: binChronyc, Path: p(binChronyc), Validate: validateChronyc},
+		{Name: binIP, Path: p(binIP), Validate: validateIP, MaxOutput: 1 << 20},
+		{Name: binPodman, Path: p(binPodman), Validate: validatePodman, MaxOutput: maxInspectOutput},
+		{Name: binIptables, Path: p(binIptables), Validate: validateIptables, MaxOutput: 1 << 20},
+		{Name: binConntrack, Path: p(binConntrack), Validate: validateConntrack, MaxOutput: 1 << 16},
+		// host.self_update (D-316): the start of the applier, and the read-only looks at the staged file and dpkg.
+		{Name: binSystemdRun, Path: p(binSystemdRun), Validate: validateSystemdRun(stateDir), MaxOutput: 1 << 16},
+		{Name: binDpkgDeb, Path: p(binDpkgDeb), Validate: validateDpkgDeb(stateDir), MaxOutput: 1 << 12},
+		{Name: binDpkgQuery, Path: p(binDpkgQuery), Validate: validateDpkgQuery, MaxOutput: 1 << 12},
 	}
-	return newCommandRunner(log,
-		vexec.Binary{Name: binAptGet, Path: p(binAptGet), Validate: validateApt, MaxOutput: 16 << 20},
-		vexec.Binary{Name: binAptConfig, Path: p(binAptConfig), Validate: exactly("dump")},
-		vexec.Binary{Name: binDpkg, Path: p(binDpkg), Validate: exactly("--audit")},
-		vexec.Binary{Name: binSystemctl, Path: p(binSystemctl), Validate: validateSystemctl(coreUnit)},
-		vexec.Binary{Name: binJournal, Path: p(binJournal), Validate: validateJournal, MaxOutput: streamLimit + 1},
-		vexec.Binary{Name: binNetplan, Path: p(binNetplan), Validate: validateNetplan},
-		vexec.Binary{Name: binChronyc, Path: p(binChronyc), Validate: validateChronyc},
-		vexec.Binary{Name: binIP, Path: p(binIP), Validate: validateIP, MaxOutput: 1 << 20},
-		vexec.Binary{Name: binPodman, Path: p(binPodman), Validate: validatePodman, MaxOutput: maxInspectOutput},
-		vexec.Binary{Name: binIptables, Path: p(binIptables), Validate: validateIptables, MaxOutput: 1 << 20},
-		vexec.Binary{Name: binConntrack, Path: p(binConntrack), Validate: validateConntrack, MaxOutput: 1 << 16},
-	)
 }
 
 func clipText(s string, n int) string {

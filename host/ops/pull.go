@@ -188,14 +188,24 @@ func refusePull(err error, what string) error {
 	return refuse412(api.CodeSignatureInvalid, "The "+what+" does not verify.")
 }
 
-// verifyPull is every check of spec 6.7 that comes before a pull. It stores a newer verified index
-// (atomically) as soon as the index is accepted. It returns a *server.Refusal for each refusal and a
-// plain error for what the host itself could not do (a state file it could not write).
-func (o *Ops) verifyPull(a api.ContainerPullArgs) (*pullPlan, error) {
-	idxRaw, e1 := decodeDoc(a.Index, maxPullDoc)
-	idxSig, e2 := decodeDoc(a.IndexSig, maxPullSig)
-	manRaw, e3 := decodeDoc(a.Manifest, maxPullDoc)
-	manSig, e4 := decodeDoc(a.ManifestSig, maxPullSig)
+// releaseDocs is what verifyRelease proved: the keys it trusted, the accepted index and the manifest.
+type releaseDocs struct {
+	trust          release.Trust
+	idx            *release.Index
+	man            *release.Manifest
+	manRaw, manSig []byte
+}
+
+// verifyRelease is the part of spec 6.7 that container.pull, -bootstrap and host.self_update share (D-316
+// (1)): the index against the stored one (stored atomically as soon as it is accepted, and audited under
+// command), the manifest, its version, its hash in every channel that names it as latest, and the appliance
+// install mode. It returns a *server.Refusal for each refusal and a plain error for what the host itself
+// could not do (a state file it could not write).
+func (o *Ops) verifyRelease(command, version, index, indexSig, manifest, manifestSig string) (*releaseDocs, error) {
+	idxRaw, e1 := decodeDoc(index, maxPullDoc)
+	idxSig, e2 := decodeDoc(indexSig, maxPullSig)
+	manRaw, e3 := decodeDoc(manifest, maxPullDoc)
+	manSig, e4 := decodeDoc(manifestSig, maxPullSig)
 	if err := errors.Join(e1, e2, e3, e4); err != nil {
 		return nil, refuse412(api.CodeSignatureInvalid, "A document or signature is not valid base64.")
 	}
@@ -215,13 +225,13 @@ func (o *Ops) verifyPull(a api.ContainerPullArgs) (*pullPlan, error) {
 		if err := o.saveIndex(idxRaw, idxSig, idx); err != nil {
 			return nil, fmt.Errorf("ops: could not store the index: %w", err)
 		}
-		o.noteIndexStored(trust, stored, idx)
+		o.noteIndexStored(command, trust, stored, idx)
 	}
 	man, err := release.VerifyManifest(manRaw, manSig, trust, idx)
 	if err != nil {
 		return nil, refusePull(err, "manifest")
 	}
-	if man.Version != a.Version {
+	if man.Version != version {
 		return nil, refuse412(api.CodeManifestMismatch, "The manifest is for another version than the one asked for.")
 	}
 	// Every channel that names this version as its latest names this manifest's hash (§5.3 step 4). A
@@ -238,6 +248,18 @@ func (o *Ops) verifyPull(a api.ContainerPullArgs) (*pullPlan, error) {
 	if err := man.CheckInstallMode("appliance"); err != nil {
 		return nil, refusePull(err, "manifest")
 	}
+	return &releaseDocs{trust: trust, idx: idx, man: man, manRaw: manRaw, manSig: manSig}, nil
+}
+
+// verifyPull is every check of spec 6.7 that comes before a pull: verifyRelease, then the platform, the
+// image of the service and its cosign signature. It returns a *server.Refusal for each refusal and a plain
+// error for what the host itself could not do (a state file it could not write).
+func (o *Ops) verifyPull(a api.ContainerPullArgs) (*pullPlan, error) {
+	docs, err := o.verifyRelease(api.CmdContainerPull, a.Version, a.Index, a.IndexSig, a.Manifest, a.ManifestSig)
+	if err != nil {
+		return nil, err
+	}
+	trust, idx, man, manRaw, manSig := docs.trust, docs.idx, docs.man, docs.manRaw, docs.manSig
 	if err := man.CheckPlatform(a.Service, "linux/"+o.arch()); err != nil {
 		return nil, refusePull(err, "manifest")
 	}
@@ -262,7 +284,7 @@ func (o *Ops) verifyPull(a api.ContainerPullArgs) (*pullPlan, error) {
 // the log and an audit line with the old and new sequence, the signer, whether the backup key signed
 // it, and the revocations added and dropped (at most 16 of each are named). Check calls this, so it
 // happens even when the pull is then refused (D-130).
-func (o *Ops) noteIndexStored(trust release.Trust, old, idx *release.Index) {
+func (o *Ops) noteIndexStored(command string, trust release.Trust, old, idx *release.Index) {
 	var oldSeq uint64
 	var before []release.Revocation
 	if old != nil {
@@ -275,7 +297,7 @@ func (o *Ops) noteIndexStored(trust release.Trust, old, idx *release.Index) {
 	}
 	o.log.Warn("release index stored", "old_sequence", oldSeq, "new_sequence", idx.Sequence, "signer", idx.KeyID,
 		"backup_signed", detail["backup_signed"], "revoked_added", len(added), "revoked_dropped", len(dropped))
-	o.note(api.CmdContainerPull, "release_index_stored", detail)
+	o.note(command, "release_index_stored", detail)
 }
 
 // revocationDiff names ("kind:id") what after has and before lacks, and the reverse.

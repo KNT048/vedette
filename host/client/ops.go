@@ -95,6 +95,20 @@ func (c *Client) ContainerRollback(ctx context.Context, args api.ContainerRollba
 	return c.Run(ctx, api.CmdContainerRollback, args, requestID, actor)
 }
 
+// SelfUpdate runs host.self_update (D-316): the host upgrades its own package to the release's. The run is
+// parked while the applier works and the host restarts; reconnect and ask GET /v1/runs/{id} until it ends
+// (at most until its deadline plus 5 minutes).
+func (c *Client) SelfUpdate(ctx context.Context, args api.HostSelfUpdateArgs, requestID, actor string) (api.Run, error) {
+	return c.Run(ctx, api.CmdHostSelfUpdate, args, requestID, actor)
+}
+
+// StateHost returns GET /v1/state/host. A host older than host.self_update answers 404 unknown_command.
+func (c *Client) StateHost(ctx context.Context) (api.HostState, error) {
+	var out api.HostState
+	err := c.getJSON(ctx, "/v1/state/host", &out)
+	return out, err
+}
+
 // StateContainers returns GET /v1/state/containers.
 func (c *Client) StateContainers(ctx context.Context) (api.ContainersState, error) {
 	var out api.ContainersState

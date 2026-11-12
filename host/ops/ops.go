@@ -117,6 +117,8 @@ type Deps struct {
 	// Arch is the architecture container.pull asks the manifest for, as in "linux/<Arch>" (default
 	// runtime.GOARCH).
 	Arch string
+	// SelfExe is the running binary host.self_update copies for its applier (default /proc/self/exe).
+	SelfExe string
 }
 
 // Ops holds the state of the system commands.
@@ -274,12 +276,16 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	if d.Sleep == nil {
 		d.Sleep = sleepCtx
 	}
-	runner, err := newRunner(cfg.Logger, cfg.CoreUnit, d.BinPaths, min(d.ExportLimit, maxJournalStream))
+	if d.SelfExe == "" {
+		d.SelfExe = "/proc/self/exe"
+	}
+	runner, err := newRunner(cfg.Logger, cfg.StateDir, cfg.CoreUnit, d.BinPaths, min(d.ExportLimit, maxJournalStream))
 	if err != nil {
 		return nil, fmt.Errorf("ops: %w", err)
 	}
 	o := &Ops{cfg: cfg, d: d, log: cfg.Logger, runner: runner, installing: d.Installing}
-	for _, dir := range []string{"os", "backups", "exports", "tmp", "net", "containers", "containers/units", "releases"} {
+	for _, dir := range []string{"os", "backups", "exports", "tmp", "net", "containers", "containers/units", "releases",
+		suDirName, filepath.Join(suDirName, suStagedName), filepath.Join(suDirName, suPackagesName)} {
 		if err := privDir(filepath.Join(cfg.StateDir, dir), cfg.OwnerUID); err != nil {
 			return nil, err
 		}
@@ -307,7 +313,8 @@ func (o *Ops) Commands() []server.Command {
 // Readers are the state endpoints of this part, for server.Options.Readers.
 func (o *Ops) Readers() server.Readers {
 	return server.Readers{
-		OS: o.readOS, Backups: o.readBackups, Net: o.readNet, Containers: o.readContainers, BackupContent: o.backupContent, ExportContent: o.exportContent,
+		OS: o.readOS, Backups: o.readBackups, Net: o.readNet, Containers: o.readContainers, Host: o.readHost,
+		BackupContent: o.backupContent, ExportContent: o.exportContent,
 	}
 }
 
@@ -396,6 +403,7 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.checkCoreAtStart()
 	o.recoverRestore(ctx)
 	o.recoverTransitions(ctx) // unit changes the host died in the middle of: bytes only, the state after READY (D-105 (7), D-123)
+	o.adoptHostPackage(ctx)   // the .deb install.sh kept for the running version becomes current (D-316)
 	o.startReboot()
 	o.sweepExports()
 	o.armSweep()

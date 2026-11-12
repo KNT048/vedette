@@ -505,12 +505,23 @@ func TestNewRunnerRejectsBadEnv(t *testing.T) {
 	for _, env := range [][]string{
 		{"PATH=/evil"}, {"LANG=en_US"}, {"lower=x"}, {"NOEQUALS"}, {"DEBIAN_FRONTEND=a\x00b"}, {"DEBIAN_FRONTEND=a", "DEBIAN_FRONTEND=b"}, {"=x"},
 		{"HOME=relative"}, {"HOME=/"}, {"HOME="}, {"LD_PRELOAD=/tmp/evil.so"}, {"LD_LIBRARY_PATH=/tmp"}, {"LC_ALL=C"}, {"LC_MESSAGES=C"}, {"PYTHONPATH=/tmp"}, {"FOO=bar"}, {"BASH_ENV=/tmp/x"},
+		{"NEEDRESTART_MODE=a"}, {"NEEDRESTART_MODE="}, {"NEEDRESTART_SUSPEND=0"}, {"NEEDRESTART_SUSPEND=1", "NEEDRESTART_SUSPEND=1"},
 	} {
 		b := testBinary(t, nil, 0)
 		b.Env = env
 		if _, err := vexec.NewRunner(slog.New(slog.DiscardHandler), b); err == nil {
 			t.Errorf("Env %q was accepted", env)
 		}
+	}
+}
+
+// The two needrestart keys of vedette-host's applier (D-316) are accepted with their one value each.
+func TestNewRunnerAcceptsTheConstantNeedrestartKeys(t *testing.T) {
+	t.Parallel()
+	b := testBinary(t, nil, 0)
+	b.Env = []string{"DEBIAN_FRONTEND=noninteractive", "NEEDRESTART_MODE=l", "NEEDRESTART_SUSPEND=1"}
+	if _, err := vexec.NewRunner(slog.New(slog.DiscardHandler), b); err != nil {
+		t.Fatal(err)
 	}
 }
 

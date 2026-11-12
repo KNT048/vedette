@@ -45,15 +45,16 @@ describe('container-only install (D-381)', () => {
     // in the order that is safe: keep, minisign, cosign + the digests of vedette.env, and only then pull and up -d
     const steps = within(screen.getByRole('list')).getAllByRole('listitem').map((li) => li.querySelector('code')!.textContent!)
     expect(steps.map((c) => c.split(' ')[0])).toEqual(['mv', 'minisign', 'cosign', 'docker'])
-    expect(steps[0]).toBe('mv -n vedette.env vedette.env.old')
+    expect(steps[0]).toBe('mv -n vedette.env vedette.env.0.9.3') // named after the running release: a later update keeps its own way back
     expect(steps[1]).toBe('minisign -Vm vedette.env -p vedette.pub')
     // one line per image this install runs (not the honeypot), by the digest of the release information; no made-up URL
     const lines = screen.getByText(/^cosign verify/).textContent!.split('\n')
     expect(lines.map((l) => /vedette-(\w+)@/.exec(l)?.[1])).toEqual(['core', 'sensor', 'scan'])
     for (const l of lines) expect(l).toMatch(/^cosign verify --key cosign\.pub ghcr\.io\/knt048\/vedette-\w+@sha256:[0-9a-f]{64}$/)
-    const grep = screen.getByText(/^grep -F/).textContent!
+    const grep = screen.getByText(/^grep -cF/).textContent!
     for (const l of lines) expect(grep).toContain(`-e '${l.split(' ').at(-1)!}'`)
-    expect(screen.getByText(/it must print 3 lines/)).toBeInTheDocument()
+    expect(screen.getByText(/it must print 3, or do not go on/)).toBeInTheDocument()
+    expect(screen.getByText(/put vedette\.env\.0\.9\.3 back as vedette\.env/)).toBeInTheDocument()
     expect(screen.queryByText(/https?:\/\//)).toBeNull()
     expect(screen.queryByRole('button', { name: /Apply|Roll back|Check for releases/ })).toBeNull()
     expect(screen.queryByText(/System helper/)).toBeNull()

@@ -43,8 +43,10 @@ const REGISTRY = 'ghcr.io/knt048/vedette-'
 type Image = { service: string; digest: string }
 /** One `cosign verify` per image of the release this install runs, by the digest of its signed manifest. */
 const verifyCmd = (images: readonly Image[]) => images.map((i) => `cosign verify --key cosign.pub ${REGISTRY}${i.service}@${i.digest}`).join('\n')
-/** The image lines of the downloaded vedette.env must name those same digests: one printed line per image. */
-const matchCmd = (images: readonly Image[]) => `grep -F ${images.map((i) => `-e '${REGISTRY}${i.service}@${i.digest}'`).join(' ')} vedette.env`
+/** The image lines of the downloaded vedette.env must name those same digests: it prints how many lines do (one per image). */
+const matchCmd = (images: readonly Image[]) => `grep -cF ${images.map((i) => `-e '${REGISTRY}${i.service}@${i.digest}'`).join(' ')} vedette.env`
+/** The kept copy is named after the release it runs, so a second update never overwrites the way back (mv -n refuses). */
+const keptName = (running: string) => `vedette.env.${/^[A-Za-z0-9][A-Za-z0-9.+-]{0,63}$/.test(running) ? running : 'old'}`
 
 /**
  * Settings → Updates on a container-only install (S-CORE-9 G4, D-381): core's own update check says whether a newer
@@ -64,7 +66,7 @@ export function ContainerUpdates() {
           <Segmented label={t('container.updates.engine')} value={engine} onChange={setEngine} className="justify-self-start"
             options={[{ value: 'docker', label: 'Docker' }, { value: 'podman', label: 'Podman' }]} />
           <QueryState query={q}>{(s) => <ReleaseStatus s={s} />}</QueryState>
-          {offer ? <OfferSteps offer={offer} engine={engine} /> : !q.data && !q.error ? null : (
+          {offer ? <OfferSteps offer={offer} running={q.data?.components.find((c) => c.id === 'software')?.version ?? ''} engine={engine} /> : !q.data && !q.error ? null : (
             <>
               <CodeBlock label={t('container.updates.label')} code={forEngine(UPDATE_CMD, engine)} />
               <p className="text-[13px] text-muted">{t('container.updates.back')}</p>
@@ -100,14 +102,15 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
  * new one's minisign signature, check each image with cosign and that vedette.env names those same digests (block 2),
  * and only then copy the two local lines, pull and start (block 1).
  */
-function OfferSteps({ offer, engine }: { offer: UpdateAvailable; engine: Engine }) {
+function OfferSteps({ offer, running, engine }: { offer: UpdateAvailable; running: string; engine: Engine }) {
   const { t } = useTranslation('core')
+  const kept = keptName(running)
   const images = (offer.images ?? []).filter((i) => CONTAINER_SERVICES.includes(i.service))
   return (
     <>
       <h3 className="mt-2 text-sm font-semibold">{t('container.updates.block1', { version: offer.version })}</h3>
       <ol className="grid list-decimal gap-3 pl-5 text-sm">
-        <li className="grid gap-1.5">{t('container.updates.stepKeep')}<CodeBlock code="mv -n vedette.env vedette.env.old" /></li>
+        <li className="grid gap-1.5">{t('container.updates.stepKeep')}<CodeBlock code={`mv -n vedette.env ${kept}`} /></li>
         <li className="grid gap-1.5">{t('container.updates.stepFetch', { version: offer.version })}<CodeBlock code="minisign -Vm vedette.env -p vedette.pub" /></li>
         {images.length ? (
           <li className="grid gap-1.5">
@@ -117,9 +120,9 @@ function OfferSteps({ offer, engine }: { offer: UpdateAvailable; engine: Engine 
             <CodeBlock code={matchCmd(images)} />
           </li>
         ) : null}
-        <li className="grid gap-1.5">{t('container.updates.stepLines')}<CodeBlock code={forEngine(UPDATE_CMD, engine)} /></li>
+        <li className="grid gap-1.5">{t('container.updates.stepLines', { kept })}<CodeBlock code={forEngine(UPDATE_CMD, engine)} /></li>
       </ol>
-      <p className="text-[13px] text-muted">{t('container.updates.back')}</p>
+      <p className="text-[13px] text-muted">{t('container.updates.backOffer', { kept })}</p>
     </>
   )
 }

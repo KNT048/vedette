@@ -186,7 +186,7 @@ export const useRestoreRun = () => useQuery({ queryKey: ['core', 'restore-run'],
 export const useRestore = () => {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (v: { backup_id: string; confirm_data_loss: true }) => api.post<RestoreRun>('/core/data/restore', v),
+    mutationFn: (v: { backup_id: string; confirm_data_loss: true; password: string; code?: string }) => api.post<RestoreRun>('/core/data/restore', v),
     onSuccess: (r) => { qc.setQueryData(['core', 'restore-run'], r); void qc.invalidateQueries({ queryKey: ['core', 'backups'] }) },
   })
 }

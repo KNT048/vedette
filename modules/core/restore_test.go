@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/auth/authtest"
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/modules/core"
 )
@@ -21,6 +22,7 @@ type restoreHost struct {
 	runs    []api.Run // newest first
 	snap    string    // the snapshot named by the last backup.restore
 	calls   int
+	lists   int      // ListRuns calls
 	end     *api.Run // when set, backup.restore answers this run as already ended
 }
 
@@ -46,6 +48,7 @@ func (f *restoreHost) BackupRestore(_ context.Context, _, snap, rid, actor strin
 func (f *restoreHost) ListRuns(context.Context, int) ([]api.Run, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.lists++
 	return slices.Clone(f.runs), nil
 }
 
@@ -101,9 +104,9 @@ func TestRestoreListsTheHostsBackups(t *testing.T) {
 func TestRestoreNeedsTheConfirmationAndAKnownBackup(t *testing.T) {
 	t.Parallel()
 	e, f := newRestoreEnv(t)
-	wantStatus(t, e.admin.post("/core/data/restore", map[string]any{"backup_id": "aaaa0000aaaa0000aaaa0000aaaa0000"}), 409, "confirm_required")
-	wantStatus(t, e.admin.post("/core/data/restore", map[string]any{"backup_id": "aaaa0000aaaa0000aaaa0000aaaa0000", "confirm_data_loss": false}), 409, "confirm_required")
-	wantStatus(t, e.admin.post("/core/data/restore", map[string]any{"backup_id": "ffff0000ffff0000ffff0000ffff0000", "confirm_data_loss": true}), 404, "backup_unknown")
+	wantStatus(t, e.admin.post("/core/data/restore", map[string]any{"backup_id": "aaaa0000aaaa0000aaaa0000aaaa0000", "password": authtest.Password}), 409, "confirm_required")
+	wantStatus(t, e.admin.post("/core/data/restore", map[string]any{"backup_id": "aaaa0000aaaa0000aaaa0000aaaa0000", "confirm_data_loss": false, "password": authtest.Password}), 409, "confirm_required")
+	wantStatus(t, e.admin.post("/core/data/restore", map[string]any{"backup_id": "ffff0000ffff0000ffff0000ffff0000", "confirm_data_loss": true, "password": authtest.Password}), 404, "backup_unknown")
 	if f.calls != 0 || len(e.snapshotDirs()) != 0 || e.count("data.restore") != 0 {
 		t.Fatalf("calls=%d snapshots=%v actions=%v", f.calls, e.snapshotDirs(), e.actions())
 	}
@@ -117,7 +120,7 @@ func TestRestoreNeedsTheConfirmationAndAKnownBackup(t *testing.T) {
 func TestRestoreTakesASnapshotAndSettlesOnce(t *testing.T) {
 	t.Parallel()
 	e, f := newRestoreEnv(t)
-	r := e.admin.post("/core/data/restore", map[string]any{"backup_id": "bbbb0000bbbb0000bbbb0000bbbb0000", "confirm_data_loss": true})
+	r := e.admin.post("/core/data/restore", map[string]any{"backup_id": "bbbb0000bbbb0000bbbb0000bbbb0000", "confirm_data_loss": true, "password": authtest.Password})
 	wantOK(t, r, 202)
 	if r.str("status") != "running" || r.str("backup_id") != "bbbb0000bbbb0000bbbb0000bbbb0000" || r.str("user") != "admin@acme.example" || r.str("backup_created_at") != "2026-11-08T09:00:00Z" {
 		t.Fatalf("accepted = %s", r.Raw)
@@ -125,7 +128,7 @@ func TestRestoreTakesASnapshotAndSettlesOnce(t *testing.T) {
 	if dirs := e.snapshotDirs(); len(dirs) != 1 || dirs[0] != f.snap {
 		t.Fatalf("snapshots = %v, host got %q", dirs, f.snap)
 	}
-	wantStatus(t, e.admin.post("/core/data/restore", map[string]any{"backup_id": "bbbb0000bbbb0000bbbb0000bbbb0000", "confirm_data_loss": true}), 409, "busy")
+	wantStatus(t, e.admin.post("/core/data/restore", map[string]any{"backup_id": "bbbb0000bbbb0000bbbb0000bbbb0000", "confirm_data_loss": true, "password": authtest.Password}), 409, "busy")
 	f.finish(api.StatusReverted, api.BackupRestoreResult{RestoredBackupID: "bbbb0000bbbb0000bbbb0000bbbb0000", PreRestoreBackupID: "dddd0000dddd0000dddd0000dddd0000"}, api.CodeRestoreHealthFailed)
 	e.newHandlers(t, f, 0) // core comes back: the host holds the end
 	got := e.admin.get("/core/data/restore/run")
@@ -156,4 +159,41 @@ func TestRestoreIntoADatabaseThatForgotTheRun(t *testing.T) {
 		t.Fatalf("run = %s", got.Raw)
 	}
 	eventuallyOS(t, "one audit row of the end", func() bool { return e.count("data.restore_done") == 1 })
+}
+
+// Restore asks for the current password like Delete all data: a wrong one is 400 wrong_password and reaches nothing.
+func TestRestoreNeedsTheCurrentPassword(t *testing.T) {
+	t.Parallel()
+	e, f := newRestoreEnv(t)
+	wantStatus(t, e.admin.post("/core/data/restore", map[string]any{"backup_id": "aaaa0000aaaa0000aaaa0000aaaa0000", "confirm_data_loss": true, "password": "wrong"}), 400, "wrong_password")
+	if f.calls != 0 || len(e.snapshotDirs()) != 0 || e.count("data.restore") != 0 {
+		t.Fatalf("calls=%d snapshots=%v actions=%v", f.calls, e.snapshotDirs(), e.actions())
+	}
+}
+
+// Polling reads share one host run list for a few seconds; a copy that says running for a run the host no longer
+// lists, long after the run's own limit, is settled as failed instead of a 409 busy for ever.
+func TestRestoreReadsShareTheRunListAndALostRunEnds(t *testing.T) {
+	t.Parallel()
+	e, f := newRestoreEnv(t)
+	wantOK(t, e.admin.post("/core/data/restore", map[string]any{"backup_id": "bbbb0000bbbb0000bbbb0000bbbb0000", "confirm_data_loss": true, "password": authtest.Password}), 202)
+	f.mu.Lock()
+	f.runs, f.lists = nil, 0 // the host forgot the run
+	f.mu.Unlock()
+	for range 3 {
+		if r := e.admin.get("/core/data/restore/run"); r.str("status") != "running" {
+			t.Fatalf("before the limit = %s", r.Raw)
+		}
+	}
+	if f.lists != 1 {
+		t.Errorf("three reads within the cache time made %d host calls, want 1", f.lists)
+	}
+	e.clock.Advance(36 * time.Minute)
+	r := e.admin.get("/core/data/restore/run")
+	if r.str("status") != "failed" || r.str("error") == "" || f.lists != 2 {
+		t.Fatalf("after the limit = %s (lists %d)", r.Raw, f.lists)
+	}
+	if e.count("data.restore_done") != 1 {
+		t.Errorf("actions = %v", e.actions())
+	}
 }

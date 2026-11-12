@@ -30,6 +30,10 @@ const (
 	keyRestore     = "data.restore"
 	restoreTimeout = 35 * time.Minute // backup.restore's own limit is 30 minutes
 	codeConfirmReq = "confirm_required"
+	codeRunLost    = "run_lost" // core's copy says running but the host's recent runs have no such restore
+	// restoreRunsTTL is how long the host's run list answers the restore reads: the page polls while a restore
+	// runs, and every open tab must not spend the host's 60 requests a minute (as stateTTL for the OS state).
+	restoreRunsTTL = 5 * time.Second
 )
 
 // restoreRec is core_setting data.restore. Status is empty while the run is going.
@@ -97,6 +101,8 @@ func restoreReason(ctx context.Context, h *OSHandlers, e *api.RunError) string {
 	switch code {
 	case api.CodeRestoreHealthFailed, "":
 		return "The restored data did not start correctly, so the box put back the data it had before. Nothing was lost."
+	case codeRunLost:
+		return "The box has no record of how this restore ended. Check the list of backups and the box log."
 	case "restore_revert_failed":
 		return "The restored data did not start and the box could not put back the data it had before. The copy from before the restore is still in the list of backups; see the RUNBOOK (restore a backup)."
 	}
@@ -165,6 +171,18 @@ func (h *OSHandlers) CorePostCoreDataRestore(ctx context.Context, req *oas.CoreP
 		return nil, mapHostCode(ctx, h.log, api.CodeBackupUnknown, "", 0)
 	}
 	b := bl.Backups[i]
+	// Step-up as for Delete all data (D-76, D-98, D-154): the current password, counted against the re-auth limiter, then a
+	// fresh two-step code when it is on.
+	if err := h.auth.VerifyOwnPassword(ctx, c.ID, req.Password, "Wrong password. The password is needed to restore a backup."); err != nil {
+		return nil, err
+	}
+	if u, err := h.auth.GetUser(ctx, c.ID); err != nil {
+		return nil, fmt.Errorf("core: read user: %w", err)
+	} else if u.TwofaMethod != "" {
+		if _, err := h.auth.VerifyTwoStep(ctx, c.ID, req.Code.Or(""), "core.data_restore", "Restore the backup from "+b.CreatedAt.UTC().Format("2006-01-02 15:04")+" UTC"); err != nil {
+			return nil, err
+		}
+	}
 
 	var snap snapshot
 	var run api.Run
@@ -191,8 +209,8 @@ func (h *OSHandlers) CorePostCoreDataRestore(ctx context.Context, req *oas.CoreP
 		return nil, err
 	}
 	rec := &restoreRec{RunID: run.RunID, BackupID: b.BackupID, BackupCreatedAt: b.CreatedAt, User: c.Email, StartedAt: run.StartedAt, Snapshot: snap.ID}
-	wctx := context.WithoutCancel(ctx)
-	if err := h.db.Write(wctx, func(tx *sql.Tx) error { return h.putSetting(wctx, tx, keyRestore, rec, c.Email) }); err != nil {
+	h.dropRestoreRuns()
+	if err := h.storeStarted(context.WithoutCancel(ctx), rec); err != nil {
 		h.log.ErrorContext(ctx, "core: could not store the restore run", "run", run.RunID, "error", err) // the host holds the record
 	}
 	h.wg.Add(1)
@@ -245,13 +263,24 @@ func (h *OSHandlers) restoreLatest(ctx context.Context) (*restoreRec, error) {
 	if rec != nil && rec.Status != "" && h.restoreSynced.Load() {
 		return rec, nil
 	}
-	runs, err := h.host.ListRuns(ctx, listRunsWindow)
+	runs, err := h.restoreRuns(ctx)
 	if err != nil {
 		return nil, hostErr(ctx, h.log, err)
 	}
 	h.restoreSynced.Store(true)
+	if rec != nil && rec.Status == "" && h.now().Sub(rec.StartedAt) > restoreTimeout && !slices.ContainsFunc(runs, func(r api.Run) bool { return r.RunID == rec.RunID }) {
+		// core's copy says running, the run's own limit is long past and the host's recent runs do not have it: settle it
+		// as lost, never a 409 busy for ever. (Not sooner: a list read just before the host took the run must not end it.)
+		lost := api.Run{RunID: rec.RunID, Command: api.CmdBackupRestore, Status: api.StatusFailed, StartedAt: rec.StartedAt, Error: &api.RunError{Code: codeRunLost}}
+		if err := h.settleRestore(ctx, lost); err != nil {
+			return nil, err
+		}
+		if rec, err = h.loadRestore(ctx); err != nil {
+			return nil, err
+		}
+	}
 	i := slices.IndexFunc(runs, func(r api.Run) bool { return r.Command == api.CmdBackupRestore }) // newest first
-	if i < 0 {
+	if i < 0 || (rec != nil && rec.RunID != runs[i].RunID && rec.StartedAt.After(runs[i].StartedAt)) {
 		return rec, nil
 	}
 	run := runs[i]
@@ -266,6 +295,44 @@ func (h *OSHandlers) restoreLatest(ctx context.Context) (*restoreRec, error) {
 	}
 	rec.Status = ""
 	return rec, nil
+}
+
+// restoreRuns is the host's recent runs, shared for restoreRunsTTL.
+func (h *OSHandlers) restoreRuns(ctx context.Context) ([]api.Run, error) {
+	h.rrMu.Lock()
+	defer h.rrMu.Unlock()
+	if h.rrRuns != nil && h.now().Sub(h.rrAt) < restoreRunsTTL {
+		return h.rrRuns, nil
+	}
+	runs, err := h.host.ListRuns(ctx, listRunsWindow)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // the caller maps it with hostErr
+	}
+	if runs == nil {
+		runs = []api.Run{}
+	}
+	h.rrRuns, h.rrAt = runs, h.now()
+	return runs, nil
+}
+
+// dropRestoreRuns forgets the shared run list: a restore just started.
+func (h *OSHandlers) dropRestoreRuns() {
+	h.rrMu.Lock()
+	h.rrRuns = nil
+	h.rrMu.Unlock()
+}
+
+// storeStarted writes the copy of a run just started, unless this database already settled that run (a read
+// may have seen it end first): one data.restore_done, never a settled copy turned back into a running one.
+func (h *OSHandlers) storeStarted(ctx context.Context, rec *restoreRec) error {
+	h.restoreMu.Lock()
+	defer h.restoreMu.Unlock()
+	if cur, err := h.loadRestore(ctx); err != nil {
+		return err
+	} else if cur != nil && cur.RunID == rec.RunID && cur.Status != "" {
+		return nil
+	}
+	return h.db.Write(ctx, func(tx *sql.Tx) error { return h.putSetting(ctx, tx, keyRestore, rec, rec.User) })
 }
 
 // followRestore waits for a restore run to end and settles it. Core is stopped by a restore that gets that far:

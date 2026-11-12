@@ -12931,8 +12931,10 @@ func (s *Server) handleCorePostCoreDataPurgeRequest(args [0]string, argsEscaped 
 //
 // Restore a backup kept on this box (D-377): core first takes a copy of the current data, kept as a
 // pre_restore backup, and the helper puts it back by itself when the restored data does not start. 409
-// confirm_required without confirm_data_loss: true; 404 backup_unknown; 409 busy, low_disk,
-// schema_newer, not_appliance; 412 secrets_missing; 502 checksum_mismatch.
+// confirm_required without confirm_data_loss: true; 404 backup_unknown; then the current password (400
+// wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a
+// fresh code (400 code_required / invalid_code), as for the purge; 409 busy, low_disk, schema_newer,
+// not_appliance; 412 secrets_missing; 502 checksum_mismatch.
 //
 // POST /core/data/restore
 func (s *Server) handleCorePostCoreDataRestoreRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -13016,7 +13018,7 @@ func (s *Server) handleCorePostCoreDataRestoreRequest(args [0]string, argsEscape
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostCoreDataRestoreOperation,
-			OperationSummary: "Restore a backup kept on this box (D-377): core first takes a copy of the current data, kept as a pre_restore backup, and the helper puts it back by itself when the restored data does not start. 409 confirm_required without confirm_data_loss: true; 404 backup_unknown; 409 busy, low_disk, schema_newer, not_appliance; 412 secrets_missing; 502 checksum_mismatch",
+			OperationSummary: "Restore a backup kept on this box (D-377): core first takes a copy of the current data, kept as a pre_restore backup, and the helper puts it back by itself when the restored data does not start. 409 confirm_required without confirm_data_loss: true; 404 backup_unknown; then the current password (400 wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required / invalid_code), as for the purge; 409 busy, low_disk, schema_newer, not_appliance; 412 secrets_missing; 502 checksum_mismatch",
 			OperationID:      "core_post_core_data_restore",
 			Body:             request,
 			RawBody:          rawBody,

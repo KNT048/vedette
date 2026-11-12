@@ -61,7 +61,10 @@ type OSHandlers struct {
 
 	restoreMu     sync.Mutex  // one settle of a restore run at a time (restore.go)
 	restoreSynced atomic.Bool // this process has asked the host for the latest restore once
-	started       time.Time   // wall clock at start: snapshots older than this are an earlier process's (removeBefore)
+	rrMu          sync.Mutex  // guards rrRuns and rrAt
+	rrRuns        []api.Run   // the host's recent runs as restoreRuns last read them; nil = none
+	rrAt          time.Time
+	started       time.Time // wall clock at start: snapshots older than this are an earlier process's (removeBefore)
 
 	dlMu   sync.Mutex // one backup download at a time: held from the busy check until backup.create ends
 	lastDL time.Time  // when the last download started its snapshot; guarded by dlMu

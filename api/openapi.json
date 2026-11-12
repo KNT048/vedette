@@ -9107,7 +9107,7 @@
     "/core/data/restore": {
       "post": {
         "operationId": "core_post_core_data_restore",
-        "summary": "Restore a backup kept on this box (D-377): core first takes a copy of the current data, kept as a pre_restore backup, and the helper puts it back by itself when the restored data does not start. 409 confirm_required without confirm_data_loss: true; 404 backup_unknown; 409 busy, low_disk, schema_newer, not_appliance; 412 secrets_missing; 502 checksum_mismatch",
+        "summary": "Restore a backup kept on this box (D-377): core first takes a copy of the current data, kept as a pre_restore backup, and the helper puts it back by itself when the restored data does not start. 409 confirm_required without confirm_data_loss: true; 404 backup_unknown; then the current password (400 wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required / invalid_code), as for the purge; 409 busy, low_disk, schema_newer, not_appliance; 412 secrets_missing; 502 checksum_mismatch",
         "tags": [
           "core"
         ],
@@ -9128,10 +9128,17 @@
                   "confirm_data_loss": {
                     "description": "Required (true): everything written since the backup is replaced",
                     "type": "boolean"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string"
                   }
                 },
                 "required": [
-                  "backup_id"
+                  "backup_id",
+                  "password"
                 ],
                 "additionalProperties": false
               }

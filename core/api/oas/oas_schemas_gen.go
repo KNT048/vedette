@@ -23795,9 +23795,11 @@ func (s *CorePostCoreDataRestoreAcceptedStatus) UnmarshalText(data []byte) error
 }
 
 type CorePostCoreDataRestoreReq struct {
-	BackupID string `json:"backup_id"`
+	BackupID string    `json:"backup_id"`
+	Code     OptString `json:"code"`
 	// Required (true): everything written since the backup is replaced.
 	ConfirmDataLoss OptBool `json:"confirm_data_loss"`
+	Password        string  `json:"password"`
 }
 
 // GetBackupID returns the value of BackupID.
@@ -23805,9 +23807,19 @@ func (s *CorePostCoreDataRestoreReq) GetBackupID() string {
 	return s.BackupID
 }
 
+// GetCode returns the value of Code.
+func (s *CorePostCoreDataRestoreReq) GetCode() OptString {
+	return s.Code
+}
+
 // GetConfirmDataLoss returns the value of ConfirmDataLoss.
 func (s *CorePostCoreDataRestoreReq) GetConfirmDataLoss() OptBool {
 	return s.ConfirmDataLoss
+}
+
+// GetPassword returns the value of Password.
+func (s *CorePostCoreDataRestoreReq) GetPassword() string {
+	return s.Password
 }
 
 // SetBackupID sets the value of BackupID.
@@ -23815,9 +23827,19 @@ func (s *CorePostCoreDataRestoreReq) SetBackupID(val string) {
 	s.BackupID = val
 }
 
+// SetCode sets the value of Code.
+func (s *CorePostCoreDataRestoreReq) SetCode(val OptString) {
+	s.Code = val
+}
+
 // SetConfirmDataLoss sets the value of ConfirmDataLoss.
 func (s *CorePostCoreDataRestoreReq) SetConfirmDataLoss(val OptBool) {
 	s.ConfirmDataLoss = val
+}
+
+// SetPassword sets the value of Password.
+func (s *CorePostCoreDataRestoreReq) SetPassword(val string) {
+	s.Password = val
 }
 
 type CorePostCoreMcpTokensCreated struct {

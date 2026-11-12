@@ -48042,16 +48042,28 @@ func (s *CorePostCoreDataRestoreReq) encodeFields(e *jx.Encoder) {
 		e.Str(s.BackupID)
 	}
 	{
+		if s.Code.Set {
+			e.FieldStart("code")
+			s.Code.Encode(e)
+		}
+	}
+	{
 		if s.ConfirmDataLoss.Set {
 			e.FieldStart("confirm_data_loss")
 			s.ConfirmDataLoss.Encode(e)
 		}
 	}
+	{
+		e.FieldStart("password")
+		e.Str(s.Password)
+	}
 }
 
-var jsonFieldsNameOfCorePostCoreDataRestoreReq = [2]string{
+var jsonFieldsNameOfCorePostCoreDataRestoreReq = [4]string{
 	0: "backup_id",
-	1: "confirm_data_loss",
+	1: "code",
+	2: "confirm_data_loss",
+	3: "password",
 }
 
 // Decode decodes CorePostCoreDataRestoreReq from json.
@@ -48075,6 +48087,16 @@ func (s *CorePostCoreDataRestoreReq) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"backup_id\"")
 			}
+		case "code":
+			if err := func() error {
+				s.Code.Reset()
+				if err := s.Code.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"code\"")
+			}
 		case "confirm_data_loss":
 			if err := func() error {
 				s.ConfirmDataLoss.Reset()
@@ -48084,6 +48106,18 @@ func (s *CorePostCoreDataRestoreReq) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"confirm_data_loss\"")
+			}
+		case "password":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Password = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"password\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -48095,7 +48129,7 @@ func (s *CorePostCoreDataRestoreReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000001,
+		0b00001001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

@@ -153,20 +153,26 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
   const list = useBoxBackups()
   const run = useRestoreRun().data
   const restore = useRestore()
+  const me = useMe().data
   const [pick, setPick] = useState<BoxBackup | null>(null)
   const [sure, setSure] = useState(false)
+  const [password, setPassword] = useState('')
+  const [code, setCode] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const running = run?.status === 'running'
 
   async function doRestore() {
     if (!pick) return
     setErr(null)
-    try { await restore.mutateAsync({ backup_id: pick.id, confirm_data_loss: true }); setPick(null) } catch (e) { setErr(errMsg(e, t)) }
+    try { await restore.mutateAsync({ backup_id: pick.id, confirm_data_loss: true, password, ...(code.trim() ? { code: code.trim() } : {}) }); setPick(null) } catch (e) { setErr(errMsg(e, t)) }
   }
 
   if (list.isError) return <p role="alert" className="text-sm text-danger">{errMsg(list.error, t)}</p>
   const rows = list.data?.backups ?? []
   const when = run ? fmtDateTime(run.backup_created_at) : ''
+  // The helper keeps the newest 3 automatic (pre_*) copies; the Before restore copy is one more, so with 3 already the oldest goes.
+  const auto = rows.filter((b) => b.kind !== 'manual')
+  const pushedOut = auto.length >= 3 ? auto[auto.length - 1] : undefined
   return (
     <div className="grid gap-3">
       {run ? (
@@ -185,7 +191,7 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
                 <td>{t(`data.restore.kind.${b.kind}`)}</td>
                 <td>{(b.size / 1e6).toFixed(1)} MB</td>
                 <td>{b.includes_key ? t('data.restore.withKey') : t('data.restore.withoutKey')}</td>
-                <td className="text-right"><Button disabled={disabled || running} title={title} onClick={() => { setErr(null); setSure(false); setPick(b) }}>{t('data.restore.button')}</Button></td>
+                <td className="text-right"><Button disabled={disabled || running} title={title} onClick={() => { setErr(null); setSure(false); setPassword(''); setCode(''); setPick(b) }}>{t('data.restore.button')}</Button></td>
               </tr>
             ))}
           </tbody>
@@ -193,7 +199,19 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
       ) : null}
       <Dialog open={pick !== null} onOpenChange={(o) => { if (!o) setPick(null) }}>
         <DialogContent title={t('data.restore.ask.title', { when: pick ? fmtDateTime(pick.created_at) : '' })} description={t('data.restore.ask.lost')}>
-          <ul className="list-disc pl-5 text-sm"><li>{t('data.restore.ask.kept')}</li><li>{t('data.restore.ask.restart')}</li></ul>
+          <ul className="list-disc pl-5 text-sm">
+            <li>{t('data.restore.ask.kept')}</li>
+            <li>{t('data.restore.ask.retention')}{pushedOut ? ' ' + t('data.restore.ask.pushesOut', { kind: t(`data.restore.kind.${pushedOut.kind}`), when: fmtDateTime(pushedOut.created_at) }) : ''}</li>
+            <li>{t('data.restore.ask.restart')}</li>
+          </ul>
+          <Field label={t('data.restore.ask.password')} htmlFor="restore-password">
+            <Input id="restore-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </Field>
+          {me?.twofa ? (
+            <Field label={t('data.restore.ask.code')} htmlFor="restore-code" hint={me.twofa_method === 'email' ? t('data.purge.ask.codeEmail') : t('data.purge.ask.codeApp')}>
+              <Input id="restore-code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />
+            </Field>
+          ) : null}
           <div className="flex items-center gap-2">
             <Checkbox id="restore-sure" checked={sure} onCheckedChange={(on) => setSure(on === true)} />
             <Label htmlFor="restore-sure">{t('data.restore.ask.understand')}</Label>
@@ -201,7 +219,7 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
           {err ? <p role="alert" className="text-sm text-danger">{err}</p> : null}
           <DialogFooter>
             <Button onClick={() => setPick(null)}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={!sure || restore.isPending} onClick={() => void doRestore()}>{t('data.restore.ask.confirm')}</Button>
+            <Button variant="danger" disabled={!sure || !password || restore.isPending} onClick={() => void doRestore()}>{t('data.restore.ask.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

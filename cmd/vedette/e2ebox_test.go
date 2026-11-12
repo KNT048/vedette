@@ -254,8 +254,8 @@ const e2eKEV = `{"title":"E2E catalog","catalogVersion":"2026.11.11","dateReleas
 // loopback address from the real network (a custom feed pointed at a 127.0.0.1 fake, feeds.spec.ts), and refuses every other address at
 // once, so EPSS and the IOC lists fail fast. Without this the box pulled the public feeds at start: ~80 MB written in one transaction that
 // held the database writer for ~13 s, so the first sign-ins, the first-run setup and the first user created after the start stalled past
-// the 8 s expect timeout, and what the specs saw depended on the network. The returned func puts the client back (the package var is
-// shared with the other tests of this package, which never run while this one does: it is not parallel).
+// the 8 s expect timeout, and what the specs saw depended on the network. TestMain calls it once for the whole package and never puts
+// the client back, so the package var is written before any test runs and never after; the returned func of a later call only counts.
 func e2eOffline() func() {
 	e2eOfflineMu.Lock()
 	defer e2eOfflineMu.Unlock()

@@ -1,0 +1,4 @@
+# Deferred: fix/host-test-timing (D-373: host tests independent of machine speed)
+
+- [ ] 2026-11-12 — Two negative checks still wait a short real time for something that must NOT happen: `host/server/awaiting_test.go` (50 ms, "AfterFinish ran twice") and `host/server/awaiting_hardening_test.go` (2 s, a WhileAwaiting write on a path already reported as a bug). They cannot go red falsely (a slow machine can only miss a real double call); a deterministic version needs a count of AfterFinish calls the server exposes to tests — vì sao để sau: product hook — ở đâu: host/server/awaiting.go, the two tests.
+- [ ] 2026-11-12 — `ops.stateLockWait` (product) makes the two bootstrap lock tests in modules/host wait its full retry (~2 s each) on a lock that is really held; a Deps knob would cut it — vì sao để sau: product code + Opus, about 4 s of test time — ở đâu: host/ops/bootstrap.go LockState, modules/host/contract_bootstrap2_test.go.

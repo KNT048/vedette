@@ -243,7 +243,7 @@ func TestNetStateNeverBlocksOnAFIFOAtTheNetplanName(t *testing.T) {
 	go func() { defer close(done); readState(t, o) }()
 	select {
 	case <-done:
-	case <-time.After(10 * time.Second):
+	case <-time.After(HangBound):
 		t.Fatal("state/net blocked on a FIFO")
 	}
 	if _, st := o.readNetplanFile("etc/netplan"); st != netplanBroken {

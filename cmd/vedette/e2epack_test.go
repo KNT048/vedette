@@ -34,7 +34,7 @@ func e2ePackRoutes(mux *http.ServeMux, dbPath string) {
 			return
 		}
 		_, here, _, _ := runtime.Caller(0)
-		raw, err := os.ReadFile(filepath.Join(filepath.Dir(here), "..", "..", "content", "mitigation", "testdata", "CVE-2022-27593.json")) //nolint:gosec // a fixed file of the repository
+		raw, err := os.ReadFile(filepath.Join(filepath.Dir(here), "..", "..", "content", "mitigation", "testdata", "CVE-2022-27593.json"))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

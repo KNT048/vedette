@@ -21,7 +21,8 @@ func newSensorPassive(d deps) (*sensorpassive.Service, error) {
 	if d.Inventory != nil {
 		sink = d.Inventory
 	}
-	cfg := sensorpassive.Config{DB: d.DB, Audit: d.Audit, Sink: sink, Host: netHost{box: d.Network}, Clock: d.Clock, Log: d.Log, Version: version}
+	// Name: the box's name (#471), not the container's; Cached never asks the host (ensureSensor runs on every batch, beat and GET).
+	cfg := sensorpassive.Config{DB: d.DB, Audit: d.Audit, Sink: sink, Host: netHost{box: d.Network}, Clock: d.Clock, Log: d.Log, Version: version, Name: d.BoxName.Cached}
 	if d.Reg != nil { // SYS-5: asked again under the lock of a batch, after the listener let it in
 		cfg.Enabled = func() bool { return d.Reg.Enabled("sensor-passive") }
 	}

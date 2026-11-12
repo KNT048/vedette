@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/api/routes"
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/chain"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
@@ -521,8 +522,28 @@ func TestRuleIsCheckedWhenSaved(t *testing.T) {
 			t.Errorf("%s: %v (%d %s), want 400 invalid", name, err, s, c)
 		}
 	}
+	// D-390: a value outside the field's range or choices would match every event (-3) or none (7); the words are the GUI's (logic.ts)
+	conf := "Confidence (0 to 1): give a number from 0 to 1."
+	for _, c := range []struct{ field, op, value, msg string }{
+		{"confidence", "gte", "7", conf}, {"confidence", "lte", "-3", conf}, {"confidence", "gte", "NaN", "At least / at most: give a number."},
+		{"confidence", "gte", "0.5 ", "At least / at most: give a number."}, {"confidence", "gte", "0x1", "At least / at most: give a number."},
+		{"confidence", "in", "0.5, 2", "Confidence (0 to 1): give numbers from 0 to 1, separated by commas."}, {"confidence", "eq", "", conf},
+		{"device", "gte", "3", "At least / at most: only for a number field."}, {"dest_kind", "eq", "ipv4", "Destination kind: use one of ip, domain."},
+	} {
+		in := base()
+		in.Conditions = []response.Condition{{Field: c.field, Op: c.op, Value: c.value}}
+		_, err := e.svc.AddRule(e.ctx(), admin, in)
+		if ae, ok := apierr.As(err); !ok || ae.Status != 400 || ae.Message != c.msg {
+			t.Errorf("%s %s %q: %v, want 400 %q", c.field, c.op, c.value, err, c.msg)
+		}
+	}
 	if len(mustRules(e)) != 0 {
 		t.Fatal("a refused rule was saved")
+	}
+	ok := base() // the ends of the range and a choice in another case are accepted
+	ok.Conditions = []response.Condition{{Field: "confidence", Op: "gte", Value: "0"}, {Field: "confidence", Op: "lte", Value: "1"}, {Field: "dest_kind", Op: "in", Value: "IP, domain"}}
+	if _, err := e.svc.AddRule(e.ctx(), admin, ok); err != nil {
+		t.Fatal(err)
 	}
 	// The schedule trigger needs an interval of 15 minutes to 7 days.
 	in := base()

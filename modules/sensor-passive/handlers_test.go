@@ -34,6 +34,15 @@ func TestSensorsHandler(t *testing.T) {
 	if err != nil || len(out.Sensors[0].Interfaces) != 2 || string(out.Sensors[0].Status) != "online" || out.Sensors[0].Version.Value != "1.0.0" {
 		t.Errorf("after the heartbeat: %+v %v", out.Sensors, err)
 	}
+	// The display name follows Config.Name (the box's name, #471): a new name is written to the same row, nothing else changes; an
+	// empty one is "vedette".
+	for _, c := range []struct{ give, want string }{{"office-box", "office-box"}, {"", "vedette"}} {
+		e.name.Store(&c.give)
+		out, err = sp.NewSensorHandlers(e.svc).InventoryGetInventorySensors(t.Context())
+		if err != nil || len(out.Sensors) != 1 || out.Sensors[0].ID != sp.SensorID || out.Sensors[0].Name != c.want || string(out.Sensors[0].Status) != "online" {
+			t.Errorf("name %q: %+v %v", c.give, out.Sensors, err)
+		}
+	}
 }
 
 // PATCH /inventory/sensors/{id} (D-387): without a host the SPAN card is chosen among the heartbeat's cards, a refusal is a

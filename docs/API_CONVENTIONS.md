@@ -478,7 +478,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
-| `misdirected_request` | 421 | This address is not one Vedette answers to. Open it with the name or address it was set up with. | mọi yêu cầu có tiêu đề `Host` ngoài danh sách cho phép (cờ `-hosts`, mặc định tên loopback và tên trong chứng chỉ), trả **trước** khi định tuyến, kể cả đường dẫn ngoài `/api/v1`. Mã mới của backend [ĐX]: chống DNS rebinding |
+| `misdirected_request` | 421 | This address is not one Vedette answers to. Open it with the name or address it was set up with. | mọi yêu cầu có tiêu đề `Host` ngoài danh sách cho phép (cờ `-hosts`, mặc định tên loopback và tên trong chứng chỉ; với chứng chỉ tự ký chỉ địa chỉ, tên một nhãn và tên đuôi `.local`/`.lan`/`.home.arpa`/`.internal`), trả **trước** khi định tuyến, kể cả đường dẫn ngoài `/api/v1`. Mã mới của backend [ĐX]: chống DNS rebinding |
 
 #### HTTP 422 (2 mã)
 

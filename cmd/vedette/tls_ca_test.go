@@ -83,7 +83,7 @@ func ensureCert(t *testing.T, certPath, keyPath string, hosts []string) error {
 // testTransport is transport with the test CA of the database's directory.
 func testTransport(t *testing.T, o options) (*tls.Config, []string, bool, *selfSignedRenewer, error) {
 	t.Helper()
-	return transport(t.Context(), o, testCA(t, filepath.Dir(o.db)))
+	return transport(t.Context(), o, testCA(t, filepath.Dir(o.db)), nil)
 }
 
 // caPEM is the certificate of the store's current CA, PEM.
@@ -419,7 +419,7 @@ func TestBoxCARestoreKeepsTheCA(t *testing.T) {
 	_, _ = rand.Read(key)
 	oldDir, oldDB := t.TempDir(), filepath.Join(t.TempDir(), "vedette.db")
 	old := newTestCAStore(t, oldDB, key, oldDir)
-	if _, _, _, _, err := transport(t.Context(), options{db: filepath.Join(oldDir, "vedette.db"), listen: "0.0.0.0:8443", hosts: "box.acme.example"}, old); err != nil {
+	if _, _, _, _, err := transport(t.Context(), options{db: filepath.Join(oldDir, "vedette.db"), listen: "0.0.0.0:8443", hosts: "box.acme.example"}, old, nil); err != nil {
 		t.Fatal(err)
 	}
 	pinned := caPEM(t, old)
@@ -430,7 +430,7 @@ func TestBoxCARestoreKeepsTheCA(t *testing.T) {
 	}
 	newDir := t.TempDir()
 	restored := newTestCAStore(t, backup, key, newDir)
-	_, _, _, renew, err := transport(t.Context(), options{db: filepath.Join(newDir, "vedette.db"), listen: "0.0.0.0:8443", hosts: "box.acme.example"}, restored)
+	_, _, _, renew, err := transport(t.Context(), options{db: filepath.Join(newDir, "vedette.db"), listen: "0.0.0.0:8443", hosts: "box.acme.example"}, restored, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

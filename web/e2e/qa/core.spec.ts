@@ -234,7 +234,7 @@ test.describe('sign-in and two-step', () => {
     // D-76: turning two-step on needs the current password, as turning it off does
     await page.getByLabel('Your current password').fill('wrong')
     await page.getByRole('button', { name: 'Set up authenticator app' }).click()
-    await expect(page.getByText(/The password is needed to turn on two-factor authentication/)).toBeVisible()
+    await expect(page.getByText(/The password is needed to turn on two-step sign-in/)).toBeVisible()
     await page.getByLabel('Your current password').fill(SAMPLE.password)
     await page.getByRole('button', { name: 'Set up authenticator app' }).click()
     const key = (await page.getByLabel('Manual key').innerText()).trim()

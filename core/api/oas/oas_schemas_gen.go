@@ -15825,6 +15825,13 @@ type CoreGetCoreUpdatesOK struct {
 	Mode    CoreGetCoreUpdatesOKMode          `json:"mode"`
 	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCoreGetCoreUpdatesOKRun `json:"run"`
+	// The newest stored update information withdraws the release this box runs (update-manifest §8,
+	// D-386); null otherwise.
+	RunningRevoked NilCoreGetCoreUpdatesOKRunningRevoked `json:"running_revoked"`
+	// The stored update information ran out at this time (its expires_at has passed; update-manifest
+	// §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or
+	// none is stored. Never blocks Apply, Rollback or a bundle.
+	StaleSince NilDateTime `json:"stale_since"`
 }
 
 // GetAdvisories returns the value of Advisories.
@@ -15877,6 +15884,16 @@ func (s *CoreGetCoreUpdatesOK) GetRun() NilCoreGetCoreUpdatesOKRun {
 	return s.Run
 }
 
+// GetRunningRevoked returns the value of RunningRevoked.
+func (s *CoreGetCoreUpdatesOK) GetRunningRevoked() NilCoreGetCoreUpdatesOKRunningRevoked {
+	return s.RunningRevoked
+}
+
+// GetStaleSince returns the value of StaleSince.
+func (s *CoreGetCoreUpdatesOK) GetStaleSince() NilDateTime {
+	return s.StaleSince
+}
+
 // SetAdvisories sets the value of Advisories.
 func (s *CoreGetCoreUpdatesOK) SetAdvisories(val []CoreGetCoreUpdatesOKAdvisoriesItem) {
 	s.Advisories = val
@@ -15925,6 +15942,16 @@ func (s *CoreGetCoreUpdatesOK) SetMode(val CoreGetCoreUpdatesOKMode) {
 // SetRun sets the value of Run.
 func (s *CoreGetCoreUpdatesOK) SetRun(val NilCoreGetCoreUpdatesOKRun) {
 	s.Run = val
+}
+
+// SetRunningRevoked sets the value of RunningRevoked.
+func (s *CoreGetCoreUpdatesOK) SetRunningRevoked(val NilCoreGetCoreUpdatesOKRunningRevoked) {
+	s.RunningRevoked = val
+}
+
+// SetStaleSince sets the value of StaleSince.
+func (s *CoreGetCoreUpdatesOK) SetStaleSince(val NilDateTime) {
+	s.StaleSince = val
 }
 
 type CoreGetCoreUpdatesOKAdvisoriesItem struct {
@@ -17055,6 +17082,107 @@ func (s *CoreGetCoreUpdatesOKRunStepsItem) UnmarshalText(data []byte) error {
 		return nil
 	case CoreGetCoreUpdatesOKRunStepsItemRestart:
 		*s = CoreGetCoreUpdatesOKRunStepsItemRestart
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CoreGetCoreUpdatesOKRunningRevoked struct {
+	// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
+	// every page (D-386).
+	Action CoreGetCoreUpdatesOKRunningRevokedAction `json:"action"`
+	// Short English reason signed by the Vedette project.
+	Reason string    `json:"reason"`
+	Since  time.Time `json:"since"`
+	// The running release.
+	Version string `json:"version"`
+}
+
+// GetAction returns the value of Action.
+func (s *CoreGetCoreUpdatesOKRunningRevoked) GetAction() CoreGetCoreUpdatesOKRunningRevokedAction {
+	return s.Action
+}
+
+// GetReason returns the value of Reason.
+func (s *CoreGetCoreUpdatesOKRunningRevoked) GetReason() string {
+	return s.Reason
+}
+
+// GetSince returns the value of Since.
+func (s *CoreGetCoreUpdatesOKRunningRevoked) GetSince() time.Time {
+	return s.Since
+}
+
+// GetVersion returns the value of Version.
+func (s *CoreGetCoreUpdatesOKRunningRevoked) GetVersion() string {
+	return s.Version
+}
+
+// SetAction sets the value of Action.
+func (s *CoreGetCoreUpdatesOKRunningRevoked) SetAction(val CoreGetCoreUpdatesOKRunningRevokedAction) {
+	s.Action = val
+}
+
+// SetReason sets the value of Reason.
+func (s *CoreGetCoreUpdatesOKRunningRevoked) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetSince sets the value of Since.
+func (s *CoreGetCoreUpdatesOKRunningRevoked) SetSince(val time.Time) {
+	s.Since = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CoreGetCoreUpdatesOKRunningRevoked) SetVersion(val string) {
+	s.Version = val
+}
+
+// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
+// every page (D-386).
+type CoreGetCoreUpdatesOKRunningRevokedAction string
+
+const (
+	CoreGetCoreUpdatesOKRunningRevokedActionBlockInstall        CoreGetCoreUpdatesOKRunningRevokedAction = "block_install"
+	CoreGetCoreUpdatesOKRunningRevokedActionBlockInstallAndWarn CoreGetCoreUpdatesOKRunningRevokedAction = "block_install_and_warn"
+	CoreGetCoreUpdatesOKRunningRevokedActionRollbackIfPossible  CoreGetCoreUpdatesOKRunningRevokedAction = "rollback_if_possible"
+)
+
+// AllValues returns all CoreGetCoreUpdatesOKRunningRevokedAction values.
+func (CoreGetCoreUpdatesOKRunningRevokedAction) AllValues() []CoreGetCoreUpdatesOKRunningRevokedAction {
+	return []CoreGetCoreUpdatesOKRunningRevokedAction{
+		CoreGetCoreUpdatesOKRunningRevokedActionBlockInstall,
+		CoreGetCoreUpdatesOKRunningRevokedActionBlockInstallAndWarn,
+		CoreGetCoreUpdatesOKRunningRevokedActionRollbackIfPossible,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreUpdatesOKRunningRevokedAction) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreUpdatesOKRunningRevokedActionBlockInstall:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOKRunningRevokedActionBlockInstallAndWarn:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOKRunningRevokedActionRollbackIfPossible:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreUpdatesOKRunningRevokedAction) UnmarshalText(data []byte) error {
+	switch CoreGetCoreUpdatesOKRunningRevokedAction(data) {
+	case CoreGetCoreUpdatesOKRunningRevokedActionBlockInstall:
+		*s = CoreGetCoreUpdatesOKRunningRevokedActionBlockInstall
+		return nil
+	case CoreGetCoreUpdatesOKRunningRevokedActionBlockInstallAndWarn:
+		*s = CoreGetCoreUpdatesOKRunningRevokedActionBlockInstallAndWarn
+		return nil
+	case CoreGetCoreUpdatesOKRunningRevokedActionRollbackIfPossible:
+		*s = CoreGetCoreUpdatesOKRunningRevokedActionRollbackIfPossible
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -19052,6 +19180,13 @@ type CorePatchCoreUpdatesOK struct {
 	Mode    CorePatchCoreUpdatesOKMode          `json:"mode"`
 	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCorePatchCoreUpdatesOKRun `json:"run"`
+	// The newest stored update information withdraws the release this box runs (update-manifest §8,
+	// D-386); null otherwise.
+	RunningRevoked NilCorePatchCoreUpdatesOKRunningRevoked `json:"running_revoked"`
+	// The stored update information ran out at this time (its expires_at has passed; update-manifest
+	// §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or
+	// none is stored. Never blocks Apply, Rollback or a bundle.
+	StaleSince NilDateTime `json:"stale_since"`
 }
 
 // GetAdvisories returns the value of Advisories.
@@ -19104,6 +19239,16 @@ func (s *CorePatchCoreUpdatesOK) GetRun() NilCorePatchCoreUpdatesOKRun {
 	return s.Run
 }
 
+// GetRunningRevoked returns the value of RunningRevoked.
+func (s *CorePatchCoreUpdatesOK) GetRunningRevoked() NilCorePatchCoreUpdatesOKRunningRevoked {
+	return s.RunningRevoked
+}
+
+// GetStaleSince returns the value of StaleSince.
+func (s *CorePatchCoreUpdatesOK) GetStaleSince() NilDateTime {
+	return s.StaleSince
+}
+
 // SetAdvisories sets the value of Advisories.
 func (s *CorePatchCoreUpdatesOK) SetAdvisories(val []CorePatchCoreUpdatesOKAdvisoriesItem) {
 	s.Advisories = val
@@ -19152,6 +19297,16 @@ func (s *CorePatchCoreUpdatesOK) SetMode(val CorePatchCoreUpdatesOKMode) {
 // SetRun sets the value of Run.
 func (s *CorePatchCoreUpdatesOK) SetRun(val NilCorePatchCoreUpdatesOKRun) {
 	s.Run = val
+}
+
+// SetRunningRevoked sets the value of RunningRevoked.
+func (s *CorePatchCoreUpdatesOK) SetRunningRevoked(val NilCorePatchCoreUpdatesOKRunningRevoked) {
+	s.RunningRevoked = val
+}
+
+// SetStaleSince sets the value of StaleSince.
+func (s *CorePatchCoreUpdatesOK) SetStaleSince(val NilDateTime) {
+	s.StaleSince = val
 }
 
 type CorePatchCoreUpdatesOKAdvisoriesItem struct {
@@ -20282,6 +20437,107 @@ func (s *CorePatchCoreUpdatesOKRunStepsItem) UnmarshalText(data []byte) error {
 		return nil
 	case CorePatchCoreUpdatesOKRunStepsItemRestart:
 		*s = CorePatchCoreUpdatesOKRunStepsItemRestart
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePatchCoreUpdatesOKRunningRevoked struct {
+	// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
+	// every page (D-386).
+	Action CorePatchCoreUpdatesOKRunningRevokedAction `json:"action"`
+	// Short English reason signed by the Vedette project.
+	Reason string    `json:"reason"`
+	Since  time.Time `json:"since"`
+	// The running release.
+	Version string `json:"version"`
+}
+
+// GetAction returns the value of Action.
+func (s *CorePatchCoreUpdatesOKRunningRevoked) GetAction() CorePatchCoreUpdatesOKRunningRevokedAction {
+	return s.Action
+}
+
+// GetReason returns the value of Reason.
+func (s *CorePatchCoreUpdatesOKRunningRevoked) GetReason() string {
+	return s.Reason
+}
+
+// GetSince returns the value of Since.
+func (s *CorePatchCoreUpdatesOKRunningRevoked) GetSince() time.Time {
+	return s.Since
+}
+
+// GetVersion returns the value of Version.
+func (s *CorePatchCoreUpdatesOKRunningRevoked) GetVersion() string {
+	return s.Version
+}
+
+// SetAction sets the value of Action.
+func (s *CorePatchCoreUpdatesOKRunningRevoked) SetAction(val CorePatchCoreUpdatesOKRunningRevokedAction) {
+	s.Action = val
+}
+
+// SetReason sets the value of Reason.
+func (s *CorePatchCoreUpdatesOKRunningRevoked) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetSince sets the value of Since.
+func (s *CorePatchCoreUpdatesOKRunningRevoked) SetSince(val time.Time) {
+	s.Since = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CorePatchCoreUpdatesOKRunningRevoked) SetVersion(val string) {
+	s.Version = val
+}
+
+// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
+// every page (D-386).
+type CorePatchCoreUpdatesOKRunningRevokedAction string
+
+const (
+	CorePatchCoreUpdatesOKRunningRevokedActionBlockInstall        CorePatchCoreUpdatesOKRunningRevokedAction = "block_install"
+	CorePatchCoreUpdatesOKRunningRevokedActionBlockInstallAndWarn CorePatchCoreUpdatesOKRunningRevokedAction = "block_install_and_warn"
+	CorePatchCoreUpdatesOKRunningRevokedActionRollbackIfPossible  CorePatchCoreUpdatesOKRunningRevokedAction = "rollback_if_possible"
+)
+
+// AllValues returns all CorePatchCoreUpdatesOKRunningRevokedAction values.
+func (CorePatchCoreUpdatesOKRunningRevokedAction) AllValues() []CorePatchCoreUpdatesOKRunningRevokedAction {
+	return []CorePatchCoreUpdatesOKRunningRevokedAction{
+		CorePatchCoreUpdatesOKRunningRevokedActionBlockInstall,
+		CorePatchCoreUpdatesOKRunningRevokedActionBlockInstallAndWarn,
+		CorePatchCoreUpdatesOKRunningRevokedActionRollbackIfPossible,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePatchCoreUpdatesOKRunningRevokedAction) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePatchCoreUpdatesOKRunningRevokedActionBlockInstall:
+		return []byte(s), nil
+	case CorePatchCoreUpdatesOKRunningRevokedActionBlockInstallAndWarn:
+		return []byte(s), nil
+	case CorePatchCoreUpdatesOKRunningRevokedActionRollbackIfPossible:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePatchCoreUpdatesOKRunningRevokedAction) UnmarshalText(data []byte) error {
+	switch CorePatchCoreUpdatesOKRunningRevokedAction(data) {
+	case CorePatchCoreUpdatesOKRunningRevokedActionBlockInstall:
+		*s = CorePatchCoreUpdatesOKRunningRevokedActionBlockInstall
+		return nil
+	case CorePatchCoreUpdatesOKRunningRevokedActionBlockInstallAndWarn:
+		*s = CorePatchCoreUpdatesOKRunningRevokedActionBlockInstallAndWarn
+		return nil
+	case CorePatchCoreUpdatesOKRunningRevokedActionRollbackIfPossible:
+		*s = CorePatchCoreUpdatesOKRunningRevokedActionRollbackIfPossible
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -26198,6 +26454,13 @@ type CorePostCoreUpdatesApplyOK struct {
 	Mode    CorePostCoreUpdatesApplyOKMode          `json:"mode"`
 	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCorePostCoreUpdatesApplyOKRun `json:"run"`
+	// The newest stored update information withdraws the release this box runs (update-manifest §8,
+	// D-386); null otherwise.
+	RunningRevoked NilCorePostCoreUpdatesApplyOKRunningRevoked `json:"running_revoked"`
+	// The stored update information ran out at this time (its expires_at has passed; update-manifest
+	// §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or
+	// none is stored. Never blocks Apply, Rollback or a bundle.
+	StaleSince NilDateTime `json:"stale_since"`
 }
 
 // GetAdvisories returns the value of Advisories.
@@ -26250,6 +26513,16 @@ func (s *CorePostCoreUpdatesApplyOK) GetRun() NilCorePostCoreUpdatesApplyOKRun {
 	return s.Run
 }
 
+// GetRunningRevoked returns the value of RunningRevoked.
+func (s *CorePostCoreUpdatesApplyOK) GetRunningRevoked() NilCorePostCoreUpdatesApplyOKRunningRevoked {
+	return s.RunningRevoked
+}
+
+// GetStaleSince returns the value of StaleSince.
+func (s *CorePostCoreUpdatesApplyOK) GetStaleSince() NilDateTime {
+	return s.StaleSince
+}
+
 // SetAdvisories sets the value of Advisories.
 func (s *CorePostCoreUpdatesApplyOK) SetAdvisories(val []CorePostCoreUpdatesApplyOKAdvisoriesItem) {
 	s.Advisories = val
@@ -26298,6 +26571,16 @@ func (s *CorePostCoreUpdatesApplyOK) SetMode(val CorePostCoreUpdatesApplyOKMode)
 // SetRun sets the value of Run.
 func (s *CorePostCoreUpdatesApplyOK) SetRun(val NilCorePostCoreUpdatesApplyOKRun) {
 	s.Run = val
+}
+
+// SetRunningRevoked sets the value of RunningRevoked.
+func (s *CorePostCoreUpdatesApplyOK) SetRunningRevoked(val NilCorePostCoreUpdatesApplyOKRunningRevoked) {
+	s.RunningRevoked = val
+}
+
+// SetStaleSince sets the value of StaleSince.
+func (s *CorePostCoreUpdatesApplyOK) SetStaleSince(val NilDateTime) {
+	s.StaleSince = val
 }
 
 type CorePostCoreUpdatesApplyOKAdvisoriesItem struct {
@@ -27434,6 +27717,107 @@ func (s *CorePostCoreUpdatesApplyOKRunStepsItem) UnmarshalText(data []byte) erro
 	}
 }
 
+type CorePostCoreUpdatesApplyOKRunningRevoked struct {
+	// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
+	// every page (D-386).
+	Action CorePostCoreUpdatesApplyOKRunningRevokedAction `json:"action"`
+	// Short English reason signed by the Vedette project.
+	Reason string    `json:"reason"`
+	Since  time.Time `json:"since"`
+	// The running release.
+	Version string `json:"version"`
+}
+
+// GetAction returns the value of Action.
+func (s *CorePostCoreUpdatesApplyOKRunningRevoked) GetAction() CorePostCoreUpdatesApplyOKRunningRevokedAction {
+	return s.Action
+}
+
+// GetReason returns the value of Reason.
+func (s *CorePostCoreUpdatesApplyOKRunningRevoked) GetReason() string {
+	return s.Reason
+}
+
+// GetSince returns the value of Since.
+func (s *CorePostCoreUpdatesApplyOKRunningRevoked) GetSince() time.Time {
+	return s.Since
+}
+
+// GetVersion returns the value of Version.
+func (s *CorePostCoreUpdatesApplyOKRunningRevoked) GetVersion() string {
+	return s.Version
+}
+
+// SetAction sets the value of Action.
+func (s *CorePostCoreUpdatesApplyOKRunningRevoked) SetAction(val CorePostCoreUpdatesApplyOKRunningRevokedAction) {
+	s.Action = val
+}
+
+// SetReason sets the value of Reason.
+func (s *CorePostCoreUpdatesApplyOKRunningRevoked) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetSince sets the value of Since.
+func (s *CorePostCoreUpdatesApplyOKRunningRevoked) SetSince(val time.Time) {
+	s.Since = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CorePostCoreUpdatesApplyOKRunningRevoked) SetVersion(val string) {
+	s.Version = val
+}
+
+// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
+// every page (D-386).
+type CorePostCoreUpdatesApplyOKRunningRevokedAction string
+
+const (
+	CorePostCoreUpdatesApplyOKRunningRevokedActionBlockInstall        CorePostCoreUpdatesApplyOKRunningRevokedAction = "block_install"
+	CorePostCoreUpdatesApplyOKRunningRevokedActionBlockInstallAndWarn CorePostCoreUpdatesApplyOKRunningRevokedAction = "block_install_and_warn"
+	CorePostCoreUpdatesApplyOKRunningRevokedActionRollbackIfPossible  CorePostCoreUpdatesApplyOKRunningRevokedAction = "rollback_if_possible"
+)
+
+// AllValues returns all CorePostCoreUpdatesApplyOKRunningRevokedAction values.
+func (CorePostCoreUpdatesApplyOKRunningRevokedAction) AllValues() []CorePostCoreUpdatesApplyOKRunningRevokedAction {
+	return []CorePostCoreUpdatesApplyOKRunningRevokedAction{
+		CorePostCoreUpdatesApplyOKRunningRevokedActionBlockInstall,
+		CorePostCoreUpdatesApplyOKRunningRevokedActionBlockInstallAndWarn,
+		CorePostCoreUpdatesApplyOKRunningRevokedActionRollbackIfPossible,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesApplyOKRunningRevokedAction) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesApplyOKRunningRevokedActionBlockInstall:
+		return []byte(s), nil
+	case CorePostCoreUpdatesApplyOKRunningRevokedActionBlockInstallAndWarn:
+		return []byte(s), nil
+	case CorePostCoreUpdatesApplyOKRunningRevokedActionRollbackIfPossible:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesApplyOKRunningRevokedAction) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesApplyOKRunningRevokedAction(data) {
+	case CorePostCoreUpdatesApplyOKRunningRevokedActionBlockInstall:
+		*s = CorePostCoreUpdatesApplyOKRunningRevokedActionBlockInstall
+		return nil
+	case CorePostCoreUpdatesApplyOKRunningRevokedActionBlockInstallAndWarn:
+		*s = CorePostCoreUpdatesApplyOKRunningRevokedActionBlockInstallAndWarn
+		return nil
+	case CorePostCoreUpdatesApplyOKRunningRevokedActionRollbackIfPossible:
+		*s = CorePostCoreUpdatesApplyOKRunningRevokedActionRollbackIfPossible
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CorePostCoreUpdatesApplyReq struct {
 	Component string `json:"component"`
 }
@@ -27488,6 +27872,13 @@ type CorePostCoreUpdatesBundleOKState struct {
 	Mode    CorePostCoreUpdatesBundleOKStateMode          `json:"mode"`
 	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCorePostCoreUpdatesBundleOKStateRun `json:"run"`
+	// The newest stored update information withdraws the release this box runs (update-manifest §8,
+	// D-386); null otherwise.
+	RunningRevoked NilCorePostCoreUpdatesBundleOKStateRunningRevoked `json:"running_revoked"`
+	// The stored update information ran out at this time (its expires_at has passed; update-manifest
+	// §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or
+	// none is stored. Never blocks Apply, Rollback or a bundle.
+	StaleSince NilDateTime `json:"stale_since"`
 }
 
 // GetAdvisories returns the value of Advisories.
@@ -27540,6 +27931,16 @@ func (s *CorePostCoreUpdatesBundleOKState) GetRun() NilCorePostCoreUpdatesBundle
 	return s.Run
 }
 
+// GetRunningRevoked returns the value of RunningRevoked.
+func (s *CorePostCoreUpdatesBundleOKState) GetRunningRevoked() NilCorePostCoreUpdatesBundleOKStateRunningRevoked {
+	return s.RunningRevoked
+}
+
+// GetStaleSince returns the value of StaleSince.
+func (s *CorePostCoreUpdatesBundleOKState) GetStaleSince() NilDateTime {
+	return s.StaleSince
+}
+
 // SetAdvisories sets the value of Advisories.
 func (s *CorePostCoreUpdatesBundleOKState) SetAdvisories(val []CorePostCoreUpdatesBundleOKStateAdvisoriesItem) {
 	s.Advisories = val
@@ -27588,6 +27989,16 @@ func (s *CorePostCoreUpdatesBundleOKState) SetMode(val CorePostCoreUpdatesBundle
 // SetRun sets the value of Run.
 func (s *CorePostCoreUpdatesBundleOKState) SetRun(val NilCorePostCoreUpdatesBundleOKStateRun) {
 	s.Run = val
+}
+
+// SetRunningRevoked sets the value of RunningRevoked.
+func (s *CorePostCoreUpdatesBundleOKState) SetRunningRevoked(val NilCorePostCoreUpdatesBundleOKStateRunningRevoked) {
+	s.RunningRevoked = val
+}
+
+// SetStaleSince sets the value of StaleSince.
+func (s *CorePostCoreUpdatesBundleOKState) SetStaleSince(val NilDateTime) {
+	s.StaleSince = val
 }
 
 type CorePostCoreUpdatesBundleOKStateAdvisoriesItem struct {
@@ -28724,6 +29135,107 @@ func (s *CorePostCoreUpdatesBundleOKStateRunStepsItem) UnmarshalText(data []byte
 	}
 }
 
+type CorePostCoreUpdatesBundleOKStateRunningRevoked struct {
+	// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
+	// every page (D-386).
+	Action CorePostCoreUpdatesBundleOKStateRunningRevokedAction `json:"action"`
+	// Short English reason signed by the Vedette project.
+	Reason string    `json:"reason"`
+	Since  time.Time `json:"since"`
+	// The running release.
+	Version string `json:"version"`
+}
+
+// GetAction returns the value of Action.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevoked) GetAction() CorePostCoreUpdatesBundleOKStateRunningRevokedAction {
+	return s.Action
+}
+
+// GetReason returns the value of Reason.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevoked) GetReason() string {
+	return s.Reason
+}
+
+// GetSince returns the value of Since.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevoked) GetSince() time.Time {
+	return s.Since
+}
+
+// GetVersion returns the value of Version.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevoked) GetVersion() string {
+	return s.Version
+}
+
+// SetAction sets the value of Action.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevoked) SetAction(val CorePostCoreUpdatesBundleOKStateRunningRevokedAction) {
+	s.Action = val
+}
+
+// SetReason sets the value of Reason.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevoked) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetSince sets the value of Since.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevoked) SetSince(val time.Time) {
+	s.Since = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevoked) SetVersion(val string) {
+	s.Version = val
+}
+
+// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
+// every page (D-386).
+type CorePostCoreUpdatesBundleOKStateRunningRevokedAction string
+
+const (
+	CorePostCoreUpdatesBundleOKStateRunningRevokedActionBlockInstall        CorePostCoreUpdatesBundleOKStateRunningRevokedAction = "block_install"
+	CorePostCoreUpdatesBundleOKStateRunningRevokedActionBlockInstallAndWarn CorePostCoreUpdatesBundleOKStateRunningRevokedAction = "block_install_and_warn"
+	CorePostCoreUpdatesBundleOKStateRunningRevokedActionRollbackIfPossible  CorePostCoreUpdatesBundleOKStateRunningRevokedAction = "rollback_if_possible"
+)
+
+// AllValues returns all CorePostCoreUpdatesBundleOKStateRunningRevokedAction values.
+func (CorePostCoreUpdatesBundleOKStateRunningRevokedAction) AllValues() []CorePostCoreUpdatesBundleOKStateRunningRevokedAction {
+	return []CorePostCoreUpdatesBundleOKStateRunningRevokedAction{
+		CorePostCoreUpdatesBundleOKStateRunningRevokedActionBlockInstall,
+		CorePostCoreUpdatesBundleOKStateRunningRevokedActionBlockInstallAndWarn,
+		CorePostCoreUpdatesBundleOKStateRunningRevokedActionRollbackIfPossible,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesBundleOKStateRunningRevokedAction) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesBundleOKStateRunningRevokedActionBlockInstall:
+		return []byte(s), nil
+	case CorePostCoreUpdatesBundleOKStateRunningRevokedActionBlockInstallAndWarn:
+		return []byte(s), nil
+	case CorePostCoreUpdatesBundleOKStateRunningRevokedActionRollbackIfPossible:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevokedAction) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesBundleOKStateRunningRevokedAction(data) {
+	case CorePostCoreUpdatesBundleOKStateRunningRevokedActionBlockInstall:
+		*s = CorePostCoreUpdatesBundleOKStateRunningRevokedActionBlockInstall
+		return nil
+	case CorePostCoreUpdatesBundleOKStateRunningRevokedActionBlockInstallAndWarn:
+		*s = CorePostCoreUpdatesBundleOKStateRunningRevokedActionBlockInstallAndWarn
+		return nil
+	case CorePostCoreUpdatesBundleOKStateRunningRevokedActionRollbackIfPossible:
+		*s = CorePostCoreUpdatesBundleOKStateRunningRevokedActionRollbackIfPossible
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CorePostCoreUpdatesBundleReq struct {
 	// Bundle file content, base64 (UTF-8).
 	Content string  `json:"content"`
@@ -28789,6 +29301,13 @@ type CorePostCoreUpdatesCheckOK struct {
 	Mode    CorePostCoreUpdatesCheckOKMode          `json:"mode"`
 	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCorePostCoreUpdatesCheckOKRun `json:"run"`
+	// The newest stored update information withdraws the release this box runs (update-manifest §8,
+	// D-386); null otherwise.
+	RunningRevoked NilCorePostCoreUpdatesCheckOKRunningRevoked `json:"running_revoked"`
+	// The stored update information ran out at this time (its expires_at has passed; update-manifest
+	// §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or
+	// none is stored. Never blocks Apply, Rollback or a bundle.
+	StaleSince NilDateTime `json:"stale_since"`
 }
 
 // GetAdvisories returns the value of Advisories.
@@ -28846,6 +29365,16 @@ func (s *CorePostCoreUpdatesCheckOK) GetRun() NilCorePostCoreUpdatesCheckOKRun {
 	return s.Run
 }
 
+// GetRunningRevoked returns the value of RunningRevoked.
+func (s *CorePostCoreUpdatesCheckOK) GetRunningRevoked() NilCorePostCoreUpdatesCheckOKRunningRevoked {
+	return s.RunningRevoked
+}
+
+// GetStaleSince returns the value of StaleSince.
+func (s *CorePostCoreUpdatesCheckOK) GetStaleSince() NilDateTime {
+	return s.StaleSince
+}
+
 // SetAdvisories sets the value of Advisories.
 func (s *CorePostCoreUpdatesCheckOK) SetAdvisories(val []CorePostCoreUpdatesCheckOKAdvisoriesItem) {
 	s.Advisories = val
@@ -28899,6 +29428,16 @@ func (s *CorePostCoreUpdatesCheckOK) SetMode(val CorePostCoreUpdatesCheckOKMode)
 // SetRun sets the value of Run.
 func (s *CorePostCoreUpdatesCheckOK) SetRun(val NilCorePostCoreUpdatesCheckOKRun) {
 	s.Run = val
+}
+
+// SetRunningRevoked sets the value of RunningRevoked.
+func (s *CorePostCoreUpdatesCheckOK) SetRunningRevoked(val NilCorePostCoreUpdatesCheckOKRunningRevoked) {
+	s.RunningRevoked = val
+}
+
+// SetStaleSince sets the value of StaleSince.
+func (s *CorePostCoreUpdatesCheckOK) SetStaleSince(val NilDateTime) {
+	s.StaleSince = val
 }
 
 type CorePostCoreUpdatesCheckOKAdvisoriesItem struct {
@@ -30029,6 +30568,107 @@ func (s *CorePostCoreUpdatesCheckOKRunStepsItem) UnmarshalText(data []byte) erro
 		return nil
 	case CorePostCoreUpdatesCheckOKRunStepsItemRestart:
 		*s = CorePostCoreUpdatesCheckOKRunStepsItemRestart
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesCheckOKRunningRevoked struct {
+	// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
+	// every page (D-386).
+	Action CorePostCoreUpdatesCheckOKRunningRevokedAction `json:"action"`
+	// Short English reason signed by the Vedette project.
+	Reason string    `json:"reason"`
+	Since  time.Time `json:"since"`
+	// The running release.
+	Version string `json:"version"`
+}
+
+// GetAction returns the value of Action.
+func (s *CorePostCoreUpdatesCheckOKRunningRevoked) GetAction() CorePostCoreUpdatesCheckOKRunningRevokedAction {
+	return s.Action
+}
+
+// GetReason returns the value of Reason.
+func (s *CorePostCoreUpdatesCheckOKRunningRevoked) GetReason() string {
+	return s.Reason
+}
+
+// GetSince returns the value of Since.
+func (s *CorePostCoreUpdatesCheckOKRunningRevoked) GetSince() time.Time {
+	return s.Since
+}
+
+// GetVersion returns the value of Version.
+func (s *CorePostCoreUpdatesCheckOKRunningRevoked) GetVersion() string {
+	return s.Version
+}
+
+// SetAction sets the value of Action.
+func (s *CorePostCoreUpdatesCheckOKRunningRevoked) SetAction(val CorePostCoreUpdatesCheckOKRunningRevokedAction) {
+	s.Action = val
+}
+
+// SetReason sets the value of Reason.
+func (s *CorePostCoreUpdatesCheckOKRunningRevoked) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetSince sets the value of Since.
+func (s *CorePostCoreUpdatesCheckOKRunningRevoked) SetSince(val time.Time) {
+	s.Since = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CorePostCoreUpdatesCheckOKRunningRevoked) SetVersion(val string) {
+	s.Version = val
+}
+
+// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
+// every page (D-386).
+type CorePostCoreUpdatesCheckOKRunningRevokedAction string
+
+const (
+	CorePostCoreUpdatesCheckOKRunningRevokedActionBlockInstall        CorePostCoreUpdatesCheckOKRunningRevokedAction = "block_install"
+	CorePostCoreUpdatesCheckOKRunningRevokedActionBlockInstallAndWarn CorePostCoreUpdatesCheckOKRunningRevokedAction = "block_install_and_warn"
+	CorePostCoreUpdatesCheckOKRunningRevokedActionRollbackIfPossible  CorePostCoreUpdatesCheckOKRunningRevokedAction = "rollback_if_possible"
+)
+
+// AllValues returns all CorePostCoreUpdatesCheckOKRunningRevokedAction values.
+func (CorePostCoreUpdatesCheckOKRunningRevokedAction) AllValues() []CorePostCoreUpdatesCheckOKRunningRevokedAction {
+	return []CorePostCoreUpdatesCheckOKRunningRevokedAction{
+		CorePostCoreUpdatesCheckOKRunningRevokedActionBlockInstall,
+		CorePostCoreUpdatesCheckOKRunningRevokedActionBlockInstallAndWarn,
+		CorePostCoreUpdatesCheckOKRunningRevokedActionRollbackIfPossible,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesCheckOKRunningRevokedAction) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesCheckOKRunningRevokedActionBlockInstall:
+		return []byte(s), nil
+	case CorePostCoreUpdatesCheckOKRunningRevokedActionBlockInstallAndWarn:
+		return []byte(s), nil
+	case CorePostCoreUpdatesCheckOKRunningRevokedActionRollbackIfPossible:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesCheckOKRunningRevokedAction) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesCheckOKRunningRevokedAction(data) {
+	case CorePostCoreUpdatesCheckOKRunningRevokedActionBlockInstall:
+		*s = CorePostCoreUpdatesCheckOKRunningRevokedActionBlockInstall
+		return nil
+	case CorePostCoreUpdatesCheckOKRunningRevokedActionBlockInstallAndWarn:
+		*s = CorePostCoreUpdatesCheckOKRunningRevokedActionBlockInstallAndWarn
+		return nil
+	case CorePostCoreUpdatesCheckOKRunningRevokedActionRollbackIfPossible:
+		*s = CorePostCoreUpdatesCheckOKRunningRevokedActionRollbackIfPossible
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -31315,6 +31955,13 @@ type CorePostCoreUpdatesRollbackOK struct {
 	Mode    CorePostCoreUpdatesRollbackOKMode          `json:"mode"`
 	// The software install or rollback running now, or one that ended in the last 24 hours; null otherwise.
 	Run NilCorePostCoreUpdatesRollbackOKRun `json:"run"`
+	// The newest stored update information withdraws the release this box runs (update-manifest §8,
+	// D-386); null otherwise.
+	RunningRevoked NilCorePostCoreUpdatesRollbackOKRunningRevoked `json:"running_revoked"`
+	// The stored update information ran out at this time (its expires_at has passed; update-manifest
+	// §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or
+	// none is stored. Never blocks Apply, Rollback or a bundle.
+	StaleSince NilDateTime `json:"stale_since"`
 }
 
 // GetAdvisories returns the value of Advisories.
@@ -31367,6 +32014,16 @@ func (s *CorePostCoreUpdatesRollbackOK) GetRun() NilCorePostCoreUpdatesRollbackO
 	return s.Run
 }
 
+// GetRunningRevoked returns the value of RunningRevoked.
+func (s *CorePostCoreUpdatesRollbackOK) GetRunningRevoked() NilCorePostCoreUpdatesRollbackOKRunningRevoked {
+	return s.RunningRevoked
+}
+
+// GetStaleSince returns the value of StaleSince.
+func (s *CorePostCoreUpdatesRollbackOK) GetStaleSince() NilDateTime {
+	return s.StaleSince
+}
+
 // SetAdvisories sets the value of Advisories.
 func (s *CorePostCoreUpdatesRollbackOK) SetAdvisories(val []CorePostCoreUpdatesRollbackOKAdvisoriesItem) {
 	s.Advisories = val
@@ -31415,6 +32072,16 @@ func (s *CorePostCoreUpdatesRollbackOK) SetMode(val CorePostCoreUpdatesRollbackO
 // SetRun sets the value of Run.
 func (s *CorePostCoreUpdatesRollbackOK) SetRun(val NilCorePostCoreUpdatesRollbackOKRun) {
 	s.Run = val
+}
+
+// SetRunningRevoked sets the value of RunningRevoked.
+func (s *CorePostCoreUpdatesRollbackOK) SetRunningRevoked(val NilCorePostCoreUpdatesRollbackOKRunningRevoked) {
+	s.RunningRevoked = val
+}
+
+// SetStaleSince sets the value of StaleSince.
+func (s *CorePostCoreUpdatesRollbackOK) SetStaleSince(val NilDateTime) {
+	s.StaleSince = val
 }
 
 type CorePostCoreUpdatesRollbackOKAdvisoriesItem struct {
@@ -32545,6 +33212,107 @@ func (s *CorePostCoreUpdatesRollbackOKRunStepsItem) UnmarshalText(data []byte) e
 		return nil
 	case CorePostCoreUpdatesRollbackOKRunStepsItemRestart:
 		*s = CorePostCoreUpdatesRollbackOKRunStepsItemRestart
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesRollbackOKRunningRevoked struct {
+	// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
+	// every page (D-386).
+	Action CorePostCoreUpdatesRollbackOKRunningRevokedAction `json:"action"`
+	// Short English reason signed by the Vedette project.
+	Reason string    `json:"reason"`
+	Since  time.Time `json:"since"`
+	// The running release.
+	Version string `json:"version"`
+}
+
+// GetAction returns the value of Action.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevoked) GetAction() CorePostCoreUpdatesRollbackOKRunningRevokedAction {
+	return s.Action
+}
+
+// GetReason returns the value of Reason.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevoked) GetReason() string {
+	return s.Reason
+}
+
+// GetSince returns the value of Since.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevoked) GetSince() time.Time {
+	return s.Since
+}
+
+// GetVersion returns the value of Version.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevoked) GetVersion() string {
+	return s.Version
+}
+
+// SetAction sets the value of Action.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevoked) SetAction(val CorePostCoreUpdatesRollbackOKRunningRevokedAction) {
+	s.Action = val
+}
+
+// SetReason sets the value of Reason.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevoked) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetSince sets the value of Since.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevoked) SetSince(val time.Time) {
+	s.Since = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevoked) SetVersion(val string) {
+	s.Version = val
+}
+
+// Block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on
+// every page (D-386).
+type CorePostCoreUpdatesRollbackOKRunningRevokedAction string
+
+const (
+	CorePostCoreUpdatesRollbackOKRunningRevokedActionBlockInstall        CorePostCoreUpdatesRollbackOKRunningRevokedAction = "block_install"
+	CorePostCoreUpdatesRollbackOKRunningRevokedActionBlockInstallAndWarn CorePostCoreUpdatesRollbackOKRunningRevokedAction = "block_install_and_warn"
+	CorePostCoreUpdatesRollbackOKRunningRevokedActionRollbackIfPossible  CorePostCoreUpdatesRollbackOKRunningRevokedAction = "rollback_if_possible"
+)
+
+// AllValues returns all CorePostCoreUpdatesRollbackOKRunningRevokedAction values.
+func (CorePostCoreUpdatesRollbackOKRunningRevokedAction) AllValues() []CorePostCoreUpdatesRollbackOKRunningRevokedAction {
+	return []CorePostCoreUpdatesRollbackOKRunningRevokedAction{
+		CorePostCoreUpdatesRollbackOKRunningRevokedActionBlockInstall,
+		CorePostCoreUpdatesRollbackOKRunningRevokedActionBlockInstallAndWarn,
+		CorePostCoreUpdatesRollbackOKRunningRevokedActionRollbackIfPossible,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesRollbackOKRunningRevokedAction) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesRollbackOKRunningRevokedActionBlockInstall:
+		return []byte(s), nil
+	case CorePostCoreUpdatesRollbackOKRunningRevokedActionBlockInstallAndWarn:
+		return []byte(s), nil
+	case CorePostCoreUpdatesRollbackOKRunningRevokedActionRollbackIfPossible:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesRollbackOKRunningRevokedAction) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesRollbackOKRunningRevokedAction(data) {
+	case CorePostCoreUpdatesRollbackOKRunningRevokedActionBlockInstall:
+		*s = CorePostCoreUpdatesRollbackOKRunningRevokedActionBlockInstall
+		return nil
+	case CorePostCoreUpdatesRollbackOKRunningRevokedActionBlockInstallAndWarn:
+		*s = CorePostCoreUpdatesRollbackOKRunningRevokedActionBlockInstallAndWarn
+		return nil
+	case CorePostCoreUpdatesRollbackOKRunningRevokedActionRollbackIfPossible:
+		*s = CorePostCoreUpdatesRollbackOKRunningRevokedActionRollbackIfPossible
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -75190,6 +75958,51 @@ func (o NilCoreGetCoreUpdatesOKRunStep) Or(d CoreGetCoreUpdatesOKRunStep) CoreGe
 	return d
 }
 
+// NewNilCoreGetCoreUpdatesOKRunningRevoked returns new NilCoreGetCoreUpdatesOKRunningRevoked with value set to v.
+func NewNilCoreGetCoreUpdatesOKRunningRevoked(v CoreGetCoreUpdatesOKRunningRevoked) NilCoreGetCoreUpdatesOKRunningRevoked {
+	return NilCoreGetCoreUpdatesOKRunningRevoked{
+		Value: v,
+	}
+}
+
+// NilCoreGetCoreUpdatesOKRunningRevoked is nullable CoreGetCoreUpdatesOKRunningRevoked.
+type NilCoreGetCoreUpdatesOKRunningRevoked struct {
+	Value CoreGetCoreUpdatesOKRunningRevoked
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCoreGetCoreUpdatesOKRunningRevoked) SetTo(v CoreGetCoreUpdatesOKRunningRevoked) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCoreGetCoreUpdatesOKRunningRevoked) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCoreGetCoreUpdatesOKRunningRevoked) SetToNull() {
+	o.Null = true
+	var v CoreGetCoreUpdatesOKRunningRevoked
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCoreGetCoreUpdatesOKRunningRevoked) Get() (v CoreGetCoreUpdatesOKRunningRevoked, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCoreGetCoreUpdatesOKRunningRevoked) Or(d CoreGetCoreUpdatesOKRunningRevoked) CoreGetCoreUpdatesOKRunningRevoked {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCoreGetCoreUpdatesOsOKReleaseUpgrade returns new NilCoreGetCoreUpdatesOsOKReleaseUpgrade with value set to v.
 func NewNilCoreGetCoreUpdatesOsOKReleaseUpgrade(v CoreGetCoreUpdatesOsOKReleaseUpgrade) NilCoreGetCoreUpdatesOsOKReleaseUpgrade {
 	return NilCoreGetCoreUpdatesOsOKReleaseUpgrade{
@@ -75499,6 +76312,51 @@ func (o NilCorePatchCoreUpdatesOKRunStep) Get() (v CorePatchCoreUpdatesOKRunStep
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCorePatchCoreUpdatesOKRunStep) Or(d CorePatchCoreUpdatesOKRunStep) CorePatchCoreUpdatesOKRunStep {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePatchCoreUpdatesOKRunningRevoked returns new NilCorePatchCoreUpdatesOKRunningRevoked with value set to v.
+func NewNilCorePatchCoreUpdatesOKRunningRevoked(v CorePatchCoreUpdatesOKRunningRevoked) NilCorePatchCoreUpdatesOKRunningRevoked {
+	return NilCorePatchCoreUpdatesOKRunningRevoked{
+		Value: v,
+	}
+}
+
+// NilCorePatchCoreUpdatesOKRunningRevoked is nullable CorePatchCoreUpdatesOKRunningRevoked.
+type NilCorePatchCoreUpdatesOKRunningRevoked struct {
+	Value CorePatchCoreUpdatesOKRunningRevoked
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePatchCoreUpdatesOKRunningRevoked) SetTo(v CorePatchCoreUpdatesOKRunningRevoked) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePatchCoreUpdatesOKRunningRevoked) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePatchCoreUpdatesOKRunningRevoked) SetToNull() {
+	o.Null = true
+	var v CorePatchCoreUpdatesOKRunningRevoked
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePatchCoreUpdatesOKRunningRevoked) Get() (v CorePatchCoreUpdatesOKRunningRevoked, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePatchCoreUpdatesOKRunningRevoked) Or(d CorePatchCoreUpdatesOKRunningRevoked) CorePatchCoreUpdatesOKRunningRevoked {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -75865,6 +76723,51 @@ func (o NilCorePostCoreUpdatesApplyOKRunStep) Or(d CorePostCoreUpdatesApplyOKRun
 	return d
 }
 
+// NewNilCorePostCoreUpdatesApplyOKRunningRevoked returns new NilCorePostCoreUpdatesApplyOKRunningRevoked with value set to v.
+func NewNilCorePostCoreUpdatesApplyOKRunningRevoked(v CorePostCoreUpdatesApplyOKRunningRevoked) NilCorePostCoreUpdatesApplyOKRunningRevoked {
+	return NilCorePostCoreUpdatesApplyOKRunningRevoked{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesApplyOKRunningRevoked is nullable CorePostCoreUpdatesApplyOKRunningRevoked.
+type NilCorePostCoreUpdatesApplyOKRunningRevoked struct {
+	Value CorePostCoreUpdatesApplyOKRunningRevoked
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesApplyOKRunningRevoked) SetTo(v CorePostCoreUpdatesApplyOKRunningRevoked) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesApplyOKRunningRevoked) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesApplyOKRunningRevoked) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesApplyOKRunningRevoked
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesApplyOKRunningRevoked) Get() (v CorePostCoreUpdatesApplyOKRunningRevoked, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesApplyOKRunningRevoked) Or(d CorePostCoreUpdatesApplyOKRunningRevoked) CorePostCoreUpdatesApplyOKRunningRevoked {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCorePostCoreUpdatesBundleOKStateRun returns new NilCorePostCoreUpdatesBundleOKStateRun with value set to v.
 func NewNilCorePostCoreUpdatesBundleOKStateRun(v CorePostCoreUpdatesBundleOKStateRun) NilCorePostCoreUpdatesBundleOKStateRun {
 	return NilCorePostCoreUpdatesBundleOKStateRun{
@@ -75955,6 +76858,51 @@ func (o NilCorePostCoreUpdatesBundleOKStateRunStep) Or(d CorePostCoreUpdatesBund
 	return d
 }
 
+// NewNilCorePostCoreUpdatesBundleOKStateRunningRevoked returns new NilCorePostCoreUpdatesBundleOKStateRunningRevoked with value set to v.
+func NewNilCorePostCoreUpdatesBundleOKStateRunningRevoked(v CorePostCoreUpdatesBundleOKStateRunningRevoked) NilCorePostCoreUpdatesBundleOKStateRunningRevoked {
+	return NilCorePostCoreUpdatesBundleOKStateRunningRevoked{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesBundleOKStateRunningRevoked is nullable CorePostCoreUpdatesBundleOKStateRunningRevoked.
+type NilCorePostCoreUpdatesBundleOKStateRunningRevoked struct {
+	Value CorePostCoreUpdatesBundleOKStateRunningRevoked
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesBundleOKStateRunningRevoked) SetTo(v CorePostCoreUpdatesBundleOKStateRunningRevoked) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesBundleOKStateRunningRevoked) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesBundleOKStateRunningRevoked) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesBundleOKStateRunningRevoked
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesBundleOKStateRunningRevoked) Get() (v CorePostCoreUpdatesBundleOKStateRunningRevoked, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesBundleOKStateRunningRevoked) Or(d CorePostCoreUpdatesBundleOKStateRunningRevoked) CorePostCoreUpdatesBundleOKStateRunningRevoked {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCorePostCoreUpdatesCheckOKRun returns new NilCorePostCoreUpdatesCheckOKRun with value set to v.
 func NewNilCorePostCoreUpdatesCheckOKRun(v CorePostCoreUpdatesCheckOKRun) NilCorePostCoreUpdatesCheckOKRun {
 	return NilCorePostCoreUpdatesCheckOKRun{
@@ -76039,6 +76987,51 @@ func (o NilCorePostCoreUpdatesCheckOKRunStep) Get() (v CorePostCoreUpdatesCheckO
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCorePostCoreUpdatesCheckOKRunStep) Or(d CorePostCoreUpdatesCheckOKRunStep) CorePostCoreUpdatesCheckOKRunStep {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreUpdatesCheckOKRunningRevoked returns new NilCorePostCoreUpdatesCheckOKRunningRevoked with value set to v.
+func NewNilCorePostCoreUpdatesCheckOKRunningRevoked(v CorePostCoreUpdatesCheckOKRunningRevoked) NilCorePostCoreUpdatesCheckOKRunningRevoked {
+	return NilCorePostCoreUpdatesCheckOKRunningRevoked{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesCheckOKRunningRevoked is nullable CorePostCoreUpdatesCheckOKRunningRevoked.
+type NilCorePostCoreUpdatesCheckOKRunningRevoked struct {
+	Value CorePostCoreUpdatesCheckOKRunningRevoked
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesCheckOKRunningRevoked) SetTo(v CorePostCoreUpdatesCheckOKRunningRevoked) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesCheckOKRunningRevoked) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesCheckOKRunningRevoked) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesCheckOKRunningRevoked
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesCheckOKRunningRevoked) Get() (v CorePostCoreUpdatesCheckOKRunningRevoked, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesCheckOKRunningRevoked) Or(d CorePostCoreUpdatesCheckOKRunningRevoked) CorePostCoreUpdatesCheckOKRunningRevoked {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -76264,6 +77257,51 @@ func (o NilCorePostCoreUpdatesRollbackOKRunStep) Get() (v CorePostCoreUpdatesRol
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCorePostCoreUpdatesRollbackOKRunStep) Or(d CorePostCoreUpdatesRollbackOKRunStep) CorePostCoreUpdatesRollbackOKRunStep {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreUpdatesRollbackOKRunningRevoked returns new NilCorePostCoreUpdatesRollbackOKRunningRevoked with value set to v.
+func NewNilCorePostCoreUpdatesRollbackOKRunningRevoked(v CorePostCoreUpdatesRollbackOKRunningRevoked) NilCorePostCoreUpdatesRollbackOKRunningRevoked {
+	return NilCorePostCoreUpdatesRollbackOKRunningRevoked{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesRollbackOKRunningRevoked is nullable CorePostCoreUpdatesRollbackOKRunningRevoked.
+type NilCorePostCoreUpdatesRollbackOKRunningRevoked struct {
+	Value CorePostCoreUpdatesRollbackOKRunningRevoked
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesRollbackOKRunningRevoked) SetTo(v CorePostCoreUpdatesRollbackOKRunningRevoked) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesRollbackOKRunningRevoked) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesRollbackOKRunningRevoked) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesRollbackOKRunningRevoked
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesRollbackOKRunningRevoked) Get() (v CorePostCoreUpdatesRollbackOKRunningRevoked, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesRollbackOKRunningRevoked) Or(d CorePostCoreUpdatesRollbackOKRunningRevoked) CorePostCoreUpdatesRollbackOKRunningRevoked {
 	if v, ok := o.Get(); ok {
 		return v
 	}

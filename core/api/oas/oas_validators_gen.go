@@ -9387,6 +9387,24 @@ func (s *CoreGetCoreUpdatesOK) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.RunningRevoked.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "running_revoked",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -9782,6 +9800,42 @@ func (s CoreGetCoreUpdatesOKRunStepsItem) Validate() error {
 	case "restore":
 		return nil
 	case "restart":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CoreGetCoreUpdatesOKRunningRevoked) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Action.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "action",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CoreGetCoreUpdatesOKRunningRevokedAction) Validate() error {
+	switch s {
+	case "block_install":
+		return nil
+	case "block_install_and_warn":
+		return nil
+	case "rollback_if_possible":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -10976,6 +11030,24 @@ func (s *CorePatchCoreUpdatesOK) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.RunningRevoked.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "running_revoked",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -11371,6 +11443,42 @@ func (s CorePatchCoreUpdatesOKRunStepsItem) Validate() error {
 	case "restore":
 		return nil
 	case "restart":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CorePatchCoreUpdatesOKRunningRevoked) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Action.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "action",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CorePatchCoreUpdatesOKRunningRevokedAction) Validate() error {
+	switch s {
+	case "block_install":
+		return nil
+	case "block_install_and_warn":
+		return nil
+	case "rollback_if_possible":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -14656,6 +14764,24 @@ func (s *CorePostCoreUpdatesApplyOK) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.RunningRevoked.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "running_revoked",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -15057,6 +15183,42 @@ func (s CorePostCoreUpdatesApplyOKRunStepsItem) Validate() error {
 	}
 }
 
+func (s *CorePostCoreUpdatesApplyOKRunningRevoked) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Action.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "action",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CorePostCoreUpdatesApplyOKRunningRevokedAction) Validate() error {
+	switch s {
+	case "block_install":
+		return nil
+	case "block_install_and_warn":
+		return nil
+	case "rollback_if_possible":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *CorePostCoreUpdatesBundleOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -15274,6 +15436,24 @@ func (s *CorePostCoreUpdatesBundleOKState) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "run",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.RunningRevoked.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "running_revoked",
 			Error: err,
 		})
 	}
@@ -15678,6 +15858,42 @@ func (s CorePostCoreUpdatesBundleOKStateRunStepsItem) Validate() error {
 	}
 }
 
+func (s *CorePostCoreUpdatesBundleOKStateRunningRevoked) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Action.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "action",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CorePostCoreUpdatesBundleOKStateRunningRevokedAction) Validate() error {
+	switch s {
+	case "block_install":
+		return nil
+	case "block_install_and_warn":
+		return nil
+	case "rollback_if_possible":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *CorePostCoreUpdatesBundleReq) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -15895,6 +16111,24 @@ func (s *CorePostCoreUpdatesCheckOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "run",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.RunningRevoked.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "running_revoked",
 			Error: err,
 		})
 	}
@@ -16293,6 +16527,42 @@ func (s CorePostCoreUpdatesCheckOKRunStepsItem) Validate() error {
 	case "restore":
 		return nil
 	case "restart":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CorePostCoreUpdatesCheckOKRunningRevoked) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Action.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "action",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CorePostCoreUpdatesCheckOKRunningRevokedAction) Validate() error {
+	switch s {
+	case "block_install":
+		return nil
+	case "block_install_and_warn":
+		return nil
+	case "rollback_if_possible":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -17307,6 +17577,24 @@ func (s *CorePostCoreUpdatesRollbackOK) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.RunningRevoked.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "running_revoked",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -17702,6 +17990,42 @@ func (s CorePostCoreUpdatesRollbackOKRunStepsItem) Validate() error {
 	case "restore":
 		return nil
 	case "restart":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CorePostCoreUpdatesRollbackOKRunningRevoked) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Action.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "action",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CorePostCoreUpdatesRollbackOKRunningRevokedAction) Validate() error {
+	switch s {
+	case "block_install":
+		return nil
+	case "block_install_and_warn":
+		return nil
+	case "rollback_if_possible":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

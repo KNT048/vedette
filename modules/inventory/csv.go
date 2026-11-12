@@ -177,7 +177,7 @@ func (s *Service) Import(ctx context.Context, actor, filename, text string) (Imp
 		return ImportResult{}, badRequest("bad_header", "The first row must be column headers with at least a name or product column. Download the template to see the format.")
 	}
 	data := table[hi+1:]
-	if !slices.ContainsFunc(data, anyText) {
+	if len(problems) == 0 && !slices.ContainsFunc(data, anyText) {
 		return ImportResult{}, badRequest("no_rows", "No device rows were found below the column headers. Add at least one row and choose the file again.")
 	}
 	if len(data) > MaxImportRows {
@@ -202,7 +202,7 @@ func (s *Service) Import(ctx context.Context, actor, filename, text string) (Imp
 	}
 	rows := make([]row, 0, len(data))
 	for i, cells := range data {
-		if !anyText(cells) {
+		if problems[hi+1+i] == "" && !anyText(cells) {
 			continue
 		}
 		r := row{line: hi + i + 2}

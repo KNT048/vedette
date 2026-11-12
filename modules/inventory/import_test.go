@@ -141,6 +141,10 @@ func TestContract_INV13_CSVImportAndExport(t *testing.T) {
 		if r.Created != 2 || len(r.Errors) != 0 {
 			t.Fatalf("short row and trailing separator: %+v", r)
 		}
+		r = e.importCSV("name,ip\r\nok,192.168.55.1\r\n\"\r")
+		if r.Created != 1 || len(r.Errors) != 1 || r.Errors[0].Line != 3 || !strings.Contains(r.Errors[0].Message, "never closed") {
+			t.Fatalf("unclosed quote on a blank-looking row: %+v", r)
+		}
 		r = e.importCSV("name,ip\n\"open,192.168.53.9\nnext,192.168.53.10\n")
 		if r.Created != 0 || len(r.Errors) == 0 || !strings.Contains(r.Errors[0].Message, "never closed") {
 			t.Fatalf("unclosed quote: %+v", r)

@@ -530,7 +530,7 @@ export const handlers = [
     const header = (table[hi] ?? []).map((h) => { const k = fold(h); return HEADER_ALIAS[k] ?? k })
     if (!header.includes('name') && !header.includes('product')) return fail(400, 'bad_header', 'The first row must be column headers with at least a name or product column. Download the template to see the format.')
     const data = table.slice(hi + 1)
-    if (!data.some((r) => r.some((c) => c.trim()))) return fail(400, 'no_rows', 'No device rows were found below the column headers. Add at least one row and choose the file again.')
+    if (!problems.size && !data.some((r) => r.some((c) => c.trim()))) return fail(400, 'no_rows', 'No device rows were found below the column headers. Add at least one row and choose the file again.')
     if (data.length > MAX_IMPORT_ROWS) return fail(400, 'too_many_rows', `At most ${MAX_IMPORT_ROWS} rows per import. This file has ${data.length} rows.`)
     const res: ImportResult = { created: 0, skipped: 0, errors: [], notes: [] }
     const ranges = loadSettings().lan_ranges
@@ -539,7 +539,7 @@ export const handlers = [
     const noIpNames = new Set(allAssets().filter((a) => !hasIp(a) && a.hostname).map((a) => a.hostname!.toLowerCase()))
     data.forEach((cells, i) => {
       const line = hi + i + 2
-      if (cells.every((c) => !c.trim())) return
+      if (!problems.has(hi + 1 + i) && cells.every((c) => !c.trim())) return
       // Excel tắt công thức bằng dấu ' đứng trước (xem csvCell khi xuất): bỏ lại khi nhập.
       const err = (message: string) => { res.errors.push({ line, message }); res.skipped++ }
       if (problems.has(hi + 1 + i)) return err(problems.get(hi + 1 + i)!)

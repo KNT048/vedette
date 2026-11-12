@@ -420,6 +420,7 @@ describe('inventory: CSV (S-INV-2)', () => {
     expect((await call('POST', '/import', { text: 'name,ip,product,version,kind\nshort,192.168.54.1\ntrailing,192.168.54.2,FortiGate,,,\n' })).json).toMatchObject({ created: 2, skipped: 0 })
     // a quote that never closes flags its row, not the whole file
     expect((await call('POST', '/import', { text: 'name,ip\n"open,192.168.53.9\n' })).json!.errors[0].message).toContain('never closed')
+    expect((await call('POST', '/import', { text: 'name,ip\r\nok,192.168.55.1\r\n\"\r' })).json).toMatchObject({ created: 1, errors: [{ line: 3 }] })
     // header only
     expect((await call('POST', '/import', { text: 'name,ip,product\n' })).json?.error.code).toBe('no_rows')
   })

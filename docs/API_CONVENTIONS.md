@@ -262,6 +262,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `no_prefix` | 400 | "${r}" has no prefix length. Add it so Vedette scans the right size of network, for example ${r}/24 or ${r}/25. | `PUT /inventory/settings` |
 | `no_ranges` | 400 | Active scanning needs at least one network range. | `PUT /inventory/settings` |
 | `no_recipients` | 400 | Automatic sending needs at least one recipient. Add an email, then save. | `POST /reports/weekly/send` |
+| `no_rows` | 400 | No device rows were found below the column headers. Add at least one row and choose the file again. | `POST /inventory/import` |
 | `no_such_user` | 400 | One of the approvers does not exist or is disabled. | module notify (validator dùng chung) |
 | `no_targets` | 400 | Choose at least one device to scan. | `POST /scans/runs` |
 | `no_window` | 400 | There is no maintenance window yet. Set the days and hours first, or pick a time yourself. | `POST /core/updates/os/reboot` |

@@ -52,9 +52,9 @@ export function useToggleModule() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (v: { id: ModuleId; enabled: boolean; withDependencies?: boolean }) => patchModule(v.id, v.enabled, v.withDependencies === true),
-    onSuccess: (r, v) => {
+    onSuccess: async (r, v) => {
       if (r.kind !== 'ok') return
-      void qc.invalidateQueries({ queryKey: ['modules'] })
+      await qc.invalidateQueries({ queryKey: ['modules'] }) // so the MCP page sees the module off before its cached answer is dropped
       // off, every /core/mcp path is 404 (D-230): drop the cached answer instead of refetching it
       if (v.id === 'mcp-server' && !v.enabled) qc.removeQueries({ queryKey: ['core', 'mcp'] })
       else void qc.invalidateQueries({ queryKey: ['core', 'mcp'] })

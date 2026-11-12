@@ -275,7 +275,7 @@ var emptyFileHashes = map[string]bool{
 }
 
 // testTLDs are the reserved top-level labels for documentation and tests (RFC 2606 §2, RFC 6761 §6.2-6.4; .localhost
-// §6.3), a subset of reservedTLDs: refused, but named as test names rather than local hosts (D-229 (6)).
+// §6.3), a subset of reservedTLDs: refused, but named as test names rather than local hosts (D-TBD-g10 (6)).
 var testTLDs = map[string]bool{"example": true, "test": true, "invalid": true, "localhost": true}
 
 // testDomains are the second-level names reserved for documentation (RFC 2606 §3): they and every name under them.

@@ -40,7 +40,7 @@ export async function startFeedServer() {
   render()
   srv = createServer((req, res) => { const ok = req.url === '/kev.json'; res.writeHead(ok ? 200 : 404, { 'Content-Type': 'application/json' }); res.end(ok ? catalog : '{}') })
   await new Promise<void>((ok) => srv!.listen(0, '127.0.0.1', ok))
-  base = `http://e2e-loopback.lan:${(srv.address() as AddressInfo).port}` // the box sends this name to 127.0.0.1 (e2eOffline): a loopback address is refused at save (D-229)
+  base = `http://e2e-loopback.lan:${(srv.address() as AddressInfo).port}` // the box sends this name to 127.0.0.1 (e2eOffline): a loopback address is refused at save (D-TBD-g10)
   const admin = await as('admin')
   try {
     const r = await api(admin, 'PUT', '/feeds/sources/cisa-kev', { url: `${base}/kev.json` })

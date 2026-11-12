@@ -58,7 +58,7 @@ export function kevStatus(): FeedStatus['kev'] {
 export const iocListed = () => allFeeds(config.get()).some((f) => f.kind === 'ioc' && f.enabled && (f.records ?? 0) > 0)
 const allFeeds = (c: Config): Feed[] => [...DEFS.map((d) => builtinFeed(d, c.builtin[d.id] ?? seedBuiltin(false)[d.id]!)), ...c.custom]
 const hostOf = (u: string) => { try { return new URL(u).hostname } catch { return '' } }
-// Like modules/feeds mostOften (D-229 (3)): the most common reason with one of its rows' value shown, not the masked "…".
+// Like modules/feeds mostOften (D-TBD-g10 (3)): the most common reason with one of its rows' value shown, not the masked "…".
 const mostOften = (out: ReturnType<typeof parseFeed>) => { const top = out.reasons[0]!.reason; return out.rejects.find((r) => r.reason.replace(/"[^"]*"/g, '"…"') === top)?.reason ?? top }
 const parseErr = (e: unknown) => e instanceof ParserConfigError ? fail(e.code === 'too_large' ? 413 : 400, e.code, e.message) : null
 
@@ -73,7 +73,7 @@ function checkInput(i: ReturnType<typeof FeedInputSchema.parse>, c: Config, self
   if (DEFS.some((d) => d.name.toLowerCase() === name.toLowerCase()) || c.custom.some((x) => x.id !== selfId && x.name.toLowerCase() === name.toLowerCase())) return fail(400, 'duplicate_name', 'A feed with this name already exists.')
   const u = checkFeedUrl(i.url)
   if (u !== 'ok') return fail(400, 'invalid_url', u === 'https' ? 'Use an https:// address (http:// is only allowed for internal addresses).' : 'Enter a full address such as https://example.com/feed.json.')
-  if (blockedFeedHost(i.url)) return fail(400, 'blocked_host', BLOCKED_TEXT) // D-229 (1): refused at save, as the pull would
+  if (blockedFeedHost(i.url)) return fail(400, 'blocked_host', BLOCKED_TEXT) // D-TBD-g10 (1): refused at save, as the pull would
   if (!FORMATS[i.kind].includes(i.parser.format)) return fail(400, 'invalid_format', `This format does not fit a ${i.kind === 'ioc' ? 'IOC' : 'vulnerability'} feed.`)
   const a = i.auth
   if (a.type === 'header' && !/^[A-Za-z0-9-]{1,80}$/.test(a.header_name ?? '')) return fail(400, 'invalid_auth', 'Enter a valid header name, for example X-Api-Key.')
@@ -81,7 +81,7 @@ function checkInput(i: ReturnType<typeof FeedInputSchema.parse>, c: Config, self
   if (a.type !== 'none' && !a.secret && !hadLast4) return fail(400, 'invalid_auth', 'Enter the secret.')
   if (a.secret !== undefined && (a.secret.length < 8 || /\s/.test(a.secret))) return fail(400, 'invalid_auth', 'The secret must be at least 8 characters with no spaces.')
   try { checkParser(i.kind, i.parser) } catch (e) { const r = parseErr(e); if (r) return r; throw e }
-  // D-229 (2), last as on the server: another feed, built-in or custom, already pulls this address
+  // D-TBD-g10 (2), last as on the server: another feed, built-in or custom, already pulls this address
   const same = allFeeds(c).find((f) => f.id !== selfId && sameFeedAddress(f.url, i.url))
   return same ? fail(400, 'duplicate_url', `The feed "${same.name}" already uses this address.`) : null
 }

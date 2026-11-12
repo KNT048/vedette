@@ -1,5 +1,5 @@
 // The feeds module on the real backend, on a box with no internet (S-FEED-1..5, D-91, D-92, D-134). Steps from e2e/qa/feeds.spec.ts.
-// No test makes the box pull from a public URL: the only pull is of a custom feed pointed at a node `http` server on 127.0.0.1, named e2e-loopback.lan (D-229; INV-2
+// No test makes the box pull from a public URL: the only pull is of a custom feed pointed at a node `http` server on 127.0.0.1, named e2e-loopback.lan (D-TBD-g10; INV-2
 // lets internal hosts use http), so the run needs no network. Entities are per test (uniq names); nothing here changes a built-in feed's state.
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -277,7 +277,7 @@ test.describe('a feed pull from loopback (S-FEED-4, INV-4, INV-8)', () => {
   test.beforeAll(async () => {
     srv = createServer((req, res) => { const s = served[req.url ?? ''] ?? { status: 404, body: 'no' }; res.writeHead(s.status, { 'Content-Type': 'text/plain' }); res.end(s.body) })
     await new Promise<void>((ok) => srv.listen(0, '127.0.0.1', ok))
-    base = `http://e2e-loopback.lan:${(srv.address() as AddressInfo).port}` // the box sends this name to 127.0.0.1 (e2eOffline): a loopback address is refused at save (D-229)
+    base = `http://e2e-loopback.lan:${(srv.address() as AddressInfo).port}` // the box sends this name to 127.0.0.1 (e2eOffline): a loopback address is refused at save (D-TBD-g10)
   })
   test.afterAll(async () => { await new Promise((ok) => srv.close(ok)) })
 

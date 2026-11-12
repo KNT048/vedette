@@ -13,7 +13,7 @@ import (
 )
 
 // Reason counts rejected rows with the same cause (quoted values masked). Example is the first of those rows with
-// its value shown (quoteVal), for the status line of a pull (note, accepted; D-229 (3)); it is not part of the API.
+// its value shown (quoteVal), for the status line of a pull (note, accepted; D-TBD-g10 (3)); it is not part of the API.
 type Reason struct {
 	Reason  string `json:"reason"`
 	Count   int    `json:"count"`

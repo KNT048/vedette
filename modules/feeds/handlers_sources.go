@@ -148,7 +148,7 @@ func checkCustom(ctx context.Context, tx *sql.Tx, in *feedInput, prev *sourceRow
 	return checkDuplicateURL(ctx, tx, in.URL, skip) // last, like duplicate_name of a valid body: it depends on the other feeds
 }
 
-// checkDuplicateURL refuses a custom feed address that another feed, built-in or custom, already pulls (D-229 (2)):
+// checkDuplicateURL refuses a custom feed address that another feed, built-in or custom, already pulls (D-TBD-g10 (2)):
 // the second feed would fetch the same list again and list every indicator twice. The message names that feed.
 func checkDuplicateURL(ctx context.Context, tx *sql.Tx, addr, skip string) error {
 	rows, err := tx.QueryContext(ctx, `SELECT name, url FROM feeds_source WHERE id != ?`, skip)

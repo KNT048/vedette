@@ -147,11 +147,11 @@ const steps: Step[] = [
   { name: 'name of 61 characters', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'n'.repeat(61) }), status: 400, code: 'invalid_body', real: { code: 'invalid' } },
   { name: 'address that is not a URL', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'U1', url: 'not a url' }), status: 400, code: 'invalid_url' },
   { name: 'http to a public host', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'U2', url: 'http://threat-share.example.net/a.csv' }), status: 400, code: 'invalid_url' },
-  // D-229 (1): an address the pull would refuse (loopback, link-local, cloud metadata) is refused at save, with the pull's sentence
+  // D-TBD-g10 (1): an address the pull would refuse (loopback, link-local, cloud metadata) is refused at save, with the pull's sentence
   ...(['https://localhost:8443/x', 'http://127.0.0.1/list.txt', 'https://feeds.localhost/x', 'https://[::1]/x', 'https://169.254.169.254/latest/meta-data', 'https://[fe80::1]/x', 'https://0.0.0.0/x', 'https://[::ffff:127.0.0.1]/x', 'https://100.100.100.200/x'] as const).map((url, i): Step => ({ name: `blocked address ${url}`, role: 'admin', method: 'POST', path: FEED, body: input({ name: `B${i}`, url }), status: 400, code: 'blocked_host',
     check: (b) => expect(b.error.message).toBe('Vedette does not pull feeds from itself or from loopback, link-local or cloud metadata addresses.') })),
   { name: 'mirror at the cloud metadata address', role: 'admin', method: 'PUT', path: '/feeds/sources/ipsum', body: { url: 'https://169.254.169.254/ipsum.txt' }, status: 400, code: 'blocked_host' },
-  // D-229 (2): an address another feed already pulls (a built-in one, or the custom feed above), case and default port aside
+  // D-TBD-g10 (2): an address another feed already pulls (a built-in one, or the custom feed above), case and default port aside
   { name: 'address of a built-in feed', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'Copy of a built-in', url: 'https://check.torproject.org:443/torbulkexitlist' }), status: 400, code: 'duplicate_url', check: (b) => expect(b.error.message).toBe('The feed "Tor exit list" already uses this address.') },
   { name: 'address of another custom feed', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'Copy', url: 'HTTPS://Threat-Share.example.net/list.csv' }), status: 400, code: 'duplicate_url', check: (b) => expect(b.error.message).toBe('The feed "Partner blocklist" already uses this address.') },
   { name: 'http to an internal host is fine', role: 'admin', method: 'POST', path: FEED, body: input({ name: 'Internal', url: 'http://feeds.lan/a.csv' }), status: 201, schema: Feed, keep: (b, c) => { c.internal = b.id } },

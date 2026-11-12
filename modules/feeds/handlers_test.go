@@ -857,10 +857,10 @@ func TestBuiltinFeedsAreSeededOnFirstUse(t *testing.T) {
 	}
 }
 
-// D-229 (1), (2): an address the pull would refuse is refused when the feed is saved (create, edit, built-in mirror),
+// D-TBD-g10 (1), (2): an address the pull would refuse is refused when the feed is saved (create, edit, built-in mirror),
 // with the pull's sentence; a name is not resolved (a public-looking name passes, the dialer judges it at pull); an
 // address another feed already pulls is refused and the message names that feed.
-func TestD229_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
+func TestG10_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
 	t.Parallel()
 	e := newEnvFetcher(t, Fetcher{Client: &http.Client{Transport: failingTransport{t}}, BoxAddrs: func() ([]netip.Addr, bool) {
 		return []netip.Addr{netip.MustParseAddr("192.168.77.10")}, true
@@ -878,7 +878,7 @@ func TestD229_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
 			t.Errorf("POST %s: %d %v, want 400 blocked_host", u, got, b)
 		}
 	}
-	// D-229 (7): an address of the box that is not loopback (what vedette-host reports, or the container's gateway: on a
+	// D-TBD-g10 (7): an address of the box that is not loopback (what vedette-host reports, or the container's gateway: on a
 	// container-only install the machine Docker runs on, walk 3) says so in plain words
 	for _, u := range []string{"https://192.168.77.10:8443/x", "http://172.18.0.1:18070/ioc.json"} {
 		got, b, _ := e.do("POST", "/feeds/custom", "admin", withURL("Own", u))

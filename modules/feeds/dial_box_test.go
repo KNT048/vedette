@@ -293,7 +293,7 @@ func TestD208_GatewayIsTheBoxAndRefusedPullsHaveAPlainMessage(t *testing.T) {
 	if !errors.Is(err, ErrBlockedAddress) || !errors.Is(err, ErrOwnAddress) {
 		t.Fatalf("%v", err)
 	}
-	// D-229 (7): the gateway is the machine Docker runs on; the message says so instead of claiming loopback
+	// D-TBD-g10 (7): the gateway is the machine Docker runs on; the message says so instead of claiming loopback
 	if msg := userError(err, "http://gw.lan/"); !strings.HasPrefix(msg, "This address is the machine Vedette runs on") {
 		t.Errorf("message = %q", msg)
 	}

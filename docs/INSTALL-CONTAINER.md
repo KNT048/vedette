@@ -127,9 +127,9 @@ Vedette knows it is a container-only install from `-host-socket=` in `compose.ya
 - Settings → Box network says the network of the machine is yours to set up.
 - Settings → Modules shows Honeypot (and Credentialed scans) as "Not on this install"; the setup bundles leave them out. A honeypot turned on before this version shows only why it cannot run; turn it off in Settings → Modules.
 - The first-run setup names `docker logs vedette-core` for the setup code.
-- Scans → Credentialed scan says the module is not on this install instead of inviting you to turn it on (D-229).
-- Settings → MCP server says nothing outside the container can reach it yet (D-229); publishing the port safely is packaging work still to come.
-- Settings → SIEM forwarding greys out "Honeypot touches": there is no honeypot to forward (D-229).
+- Scans → Credentialed scan says the module is not on this install instead of inviting you to turn it on (D-TBD-g10).
+- Settings → MCP server says nothing outside the container can reach it yet (D-TBD-g10); publishing the port safely is packaging work still to come.
+- Settings → SIEM forwarding greys out "Honeypot touches": there is no honeypot to forward (D-TBD-g10).
 
 Still to come: the package list of "This box" says nothing about why it is empty (S-INV-5 G3), and the Updates page does not yet say that a new version exists (S-CORE-2 G4, waits for the release keys, WP-08k).
 

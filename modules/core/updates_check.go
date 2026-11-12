@@ -328,6 +328,11 @@ func (h *OSHandlers) acceptable(m *release.Manifest, latest string) string {
 	if h.host != nil && m.CheckInstallMode("appliance") != nil {
 		return "the release is not for appliance installs"
 	}
+	// Without a host this is a container-only install (D-381): the customer pulls the release's images, so it must say
+	// it is built for that (S-CORE-9 G4).
+	if h.host == nil && m.CheckInstallMode("container") != nil {
+		return "the release is not for container-only installs"
+	}
 	return ""
 }
 
@@ -763,6 +768,14 @@ type updateAvailableView struct {
 	SizeKB      int64  `json:"size_kb"`
 	Note        string `json:"note"`
 	HostVersion string `json:"host_version,omitempty"` // the release's system helper when it is above the running one (D-316)
+	// Images are the release's images by digest from the verified manifest: a container-only install shows one
+	// cosign verify per image it runs (S-CORE-9 G4).
+	Images []releaseImageView `json:"images"`
+}
+
+type releaseImageView struct {
+	Service string `json:"service"`
+	Digest  string `json:"digest"`
 }
 
 type advisoryView struct {
@@ -794,6 +807,16 @@ type updatesStateView struct {
 	Advisories   []advisoryView        `json:"advisories"`
 	Run          *updateRunView        `json:"run"`
 	Managed      []managedView         `json:"managed"`
+	// RunningRevoked and StaleSince are D-386: what the stored index says about the running release and itself.
+	RunningRevoked *runningRevokedView `json:"running_revoked"`
+	StaleSince     *time.Time          `json:"stale_since"` // expires_at of the stored index once it has passed
+}
+
+type runningRevokedView struct {
+	Version string    `json:"version"`
+	Reason  string    `json:"reason"`
+	Since   time.Time `json:"since"`
+	Action  string    `json:"action"`
 }
 
 // CoreGetCoreUpdates implements GET /core/updates (viewer).
@@ -864,8 +887,55 @@ func (h *OSHandlers) updatesState(ctx context.Context) (updatesStateView, error)
 		Channel: s.Channel, Mode: s.Mode, CheckEnabled: on, LastCheck: last,
 		Components: comps, Available: availableOf(r.offer, s.Channel, helper),
 		History: nonNil(hist), Advisories: advisoriesOf(r.idx, h.upd.version), Run: run,
-		Managed: managedOf(r.running, r.offer),
+		Managed:        managedOf(r.running, r.offer),
+		RunningRevoked: runningRevokedOf(r.idx, r.running, h.upd.version),
+		StaleSince:     staleSince(r.idx, h.now()),
 	}, nil
+}
+
+// warnsRunning: the revocation actions that tell a box running the release, on every page (D-386 (2)).
+func warnsRunning(action string) bool {
+	return action == "block_install_and_warn" || action == "rollback_if_possible"
+}
+
+// runningRevokedOf is the revocation in idx that hits the running release (update-manifest §8, D-386 (1)): its version,
+// or a digest of its manifest when that is known; one with a warning action wins. A key revocation is not one: the box
+// keeps the software and only stops trusting new documents signed by that key.
+func runningRevokedOf(idx *release.Index, running *release.Manifest, version string) *runningRevokedView {
+	if idx == nil {
+		return nil
+	}
+	digests := map[string]bool{}
+	if running != nil {
+		for _, im := range running.Images {
+			digests[im.Digest] = true
+		}
+	}
+	var hit *release.Revocation
+	for i := range idx.Revoked {
+		r := &idx.Revoked[i]
+		hits := (r.Kind == release.KindRelease && r.ID == version) || (r.Kind == release.KindImageDigest && digests[r.ID])
+		if !hits {
+			continue
+		}
+		if hit == nil || (!warnsRunning(hit.Action) && warnsRunning(r.Action)) {
+			hit = r
+		}
+	}
+	if hit == nil {
+		return nil
+	}
+	return &runningRevokedView{Version: version, Reason: hit.Reason, Since: hit.Since.UTC(), Action: hit.Action}
+}
+
+// staleSince is the stored index's expires_at once now is past it (§4.1, §13 (d), D-386 (3)); nil while it is current
+// or none is stored. It only warns: nothing is blocked by it.
+func staleSince(idx *release.Index, now time.Time) *time.Time {
+	if idx == nil || !idx.Expired(now) {
+		return nil
+	}
+	t := idx.ExpiresAt.UTC()
+	return &t
 }
 
 // refreshHost reads state/containers and /v1/info again when the copies are stateTTL old; the caller holds contMu.
@@ -942,14 +1012,16 @@ func availableOf(v *verifiedRelease, channel string, helper *api.Info) []updateA
 		return []updateAvailableView{}
 	}
 	var size int64
+	images := make([]releaseImageView, 0, len(v.M.Images))
 	for _, im := range v.M.Images {
 		size += im.Size
+		images = append(images, releaseImageView{Service: im.Service, Digest: im.Digest}) // both checked by manifest validate
 	}
 	note := []rune(v.M.Notes)
 	if len(note) > maxNoteRunes {
 		note = note[:maxNoteRunes]
 	}
-	a := updateAvailableView{Component: softwareComponent, Version: v.M.Version, Channel: channel, Note: string(note)}
+	a := updateAvailableView{Component: softwareComponent, Version: v.M.Version, Channel: channel, Note: string(note), Images: images}
 	if helper != nil && hostNewer(v.M, helper.HostVersion) {
 		a.HostVersion = v.M.Host.Version
 		if f := hostFileOf(v.M, helper.Arch); f != nil {

@@ -66,6 +66,10 @@ type Config struct {
 	// Telegram listener long-polls longer than any usual total timeout, so it clears Timeout on its own copy and gives every call a
 	// deadline of its own; the senders keep the client's Timeout.
 	HTTPClient *http.Client
+	// SMTPLoopback is for tests only (the fake SMTP servers of the notify and cmd/vedette tests, and the e2e box, listen on
+	// 127.0.0.1): the email channel may then use a loopback server, and the box's own addresses are not checked. main never sets
+	// it: core never runs on the host network, so loopback is core itself.
+	SMTPLoopback bool
 }
 
 // Service is the notify module: channel settings, delivery, incidents and history. Create it once with
@@ -164,7 +168,7 @@ func (s *Service) loc(ctx context.Context) *time.Location {
 }
 
 // boxAddrs lists the addresses of this box: its network interfaces (read at every call, so an address it gets later
-// counts) and Config.BoxAddrs. A webhook may never connect to one of them. known is false while Config.BoxAddrs says so.
+// counts) and Config.BoxAddrs. A webhook or an SMTP server may never be one of them. known is false while Config.BoxAddrs says so.
 func (s *Service) boxAddrs() (out []netip.Addr, known bool) {
 	known = true
 	if s.cfg.BoxAddrs != nil {

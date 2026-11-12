@@ -91,7 +91,8 @@ export const UpdateChannel = z.enum(['stable', 'beta'])
 export const UpdateComponent = z.object({ id: z.string().describe('"host": the system helper vedette-host (appliance only; a container-only install has no such row), kind software, updated by the software run (its first step, host), previous always null: it is never rolled back by hand (D-316)'), kind: z.enum(['software', 'data', 'content']), version: z.string(), previous: z.string().nullable(), installed_at: ts, signature: z.enum(['valid', 'invalid', 'unsigned']),
   rollback_restores_data: z.boolean().describe('Rolling back also puts back the database from before the update (the running release says rollback.safe=false): data written since is lost, so the rollback needs confirm_data_loss') })
 export const UpdateAvailable = z.object({ component: z.string(), version: z.string(), channel: UpdateChannel, size_kb: z.number(), note: z.string(),
-  host_version: z.string().optional().describe('Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise') })
+  host_version: z.string().optional().describe('Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise'),
+  images: z.array(z.object({ service: z.string(), digest: z.string().describe('sha256:<64 hex>') })).optional().describe('Software only: the images of the release by digest, from its verified manifest; a container-only install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise') })
 export const UpdateHistory = z.object({ id: z.string(), ts, component: z.string(), from: z.string().nullable(), to: z.string(), action: z.enum(['update', 'rollback', 'bundle']), user: z.string() })
 export const Advisory = z.object({ id: z.string(), title: z.string(), severity: z.enum(['critical', 'high', 'medium']), published: z.string(), fixed_in: z.string(), summary: z.string(), status: z.enum(['affected', 'fixed']) })
 export const ManagedPackage = z.object({ id: z.string(), name: z.string(), version: z.string(), status: z.enum(['ok', 'update_pending']) })
@@ -106,11 +107,17 @@ export const UpdateRun = z.object({
   started_at: ts, finished_at: ts.nullable(), user: z.string().describe('"system" for the automatic updater'),
   error: z.string().nullable().describe('Only when failed or reverted: why, in words, naming the service that failed; for the system helper (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316'),
 })
+export const RunningRevoked = z.object({
+  version: z.string().describe('The running release'), reason: z.string().describe('Short English reason signed by the Vedette project'), since: ts,
+  action: z.enum(['block_install', 'block_install_and_warn', 'rollback_if_possible']).describe('block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)'),
+})
 export const UpdatesState = z.object({
   channel: UpdateChannel, mode: z.enum(['auto', 'manual']), check_enabled: z.boolean(), last_check: ts.nullable().describe('null until the first update check'),
   components: z.array(UpdateComponent), available: z.array(UpdateAvailable), history: z.array(UpdateHistory).describe('Latest 20'), advisories: z.array(Advisory),
   run: UpdateRun.nullable().describe('The software install or rollback running now, or one that ended in the last 24 hours; null otherwise'),
   managed: z.array(ManagedPackage).describe('Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)'),
+  running_revoked: RunningRevoked.nullable().describe('The newest stored update information withdraws the release this box runs (update-manifest §8, D-386); null otherwise'),
+  stale_since: ts.nullable().describe('The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d), D-386): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle'),
 })
 
 // ---- hệ điều hành của hộp (D-53). Chạy qua trình trợ giúp đặc quyền `vedette-host`: danh sách lệnh apt cố định, web không bao giờ chạy shell (SYS-1). ----

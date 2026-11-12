@@ -111,6 +111,8 @@ export const useUpdates = () => useQuery({
   queryKey: ['core', 'updates'], queryFn: () => api.get<UpdatesState>('/core/updates'),
   refetchInterval: (q) => (q.state.data?.run?.status === 'running' ? 1000 : false), refetchIntervalInBackground: true,
 })
+/** The every-page banner of D-386: the same data, read again every 10 minutes (an open tab learns of a withdrawal the periodic check stored), never at the 1 s pace of a run (only the Updates page follows a run). */
+export const useUpdatesBanner = () => useQuery({ queryKey: ['core', 'updates'], queryFn: () => api.get<UpdatesState>('/core/updates'), staleTime: 60_000, refetchInterval: 10 * 60_000 })
 export function useUpdateMutations() {
   const qc = useQueryClient()
   // Cancel a poll already on its way first: an older answer arriving after this one would hide a run that just started.

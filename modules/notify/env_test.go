@@ -203,7 +203,7 @@ func newEnv(t *testing.T, opts ...func(*notify.Config)) *env {
 		})
 	}
 	cfg := notify.Config{DB: db, Secrets: sec, Audit: audit.New(e.clock.Now), Users: e.users, Log: log, Bus: e.bus, Clock: e.clock.Now, Location: time.UTC,
-		BaseURL: "https://box.example:8443", HTTPClient: &http.Client{Transport: e.net}, Tokens: e.tokens}
+		BaseURL: "https://box.example:8443", HTTPClient: &http.Client{Transport: e.net}, Tokens: e.tokens, SMTPLoopback: true} // the fake SMTP servers listen on 127.0.0.1
 	for _, o := range opts {
 		o(&cfg)
 	}

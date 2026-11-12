@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -267,6 +268,20 @@ func renderVolume(role string, coreUID, sensorGID int) ([]byte, error) {
 	return fmt.Appendf(nil, volumeUnitText, role, role, coreUID, sensorGID), nil
 }
 
+// volumeIDs reads back the core_uid and sensor_gid a credential .volume unit was written for: ok only when text is exactly what
+// renderVolume makes of the role and those ids (a unit the host wrote, maybe for other ids than host.conf gives now).
+func volumeIDs(role string, text []byte) (coreUID, sensorGID int, ok bool) {
+	for line := range strings.SplitSeq(string(text), "\n") {
+		if v, found := strings.CutPrefix(line, "User="); found {
+			coreUID, _ = strconv.Atoi(v)
+		} else if v, found := strings.CutPrefix(line, "Group="); found {
+			sensorGID, _ = strconv.Atoi(v)
+		}
+	}
+	want, err := renderVolume(role, coreUID, sensorGID)
+	return coreUID, sensorGID, err == nil && bytes.Equal(want, text)
+}
+
 // RenderVolume builds the .volume unit of a role ("passive" or "active"). Exported for the contract tests.
 func RenderVolume(role string, coreUID, sensorGID int) ([]byte, error) {
 	return renderVolume(role, coreUID, sensorGID)
@@ -320,6 +335,11 @@ func renderUnit(service string, f unitFill) ([]byte, error) {
 	if !ok {
 		return nil, errNoTemplate
 	}
+	return s.render(s.tmpl, f)
+}
+
+// render runs tmpl (the service's template, or one of its earlier ones: quadlet_legacy.go) with the checks of renderUnit.
+func (s serviceUnit) render(tmpl *template.Template, f unitFill) ([]byte, error) {
 	if !digestRE.MatchString(f.Digest) {
 		return nil, fmt.Errorf("%w: digest", errBadFill)
 	}
@@ -333,8 +353,8 @@ func renderUnit(service string, f unitFill) ([]byte, error) {
 		return nil, fmt.Errorf("%w: sensor uid or gid", errBadFill)
 	}
 	var b bytes.Buffer
-	if err := s.tmpl.Execute(&b, f); err != nil {
-		return nil, fmt.Errorf("ops: render %s unit: %w", service, err)
+	if err := tmpl.Execute(&b, f); err != nil {
+		return nil, fmt.Errorf("ops: render %s unit: %w", tmpl.Name(), err)
 	}
 	if f.Install {
 		b.WriteString(installSection)
@@ -399,19 +419,29 @@ func containerName(service string) string { return "vedette-" + service }
 func unitFileName(service string) string { return "vedette-" + service + ".container" }
 
 // ourUnit is parseUnit plus identity: the bytes must be exactly what this host would write for that
-// digest and [Install] state with the host.conf ids it has now (D-123 L2). A unit that differs in any
-// byte (an older template, other ids, a hand edit) is not ours and is never read, restarted or
-// rewritten by a container command; the bootstrap of slice 3-8 or the installer rewrites it.
+// digest and [Install] state with the host.conf ids it has now (D-123 L2), or what an earlier release of
+// the host wrote for them (a template of quadlet_legacy.go, D-316 (10)). A unit that differs in any byte
+// from all of those (other ids, a hand edit, a template older than the legacy lists) is not ours and is
+// never read, restarted or rewritten by a container command; -bootstrap -force-units rewrites it.
 func (o *Ops) ourUnit(service string, text []byte) (digest string, install bool, err error) {
+	digest, install, _, err = o.ourUnitAge(service, text)
+	return digest, install, err
+}
+
+// ourUnitAge is ourUnit that also says whether the unit is on an earlier template (stale): ours, to be rewritten to the current one.
+func (o *Ops) ourUnitAge(service string, text []byte) (digest string, install, stale bool, err error) {
 	digest, install, err = parseUnit(service, text)
 	if err != nil {
-		return "", false, err
+		return "", false, false, err
 	}
-	want, rerr := renderUnit(service, o.fillFor(digest, install))
-	if rerr != nil || !bytes.Equal(want, text) {
-		return "", false, errUnitNotOurs
+	f := o.fillFor(digest, install)
+	if want, rerr := renderUnit(service, f); rerr == nil && bytes.Equal(want, text) {
+		return digest, install, false, nil
 	}
-	return digest, install, nil
+	if legacyUnit(service, f, text) {
+		return digest, install, true, nil
+	}
+	return "", false, false, errUnitNotOurs
 }
 
 var errUnitNotOurs = errors.New("ops: the unit differs from what this host would write")

@@ -137,8 +137,10 @@ type Device struct {
 
 // Incident is one incident as the API shows it.
 type Incident struct {
-	ID        string         `json:"id"`
-	Kind      IncidentKind   `json:"kind"`
+	ID   string       `json:"id"`
+	Kind IncidentKind `json:"kind"`
+	// Attempt (bad_address only): the device that logged the connection blocked it, so it was an attempt, not a connection (D-227).
+	Attempt   bool           `json:"attempt"`
 	Title     string         `json:"title"`
 	Link      string         `json:"link"`
 	Devices   []Device       `json:"devices"`
@@ -181,6 +183,10 @@ type IncidentInput struct {
 	Link     string // where to see the source, a path inside Vedette: /honeypot/hits/<id>, /logs, /devices/<id>
 	Devices  []Device
 	At       time.Time // zero = now
+	// Attempt (bad_address only) says the connection was blocked (logs.bad_address.detected "blocked", D-227). An attempt is a
+	// repeat of an open incident of the same source and target, attempt or not; a connection is never a repeat of an attempt, so
+	// a blocked attempt never hides the connection that follows it (D-227 (4)).
+	Attempt bool
 }
 
 // ---- what notify needs from the rest of the box (small interfaces, faked in tests) ----

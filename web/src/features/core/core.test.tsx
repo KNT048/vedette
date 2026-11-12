@@ -1151,7 +1151,7 @@ describe('core: tài khoản', () => {
     expect(screen.getByRole('button', { name: 'Set up email code' })).toBeDisabled()
     await u.type(screen.getByLabelText('Your current password'), 'wrong password here')
     await u.click(start)
-    expect(await screen.findByText(/The password is needed to turn on two-factor authentication/)).toBeInTheDocument()
+    expect(await screen.findByText(/The password is needed to turn on two-step sign-in/)).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'QR code for your authenticator app' })).not.toBeInTheDocument()
     await u.clear(screen.getByLabelText('Your current password'))
     await u.type(screen.getByLabelText('Your current password'), 'vedette-demo')
@@ -1186,9 +1186,33 @@ describe('core: tài khoản', () => {
   it('kết thúc phiên khác, a11y sạch', async () => {
     const u = user()
     renderApp('/account', { role: 'viewer' })
-    await u.click(await screen.findByRole('button', { name: 'End session Firefox on Windows' }))
+    await u.click(await screen.findByRole('button', { name: 'End session Firefox on Windows at 192.168.10.61' }))
     expect(await screen.findByText('Session ended.')).toBeInTheDocument()
     await expectNoA11yViolations()
+  })
+
+  it('walk 2026-11-12: short device label with the raw text as tooltip; a guessable new password is refused under New password (D-389)', async () => {
+    const u = user()
+    renderApp('/account')
+    const label = await screen.findByText('Firefox on Windows')
+    expect(label).toHaveAttribute('title', expect.stringMatching(/^Mozilla\/5\.0 \(Windows NT 10\.0/))
+    await u.type(screen.getByLabelText('Current password'), 'vedette-demo')
+    await u.type(screen.getByLabelText('New password'), 'password1234')
+    await u.type(screen.getByLabelText('Repeat new password'), 'password1234')
+    await u.click(screen.getByRole('button', { name: 'Change password' }))
+    expect(await screen.findByText(/^This password is too easy to guess/)).toBeInTheDocument()
+    expect(screen.getByLabelText('New password')).toHaveAttribute('aria-invalid', 'true')
+    expect(usersStore.get().find((x) => x.id === 'u-admin')!.password).toBe('vedette-demo')
+  })
+
+  it('two-step on: an administrator sees the box-console reset with their email, another user is told to ask an administrator (D-389)', async () => {
+    usersStore.update((l) => l.map((x) => (x.id === 'u-admin' || x.id === 'u-op' ? { ...x, twofa: true, twofa_method: 'app' } : x)))
+    const { unmount } = renderApp('/account')
+    expect(await screen.findByText("docker exec vedette-core /vedette reset-admin 'admin@acme.example'")).toBeInTheDocument()
+    unmount()
+    renderApp('/account', { role: 'operator' })
+    expect(await screen.findByText(/Ask an administrator to turn two-step sign-in off for you/)).toBeInTheDocument()
+    expect(screen.queryByText(/reset-admin/)).not.toBeInTheDocument()
   })
 })
 
@@ -1414,6 +1438,20 @@ describe('core: two-step sign-in, email code method (D-35)', () => {
     expect(await screen.findByText('Two-step email codes cannot be sent right now. Ask an administrator to turn the email channel back on, or to reset your two-step sign-in.')).toBeInTheDocument()
     expect(sessionStore.get().userId).toBeNull()
     expect(screen.queryByLabelText('6-digit code')).not.toBeInTheDocument()
+  })
+
+  it('login: after 10 wrong passwords the page says how long to wait, and the right password waits too (S-CORE-3)', async () => {
+    const u = user()
+    for (let i = 0; i < 10; i++) {
+      const r = await fetch(`${location.origin}/api/v1/auth/login`, { method: 'POST', body: JSON.stringify({ email: 'it@acme.example', password: `wrong password ${i}` }) })
+      expect(r.status).toBe(400)
+    }
+    renderApp('/login', { role: null })
+    await u.type(await screen.findByLabelText('Email'), 'it@acme.example')
+    await u.type(screen.getByLabelText('Password'), 'vedette-demo')
+    await u.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByText(/^Too many failed sign-in attempts\. Try again in \d+ seconds\.$/)).toBeInTheDocument()
+    expect(sessionStore.get().userId).toBeNull()
   })
 
   it('login: an authenticator-app user still sees the authenticator copy and no resend button', async () => {

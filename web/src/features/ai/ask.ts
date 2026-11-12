@@ -4,6 +4,7 @@
 import { assetsStore, findingsStore } from '@/mocks/stores'
 import { BOX_ID } from '@/features/inventory/mocks'
 import type { Asset } from '@/lib/types'
+import { fmtDate } from '@/lib/format'
 import type { AskTable, ToolCall } from './types'
 
 export interface Answer { answer: string[]; table: AskTable | null; tool_calls: ToolCall[]; citations: { title: string }[] }
@@ -57,7 +58,7 @@ export function answerQuestion(question: string): Answer {
     const rows = assets.filter((a) => !a.approved)
     return {
       answer: rows.length ? [`${plural(rows.length, 'device')} ${rows.length === 1 ? 'is' : 'are'} not approved yet: ${list(rows.map(name))}.`, 'Open Devices to approve, mark as unknown or delete. A device using a random MAC address is often a phone; still ask its owner.'] : ['No device is waiting for approval.'],
-      table: rows.length ? assetTable(rows, { col: 'First seen', of: (a) => new Date(a.first_seen).toLocaleDateString('en-GB') }) : null,
+      table: rows.length ? assetTable(rows, { col: 'First seen', of: (a) => fmtDate(a.first_seen) }) : null,
       tool_calls: [tc('search_assets', '{"approved": false}', rows)], citations: [inv],
     }
   }

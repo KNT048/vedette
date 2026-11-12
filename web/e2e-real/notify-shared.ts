@@ -1,8 +1,8 @@
 // Shared by notify.spec.ts and notify.global.spec.ts (WP-30, D-170): the shapes of the notify API, the texts the page derives from them, small helpers.
 // Nothing here talks to the internet. The one send that can be tried on a box with no internet is an email channel pointed at a closed port on loopback
 // (SMTP to an internal host is allowed, INV-8); a webhook cannot point at loopback (D-86), and Telegram, Slack and Zalo have fixed internet addresses.
-// DEPENDENCY: the email test relies on the email channel accepting a LOOPBACK SMTP host (`internalHost` in the channel package counts 127/8 as internal). D-86 forbids loopback
-// for webhooks only; if SMTP is ever closed to loopback too, the failed-send tests need the box's own SMTP sink instead (see .ai/deferred/feat-e2e-real-notify.md).
+// DEPENDENCY: a production box refuses a loopback SMTP server like a webhook (walk 3, INV-8); the e2e box (TestE2EBox) is built by the tests of cmd/vedette,
+// which set notify's test-only Config.SMTPLoopback (notify_wiring_test.go), so the email tests here still reach loopback.
 // Not covered: DNS rebinding of a webhook name (the dial-time check needs a resolver seam); only the spelled-out addresses are tested.
 import { createServer } from 'node:net'
 import type { AddressInfo } from 'node:net'
@@ -54,9 +54,9 @@ export function quietSummary(q: Quiet): string | null {
 }
 /** The line over the History table (history.meta*), from the count of vulnerabilities that matched no device. */
 export function historyMeta(s: { count: number; days: number }): string {
-  if (s.count === 0) return `Vedette only alerts for products you own. In the last ${s.days} days no new vulnerability was skipped for matching none of your devices.`
-  if (s.count === 1) return `Vedette only alerts for products you own. 1 new vulnerability in the last ${s.days} days matches none of your devices, so nothing was sent.`
-  return `Vedette only alerts for products you own. ${s.count} new vulnerabilities in the last ${s.days} days match none of your devices, so nothing was sent.`
+  if (s.count === 0) return `Vedette only alerts for products you own. In the last ${s.days} days no new vulnerability was skipped for matching none of your devices. The first download of the vulnerability lists is not counted.`
+  if (s.count === 1) return `Vedette only alerts for products you own. 1 new vulnerability in the last ${s.days} days matches none of your devices, so nothing was sent. The first download of the vulnerability lists is not counted.`
+  return `Vedette only alerts for products you own. ${s.count} new vulnerabilities in the last ${s.days} days match none of your devices, so nothing was sent. The first download of the vulnerability lists is not counted.`
 }
 /** "Sent to" cell of a channel row (dest() in ChannelsSettings.tsx). */
 export function destText(c: Ch): string {

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"net/netip"
-	"os"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
@@ -67,9 +66,13 @@ func inventoryJobs(d deps) []jobs.Job {
 		hostc = hostclient.New(d.HostSocket)
 	}
 	return []jobs.Job{prune, {Module: "inventory", Name: "box", Every: time.Hour, Run: func(ctx context.Context) error {
-		host, err := os.Hostname()
-		if err != nil || host == "" {
-			host = "vedette"
+		// The machine's name, not the container's (#471). No answer from the host since core started: keep the row's name rather
+		// than write "vedette" over it.
+		host, ok := d.BoxName.Get(ctx)
+		if !ok {
+			if name, _, found, err := svc.BoxName(ctx); err == nil && found && name != "" {
+				host = name
+			}
 		}
 		var ip string
 		if hostc != nil {

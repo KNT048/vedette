@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Chip } from '@/components/common/StatusChip'
-import type { IncidentStatus, Preview, SendRecord } from './types'
+import type { Incident, IncidentStatus, Preview, SendRecord } from './types'
 
 const TONE = { new: 'warn', acknowledged: 'accent', resolved: 'ok' } as const
 
@@ -8,6 +8,9 @@ export function IncidentStatusChip({ status }: { status: IncidentStatus }) {
   const { t } = useTranslation('notify')
   return <Chip tone={TONE[status]}>{t(`incidents.status.${status}`)}</Chip>
 }
+
+/** The locale key of an incident's kind: a blocked connection to a known-bad address is an attempt (D-227). */
+export const kindKey = (i: Pick<Incident, 'kind' | 'attempt'>) => `incidents.kind.${i.attempt ? 'bad_address_attempt' : i.kind}` as const
 
 export const fmtClock = (iso: string) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
 

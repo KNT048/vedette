@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/host/ops/opstest"
@@ -206,6 +208,10 @@ func TestUpdateCheckOffersTheNewRelease(t *testing.T) {
 	a, _ := av[0].(map[string]any)
 	if a["component"] != "software" || a["version"] != "1.4.0" || a["channel"] != "stable" || a["size_kb"] != float64(4096) || len([]rune(a["note"].(string))) != 500 {
 		t.Errorf("available[0] = %v", a)
+	}
+	// S-CORE-9 G4: the digests of the verified manifest, for the cosign lines of a container-only install.
+	if im := fmt.Sprint(a["images"]); im != "[map[digest:sha256:"+strings.Repeat("a", 64)+" service:core] map[digest:sha256:"+strings.Repeat("b", 64)+" service:sensor]]" {
+		t.Errorf("available[0].images = %s", im)
 	}
 	comp, _ := getArr(r, "components")[0].(map[string]any)
 	if comp["id"] != "software" || comp["version"] != runningVersion || comp["previous"] != nil || comp["signature"] != "unsigned" || comp["rollback_restores_data"] != true {
@@ -437,6 +443,25 @@ func TestUpdateStateWithAHost(t *testing.T) {
 	}
 }
 
+// Without vedette-host (a container-only install, D-381) a release that is not for container installs is not offered
+// (S-CORE-9 G4).
+func TestUpdateCheckContainerOnlyNeedsAContainerRelease(t *testing.T) {
+	t.Parallel()
+	e := newUpdEnv(t, osOpts{noHost: true})
+	e.srv.manifest(t, runningVersion, nil)
+	m := e.srv.manifest(t, "1.4.0", func(d opstest.Doc) { d["install_modes"] = []string{"appliance"} })
+	e.srv.index(t, 5, m, 100, nil)
+	r := e.oper.post("/core/updates/check", nil)
+	wantOK(t, r, 200)
+	e.wantNothingOffered(t, r)
+	m = e.srv.manifest(t, "1.4.0", func(d opstest.Doc) { d["install_modes"] = []string{"container"} })
+	e.srv.index(t, 6, m, 100, nil)
+	wantOK(t, e.oper.post("/core/updates/check", nil), 200)
+	if v, err := e.upd.OfferedVersionForTest(t.Context()); err != nil || v != "1.4.0" {
+		t.Errorf("offered() = %q %v", v, err)
+	}
+}
+
 // #469: a test-channel build downloads from the local source, but the signed index must still name the project's release
 // URL (core.DefaultReleaseBase), exactly as the test channel signs it. A release build ignores the file.
 func TestUpdateCheckTestChannelSource(t *testing.T) {
@@ -454,5 +479,60 @@ func TestUpdateCheckTestChannelSource(t *testing.T) {
 	}
 	if e.srv.hit("/index/index.json") == 0 || e.srv.hit("/v1.4.0/release-manifest.json") == 0 {
 		t.Fatal("the documents did not come from the test source")
+	}
+}
+
+// D-386: a revocation that hits the running release and an index past expires_at are in GET /core/updates.
+func TestUpdateStateRevokedRunningAndStale(t *testing.T) {
+	t.Parallel()
+	e := newUpdEnv(t, osOpts{noHost: true})
+	e.srv.standard(t, 5)
+	r := e.oper.post("/core/updates/check", nil)
+	wantOK(t, r, 200)
+	if getVal(r, "running_revoked") != nil || getVal(r, "stale_since") != nil {
+		t.Fatalf("a current index that revokes nothing: %v %v", getVal(r, "running_revoked"), getVal(r, "stale_since"))
+	}
+	m := e.srv.manifest(t, "1.4.0", nil)
+	revoke := func(seq uint64, rs ...opstest.Doc) {
+		t.Helper()
+		e.srv.index(t, seq, m, 100, func(d opstest.Doc) {
+			list := []any{opstest.Revocation("release", "1.2.0")} // another release
+			for _, x := range rs {
+				list = append(list, x)
+			}
+			d["revoked"] = list
+		})
+		wantOK(t, e.oper.post("/core/updates/check", nil), 200)
+	}
+	want := func(action string) {
+		t.Helper()
+		g := e.viewer.get("/core/updates")
+		wantOK(t, g, 200)
+		got, _ := getVal(g, "running_revoked").(map[string]any)
+		if got["version"] != runningVersion || got["reason"] != "test" || got["since"] != "2026-12-02T08:00:00Z" || got["action"] != action {
+			t.Fatalf("running_revoked = %v, want action %s", getVal(g, "running_revoked"), action)
+		}
+	}
+	advisory := opstest.Revocation("advisory_only", runningVersion)
+	advisory["action"] = "block_install_and_warn"
+	revoke(6, advisory)
+	if g := e.viewer.get("/core/updates"); getVal(g, "running_revoked") != nil {
+		t.Fatalf("running_revoked = %v for another release and an advisory_only entry", getVal(g, "running_revoked"))
+	}
+	revoke(7, opstest.Revocation("release", runningVersion))
+	want("block_install")
+	// a digest of the running release's manifest, with a warning, wins over the release's block_install
+	warn := opstest.Revocation("image_digest", "sha256:"+strings.Repeat("a", 64))
+	warn["action"] = "block_install_and_warn"
+	revoke(8, warn)
+	want("block_install_and_warn")
+	revoke(9) // a newer index without them: both are carried (sticky, §8), the warning still wins
+	want("block_install_and_warn")
+
+	e.clock.Advance(40 * 24 * time.Hour) // past expires_at (generated 2026-12-02, plus 14 days)
+	g := e.viewer.get("/core/updates")
+	wantOK(t, g, 200)
+	if getVal(g, "stale_since") != "2026-12-16T08:00:00Z" {
+		t.Fatalf("stale_since = %v", getVal(g, "stale_since"))
 	}
 }

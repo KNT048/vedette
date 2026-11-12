@@ -12,12 +12,13 @@ import { harnessHandlers } from './harness-mocks'
 import { activityHandlers, recordActivity } from './activity'
 import type { ActivityInput } from './activity'
 import type { AiConfigView, AiProfile, HookHit, AiRun, AiTier, AskResult, Assignments, ConfigInput, DigestItem, ExplainResult, FetchedSource, LogDigest, NewsResult, ProfileInput, ToolCall, Usage } from './types'
+import { fmtDate } from '@/lib/format'
 
 interface Kev { cve: string; vendor: string; product: string; name: string; description: string; required_action: string; links: string[]; date_added: string; ransomware: boolean; has_template: boolean }
 const vulns = (kev as { vulns: Kev[] }).vulns
 const CVE_RE = /^CVE-\d{4}-\d{4,}$/i
 const DAY = 864e5
-const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB')
+const fmtDay = (iso: string) => fmtDate(iso) // one date format (D-389)
 const num = (n: number) => n.toLocaleString('en-US')
 const plural = (n: number, one: string, many = `${one}s`) => `${num(n)} ${n === 1 ? one : many}`
 

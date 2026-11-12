@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/modules/honeypot"
 )
 
@@ -411,5 +412,40 @@ func TestRefusalReasonIsThePlainSentence(t *testing.T) {
 	r, _ := e.svc.Decoys(e.ctx())
 	if d := r.Items[0]; d.Reason == nil || *d.Reason != "the host could not do it" {
 		t.Fatalf("%+v", d)
+	}
+}
+
+// An inventory event only hints at an Apply: during an Apply that keeps failing it must not turn "failed" into "starting".
+func TestInventoryEventsDoNotMakeAFailingTrapStarting(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.setup()
+	e.host.failStart = errStart
+	_ = e.svc.Apply(e.ctx())
+	bus := &fakeBus{}
+	e.svc.Subscribe(bus)
+	for _, h := range bus.fns {
+		if err := h(e.ctx(), events.Event{Name: "inventory.asset.updated"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := overviewTraps(t, e)[2]; got.State != honeypot.StateFailed {
+		t.Fatalf("after an inventory event: %s", got.State)
+	}
+}
+
+// After the module was switched off, a switch-on shows "starting" until the first Apply answers, never the "module is off" failure.
+func TestTrapsAreStartingAfterTheModuleWasOff(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.setup()
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Disable(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if got := overviewTraps(t, e)[2]; got.State != honeypot.StateStarting {
+		t.Fatalf("after Disable: %s", got.State)
 	}
 }

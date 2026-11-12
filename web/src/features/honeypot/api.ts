@@ -5,7 +5,7 @@ import type { Decoy, DecoyInput, DecoysResponse, Hit, HitDetail, HpOverview, HpS
 // A trap that is coming up or going down changes without the user doing anything (the box takes minutes): look again until it settles.
 const SETTLE_MS = 3000
 export const useOverview = () => useQuery({ queryKey: ['honeypot', 'overview'], queryFn: () => api.get<HpOverview>('/honeypot'),
-  refetchInterval: (q) => (q.state.data?.traps.some((t) => t.state === 'starting' || t.state === 'stopping') ? SETTLE_MS : false) })
+  refetchInterval: (q) => (q.state.status !== 'error' && q.state.data?.traps.some((t) => t.state === 'starting' || t.state === 'stopping') ? SETTLE_MS : false) })
 
 export const useHits = (asset?: string) =>
   useQuery({ queryKey: ['honeypot', 'hits', asset ?? 'all'], queryFn: () => api.get<{ items: Hit[] }>(`/honeypot/hits${asset ? `?asset=${encodeURIComponent(asset)}` : ''}`) })
@@ -33,7 +33,7 @@ export function useTestHit() {
 }
 
 export const useDecoys = () => useQuery({ queryKey: ['honeypot', 'decoys'], queryFn: () => api.get<DecoysResponse>('/honeypot/decoys'),
-  refetchInterval: (q) => (q.state.data?.items.some((d) => d.state === 'starting' || d.state === 'stopping') ? SETTLE_MS : false) })
+  refetchInterval: (q) => (q.state.status !== 'error' && q.state.data?.items.some((d) => d.state === 'starting' || d.state === 'stopping') ? SETTLE_MS : false) })
 export const useTokens = () => useQuery({ queryKey: ['honeypot', 'tokens'], queryFn: () => api.get<{ items: Token[] }>('/honeypot/tokens') })
 
 export function useAddDecoy() { const inv = useInvalidate(); return useMutation({ mutationFn: (b: DecoyInput) => api.post<Decoy>('/honeypot/decoys', b), onSuccess: inv }) }

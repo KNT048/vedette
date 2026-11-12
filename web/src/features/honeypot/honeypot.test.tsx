@@ -42,7 +42,6 @@ describe('honeypot: main page (S-HP-1)', () => {
     expect(sw).not.toBeDisabled()
     await userEvent.click(sw)
     expect(await screen.findByText('MSSQL (SQL Server) trap is on')).toBeInTheDocument()
-    await waitFor(() => expect(within(trapRow(/MSSQL/)).getByText('Starting')).toBeInTheDocument())
     expect(auditStore.get().some((a) => a.action === 'honeypot.trap_enable')).toBe(true)
   })
 

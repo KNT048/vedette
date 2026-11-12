@@ -109,11 +109,18 @@ func (s *Service) loc(ctx context.Context) *time.Location {
 
 func (s *Service) on() bool { return s.cfg.Modules == nil || s.cfg.Modules.Enabled("honeypot") }
 
-// Kick asks the run loop to apply the state to the host soon (a device appeared, a setting changed).
+// Kick is for a change the owner made (a setting, a switch, the module turned on): the traps are "starting" or "stopping"
+// until an Apply that began after it has answered.
 func (s *Service) Kick() {
 	s.mu.Lock()
 	s.kickGen++
 	s.mu.Unlock()
+	s.hint()
+}
+
+// hint asks the run loop to apply the state soon without claiming anything changed for the owner: an inventory event
+// on a busy LAN must not keep the traps "starting" while an Apply is failing.
+func (s *Service) hint() {
 	select {
 	case s.kick <- struct{}{}:
 	default:

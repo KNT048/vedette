@@ -476,6 +476,13 @@ func (s *Service) Disable(ctx context.Context) error {
 }
 
 func (s *Service) disable(ctx context.Context) error {
+	defer func() { // a later switch-on must read "starting", never the "the module is off" this left behind; the back-off starts over
+		s.mu.Lock()
+		s.kickGen++
+		s.mu.Unlock()
+		clear(s.refusals)
+		s.sig = ""
+	}()
 	st, err := s.cfg.Host.Status(ctx)
 	if err != nil {
 		s.setHost(hostCache{reason: turningOff})
@@ -549,7 +556,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	for _, name := range []string{"inventory.asset.discovered", "inventory.asset.updated"} {
 		undo = append(undo, bus.Subscribe(name, func(context.Context, events.Event) error {
 			if s.on() {
-				s.Kick()
+				s.hint()
 			}
 			return nil
 		}))

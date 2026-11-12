@@ -100,11 +100,15 @@ type fakeUsers struct {
 	mu        sync.Mutex
 	users     map[string]notify.User
 	emailCode int
+	lookupErr error // when set, Lookup fails with it
 }
 
 func (u *fakeUsers) Lookup(_ context.Context, id string) (notify.User, bool, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
+	if u.lookupErr != nil {
+		return notify.User{}, false, u.lookupErr
+	}
 	x, ok := u.users[id]
 	return x, ok, nil
 }

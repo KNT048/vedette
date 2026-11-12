@@ -118,6 +118,7 @@ type Service struct {
 	iocWarned    atomic.Pointer[string]
 	iocMu        sync.Mutex
 	iocHour      int64
+	iocTimeout   time.Duration // iocLookupTimeout; a field so that a test can lower it
 	iocSent      int
 	iocCapLogged int64
 	siemSendFn   func(ctx context.Context, cfg siemRow, recs []siemRecord) (string, error) // tests only
@@ -139,7 +140,7 @@ func NewService(cfg Config) (*Service, error) {
 	if err != nil { // fail closed: a box with a broken profile must not run its digest on half a rule
 		return nil, fmt.Errorf("logs: creating service: %w", err)
 	}
-	return &Service{cfg: cfg, now: now, sigs: sigs, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, kick: make(chan struct{}, 1), changed: make(chan struct{}, 1), searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout, siemQ: newSiemQueue(SiemQueueMax), siemReload: make(chan struct{}, 1)}, nil
+	return &Service{cfg: cfg, now: now, sigs: sigs, maxBytes: MaxEventBytes, exportBytes: ExportMaxBytes, chunk: purgeChunk, kick: make(chan struct{}, 1), changed: make(chan struct{}, 1), searchSem: make(chan struct{}, MaxSearches), searchTimeout: SearchTimeout, iocTimeout: iocLookupTimeout, siemQ: newSiemQueue(SiemQueueMax), siemReload: make(chan struct{}, 1)}, nil
 }
 
 func (s *Service) ts() time.Time { return s.now().UTC().Truncate(time.Millisecond) }

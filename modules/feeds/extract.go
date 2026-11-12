@@ -34,7 +34,7 @@ type cell struct {
 
 // rawRow is one extracted record, keyed by record field id. A row-level reject
 // stops the row before any field is built. line is the 1-based line of the
-// input it came from, set only by the plain-list format (0 = use the record number).
+// input it came from, set by the plain-list and CSV formats (0 = use the record number).
 type rawRow struct {
 	reject *rej
 	cells  []idCell
@@ -120,6 +120,7 @@ const maxCSVFields = 1000
 type csvRow struct {
 	cells []string
 	bad   string
+	line  int // the 1-based line of the text where the record starts (a quoted field can span lines)
 }
 
 const (
@@ -133,10 +134,16 @@ const (
 // it: that row is flagged and the text from its start is read again with
 // quotes taken literally, so every physical row is accounted for.
 func parseCSV(text string, delim rune, quotes bool) []csvRow {
+	return parseCSVFrom(text, delim, quotes, 1)
+}
+
+// parseCSVFrom is parseCSV for a text whose first line is number line0 of the original (the re-read after an open quote).
+func parseCSVFrom(text string, delim rune, quotes bool, line0 int) []csvRow {
 	var rows []csvRow
 	var cells []string
 	var cur strings.Builder
 	fields, rowStart := 0, 0
+	line, rowLine, startLine := line0, line0, line0 // the current line, where this record began, where the text at rowStart began
 	inQuote := false
 	endField := func() {
 		fields++
@@ -147,7 +154,7 @@ func parseCSV(text string, delim rune, quotes bool) []csvRow {
 	}
 	endRow := func() {
 		endField()
-		r := csvRow{cells: cells}
+		r := csvRow{cells: cells, line: rowLine}
 		if fields > maxCSVFields {
 			r.bad = csvTooWide
 		}
@@ -168,8 +175,13 @@ func parseCSV(text string, delim rune, quotes bool) []csvRow {
 				} else {
 					inQuote = false
 				}
-			} else if fields < maxCSVFields {
-				cur.WriteRune(c)
+			} else {
+				if c == '\n' || (c == '\r' && (i >= len(text) || text[i] != '\n')) {
+					line++
+				}
+				if fields < maxCSVFields {
+					cur.WriteRune(c)
+				}
 			}
 		case quotes && c == '"' && cur.Len() == 0:
 			inQuote = true
@@ -181,6 +193,8 @@ func parseCSV(text string, delim rune, quotes bool) []csvRow {
 			}
 			endRow()
 			rowStart = i
+			line++
+			rowLine, startLine = line, line
 		default:
 			if fields < maxCSVFields {
 				cur.WriteRune(c)
@@ -191,7 +205,7 @@ func parseCSV(text string, delim rune, quotes bool) []csvRow {
 		}
 	}
 	if inQuote {
-		rest := parseCSV(text[rowStart:], delim, false)
+		rest := parseCSVFrom(text[rowStart:], delim, false, startLine)
 		if len(rest) > 0 {
 			rest[0].bad = csvOpenQuote
 		}
@@ -244,7 +258,7 @@ func extractCSV(text string, p Parser, ids []string, delim rune) ([]rawRow, erro
 	}
 	out := make([]rawRow, 0, len(rows))
 	for _, row := range rows {
-		r := rawRow{}
+		r := rawRow{line: row.line}
 		if row.bad != "" {
 			bad := rj(row.bad)
 			r.reject = &bad

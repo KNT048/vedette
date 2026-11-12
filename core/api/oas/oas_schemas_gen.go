@@ -48050,7 +48050,7 @@ type FeedsPostFeedsParseTestOK struct {
 	// Preview: the first normalised records.
 	Records  []FeedsPostFeedsParseTestOKRecordsItem `json:"records"`
 	Rejected int                                    `json:"rejected"`
-	// The first rejected rows: row is the line of the sample for a plain list, otherwise the record
+	// The first rejected rows: row is the line of the sample for a plain list or CSV, otherwise the record
 	// number; reason shows the value, cut and quoted.
 	Rejects     []FeedsPostFeedsParseTestOKRejectsItem `json:"rejects"`
 	Sample      string                                 `json:"sample"`

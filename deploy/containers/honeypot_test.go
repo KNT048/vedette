@@ -1,6 +1,7 @@
 package containers
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -11,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -398,6 +400,141 @@ func TestHoneypotSinkRefusesForgedAuditLines(t *testing.T) {
 	}
 	if got[3] != nil && !strings.HasPrefix(fieldsOf(*got[3])[12], "x?") {
 		t.Errorf("a forged line in the path survived: %q", *got[3])
+	}
+}
+
+// init.py's stop on SIGTERM: a child the kernel refuses to signal (EACCES, what AppArmor did on Ubuntu 24.04 with Podman 4.9.3: the
+// traceback ended init and failed the unit) and one already gone are logged and skipped, every other child still gets SIGTERM, one that
+// ignores it is killed after STOP_WAIT, and the whole stop stays within that bound.
+func TestHoneypotInitStopsEveryChildEvenWhenOneRefusesTheSignal(t *testing.T) {
+	t.Parallel()
+	py := python(t)
+	code := `import importlib.util, json, subprocess, sys, time
+s = importlib.util.spec_from_file_location("hpinit", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+m.STOP_WAIT = 0.3
+
+class Refused:
+    args, pid, returncode, waited = ["/usr/sbin/smbd"], 4242, None, False
+    def poll(self): return None
+    def send_signal(self, sig): raise PermissionError(13, "Permission denied")
+    def wait(self, timeout=None): self.waited = True
+
+class Gone:
+    args, pid, returncode, waited = ["/usr/bin/python3"], 4343, None, False
+    def poll(self): return None
+    def send_signal(self, sig): raise ProcessLookupError(3, "No such process")
+    def wait(self, timeout=None): self.waited = True
+
+polite = subprocess.Popen([sys.executable, "-I", "-c", "import time; time.sleep(30)"])
+deaf = subprocess.Popen([sys.executable, "-I", "-c", "import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); print('ready', flush=True); time.sleep(30)"], stdout=subprocess.PIPE)
+deaf.stdout.readline()
+refused, gone = Refused(), Gone()
+t0 = time.monotonic()
+m.stop([refused, gone, polite, deaf])
+took = time.monotonic() - t0
+print(json.dumps({"polite": polite.wait(5), "deaf": deaf.wait(5), "took": took, "waited": refused.waited or gone.waited}))
+`
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, py, "-I", "-B", "-c", code, "honeypot/init.py") //nolint:gosec // test: fixed argv, python3 from PATH
+	// a failed run leaves its sleeping children holding stdout: do not wait for them
+	cmd.WaitDelay = time.Second
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("python3: %v\n%s", err, stderr.String())
+	}
+	var got struct {
+		Polite, Deaf int
+		Took         float64
+		Waited       bool
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("output %q: %v", out, err)
+	}
+	if got.Polite != -15 {
+		t.Errorf("the child after the refused one ended with %d, want -15 (it got its SIGTERM)", got.Polite)
+	}
+	if got.Deaf != -9 {
+		t.Errorf("the child that ignores SIGTERM ended with %d, want -9 (killed after STOP_WAIT)", got.Deaf)
+	}
+	if got.Took > 2 {
+		t.Errorf("stop took %.1f s with STOP_WAIT 0.3 s", got.Took)
+	}
+	if got.Waited {
+		t.Error("stop waited for a child it could not signal")
+	}
+	if want := "cannot signal /usr/sbin/smbd (pid 4242): [Errno 13] Permission denied"; !strings.Contains(stderr.String(), want) {
+		t.Errorf("stderr %q does not say %q", stderr.String(), want)
+	}
+}
+
+// init.py's main, end to end with stand-in children (sleeping python processes where smbd and twistd would run; its fixed paths moved
+// into a temporary folder): SIGTERM ends it with exit 0, a "stopped" line and no traceback, well within podman's 10 s, so the unit
+// ends inactive and not failed.
+func TestHoneypotInitExitsZeroOnSIGTERM(t *testing.T) {
+	t.Parallel()
+	py := python(t)
+	dir := t.TempDir()
+	for _, d := range []string{"config", "log", "tmp"} {
+		if err := os.Mkdir(filepath.Join(dir, d), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	conf := filepath.Join(dir, "config")
+	if err := os.WriteFile(filepath.Join(conf, "opencanary.conf"), []byte(`{"smb.enabled": true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(conf, "honeytokens.json"), []byte(`{"files": ["a token.txt"]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code := `import importlib.util, os, subprocess, sys
+s = importlib.util.spec_from_file_location("hpinit", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+d = sys.argv[2]
+m.CONF_DIR, m.LOG_DIR = d + "/config", d + "/log"
+m.CONF, m.TOKENS = m.CONF_DIR + "/opencanary.conf", m.CONF_DIR + "/honeytokens.json"
+m.AUDIT, m.AUDIT_CONF, m.SHARE = d + "/tmp/samba-audit.log", d + "/tmp/samba/audit.conf", d + "/tmp/share"
+makedirs = os.makedirs
+os.makedirs = lambda p, mode=0o777, exist_ok=False: makedirs(d + p if p.startswith("/tmp/") and not p.startswith(d) else p, mode, exist_ok)
+m.spawn = lambda argv, stdout=None: subprocess.Popen([sys.executable, "-I", "-c", "import time; time.sleep(30)"], stdout=stdout)
+m.main()
+`
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, py, "-I", "-B", "-c", code, "honeypot/init.py", dir) //nolint:gosec // test: fixed argv, python3 from PATH
+	cmd.WaitDelay = time.Second
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	var log bytes.Buffer
+	sc := bufio.NewScanner(stderr)
+	for sc.Scan() {
+		log.WriteString(sc.Text() + "\n")
+		if strings.HasPrefix(sc.Text(), "vedette-hp: up") {
+			break
+		}
+	}
+	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	for sc.Scan() {
+		log.WriteString(sc.Text() + "\n")
+	}
+	err = cmd.Wait()
+	if took := time.Since(start); took > 4*time.Second {
+		t.Errorf("init.py took %s to stop", took)
+	}
+	if err != nil {
+		t.Errorf("init.py on SIGTERM: %v, want exit 0\n%s", err, log.String())
+	}
+	if !strings.Contains(log.String(), "vedette-hp: stopped on signal 15") || strings.Contains(log.String(), "Traceback") {
+		t.Errorf("init.py's output on SIGTERM:\n%s", log.String())
 	}
 }
 

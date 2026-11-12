@@ -1617,3 +1617,49 @@ func TestMeasureCeilings(t *testing.T) {
 	n, err := e.svc.Counts(t.Context(), src.ID, sig(5), CountsMaxWindow)
 	t.Logf("Counts 24h: %d in %v %v", n, time.Since(start), err)
 }
+
+// L1 (D-432): the cost of the writer and of a search with 5 million stored lines (a flood at the byte cap is about this many rows): the
+// batch of 500 through Ingest, and Events with no keyword, a common one, a rare one and one that matches nothing, per window. The numbers
+// go to D-432. One run, not a gate: VEDETTE_MEASURE=1.
+func TestMeasureFiveMillionLines(t *testing.T) {
+	if os.Getenv("VEDETTE_MEASURE") == "" {
+		t.Skip("set VEDETTE_MEASURE=1 to measure")
+	}
+	e := newEnv(t)
+	src := e.add("FW-HQ", "192.168.10.1")
+	const rows = 5_000_000
+	start := time.Now()
+	if err := e.vol.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
+			INSERT INTO logs_events (ts, source_id, line)
+			SELECT strftime('%Y-%m-%dT%H:%M:%fZ', ?, '-' || ((? - i) / 10) || ' seconds'), ?,
+			  '<189>date=2026-11-09 time=10:00:00 devname="FW-HQ" logid="0000000013" type="traffic" srcip=192.168.10.' || (i % 250) || ' dstip=45.9.' || (i % 200) || '.' || (i % 97) || ' dstport=443 action="accept" policyid=5 seq=' || i FROM n`,
+			rows, t0.Format("2006-01-02 15:04:05"), rows, src.ID)
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(t.Context(), `UPDATE logs_volume SET line_bytes = (SELECT sum(length(CAST(line AS BLOB))) FROM logs_events) WHERE id = 1`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("filled %d rows in %v", rows, time.Since(start))
+	b := make([]Line, MaxBatch)
+	for i := range b {
+		b[i] = Line{SourceID: src.ID, At: t0, Text: fmt.Sprintf("<189>logid=\"0000000013\" action=\"accept\" seq=%d", i)}
+	}
+	start = time.Now()
+	for range 10 {
+		if _, err := e.svc.Ingest(t.Context(), b); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Logf("Ingest of 500 lines on %d rows: %v per batch", rows, time.Since(start)/10)
+	for _, q := range []string{"", "dstport=443", "seq=4999999 ", "no-such-text"} {
+		for _, w := range []string{"1h", "24h", "7d"} {
+			start = time.Now()
+			v, err := e.svc.Events(t.Context(), EventQuery{Window: w, Q: q})
+			t.Logf("Events window=%s q=%q: %v total=%d err=%v", w, q, time.Since(start), v.Total, err)
+		}
+	}
+}

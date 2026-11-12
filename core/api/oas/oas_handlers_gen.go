@@ -24694,10 +24694,10 @@ func (s *Server) handleInventoryPatchInventoryDevicesIDRequest(args [1]string, a
 
 // handleInventoryPatchInventorySensorsIDRequest handles inventory_patch_inventory_sensors_id operation.
 //
-// Container-only install: choose the card the sensor reads and whether it is the SPAN card, among the
-// cards of its last heartbeat (D-387). 400 bad_interface: not a reported card, no heartbeat in 90 s,
-// or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box
-// network sets it.
+// Container-only install: choose the card the sensor reads (any card of its last heartbeat, with or
+// without an address; null: back to the default card) and whether it is the SPAN card (D-387, D-393).
+// 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409
+// set_in_box_network on an appliance, where Settings → Box network sets it.
 //
 // PATCH /inventory/sensors/{id}
 func (s *Server) handleInventoryPatchInventorySensorsIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -24791,7 +24791,7 @@ func (s *Server) handleInventoryPatchInventorySensorsIDRequest(args [1]string, a
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPatchInventorySensorsIDOperation,
-			OperationSummary: "Container-only install: choose the card the sensor reads and whether it is the SPAN card, among the cards of its last heartbeat (D-387). 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it",
+			OperationSummary: "Container-only install: choose the card the sensor reads (any card of its last heartbeat, with or without an address; null: back to the default card) and whether it is the SPAN card (D-387, D-393). 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it",
 			OperationID:      "inventory_patch_inventory_sensors_id",
 			Body:             request,
 			RawBody:          rawBody,

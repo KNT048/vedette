@@ -167,8 +167,16 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     const table = await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })
     const nas = assetsStore.get().find((a) => a.ip === '192.168.10.20')!
     expect(within(table).getByRole('link', { name: nas.hostname! })).toHaveAttribute('href', `/devices/${nas.id}`)
-    expect(within(table).getByText('update-dsm-synology.com')).toBeInTheDocument()
     expect(within(table).getByRole('link', { name: 'Look up 185.220.101.47' })).toHaveAttribute('href', '/lookup?q=185.220.101.47')
+  })
+
+  it('a subdomain of a name listed with all of its subdomains says the listed name, and Look up goes to it (D-228, D-425)', async () => {
+    renderApp('/logs')
+    const table = await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })
+    expect(within(table).getByText('a7k2q.update-dsm-synology.com')).toBeInTheDocument()
+    expect(within(table).getByText('listed as update-dsm-synology.com')).toBeInTheDocument()
+    expect(within(table).getByRole('link', { name: 'Look up update-dsm-synology.com' })).toHaveAttribute('href', '/lookup?q=update-dsm-synology.com')
+    expect(within(table).queryByRole('link', { name: 'Look up a7k2q.update-dsm-synology.com' })).toBeNull()
   })
 
   it('a machine that is not in the inventory is said so', async () => {
@@ -377,7 +385,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   })
 
   it('the headline says one connection, and counts a blocked attempt apart (D-227, QA walk 3)', async () => {
-    const hit = (id: string, blocked: boolean) => ({ id, ts: '2026-11-12T00:00:00Z', asset_id: null, asset_name: null, src_ip: '192.168.1.50', dest: '185.220.101.47', dest_kind: 'ip', seen_via: 'syslog:FW-HQ', feeds: ['IPsum'], confidence: 0.6, blocked })
+    const hit = (id: string, blocked: boolean) => ({ id, ts: '2026-11-12T00:00:00Z', asset_id: null, asset_name: null, src_ip: '192.168.1.50', dest: '185.220.101.47', dest_kind: 'ip', seen_via: 'syslog:FW-HQ', feeds: ['IPsum'], confidence: 0.6, blocked, listed_as: null })
     let hits = [hit('h-1', true)]
     server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json({ generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, history_days: 7, new: [], spikes: [], bad_connections: hits, ioc_matching: true })))
     renderApp('/logs')

@@ -1,0 +1,4 @@
+# Deferred: feat/updates-check-error (v1 M2, D-392)
+- [ ] 2026-11-12 Opus review LOW: a cancelled update check sets the in-memory `upd.failed` flag (D-388, set before checkFailure) but writes no `last_check_error`, so until the next good check or a restart the automatic mode refuses while the page shows no failure. Decide: do not set the flag on context.Canceled, or keep it (conservative) and say so on the page.
+- [ ] 2026-11-12 Opus review LOW: with update checks turned off under Privacy the page still shows the last recorded "Last check failed …" line next to "checks are off" (true, but stale); consider hiding it or wording it "before checks were turned off".
+- [ ] 2026-11-12 Opus review LOW: TestUpdateCheckRefusesWhatDoesNotVerify compares last_check_error.message with the 50x answer's own message (same source); assert it is one of checkFailure's fixed sentences instead.

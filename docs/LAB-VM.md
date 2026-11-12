@@ -18,7 +18,7 @@ network. You don't need to log in again because the script runs QEMU under `sg k
 ## Use
 
 ```sh
-scripts/dev/lab-vm.sh create ubuntu2404      # or debian13; downloads + verifies the image (fetch <vm> does only that)
+scripts/dev/lab-vm.sh create ubuntu2404      # or ubuntu2604, debian13; downloads + verifies the image (fetch <vm> does only that)
 scripts/dev/lab-vm.sh start ubuntu2404       # waits for SSH and cloud-init
 scripts/dev/lab-vm.sh ssh                    # shell; `ssh <cmd>` runs a command (times out after LAB_SSH_TIMEOUT, 900 s)
 scripts/dev/lab-vm.sh status
@@ -42,7 +42,7 @@ test artifacts that root does not own. To reboot the VM in the middle of an apt 
 
 For the GUI, forward a port with ssh:
 `ssh -i ~/.cache/vedette-lab/id_ed25519 -o UserKnownHostsFile=~/.cache/vedette-lab/<vm>/known_hosts -p <port> -L 8443:127.0.0.1:8443 lab@127.0.0.1`.
-The port is 22404 for ubuntu2404 and 22013 for debian13.
+The port is 22404 for ubuntu2404, 22604 for ubuntu2604 and 22013 for debian13.
 
 ## Network
 

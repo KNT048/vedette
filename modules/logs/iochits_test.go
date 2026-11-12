@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/store"
 )
 
 // fakeFeeds is the Feeds port of the tests: a fixed list, a count of the lookups and the failures to answer with.
@@ -23,6 +24,9 @@ type fakeFeeds struct {
 	calls  []string
 	err    error
 	hook   func(ctx context.Context) // runs inside every lookup
+	noSub  bool                      // no switched-on feed lists subdomains (Subdomains says false)
+	subErr error                     // what Subdomains fails with
+	subs   int                       // calls of Subdomains
 }
 
 func (f *fakeFeeds) Lookup(ctx context.Context, kind, value string) (Listing, bool, error) {
@@ -50,6 +54,13 @@ func (f *fakeFeeds) Listed(context.Context) (bool, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return len(f.listed) > 0, nil
+}
+
+func (f *fakeFeeds) Subdomains(context.Context) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.subs++
+	return !f.noSub, f.subErr
 }
 
 func (f *fakeFeeds) lookups() []string {
@@ -194,18 +205,19 @@ func TestIOCDomainHits(t *testing.T) {
 }
 
 // D-228: a feed that lists a name with all of its subdomains (hagezi TIF) makes a subdomain the device asked for a hit; the hit keeps the
-// name asked for, the incident says which name is listed and is keyed on it, and the parents that names of a batch share are looked up once.
+// name asked for and the listed name (listed_as, D-425), the incident says which name is listed and is keyed on it, and the parents that
+// names of a batch share are looked up once. Another device asking for a subdomain of the same name is its own hit.
 func TestIOCSubdomainOfANameListedWithItsSubdomains(t *testing.T) {
 	t.Parallel()
 	e, src, ff, p := iocEnv(t)
 	ff.listed["domain:tif-listed.net"] = Listing{Feeds: []string{"hagezi TIF"}, Confidence: 0.8, SubFeeds: []string{"hagezi TIF"}, SubConfidence: 0.8}
-	e.feedAll(src, []string{dnsLine(lanDevice, "A.B.Tif-Listed.NET."), dnsLine(lanDevice, "c.tif-listed.net")})
+	e.feedAll(src, []string{dnsLine(lanDevice, "A.B.Tif-Listed.NET."), dnsLine("192.168.10.106", "c.tif-listed.net")})
 	if h, b := p.counts(); h != 2 || b != 2 {
 		t.Fatalf("%d hits %d events", h, b)
 	}
 	for i, want := range []string{"a.b.tif-listed.net", "c.tif-listed.net"} {
 		h, b := p.hits[i], p.bad[i]
-		if h.Dest != want || h.DestKind != "domain" || h.Confidence != 0.8 || strings.Join(h.Feeds, ",") != "hagezi TIF" || b.Dest != want ||
+		if h.Dest != want || h.DestKind != "domain" || h.Confidence != 0.8 || strings.Join(h.Feeds, ",") != "hagezi TIF" || h.ListedAs == nil || *h.ListedAs != "tif-listed.net" || b.Dest != want ||
 			b.Target != "ioc:tif-listed.net" || !strings.Contains(b.What, "(listed as tif-listed.net, with all of its subdomains)") || !strings.Contains(b.Title, want) {
 			t.Errorf("hit %d %+v %+v", i, h, b)
 		}
@@ -213,6 +225,95 @@ func TestIOCSubdomainOfANameListedWithItsSubdomains(t *testing.T) {
 	got := strings.Join(ff.lookups(), " ")
 	if got != "domain:a.b.tif-listed.net domain:b.tif-listed.net domain:tif-listed.net domain:c.tif-listed.net" {
 		t.Errorf("lookups %s", got)
+	}
+	d := e.digest()
+	if len(d.BadConnections) != 2 || d.BadConnections[0].ListedAs == nil || *d.BadConnections[0].ListedAs != "tif-listed.net" {
+		t.Fatalf("digest %+v", d.BadConnections)
+	}
+	if h, ok, err := e.svc.IocHit(t.Context(), p.hits[0].ID); err != nil || !ok || h.ListedAs == nil || *h.ListedAs != "tif-listed.net" {
+		t.Errorf("IocHit %+v %v %v", h, ok, err)
+	}
+}
+
+// D-425: the random subdomains of one listed name that a device asks for are one hit in 24 hours (dedupe on (device, listed name)), in
+// one batch and across batches, and so is the listed name itself; a hit on a name listed for itself keeps listed_as null.
+func TestIOCSubdomainsOfOneListedNameAreOneHit(t *testing.T) {
+	t.Parallel()
+	e, src, ff, p := iocEnv(t)
+	ff.listed["domain:tif-listed.net"] = Listing{Feeds: []string{"hagezi TIF"}, Confidence: 0.8, SubFeeds: []string{"hagezi TIF"}, SubConfidence: 0.8}
+	e.feedAll(src, []string{dnsLine(lanDevice, "x1q9.tif-listed.net"), dnsLine(lanDevice, "k2v7.tif-listed.net"), dnsLine(lanDevice, badDomain)})
+	e.advance(time.Hour)
+	e.feedAll(src, []string{dnsLine(lanDevice, "z8w3.tif-listed.net"), dnsLine(lanDevice, "tif-listed.net")})
+	if h, b := p.counts(); h != 2 || b != 2 || hitCount(t, e) != 2 {
+		t.Fatalf("%d hits %d events %d rows", h, b, hitCount(t, e))
+	}
+	if p.hits[0].Dest != badDomain || p.hits[0].ListedAs != nil || p.hits[1].Dest != "k2v7.tif-listed.net" || p.hits[1].ListedAs == nil { // a batch's pairs go by name
+		t.Errorf("hits %+v", p.hits)
+	}
+}
+
+// D-425 (review r1): a blocked attempt on one subdomain does not hide a connection that goes through to another one of the same listed
+// name (D-227 still apart); a direct hit surer than a recent subdomain hit (an exact feed at 0.9, hagezi TIF at 0.6) is news; a row
+// stored before 0007 (listed_as empty) is not found by the listed name, so one extra row is accepted (no backfill), then the new row dedupes.
+func TestIOCListedNameDedupeKeepsAttemptsConfidenceAndOldRowsApart(t *testing.T) {
+	t.Parallel()
+	e, src, ff, p := iocEnv(t)
+	ff.listed["domain:tif-listed.net"] = Listing{Feeds: []string{"hagezi TIF", "exact"}, Confidence: 0.9, SubFeeds: []string{"hagezi TIF"}, SubConfidence: 0.6}
+	blocked := func(name string) string {
+		return strings.Replace(dnsLine(lanDevice, name), `action="pass"`, `action="block"`, 1)
+	}
+	e.feedAll(src, []string{blocked("a.tif-listed.net")})
+	e.advance(time.Minute)
+	e.feedAll(src, []string{blocked("b.tif-listed.net"), dnsLine(lanDevice, "c.tif-listed.net")}) // the attempt repeats, the connection is new
+	e.advance(time.Minute)
+	e.feedAll(src, []string{dnsLine(lanDevice, "d.tif-listed.net"), dnsLine(lanDevice, "tif-listed.net")}) // a repeat, then 0.9 > 0.6
+	e.advance(time.Minute)
+	e.feedAll(src, []string{dnsLine(lanDevice, "tif-listed.net")}) // as sure as the last one: a repeat
+	var got []string
+	for _, h := range p.hits {
+		got = append(got, fmt.Sprintf("%s/%v/%.1f", h.Dest, h.Blocked, h.Confidence))
+	}
+	if strings.Join(got, " ") != "a.tif-listed.net/true/0.6 c.tif-listed.net/false/0.6 tif-listed.net/false/0.9" {
+		t.Fatalf("hits %v", got)
+	}
+	// a row of an older binary: its subdomain hit has no listed_as
+	if err := e.vol.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO logs_ioc_hits (id, ts, src_ip, dest, dest_kind, seen_via, feeds, confidence, source_id) VALUES ('ih-old', ?, '192.168.10.106', 'x.tif-listed.net', 'domain', 'syslog:FW-HQ', '["hagezi TIF"]', 0.6, ?)`,
+			store.FormatTS(e.svc.now().Add(-time.Second)), src.ID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e.feedAll(src, []string{dnsLine("192.168.10.106", "x.tif-listed.net"), dnsLine("192.168.10.106", "y.tif-listed.net")})
+	if n := len(p.hits); n != 4 || p.hits[3].Dest != "x.tif-listed.net" || p.hits[3].ListedAs == nil {
+		t.Errorf("after the old row: %d hits %+v", n, p.hits[3:])
+	}
+}
+
+// D-425: a failed question about subdomain feeds walks the parents as before (a hit is never lost to it).
+func TestIOCSubdomainsErrorStillWalks(t *testing.T) {
+	t.Parallel()
+	e, src, ff, p := iocEnv(t)
+	ff.subErr = errors.New("feeds: read sources: disk I/O error")
+	ff.listed["domain:tif-listed.net"] = Listing{Feeds: []string{"hagezi TIF"}, Confidence: 0.8, SubFeeds: []string{"hagezi TIF"}, SubConfidence: 0.8}
+	e.feedAll(src, []string{dnsLine(lanDevice, "a.tif-listed.net")})
+	if h, _ := p.counts(); h != 1 || p.hits[0].ListedAs == nil {
+		t.Fatalf("hits %+v", p.hits)
+	}
+}
+
+// D-425: without a switched-on feed that lists subdomains the parents of an unlisted name are not looked up; the question is asked once a batch.
+func TestIOCNoParentWalkWithoutASubdomainFeed(t *testing.T) {
+	t.Parallel()
+	e, src, ff, p := iocEnv(t)
+	ff.noSub = true
+	ff.listed["domain:tif-listed.net"] = Listing{Feeds: []string{"hagezi TIF"}, Confidence: 0.8, SubFeeds: []string{"hagezi TIF"}, SubConfidence: 0.8}
+	e.feedAll(src, []string{dnsLine(lanDevice, "a.tif-listed.net"), dnsLine(lanDevice, "b.tif-listed.net")})
+	if h, _ := p.counts(); h != 0 {
+		t.Fatalf("hits %+v", p.hits)
+	}
+	if got := strings.Join(ff.lookups(), " "); got != "domain:a.tif-listed.net domain:b.tif-listed.net" || ff.subs != 1 {
+		t.Errorf("lookups %s, %d questions", got, ff.subs)
 	}
 }
 

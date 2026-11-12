@@ -57,6 +57,18 @@ func (f logsFeeds) Listed(ctx context.Context) (bool, error) {
 	return svc.Store().IOCListed(ctx)
 }
 
+// Subdomains says whether a switched-on feed lists names with all of their subdomains (D-228); logs skips the parent walk without one (D-425).
+func (f logsFeeds) Subdomains(ctx context.Context) (bool, error) {
+	if !f.On() {
+		return false, nil
+	}
+	svc, err := feedsService(*f.d)
+	if err != nil {
+		return false, err
+	}
+	return svc.Store().IOCSubdomainsOn(ctx)
+}
+
 // logsIocEvidence is the adapter for response's Evidence.IocHit (EvidencePorts): the hit with this id, as the digest shows it, in the shape
 // response wants. Logs off answers "not found" (the evidence does not exist while the module is off). Wired as cfg.Evidence.IocHit in
 // response.go (#376, D-337); Connection stays empty (a set one would make the hit read as a connection read).

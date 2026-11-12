@@ -1218,12 +1218,65 @@ func TestDefaultCardIsTheManagementCard(t *testing.T) {
 		"the wired card with an address": {[]sensorlink.HeartbeatIface{card("enp2s0", "192.168.18.141/24"), card("wlp3s0", "192.168.18.142/24"), card("enp3s0"), card("eno2", "169.254.3.4/16")}, "enp2s0"},
 		"only a wireless card":           {[]sensorlink.HeartbeatIface{card("wlp3s0", "192.168.18.142/24"), card("enp3s0")}, "wlp3s0"},
 		"two wired cards: not clear":     {[]sensorlink.HeartbeatIface{card("enp2s0", "192.168.18.141/24"), card("eno1", "10.0.0.5/24")}, ""},
+		// D-393 (SYS-6): the sensor leaves container bridges, veth and lo out of its heartbeat, but the heartbeat is untrusted;
+		// an older or compromised sensor that lists them up with an address never makes them a candidate.
+		"container bridges are not cards": {[]sensorlink.HeartbeatIface{card("lo", "127.0.0.1/8"), card("docker0", "172.17.0.1/16"), card("br-1a2b3c4d5e6f", "172.18.0.1/16"), card("veth12ab"), card("podman0", "10.88.0.1/16"), card("enp2s0", "192.168.18.141/24")}, "enp2s0"},
 	} {
 		if _, err := e.svc.PassiveHeartbeat(ctx, &sensorlink.PassiveHeartbeat{Version: "1.0.0", Interfaces: c.cards, Drops: map[string]int64{}}); err != nil {
 			t.Fatal(err)
 		}
 		if got, _ := listensOn(); got != c.want {
 			t.Errorf("no host, %s: %q, want %q", name, got, c.want)
+		}
+	}
+
+	// D-393 (M3): two wired cards with an address give no default; the admin chooses one of them, without SPAN, and the sensor
+	// listens there. Chosen tells that choice from the default; clearing it brings the default rule back (here: no card).
+	two := []sensorlink.HeartbeatIface{card("enp2s0", "192.168.18.141/24"), card("eno1", "10.0.0.5/24")}
+	if _, err := e.svc.PassiveHeartbeat(ctx, &sensorlink.PassiveHeartbeat{Version: "1.0.0", Interfaces: two, Drops: map[string]int64{}}); err != nil {
+		t.Fatal(err)
+	}
+	chosen := func() bool {
+		t.Helper()
+		list, err := e.svc.Status(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return list[0].Chosen
+	}
+	if got, _ := listensOn(); got != "" || chosen() {
+		t.Fatalf("two cards, nothing chosen: %q chosen=%v", got, chosen())
+	}
+	if err := e.svc.ChooseCard(ctx, "admin@example.org", sp.SensorID, "eno1", false); err != nil {
+		t.Fatal(err)
+	}
+	if got, span := listensOn(); got != "eno1" || span || !chosen() {
+		t.Errorf("eno1 chosen: %q span=%v chosen=%v", got, span, chosen())
+	}
+	if err := e.svc.ChooseCard(ctx, "admin@example.org", sp.SensorID, "", false); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := listensOn(); got != "" || chosen() {
+		t.Errorf("back to the default: %q chosen=%v", got, chosen())
+	}
+	two[0].IPv4 = nil // one wired card with an address left: the default is shown, but it is not a choice
+	if _, err := e.svc.PassiveHeartbeat(ctx, &sensorlink.PassiveHeartbeat{Version: "1.0.0", Interfaces: two, Drops: map[string]int64{}}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := listensOn(); got != "eno1" || chosen() {
+		t.Errorf("the default card: %q chosen=%v", got, chosen())
+	}
+	// A link that is not a card is neither listed nor accepted, SPAN or not: the heartbeat lists every link of the machine.
+	two = append(two, card("docker0", "172.17.0.1/16"), card("lo", "127.0.0.1/8"), card("veth9f"))
+	if _, err := e.svc.PassiveHeartbeat(ctx, &sensorlink.PassiveHeartbeat{Version: "1.0.0", Interfaces: two, Drops: map[string]int64{}}); err != nil {
+		t.Fatal(err)
+	}
+	if list, err := e.svc.Status(ctx); err != nil || !slices.Equal(list[0].Interfaces, []string{"eno1", "enp2s0"}) {
+		t.Errorf("listed cards: %v %v", list, err)
+	}
+	for _, name := range []string{"docker0", "lo", "veth9f"} {
+		if err := e.svc.ChooseCard(ctx, "admin@example.org", sp.SensorID, name, false); !errors.Is(err, sp.ErrBadInterface) {
+			t.Errorf("%s accepted: %v", name, err)
 		}
 	}
 }

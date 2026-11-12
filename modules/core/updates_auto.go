@@ -23,8 +23,9 @@ const (
 	updateCheckEvery  = 6 * time.Hour    // update-manifest §12
 	updateCheckJitter = 30 * time.Minute // ± around updateCheckEvery
 	// autoFresh is how old the last good check may be when the automatic mode installs: one regular interval and a tick.
-	// A check that fails (an index held back to hide a revocation, §13) stops installs until a check succeeds (upd.failed);
-	// after a restart, last_check (moved only by a good check) growing past this does the same.
+	// A check that fails (an index held back to hide a revocation, §13) stops installs until a check succeeds (upd.failed,
+	// and the stored last_check_error that a restart keeps, D-392); last_check (moved only by a good check) growing past
+	// this does the same.
 	autoFresh = updateCheckEvery + updateCheckJitter + UpdateTickEvery
 	// autoMinLeft: a run does not start when less of the window is left (pulls and core's switch take a while).
 	autoMinLeft = 30 * time.Minute
@@ -143,7 +144,7 @@ func (h *OSHandlers) autoInstall(ctx context.Context, by string) error {
 }
 
 // autoPlan is the release the automatic mode installs now, read under urun.mu: the mode is still automatic, the latest
-// check of this process did not fail (from the page or the job; after a restart only the age rule remains), the last good
+// check did not fail (from the page or the job: this process's flag, or the stored last_check_error after a restart, D-392), the last good
 // check is at most autoFresh old and its index is not past expires_at (revocations are known, §6, §13), something is
 // offered (verified again, revoked releases dropped), and no run to that release was made yet (D-388: one that failed or
 // was reverted is left to an administrator; one that ended done while this build still runs the older version would
@@ -164,7 +165,7 @@ func (h *OSHandlers) autoPlan(ctx context.Context) (*verifiedRelease, error) {
 	if r.offer == nil {
 		return nil, errNoUpdate
 	}
-	if h.upd.failed.Load() {
+	if h.upd.failed.Load() || s.LastCheckError != nil {
 		h.skipOnce(ctx, "auto-failed-check", "the last update check failed")
 		return nil, errAutoSkip
 	}

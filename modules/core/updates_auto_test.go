@@ -199,6 +199,48 @@ func TestUpdateAutoStopsAfterAFailedCheckNow(t *testing.T) {
 	}
 }
 
+// A failed check is stored (D-392): after core restarts the automatic mode still installs nothing, the page still shows
+// the failure, and the next good check clears it and installs.
+func TestUpdateAutoRemembersAFailedCheckAfterARestart(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+	if g := e.viewer.get("/core/updates"); g.JSON["last_check_error"] != nil {
+		t.Fatalf("last_check_error after a good check = %v", g.JSON["last_check_error"])
+	}
+	wantOK(t, e.admin.patch("/core/updates", map[string]any{"mode": "auto"}), 200)
+	e.srv.mu.Lock()
+	good := e.srv.files["/index/index.json.minisig"]
+	e.srv.mu.Unlock()
+	e.srv.put("/index/index.json.minisig", []byte("not a signature"))
+	e.clock.Advance(time.Hour)
+	wantStatus(t, e.oper.post("/core/updates/check", nil), 502, core.CodeUpdateCheckFailed)
+	e.handler = e.start(t, "1.3.0") // the in-memory flag is gone with the process
+	e.clock.Advance(core.UpdateTickEvery)
+	if err := e.handler.UpdateTick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	g := e.viewer.get("/core/updates")
+	if run := getVal(g, "run"); run != nil || len(fh.callList()) != 0 {
+		t.Fatalf("installed after a failed check and a restart: run %v, calls %q", run, fh.callList())
+	}
+	if ce, _ := g.JSON["last_check_error"].(map[string]any); ce["code"] != core.CodeUpdateCheckFailed {
+		t.Fatalf("last_check_error after a restart = %v", g.JSON["last_check_error"])
+	}
+	// Changing the channel or mode keeps it: only a good check clears it.
+	if p := e.admin.patch("/core/updates", map[string]any{"mode": "auto", "channel": "stable"}); p.JSON["last_check_error"] == nil {
+		t.Fatalf("PATCH /core/updates dropped last_check_error: %s", p.Raw)
+	}
+	e.srv.put("/index/index.json.minisig", good)
+	r := e.oper.post("/core/updates/check", nil)
+	wantOK(t, r, 200)
+	if r.JSON["last_check_error"] != nil {
+		t.Errorf("a good check left last_check_error = %v", r.JSON["last_check_error"])
+	}
+	if run := endedRun(t, e); run["user"] != "system" {
+		t.Fatalf("the good check did not install: run %v", run)
+	}
+}
+
 func TestUpdateAutoDoesNotRetryAFailedRelease(t *testing.T) {
 	t.Parallel()
 	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)

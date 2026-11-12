@@ -32,7 +32,7 @@ func (e *statusError) Error() string { return errSiemStatus.Error() + ": HTTP " 
 func (e *statusError) Unwrap() error { return errSiemStatus }
 
 // metadataAddrs are cloud instance-metadata endpoints that are not link-local.
-var metadataAddrs = []netip.Addr{netip.MustParseAddr("fd00:ec2::254"), netip.MustParseAddr("100.100.100.200"), netip.MustParseAddr("192.0.0.192")}
+var metadataAddrs = []netip.Addr{netip.MustParseAddr("fd00:ec2::254"), netip.MustParseAddr("fd20:ce::254"), netip.MustParseAddr("100.100.100.200"), netip.MustParseAddr("192.0.0.192")}
 
 // addrForms is ip plus the IPv4 address that a transition form carries (NAT64, 6to4, IPv4-compatible): a connection to one of them
 // reaches that IPv4 address through a translator, so both are judged (D-208 does the same for feeds).

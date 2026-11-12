@@ -2,6 +2,9 @@
 # make honeypot-check (WP-08e, D-162): build the honeypot image, run it the way the unit does and check BY EFFECT, not by the exit code of the build:
 #   * OpenCanary starts with the files core's own code writes (honeypot.RenderConfig / RenderTokens, through a Go test), and a connection to
 #     each trap writes a JSON line into the mounted log/ that modules/honeypot's parser accepts (a Go test runs ParseLine on the log);
+#   * every enabled trap is proven: OpenCanary reports it started (its start_mod only logs a module that fails to start), and a client gets the
+#     trap's own log type: an SSH password login is 4002 with the default key exchange AND with diffie-hellman-group-exchange only (the start-up fix
+#     in init.py, without which the trap crashed before logging the login), RDP 14001, MSSQL 9001, HTTP 3000, SMB 5000; no Twisted traceback;
 #   * Samba serves the planted file token, and opening it reaches OpenCanary as a log type 5000 line whose file name is the token and whose source is
 #     the real client (a client user name with `|` in it cannot forge another source);
 #   * `/vedette honeypot healthcheck` (the unit's HealthCmd) passes;
@@ -110,50 +113,110 @@ ok "config/ and the root are read-only, log/ is writable"
 
 # 4. a client on the same network connects to each trap (a source that is not loopback, as in production)
 $c run -d --name "$client" --network "$net" "$DEBIAN_IMAGE" sleep 600 >/dev/null
-$c exec "$client" bash -c 'apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq --no-install-recommends smbclient python3 >/dev/null 2>&1' || fail "installing the test client"
+$c exec "$client" bash -c 'apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq --no-install-recommends smbclient python3 openssh-client >/dev/null 2>&1' || fail "installing the test client"
 cip=$($c inspect -f '{{(index .NetworkSettings.Networks "'"$net"'").IPAddress}}' "$client")
 $c exec "$client" python3 -c '
-import socket, sys
+import socket, struct, sys
 ip = sys.argv[1]
 s = socket.create_connection((ip, 22), 5); print("ssh:", s.recv(100).decode().strip()); s.close()
 for p in ("/", "/index.html"):
     s = socket.create_connection((ip, 80), 5); s.sendall(b"GET " + p.encode() + b" HTTP/1.1\r\nHost: x\r\n\r\n"); print("http", p, s.recv(100).decode().splitlines()[0]); s.close()
+# RDP: an X.224 connection request with the mstshash cookie mstsc sends (TPKT + X.224 CR)
+cookie = b"Cookie: mstshash=vedette-check-rdp\r\n"
+x224 = bytes([6 + len(cookie), 0xE0, 0, 0, 0, 0, 0]) + cookie
+s = socket.create_connection((ip, 3389), 5); s.sendall(b"\x03\x00" + struct.pack(">H", 4 + len(x224)) + x224); print("rdp: reply", s.recv(100)[:4].hex()); s.close()
+# MSSQL: a TDS LOGIN7 with SQL authentication (user name and password in UTF-16LE, the password obfuscated as MS-TDS 2.2.6.4 says)
+user, pw = "vedette-check-mssql".encode("utf-16le"), "x".encode("utf-16le")
+pw = bytes((((b << 4) | (b >> 4)) & 0xFF) ^ 0xA5 for b in pw)
+hl = 94
+ib = [hl, 0, hl, len(user) // 2, hl + len(user), len(pw) // 2] + [hl + len(user) + len(pw), 0] * 6
+body = struct.pack("<6I4BlI18H6s6HI", hl + len(user) + len(pw), 0x74000004, 4096, 7, 1, 0, 0, 0, 0, 0, 0, 0x409, *ib, b"\0" * 6, 0, 0, 0, 0, 0, 0, 0) + user + pw
+s = socket.create_connection((ip, 1433), 5); s.sendall(struct.pack(">BBHHBB", 0x10, 1, 8 + len(body), 0, 1, 0) + body); print("mssql: reply type", s.recv(100)[:1].hex()); s.close()
 ' "$ip" > "$work/client.out"
 grep -q 'http / HTTP/1.1 302' "$work/client.out" || fail "GET / on the web trap: $(cat "$work/client.out")"
 grep -q 'http /index.html HTTP/1.1 200' "$work/client.out" || fail "GET /index.html on the web trap: $(cat "$work/client.out")"
+grep -q '^rdp: reply 0300' "$work/client.out" || fail "the RDP trap did not answer the connection request: $(cat "$work/client.out")"
+grep -q '^mssql: reply type 04$' "$work/client.out" || fail "the MSSQL trap did not answer LOGIN7: $(cat "$work/client.out")"
 sed 's/^/    /' "$work/client.out"
+# SSH: a real OpenSSH client logs in with a password (SSH_ASKPASS, no terminal), once with its default key exchange and once offering only
+# diffie-hellman-group-exchange-sha256 (OpenCanary 0.9.10 crashed there before the login was logged; init.py's start-up fix). The login fails by
+# design (the trap accepts nobody); what counts is the 4002 line with this user name, checked in step 5.
+$c exec "$client" sh -c 'printf "#!/bin/sh\necho vedette-check-password\n" > /tmp/askpass && chmod 0755 /tmp/askpass'
+for kex in default gex; do
+	opt=()
+	[ "$kex" = gex ] && opt=(-o KexAlgorithms=diffie-hellman-group-exchange-sha256)
+	sshout=$($c exec -e SSH_ASKPASS=/tmp/askpass -e SSH_ASKPASS_REQUIRE=force "$client" timeout 30 ssh -v -n "${opt[@]}" -o StrictHostKeyChecking=no \
+		-o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=no -o PreferredAuthentications=password -o NumberOfPasswordPrompts=1 \
+		-o ConnectTimeout=10 "vedette-check-ssh-$kex@$ip" true 2>&1 || true)
+	echo "    ssh ($kex): $(echo "$sshout" | grep -E 'kex: algorithm:|Permission denied|Connection closed|Unable to negotiate|Authentications that can continue' | head -3 | tr '\n' ' ')"
+done
 out=$($c exec "$client" smbclient -N "//$ip/Shared" -c 'ls; get passwords.txt /dev/null' 2>&1) || fail "smbclient: $out"
 echo "$out" | grep -q 'passwords.txt' || fail "the share does not list the planted token: $out"
-ok "SMB share lists the planted token; SSH and HTTP traps answered"
+ok "SMB share lists the planted token; SSH, HTTP, RDP and MSSQL traps answered"
 # a client user name carrying `|` and a fake address reaches no field of the audit line
 $c exec "$client" smbclient -U 'x|6.6.6.6|7.7.7.7%y' "//$ip/Shared" -c 'get "Q4 payroll.xlsx" /dev/null' >/dev/null 2>&1 || true
 
 # 5. the lines in the mounted log/
-want=4000,3000,5000
+want=4000,4002,3000,5000,14001,9001
+# what each trap enabled in opencanary.conf must leave in the log: OpenCanary's own start line for its module (start_mod logs a failure and
+# goes on, so a trap that did not start is otherwise silent) and the hit of the client above. Prints what is missing, nothing when all is there.
+missing() {
+	python3 -I -c '
+import json, sys
+conf, log = json.load(open(sys.argv[1])), []
+try:
+    log = [json.loads(l) for l in open(sys.argv[2]) if l.strip()]
+except OSError:
+    pass
+started = " ".join(str(d.get("logdata")) for d in log if d.get("logtype", 0) < 2000)
+def hit(t, user=None):
+    return any(d["logtype"] == t and (user is None or user in (d["logdata"].get("USERNAME"), d["logdata"].get("UserName"))) for d in log)
+need = {
+    "ssh": ["Added service from class CanarySSH ", (4000, None), (4002, "vedette-check-ssh-default"), (4002, "vedette-check-ssh-gex")],
+    "http": ["Added service from class CanaryHTTP ", (3000, None)],
+    "rdp": ["Added service from class CanaryRDP ", (14001, "vedette-check-rdp")],
+    "mssql": ["Added service from class MSSQL ", (9001, "vedette-check-mssql")],
+    "smb": ["Ran startYourEngines on class CanarySamba ", (5000, None)],
+}
+for svc, items in need.items():
+    if conf.get(svc + ".enabled") is not True:
+        continue
+    for it in items:
+        if isinstance(it, str):
+            if it not in started:
+                print("%s: no start line %r" % (svc, it.strip()))
+        elif not hit(*it):
+            print("%s: no log type %d%s" % (svc, it[0], " for user " + it[1] if it[1] else ""))
+' "$work/config/opencanary.conf" "$work/log/opencanary.jsonl"
+}
 for _ in $(seq 1 30); do
 	snap
 	n=$(grep -c '"logtype": 5000' "$work/log/opencanary.jsonl" 2>/dev/null || true)
-	h=$(grep -c '"logtype": 3000' "$work/log/opencanary.jsonl" 2>/dev/null || true)
-	s=$(grep -c '"logtype": 4000' "$work/log/opencanary.jsonl" 2>/dev/null || true)
-	[ "${n:-0}" -ge 2 ] && [ "${h:-0}" -ge 1 ] && [ "${s:-0}" -ge 1 ] && break
+	[ -z "$(missing)" ] && [ "${n:-0}" -ge 2 ] && break
 	sleep 1
 done
 snap
 [ -s "$work/log/opencanary.jsonl" ] || fail "no opencanary.jsonl in the mounted log/ (read through a second container, uid 10001, read-only)"
+gone=$(missing)
+[ -z "$gone" ] || fail "a trap enabled in opencanary.conf is not proven: $(echo "$gone" | tr '\n' ';')"
+# OpenCanary's start_mod swallows a module that fails to start; Twisted logs a crash inside a protocol (the group-exchange bug) and goes on
+bad=$({ $c logs "$name" 2>&1; cat "$work/log/opencanary.jsonl"; } | grep -E 'Failed to (add service|instantiate|run startYourEngines|load class)|does not have any required starting method|Unhandled Error|Traceback' | cut -c1-300 || true)
+[ -z "$bad" ] || fail "OpenCanary reported a failure: $bad"
+ok "every enabled trap started and logged its client: SSH 4002 with the default key exchange and with group exchange only, RDP 14001, MSSQL 9001, HTTP 3000, SMB 5000; no start failure, no traceback"
 python3 -I -c '
 import json, sys
 for l in open(sys.argv[1]):
     d = json.loads(l)
     if d["logtype"] >= 2000:
         x = d["logdata"]
-        print("    log: type=%d src=%s dst=%s:%s %s" % (d["logtype"], d["src_host"], d["dst_host"], d["dst_port"], {k: x[k] for k in ("AUDITACTION", "FILENAME", "STATUS", "PATH", "USERAGENT") if k in x}))
+        print("    log: type=%d src=%s dst=%s:%s %s" % (d["logtype"], d["src_host"], d["dst_host"], d["dst_port"], {k: x[k] for k in ("AUDITACTION", "FILENAME", "STATUS", "PATH", "USERAGENT", "USERNAME", "UserName") if k in x}))
 ' "$work/log/opencanary.jsonl"
 smb_lines=$(grep '"logtype": 5000' "$work/log/opencanary.jsonl")
 case "$smb_lines" in *'"FILENAME": "/passwords.txt"'*) ;; *) fail "no SMB hit for passwords.txt" ;; esac
 case "$smb_lines" in *'"FILENAME": "/Q4 payroll.xlsx"'*) ;; *) fail "no SMB hit for the second token" ;; esac
 grep '"logtype": 5000' "$work/log/opencanary.jsonl" | grep -v "\"src_host\": \"$cip\"" | grep -q . && fail "an SMB line whose source is not the client $cip"
 grep -q '6\.6\.6\.6' "$work/log/opencanary.jsonl" && fail "a forged source address reached the log"
-ok "log/opencanary.jsonl holds log types 4000, 3000 and 5000 (file tokens), every SMB source is the client $cip, no forged address"
+ok "log/opencanary.jsonl holds log types $want, both file tokens, every SMB source is the client $cip, no forged address"
 VEDETTE_HP_LOGFILE="$work/log/opencanary.jsonl" VEDETTE_HP_WANT=$want go test ./deploy/containers -run '^TestHoneypotLogFileParses$' -count=1 -v 2>&1 | grep -vE '^(=== RUN|PASS$)' | cut -c1-600 | sed 's/^/    /' || true
 VEDETTE_HP_LOGFILE="$work/log/opencanary.jsonl" VEDETTE_HP_WANT=$want go test ./deploy/containers -run '^TestHoneypotLogFileParses$' -count=1 >/dev/null || fail "honeypot.ParseLine does not accept the log"
 ok "modules/honeypot ParseLine accepts every line"

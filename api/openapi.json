@@ -13794,6 +13794,42 @@
                       ],
                       "description": "null until the first update check"
                     },
+                    "last_check_error": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "code": {
+                              "type": "string",
+                              "enum": [
+                                "update_source_unreachable",
+                                "update_check_failed"
+                              ],
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                            },
+                            "message": {
+                              "type": "string",
+                              "description": "The box's own fixed sentence for this failure (the message of the 503/502 answer); never text received from the network"
+                            }
+                          },
+                          "required": [
+                            "at",
+                            "code",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds. Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392)"
+                    },
                     "components": {
                       "type": "array",
                       "items": {
@@ -14225,6 +14261,7 @@
                     "mode",
                     "check_enabled",
                     "last_check",
+                    "last_check_error",
                     "components",
                     "available",
                     "history",
@@ -14326,6 +14363,42 @@
                       ],
                       "description": "null until the first update check"
                     },
+                    "last_check_error": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "code": {
+                              "type": "string",
+                              "enum": [
+                                "update_source_unreachable",
+                                "update_check_failed"
+                              ],
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                            },
+                            "message": {
+                              "type": "string",
+                              "description": "The box's own fixed sentence for this failure (the message of the 503/502 answer); never text received from the network"
+                            }
+                          },
+                          "required": [
+                            "at",
+                            "code",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds. Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392)"
+                    },
                     "components": {
                       "type": "array",
                       "items": {
@@ -14757,6 +14830,7 @@
                     "mode",
                     "check_enabled",
                     "last_check",
+                    "last_check_error",
                     "components",
                     "available",
                     "history",
@@ -14852,6 +14926,42 @@
                       ],
                       "description": "null until the first update check"
                     },
+                    "last_check_error": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "code": {
+                              "type": "string",
+                              "enum": [
+                                "update_source_unreachable",
+                                "update_check_failed"
+                              ],
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                            },
+                            "message": {
+                              "type": "string",
+                              "description": "The box's own fixed sentence for this failure (the message of the 503/502 answer); never text received from the network"
+                            }
+                          },
+                          "required": [
+                            "at",
+                            "code",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds. Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392)"
+                    },
                     "components": {
                       "type": "array",
                       "items": {
@@ -15283,6 +15393,7 @@
                     "mode",
                     "check_enabled",
                     "last_check",
+                    "last_check_error",
                     "components",
                     "available",
                     "history",
@@ -15430,6 +15541,42 @@
                             }
                           ],
                           "description": "null until the first update check"
+                        },
+                        "last_check_error": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "code": {
+                                  "type": "string",
+                                  "enum": [
+                                    "update_source_unreachable",
+                                    "update_check_failed"
+                                  ],
+                                  "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                                },
+                                "message": {
+                                  "type": "string",
+                                  "description": "The box's own fixed sentence for this failure (the message of the 503/502 answer); never text received from the network"
+                                }
+                              },
+                              "required": [
+                                "at",
+                                "code",
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds. Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392)"
                         },
                         "components": {
                           "type": "array",
@@ -15862,6 +16009,7 @@
                         "mode",
                         "check_enabled",
                         "last_check",
+                        "last_check_error",
                         "components",
                         "available",
                         "history",
@@ -15944,6 +16092,42 @@
                         }
                       ],
                       "description": "null until the first update check"
+                    },
+                    "last_check_error": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "code": {
+                              "type": "string",
+                              "enum": [
+                                "update_source_unreachable",
+                                "update_check_failed"
+                              ],
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                            },
+                            "message": {
+                              "type": "string",
+                              "description": "The box's own fixed sentence for this failure (the message of the 503/502 answer); never text received from the network"
+                            }
+                          },
+                          "required": [
+                            "at",
+                            "code",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds. Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392)"
                     },
                     "components": {
                       "type": "array",
@@ -16380,6 +16564,7 @@
                     "mode",
                     "check_enabled",
                     "last_check",
+                    "last_check_error",
                     "components",
                     "available",
                     "history",
@@ -18111,6 +18296,42 @@
                       ],
                       "description": "null until the first update check"
                     },
+                    "last_check_error": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "code": {
+                              "type": "string",
+                              "enum": [
+                                "update_source_unreachable",
+                                "update_check_failed"
+                              ],
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                            },
+                            "message": {
+                              "type": "string",
+                              "description": "The box's own fixed sentence for this failure (the message of the 503/502 answer); never text received from the network"
+                            }
+                          },
+                          "required": [
+                            "at",
+                            "code",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds. Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392)"
+                    },
                     "components": {
                       "type": "array",
                       "items": {
@@ -18542,6 +18763,7 @@
                     "mode",
                     "check_enabled",
                     "last_check",
+                    "last_check_error",
                     "components",
                     "available",
                     "history",
@@ -34791,7 +35013,7 @@
                             "type": "string"
                           },
                           "interface": {
-                            "description": "The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387)",
+                            "description": "The port the sensor listens on: the card chosen (the SPAN port when SPAN is on), else the default card, the management port (D-380); null: none. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387, D-393)",
                             "type": [
                               "string",
                               "null"
@@ -34806,6 +35028,10 @@
                           },
                           "span": {
                             "type": "boolean"
+                          },
+                          "chosen": {
+                            "type": "boolean",
+                            "description": "true: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen with PATCH on a container-only install); false: interface is the default card (D-380) or null (D-393)"
                           },
                           "span_status": {
                             "type": "object",
@@ -34878,6 +35104,7 @@
                           "interface",
                           "interfaces",
                           "span",
+                          "chosen",
                           "span_status",
                           "status",
                           "last_seen",
@@ -34912,7 +35139,7 @@
     "/inventory/sensors/{id}": {
       "patch": {
         "operationId": "inventory_patch_inventory_sensors_id",
-        "summary": "Container-only install: choose the card the sensor reads and whether it is the SPAN card, among the cards of its last heartbeat (D-387). 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it",
+        "summary": "Container-only install: choose the card the sensor reads (any card of its last heartbeat, with or without an address; null: back to the default card) and whether it is the SPAN card (D-387, D-393). 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it",
         "tags": [
           "inventory"
         ],
@@ -34979,7 +35206,7 @@
                       "type": "string"
                     },
                     "interface": {
-                      "description": "The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387)",
+                      "description": "The port the sensor listens on: the card chosen (the SPAN port when SPAN is on), else the default card, the management port (D-380); null: none. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387, D-393)",
                       "type": [
                         "string",
                         "null"
@@ -34994,6 +35221,10 @@
                     },
                     "span": {
                       "type": "boolean"
+                    },
+                    "chosen": {
+                      "type": "boolean",
+                      "description": "true: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen with PATCH on a container-only install); false: interface is the default card (D-380) or null (D-393)"
                     },
                     "span_status": {
                       "type": "object",
@@ -35066,6 +35297,7 @@
                     "interface",
                     "interfaces",
                     "span",
+                    "chosen",
                     "span_status",
                     "status",
                     "last_seen",
@@ -35767,6 +35999,13 @@
                           "blocked": {
                             "type": "boolean",
                             "description": "The device that sent the log blocked the connection (the line records an attempt, for example a FortiGate deny or a blocked web-filter request); false when the line went through or does not say"
+                          },
+                          "listed_as": {
+                            "description": "The name a feed lists for itself and all of its subdomains when dest is one of them (hagezi TIF, D-228, D-425): look this name up in Feeds. null when a feed lists dest itself",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           }
                         },
                         "required": [
@@ -35780,7 +36019,8 @@
                           "seen_via",
                           "feeds",
                           "confidence",
-                          "blocked"
+                          "blocked",
+                          "listed_as"
                         ],
                         "additionalProperties": false
                       }

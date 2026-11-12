@@ -235,7 +235,7 @@ func TestContract_INV19_ExecutorThatIgnoresItsContextCannotHoldTheRun(t *testing
 	e.firewall("fgt_ban_ip")
 	e.turnOn()
 	e.rule("Ban", "ioc_connection", []response.RuleAction{{ActionID: "fgt_ban_ip", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)}}, nil)
-	e.svc.SetStepLimitForTest(100 * time.Millisecond)
+	e.svc.SetStepLimitForTest(time.Second) // the limit covers the rechecks before the send too: 100 ms ran out on a loaded runner (-race) and the step was held instead
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
 	e.fire(e.iocEvent("e2", "198.51.100.8"))
 	reqs := e.actions()

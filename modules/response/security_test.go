@@ -290,7 +290,7 @@ func TestContract_INV19_StepThatRunsOutOfTimeIsStateUnknown(t *testing.T) {
 	e := newEnv(t, func(c *response.Config) {
 		c.Executor = hookExec{steps: &steps, fn: func(ctx context.Context, _ response.DeviceStep) error { <-ctx.Done(); return ctx.Err() }}
 	})
-	e.svc.SetStepLimitForTest(50 * time.Millisecond)
+	e.svc.SetStepLimitForTest(time.Second) // the limit covers the rechecks before the send too: a short one can end before the send on a loaded runner
 	e.firewall("fgt_ban_ip")
 	e.turnOn()
 	e.rule("Ban", "ioc_connection", []response.RuleAction{{ActionID: "fgt_ban_ip", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)}}, nil)

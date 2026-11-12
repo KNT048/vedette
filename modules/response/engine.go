@@ -532,13 +532,19 @@ func (s *Service) evaluateOne(ctx context.Context, ev Det, sum *RunSummary) erro
 	if err != nil {
 		return err
 	}
-	all, err := loadEvents(ctx, rdb, `WHERE trigger = ?`, maxEvents, ev.Trigger)
-	if err != nil {
-		return err
-	}
+	var all []Det
+	read := false
 	for _, rule := range rules {
 		if !rule.Enabled || rule.Trigger != ev.Trigger {
 			continue
+		}
+		// The trigger's history only when a rule of that trigger is on: a flood of a trigger no rule watches (spoofed scans) would
+		// otherwise read up to maxEvents events for each event of it.
+		if !read {
+			if all, err = loadEvents(ctx, rdb, `WHERE trigger = ?`, maxEvents, ev.Trigger); err != nil {
+				return err
+			}
+			read = true
 		}
 		if ok, _ := conditionsOK(rule.RuleInput, ev, all); !ok {
 			continue

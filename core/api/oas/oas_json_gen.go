@@ -148752,6 +148752,14 @@ func (s *LogsGetLogsSourcesOKBoxTLS) encodeFields(e *jx.Encoder) {
 		e.Str(s.FingerprintSHA256)
 	}
 	{
+		e.FieldStart("issuer")
+		e.Str(s.Issuer)
+	}
+	{
+		e.FieldStart("kind")
+		s.Kind.Encode(e)
+	}
+	{
 		e.FieldStart("not_after")
 		json.EncodeDateTime(e, s.NotAfter)
 	}
@@ -148760,8 +148768,8 @@ func (s *LogsGetLogsSourcesOKBoxTLS) encodeFields(e *jx.Encoder) {
 		e.Str(s.Pem)
 	}
 	{
-		e.FieldStart("self_signed")
-		e.Bool(s.SelfSigned)
+		e.FieldStart("port")
+		e.Int(s.Port)
 	}
 	{
 		e.FieldStart("subject")
@@ -148769,12 +148777,14 @@ func (s *LogsGetLogsSourcesOKBoxTLS) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfLogsGetLogsSourcesOKBoxTLS = [5]string{
+var jsonFieldsNameOfLogsGetLogsSourcesOKBoxTLS = [7]string{
 	0: "fingerprint_sha256",
-	1: "not_after",
-	2: "pem",
-	3: "self_signed",
-	4: "subject",
+	1: "issuer",
+	2: "kind",
+	3: "not_after",
+	4: "pem",
+	5: "port",
+	6: "subject",
 }
 
 // Decode decodes LogsGetLogsSourcesOKBoxTLS from json.
@@ -148798,8 +148808,30 @@ func (s *LogsGetLogsSourcesOKBoxTLS) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"fingerprint_sha256\"")
 			}
-		case "not_after":
+		case "issuer":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Issuer = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"issuer\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "not_after":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.NotAfter = v
@@ -148811,7 +148843,7 @@ func (s *LogsGetLogsSourcesOKBoxTLS) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"not_after\"")
 			}
 		case "pem":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Pem = string(v)
@@ -148822,20 +148854,20 @@ func (s *LogsGetLogsSourcesOKBoxTLS) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"pem\"")
 			}
-		case "self_signed":
-			requiredBitSet[0] |= 1 << 3
+		case "port":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
-				v, err := d.Bool()
-				s.SelfSigned = bool(v)
+				v, err := d.Int()
+				s.Port = int(v)
 				if err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"self_signed\"")
+				return errors.Wrap(err, "decode field \"port\"")
 			}
 		case "subject":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Subject = string(v)
@@ -148856,7 +148888,7 @@ func (s *LogsGetLogsSourcesOKBoxTLS) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -148898,6 +148930,48 @@ func (s *LogsGetLogsSourcesOKBoxTLS) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *LogsGetLogsSourcesOKBoxTLS) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes LogsGetLogsSourcesOKBoxTLSKind as json.
+func (s LogsGetLogsSourcesOKBoxTLSKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes LogsGetLogsSourcesOKBoxTLSKind from json.
+func (s *LogsGetLogsSourcesOKBoxTLSKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode LogsGetLogsSourcesOKBoxTLSKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch LogsGetLogsSourcesOKBoxTLSKind(v) {
+	case LogsGetLogsSourcesOKBoxTLSKindBoxCa:
+		*s = LogsGetLogsSourcesOKBoxTLSKindBoxCa
+	case LogsGetLogsSourcesOKBoxTLSKindSelfSigned:
+		*s = LogsGetLogsSourcesOKBoxTLSKindSelfSigned
+	case LogsGetLogsSourcesOKBoxTLSKindIssued:
+		*s = LogsGetLogsSourcesOKBoxTLSKindIssued
+	default:
+		*s = LogsGetLogsSourcesOKBoxTLSKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s LogsGetLogsSourcesOKBoxTLSKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *LogsGetLogsSourcesOKBoxTLSKind) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

@@ -85,12 +85,16 @@ type BoxInfo struct {
 	TLS      *BoxTLS `json:"tls,omitempty"` // the certificate of the syslog TLS port; nil when the box serves no TLS
 }
 
-// BoxTLS is the certificate a device must trust to send syslog over TLS (BoxTls of contract.ts). Public data.
+// BoxTLS is what a device must trust to send syslog over TLS (BoxTls of contract.ts), public data. PEM, Fingerprint, Subject and NotAfter
+// describe the certificate to import: the box CA that signed the box's own (re-issued) certificate (Kind box_ca, D-262, D-351), the
+// certificate itself when it is self-signed, or the certificates the owner gave the box when another authority issued it.
 type BoxTLS struct {
+	Kind        string    `json:"kind"`   // box_ca | self_signed | issued: which certificate PEM holds and why
+	Issuer      string    `json:"issuer"` // the issuer of the certificate the box presents
+	Port        int       `json:"port"`   // the port a device sends to
 	Fingerprint string    `json:"fingerprint_sha256"`
 	Subject     string    `json:"subject"`
 	NotAfter    time.Time `json:"not_after"`
-	SelfSigned  bool      `json:"self_signed"`
 	PEM         string    `json:"pem"`
 }
 

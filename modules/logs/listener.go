@@ -16,7 +16,7 @@ type SyslogConfig struct {
 	Ports  []int  // nil = 514, then 5514
 	Limits listen.Limits
 	// TLS is the certificate side of syslog over TLS (RFC 5425), the box's HTTPS configuration cloned by cmd/vedette (D-214): the same
-	// GetCertificate, so a renewal is served by the next handshake; TLS 1.2 minimum, no client certificate (the sender's IP is its identity).
+	// GetCertificate, so a renewal is served by the next handshake; TLS 1.2 minimum; a client certificate is requested only from a sender whose source pins one (D-435), else the sender's IP is its identity.
 	// Nil (a loopback or dev box serves no TLS): sources with proto tls are refused (400 tls_unavailable) and nothing listens for TLS.
 	// The TLS port follows the plain one: 6514 for 514, p+1 for any other (5515 for the core container's 5514).
 	TLS *tls.Config

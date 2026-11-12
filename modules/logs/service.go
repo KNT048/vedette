@@ -42,8 +42,11 @@ type Config struct {
 	Audit     *audit.Log
 	Inventory Inventory
 	Box       Box
-	Log       *slog.Logger
-	Clock     func() time.Time // nil: time.Now
+	// TrustAnchor returns the PEM certificates a device must trust to trust the box certificate (the box CA, or the chain of an owner's
+	// certificate): cmd/vedette's agent-intake trust anchor. Nil, or an error (none on plain HTTP, or the leaf is being re-issued): the card falls back to the certificate itself.
+	TrustAnchor func() ([]byte, error)
+	Log         *slog.Logger
+	Clock       func() time.Time // nil: time.Now
 	// Syslog is where the listener binds (listener.go); the zero value is every address, port 514 then 5514.
 	Syslog SyslogConfig
 	// Events receives logs.anomaly.detected (see AnomalyEvent). Nil: no event is sent.
@@ -302,12 +305,80 @@ func (s *Service) boxTLS(ctx context.Context) *BoxTLS {
 		s.cfg.Log.WarnContext(ctx, "logs: the box certificate for syslog over TLS could not be parsed", "err", err)
 		return nil
 	}
-	sum := sha256.Sum256(der)
-	return &BoxTLS{
-		Fingerprint: hex.EncodeToString(sum[:]), Subject: leaf.Subject.String(), NotAfter: leaf.NotAfter.UTC(),
-		SelfSigned: bytes.Equal(leaf.RawIssuer, leaf.RawSubject),
-		PEM:        string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})),
+	out := &BoxTLS{Issuer: leaf.Issuer.String(), Port: tlsDevicePort(s.cfg.Syslog.Ports)}
+	pick := leaf // the certificate to import
+	switch {
+	case bytes.Equal(leaf.RawIssuer, leaf.RawSubject):
+		out.Kind = "self_signed"
+	default:
+		out.Kind = "issued"
+		if anchors := s.trustAnchors(); len(anchors) > 0 {
+			pick = anchors[0]
+			out.PEM = pemOf(anchors)
+			for _, c := range anchors {
+				if c.Subject.CommonName == boxCAName && leaf.CheckSignatureFrom(c) == nil {
+					out.Kind, pick, out.PEM = "box_ca", c, pemOf([]*x509.Certificate{c})
+					break
+				}
+			}
+		}
 	}
+	if out.PEM == "" {
+		if out.Kind == "issued" && leaf.Issuer.CommonName == boxCAName {
+			return nil // the box CA signed it but cannot be handed out now (the leaf is being re-issued): no card, not a wrong one
+		}
+		out.PEM = pemOf([]*x509.Certificate{pick})
+	}
+	sum := sha256.Sum256(pick.Raw)
+	out.Fingerprint, out.Subject, out.NotAfter = hex.EncodeToString(sum[:]), pick.Subject.String(), pick.NotAfter.UTC()
+	return out
+}
+
+// boxCAName is the common name of the box's own certificate authority (cmd/vedette boxca.go, D-262).
+const boxCAName = "Vedette box CA"
+
+// trustAnchors are the CERTIFICATE blocks of Config.TrustAnchor (a private key in an owner's combined file is never kept); none when it
+// is not set or fails.
+func (s *Service) trustAnchors() []*x509.Certificate {
+	if s.cfg.TrustAnchor == nil {
+		return nil
+	}
+	raw, err := s.cfg.TrustAnchor()
+	if err != nil {
+		return nil
+	}
+	var out []*x509.Certificate
+	for len(out) < 8 {
+		var blk *pem.Block
+		blk, raw = pem.Decode(raw)
+		if blk == nil {
+			break
+		}
+		if blk.Type != "CERTIFICATE" {
+			continue
+		}
+		if c, err := x509.ParseCertificate(blk.Bytes); err == nil {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+func pemOf(cs []*x509.Certificate) string {
+	var b []byte
+	for _, c := range cs {
+		b = append(b, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: c.Raw})...)
+	}
+	return string(b)
+}
+
+// tlsDevicePort is the port a device sends syslog over TLS to: 6514 on a default box (514, or 5514 inside the core container, which
+// publishes 6514), p+1 for another configured port (listen.tlsPorts).
+func tlsDevicePort(ports []int) int {
+	if len(ports) == 0 || ports[0] <= 0 || ports[0] == 514 || ports[0] == 5514 {
+		return 6514
+	}
+	return min(ports[0]+1, 65535)
 }
 
 // hostname is Config.Hostname, "vedette" without one.

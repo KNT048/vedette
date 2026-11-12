@@ -73,10 +73,10 @@ func (in Input) normalize(tlsOK bool) (Input, error) {
 	}
 	if in.ClientCertSHA256 != "" {
 		if in.Proto != "tls" {
-			return in, apierr.New(400, "bad_client_cert", "A client certificate can only be required of a TLS source.")
+			return in, apierr.New(400, "bad_client_cert", "Only a TLS source can have a client certificate, given as its SHA-256 fingerprint: 64 hexadecimal characters.")
 		}
 		if !certPinRE.MatchString(in.ClientCertSHA256) {
-			return in, apierr.New(400, "bad_client_cert", "The client certificate fingerprint is its SHA-256: 64 hexadecimal characters.")
+			return in, apierr.New(400, "bad_client_cert", "Only a TLS source can have a client certificate, given as its SHA-256 fingerprint: 64 hexadecimal characters.")
 		}
 	}
 	return in, nil

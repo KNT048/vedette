@@ -38,9 +38,11 @@ const siem = collection<Omit<SiemConfig, 'secret_last4'> & { secret: string }>('
   enabled: false, format: 'syslog', host: '', port: 514, proto: 'udp', url: '', secret: '', events: ['findings', 'alerts'], last_test: null,
 }))
 
-// The certificate of the box's syslog TLS port (D-434): a sample self-signed one, so the page shows what a box with HTTPS shows.
+// What a device must trust for the box's syslog TLS port (D-434): on a default box the box's own CA (the 8443 leaf is signed by it and re-issued
+// on renewal), so the sample is that.
 const BOX_TLS = {
-  fingerprint_sha256: 'c3a1f0e29d4b7a86510e3fb2c8d94a7e61b05f3d2a98c47e0b1d6f5a3c2e8d91', subject: 'CN=vedette-hq', not_after: daysAgo(-300), self_signed: true,
+  kind: 'box_ca' as const, issuer: 'CN=Vedette box CA', port: 6514,
+  fingerprint_sha256: 'c3a1f0e29d4b7a86510e3fb2c8d94a7e61b05f3d2a98c47e0b1d6f5a3c2e8d91', subject: 'CN=Vedette box CA', not_after: daysAgo(-7000),
   pem: '-----BEGIN CERTIFICATE-----\nU2FtcGxlIGNlcnRpZmljYXRlIGZvciB0aGUgbW9jayBib3gu\n-----END CERTIFICATE-----\n',
 }
 
@@ -119,8 +121,8 @@ function validateSource(b: Partial<SourceInput>, selfId?: string) {
   if (!CATALOG[b.kind as SourceKind].protos.includes(b.proto as Proto)) return fail(400, 'bad_proto', 'This device type cannot send logs with the chosen protocol. Pick another protocol from the list.')
   if (!Number.isInteger(b.port) || b.port! < 1 || b.port! > 65535) return fail(400, 'bad_port', 'The port must be a number from 1 to 65535. Usually 514 (UDP or TCP) or 6514 (TLS).')
   if (b.client_cert_sha256) {
-    if (b.proto !== 'tls') return fail(400, 'bad_client_cert', 'A client certificate can only be required of a TLS source.')
-    if (!/^[0-9a-f]{64}$/.test(b.client_cert_sha256)) return fail(400, 'bad_client_cert', 'The client certificate fingerprint is its SHA-256: 64 hexadecimal characters.')
+    if (b.proto !== 'tls') return fail(400, 'bad_client_cert', 'Only a TLS source can have a client certificate, given as its SHA-256 fingerprint: 64 hexadecimal characters.')
+    if (!/^[0-9a-f]{64}$/.test(b.client_cert_sha256)) return fail(400, 'bad_client_cert', 'Only a TLS source can have a client certificate, given as its SHA-256 fingerprint: 64 hexadecimal characters.')
   }
   if (sources.get().some((s) => s.id !== selfId && s.sender_ip === b.sender_ip)) return fail(409, 'duplicate', 'There is already a log source with this IP address. Edit that one instead of adding a new one.')
   return null

@@ -211,9 +211,9 @@ export function BoxCertificate({ tls }: { tls: BoxTls }) {
   return (
     <div className="mt-4 grid gap-2 rounded-md border border-rule bg-sunken px-3 py-3 text-sm" aria-labelledby="box-cert-title">
       <h3 id="box-cert-title" className="font-medium">{t('boxCert.title')}</h3>
-      <p className="text-[13px] text-muted">{t(tls.self_signed ? 'boxCert.selfSigned' : 'boxCert.issued')}</p>
+      <p className="text-[13px] text-muted">{t(`boxCert.${tls.kind}`, { port: tls.port, issuer: tls.issuer })}</p>
       <dl className="grid gap-1 text-[13px]">
-        <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t('boxCert.fingerprint')}</dt><dd><code className="break-all font-mono">{tls.fingerprint_sha256}</code></dd></div>
+        <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t(`boxCert.fingerprint_${tls.kind}`)}</dt><dd><code className="break-all font-mono">{tls.fingerprint_sha256}</code></dd></div>
         <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t('boxCert.subject')}</dt><dd>{tls.subject}</dd></div>
         <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t('boxCert.expires')}</dt><dd>{fmtDate(tls.not_after)}</dd></div>
       </dl>

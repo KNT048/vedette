@@ -257,7 +257,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   it('the box certificate of the TLS port is shown with its fingerprint and a download (S-LOG-1, D-434)', async () => {
     renderApp('/logs')
     const card = (await screen.findByRole('heading', { name: 'Box certificate for syslog over TLS' })).closest('div')!
-    expect(within(card).getByText(/add it to the device as a trusted certificate/)).toBeInTheDocument()
+    expect(within(card).getByText(/box's own certificate authority.*port 6514.*Do not pin the server certificate/)).toBeInTheDocument()
     expect(within(card).getByText(/^[0-9a-f]{64}$/)).toBeInTheDocument()
     expect(within(card).getByRole('button', { name: 'Download certificate (.pem)' })).toBeEnabled()
   })

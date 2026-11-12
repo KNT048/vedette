@@ -111,8 +111,8 @@
     "stored": "Stored only",
     "noIp": "The box address is not known yet. Add your LAN range first (Devices, Scope and sensors). Until then the settings below show {{placeholder}} where the box address goes.",
     "noIpLan": "The box cannot see its own address in your LAN range {{lan}}, as when it runs in a container. Use the address of the machine that runs Vedette, the one you open this page on: the settings below show {{placeholder}} where it goes.",
-    "tlsTrust": "Over TLS the device must trust the box certificate shown under the log sources (export it there and add it to the device as a trusted certificate). The box accepts logs from this device by its IP address.",
-    "tlsTrustPinned": "Over TLS the device must trust the box certificate shown under the log sources (export it there and add it to the device as a trusted certificate), and must present the client certificate whose fingerprint you entered for this source: the box closes any other connection."
+    "tlsTrust": "Over TLS the device must trust the box certificate shown under the log sources (download it there and import it on the device). The box accepts logs from this device by its IP address.",
+    "tlsTrustPinned": "Over TLS the device must trust the box certificate shown under the log sources (download it there and import it on the device), and must present the client certificate whose fingerprint you entered for this source: the box closes any other connection."
   },
   "digest": {
     "bad": {
@@ -257,11 +257,14 @@
   "titleNoLogs": "No log line received yet.",
   "boxCert": {
     "title": "Box certificate for syslog over TLS",
-    "selfSigned": "The box made this certificate itself, so a device does not trust it yet: download it and add it to the device as a trusted certificate (or pin its fingerprint), then send to port 6514.",
-    "issued": "Another authority issued this certificate: the device must trust that authority. Check the fingerprint below on the device if it asks.",
-    "fingerprint": "SHA-256 fingerprint",
     "subject": "Subject",
     "expires": "Expires",
-    "download": "Download certificate (.pem)"
+    "download": "Download certificate (.pem)",
+    "box_ca": "Devices must trust the box's own certificate authority (Vedette box CA), which signs the certificate the box shows on port {{port}}. Download it and import it on the device as a trusted CA. Do not pin the server certificate itself: the box replaces it when it renews it or its address changes; the CA stays.",
+    "self_signed": "The box made this certificate itself, so a device does not trust it yet: download it and import it on the device as a trusted certificate, then send to port {{port}}.",
+    "issued": "Another authority ({{issuer}}) issued the box certificate: the device must trust that authority. The file below holds the certificates the box was given; import them on the device as trusted, then send to port {{port}}.",
+    "fingerprint_box_ca": "CA SHA-256 fingerprint",
+    "fingerprint_self_signed": "Certificate SHA-256 fingerprint",
+    "fingerprint_issued": "SHA-256 fingerprint of the first certificate"
   }
 }

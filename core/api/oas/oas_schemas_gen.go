@@ -73260,19 +73260,38 @@ func (s *LogsGetLogsSourcesOKBox) SetTLS(val OptNilLogsGetLogsSourcesOKBoxTLS) {
 }
 
 type LogsGetLogsSourcesOKBoxTLS struct {
-	// SHA-256 of the certificate the box presents on the syslog TLS port, 64 lowercase hex characters.
-	FingerprintSHA256 string    `json:"fingerprint_sha256"`
-	NotAfter          time.Time `json:"not_after"`
-	// The certificate as PEM (public data), for the download.
+	// SHA-256 of the first certificate in `pem`, 64 lowercase hex characters.
+	FingerprintSHA256 string `json:"fingerprint_sha256"`
+	// Issuer of the certificate the box presents on the syslog TLS port.
+	Issuer string `json:"issuer"`
+	// Which certificate `pem` holds: box_ca = the box's own certificate authority, which signs the box
+	// certificate (a device that trusts it keeps trusting the box through every renewal); self_signed =
+	// the box certificate itself; issued = the certificates the owner gave the box, because another
+	// authority issued it.
+	Kind LogsGetLogsSourcesOKBoxTLSKind `json:"kind"`
+	// Expiry of the first certificate in `pem`.
+	NotAfter time.Time `json:"not_after"`
+	// What a device must import as trusted, as PEM (public data), for the download.
 	Pem string `json:"pem"`
-	// The certificate is its own issuer: a device must be given this certificate to trust it.
-	SelfSigned bool   `json:"self_signed"`
-	Subject    string `json:"subject"`
+	// The port a device sends syslog over TLS to.
+	Port int `json:"port"`
+	// Subject of the first certificate in `pem`.
+	Subject string `json:"subject"`
 }
 
 // GetFingerprintSHA256 returns the value of FingerprintSHA256.
 func (s *LogsGetLogsSourcesOKBoxTLS) GetFingerprintSHA256() string {
 	return s.FingerprintSHA256
+}
+
+// GetIssuer returns the value of Issuer.
+func (s *LogsGetLogsSourcesOKBoxTLS) GetIssuer() string {
+	return s.Issuer
+}
+
+// GetKind returns the value of Kind.
+func (s *LogsGetLogsSourcesOKBoxTLS) GetKind() LogsGetLogsSourcesOKBoxTLSKind {
+	return s.Kind
 }
 
 // GetNotAfter returns the value of NotAfter.
@@ -73285,9 +73304,9 @@ func (s *LogsGetLogsSourcesOKBoxTLS) GetPem() string {
 	return s.Pem
 }
 
-// GetSelfSigned returns the value of SelfSigned.
-func (s *LogsGetLogsSourcesOKBoxTLS) GetSelfSigned() bool {
-	return s.SelfSigned
+// GetPort returns the value of Port.
+func (s *LogsGetLogsSourcesOKBoxTLS) GetPort() int {
+	return s.Port
 }
 
 // GetSubject returns the value of Subject.
@@ -73300,6 +73319,16 @@ func (s *LogsGetLogsSourcesOKBoxTLS) SetFingerprintSHA256(val string) {
 	s.FingerprintSHA256 = val
 }
 
+// SetIssuer sets the value of Issuer.
+func (s *LogsGetLogsSourcesOKBoxTLS) SetIssuer(val string) {
+	s.Issuer = val
+}
+
+// SetKind sets the value of Kind.
+func (s *LogsGetLogsSourcesOKBoxTLS) SetKind(val LogsGetLogsSourcesOKBoxTLSKind) {
+	s.Kind = val
+}
+
 // SetNotAfter sets the value of NotAfter.
 func (s *LogsGetLogsSourcesOKBoxTLS) SetNotAfter(val time.Time) {
 	s.NotAfter = val
@@ -73310,14 +73339,66 @@ func (s *LogsGetLogsSourcesOKBoxTLS) SetPem(val string) {
 	s.Pem = val
 }
 
-// SetSelfSigned sets the value of SelfSigned.
-func (s *LogsGetLogsSourcesOKBoxTLS) SetSelfSigned(val bool) {
-	s.SelfSigned = val
+// SetPort sets the value of Port.
+func (s *LogsGetLogsSourcesOKBoxTLS) SetPort(val int) {
+	s.Port = val
 }
 
 // SetSubject sets the value of Subject.
 func (s *LogsGetLogsSourcesOKBoxTLS) SetSubject(val string) {
 	s.Subject = val
+}
+
+// Which certificate `pem` holds: box_ca = the box's own certificate authority, which signs the box
+// certificate (a device that trusts it keeps trusting the box through every renewal); self_signed =
+// the box certificate itself; issued = the certificates the owner gave the box, because another
+// authority issued it.
+type LogsGetLogsSourcesOKBoxTLSKind string
+
+const (
+	LogsGetLogsSourcesOKBoxTLSKindBoxCa      LogsGetLogsSourcesOKBoxTLSKind = "box_ca"
+	LogsGetLogsSourcesOKBoxTLSKindSelfSigned LogsGetLogsSourcesOKBoxTLSKind = "self_signed"
+	LogsGetLogsSourcesOKBoxTLSKindIssued     LogsGetLogsSourcesOKBoxTLSKind = "issued"
+)
+
+// AllValues returns all LogsGetLogsSourcesOKBoxTLSKind values.
+func (LogsGetLogsSourcesOKBoxTLSKind) AllValues() []LogsGetLogsSourcesOKBoxTLSKind {
+	return []LogsGetLogsSourcesOKBoxTLSKind{
+		LogsGetLogsSourcesOKBoxTLSKindBoxCa,
+		LogsGetLogsSourcesOKBoxTLSKindSelfSigned,
+		LogsGetLogsSourcesOKBoxTLSKindIssued,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LogsGetLogsSourcesOKBoxTLSKind) MarshalText() ([]byte, error) {
+	switch s {
+	case LogsGetLogsSourcesOKBoxTLSKindBoxCa:
+		return []byte(s), nil
+	case LogsGetLogsSourcesOKBoxTLSKindSelfSigned:
+		return []byte(s), nil
+	case LogsGetLogsSourcesOKBoxTLSKindIssued:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LogsGetLogsSourcesOKBoxTLSKind) UnmarshalText(data []byte) error {
+	switch LogsGetLogsSourcesOKBoxTLSKind(data) {
+	case LogsGetLogsSourcesOKBoxTLSKindBoxCa:
+		*s = LogsGetLogsSourcesOKBoxTLSKindBoxCa
+		return nil
+	case LogsGetLogsSourcesOKBoxTLSKindSelfSigned:
+		*s = LogsGetLogsSourcesOKBoxTLSKindSelfSigned
+		return nil
+	case LogsGetLogsSourcesOKBoxTLSKindIssued:
+		*s = LogsGetLogsSourcesOKBoxTLSKindIssued
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type LogsGetLogsSourcesOKSourcesItem struct {

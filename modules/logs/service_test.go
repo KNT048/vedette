@@ -1598,7 +1598,7 @@ func TestEventsKeywordSearchContinuesWhereItStopped(t *testing.T) {
 	}
 }
 
-// The cursor is untrusted input: only the exact form of a Next is accepted, and it is only ever a bound argument.
+// The cursor is untrusted input: only the exact form of a NextCursor is accepted, and it is only ever a bound argument.
 func TestEventsCursorIsValidated(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)

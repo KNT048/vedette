@@ -115,7 +115,7 @@ type cursor struct {
 
 func (c cursor) String() string { return c.ts + "_" + strconv.FormatInt(c.id, 10) }
 
-// parseCursor reads the Next of an earlier answer; anything else is a 400 (the value is only ever bound as an argument).
+// parseCursor reads the NextCursor of an earlier answer; anything else is a 400 (the value is only ever bound as an argument).
 func parseCursor(s string) (cursor, error) {
 	ts, idText, ok := strings.Cut(s, "_")
 	if !ok {
@@ -131,7 +131,7 @@ func parseCursor(s string) (cursor, error) {
 
 // scanNewest is the keyword search (D-441): it walks the window newest first in steps of s.scanRows rows of the ts index, keeps the
 // lines that match and stops at EventsPage matches, at the start of the window, or when the time budget of ctx is spent. In the last
-// two cases the answer says how far back it looked (SearchedBackTo) and gives the cursor (Next) that continues from there, so a
+// two cases the answer says how far back it looked (SearchedBackTo) and gives the cursor (NextCursor) that continues from there, so a
 // keyword that matches nothing over days of a big box is an honest "searched back to ..." and not a 503. A budget spent before the
 // first step is done is still 503 server_busy (nothing was searched).
 func (s *Service) scanNewest(ctx context.Context, out EventsView, where string, args []any, needle string, byName []string, names map[string]string, after string) (EventsView, error) {

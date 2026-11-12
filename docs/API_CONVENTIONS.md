@@ -108,6 +108,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_cidr` | 400 | "${r.slice(0, 30)}" is not a valid network range. Enter something like 192.168.10.0/24. | `PUT /inventory/settings` |
 | `bad_client_cert` | 400 | Only a TLS source can have a client certificate, given as its SHA-256 fingerprint: 64 hexadecimal characters. | module logs (validator dùng chung) |
 | `bad_config` | 400 | Parser configuration is not valid (for example, JSONPath must start with $). | `POST /feeds/parse-test` |
+| `bad_cursor` | 400 | That search position is not valid. Search again from the start. | `GET /logs/events` (module logs, D-441): `cursor` not in the form of a `next_cursor`, or sent without `q`; GUI searches again from the start |
 | `bad_days` | 400 | Scan days must be Monday to Sunday. | `PUT /inventory/settings`; `PUT /logs/retention` |
 | `bad_events` | 400 | Choose at least one event type to forward. | module logs (validator dùng chung) |
 | `bad_exclusion` | 400 | Exclusion "${x.slice(0, 30)}" is not valid. Enter an IP (192.168.10.10) or a valid range (192.168.10.0/28). | `PUT /inventory/settings` |
@@ -161,7 +162,6 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_version` | 400 | The version may only contain letters, digits, dots, hyphens and brackets, up to 40 characters. Example 7.2.5. | module inventory (validator dùng chung) |
 | `bad_webhook` | 400 | A Slack Incoming Webhook URL starts with https://hooks.slack.com/services/. Copy it again from your Slack app. | module notify (validator dùng chung) |
 | `bad_window` | 400 | window must be 24h or 7d. | 4 endpoint (/feeds, /inventory, /logs, /notify) |
-| `bad_cursor` | 400 | That search position is not valid. Search again from the start. | `GET /logs/events` (module logs, D-441): `cursor` not in the form of a `next_cursor`, or sent without `q`; GUI searches again from the start |
 | `code_expired` | 400 | This code has expired. Ask for a new code. | module core (validator dùng chung) |
 | `code_required` | 400 | Type the 6-digit two-step code to approve a high-risk AI request. | `POST /response/actions/{id}/approve` |
 | `confirm_mismatch` | 400 | The organization name does not match. Type it exactly to confirm deletion. | `POST /core/data/purge` |

@@ -37,6 +37,7 @@ export default function SetupPage() {
   const navigate = useNavigate()
   const status = useSetupStatus()
   const submit = useSubmitSetup()
+  const install = useSetupModules().data?.install // D-381: the setup code hint names the log of this install
   const [step, setStep] = useState<Step>('account')
   const [s, setS] = useState<State>(INIT)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -180,7 +181,7 @@ export default function SetupPage() {
 
         {step === 'account' ? (
           <div className="mt-4 grid gap-4">
-            <Field label={t('setup.account.code')} hint={t('setup.account.codeHint')} htmlFor="s-code" error={errors.code}><Input id="s-code" autoComplete="off" spellCheck={false} value={s.code} aria-invalid={!!errors.code} onChange={(e) => set({ code: e.target.value })} /></Field>
+            <Field label={t('setup.account.code')} hint={t(install === 'container' ? 'setup.account.codeHintContainer' : install === 'appliance' ? 'setup.account.codeHintAppliance' : 'setup.account.codeHint')} htmlFor="s-code" error={errors.code}><Input id="s-code" autoComplete="off" spellCheck={false} value={s.code} aria-invalid={!!errors.code} onChange={(e) => set({ code: e.target.value })} /></Field>
             <Field label={t('setup.account.org')} htmlFor="s-org" error={errors.org}><Input id="s-org" autoComplete="organization" value={s.org} aria-invalid={!!errors.org} onChange={(e) => set({ org: e.target.value })} /></Field>
             <Field label={t('setup.account.name')} htmlFor="s-name" error={errors.name}><Input id="s-name" autoComplete="name" value={s.name} aria-invalid={!!errors.name} onChange={(e) => set({ name: e.target.value })} /></Field>
             <Field label={t('setup.account.email')} htmlFor="s-email" error={errors.email}><Input id="s-email" type="email" autoComplete="username" value={s.email} aria-invalid={!!errors.email} onChange={(e) => set({ email: e.target.value })} /></Field>
@@ -254,7 +255,11 @@ function ModulesStep({ s, set, error }: { s: State; set: (p: Partial<State>) => 
   if (q.isPending) return <Loading />
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
   const all = q.data.modules
-  const choose = (b: BundleId) => set({ bundle: b, picked: b === 'custom' ? new Set(s.picked.size > 1 ? s.picked : BUNDLES.smb) : new Set(BUNDLES[b]) })
+  // D-381: a bundle leaves out what this install cannot run (the honeypot on a container-only install), as the box does.
+  const here = (id: ModuleId) => all.find((m) => m.id === id)?.available !== false
+  const bundle = (b: Exclude<BundleId, 'custom'>) => BUNDLES[b].filter(here)
+  const notHere = all.filter((m) => !m.available).map((m) => m.id)
+  const choose = (b: BundleId) => set({ bundle: b, picked: b === 'custom' ? new Set(s.picked.size > 1 ? s.picked : bundle('smb')) : new Set(bundle(b)) })
   const toggle = (id: ModuleId, on: boolean) => set({ picked: on ? closure(id, all, s.picked) : without(id, all, s.picked) })
   return (
     <div className="mt-4 grid gap-4">
@@ -265,19 +270,20 @@ function ModulesStep({ s, set, error }: { s: State; set: (p: Partial<State>) => 
             <label htmlFor={`bundle-${b}`} className="grid gap-0.5 text-sm">
               <span className="font-medium">{t(`setup.modules.${b}.name`)}</span>
               <span className="text-[13px] text-muted">{t(`setup.modules.${b}.desc`)}</span>
-              {b !== 'custom' ? <span className="text-[13px] text-muted">{BUNDLES[b].filter((m) => m !== 'core').map(name).join(', ')}</span> : null}
+              {b !== 'custom' ? <span className="text-[13px] text-muted">{bundle(b).filter((m) => m !== 'core').map(name).join(', ')}</span> : null}
             </label>
           </div>
         ))}
       </RadioGroup>
+      {notHere.length ? <p className="text-[13px] text-muted">{t('setup.modules.notHere', { list: notHere.map(name).join(', ') })}</p> : null}
       {s.bundle === 'custom' ? (
         <fieldset className="grid gap-2 rounded-md border border-rule p-3">
           <legend className="px-1 text-sm font-medium">{t('setup.modules.pick')}</legend>
           <p className="text-[13px] text-muted">{t('setup.modules.pickHint')}</p>
           {all.filter((m) => m.tier !== 'core').map((m) => (
             <div key={m.id} className="flex items-start gap-2.5">
-              <Checkbox id={`m-${m.id}`} checked={s.picked.has(m.id)} onCheckedChange={(v) => toggle(m.id, v === true)} className="mt-0.5" />
-              <label htmlFor={`m-${m.id}`} className="grid text-sm"><span>{name(m.id)}</span>{m.depends.filter((d) => d !== 'core').length ? <span className="text-[12px] text-muted">{t('setup.modules.needs', { list: m.depends.filter((d) => d !== 'core').map(name).join(', ') })}</span> : null}</label>
+              <Checkbox id={`m-${m.id}`} checked={s.picked.has(m.id)} disabled={!m.available} onCheckedChange={(v) => toggle(m.id, v === true)} className="mt-0.5" />
+              <label htmlFor={`m-${m.id}`} className="grid text-sm"><span>{name(m.id)}</span>{m.available ? null : <span className="text-[12px] text-muted">{t('setup.modules.notHereOne')}</span>}{m.depends.filter((d) => d !== 'core').length ? <span className="text-[12px] text-muted">{t('setup.modules.needs', { list: m.depends.filter((d) => d !== 'core').map(name).join(', ') })}</span> : null}</label>
             </div>
           ))}
         </fieldset>

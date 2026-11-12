@@ -8939,6 +8939,17 @@ func (s *CoreGetCoreSetupModulesOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Install.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "install",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Modules == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -8970,6 +8981,17 @@ func (s *CoreGetCoreSetupModulesOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s CoreGetCoreSetupModulesOKInstall) Validate() error {
+	switch s {
+	case "appliance":
+		return nil
+	case "container":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *CoreGetCoreSetupModulesOKModulesItem) Validate() error {
@@ -10353,6 +10375,17 @@ func (s *CoreGetModulesOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := s.Install.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "install",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Modules == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -10384,6 +10417,17 @@ func (s *CoreGetModulesOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s CoreGetModulesOKInstall) Validate() error {
+	switch s {
+	case "appliance":
+		return nil
+	case "container":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *CoreGetModulesOKModulesItem) Validate() error {

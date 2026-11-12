@@ -15280,7 +15280,16 @@ func (s *CoreGetCorePrivacyOKTelemetryPayload) init() CoreGetCorePrivacyOKTeleme
 }
 
 type CoreGetCoreSetupModulesOK struct {
+	// Appliance: installed by install.sh, with the system helper vedette-host; container: container-only
+	// install on the customer's Docker or Podman, no helper (D-168). The one place the GUI learns it
+	// (D-381).
+	Install CoreGetCoreSetupModulesOKInstall       `json:"install"`
 	Modules []CoreGetCoreSetupModulesOKModulesItem `json:"modules"`
+}
+
+// GetInstall returns the value of Install.
+func (s *CoreGetCoreSetupModulesOK) GetInstall() CoreGetCoreSetupModulesOKInstall {
+	return s.Install
 }
 
 // GetModules returns the value of Modules.
@@ -15288,15 +15297,72 @@ func (s *CoreGetCoreSetupModulesOK) GetModules() []CoreGetCoreSetupModulesOKModu
 	return s.Modules
 }
 
+// SetInstall sets the value of Install.
+func (s *CoreGetCoreSetupModulesOK) SetInstall(val CoreGetCoreSetupModulesOKInstall) {
+	s.Install = val
+}
+
 // SetModules sets the value of Modules.
 func (s *CoreGetCoreSetupModulesOK) SetModules(val []CoreGetCoreSetupModulesOKModulesItem) {
 	s.Modules = val
 }
 
+// Appliance: installed by install.sh, with the system helper vedette-host; container: container-only
+// install on the customer's Docker or Podman, no helper (D-168). The one place the GUI learns it
+// (D-381).
+type CoreGetCoreSetupModulesOKInstall string
+
+const (
+	CoreGetCoreSetupModulesOKInstallAppliance CoreGetCoreSetupModulesOKInstall = "appliance"
+	CoreGetCoreSetupModulesOKInstallContainer CoreGetCoreSetupModulesOKInstall = "container"
+)
+
+// AllValues returns all CoreGetCoreSetupModulesOKInstall values.
+func (CoreGetCoreSetupModulesOKInstall) AllValues() []CoreGetCoreSetupModulesOKInstall {
+	return []CoreGetCoreSetupModulesOKInstall{
+		CoreGetCoreSetupModulesOKInstallAppliance,
+		CoreGetCoreSetupModulesOKInstallContainer,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreSetupModulesOKInstall) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreSetupModulesOKInstallAppliance:
+		return []byte(s), nil
+	case CoreGetCoreSetupModulesOKInstallContainer:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreSetupModulesOKInstall) UnmarshalText(data []byte) error {
+	switch CoreGetCoreSetupModulesOKInstall(data) {
+	case CoreGetCoreSetupModulesOKInstallAppliance:
+		*s = CoreGetCoreSetupModulesOKInstallAppliance
+		return nil
+	case CoreGetCoreSetupModulesOKInstallContainer:
+		*s = CoreGetCoreSetupModulesOKInstallContainer
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CoreGetCoreSetupModulesOKModulesItem struct {
-	Depends []CoreGetCoreSetupModulesOKModulesItemDependsItem `json:"depends"`
-	ID      CoreGetCoreSetupModulesOKModulesItemID            `json:"id"`
-	Tier    CoreGetCoreSetupModulesOKModulesItemTier          `json:"tier"`
+	// False: this install cannot run the module (needs_host in its manifest on a container-only install:
+	// honeypot, credentialed scans, D-381); turning it on answers 409 not_appliance.
+	Available bool                                              `json:"available"`
+	Depends   []CoreGetCoreSetupModulesOKModulesItemDependsItem `json:"depends"`
+	ID        CoreGetCoreSetupModulesOKModulesItemID            `json:"id"`
+	Tier      CoreGetCoreSetupModulesOKModulesItemTier          `json:"tier"`
+}
+
+// GetAvailable returns the value of Available.
+func (s *CoreGetCoreSetupModulesOKModulesItem) GetAvailable() bool {
+	return s.Available
 }
 
 // GetDepends returns the value of Depends.
@@ -15312,6 +15378,11 @@ func (s *CoreGetCoreSetupModulesOKModulesItem) GetID() CoreGetCoreSetupModulesOK
 // GetTier returns the value of Tier.
 func (s *CoreGetCoreSetupModulesOKModulesItem) GetTier() CoreGetCoreSetupModulesOKModulesItemTier {
 	return s.Tier
+}
+
+// SetAvailable sets the value of Available.
+func (s *CoreGetCoreSetupModulesOKModulesItem) SetAvailable(val bool) {
+	s.Available = val
 }
 
 // SetDepends sets the value of Depends.
@@ -18073,7 +18144,16 @@ func (s *CoreGetMeOKTwofaMethod) UnmarshalText(data []byte) error {
 }
 
 type CoreGetModulesOK struct {
+	// Appliance: installed by install.sh, with the system helper vedette-host; container: container-only
+	// install on the customer's Docker or Podman, no helper (D-168). The one place the GUI learns it
+	// (D-381).
+	Install CoreGetModulesOKInstall       `json:"install"`
 	Modules []CoreGetModulesOKModulesItem `json:"modules"`
+}
+
+// GetInstall returns the value of Install.
+func (s *CoreGetModulesOK) GetInstall() CoreGetModulesOKInstall {
+	return s.Install
 }
 
 // GetModules returns the value of Modules.
@@ -18081,17 +18161,74 @@ func (s *CoreGetModulesOK) GetModules() []CoreGetModulesOKModulesItem {
 	return s.Modules
 }
 
+// SetInstall sets the value of Install.
+func (s *CoreGetModulesOK) SetInstall(val CoreGetModulesOKInstall) {
+	s.Install = val
+}
+
 // SetModules sets the value of Modules.
 func (s *CoreGetModulesOK) SetModules(val []CoreGetModulesOKModulesItem) {
 	s.Modules = val
 }
 
+// Appliance: installed by install.sh, with the system helper vedette-host; container: container-only
+// install on the customer's Docker or Podman, no helper (D-168). The one place the GUI learns it
+// (D-381).
+type CoreGetModulesOKInstall string
+
+const (
+	CoreGetModulesOKInstallAppliance CoreGetModulesOKInstall = "appliance"
+	CoreGetModulesOKInstallContainer CoreGetModulesOKInstall = "container"
+)
+
+// AllValues returns all CoreGetModulesOKInstall values.
+func (CoreGetModulesOKInstall) AllValues() []CoreGetModulesOKInstall {
+	return []CoreGetModulesOKInstall{
+		CoreGetModulesOKInstallAppliance,
+		CoreGetModulesOKInstallContainer,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetModulesOKInstall) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetModulesOKInstallAppliance:
+		return []byte(s), nil
+	case CoreGetModulesOKInstallContainer:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetModulesOKInstall) UnmarshalText(data []byte) error {
+	switch CoreGetModulesOKInstall(data) {
+	case CoreGetModulesOKInstallAppliance:
+		*s = CoreGetModulesOKInstallAppliance
+		return nil
+	case CoreGetModulesOKInstallContainer:
+		*s = CoreGetModulesOKInstallContainer
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CoreGetModulesOKModulesItem struct {
+	// False: this install cannot run the module (needs_host in its manifest on a container-only install:
+	// honeypot, credentialed scans, D-381); turning it on answers 409 not_appliance.
+	Available bool                                     `json:"available"`
 	Depends   []CoreGetModulesOKModulesItemDependsItem `json:"depends"`
 	Enabled   bool                                     `json:"enabled"`
 	EnabledAt NilDateTime                              `json:"enabled_at"`
 	ID        CoreGetModulesOKModulesItemID            `json:"id"`
 	Tier      CoreGetModulesOKModulesItemTier          `json:"tier"`
+}
+
+// GetAvailable returns the value of Available.
+func (s *CoreGetModulesOKModulesItem) GetAvailable() bool {
+	return s.Available
 }
 
 // GetDepends returns the value of Depends.
@@ -18117,6 +18254,11 @@ func (s *CoreGetModulesOKModulesItem) GetID() CoreGetModulesOKModulesItemID {
 // GetTier returns the value of Tier.
 func (s *CoreGetModulesOKModulesItem) GetTier() CoreGetModulesOKModulesItemTier {
 	return s.Tier
+}
+
+// SetAvailable sets the value of Available.
+func (s *CoreGetModulesOKModulesItem) SetAvailable(val bool) {
+	s.Available = val
 }
 
 // SetDepends sets the value of Depends.
@@ -21249,11 +21391,19 @@ func (s *CorePatchModulesIDOKAffectedItem) UnmarshalText(data []byte) error {
 }
 
 type CorePatchModulesIDOKModulesItem struct {
+	// False: this install cannot run the module (needs_host in its manifest on a container-only install:
+	// honeypot, credentialed scans, D-381); turning it on answers 409 not_appliance.
+	Available bool                                         `json:"available"`
 	Depends   []CorePatchModulesIDOKModulesItemDependsItem `json:"depends"`
 	Enabled   bool                                         `json:"enabled"`
 	EnabledAt NilDateTime                                  `json:"enabled_at"`
 	ID        CorePatchModulesIDOKModulesItemID            `json:"id"`
 	Tier      CorePatchModulesIDOKModulesItemTier          `json:"tier"`
+}
+
+// GetAvailable returns the value of Available.
+func (s *CorePatchModulesIDOKModulesItem) GetAvailable() bool {
+	return s.Available
 }
 
 // GetDepends returns the value of Depends.
@@ -21279,6 +21429,11 @@ func (s *CorePatchModulesIDOKModulesItem) GetID() CorePatchModulesIDOKModulesIte
 // GetTier returns the value of Tier.
 func (s *CorePatchModulesIDOKModulesItem) GetTier() CorePatchModulesIDOKModulesItemTier {
 	return s.Tier
+}
+
+// SetAvailable sets the value of Available.
+func (s *CorePatchModulesIDOKModulesItem) SetAvailable(val bool) {
+	s.Available = val
 }
 
 // SetDepends sets the value of Depends.

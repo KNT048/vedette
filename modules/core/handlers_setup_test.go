@@ -295,6 +295,42 @@ func TestBundlesMatchTheWebList(t *testing.T) {
 	}
 }
 
+// D-381: on a container-only install the bundles leave out what cannot run there (the honeypot), the lists say which
+// modules are not available and the install kind, and a custom setup that names the honeypot is refused.
+func TestSetupOnContainerOnly(t *testing.T) {
+	t.Parallel()
+	w := newWorldKind(t, true, nil)
+	c := w.client()
+	r := c.get("/core/setup/modules")
+	wantOK(t, r, 200)
+	if r.JSON["install"] != "container" {
+		t.Fatalf("install = %v", r.JSON["install"])
+	}
+	for _, m := range r.JSON["modules"].([]any) {
+		m := m.(map[string]any)
+		if want := m["id"] != "honeypot" && m["id"] != "scan-credentialed"; m["available"] != want {
+			t.Errorf("%v: available = %v", m["id"], m["available"])
+		}
+	}
+	custom := setupBody(w.openSetup())
+	custom["bundle"], custom["modules"] = "custom", []string{"feeds", "inventory", "honeypot"}
+	if r := c.post("/core/setup", custom); r.Code != 409 || r.code() != "not_appliance" {
+		t.Fatalf("custom with honeypot = %d %s", r.Code, r.Raw)
+	}
+	wantOK(t, c.post("/core/setup", setupBody(w.openSetup())), 200)
+	if w.reg.Enabled("honeypot") || !w.reg.Enabled("sensor-passive") {
+		t.Fatal("the small business bundle turned the honeypot on, or left the rest off")
+	}
+	r = c.get("/modules")
+	wantOK(t, r, 200)
+	if r.JSON["install"] != "container" {
+		t.Fatalf("GET /modules install = %v", r.JSON["install"])
+	}
+	if r := c.patch("/modules/honeypot", map[string]any{"enabled": true}); r.Code != 409 || r.code() != "not_appliance" {
+		t.Fatalf("PATCH /modules/honeypot = %d %s", r.Code, r.Raw)
+	}
+}
+
 func tsBundle(t *testing.T, src, name string) []string {
 	t.Helper()
 	line := ""

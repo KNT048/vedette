@@ -17,10 +17,10 @@ export function ActionError({ error }: { error: unknown }) {
 export function useAiGate(minRole: 'operator' | 'viewer' = 'operator', job?: AiJob) {
   const { t } = useTranslation('ai')
   const on = useModuleEnabled('ai')
-  const cfg = useAiConfig()
+  const cfg = useAiConfig(on === true) // with the module off the route is 404: not asked (S-CORE-9, 2026-11-12 walk)
   const can = useCan(minRole)
   const unassigned = !!job && !!cfg.data?.configured && cfg.data.jobs_ready[job] === false
-  const state: 'loading' | 'off' | 'unconfigured' | 'unassigned' | 'ready' = on === undefined || cfg.isPending ? 'loading' : !on ? 'off' : !cfg.data?.configured ? 'unconfigured' : unassigned ? 'unassigned' : 'ready'
+  const state: 'loading' | 'off' | 'unconfigured' | 'unassigned' | 'ready' = on === undefined || (on && cfg.isPending) ? 'loading' : !on ? 'off' : !cfg.data?.configured ? 'unconfigured' : unassigned ? 'unassigned' : 'ready'
   const reason = state !== 'ready' ? t(`gate.${state}`) : !can ? t('common:needRole', { role: t(`common:role.${minRole}`) }) : undefined
   return { state, canRun: state === 'ready' && can, reason, cfg: cfg.data }
 }

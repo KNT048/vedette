@@ -31959,6 +31959,10 @@ func (s *CoreGetCoreSetupModulesOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CoreGetCoreSetupModulesOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("install")
+		s.Install.Encode(e)
+	}
+	{
 		e.FieldStart("modules")
 		e.ArrStart()
 		for _, elem := range s.Modules {
@@ -31968,8 +31972,9 @@ func (s *CoreGetCoreSetupModulesOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCoreGetCoreSetupModulesOK = [1]string{
-	0: "modules",
+var jsonFieldsNameOfCoreGetCoreSetupModulesOK = [2]string{
+	0: "install",
+	1: "modules",
 }
 
 // Decode decodes CoreGetCoreSetupModulesOK from json.
@@ -31981,8 +31986,18 @@ func (s *CoreGetCoreSetupModulesOK) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "modules":
+		case "install":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Install.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"install\"")
+			}
+		case "modules":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.Modules = make([]CoreGetCoreSetupModulesOKModulesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -32009,7 +32024,7 @@ func (s *CoreGetCoreSetupModulesOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -32055,6 +32070,46 @@ func (s *CoreGetCoreSetupModulesOK) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes CoreGetCoreSetupModulesOKInstall as json.
+func (s CoreGetCoreSetupModulesOKInstall) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CoreGetCoreSetupModulesOKInstall from json.
+func (s *CoreGetCoreSetupModulesOKInstall) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetCoreSetupModulesOKInstall to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CoreGetCoreSetupModulesOKInstall(v) {
+	case CoreGetCoreSetupModulesOKInstallAppliance:
+		*s = CoreGetCoreSetupModulesOKInstallAppliance
+	case CoreGetCoreSetupModulesOKInstallContainer:
+		*s = CoreGetCoreSetupModulesOKInstallContainer
+	default:
+		*s = CoreGetCoreSetupModulesOKInstall(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CoreGetCoreSetupModulesOKInstall) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetCoreSetupModulesOKInstall) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *CoreGetCoreSetupModulesOKModulesItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -32064,6 +32119,10 @@ func (s *CoreGetCoreSetupModulesOKModulesItem) Encode(e *jx.Encoder) {
 
 // encodeFields encodes fields.
 func (s *CoreGetCoreSetupModulesOKModulesItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("available")
+		e.Bool(s.Available)
+	}
 	{
 		e.FieldStart("depends")
 		e.ArrStart()
@@ -32082,10 +32141,11 @@ func (s *CoreGetCoreSetupModulesOKModulesItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCoreGetCoreSetupModulesOKModulesItem = [3]string{
-	0: "depends",
-	1: "id",
-	2: "tier",
+var jsonFieldsNameOfCoreGetCoreSetupModulesOKModulesItem = [4]string{
+	0: "available",
+	1: "depends",
+	2: "id",
+	3: "tier",
 }
 
 // Decode decodes CoreGetCoreSetupModulesOKModulesItem from json.
@@ -32097,8 +32157,20 @@ func (s *CoreGetCoreSetupModulesOKModulesItem) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "depends":
+		case "available":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Available = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"available\"")
+			}
+		case "depends":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.Depends = make([]CoreGetCoreSetupModulesOKModulesItemDependsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -32116,7 +32188,7 @@ func (s *CoreGetCoreSetupModulesOKModulesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"depends\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.ID.Decode(d); err != nil {
 					return err
@@ -32126,7 +32198,7 @@ func (s *CoreGetCoreSetupModulesOKModulesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "tier":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Tier.Decode(d); err != nil {
 					return err
@@ -32145,7 +32217,7 @@ func (s *CoreGetCoreSetupModulesOKModulesItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -36770,6 +36842,10 @@ func (s *CoreGetModulesOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CoreGetModulesOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("install")
+		s.Install.Encode(e)
+	}
+	{
 		e.FieldStart("modules")
 		e.ArrStart()
 		for _, elem := range s.Modules {
@@ -36779,8 +36855,9 @@ func (s *CoreGetModulesOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCoreGetModulesOK = [1]string{
-	0: "modules",
+var jsonFieldsNameOfCoreGetModulesOK = [2]string{
+	0: "install",
+	1: "modules",
 }
 
 // Decode decodes CoreGetModulesOK from json.
@@ -36792,8 +36869,18 @@ func (s *CoreGetModulesOK) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "modules":
+		case "install":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Install.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"install\"")
+			}
+		case "modules":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.Modules = make([]CoreGetModulesOKModulesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -36820,7 +36907,7 @@ func (s *CoreGetModulesOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -36866,6 +36953,46 @@ func (s *CoreGetModulesOK) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes CoreGetModulesOKInstall as json.
+func (s CoreGetModulesOKInstall) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CoreGetModulesOKInstall from json.
+func (s *CoreGetModulesOKInstall) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetModulesOKInstall to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CoreGetModulesOKInstall(v) {
+	case CoreGetModulesOKInstallAppliance:
+		*s = CoreGetModulesOKInstallAppliance
+	case CoreGetModulesOKInstallContainer:
+		*s = CoreGetModulesOKInstallContainer
+	default:
+		*s = CoreGetModulesOKInstall(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CoreGetModulesOKInstall) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetModulesOKInstall) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode implements json.Marshaler.
 func (s *CoreGetModulesOKModulesItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
@@ -36875,6 +37002,10 @@ func (s *CoreGetModulesOKModulesItem) Encode(e *jx.Encoder) {
 
 // encodeFields encodes fields.
 func (s *CoreGetModulesOKModulesItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("available")
+		e.Bool(s.Available)
+	}
 	{
 		e.FieldStart("depends")
 		e.ArrStart()
@@ -36901,12 +37032,13 @@ func (s *CoreGetModulesOKModulesItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCoreGetModulesOKModulesItem = [5]string{
-	0: "depends",
-	1: "enabled",
-	2: "enabled_at",
-	3: "id",
-	4: "tier",
+var jsonFieldsNameOfCoreGetModulesOKModulesItem = [6]string{
+	0: "available",
+	1: "depends",
+	2: "enabled",
+	3: "enabled_at",
+	4: "id",
+	5: "tier",
 }
 
 // Decode decodes CoreGetModulesOKModulesItem from json.
@@ -36918,8 +37050,20 @@ func (s *CoreGetModulesOKModulesItem) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "depends":
+		case "available":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Available = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"available\"")
+			}
+		case "depends":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.Depends = make([]CoreGetModulesOKModulesItemDependsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -36937,7 +37081,7 @@ func (s *CoreGetModulesOKModulesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"depends\"")
 			}
 		case "enabled":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Bool()
 				s.Enabled = bool(v)
@@ -36949,7 +37093,7 @@ func (s *CoreGetModulesOKModulesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"enabled\"")
 			}
 		case "enabled_at":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.EnabledAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -36959,7 +37103,7 @@ func (s *CoreGetModulesOKModulesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"enabled_at\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.ID.Decode(d); err != nil {
 					return err
@@ -36969,7 +37113,7 @@ func (s *CoreGetModulesOKModulesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "tier":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Tier.Decode(d); err != nil {
 					return err
@@ -36988,7 +37132,7 @@ func (s *CoreGetModulesOKModulesItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -42457,6 +42601,10 @@ func (s *CorePatchModulesIDOKModulesItem) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CorePatchModulesIDOKModulesItem) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("available")
+		e.Bool(s.Available)
+	}
+	{
 		e.FieldStart("depends")
 		e.ArrStart()
 		for _, elem := range s.Depends {
@@ -42482,12 +42630,13 @@ func (s *CorePatchModulesIDOKModulesItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePatchModulesIDOKModulesItem = [5]string{
-	0: "depends",
-	1: "enabled",
-	2: "enabled_at",
-	3: "id",
-	4: "tier",
+var jsonFieldsNameOfCorePatchModulesIDOKModulesItem = [6]string{
+	0: "available",
+	1: "depends",
+	2: "enabled",
+	3: "enabled_at",
+	4: "id",
+	5: "tier",
 }
 
 // Decode decodes CorePatchModulesIDOKModulesItem from json.
@@ -42499,8 +42648,20 @@ func (s *CorePatchModulesIDOKModulesItem) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "depends":
+		case "available":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Available = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"available\"")
+			}
+		case "depends":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.Depends = make([]CorePatchModulesIDOKModulesItemDependsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -42518,7 +42679,7 @@ func (s *CorePatchModulesIDOKModulesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"depends\"")
 			}
 		case "enabled":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Bool()
 				s.Enabled = bool(v)
@@ -42530,7 +42691,7 @@ func (s *CorePatchModulesIDOKModulesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"enabled\"")
 			}
 		case "enabled_at":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.EnabledAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -42540,7 +42701,7 @@ func (s *CorePatchModulesIDOKModulesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"enabled_at\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.ID.Decode(d); err != nil {
 					return err
@@ -42550,7 +42711,7 @@ func (s *CorePatchModulesIDOKModulesItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "tier":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Tier.Decode(d); err != nil {
 					return err
@@ -42569,7 +42730,7 @@ func (s *CorePatchModulesIDOKModulesItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

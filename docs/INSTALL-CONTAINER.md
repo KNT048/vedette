@@ -1,6 +1,6 @@
 # Install Vedette on your own Docker or Podman (container-only)
 
-For the person who already runs Docker or Podman and wants Vedette on it, without giving a machine to the Vedette installer. You get the same program as the appliance, run as containers from Docker Compose. You do not get the helper that manages the machine itself (`vedette-host`), so a few things stay with you. They are listed below; each of those screens in Vedette also says so.
+For the person who already runs Docker or Podman and wants Vedette on it, without giving a machine to the Vedette installer. You get the same program as the appliance, run as containers from Docker Compose. You do not get the helper that manages the machine itself (`vedette-host`), so a few things stay with you. They are listed below; each of those screens in Vedette also says so (D-381).
 
 Decision and plan: D-168, `docs/plans/2026-11-11-wp08m-container-only.md`. The appliance install is `install.sh` (`docs/DEPLOYMENT.md` section 8).
 
@@ -119,7 +119,15 @@ docker compose --env-file vedette.env start core
 
 ## What each limit looks like in the page
 
-Settings → Updates (operating system part), Settings → Box network and Settings → Data → Download backup answer with the title "Not available on this install" and the sentence "This install has no operating system helper (container-only install), so Vedette ...". The honeypot page and the package list of "This box" do not yet say why they are empty (planned: S-CORE-9 G5, S-INV-5 G3). Short sentences that tell you what to do instead are planned (S-CORE-9, criteria G1 to G6).
+Vedette knows it is a container-only install from `-host-socket=` in `compose.yaml` (D-381), and the pages follow it:
+
+- Settings → Updates shows the `pull` and `up -d` commands above and says the operating system is yours; there is no spare slot, rollback, channel or package list.
+- Settings → Data shows the backup and restore commands of section 6 instead of Download backup and "Backups on this box". Export, log downloads and Delete all data work as on the appliance.
+- Settings → Box network says the network of the machine is yours to set up.
+- Settings → Modules shows Honeypot (and Credentialed scans) as "Not on this install"; the setup bundles leave them out. A honeypot turned on before this version shows only why it cannot run; turn it off in Settings → Modules.
+- The first-run setup names `docker logs vedette-core` for the setup code.
+
+Still to come: the package list of "This box" says nothing about why it is empty (S-INV-5 G3), and the Updates page does not yet say that a new version exists (S-CORE-2 G4, waits for the release keys, WP-08k).
 
 ## Not tested yet (the lab does)
 

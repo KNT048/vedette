@@ -57,19 +57,23 @@ const sensorsStore = collection<StoredSensor[]>('sp_sensor', () => [
 type ReportedCard = { name: string; ipv4: string | null; link: boolean }
 export const containerSensorStore = collection<{ connected: boolean; cards: ReportedCard[]; chosen: string | null; span: boolean }>('sp_container', () => ({
   connected: true, chosen: null, span: false,
-  cards: [{ name: 'eno1', ipv4: '192.168.10.20/24', link: true }, { name: 'eno2', ipv4: null, link: true }, { name: 'wlp2s0', ipv4: null, link: false }],
+  cards: [{ name: 'eno1', ipv4: '192.168.10.20/24', link: true }, { name: 'eno2', ipv4: null, link: true }, { name: 'wlp2s0', ipv4: null, link: false }, { name: 'docker0', ipv4: '172.17.0.1/16', link: true }, { name: 'lo', ipv4: '127.0.0.1/8', link: true }],
 }), () => ({ connected: false, cards: [], chosen: null, span: false }))
+/** core/sensorlink VirtualIfaceName: a link that is not a network card. */
+const VIRTUAL = /^(lo|veth|podman|cni|docker|br|virbr|vdh|bond|tun|tap|wg|dummy|vnet|macvtap|ifb|vedette)|[.@]/
 /** GET /inventory/sensors on a container-only install: everything about the cards comes from the heartbeat (D-263); never_connected before the first one. */
 function containerSensors() {
   const c = containerSensorStore.get()
   // D-380: of the cards that are up with an address, the one wired card, else the one card; two candidates → none.
   // The backend counts only a global IPv4 (globalIPv4); the fixtures hold no link-local address.
-  const withAddress = c.cards.filter((x) => x.link && x.ipv4)
+  // D-393: links that are not cards (sensorlink.VirtualIfaceName: loopback, container bridges, veth, VPN) are never the default nor listed.
+  const cards = c.cards.filter((x) => !VIRTUAL.test(x.name))
+  const withAddress = cards.filter((x) => x.link && x.ipv4)
   const wired = withAddress.filter((x) => !/^w[lw]/.test(x.name))
   const dflt = wired.length === 1 ? wired[0]!.name : wired.length === 0 && withAddress.length === 1 ? withAddress[0]!.name : null
   return sensorsStore.get().map((s) => ({
     ...s, status: c.connected ? s.status : 'never_connected' as const, last_seen: c.connected ? s.last_seen : null, version: c.connected ? s.version : null, devices_seen: c.connected ? s.devices_seen : 0,
-    interface: c.chosen ?? dflt, interfaces: c.cards.map((x) => x.name).sort(), span: c.span, chosen: c.chosen !== null,
+    interface: c.chosen ?? dflt, interfaces: cards.map((x) => x.name).sort(), span: c.span, chosen: c.chosen !== null,
     span_status: c.span ? { verdict: 'ok' as const, packets_per_s: 140, other_macs: 12 } : { verdict: 'off' as const, packets_per_s: 0, other_macs: 0 },
   }))
 }
@@ -665,6 +669,7 @@ export const handlers = [
     const name = b.interface === '' ? null : b.interface as string | null
     if (name && !c.connected) return fail(400, 'bad_interface', 'The sensor has not reported its network cards in the last 90 seconds; check that it runs, wait for its next heartbeat (30 s) and try again.')
     if (name && !/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,14}$/.test(name)) return fail(400, 'bad_interface', `"${name}" is not an interface name.`)
+    if (name && VIRTUAL.test(name)) return fail(400, 'bad_interface', `"${name}" is not a network card (loopback, container, bridge or VPN link).`)
     const card = name ? c.cards.find((x) => x.name === name) : undefined
     if (b.span && !name) return fail(400, 'bad_interface', 'A SPAN port needs an interface.')
     if (name && !card) return fail(400, 'bad_interface', `"${name}" is not an interface of this box.`)

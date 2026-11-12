@@ -278,7 +278,9 @@ func (s *Service) Status(ctx context.Context) ([]Sensor, error) {
 	names := []string{}
 	if hb := s.lastBeat(); hb != nil {
 		for _, i := range hb.ifaces {
-			names = append(names, i.Name)
+			if !sensorlink.VirtualIfaceName(i.Name) { // loopback, container bridges, veth, VPN: not cards to listen on (D-393)
+				names = append(names, i.Name)
+			}
 		}
 	}
 	slices.Sort(names)
@@ -379,6 +381,9 @@ func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, spa
 		if !sensorlink.ValidIfaceName(iface) {
 			return fmt.Errorf("%w: %q is not an interface name", ErrBadInterface, iface)
 		}
+		if sensorlink.VirtualIfaceName(iface) { // the heartbeat lists every link of the machine; Box network offers only cards (D-393)
+			return fmt.Errorf("%w: %q is not a network card (loopback, container, bridge or VPN link)", ErrBadInterface, iface)
+		}
 		cards = cardsOfHeartbeat(hb.ifaces)
 	}
 	var card *capture.Interface
@@ -445,7 +450,9 @@ func (s *Service) listenOn(ctx context.Context, r sensorRow) string {
 }
 
 // defaultOfHeartbeat is the default card without vedette-host (container-only, D-168, D-380): of the cards in the sensor's last
-// heartbeat that are up and have a global IPv4 address, the one wired card, else the one card. Wireless cards (wl*, ww*) are
+// heartbeat that are up and have a global IPv4 address and are cards (never loopback, a container bridge such as docker0 or
+// the br-… of a compose network, veth or a VPN link: sensorlink.VirtualIfaceName, the rule of Box network, D-393), the one
+// wired card, else the one card. Wireless cards (wl*, ww*) are
 // taken only when nothing else is there. Two candidates is not a clear answer: "" and the sensor waits for the admin.
 func defaultOfHeartbeat(hb *heartbeat) string {
 	if hb == nil {
@@ -453,7 +460,7 @@ func defaultOfHeartbeat(hb *heartbeat) string {
 	}
 	var wired, all []string
 	for _, c := range hb.ifaces {
-		if !c.Link || !slices.ContainsFunc(c.IPv4, globalIPv4) {
+		if !c.Link || !slices.ContainsFunc(c.IPv4, globalIPv4) || sensorlink.VirtualIfaceName(c.Name) {
 			continue
 		}
 		all = append(all, c.Name)

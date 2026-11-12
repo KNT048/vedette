@@ -13360,7 +13360,7 @@
     "/core/setup": {
       "post": {
         "operationId": "core_post_core_setup",
-        "summary": "First-run setup: create the organization and administrator, choose a module bundle, or use sample data",
+        "summary": "First-run setup: create the organization and administrator, choose a module bundle, or use sample data. A bundle leaves out the modules this install cannot run (available false, D-381); naming one under custom gives 409 not_appliance",
         "tags": [
           "core"
         ],
@@ -13495,7 +13495,7 @@
     "/core/setup/modules": {
       "get": {
         "operationId": "core_get_core_setup_modules",
-        "summary": "Modules and dependencies for the bundle step (does not reveal what is on)",
+        "summary": "Modules and dependencies for the bundle step (does not reveal what is on), and the install kind for the setup code hint and the modules this install cannot run (D-381)",
         "tags": [
           "core"
         ],
@@ -13575,19 +13575,33 @@
                                 "response"
                               ]
                             }
+                          },
+                          "available": {
+                            "type": "boolean",
+                            "description": "false: this install cannot run the module (needs_host in its manifest on a container-only install: honeypot, credentialed scans, D-381); turning it on answers 409 not_appliance"
                           }
                         },
                         "required": [
                           "id",
                           "tier",
-                          "depends"
+                          "depends",
+                          "available"
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "install": {
+                      "type": "string",
+                      "enum": [
+                        "appliance",
+                        "container"
+                      ],
+                      "description": "appliance: installed by install.sh, with the system helper vedette-host; container: container-only install on the customer's Docker or Podman, no helper (D-168). The one place the GUI learns it (D-381)"
                     }
                   },
                   "required": [
-                    "modules"
+                    "modules",
+                    "install"
                   ],
                   "additionalProperties": false
                 }
@@ -36349,6 +36363,10 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "available": {
+                            "type": "boolean",
+                            "description": "false: this install cannot run the module (needs_host in its manifest on a container-only install: honeypot, credentialed scans, D-381); turning it on answers 409 not_appliance"
                           }
                         },
                         "required": [
@@ -36356,14 +36374,24 @@
                           "enabled",
                           "tier",
                           "depends",
-                          "enabled_at"
+                          "enabled_at",
+                          "available"
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "install": {
+                      "type": "string",
+                      "enum": [
+                        "appliance",
+                        "container"
+                      ],
+                      "description": "appliance: installed by install.sh, with the system helper vedette-host; container: container-only install on the customer's Docker or Podman, no helper (D-168). The one place the GUI learns it (D-381)"
                     }
                   },
                   "required": [
-                    "modules"
+                    "modules",
+                    "install"
                   ],
                   "additionalProperties": false
                 }
@@ -36386,7 +36414,7 @@
     "/modules/{id}": {
       "patch": {
         "operationId": "core_patch_modules_id",
-        "summary": "Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies",
+        "summary": "Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies; turning on a module this install cannot run (available false) gives 409 not_appliance (D-381)",
         "tags": [
           "core"
         ],
@@ -36512,6 +36540,10 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "available": {
+                            "type": "boolean",
+                            "description": "false: this install cannot run the module (needs_host in its manifest on a container-only install: honeypot, credentialed scans, D-381); turning it on answers 409 not_appliance"
                           }
                         },
                         "required": [
@@ -36519,7 +36551,8 @@
                           "enabled",
                           "tier",
                           "depends",
-                          "enabled_at"
+                          "enabled_at",
+                          "available"
                         ],
                         "additionalProperties": false
                       }

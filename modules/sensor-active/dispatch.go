@@ -173,6 +173,8 @@ func (d *Dispatcher) NmapHealth() string {
 	now := d.now()
 	d.expireLocked(now)
 	switch {
+	case !d.haveBeat:
+		return "the scan worker has not reported since core started; active discovery runs once it does (the scan container, on a container-only install from compose.sensors.yaml)"
 	case !d.fresh(now):
 		return "the scan worker has not reported for 90 seconds; active discovery cannot run until it does"
 	case d.nmapSlot.overrun != "":
@@ -205,6 +207,8 @@ func (d *Dispatcher) nucleiProblem(forHealth bool) (msg string, base error) {
 	now := d.now()
 	d.expireLocked(now)
 	switch {
+	case !d.haveBeat:
+		return "the scan worker has not reported since core started; vulnerability scanning runs once it does (the scan container, on a container-only install from compose.sensors.yaml)", ErrScanWorkerUnavailable
 	case !d.fresh(now):
 		return "the scan worker has not reported for 90 seconds; vulnerability scanning cannot run until it does", ErrScanWorkerUnavailable
 	case d.nucSlot.overrun != "":

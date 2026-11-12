@@ -109,7 +109,7 @@ Why this slice exists (review H1): today a SIGTERM makes `Server.Shutdown` cance
   `RuntimeMaxSec` of 60 min covers lock wait (≤ 10 min in total, also for `dpkg -i` with its one retry) + install with
   `TimeoutStartSec` + health + rollback lock wait (≤ 10 min) + rollback install + health (57 min); `journal.deadline` =
   start + 130 min covers pre-park + two applier runs + slack; a second applier is only started when now + 60 min ≤
-  deadline, so no applier outlives the deadline; core waits until deadline + 5 min. Also fuzz for every new validator and for the journal
+  deadline, so no applier outlives the deadline; core waits until deadline + 20 min (the 15 min safety net + 5, slice 5 review). Also fuzz for every new validator and for the journal
   and started readers, and the real `internal/release` vectors under `-tags releasetestkeys` (a manifest with a `host`
   part).
 - Docs in the same PR: add INV-26 … INV-30, POST-5 and FORBID-7 to `modules/host/CONTRACT.md` and the allowlist row, update
@@ -197,7 +197,7 @@ Settled while building 2a:
   may need the new host (review M7). The download goes to `<core_data>/host-packages/<hex32>.deb` (`O_EXCL` 0600). The
   size is capped at the manifest `size` and the SHA-256 is checked before the call. The redirects use `releaseHosts`, as
   in the check. The call uses its own idempotency key stored before sending, and core waits until the run's `deadline`
-  (130 min from the host's start of the run) plus 5 min. A step that is not `succeeded` stops the run with the mapped
+  (130 min from the host's start of the run) plus 20 min (as built: the host's 15 min safety net + 5). A step that is not `succeeded` stops the run with the mapped
   error. On success the plan goes on to the image pulls.
 - Reconnect: the host socket drops while the host restarts. Use the same lookup-by-key path that core's own restart uses.
 - `updates_check.go`: the `host` component (version from `/v1/info`), and "Includes system helper" on the offered release.
@@ -207,6 +207,20 @@ Settled while building 2a:
   host restart in the middle (`ErrUnreachable` then the run found by key), a download that does not match the hash (no
   host call), a host without the command while the manifest has a newer host (`host_too_old`, no host call, no image
   touched), and a release without a newer host (no step). `modules/core/CONTRACT.md` / `IMPACT.md`.
+
+Built in slice 5 (branch `feat/core-updates-host`): `modules/core/updates_host.go` (plan, download, sentences, sweep)
+with the hooks in `updates_run.go` and `updates_check.go`; tests in `updates_host_test.go`. Settled while building it:
+- The package's architecture is the host's (`/v1/info.arch`), the one `Check` 3 compares with, not core's `GOARCH`.
+- Core's wait ends at `parked_deadline` + 20 min once the run parked, else `started_at` + 10 + 130 + 20 min (the latest
+  the deadline can be); past it the run ends with the "stopped half way" sentence (`self_update_interrupted`).
+- The `host` history entry is written when the host step succeeds, in the same transaction as the step, not when the
+  run ends: the helper stays new even when an image step fails later (criterion (f)), and D-342 (4) "history only for
+  `done`" is about the software entry.
+- Criterion (e) "busy": core keeps the host's code `transition_pending` (409, the "Not available right now" title of
+  the GUI) and its sentence now names the runbook section; a new `busy` mapping would hide the container-journal case.
+- A download that fails ends the run (no retry loop; nothing changed) with its own sentence; `current_package_missing`
+  (a box installed before slice 3 keeps no package) also says to run `install.sh`. A running helper that is not a
+  release version counts as older: the step is planned and the host refuses `host_version_unknown`.
 
 ### Slice 6: lab (LAB-VM.md, default passt network, no cable needed)
 
@@ -243,7 +257,7 @@ On `ubuntu2404` and `debian13` (and Ubuntu 26.04 on Mlee's box, D-198), using te
 | The new host crash-loops and the box reboots during the applier window, so nobody restarts the applier | Accepted limit (D-316); RUNBOOK; the GUI shows the host unreachable with its last known version |
 | The run ends `failed` on the SIGTERM that postinst sends (review H1) | `server.Parked` + Resume for parked runs (slice 1), test with SIGTERM while parked |
 | A SIGTERM between dispatch and parking leaves an applier running with no run and no lock (review r2) | Park first, dispatch after (the settle goroutine dispatches); orphan journals handled at `Start` |
-| A second applier outlives core's wait (review r2) | Attempt 2 only when now + 60 min ≤ deadline; core waits until deadline + 5 min |
+| A second applier outlives core's wait (review r2) | Attempt 2 only when now + 60 min ≤ deadline; core waits until deadline + 20 min (past the host's 15 min safety net) |
 | `dpkg -i` hits the lock just after a reboot, when the apt timers fire (review r2) | `F_GETLK` wait (10 min in total) before every `dpkg -i` and one retry |
 | A dpkg cut mid-unpack blocks every apt install (review H2) | The applier picks `dpkg -i` of this package when its status is not `installed` or `dpkg --audit` is not clean; the "dpkg interrupted" marker; lab check 4 |
 | unattended-upgrades takes the lock between Check and the install (review M1) | `DPkg::Lock::Timeout=600`; the rollback checks the effect before reinstalling |

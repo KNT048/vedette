@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"time"
 )
 
 // OfferedVersionForTest is the version offered() hands the run side ("" with the error when nothing is offered).
@@ -29,4 +30,12 @@ func EndFollowerForTest(h *OSHandlers) {
 	if h.handOff() {
 		h.goFollow()
 	}
+}
+
+// SetUpdateRetryForTest shortens the follower's wait between two tries (followRetry); set it before the run starts.
+func SetUpdateRetryForTest(h *OSHandlers, d time.Duration) { h.urun.retry = d }
+
+// HostWhyForTest is the sentence of the host step's end code for a run of release that takes the helper from running to v.
+func HostWhyForTest(code, v, running, release string) string {
+	return hostWhy(context.Background(), &updateRunRec{To: release, Host: &runHost{From: running, To: v}}, code)
 }

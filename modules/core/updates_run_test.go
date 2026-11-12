@@ -51,6 +51,16 @@ type updHost struct {
 	ends   map[string]api.RunError // "start core": the run ends reverted (unit_failed) or failed with this code
 	now    func() time.Time
 	seq    int
+
+	// The system helper (host.self_update, D-316): its version and commands in /v1/info, where core writes the
+	// package (core_data) and the SHA-256 the package must have; lost: the next self_update is taken but its answer
+	// is lost (the host restarts); down: ListRuns answers that many times as a host that is not up yet.
+	hostVersion string
+	commands    []string
+	coreData    string
+	pkgSHA      string
+	lost        bool
+	down        int
 }
 
 func ver(s string) *string { return &s }
@@ -74,7 +84,8 @@ func newUpdHost(t *testing.T, st api.ContainersState) *updHost {
 	go func() { _ = srv.Serve(ln) }()
 	t.Cleanup(func() { _ = srv.Close() })
 	return &updHost{cl: hostclient.New(sock), st: st, hold: map[string]bool{}, refuse: map[string]string{},
-		once: map[string]string{}, args: map[string]string{}, pulled: map[string][]string{}, ends: map[string]api.RunError{}, now: time.Now}
+		once: map[string]string{}, args: map[string]string{}, pulled: map[string][]string{}, ends: map[string]api.RunError{}, now: time.Now,
+		hostVersion: "1.3.0", commands: []string{api.CmdContainerPull, api.CmdHostSelfUpdate}}
 }
 
 // lockstep is a box whose core and installed services run cur (previous prev, "" = none); honeypot is installed but off.
@@ -110,6 +121,9 @@ func (f *updHost) effect(r *updRun) {
 		cur := s.Version
 		s.Version = s.Previous.Version
 		s.Previous = &api.ContainerVersion{Version: cur}
+	case api.CmdHostSelfUpdate:
+		r.run.Result, _ = json.Marshal(api.HostSelfUpdateResult{From: f.hostVersion, To: r.ver, Changed: true})
+		f.hostVersion = r.ver
 	}
 }
 
@@ -118,7 +132,7 @@ func (f *updHost) end(r *updRun, key string) {
 	r.run.FinishedAt = &fin
 	if e, ok := f.ends[key]; ok {
 		r.run.Status = api.StatusFailed
-		if e.Code == api.CodeUnitFailed {
+		if e.Code == api.CodeUnitFailed || e.Code == api.CodeSelfUpdateUnhealthy || e.Code == api.CodeInstallFailed {
 			r.run.Status = api.StatusReverted
 		}
 		r.run.Error = &api.RunError{Code: e.Code, Message: "fake"}
@@ -221,6 +235,29 @@ func (f *updHost) ContainerRollback(_ context.Context, a api.ContainerRollbackAr
 	return f.take(api.CmdContainerRollback, "rollback", a.Service, "", "", "", rid, actor)
 }
 
+func (f *updHost) Info(context.Context) (api.Info, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return api.Info{HostVersion: f.hostVersion, Commands: slices.Clone(f.commands), Arch: "amd64"}, nil
+}
+
+// SelfUpdate notes whether core's package file is there with the signed hash ("pkg-ok") when the call arrives.
+func (f *updHost) SelfUpdate(_ context.Context, a api.HostSelfUpdateArgs, rid, actor string) (api.Run, error) {
+	f.mu.Lock()
+	b, err := os.ReadFile(filepath.Join(f.coreData, "host-packages", a.Package+".deb"))
+	pkg, lost := "pkg-missing", f.lost
+	if err == nil && opstest.SHA(b) == f.pkgSHA {
+		pkg = "pkg-ok"
+	}
+	f.lost = false
+	f.mu.Unlock()
+	run, err := f.take(api.CmdHostSelfUpdate, "self_update", "host", a.Version, pkg, a.Version+a.Index+a.Manifest+a.Package, rid, actor)
+	if lost {
+		return api.Run{}, fmt.Errorf("%w: connection reset by peer", hostclient.ErrUnreachable)
+	}
+	return run, err
+}
+
 func (f *updHost) GetRun(_ context.Context, id string) (api.Run, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -235,6 +272,10 @@ func (f *updHost) GetRun(_ context.Context, id string) (api.Run, error) {
 func (f *updHost) ListRuns(_ context.Context, limit int) ([]api.Run, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.down > 0 {
+		f.down--
+		return nil, fmt.Errorf("%w: no socket yet", hostclient.ErrUnreachable)
+	}
 	var out []api.Run
 	for _, r := range f.runs {
 		if len(out) < limit {
@@ -260,7 +301,12 @@ type runEnv struct {
 // 1.4.0 is offered when running is older, and the running release's manifest is known).
 func newRunEnv(t *testing.T, st api.ContainersState, running string, safe bool) (*runEnv, *updHost) {
 	t.Helper()
-	fh := newUpdHost(t, st)
+	return newRunEnvWith(t, newUpdHost(t, st), running, safe, nil)
+}
+
+// newRunEnvWith is newRunEnv with the fake host given and extra applied to the manifest of 1.4.0.
+func newRunEnvWith(t *testing.T, fh *updHost, running string, safe bool, extra func(opstest.Doc)) (*runEnv, *updHost) {
+	t.Helper()
 	e := &runEnv{osEnv: newOSEnv(t, osOpts{host: fh}), srv: newReleaseServer(t), fh: fh}
 	e.setZone("UTC")
 	edit := func(v string) func(opstest.Doc) {
@@ -276,7 +322,12 @@ func newRunEnv(t *testing.T, st api.ContainersState, running string, safe bool) 
 	if running != "1.4.0" {
 		e.srv.manifest(t, running, edit(running))
 	}
-	e.srv.index(t, 5, e.srv.manifest(t, "1.4.0", edit("1.4.0")), 100, nil)
+	e.srv.index(t, 5, e.srv.manifest(t, "1.4.0", func(d opstest.Doc) {
+		edit("1.4.0")(d)
+		if extra != nil {
+			extra(d)
+		}
+	}), 100, nil)
 	e.handler = e.start(t, running)
 	wantOK(t, e.oper.post("/core/updates/check", nil), 200)
 	return e, fh

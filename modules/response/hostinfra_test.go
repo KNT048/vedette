@@ -60,8 +60,11 @@ func TestD450_TheBoxGatewayMACIsNeverTouch(t *testing.T) {
 			t.Fatalf("the gateway MAC %s is not on the never-touch list: %+v", want, l)
 		}
 	}
-	if hasEntry(l, "fe80::1") {
-		t.Fatalf("a link-local address became an entry: %+v", l)
+	// Only the gateway entries are checked: the box's own addresses come from this machine's real cards, and macOS has fe80::1 on lo0.
+	for _, x := range l {
+		if x.Value == "fe80::1" && x.Label != "This Vedette box" {
+			t.Fatalf("a link-local gateway address became an entry: %+v", x)
+		}
 	}
 	e.sshSwitch("cisco_port_shut")
 	e.rule("Shut the port", "ioc_connection", []response.RuleAction{{ActionID: "cisco_port_shut", Params: map[string]string{"interface": "{{trigger.switch_port}}"}, TTLMin: intp(240)}}, nil)

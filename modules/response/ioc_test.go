@@ -40,6 +40,10 @@ func TestIocHitEvent(t *testing.T) {
 		"domain as ip":      iocHit("h6", "192.168.10.105", "badhost.example", "ip"),
 		"ip with a quote":   iocHit("h7", "192.168.10.105", "185.220.101.47\"", "ip"),
 		"private dest":      iocHit("h10", "192.168.10.105", "10.0.0.5", "ip"),
+		"CGNAT dest":        iocHit("h11", "192.168.10.105", "100.100.1.2", "ip"), // a Tailscale peer
+		"documentation":     iocHit("h12", "192.168.10.105", "198.51.100.7", "ip"),
+		"benchmarking":      iocHit("h13", "192.168.10.105", "198.18.0.9", "ip"),
+		"6to4 dest":         iocHit("h14", "192.168.10.105", "2002:c000:204::1", "ip"),
 		"unknown kind":      iocHit("h8", "192.168.10.105", "185.220.101.47", "url"),
 		"confidence > 1": func() map[string]any {
 			h := iocHit("h9", "192.168.10.105", "185.220.101.47", "ip")

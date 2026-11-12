@@ -308,7 +308,7 @@ EOT
 	# Only the filter on that line stands between vic-lib and the uninstall.
 	x 'set -e; rm -rf /opt/vicrepo /root/b; mkdir -p /opt/vicrepo /root/b
 	   mk() { d=/root/b/$1_$2; mkdir -p $d/DEBIAN; { printf "Package: $1\nVersion: $2\nArchitecture: all\nMaintainer: x <x@example.invalid>\nDescription: install-check N1\n"; [ -z "$3" ] || printf "Depends: $3\n"; } >$d/DEBIAN/control; dpkg-deb -b $d /opt/vicrepo/$1_$2_all.deb >/dev/null; }
-	   mk vic-lib 1.0 ""; mk vic-lib 2.0 ""; mk catatonit 99:1 "vic-lib (>= 2.0)"
+	   mk vic-lib 1.0 ""; mk vic-lib 2.0 ""; mk catatonit 99:1 "vic-lib (>= 2.0)"; mk vic-dep 1.0 ""; mk vic-orphan 1.0 ""
 	   cd /opt/vicrepo
 	   for f in *.deb; do dpkg-deb -f $f; printf "Filename: ./$f\nSize: $(stat -c %s $f)\nSHA256: $(sha256sum $f | cut -d" " -f1)\n\n"; done >Packages
 	   printf "Origin: vic\nLabel: vic\nSuite: vic\nDate: Wed, 11 Nov 2026 00:00:00 UTC\nSHA256:\n $(sha256sum Packages | cut -d" " -f1) $(stat -c %s Packages) Packages\n" >Release
@@ -319,12 +319,21 @@ EOT
 	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/install3.log" 2>&1 || { tail -40 "$work/install3.log" >&2; fail "the N1 install failed"; }
 	[ "$(x 'dpkg-query -W -f="\${Version}" vic-lib')" = 2.0 ] || fail "N1: apt did not upgrade vic-lib as a dependency of catatonit, the case does not reproduce an upgrade"
 	x '! grep -qx vic-lib /var/lib/vedette-install/installed-by-us' || fail "N1: an upgraded package is recorded as installed by us"
+	# D-316 (9), same uninstall: vic-dep stands for a Depends that a self-update of vedette-host had apt install (automatic, listed by
+	# the host in its selfupdate/installed-by-us before it installs); vic-orphan is automatic and unneeded too, but on no list (N2)
+	x 'set -e; DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends vic-dep vic-orphan >/dev/null 2>&1
+	   apt-mark auto vic-dep vic-orphan >/dev/null; echo vic-dep >>/var/lib/vedette-host/selfupdate/installed-by-us' || fail "D-316 (9): cannot set up the self-update dependency case"
+	x 'sh /root/art/install.sh --uninstall' >"$work/o3.txt" 2>&1 && fail "--uninstall without --yes removed something"
+	grep -qF '/var/lib/vedette-host/selfupdate/installed-by-us' "$work/o3.txt" || fail "D-316 (9): --uninstall without --yes does not name the host's list"
 	x 'sh /root/art/install.sh --uninstall --yes' >"$work/un3.log" 2>&1 || { tail -40 "$work/un3.log" >&2; fail "--uninstall --yes failed in the N1 case"; }
 	x 'dpkg -s vic-lib >/dev/null 2>&1' || fail "N1: the uninstall removed a package that was only upgraded"
 	! x 'dpkg -s catatonit >/dev/null 2>&1' || fail "N1: the uninstall left the package it asked for"
 	ok "N1: vic-lib was upgraded 1.0 -> 2.0 as a dependency of catatonit (ours) and survived the uninstall; catatonit went"
+	! x 'dpkg -s vic-dep >/dev/null 2>&1' || fail "D-316 (9): the uninstall left a package a self-update of vedette-host installed"
+	x 'dpkg -s vic-orphan >/dev/null 2>&1' || fail "D-316 (9): the uninstall removed an automatic package that is on no list of ours"
+	ok "D-316 (9): the dependency on the host's list went with the uninstall; the unlisted automatic package stayed"
 	# the box is not compared again after this case (an upgrade is never undone); only the test's own leftovers are removed
-	x 'rm -rf /etc/apt/sources.list.d/vic.list /opt/vicrepo; dpkg --purge vic-lib >/dev/null 2>&1; true'
+	x 'rm -rf /etc/apt/sources.list.d/vic.list /opt/vicrepo; dpkg --purge vic-lib vic-orphan vic-dep >/dev/null 2>&1; true'
 	# shellcheck disable=SC2046 # package names, one word each
 	x "DEBIAN_FRONTEND=noninteractive apt-get purge -y -q $(comm -13 <(before_pkgs) <(pkgnames) | tr '\n' ' ') >/dev/null 2>&1; true"
 	"$c" rm -f -t 0 "$ctr" >/dev/null

@@ -19,6 +19,7 @@ import type { AssetKind, Service } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { AddDeviceDialog } from './AddDeviceDialog'
 import { useDevice, useDeviceAction } from './api'
+import { useInstallKind } from '@/lib/modules'
 import { DeleteDialog } from './DeleteDialog'
 import { errMsg } from './kinds'
 import { nameOf } from './nameOf'
@@ -201,10 +202,12 @@ function Approval({ d }: { d: DeviceDetail }) {
 /** D-53: the box is the first device; its findings are fixed by updating the operating system, not by a device vendor. */
 function BoxNotice({ findings }: { findings: number }) {
   const { t } = useTranslation('inventory')
+  const install = useInstallKind() // D-381; undefined while GET /modules loads: then neither claim about packages is made
+  const packages = install === 'container' ? t('box.packagesContainer') : install === 'appliance' ? t('box.packagesAppliance') : ''
   return (
     <div className="mb-8 grid gap-1 rounded-md border border-accent/40 bg-accent-soft/50 p-4">
       <p className="font-medium">{t('box.title')}</p>
-      <p className="max-w-3xl text-sm text-muted">{t('box.body')}</p>
+      <p className="max-w-3xl text-sm text-muted">{[t('box.lead'), packages, t('box.matched')].filter(Boolean).join(' ')}</p>
       <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <Link to="/settings/updates" className="font-medium text-accent underline-offset-4 hover:underline">{t('box.fix')}</Link>
         <span className="text-[13px] text-muted">{t('box.noDelete')}</span>

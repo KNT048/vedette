@@ -895,6 +895,14 @@ restore_runtime() {
 	fi
 }
 
+# by_us_packages: the packages apt newly installed for Vedette, one valid name per line, sorted: this script's own list and the one
+# vedette-host keeps of what its self-updates added (D-316 (9); a plain file, never a link)
+by_us_packages() {
+	for f in "$STATE/installed-by-us" "$HOST_STATE/selfupdate/installed-by-us"; do
+		if [ -f "$f" ] && [ ! -L "$f" ]; then cat "$f"; fi
+	done | grep -E '^[a-z0-9][a-z0-9+.-]*$' | sort -u
+}
+
 # purge_added_packages: vedette-host first, then what the script asked apt for: marked auto, and only what apt then finds
 # unneeded (and was not removable before) is purged. A package someone else installed on top of ours keeps ours (H2 of review 1).
 purge_added_packages() {
@@ -907,10 +915,13 @@ purge_added_packages() {
 	fi
 	# shellcheck disable=SC2086 # package names, one word each
 	[ -z "$asked" ] || apt-mark auto $asked >/dev/null
-	# the only packages this script may remove: the ones it asked for, and the ones apt NEWLY installed for them (N1, N2). Whatever else
-	# became removable meanwhile (old kernels after an unattended upgrade) is the administrator's, and so is a package marked manual.
+	# the only packages this script may remove: the ones it asked for, and the ones apt NEWLY installed for them (N1, N2), by this script
+	# or by a self-update of vedette-host (a Depends a later release added; the host records them before it installs, D-316 (9)).
+	# Whatever else became removable meanwhile (old kernels after an unattended upgrade) is the administrator's, and so is a package
+	# marked manual.
 	touch "$STATE/asked-packages" "$STATE/installed-by-us"
-	cat "$STATE/asked-packages" "$STATE/installed-by-us" | sort -u >"$TMP/cand.all"
+	by_us_packages >"$TMP/by-us"
+	cat "$STATE/asked-packages" "$TMP/by-us" | sort -u >"$TMP/cand.all"
 	apt-mark showmanual 2>/dev/null | sort -u >"$TMP/manual"
 	comm -23 "$TMP/cand.all" "$TMP/manual" >"$TMP/cand"
 	# a purge can leave a library nothing needs any more (its user was in the first set): go round until nothing is left
@@ -935,11 +946,9 @@ purge_added_packages() {
 	done
 	# what apt installed for us and autoremove keeps (a package another one only Recommends): purged when nothing depends on it
 	left=
-	if [ -s "$STATE/installed-by-us" ]; then
-		while read -r p; do
-			if printf '%s' "$p" | grep -Eq '^[a-z0-9][a-z0-9+.-]*$' && installed_pkg "$p" && ! grep -qxF "$p" "$TMP/manual"; then left="$left $p"; fi
-		done <"$STATE/installed-by-us"
-	fi
+	while read -r p; do
+		if installed_pkg "$p" && ! grep -qxF "$p" "$TMP/manual"; then left="$left $p"; fi
+	done <"$TMP/by-us"
 	if [ -n "$left" ]; then
 		# a package goes when purging it removes nothing but packages of this list (tzdata-legacy needs tzdata: both go); one that
 		# something else depends on (ufw needs iptables) stays, and so does everything that package needs
@@ -972,7 +981,8 @@ do_uninstall() {
 	fi
 	if [ -z "$YES" ]; then
 		say "this would stop Vedette and remove: its containers, images, networks and volumes, the unit files, the package vedette-host,"
-		say "the packages this script asked apt for (listed in $STATE/asked-packages) when nothing else needs them${KEEP_DATA:+ (the data and the users are KEPT)}"
+		say "the packages this script asked apt for (listed in $STATE/asked-packages) and the ones apt installed for them or for an update of"
+		say "vedette-host ($STATE/installed-by-us, $HOST_STATE/selfupdate/installed-by-us), each when nothing else needs it${KEEP_DATA:+ (the data and the users are KEPT)}"
 		[ -n "$KEEP_DATA" ] || say "and DELETE the database and the master key in /var/lib/vedette (no way back), /etc/vedette and the users vedette and vedette-sensor"
 		die "run again with --yes to do it"
 	fi
@@ -1039,6 +1049,8 @@ do_uninstall() {
 		: >"$STATE/asked-packages"
 		: >"$STATE/removed-packages"
 		: >"$STATE/installed-by-us"
+		# the host's list was handled above with ours; the data is kept, this list is not (a link is removed, never followed)
+		rm -f "$HOST_STATE/selfupdate/installed-by-us"
 		# the next install saves the forwarding and nft state again, as it will be then
 		rm -f "$STATE/runtime-saved" "$STATE/ip_forward.orig" "$STATE/ip6_forward.orig" "$STATE/nft.before"
 		say "kept: /var/lib/vedette*, /etc/vedette and the users"

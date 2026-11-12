@@ -12,6 +12,7 @@ import { Field, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
+import { useModules } from '@/lib/modules'
 import { errText, useCatalog, useCloneTemplate, useDeleteRule, useEvents, useRules, useRunManual, useRunRules, useSaveRule, useSimulate, useTemplates, useTriggers } from './api'
 import { condText } from './logic'
 import { RiskChip } from './parts'
@@ -114,20 +115,27 @@ function Templates() {
   const admin = useCan('admin')
   const q = useTemplates()
   const clone = useCloneTemplate()
+  const modules = useModules().data?.modules
+  // S-CORE-9 G5: a template whose trigger needs a module this install cannot run (the honeypot on a container-only install) is shown but cannot be cloned
+  const unavailable = (trigger: string) => trigger === 'honeypot' && modules?.find((m) => m.id === 'honeypot')?.available === false
   return (
     <Section id="templates" title={t('templates.title')} description={t('templates.description')} stories={['S-RESP-3']}>
       {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : (
         <ul className="grid gap-3 md:grid-cols-2">
-          {q.data.items.map((tp) => (
+          {q.data.items.map((tp) => {
+            const gone = unavailable(tp.rule.trigger)
+            return (
             <li key={tp.id}>
               <Panel className="grid h-full content-start gap-2 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2"><h3 className="text-sm font-semibold">{tp.name}</h3><div className="flex gap-2"><RiskChip risk={tp.risk} />{tp.approvals > 1 ? <Chip tone="warn">{t('request.twoApprovers')}</Chip> : null}</div></div>
                 <p className="text-[13px] text-muted">{tp.description}</p>
-                <div><Button size="sm" disabled={!admin || clone.isPending} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : undefined} aria-label={t('templates.cloneFor', { name: tp.name })}
+                {gone ? <p className="text-[13px] text-warn">{t('templates.notHere')}</p> : null}
+                <div><Button size="sm" disabled={!admin || gone || clone.isPending} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : gone ? t('templates.notHere') : undefined} aria-label={t('templates.cloneFor', { name: tp.name })}
                   onClick={() => clone.mutate(tp.id, { onSuccess: () => toast.success(t('templates.cloned')), onError: (e) => toast.error(errText(e)) })}><Copy className="size-4" aria-hidden />{t('templates.clone')}</Button></div>
               </Panel>
             </li>
-          ))}
+            )
+          })}
         </ul>
       )}
     </Section>

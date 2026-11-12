@@ -154,6 +154,8 @@ func (h *OSHandlers) CorePostCoreDataRestore(ctx context.Context, req *oas.CoreP
 	}
 	h.installMu.Lock() // one host write of this kind at a time through this process
 	defer h.installMu.Unlock()
+	h.urun.mu.Lock() // and no software run starts until this restore is stored (beginUpdate: restoreRunning)
+	defer h.urun.mu.Unlock()
 	if h.busy(ctx) {
 		return nil, apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then restore.")
 	}
@@ -240,6 +242,17 @@ func (h *OSHandlers) CoreGetCoreDataRestoreRun(ctx context.Context) (oas.NilCore
 }
 
 // ---- following and settling ----
+
+// restoreRunning reports whether core's copy says a restore is running and it started less than restoreTimeout ago (an
+// older copy is settled by restoreLatest when the page reads it). A copy that cannot be read counts as running.
+func (h *OSHandlers) restoreRunning(ctx context.Context) bool {
+	rec, err := h.loadRestore(ctx)
+	if err != nil {
+		h.log.ErrorContext(ctx, "core: the restore record could not be read", "error", err)
+		return true
+	}
+	return rec != nil && rec.Status == "" && h.now().Sub(rec.StartedAt) < restoreTimeout
+}
 
 func (h *OSHandlers) loadRestore(ctx context.Context) (*restoreRec, error) {
 	var rec restoreRec

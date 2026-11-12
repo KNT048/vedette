@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
@@ -31,7 +32,7 @@ import (
 // index and the offered manifest from the project's GitHub releases, verify them with internal/release, keep the
 // newest verified index (sequence floor, revocations) and the offered manifest in core_setting, and build
 // UpdatesState. Nothing here installs anything: the run side (updates_run.go) takes offered() to the host, which
-// verifies everything again (host-api 6.7).
+// verifies everything again (host-api 6.7); the periodic check and the automatic mode are in updates_auto.go.
 
 // DefaultReleaseBase is where the release documents are downloaded from (PRIVACY.md flow 6): the index at
 // <base>/index/index.json and a release's manifest at <base>/v<version>/release-manifest.json, each with .minisig.
@@ -67,7 +68,9 @@ type updCheck struct {
 	trust   func() (release.Trust, error)
 	started time.Time // process start: the installed_at of the running release (no better record exists in core)
 
-	checkMu sync.Mutex // one check at a time: two checks could otherwise store an older index over a newer one
+	checkMu sync.Mutex  // one check at a time: two checks could otherwise store an older index over a newer one
+	next    time.Time   // when the periodic check is due (updates_auto.go); zero until the job first looks; guarded by checkMu
+	failed  atomic.Bool // the latest check of this process failed: the automatic mode installs nothing (D-388)
 
 	contMu sync.Mutex // the cached state/containers and /v1/info (the page polls every second during a run; the host allows 60 a minute)
 	contAt time.Time
@@ -524,28 +527,52 @@ func (h *OSHandlers) checkFailure(ctx context.Context, err error) error {
 
 // CorePostCoreUpdatesCheck implements POST /core/updates/check (operator): download and verify the index, the
 // offered manifest and (once per running version) the running release's manifest; store them; answer UpdatesState.
-// 409 check_off when update checks are off under Privacy: the box then makes no request at all.
+// 409 check_off when update checks are off under Privacy: the box then makes no request at all. In automatic mode the
+// release on offer is then installed as user "system" when the maintenance window allows (autoInstall, updates_auto.go):
+// the answer shows the run going, and applied stays 0 because the software reports at the end of its run (as the mock).
 func (h *OSHandlers) CorePostCoreUpdatesCheck(ctx context.Context) (*oas.CorePostCoreUpdatesCheckOK, error) {
 	c, err := callerOf(ctx, h.auth)
 	if err != nil {
 		return nil, err
 	}
-	on, err := h.updateCheckOn(ctx)
+	if err := h.check(ctx, c); err != nil {
+		return nil, err
+	}
+	if err := h.autoInstall(ctx, c.Email); err != nil { // the check itself succeeded; the next tick of the job tries again
+		h.log.WarnContext(ctx, "core: the automatic software update did not start", "error", err)
+	}
+	v, err := h.updatesState(ctx)
 	if err != nil {
 		return nil, err
 	}
+	return asOAS[oas.CorePostCoreUpdatesCheckOK](struct {
+		updatesStateView
+		Applied int `json:"applied"`
+	}{v, 0})
+}
+
+// check is one software update check, the same code for POST /core/updates/check and the periodic job (c = systemCaller):
+// 409 check_off when update checks are off under Privacy (no request at all); otherwise one check under checkMu, one
+// update.check audit row after it, and the next periodic check due 6 hours ± 30 minutes from now (§12).
+func (h *OSHandlers) check(ctx context.Context, c caller) error {
+	on, err := h.updateCheckOn(ctx)
+	if err != nil {
+		return err
+	}
 	if !on {
-		return nil, apierr.New(409, CodeCheckOff, "Update checks are off under Privacy. Turn them on or import an offline bundle.")
+		return apierr.New(409, CodeCheckOff, "Update checks are off under Privacy. Turn them on or import an offline bundle.")
 	}
 	leave, ok := h.gate.Enter()
 	if !ok {
-		return nil, errPurging()
+		return errPurging()
 	}
 	defer leave()
 	h.upd.checkMu.Lock()
 	defer h.upd.checkMu.Unlock()
 	h.upd.src = h.releaseBase()
 	detail, cerr := h.runCheck(ctx, c.Email)
+	h.upd.next = h.now().Add(checkInterval())
+	h.upd.failed.Store(cerr != nil)
 	if cerr != nil {
 		cerr = h.checkFailure(ctx, cerr)
 		code := "error"
@@ -556,20 +583,9 @@ func (h *OSHandlers) CorePostCoreUpdatesCheck(ctx context.Context) (*oas.CorePos
 	}
 	// One row per check, after it (§5.3: who, when, version, sha256); the row of a cancelled request is still written.
 	if err := h.record(context.WithoutCancel(ctx), c, false, "update.check", "updates", detail); err != nil {
-		return nil, err
+		return err
 	}
-	if cerr != nil {
-		return nil, cerr
-	}
-	v, err := h.updatesState(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// applied stays 0: the automatic mode installs through the run side (.ai/deferred/feat-core-updates.md).
-	return asOAS[oas.CorePostCoreUpdatesCheckOK](struct {
-		updatesStateView
-		Applied int `json:"applied"`
-	}{v, 0})
+	return cerr
 }
 
 // runCheck is one check. The newest verified index is stored even when the manifest fails, since it carries the

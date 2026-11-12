@@ -26,7 +26,8 @@ import (
 // The files of host.self_update under <state>/selfupdate (spec 6.14 "Tệp của host"): versions.json (the
 // running package and the one before it), journal.json (one self-update under way), started.json (the
 // witness a host writes after READY), packages/ (the kept .deb of current and previous), staged/ (the copy
-// about to be installed) and applier (the copy of the old binary the transient unit runs). Every file is
+// about to be installed), applier (the copy of the old binary the transient unit runs) and installed-by-us
+// (the packages a self-update had apt newly install, one name per line, for install.sh --uninstall). Every file is
 // 0600 root (applier 0700), written to a temp file, fsynced, renamed and the directory fsynced; every reader
 // is strict (no unknown field, no trailing data, a size cap, every value checked) and refuses a symlink or
 // anything but a regular file. A file that does not read is treated as missing by its caller: the host never
@@ -40,6 +41,8 @@ const (
 	suVersionsName = "versions.json"
 	suJournalName  = "journal.json"
 	suStartedName  = "started.json"
+	// suAddedName lists the packages a self-update had apt newly install (D-316 (9)); install.sh --uninstall reads it.
+	suAddedName = "installed-by-us"
 	// maxSUFile caps each of the three JSON files: a journal holds at most 50 lines of 512 bytes.
 	maxSUFile = 64 << 10
 	// maxHostPackage is the largest host .deb (spec 6.14 Check 3) and the cap of the applier copy.

@@ -149,6 +149,22 @@ func TestContract_SelfUpdate_TheHostRestartedByPostinstKeepsTheRunAndSettlesIt(t
 		t.Fatalf("dispatches %q", argv)
 	}
 	assertSettledOn(t, w, suTo, suFrom)
+	assertAddedPackages(t, w, "conntrack\n") // the new dependency of the simulation, for install.sh --uninstall (D-316 (9))
+}
+
+// assertAddedPackages: selfupdate/installed-by-us holds exactly want ("" = no file), D-316 (9).
+func assertAddedPackages(t *testing.T, w *opstest.SUWorld, want string) {
+	t.Helper()
+	b, err := os.ReadFile(suFile(w, "installed-by-us"))
+	if want == "" {
+		if !errors.Is(err, os.ErrNotExist) {
+			t.Errorf("installed-by-us is there: %q %v", b, err)
+		}
+		return
+	}
+	if err != nil || string(b) != want {
+		t.Errorf("installed-by-us %q %v, want %q", b, err, want)
+	}
 }
 
 // applierCalls are the calls of a fake that carry argv (the applier's apt-get and dpkg forms).
@@ -187,6 +203,7 @@ func TestContract_SelfUpdate_AnUnhealthyNewHostIsReplacedByThePreviousPackage(t 
 		t.Fatalf("apt-get %v", w.M.Calls("apt-get"))
 	}
 	assertSettledOn(t, w, suFrom, "")
+	assertAddedPackages(t, w, "conntrack\n") // the reinstall of from keeps the dependency apt installed: still listed
 }
 
 // The new host starts but crash-loops (NRestarts grows within the 30 s): unhealthy, reverted.
@@ -487,6 +504,7 @@ func TestContract_SelfUpdate_AMissingDependencyIsRefusedBeforeAnyChange(t *testi
 	if a, _ := w.Dispatches(); len(a) != 0 || suExists(w, "journal.json") || suExists(w, "applier") {
 		t.Fatal("something was left or dispatched")
 	}
+	assertAddedPackages(t, w, "")
 }
 
 // INV-30: the applier never opens the audit chain, a socket or host.lock: its code imports neither the server

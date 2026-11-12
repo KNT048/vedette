@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -168,30 +167,33 @@ func TestInstall_VersionsAgree(t *testing.T) {
 	}
 }
 
-// A real Debian/Ubuntu/RHEL /etc/os-release defines VERSION (and ID, NAME...). The script sources it in its own shell, so none of its own
-// variables may share a name with it: osquery_13 (trixie)-1.linux_amd64.deb was asked for on a real Debian 13 (2026-11-12 real run).
-func TestInstall_LinuxScriptSurvivesOsRelease(t *testing.T) {
-	sh, err := exec.LookPath("sh")
-	if err != nil {
-		t.Skip("no sh")
+// A real Debian/Ubuntu/RHEL os-release defines VERSION, NAME, ID...: the script read it with `. /etc/os-release` and its own VERSION was
+// overwritten, so osquery_13 (trixie)-1.linux_amd64.deb was asked for on a real Debian 13 (2026-11-12 real run). The file may only be read in
+// a subshell, and no variable of the script may share a name with a key of os-release (os-release(5) lists them). The real effect (the
+// right package name on Debian 13) was checked on a container; os/exec is not allowed in this module's tests (SYS-1).
+func TestInstall_LinuxScriptDoesNotShareNamesWithOsRelease(t *testing.T) {
+	keys := map[string]bool{"NAME": true, "VERSION": true, "ID": true, "ID_LIKE": true, "PRETTY_NAME": true, "CPE_NAME": true, "VARIANT": true,
+		"VARIANT_ID": true, "VERSION_ID": true, "VERSION_CODENAME": true, "BUILD_ID": true, "IMAGE_ID": true, "IMAGE_VERSION": true,
+		"HOME_URL": true, "DOCUMENTATION_URL": true, "SUPPORT_URL": true, "BUG_REPORT_URL": true, "PRIVACY_POLICY_URL": true, "SUPPORT_END": true,
+		"LOGO": true, "ANSI_COLOR": true, "DEFAULT_HOSTNAME": true, "ARCHITECTURE": true, "SYSEXT_LEVEL": true, "CONFEXT_LEVEL": true}
+	assign := regexp.MustCompile(`^\s*([A-Z][A-Z0-9_]*)=`)
+	reads := 0
+	for _, line := range strings.Split(readFile(t, "scripts/osquery.sh"), "\n") {
+		if m := assign.FindStringSubmatch(line); m != nil && keys[m[1]] {
+			t.Errorf("the Linux script sets %s, which /etc/os-release also sets: %q", m[1], line)
+		}
+		if strings.Contains(line, `. "$OSF"`) {
+			reads++
+			if !strings.Contains(line, "$( . ") {
+				t.Errorf("os-release must be read inside a subshell: %q", line)
+			}
+		}
+		if strings.HasPrefix(strings.TrimSpace(line), ". /etc/os-release") || strings.HasPrefix(strings.TrimSpace(line), "source ") {
+			t.Errorf("the script sources a file into its own shell: %q", line)
+		}
 	}
-	osr := filepath.Join(t.TempDir(), "os-release")
-	for id, want := range map[string]string{"debian": "osquery_5.12.1-1.linux_amd64.deb", "rocky": "osquery-5.12.1-1.linux.x86_64.rpm"} {
-		if err := os.WriteFile(osr, []byte("PRETTY_NAME=\"Debian GNU/Linux 13 (trixie)\"\nNAME=\"Debian GNU/Linux\"\nVERSION_ID=\"13\"\nVERSION=\"13 (trixie)\"\nVERSION_CODENAME=trixie\nID="+id+"\nHOME_URL=\"https://www.debian.org/\"\nDIR=/nonexistent\nCA=/nonexistent\n"), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		src := strings.ReplaceAll(readFile(t, "scripts/osquery.sh"), "@@VERSION@@", "5.12.1")
-		src = strings.NewReplacer("OSF=/etc/os-release;", "OSF="+osr+";", `[ "$(id -u)" -eq 0 ]`, "true", "$(uname -m)", "x86_64").Replace(src)
-		i := strings.Index(src, `mkdir -p "$DIR"`)
-		if i < 0 {
-			t.Fatal("the script has no mkdir step")
-		}
-		cmd := exec.Command(sh, "-c", src[:i]+`echo "$FILE"`, "sh", "--token", "t")
-		cmd.Env = []string{"PATH=" + os.Getenv("PATH")} // an ID exported by the machine running the test must not leak in
-		out, err := cmd.CombinedOutput()
-		if err != nil || strings.TrimSpace(string(out)) != want {
-			t.Errorf("os-release ID=%s: FILE = %q (%v), want %q", id, out, err, want)
-		}
+	if reads == 0 {
+		t.Error("the script no longer reads os-release")
 	}
 }
 

@@ -286,6 +286,26 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(await screen.findByText(/No matching line/)).toBeInTheDocument()
   })
 
+  it('a keyword search that stopped early says how far back it looked and Search older lines continues it (S-LOG-1, D-441)', async () => {
+    const ev = (id: string, ts: string) => ({ id, ts, source_id: 'ls-1', source_name: 'FW-HQ', line: `needle ${id}` })
+    let before: string | null = 'unset'
+    server.use(http.get('*/api/v1/logs/events', ({ request }) => {
+      const p = new URL(request.url).searchParams
+      if (!p.get('q')) return HttpResponse.json({ events: [], total: 0 })
+      before = p.get('before')
+      return before
+        ? HttpResponse.json({ events: [ev('le-2', '2026-11-05T08:00:00Z')], total: 1 })
+        : HttpResponse.json({ events: [ev('le-1', '2026-11-11T08:00:00Z')], total: 1, next: 'c1', searched_back_to: '2026-11-10T08:00:00Z' })
+    }))
+    renderApp('/logs')
+    await userEvent.type(await screen.findByLabelText('Keyword'), 'needle')
+    expect(await screen.findByText(/1 matching line found so far, searched back to/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Search older lines' }))
+    expect(await screen.findByText('2 matching lines in this time range.')).toBeInTheDocument()
+    expect(before).toBe('c1')
+    expect(screen.queryByRole('button', { name: 'Search older lines' })).not.toBeInTheDocument()
+  })
+
   it('changing the retention period', async () => {
     renderApp('/logs')
     await userEvent.selectOptions(await screen.findByLabelText('Keep logs for'), '90')

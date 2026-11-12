@@ -225,6 +225,16 @@ export const handlers = [
     const q = (p.get('q') ?? '').trim().slice(0, 200).toLowerCase()
     const since = Date.now() - Math.min(WINDOW_MS[w], retention.get().days * 86400e3)
     const all = events.get().filter((e) => new Date(e.ts).getTime() >= since && (!src || e.source_id === src) && (!q || e.line.toLowerCase().includes(q) || e.source_name.toLowerCase().includes(q)))
+    // A keyword search answers 200 matches at most and, when older lines may remain, a cursor (the id of the last line shown) that
+    // `before` continues from (D-441); the real box also stops at a time budget, which a mock has no reason to imitate.
+    if (q) {
+      const before = p.get('before')
+      const from = before ? all.findIndex((e) => e.id === before) + 1 : 0
+      if (before && from === 0) return fail(400, 'bad_cursor', 'That search position is not valid. Search again from the start.')
+      const page = all.slice(from, from + 200)
+      const more = from + 200 < all.length
+      return HttpResponse.json({ events: page, total: page.length, ...(more ? { next: page[page.length - 1]!.id, searched_back_to: page[page.length - 1]!.ts } : {}) })
+    }
     return HttpResponse.json({ events: all.slice(0, 200), total: all.length })
   }),
 

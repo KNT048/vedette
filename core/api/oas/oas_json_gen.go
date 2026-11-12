@@ -147678,14 +147678,28 @@ func (s *LogsGetLogsEventsOK) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		if s.Next.Set {
+			e.FieldStart("next")
+			s.Next.Encode(e)
+		}
+	}
+	{
+		if s.SearchedBackTo.Set {
+			e.FieldStart("searched_back_to")
+			s.SearchedBackTo.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
 		e.FieldStart("total")
 		e.Int(s.Total)
 	}
 }
 
-var jsonFieldsNameOfLogsGetLogsEventsOK = [2]string{
+var jsonFieldsNameOfLogsGetLogsEventsOK = [4]string{
 	0: "events",
-	1: "total",
+	1: "next",
+	2: "searched_back_to",
+	3: "total",
 }
 
 // Decode decodes LogsGetLogsEventsOK from json.
@@ -147715,8 +147729,28 @@ func (s *LogsGetLogsEventsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"events\"")
 			}
+		case "next":
+			if err := func() error {
+				s.Next.Reset()
+				if err := s.Next.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"next\"")
+			}
+		case "searched_back_to":
+			if err := func() error {
+				s.SearchedBackTo.Reset()
+				if err := s.SearchedBackTo.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"searched_back_to\"")
+			}
 		case "total":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Total = int(v)
@@ -147737,7 +147771,7 @@ func (s *LogsGetLogsEventsOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00001001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -171598,6 +171632,41 @@ func (s OptCorePutCoreConnectionsIDReqToolsItemAccess) MarshalJSON() ([]byte, er
 func (s *OptCorePutCoreConnectionsIDReqToolsItemAccess) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
+}
+
+// Encode encodes time.Time as json.
+func (o OptDateTime) Encode(e *jx.Encoder, format func(*jx.Encoder, time.Time)) {
+	if !o.Set {
+		return
+	}
+	format(e, o.Value)
+}
+
+// Decode decodes time.Time from json.
+func (o *OptDateTime) Decode(d *jx.Decoder, format func(*jx.Decoder) (time.Time, error)) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptDateTime to nil")
+	}
+	o.Set = true
+	v, err := format(d)
+	if err != nil {
+		return err
+	}
+	o.Value = v
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptDateTime) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e, json.EncodeDateTime)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptDateTime) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d, json.DecodeDateTime)
 }
 
 // Encode encodes FindingsGetFindingsIDOKPackFirewallItemAlternative as json.

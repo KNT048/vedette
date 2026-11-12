@@ -7,12 +7,16 @@ export const useSources = () => useQuery({ queryKey: ['logs', 'sources'], queryF
 export const useUnknownSenders = (enabled: boolean) => useQuery({ queryKey: ['logs', 'unknown-senders'], queryFn: () => api.get<UnknownSendersResponse>('/logs/unknown-senders'), enabled })
 export const useDigest = () => useQuery({ queryKey: ['logs', 'digest'], queryFn: () => api.get<Digest>('/logs/digest') })
 
+const eventsUrl = (p: { window: EventWindow; source: string; q: string }, before?: string) =>
+  `/logs/events?window=${p.window}&source=${encodeURIComponent(p.source)}&q=${encodeURIComponent(p.q)}${before ? `&before=${encodeURIComponent(before)}` : ''}`
 export const useEvents = (p: { window: EventWindow; source: string; q: string }) =>
   useQuery({
     queryKey: ['logs', 'events', p],
-    queryFn: () => api.get<EventsResponse>(`/logs/events?window=${p.window}&source=${encodeURIComponent(p.source)}&q=${encodeURIComponent(p.q)}`),
+    queryFn: () => api.get<EventsResponse>(eventsUrl(p)),
     placeholderData: (prev) => prev,
   })
+// The next step of a keyword search that stopped before the start of the window (S-LOG-1, D-441): the lines older than `before`.
+export const fetchOlderEvents = (p: { window: EventWindow; source: string; q: string }, before: string) => api.get<EventsResponse>(eventsUrl(p, before))
 
 function useInvalidating<V, R>(fn: (v: V) => Promise<R>) {
   const qc = useQueryClient()

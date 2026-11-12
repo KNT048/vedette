@@ -194,6 +194,12 @@
     },
     "count": "{{shown}} of {{total}} matching lines.",
     "capped": "Only the newest 200 lines are shown. Narrow the time range or add a keyword.",
+    "found_one": "1 matching line in this time range.",
+    "found_other": "{{count}} matching lines in this time range.",
+    "partial_one": "1 matching line found so far, searched back to {{time}}. Older lines are not searched yet.",
+    "partial_other": "{{count}} matching lines found so far, searched back to {{time}}. Older lines are not searched yet.",
+    "searchOlder": "Search older lines",
+    "searchOlderFailed": "The search could not continue. Try again.",
     "empty": "No matching line. Try a longer time range or remove the keyword.",
     "emptyNone": "No log line in this range yet. If you just configured the device, wait 1 to 2 minutes and press Refresh in the Log sources section."
   },

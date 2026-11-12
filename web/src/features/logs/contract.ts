@@ -70,7 +70,12 @@ export const Digest = z.object({ generated_at: iso, lines_24h: z.number().int(),
 
 export const LogEvent = z.object({ id: z.string(), ts: iso, source_id: z.string(), source_name: z.string(), line: z.string() })
 export const EventWindow = z.enum(['1h', '24h', '7d'])
-export const EventsResponse = z.object({ events: z.array(LogEvent), total: z.number().int().describe('Number of matching rows; events returns at most the 200 newest') })
+export const EventsResponse = z.object({
+  events: z.array(LogEvent),
+  total: z.number().int().describe('Number of matching rows; events returns at most the 200 newest. With a keyword, the matches found so far (the search walks back from the newest line and stops at 200 matches or when its time is up)'),
+  searched_back_to: iso.optional().describe('Present with next: the search has covered the lines from now back to this time and stopped before the start of the window (200 matches found, or the time budget ran out)'),
+  next: z.string().max(64).optional().describe('Present when older lines of the window are not searched yet: send it as before to continue. Absent = the whole window was searched'),
+})
 
 export const SiemFormat = z.enum(['syslog', 'cef', 'json'])
 export const SiemEvent = z.enum(['findings', 'alerts', 'honeypot', 'bad_conn'])
@@ -107,7 +112,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/logs/unknown-senders', summary: 'Senders whose syslog was dropped because no source declares them (the 10 seen most recently since the listener started)', stories: ['S-LOG-1'], role: 'operator', response: UnknownSendersResponse },
   { method: 'get', path: '/logs/digest', summary: 'Digest: connections to known-bad addresses (from SPAN metadata and syslog), new log types, spikes', stories: ['S-LOG-1', 'S-LOG-2', 'S-LOG-4'], role: 'viewer', response: Digest },
   { method: 'get', path: '/logs/events', summary: 'Search stored log events by time range, source and keyword', stories: ['S-LOG-1'], role: 'viewer',
-    query: z.object({ window: EventWindow, source: z.string().optional(), q: z.string().max(200).optional() }), response: EventsResponse, example: { query: { window: '24h', source: '', q: '' } } },
+    query: z.object({ window: EventWindow, source: z.string().optional(), q: z.string().max(200).optional(), before: z.string().max(64).optional().describe('The next of a previous answer: search the lines older than it') }), response: EventsResponse, example: { query: { window: '24h', source: '', q: '' } } },
   { method: 'put', path: '/logs/retention', summary: 'Change log retention (7, 30, 90 or 180 days)', stories: ['S-LOG-1'], role: 'admin', body: z.object({ days: z.union([z.literal(7), z.literal(30), z.literal(90), z.literal(180)]) }), response: z.object({ retention_days: z.number().int() }) },
   { method: 'get', path: '/logs/siem', summary: 'SIEM forwarding configuration (without the signing key)', stories: ['S-LOG-3'], role: 'admin', response: SiemConfig },
   { method: 'put', path: '/logs/siem', summary: 'Save SIEM forwarding configuration (syslog, CEF or JSON webhook)', stories: ['S-LOG-3'], role: 'admin', body: SiemInput, response: SiemConfig },

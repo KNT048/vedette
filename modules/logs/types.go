@@ -41,6 +41,9 @@ const (
 	// (instr over the window), so a viewer typing in the box must not be able to occupy the database.
 	SearchTimeout = 5 * time.Second
 	MaxSearches   = 2
+	// scanChunk is how many rows (by the ts index, newest first) one step of a keyword search reads: the time budget is checked between
+	// steps, and a step of this size costs well under a second on a 5 million line box (D-441).
+	scanChunk = 20_000
 	// bucketSeconds is the width of a counter bucket.
 	bucketSeconds = 300
 )
@@ -115,12 +118,17 @@ type EventQuery struct {
 	Window string // 1h | 24h | 7d
 	Source string // a source id, or empty
 	Q      string // a keyword, matched in the line and in the source name
+	Before string // the Next of a previous answer: search the lines older than it (a keyword search only)
 }
 
 // EventsView is the answer of GET /logs/events.
 type EventsView struct {
 	Events []Event `json:"events"`
 	Total  int     `json:"total"`
+	// SearchedBackTo and Next are set when a keyword search stopped before the start of the window (EventsPage matches found, or the
+	// time budget spent): the lines from now back to SearchedBackTo were searched, Next is the cursor that continues from there.
+	SearchedBackTo *time.Time `json:"searched_back_to,omitempty"`
+	Next           string     `json:"next,omitempty"`
 }
 
 // NewItem is a kind of line a source had not sent before (NewItem of contract.ts).

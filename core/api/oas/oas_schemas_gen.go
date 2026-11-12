@@ -58961,14 +58961,22 @@ type HoneypotDeleteHoneypotDecoysIDNoContent struct{}
 type HoneypotDeleteHoneypotTokensIDNoContent struct{}
 
 type HoneypotGetHoneypotDecoysOK struct {
-	Items       []HoneypotGetHoneypotDecoysOKItemsItem       `json:"items"`
-	SpareIps    []string                                     `json:"spare_ips"`
-	Suggestions []HoneypotGetHoneypotDecoysOKSuggestionsItem `json:"suggestions"`
+	Items []HoneypotGetHoneypotDecoysOKItemsItem `json:"items"`
+	// False while the inventory has no device in the box network: nothing was compared, so spare_ips are
+	// only addresses not seen yet.
+	SpareChecked bool                                         `json:"spare_checked"`
+	SpareIps     []string                                     `json:"spare_ips"`
+	Suggestions  []HoneypotGetHoneypotDecoysOKSuggestionsItem `json:"suggestions"`
 }
 
 // GetItems returns the value of Items.
 func (s *HoneypotGetHoneypotDecoysOK) GetItems() []HoneypotGetHoneypotDecoysOKItemsItem {
 	return s.Items
+}
+
+// GetSpareChecked returns the value of SpareChecked.
+func (s *HoneypotGetHoneypotDecoysOK) GetSpareChecked() bool {
+	return s.SpareChecked
 }
 
 // GetSpareIps returns the value of SpareIps.
@@ -58986,6 +58994,11 @@ func (s *HoneypotGetHoneypotDecoysOK) SetItems(val []HoneypotGetHoneypotDecoysOK
 	s.Items = val
 }
 
+// SetSpareChecked sets the value of SpareChecked.
+func (s *HoneypotGetHoneypotDecoysOK) SetSpareChecked(val bool) {
+	s.SpareChecked = val
+}
+
 // SetSpareIps sets the value of SpareIps.
 func (s *HoneypotGetHoneypotDecoysOK) SetSpareIps(val []string) {
 	s.SpareIps = val
@@ -58997,13 +59010,20 @@ func (s *HoneypotGetHoneypotDecoysOK) SetSuggestions(val []HoneypotGetHoneypotDe
 }
 
 type HoneypotGetHoneypotDecoysOKItemsItem struct {
-	CreatedAt   time.Time                                          `json:"created_at"`
-	Enabled     bool                                               `json:"enabled"`
-	ID          string                                             `json:"id"`
-	IP          string                                             `json:"ip"`
-	Name        string                                             `json:"name"`
-	Personality HoneypotGetHoneypotDecoysOKItemsItemPersonality    `json:"personality"`
-	Services    []HoneypotGetHoneypotDecoysOKItemsItemServicesItem `json:"services"`
+	CreatedAt time.Time `json:"created_at"`
+	Enabled   bool      `json:"enabled"`
+	ID        string    `json:"id"`
+	IP        string    `json:"ip"`
+	// MAC address the box gave this IP, as the host reports it; null until known.
+	MAC         NilString                                       `json:"mac"`
+	Name        string                                          `json:"name"`
+	Personality HoneypotGetHoneypotDecoysOKItemsItemPersonality `json:"personality"`
+	// Why state is failed or conflict, or why an enabled decoy is off (no trap is on); null otherwise.
+	Reason   NilString                                          `json:"reason"`
+	Services []HoneypotGetHoneypotDecoysOKItemsItemServicesItem `json:"services"`
+	// From the host, not the switch: listening only when the container runs with a trap on and the host
+	// holds the address.
+	State HoneypotGetHoneypotDecoysOKItemsItemState `json:"state"`
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -59026,6 +59046,11 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItem) GetIP() string {
 	return s.IP
 }
 
+// GetMAC returns the value of MAC.
+func (s *HoneypotGetHoneypotDecoysOKItemsItem) GetMAC() NilString {
+	return s.MAC
+}
+
 // GetName returns the value of Name.
 func (s *HoneypotGetHoneypotDecoysOKItemsItem) GetName() string {
 	return s.Name
@@ -59036,9 +59061,19 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItem) GetPersonality() HoneypotGetHoney
 	return s.Personality
 }
 
+// GetReason returns the value of Reason.
+func (s *HoneypotGetHoneypotDecoysOKItemsItem) GetReason() NilString {
+	return s.Reason
+}
+
 // GetServices returns the value of Services.
 func (s *HoneypotGetHoneypotDecoysOKItemsItem) GetServices() []HoneypotGetHoneypotDecoysOKItemsItemServicesItem {
 	return s.Services
+}
+
+// GetState returns the value of State.
+func (s *HoneypotGetHoneypotDecoysOKItemsItem) GetState() HoneypotGetHoneypotDecoysOKItemsItemState {
+	return s.State
 }
 
 // SetCreatedAt sets the value of CreatedAt.
@@ -59061,6 +59096,11 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItem) SetIP(val string) {
 	s.IP = val
 }
 
+// SetMAC sets the value of MAC.
+func (s *HoneypotGetHoneypotDecoysOKItemsItem) SetMAC(val NilString) {
+	s.MAC = val
+}
+
 // SetName sets the value of Name.
 func (s *HoneypotGetHoneypotDecoysOKItemsItem) SetName(val string) {
 	s.Name = val
@@ -59071,9 +59111,19 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItem) SetPersonality(val HoneypotGetHon
 	s.Personality = val
 }
 
+// SetReason sets the value of Reason.
+func (s *HoneypotGetHoneypotDecoysOKItemsItem) SetReason(val NilString) {
+	s.Reason = val
+}
+
 // SetServices sets the value of Services.
 func (s *HoneypotGetHoneypotDecoysOKItemsItem) SetServices(val []HoneypotGetHoneypotDecoysOKItemsItemServicesItem) {
 	s.Services = val
+}
+
+// SetState sets the value of State.
+func (s *HoneypotGetHoneypotDecoysOKItemsItem) SetState(val HoneypotGetHoneypotDecoysOKItemsItemState) {
+	s.State = val
 }
 
 type HoneypotGetHoneypotDecoysOKItemsItemPersonality string
@@ -59161,6 +59211,77 @@ func (s *HoneypotGetHoneypotDecoysOKItemsItemServicesItem) SetName(val string) {
 // SetPort sets the value of Port.
 func (s *HoneypotGetHoneypotDecoysOKItemsItemServicesItem) SetPort(val int) {
 	s.Port = val
+}
+
+// From the host, not the switch: listening only when the container runs with a trap on and the host
+// holds the address.
+type HoneypotGetHoneypotDecoysOKItemsItemState string
+
+const (
+	HoneypotGetHoneypotDecoysOKItemsItemStateOff       HoneypotGetHoneypotDecoysOKItemsItemState = "off"
+	HoneypotGetHoneypotDecoysOKItemsItemStateListening HoneypotGetHoneypotDecoysOKItemsItemState = "listening"
+	HoneypotGetHoneypotDecoysOKItemsItemStateConflict  HoneypotGetHoneypotDecoysOKItemsItemState = "conflict"
+	HoneypotGetHoneypotDecoysOKItemsItemStateStarting  HoneypotGetHoneypotDecoysOKItemsItemState = "starting"
+	HoneypotGetHoneypotDecoysOKItemsItemStateStopping  HoneypotGetHoneypotDecoysOKItemsItemState = "stopping"
+	HoneypotGetHoneypotDecoysOKItemsItemStateFailed    HoneypotGetHoneypotDecoysOKItemsItemState = "failed"
+)
+
+// AllValues returns all HoneypotGetHoneypotDecoysOKItemsItemState values.
+func (HoneypotGetHoneypotDecoysOKItemsItemState) AllValues() []HoneypotGetHoneypotDecoysOKItemsItemState {
+	return []HoneypotGetHoneypotDecoysOKItemsItemState{
+		HoneypotGetHoneypotDecoysOKItemsItemStateOff,
+		HoneypotGetHoneypotDecoysOKItemsItemStateListening,
+		HoneypotGetHoneypotDecoysOKItemsItemStateConflict,
+		HoneypotGetHoneypotDecoysOKItemsItemStateStarting,
+		HoneypotGetHoneypotDecoysOKItemsItemStateStopping,
+		HoneypotGetHoneypotDecoysOKItemsItemStateFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HoneypotGetHoneypotDecoysOKItemsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case HoneypotGetHoneypotDecoysOKItemsItemStateOff:
+		return []byte(s), nil
+	case HoneypotGetHoneypotDecoysOKItemsItemStateListening:
+		return []byte(s), nil
+	case HoneypotGetHoneypotDecoysOKItemsItemStateConflict:
+		return []byte(s), nil
+	case HoneypotGetHoneypotDecoysOKItemsItemStateStarting:
+		return []byte(s), nil
+	case HoneypotGetHoneypotDecoysOKItemsItemStateStopping:
+		return []byte(s), nil
+	case HoneypotGetHoneypotDecoysOKItemsItemStateFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HoneypotGetHoneypotDecoysOKItemsItemState) UnmarshalText(data []byte) error {
+	switch HoneypotGetHoneypotDecoysOKItemsItemState(data) {
+	case HoneypotGetHoneypotDecoysOKItemsItemStateOff:
+		*s = HoneypotGetHoneypotDecoysOKItemsItemStateOff
+		return nil
+	case HoneypotGetHoneypotDecoysOKItemsItemStateListening:
+		*s = HoneypotGetHoneypotDecoysOKItemsItemStateListening
+		return nil
+	case HoneypotGetHoneypotDecoysOKItemsItemStateConflict:
+		*s = HoneypotGetHoneypotDecoysOKItemsItemStateConflict
+		return nil
+	case HoneypotGetHoneypotDecoysOKItemsItemStateStarting:
+		*s = HoneypotGetHoneypotDecoysOKItemsItemStateStarting
+		return nil
+	case HoneypotGetHoneypotDecoysOKItemsItemStateStopping:
+		*s = HoneypotGetHoneypotDecoysOKItemsItemStateStopping
+		return nil
+	case HoneypotGetHoneypotDecoysOKItemsItemStateFailed:
+		*s = HoneypotGetHoneypotDecoysOKItemsItemStateFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // A device type that really exists in the inventory, so a decoy of that type blends in.
@@ -59976,11 +60097,16 @@ type HoneypotGetHoneypotOK struct {
 	// Hits from the Vedette scanner itself that were ignored in the last 7 days.
 	Ignored7d int `json:"ignored_7d"`
 	// Box network range; null on a fresh install with no LAN range declared.
-	Lan         NilString                        `json:"lan"`
-	SecondaryIP NilString                        `json:"secondary_ip"`
-	Summary     HoneypotGetHoneypotOKSummary     `json:"summary"`
-	Traps       []HoneypotGetHoneypotOKTrapsItem `json:"traps"`
-	UpdatedAt   time.Time                        `json:"updated_at"`
+	Lan NilString `json:"lan"`
+	// Why a switched-on trap is not listening (state failed), with the host reason when it gave one; null
+	// otherwise.
+	Problem     NilString `json:"problem"`
+	SecondaryIP NilString `json:"secondary_ip"`
+	// MAC address the box gave the secondary IP, as the host reports it; null until known.
+	SecondaryMAC NilString                        `json:"secondary_mac"`
+	Summary      HoneypotGetHoneypotOKSummary     `json:"summary"`
+	Traps        []HoneypotGetHoneypotOKTrapsItem `json:"traps"`
+	UpdatedAt    time.Time                        `json:"updated_at"`
 }
 
 // GetBox returns the value of Box.
@@ -60008,9 +60134,19 @@ func (s *HoneypotGetHoneypotOK) GetLan() NilString {
 	return s.Lan
 }
 
+// GetProblem returns the value of Problem.
+func (s *HoneypotGetHoneypotOK) GetProblem() NilString {
+	return s.Problem
+}
+
 // GetSecondaryIP returns the value of SecondaryIP.
 func (s *HoneypotGetHoneypotOK) GetSecondaryIP() NilString {
 	return s.SecondaryIP
+}
+
+// GetSecondaryMAC returns the value of SecondaryMAC.
+func (s *HoneypotGetHoneypotOK) GetSecondaryMAC() NilString {
+	return s.SecondaryMAC
 }
 
 // GetSummary returns the value of Summary.
@@ -60053,9 +60189,19 @@ func (s *HoneypotGetHoneypotOK) SetLan(val NilString) {
 	s.Lan = val
 }
 
+// SetProblem sets the value of Problem.
+func (s *HoneypotGetHoneypotOK) SetProblem(val NilString) {
+	s.Problem = val
+}
+
 // SetSecondaryIP sets the value of SecondaryIP.
 func (s *HoneypotGetHoneypotOK) SetSecondaryIP(val NilString) {
 	s.SecondaryIP = val
+}
+
+// SetSecondaryMAC sets the value of SecondaryMAC.
+func (s *HoneypotGetHoneypotOK) SetSecondaryMAC(val NilString) {
+	s.SecondaryMAC = val
 }
 
 // SetSummary sets the value of Summary.
@@ -60177,7 +60323,10 @@ type HoneypotGetHoneypotOKTrapsItem struct {
 	Port      int                                   `json:"port"`
 	Service   HoneypotGetHoneypotOKTrapsItemService `json:"service"`
 	Since     NilDateTime                           `json:"since"`
-	// Conflict = on, but the secondary IP clashes with a device in the inventory.
+	// What the box reports, not the switch. conflict = on, but the IP clashes with a device in the
+	// inventory or the host refused it. starting = switched on, the box is bringing it up (container start
+	// and health check take minutes). stopping = switched off, the host has not confirmed yet. failed =
+	// switched on, but the box could not set it up (see problem / reason).
 	State HoneypotGetHoneypotOKTrapsItemState `json:"state"`
 }
 
@@ -60313,13 +60462,19 @@ func (s *HoneypotGetHoneypotOKTrapsItemService) UnmarshalText(data []byte) error
 	}
 }
 
-// Conflict = on, but the secondary IP clashes with a device in the inventory.
+// What the box reports, not the switch. conflict = on, but the IP clashes with a device in the
+// inventory or the host refused it. starting = switched on, the box is bringing it up (container start
+// and health check take minutes). stopping = switched off, the host has not confirmed yet. failed =
+// switched on, but the box could not set it up (see problem / reason).
 type HoneypotGetHoneypotOKTrapsItemState string
 
 const (
 	HoneypotGetHoneypotOKTrapsItemStateOff       HoneypotGetHoneypotOKTrapsItemState = "off"
 	HoneypotGetHoneypotOKTrapsItemStateListening HoneypotGetHoneypotOKTrapsItemState = "listening"
 	HoneypotGetHoneypotOKTrapsItemStateConflict  HoneypotGetHoneypotOKTrapsItemState = "conflict"
+	HoneypotGetHoneypotOKTrapsItemStateStarting  HoneypotGetHoneypotOKTrapsItemState = "starting"
+	HoneypotGetHoneypotOKTrapsItemStateStopping  HoneypotGetHoneypotOKTrapsItemState = "stopping"
+	HoneypotGetHoneypotOKTrapsItemStateFailed    HoneypotGetHoneypotOKTrapsItemState = "failed"
 )
 
 // AllValues returns all HoneypotGetHoneypotOKTrapsItemState values.
@@ -60328,6 +60483,9 @@ func (HoneypotGetHoneypotOKTrapsItemState) AllValues() []HoneypotGetHoneypotOKTr
 		HoneypotGetHoneypotOKTrapsItemStateOff,
 		HoneypotGetHoneypotOKTrapsItemStateListening,
 		HoneypotGetHoneypotOKTrapsItemStateConflict,
+		HoneypotGetHoneypotOKTrapsItemStateStarting,
+		HoneypotGetHoneypotOKTrapsItemStateStopping,
+		HoneypotGetHoneypotOKTrapsItemStateFailed,
 	}
 }
 
@@ -60339,6 +60497,12 @@ func (s HoneypotGetHoneypotOKTrapsItemState) MarshalText() ([]byte, error) {
 	case HoneypotGetHoneypotOKTrapsItemStateListening:
 		return []byte(s), nil
 	case HoneypotGetHoneypotOKTrapsItemStateConflict:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemStateStarting:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemStateStopping:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemStateFailed:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -60356,6 +60520,15 @@ func (s *HoneypotGetHoneypotOKTrapsItemState) UnmarshalText(data []byte) error {
 		return nil
 	case HoneypotGetHoneypotOKTrapsItemStateConflict:
 		*s = HoneypotGetHoneypotOKTrapsItemStateConflict
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemStateStarting:
+		*s = HoneypotGetHoneypotOKTrapsItemStateStarting
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemStateStopping:
+		*s = HoneypotGetHoneypotOKTrapsItemStateStopping
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemStateFailed:
+		*s = HoneypotGetHoneypotOKTrapsItemStateFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -60537,13 +60710,20 @@ func (s *HoneypotGetHoneypotTokensOKItemsItemType) UnmarshalText(data []byte) er
 }
 
 type HoneypotPatchHoneypotDecoysIDOK struct {
-	CreatedAt   time.Time                                     `json:"created_at"`
-	Enabled     bool                                          `json:"enabled"`
-	ID          string                                        `json:"id"`
-	IP          string                                        `json:"ip"`
-	Name        string                                        `json:"name"`
-	Personality HoneypotPatchHoneypotDecoysIDOKPersonality    `json:"personality"`
-	Services    []HoneypotPatchHoneypotDecoysIDOKServicesItem `json:"services"`
+	CreatedAt time.Time `json:"created_at"`
+	Enabled   bool      `json:"enabled"`
+	ID        string    `json:"id"`
+	IP        string    `json:"ip"`
+	// MAC address the box gave this IP, as the host reports it; null until known.
+	MAC         NilString                                  `json:"mac"`
+	Name        string                                     `json:"name"`
+	Personality HoneypotPatchHoneypotDecoysIDOKPersonality `json:"personality"`
+	// Why state is failed or conflict, or why an enabled decoy is off (no trap is on); null otherwise.
+	Reason   NilString                                     `json:"reason"`
+	Services []HoneypotPatchHoneypotDecoysIDOKServicesItem `json:"services"`
+	// From the host, not the switch: listening only when the container runs with a trap on and the host
+	// holds the address.
+	State HoneypotPatchHoneypotDecoysIDOKState `json:"state"`
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -60566,6 +60746,11 @@ func (s *HoneypotPatchHoneypotDecoysIDOK) GetIP() string {
 	return s.IP
 }
 
+// GetMAC returns the value of MAC.
+func (s *HoneypotPatchHoneypotDecoysIDOK) GetMAC() NilString {
+	return s.MAC
+}
+
 // GetName returns the value of Name.
 func (s *HoneypotPatchHoneypotDecoysIDOK) GetName() string {
 	return s.Name
@@ -60576,9 +60761,19 @@ func (s *HoneypotPatchHoneypotDecoysIDOK) GetPersonality() HoneypotPatchHoneypot
 	return s.Personality
 }
 
+// GetReason returns the value of Reason.
+func (s *HoneypotPatchHoneypotDecoysIDOK) GetReason() NilString {
+	return s.Reason
+}
+
 // GetServices returns the value of Services.
 func (s *HoneypotPatchHoneypotDecoysIDOK) GetServices() []HoneypotPatchHoneypotDecoysIDOKServicesItem {
 	return s.Services
+}
+
+// GetState returns the value of State.
+func (s *HoneypotPatchHoneypotDecoysIDOK) GetState() HoneypotPatchHoneypotDecoysIDOKState {
+	return s.State
 }
 
 // SetCreatedAt sets the value of CreatedAt.
@@ -60601,6 +60796,11 @@ func (s *HoneypotPatchHoneypotDecoysIDOK) SetIP(val string) {
 	s.IP = val
 }
 
+// SetMAC sets the value of MAC.
+func (s *HoneypotPatchHoneypotDecoysIDOK) SetMAC(val NilString) {
+	s.MAC = val
+}
+
 // SetName sets the value of Name.
 func (s *HoneypotPatchHoneypotDecoysIDOK) SetName(val string) {
 	s.Name = val
@@ -60611,9 +60811,19 @@ func (s *HoneypotPatchHoneypotDecoysIDOK) SetPersonality(val HoneypotPatchHoneyp
 	s.Personality = val
 }
 
+// SetReason sets the value of Reason.
+func (s *HoneypotPatchHoneypotDecoysIDOK) SetReason(val NilString) {
+	s.Reason = val
+}
+
 // SetServices sets the value of Services.
 func (s *HoneypotPatchHoneypotDecoysIDOK) SetServices(val []HoneypotPatchHoneypotDecoysIDOKServicesItem) {
 	s.Services = val
+}
+
+// SetState sets the value of State.
+func (s *HoneypotPatchHoneypotDecoysIDOK) SetState(val HoneypotPatchHoneypotDecoysIDOKState) {
+	s.State = val
 }
 
 type HoneypotPatchHoneypotDecoysIDOKPersonality string
@@ -60703,6 +60913,77 @@ func (s *HoneypotPatchHoneypotDecoysIDOKServicesItem) SetPort(val int) {
 	s.Port = val
 }
 
+// From the host, not the switch: listening only when the container runs with a trap on and the host
+// holds the address.
+type HoneypotPatchHoneypotDecoysIDOKState string
+
+const (
+	HoneypotPatchHoneypotDecoysIDOKStateOff       HoneypotPatchHoneypotDecoysIDOKState = "off"
+	HoneypotPatchHoneypotDecoysIDOKStateListening HoneypotPatchHoneypotDecoysIDOKState = "listening"
+	HoneypotPatchHoneypotDecoysIDOKStateConflict  HoneypotPatchHoneypotDecoysIDOKState = "conflict"
+	HoneypotPatchHoneypotDecoysIDOKStateStarting  HoneypotPatchHoneypotDecoysIDOKState = "starting"
+	HoneypotPatchHoneypotDecoysIDOKStateStopping  HoneypotPatchHoneypotDecoysIDOKState = "stopping"
+	HoneypotPatchHoneypotDecoysIDOKStateFailed    HoneypotPatchHoneypotDecoysIDOKState = "failed"
+)
+
+// AllValues returns all HoneypotPatchHoneypotDecoysIDOKState values.
+func (HoneypotPatchHoneypotDecoysIDOKState) AllValues() []HoneypotPatchHoneypotDecoysIDOKState {
+	return []HoneypotPatchHoneypotDecoysIDOKState{
+		HoneypotPatchHoneypotDecoysIDOKStateOff,
+		HoneypotPatchHoneypotDecoysIDOKStateListening,
+		HoneypotPatchHoneypotDecoysIDOKStateConflict,
+		HoneypotPatchHoneypotDecoysIDOKStateStarting,
+		HoneypotPatchHoneypotDecoysIDOKStateStopping,
+		HoneypotPatchHoneypotDecoysIDOKStateFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HoneypotPatchHoneypotDecoysIDOKState) MarshalText() ([]byte, error) {
+	switch s {
+	case HoneypotPatchHoneypotDecoysIDOKStateOff:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotDecoysIDOKStateListening:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotDecoysIDOKStateConflict:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotDecoysIDOKStateStarting:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotDecoysIDOKStateStopping:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotDecoysIDOKStateFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HoneypotPatchHoneypotDecoysIDOKState) UnmarshalText(data []byte) error {
+	switch HoneypotPatchHoneypotDecoysIDOKState(data) {
+	case HoneypotPatchHoneypotDecoysIDOKStateOff:
+		*s = HoneypotPatchHoneypotDecoysIDOKStateOff
+		return nil
+	case HoneypotPatchHoneypotDecoysIDOKStateListening:
+		*s = HoneypotPatchHoneypotDecoysIDOKStateListening
+		return nil
+	case HoneypotPatchHoneypotDecoysIDOKStateConflict:
+		*s = HoneypotPatchHoneypotDecoysIDOKStateConflict
+		return nil
+	case HoneypotPatchHoneypotDecoysIDOKStateStarting:
+		*s = HoneypotPatchHoneypotDecoysIDOKStateStarting
+		return nil
+	case HoneypotPatchHoneypotDecoysIDOKStateStopping:
+		*s = HoneypotPatchHoneypotDecoysIDOKStateStopping
+		return nil
+	case HoneypotPatchHoneypotDecoysIDOKStateFailed:
+		*s = HoneypotPatchHoneypotDecoysIDOKStateFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type HoneypotPatchHoneypotDecoysIDReq struct {
 	Enabled bool `json:"enabled"`
 }
@@ -60724,11 +61005,16 @@ type HoneypotPatchHoneypotTrapsServiceOK struct {
 	// Hits from the Vedette scanner itself that were ignored in the last 7 days.
 	Ignored7d int `json:"ignored_7d"`
 	// Box network range; null on a fresh install with no LAN range declared.
-	Lan         NilString                                      `json:"lan"`
-	SecondaryIP NilString                                      `json:"secondary_ip"`
-	Summary     HoneypotPatchHoneypotTrapsServiceOKSummary     `json:"summary"`
-	Traps       []HoneypotPatchHoneypotTrapsServiceOKTrapsItem `json:"traps"`
-	UpdatedAt   time.Time                                      `json:"updated_at"`
+	Lan NilString `json:"lan"`
+	// Why a switched-on trap is not listening (state failed), with the host reason when it gave one; null
+	// otherwise.
+	Problem     NilString `json:"problem"`
+	SecondaryIP NilString `json:"secondary_ip"`
+	// MAC address the box gave the secondary IP, as the host reports it; null until known.
+	SecondaryMAC NilString                                      `json:"secondary_mac"`
+	Summary      HoneypotPatchHoneypotTrapsServiceOKSummary     `json:"summary"`
+	Traps        []HoneypotPatchHoneypotTrapsServiceOKTrapsItem `json:"traps"`
+	UpdatedAt    time.Time                                      `json:"updated_at"`
 }
 
 // GetBox returns the value of Box.
@@ -60756,9 +61042,19 @@ func (s *HoneypotPatchHoneypotTrapsServiceOK) GetLan() NilString {
 	return s.Lan
 }
 
+// GetProblem returns the value of Problem.
+func (s *HoneypotPatchHoneypotTrapsServiceOK) GetProblem() NilString {
+	return s.Problem
+}
+
 // GetSecondaryIP returns the value of SecondaryIP.
 func (s *HoneypotPatchHoneypotTrapsServiceOK) GetSecondaryIP() NilString {
 	return s.SecondaryIP
+}
+
+// GetSecondaryMAC returns the value of SecondaryMAC.
+func (s *HoneypotPatchHoneypotTrapsServiceOK) GetSecondaryMAC() NilString {
+	return s.SecondaryMAC
 }
 
 // GetSummary returns the value of Summary.
@@ -60801,9 +61097,19 @@ func (s *HoneypotPatchHoneypotTrapsServiceOK) SetLan(val NilString) {
 	s.Lan = val
 }
 
+// SetProblem sets the value of Problem.
+func (s *HoneypotPatchHoneypotTrapsServiceOK) SetProblem(val NilString) {
+	s.Problem = val
+}
+
 // SetSecondaryIP sets the value of SecondaryIP.
 func (s *HoneypotPatchHoneypotTrapsServiceOK) SetSecondaryIP(val NilString) {
 	s.SecondaryIP = val
+}
+
+// SetSecondaryMAC sets the value of SecondaryMAC.
+func (s *HoneypotPatchHoneypotTrapsServiceOK) SetSecondaryMAC(val NilString) {
+	s.SecondaryMAC = val
 }
 
 // SetSummary sets the value of Summary.
@@ -60925,7 +61231,10 @@ type HoneypotPatchHoneypotTrapsServiceOKTrapsItem struct {
 	Port      int                                                 `json:"port"`
 	Service   HoneypotPatchHoneypotTrapsServiceOKTrapsItemService `json:"service"`
 	Since     NilDateTime                                         `json:"since"`
-	// Conflict = on, but the secondary IP clashes with a device in the inventory.
+	// What the box reports, not the switch. conflict = on, but the IP clashes with a device in the
+	// inventory or the host refused it. starting = switched on, the box is bringing it up (container start
+	// and health check take minutes). stopping = switched off, the host has not confirmed yet. failed =
+	// switched on, but the box could not set it up (see problem / reason).
 	State HoneypotPatchHoneypotTrapsServiceOKTrapsItemState `json:"state"`
 }
 
@@ -61061,13 +61370,19 @@ func (s *HoneypotPatchHoneypotTrapsServiceOKTrapsItemService) UnmarshalText(data
 	}
 }
 
-// Conflict = on, but the secondary IP clashes with a device in the inventory.
+// What the box reports, not the switch. conflict = on, but the IP clashes with a device in the
+// inventory or the host refused it. starting = switched on, the box is bringing it up (container start
+// and health check take minutes). stopping = switched off, the host has not confirmed yet. failed =
+// switched on, but the box could not set it up (see problem / reason).
 type HoneypotPatchHoneypotTrapsServiceOKTrapsItemState string
 
 const (
 	HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateOff       HoneypotPatchHoneypotTrapsServiceOKTrapsItemState = "off"
 	HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateListening HoneypotPatchHoneypotTrapsServiceOKTrapsItemState = "listening"
 	HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateConflict  HoneypotPatchHoneypotTrapsServiceOKTrapsItemState = "conflict"
+	HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateStarting  HoneypotPatchHoneypotTrapsServiceOKTrapsItemState = "starting"
+	HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateStopping  HoneypotPatchHoneypotTrapsServiceOKTrapsItemState = "stopping"
+	HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateFailed    HoneypotPatchHoneypotTrapsServiceOKTrapsItemState = "failed"
 )
 
 // AllValues returns all HoneypotPatchHoneypotTrapsServiceOKTrapsItemState values.
@@ -61076,6 +61391,9 @@ func (HoneypotPatchHoneypotTrapsServiceOKTrapsItemState) AllValues() []HoneypotP
 		HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateOff,
 		HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateListening,
 		HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateConflict,
+		HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateStarting,
+		HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateStopping,
+		HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateFailed,
 	}
 }
 
@@ -61087,6 +61405,12 @@ func (s HoneypotPatchHoneypotTrapsServiceOKTrapsItemState) MarshalText() ([]byte
 	case HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateListening:
 		return []byte(s), nil
 	case HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateConflict:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateStarting:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateStopping:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateFailed:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -61104,6 +61428,15 @@ func (s *HoneypotPatchHoneypotTrapsServiceOKTrapsItemState) UnmarshalText(data [
 		return nil
 	case HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateConflict:
 		*s = HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateConflict
+		return nil
+	case HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateStarting:
+		*s = HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateStarting
+		return nil
+	case HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateStopping:
+		*s = HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateStopping
+		return nil
+	case HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateFailed:
+		*s = HoneypotPatchHoneypotTrapsServiceOKTrapsItemStateFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -61187,13 +61520,20 @@ func (s *HoneypotPatchHoneypotTrapsServiceService) UnmarshalText(data []byte) er
 }
 
 type HoneypotPostHoneypotDecoysCreated struct {
-	CreatedAt   time.Time                                       `json:"created_at"`
-	Enabled     bool                                            `json:"enabled"`
-	ID          string                                          `json:"id"`
-	IP          string                                          `json:"ip"`
-	Name        string                                          `json:"name"`
-	Personality HoneypotPostHoneypotDecoysCreatedPersonality    `json:"personality"`
-	Services    []HoneypotPostHoneypotDecoysCreatedServicesItem `json:"services"`
+	CreatedAt time.Time `json:"created_at"`
+	Enabled   bool      `json:"enabled"`
+	ID        string    `json:"id"`
+	IP        string    `json:"ip"`
+	// MAC address the box gave this IP, as the host reports it; null until known.
+	MAC         NilString                                    `json:"mac"`
+	Name        string                                       `json:"name"`
+	Personality HoneypotPostHoneypotDecoysCreatedPersonality `json:"personality"`
+	// Why state is failed or conflict, or why an enabled decoy is off (no trap is on); null otherwise.
+	Reason   NilString                                       `json:"reason"`
+	Services []HoneypotPostHoneypotDecoysCreatedServicesItem `json:"services"`
+	// From the host, not the switch: listening only when the container runs with a trap on and the host
+	// holds the address.
+	State HoneypotPostHoneypotDecoysCreatedState `json:"state"`
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -61216,6 +61556,11 @@ func (s *HoneypotPostHoneypotDecoysCreated) GetIP() string {
 	return s.IP
 }
 
+// GetMAC returns the value of MAC.
+func (s *HoneypotPostHoneypotDecoysCreated) GetMAC() NilString {
+	return s.MAC
+}
+
 // GetName returns the value of Name.
 func (s *HoneypotPostHoneypotDecoysCreated) GetName() string {
 	return s.Name
@@ -61226,9 +61571,19 @@ func (s *HoneypotPostHoneypotDecoysCreated) GetPersonality() HoneypotPostHoneypo
 	return s.Personality
 }
 
+// GetReason returns the value of Reason.
+func (s *HoneypotPostHoneypotDecoysCreated) GetReason() NilString {
+	return s.Reason
+}
+
 // GetServices returns the value of Services.
 func (s *HoneypotPostHoneypotDecoysCreated) GetServices() []HoneypotPostHoneypotDecoysCreatedServicesItem {
 	return s.Services
+}
+
+// GetState returns the value of State.
+func (s *HoneypotPostHoneypotDecoysCreated) GetState() HoneypotPostHoneypotDecoysCreatedState {
+	return s.State
 }
 
 // SetCreatedAt sets the value of CreatedAt.
@@ -61251,6 +61606,11 @@ func (s *HoneypotPostHoneypotDecoysCreated) SetIP(val string) {
 	s.IP = val
 }
 
+// SetMAC sets the value of MAC.
+func (s *HoneypotPostHoneypotDecoysCreated) SetMAC(val NilString) {
+	s.MAC = val
+}
+
 // SetName sets the value of Name.
 func (s *HoneypotPostHoneypotDecoysCreated) SetName(val string) {
 	s.Name = val
@@ -61261,9 +61621,19 @@ func (s *HoneypotPostHoneypotDecoysCreated) SetPersonality(val HoneypotPostHoney
 	s.Personality = val
 }
 
+// SetReason sets the value of Reason.
+func (s *HoneypotPostHoneypotDecoysCreated) SetReason(val NilString) {
+	s.Reason = val
+}
+
 // SetServices sets the value of Services.
 func (s *HoneypotPostHoneypotDecoysCreated) SetServices(val []HoneypotPostHoneypotDecoysCreatedServicesItem) {
 	s.Services = val
+}
+
+// SetState sets the value of State.
+func (s *HoneypotPostHoneypotDecoysCreated) SetState(val HoneypotPostHoneypotDecoysCreatedState) {
+	s.State = val
 }
 
 type HoneypotPostHoneypotDecoysCreatedPersonality string
@@ -61351,6 +61721,77 @@ func (s *HoneypotPostHoneypotDecoysCreatedServicesItem) SetName(val string) {
 // SetPort sets the value of Port.
 func (s *HoneypotPostHoneypotDecoysCreatedServicesItem) SetPort(val int) {
 	s.Port = val
+}
+
+// From the host, not the switch: listening only when the container runs with a trap on and the host
+// holds the address.
+type HoneypotPostHoneypotDecoysCreatedState string
+
+const (
+	HoneypotPostHoneypotDecoysCreatedStateOff       HoneypotPostHoneypotDecoysCreatedState = "off"
+	HoneypotPostHoneypotDecoysCreatedStateListening HoneypotPostHoneypotDecoysCreatedState = "listening"
+	HoneypotPostHoneypotDecoysCreatedStateConflict  HoneypotPostHoneypotDecoysCreatedState = "conflict"
+	HoneypotPostHoneypotDecoysCreatedStateStarting  HoneypotPostHoneypotDecoysCreatedState = "starting"
+	HoneypotPostHoneypotDecoysCreatedStateStopping  HoneypotPostHoneypotDecoysCreatedState = "stopping"
+	HoneypotPostHoneypotDecoysCreatedStateFailed    HoneypotPostHoneypotDecoysCreatedState = "failed"
+)
+
+// AllValues returns all HoneypotPostHoneypotDecoysCreatedState values.
+func (HoneypotPostHoneypotDecoysCreatedState) AllValues() []HoneypotPostHoneypotDecoysCreatedState {
+	return []HoneypotPostHoneypotDecoysCreatedState{
+		HoneypotPostHoneypotDecoysCreatedStateOff,
+		HoneypotPostHoneypotDecoysCreatedStateListening,
+		HoneypotPostHoneypotDecoysCreatedStateConflict,
+		HoneypotPostHoneypotDecoysCreatedStateStarting,
+		HoneypotPostHoneypotDecoysCreatedStateStopping,
+		HoneypotPostHoneypotDecoysCreatedStateFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HoneypotPostHoneypotDecoysCreatedState) MarshalText() ([]byte, error) {
+	switch s {
+	case HoneypotPostHoneypotDecoysCreatedStateOff:
+		return []byte(s), nil
+	case HoneypotPostHoneypotDecoysCreatedStateListening:
+		return []byte(s), nil
+	case HoneypotPostHoneypotDecoysCreatedStateConflict:
+		return []byte(s), nil
+	case HoneypotPostHoneypotDecoysCreatedStateStarting:
+		return []byte(s), nil
+	case HoneypotPostHoneypotDecoysCreatedStateStopping:
+		return []byte(s), nil
+	case HoneypotPostHoneypotDecoysCreatedStateFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HoneypotPostHoneypotDecoysCreatedState) UnmarshalText(data []byte) error {
+	switch HoneypotPostHoneypotDecoysCreatedState(data) {
+	case HoneypotPostHoneypotDecoysCreatedStateOff:
+		*s = HoneypotPostHoneypotDecoysCreatedStateOff
+		return nil
+	case HoneypotPostHoneypotDecoysCreatedStateListening:
+		*s = HoneypotPostHoneypotDecoysCreatedStateListening
+		return nil
+	case HoneypotPostHoneypotDecoysCreatedStateConflict:
+		*s = HoneypotPostHoneypotDecoysCreatedStateConflict
+		return nil
+	case HoneypotPostHoneypotDecoysCreatedStateStarting:
+		*s = HoneypotPostHoneypotDecoysCreatedStateStarting
+		return nil
+	case HoneypotPostHoneypotDecoysCreatedStateStopping:
+		*s = HoneypotPostHoneypotDecoysCreatedStateStopping
+		return nil
+	case HoneypotPostHoneypotDecoysCreatedStateFailed:
+		*s = HoneypotPostHoneypotDecoysCreatedStateFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type HoneypotPostHoneypotDecoysReq struct {
@@ -62560,11 +63001,16 @@ type HoneypotPutHoneypotConfigOK struct {
 	// Hits from the Vedette scanner itself that were ignored in the last 7 days.
 	Ignored7d int `json:"ignored_7d"`
 	// Box network range; null on a fresh install with no LAN range declared.
-	Lan         NilString                              `json:"lan"`
-	SecondaryIP NilString                              `json:"secondary_ip"`
-	Summary     HoneypotPutHoneypotConfigOKSummary     `json:"summary"`
-	Traps       []HoneypotPutHoneypotConfigOKTrapsItem `json:"traps"`
-	UpdatedAt   time.Time                              `json:"updated_at"`
+	Lan NilString `json:"lan"`
+	// Why a switched-on trap is not listening (state failed), with the host reason when it gave one; null
+	// otherwise.
+	Problem     NilString `json:"problem"`
+	SecondaryIP NilString `json:"secondary_ip"`
+	// MAC address the box gave the secondary IP, as the host reports it; null until known.
+	SecondaryMAC NilString                              `json:"secondary_mac"`
+	Summary      HoneypotPutHoneypotConfigOKSummary     `json:"summary"`
+	Traps        []HoneypotPutHoneypotConfigOKTrapsItem `json:"traps"`
+	UpdatedAt    time.Time                              `json:"updated_at"`
 }
 
 // GetBox returns the value of Box.
@@ -62592,9 +63038,19 @@ func (s *HoneypotPutHoneypotConfigOK) GetLan() NilString {
 	return s.Lan
 }
 
+// GetProblem returns the value of Problem.
+func (s *HoneypotPutHoneypotConfigOK) GetProblem() NilString {
+	return s.Problem
+}
+
 // GetSecondaryIP returns the value of SecondaryIP.
 func (s *HoneypotPutHoneypotConfigOK) GetSecondaryIP() NilString {
 	return s.SecondaryIP
+}
+
+// GetSecondaryMAC returns the value of SecondaryMAC.
+func (s *HoneypotPutHoneypotConfigOK) GetSecondaryMAC() NilString {
+	return s.SecondaryMAC
 }
 
 // GetSummary returns the value of Summary.
@@ -62637,9 +63093,19 @@ func (s *HoneypotPutHoneypotConfigOK) SetLan(val NilString) {
 	s.Lan = val
 }
 
+// SetProblem sets the value of Problem.
+func (s *HoneypotPutHoneypotConfigOK) SetProblem(val NilString) {
+	s.Problem = val
+}
+
 // SetSecondaryIP sets the value of SecondaryIP.
 func (s *HoneypotPutHoneypotConfigOK) SetSecondaryIP(val NilString) {
 	s.SecondaryIP = val
+}
+
+// SetSecondaryMAC sets the value of SecondaryMAC.
+func (s *HoneypotPutHoneypotConfigOK) SetSecondaryMAC(val NilString) {
+	s.SecondaryMAC = val
 }
 
 // SetSummary sets the value of Summary.
@@ -62761,7 +63227,10 @@ type HoneypotPutHoneypotConfigOKTrapsItem struct {
 	Port      int                                         `json:"port"`
 	Service   HoneypotPutHoneypotConfigOKTrapsItemService `json:"service"`
 	Since     NilDateTime                                 `json:"since"`
-	// Conflict = on, but the secondary IP clashes with a device in the inventory.
+	// What the box reports, not the switch. conflict = on, but the IP clashes with a device in the
+	// inventory or the host refused it. starting = switched on, the box is bringing it up (container start
+	// and health check take minutes). stopping = switched off, the host has not confirmed yet. failed =
+	// switched on, but the box could not set it up (see problem / reason).
 	State HoneypotPutHoneypotConfigOKTrapsItemState `json:"state"`
 }
 
@@ -62897,13 +63366,19 @@ func (s *HoneypotPutHoneypotConfigOKTrapsItemService) UnmarshalText(data []byte)
 	}
 }
 
-// Conflict = on, but the secondary IP clashes with a device in the inventory.
+// What the box reports, not the switch. conflict = on, but the IP clashes with a device in the
+// inventory or the host refused it. starting = switched on, the box is bringing it up (container start
+// and health check take minutes). stopping = switched off, the host has not confirmed yet. failed =
+// switched on, but the box could not set it up (see problem / reason).
 type HoneypotPutHoneypotConfigOKTrapsItemState string
 
 const (
 	HoneypotPutHoneypotConfigOKTrapsItemStateOff       HoneypotPutHoneypotConfigOKTrapsItemState = "off"
 	HoneypotPutHoneypotConfigOKTrapsItemStateListening HoneypotPutHoneypotConfigOKTrapsItemState = "listening"
 	HoneypotPutHoneypotConfigOKTrapsItemStateConflict  HoneypotPutHoneypotConfigOKTrapsItemState = "conflict"
+	HoneypotPutHoneypotConfigOKTrapsItemStateStarting  HoneypotPutHoneypotConfigOKTrapsItemState = "starting"
+	HoneypotPutHoneypotConfigOKTrapsItemStateStopping  HoneypotPutHoneypotConfigOKTrapsItemState = "stopping"
+	HoneypotPutHoneypotConfigOKTrapsItemStateFailed    HoneypotPutHoneypotConfigOKTrapsItemState = "failed"
 )
 
 // AllValues returns all HoneypotPutHoneypotConfigOKTrapsItemState values.
@@ -62912,6 +63387,9 @@ func (HoneypotPutHoneypotConfigOKTrapsItemState) AllValues() []HoneypotPutHoneyp
 		HoneypotPutHoneypotConfigOKTrapsItemStateOff,
 		HoneypotPutHoneypotConfigOKTrapsItemStateListening,
 		HoneypotPutHoneypotConfigOKTrapsItemStateConflict,
+		HoneypotPutHoneypotConfigOKTrapsItemStateStarting,
+		HoneypotPutHoneypotConfigOKTrapsItemStateStopping,
+		HoneypotPutHoneypotConfigOKTrapsItemStateFailed,
 	}
 }
 
@@ -62923,6 +63401,12 @@ func (s HoneypotPutHoneypotConfigOKTrapsItemState) MarshalText() ([]byte, error)
 	case HoneypotPutHoneypotConfigOKTrapsItemStateListening:
 		return []byte(s), nil
 	case HoneypotPutHoneypotConfigOKTrapsItemStateConflict:
+		return []byte(s), nil
+	case HoneypotPutHoneypotConfigOKTrapsItemStateStarting:
+		return []byte(s), nil
+	case HoneypotPutHoneypotConfigOKTrapsItemStateStopping:
+		return []byte(s), nil
+	case HoneypotPutHoneypotConfigOKTrapsItemStateFailed:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -62940,6 +63424,15 @@ func (s *HoneypotPutHoneypotConfigOKTrapsItemState) UnmarshalText(data []byte) e
 		return nil
 	case HoneypotPutHoneypotConfigOKTrapsItemStateConflict:
 		*s = HoneypotPutHoneypotConfigOKTrapsItemStateConflict
+		return nil
+	case HoneypotPutHoneypotConfigOKTrapsItemStateStarting:
+		*s = HoneypotPutHoneypotConfigOKTrapsItemStateStarting
+		return nil
+	case HoneypotPutHoneypotConfigOKTrapsItemStateStopping:
+		*s = HoneypotPutHoneypotConfigOKTrapsItemStateStopping
+		return nil
+	case HoneypotPutHoneypotConfigOKTrapsItemStateFailed:
+		*s = HoneypotPutHoneypotConfigOKTrapsItemStateFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

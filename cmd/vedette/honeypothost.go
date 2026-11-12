@@ -8,9 +8,11 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/netip"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -53,6 +55,7 @@ type honeypotHost struct {
 	stopped   bool
 	decoyAt   time.Time
 	decoys    map[netip.Addr]bool
+	macs      map[netip.Addr]string // the MAC of each decoy of the last state/net read, lower case
 	lastWarns map[string]time.Time
 }
 
@@ -173,15 +176,26 @@ func (h *honeypotHost) holds(ctx context.Context, ip netip.Addr) bool {
 		return false
 	}
 	set := map[netip.Addr]bool{}
+	macs := map[netip.Addr]string{}
 	for _, d := range ns.Decoys {
 		if a, err := netip.ParseAddr(d.IP); err == nil {
 			set[a] = true
+			macs[a] = strings.ToLower(d.MAC)
 		}
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.decoys, h.decoyAt = set, time.Now()
+	h.decoys, h.macs, h.decoyAt = set, macs, time.Now()
 	return set[ip]
+}
+
+// DecoyMACs is the MAC the host gave each decoy address (the optional honeypot.macReporter), from the same state/net read
+// as holds; a decoy added since that read has none until the next one (at most stateTTL later).
+func (h *honeypotHost) DecoyMACs(ctx context.Context) map[netip.Addr]string {
+	h.holds(ctx, netip.Addr{}) // refresh when older than stateTTL
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return maps.Clone(h.macs)
 }
 
 func (h *honeypotHost) noteDecoy(ip netip.Addr, held bool) {
@@ -381,6 +395,9 @@ type refusedError struct {
 }
 
 func (e refusedError) Error() string { return e.what + " (" + e.code + ")" }
+
+// UserReason is the plain sentence without the code: what the module shows beside the address (honeypot.userReason).
+func (e refusedError) UserReason() string { return e.what }
 func (e refusedError) Is(target error) bool {
 	return target == honeypot.ErrRefused || e.hostFault && target == honeypot.ErrHostFailed
 }

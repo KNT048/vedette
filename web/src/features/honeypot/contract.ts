@@ -5,11 +5,14 @@ import { defineEndpoints } from '@/lib/contract'
 
 export const HpService = z.enum(['smb', 'rdp', 'ssh', 'mssql', 'http'])
 
+export const TrapState = z.enum(['off', 'listening', 'conflict', 'starting', 'stopping', 'failed'])
+  .describe('What the box reports, not the switch. conflict = on, but the IP clashes with a device in the inventory or the host refused it. starting = switched on, the box is bringing it up (container start and health check take minutes). stopping = switched off, the host has not confirmed yet. failed = switched on, but the box could not set it up (see problem / reason)')
+
 export const Trap = z.object({
   service: HpService,
   port: z.number().int(),
   enabled: z.boolean(),
-  state: z.enum(['off', 'listening', 'conflict']).describe('conflict = on, but the secondary IP clashes with a device in the inventory'),
+  state: TrapState,
   since: z.iso.datetime().nullable(),
   hits_7d: z.number().int(),
   last_hit_at: z.iso.datetime().nullable(),
@@ -17,6 +20,8 @@ export const Trap = z.object({
 
 export const HpOverview = z.object({
   secondary_ip: z.string().nullable(),
+  secondary_mac: z.string().nullable().describe('MAC address the box gave the secondary IP, as the host reports it; null until known'),
+  problem: z.string().nullable().describe('Why a switched-on trap is not listening (state failed), with the host reason when it gave one; null otherwise'),
   hostname: z.string(),
   lan: z.string().nullable().describe('Box network range; null on a fresh install with no LAN range declared'),
   box: z.object({ ip: z.string().nullable(), name: z.string() }),
@@ -56,11 +61,15 @@ export const HitDetail = Hit.extend({
 
 export const Personality = z.enum(['windows_fs', 'nas', 'printer', 'camera', 'linux'])
 export const Decoy = z.object({
-  id: z.string(), personality: Personality, name: z.string(), ip: z.string(), enabled: z.boolean(), created_at: z.iso.datetime(),
+  id: z.string(), personality: Personality, name: z.string(), ip: z.string(), enabled: z.boolean(),
+  state: TrapState.describe('From the host, not the switch: listening only when the container runs with a trap on and the host holds the address'),
+  reason: z.string().nullable().describe('Why state is failed or conflict, or why an enabled decoy is off (no trap is on); null otherwise'),
+  mac: z.string().nullable().describe('MAC address the box gave this IP, as the host reports it; null until known'),
+  created_at: z.iso.datetime(),
   services: z.array(z.object({ name: z.string(), port: z.number().int() })),
 })
 export const DecoySuggestion = z.object({ personality: Personality, count: z.number().int(), examples: z.array(z.string()) }).describe('A device type that really exists in the inventory, so a decoy of that type blends in')
-export const DecoysResponse = z.object({ items: z.array(Decoy), suggestions: z.array(DecoySuggestion), spare_ips: z.array(z.string()) })
+export const DecoysResponse = z.object({ items: z.array(Decoy), suggestions: z.array(DecoySuggestion), spare_ips: z.array(z.string()), spare_checked: z.boolean().describe('false while the inventory has no device in the box network: nothing was compared, so spare_ips are only addresses not seen yet') })
 export const DecoyInput = z.object({ personality: Personality, name: z.string(), ip: z.string() })
 
 export const TokenType = z.enum(['file', 'credential', 'url', 'dns'])
@@ -74,7 +83,7 @@ export const TokenInput = z.object({ type: TokenType, name: z.string(), plant_at
 
 export const endpoints = defineEndpoints([
   { method: 'get', path: '/honeypot', summary: 'The decoy machine, traps by service, hit summary and the excluded scanner', stories: ['S-HP-1'], role: 'viewer', response: HpOverview },
-  { method: 'put', path: '/honeypot/config', summary: 'Set the secondary IP and decoy hostname (rejects an IP that matches a device, the IP of the box itself, or an IP outside the network of the box)', stories: ['S-HP-1'], role: 'admin', body: z.object({ secondary_ip: z.string(), hostname: z.string() }), response: HpOverview },
+  { method: 'put', path: '/honeypot/config', summary: 'Set the secondary IP and decoy hostname; an empty secondary_ip removes the decoy IP, only while every trap is off (409 traps_on). Rejects an IP that matches a device, the IP of the box itself, or an IP outside the network of the box', stories: ['S-HP-1'], role: 'admin', body: z.object({ secondary_ip: z.string(), hostname: z.string() }), response: HpOverview },
   { method: 'patch', path: '/honeypot/traps/{service}', summary: 'Turn the trap of one service on or off', stories: ['S-HP-1'], role: 'admin', params: z.object({ service: HpService }), body: z.object({ enabled: z.boolean() }), response: HpOverview },
   { method: 'get', path: '/honeypot/hits', summary: 'Trap hits, newest first; filtered by source device when asset is given', stories: ['S-HP-1'], role: 'viewer', query: z.object({ asset: z.string().optional() }), response: z.object({ items: z.array(Hit) }) },
   { method: 'get', path: '/honeypot/hits/{id}', summary: 'One trap hit with the log events in the hour around it', stories: ['S-HP-1'], role: 'viewer', params: z.object({ id: z.string() }), response: HitDetail, example: { params: { id: 'hit-seed-1' } } },

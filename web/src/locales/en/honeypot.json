@@ -7,7 +7,9 @@
     "today_other": "{{count}} trap hits today",
     "week_one": "Traps were hit {{count}} time in 7 days, last {{when}} from {{src}}",
     "week_other": "Traps were hit {{count}} times in 7 days, last {{when}} from {{src}}",
-    "quiet": "No trap was hit in the last 7 days"
+    "quiet": "No trap was hit in the last 7 days",
+    "failed": "A trap is on, but the box could not set up the decoy",
+    "starting": "Traps are starting. Nothing is listening yet."
   },
   "meta": "Updated {{time}}. Traps only listen and log. They do not block or hit back.",
   "needAdmin": "Only administrators can change the secondary IP or switch traps. Operators can still view and test traps.",
@@ -20,7 +22,11 @@
     "title": "Decoy machine",
     "description": "The trap is a fake machine on {{lan}}. Nobody has a reason to connect to it, so every connection deserves a look.",
     "ip": "Trap secondary IP",
-    "ipHint": "An unused address inside {{lan}}. Vedette rejects an address that matches a device in the inventory.",
+    "ipHint": "An unused address inside {{lan}}. Vedette rejects an address that matches a device in the inventory. To remove the decoy IP, turn all traps off, empty this field and save.",
+    "mac": "The box gave this address the MAC address {{mac}}.",
+    "removed": "Decoy IP removed",
+    "problemTitle": "The decoy is not up",
+    "problem": "Reason from the box: {{reason}}.",
     "hostname": "Fake hostname",
     "hostnameHint": "Pick a name that looks like a real server, such as FILESRV-OLD. Up to 15 characters.",
     "saved": "Decoy saved"
@@ -43,7 +49,10 @@
     "listening": "Listening",
     "off": "Off",
     "needIp": "Needs secondary IP",
-    "conflict": "Error: IP clashes with a device"
+    "conflict": "Error: IP clashes with a device",
+    "starting": "Starting",
+    "stopping": "Turning off",
+    "failed": "Error: not set up"
   },
   "traps": {
     "title": "Traps by service",
@@ -196,6 +205,7 @@
       "nameHint": "Up to 15 characters, for example {{example}}.",
       "ip": "Spare IP",
       "ipHint": "Unused in the inventory: {{ips}}",
+      "ipHintUnchecked": "Not checked: no devices discovered yet, so Vedette cannot tell whether these are free: {{ips}}",
       "ipHintNone": "An unused address in your LAN.",
       "add": "Add decoy"
     },

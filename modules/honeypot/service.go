@@ -53,6 +53,8 @@ type Service struct {
 
 	mu        sync.Mutex // guards host, tl's counters (copied into stats), stats, lastWarn, hourStart, hourNew
 	host      hostCache
+	kickGen   uint64 // bumped by Kick; doneGen is the kickGen the last finished Apply started with: kickGen > doneGen = a change the host has not confirmed (state starting/stopping)
+	doneGen   uint64
 	tl        *tailer
 	stats     Stats
 	lastWarn  map[string]time.Time
@@ -65,7 +67,10 @@ type Service struct {
 	// applyMu). Memory only (INV-15: nothing in config/ is read back), so the first Apply after core starts asks for one
 	// restart. ponytail: one restart per core start, an upgrade is a hash of the file the container last read.
 	restartDue bool
-	pollMu     sync.Mutex // one Poll at a time
+	// refusals is what the host refused per address, for the back-off (guarded by applyMu); sig is the wanted set it belongs to.
+	refusals map[netip.Addr]*refusal
+	sig      string
+	pollMu   sync.Mutex // one Poll at a time
 }
 
 // New returns the service.
@@ -87,6 +92,7 @@ func New(cfg Config) (*Service, error) {
 	}
 	s := &Service{cfg: cfg, db: cfg.DB, kick: make(chan struct{}, 1), written: map[string][sha256.Size]byte{}}
 	s.host.reason = "the host has not been asked yet"
+	s.kickGen = 1 // the first Apply has not run: the traps are "starting", not "failed"
 	return s, nil
 }
 
@@ -103,8 +109,18 @@ func (s *Service) loc(ctx context.Context) *time.Location {
 
 func (s *Service) on() bool { return s.cfg.Modules == nil || s.cfg.Modules.Enabled("honeypot") }
 
-// Kick asks the run loop to apply the state to the host soon (a device appeared, a setting changed).
+// Kick is for a change the owner made (a setting, a switch, the module turned on): the traps are "starting" or "stopping"
+// until an Apply that began after it has answered.
 func (s *Service) Kick() {
+	s.mu.Lock()
+	s.kickGen++
+	s.mu.Unlock()
+	s.hint()
+}
+
+// hint asks the run loop to apply the state soon without claiming anything changed for the owner: an inventory event
+// on a busy LAN must not keep the traps "starting" while an Apply is failing.
+func (s *Service) hint() {
 	select {
 	case s.kick <- struct{}{}:
 	default:
@@ -374,12 +390,16 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 		return Overview{}, fmt.Errorf("honeypot: count hits: %w", err)
 	}
 	conflict := w.deviceAt(w.secIP)
-	why, hostFault := s.refused(w.secIP)
+	hv := s.hostView()
+	why, hostFault := hv.conflicts[w.secIP], hv.hostFailed[w.secIP]
 	secConflict := w.secIP.IsValid() && (w.ipProblem(w.secIP) != "" || (why != "" && !hostFault))
 	secFailed := w.secIP.IsValid() && hostFault // the host could not set the secondary IP up: not listening, no clash
 	out := Overview{Hostname: w.cfg.Hostname, UpdatedAt: store.FormatTS(now), Traps: make([]Trap, 0, len(Services))}
 	if w.secIP.IsValid() {
 		out.SecondaryIP = ptr(w.secIP.String())
+		if m := hv.macs[w.secIP]; m != "" && hv.placed[w.secIP] {
+			out.SecondaryMAC = ptr(m)
+		}
 	}
 	if w.lan.IsValid() {
 		out.LAN = ptr(w.lan.String())
@@ -400,14 +420,29 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 		switch {
 		case !tr.enabled:
 			t.State = StateOff
+			if hv.pending && hv.services[svc] {
+				t.State = StateStopping // the container still runs with it until the host has been told
+			}
 		case secConflict:
 			t.State = StateConflict
 		case secFailed:
-			t.State = StateOff
-		case s.listening(svc):
+			t.State = StateFailed
+		case hv.available && hv.running && hv.services[svc]:
 			t.State = StateListening
+		case hv.pending:
+			t.State = StateStarting
 		default:
-			t.State = StateOff
+			t.State = StateFailed
+		}
+		if t.State == StateFailed && out.Problem == nil {
+			reason := why
+			if !secFailed {
+				reason = hv.reason
+			}
+			if !w.secIP.IsValid() {
+				reason = "no decoy IP is set"
+			}
+			out.Problem = ptr(reasonOrDefault(reason))
 		}
 		out.Traps = append(out.Traps, t)
 	}
@@ -433,6 +468,14 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 		return Overview{}, fmt.Errorf("honeypot: last hit: %w", err)
 	}
 	return out, nil
+}
+
+// reasonOrDefault is the reason shown for a trap that is on but cannot listen when the host gave none.
+func reasonOrDefault(r string) string {
+	if r == "" {
+		return "the host gave no reason"
+	}
+	return r
 }
 
 func startOfDay(t time.Time) time.Time {

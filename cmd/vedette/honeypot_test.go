@@ -72,7 +72,7 @@ func TestHoneypotIsWiredAndOffByDefault(t *testing.T) {
 	_, o = s.do("GET", "/honeypot", "viewer", "")
 	traps := field(t, o, "traps").([]any)
 	ssh := traps[2].(map[string]any)
-	if ssh["service"] != "ssh" || ssh["enabled"] != true || ssh["state"] != "off" {
+	if ssh["service"] != "ssh" || ssh["enabled"] != true || ssh["state"] != "failed" || !strings.Contains(fmt.Sprint(field(t, o, "problem")), "appliance") {
 		t.Fatalf("ssh trap: %v", ssh)
 	}
 	if ok, why := s.d.Honeypot.HostStatus(); ok || !strings.Contains(why, "appliance") {

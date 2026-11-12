@@ -447,8 +447,8 @@ func TestContract_INV7_NotAnApplianceNeverListens(t *testing.T) {
 			t.Fatalf("%s listens on a machine that is not an appliance", tr.Service)
 		}
 	}
-	if !o.Traps[2].Enabled || o.Traps[2].State != "off" {
-		t.Fatalf("ssh trap: %+v", o.Traps[2])
+	if !o.Traps[2].Enabled || o.Traps[2].State != honeypot.StateFailed || o.Problem == nil || !strings.Contains(*o.Problem, "not an appliance") {
+		t.Fatalf("ssh trap: %+v, problem %v", o.Traps[2], o.Problem)
 	}
 	ok, why := e.svc.HostStatus()
 	if ok || !strings.Contains(why, "appliance") {
@@ -500,8 +500,12 @@ func TestApplyRemovesStaleIPsAndStopsWhenNothingIsOn(t *testing.T) {
 	if e.host.running || len(e.host.ips) != 0 {
 		t.Fatalf("running=%v ips=%v", e.host.running, e.host.ips)
 	}
-	if o, _ := e.svc.Overview(e.ctx()); o.Traps[0].State != "off" {
-		t.Fatal("trap listens after being turned off")
+	// The service that was told, but whose Apply has not run, says so: the host has not confirmed (S-HP-1, "stopping").
+	if o, _ := e.svc.Overview(e.ctx()); o.Traps[0].State != honeypot.StateStopping {
+		t.Fatalf("a trap turned off, not yet applied: %s", o.Traps[0].State)
+	}
+	if o, _ := svc2.Overview(e.ctx()); o.Traps[0].State != honeypot.StateOff {
+		t.Fatalf("trap after being turned off and applied: %s", o.Traps[0].State)
 	}
 }
 
@@ -896,8 +900,8 @@ func TestHostFailureDoesNotLoseState(t *testing.T) {
 		t.Fatal("start failure swallowed")
 	}
 	o, _ := e.svc.Overview(e.ctx())
-	if o.Traps[2].State != "off" || !o.Traps[2].Enabled {
-		t.Fatalf("%+v", o.Traps[2])
+	if o.Traps[2].State != honeypot.StateFailed || !o.Traps[2].Enabled || o.Problem == nil || !strings.Contains(*o.Problem, "did not start") {
+		t.Fatalf("%+v %v", o.Traps[2], o.Problem)
 	}
 	e.host.failStart = nil
 	if err := e.svc.Apply(e.ctx()); err != nil {

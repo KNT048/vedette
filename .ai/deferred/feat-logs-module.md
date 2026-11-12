@@ -82,7 +82,7 @@ Order and size: L1 (M), L2 (L), L3 (L), L4 (M), L5 (M), L7 (M) are ours and need
 ## Deferred lines (one per open item, per rules/deferred-work.md)
 
 - [ ] 2026-11-10 — measure the writer load and `q` search cost with 5M rows before L1 merges; decide whether `logs_events` needs its own SQLite file — ở đâu: L1, `modules/logs/store.go`.
-- [x] 2026-11-10 — a "who is sending?" hint for dropped unknown senders needs a story (S-LOG-1 criterion) — ở đâu: Quyết định 2. — Done: S-LOG-1 criterion (walk 3, D-TBD-logsw3), `GET /logs/unknown-senders` and the hint on the Sources page (this PR)
+- [x] 2026-11-10 — a "who is sending?" hint for dropped unknown senders needs a story (S-LOG-1 criterion) — ở đâu: Quyết định 2. — Done: S-LOG-1 criterion (walk 3, D-421), `GET /logs/unknown-senders` and the hint on the Sources page (this PR)
 - [x] 2026-11-12 — L6 sensor transport and SPAN metadata: deferred past v1 (D-297); the owner:kien issue is [#363](https://github.com/KNT048/vedette/issues/363) "L6 (post-v1)" — ở đâu: sensor-protocol 12 q4/q5, D-112 (7), D-114 (3).
 - [x] 2026-11-10 — `response` reads `IocHits` and `Counts` (13b-10 `Evidence.IocHit`, `log_threshold`): issue text at the end of L3 and L4 — Kiên. — Done: L3 part earlier (Counts wired in #341); L4 part: issue [#376](https://github.com/KNT048/vedette/issues/376) (wire `Evidence.IocHit`, subscribe to `logs.ioc_hit.detected`), owner:kien.
 - [x] 2026-11-10 — check by-IP device lookup in inventory for `asset_id`: Done in L1: there is none; `cmd/vedette/logs.go` `logsInventory` lists every device with `DevicesOfKind(inventory.Kinds)` (uncapped) and picks the addresses. Issue text for Kiên below.

@@ -125,6 +125,6 @@ export async function auditHasNo(c: Parameters<typeof api>[0], secret: string) {
 }
 /** What the page shows in the Last test cell: `Tested <time>: failed|success`, the time formatted the way the GUI does (fmtDateTime: en-GB, the page's time zone). */
 export function testedText(t: { at: string; ok: boolean }): string {
-  const when = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'numeric', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(t.at))
+  const when = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(t.at))
   return `Tested ${when}: ${t.ok ? 'success' : 'failed'}`
 }

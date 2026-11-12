@@ -3,6 +3,8 @@
 *
 !go.mod
 !go.sum
+# the project's own license: scripts/hostlicenses puts it beside the third-party ones (D-155 (10))
+!LICENSE
 !cmd
 !core
 !modules

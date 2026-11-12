@@ -19,7 +19,7 @@ journalctl -u vedette-core -u vedette-host -n 100 --no-pager
 ## 1. Cài đặt
 
 ### 1.1 Appliance (đủ tính năng)
-- Yêu cầu (preflight của `install.sh` kiểm; sai thì dừng, **chưa đổi gì**): root; Linux với systemd là PID 1 (không phải container thường); Ubuntu 24.04, Ubuntu 26.04 hoặc Debian 13 (D-57 (1)); amd64 hoặc arm64; đồng hồ đã đặt; cổng 8443 và 8444 chưa ai dùng; chưa có bản Vedette nào khác (`host.conf`, gói `vedette-host`, người dùng `vedette`, container `vedette-*`); **còn ≥ 6 GiB trống dưới `/var`**. RAM dưới 4 GiB thì cảnh báo, không dừng (khuyến nghị 8 GiB). NIC: một card có IP là đủ; SPAN cần thêm một card không IP, và mạng có dây (Wi-Fi không hỗ trợ SPAN và bẫy macvlan).
+- Yêu cầu (preflight của `install.sh` kiểm; sai thì dừng, **chưa đổi gì**): root; Linux với systemd là PID 1 (không phải container thường); Ubuntu 24.04, Ubuntu 26.04 hoặc Debian 13 (D-57 (1)); amd64 hoặc arm64; đồng hồ đã đặt; cổng 8443, 8444, 8765 (TCP) và 514 (UDP và TCP), 6514 (TCP) chưa ai dùng (rsyslog bật imudp/imtcp giữ 514: tắt input mạng của nó trước; cài lại trên hộp đã cài thì không kiểm cổng); chưa có bản Vedette nào khác (`host.conf`, gói `vedette-host`, người dùng `vedette`, container `vedette-*`); **còn ≥ 6 GiB trống dưới `/var`**. RAM dưới 4 GiB thì cảnh báo, không dừng (khuyến nghị 8 GiB). NIC: một card có IP là đủ; SPAN cần thêm một card không IP, và mạng có dây (Wi-Fi không hỗ trợ SPAN và bẫy macvlan).
 - Cài bằng một script, chạy lại được (idempotent):
   ```sh
   curl -fsSLO https://github.com/KNT048/vedette/releases/download/v<version>/install.sh && sudo sh install.sh

@@ -293,7 +293,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		}}
 	d.SyslogPort = o.syslogPort // before buildServices: the logs service reads it when it is built
 	d.SyslogTLS = syslogTLS(tlsCfg)
-	d.TrustAnchor, d.HostAllowed, d.OsqueryDir = trustAnchor(o, intakeTrustAnchor(tlsCfg, o.tlsCert, boxCAs, renew)), server.HostMatcher(hosts, boxOwnAddress(d.HostNet)), o.osqueryDir //nolint:contextcheck // agent-intake reads them when it is built; the Host check runs per request, with no context to pass
+	d.TrustAnchor, d.HostAllowed, d.OsqueryDir = trustAnchor(o, intakeTrustAnchor(tlsCfg, boxCAs, renew)), server.HostMatcher(hosts, boxOwnAddress(d.HostNet)), o.osqueryDir //nolint:contextcheck // agent-intake reads them when it is built; the Host check runs per request, with no context to pass
 	if d.MCPListen, err = parseMCPListen(o.mcpListen); err != nil {
 		return err
 	}

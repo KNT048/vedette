@@ -731,8 +731,8 @@ func TestBoxCAKeyNeverInLogsOrInTheClear(t *testing.T) {
 	}
 }
 
-// GET /intake/ca.pem gets the box CA's certificate for the box's own pair, the owner's file for -tls-cert (agent-intake keeps its
-// CERTIFICATE blocks), nothing on plain HTTP.
+// GET /intake/ca.pem gets the box CA's certificate for the box's own pair (the owner's -tls-cert is trustAnchor's, TestTrustAnchorChoice),
+// nothing on plain HTTP.
 func TestIntakeTrustAnchor(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -740,7 +740,7 @@ func TestIntakeTrustAnchor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	anchor := intakeTrustAnchor(cfg, "", testCA(t, dir), renew)
+	anchor := intakeTrustAnchor(cfg, testCA(t, dir), renew)
 	got, err := anchor(t.Context())
 	if err != nil || bytes.Contains(got, []byte("PRIVATE")) {
 		t.Fatalf("self-made: %v\n%s", err, got)
@@ -771,16 +771,7 @@ func TestIntakeTrustAnchor(t *testing.T) {
 	if got, err := anchor(t.Context()); err != nil || !bytes.Equal(got, caPEM(t, testCA(t, dir))) {
 		t.Fatalf("after the re-issue: %v", err)
 	}
-	ownerDir := t.TempDir()
-	oc, ok, _ := writeTestPair(t, ownerDir, &x509.Certificate{Subject: pkix.Name{CommonName: "owner"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), DNSNames: []string{"owner.example"}})
-	ocfg, _, _, _, err := testTransport(t, options{db: filepath.Join(ownerDir, "v.db"), listen: "0.0.0.0:8443", tlsCert: oc, tlsKey: ok})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got, err := intakeTrustAnchor(ocfg, oc, testCA(t, ownerDir), nil)(t.Context()); err != nil || !bytes.Equal(got, mustRead(t, oc)) {
-		t.Fatalf("owner: %v", err)
-	}
-	if intakeTrustAnchor(nil, "", testCA(t, ownerDir), nil) != nil {
+	if intakeTrustAnchor(nil, testCA(t, dir), nil) != nil {
 		t.Fatal("plain HTTP has a trust anchor")
 	}
 }

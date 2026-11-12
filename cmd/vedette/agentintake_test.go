@@ -28,7 +28,7 @@ func firstCert(t *testing.T, raw []byte) *x509.Certificate {
 }
 
 // What agent-intake pins (INV-11): none on loopback, the sealed box CA (never the leaf, so a renewal keeps every agent connected) for
-// the box's own pair, and exactly the CERTIFICATE blocks of the file the owner supplied for -tls-cert (a key in it never leaves).
+// the box's own pair, and the file the owner supplied for -tls-cert as read (agent-intake keeps its CERTIFICATE blocks only).
 func TestTrustAnchorChoice(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -62,14 +62,6 @@ func TestTrustAnchorChoice(t *testing.T) {
 	got, err = trustAnchor(options{db: db, listen: "0.0.0.0:8443", tlsCert: oLeaf, tlsKey: oKey}, sealed)()
 	if err != nil || !bytes.Equal(got, mustRead(t, oLeaf)) || firstCert(t, got).IsCA {
 		t.Fatalf("owner certificate: %v, want the owner's file as supplied", err)
-	}
-	both := filepath.Join(ownerDir, "both.pem")
-	if err := os.WriteFile(both, append(mustRead(t, oKey), mustRead(t, oLeaf)...), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	got, err = trustAnchor(options{db: db, listen: "0.0.0.0:8443", tlsCert: both, tlsKey: oKey}, sealed)()
-	if err != nil || bytes.Contains(got, []byte("PRIVATE KEY")) || !bytes.Equal(got, mustRead(t, oLeaf)) {
-		t.Fatalf("owner file with its key: %v, want the certificate alone", err)
 	}
 }
 

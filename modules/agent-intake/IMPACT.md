@@ -19,9 +19,9 @@
 - **inventory**: nhận quan sát `os`/`hostname`/`vendor`/`model`/`mac` và danh sách gói (≤ 5.000, khoá `vendor|product` ≤ 400 byte, phiên bản ≤ 100 ký tự). Đổi giới hạn của `inventory.checkItems`/`cleanText` → `mapper.go` (`maxName`, `maxVersion`, `maxKeyBytes`) phải đổi theo, nếu không kho từ chối cả danh sách. Đổi độ tin cậy → cách kho gộp nhiều nguồn và cột "nghi"/"chắc" đổi theo. Đổi khoá định danh host (MAC rồi IP) → trùng thiết bị.
 - **pkgmap.json**: mỗi cặp phải có trong `content/catalog` (test); đổi `kev-products.json`/`curated.json` có thể làm một cặp chết → test đỏ.
 
-## Modifying: chứng chỉ ghim (`GET /intake/ca.pem`, INV-11, D-169 (9), D-351) — `handlers.go`, `Config.TrustAnchor`; cmd/vedette/boxca.go, tls.go
+## Modifying: chứng chỉ ghim (`GET /intake/ca.pem`, INV-11, D-169 (9), D-351) — `install.go` (`anchor`), `Config.TrustAnchor`; cmd/vedette/boxca.go, tls.go
 - **Mọi máy đã đăng ký**: tin cậy nằm ở CA riêng của hộp; đổi khoá CA = mọi máy phải cài lại. Gia hạn/đổi địa chỉ chỉ cấp lại lá (không ảnh hưởng máy). CA nằm trong `core_secret` (core INV-33): khôi phục `vedette.db` + `vedette.key` giữ nó; mất khoá chủ thì không.
-- **`Config.TrustAnchor`** (cmd/vedette `deps.TrustAnchor`): nil = 404. Bộ lọc khối `CERTIFICATE` ở handler là chốt duy nhất giữ khoá của tệp chủ hộp không ra ngoài: bỏ nó = lộ khoá TLS của chủ hộp trên một route công khai.
+- **`Config.TrustAnchor`** (cmd/vedette `deps.TrustAnchor`): nil = 404. Bộ lọc khối `CERTIFICATE` ở `anchor` (`install.go`) là chốt duy nhất giữ khoá của tệp chủ hộp không ra ngoài (cmd/vedette chuyển nguyên byte tệp `-tls-cert`): bỏ nó = lộ khoá TLS của chủ hộp trên `ca.pem` và trong script, cả hai công khai (`TestContract_INV11_CaPemServesTheCertificateOnly`).
 - **core (D-139)**: logic cấp lại lá phải ký bằng CA này; chứng chỉ chủ hộp đưa vào không bị đụng.
 - **GUI**: SHA-256 của script thay đổi khi chứng chỉ ghim đổi (script nhúng nó).
 

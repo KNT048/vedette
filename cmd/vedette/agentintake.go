@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/pem"
-	"errors"
 	"fmt"
 	"os"
 
@@ -25,47 +23,18 @@ const defaultOsqueryDir = "/usr/share/vedette/osquery"
 // trustAnchor is agentintake.Config.TrustAnchor: the certificates osquery pins to trust this box (INV-11). Plain HTTP on loopback has no
 // certificate (agentintake.ErrNoTrustAnchor). An owner's certificate (-tls-cert) gives the chain they supplied, read once at start. Otherwise
 // it is the box CA sealed in core_secret (D-351, core INV-33), asked each time through sealed (intakeTrustAnchor), which answers 503
-// server_busy while the 8443 leaf is being re-issued under a new CA. Only CERTIFICATE blocks are ever handed out (no key next to an
-// owner's certificate, no PEM headers).
+// server_busy while the 8443 leaf is being re-issued under a new CA. The bytes go over as read: agent-intake keeps only their CERTIFICATE
+// blocks (its INV-11), so the key of an owner's combined file never leaves.
 func trustAnchor(o options, sealed func(context.Context) ([]byte, error)) func() ([]byte, error) {
-	owner := o.tlsCert != ""
-	if loop, err := isLoopback(o.listen); sealed == nil || (!owner && (err != nil || loop)) {
-		return func() ([]byte, error) { return nil, agentintake.ErrNoTrustAnchor }
-	}
-	if owner {
+	if o.tlsCert != "" {
 		raw, err := os.ReadFile(o.tlsCert)
 		if err != nil {
 			err = fmt.Errorf("tls: trust anchor: %w", err)
 		}
-		certs, cerr := certBlocks(raw)
-		if err == nil {
-			err = cerr
-		}
-		return func() ([]byte, error) { return certs, err }
+		return func() ([]byte, error) { return raw, err }
 	}
-	return func() ([]byte, error) {
-		raw, err := sealed(context.Background())
-		if err != nil {
-			return nil, err
-		}
-		return certBlocks(raw)
+	if loop, err := isLoopback(o.listen); sealed == nil || err != nil || loop {
+		return func() ([]byte, error) { return nil, agentintake.ErrNoTrustAnchor }
 	}
-}
-
-// certBlocks copies only the CERTIFICATE blocks of a PEM text, without headers.
-func certBlocks(raw []byte) ([]byte, error) {
-	var out []byte
-	for {
-		var blk *pem.Block
-		if blk, raw = pem.Decode(raw); blk == nil {
-			break
-		}
-		if blk.Type == "CERTIFICATE" {
-			out = append(out, pem.EncodeToMemory(&pem.Block{Type: blk.Type, Bytes: blk.Bytes})...)
-		}
-	}
-	if len(out) == 0 {
-		return nil, errors.New("tls: the trust anchor holds no certificate")
-	}
-	return out, nil
+	return func() ([]byte, error) { return sealed(context.Background()) }
 }

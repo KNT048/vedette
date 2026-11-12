@@ -405,23 +405,13 @@ func newBoxCA(now time.Time) (*boxCA, []byte, error) {
 // trustAnchorRetry is the Retry-After (seconds) of a /intake/ca.pem refused while the leaf is re-issued under a new CA.
 const trustAnchorRetry = 30
 
-// intakeTrustAnchor is what GET /intake/ca.pem serves (agent-intake INV-11): the box CA's certificate for the box's own pair, only
-// while the leaf in use is signed by it (L3: a CA replaced while the new leaf could not be written is not handed out: 503
-// server_busy with Retry-After, never logged per request, and the renewer is asked to check now); for a certificate the owner supplied (-tls-cert), the file as supplied, read at each
-// request (agent-intake keeps only its CERTIFICATE blocks: the chain, or the leaf alone; a key in the same file never leaves); nil
-// when the box serves no TLS (loopback).
-func intakeTrustAnchor(cfg *tls.Config, ownerCert string, ca *boxCAStore, renew *selfSignedRenewer) func(context.Context) ([]byte, error) {
-	switch {
-	case cfg == nil:
+// intakeTrustAnchor is the box CA that GET /intake/ca.pem and the install scripts pin for the box's own pair (agent-intake INV-11): its
+// certificate, only while the leaf in use is signed by it (L3: a CA replaced while the new leaf could not be written is not handed out:
+// 503 server_busy with Retry-After, never logged per request, and the renewer is asked to check now); nil when the box serves no TLS
+// (loopback). An owner's -tls-cert never comes here (cmd/vedette trustAnchor reads it).
+func intakeTrustAnchor(cfg *tls.Config, ca *boxCAStore, renew *selfSignedRenewer) func(context.Context) ([]byte, error) {
+	if cfg == nil {
 		return nil
-	case ownerCert != "":
-		return func(context.Context) ([]byte, error) {
-			b, err := os.ReadFile(ownerCert) //nolint:gosec // the -tls-cert path the owner configured
-			if err != nil {
-				return nil, fmt.Errorf("tls: trust anchor: %w", err)
-			}
-			return b, nil
-		}
 	}
 	return func(ctx context.Context) ([]byte, error) {
 		c, err := ca.current(ctx)

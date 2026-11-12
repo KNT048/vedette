@@ -411,7 +411,9 @@ func TestAStuckTLSSenderCannotHoldTheShutdown(t *testing.T) {
 	within(t, "Run after cancel", 5*time.Second, func() {
 		tr.stop()
 		err := <-tr.done
-		_ = err
 		tr.done <- nil
+		if err != nil && !errors.Is(err, context.Canceled) {
+			t.Errorf("Run returned %v, want nil or context.Canceled", err)
+		}
 	})
 }

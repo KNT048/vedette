@@ -17,7 +17,8 @@ export const useCatalog = (q: string) =>
   useQuery({ queryKey: ['inventory', 'catalog', q.trim().slice(0, CATALOG_Q_MAX)], queryFn: () => api.get<CatalogResponse>(catalogPath(q)), placeholderData: (prev) => prev, enabled: q.trim() !== '' })
 export const useSettings = () => useQuery({ queryKey: ['inventory', 'settings'], queryFn: () => api.get<InventorySettings>('/inventory/settings'), retry: false })
 export const useSensors = () => useQuery({ queryKey: ['inventory', 'sensors'], queryFn: () => api.get<SensorsResponse>('/inventory/sensors'), retry: false })
-export const useAgents = () => useQuery({ queryKey: ['inventory', 'agents'], queryFn: () => api.get<AgentsResponse>('/inventory/agents'), retry: false })
+/** `enabled` false while the agent-intake module is off: a module that is off answers 404 (rules/modules.md), so the GUI does not ask. */
+export const useAgents = (enabled = true) => useQuery({ queryKey: ['inventory', 'agents'], queryFn: () => api.get<AgentsResponse>('/inventory/agents'), retry: false, enabled })
 
 /** Sau mọi thay đổi thiết bị: làm mới cả danh sách, chi tiết và các trang module khác đọc tài sản (feeds, findings). */
 function useInvalidate() {

@@ -143,7 +143,7 @@ func TestRunServesAndStops(t *testing.T) {
 		t.Fatalf("GET /setup (public, before first-run setup) = %d %s", code, body)
 	}
 	if code, body := in.get(t, "/api/v1/core/updates"); code != 401 || !strings.Contains(body, `"code":"unauthenticated"`) {
-		t.Fatalf("GET /core/updates (not built, needs a session) = %d %s", code, body)
+		t.Fatalf("GET /core/updates (needs a session) = %d %s", code, body)
 	}
 	if code, body := in.get(t, "/api/v1/nowhere"); code != 404 || !strings.Contains(body, `"code":"not_found"`) {
 		t.Fatalf("unknown route = %d %s", code, body)

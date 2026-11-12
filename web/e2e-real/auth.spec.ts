@@ -86,14 +86,6 @@ for (const role of ['viewer', 'operator'] as const) {
       for (const sec of SECTIONS) {
         await page.goto(`/settings/${sec}`)
         await expect(page.getByRole('heading', { level: 1 }).or(page.getByText(/needs a higher role/)).first()).toBeVisible()
-        if (sec === 'updates') {
-          // fixme (D-171, unbuilt backend): GET /core/updates answers 501, so the page shows "Could not load data" instead of its read-only
-          // note. Tracked by .ai/deferred/feat-core-os-updates.md:3 and listed in KNOWN_501 of gaps.spec.ts.
-          test.info().annotations.push({ type: 'fixme', description: 'settings/updates read-only note: .ai/deferred/feat-core-os-updates.md:3' })
-          // the skip ends with the 501: when the endpoint is built this fails, and the Updates note must be checked like the other sections
-          expect((await api(page.request, 'GET', '/core/updates')).status, 'GET /core/updates is no longer 501: remove this skip').toBe(501)
-          continue
-        }
         if (adminOnly.includes(sec)) {
           await expect(page.getByText(/needs a higher role/)).toBeVisible()
           await expect(page.locator('nav[aria-label="Settings sections"]').getByRole('link', { name: label[sec]!, exact: true })).toHaveCount(0)

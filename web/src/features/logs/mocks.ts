@@ -76,10 +76,13 @@ const events = collection<LogEvent[]>('logs_events', seedEvents, () => [])
 
 function digest(): Digest {
   const lines = sources.get().reduce((n, s) => n + s.lines_per_hour * 24, 0)
+  // Like the box (historyDays): whole days since the first line of the oldest source, at most 7. The mock has no first-line time: a source that
+  // received something counts from when it was added.
+  const history = Math.min(7, Math.max(0, ...sources.get().filter((s) => s.last_received).map((s) => Math.floor((Date.now() - new Date(s.created_at).getTime()) / 86400e3))))
   const feedsOff = modulesStore.get().find((m) => m.id === 'feeds')?.enabled === false // PRE-3: with Feeds off the list is empty (the page says why)
   const matching = !feedsOff && iocListed() // like the box: false when no switched-on feed lists an indicator
   // Cài sạch: chưa có log thật nên digest rỗng (digest mẫu nhắc IP và thiết bị không tồn tại trong cài đặt này).
-  if (dataMode() === 'clean') return { generated_at: nowIso(), lines_24h: lines, baseline_days: 7, new: [], spikes: [], bad_connections: [], ioc_matching: matching }
+  if (dataMode() === 'clean') return { generated_at: nowIso(), lines_24h: lines, baseline_days: 7, history_days: history, new: [], spikes: [], bad_connections: [], ioc_matching: matching }
   const fresh: NewItem[] = [
     { id: 'n-1', signature: 'Blocked access to port 3389 (Remote Desktop) from the Internet', source_id: 'ls-1', source_name: nameOf('ls-1'), count: 212, first_seen: daysAgo(0, 6), sample: 'type="traffic" level="warning" srcip=45.9.148.20 dstip=192.168.10.1 dstport=3389 action="deny"' },
     { id: 'n-2', signature: '4720: A new user account was created', source_id: 'ls-3', source_name: nameOf('ls-3'), count: 1, first_seen: daysAgo(0, 2), sample: 'Subject Account Name: admin.it Target Account Name: support_tmp' },
@@ -95,7 +98,7 @@ function digest(): Digest {
   const since = Date.now() - 86400e3
   const bad: IocHit[] = feedsOff ? [] : iocHits.get().filter((r) => new Date(r.ts).getTime() >= since).sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 20)
     .map((r) => { const a = assets.find((x) => x.ip === r.src_ip); return { ...r, asset_id: a?.id ?? null, asset_name: a ? (a.hostname ?? a.ip) : null } })
-  return { generated_at: nowIso(), lines_24h: lines, baseline_days: 7, new: fresh, spikes, bad_connections: bad, ioc_matching: matching }
+  return { generated_at: nowIso(), lines_24h: lines, baseline_days: 7, history_days: history, new: fresh, spikes, bad_connections: bad, ioc_matching: matching }
 }
 
 function validateSource(b: Partial<SourceInput>, selfId?: string) {

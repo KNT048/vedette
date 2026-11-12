@@ -75,7 +75,7 @@ type Source struct {
 
 // BoxInfo says where the box listens (SourcesResponse.box).
 type BoxInfo struct {
-	IP       *string `json:"ip"` // nil when no LAN range is declared
+	IP       *string `json:"ip"` // nil when no LAN range is declared, or the box has no address in it (in a container it cannot see the host's)
 	Hostname string  `json:"hostname"`
 	LAN      *string `json:"lan"`
 	Iface    string  `json:"iface"`
@@ -139,6 +139,7 @@ type Digest struct {
 	GeneratedAt    time.Time   `json:"generated_at"`
 	Lines24h       int         `json:"lines_24h"`
 	BaselineDays   int         `json:"baseline_days"`
+	HistoryDays    int         `json:"history_days"` // whole days of logs so far, at most BaselineDays (historyDays)
 	New            []NewItem   `json:"new"`
 	Spikes         []SpikeItem `json:"spikes"`
 	BadConnections []IocHit    `json:"bad_connections"`

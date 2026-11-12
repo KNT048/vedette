@@ -69603,6 +69603,9 @@ type LogsGetLogsDigestOK struct {
 	BadConnections []LogsGetLogsDigestOKBadConnectionsItem `json:"bad_connections"`
 	BaselineDays   int                                     `json:"baseline_days"`
 	GeneratedAt    time.Time                               `json:"generated_at"`
+	// Whole days of logs so far, at most baseline_days: from the first line of the source heard from the
+	// longest. Below baseline_days the digest is still learning what is normal.
+	HistoryDays int `json:"history_days"`
 	// False when no connection can be matched: Feeds off, or no switched-on feed lists an indicator (every
 	// IOC feed off, or none loaded yet).
 	IocMatching bool                            `json:"ioc_matching"`
@@ -69624,6 +69627,11 @@ func (s *LogsGetLogsDigestOK) GetBaselineDays() int {
 // GetGeneratedAt returns the value of GeneratedAt.
 func (s *LogsGetLogsDigestOK) GetGeneratedAt() time.Time {
 	return s.GeneratedAt
+}
+
+// GetHistoryDays returns the value of HistoryDays.
+func (s *LogsGetLogsDigestOK) GetHistoryDays() int {
+	return s.HistoryDays
 }
 
 // GetIocMatching returns the value of IocMatching.
@@ -69659,6 +69667,11 @@ func (s *LogsGetLogsDigestOK) SetBaselineDays(val int) {
 // SetGeneratedAt sets the value of GeneratedAt.
 func (s *LogsGetLogsDigestOK) SetGeneratedAt(val time.Time) {
 	s.GeneratedAt = val
+}
+
+// SetHistoryDays sets the value of HistoryDays.
+func (s *LogsGetLogsDigestOK) SetHistoryDays(val int) {
+	s.HistoryDays = val
 }
 
 // SetIocMatching sets the value of IocMatching.
@@ -70460,7 +70473,8 @@ func (s *LogsGetLogsSourcesOK) SetSources(val []LogsGetLogsSourcesOKSourcesItem)
 type LogsGetLogsSourcesOKBox struct {
 	Hostname string `json:"hostname"`
 	Iface    string `json:"iface"`
-	// Box address on the LAN; null when no LAN range is declared.
+	// Box address on the LAN; null when no LAN range is declared, or when the box has no address in it (a
+	// container cannot see the host's LAN address).
 	IP  NilString `json:"ip"`
 	Lan NilString `json:"lan"`
 }

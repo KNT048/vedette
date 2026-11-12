@@ -328,6 +328,54 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(dialog).not.toHaveTextContent('192.168.10.250')
   })
 
+  it('a container that cannot see its own address in the declared LAN range says to use the address of the machine, not to add a range (user walk)', async () => {
+    server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({
+      box: { ip: null, hostname: 'vedette', lan: '192.168.50.0/24', iface: 'eth0' }, retention_days: 30,
+      sources: [{ id: 'ls-9', kind: 'nginx', name: 'WEB-1', sender_ip: '192.168.50.5', asset_id: null, asset_name: null, proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: new Date().toISOString() }],
+    })))
+    renderApp('/logs')
+    expect(await screen.findByText(/cannot see its own address in your LAN range 192\.168\.50\.0\/24.*the one you open this page on/)).toBeInTheDocument()
+    expect(screen.queryByText(/add your LAN range first/)).not.toBeInTheDocument()
+    // no line yet: no size estimate for the retention (QA walk 2026-11-12)
+    expect(screen.getByText(/no size estimate yet/)).toBeInTheDocument()
+    expect(screen.queryByText(/take about/)).not.toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'Device setup for WEB-1' }))
+    const alert = within(await screen.findByRole('dialog', { name: /Set up WEB-1/ })).getByRole('alert')
+    expect(alert).toHaveTextContent('Use the address of the machine that runs Vedette')
+    expect(alert).not.toHaveTextContent('Add your LAN range first')
+  })
+
+  it('Refresh in Log sources refreshes the headline, the digest and the event search too (user walk)', async () => {
+    let lines = 0
+    server.use(
+      http.get('*/api/v1/logs/digest', () => HttpResponse.json({ generated_at: '2026-11-12T01:00:00Z', lines_24h: lines, baseline_days: 7, history_days: 7, new: [], spikes: [], bad_connections: [], ioc_matching: true })),
+      http.get('*/api/v1/logs/events', () => HttpResponse.json({ events: [], total: lines })),
+    )
+    renderApp('/logs')
+    expect(await screen.findByRole('heading', { level: 1, name: 'No log line received yet.' })).toBeInTheDocument()
+    lines = 34
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    expect(await screen.findByRole('heading', { level: 1, name: /^Today: logs look normal/ })).toBeInTheDocument()
+    expect(await screen.findByText(/0 of 34 matching lines/)).toBeInTheDocument()
+  })
+
+  it('less than the baseline of logs: the page says it is still learning, not that logs look normal (QA walk)', async () => {
+    server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json({ generated_at: '2026-11-12T01:00:00Z', lines_24h: 34, baseline_days: 7, history_days: 0, new: [], spikes: [], bad_connections: [], ioc_matching: true })))
+    renderApp('/logs')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Learning what is normal: 0 of 7 days of logs so far.' })).toBeInTheDocument()
+    expect(await screen.findByText(/^No new log types yet\. The box is still learning/)).toBeInTheDocument()
+    expect(screen.queryByText(/look normal|compared with 7 days ago|compared with the previous/)).not.toBeInTheDocument()
+  })
+
+  it('Feeds off: the headline does not count bad connections and the empty list links to Settings, Modules (QA walk)', async () => {
+    const item = { id: 'n-1', signature: 'x', source_id: 'ls-1', source_name: 'FW-HQ', count: 1, first_seen: '2026-11-12T00:00:00Z', sample: 'x' }
+    server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json({ generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, history_days: 7, new: [item], spikes: [], bad_connections: [], ioc_matching: false })))
+    modulesStore.update((l) => l.map((m) => (m.id === 'feeds' ? { ...m, enabled: false } : m)))
+    renderApp('/logs')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today: 1 new log types, 0 spikes.' })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Open Settings, Modules' })).toHaveAttribute('href', '/settings/modules')
+  })
+
   it('an API error shows the message and a retry button', async () => {
     server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json({ error: { code: 'x', message: 'The log aggregator has not finished yet.' } }, { status: 503 })))
     renderApp('/logs')
@@ -336,7 +384,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   })
 
   it('an empty list of bad connections says plainly that nothing was found, and says why when Feeds is off', async () => {
-    const digest = { generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, new: [], spikes: [], bad_connections: [], ioc_matching: true }
+    const digest = { generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, history_days: 7, new: [], spikes: [], bad_connections: [], ioc_matching: true }
     server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json(digest)))
     const first = renderApp('/logs')
     expect(await screen.findByText('None of your devices connected to a listed bad address in the last 24 hours.')).toBeInTheDocument()
@@ -351,7 +399,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   })
 
   it('Feeds on but no switched-on feed lists an indicator: the empty list says nothing could be matched (QA walk a)', async () => {
-    const digest = { generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, new: [], spikes: [], bad_connections: [], ioc_matching: false }
+    const digest = { generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, history_days: 7, new: [], spikes: [], bad_connections: [], ioc_matching: false }
     server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json(digest)))
     renderApp('/logs')
     expect(await screen.findByText(/No switched-on threat feed lists any IP address or domain yet/)).toBeInTheDocument()

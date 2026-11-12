@@ -487,13 +487,20 @@ test('digest of a fresh source (INV-6, PRE-3): inside the 24 h warm-up nothing i
     const tok = uniq('tok')
     for (let i = 0; i < 25; i++) await sendUdp(`<34>Nov 11 12:34:${String(i).padStart(2, '0')} gw app[1]: ${tok} flood ${i}`) // far over the spike floor of 20
     await expect.poll(async () => (await events(c, { q: tok, source: src.id })).total, { timeout: 15_000 }).toBe(25)
-    const d = (await api<{ lines_24h: number; baseline_days: number; new: unknown[]; spikes: unknown[]; bad_connections: unknown[] }>(c, 'GET', '/logs/digest')).body
+    const d = (await api<{ lines_24h: number; baseline_days: number; history_days: number; new: unknown[]; spikes: unknown[]; bad_connections: unknown[] }>(c, 'GET', '/logs/digest')).body
     expect(d.baseline_days).toBe(7)
+    expect(d.history_days).toBeGreaterThanOrEqual(0)
+    expect(d.history_days).toBeLessThanOrEqual(7)
     expect(d.lines_24h).toBeGreaterThanOrEqual(25)
     expect([d.new, d.spikes, d.bad_connections], 'a source in its first 24 hours has no new log type, no spike and no bad connection').toEqual([[], [], []])
     await page.goto('/logs')
-    await expect(h1(page)).toContainText('Today: logs look normal') // titleQuiet: no bad connection, no new type, no spike
-    await expect(page.getByText('No new log types compared with 7 days ago.')).toBeVisible()
+    if (d.history_days < 7) { // a box with less than 7 days of logs says it is still learning (D-224), not that logs look normal
+      await expect(h1(page)).toContainText(`Learning what is normal: ${d.history_days} of 7 days of logs so far.`)
+      await expect(page.getByText(/^No new log types yet\./)).toBeVisible()
+    } else {
+      await expect(h1(page)).toContainText('Today: logs look normal') // titleQuiet: no bad connection, no new type, no spike
+      await expect(page.getByText('No new log types compared with 7 days ago.')).toBeVisible()
+    }
     await expect(page.getByText('None of your devices connected to a listed bad address in the last 24 hours.')).toBeVisible()
     // Feeds off: the page says that instead (PRE-3); the digest itself keeps working
     const mods = await api<{ modules: { id: string; enabled: boolean }[] }>(c, 'GET', '/modules')

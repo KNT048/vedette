@@ -487,6 +487,36 @@ func TestDigestCountsTheLast24Hours(t *testing.T) {
 	}
 }
 
+// history_days counts whole days from the first line of the oldest source, at most BaselineDays: the page says it is still learning below
+// that (QA walk 2026-11-12: day 0 said "logs look normal").
+func TestDigestSaysHowManyDaysOfLogsItHas(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	days := func() int {
+		e.advance(DetectEvery + time.Second) // past the stored reading
+		d, err := e.svc.Digest(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d.HistoryDays
+	}
+	if got := days(); got != 0 {
+		t.Fatalf("no line: %d", got)
+	}
+	for _, c := range []struct {
+		ago  time.Duration
+		want int
+	}{{time.Hour, 0}, {3*24*time.Hour + time.Hour, 3}, {8 * 24 * time.Hour, BaselineDays}} {
+		if _, err := e.svc.Ingest(t.Context(), lines(s.ID, e.clock.Add(-c.ago), "a line")); err != nil {
+			t.Fatal(err)
+		}
+		if got := days(); got != c.want {
+			t.Fatalf("first line %v ago: %d, want %d", c.ago, got, c.want)
+		}
+	}
+}
+
 // Bidirectional formatting characters and line separators in a device's line cannot change how the line reads or split it.
 func TestIngestStripsBidiAndLineSeparators(t *testing.T) {
 	t.Parallel()

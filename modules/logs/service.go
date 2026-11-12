@@ -147,6 +147,7 @@ type sourceRow struct {
 	Port                            int
 	CreatedAt                       time.Time
 	Since                           time.Time // signatures_since: zero when the kind and the sender never changed
+	Started                         time.Time // when the counters first saw a line of it (after Since); set by anomalies, zero when none
 }
 
 func (s *Service) loadSources(ctx context.Context) ([]sourceRow, error) {
@@ -480,6 +481,19 @@ func (s *Service) Digest(ctx context.Context) (Digest, error) {
 	if err != nil {
 		return Digest{}, err
 	}
+	d.HistoryDays = historyDays(names, s.now())
 	d.New, d.Spikes, err = s.digestItems(ctx, found, names)
 	return d, err
+}
+
+// historyDays is how many whole days of logs the digest has to compare with, at most BaselineDays: counted from the first line of the
+// source heard from the longest (or its last change of kind or sender). Below BaselineDays the page says it is still learning.
+func historyDays(names map[string]sourceRow, now time.Time) int {
+	n := 0
+	for _, r := range names {
+		if !r.Started.IsZero() {
+			n = max(n, int(now.Sub(r.Started)/day))
+		}
+	}
+	return min(n, BaselineDays)
 }

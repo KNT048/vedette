@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Label, Select } from '@/components/ui/input'
+import { ApiError } from '@/lib/api'
 import { fmtRelative } from '@/lib/format'
 import { useInstallKind } from '@/lib/modules'
 import { useSensorCard, useSensors } from './api'
@@ -25,6 +26,7 @@ function Hearing({ sensor }: { sensor: Sensor }) {
   const st = sensor.span_status
   return (
     <dl className="grid gap-3 text-sm sm:grid-cols-2">
+      {sensor.capture_error ? <div className="sm:col-span-2"><dt className="text-[13px] text-muted">{t('sensors.capture.label')}</dt><dd className="text-warn">{t('sensors.capture.notCapturing')}: {t(`sensors.capture.${sensor.capture_error}`)}</dd></div> : null}
       <div><dt className="text-[13px] text-muted">{t('sensors.interface')}</dt><dd className="font-medium">{sensor.interface ?? '–'}{sensor.span ? <span className="ml-2 text-[12px] font-normal text-muted">{t('sensors.spanOn')}</span> : null}</dd></div>
       <div>
         <dt className="text-[13px] text-muted">{t('sensors.spanStatus')}</dt>
@@ -66,6 +68,9 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
   // What "Automatic" gives now: known only while nothing is chosen (then `interface` is the default card, D-380).
   const autoLabel = sensor.chosen ? t('sensors.card.autoChosen') : sensor.interface ? t('sensors.card.auto', { name: sensor.interface }) : t('sensors.card.autoNone')
   const unchanged = card === current && (card !== '' && span) === (sensor.chosen && sensor.span)
+  // A 400 bad_interface is about the choice: it goes next to the SPAN tick when SPAN was asked for (a SPAN card has no address), else
+  // next to the card. Anything else (module off, the box busy, no network) is not about a field and stays under the form.
+  const [errorAt, setErrorAt] = useState<'card' | 'span' | 'form'>('form')
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t('sensors.card.body')}>
@@ -79,24 +84,32 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
           ) : (
             <form className="grid gap-4" noValidate onSubmit={(e) => {
               e.preventDefault(); setError(null)
-              save.mutate({ interface: card || null, span: card !== '' && span }, { onSuccess: () => { toast.success(t('sensors.card.saved')); onClose() }, onError: (er) => setError(errMsg(er)) })
+              const asked = { interface: card || null, span: card !== '' && span }
+              save.mutate(asked, { onSuccess: () => { toast.success(t('sensors.card.saved')); onClose() }, onError: (er) => { setErrorAt(er instanceof ApiError && er.code === 'bad_interface' ? (asked.span ? 'span' : 'card') : 'form'); setError(errMsg(er)) } })
             }}>
               {!sensor.interface ? <p role="status" className="rounded-md border border-rule bg-surface px-3 py-2 text-sm">{t('sensors.card.notListening')}</p> : null}
-              <Field label={t('sensors.card.label')} htmlFor="sensor-card" hint={t('sensors.card.hint')} className="max-w-sm">
-                <Select id="sensor-card" value={card} onChange={(e) => { setCard(e.target.value); setSpan(false); setError(null) }}>
-                  <option value="">{autoLabel}</option>
-                  {cards.map((n) => <option key={n} value={n}>{sensor.interfaces.includes(n) ? n : t('sensors.card.notReported', { name: n })}</option>)}
-                </Select>
-              </Field>
+              <div className="grid gap-1">
+                <Field label={t('sensors.card.label')} htmlFor="sensor-card" hint={t('sensors.card.hint')} className="max-w-sm">
+                  <Select id="sensor-card" value={card} onChange={(e) => { setCard(e.target.value); setSpan(false); setError(null) }}
+                    aria-invalid={error && errorAt === 'card' ? true : undefined} aria-describedby={error && errorAt === 'card' ? 'sensor-card-error sensor-card-hint' : 'sensor-card-hint'}>
+                    <option value="">{autoLabel}</option>
+                    {cards.map((n) => <option key={n} value={n}>{sensor.interfaces.includes(n) ? n : t('sensors.card.notReported', { name: n })}</option>)}
+                  </Select>
+                </Field>
+                {error && errorAt === 'card' ? <p role="alert" id="sensor-card-error" className="max-w-lg text-[13px] text-danger [overflow-wrap:anywhere]">{error}</p> : null}
+              </div>
               <div className="grid gap-1">
                 <div className="flex items-center gap-2">
-                  <Checkbox id="sensor-span" checked={card !== '' && span} disabled={card === ''} onCheckedChange={(v) => { setSpan(v === true); setError(null) }} aria-describedby="sensor-span-hint" />
+                  <Checkbox id="sensor-span" checked={card !== '' && span} disabled={card === ''} onCheckedChange={(v) => { setSpan(v === true); setError(null) }}
+                    aria-invalid={error && errorAt === 'span' ? true : undefined} aria-describedby={error && errorAt === 'span' ? 'sensor-span-error sensor-span-hint' : 'sensor-span-hint'} />
                   <Label htmlFor="sensor-span" className="font-normal">{t('sensors.card.span')}</Label>
                 </div>
-                <p id="sensor-span-hint" className="max-w-lg text-[13px] text-muted">{t('sensors.card.spanHint')}</p>
+                {error && errorAt === 'span' ? <p role="alert" id="sensor-span-error" className="max-w-lg text-[13px] text-danger [overflow-wrap:anywhere]">{error}</p> : null}
+                {/* "Automatic" is whatever card the sensor takes by itself: SPAN is a property of one named card, so the tick waits for one (D-393). */}
+                <p id="sensor-span-hint" className="max-w-lg text-[13px] text-muted">{t(card === '' ? 'sensors.card.spanNeedsCard' : 'sensors.card.spanHint')}</p>
               </div>
               <p className="max-w-lg text-[13px] text-muted">{t('sensors.spanHint')}</p>
-              {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+              {error && errorAt === 'form' ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
               <DialogFooter>
                 <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
                 <Button type="submit" variant="primary" disabled={unchanged || save.isPending}>{t('common:save')}</Button>
@@ -121,7 +134,9 @@ export function SensorsSection() {
     { id: 'iface', header: t('sensors.col.interface'), accessorFn: (s) => s.interface ?? '', cell: ({ row }) => row.original.interface ? <span>{row.original.interface}{row.original.span ? <span className="ml-2 text-[12px] text-muted">{t('sensors.spanOn')}</span> : null}</span> : <span className="text-muted">–</span> },
     { id: 'status', header: t('sensors.col.status'), accessorFn: (s) => s.status, cell: ({ row }) => (
       <div className="grid gap-0.5">
-        <Chip tone={TONE[row.original.status]}>{t(`sensors.status.${row.original.status}`)}</Chip>
+        {row.original.capture_error
+          ? <><Chip tone="warn">{t('sensors.capture.notCapturing')}</Chip><span className="max-w-xs text-[12px] text-warn">{t(`sensors.capture.${row.original.capture_error}`)}</span></>
+          : <Chip tone={TONE[row.original.status]}>{t(`sensors.status.${row.original.status}`)}</Chip>}
         {row.original.last_seen ? <span className="text-[12px] text-muted">{t('sensors.lastSeen', { when: fmtRelative(row.original.last_seen) })}</span> : null}
         {row.original.status === 'never_connected' && install === 'container' ? <span className="text-[12px] text-muted">{t('sensors.startHint')}</span> : null}
       </div>

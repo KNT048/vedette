@@ -42,7 +42,7 @@ Chỉ hệ điều hành máy chủ; không macOS, không Trivy (D-33).
 | GET | `/api/v1/install/osquery.sh` | public (không chứa secret) | script cài Linux |
 | GET | `/api/v1/install/osquery.ps1` | public | script cài Windows Server |
 | GET | `/api/v1/install/osquery/SHA256SUMS` | public | checksum các gói do hộp phản chiếu |
-| GET | `/api/v1/install/osquery/<file>` | public | gói `osquery_<ver>-1.linux_amd64.deb`, `osquery-<ver>-1.linux.x86_64.rpm`, `osquery-<ver>.msi` |
+| GET | `/api/v1/install/osquery/<file>` | public | gói `osquery_<ver>-1.linux_amd64.deb`, `osquery-<ver>-1.linux.x86_64.rpm`, `osquery_<ver>-1.linux_arm64.deb`, `osquery-<ver>-1.linux.aarch64.rpm` (D-399), `osquery-<ver>.msi` |
 | GET | `/api/v1/intake/ca.pem` | public | CA của hộp |
 | POST | `/api/v1/intake/osquery/status` | Bearer token | script hỏi "máy này đã báo về chưa" → `{ "enrolled": bool, "hosts": int }` |
 | POST | `/api/v1/intake/osquery/enroll` | `enroll_secret` | đăng ký |
@@ -101,7 +101,7 @@ Chuỗi tin cậy (viết rõ vì lần tải đầu dùng `-k`):
 
 Sha256 là của **chính byte script hộp phục vụ** (đã chèn CA, địa chỉ, phiên bản): hộp phải phục vụ byte-giống-nhau cho cùng (địa chỉ, phiên bản, CA); đổi bất kỳ thứ nào đổi hash và GUI hiện hash mới. Script phải **deterministic** (không nhúng thời gian/nonce).
 
-Hành vi script (đã có ở mock, spec giữ): chạy với quyền root/Administrator, idempotent (chạy lại = nâng cấp/sửa), Linux chỉ `x86_64`; ghi `enroll.secret` mode 600/ACL tương đương; ghi cờ `--config_plugin=tls --logger_plugin=tls --host_identifier=hostname --enroll_secret_path --tls_server_certs --tls_hostname=<host:port> --enroll_tls_endpoint --config_tls_endpoint --logger_tls_endpoint`; bật dịch vụ `osqueryd`; chờ tối đa 2 phút bằng cách gọi `status` (24 lần cách 5 s). Mã thoát `3` = đã cài nhưng chưa thấy check-in.
+Hành vi script (đã có ở mock, spec giữ): chạy với quyền root/Administrator, idempotent (chạy lại = nâng cấp/sửa), Linux `x86_64` hoặc `arm64`/`aarch64` (D-399, theo `dpkg --print-architecture`, không có thì `uname -m`); ghi `enroll.secret` mode 600/ACL tương đương; ghi cờ `--config_plugin=tls --logger_plugin=tls --host_identifier=hostname --enroll_secret_path --tls_server_certs --tls_hostname=<host:port> --enroll_tls_endpoint --config_tls_endpoint --logger_tls_endpoint`; bật dịch vụ `osqueryd`; chờ tối đa 2 phút bằng cách gọi `status` (24 lần cách 5 s). Mã thoát `3` = đã cài nhưng chưa thấy check-in.
 
 Cài thủ công ("Advanced") dùng kho `pkg.osquery.io` và các bước trong `agentConfig.ts`; bắt buộc người dùng tự đối chiếu vân tay CA (`openssl x509 -fingerprint -sha256`).
 
@@ -169,7 +169,7 @@ sequenceDiagram
 | Dòng/kiểu `result` lạ | bỏ, đếm, hiện ở trang Agents |
 | Thân quá lớn | `413` |
 
-Giới hạn (mặc định, chưa đo): thân `log` ≤ 5 MiB; mỗi host ≤ 30 000 dòng gói mỗi snapshot; `enroll` ≤ 10 lần/phút/IP và 5 lần sai/phút/IP trước khi `429`; tối đa 500 host mỗi hộp (ARCH §8 nhắm 1.000 asset); mỗi token tạo ≤ 100 host. Gói phản chiếu: hộp chỉ phục vụ **ba tệp** liệt kê ở §4, tên khớp regex cố định; không phục vụ tệp theo đường dẫn tuỳ ý (chống path traversal).
+Giới hạn (mặc định, chưa đo): thân `log` ≤ 5 MiB; mỗi host ≤ 30 000 dòng gói mỗi snapshot; `enroll` ≤ 10 lần/phút/IP và 5 lần sai/phút/IP trước khi `429`; tối đa 500 host mỗi hộp (ARCH §8 nhắm 1.000 asset); mỗi token tạo ≤ 100 host. Gói phản chiếu: hộp chỉ phục vụ **năm tệp gói + `SHA256SUMS`** (sáu tên cố định, agent-intake INV-17 (d), D-399) liệt kê ở §4, tên khớp regex cố định; không phục vụ tệp theo đường dẫn tuỳ ý (chống path traversal).
 
 ## 10. Cân nhắc bảo mật (ánh xạ SYS)
 
@@ -198,5 +198,5 @@ Rủi ro đáng nêu: (a) token nằm trên dòng lệnh, lộ qua `ps`/lịch s
 3. Hộp có nên kiểm chữ ký GPG của gói osquery khi phản chiếu (và ghi vào `THIRD_PARTY_NOTICES`/PRIVACY: kéo từ GitHub release/`pkg.osquery.io` là luồng ra mới)? PRIVACY hiện chưa liệt kê nguồn này.
 4. Thời hạn CA/chứng chỉ máy chủ và cơ chế xoay.
 5. Trường CA hoặc vân tay cho kết nối Wazuh chưa có trong mock (`WazuhInput`).
-6. Chỉ `x86_64` Linux cho script hiện tại (mock): ARM có hỗ trợ không?
+6. ~~Chỉ `x86_64` Linux cho script hiện tại (mock): ARM có hỗ trợ không?~~ Đóng (D-399): hộp phục vụ cả gói arm64 chính thức (deb, rpm), ghim như gói x86_64.
 7. Các giới hạn số (§9) là điểm xuất phát, chưa đo.

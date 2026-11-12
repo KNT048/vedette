@@ -68935,6 +68935,11 @@ func (s *InventoryGetInventorySensorsOK) SetSensors(val []InventoryGetInventoryS
 }
 
 type InventoryGetInventorySensorsOKSensorsItem struct {
+	// Why the sensor, online, does not capture on its card (from its heartbeat, D-399): no_permission = no
+	// CAP_NET_RAW (rootless container), no_interface = the card is not on that machine, filters_invalid =
+	// the capture filters cannot be read, capture_failed = anything else (the sensor log says what); null
+	// while it captures, has no card, or is not online.
+	CaptureError NilInventoryGetInventorySensorsOKSensorsItemCaptureError `json:"capture_error"`
 	// True: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen
 	// with PATCH on a container-only install); false: interface is the default card (D-380) or null
 	// (D-393).
@@ -68956,6 +68961,11 @@ type InventoryGetInventorySensorsOKSensorsItem struct {
 	// never_connected: no heartbeat ever (D-387).
 	Status  InventoryGetInventorySensorsOKSensorsItemStatus `json:"status"`
 	Version NilString                                       `json:"version"`
+}
+
+// GetCaptureError returns the value of CaptureError.
+func (s *InventoryGetInventorySensorsOKSensorsItem) GetCaptureError() NilInventoryGetInventorySensorsOKSensorsItemCaptureError {
+	return s.CaptureError
 }
 
 // GetChosen returns the value of Chosen.
@@ -69013,6 +69023,11 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) GetVersion() NilString {
 	return s.Version
 }
 
+// SetCaptureError sets the value of CaptureError.
+func (s *InventoryGetInventorySensorsOKSensorsItem) SetCaptureError(val NilInventoryGetInventorySensorsOKSensorsItemCaptureError) {
+	s.CaptureError = val
+}
+
 // SetChosen sets the value of Chosen.
 func (s *InventoryGetInventorySensorsOKSensorsItem) SetChosen(val bool) {
 	s.Chosen = val
@@ -69066,6 +69081,61 @@ func (s *InventoryGetInventorySensorsOKSensorsItem) SetStatus(val InventoryGetIn
 // SetVersion sets the value of Version.
 func (s *InventoryGetInventorySensorsOKSensorsItem) SetVersion(val NilString) {
 	s.Version = val
+}
+
+type InventoryGetInventorySensorsOKSensorsItemCaptureError string
+
+const (
+	InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoPermission   InventoryGetInventorySensorsOKSensorsItemCaptureError = "no_permission"
+	InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoInterface    InventoryGetInventorySensorsOKSensorsItemCaptureError = "no_interface"
+	InventoryGetInventorySensorsOKSensorsItemCaptureErrorFiltersInvalid InventoryGetInventorySensorsOKSensorsItemCaptureError = "filters_invalid"
+	InventoryGetInventorySensorsOKSensorsItemCaptureErrorCaptureFailed  InventoryGetInventorySensorsOKSensorsItemCaptureError = "capture_failed"
+)
+
+// AllValues returns all InventoryGetInventorySensorsOKSensorsItemCaptureError values.
+func (InventoryGetInventorySensorsOKSensorsItemCaptureError) AllValues() []InventoryGetInventorySensorsOKSensorsItemCaptureError {
+	return []InventoryGetInventorySensorsOKSensorsItemCaptureError{
+		InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoPermission,
+		InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoInterface,
+		InventoryGetInventorySensorsOKSensorsItemCaptureErrorFiltersInvalid,
+		InventoryGetInventorySensorsOKSensorsItemCaptureErrorCaptureFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventorySensorsOKSensorsItemCaptureError) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoPermission:
+		return []byte(s), nil
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoInterface:
+		return []byte(s), nil
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorFiltersInvalid:
+		return []byte(s), nil
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorCaptureFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventorySensorsOKSensorsItemCaptureError) UnmarshalText(data []byte) error {
+	switch InventoryGetInventorySensorsOKSensorsItemCaptureError(data) {
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoPermission:
+		*s = InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoPermission
+		return nil
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoInterface:
+		*s = InventoryGetInventorySensorsOKSensorsItemCaptureErrorNoInterface
+		return nil
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorFiltersInvalid:
+		*s = InventoryGetInventorySensorsOKSensorsItemCaptureErrorFiltersInvalid
+		return nil
+	case InventoryGetInventorySensorsOKSensorsItemCaptureErrorCaptureFailed:
+		*s = InventoryGetInventorySensorsOKSensorsItemCaptureErrorCaptureFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Live mirrored-traffic health, the same as Settings → Box network.
@@ -69830,6 +69900,11 @@ func (s *InventoryPatchInventoryDevicesIDReqRegularScan) UnmarshalText(data []by
 }
 
 type InventoryPatchInventorySensorsIDOK struct {
+	// Why the sensor, online, does not capture on its card (from its heartbeat, D-399): no_permission = no
+	// CAP_NET_RAW (rootless container), no_interface = the card is not on that machine, filters_invalid =
+	// the capture filters cannot be read, capture_failed = anything else (the sensor log says what); null
+	// while it captures, has no card, or is not online.
+	CaptureError NilInventoryPatchInventorySensorsIDOKCaptureError `json:"capture_error"`
 	// True: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen
 	// with PATCH on a container-only install); false: interface is the default card (D-380) or null
 	// (D-393).
@@ -69851,6 +69926,11 @@ type InventoryPatchInventorySensorsIDOK struct {
 	// never_connected: no heartbeat ever (D-387).
 	Status  InventoryPatchInventorySensorsIDOKStatus `json:"status"`
 	Version NilString                                `json:"version"`
+}
+
+// GetCaptureError returns the value of CaptureError.
+func (s *InventoryPatchInventorySensorsIDOK) GetCaptureError() NilInventoryPatchInventorySensorsIDOKCaptureError {
+	return s.CaptureError
 }
 
 // GetChosen returns the value of Chosen.
@@ -69908,6 +69988,11 @@ func (s *InventoryPatchInventorySensorsIDOK) GetVersion() NilString {
 	return s.Version
 }
 
+// SetCaptureError sets the value of CaptureError.
+func (s *InventoryPatchInventorySensorsIDOK) SetCaptureError(val NilInventoryPatchInventorySensorsIDOKCaptureError) {
+	s.CaptureError = val
+}
+
 // SetChosen sets the value of Chosen.
 func (s *InventoryPatchInventorySensorsIDOK) SetChosen(val bool) {
 	s.Chosen = val
@@ -69961,6 +70046,61 @@ func (s *InventoryPatchInventorySensorsIDOK) SetStatus(val InventoryPatchInvento
 // SetVersion sets the value of Version.
 func (s *InventoryPatchInventorySensorsIDOK) SetVersion(val NilString) {
 	s.Version = val
+}
+
+type InventoryPatchInventorySensorsIDOKCaptureError string
+
+const (
+	InventoryPatchInventorySensorsIDOKCaptureErrorNoPermission   InventoryPatchInventorySensorsIDOKCaptureError = "no_permission"
+	InventoryPatchInventorySensorsIDOKCaptureErrorNoInterface    InventoryPatchInventorySensorsIDOKCaptureError = "no_interface"
+	InventoryPatchInventorySensorsIDOKCaptureErrorFiltersInvalid InventoryPatchInventorySensorsIDOKCaptureError = "filters_invalid"
+	InventoryPatchInventorySensorsIDOKCaptureErrorCaptureFailed  InventoryPatchInventorySensorsIDOKCaptureError = "capture_failed"
+)
+
+// AllValues returns all InventoryPatchInventorySensorsIDOKCaptureError values.
+func (InventoryPatchInventorySensorsIDOKCaptureError) AllValues() []InventoryPatchInventorySensorsIDOKCaptureError {
+	return []InventoryPatchInventorySensorsIDOKCaptureError{
+		InventoryPatchInventorySensorsIDOKCaptureErrorNoPermission,
+		InventoryPatchInventorySensorsIDOKCaptureErrorNoInterface,
+		InventoryPatchInventorySensorsIDOKCaptureErrorFiltersInvalid,
+		InventoryPatchInventorySensorsIDOKCaptureErrorCaptureFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPatchInventorySensorsIDOKCaptureError) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPatchInventorySensorsIDOKCaptureErrorNoPermission:
+		return []byte(s), nil
+	case InventoryPatchInventorySensorsIDOKCaptureErrorNoInterface:
+		return []byte(s), nil
+	case InventoryPatchInventorySensorsIDOKCaptureErrorFiltersInvalid:
+		return []byte(s), nil
+	case InventoryPatchInventorySensorsIDOKCaptureErrorCaptureFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPatchInventorySensorsIDOKCaptureError) UnmarshalText(data []byte) error {
+	switch InventoryPatchInventorySensorsIDOKCaptureError(data) {
+	case InventoryPatchInventorySensorsIDOKCaptureErrorNoPermission:
+		*s = InventoryPatchInventorySensorsIDOKCaptureErrorNoPermission
+		return nil
+	case InventoryPatchInventorySensorsIDOKCaptureErrorNoInterface:
+		*s = InventoryPatchInventorySensorsIDOKCaptureErrorNoInterface
+		return nil
+	case InventoryPatchInventorySensorsIDOKCaptureErrorFiltersInvalid:
+		*s = InventoryPatchInventorySensorsIDOKCaptureErrorFiltersInvalid
+		return nil
+	case InventoryPatchInventorySensorsIDOKCaptureErrorCaptureFailed:
+		*s = InventoryPatchInventorySensorsIDOKCaptureErrorCaptureFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Live mirrored-traffic health, the same as Settings → Box network.
@@ -84245,6 +84385,96 @@ func (o NilInventoryGetInventoryDevicesOKItemsItemVendor) Get() (v InventoryGetI
 
 // Or returns value if set, or given parameter if does not.
 func (o NilInventoryGetInventoryDevicesOKItemsItemVendor) Or(d InventoryGetInventoryDevicesOKItemsItemVendor) InventoryGetInventoryDevicesOKItemsItemVendor {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryGetInventorySensorsOKSensorsItemCaptureError returns new NilInventoryGetInventorySensorsOKSensorsItemCaptureError with value set to v.
+func NewNilInventoryGetInventorySensorsOKSensorsItemCaptureError(v InventoryGetInventorySensorsOKSensorsItemCaptureError) NilInventoryGetInventorySensorsOKSensorsItemCaptureError {
+	return NilInventoryGetInventorySensorsOKSensorsItemCaptureError{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventorySensorsOKSensorsItemCaptureError is nullable InventoryGetInventorySensorsOKSensorsItemCaptureError.
+type NilInventoryGetInventorySensorsOKSensorsItemCaptureError struct {
+	Value InventoryGetInventorySensorsOKSensorsItemCaptureError
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventorySensorsOKSensorsItemCaptureError) SetTo(v InventoryGetInventorySensorsOKSensorsItemCaptureError) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventorySensorsOKSensorsItemCaptureError) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventorySensorsOKSensorsItemCaptureError) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventorySensorsOKSensorsItemCaptureError
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventorySensorsOKSensorsItemCaptureError) Get() (v InventoryGetInventorySensorsOKSensorsItemCaptureError, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventorySensorsOKSensorsItemCaptureError) Or(d InventoryGetInventorySensorsOKSensorsItemCaptureError) InventoryGetInventorySensorsOKSensorsItemCaptureError {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPatchInventorySensorsIDOKCaptureError returns new NilInventoryPatchInventorySensorsIDOKCaptureError with value set to v.
+func NewNilInventoryPatchInventorySensorsIDOKCaptureError(v InventoryPatchInventorySensorsIDOKCaptureError) NilInventoryPatchInventorySensorsIDOKCaptureError {
+	return NilInventoryPatchInventorySensorsIDOKCaptureError{
+		Value: v,
+	}
+}
+
+// NilInventoryPatchInventorySensorsIDOKCaptureError is nullable InventoryPatchInventorySensorsIDOKCaptureError.
+type NilInventoryPatchInventorySensorsIDOKCaptureError struct {
+	Value InventoryPatchInventorySensorsIDOKCaptureError
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPatchInventorySensorsIDOKCaptureError) SetTo(v InventoryPatchInventorySensorsIDOKCaptureError) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPatchInventorySensorsIDOKCaptureError) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPatchInventorySensorsIDOKCaptureError) SetToNull() {
+	o.Null = true
+	var v InventoryPatchInventorySensorsIDOKCaptureError
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPatchInventorySensorsIDOKCaptureError) Get() (v InventoryPatchInventorySensorsIDOKCaptureError, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPatchInventorySensorsIDOKCaptureError) Or(d InventoryPatchInventorySensorsIDOKCaptureError) InventoryPatchInventorySensorsIDOKCaptureError {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -31836,7 +31836,7 @@
     "/install/osquery.ps1": {
       "get": {
         "operationId": "inventory_get_install_osquery_ps1",
-        "summary": "osquery install script for Windows Server, served by the box; public, contains no secrets",
+        "summary": "osquery install script for Windows Server, served by the box; public, contains no secrets; 404 no_box_address while the box knows no address other machines can reach",
         "tags": [
           "inventory"
         ],
@@ -31873,7 +31873,7 @@
     "/install/osquery.sh": {
       "get": {
         "operationId": "inventory_get_install_osquery_sh",
-        "summary": "One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux), served by the box; public, contains no secrets (the token is passed as a parameter)",
+        "summary": "One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux; x86_64 or arm64), served by the box; public, contains no secrets (the token is passed as a parameter); 404 no_box_address while the box knows no address other machines can reach",
         "tags": [
           "inventory"
         ],
@@ -31910,7 +31910,7 @@
     "/install/osquery/{file}": {
       "get": {
         "operationId": "inventory_get_install_osquery_file",
-        "summary": "The official osquery packages and SHA256SUMS the box ships (osquery_<v>-1.linux_amd64.deb, osquery-<v>-1.linux.x86_64.rpm, osquery-<v>.msi), so servers need no Internet; public, no secret, any other name is 404",
+        "summary": "The official osquery packages and SHA256SUMS the box ships (osquery_<v>-1.linux_amd64.deb, osquery-<v>-1.linux.x86_64.rpm, osquery_<v>-1.linux_arm64.deb, osquery-<v>-1.linux.aarch64.rpm, osquery-<v>.msi), so servers need no Internet; public, no secret, any other name is 404",
         "tags": [
           "inventory"
         ],
@@ -35121,6 +35121,23 @@
                             "type": "integer",
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991
+                          },
+                          "capture_error": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "no_permission",
+                                  "no_interface",
+                                  "filters_invalid",
+                                  "capture_failed"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Why the sensor, online, does not capture on its card (from its heartbeat, D-399): no_permission = no CAP_NET_RAW (rootless container), no_interface = the card is not on that machine, filters_invalid = the capture filters cannot be read, capture_failed = anything else (the sensor log says what); null while it captures, has no card, or is not online"
                           }
                         },
                         "required": [
@@ -35134,7 +35151,8 @@
                           "status",
                           "last_seen",
                           "version",
-                          "devices_seen"
+                          "devices_seen",
+                          "capture_error"
                         ],
                         "additionalProperties": false
                       }
@@ -35314,6 +35332,23 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "capture_error": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "no_permission",
+                            "no_interface",
+                            "filters_invalid",
+                            "capture_failed"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Why the sensor, online, does not capture on its card (from its heartbeat, D-399): no_permission = no CAP_NET_RAW (rootless container), no_interface = the card is not on that machine, filters_invalid = the capture filters cannot be read, capture_failed = anything else (the sensor log says what); null while it captures, has no card, or is not online"
                     }
                   },
                   "required": [
@@ -35327,7 +35362,8 @@
                     "status",
                     "last_seen",
                     "version",
-                    "devices_seen"
+                    "devices_seen",
+                    "capture_error"
                   ],
                   "additionalProperties": false
                 }

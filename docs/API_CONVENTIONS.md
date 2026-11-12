@@ -356,11 +356,12 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `token_expired` | 403 | This enrollment token has expired. Create a new one in Vedette. | `POST /intake/osquery/status`; `POST /inventory/agents/tokens/{id}/sample-data` |
 | `tool_not_allowed` | 403 | The action "${cat?.name ?? prop.tool}" is not enabled in the action catalog (Settings, AI response). | `POST /response/proposals/{id}/request` |
 
-#### HTTP 404 (7 mã)
+#### HTTP 404 (8 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `mirror_missing` | 404 | This box has no copy of the osquery packages (a development build, or an install without them). Update Vedette to the release, or install osquery with the manual steps. | `GET /install/osquery/{file}` khi thư mục gói (`-osquery-dir`, mặc định `/usr/share/vedette/osquery`) thiếu hoặc không có tệp đó; kèm một dòng log WARN (agent-intake, WP-26 lát 3). Tên không nằm trong danh sách 4 tệp là `not_found` |
+| `no_box_address` | 404 | This box knows no address that other machines can reach, so an install script would point nowhere. Open Vedette at its network address; on a container-only install first set VEDETTE_BIND_IP to this machine's LAN address and VEDETTE_HOSTS to that address or a name for it. Then copy the command again. | `GET /install/osquery.sh`, `GET /install/osquery.ps1` khi địa chỉ hộp trong script sẽ là chỗ giữ chỗ `<VEDETTE_BOX_IP>` (mở bằng localhost, không có địa chỉ cấu hình); `GET /inventory/agents` vẫn trả `server_url` giữ chỗ (agent-intake INV-17 (c), D-399) |
 | `no_certificate` | 404 | This box serves plain HTTP on loopback, so it has no certificate for osquery to trust. Open Vedette at its network address. | `GET /intake/ca.pem`, `GET /install/osquery.sh`, `GET /install/osquery.ps1` khi hộp phục vụ HTTP trên loopback (không có chứng chỉ để ghim); `GET /inventory/agents` vẫn trả script với chỗ trống CA ghi rõ (agent-intake, WP-26 lát 3) |
 | `no_update` | 404 | There is no new version of this component. Click "Check now". | `POST /core/updates/apply` |
 | `not_found` | 404 | This ${what} no longer exists. | 51 endpoint (/ai, /core, /exposure, /feeds, /findings, /honeypot, /inventory, /logs, /modules, /notify, /reports, /response) |

@@ -257,6 +257,111 @@ Args: `{ "units": string[], "since": datetime, "until": datetime }`; `units` ⊂
 Hiệu ứng: đọc journal bằng argv cố định (`journalctl -u <unit> --since <t> --until <t> -o json --no-pager`), **lọc bí mật** theo mẫu đã biết (`vdt_osquery_…`, đường dẫn `…/blocklist/<token>`, `xapp-…`, `xoxb-…`, `Authorization: Bearer …`, `password=`) như lớp phòng thủ phụ (SYS-4: bình thường không log bí mật), ghi từng dòng đã lọc, nén gzip (thư viện chuẩn, D-85) thành `/var/lib/vedette-host/exports/<export_id>.jsonl.gz`, trả `{ export_id, size, sha256 }`; tải bằng `GET /v1/exports/{id}/content`; tệp tự xoá sau 24 giờ; host giữ tối đa **3** bản xuất và **512 MiB** tổng (xoá bản cũ nhất trước); mỗi lần tải ghi một dòng kiểm toán `logs.download`.
 Từ chối: `busy`; `low_disk` (`412`: chỗ trống < 2 × 256 MiB, như sao lưu); `range_too_large` (`412`); `unit_unknown` (`412`); `output_too_large` (`412`, > 64 MiB văn bản của **một** unit hoặc > 256 MiB cộng dồn các unit: dừng và báo, không cắt âm thầm; dòng không phải JSON hoặc > 1 MiB bị thay bằng một dòng ghi chú, không bỏ im lặng). Dạng sai của `units`/`since`/`until` là `400 invalid_args`. Timeout 10 phút. Chi tiết chốt ở §16. Phục vụ D-48 (phần log nền tảng); log nghiệp vụ (kiểm toán, AI, phản ứng) do `core` xuất.
 
+### 6.14 `host.self_update`
+
+**Trạng thái: thiết kế (D-316, 2026-11-12), chưa có mã.** Kế hoạch: `docs/plans/2026-11-12-host-self-update.md`. Story: S-CORE-2 (tiêu chí D-316). Thay câu "để sau" của §14.2 và §18.
+
+Host nâng **chính gói `.deb` của nó** lên bản `vedette-host` của một bản phát hành đã ký (D-57 (21)). Ba điều quyết định hình dạng lệnh:
+1. **Host không lên mạng.** `core` tải `.deb` từ GitHub Release (cùng gốc `DefaultReleaseBase` và cùng danh sách host chuyển hướng của luồng 6 PRIVACY, D-81) vào `core_data`, host đọc nó **theo descriptor** như bản chụp (D-87), chép vào thư mục chỉ root ghi được và kiểm SHA-256 với mục `host.files[]` của một manifest **đã ký minisign** (kiểm lại như §6.7). Nguồn byte không quan trọng; chỉ chữ ký quyết.
+2. **`dpkg` chạy ngoài cgroup của unit** (D-155 (8)): postinst của bản nâng cấp `try-restart vedette-host.service`, và `KillMode=control-group` giết mọi thứ trong cgroup của host, kể cả một `dpkg` do host chạy. Host khởi động một unit tạm `vedette-host-upgrade.service` bằng `systemd-run`; tiến trình trong đó (**bộ áp**, chính binary **cũ** ở chế độ `-self-update-apply`) chạy `dpkg`, sống qua lần restart của host, và quyết khoẻ hay hoàn tác.
+3. **Bên quyết hoàn tác không phải bản mới.** Một bản mới chết ngay lúc khởi động không thể tự lùi; bộ áp nằm ngoài unit nên vẫn còn để cài lại bản trước (mẫu "commit" của Mender: bản mới phải tự chứng minh, không thì lùi).
+
+**Args.**
+
+| Trường | Kiểu | Ghi chú |
+|---|---|---|
+| `version` | semver | phải trùng `release-manifest.version` (khác → `412 manifest_mismatch`) |
+| `index`, `index_sig`, `manifest`, `manifest_sig` | base64 | như §6.7: base64 chuẩn có đệm, 1 byte–256 KiB mỗi tài liệu, chữ ký ≤ 2 KiB; thân ≤ 1 MiB (`Spec.MaxBody` như `container.pull`) |
+| `package` | hex(32) | id tệp `core` đã ghi: host đọc **đúng** `<core_data>/host-packages/<package>.deb`; không nhận đường dẫn, tên tệp hay URL |
+
+Trường lạ (`url`, `path`, `sha256`, `deb`, `argv`…) → `400 invalid_args`. Lệnh ghi: khoá ghi chung (§4) **giữ suốt run, qua cả lần host tự khởi động lại** (dưới); `409 busy`/`pending_confirm`/`rebooting` như mọi lệnh ghi.
+
+**Tệp của host** (`<state>/selfupdate/`, 0700 root; mọi tệp 0600, ghi nguyên tử tạm + `fsync` + `rename` + `fsync` thư mục, đọc chặt, symlink bị từ chối):
+- `packages/vedette-host_<version>_<arch>.deb`: **bản đang chạy và bản trước**, không hơn (giữ lại sau mỗi lần thành công). `versions.json` = `{current: {version, sha256, size}, previous: {…}|null}`.
+- `staged/<sha256>.deb`: bản sắp cài, chép từ `core_data`.
+- `journal.json`: nhật ký của lần nâng cấp (dưới).
+- `started.json` = `{version, pid, boot_id, at}`: **lời chứng của host mới**, ghi sau khi `Ops.Start` xong, socket đang nghe và đã gửi `READY=1`.
+
+**Nhận bản đầu (adopt).** Lúc `Start`, khi `versions.json` vắng hoặc `current.version` khác phiên bản của chính binary: nếu `packages/vedette-host_<version của binary>_<arch>.deb` có (tệp thường, root, 0600) thì ghi nó làm `current` (SHA-256 tính lúc đó; `previous` = `current` cũ nếu tệp của nó còn), dòng kiểm toán `host_package_adopted`. `install.sh` đặt tệp đó sau khi đã kiểm SHA-256 nướng trong script (D-166) và cài nó (cả lần cài lại/nâng cấp bằng `install.sh`). Thư mục chỉ root ghi nên nhận theo kiểu tin-lần-đầu là đủ. Binary phiên bản `dev` (không phải SemVer) không nhận gì.
+
+**`Check`** (chỉ đọc, ≤ 5 s; từ chối = `412` trừ khi ghi khác, không run nào chạy, không đổi tệp nào ngoài việc lưu index mới như §6.7 PULL-1). Thứ tự:
+1. `not_appliance` (bảng phát hành §16); `host_version_unknown` (binary đang chạy không có phiên bản SemVer: bản dựng dev); `transition_pending` (còn nhật ký chuyển unit của bất kỳ service nào, `restore.json`, hay `journal.json` của một lần nâng cấp chưa xong: một việc phục hồi tại một thời điểm); `busy` (`409`, kèm `run_id` khi biết) khi `systemctl is-active vedette-host-upgrade.service` không in `inactive`/`failed`/`unknown` (bộ áp của lần trước còn sống).
+2. Tài liệu, **đúng hàm của `container.pull`** (`verifyPull` phần index + manifest): `no_trusted_keys`, `release_state_invalid`, `signature_invalid`, `key_revoked`, `sequence_regress`, `release_revoked`, `manifest_mismatch` (bản khác `args.version`, hoặc SHA-256 khác `manifest_sha256` của kênh có bản đó là `latest`, §6.7), `not_appliance` (`install_modes` không có `appliance`).
+3. Gói trong manifest: `no_host_package` (manifest không có `host`); `platform_mismatch` (không có mục `host.files[]` tên đúng `vedette-host_<host.version>_<arch>.deb`, `<arch>` = `amd64`|`arm64` từ `GOARCH`); mục có `size` 1 byte–256 MiB.
+4. Phiên bản (`host.version` so với binary đang chạy, thứ tự SemVer của `internal/release`): `test_version_refused` khi `host.version` có prerelease `-test.` (hay kết thúc `-test`, cùng quy tắc `refuseTestVersion` của `scripts/release` và `install.sh`) mà gốc tin cậy của bản dựng không phải khoá thử (`Trust.TestOnly=false`); `downgrade_not_allowed` khi thấp hơn. **Bằng nhau → không từ chối**: run `succeeded`, `changed: false`, không chạm gì (idempotent).
+5. `previous_package_missing`: `versions.json` không có `current`, hoặc tệp `.deb` của nó không còn hay SHA-256 khác bản ghi: không có đường lùi thì không nâng.
+6. Tệp của `core`: mở `host-packages/<package>.deb` qua tay cầm `os.Root` của `core_data` (`openCore`, D-87: `O_RDONLY|O_NOFOLLOW|O_NONBLOCK`, `fstat` trên descriptor: tệp thường, `nlink == 1`, chủ `core_uid`); vắng → `package_missing`; sai dạng hay cỡ khác `size` của manifest → `package_invalid`; `core_data` không an toàn → `db_unreadable` (mã sẵn có của §6.11).
+7. `low_disk`: trống < 2 × `size` ở `<state>` hoặc ở `/usr/lib/vedette` (statfs, đi lên cha có thật như §6.7).
+8. `dpkg_locked` (`409`, `retry_after_s: 60`, cùng phép hỏi `F_GETLK` của `os.check`); `dpkg_inconsistent` (`dpkg --audit` không sạch).
+
+**Run** (host đang chạy, bản cũ):
+1. Gọi lại `Check` trên trạng thái lúc đó.
+2. Chép tệp của `core` (descriptor đã kiểm, đúng `size` byte, dừng ở `size`) sang `staged/<tmp>`, tính SHA-256 trong cùng lượt; khác `host.files[].sha256` → xoá bản chép, run `failed` `checksum_mismatch` (không gì đổi). Đổi tên thành `staged/<sha256>.deb`.
+3. `dpkg-deb --field <staged> Package Version Architecture`: phải đúng `vedette-host`, `host.version` với `-` của prerelease thành `~` (quy ước của D-155 (1)), và `<arch>`; sai → `failed` `package_mismatch` (lỗi của job phát hành; không gì đổi).
+3b. **Phụ thuộc**: bản mới có thể thêm `Depends` (như `conntrack` ở D-268), nên cài bằng `apt-get` với tệp cục bộ (như `install.sh`), không bằng `dpkg -i` trần. Bản chụp apt của `os.check` cũ hơn 24 giờ hay chưa có → `apt-get -q update` trước (như `os.install`, cùng luồng 6 PRIVACY). Rồi mô phỏng `apt-get -s -q -o Debug::NoLocking=1 --no-remove --no-install-recommends install <staged>`: apt không giải được, hay có dòng `Remv`/`Purg` → `failed` `dependencies_unavailable` (không gì đổi).
+4. Ghi `journal.json` = `{run_id, request_id, from: {version, sha256}, to: {version, sha256, size}, phase: "dispatched", attempt: 1, boot_id, started_at, reason: null, log: []}`; dòng kiểm toán `self_update_staged`.
+5. `systemd-run --unit=vedette-host-upgrade --collect --quiet --service-type=exec --property=RuntimeMaxSec=45min --description=… /usr/lib/vedette/vedette-host -self-update-apply rn_<16 hex>` (argv cố định, chỉ `run_id` thay đổi và đã qua regex); lỗi (kể cả tên unit đã có) → `failed` `applier_failed`, nhật ký xoá, không gì đổi. Dòng kiểm toán `self_update_dispatched`.
+6. Chờ: đọc `journal.json` mỗi 2 s tới khi pha kết thúc (`installed`, `rolled_back`, `rollback_failed`, `not_started`). Bình thường host cũ **bị postinst khởi động lại** ở bước này: run vẫn `running` trên đĩa, khoá ghi đi theo nó (dưới).
+
+**Bộ áp** (`vedette-host -self-update-apply <run_id>`, root, trong `vedette-host-upgrade.service`, cgroup riêng). Không mở socket, không lấy `host.lock`, **không ghi chuỗi kiểm toán** (một tệp chỉ thêm có một người ghi: host); ghi pha và tối đa 50 dòng log (≤ 512 byte mỗi dòng) vào `journal.json`, và log ra journald của unit tạm. Mọi tiến trình con qua `core/exec` với bộ kiểm argv riêng (bảng dưới). Các bước:
+1. Đọc `journal.json` chặt; `run_id` phải khớp; kiểm lại SHA-256 của `staged/<to.sha256>.deb` và của `packages/<from>.deb`. Sai → pha `not_started`, `reason: package_changed`.
+2. Khoá dpkg: hỏi `F_GETLK` mỗi 10 s tới 10 phút; vẫn giữ → `not_started`, `reason: dpkg_locked` (chưa đổi gì).
+3. Pha `installing` → `apt-get -y -q --no-remove --no-install-recommends -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold install <staged>` (`DEBIAN_FRONTEND=noninteractive`; gói không có conffile, D-155 (2); apt cài phụ thuộc mới từ kho, không gỡ gì). postinst `try-restart` host (đồng bộ: chờ tới `READY=1` của host mới hoặc `TimeoutStartSec`).
+4. Pha `checking` → **kiểm hiệu ứng, không tin mã thoát**: `dpkg-query -W -f=${Version}|${db:Status-Status} vedette-host` in đúng bản mới và `installed`; nếu `started.json` chưa mang bản mới sau 10 s (postinst không restart được, ví dụ `policy-rc.d` cấm) thì bộ áp tự `systemctl restart vedette-host.service` (nó ở ngoài cgroup nên an toàn). **Khoẻ** = trong 120 s `started.json` có `version` = bản mới, `boot_id` hiện tại và `pid` = `MainPID` của `systemctl show vedette-host.service -p ActiveState,MainPID,NRestarts` với `ActiveState=active`, rồi **giữ nguyên** 30 s (cùng `MainPID`, `NRestarts` không tăng). Khoẻ → pha `installed`, bộ áp thoát 0.
+5. Không khoẻ hay apt/dpkg hỏng (bất kỳ bước 3–4) → pha `rolling_back`, `reason: self_update_unhealthy|install_failed` → cùng argv của bước 3 thêm `--allow-downgrades` trên `packages/vedette-host_<from>_<arch>.deb` (chỉ tệp cục bộ đó; phụ thuộc mới mà bản mới kéo về ở lại, không gỡ gì; không `--force-*` của dpkg) → cùng phép kiểm khoẻ với **bản cũ** → `rolled_back`. Đặt lại cũng hỏng → `rollback_failed`, bộ áp **dừng** (không vòng lặp; RUNBOOK "vedette-host self-update stopped half way": `apt-get install --allow-downgrades` tay tệp trong `packages/`).
+
+**Host khởi động lại giữa run (bình thường).** `Start` của host (mới hay cũ) đọc `journal.json` **trước** khi nghe socket, và `Options.Resume` (mở rộng từ D-100: nay giữ cả run `running` của `host.self_update` mà nhật ký trỏ tới, không chỉ run `awaiting_confirm`) giữ run đó `running` và **giữ khoá ghi** thay vì `failed host_restarted`; lệnh ghi khác → `409 busy` kèm `run_id`. Sau `READY=1`: ghi `started.json`, dòng kiểm toán `self_update_resumed`, rồi một goroutine đọc nhật ký mỗi 2 s và **kết thúc run** (`Settle`) khi pha kết thúc:
+- `installed` → `versions.json` (`previous` = bản vừa rời, `current` = bản mới, chép `staged` sang `packages/`), xoá `.deb` ngoài hai bản đó và `staged/`, dòng kiểm toán `self_update_installed`, run `succeeded`.
+- `rolled_back` → xoá `staged/`, `versions.json` không đổi, dòng `self_update_rolled_back` (`reason`), run `reverted` với `error.code` = `reason`.
+- `rollback_failed` → dòng `self_update_rollback_failed`, run `failed` `rollback_failed`; nhật ký **giữ** (chặn `transition_pending` cho mọi lệnh có `Check` mục 1 tới khi người vận hành xử lý theo RUNBOOK và xoá nó).
+- `not_started` → run `failed` với `reason` (`dpkg_locked`, `package_changed`), không gì đổi.
+- Các dòng log của bộ áp thành sự kiện `log` của run trước sự kiện `state` cuối.
+Xong thì xoá `journal.json` (trừ `rollback_failed`). `core` mất kết nối socket trong lúc host khởi động lại, nối lại và hỏi `GET /v1/runs/{id}` (§4; cùng cách với `container.start` của `core`).
+
+**Bộ áp chết, hộp khởi động lại.** Lúc `Start`, nhật ký chưa kết thúc mà `vedette-host-upgrade.service` không chạy: host tăng `attempt` (ghi nhật ký) và chạy lại **đúng argv** của bước 5; bộ áp làm tiếp theo pha: `dispatched` → bắt đầu từ bước 1; `installing`/`checking` → cài lại `<staged>` bằng argv của bước 3 (cài lại cùng bản sửa được gói dở dang; không `dpkg --configure -a`: lệnh đó đụng gói khác), rồi kiểm như trên; `rolling_back` → cài lại bản cũ một lần. `attempt` > 2 → run `failed` `self_update_interrupted`, nhật ký giữ, RUNBOOK. Giới hạn còn lại (ghi trong D-316): bản mới chết **trước** khi đọc nhật ký **và** hộp khởi động lại trong cửa sổ bộ áp → không ai chạy lại bộ áp; GUI thấy host không trả lời, RUNBOOK là đường ra.
+
+**Kết quả** `{from, to, changed, sha256, rolled_back_to?}`. Trạng thái và mã:
+
+| Kết thúc | `status` | `error.code` | Hộp đang chạy |
+|---|---|---|---|
+| bản mới khoẻ | `succeeded` | — | bản mới |
+| cùng phiên bản | `succeeded`, `changed: false` | — | không đổi |
+| bản mới không khoẻ | `reverted` | `self_update_unhealthy` | bản cũ (cài lại) |
+| apt/dpkg hỏng | `reverted` | `install_failed` | bản cũ (cài lại) |
+| hỏng trước khi đổi gì | `failed` | `checksum_mismatch`, `package_mismatch`, `dependencies_unavailable`, `applier_failed`, `dpkg_locked`, `package_changed` | bản cũ, không chạm |
+| đặt lại hỏng / bị cắt quá 2 lần | `failed` | `rollback_failed`, `self_update_interrupted` | không chắc: RUNBOOK |
+
+Timeout của lệnh **60 phút** (một số cho cả lệnh: `apt-get update` ≤ 5 ph + chờ khoá dpkg 10 ph + `apt-get install` với restart tới `TimeoutStartSec=16min` + khoẻ 2,5 ph, hai lần nếu hoàn tác); bộ áp `RuntimeMaxSec=45min`. Hết hạn mà nhật ký chưa kết thúc và bộ áp không chạy → `failed` `self_update_interrupted`.
+
+**Argv mới** (bảng §16; đường dẫn hằng `/usr/bin/systemd-run`, `/usr/bin/dpkg-deb`, `/usr/bin/dpkg-query`, `apt-get` sẵn có; mọi tệp do host dựng từ `<state>` hằng + 64 hex hay tên gói đã kiểm; có fuzz):
+
+| Ai | Binary | Argv |
+|---|---|---|
+| host | `systemd-run` | đúng dạng ở bước Run 5 (`rn_<16 hex>` là phần duy nhất thay đổi) |
+| host | `systemctl` | `is-active vedette-host-upgrade.service` |
+| host | `dpkg-deb` | `--field <state>/selfupdate/staged/<64 hex>.deb Package Version Architecture` |
+| host | `apt-get` | `-s -q -o Debug::NoLocking=1 --no-remove --no-install-recommends install <staged>` (mô phỏng; dạng `-q update` sẵn có) |
+| bộ áp | `apt-get` | `-y -q --no-remove --no-install-recommends -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold install <state>/selfupdate/staged/<64 hex>.deb`; cùng dạng thêm `--allow-downgrades` chỉ với `<state>/selfupdate/packages/vedette-host_<semver~>_<amd64\|arm64>.deb` |
+| bộ áp | `dpkg-query` | `-W -f=${Version}\|${db:Status-Status} vedette-host` |
+| bộ áp | `systemctl` | `show vedette-host.service -p ActiveState,MainPID,NRestarts`; `restart vedette-host.service` |
+
+Bộ kiểm argv của **host** không nhận `apt-get install <tệp>` (chỉ dạng mô phỏng `-s`), `dpkg -i` hay `systemctl restart vedette-host.service` (test: không lời gọi nào làm điều đó từ cgroup của host); bộ áp là runner riêng, chỉ dựng trong `-self-update-apply`.
+
+**Kiểm toán** (`actor: system`, ngoài dòng `accepted`/kết quả của khung): `self_update_staged` `{from, to, sha256}`, `self_update_dispatched` `{unit, attempt}`, `self_update_resumed` `{run_id, phase}`, `self_update_installed` `{from, to}`, `self_update_rolled_back` `{from, to, reason}`, `self_update_rollback_failed` `{from, to}`, `self_update_interrupted` `{attempt}`, `host_package_adopted` `{version, sha256}`, `host_package_removed` `{version}`.
+
+**Đọc** (§5): `GET /v1/info` đã có `host_version` và `commands[]` (`core` chỉ chạy bước nâng host khi `host.self_update` có trong đó). Mới: `GET /v1/state/host` = `{version, previous: {version}|null, packages_kept: [version…], update: {run_id, phase, to}|null}` (đọc `versions.json` và `journal.json`; tệp hỏng → trường đó `null` và một dòng log).
+
+**Phía `core` và GUI** (không thuộc host, ghi để nối; S-CORE-2 tiêu chí D-316): khi manifest đang cài có `host.version` cao hơn `host_version`, run phần mềm của `core` (D-340) có bước đầu `host`: tải `<base>/v<version>/vedette-host_<host.version>_<arch>.deb` (trần = `size`, kiểm SHA-256 trước khi gọi host để báo sớm) vào `<core_data>/host-packages/<hex32>.deb` (`O_EXCL`, 0600), gọi `host.self_update`, xoá tệp khi run kết thúc (và quét tệp cũ hơn 1 giờ lúc khởi động, như bản chụp). Bước `host` không `succeeded` → run phần mềm dừng (`failed` hay `reverted`), **không image nào bị chạm**: bản phát hành mới có thể cần lệnh của host mới. Host đã nâng mà bước image sau đó hỏng → host mới ở lại (host phục vụ proto N và N−1, §13). **Rollback** phần mềm (`container.rollback`) **không** hạ host; không có lệnh hạ host bằng tay. Thành phần `host` trong `UpdatesState.components` có `previous: null` (không nút Rollback).
+
+**Đề xuất cho `modules/host/CONTRACT.md`** (chưa sửa; thêm cùng PR mã ở lát 1 của kế hoạch, kèm test):
+- **INV-26 (chỉ gói đã ký, chỉ đi lên)**: `host.self_update` chỉ đưa cho `dpkg` một tệp mà host **tự chép** vào `<state>/selfupdate/staged/` (root, 0700) và có SHA-256 + cỡ bằng mục `host.files[]` tên `vedette-host_<host.version>_<arch>.deb` của manifest đã qua đúng các kiểm tra của `container.pull` (khoá nhúng, index đã lưu, thu hồi, `install_modes`, hash manifest); `host.version` phải **cao hơn** bản đang chạy (bằng = không làm gì), không `-test.` trừ bản dựng khoá thử; mọi từ chối ở `Check`; host không mở kết nối mạng nào và không nhận đường dẫn, URL hay hash từ request. Test: `TestContract_SelfUpdate_RefusalsAreAllDecidedInCheckWithNoWrite` (mọi mã của `Check`), `…_ABitFlipInThePackageIsChecksumMismatchAndDpkgNeverRuns`, `…_TheStagedCopyIsWhatDpkgGetsNotCoresFile` (đổi tệp của `core` sau khi chép), `…_SameVersionIsANoOp`, `…_NoNetworkInTheSelfUpdatePath` (quét mã).
+- **INV-27 (apt/dpkg ngoài cgroup)**: `apt-get install <tệp>` chỉ chạy trong `vedette-host-upgrade.service` do `systemd-run` tạo; bộ kiểm argv của tiến trình host chỉ nhận dạng mô phỏng `-s`, không nhận `dpkg -i` hay `systemctl restart vedette-host.service`; argv `systemd-run` đúng một dạng. Test: `TestValidateSystemdRun`, `FuzzValidateSystemdRun`, `TestContract_SelfUpdate_TheHostRunnerRefusesDpkgInstall`.
+- **INV-28 (luôn về trạng thái biết được)**: mỗi run kết thúc ở bản mới khoẻ (`succeeded`), bản cũ cài lại và khoẻ (`reverted`), không đổi gì (`failed` với mã "trước khi đổi"), hoặc `failed` `rollback_failed`/`self_update_interrupted` với nhật ký giữ lại và mọi lệnh ghi khác `transition_pending`; khoẻ = lời chứng `started.json` của đúng phiên bản, `boot_id`, `MainPID`, ổn định 30 s, không tin mã thoát; bộ áp chạy tối đa 2 lần; không vòng lặp. Test: `…_AnUnhealthyNewHostIsReplacedByThePreviousPackage`, `…_AnAptFailureReinstallsThePrevious`, `…_ANewDependencyIsInstalledAndAMissingOneIsRefusedBeforeAnyChange`, `…_ARollbackThatFailsStopsAndKeepsTheJournal`, `…_TheHostRestartedByPostinstKeepsTheRunAndTheLock`, `…_AHostRestartedAtEachPhaseFinishesOrRollsBack` (sau `dispatched`, `installing`, `checking`, `rolling_back`), `…_ADeadApplierIsDispatchedAgainOnceThenInterrupted`, `…_PostinstWithoutRestartIsRestartedByTheApplier`.
+- **INV-29 (không hạ bằng tay)**: không lệnh nào hạ `vedette-host`; chỉ bộ áp, sau một lần nâng hỏng, cài lại đúng `previous` của `versions.json` (SHA-256 kiểm lại). `container.rollback` không chạm host. Test: `TestContract_INV1_CommandTableIsClosedAndMatchesTheSpec` (bảng lệnh), `…_SelfUpdate_DowngradeIsRefused`.
+- **INV-30 (một người ghi kiểm toán)**: bộ áp không mở tệp kiểm toán, socket hay `host.lock`; pha và log của nó đi qua `journal.json`, host chuyển chúng thành dòng kiểm toán và sự kiện. Test: `…_TheApplierNeverWritesTheAuditChain` (quét mã + chuỗi vẫn kiểm được sau mọi kịch bản).
+- **POST-5**: `succeeded` → `dpkg-query` in bản mới `installed`, `GET /v1/info.host_version` là bản mới, `versions.json` có `previous` = bản cũ với `.deb` còn và đúng SHA-256, `packages/` chỉ hai tệp, `staged/` rỗng, nhật ký xoá; `reverted` → cùng điều đó với bản cũ và `versions.json` không đổi.
+- **FORBID-7**: chạy `dpkg`/`apt` cài **gói `vedette-host`** từ cgroup của `vedette-host.service` (`os.install` vẫn chạy apt trong cgroup của host như §6.2, nhưng không kho apt nào có gói `vedette-host` (D-81); lát 2 của kế hoạch thêm lớp thứ hai: `os.install` bỏ tên đó khỏi danh sách nâng cấp); hạ `vedette-host` theo yêu cầu của `core`.
+
 ## 7. Những thứ **không** có (và sẽ bị từ chối nếu thử)
 
 SYS-1 áp dụng triệt để. API này **không** có và không bao giờ nhận:
@@ -311,7 +416,7 @@ sequenceDiagram
 | Thân request | 512 KiB; riêng `container.pull` 1 MiB (giới hạn theo lệnh, `Spec.MaxBody`, D-103) |
 | Số request/phút từ `core` | 60; lệnh ghi 10/phút |
 | Run đồng thời (ghi) | 1 (run `awaiting_confirm` vẫn giữ khoá, D-100) |
-| Timeout theo lệnh | `os.check` 5 ph; `os.install` 60 ph; `net.apply` 120 s + cửa sổ xác nhận ≤ 600 s (probe 4 s + NTP ≤ 15 s + `netplan apply` + địa chỉ ≤ 15 s + gateway ≤ 15 s có thể vượt 60 s); `net.confirm`, `net.revert` 60 s; `decoy_ip.add`, `decoy_ip.remove` 30 s; `container.pull` 30 ph; `container.start` 45 ph cho mọi service (một số cho cả lệnh: `core` sao lưu ≤ 15 ph + restart + chờ khoẻ + khôi phục, D-138); `container.stop` 2 ph; `container.rollback` 30 ph cho mọi service (một số cho cả lệnh, như `backup.restore`); `os.auto_security.set` 2 ph; `os.reboot` và `os.reboot.cancel` 30 s; `backup.create` 15 ph; `backup.restore` 30 ph; `logs.export` 10 ph |
+| Timeout theo lệnh | `os.check` 5 ph; `os.install` 60 ph; `net.apply` 120 s + cửa sổ xác nhận ≤ 600 s (probe 4 s + NTP ≤ 15 s + `netplan apply` + địa chỉ ≤ 15 s + gateway ≤ 15 s có thể vượt 60 s); `net.confirm`, `net.revert` 60 s; `decoy_ip.add`, `decoy_ip.remove` 30 s; `container.pull` 30 ph; `container.start` 45 ph cho mọi service (một số cho cả lệnh: `core` sao lưu ≤ 15 ph + restart + chờ khoẻ + khôi phục, D-138); `container.stop` 2 ph; `container.rollback` 30 ph cho mọi service (một số cho cả lệnh, như `backup.restore`); `os.auto_security.set` 2 ph; `os.reboot` và `os.reboot.cancel` 30 s; `backup.create` 15 ph; `backup.restore` 30 ph; `logs.export` 10 ph; `host.self_update` 60 ph (thiết kế D-316, bộ áp `RuntimeMaxSec` 45 ph) |
 | ARP | probe ≈ 4 s (3 probe cách 1 s + nghe 2 s, RFC 5227); kiểm gateway ≤ 15 s; khung đúng 42 byte (D-101) |
 | Kiểm sức khoẻ container | `healthy` trong 120 s (hỏi lặp, D-105) |
 | Image giữ lại mỗi service | bản đang chạy, `previous`, bản mới nhất đã kéo (D-104) |
@@ -339,7 +444,7 @@ Các con số trên là điểm xuất phát chưa đo (ARCH §8).
 | 429 | `rate_limited` (+ `retry_after_s`) |
 | 503 | `host_shutting_down` |
 
-Mã kết thúc của run (trong `error.code`, không phải từ chối HTTP) do phần 3 thêm: `connectivity_check_failed`, `not_confirmed`, `cancelled`, `reverted_by_reboot` (đều `reverted`), `revert_failed` (`failed`), `unit_failed` (`reverted`; `failed` khi unit cũ cũng không đặt lại được), `unit_unwritable` (`failed`), `stop_not_verified` (`failed`), `rollback_revert_failed` (`failed`), `pull_failed` (`failed`), `scan_build_failed` (`failed`: SP-6, D-147; image nền của `scan` đã kéo và kiểm nhưng image có nmap dựng trên hộp thì không, hoặc nmap dưới sàn; image trước và unit trước giữ nguyên), `effect_not_verified` (`failed`).
+Mã kết thúc của run (trong `error.code`, không phải từ chối HTTP) do phần 3 thêm: `connectivity_check_failed`, `not_confirmed`, `cancelled`, `reverted_by_reboot` (đều `reverted`), `revert_failed` (`failed`), `unit_failed` (`reverted`; `failed` khi unit cũ cũng không đặt lại được), `unit_unwritable` (`failed`), `stop_not_verified` (`failed`), `rollback_revert_failed` (`failed`), `pull_failed` (`failed`), (thiết kế D-316, §6.14: `self_update_unhealthy`, `install_failed` (`reverted`); `checksum_mismatch`, `package_mismatch`, `dependencies_unavailable`, `applier_failed`, `dpkg_locked`, `package_changed`, `rollback_failed`, `self_update_interrupted` (`failed`); từ chối `412` mới `host_version_unknown`, `no_host_package`, `test_version_refused`, `previous_package_missing`, `package_missing`, `package_invalid`), `scan_build_failed` (`failed`: SP-6, D-147; image nền của `scan` đã kéo và kiểm nhưng image có nmap dựng trên hộp thì không, hoặc nmap dưới sàn; image trước và unit trước giữ nguyên), `effect_not_verified` (`failed`).
 Từ chối (`status=refused`) vẫn **tạo run** và bản ghi kiểm toán, để GUI thấy lý do. Khi mất kết nối giữa chừng, `core` hỏi lại `GET /v1/runs/{id}` (nhờ `X-Request-Id` biết run nào) thay vì gửi lại lệnh.
 
 ## 12. Cân nhắc bảo mật (ánh xạ SYS)
@@ -360,14 +465,14 @@ Các biện pháp "hậu quả giới hạn" khi `core` bị chiếm: nhịp l�
 ## 13. Versioning
 
 - `X-Vedette-Host-Proto` là số nguyên; `GET /v1/info` trả `proto` và `commands[]` (khả năng). Đường dẫn `/v1`.
-- Host hỗ trợ proto **N và N−1**. Khi appliance cập nhật, `core` và `host` có thể lệch trong thời gian ngắn (host tự cập nhật bằng `.deb` ký theo D-57 (21), chưa có lệnh, §14.2): `core` chỉ gọi lệnh có trong `commands[]`, thiếu → coi tính năng đó không có (hiển thị rõ), không đoán.
+- Host hỗ trợ proto **N và N−1**. Khi appliance cập nhật, `core` và `host` có thể lệch trong thời gian ngắn (host tự cập nhật bằng `.deb` ký theo D-57 (21), `host.self_update` §6.14, thiết kế D-316; một bản host phải phục vụ `core` của bản phát hành liền trước, vì rollback phần mềm không hạ host): `core` chỉ gọi lệnh có trong `commands[]`, thiếu → coi tính năng đó không có (hiển thị rõ), không đoán.
 - Thêm lệnh = bản mới (minor); đổi nghĩa/xoá tham số = `v2`.
 - Tên unit, thư mục, hằng cố định sinh bởi installer (ships-as-code) và ghi trong `/etc/vedette/host.conf`.
 
 ## 14. Câu hỏi mở
 
 1. **Ai mở cổng vào (UFW)?** D-55 nhắc UFW nhưng allowlist không có lệnh tường lửa: cổng 8443 (UI/API), syslog, cổng sensor, cổng bẫy trên IP phụ cần được mở do installer lúc cài và do host khi module bật. Cần quyết (thêm lệnh `firewall.*` bị chặt, hay installer mở sẵn theo cấu hình và host chỉ đổi theo module).
-2. ~~**Cập nhật chính `vedette-host`**~~ **Đã chốt (D-57 (21)):** host tự cập nhật bằng gói `.deb` đã ký trên GitHub Release, kiểm sức khoẻ, hỏng thì về bản trước. Lệnh `host.self_update` **không** có ở phần 3; để sau (`.ai/deferred/feat-host-net-containers.md`).
+2. ~~**Cập nhật chính `vedette-host`**~~ **Đã chốt (D-57 (21)):** host tự cập nhật bằng gói `.deb` đã ký trên GitHub Release, kiểm sức khoẻ, hỏng thì về bản trước. Lệnh `host.self_update` **không** có ở phần 3. **Thiết kế (D-316):** §6.14; mã theo `docs/plans/2026-11-12-host-self-update.md`.
 3. ~~Backend mạng~~ **Đã chốt (D-99):** netplan với renderer `networkd` trên Ubuntu 24.04, Ubuntu 26.04 và Debian 13; installer giao netplan độc quyền cho host (thay nửa Debian của D-57 (22)).
 4. Sao lưu: `pre_*` chứa khoá `core/secrets` (cần để khôi phục) nhưng không tải xuống được; tuy nhiên người dùng muốn **sao lưu khôi phục được trên máy khác** thì sao (cần cách bảo vệ khoá bằng mật khẩu, chưa có story). Khôi phục từ tệp tải lên cũng chưa có lệnh.
 5. ~~`decoy_ip.add`: giả OUI theo vai?~~ **Đã chốt (D-102):** có, tuỳ chọn: tham số `oui`; mặc định vẫn là MAC local-administered sinh bằng HMAC (§6.6). Việc `core` chọn OUI theo vai để sau.
@@ -557,7 +662,7 @@ Chốt trên giấy ở lát 3-0 (2026-11-10, D-99…D-107) trước khi viết 
 - Argv: `systemctl daemon-reload`, `restart|stop|is-active vedette-<service>.service`; `podman container inspect vedette-<service>`. Fuzz: `FuzzRenderUnit`, `FuzzParseUnit`, `FuzzValidateSystemctlContainers`, `FuzzValidatePodmanPull`, `FuzzClassifyActive`, `FuzzParseInspect`.
 - Seam kiểm thử: `Deps.HealthWait` (120 s), `HealthPoll` (2 s), `Sleep`; `opstest.StatefulContainers`.
 
-**Còn để sau** (`.ai/deferred/feat-host-net-containers.md`): bundle, `host.self_update`, IPv6 quản trị, `core` chọn `oui`, phát hiện quét cổng trên decoy bằng `log` của nft trong `vedette-hp`, `firewall.*` (§14.1), logind inhibitor, `Notify=healthy`, và toàn bộ kiểm lab trên Ubuntu 24.04, Ubuntu 26.04, Debian 13.
+**Còn để sau** (`.ai/deferred/feat-host-net-containers.md`): bundle, `host.self_update` (thiết kế ở §6.14, D-316), IPv6 quản trị, `core` chọn `oui`, phát hiện quét cổng trên decoy bằng `log` của nft trong `vedette-hp`, `firewall.*` (§14.1), logind inhibitor, `Notify=healthy`, và toàn bộ kiểm lab trên Ubuntu 24.04, Ubuntu 26.04, Debian 13.
 
 **Unit `sensor`/`scan`, volume khoá và dựng `scan` tại chỗ (giao thức sensor, D-110, D-113, D-114; chốt ở lát SP-0, mã ở lát SP-6 sau lát 3-6 và 3-7).** Thay phần `sensor`/`scan` của đoạn "Unit Quadlet (D-105)" ở trên (`NET_RAW` + `NET_BIND_SERVICE`) và thêm vào `core`; phần còn lại của đoạn đó giữ nguyên. Chỗ điền thêm vào mẫu: `sensor_uid`, `sensor_gid` (§15). Host không bao giờ đọc, ghi hay thấy khoá của sensor: `core` tự ghi vào volume (D-110 (4), D-87).
 

@@ -136,16 +136,17 @@ type RunView struct {
 	Model     string `json:"model"`
 	TokensIn  int    `json:"tokens_in"`
 	TokensOut int    `json:"tokens_out"`
-	Status    string `json:"status"` // ok, schema_error or capped
+	Status    string `json:"status"` // ok, schema_error, capped or failed
 	Profile   string `json:"profile,omitempty"`
 	Fallback  bool   `json:"fallback,omitempty"`
 }
 
 // Runs returns the last 200 calls, newest first. A call a hook stopped is not an AI call and is left out (it is in the activity log).
-// Status: a call that got an answer is ok; one that cost tokens but gave no usable answer is schema_error; one that spent nothing
-// (cap reached, no profile could answer) is capped.
+// Status: a call that got an answer is ok; one that cost tokens but gave no usable answer is schema_error; one the shared daily cap or
+// the profile's own cap stopped (outcome capped) is capped; one that spent nothing for any other reason (the provider was unreachable, or
+// no profile could take it and nothing was sent, outcome not_sent) is failed. The status comes from the outcome column, never the summary.
 func (s *Service) Runs(ctx context.Context) ([]RunView, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT id, ts, job, model, tokens_in, tokens_out, result, profile FROM ai_activity WHERE result <> 'blocked_by_hook' ORDER BY seq DESC LIMIT 200`)
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT id, ts, job, model, tokens_in, tokens_out, result, profile, COALESCE(outcome, '') FROM ai_activity WHERE result <> 'blocked_by_hook' ORDER BY seq DESC LIMIT 200`)
 	if err != nil {
 		return nil, fmt.Errorf("ai: runs: %w", err)
 	}
@@ -153,8 +154,8 @@ func (s *Service) Runs(ctx context.Context) ([]RunView, error) {
 	out := []RunView{}
 	for rows.Next() {
 		var r RunView
-		var result string
-		if err := rows.Scan(&r.ID, &r.TS, &r.Skill, &r.Model, &r.TokensIn, &r.TokensOut, &result, &r.Profile); err != nil {
+		var result, outcome string
+		if err := rows.Scan(&r.ID, &r.TS, &r.Skill, &r.Model, &r.TokensIn, &r.TokensOut, &result, &r.Profile, &outcome); err != nil {
 			return nil, fmt.Errorf("ai: runs: %w", err)
 		}
 		switch {
@@ -162,8 +163,10 @@ func (s *Service) Runs(ctx context.Context) ([]RunView, error) {
 			r.Status = "ok"
 		case r.TokensIn+r.TokensOut > 0:
 			r.Status = "schema_error"
-		default:
+		case outcome == OutcomeCapped:
 			r.Status = "capped"
+		default:
+			r.Status = "failed"
 		}
 		r.Fallback = result == string(ResultFallbackUsed)
 		out = append(out, r)

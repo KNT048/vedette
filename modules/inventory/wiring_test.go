@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
 )
@@ -392,5 +393,104 @@ func TestUpsertSoftwareDropsOnlyTheItemWithAnInvisibleCharacter(t *testing.T) {
 	}
 	if err := e.svc.UpsertSoftware(e.ctx(), id, []inventory.SoftwareItem{{Vendor: "a", Product: "b", Confidence: 2}}, "agent"); err == nil {
 		t.Fatal("confidence 2 accepted")
+	}
+}
+
+// setupScope runs SetupScope in a caller transaction like core's first-run setup does, and settles it.
+func (e *env) setupScope(ranges []string, confirmed, fail bool) error {
+	e.t.Helper()
+	var txp *sql.Tx
+	err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		txp = tx
+		if err := e.svc.SetupScope(e.ctx(), tx, "ann@acme.example", ranges, confirmed); err != nil {
+			return err
+		}
+		if fail {
+			return errors.New("the caller's own write failed")
+		}
+		return nil
+	})
+	e.svc.Settle(e.ctx(), txp, err == nil)
+	return err
+}
+
+// #350: the ranges and the commitment of the setup wizard are the scope of Devices -> Scope and sensors, in the caller's commit; the
+// other settings keep their defaults, no audit row of its own, and inventory.settings.changed goes out only after the commit.
+func TestSetupScopeBecomesTheScanScope(t *testing.T) {
+	e := newEnv(t)
+	before, err := e.svc.Settings(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.setupScope([]string{"192.168.10.0/24", "10.1.0.0/16"}, true, false); err != nil {
+		t.Fatal(err)
+	}
+	st, err := e.svc.Settings(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(st.LANRanges, []string{"192.168.10.0/24", "10.1.0.0/16"}) || st.ScopeConfirmedAt == nil || *st.ScopeConfirmedAt == "" ||
+		st.ScopeConfirmedBy == nil || *st.ScopeConfirmedBy != "ann@acme.example" {
+		t.Fatalf("settings after setup: %+v", st)
+	}
+	if !slices.Equal(st.FragileKinds, before.FragileKinds) || st.Active.Enabled || st.Active.Rate != before.Active.Rate {
+		t.Errorf("the other settings changed: %+v, before %+v", st, before)
+	}
+	if ok, err := e.svc.InScope(e.ctx(), netip.MustParseAddr("192.168.10.7")); err != nil || !ok {
+		t.Errorf("an address of the setup range is not in scope: %v %v", ok, err)
+	}
+	if a := e.auditActions(); len(a) != 0 {
+		t.Errorf("SetupScope wrote audit rows of its own: %v", a)
+	}
+	if ev := e.ev.named(inventory.EventSettingsChanged); len(ev) != 1 || ev[0].Data.(inventory.SettingsEvent).Scope != "scan" {
+		t.Errorf("events: %v", e.ev.events)
+	}
+	// Without the commitment the scope is not confirmed (active scanning stays impossible until someone confirms it).
+	e2 := newEnv(t)
+	if err := e2.setupScope([]string{"192.168.10.0/24"}, false, false); err != nil {
+		t.Fatal(err)
+	}
+	if st, err := e2.svc.Settings(e2.ctx()); err != nil || st.ScopeConfirmedAt != nil || st.ScopeConfirmedBy != nil || len(st.LANRanges) != 1 {
+		t.Errorf("unconfirmed setup scope: %+v %v", st, err)
+	}
+}
+
+// The ranges obey INV-6 like PUT /inventory/settings (an overlap is refused with its code, so the caller's setup fails with it), and a
+// rolled-back caller leaves no ranges and no event.
+func TestSetupScopeRefusesWhatTheScopePageRefusesAndRollsBackWithTheCaller(t *testing.T) {
+	e := newEnv(t)
+	err := e.setupScope([]string{"192.168.0.0/16", "192.168.10.0/24"}, true, false)
+	var ae *apierr.Error
+	if !errors.As(err, &ae) || ae.Status != 400 || ae.Code != "overlap_range" {
+		t.Fatalf("overlapping ranges = %v", err)
+	}
+	if err := e.setupScope([]string{"192.168.10.0/24"}, true, true); err == nil {
+		t.Fatal("the caller failed and the transaction committed")
+	}
+	if st, err := e.svc.Settings(e.ctx()); err != nil || len(st.LANRanges) != 0 || st.ScopeConfirmedAt != nil {
+		t.Errorf("a refused or rolled-back setup left %+v %v", st, err)
+	}
+	if len(e.ev.events) != 0 {
+		t.Errorf("events of a rolled-back change: %v", e.ev.events)
+	}
+}
+
+// Two in-transaction calls of one caller transaction keep both sets of events for Settle (keep merges, it does not overwrite).
+func TestSettleSendsTheEventsOfEveryCallInTheTransaction(t *testing.T) {
+	e := newEnv(t, withKEV(fakeKEV{cves: map[string][]string{"fortinet|fortios": {"CVE-2024-0001"}}}))
+	var txp *sql.Tx
+	err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		txp = tx
+		if err := e.svc.SetupScope(e.ctx(), tx, "ann@acme.example", []string{"192.168.10.0/24"}, true); err != nil {
+			return err
+		}
+		return e.svc.AddManualDevice(e.ctx(), tx, "ann@acme.example", inventory.ManualDevice{Vendor: "Fortinet", Product: "FortiOS", Key: "fortinet|fortios"})
+	})
+	e.svc.Settle(e.ctx(), txp, err == nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(e.ev.named(inventory.EventSettingsChanged)) != 1 || len(e.ev.named(inventory.EventAssetUpdated)) != 1 {
+		t.Fatalf("events: %v", e.ev.events)
 	}
 }

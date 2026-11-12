@@ -34,7 +34,7 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
   const type = channel.type
   const name = t(`ch.${type}`)
   const [enabled, setEnabled] = useState(channel.configured ? channel.enabled : true)
-  const [fields, setFields] = useState<Record<string, string>>(() => ({ ...(type === 'email' ? { port: '587', security: 'starttls' } : {}), ...channel.fields }))
+  const [fields, setFields] = useState<Record<string, string>>(() => ({ ...(type === 'email' ? { port: '587', security: 'starttls' } : {}), ...(type === 'webhook' ? {} : channel.fields) })) // the webhook URL is a secret: only its masked form comes back, so the field starts empty (empty = keep)
   const [secret, setSecret] = useState('')
   const [min, setMin] = useState<RouteSeverity>(channel.min_severity)
   const [approvals, setApprovals] = useState(channel.approvals)
@@ -93,8 +93,9 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
                 </Field>
               )
             }
+            const hint = type === 'webhook' && k === 'url' && channel.fields.url ? t('channels.urlSaved', { url: channel.fields.url }) : t(`channels.f.${type}.${k}.hint`)
             return (
-              <Field key={k} label={label} hint={t(`channels.f.${type}.${k}.hint`)} htmlFor={id}>
+              <Field key={k} label={label} hint={hint} htmlFor={id}>
                 <Input id={id} value={fields[k] ?? ''} type={k === 'port' ? 'number' : 'text'} onChange={(e) => set(k, e.target.value)} autoComplete="off" aria-describedby={`${id}-hint`} />
               </Field>
             )

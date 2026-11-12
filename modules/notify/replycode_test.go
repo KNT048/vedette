@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 	"regexp"
 	"strings"
 	"sync"
@@ -90,6 +91,14 @@ func (d *zaloDirectFake) Send(_ context.Context, m channel.Message) (channel.Rec
 // newZaloEnv is newEnv with what reply codes need: a Decisions port.
 func newZaloEnv(t *testing.T, opts ...func(*notify.Config)) *env {
 	return newEnv(t, append([]func(*notify.Config){func(c *notify.Config) { c.Decisions = fakeDecisions{} }}, opts...)...)
+}
+
+func (e *env) setUser(id string, change func(*notify.User)) {
+	e.users.mu.Lock()
+	defer e.users.mu.Unlock()
+	u := e.users.users[id]
+	change(&u)
+	e.users.users[id] = u
 }
 
 func (e *env) zaloApprovals(approvers ...notify.Approver) *zaloRecorder {
@@ -282,6 +291,66 @@ func TestContract_INV11_ZaloApprovalResendGoesToTheSameApprover(t *testing.T) {
 	}
 	if len(z.sent) != 2 || z.sent[1].to != zaloOp || z.sent[1].msg.ReplyCodes != nil || e.net.total() != 0 {
 		t.Fatalf("sent %+v, network calls %d", z.sent, e.net.total())
+	}
+}
+
+// Review of slice 4: a resend of an approver's own message checks the approver again, like the first send. One who is demoted,
+// disabled, gone from the user directory, or taken off the approver list gets nothing, and no history row is written.
+func TestContract_INV11_ZaloApprovalResendChecksTheApproverAgain(t *testing.T) {
+	for _, c := range []struct {
+		name   string
+		change func(e *env)
+	}{
+		{"demoted to viewer", func(e *env) { e.setUser("u-op", func(u *notify.User) { u.Role = "viewer" }) }},
+		{"disabled", func(e *env) { e.setUser("u-op", func(u *notify.User) { u.Active = false }) }},
+		{"deleted", func(e *env) { e.users.mu.Lock(); delete(e.users.users, "u-op"); e.users.mu.Unlock() }},
+		{"taken off the approver list", func(e *env) {
+			e.save(channel.ZaloPersonal, notify.ChannelInput{Enabled: true, Fields: map[string]string{"user_id": "123456789"}, Secret: zaloSession, MinSeverity: notify.Low, Approvals: true,
+				Approvers: []notify.Approver{{UserID: "u-admin", Address: zaloAdmin}}})
+		}},
+		{"approvals turned off", func(e *env) {
+			e.save(channel.ZaloPersonal, notify.ChannelInput{Enabled: true, Fields: map[string]string{"user_id": "123456789"}, Secret: zaloSession, MinSeverity: notify.Low})
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			e := newZaloEnv(t)
+			z := e.zaloApprovals(notify.Approver{UserID: "u-op", Address: zaloOp})
+			sv, err := e.svc.SendApprovalRequest(e.ctx(), e.approvalReq("req-z9", channel.ZaloPersonal))
+			if err != nil || len(sv) != 1 || len(z.sent) != 1 {
+				t.Fatalf("sends %+v, %v", sv, err)
+			}
+			rows := e.count(`SELECT COUNT(*) FROM notify_send`)
+			c.change(e)
+			_, err = e.svc.Resend(e.ctx(), "it@acme.example", sv[0].ID)
+			var ae *apierr.Error
+			if !errors.As(err, &ae) || ae.Status != http.StatusConflict || ae.Code != "approver_not_ready" {
+				t.Fatalf("resend answered %v, want 409 approver_not_ready", err)
+			}
+			if len(z.sent) != 1 || e.net.total() != 0 || e.count(`SELECT COUNT(*) FROM notify_send`) != rows {
+				t.Fatalf("something was sent or recorded: direct %d, network %d", len(z.sent), e.net.total())
+			}
+		})
+	}
+}
+
+// An approver who still qualifies gets the copy again (the test above's counterpart), also on an address the user linked (D-191).
+func TestZaloApprovalResendStillWorksForAQualifyingApprover(t *testing.T) {
+	links := &fakeLinks{linked: true}
+	e := newZaloEnv(t, func(c *notify.Config) { c.ApproverLinks = links })
+	z := e.zaloApprovals(notify.Approver{UserID: "u-op", Address: zaloOp})
+	sv, err := e.svc.SendApprovalRequest(e.ctx(), e.approvalReq("req-z10", channel.ZaloPersonal))
+	if err != nil || len(sv) != 1 || len(z.sent) != 1 {
+		t.Fatalf("sends %+v, %v", sv, err)
+	}
+	if h, err := e.svc.Resend(e.ctx(), "it@acme.example", sv[0].ID); err != nil || !h.OK || len(z.sent) != 2 {
+		t.Fatalf("resend %+v, %v", h, err)
+	}
+	links.mu.Lock()
+	links.linked = false
+	links.mu.Unlock()
+	// the approver unlinked the address: the check of the first send applies to the copy too
+	if _, err := e.svc.Resend(e.ctx(), "it@acme.example", sv[0].ID); err == nil || len(z.sent) != 2 {
+		t.Fatalf("an unlinked address got a copy: %v, direct %d", err, len(z.sent))
 	}
 }
 

@@ -16,6 +16,10 @@ import (
 // rule excludes (INV-3).
 var ErrUnavailable = errors.New("ai: no AI profile is available for this job")
 
+// errProfileCapSkip is the reason of an attempt skipped because the profile has used its own daily cap (Meter.Reserve said
+// ErrProfileCapped); the run log reads such a call as capped (notSent).
+var errProfileCapSkip = errors.New("daily cap reached")
+
 // ErrCapped means today's shared token cap is used up and the level is already the minimum.
 var ErrCapped = errors.New("ai: the daily token cap is used up")
 
@@ -220,10 +224,11 @@ func (r *Router) Call(ctx context.Context, job Job, req provider.Request) (CallR
 	est := estimateTokens(req)
 	for _, c := range cs {
 		p := c.p
-		skip := func(why string) {
-			reasons = append(reasons, p.Name+": "+why)
-			res.Attempts = append(res.Attempts, Attempt{ProfileID: p.ID, Profile: p.Name, Err: errors.New(why), Skipped: true})
+		skipErr := func(why error) {
+			reasons = append(reasons, p.Name+": "+why.Error())
+			res.Attempts = append(res.Attempts, Attempt{ProfileID: p.ID, Profile: p.Name, Err: why, Skipped: true})
 		}
+		skip := func(why string) { skipErr(errors.New(why)) }
 		if cur := r.st.Load(); cur != st { // the settings changed while this call was running
 			np, ok := current(cur, job, c, carries)
 			if !ok {
@@ -246,7 +251,7 @@ func (r *Router) Call(ctx context.Context, job Job, req provider.Request) (CallR
 			return res, fmt.Errorf("%w: raise the cap in Settings, AI assistant, or wait until tomorrow", ErrCapped)
 		}
 		if err != nil {
-			skip("daily cap reached")
+			skipErr(errProfileCapSkip)
 			continue
 		}
 		actx, cancel := context.WithTimeout(ctx, r.timeout)

@@ -1,7 +1,7 @@
 // Package observe is the narrow interface through which sensors and agents (sensor-passive,
 // sensor-active, agent-intake, scan) report what they saw about devices to the inventory without
 // importing it (rules/modules.md: modules talk through interfaces in core/). The inventory
-// implements Sink and SoftwareSink; everything arriving here is untrusted (SYS-6) and is validated
+// implements Sink, SoftwareSink and ServiceSink; everything arriving here is untrusted (SYS-6) and is validated
 // by the implementation, not by the caller.
 package observe
 
@@ -111,4 +111,23 @@ type Software struct {
 // rows that source reported before (rows of other sources are untouched).
 type SoftwareSink interface {
 	ReplaceSoftware(ctx context.Context, hint AssetHint, source Source, items []Software) error
+}
+
+// Service is one port a sensor saw open on a device (D-350).
+type Service struct {
+	Port       int    // 1..65535
+	Proto      string // "tcp" or "udp"
+	Name       string // the service name, such as "ssh"; may be empty
+	Product    string // may be empty
+	Version    string // may be empty
+	Confidence float64
+}
+
+// ServiceSink receives the full list of open ports of one device from one source. The list replaces the rows
+// that source reported before (rows of other sources are untouched); an empty list says that source saw none open.
+// AddServices is for a partial look (a gentle scan of a few ports): ports not listed yet are added, a port the source already
+// listed keeps what it said and is only marked seen, and nothing is removed.
+type ServiceSink interface {
+	ReplaceServices(ctx context.Context, hint AssetHint, source Source, items []Service) error
+	AddServices(ctx context.Context, hint AssetHint, source Source, items []Service) error
 }

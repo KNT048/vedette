@@ -560,3 +560,49 @@ func storeMigrate(t *testing.T, env *authtest.Env) error {
 	t.Helper()
 	return store.Migrate(t.Context(), env.DB, "auth-oidc", authoidc.Migrations)
 }
+
+// INV-5, D-299: a flood of starts from many addresses cannot push out a sign-in in progress. The box takes at most 300 starts per
+// 10 minutes, below the 1000 pending flows, so the oldest flow is never dropped; the refusal says what still works. IPv6 is also
+// counted per /48, so one network cannot spread over its /64s.
+func TestContract_INV5_FloodCannotPushOutASignInInProgress(t *testing.T) {
+	w := newWorld(t)
+	if _, err := w.svc.Start(t.Context(), origin, w.addr); err != nil {
+		t.Fatal(err)
+	}
+	refused := 0
+	for i := range 400 { // 400 IPv4 addresses, one start each
+		_, err := w.svc.Start(t.Context(), origin, netip.AddrFrom4([4]byte{198, 51, byte(i / 250), byte(i%250 + 1)}))
+		if err != nil {
+			if e, ok := apierr.As(err); !ok || e.Status != 429 || e.Code != "rate_limited" || !strings.Contains(e.Message, "email and password") {
+				t.Fatalf("refusal: %v", err)
+			}
+			refused++
+		}
+	}
+	if refused != 101 { // 300 in the window, the first one included
+		t.Fatalf("%d starts refused, want 101", refused)
+	}
+	if n := w.env.Count(t, `SELECT count(*) FROM oidc_flow`); n != 300 { // all kept: none was pushed out
+		t.Fatalf("%d flows, want 300", n)
+	}
+	w.env.Clock.Advance(11 * time.Minute) // the budget is per flow lifetime
+	if _, err := w.svc.Start(t.Context(), origin, netip.MustParseAddr("192.0.2.200")); err != nil {
+		t.Fatalf("after the window: %v", err)
+	}
+
+	// IPv6: 100 starts per /48, whatever /64 they come from
+	w6 := newWorld(t)
+	for i := range 100 {
+		a := netip.AddrFrom16([16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 1, byte(i >> 8), byte(i), 15: 1})
+		if _, err := w6.svc.Start(t.Context(), origin, a); err != nil {
+			t.Fatalf("start %d: %v", i, err)
+		}
+	}
+	_, err := w6.svc.Start(t.Context(), origin, netip.MustParseAddr("2001:db8:1:ffff::1"))
+	if e, ok := apierr.As(err); !ok || e.Status != 429 || !strings.Contains(e.Message, "from this address") {
+		t.Fatalf("the /48 refusal: %v", err)
+	}
+	if _, err := w6.svc.Start(t.Context(), origin, netip.MustParseAddr("2001:db8:2::1")); err != nil {
+		t.Fatalf("another /48: %v", err)
+	}
+}

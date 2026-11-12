@@ -1,5 +1,4 @@
 - [ ] Verify the real nuclei cves.json, IPsum levels/3.txt and hagezi tif.mini sizes and line formats against the live files (no network allowed in WP-20) — whoever has network access (moved from feat-feeds-lib.md)
 - [x] Wire `Deps.Inventory` (needs `modules/inventory` implementing `feeds.Inventory`) and `Deps.Events` in cmd/vedette/feeds.go: core/events is on main and `*events.Bus` satisfies `feeds.Publisher`, but `cmd/vedette` builds no Bus yet (`deps` has no Bus field): add `Bus *events.Bus` to `deps`, build it in `serve`, then `Events: d.Bus` — Kiên — Done (#56)
 - [x] Per-route body cap for `POST /feeds/parse-test` (contract allows a 5 MB sample, core/server caps every body at 1 MiB) — Kiên (core/server) — Done (#80)
-- [ ] INV-13: list every feed host (built-in and custom) in Settings -> Privacy (GUI) — GUI follow-up after WP-05
 - [x] `findings.Feeds{KevInfo, Vulns}` adapter: types are findings' own and `Vuln` needs NVD affected ranges that feeds_vuln does not hold — decide with findings (WP-21) where it lives — Done (#56)

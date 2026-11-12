@@ -57,7 +57,7 @@ func newSensorActive(d deps, prober sensoractive.Prober) (*sensoractive.Service,
 	if prober == nil { // a nil Prober would make the module start nmap in this process
 		return nil, errors.New("sensor-active needs a Prober")
 	}
-	cfg := sensoractive.Config{Prober: prober, DB: d.DB, Inventory: sensorInventory{inv: d.Inventory, hostNet: d.HostNet}, Observe: d.Inventory, Software: d.Inventory, Clock: d.Clock, Log: d.Log,
+	cfg := sensoractive.Config{Prober: prober, DB: d.DB, Inventory: sensorInventory{inv: d.Inventory, hostNet: d.HostNet}, Observe: d.Inventory, Software: d.Inventory, Services: d.Inventory, Clock: d.Clock, Log: d.Log,
 		Location: orgLocation(d)}
 	if d.Bus != nil {
 		cfg.Events = sensoractive.PublisherFunc(func(ctx context.Context, e sensoractive.Event) error {

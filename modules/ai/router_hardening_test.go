@@ -246,11 +246,12 @@ func TestFailedCallsAndProbeAreMetered(t *testing.T) {
 	// The connection test goes through the meter.
 	before := r.meter.Used()
 	pr, _, err := r.Probe(context.Background(), internal("i1"), time.Now)
-	if err != nil || !pr.Tools || pr.TokensIn != 100 {
+	// three requests of 100 in and 50 out: the result reports all three, the same tokens the meter counts (walk 3)
+	if err != nil || !pr.Tools || pr.TokensIn != 300 || pr.TokensOut != 150 {
 		t.Fatalf("%+v %v", pr, err)
 	}
-	if r.meter.Used() <= before {
-		t.Fatalf("probe not metered: %d -> %d", before, r.meter.Used())
+	if got := r.meter.Used() - before; got != pr.TokensIn+pr.TokensOut {
+		t.Fatalf("probe metered %d, reported %d", got, pr.TokensIn+pr.TokensOut)
 	}
 }
 

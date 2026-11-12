@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/host/ops/opstest"
@@ -454,5 +455,56 @@ func TestUpdateCheckTestChannelSource(t *testing.T) {
 	}
 	if e.srv.hit("/index/index.json") == 0 || e.srv.hit("/v1.4.0/release-manifest.json") == 0 {
 		t.Fatal("the documents did not come from the test source")
+	}
+}
+
+// D-386: a revocation that hits the running release and an index past expires_at are in GET /core/updates.
+func TestUpdateStateRevokedRunningAndStale(t *testing.T) {
+	t.Parallel()
+	e := newUpdEnv(t, osOpts{noHost: true})
+	e.srv.standard(t, 5)
+	r := e.oper.post("/core/updates/check", nil)
+	wantOK(t, r, 200)
+	if getVal(r, "running_revoked") != nil || getVal(r, "stale_since") != nil {
+		t.Fatalf("a current index that revokes nothing: %v %v", getVal(r, "running_revoked"), getVal(r, "stale_since"))
+	}
+	m := e.srv.manifest(t, "1.4.0", nil)
+	revoke := func(seq uint64, rs ...opstest.Doc) {
+		t.Helper()
+		e.srv.index(t, seq, m, 100, func(d opstest.Doc) {
+			list := []any{opstest.Revocation("release", "1.2.0")} // another release
+			for _, x := range rs {
+				list = append(list, x)
+			}
+			d["revoked"] = list
+		})
+		wantOK(t, e.oper.post("/core/updates/check", nil), 200)
+	}
+	want := func(action string) {
+		t.Helper()
+		g := e.viewer.get("/core/updates")
+		wantOK(t, g, 200)
+		got, _ := getVal(g, "running_revoked").(map[string]any)
+		if got["version"] != runningVersion || got["reason"] != "test" || got["since"] != "2026-12-02T08:00:00Z" || got["action"] != action {
+			t.Fatalf("running_revoked = %v, want action %s", getVal(g, "running_revoked"), action)
+		}
+	}
+	revoke(6)
+	if g := e.viewer.get("/core/updates"); getVal(g, "running_revoked") != nil {
+		t.Fatalf("running_revoked = %v for a revocation of another release", getVal(g, "running_revoked"))
+	}
+	revoke(7, opstest.Revocation("release", runningVersion))
+	want("block_install")
+	// a digest of the running release's manifest, with a warning, wins; the earlier revocation is carried (sticky, §8)
+	warn := opstest.Revocation("image_digest", "sha256:"+strings.Repeat("a", 64))
+	warn["action"] = "block_install_and_warn"
+	revoke(8, warn)
+	want("block_install_and_warn")
+
+	e.clock.Advance(40 * 24 * time.Hour) // past expires_at (generated 2026-12-02, plus 14 days)
+	g := e.viewer.get("/core/updates")
+	wantOK(t, g, 200)
+	if getVal(g, "stale_since") != "2026-12-16T08:00:00Z" {
+		t.Fatalf("stale_since = %v", getVal(g, "stale_since"))
 	}
 }

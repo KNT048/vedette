@@ -518,5 +518,9 @@ func (s *Service) resendApproverProblem(ctx context.Context, ch channel.Type, ad
 	if err != nil {
 		return "", fmt.Errorf("notify: find approver of a message: %w", err)
 	}
-	return s.approverProblem(ctx, ch, Approver{UserID: userID, Address: address}), nil
+	why, err := s.approverCheck(ctx, ch, Approver{UserID: userID, Address: address})
+	if err != nil { // the directory or the link store did not answer: retry later, not "this approver does not qualify"
+		return "", apierr.New(http.StatusServiceUnavailable, "approver_check_unavailable", "Vedette could not check the approver just now. Try again in a moment.")
+	}
+	return why, nil
 }

@@ -122,7 +122,10 @@ func addrForms(a netip.Addr) []netip.Addr {
 	case b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b && zeros(4, 12):
 		copy(v4[:], b[12:16])
 	case b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b && b[4] == 0 && b[5] == 1:
-		v4 = [4]byte{b[6], b[7], b[9], b[10]} // RFC 6052, a /48 prefix
+		for _, x := range nat64Local(b) {
+			out = append(out, netip.AddrFrom4(x))
+		}
+		return out
 	case b[0] == 0x20 && b[1] == 0x02:
 		copy(v4[:], b[2:6])
 	case zeros(0, 12) && !a.IsUnspecified() && a != netip.IPv6Loopback():
@@ -131,6 +134,19 @@ func addrForms(a netip.Addr) []netip.Addr {
 		return out
 	}
 	return append(out, netip.AddrFrom4(v4))
+}
+
+// nat64Local lists the IPv4 addresses a 64:ff9b:1::/48 (RFC 8215) address can carry: the operator's prefix length is not known,
+// so the address is read in every RFC 6052 layout (/32 /40 /48 /56 /64 /96; byte 8 is the reserved u octet) and each is judged.
+func nat64Local(b [16]byte) [][4]byte {
+	return [][4]byte{
+		{b[4], b[5], b[6], b[7]},
+		{b[5], b[6], b[7], b[9]},
+		{b[6], b[7], b[9], b[10]},
+		{b[7], b[9], b[10], b[11]},
+		{b[9], b[10], b[11], b[12]},
+		{b[12], b[13], b[14], b[15]},
+	}
 }
 
 var errForbiddenDial = errors.New("notify: refusing to connect to a loopback, link-local, multicast, unspecified, cloud metadata or box address")

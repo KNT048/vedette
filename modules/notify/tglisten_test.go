@@ -288,6 +288,10 @@ func (te *tgEnv) start() (stop func() error) {
 	ctx, cancel := context.WithCancel(te.ctx())
 	done := make(chan error, 1)
 	j := te.job()
+	select { // a signal left by the previous listener's long poll must not stand for this one's
+	case <-te.tg.waiting:
+	default:
+	}
 	go func() { done <- j.Run(ctx) }()
 	var once sync.Once
 	var err error

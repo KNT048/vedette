@@ -49,7 +49,7 @@ export function buildOpenApi() {
       'x-min-role': e.role,
       ...(e.role === 'public' ? { security: [] } : {}),
       ...(parameters(e).length ? { parameters: parameters(e) } : {}),
-      ...(e.body ? { requestBody: { required: true, content: { 'application/json': { schema: js(e.body) } } } } : {}),
+      ...(e.body ? { requestBody: { required: !e.bodyOptional, content: { 'application/json': { schema: js(e.body) } } } } : {}),
       responses: { ...ok, default: { description: 'Error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } } },
     }
   }

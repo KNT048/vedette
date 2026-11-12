@@ -198,8 +198,8 @@ func TestInstall_LinuxScriptDoesNotShareNamesWithOsRelease(t *testing.T) {
 }
 
 // A normal first install exits 0 once the machine has enrolled: osquery's first report comes up to an hour later and is not waited for
-// (S-INV-4, supervisor decision 2026-11-13). The only non-zero end after the install is "did not enrol" (3); success is "hosts grew past
-// the count taken before the restart" or "the first report is already in", never only enrolled:true.
+// (S-INV-4, supervisor decision 2026-11-13). The only non-zero end after the install is "did not enrol" (3); success is THIS machine's host_last_seen (status, by host_identifier) appearing or moving
+// past what it was before the restart, never the token-wide counts.
 func TestInstall_ExitsZeroWhenEnrolledNotWhenFirstReportArrives(t *testing.T) {
 	const ok = "Installed and enrolled; the first report arrives within about an hour."
 	sh, ps1 := readFile(t, "scripts/osquery.sh"), readFile(t, "scripts/osquery.ps1")
@@ -207,12 +207,16 @@ func TestInstall_ExitsZeroWhenEnrolledNotWhenFirstReportArrives(t *testing.T) {
 		t.Error("a script does not end a first install with the enrolled message and success")
 	}
 	for name, body := range map[string]string{"sh": sh, "ps1": ps1} {
-		if !strings.Contains(body, `"hosts":`) || !strings.Contains(body, `"enrolled":true`) {
-			t.Errorf("%s: success must be hosts growing or enrolled:true", name)
+		if !strings.Contains(body, `host_identifier`) || !strings.Contains(body, `host_last_seen`) || strings.Contains(body, `"hosts":`) || strings.Contains(body, `"enrolled":true`) {
+			t.Errorf("%s: success must be this machine's host_last_seen appearing or moving, not the token-wide counts", name)
 		}
 		if strings.Contains(body, "has not received its first report yet") {
 			t.Errorf("%s: still reports a missing first report as the end of the install", name)
 		}
+	}
+	if !strings.Contains(sh, "--host_identifier=specified") || !strings.Contains(sh, "--specified_identifier=$HOSTID") ||
+		!strings.Contains(ps1, "--host_identifier=specified") || !strings.Contains(ps1, "--specified_identifier=$hostId") {
+		t.Error("the machine must enrol under the name the status check asks for (--host_identifier=specified)")
 	}
 	if !strings.Contains(sh, "systemctl is-active --quiet osqueryd") || !strings.Contains(ps1, "-eq 'Running'") {
 		t.Error("success also needs the service to be running")

@@ -103,7 +103,11 @@ export const AgentToken = z.object({
 })
 const Installer = z.object({ url: z.string(), sha256: z.string().describe('SHA-256 (lowercase hex) of the script served by the box; users compare it before running'), script: z.string().describe('Full script text, for the admin to read first') })
 export const Installers = z.object({ osquery_version: z.string(), linux: Installer, windows: Installer })
-export const OsqueryStatus = z.object({ enrolled: z.boolean(), hosts: z.number().int() })
+export const OsqueryStatusBody = z.object({ host_identifier: z.string().max(200).optional().describe('The name this machine enrols under (the install script sets osquery host_identifier = specified and sends the same name here); the install script sends it so the answer is about THIS machine') })
+export const OsqueryStatus = z.object({
+  enrolled: z.boolean(), hosts: z.number().int(),
+  host_last_seen: z.string().nullable().optional().describe('Only when host_identifier was sent: when the box last heard from the machine of this token with that name (a hostname match ignores case), null when no machine of the token has enrolled under it; absent when no usable host_identifier was sent. It tells nothing about machines of other tokens'),
+})
 // osquery TLS remote API (D-169): machine to machine, called by osqueryd only, never by this GUI. Shapes follow
 // https://osquery.readthedocs.io/en/stable/deployment/remote/ . osquery sends more keys than these (host_details, decorations, ...): the loose
 // objects accept them and the box ignores what it does not use. Every credential failure is HTTP 200 with node_invalid: true (osquery does not handle HTTP errors).
@@ -163,7 +167,7 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/inventory/agents/tokens/{id}/sample-data', summary: 'PREVIEW ONLY (mock): send sample data as if the agent had reported in, to see the effect', stories: ['S-INV-4'], role: 'admin', params: id, response: SampleResult },
   { method: 'get', path: '/install/osquery.sh', summary: 'One-line osquery install script for Linux (Debian, Ubuntu, RHEL, Rocky, AlmaLinux), served by the box; public, contains no secrets (the token is passed as a parameter)', stories: ['S-INV-4'], role: 'public', response: 'file' },
   { method: 'get', path: '/install/osquery.ps1', summary: 'osquery install script for Windows Server, served by the box; public, contains no secrets', stories: ['S-INV-4'], role: 'public', response: 'file' },
-  { method: 'post', path: '/intake/osquery/status', summary: 'The install script asks "has this machine reported in yet"; token goes in the Authorization: Bearer header, never in the URL', stories: ['S-INV-4'], role: 'public', response: OsqueryStatus },
+  { method: 'post', path: '/intake/osquery/status', summary: 'The install script asks "has THIS machine enrolled yet" (body: its host_identifier; empty body = token-wide counts only); token goes in the Authorization: Bearer header, never in the URL', stories: ['S-INV-4'], role: 'public', body: OsqueryStatusBody, bodyOptional: true, response: OsqueryStatus },
   { method: 'post', path: '/intake/osquery/enroll', summary: 'osquery enrollment (machine to machine): exchanges a valid enrollment token for a node key; node_invalid: true when the token is unknown, revoked or expired', stories: ['S-INV-4'], role: 'public', body: OsqueryEnrollBody, response: OsqueryEnrollResult },
   { method: 'post', path: '/intake/osquery/config', summary: 'osquery config (machine to machine): the read-only snapshot schedule for an enrolled node; node_invalid: true makes osquery enroll again', stories: ['S-INV-4'], role: 'public', body: OsqueryNodeBody, response: OsqueryConfig },
   { method: 'post', path: '/intake/osquery/log', summary: 'osquery logger (machine to machine): results of the scheduled queries from an enrolled node; they update the inventory with source agent', stories: ['S-INV-4'], role: 'public', body: OsqueryLogBody, response: OsqueryAck },

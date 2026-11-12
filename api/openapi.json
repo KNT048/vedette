@@ -32248,7 +32248,7 @@
     "/intake/osquery/status": {
       "post": {
         "operationId": "inventory_post_intake_osquery_status",
-        "summary": "The install script asks \"has this machine reported in yet\"; token goes in the Authorization: Bearer header, never in the URL",
+        "summary": "The install script asks \"has THIS machine enrolled yet\" (body: its host_identifier; empty body = token-wide counts only); token goes in the Authorization: Bearer header, never in the URL",
         "tags": [
           "inventory"
         ],
@@ -32257,6 +32257,24 @@
         ],
         "x-min-role": "public",
         "security": [],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "host_identifier": {
+                    "description": "The name this machine enrols under (the install script sets osquery host_identifier = specified and sends the same name here); the install script sends it so the answer is about THIS machine",
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -32272,6 +32290,13 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "host_last_seen": {
+                      "description": "Only when host_identifier was sent: when the box last heard from the machine of this token with that name (a hostname match ignores case), null when no machine of the token has enrolled under it; absent when no usable host_identifier was sent. It tells nothing about machines of other tokens",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [

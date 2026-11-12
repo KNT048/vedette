@@ -1228,11 +1228,11 @@ type Handler interface {
 	InventoryPostIntakeOsqueryLog(ctx context.Context, req *InventoryPostIntakeOsqueryLogReq) (*InventoryPostIntakeOsqueryLogOK, error)
 	// InventoryPostIntakeOsqueryStatus implements inventory_post_intake_osquery_status operation.
 	//
-	// The install script asks "has this machine reported in yet"; token goes in the Authorization: Bearer
-	// header, never in the URL.
+	// The install script asks "has THIS machine enrolled yet" (body: its host_identifier; empty body =
+	// token-wide counts only); token goes in the Authorization: Bearer header, never in the URL.
 	//
 	// POST /intake/osquery/status
-	InventoryPostIntakeOsqueryStatus(ctx context.Context) (*InventoryPostIntakeOsqueryStatusOK, error)
+	InventoryPostIntakeOsqueryStatus(ctx context.Context, req OptInventoryPostIntakeOsqueryStatusReq) (*InventoryPostIntakeOsqueryStatusOK, error)
 	// InventoryPostInventoryAgentsTokens implements inventory_post_inventory_agents_tokens operation.
 	//
 	// Issue an osquery token, returning the full token once.

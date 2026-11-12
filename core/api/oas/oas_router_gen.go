@@ -227,6 +227,9 @@ var (
 	rn238AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
+	rn239AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
 	rn240AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
@@ -5009,8 +5012,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: nil,
-										acceptPost:     "",
+										allowedHeaders: rn239AllowedHeaders,
+										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
 								}
@@ -13188,7 +13191,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "POST":
 									r.name = InventoryPostIntakeOsqueryStatusOperation
-									r.summary = "The install script asks \"has this machine reported in yet\"; token goes in the Authorization: Bearer header, never in the URL"
+									r.summary = "The install script asks \"has THIS machine enrolled yet\" (body: its host_identifier; empty body = token-wide counts only); token goes in the Authorization: Bearer header, never in the URL"
 									r.operationID = "inventory_post_intake_osquery_status"
 									r.operationGroup = ""
 									r.pathPattern = "/intake/osquery/status"

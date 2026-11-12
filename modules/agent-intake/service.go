@@ -31,7 +31,8 @@ const (
 	MaxNodes          = 5000
 	enrollCooldown    = 60 * time.Second // the same (token, host_identifier) cannot enrol again sooner
 	auditEnrollEvery  = 24 * time.Hour   // one enrol audit row per node per day
-	touchEvery        = time.Minute      // last_seen is written at most this often per node
+	touchEvery        = time.Minute      // last_seen is written at most this often per node (log path)
+	configTouch       = 10 * time.Second // the same on the config path (a restart is seen quickly)
 	NodeSilentDays    = 90               // a node silent this long is deleted by the node-prune job
 	expiredTokenGrace = 30 * 24 * time.Hour
 	systemActor       = "system"
@@ -356,13 +357,15 @@ func (s *Service) Config(ctx context.Context, src netip.Addr, nodeKey string) er
 	if err != nil {
 		return err
 	}
-	return s.touch(ctx, n)
+	// osquery fetches its config about once per start: write last_seen at most every configTouch so that a restart (the installer's) is seen
+	// within the installer's wait, not up to a minute later (the log path keeps touchEvery).
+	return s.touch(ctx, n, configTouch)
 }
 
-// touch records that the node called, at most once a minute.
-func (s *Service) touch(ctx context.Context, n nodeRow) error {
+// touch records that the node called, at most once per every.
+func (s *Service) touch(ctx context.Context, n nodeRow, every time.Duration) error {
 	now := s.now()
-	if now.Sub(n.lastSeen) < touchEvery {
+	if now.Sub(n.lastSeen) < every {
 		return nil
 	}
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
@@ -375,29 +378,39 @@ func (s *Service) touch(ctx context.Context, n nodeRow) error {
 
 // ---- status ----
 
-// Status answers the install script's "has this machine reported in yet" (token in the Authorization header). A bad token counts
+// Status answers the install script's "has THIS machine enrolled yet" (host: its name; seen is that machine's last_seen under this token, "" when none) (token in the Authorization header). A bad token counts
 // against the source like an enrol does. The errors are 403 invalid_token and token_expired as the approved mock has them: the caller
 // holds the token and is the person who made it, and the answer carries no data.
-func (s *Service) Status(ctx context.Context, src netip.Addr, secret string) (enrolled bool, hosts int, err error) {
+func (s *Service) Status(ctx context.Context, src netip.Addr, secret, host string) (enrolled bool, hosts int, seen string, err error) {
 	key := srcKey(src)
 	if w := s.fail.blocked(key); w > 0 {
-		return false, 0, rateLimited(w)
+		return false, 0, "", rateLimited(w)
 	}
 	t, err := s.tokenBySecret(ctx, s.db.Reader(), secret)
 	if errors.Is(err, errNodeInvalid) {
 		s.fail.fail(key)
 		s.logReject(ctx, "status", src, "credential")
-		return false, 0, apierr.New(403, "invalid_token", "This enrollment token is not valid. Create a new one in Vedette.")
+		return false, 0, "", apierr.New(403, "invalid_token", "This enrollment token is not valid. Create a new one in Vedette.")
 	}
 	if err != nil {
-		return false, 0, err
+		return false, 0, "", err
 	}
 	if t.expired(s.now()) {
 		s.fail.fail(key)
-		return false, 0, apierr.New(403, "token_expired", "This enrollment token has expired. Create a new one in Vedette.")
+		return false, 0, "", apierr.New(403, "token_expired", "This enrollment token has expired. Create a new one in Vedette.")
 	}
 	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM intake_osquery_nodes WHERE token_id = ?`, t.id).Scan(&hosts); err != nil {
-		return false, 0, fmt.Errorf("agentintake: count hosts: %w", err)
+		return false, 0, "", fmt.Errorf("agentintake: count hosts: %w", err)
 	}
-	return !t.received.IsZero(), hosts, nil
+	if host != "" { // this machine only, among the machines of this token: the token already lets its holder enrol under any name
+		var ls string
+		err := s.db.Reader().QueryRowContext(ctx, `SELECT last_seen FROM intake_osquery_nodes WHERE token_id = ? AND (lower(host_identifier) = lower(?) OR lower(hostname) = lower(?)) ORDER BY last_seen DESC LIMIT 1`, t.id, host, host).Scan(&ls)
+		switch {
+		case err == nil:
+			seen = ls
+		case !errors.Is(err, sql.ErrNoRows):
+			return false, 0, "", fmt.Errorf("agentintake: host last seen: %w", err)
+		}
+	}
+	return !t.received.IsZero(), hosts, seen, nil
 }

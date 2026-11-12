@@ -1,6 +1,7 @@
 package write_test
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -53,6 +54,10 @@ func TestLeaveLineFollowsTheNearestEnterLine(t *testing.T) {
 		{[]string{"no page", "Conf  T", "interface 1/1/5"}, "end"},
 		{[]string{"config firewall vip", `edit "web"`}, "abort"},
 		{[]string{"config firewall address", "edit x", "next", "end", "config firewall addrgrp", "edit g"}, "abort"},
+		{[]string{"configure terminal", "spanning-tree mst configuration", "name REGION"}, "abort"}, // exit or end would apply the region
+		{[]string{"configure terminal", "interface Gi1/0/5", "shutdown", "end"}, ""},                // closed: the refused line ran at the exec prompt
+		{[]string{"config firewall address", "edit x", "next", "end"}, ""},
+		{[]string{"config system interface", "edit port1", "config ipv6", "set ip6-mode static", "end"}, "abort"}, // the outer block is still open
 		{[]string{"terminal length 0"}, ""},
 		{[]string{"configure"}, ""}, // ArubaOS-Switch and Junos: no rule, nothing is typed (D-358)
 		{[]string{"configuration"}, ""},
@@ -152,5 +157,92 @@ func TestWriterLeaveBudget(t *testing.T) {
 	t.Parallel()
 	if write.LeaveBudget != 5*time.Second {
 		t.Fatalf("LeaveBudget = %s", write.LeaveBudget)
+	}
+}
+
+// FortiOS says no with "command parse error before …" and "Command fail. Return code -61": the chain stops there (next and end would save
+// the entry without the refused line), abort goes out, and the outcome is unknown, not OK.
+func TestWriterSeesAFortiOSRefusal(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	f := conntest.NewSSH(t, conntest.SSHOpts{Prompt: "FGT", Respond: func(line string) string {
+		if strings.HasPrefix(line, "set statuss") {
+			return "command parse error before 'statuss'\nCommand fail. Return code -61"
+		}
+		if strings.HasPrefix(line, "set name") {
+			return "value parse error before 'x'\nCommand fail. Return code -651"
+		}
+		return ""
+	}})
+	c := r.sw(f)
+	res := r.do(sshStep(c, write.PhaseRun, "config firewall vip", `edit "web"`, "set statuss disable", "next", "end"))
+	wantStatus(t, res, write.StatusUnknown)
+	if got := strings.Join(f.Lines(), "|"); got != `config firewall vip|edit "web"|set statuss disable|abort` {
+		t.Fatalf("lines %s", got)
+	}
+	if !strings.Contains(res.Detail, "command parse error") {
+		t.Errorf("detail %q", res.Detail)
+	}
+	n := len(f.Lines())
+	wantStatus(t, r.do(sshStep(c, write.PhaseRun, "config firewall policy", "edit 7", "set name x", "next", "end")), write.StatusUnknown)
+	if got := strings.Join(f.Lines()[n:], "|"); got != "config firewall policy|edit 7|set name x|abort" {
+		t.Fatalf("lines %s", got)
+	}
+}
+
+// The undo of a change is a write too: a refused line in it is followed by the leave line.
+func TestWriterLeavesConfigurationModeInARollback(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	f := conntest.NewSSH(t, conntest.SSHOpts{Respond: refuseBad})
+	c := r.sw(f)
+	wantStatus(t, r.do(sshStep(c, write.PhaseRollback, "configure terminal", "interface Gi1/0/5", "bad no shutdown", "end")), write.StatusUnknown)
+	if got := strings.Join(f.Lines(), "|"); got != "configure terminal|interface Gi1/0/5|bad no shutdown|end" {
+		t.Fatalf("lines %s", got)
+	}
+}
+
+// A line that times out (here the step's own deadline) types nothing more: the device may still be working on it.
+func TestWriterSendsNoLeaveLineAfterATimeOut(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	f := conntest.NewSSH(t, conntest.SSHOpts{Respond: func(line string) string {
+		if line == "shutdown" {
+			<-release
+		}
+		return ""
+	}})
+	c := r.sw(f)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	start := time.Now()
+	res := r.w.Do(ctx, sshStep(c, write.PhaseRun, "configure terminal", "interface Gi1/0/5", "shutdown", "end"))
+	wantStatus(t, res, write.StatusUnknown)
+	if d := time.Since(start); d > 5*time.Second {
+		t.Fatalf("the step took %s", d)
+	}
+	if got := strings.Join(f.Lines(), "|"); got != "configure terminal|interface Gi1/0/5|shutdown" {
+		t.Fatalf("lines %s", got)
+	}
+}
+
+// The emergency stop pressed while the refused line is on the device: no leave line (D-179 (4)).
+func TestWriterSendsNoLeaveLineAfterTheStop(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	f := conntest.NewSSH(t, conntest.SSHOpts{Respond: func(line string) string {
+		if strings.HasPrefix(line, "bad") {
+			cancel()
+		}
+		return refuseBad(line)
+	}})
+	c := r.sw(f)
+	wantStatus(t, r.w.Do(ctx, sshStep(c, write.PhaseRun, "configure terminal", "interface Gi1/0/5", "bad shutdown", "end")), write.StatusUnknown)
+	if got := strings.Join(f.Lines(), "|"); got != "configure terminal|interface Gi1/0/5|bad shutdown" {
+		t.Fatalf("lines %s", got)
 	}
 }

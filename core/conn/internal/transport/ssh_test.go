@@ -96,6 +96,52 @@ func TestSSHLeaveOnlyAfterARefusedLine(t *testing.T) {
 	}
 }
 
+// D-358: a line that did not come back in time closes the session; Leave, even with a live context, types nothing after it.
+func TestSSHLeaveTypesNothingAfterATimeOut(t *testing.T) {
+	t.Parallel()
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	f := conntest.NewSSH(t, conntest.SSHOpts{Respond: func(line string) string {
+		if line == "shutdown" {
+			<-release
+		}
+		return ""
+	}})
+	s, err := transport.DialSSH(context.Background(), f.Addr, sshCfg())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Run(context.Background(), "configure terminal"); err != nil {
+		t.Fatal(err)
+	}
+	short, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	if _, err := s.Run(short, "shutdown"); err == nil {
+		t.Fatal("a line that never came back was accepted")
+	}
+	s.Leave(context.Background(), "end", time.Second)
+	if got := strings.Join(f.Lines(), ","); got != "configure terminal,shutdown" {
+		t.Fatalf("the device received %q", got)
+	}
+}
+
+// FortiOS refusals are refusals: "command parse error", "value parse error", "Command fail. Return code".
+func TestSSHRunSeesFortiOSRefusals(t *testing.T) {
+	t.Parallel()
+	for _, out := range []string{"command parse error before 'statuss'\nCommand fail. Return code -61", "value parse error before 'x'", "Command fail. Return code -3"} {
+		f := conntest.NewSSH(t, conntest.SSHOpts{Prompt: "FGT", Respond: func(string) string { return out }})
+		s, err := transport.DialSSH(context.Background(), f.Addr, sshCfg())
+		if err != nil {
+			t.Fatal(err)
+		}
+		var de *transport.DeviceError
+		if _, err := s.Run(context.Background(), "set statuss disable"); !errors.As(err, &de) || !strings.Contains(de.Msg, strings.Split(out, "\n")[0]) {
+			t.Errorf("%q: err = %v, want the refusal", out, err)
+		}
+		s.Close()
+	}
+}
+
 func TestSSHKeyAuth(t *testing.T) {
 	t.Parallel()
 	signer, priv := conntest.NewSSHKey(t)

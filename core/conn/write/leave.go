@@ -49,19 +49,31 @@ var leaveRules = sync.OnceValues(func() ([]leaveRule, error) {
 })
 
 // leaveLine is the line to type after the lines sent were accepted and the next one was refused: the rule of the nearest line that
-// entered configuration mode, or "" (nothing is typed; the session just closes). A file that does not load gives "" too: the
-// behaviour before D-358, and TestLeaveRulesLoad keeps it from shipping.
+// entered configuration mode and that no later "end" closed, or "" (nothing is typed; the session just closes). Looking back, each
+// "end" closes one block (FortiOS nests config blocks; an IOS end closes every level, and a leave line typed at the exec prompt
+// after it is refused as an unknown command, which changes nothing). A file that does not load gives "" too: the behaviour before
+// D-358, and TestLeaveRulesLoad keeps it from shipping.
 func leaveLine(sent []string) string {
 	rules, err := leaveRules()
 	if err != nil {
 		return ""
 	}
 	lines := cliban.Lines(strings.Join(sent, "\n"))
+	closed := 0
 	for i := len(lines) - 1; i >= 0; i-- {
+		if lines[i] == "end" {
+			closed++
+			continue
+		}
 		for _, r := range rules {
-			if cliban.Hit(lines[i:i+1], r.enter) != "" {
-				return r.leave
+			if cliban.Hit(lines[i:i+1], r.enter) == "" {
+				continue
 			}
+			if closed > 0 {
+				closed--
+				break
+			}
+			return r.leave
 		}
 	}
 	return ""

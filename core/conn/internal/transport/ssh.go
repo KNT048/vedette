@@ -319,8 +319,10 @@ func isPrompt(b []byte) bool {
 }
 
 // errorMarkers are the starts of a line by which devices say that a command failed (spec action-templates 9.3): Cisco-like "%",
-// "Invalid input", "Error", and "Unknown command".
-var errorMarkers = []string{"%", "Error", "Invalid", "Unknown command"}
+// "Invalid input", "Error", and "Unknown command"; FortiOS "command parse error before '…'", "value parse error before '…'" and the
+// "Command fail. Return code -N" that ends every refused FortiOS line (D-358). Without them a refused FortiOS "set" went unseen and
+// the next "next"/"end" saved the entry without it.
+var errorMarkers = []string{"%", "Error", "Invalid", "Unknown command", "command parse error", "value parse error", "Command fail"}
 
 // Run sends one line, waits for the next prompt and returns the output without the echo of the line and without the prompt. A
 // line of the output that begins like an error stops the chain: the error is a DeviceError with that one line, cleaned, and the

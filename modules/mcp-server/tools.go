@@ -49,11 +49,9 @@ type Tool struct {
 }
 
 var (
-	cveRE = regexp.MustCompile(`^(?i)cve-\d{4}-\d{4,7}$`)
-	idRE  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$`)
-	// the lookup box's idea of a domain (feeds domainQueryRE); feeds decides whether it can be an indicator
-	domainRE = regexp.MustCompile(`(?i)^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
-	statusE  = []string{"open", "all", "confirmed", "suspected", "mitigated", "patched", "false_positive", "not_relevant"}
+	cveRE   = regexp.MustCompile(`^(?i)cve-\d{4}-\d{4,7}$`)
+	idRE    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$`)
+	statusE = []string{"open", "all", "confirmed", "suspected", "mitigated", "patched", "false_positive", "not_relevant"}
 )
 
 // Schemas. Kept as literal JSON so tools/list sends exactly what is written here; tools_test.go checks every answer against them.
@@ -487,7 +485,7 @@ func lookupIOC(ctx context.Context, src Source, a args) (any, int, error) {
 		return nil, 0, argError{"value is required: an IP address or a domain."}
 	}
 	v = strings.TrimSpace(v)
-	if _, ipErr := netip.ParseAddr(v); ipErr != nil && !domainRE.MatchString(v) { // checked here: no feeds search for a word
+	if _, ipErr := netip.ParseAddr(v); ipErr != nil && !validDomain(v) { // checked here: no feeds search for a word
 		return nil, 0, argError{"value must be an IP address or a domain name (no URL, no port)."}
 	}
 	ans, err := src.IOC(ctx, v)
@@ -553,3 +551,41 @@ var allowedArgs = map[string][]string{
 	"lookup_ioc":          {"value"},
 	"hot_vulnerabilities": {"window", "offset", "limit"},
 }
+
+// validDomain is a copy of the rule of modules/feeds (normalize.go validDomain; modules do not import each other), as the AI's
+// lookup_ioc has it, so the tool takes every name a feed can list, an IDN top-level domain in its ASCII form (`discord.xn--q9jyb4c`)
+// among them: at most 253 bytes, two or more labels; every label but the last is 1 to 63 of a-z, A-Z, 0-9 and "-" with no "-" at
+// either end, the last is 2 to 63 letters or "xn--" and letters, digits and "-" not ending in "-". Feeds decides whether it can be
+// an indicator.
+func validDomain(v string) bool {
+	if len(v) > 253 {
+		return false
+	}
+	labels := 0
+	for len(v) > 0 {
+		i := strings.IndexByte(v, '.')
+		if i < 0 {
+			if labels == 0 || len(v) < 2 || len(v) > 63 {
+				return false
+			}
+			if len(v) > 4 && strings.EqualFold(v[:4], "xn--") {
+				return v[len(v)-1] != '-' && strings.IndexFunc(v[4:], func(r rune) bool { return r != '-' && !isLetter(r) && (r < '0' || r > '9') }) < 0
+			}
+			return strings.IndexFunc(v, func(r rune) bool { return !isLetter(r) }) < 0
+		}
+		l := v[:i]
+		if l == "" || len(l) > 63 || l[0] == '-' || l[len(l)-1] == '-' {
+			return false
+		}
+		for j := 0; j < len(l); j++ {
+			if c := l[j]; c != '-' && !isLetter(rune(c)) && (c < '0' || c > '9') {
+				return false
+			}
+		}
+		labels++
+		v = v[i+1:]
+	}
+	return false // empty, or a trailing dot
+}
+
+func isLetter(r rune) bool { return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' }

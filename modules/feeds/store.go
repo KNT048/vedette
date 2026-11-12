@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
@@ -867,6 +868,26 @@ func (s *Store) IOCListed(ctx context.Context) (bool, error) {
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM feeds_ioc_source s JOIN feeds_source f ON f.id = s.source_id WHERE f.enabled = 1)`).Scan(&ok)
 	if err != nil {
 		return false, fmt.Errorf("feeds: read listings: %w", err)
+	}
+	return ok, nil
+}
+
+// IOCSubdomainsOn says whether a switched-on built-in feed lists names with all of their subdomains (Source.Subdomains, D-228): logs
+// looks up the parents of an unlisted name only then (D-425). A custom feed is always exact.
+func (s *Store) IOCSubdomainsOn(ctx context.Context) (bool, error) {
+	ids := []any{}
+	for _, b := range BuiltinSources() {
+		if b.Subdomains {
+			ids = append(ids, b.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return false, nil
+	}
+	var ok bool
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM feeds_source WHERE enabled = 1 AND builtin = 1 AND id IN (?`+strings.Repeat(", ?", len(ids)-1)+`))`, ids...).Scan(&ok)
+	if err != nil {
+		return false, fmt.Errorf("feeds: read sources: %w", err)
 	}
 	return ok, nil
 }

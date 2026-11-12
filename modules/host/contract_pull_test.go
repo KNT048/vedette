@@ -485,10 +485,11 @@ func TestContract_Pull_ASignatureOfAnotherDocumentOrAnUntrustedKeyIsSignatureInv
 	e.refuse(t, "untrusted key", other.Args("core", pullVersion, idxRaw, manRaw), api.CodeSignatureInvalid)
 }
 
-func TestContract_Pull_BundleIsRefusedAndNotAnApplianceIsRefused(t *testing.T) {
+func TestContract_Pull_NotAnApplianceIsRefused(t *testing.T) {
 	t.Parallel()
 	e := startPull(t)
-	e.refuse(t, "bundle", api.ContainerPullArgs{Service: "core", Version: pullVersion, Source: api.PullSourceBundle, BundleID: strings.Repeat("a", 32)}, api.CodeBundleUnsupported)
+	// A bundle that core never wrote (D-452: the bundle pulls are in contract_bundle_test.go).
+	e.refuse(t, "bundle", api.ContainerPullArgs{Service: "core", Version: pullVersion, Source: api.PullSourceBundle, BundleID: strings.Repeat("a", 32)}, api.CodeBundleNotFound)
 	e.m.OSRelease("ubuntu", "20.04", "Ubuntu 20.04")
 	e.refuse(t, "old ubuntu", e.std(t, 5), api.CodeNotAppliance)
 	e.noIndexStored(t) // the appliance check comes first: nothing was verified, nothing stored

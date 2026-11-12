@@ -62,7 +62,7 @@
     "err": {
       "badUrl": "The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.",
       "insecureUrl": "Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.",
-      "blockedUrl": "The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.",
+      "blockedUrl": "The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.",
       "noKey": "Enter the webhook signing key.",
       "shortKey": "The signing key needs at least 16 characters. Press Generate random if you want a random one."
     },
@@ -300,6 +300,7 @@
     "emptyOpenTitle": "No open incidents",
     "emptyAllTitle": "No incidents yet",
     "emptyBody": "When a trap is touched, a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
+    "emptyBodyNoTraps": "When a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
     "setupChannels": "Set up alert channels"
   },
   "detail": {

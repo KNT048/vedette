@@ -288,7 +288,7 @@ func TestApplyTreatsOnlyARefusalAsARefusal(t *testing.T) {
 	}
 
 	// #475: a refusal for the host's own failure (its decoy build failed) is dropped from the record too, but it is no
-	// clash: the traps are "off" (the secondary IP is not up), even with a decoy placed and the container running.
+	// clash: the traps are "failed" (the secondary IP is not up), even with a decoy placed and the container running.
 	e3 := newEnv(t)
 	e3.setup()
 	if _, err := e3.svc.AddDecoy(e3.ctx(), "admin@acme.example", honeypot.DecoyInput{Personality: honeypot.Linux, Name: "LNX-OLD", IP: "192.168.10.241"}); err != nil {

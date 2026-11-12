@@ -223,7 +223,7 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
     if (badTo !== undefined) return fail(400, 'bad_to', named ? `${named} is not a valid email address. Separate several recipients with commas.` : 'A recipient email is not valid. Separate several recipients with commas.')
     const host = (f.host ?? '').trim()
     if (!(IPV4_RE.test(host) || DOMAIN_RE.test(host))) return fail(400, 'bad_host', 'The SMTP server must be a domain name or an IP address, for example smtp.company.com.')
-    if (forbiddenHost(host)) return fail(400, 'bad_host', "The SMTP server cannot be this machine, a link-local or multicast address, or an unspecified address. For a mail server on the computer that runs Vedette, enter that computer's LAN address.")
+    if (forbiddenHost(host)) return fail(400, 'bad_host', "The SMTP server cannot be this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address. For a mail server on the computer that runs Vedette, enter that computer's LAN address.")
     const port = Number(portText)
     if (port < 1 || port > 65535) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
     if (!['starttls', 'ssl', 'none'].includes(f.security ?? '')) return fail(400, 'bad_security', 'Choose an encryption type: STARTTLS, SSL/TLS or none.')
@@ -243,7 +243,7 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
   try { u = new URL(webhookUrl(f, cur)) } catch { /* không phải URL */ }
   if (!u || !/^https?:$/.test(u.protocol)) return fail(400, 'bad_url', 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.')
   // The API answers the adapter's blocked_host and insecure_url as bad_url (channels.go apiConfigCode); blocked_host comes first (webhook.go).
-  if (forbiddenHost(u.hostname)) return fail(400, 'bad_url', 'The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.')
+  if (forbiddenHost(u.hostname)) return fail(400, 'bad_url', 'The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.')
   if (u.protocol === 'http:' && !isInternalHost(u.hostname)) return fail(400, 'bad_url', 'Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.')
   if (secret && secret.length < 16) return fail(400, 'bad_secret', 'The signing key needs at least 16 characters. Press Generate random if you want a random one.')
   return need('webhook signing key')

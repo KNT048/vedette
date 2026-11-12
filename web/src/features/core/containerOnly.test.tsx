@@ -26,7 +26,7 @@ describe('container-only install (D-381)', () => {
   it('Updates shows the compose commands and no appliance control; Data shows the volume backup; neither calls the host', async () => {
     renderApp('/settings/updates')
     expect(await screen.findByText('Update Vedette')).toBeInTheDocument()
-    expect(screen.getByText(/docker compose --env-file vedette.env pull/)).toBeInTheDocument()
+    expect(screen.getAllByText(/docker compose --env-file vedette.env pull/)).not.toHaveLength(0)
     expect(screen.queryByRole('button', { name: /Check for releases|Export|Import/ })).toBeNull()
     renderApp('/settings/data')
     expect(await screen.findAllByText(/vedette_data/)).not.toHaveLength(0)
@@ -37,30 +37,106 @@ describe('container-only install (D-381)', () => {
     expect(hostCalls()).toEqual([])
   })
 
+  it('Data backup and restore follow the Docker / Podman switch, with the SELinux note for Podman (S-CORE-9 G2)', async () => {
+    const u = userEvent.setup()
+    renderApp('/settings/data')
+    expect(await screen.findByText(/^docker compose --env-file vedette.env stop core/)).toBeInTheDocument()
+    expect(screen.queryByText(/SELinux/)).toBeNull()
+    await u.click(screen.getByRole('button', { name: 'Podman' }))
+    expect(screen.getByText(/^podman compose --env-file vedette.env stop core/)).toBeInTheDocument()
+    expect(screen.getByText(/^podman compose --env-file vedette.env create core/)).toBeInTheDocument()
+    expect(screen.queryByText(/docker (run|compose)/)).toBeNull()
+    expect(screen.getByText(/SELinux/)).toBeInTheDocument()
+  })
+
   it('Updates names the offered release and its notes, with the update and cosign blocks for Docker or Podman and no Apply (S-CORE-9 G4)', async () => {
     const u = userEvent.setup()
     renderApp('/settings/updates')
     expect(await screen.findByText('Vedette 0.9.4 is available. This machine runs 0.9.3.')).toBeInTheDocument()
     expect(screen.getByText(/oversized syslog packets/)).toBeInTheDocument()
-    // in the order that is safe: keep, minisign, cosign + the digests of vedette.env, and only then pull and up -d
-    const steps = within(screen.getByRole('list')).getAllByRole('listitem').map((li) => li.querySelector('code')!.textContent!)
-    expect(steps.map((c) => c.split(' ')[0])).toEqual(['mv', 'minisign', 'cosign', 'docker'])
-    expect(steps[0]).toBe('mv -n vedette.env vedette.env.0.9.3') // named after the running release: a later update keeps its own way back
-    expect(steps[1]).toBe('minisign -Vm vedette.env -p vedette.pub')
-    // one line per image this install runs (not the honeypot), by the digest of the release information; no made-up URL
+    // in the order that is safe: keep, download + minisign, cosign + the digests of vedette.env, and only then pull and up -d
+    const items = within(screen.getByRole('list')).getAllByRole('listitem')
+    // the list keeps its numbers: the grid is on an inner element, not on the li (QA L3)
+    for (const li of items) expect(li.className).toBe('')
+    const steps = items.map((li) => li.querySelector('code')!.textContent!)
+    expect(steps.map((c) => c.split(/[ =]/)[0])).toEqual(['mkdir', 'u', 'cosign', 'docker'])
+    // all four files of the running release go to a NEW folder named after it: mkdir without -p refuses an existing one (D-451)
+    const four = 'vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml'
+    expect(steps[0]).toBe(`mkdir vedette-0.9.3 && mv -n ${four} vedette-0.9.3/`)
+    // a kept folder already there holds the good files: put them back before moving it aside (QA r2), never rename it alone
+    const keep = [...items[0]!.querySelectorAll('code')].map((c) => c.textContent)
+    expect(keep[1]).toBe('cp vedette-0.9.3/* .\nmv vedette-0.9.3 vedette-0.9.3-before')
+    expect(within(items[0]!).getByText(/If vedette-0\.9\.3 is already there .*first put its files back, then rename it, and run this step again/)).toBeInTheDocument()
+    expect(within(items[0]!).getByText('Only if vedette-0.9.3 is already there')).toBeInTheDocument()
+    // the four files and their signatures of the offered version, from the release assets; the loop stops at the first failure
+    expect(steps[1]).toBe(`u=https://github.com/KNT048/vedette/releases/download/v0.9.4\nfor f in ${four}; do curl -fsSLO "$u/$f" && curl -fsSLO "$u/$f.minisig" || { echo "download failed: $f"; break; }; done`)
+    // each file's signed comment must be exactly "file:<that file> version:<offered>" (minisign -VQm prints only that comment)
+    const fetch = items[1]!
+    const codes = [...fetch.querySelectorAll('code')].map((c) => c.textContent)
+    expect(codes[1]).toBe(`for f in ${four}; do [ "$(minisign -VQm "$f" -p vedette.pub)" = "file:$f version:0.9.4" ] && echo "$f ok" || { echo "$f FAILED: stop"; break; }; done`)
+    expect(within(fetch).getByText(/the vedette\.pub you kept from the install \(in this folder, not one taken from the release page\)/)).toBeInTheDocument()
+    expect(within(fetch).getByText(/At the first FAILED, stop/)).toBeInTheDocument()
+    // every block has a label (QA L4)
+    for (const name of ['Keep the files you run now', 'Download the files', 'Check the signatures', 'Check that vedette.env names these images', 'Pull the new images and start them', 'Put the files of vedette-0.9.3 back and start them']) {
+      expect(screen.getByText(name, { selector: 'span' })).toBeInTheDocument()
+    }
+    // the -f files of the add-ons are said before the pull block, in the exact form
+    expect(within(items[3]!).getByText(/add -f compose\.yaml -f compose\.sensors\.yaml -f compose\.syslog\.yaml after --env-file vedette\.env in both commands/)).toBeInTheDocument()
+    // one line per image this install runs (not the honeypot), by the digest of the release information
     const lines = screen.getByText(/^cosign verify/).textContent!.split('\n')
     expect(lines.map((l) => /vedette-(\w+)@/.exec(l)?.[1])).toEqual(['core', 'sensor', 'scan'])
     for (const l of lines) expect(l).toMatch(/^cosign verify --key cosign\.pub ghcr\.io\/knt048\/vedette-\w+@sha256:[0-9a-f]{64}$/)
     const grep = screen.getByText(/^grep -cF/).textContent!
     for (const l of lines) expect(grep).toContain(`-e '${l.split(' ').at(-1)!}'`)
     expect(screen.getByText(/it must print 3, or do not go on/)).toBeInTheDocument()
-    expect(screen.getByText(/put vedette\.env\.0\.9\.3 back as vedette\.env/)).toBeInTheDocument()
-    expect(screen.queryByText(/https?:\/\//)).toBeNull()
+    // if a check fails, or later: the way back is a block of its own, copied as it is
+    expect(screen.getByText('If any check fails, stop and put your files back.')).toBeInTheDocument()
+    expect(screen.getByText(/^cp vedette-0\.9\.3\/\* \. docker compose/).textContent).toBe('cp vedette-0.9.3/* .\ndocker compose --env-file vedette.env pull\ndocker compose --env-file vedette.env up -d')
+    expect(screen.getByText(/from vedette-0\.9\.3\/vedette\.env into the new vedette\.env/)).toBeInTheDocument()
+    // the only address is the release assets of the offered version
+    expect(screen.getAllByText(/https?:\/\//).map((e) => e.textContent!.match(/https?:\/\/\S+/g)).flat()).toEqual(['https://github.com/KNT048/vedette/releases/download/v0.9.4'])
     expect(screen.queryByRole('button', { name: /Apply|Roll back|Check for releases/ })).toBeNull()
     expect(screen.queryByText(/System helper/)).toBeNull()
     await u.click(screen.getByRole('button', { name: 'Podman' }))
     expect(screen.getByText(/^podman compose --env-file vedette.env pull/).textContent).toBe('podman compose --env-file vedette.env pull\npodman compose --env-file vedette.env up -d')
     expect(screen.queryByText(/docker compose/)).toBeNull()
+    expect(screen.getByText(/^cp vedette-0\.9\.3\/\* \. podman compose/).textContent).toBe('cp vedette-0.9.3/* .\npodman compose --env-file vedette.env pull\npodman compose --env-file vedette.env up -d')
+  })
+
+  const offerState = (version: string, running: string, images: { service: string; digest: string }[]) => ({
+    channel: 'stable', mode: 'manual', check_enabled: true, last_check: '2026-11-12T00:00:00Z',
+    components: [{ id: 'software', kind: 'software', version: running, previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }],
+    available: [{ component: 'software', version, channel: 'stable', size_kb: 1, note: '', images }],
+    history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null,
+  })
+  const good = (s: string) => ({ service: s, digest: `sha256:${(s === 'core' ? 'c' : 'd').repeat(64)}` })
+
+  it.each([
+    ['an offered version with a shell character', '0.9.4;rm', '0.9.3', /The version offered \(0\.9\.4;rm\) or the version this machine runs \(0\.9\.3\) cannot be put into a command as it is/],
+    ['a running version that cannot name a folder', '0.9.4', '0.9.3 beta', /or the version this machine runs \(0\.9\.3 beta\) cannot be put into a command/],
+    ['an unknown running version', '0.9.4', '', /^This machine's version is not known, so no commands are shown here/],
+  ])('Updates shows no command at all for %s, only where the steps are (D-451)', async (_, version, running, said) => {
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(offerState(version, running, [good('core')]))))
+    renderApp('/settings/updates')
+    expect(await screen.findByText(said)).toBeInTheDocument()
+    // an unknown version is said in words, never as "runs ." or "()" (QA r2)
+    if (!running) {
+      expect(screen.getByText('Vedette 0.9.4 is available. This machine\'s version is not known.')).toBeInTheDocument()
+      expect(screen.getByText(/^This machine's version is not known\. Update information last read/)).toBeInTheDocument()
+      expect(screen.queryByText(/runs \.|\(\)/)).toBeNull()
+    }
+    expect(screen.queryByRole('list')).toBeNull()
+    expect(screen.queryByText(/mkdir|curl|minisign|cosign verify|grep -cF/)).toBeNull()
+  })
+
+  it('Updates puts only a known service with a well-formed digest into a command (D-451)', async () => {
+    const images = [good('core'), good('sensor'), { service: 'scan', digest: "sha256:x' ; rm -rf ~ '" }, { service: 'evil', digest: `sha256:${'e'.repeat(64)}` }]
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(offerState('0.9.4', '0.9.3', images))))
+    renderApp('/settings/updates')
+    const lines = (await screen.findByText(/^cosign verify/)).textContent!.split('\n')
+    expect(lines.map((l) => /vedette-(\w+)@/.exec(l)?.[1])).toEqual(['core', 'sensor'])
+    expect(screen.getByText(/^grep -cF/).textContent).not.toMatch(/rm -rf|evil/)
+    expect(screen.getByText(/it must print 2, or do not go on/)).toBeInTheDocument()
   })
 
   it.each([
@@ -68,13 +144,27 @@ describe('container-only install (D-381)', () => {
     ['the check is off', { check_enabled: false }, /The update check is off/],
     ['nothing newer', { last_check: '2026-11-12T00:00:00Z' }, /No newer release is offered to this install\./],
   ])('Updates without a newer release says why (%s) and keeps the general pull and up -d block', async (_, over, said) => {
-    const state = { channel: 'stable', mode: 'manual', check_enabled: true, last_check: null, components: [{ id: 'software', kind: 'software', version: '0.9.3', previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }], available: [], history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null, ...over }
+    const state = { channel: 'stable', mode: 'manual', check_enabled: true, last_check: null, components: [{ id: 'software', kind: 'software', version: '0.9.3', previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }], available: [], history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null, last_check_error: null, ...over }
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(state)))
     renderApp('/settings/updates')
     expect(await screen.findByText(said)).toBeInTheDocument()
     expect(screen.getByText(/Running version 0\.9\.3\. (Update information last read|Update information has never been read)/)).toBeInTheDocument()
     expect(screen.getByText(/docker compose --env-file vedette.env pull/)).toBeInTheDocument()
     expect(screen.queryByText(/minisign|cosign verify/)).toBeNull()
+    // the block says what it does and does not do; no "kept files" that this state never made (QA M3)
+    expect(screen.getByText(/They do not move you to a new release: the image digests are fixed in vedette\.env/)).toBeInTheDocument()
+    expect(screen.queryByText(/kept|go back/)).toBeNull()
+  })
+
+  it('Updates: a failed check says when and why, without guessing the cause (S-CORE-2 D-392)', async () => {
+    const message = "The update information did not pass Vedette's signature checks, so nothing new is offered and nothing was installed. The details are in the box log."
+    const state = { channel: 'stable', mode: 'manual', check_enabled: true, last_check: null, last_check_error: { at: new Date(Date.now() - 3600e3).toISOString(), code: 'update_check_failed', message }, components: [{ id: 'software', kind: 'software', version: '0.9.3', previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }], available: [], history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null }
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(state)))
+    renderApp('/settings/updates')
+    expect(await screen.findByText(`Last check failed 1 hour ago: ${message}`)).toBeInTheDocument()
+    expect(screen.queryByText(/has never been read/)).toBeNull()
+    expect(screen.getByText('No release information yet: no update check has succeeded on this install. Vedette tries again every 6 hours.')).toBeInTheDocument()
+    expect(screen.queryByText(/cannot reach github\.com/)).toBeNull() // the failure line says the real reason
   })
 
   it('Updates: when the update state cannot be read, the error has Try again and the general block stays', async () => {
@@ -166,23 +256,35 @@ describe('container-only install (D-381)', () => {
     await screen.findByRole('button', { name: 'Configure sensor vedette-hq' }, { timeout: 5000 })
     await waitFor(async () => { await u.click(screen.getByRole('button', { name: 'Configure sensor vedette-hq' })); screen.getByRole('dialog') }, { timeout: 8000 })
   }
-  // S-CORE-8 G6, D-387: the SPAN card is chosen under Sensors among the cards the sensor reported; Box network has no SPAN here.
-  it('Sensors: Configure picks the SPAN card among the reported cards; the box refuses a card with an address', async () => {
+  // S-CORE-8 G6, D-387, D-393: the card is chosen under Sensors among the cards the sensor reported; Box network has no SPAN here.
+  it('Sensors: Configure picks the SPAN card among the reported cards; the box refuses SPAN on a card with an address', async () => {
     const u = userEvent.setup()
     renderApp('/devices/setup')
     await openSensorDialog(u)
     const dlg = screen.getByRole('dialog')
     expect(within(dlg).queryByRole('link', { name: /Box network/ })).toBeNull()
-    const pick = within(dlg).getByRole('combobox', { name: 'SPAN card' })
-    expect(within(pick).getAllByRole('option').map((o) => o.textContent)).toEqual(["None (listen on the card with this machine's address)", 'eno1', 'eno2', 'wlp2s0'])
+    const pick = within(dlg).getByRole('combobox', { name: 'Listen on' })
+    expect(within(pick).getAllByRole('option').map((o) => o.textContent)).toEqual(['Automatic (eno1)', 'eno1', 'eno2', 'wlp2s0'])
+    const spanBox = within(dlg).getByRole('checkbox', { name: /SPAN port/ })
+    expect(spanBox).toBeDisabled() // Automatic: no SPAN
     await u.selectOptions(pick, 'eno1')
+    await u.click(spanBox)
     await u.click(within(dlg).getByRole('button', { name: 'Save' }))
     expect(await within(dlg).findByRole('alert')).toHaveTextContent('"eno1" has an IP address; a SPAN port has none.')
-    await u.selectOptions(pick, 'eno2')
+    await u.selectOptions(pick, 'eno2') // another card: SPAN is decided again for it
+    expect(spanBox).not.toBeChecked()
+    await u.click(spanBox)
     await u.click(within(dlg).getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(containerSensorStore.get()).toMatchObject({ chosen: 'eno2', span: true })
     await waitFor(() => expect(screen.getByRole('cell', { name: /eno2/ })).toBeInTheDocument())
+    // Reopened on the stored SPAN choice; Automatic no longer names a card it cannot know (the default is not computed for a choice).
+    await openSensorDialog(u)
+    const again = within(screen.getByRole('dialog'))
+    expect(again.getByRole('combobox', { name: 'Listen on' })).toHaveValue('eno2')
+    expect(again.getByRole('checkbox', { name: /SPAN port/ })).toBeChecked()
+    expect(again.getAllByRole('option')[0]).toHaveTextContent('Automatic (the one card of this machine with an address)')
+    await u.click(again.getByRole('button', { name: 'Cancel' }))
     expect(calls.some((u) => new URL(u, location.origin).pathname.startsWith('/api/v1/core/network'))).toBe(false)
   })
 
@@ -201,12 +303,31 @@ describe('container-only install (D-381)', () => {
     expect(within(dlg).queryByRole('button', { name: 'Save' })).toBeNull()
   })
 
-  it('Sensors: two cards with an address, no SPAN card chosen: the dialog says the sensor is not listening (D-380)', async () => {
+  // D-393 (M3): two cards with an address and no SPAN card: no default (D-380), so the admin picks the card to listen on.
+  it('Sensors: two cards with an address: the dialog says the sensor is not listening, the admin picks one, then back to Automatic', async () => {
     containerSensorStore.set({ connected: true, chosen: null, span: false, cards: [{ name: 'eno1', ipv4: '192.168.10.20/24', link: true }, { name: 'eno2', ipv4: '10.0.0.2/24', link: true }, { name: 'eno3', ipv4: null, link: true }] })
     const u = userEvent.setup()
     renderApp('/devices/setup')
     await openSensorDialog(u)
-    expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent('The sensor is not listening on any card')
+    let dlg = screen.getByRole('dialog')
+    expect(within(dlg).getByRole('status')).toHaveTextContent('The sensor is not listening on any card')
+    let pick = within(dlg).getByRole('combobox', { name: 'Listen on' })
+    expect(within(pick).getAllByRole('option')[0]).toHaveTextContent('Automatic (no card now)')
+    await u.selectOptions(pick, 'eno2')
+    await u.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(containerSensorStore.get()).toMatchObject({ chosen: 'eno2', span: false })
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'eno2' })).toBeInTheDocument())
+    // Reopened, it shows the stored choice, not Automatic; Automatic stores no card again.
+    await openSensorDialog(u)
+    dlg = screen.getByRole('dialog')
+    pick = within(dlg).getByRole('combobox', { name: 'Listen on' })
+    expect(pick).toHaveValue('eno2')
+    expect(within(dlg).getByRole('button', { name: 'Save' })).toBeDisabled()
+    await u.selectOptions(pick, '')
+    await u.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(containerSensorStore.get()).toMatchObject({ chosen: null, span: false })
   })
 
   it('PATCH /inventory/sensors/{id} on an appliance is 409 set_in_box_network', async () => {

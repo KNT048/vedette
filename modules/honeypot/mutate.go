@@ -1,7 +1,6 @@
 package honeypot
 
 import (
-	"cmp"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -311,7 +310,9 @@ func (w *world) withState(d decoyRow, hv hostView) Decoy {
 	for _, t := range w.traps {
 		anyTrap = anyTrap || t.enabled
 	}
-	secWhy, secFault := hv.conflicts[w.secIP], hv.hostFailed[w.secIP]
+	// Only a decoy IP the core itself refuses keeps every trap from listening (desired hands the host nothing then). A
+	// decoy IP the host refused or could not set up does not: the container still runs for the extra decoys the host
+	// holds, and OpenCanary listens on every address it has (opencanary.go), so their state is their own.
 	secProblem := w.secIP.IsValid() && w.ipProblem(w.secIP) != ""
 	switch why, hostFault := hv.conflicts[d.ip], hv.hostFailed[d.ip]; {
 	case !d.Enabled:
@@ -326,10 +327,8 @@ func (w *world) withState(d decoyRow, hv hostView) Decoy {
 		return set(StateOff, "No trap is on, so nothing listens on this address.")
 	case !w.secIP.IsValid():
 		return set(StateOff, "No decoy IP is set, so no trap listens.")
-	case secProblem || (secWhy != "" && !secFault):
-		return set(StateConflict, "The decoy IP cannot be used, so no trap listens: "+cmp.Or(w.ipProblem(w.secIP), secWhy))
-	case secWhy != "":
-		return set(StateFailed, "The box could not set up the decoy IP: "+secWhy)
+	case secProblem:
+		return set(StateConflict, "The decoy IP cannot be used, so no trap listens: "+w.ipProblem(w.secIP))
 	case w.ipProblem(d.ip) != "":
 		return set(StateConflict, w.ipProblem(d.ip))
 	case why != "" && hostFault:
@@ -340,6 +339,8 @@ func (w *world) withState(d decoyRow, hv hostView) Decoy {
 		return set(StateListening, "")
 	case hv.pending:
 		return set(StateStarting, "")
+	case hv.available && hv.running: // the container runs, but the host did not confirm this address (no answer, busy)
+		return set(StateFailed, notConfirmed)
 	default:
 		return set(StateFailed, reasonOrDefault(hv.reason))
 	}

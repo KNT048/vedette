@@ -14,6 +14,7 @@ import (
 //
 //	container inspect vedette-<service>
 //	pull -q ghcr.io/knt048/vedette-<service>@sha256:<64 hex>
+//	                                           (or, from a bundle, pull -q oci:<dir>:<image ref>: see ociPullArgv, D-452)
 //	image inspect --format json <ref>          ref: the pull reference or localhost/vedette-<service>:<version>
 //	tag <pull reference> localhost/vedette-<service>:<version>
 //	image ls --format json                     what retention reads (slice 3-8a)
@@ -78,6 +79,42 @@ func pullArgv(service, digest string) ([]string, error) {
 		return nil, err
 	}
 	return []string{"pull", "-q", ref}, nil
+}
+
+// The pull of a bundle (D-452) adds one shape:
+//
+//	pull -q oci:<layout dir>:ghcr.io/knt048/vedette-<service>:<version>
+//
+// The layout dir is a directory the host made under its own state (a plain absolute path, validBuildDir) and filled with blobs
+// that hash to their names and an index.json it wrote itself; the name after it is release.ImageRef of a known service and a
+// version that passed tagVersionRE, and Podman stores the image under that name, so the image answers to its pull reference
+// (repository + the verified digest) exactly as one pulled from the registry does (Podman 5.7.0, 2026-11-12).
+
+const ociPrefix = "oci:"
+
+func ociPullArgv(dir, service, version string) ([]string, error) {
+	if !knownService(service) || len(version) > 64 || !tagVersionRE.MatchString(version) || !validBuildDir(dir) {
+		return nil, errPodmanArgs
+	}
+	return []string{"pull", "-q", ociPrefix + dir + ":" + release.ImageRef(service, version)}, nil
+}
+
+// isOCIPullRef says whether s is exactly oci:<plain absolute dir>:ghcr.io/knt048/vedette-<service>:<version>.
+func isOCIPullRef(s string) bool {
+	rest, ok := strings.CutPrefix(s, ociPrefix)
+	if !ok {
+		return false
+	}
+	dir, ref, ok := strings.Cut(rest, ":")
+	if !ok || !validBuildDir(dir) {
+		return false
+	}
+	name, ok := strings.CutPrefix(ref, release.RegistryPrefix)
+	if !ok {
+		return false
+	}
+	svc, version, ok := strings.Cut(name, ":")
+	return ok && knownService(svc) && len(version) <= 64 && tagVersionRE.MatchString(version)
 }
 
 func inspectImageArgv(ref string) ([]string, error) {
@@ -257,7 +294,7 @@ func validatePodman(args []string) error {
 		return nil
 	case len(args) == 3 && args[0] == "container" && args[1] == "inspect" && slices.ContainsFunc(api.Services, func(s string) bool { return args[2] == containerName(s) }):
 		return nil
-	case len(args) == 3 && args[0] == "pull" && args[1] == "-q" && isPullRef(args[2]):
+	case len(args) == 3 && args[0] == "pull" && args[1] == "-q" && (isPullRef(args[2]) || isOCIPullRef(args[2])):
 		return nil
 	case len(args) == 5 && args[0] == "image" && args[1] == "inspect" && args[2] == "--format" && args[3] == "json" && (isPullRef(args[4]) || isLocalTag(args[4])):
 		return nil

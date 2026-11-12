@@ -16,7 +16,7 @@ import { connectorsStore } from '@/mocks/connectors'
 import { newSecret, verifyTotp } from './totp'
 import { checkCode, clearCode, issueCode, maskEmail, sentBody } from './emailCode'
 import { CIDR_RE, compareVersion, fromBase64, GUESSABLE_PASSWORD, guessablePassword, isPrivateCidr, MIN_PASSWORD, validTimeZone } from './util'
-import type { AccountSession, AdminUser, BoxBackup, RestoreRun, Advisory, AuditQuery, AuditRow, ManagedPackage, McpToken, OidcConfig, PrivacyFlow, SetupPayload, UpdateAvailable, UpdateChannel, UpdateComponent, UpdateHistory, UpdateRun, UpdatesState } from './types'
+import type { AccountSession, AdminUser, BoxBackup, RestoreRun, Advisory, AuditQuery, AuditRow, ManagedPackage, McpToken, OidcConfig, PrivacyFlow, SetupPayload, UpdateAvailable, UpdateChannel, UpdateComponent, UpdateHistory, UpdateCheckError, UpdateRun, UpdatesState } from './types'
 
 const ROLES: Role[] = ['viewer', 'operator', 'admin']
 const hex = (n: number) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, '0')).join('')
@@ -548,7 +548,7 @@ const HOST_IN: Record<string, string> = { '0.9.4': '0.9.4', '0.10.0-beta.1': '0.
 /** Bản phát hành khai `rollback.safe=false` (đổi DB): rollback khỏi bản này khôi phục DB trước cập nhật (D-104, D-340). */
 const RESTORES_DATA = new Set(['0.9.4'])
 const comp = (id: string, kind: UpdateComponent['kind'], version: string, previous: string | null, ago: number): UpdateComponent => ({ id, kind, version, previous, installed_at: daysAgo(ago), signature: 'valid', rollback_restores_data: false })
-const updStore = collection<{ channel: UpdateChannel; mode: 'auto' | 'manual'; components: UpdateComponent[]; history: UpdateHistory[]; last_check: string | null; run?: UpdateRun | null }>('core_updates', () => ({
+const updStore = collection<{ channel: UpdateChannel; mode: 'auto' | 'manual'; components: UpdateComponent[]; history: UpdateHistory[]; last_check: string | null; last_check_error?: UpdateCheckError | null; run?: UpdateRun | null }>('core_updates', () => ({
   channel: 'stable',
   mode: 'manual',
   last_check: daysAgo(0, 2),
@@ -601,6 +601,15 @@ const runSteps = (action: UpdateRun['action'], restore: boolean): UpdateRun['ste
  * downgrade_not_allowed uses 0.9.2 and test_version_refused `<release>-test.1`.
  */
 export type HostOutcome = 'self_update_unhealthy' | 'install_failed' | 'signature_invalid' | 'checksum_mismatch' | 'downgrade_not_allowed' | 'test_version_refused' | 'dependencies_unavailable' | 'dpkg_locked' | 'rollback_failed' | 'self_update_interrupted' | 'host_too_old' | 'current_package_missing' | 'host_download_failed'
+/**
+ * How the next update check ends (S-CORE-2 criterion D-392); null = it succeeds. Only tests and e2e set it (no button: on a
+ * real box the network decides). The sentences are core's own (modules/core/updates_check.go checkFailure), never remote text.
+ */
+export const CHECK_FAILURES: Record<UpdateCheckError['code'], { status: number; message: string }> = {
+  update_source_unreachable: { status: 503, message: 'Vedette could not download the update information from GitHub. Check that the box can reach github.com over HTTPS, then try again.' },
+  update_check_failed: { status: 502, message: "The update information did not pass Vedette's signature checks, so nothing new is offered and nothing was installed. The details are in the box log." },
+}
+export const checkScenario = collection<{ code: UpdateCheckError['code'] | null }>('core_updates_check_scenario', () => ({ code: null }))
 export const hostScenario = collection<{ code: HostOutcome | null; version: string | null }>('core_updates_host_scenario', () => ({ code: null, version: null }))
 /** The words core sends for each code (the story's sentences; slice 5 maps the host codes to these, core CONTRACT INV-21). */
 export function hostError(code: HostOutcome, v: string, running: string, release: string): string {
@@ -704,7 +713,7 @@ function updView(): UpdatesState {
     const host = container ? undefined : hostTarget(a.version)
     return { ...a, images: releaseImages(a.version), ...(host ? { host_version: host } : {}) }
   })
-  return { channel: s.channel, mode: s.mode, check_enabled: p.update_check, last_check: s.last_check, components: container ? s.components.filter((c) => c.id !== 'host') : s.components, available: latest, history: s.history.slice(0, 20), advisories: ADVISORIES.map((a) => ({ ...a, status: compareVersion(sw, a.fixed_in) < 0 ? 'affected' : 'fixed' })), managed: managedOf(s.components, latest), running_revoked: runningRevoked(sw), stale_since: staleSince(), run: s.run && (s.run.status === 'running' || Date.now() - Date.parse(s.run.finished_at ?? s.run.started_at) < 864e5) ? s.run : null }
+  return { channel: s.channel, mode: s.mode, check_enabled: p.update_check, last_check: s.last_check, last_check_error: s.last_check_error ?? null, components: container ? s.components.filter((c) => c.id !== 'host') : s.components, available: latest, history: s.history.slice(0, 20), advisories: ADVISORIES.map((a) => ({ ...a, status: compareVersion(sw, a.fixed_in) < 0 ? 'affected' : 'fixed' })), managed: managedOf(s.components, latest), running_revoked: runningRevoked(sw), stale_since: staleSince(), run: s.run && (s.run.status === 'running' || Date.now() - Date.parse(s.run.finished_at ?? s.run.started_at) < 864e5) ? s.run : null }
 }
 
 function applyOne(component: string, version: string, action: UpdateHistory['action'], user: string) {
@@ -764,7 +773,14 @@ const updatesHandlers = [
     const denied = guard('operator')
     if (denied) return denied
     if (!privacyStore.get().update_check) return fail(409, 'check_off', 'Update checks are off under Privacy. Turn them on or import an offline bundle.')
-    updStore.update((s) => ({ ...s, last_check: nowIso() }))
+    const failed = checkScenario.get().code
+    if (failed) {
+      const f = CHECK_FAILURES[failed]
+      updStore.update((s) => ({ ...s, last_check_error: { at: nowIso(), code: failed, message: f.message } })) // last_check stays: it moves only on a good check
+      audit('update.check', 'updates', `failed: ${failed}`)
+      return fail(f.status, failed, f.message)
+    }
+    updStore.update((s) => ({ ...s, last_check: nowIso(), last_check_error: null }))
     updIndex.update((x) => ({ ...x, expires_at: new Date(Date.now() + 14 * 864e5).toISOString() })) // a fresh signed index
     let applied = 0
     if (updStore.get().mode === 'auto') {

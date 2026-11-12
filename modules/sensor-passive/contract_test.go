@@ -658,9 +658,11 @@ func TestContract_NoGoroutineLeakAcrossSwitches(t *testing.T) {
 		}
 	}
 	// The goroutines of the last stop and of the closed connections end in their own time, which a starved runner stretches: wait for
-	// the count to come back (the loop ends the moment it does), and call it a leak only when it has not within waitBound. A fixed pause
-	// (100 ms, then 200 ms) could count goroutines that were still on their way out.
-	for deadline := time.Now().Add(waitBound); time.Now().Before(deadline); pause(t, 20*time.Millisecond) {
+	// the count to come back (the loop ends the moment it does), and call it a leak when it has not within leakSettle. A fixed pause
+	// (100 ms, then 200 ms) could count goroutines that were still on their way out. The window stays short on purpose: a goroutine that
+	// outlives the switch-off by sleeping or waiting on a timeout of its own (a job still alive while the module is off) must fail here.
+	const leakSettle = 3 * time.Second
+	for deadline := time.Now().Add(leakSettle); time.Now().Before(deadline); pause(t, 20*time.Millisecond) {
 		if e.rem != nil { // the link's connections are idle, not leaked: close them before counting (again: a last request may put one back)
 			e.rem.client.CloseIdleConnections()
 			e.rem.link.Server.CloseClientConnections()

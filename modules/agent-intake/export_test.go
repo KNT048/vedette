@@ -27,5 +27,8 @@ func (s *Service) SetMirrorWaitsForTest(chunk, total time.Duration) {
 	s.chunkWait, s.maxDownload = chunk, total
 }
 
+// SetMirrorEventForTest reports each take and give-back of a package download slot, by source key, so a test waits on that state instead of the clock.
+func (s *Service) SetMirrorEventForTest(f func(key string, held bool)) { s.mirrorEvent = f }
+
 // AllowedWazuhCall is the allow-list of FORBID-4.
 func AllowedWazuhCall(method, path string) bool { return allowedCall(method, path) }

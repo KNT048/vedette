@@ -519,6 +519,17 @@ func TestMirror_StalledClientFreesItsSlot(t *testing.T) {
 	if err := os.Truncate(big, 256<<20); err != nil {
 		t.Fatal(err)
 	}
+	type slotEvent struct {
+		key  string
+		held bool
+	}
+	events := make(chan slotEvent, 64)
+	w.svc.SetMirrorEventForTest(func(key string, held bool) {
+		select {
+		case events <- slotEvent{key, held}:
+		default:
+		}
+	})
 	srv := httptest.NewServer(w.h)
 	t.Cleanup(srv.Close)
 	url := func(name string) string { return srv.URL + server.Prefix + "/install/osquery/" + name }
@@ -548,20 +559,28 @@ func TestMirror_StalledClientFreesItsSlot(t *testing.T) {
 		t.Fatal(err)
 	}
 	first, second := clientFrom("127.0.0.1"), clientFrom("127.0.0.2")
-	deadline := time.Now().Add(3 * time.Second)
-	for get(first, mirrorNames[2]) != 429 { // the first address holds its slot as soon as the request is served
-		if time.Now().After(deadline) {
-			t.Fatal("the stalled download never took a slot")
+	waitSlot := func(key string, held bool) { // waits on the slot's state, not the clock; the bound only ends a hung run
+		t.Helper()
+		for {
+			select {
+			case e := <-events:
+				if e == (slotEvent{key, held}) {
+					return
+				}
+			case <-time.After(2 * time.Minute):
+				t.Fatalf("slot of %s never became held=%v", key, held)
+			}
 		}
-		<-time.After(20 * time.Millisecond)
+	}
+	waitSlot("127.0.0.1", true) // the stalled download holds its slot
+	if code := get(first, mirrorNames[2]); code != 429 {
+		t.Fatalf("the same address while it holds a slot: %d", code)
 	}
 	if code := get(second, mirrorNames[2]); code != 200 {
 		t.Fatalf("a second address while the first holds a slot: %d", code)
 	}
-	for get(first, mirrorNames[2]) != 200 { // the write deadline frees it
-		if time.Now().After(deadline.Add(5 * time.Second)) {
-			t.Fatal("the stalled client still holds its slot after the write deadline")
-		}
-		<-time.After(50 * time.Millisecond)
+	waitSlot("127.0.0.1", false) // the write deadline frees it
+	if code := get(first, mirrorNames[2]); code != 200 {
+		t.Fatalf("the stalled client still holds its slot after the write deadline: %d", code)
 	}
 }

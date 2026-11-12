@@ -49,9 +49,10 @@ describe('honeypot: main page (S-HP-1)', () => {
     renderApp('/honeypot')
     await userEvent.click((await screen.findAllByRole('button', { name: 'Test trap SSH' }))[0]!)
     expect(await screen.findByText('Recorded a test hit on the SSH trap')).toBeInTheDocument()
-    const hits = await screen.findByRole('table', { name: 'Trap hits' })
-    await waitFor(() => expect(within(hits).getByText('Test')).toBeInTheDocument())
-    expect(within(hits).getByText('Vedette box (test)')).toBeInTheDocument()
+    // the toast comes after the refetch that holds the new row; look the table up again inside the wait so a re-rendered table cannot leave a stale one
+    const testChip = await waitFor(() => within(screen.getByRole('table', { name: 'Trap hits' })).getByText('Test'))
+    const hits = within(testChip.closest('table')!)
+    expect(hits.getByText('Vedette box (test)')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/4 times in 7 days/)
   })
 
@@ -218,9 +219,7 @@ describe('honeypot: hit detail', () => {
   it('an opened test hit is labelled as a test and has no "What to do" section', async () => {
     renderApp('/honeypot')
     await userEvent.click((await screen.findAllByRole('button', { name: 'Test trap RDP (remote desktop)' }))[0]!)
-    const hits = await screen.findByRole('table', { name: 'Trap hits' })
-    await waitFor(() => expect(within(hits).getByText('Test')).toBeInTheDocument())
-    const row = within(hits).getByText('Test').closest('tr')!
+    const row = (await waitFor(() => within(screen.getByRole('table', { name: 'Trap hits' })).getByText('Test'))).closest('tr')!
     await userEvent.click(within(row).getAllByRole('link')[0]!)
     expect(await screen.findByRole('heading', { level: 1, name: /Test hit on the RDP/ })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'What to do' })).not.toBeInTheDocument()

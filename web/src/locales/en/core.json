@@ -1021,8 +1021,8 @@
         "kept": "Before it restores, the box keeps a copy of the data it has now, listed here as Before restore, so you can go back.",
         "restart": "Vedette restarts during the restore; this page reconnects by itself.",
         "understand": "I understand that data written since this backup is replaced",
-        "retention": "The box keeps the last 3 automatic copies (before an operating system install, a Vedette update or a restore).",
-        "pushesOut": "This restore adds one, so the oldest automatic copy, {{kind}} from {{when}}, is deleted.",
+        "retention": "The box keeps the last 3 Before restore copies.",
+        "pushesOut": "This restore adds one, so the oldest Before restore copy, from {{when}}, is deleted.",
         "password": "Your current password",
         "code": "Two-step code",
         "confirm": "Restore"

@@ -381,8 +381,8 @@ describe('core: dữ liệu', () => {
     within(dlg).getByText(/keeps a copy of the data it has now/)
     const confirm = within(dlg).getByRole('button', { name: 'Restore' })
     expect(confirm).toBeDisabled()
-    within(dlg).getByText(/keeps the last 3 automatic copies/)
-    within(dlg).getByText(/so the oldest automatic copy, Before restore from/)
+    within(dlg).getByText(/keeps the last 3 Before restore copies/)
+    within(dlg).getByText(/so the oldest Before restore copy, from/)
     await u.click(within(dlg).getByLabelText(/I understand/))
     expect(confirm).toBeDisabled()
     await u.type(within(dlg).getByLabelText('Your current password'), 'wrong')
@@ -1683,6 +1683,7 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
     expect(os.getByText(/saving cancels the reboot/)).toBeInTheDocument()
     await u.click(os.getByRole('button', { name: 'Save window' }))
     expect(await screen.findByText(/it was cancelled\. Schedule it again/)).toBeInTheDocument()
+    toast.dismiss()
   })
 
   describe('form matrix: schedule a reboot', () => {

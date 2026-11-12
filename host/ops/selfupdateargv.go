@@ -195,14 +195,19 @@ func atoiMax(s string) int {
 	return n
 }
 
-func dpkgInstallArgv(file string) []string { return []string{"-i", file} }
+// argsDpkgInstallHead: dpkg -i decides a changed conffile (the AppArmor profile, D-458) like apt's tail does, so it never stops
+// at dpkg's conffile prompt with stdin on /dev/null (an administrator's edit is kept, an untouched file takes the new version).
+var argsDpkgInstallHead = []string{"--force-confdef", "--force-confold", "-i"}
+
+func dpkgInstallArgv(file string) []string { return append(slices.Clone(argsDpkgInstallHead), file) }
 
 func validateApplierDpkg(stateDir string) func([]string) error {
 	return func(args []string) error {
+		h := len(argsDpkgInstallHead)
 		switch {
 		case slices.Equal(args, []string{"--audit"}):
 			return nil
-		case len(args) == 2 && args[0] == "-i" && (isStagedPath(stateDir, args[1]) || isKeptPath(stateDir, args[1])):
+		case len(args) == h+1 && slices.Equal(args[:h], argsDpkgInstallHead) && (isStagedPath(stateDir, args[h]) || isKeptPath(stateDir, args[h])):
 			return nil
 		}
 		return errors.New("not one of the fixed dpkg command lines of the applier")

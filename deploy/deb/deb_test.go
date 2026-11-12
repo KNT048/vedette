@@ -452,8 +452,13 @@ func TestScripts_Rules(t *testing.T) {
 			t.Errorf("postinst lacks %q", need)
 		}
 	}
+	// the one removal: the AppArmor cache file of the profile on purge (D-458, as dh_apparmor), exactly this line
+	cacheRm := "rm -f /var/cache/apparmor/*/vedette-container /var/cache/apparmor/vedette-container"
+	if !strings.Contains(code("postrm"), "\t\t"+cacheRm+"\n") {
+		t.Error("postrm must remove the AppArmor cache file of vedette-container on purge")
+	}
 	for _, name := range []string{"prerm", "postrm"} {
-		c := code(name)
+		c := strings.Replace(code(name), cacheRm, "", 1)
 		for _, bad := range []string{"rm ", "userdel", "groupdel", "rmdir", "subuid", "subgid"} {
 			if strings.Contains(c, bad) {
 				t.Errorf("%s contains %q: remove and purge never delete data, users or subuid lines", name, bad)

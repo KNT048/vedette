@@ -429,6 +429,7 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.mu.Unlock()
 	o.sweepTmp("releases", "containers")        // temp files of a write cut short (container.pull state)
 	_ = os.RemoveAll(o.stateFile(layoutParent)) // a bundle image staged by a pull that was cut short (D-452): GiBs
+	o.ensureAppArmor(ctx)                       // the containers' AppArmor profile, loaded when the kernel lacks it; never blocks (D-458)
 	hpReady := o.startHP(ctx)                   // before recoverNet: a revert at start re-applies the decoys into it
 	o.recoverNet(ctx)
 	o.reconcileAtStart(ctx, hpReady)

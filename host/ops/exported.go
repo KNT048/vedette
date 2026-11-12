@@ -63,6 +63,15 @@ const BinIP = binIP
 // BinConntrack is the name of conntrack in the command runner.
 const BinConntrack = binConntrack
 
+// BinAppArmorParser is the name of apparmor_parser in the command runner (D-458).
+const BinAppArmorParser = binAppArmorParser
+
+// AppArmorLoadArgs is the one argv apparmor_parser may be given (D-458).
+func AppArmorLoadArgs() []string { return append([]string(nil), argsAppArmorLoad...) }
+
+// ValidateAppArmorParser is the validator of apparmor_parser (D-458).
+func ValidateAppArmorParser(args []string) error { return validateAppArmorParser(args) }
+
 // ValidateConntrack is the validator of the conntrack binary: the one fixed delete of the stale syslog flows (D-268).
 func ValidateConntrack(args []string) error { return validateConntrack(args) }
 

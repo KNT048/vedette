@@ -24,10 +24,10 @@ import (
 // needs its own migration step. The lists start after D-318; a box with older units needs -bootstrap -force-units (RUNBOOK).
 var legacyTemplates = map[string][]*template.Template{
 	api.ServiceCore: {
-		mustTemplate("core-1", coreUnitTextD318),     // D-318 (2026-11-12): the honeypot log volume, 514 only
-		mustTemplate("core-2", coreUnitTextD214),     // D-214 (2026-11-12): 6514:5515/tcp published, no HostName yet
-		mustTemplate("core-3", coreUnitTextHostName), // #489 (2026-11-12): HostName=vedette, no 127.0.0.1:8765 publish yet (D-395)
-		mustTemplate("core-4", coreUnitTextBeforeD458), // D-395 (2026-11-13): Podman's default AppArmor profile (D-458)
+		mustTemplate("core-1", coreUnitTextD318),       // D-318 (2026-11-12): the honeypot log volume, 514 only
+		mustTemplate("core-2", coreUnitTextD214),       // D-214 (2026-11-12): 6514:5515/tcp published, no HostName yet
+		mustTemplate("core-3", coreUnitTextHostName),   // #489 (2026-11-12): HostName=vedette, no 127.0.0.1:8765 publish yet (D-395)
+		mustTemplate("core-4", coreUnitTextBeforeD458), // D-395 (2026-11-12): Podman's default AppArmor profile (D-458)
 	},
 	api.ServiceSensor: {
 		mustTemplate("sensor-1", sensorUnitTextBeforeD458), // before D-458 (2026-11-12): Podman's default AppArmor profile

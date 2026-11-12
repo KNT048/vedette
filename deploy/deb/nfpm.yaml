@@ -20,7 +20,7 @@ description: |-
    start vedette-host.service.
 
 # Minimums, not exact versions (D-155). Why each one:
-#  podman (>= 4.8)   Quadlet units (/etc/containers/systemd) exist from 4.4, ContainersConfModule= of the honeypot unit from 4.8 (#486);
+#  podman (>= 4.8)   Quadlet units (/etc/containers/systemd) exist from 4.4, ContainersConfModule= from 4.8: all four units load the AppArmor module (D-458), the honeypot also its sysctl one (#486);
 #                    Ubuntu 24.04 has 4.9, Debian 13 has 5.x
 #  systemd (>= 254)  RestartSteps= and RestartMaxDelaySec= of vedette-host.service (D-150); Ubuntu 24.04 has 255
 #  nftables          the ruleset inside the namespace vedette-hp (nft, run through ip netns exec)

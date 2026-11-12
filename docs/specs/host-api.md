@@ -378,7 +378,7 @@ Xong thì xoá `journal.json` và `applier` (trừ `rollback_failed`, giữ cả
 | host | `dpkg-query` | `-W -f=${Version}\|${db:Status-Status} vedette-host` (Check mục 5) |
 | host | `apt-get` | `-s -q -o Debug::NoLocking=1 --no-remove --no-install-recommends install <staged>` (mô phỏng; dạng `-q update` sẵn có) |
 | bộ áp | `apt-get` | `-y -q --no-remove --no-install-recommends -o DPkg::Lock::Timeout=600 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold install <state>/selfupdate/staged/<64 hex>.deb`; cùng dạng thêm `--allow-downgrades` chỉ với `<state>/selfupdate/packages/vedette-host_<SemVer>_<amd64\|arm64>.deb` |
-| bộ áp | `dpkg` | `--audit`; `-i <state>/selfupdate/staged/<64 hex>.deb`; `-i <state>/selfupdate/packages/vedette-host_<SemVer>_<amd64\|arm64>.deb` (chỉ khi gói dở dang, bước 2) |
+| bộ áp | `dpkg` | `--audit`; `--force-confdef --force-confold -i <state>/selfupdate/staged/<64 hex>.deb`; `--force-confdef --force-confold -i <state>/selfupdate/packages/vedette-host_<SemVer>_<amd64\|arm64>.deb` (chỉ khi gói dở dang, bước 2; hai cờ conffile như của apt vì gói có conffile `/etc/apparmor.d/vedette-container`, D-458: không dừng ở câu hỏi conffile khi stdin là `/dev/null`) |
 | bộ áp | `dpkg-query` | `-W -f=${Version}\|${db:Status-Status} vedette-host` |
 | bộ áp | `systemctl` | `show vedette-host.service -p ActiveState,MainPID,NRestarts`; `restart vedette-host.service` |
 

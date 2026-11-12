@@ -138,10 +138,35 @@ func TestPostinst_LoadsTheAppArmorProfile(t *testing.T) {
 	if err != nil {
 		t.Skip("no sh")
 	}
-	// run: enabled is the exit code of aa-enabled ("" = not installed), parserRC and grepRC those of the other two
-	run := func(t *testing.T, enabled, parserRC, grepRC string) (string, bool) {
+	// run: enabled is the exit code of aa-enabled ("" = not installed), parserRC and grepRC those of the other two; files is how
+	// the profile and the disable link are: "ok" (file, no link), "missing" (no file), "disabled" (a link), "dangling" (a broken link)
+	type result struct {
+		calls string
+		out   string
+		ok    bool
+	}
+	run := func(t *testing.T, enabled, parserRC, grepRC, files string) result {
 		t.Helper()
 		bin := t.TempDir()
+		etc := t.TempDir()
+		prof, dis := filepath.Join(etc, "vedette-container"), filepath.Join(etc, "disable", "vedette-container")
+		if files != "missing" {
+			if err := os.WriteFile(prof, []byte("profile vedette-container {}\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if files == "disabled" || files == "dangling" {
+			target := prof
+			if files == "dangling" {
+				target = filepath.Join(etc, "gone")
+			}
+			if err := os.MkdirAll(filepath.Dir(dis), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(target, dis); err != nil {
+				t.Fatal(err)
+			}
+		}
 		log := filepath.Join(bin, "calls")
 		put := func(name, rc string) {
 			if rc == "" {
@@ -155,31 +180,56 @@ func TestPostinst_LoadsTheAppArmorProfile(t *testing.T) {
 		put("aa-enabled", enabled)
 		put("apparmor_parser", parserRC)
 		put("grep", grepRC)
-		cmd := exec.CommandContext(t.Context(), sh, "-c", "set -eu\nAA_PROFILE=/etc/apparmor.d/vedette-container\n"+fns+"check_profile\nload_profile\necho DONE\n") //nolint:gosec // test: the postinst's own functions
+		cmd := exec.CommandContext(t.Context(), sh, "-c", "set -eu\nAA_PROFILE="+prof+"\nAA_DISABLE="+dis+"\n"+fns+"check_profile\nload_profile\necho DONE\n") //nolint:gosec // test: the postinst's own functions
 		cmd.Env = []string{"PATH=" + bin}
 		out, _ := cmd.CombinedOutput()
 		got, _ := os.ReadFile(log) //nolint:gosec // test: the recorder file this test created
-		return string(got), strings.Contains(string(out), "DONE")
+		return result{calls: strings.ReplaceAll(string(got), prof, "<profile>"), out: string(out), ok: strings.Contains(string(out), "DONE")}
 	}
-	if got, ok := run(t, "", "0", "0"); !ok || got != "" {
-		t.Errorf("without aa-enabled nothing runs: ok=%t %q", ok, got)
+	if r := run(t, "", "0", "0", "missing"); !r.ok || r.calls != "" {
+		t.Errorf("without aa-enabled nothing runs (not even the file check): %+v", r)
 	}
-	if got, ok := run(t, "1", "0", "0"); !ok || got != "aa-enabled --quiet\naa-enabled --quiet\n" {
-		t.Errorf("AppArmor off: only the question: ok=%t %q", ok, got)
+	if r := run(t, "1", "0", "0", "disabled"); !r.ok || r.calls != "aa-enabled --quiet\naa-enabled --quiet\n" {
+		t.Errorf("AppArmor off: only the question: %+v", r)
 	}
-	want := "aa-enabled --quiet\napparmor_parser --skip-kernel-load --skip-cache /etc/apparmor.d/vedette-container\n" +
-		"aa-enabled --quiet\napparmor_parser --replace --skip-cache /etc/apparmor.d/vedette-container\n" +
-		"grep -q ^vedette-container (enforce)$ /sys/kernel/security/apparmor/profiles\n"
-	if got, ok := run(t, "0", "0", "0"); !ok || got != want {
-		t.Errorf("AppArmor on: compile, load, read the kernel's list: ok=%t\n%q\nwant\n%q", ok, got, want)
+	want := "aa-enabled --quiet\napparmor_parser --skip-kernel-load --skip-cache <profile>\n" +
+		"aa-enabled --quiet\napparmor_parser --replace --skip-read-cache --write-cache <profile>\n" +
+		"grep -Eq ^vedette-container \\((enforce|complain)\\)$ /sys/kernel/security/apparmor/profiles\n"
+	if r := run(t, "0", "0", "0", "ok"); !r.ok || r.calls != want {
+		t.Errorf("AppArmor on: compile, load, read the kernel's list: %+v\nwant\n%q", r, want)
 	}
-	if _, ok := run(t, "0", "1", "0"); ok {
+	if r := run(t, "0", "1", "0", "ok"); r.ok {
 		t.Error("a profile that does not compile must stop the postinst")
 	}
-	if _, ok := run(t, "0", "0", "1"); ok {
+	if r := run(t, "0", "0", "1", "ok"); r.ok {
 		t.Error("a profile the kernel does not list must stop the postinst")
 	}
-	if _, ok := run(t, "0", "", "0"); ok {
+	if r := run(t, "0", "", "0", "ok"); r.ok {
 		t.Error("AppArmor on without apparmor_parser must stop the postinst")
+	}
+	// a deleted conffile (dpkg never restores it on upgrade): refused before the parser, with the command that brings it back
+	if r := run(t, "0", "0", "0", "missing"); r.ok || strings.Contains(r.calls, "apparmor_parser") ||
+		!strings.Contains(r.out, "is missing") || !strings.Contains(r.out, "apt-get install --reinstall -o Dpkg::Options::=--force-confmiss vedette-host") {
+		t.Errorf("a missing profile file: %+v", r)
+	}
+	// an administrator's disable link (aa-disable), even a broken one: refused, never loaded anyway
+	for _, f := range []string{"disabled", "dangling"} {
+		if r := run(t, "0", "0", "0", f); r.ok || strings.Contains(r.calls, "apparmor_parser") || !strings.Contains(r.out, "disables the AppArmor profile vedette-container") {
+			t.Errorf("%s: %+v", f, r)
+		}
+	}
+	// the kernel-list pattern accepts the profile in enforce and complain mode and nothing else
+	m := regexp.MustCompile(`grep -Eq '([^']+)' /sys/kernel/security/apparmor/profiles`).FindStringSubmatch(text)
+	if m == nil {
+		t.Fatal("the postinst has no grep of the kernel's profile list")
+	}
+	re := regexp.MustCompile(m[1])
+	for line, want := range map[string]bool{
+		"vedette-container (enforce)": true, "vedette-container (complain)": true, "vedette-container (kill)": false,
+		"vedette-container-x (enforce)": false, "crun//&vedette-container (enforce)": false,
+	} {
+		if re.MatchString(line) != want {
+			t.Errorf("%q matched = %t, want %t", line, !want, want)
+		}
 	}
 }

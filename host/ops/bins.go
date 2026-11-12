@@ -57,6 +57,8 @@ var prodPaths = map[string]string{
 	binDpkgQuery:  "/usr/bin/dpkg-query",
 	// os.reboot (D-453): logind's list of inhibitors; busctl is in the systemd package, in /usr/bin on Debian and Ubuntu.
 	binBusctl: "/usr/bin/busctl",
+	// the AppArmor profile of the containers (D-458): the apparmor package puts the parser in /usr/sbin on Debian and Ubuntu.
+	binAppArmorParser: "/usr/sbin/apparmor_parser",
 }
 
 // The fixed timers of unattended security updates (spec 6.3).
@@ -232,6 +234,8 @@ func hostBinaries(stateDir, coreUnit string, paths map[string]string, streamLimi
 		{Name: binDpkgQuery, Path: p(binDpkgQuery), Validate: validateDpkgQuery, MaxOutput: 1 << 12},
 		// os.reboot (D-453): the one read of logind's inhibitors.
 		{Name: binBusctl, Path: p(binBusctl), Validate: exactly(argsListInhibitors...), MaxOutput: maxInhibitOutput},
+		// D-458: the one load of the containers' AppArmor profile at Start, when the kernel does not list it.
+		{Name: binAppArmorParser, Path: p(binAppArmorParser), Validate: validateAppArmorParser, MaxOutput: 1 << 16},
 	}
 }
 

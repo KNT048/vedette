@@ -4,7 +4,7 @@
 # (apparmor_profile), which Podman ignores on a machine without AppArmor.
 #
 # Derived from Podman's default container profile (containers-default-<version>): the template in
-# go.podman.io/common pkg/apparmor/apparmor_linux_template.go at github.com/containers/container-libs commit 6506a4c7f388
+# go.podman.io/common pkg/apparmor/apparmor_linux_template.go at github.com/podman-container-tools/container-libs commit 6506a4c7f388
 # (2026-11-06), Copyright The Containers Authors, Apache License 2.0. Changed by Vedette: a fixed name, the version checks
 # dropped (every supported apparmor_parser is >= 2.8.96), and the rules for a peer of this profile also match it stacked
 # with another profile, whatever the order.

@@ -3,6 +3,7 @@ package ai
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -48,11 +49,12 @@ func ftsQuery(text string) string {
 	return strings.Join(terms, " OR ")
 }
 
-// knowCall is what the knowledge base adds to one call: the block to send, the pieces it carries ("<document id>:<piece number>"), the
-// pieces left out because a hook stopped them and the hooks that acted.
+// knowCall is what the knowledge base adds to one call: the block to send, the pieces it carries ("<document id>:<piece number>") and
+// the names of their documents, the pieces left out because a hook stopped them and the hooks that acted.
 type knowCall struct {
 	block     DataBlock
 	refs      []string
+	docs      []string // file names of the documents the pieces come from, each once, in the order sent: the answer's source
 	left      []string
 	leftNames []string
 	names     []string
@@ -74,13 +76,13 @@ func (s *Service) knowledgeForCall(ctx context.Context, hooks *HookRunner, job J
 		return kc, nil
 	}
 	type piece struct {
-		ref, text string
+		ref, doc, text string
 	}
 	var found []piece
 	read := func() error {
 		found = found[:0]
 		rows, err := s.cfg.DB.Reader().QueryContext(ctx, `
-		SELECT c.doc_id, c.seq, c.text
+		SELECT c.doc_id, d.name, c.seq, c.text
 		FROM ai_knowledge_chunk_fts f
 		JOIN ai_knowledge_chunk c ON c.id = f.rowid
 		JOIN ai_knowledge_doc d ON d.id = c.doc_id
@@ -93,12 +95,12 @@ func (s *Service) knowledgeForCall(ctx context.Context, hooks *HookRunner, job J
 		}
 		defer func() { _ = rows.Close() }()
 		for rows.Next() {
-			var doc, text string
+			var doc, name, text string
 			var seq int
-			if err := rows.Scan(&doc, &seq, &text); err != nil {
+			if err := rows.Scan(&doc, &name, &seq, &text); err != nil {
 				return err //nolint:wrapcheck // wrapped below
 			}
-			found = append(found, piece{fmt.Sprintf("%s:%d", doc, seq), text})
+			found = append(found, piece{fmt.Sprintf("%s:%d", doc, seq), name, text})
 		}
 		return rows.Err() //nolint:wrapcheck // wrapped below
 	}
@@ -123,6 +125,9 @@ func (s *Service) knowledgeForCall(ctx context.Context, hooks *HookRunner, job J
 		}
 		kc.names = append(kc.names, r.Names()...)
 		kc.refs = append(kc.refs, p.ref)
+		if !slices.Contains(kc.docs, p.doc) {
+			kc.docs = append(kc.docs, p.doc)
+		}
 		if out.Len() > 0 {
 			out.WriteString("\n\n")
 		}
@@ -147,6 +152,15 @@ func knowledgeNote(kc knowCall) string {
 		return n
 	}
 	return b.String()[:237] + "...)" // the row holds 600 characters in all
+}
+
+// documentsCite is the source line of the knowledge documents a call carried ("Documents: runbook.md, vpn.pdf"), none when it carried
+// none (S-AI-7, D-445). The names are the box's own (checkDocName), never the model's.
+func documentsCite(docs []string) []Citation {
+	if len(docs) == 0 {
+		return nil
+	}
+	return []Citation{{Title: "Documents: " + strings.Join(docs, ", ")}}
 }
 
 // knowledgeQuery is the text a call is searched with: the explicit one of the spec, else the question and the data.

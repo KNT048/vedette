@@ -63,6 +63,8 @@ type JobResult struct {
 	Hits      []HookHit
 	Blocked   bool
 	Downgrade *Downgrade
+	// Documents are the file names of the knowledge documents whose pieces went with the call (S-AI-7), for the answer's sources.
+	Documents []string
 }
 
 func apiUnavailable(msg string) error { return apierr.New(http.StatusConflict, "ai_unavailable", msg) }
@@ -358,7 +360,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		}
 		if bad == nil && spec.Store != nil {
 			if err := spec.Store(ctx, tx, JobResult{Text: text, Model: res.Model, Profile: res.Profile, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Fallback: res.Fallback, ActivityID: id,
-				Hits: after.Hits, Blocked: blocked, Downgrade: res.Downgrade}); err != nil {
+				Hits: after.Hits, Blocked: blocked, Downgrade: res.Downgrade, Documents: know.docs}); err != nil {
 				storeFailed = true
 				return err
 			}
@@ -378,7 +380,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		return JobResult{}, bad
 	}
 	return JobResult{Text: text, Model: res.Model, Profile: res.Profile, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Fallback: res.Fallback, ActivityID: id,
-		Hits: after.Hits, Blocked: blocked, Downgrade: res.Downgrade}, nil
+		Hits: after.Hits, Blocked: blocked, Downgrade: res.Downgrade, Documents: know.docs}, nil
 }
 
 // leftOutNote names the memories a hook kept out of the call (ids, never text).

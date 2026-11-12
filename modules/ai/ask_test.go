@@ -1061,6 +1061,34 @@ func TestAskFourCallsPerTurn(t *testing.T) {
 	}
 }
 
+// S-AI-7, D-445: a knowledge document that went with the question is named in the sources and in the evidence of a memory suggestion;
+// a question that took no document names none.
+func TestAskNamesTheDocumentsItSent(t *testing.T) {
+	a := newAskAPI(t)
+	a.kbIndexProfile()
+	a.kbAdd("backups.md", []byte(mdBackup), "")
+	a.want("PUT", "/ai/memory/settings", "admin", `{"suggest_enabled":true}`, 200, "")
+	a.fake.play(turn{calls: []provider.ToolCall{call("search_assets", `{"kind":"nas"}`)}}, turn{text: "The backups run at 01:00.\n\nRemember: the file server is backed up every night at 01:00."})
+	got := a.ask("When do the backups run?", 200, "")
+	cites := list(got["citations"])
+	if len(cites) < 2 || cites[0].(map[string]any)["title"] != "Documents: backups.md" || !strings.HasPrefix(cites[1].(map[string]any)["title"].(string), "Inventory: ") {
+		t.Fatalf("citations = %v", cites)
+	}
+	sg := a.want("GET", "/ai/memory", "admin", "", 200, "")["suggestions"].([]any)
+	if len(sg) != 1 || sg[0].(map[string]any)["evidence"] != `From the question "When do the backups run?"; tools read: search_assets; documents: backups.md` {
+		t.Fatalf("suggestions = %v", sg)
+	}
+	if h := list(a.want("GET", "/ai/asks", "operator", "", 200, "")["items"]); fmt.Sprint(h[0].(map[string]any)["citations"]) != fmt.Sprint(cites) {
+		t.Fatalf("history citations = %v", h[0])
+	}
+	a.fake.play(turn{calls: []provider.ToolCall{call("search_assets", `{"port":3389}`)}}, turn{text: "None."})
+	for _, c := range list(a.ask("Which machines still expose RDP?", 200, "")["citations"]) {
+		if strings.HasPrefix(c.(map[string]any)["title"].(string), "Documents") {
+			t.Fatalf("a question that took no document names one: %v", c)
+		}
+	}
+}
+
 func TestAskSuggestsOneMemoryOnlyWhenAllowed(t *testing.T) {
 	a := newAskAPI(t)
 	rdp := turn{calls: []provider.ToolCall{call("search_assets", `{"port":3389}`)}}

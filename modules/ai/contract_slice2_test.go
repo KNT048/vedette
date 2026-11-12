@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/chain/chainhead"
@@ -579,6 +580,49 @@ func TestAnEditDuringATestDropsItsResult(t *testing.T) {
 	}
 	if lt := a.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any)[0].(map[string]any)["last_test"]; lt != nil {
 		t.Fatalf("the test of the old settings was written onto the edited profile: %v", lt)
+	}
+}
+
+// D-445: the test made in the Add or Edit dialog becomes the last test of the profile saved with exactly those settings, a failure as
+// much as a success; other settings, an old test or a body that claims a test the box did not run do not count.
+func TestADialogTestIsKeptForTheProfileSavedWithIt(t *testing.T) {
+	a := newAPI(t)
+	lastTest := func(i int) map[string]any {
+		t.Helper()
+		lt, _ := a.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any)[i].(map[string]any)["last_test"].(map[string]any)
+		return lt
+	}
+	a.want("POST", "/ai/profiles/test", "admin", cloudBody("", keyA), 200, "")
+	if p := a.addProfile(cloudBody("First", keyA)); p["last_test"] == nil || p["last_test"].(map[string]any)["ok"] != true {
+		t.Fatalf("the dialog's test was not kept: %v", p["last_test"])
+	}
+	if lt := lastTest(0); lt == nil || lt["ok"] != true {
+		t.Fatalf("last_test = %v", lt)
+	}
+	// another key than the one tested, a test past the window: not tested; a body that claims a test is refused at the boundary
+	a.want("POST", "/ai/profiles/test", "admin", cloudBody("Second", keyA), 200, "")
+	a.addProfile(cloudBody("Second", keyB))
+	a.want("POST", "/ai/profiles/test", "admin", cloudBody("Third", keyB), 200, "")
+	a.clock.Add(16 * time.Minute)
+	a.want("POST", "/ai/profiles", "admin", strings.Replace(cloudBody("Third", keyB), `"location"`, `"last_test":{"at":"2026-11-10T03:00:00.000Z","ok":true,"detail":""},"location"`, 1), 400, "invalid")
+	a.addProfile(cloudBody("Third", keyB))
+	if lastTest(1) != nil || lastTest(2) != nil {
+		t.Fatalf("a profile not tested as saved has a last test: %v, %v", lastTest(1), lastTest(2))
+	}
+	// a failed dialog test is kept as a failure, and it survives a restart
+	a.fake.failWith("Fourth", &provider.Error{Kind: provider.ErrAuth, Status: 401})
+	a.want("POST", "/ai/profiles/test", "admin", cloudBody("Fourth", keyA), 502, "key_rejected")
+	a.addProfile(cloudBody("Fourth", keyA))
+	if lt, _ := newAPIOver(a.env).want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any)[3].(map[string]any)["last_test"].(map[string]any); lt == nil || lt["ok"] != false {
+		t.Fatalf("the failed dialog test after a restart = %v", lt)
+	}
+	// Edit: a new model tested in the dialog, then saved
+	id := a.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any)[1].(map[string]any)["id"].(string)
+	sonnet := strings.Replace(cloudBody("Second", ""), "claude-haiku-5-5", "claude-sonnet-5-5", 1)
+	a.want("POST", "/ai/profiles/test", "admin", `{"id":"`+id+`",`+sonnet[1:], 200, "")
+	a.want("PUT", "/ai/profiles/"+id, "admin", sonnet, 200, "")
+	if lt := lastTest(1); lt == nil || lt["ok"] != true {
+		t.Fatalf("the edit dialog's test was not kept: %v", lt)
 	}
 }
 

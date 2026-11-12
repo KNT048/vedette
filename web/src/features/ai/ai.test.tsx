@@ -13,6 +13,7 @@ import { aiAssignStore, aiAvailable, aiConfigStore, aiProfilesStore, aiRunsStore
 import type { Role } from '@/lib/session'
 import AiSettings from './AiSettings'
 import LogsPanel from './LogsPanel'
+import type { AiProfile } from './types'
 
 const enabled = (el: HTMLElement) => waitFor(() => expect(el).toBeEnabled())
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
@@ -421,6 +422,17 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     expect((await screen.findAllByText(/^Tested .+: failed: Could not connect to unreachable\.lan\. Check the address/)).length).toBeGreaterThan(0)
     expect(await screen.findByText(/but the last connection test of each one failed/)).toBeInTheDocument()
     expect(screen.queryByText('Not tested yet')).not.toBeInTheDocument()
+  })
+
+  it('the test made in the Add dialog becomes the last test of the profile added with exactly those settings (D-445)', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const draft = { kind: 'openai', api_style: 'openai', base_url: 'https://api.openai.com/v1', model: 'gpt-6-luna', location: 'cloud', api_key: 'sk-test-key-12345', daily_cap: 60000 }
+    expect((await api('/ai/profiles/test', { method: 'POST', body: JSON.stringify(draft) })).status).toBe(200)
+    const added = (await (await api('/ai/profiles', { method: 'POST', body: JSON.stringify({ ...draft, name: 'Luna' }) })).json()) as AiProfile
+    expect(added.last_test?.ok).toBe(true)
+    expect((await api('/ai/profiles/test', { method: 'POST', body: JSON.stringify(draft) })).status).toBe(200)
+    const other = (await (await api('/ai/profiles', { method: 'POST', body: JSON.stringify({ ...draft, name: 'Luna 2', api_key: 'sk-other-key-6789' }) })).json()) as AiProfile
+    expect(other.last_test).toBeNull() // another key than the one tested
   })
 
   it('removing asks for confirmation and names the tasks that lose the profile; a fallback moves up', async () => {

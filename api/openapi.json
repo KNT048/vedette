@@ -4894,7 +4894,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model or key changed; a test of a draft or of a key not saved yet does not count"
+                            "description": "Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model or key changed. A test the same admin ran in the Add or Edit dialog of exactly the settings saved (within 15 minutes) counts (D-445); the request cannot carry one"
                           }
                         },
                         "required": [
@@ -5114,7 +5114,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model or key changed; a test of a draft or of a key not saved yet does not count"
+                      "description": "Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model or key changed. A test the same admin ran in the Add or Edit dialog of exactly the settings saved (within 15 minutes) counts (D-445); the request cannot carry one"
                     }
                   },
                   "required": [
@@ -5406,7 +5406,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model or key changed; a test of a draft or of a key not saved yet does not count"
+                      "description": "Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model or key changed. A test the same admin ran in the Add or Edit dialog of exactly the settings saved (within 15 minutes) counts (D-445); the request cannot carry one"
                     }
                   },
                   "required": [

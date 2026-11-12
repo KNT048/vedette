@@ -65,6 +65,11 @@ const lastTests = collection<Record<string, LastTest>>('ai_last_tests', () => ({
 }), () => ({}))
 const setLastTest = (id: string, t: LastTest | null) => lastTests.update((m) => { const n = { ...m }; if (t) n[id] = t; else delete n[id]; return n })
 const sameConnection = (a: StoredProfile, b: StoredProfile) => a.kind === b.kind && a.api_style === b.api_style && a.base_url === b.base_url && a.model === b.model && a.key_last4 === b.key_last4
+// D-445: the box keeps the test of settings not saved yet for the profile then saved with exactly them (15 minutes). The mock knows a
+// key only while it is typed, so the connection is the typed key or "the saved key of <id>".
+let draftTest: { conn: string; test: LastTest; at: number } | null = null
+const connOf = (p: StoredProfile, ok: { key: string | null; keepOld: boolean }) => [p.kind, p.api_style, p.base_url, p.model, ok.key ?? (ok.keepOld ? `saved:${p.id}` : '')].join('|')
+const draftTestOf = (conn: string) => (draftTest && draftTest.conn === conn && Date.now() - draftTest.at <= 15 * 60_000 ? draftTest.test : null)
 const profileView = (p: StoredProfile): AiProfile => ({ ...p, usable: aiProfileUsable(p), used_today: profileUsed(p), last_test: lastTests.get()[p.id] ?? null })
 const jobsReady = () => Object.fromEntries(AI_JOBS.map((j) => [j.id, aiCandidates(j.id).length > 0])) as Record<AiJob, boolean>
 const view = (): AiConfigView => { const c = aiConfigStore.get(); return { configured: c.configured, tier: c.tier, daily_cap: c.daily_cap, redact_pii: c.redact_pii, tier_estimates: ESTIMATES, jobs_ready: jobsReady() } }
@@ -299,6 +304,7 @@ export const handlers = [
     if (aiProfilesStore.get().length >= 12) return fail(400, 'too_many', 'A box holds up to 12 AI profiles. Remove one you no longer use.')
     const p = toStored(b as ProfileInput, ok, newId('p'))
     aiProfilesStore.update((l) => [...l, p])
+    const tested = draftTestOf(connOf(p, ok)); if (tested) { setLastTest(p.id, tested); draftTest = null } // the Add dialog's test of these settings
     // Việc nào chưa có hồ sơ chính thì lấy hồ sơ mới (nếu được phép) để thêm xong dùng được ngay.
     aiAssignStore.update((a) => ({ ...a, jobs: Object.fromEntries(AI_JOBS.map((j) => [j.id, !a.jobs[j.id].primary && allowed(p, j.id, a.internal_only) ? { ...a.jobs[j.id], primary: p.id } : a.jobs[j.id]])) as AiAssign }))
     syncConfig()
@@ -318,7 +324,7 @@ export const handlers = [
     const dropped = AI_JOBS.filter((j) => (a.jobs[j.id].primary === p.id || a.jobs[j.id].fallback === p.id) && !allowed(p, j.id, a.internal_only))
     if (dropped.length) return fail(400, 'privacy_rule', `This profile is assigned to ${dropped.map((j) => JOB_NAME[j.id]).join(', ')}, which send internal data, and the privacy rule only allows internal profiles. Unassign it there first or switch the rule off.`)
     aiProfilesStore.update((l) => l.map((x) => (x.id === p.id ? p : x)))
-    if (!sameConnection(cur, p)) setLastTest(p.id, null) // another address, model or key (the mock keeps only its last 4) : the old test does not hold
+    if (!sameConnection(cur, p)) { setLastTest(p.id, draftTestOf(connOf(p, ok))); draftTest = null } // another address, model or key (the mock keeps only its last 4): the old test does not hold, the dialog's test of the new one does
     syncConfig()
     audit('ai.profile.edit', p.name, `${p.kind}, ${p.location}, model=${p.model}${ok.key ? ', key changed' : ''}`)
     return HttpResponse.json(profileView(p))
@@ -346,12 +352,14 @@ export const handlers = [
     const b = await body<ProfileInput>(request)
     const cur = b.id ? aiProfilesStore.get().find((p) => p.id === b.id) : undefined
     const ok = checkProfile({ ...b, name: b.name || cur?.name || 'Test', daily_cap: 1000 }, cur); if (ok instanceof Response) return ok
-    // only a test of the profile exactly as saved is its last test (the saved key typed again counts, like the box); a draft or another key is not
+    // a test of the profile exactly as saved is its last test (the saved key typed again counts, like the box); a test of other settings waits for the profile saved with them (D-445)
     const asSaved = cur && sameConnection(cur, toStored({ ...(b as ProfileInput), daily_cap: cur.daily_cap }, ok, cur.id, cur)) ? cur : undefined
-    const failed = (code: string, msg: string) => { if (asSaved) setLastTest(asSaved.id, { at: nowIso(), ok: false, detail: msg }); return fail(502, code, msg) }
+    const conn = connOf(toStored({ ...(b as ProfileInput), daily_cap: 1000 }, ok, cur?.id ?? 'draft', cur), ok)
+    const record = (t: LastTest) => { if (asSaved) setLastTest(asSaved.id, t); else draftTest = { conn, test: t, at: Date.now() } }
+    const failed = (code: string, msg: string) => { record({ at: nowIso(), ok: false, detail: msg }); return fail(502, code, msg) }
     if (ok.url.hostname.includes('unreachable')) return failed('unreachable', `Could not connect to ${ok.url.hostname}. Check the address, the box's network and the firewall.`)
     if (ok.key?.startsWith('bad')) return failed('key_rejected', 'The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider.')
-    if (asSaved) setLastTest(asSaved.id, { at: nowIso(), ok: true, detail: '' })
+    record({ at: nowIso(), ok: true, detail: '' })
     recordAiRun('connection-test', 42, 9, b.model, { id: cur?.id ?? 'draft', name: ok.name, kind: b.kind!, api_style: ok.style, base_url: ok.url.toString(), model: b.model!, key_last4: null, location: b.location!, daily_cap: 1000 })
     recordActivity({ job: 'connection-test', profile: ok.name, model: b.model!, hooks: [], tools: [], input: 'ping', output: 'pong', summary: `Connection test of ${ok.name}`, tokens_in: 42, tokens_out: 9, result: 'ok' }) // three requests: plain, tools, JSON format
     audit('ai.test', ok.name, `model=${b.model}`)

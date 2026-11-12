@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -15,7 +16,8 @@ import (
 // could do it (the packets and the probes run inside the container), so core's two guards do it, with the same host
 // operations and the same retry as the honeypot's teardown (D-189):
 //
-//   - on (core starts with the module on, and after every switch-on): container.start of the current image, unless the
+//   - on (core starts with the module on, and after every switch-on): container.start of the current image (of core's own
+//     version when the host last pulled that for the service, D-342 (2), see startVersion), unless the
 //     host's state says there is nothing to do: the host trusts the unit (Installed), it has [Install], and it is active or
 //     coming up ("other"; its health start period, whatever its health), so a container that systemd has just started on boot
 //     is never restarted and the host's one write slot is not held for minutes. Only a positive answer of the host leads to
@@ -46,6 +48,7 @@ type moduleContainer struct {
 	reg     interface{ Enabled(id string) bool }
 	module  string
 	service string
+	version string           // the build version of core (main.version); see startVersion
 	now     func() time.Time // nil: time.Now; a test moves it
 
 	mu sync.Mutex
@@ -73,13 +76,17 @@ func (c *moduleContainer) ensureOn(ctx context.Context) error {
 	if !c.reg.Enabled(c.module) { // checked under the lock: a switch-off between the guard's check and the host call wins
 		return nil
 	}
-	// Skip only what the host vouches for: a unit it trusts (Installed), with [Install], that is active or coming up. Start
-	// only on what it positively says is wrong. Anything else is unknown: an error, so the guard reads again after its backoff,
-	// until it has been unknown for unsureFor.
+	// Skip only what the host vouches for: a unit it trusts (Installed), with [Install], that is active or coming up, running the
+	// version pulled for it when that is core's own (D-342 (2)). Start only on what it positively says is wrong. Anything else
+	// is unknown: an error, so the guard reads again after its backoff, until it has been unknown for unsureFor.
 	st, err := c.state(ctx)
+	v := c.startVersion(st, err == nil)
 	why := ""
 	if err == nil {
 		why = startReason(st)
+		if why == "" && v != "" && (st.Version == nil || *st.Version != v) { // a unit running another version than the one pulled for it is not done
+			why = "version=" + versionOf(st.Version) + ", pulled " + v
+		}
 	}
 	if err != nil || why == unitStateUnknown {
 		now := c.clock()
@@ -112,13 +119,35 @@ func (c *moduleContainer) ensureOn(ctx context.Context) error {
 				"module", c.module, "reason", why, "unit_state", st.UnitState, "health", st.Health)
 		}
 	}
-	// not_pulled (this box has no unit for the service: not installed, or the scan build was skipped) is "nothing to
-	// start": retrying it every few minutes would only fill the log. Any other refusal or unknown outcome is retried.
-	if err := c.h.do(ctx, api.CmdContainerStart, api.ContainerStartArgs{Service: c.service}, api.CodeNotPulled); err != nil {
+	if err := c.start(ctx, v); err != nil {
 		return err
 	}
 	c.unsureSince = time.Time{}
 	return nil
+}
+
+// start sends container.start: of version v first when it is set, then of the image the unit pins.
+func (c *moduleContainer) start(ctx context.Context, v string) error {
+	if v != "" {
+		// The host judges a version more strictly than the current image (not_pulled, current_version_unknown, upgrade_path_required,
+		// a revoked release...). Such a refusal must not leave the module without a container, so it falls back to the image the unit
+		// pins, as before D-342 (2); a busy host or an unknown outcome is not a refusal and is retried.
+		err := c.h.do(ctx, api.CmdContainerStart, api.ContainerStartArgs{Service: c.service, Version: v}, "")
+		var re refusedError
+		if !errors.As(err, &re) {
+			return err
+		}
+	}
+	// not_pulled (this box has no unit for the service: not installed, or the scan build was skipped) is "nothing to
+	// start": retrying it every few minutes would only fill the log. Any other refusal or unknown outcome is retried.
+	return c.h.do(ctx, api.CmdContainerStart, api.ContainerStartArgs{Service: c.service}, api.CodeNotPulled)
+}
+
+func versionOf(v *string) string {
+	if v == nil {
+		return "null"
+	}
+	return *v
 }
 
 const unitStateUnknown = "unit_state=" + api.UnitUnknown
@@ -139,6 +168,18 @@ func startReason(st api.ContainerState) string {
 		return ""
 	}
 	return "unit_state=" + st.UnitState
+}
+
+// startVersion is the version core asks the host to start (D-342 (2)). An update pulls a service whose module is off but does
+// not start it, so the unit still pins the old image; starting the unit as it is would run a sensor or scan that core answers
+// 426 (protocol mismatch). When the host says the version it last pulled for the service is core's own, that is sent; the host
+// repoints the unit, and only a pulled version is accepted (not_pulled otherwise, which would make a box that was never
+// updated unable to start). Nothing pulled, another version pulled or a state that cannot be read: "" = the current image.
+func (c *moduleContainer) startVersion(st api.ContainerState, ok bool) string {
+	if ok && st.LatestPulled != nil && st.LatestPulled.Version != nil && *st.LatestPulled.Version == c.version {
+		return c.version
+	}
+	return ""
 }
 
 // state is the host's look at the service; an error when it cannot be read (rate_limited, no answer, a read that timed
@@ -196,7 +237,7 @@ func newModuleContainers(d deps) map[string]*moduleContainer {
 			return nil
 		}
 		h.who = m.service
-		out[m.module] = &moduleContainer{h: h, reg: d.Reg, module: m.module, service: m.service}
+		out[m.module] = &moduleContainer{h: h, reg: d.Reg, module: m.module, service: m.service, version: version}
 	}
 	return out
 }

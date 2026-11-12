@@ -523,3 +523,28 @@ func TestModuleContainerStartsAfterTheStateStaysUnreadable(t *testing.T) {
 		})
 	}
 }
+
+// A module switched on after an update starts core's own version (D-342 (2)): only when the host says that is the version it
+// pulled for the service. Never otherwise: a version the host did not pull is refused not_pulled, which would leave a box that
+// was never updated without its sensor or scan.
+func TestModuleContainerStartVersion(t *testing.T) {
+	t.Parallel()
+	str := func(s string) *string { return &s }
+	c := &moduleContainer{version: "1.4.0"}
+	for _, tc := range []struct {
+		name string
+		st   api.ContainerState
+		ok   bool
+		want string
+	}{
+		{"pulled for this version", api.ContainerState{LatestPulled: &api.ContainerVersion{Version: str("1.4.0")}}, true, "1.4.0"},
+		{"pulled for another version", api.ContainerState{LatestPulled: &api.ContainerVersion{Version: str("1.3.0")}}, true, ""},
+		{"pulled without a version", api.ContainerState{LatestPulled: &api.ContainerVersion{}}, true, ""},
+		{"nothing pulled", api.ContainerState{}, true, ""},
+		{"state unreadable", api.ContainerState{LatestPulled: &api.ContainerVersion{Version: str("1.4.0")}}, false, ""},
+	} {
+		if got := c.startVersion(tc.st, tc.ok); got != tc.want {
+			t.Errorf("%s: version %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}

@@ -52,6 +52,7 @@ export const IocHit = z.object({
   seen_via: z.string().describe('How the box saw it. SPAN metadata: span_dns | span_sni | span_http | span_flow. Syslog: "syslog:<device name>"'),
   feeds: z.array(z.string()).describe('Threat feeds that list the destination'),
   confidence: z.number().min(0).max(1).describe('0 to 1; response rules only act automatically on high confidence'),
+  blocked: z.boolean().describe('The device that sent the log blocked the connection (the line records an attempt, for example a FortiGate deny or a blocked web-filter request); false when the line went through or does not say'),
 })
 export const Digest = z.object({ generated_at: iso, lines_24h: z.number().int(), baseline_days: z.number().int(), history_days: z.number().int().min(0).describe('Whole days of logs so far, at most baseline_days: from the first line of the source heard from the longest. Below baseline_days the digest is still learning what is normal'), new: z.array(NewItem), spikes: z.array(SpikeItem), bad_connections: z.array(IocHit), ioc_matching: z.boolean().describe('false when no connection can be matched: Feeds off, or no switched-on feed lists an indicator (every IOC feed off, or none loaded yet)') })
 

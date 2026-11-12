@@ -142438,6 +142438,10 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) encodeFields(e *jx.Encoder) {
 		s.AssetName.Encode(e)
 	}
 	{
+		e.FieldStart("blocked")
+		e.Bool(s.Blocked)
+	}
+	{
 		e.FieldStart("confidence")
 		e.Float64(s.Confidence)
 	}
@@ -142475,17 +142479,18 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfLogsGetLogsDigestOKBadConnectionsItem = [10]string{
-	0: "asset_id",
-	1: "asset_name",
-	2: "confidence",
-	3: "dest",
-	4: "dest_kind",
-	5: "feeds",
-	6: "id",
-	7: "seen_via",
-	8: "src_ip",
-	9: "ts",
+var jsonFieldsNameOfLogsGetLogsDigestOKBadConnectionsItem = [11]string{
+	0:  "asset_id",
+	1:  "asset_name",
+	2:  "blocked",
+	3:  "confidence",
+	4:  "dest",
+	5:  "dest_kind",
+	6:  "feeds",
+	7:  "id",
+	8:  "seen_via",
+	9:  "src_ip",
+	10: "ts",
 }
 
 // Decode decodes LogsGetLogsDigestOKBadConnectionsItem from json.
@@ -142517,8 +142522,20 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"asset_name\"")
 			}
-		case "confidence":
+		case "blocked":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Blocked = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"blocked\"")
+			}
+		case "confidence":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Float64()
 				s.Confidence = float64(v)
@@ -142530,7 +142547,7 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"confidence\"")
 			}
 		case "dest":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Dest = string(v)
@@ -142542,7 +142559,7 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"dest\"")
 			}
 		case "dest_kind":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.DestKind.Decode(d); err != nil {
 					return err
@@ -142552,7 +142569,7 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"dest_kind\"")
 			}
 		case "feeds":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.Feeds = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -142572,7 +142589,7 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"feeds\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -142584,7 +142601,7 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "seen_via":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.SeenVia = string(v)
@@ -142596,7 +142613,7 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"seen_via\"")
 			}
 		case "src_ip":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.SrcIP = string(v)
@@ -142608,7 +142625,7 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"src_ip\"")
 			}
 		case "ts":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Ts = v
@@ -142630,7 +142647,7 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

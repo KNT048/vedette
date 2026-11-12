@@ -503,14 +503,35 @@ func (h *OSHandlers) followOne() {
 			return
 		}
 		if err != nil && h.ctx.Err() == nil {
-			h.log.WarnContext(h.ctx, "core: the software update run waits for vedette-host", "error", err)
+			lvl := slog.LevelWarn
+			if errors.Is(err, errTransient) { // waiting for the host (a rollback can take 30 minutes), not a fault
+				lvl = slog.LevelDebug
+			}
+			h.log.Log(h.ctx, lvl, "core: the software update run waits for vedette-host", "error", err)
+		}
+		wait := retry
+		if h.urun.retry <= 0 { // tests set their own pause
+			wait = retryWait(err, retry)
 		}
 		select {
 		case <-h.ctx.Done():
-		case <-time.After(retry):
+		case <-time.After(wait):
 		}
 	}
 }
+
+// retryWait is the pause before the next try: base, or the host's retry_after_s (dpkg_locked, rate_limited) when
+// that is longer, at most maxRetryAfter.
+func retryWait(err error, base time.Duration) time.Duration {
+	var he *client.Error
+	if errors.As(err, &he) && he.RetryAfterS > 0 {
+		return max(base, min(time.Duration(he.RetryAfterS)*time.Second, maxRetryAfter))
+	}
+	return base
+}
+
+// maxRetryAfter caps the wait a host's retry_after_s asks for.
+const maxRetryAfter = 5 * time.Minute
 
 // updFollower carries the stored run forward. sent holds the request ids THIS process sent: only those may be
 // sent again when the host does not know them (core's own switch is never sent again after a restart).
@@ -582,7 +603,10 @@ func (f *updFollower) advance(ctx context.Context) (done bool, err error) {
 	if rec.Outcome != "" {
 		err = h.settleUpdate(ctx, rec, rec.Outcome, rec.Why, nil)
 	} else {
-		err = h.settleUpdate(ctx, rec, runDone, "", f.rolledBackSince(ctx, rec))
+		var rb *api.Run
+		if rb, err = f.rolledBackSince(ctx, rec); err == nil {
+			err = h.settleUpdate(ctx, rec, runDone, "", rb)
+		}
 	}
 	return err == nil, err // not stored: the next try settles it again
 }
@@ -695,6 +719,15 @@ func (f *updFollower) send(ctx context.Context, rec *updateRunRec, i int) (api.R
 			}
 			return api.Run{}, errTransient
 		}
+		if errors.As(err, &he) && tryLater(he.Code) {
+			// The host did not take the key (a refusal binds none, host-api 4): the call was not sent. A restart
+			// must not read "sent, unknown to the host" as a cut run (core's switch would end interrupted).
+			c.Sent = false
+			delete(f.sent, c.RequestID)
+			if serr := h.saveUpdateRun(ctx, rec); serr != nil {
+				return api.Run{}, serr
+			}
+		}
 		return refusalOf(err)
 	}
 	c.RunID, rec.Progress = run.RunID, h.now()
@@ -721,7 +754,8 @@ func refusalOf(err error) (api.Run, error) {
 // tryLater: the host did not take the call and asks for it again later.
 func tryLater(code string) bool {
 	switch code {
-	case api.CodeBusy, api.CodeRateLimited, api.CodeShuttingDown, api.CodePendingConfirm, api.CodeNetPendingConfirm:
+	case api.CodeBusy, api.CodeRateLimited, api.CodeShuttingDown, api.CodePendingConfirm, api.CodeNetPendingConfirm,
+		api.CodeRebooting, api.CodeDpkgLocked, api.CodeInstallInProgress: // end by themselves: rebooting from any write, dpkg_locked from host.self_update's check, install_in_progress from os.reboot's (a running os.install answers busy)
 		return true
 	}
 	return false
@@ -929,11 +963,13 @@ func updateReason(ctx context.Context, code string) string {
 // rolledBackSince finds the rollback that a restored database forgot: core's container.rollback that put the
 // pre-update copy back replaced this database with the one from before the update, so the stored run is the update
 // (still running at its last step) and the rollback's own row is gone. The host still has its run: newer than
-// core's switch, succeeded, with restored_backup_id. nil when there is none (or it cannot be told).
-func (f *updFollower) rolledBackSince(ctx context.Context, rec *updateRunRec) *api.Run {
+// core's switch, succeeded, with restored_backup_id. nil when there is none; a failed read is returned, so the follower tries again. errTransient
+// while such a rollback is still running: core is back up on the restored database before the host has ended the
+// rollback's run (it waits for core's health first), and settling now would lose the rollback for good (lab).
+func (f *updFollower) rolledBackSince(ctx context.Context, rec *updateRunRec) (*api.Run, error) {
 	h := f.h
 	if rec.Action != actionUpdate || rec.From == nil {
-		return nil
+		return nil, nil
 	}
 	coreRun := ""
 	for _, c := range rec.Calls {
@@ -942,34 +978,43 @@ func (f *updFollower) rolledBackSince(ctx context.Context, rec *updateRunRec) *a
 		}
 	}
 	if coreRun == "" {
-		return nil
-	}
-	st, err := h.host.StateContainers(ctx)
-	if err != nil {
-		return nil
-	}
-	for _, s := range st.Services {
-		if s.Service == api.ServiceCore && (s.Version == nil || *s.Version != *rec.From) {
-			return nil // core still runs what the update installed (or something else): nothing was rolled back here
-		}
+		return nil, nil
 	}
 	runs, err := h.host.ListRuns(ctx, updateRunsWindow)
 	if err != nil {
-		return nil
+		return nil, err // not settled on a failed read: the rollback would be lost for good
 	}
+	var found *api.Run
 	for _, r := range runs { // newest first, down to core's switch
 		if r.RunID == coreRun {
-			return nil
+			break
 		}
-		if r.Command != api.CmdContainerRollback || r.Status != api.StatusSucceeded {
+		if r.Command != api.CmdContainerRollback {
 			continue
 		}
+		if !r.Status.Terminal() {
+			// Before the version check: while the rollback runs, the host reports core's version as null (its record
+			// of the version is written after the health check), so the check cannot tell yet.
+			return nil, errTransient
+		}
 		var res api.ContainerRollbackResult
-		if json.Unmarshal(r.Result, &res) == nil && res.RestoredBackupID != nil {
-			return &r
+		if found == nil && r.Status == api.StatusSucceeded && json.Unmarshal(r.Result, &res) == nil && res.RestoredBackupID != nil {
+			found = &r
 		}
 	}
-	return nil
+	if found == nil {
+		return nil, nil
+	}
+	st, err := h.host.StateContainers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range st.Services {
+		if s.Service == api.ServiceCore && (s.Version == nil || *s.Version != *rec.From) {
+			return nil, nil // core still runs what the update installed (or something else): nothing was rolled back here
+		}
+	}
+	return found, nil
 }
 
 // settleUpdate ends the run in one transaction: the stored run, a history entry when versions changed, one

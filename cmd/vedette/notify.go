@@ -191,8 +191,9 @@ func newNotify(d *deps) *notify.Service {
 
 // notifyBoxAddrs is notify's Config.BoxAddrs over the shared cache of what vedette-host reports. It reads the last known set and never
 // waits for the host (notify asks at every webhook connection and save); a stale set is refreshed in the background, and a host that does
-// not answer leaves the previous set in place. Before the first answer, and without a host (nil cache), the set is empty and notify reads
-// the container's own interfaces only: fail-open, noted in .ai/deferred/feat-sensor-protocol.md (notify has no "unknown" signal).
+// not answer leaves the previous set in place. Before a configured host's first answer the set is unknown (known=false) and notify refuses
+// every webhook save and connection until it is known (fail closed, #157). Without a host (nil cache) the set is empty and known: the
+// container's own interfaces, which notify reads itself, are all the box has.
 func notifyBoxAddrs(c *hostNetCache) func() ([]netip.Addr, bool) {
 	return func() ([]netip.Addr, bool) {
 		ps, known := c.SnapshotKnown()

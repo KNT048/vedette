@@ -115,9 +115,10 @@ var (
 )
 
 // validDomain: at most 253 bytes, two or more labels; every label but the last is 1 to 63 of a-z, A-Z, 0-9 and "-" with no "-" at
-// either end, the last is 2 to 63 letters. A loop rather than the regular expression it replaces (`^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}
-// [a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$`, still the oracle of TestValidDomainIsTheRegexp): that one backtracked on every row and was a
-// third of the time of parsing a 186,000-domain list.
+// either end, the last is 2 to 63 letters or an IDN top-level domain in its ASCII form (`xn--p1ai` is .рф; hagezi TIF lists 50 such
+// names on 2026-11-12). A loop rather than the regular expression it replaces (`^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+
+// ([a-zA-Z]{2,63}|[xX][nN]--[a-zA-Z0-9-]{0,58}[a-zA-Z0-9])$`, still the oracle of TestValidDomainIsTheRegexp): that one backtracked
+// on every row and was a third of the time of parsing a 186,000-domain list.
 func validDomain(v string) bool {
 	if len(v) > 253 {
 		return false
@@ -126,7 +127,13 @@ func validDomain(v string) bool {
 	for len(v) > 0 {
 		i := strings.IndexByte(v, '.')
 		if i < 0 {
-			return labels > 0 && len(v) >= 2 && len(v) <= 63 && strings.IndexFunc(v, func(r rune) bool { return !isLetter(r) }) < 0
+			if labels == 0 || len(v) < 2 || len(v) > 63 {
+				return false
+			}
+			if len(v) > 4 && strings.EqualFold(v[:4], "xn--") {
+				return v[len(v)-1] != '-' && strings.IndexFunc(v[4:], func(r rune) bool { return r != '-' && !isLetter(r) && (r < '0' || r > '9') }) < 0
+			}
+			return strings.IndexFunc(v, func(r rune) bool { return !isLetter(r) }) < 0
 		}
 		l := v[:i]
 		if l == "" || len(l) > 63 || l[0] == '-' || l[len(l)-1] == '-' {

@@ -111,6 +111,8 @@ type OSConfig struct {
 	Clock func() time.Time // nil: time.Now
 	// Gate is shut while a factory reset runs: every host write then answers 409 busy (N4). The same gate as HandlersConfig.Gate; nil = never shut.
 	Gate *PurgeGate
+	// UpdateRetry is the software update follower's wait between two tries; 0 = followRetry (tests shorten it).
+	UpdateRetry time.Duration
 
 	// Software update check (updates_check.go, D-341). Version is the running release (main.version); ReleaseBase
 	// is where the signed release documents are downloaded from ("" = DefaultReleaseBase; tests: a local server);
@@ -148,6 +150,7 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 		h.sweepHostPackages()
 	}
 	h.ctx, h.cancel = context.WithCancel(context.Background())
+	h.urun.retry = c.UpdateRetry
 	if c.Host != nil {
 		if m, err := h.loadRunMeta(h.ctx); err == nil && (m.Snapshot != "" || !m.Audited) {
 			h.wg.Add(1)

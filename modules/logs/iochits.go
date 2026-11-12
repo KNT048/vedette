@@ -15,6 +15,7 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/logs/signature"
 )
 
 // IOC matching (L4, S-LOG-2, S-LOG-4 syslog half, INV-7, POST-2, PRE-3, D-213). A line of a device with a profile can say which LAN device
@@ -42,15 +43,22 @@ const (
 	iocLookupTimeout = 5 * time.Second
 	// iocAnnounceTimeout bounds the publishing of the events of one batch.
 	iocAnnounceTimeout = 10 * time.Second
+	// maxIocParents is how many parent names of a domain destination are looked up (D-228): the shortest ones (bad.example,
+	// x.bad.example, …), where a list that covers subdomains holds its names. A name has at most 127 labels; ten lookups is the bound.
+	maxIocParents = 10
 )
 
 // ErrFeedsOff is what Feeds.Lookup returns while the feeds module is off (PRE-3): no lookup is made and there are no hits.
 var ErrFeedsOff = errors.New("logs: the Feeds module is off")
 
 // Listing is what the feeds say about one destination: the names of the feeds that list it now, and how sure they are (0 to 1).
+// SubFeeds and SubConfidence are the same for the feeds among them that list a name for itself and all of its subdomains (hagezi TIF,
+// feeds' Source.Subdomains, D-228): a subdomain of the name is a hit only through these.
 type Listing struct {
-	Feeds      []string
-	Confidence float64
+	Feeds         []string
+	Confidence    float64
+	SubFeeds      []string
+	SubConfidence float64
 }
 
 // Feeds is what logs reads from the feeds module (an adapter in cmd/vedette on its indicator store): the listing of an address
@@ -77,6 +85,9 @@ type IocHit struct {
 	Feeds     []string  `json:"feeds"`
 	// Confidence is the highest confidence of the feeds that list the destination, between 0 and 1.
 	Confidence float64 `json:"confidence"`
+	// Blocked says that the device that logged the line stopped the connection (an attempt: a FortiGate deny, a blocked web-filter
+	// request; the profile's conn_blocked, D-227). False when the line does not say so.
+	Blocked bool `json:"blocked"`
 }
 
 // BadAddressEvent is the data of logs.bad_address.detected: the fields notify opens an incident from (Source, Target, Title, What, Action,
@@ -97,6 +108,8 @@ type BadAddressEvent struct {
 	DestKind string       `json:"dest_kind"`
 	SeenVia  string       `json:"seen_via"`
 	AssetID  *string      `json:"asset_id"`
+	// Blocked is IocHit.Blocked (D-227): the SIEM bad_conn record carries it.
+	Blocked bool `json:"blocked"`
 }
 
 // connKey is a connection seen in a batch; connObs is the first line that showed it.
@@ -106,16 +119,18 @@ type connKey struct {
 }
 
 type connObs struct {
-	source string
-	at     time.Time
+	source  string
+	at      time.Time
+	blocked bool // every line of the batch that showed it says the device stopped it
 }
 
-// iocRow is a hit before it is stored.
+// iocRow is a hit before it is stored. listed is the parent name a feed lists when dest is one of its subdomains (D-228), else "".
 type iocRow struct {
-	id, src, dest, kind, via, source string
-	at                               time.Time
-	feeds                            []string
-	conf                             float64
+	id, src, dest, kind, via, source, listed string
+	at                                       time.Time
+	feeds                                    []string
+	conf                                     float64
+	blocked                                  bool
 }
 
 type lookupResult struct {
@@ -146,35 +161,86 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 		if len(out) >= MaxIocHitsPerBatch {
 			break
 		}
-		ck := [2]string{k.kind, k.dest}
-		res, ok := cache[ck]
-		if !ok {
-			l, found, err := s.cfg.Feeds.Lookup(ctx, k.kind, k.dest)
-			if err != nil {
-				s.noteLookupFailure(ctx, err)
-				return out // the rest of the batch is stored without a match
-			}
-			s.iocWarned.Store(nil) // a lookup that worked: the next failure is news again
-			res = lookupResult{l, found}
-			cache[ck] = res
+		l, listed, err := s.listing(ctx, cache, k.kind, k.dest)
+		if err != nil {
+			s.noteLookupFailure(ctx, err)
+			return out // the rest of the batch is stored without a match
 		}
 		// A listed pair that already has a hit in the last 24 hours does not count toward the cap of the batch: a chatty device that keeps
 		// meeting its listed addresses must not use the cap that another device's first hit needs (storeIOC dedupes again inside the
 		// transaction). Only listed pairs are checked, after the cached lookup: nearly every pair of real traffic is unlisted (review r2 N1).
-		if !res.found || len(res.l.Feeds) == 0 || s.hasRecentHit(ctx, k, cutoff) {
+		o := conns[k]
+		if len(l.Feeds) == 0 || s.hasRecentHit(ctx, k.src.String(), k.dest, o.blocked, cutoff) {
 			continue
 		}
-		o := conns[k]
 		out = append(out, iocRow{id: store.NewID("ih"), src: k.src.String(), dest: k.dest, kind: k.kind, via: "syslog:" + names[o.source], source: o.source, at: o.at,
-			feeds: cleanFeeds(res.l.Feeds), conf: clamp01(res.l.Confidence)})
+			feeds: cleanFeeds(l.Feeds), conf: clamp01(l.Confidence), blocked: o.blocked, listed: listed})
 	}
 	return out
 }
 
-// hasRecentHit says whether the pair has a stored hit newer than cutoff (a read on the reader pool, the index logs_ioc_hits_pair); an error says no.
-func (s *Service) hasRecentHit(ctx context.Context, k connKey, cutoff string) bool {
+// listing is what the feeds say about a destination: its own listing; else, for a domain, the listing of its nearest parent by the
+// feeds that list a name with all of its subdomains (D-228), with that parent as listed. A feed that lists names exactly never makes a
+// subdomain a hit. Every lookup goes through the cache of the batch, so the parents that many names of a batch share are read once.
+func (s *Service) listing(ctx context.Context, cache map[[2]string]lookupResult, kind, dest string) (l Listing, listed string, err error) {
+	res, err := s.lookup(ctx, cache, kind, dest)
+	if err != nil || (res.found && len(res.l.Feeds) > 0) || kind != signature.KindDomain {
+		return res.l, "", err
+	}
+	for _, p := range parentDomains(dest) {
+		if res, err = s.lookup(ctx, cache, kind, p); err != nil {
+			return Listing{}, "", err
+		}
+		if res.found && len(res.l.SubFeeds) > 0 {
+			return Listing{Feeds: res.l.SubFeeds, Confidence: res.l.SubConfidence}, p, nil
+		}
+	}
+	return Listing{}, "", nil
+}
+
+// lookup asks the feeds about one value, once per batch.
+func (s *Service) lookup(ctx context.Context, cache map[[2]string]lookupResult, kind, value string) (lookupResult, error) {
+	ck := [2]string{kind, value}
+	if res, ok := cache[ck]; ok {
+		return res, nil
+	}
+	l, found, err := s.cfg.Feeds.Lookup(ctx, kind, value)
+	if err != nil {
+		return lookupResult{}, err
+	}
+	s.iocWarned.Store(nil) // a lookup that worked: the next failure is news again
+	res := lookupResult{l, found && len(l.Feeds) > 0}
+	cache[ck] = res
+	return res, nil
+}
+
+// parentDomains returns the parent names of a domain that a feed listing subdomains may hold, nearest first, never a single label
+// (a top-level domain): a.b.bad.example → b.bad.example, bad.example. Only the maxIocParents shortest are kept (a listed name is
+// near the registrable domain). A public suffix of two labels (co.uk) is never listed: feeds.IOCKey refuses it in the adapter. The
+// name is a clean one (signature.CleanDomain: lower case, no trailing dot, at most 253 bytes); one with an empty label has no parents.
+func parentDomains(name string) []string {
+	labels := strings.Split(name, ".")
+	if len(labels) < 3 || slices.Contains(labels, "") {
+		return nil
+	}
+	// the parents keep labels[i:] for i = 1 .. len-2; the shortest maxIocParents of them start at i >= len-1-maxIocParents
+	first := max(1, len(labels)-1-maxIocParents)
+	out := make([]string, 0, len(labels)-1-first)
+	for i := first; i <= len(labels)-2; i++ {
+		out = append(out, strings.Join(labels[i:], "."))
+	}
+	return out
+}
+
+// recentHitSQL finds a stored hit of a pair newer than a cutoff that makes a new one a repeat: any hit for a blocked attempt, only a hit
+// that went through for a connection that went through (a blocked attempt must not hide, for 24 hours, the connection that follows it; D-227).
+const recentHitSQL = `SELECT 1 FROM logs_ioc_hits WHERE src_ip = ? AND dest = ? AND ts > ? AND (? OR blocked = 0) LIMIT 1`
+
+// hasRecentHit says whether the pair has a stored hit newer than cutoff that makes it a repeat (a read on the reader pool, the index
+// logs_ioc_hits_pair); an error says no.
+func (s *Service) hasRecentHit(ctx context.Context, src, dest string, blocked bool, cutoff string) bool {
 	var one int
-	return s.cfg.Volume.Reader().QueryRowContext(ctx, `SELECT 1 FROM logs_ioc_hits WHERE src_ip = ? AND dest = ? AND ts > ? LIMIT 1`, k.src.String(), k.dest, cutoff).Scan(&one) == nil
+	return s.cfg.Volume.Reader().QueryRowContext(ctx, recentHitSQL, src, dest, cutoff, blocked).Scan(&one) == nil
 }
 
 // noteLookupFailure logs a failed lookup, once for a run of the same failure; the feeds being off is not a failure (PRE-3).
@@ -224,7 +290,7 @@ func plainText(s string) string {
 }
 
 // storeIOC writes the hits of a batch inside its transaction: a (device, destination) pair that has a hit less than IocDedupe old is not
-// a new hit; the table is cut to MaxIocRows. fresh gets the hits that are new, in order.
+// a new hit (a blocked attempt does not hide a connection that went through, recentHitSQL); the table is cut to MaxIocRows. fresh gets the hits that are new, in order.
 func (s *Service) storeIOC(ctx context.Context, tx *sql.Tx, rows []iocRow, fresh *[]iocRow) error {
 	if len(rows) == 0 {
 		return nil
@@ -232,7 +298,7 @@ func (s *Service) storeIOC(ctx context.Context, tx *sql.Tx, rows []iocRow, fresh
 	cutoff := store.FormatTS(s.ts().Add(-IocDedupe))
 	for _, r := range rows {
 		var one int
-		switch err := tx.QueryRowContext(ctx, `SELECT 1 FROM logs_ioc_hits WHERE src_ip = ? AND dest = ? AND ts > ? LIMIT 1`, r.src, r.dest, cutoff).Scan(&one); {
+		switch err := tx.QueryRowContext(ctx, recentHitSQL, r.src, r.dest, cutoff, r.blocked).Scan(&one); {
 		case err == nil:
 			continue
 		case !errors.Is(err, sql.ErrNoRows):
@@ -242,8 +308,8 @@ func (s *Service) storeIOC(ctx context.Context, tx *sql.Tx, rows []iocRow, fresh
 		if err != nil {
 			return fmt.Errorf("logs: storing a hit: %w", err)
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO logs_ioc_hits (id, ts, src_ip, dest, dest_kind, seen_via, feeds, confidence, source_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			r.id, store.FormatTS(r.at), r.src, r.dest, r.kind, r.via, string(feeds), r.conf, r.source); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO logs_ioc_hits (id, ts, src_ip, dest, dest_kind, seen_via, feeds, confidence, source_id, blocked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			r.id, store.FormatTS(r.at), r.src, r.dest, r.kind, r.via, string(feeds), r.conf, r.source, r.blocked); err != nil {
 			return fmt.Errorf("logs: storing a hit: %w", err)
 		}
 		*fresh = append(*fresh, r)
@@ -312,7 +378,7 @@ func (s *Service) announceIOC(ctx context.Context, fresh []iocRow) {
 		if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventIocHit, Data: hit}); err != nil {
 			s.cfg.Log.WarnContext(ctx, "logs: announcing a bad connection failed", "err", err)
 		}
-		if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventBadAddress, Data: badAddressEvent(hit)}); err != nil {
+		if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventBadAddress, Data: badAddressEvent(hit, r.listed)}); err != nil {
 			s.cfg.Log.WarnContext(ctx, "logs: announcing a bad connection failed", "err", err)
 		}
 	}
@@ -320,7 +386,7 @@ func (s *Service) announceIOC(ctx context.Context, fresh []iocRow) {
 
 // hit is the API form of a stored row, with the device that has the address (devices: by address; nil or missing = unknown).
 func (r iocRow) hit(devices map[string]Device) IocHit {
-	h := IocHit{ID: r.id, TS: r.at, SrcIP: r.src, Dest: r.dest, DestKind: r.kind, SeenVia: r.via, Feeds: r.feeds, Confidence: r.conf}
+	h := IocHit{ID: r.id, TS: r.at, SrcIP: r.src, Dest: r.dest, DestKind: r.kind, SeenVia: r.via, Feeds: r.feeds, Confidence: r.conf, Blocked: r.blocked}
 	if d, ok := devices[r.src]; ok && d.ID != "" {
 		id, name := d.ID, plainText(d.Name)
 		h.AssetID, h.AssetName = &id, &name
@@ -328,8 +394,11 @@ func (r iocRow) hit(devices map[string]Device) IocHit {
 	return h
 }
 
-// badAddressEvent is the event notify and the SIEM forwarder read.
-func badAddressEvent(h IocHit) BadAddressEvent {
+// badAddressEvent is the event notify and the SIEM forwarder read. A blocked attempt (h.Blocked) is said as one: "tried to reach … (blocked
+// by <the device that logged it>)", never "connected to" (D-227). listed is the parent name a feed lists when h.Dest is one of its
+// subdomains (D-228), else "": the text names it, and the incident is keyed on it, so the many subdomains of one listed name that a
+// device asks for are one incident.
+func badAddressEvent(h IocHit, listed string) BadAddressEvent {
 	who := h.SrcIP
 	devices := []DeviceInfo{}
 	if h.AssetID != nil && h.AssetName != nil && *h.AssetName != "" && len(*h.AssetID) <= MaxDeviceID { // a device notify would refuse makes the whole incident fail
@@ -340,15 +409,30 @@ func badAddressEvent(h IocHit) BadAddressEvent {
 	if h.Confidence >= 0.7 {
 		sev = "high"
 	}
-	what := fmt.Sprintf("%s connected to %s (%s), which %s. Confidence %d%%. Seen in the log of %s.", clipRunes(who, 300), h.Dest, destWord(h.DestKind),
-		listedBy(h.Feeds), int(h.Confidence*100+0.5), clipRunes(strings.TrimPrefix(h.SeenVia, "syslog:"), 120))
+	via := clipRunes(strings.TrimPrefix(h.SeenVia, "syslog:"), 120)
+	verb, by := "connected to", ""
+	action := "Open Logs and look at this connection. If nobody expected this device to talk to that address, take it off the network and ask its user what it was doing."
+	if h.Blocked {
+		verb, by = "tried to reach", "blocked by "+clipRunes(cmp.Or(via, "the device that logged it"), 60)
+		action = "Open Logs and look at this attempt. It was blocked, but a device that tries to reach a listed address may be infected: find out what on it made the request, and take it off the network if nobody expected it."
+	}
+	kind, title := destWord(h.DestKind), clipRunes(who, 100)+" "+verb+" "+h.Dest
+	if by != "" {
+		kind, title = kind+"; "+by, title+" ("+by+")"
+	}
+	as := ""
+	if listed != "" {
+		as = " (listed as " + listed + ", with all of its subdomains)"
+	}
+	what := fmt.Sprintf("%s %s %s (%s), which %s%s. Confidence %d%%. Seen in the log of %s.", clipRunes(who, 300), verb, h.Dest, kind, listedBy(h.Feeds), as, int(h.Confidence*100+0.5), via)
+	title += ", which a threat feed lists"
 	return BadAddressEvent{
-		Source: "logs", Target: clipRunes("ioc:"+h.Dest, MaxEventKey),
-		Title:    clipRunes(fmt.Sprintf("%s connected to %s, which a threat feed lists", clipRunes(who, 100), h.Dest), MaxEventTitle),
+		Source: "logs", Target: clipRunes("ioc:"+cmp.Or(listed, h.Dest), MaxEventKey),
+		Title:    clipRunes(title, MaxEventTitle),
 		What:     clipRunes(what, MaxEventText),
-		Action:   "Open Logs and look at this connection. If nobody expected this device to talk to that address, take it off the network and ask its user what it was doing.",
+		Action:   action,
 		Severity: sev, Devices: devices,
-		ID: h.ID, SrcIP: h.SrcIP, Dest: h.Dest, DestKind: h.DestKind, SeenVia: h.SeenVia, AssetID: h.AssetID,
+		ID: h.ID, SrcIP: h.SrcIP, Dest: h.Dest, DestKind: h.DestKind, SeenVia: h.SeenVia, AssetID: h.AssetID, Blocked: h.Blocked,
 	}
 }
 
@@ -379,7 +463,7 @@ func (s *Service) assetsFor(ctx context.Context, ips []string) map[string]Device
 	return found
 }
 
-const iocColumns = `id, ts, src_ip, dest, dest_kind, seen_via, feeds, confidence`
+const iocColumns = `id, ts, src_ip, dest, dest_kind, seen_via, feeds, confidence, blocked`
 
 // iocHits reads the newest hits since a time with at least minConf, newest first, with the device of each resolved now (INV-7).
 func (s *Service) iocHits(ctx context.Context, where string, limit int, args ...any) ([]IocHit, error) {
@@ -393,7 +477,7 @@ func (s *Service) iocHits(ctx context.Context, where string, limit int, args ...
 	for rows.Next() {
 		var h IocHit
 		var ts, feeds string
-		if err := rows.Scan(&h.ID, &ts, &h.SrcIP, &h.Dest, &h.DestKind, &h.SeenVia, &feeds, &h.Confidence); err != nil {
+		if err := rows.Scan(&h.ID, &ts, &h.SrcIP, &h.Dest, &h.DestKind, &h.SeenVia, &feeds, &h.Confidence, &h.Blocked); err != nil {
 			return nil, fmt.Errorf("logs: reading the bad connections: %w", err)
 		}
 		if h.TS, err = time.Parse("2006-01-02T15:04:05.000Z", ts); err != nil {

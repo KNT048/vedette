@@ -89,7 +89,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (231 mã)
+#### HTTP 400 (232 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -256,7 +256,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `no_code` | 400 | No code is waiting. Ask for a new code. | module core (validator dùng chung) |
 | `commitment_required` | 400 | You have not confirmed that your company owns ${t.value} and you are authorized to scan it. Confirm it first. | `POST /exposure/targets/{id}/scan`; `POST /scans/runs` |
 | `no_days` | 400 | Pick at least one day for the maintenance window. | `PATCH /core/updates/os/settings`; `PUT /inventory/settings` |
-| `no_index_profile` | 400 | Choose which AI profile builds the index before adding documents. | `POST /ai/knowledge` |
+| `no_index_profile` | 400 | Choose an AI profile for the index before adding documents. | `POST /ai/knowledge` |
 | `no_lan` | 400 | Add your LAN range first (Devices, Scope and sensors), so Vedette knows which network the box is on. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
 | `no_pack` | 400 | This CVE has no confirmed recommendation yet, so there is nothing to mark as applied. | `POST /findings/{id}/applied` |
 | `no_prefix` | 400 | "${r}" has no prefix length. Add it so Vedette scans the right size of network, for example ${r}/24 or ${r}/25. | `PUT /inventory/settings` |
@@ -306,6 +306,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown_product` | 400 | That product is not in the list. Pick one from the suggestions, or enter the vendor and product yourself. | module inventory (validator dùng chung) |
 | `unknown_profile` | 400 | This AI profile no longer exists. Pick another. | `PUT /ai/knowledge/settings` |
 | `unknown_target` | 400 | There is no target "${id.slice(0, 40)}" in the scan list. | `POST /scans/runs` |
+| `url_unreadable` | 400 | The saved webhook URL cannot be read. Enter it again and save. | `PUT /notify/channels/webhook` (chỉ backend: URL đã niêm phong không mở được, ví dụ khoá đổi; mock không có trạng thái niêm phong nên không trả mã này). Mã riêng vì `secret_required` của webhook là khoá ký; GUI hiện dưới trường URL |
 | `username_required` | 400 | Enter the user name the box signs in with. | `POST /core/connections`; `PUT /core/connections/{id}` (SSH and Basic sign-in) |
 | `viewer_not_allowed` | 400 | A viewer cannot be an approver. | module notify (validator dùng chung) |
 | `weak_password` | 400 | The password needs at least ${MIN_PASSWORD} characters. A long sentence is easier to remember than random characters. | `POST /core/account/password`; `POST /core/setup` |

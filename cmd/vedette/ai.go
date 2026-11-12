@@ -17,6 +17,7 @@ import (
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
+	"github.com/knt048/vedette/modules/notify"
 )
 
 // newAI builds the ai service once, in buildServices (deps.AI): the handlers and the mitigation door share one router and one
@@ -40,6 +41,12 @@ func newAI(ctx context.Context, d *deps, facts ai.Facts, data ai.Data) (*ai.Serv
 			return m, nil
 		}
 	}
+	// the daily verify of the activity log raises a notify incident when the chain is broken (S-AI-8, D-430); newNotify is the one
+	// instance per database, so this is the service the rest of the box uses. A notify module that is off answers ErrModuleOff and the
+	// job tries again at its next run.
+	cfg.Alert = func(ctx context.Context, id, title, text string) error {
+		return newNotify(d).Publish(ctx, notify.Notice{ID: id, Kind: notify.KindIncident, Severity: notify.High, Title: title, What: text, At: d.Clock()})
+	}
 	// the log-digest job reads the digest of the logs module (ailogdigest.go)
 	cfg.LogDigest = aiLogDigest(d)
 	cfg.LogAround = aiLogAround(d)
@@ -47,8 +54,16 @@ func newAI(ctx context.Context, d *deps, facts ai.Facts, data ai.Data) (*ai.Serv
 	if d.Reg != nil { // a nil *modreg.Registry inside the interface would not compare equal to nil
 		cfg.Modules = d.Reg
 	}
-	return ai.New(ctx, cfg)
+	svc, err := ai.New(ctx, cfg)
+	if err == nil && testNewsNetwork != nil {
+		testNewsNetwork(svc)
+	}
+	return svc, err
 }
+
+// testNewsNetwork is the test seam of the end-to-end box (D-171 (2), D-426): it points the CVE news fetcher at a fake internet on
+// loopback (e2enews_test.go). nil in the release binary, which has no _test file to set it.
+var testNewsNetwork func(*ai.Service)
 
 // aiFacts implements ai.Facts: the exploited-list entry from feeds, the devices a CVE matches from findings and the inventory.
 type aiFacts struct {
@@ -191,7 +206,7 @@ func (aiChainPruner) Prune(ctx context.Context, tx *sql.Tx, chain, lastPrunedID,
 	return chainhead.Prune(ctx, tx, chain, lastPrunedID, lastPrunedHash, removed, now)
 }
 
-// aiJobs is the Jobs func of the ai entry in wiredModules: the "activity-prune" job.
+// aiJobs is the Jobs func of the ai entry in wiredModules: "activity-prune" and "activity-verify".
 func aiJobs(d deps) []jobs.Job { return d.AI.Jobs() }
 
 // aiAsk implements ai.Data for the read tools of "Ask your data": devices from the inventory, findings from findings and indicators

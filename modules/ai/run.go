@@ -435,10 +435,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 			// say which profile the request went to: the last attempt that sent a request is the one running when the caller left
 			for i := len(res.Attempts) - 1; i >= 0; i-- {
 				if last := res.Attempts[i]; !last.Skipped {
-					entry.Profile, entry.ProfileID = last.Profile, last.ProfileID
-					if st, ok := s.snap.Load().find(last.ProfileID); ok {
-						entry.Model = st.Model
-					}
+					entry.Profile, entry.ProfileID, entry.Model = last.Profile, last.ProfileID, last.Model
 					break
 				}
 			}
@@ -513,10 +510,7 @@ func (s *Service) nameLastProfile(entry *ActivityEntry, res CallResult) {
 	}
 	for i := len(res.Attempts) - 1; i >= 0; i-- {
 		if a := res.Attempts[i]; !a.Skipped {
-			entry.Profile, entry.ProfileID = a.Profile, a.ProfileID
-			if st, ok := s.snap.Load().find(a.ProfileID); ok {
-				entry.Model = st.Model
-			}
+			entry.Profile, entry.ProfileID, entry.Model = a.Profile, a.ProfileID, a.Model
 			return
 		}
 	}

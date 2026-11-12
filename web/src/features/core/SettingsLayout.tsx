@@ -25,7 +25,7 @@ export function SettingsLayout() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
       <aside className="grid min-w-0 content-start gap-3">
-        <nav aria-label={t('settings.nav')} className="flex gap-1 overflow-x-auto lg:grid lg:gap-0.5">
+        <nav aria-label={t('settings.nav')} className="flex flex-wrap gap-1 lg:grid lg:gap-0.5">
           {a.list.map((s) => <NavLink key={s.id} to={`/settings/${s.id}`} className={link}>{t(s.label)}</NavLink>)}
         </nav>
         <Link to="/account" className="inline-flex items-center gap-2 text-sm text-accent underline-offset-4 hover:underline"><UserRound className="size-4" aria-hidden />{t('settings.myAccount')}</Link>

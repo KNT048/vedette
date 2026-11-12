@@ -243,9 +243,11 @@ func inv15Gates() []inv15Gate {
 }
 
 func TestContract_INV15_GatesRunInOrder(t *testing.T) {
+	t.Parallel()
 	all := inv15Gates()
 	for i, g := range all {
 		t.Run(fmt.Sprintf("%02d %s", i+1, g.name), func(t *testing.T) {
+			t.Parallel() // each gate has its own box; all is only read
 			e, _, _ := propEnv(t, true)
 			e.allowHigh()
 			b := highBody()
@@ -305,6 +307,7 @@ func TestContract_INV15_GatesRunInOrder(t *testing.T) {
 }
 
 func TestPropose_UnknownActionBeatsTheMaintenanceWindow(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	inv15Gates()[0].arm(e, nil)
 	b := lowBody()
@@ -318,6 +321,7 @@ func TestPropose_UnknownActionBeatsTheMaintenanceWindow(t *testing.T) {
 // ---- notes ----
 
 func TestPropose_NotesAreCappedAtFifty(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	for i := range 55 {
 		b := lowBody()
@@ -344,6 +348,7 @@ func TestPropose_NotesAreCappedAtFifty(t *testing.T) {
 }
 
 func TestPropose_SuggestionAndDigestAreNotesWithNoRequest(t *testing.T) {
+	t.Parallel()
 	e, _, ev := propEnv(t, true)
 	low := lowBody()
 	low.Confidence = 0.79
@@ -387,6 +392,7 @@ func iocBody(id string) response.ProposeBody {
 }
 
 func TestPropose_EvidenceIsLookedUpNeverTrusted(t *testing.T) {
+	t.Parallel()
 	t.Run("a nil port refuses", func(t *testing.T) {
 		e, _, _ := propEnv(t, false)
 		_, err := e.propose(iocBody("ioc-host"))
@@ -502,6 +508,7 @@ func TestPropose_EvidenceIsLookedUpNeverTrusted(t *testing.T) {
 
 // A read of the AI relates to a device action through that same connection and to nothing else (D-119).
 func TestPropose_ConfigReadsAreEvidenceOnlyOfTheirOwnConnection(t *testing.T) {
+	t.Parallel()
 	t.Run("two reads through the connection of the action pass the second check", func(t *testing.T) {
 		e, _, _ := propEnv(t, true)
 		e.allowHigh()
@@ -549,6 +556,7 @@ func TestPropose_ConfigReadsAreEvidenceOnlyOfTheirOwnConnection(t *testing.T) {
 
 // A finding gives the trigger and the device; the trigger has to be proven by a kind of evidence that can prove it (D-119).
 func TestPropose_TriggerMustBeProvenByEvidence(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	b := iocBody("ioc-host")
 	b.Trigger = "finding" // a finding trigger with only a known-bad connection
@@ -566,6 +574,7 @@ func TestPropose_TriggerMustBeProvenByEvidence(t *testing.T) {
 
 // The trigger catalog says which kinds prove which trigger. Triggers with no kind cannot be used by the AI at all.
 func TestPropose_TriggerEvidenceMap(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	tl, err := e.svc.Triggers(e.ctx())
 	e.must(err)
@@ -586,6 +595,7 @@ func TestPropose_TriggerEvidenceMap(t *testing.T) {
 }
 
 func TestPropose_OnlyRelatedEvidenceCounts(t *testing.T) {
+	t.Parallel()
 	t.Run("repeat: related plus unrelated evidence is not new evidence", func(t *testing.T) {
 		e, _, ev := propEnv(t, true)
 		r := e.mustPropose(lowBody())
@@ -616,6 +626,7 @@ func TestPropose_OnlyRelatedEvidenceCounts(t *testing.T) {
 }
 
 func TestPropose_AFailingLookupAnswersAtTheEvidenceGateAndIsLogged(t *testing.T) {
+	t.Parallel()
 	e, _, ev := propEnv(t, true)
 	ev.err = fmt.Errorf("logs are down")
 	// an earlier gate still answers first
@@ -636,6 +647,7 @@ func TestPropose_AFailingLookupAnswersAtTheEvidenceGateAndIsLogged(t *testing.T)
 }
 
 func TestPropose_TheSameEvidenceTwiceCountsOnce(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	e.allowHigh()
 	b := highBody()
@@ -658,6 +670,7 @@ func (e *env) deviceAction(param string) string {
 }
 
 func TestPropose_PortMACAndVLANActionsNeedTheSubjectAndRespectNeverTouch(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct{ param, value, hit string }{{"mac", "aa:bb:cc:dd:ee:01", "ioc-mac"}, {"vlan", "30", "ioc-vlan30"}} {
 		t.Run(tc.param, func(t *testing.T) {
 			e, _, _ := propEnv(t, true)
@@ -691,6 +704,7 @@ func TestPropose_PortMACAndVLANActionsNeedTheSubjectAndRespectNeverTouch(t *test
 }
 
 func TestPropose_NeverTouchRefusalDoesNotEchoBidi(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	e.dir.devices["gw"] = response.DeviceInfo{ID: "gw", Name: "gate\u202eway\u200b", IP: hostIP, Kind: "router"}
 	_, err := e.propose(lowBody())
@@ -706,6 +720,7 @@ func TestPropose_NeverTouchRefusalDoesNotEchoBidi(t *testing.T) {
 // ---- the body at the boundary ----
 
 func TestPropose_BodyIsValidatedAtTheBoundary(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	long := func(n int) string { return strings.Repeat("a", n) }
 	cases := map[string]func(b *response.ProposeBody){
@@ -764,6 +779,7 @@ func manyParams(n int) map[string]string {
 
 // The body has no field that could hold a command, a path, a template, a header or a summary of the evidence (INV-14, FORBID-5).
 func TestProposeBodyHasNoCommandField(t *testing.T) {
+	t.Parallel()
 	names := func(v any) []string {
 		var out []string
 		rt := reflect.TypeOf(v)
@@ -794,6 +810,7 @@ func TestProposeBodyHasNoCommandField(t *testing.T) {
 // ---- repeat ----
 
 func TestPropose_RepeatRule(t *testing.T) {
+	t.Parallel()
 	setup := func(t *testing.T) (*env, *evFake) {
 		e, _, ev := propEnv(t, true)
 		r := e.mustPropose(lowBody())
@@ -849,6 +866,7 @@ func TestPropose_RepeatRule(t *testing.T) {
 // ---- budget ----
 
 func TestPropose_BudgetDefaultsAreTwoAnHourAndFiveADay(t *testing.T) {
+	t.Parallel()
 	e, _, ev := propEnv(t, true)
 	if st := e.settings(); st.AI.BudgetHour != 2 || st.AI.BudgetDay != 5 {
 		t.Fatalf("defaults: %+v", st.AI)
@@ -886,6 +904,7 @@ func TestPropose_BudgetDefaultsAreTwoAnHourAndFiveADay(t *testing.T) {
 // ---- high risk ----
 
 func TestPropose_HighRiskSecondCheck(t *testing.T) {
+	t.Parallel()
 	e, f, _ := propEnv(t, true)
 	e.allowHigh()
 	one := highBody()
@@ -928,6 +947,7 @@ func TestPropose_HighRiskSecondCheck(t *testing.T) {
 }
 
 func TestPropose_LowRiskRequestIsNotInAppOnly(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	r := e.mustPropose(lowBody())
 	a := e.full(r.Request.ID)
@@ -939,6 +959,7 @@ func TestPropose_LowRiskRequestIsNotInAppOnly(t *testing.T) {
 // ---- concurrency ----
 
 func TestPropose_ConcurrentProposalsForOneTargetCreateOneRequest(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	const n = 8
 	var wg sync.WaitGroup
@@ -972,6 +993,7 @@ func TestPropose_ConcurrentProposalsForOneTargetCreateOneRequest(t *testing.T) {
 }
 
 func TestPropose_ConcurrentProposalsStayInsideTheBudget(t *testing.T) {
+	t.Parallel()
 	e, _, ev := propEnv(t, true)
 	const n = 6
 	for i := range n {
@@ -1009,6 +1031,7 @@ func TestPropose_ConcurrentProposalsStayInsideTheBudget(t *testing.T) {
 // ---- identity ----
 
 func TestPropose_ActorIsAIResponseAndNothingIsPreApproved(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	r := e.mustPropose(lowBody())
 	got := e.only()
@@ -1047,6 +1070,7 @@ func (e *env) verifyLog() bool {
 }
 
 func TestPropose_NeverTouchStillHolds(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	e.dir.devices["gw"] = response.DeviceInfo{ID: "gw", Name: "gateway", IP: hostIP, Kind: "router"}
 	_, err := e.propose(lowBody())
@@ -1057,6 +1081,7 @@ func TestPropose_NeverTouchStillHolds(t *testing.T) {
 }
 
 func TestPropose_PausedAIAnswersTheMockText(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	g := inv15Gates()[2]
 	g.arm(e, nil)
@@ -1070,6 +1095,7 @@ func TestPropose_PausedAIAnswersTheMockText(t *testing.T) {
 // ---- AIActions ----
 
 func TestAIActions_OnlyEnabledActionsTheAIMayPropose_NoTemplateText(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	e.allowHigh()
 	l, err := e.svc.AIActions(e.ctx())
@@ -1149,6 +1175,7 @@ func TestAIActions_OnlyEnabledActionsTheAIMayPropose_NoTemplateText(t *testing.T
 }
 
 func TestAIActions_UnavailableIsSaid(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	on := true
 	_, err := e.svc.ChangeAction(e.ctx(), admin, "fgt_policy_disable", response.CatalogUpdate{Enabled: &on, AIMayPropose: &on})
@@ -1174,6 +1201,7 @@ func TestAIActions_UnavailableIsSaid(t *testing.T) {
 // ---- what the AI gets back ----
 
 func TestPropose_ResultIsANarrowView(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	r := e.mustPropose(lowBody())
 	raw, err := json.Marshal(r)
@@ -1221,6 +1249,7 @@ func TestPropose_ResultIsANarrowView(t *testing.T) {
 // ---- the module switch ----
 
 func TestPropose_ModuleOffRefusesAndWritesNothing(t *testing.T) {
+	t.Parallel()
 	g := &gate{on: true}
 	e := newEnv(t, func(c *response.Config) { c.Modules = g })
 	e.dir.devices["a1"] = response.DeviceInfo{ID: "a1", Name: "PC-HR-01", IP: hostIP, Approved: true}
@@ -1249,6 +1278,7 @@ func TestPropose_ModuleOffRefusesAndWritesNothing(t *testing.T) {
 // A subscriber of the request-created event calls back into the service (it takes the service lock). The events go out with the lock
 // released, so this must finish.
 func TestPropose_EventsGoOutWithTheLockReleased(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	e.bus.Subscribe(response.EventRequestCreated, func(ctx context.Context, _ events.Event) error {
 		_, err := e.svc.ResumeAI(ctx, admin) // takes the service lock
@@ -1267,6 +1297,7 @@ func TestPropose_EventsGoOutWithTheLockReleased(t *testing.T) {
 // ---- rate limits ----
 
 func TestPropose_SixtyCallsAnHour(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	bad := lowBody()
 	bad.Why = "" // the cheapest call there is: refused at the boundary, but counted
@@ -1302,6 +1333,7 @@ func TestPropose_SixtyCallsAnHour(t *testing.T) {
 }
 
 func TestPropose_NotesOfEachKindHaveTheirOwnCapOfFifty(t *testing.T) {
+	t.Parallel()
 	e, _, ev := propEnv(t, true)
 	e.saveSettings(func(in *response.SettingsInput) { in.AI.BudgetHour = 1 })
 	e.mustPropose(lowBody()) // the one request of the hour
@@ -1339,6 +1371,7 @@ func TestPropose_NotesOfEachKindHaveTheirOwnCapOfFifty(t *testing.T) {
 // A cancellation (the emergency stop, an action edited) is status rejected too, but it is no verdict of a person: it does not block a
 // repeat for 7 days and does not count for the quality breaker.
 func TestPropose_ACancellationIsNotARejection(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	r := e.mustPropose(lowBody())
 	before, err := e.svc.AIState(e.ctx())
@@ -1373,6 +1406,7 @@ func TestPropose_ACancellationIsNotARejection(t *testing.T) {
 }
 
 func TestPropose_AnActionEditCancelsWithoutCountingAsARejection(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	e.allowHigh()
 	e.mustPropose(highBody())
@@ -1393,6 +1427,7 @@ func TestPropose_AnActionEditCancelsWithoutCountingAsARejection(t *testing.T) {
 // ---- RequestProposal is a person's action ----
 
 func TestRequestProposal_LogsThePersonNotTheAI(t *testing.T) {
+	t.Parallel()
 	e := planEnv(t)
 	on := true
 	_, err := e.svc.ChangeAction(e.ctx(), admin, "fgt_ban_ip", response.CatalogUpdate{AIMayPropose: &on})
@@ -1400,8 +1435,10 @@ func TestRequestProposal_LogsThePersonNotTheAI(t *testing.T) {
 	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21"},"ttl_min":1440,"asset_id":"a-nas","asset_name":"NAS"}`)
 	a, err := e.svc.RequestProposal(e.ctx(), oper, "pr-1")
 	e.must(err)
-	if actor, _ := e.newest("request"); actor != "it@acme.example (app)" {
-		t.Fatalf("the request line is by %q", actor)
+	// The line that creates the request is the person's. Not "the newest request line": the approval send, in the background,
+	// adds its own "request sent" line by system and can land first.
+	if n := e.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'request' AND actor = 'it@acme.example (app)'`); n != 1 {
+		t.Fatalf("%d request lines by the person, want 1", n)
 	}
 	if e.count(`SELECT COUNT(*) FROM resp_log WHERE actor = 'ai:response'`) != 0 || e.count(`SELECT COUNT(*) FROM core_audit WHERE user = 'ai:response' AND target = ?`, a.ID) != 0 {
 		t.Fatal("a person's request was logged as the AI's")

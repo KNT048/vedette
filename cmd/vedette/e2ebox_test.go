@@ -161,6 +161,10 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 		return err
 	}
 	seed.SyslogPort = strconv.Itoa(syslogPort)
+	mcpPort, err := e2eFreePort(ctx) // not 8765: two runs at once; the spec reads the address from GET /core/mcp
+	if err != nil {
+		return err
+	}
 	seed.DataDir, seed.HoneypotDir = data, hp
 	var sensors *e2eSensors
 	if seed.sensorBin != "" {
@@ -184,6 +188,7 @@ func e2eBoxWith(ctx context.Context, dir, dataDir, hostSocket string, seed e2eRe
 		"-db", filepath.Join(data, "vedette.db"), "-key", filepath.Join(data, "vedette.key"),
 		"-listen", listen, "-host-socket", hostSocket, "-honeypot-dir", hp,
 		"-syslog-port", seed.SyslogPort, // not 514/5514: two runs at once, and a Mac may not bind 514 (logs spec)
+		"-mcp-listen", net.JoinHostPort("127.0.0.1", strconv.Itoa(mcpPort)), // open only while the mcp-server module is on
 	}
 	if sensors != nil { // slice 7: the sensor link on a loopback port; the specs start the sensors through the control endpoint
 		log.onLink = sensors.linkUp
@@ -254,8 +259,8 @@ const e2eKEV = `{"title":"E2E catalog","catalogVersion":"2026.11.11","dateReleas
 // loopback address from the real network (a custom feed pointed at a 127.0.0.1 fake, feeds.spec.ts), and refuses every other address at
 // once, so EPSS and the IOC lists fail fast. Without this the box pulled the public feeds at start: ~80 MB written in one transaction that
 // held the database writer for ~13 s, so the first sign-ins, the first-run setup and the first user created after the start stalled past
-// the 8 s expect timeout, and what the specs saw depended on the network. The returned func puts the client back (the package var is
-// shared with the other tests of this package, which never run while this one does: it is not parallel).
+// the 8 s expect timeout, and what the specs saw depended on the network. TestMain calls it once for the whole package and never puts
+// the client back, so the package var is written before any test runs and never after; the returned func of a later call only counts.
 func e2eOffline() func() {
 	e2eOfflineMu.Lock()
 	defer e2eOfflineMu.Unlock()

@@ -45,6 +45,14 @@ function RejectDialog({ a, onClose }: { a: ActionRequest; onClose: () => void })
   )
 }
 
+/** The undo line of an item. Once it ran, the undo time is the one the box set (`remove_at`): none means it is not undone automatically, for
+ * example a change that was already on the device before this step (D-356). Before it runs, it is the planned `ttl_min`. */
+function undoText(i: RequestItem, t: (k: string, o?: Record<string, unknown>) => string): string {
+  if (i.status === 'executed') return i.remove_at ? t('request.undoAt', { time: fmtDateTime(i.remove_at) }) : i.reversible ? t('request.noAutoUndo') : t('request.noUndo')
+  if (i.ttl_min) return t('request.undoAfter', { time: i.ttl_min >= 60 ? `${Math.round((i.ttl_min / 60) * 10) / 10} h` : `${i.ttl_min} min` })
+  return i.reversible ? t('request.undoManual') : t('request.noUndo')
+}
+
 function Item({ i, pick, onPick }: { i: RequestItem; pick?: boolean; onPick?: (v: boolean) => void }) {
   const { t } = useTranslation('response')
   return (
@@ -58,10 +66,9 @@ function Item({ i, pick, onPick }: { i: RequestItem; pick?: boolean; onPick?: (v
       </div>
       <p className="text-[13px] text-muted">
         {i.connection ? t('request.via', { connection: i.connection }) : t('action.viaBox')}
-        {' · '}{i.ttl_min ? t('request.undoAfter', { time: i.ttl_min >= 60 ? `${Math.round((i.ttl_min / 60) * 10) / 10} h` : `${i.ttl_min} min` }) : i.reversible ? t('request.undoManual') : t('request.noUndo')}
+        {' · '}{undoText(i, t)}
         {i.targets > 1 ? ` · ${t('request.targets', { count: i.targets })}` : ''}
       </p>
-      {i.status === 'executed' && i.remove_at ? <p className="text-[13px]">{t('action.removeAt')}: {fmtDateTime(i.remove_at)}</p> : null}
       {i.result ? <p className="text-[13px]"><span className="font-medium">{t('action.result')}:</span> {i.result}</p> : null}
       {i.state_unknown ? <p className="text-[13px] text-danger" role="note">{t('request.unknown')}</p> : null}
       {i.verified ? <p className="text-[13px]"><Chip tone={i.verified.ok ? 'ok' : 'danger'}>{i.verified.ok ? t('request.verifiedOk') : t('request.verifiedBad')}</Chip> {i.verified.detail}</p> : null}

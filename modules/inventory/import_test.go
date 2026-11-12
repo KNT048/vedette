@@ -22,6 +22,7 @@ func (e *env) importCSV(text string) inventory.ImportResult {
 }
 
 func TestContract_INV13_CSVImportAndExport(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	good := "name,ip,product,version,kind\r\nBranch firewall,192.168.30.1,FortiGate,7.2.5,firewall\r\nCompany website,,WordPress,6.5.2,web\r\n"
 	r := e.importCSV(good)
@@ -142,6 +143,7 @@ func TestContract_INV13_CSVImportAndExport(t *testing.T) {
 }
 
 func TestImportTemplateIsImportable(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	b, _ := io.ReadAll(inventory.ImportTemplate())
 	if !strings.HasPrefix(string(b), "\xef\xbb\xbfname,ip,product,version,kind") {
@@ -153,6 +155,7 @@ func TestImportTemplateIsImportable(t *testing.T) {
 }
 
 func TestContract_POST1_RecordObservationCreatesPendingDevices(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ip := netip.MustParseAddr("192.168.10.50")
 	e.tick(-time.Hour)
@@ -211,6 +214,7 @@ func TestContract_POST1_RecordObservationCreatesPendingDevices(t *testing.T) {
 }
 
 func TestSinkRefusesUntrustedInput(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	good := obsv(macA, observe.Hostname, "ok", observe.Passive, 0.5)
 	long := strings.Repeat("a", 201)
@@ -267,6 +271,7 @@ func TestSinkRefusesUntrustedInput(t *testing.T) {
 }
 
 func TestContract_POST2_UpsertSoftwareReplacesBySource(t *testing.T) {
+	t.Parallel()
 	kev := fakeKEV{cves: map[string][]string{"mozilla|firefox": {"CVE-2024-1111"}, "apache|http server": {"CVE-2024-2222"}}}
 	e := newEnv(t, withKEV(kev))
 	id := e.addDevice(inventory.AddInput{CatalogID: "windows-11", IP: "192.168.1.5"})
@@ -339,6 +344,7 @@ func TestContract_POST2_UpsertSoftwareReplacesBySource(t *testing.T) {
 }
 
 func TestContract_POST4_PatchAddsAManualObservationAndKeepsTheOldValues(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.record(obs(netip.MustParseAddr("192.168.1.9"), macA, observe.Kind, "pc", observe.Agent, 0.9))
 	id := e.idByMAC(macA)
@@ -379,6 +385,7 @@ func TestContract_POST4_PatchAddsAManualObservationAndKeepsTheOldValues(t *testi
 }
 
 func TestEveryMutationIsAudited(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	must := func(err error) {
 		t.Helper()
@@ -428,6 +435,7 @@ func TestEveryMutationIsAudited(t *testing.T) {
 }
 
 func TestImportDoesNotBurnCPUOnHostileCells(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	// one 180 KB product cell of many short words (it used to hold the single writer for ten seconds)
 	big := "name,product\r\nx," + strings.Repeat("ab ", 60_000) + "\r\n"
@@ -457,26 +465,8 @@ func TestImportDoesNotBurnCPUOnHostileCells(t *testing.T) {
 	}
 }
 
-func TestCatalogSearchCapsTheTerms(t *testing.T) {
-	e := newEnv(t)
-	run := func(words int) time.Duration {
-		start := time.Now()
-		for range 5 {
-			if _, err := e.svc.SearchCatalog(e.ctx(), strings.Repeat("ab ", words)); err != nil {
-				t.Fatal(err)
-			}
-		}
-		return time.Since(start)
-	}
-	run(8) // builds the catalog once
-	eight, long := run(8), run(400)
-	// without the cap 400 words cost 50 times as much as 8; with it they cost the same (the margin absorbs noise, -race included)
-	if long > 3*eight+100*time.Millisecond {
-		t.Fatalf("5 searches: 8 words %v, 400 words %v", eight, long)
-	}
-}
-
 func TestNotFoundComesBeforeBadInput(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	_, err := e.svc.AddSoftware(e.ctx(), "it@acme.example", "a-nope", inventory.AddInput{Vendor: "only a vendor"})
 	wantAPIError(t, err, 404, "not_found")

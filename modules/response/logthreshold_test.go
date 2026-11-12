@@ -98,6 +98,7 @@ func logEnv(t *testing.T) (*env, *fakeLogs) {
 // burst; when no single address sent N of them (spread over many, or lines that name none) the event names the log source only,
 // so an action that needs {{trigger.source_ip}} is not available.
 func TestLogThresholdFiresFromTheLogCounts(t *testing.T) {
+	t.Parallel()
 	e, l := logEnv(t)
 	e.rule("Failed logons", "log_threshold", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "{{trigger.count}} failed logons on {{trigger.source_device}} in {{trigger.window}} min"}}}, logRule(10))
 	e.rule("Ban", "log_threshold", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.source_ip}}"}, TTLMin: intp(60)}}, logRule(10))
@@ -145,6 +146,7 @@ func TestLogThresholdFiresFromTheLogCounts(t *testing.T) {
 // Two rules on the same signature with different thresholds each see their own event: a rule never fires again on the event
 // made for a higher threshold in the same window.
 func TestLogThresholdEachThresholdItsOwnEvent(t *testing.T) {
+	t.Parallel()
 	e, l := logEnv(t)
 	msg := []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "{{trigger.count}}"}}}
 	e.rule("Ten", "log_threshold", msg, logRule(10))
@@ -165,6 +167,7 @@ func TestLogThresholdEachThresholdItsOwnEvent(t *testing.T) {
 
 // The logs module off (or not wired): no event and no error; the evaluate job goes on.
 func TestLogThresholdLogsOff(t *testing.T) {
+	t.Parallel()
 	e, l := logEnv(t)
 	e.rule("Failed logons", "log_threshold", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "x"}}}, logRule(1))
 	l.counts["ls-fw|"+failedLogon] = 5
@@ -188,6 +191,7 @@ func TestLogThresholdLogsOff(t *testing.T) {
 // A log_threshold rule names exactly one signature, counted in 5 to 1440 minutes; a signature is pasted from the digest as it is
 // (=, <ip>), and nothing else of a condition value is widened.
 func TestLogThresholdRuleChecks(t *testing.T) {
+	t.Parallel()
 	e, _ := logEnv(t)
 	msg := []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "x"}}}
 	add := func(conds ...response.Condition) error {
@@ -229,6 +233,7 @@ func TestLogThresholdRuleChecks(t *testing.T) {
 // a ban rule bans each attacker (fail2ban maxretry, Wazuh same_srcip); an address under N is never banned for the others' lines.
 // One burst of one address is one event; a second address reaching N in the same burst is a new event.
 func TestLogThresholdBansEachAddressThatReachedTheThreshold(t *testing.T) {
+	t.Parallel()
 	e, l := logEnv(t)
 	e.rule("Ban", "log_threshold", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.source_ip}}"}, TTLMin: intp(60)}}, logRule(10))
 	key := "ls-fw|" + failedLogon
@@ -269,6 +274,7 @@ func TestLogThresholdBansEachAddressThatReachedTheThreshold(t *testing.T) {
 // The addresses could not be read (a failure, not "none"): the count still makes its source-only event, said once as a warning.
 // An address with a zone, or not valid, is never an event.
 func TestLogThresholdAddressesUnreadable(t *testing.T) {
+	t.Parallel()
 	e, l := logEnv(t)
 	e.rule("Alert", "log_threshold", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "{{trigger.count}} on {{trigger.source_device}} from {{trigger.source_ip}}"}}}, logRule(10))
 	key := "ls-fw|" + failedLogon
@@ -291,6 +297,7 @@ func TestLogThresholdAddressesUnreadable(t *testing.T) {
 
 // The Logs module turned off between the count and the addresses: no event at all, not a source-only one (SYS-5).
 func TestLogThresholdLogsOffBeforeTheAddresses(t *testing.T) {
+	t.Parallel()
 	e, l := logEnv(t)
 	e.rule("Alert", "log_threshold", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "x"}}}, logRule(10))
 	l.counts["ls-fw|"+failedLogon] = 12

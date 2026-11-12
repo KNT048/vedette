@@ -170,7 +170,7 @@ test('add a source in the page: the picker, the setup dialog, the row, a duplica
     await expect(guide).toContainText('It only accepts logs from 127.0.0.1.')
     await page.keyboard.press('Escape')
     await expect(guide).toHaveCount(0)
-    await page.reload() // a fresh page: the toast of the add has a colour-contrast violation of its own (.ai/deferred/feat-e2e-real-exposure-fakes.md:5)
+    await page.reload() // a fresh page: the toast of the add fades in (axe reads it mid-transition)
     await page.getByRole('button', { name: `Device setup for ${name}` }).click()
     await expect(page.getByRole('dialog', { name: `Set up ${name} to send logs to the box` })).toBeVisible()
     await expectAccessible(page, 'the setup dialog')

@@ -45,6 +45,7 @@ func actionsJSON(t *testing.T, e *env, role routes.Role) string {
 // M1: GET /response/actions is a viewer's call. A viewer reads header names only; the people who approve (operators, administrators) read
 // every value of what they approve, except a credential's (D-174, D-175).
 func TestWP31_M1_ViewerReadsActionsWithoutHeaderValues(t *testing.T) {
+	t.Parallel()
 	e := keyedRequest(t)
 	if got := e.only().Items[0].Change.Rest.Headers["X-Trace"]; got != "abc123secret" {
 		t.Fatalf("the service holds %q", got)
@@ -62,6 +63,7 @@ func TestWP31_M1_ViewerReadsActionsWithoutHeaderValues(t *testing.T) {
 
 // GET /response/plans is a viewer's call too: a proposal holds the exact change.
 func TestWP31_M1_ViewerReadsPlansWithoutHeaderValues(t *testing.T) {
+	t.Parallel()
 	e := planEnv(t)
 	e.exec1(`UPDATE resp_catalog SET run = json_set(run, '$.headers', 'X-Trace: abc123secret') WHERE id = 'fgt_ban_ip'`)
 	e.plan("plan-1", `{"id":"pr-1","action_id":"fgt_ban_ip","params":{"ip":"192.168.10.21"},"ttl_min":1440,"asset_id":"a-nas","asset_name":"NAS"}`)
@@ -84,6 +86,7 @@ func TestWP31_M1_ViewerReadsPlansWithoutHeaderValues(t *testing.T) {
 
 // D-174 (5): a request stored before credential headers were refused keeps its header, but no read shows its value, an admin's included.
 func TestWP31_M1_AStoredCredentialHeaderIsHiddenFromEveryone(t *testing.T) {
+	t.Parallel()
 	e := keyedRequest(t)
 	e.exec1(`UPDATE resp_actions SET items = replace(items, 'X-Trace', 'X-Api-Key')`)
 	for _, role := range []routes.Role{routes.Viewer, routes.Admin} {
@@ -95,6 +98,7 @@ func TestWP31_M1_AStoredCredentialHeaderIsHiddenFromEveryone(t *testing.T) {
 
 // The simulation of a rule shows the exact call: an operator or an administrator reads every value except a credential's.
 func TestWP31_M1_SimulateHidesCredentialHeaderValues(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	in := apiAction()
 	in.Run.Headers = "X-Trace: abc123secret\nX-Api-Key: {domain}"
@@ -120,6 +124,7 @@ func TestWP31_M1_SimulateHidesCredentialHeaderValues(t *testing.T) {
 
 // D-174 (2): a template cannot hold a credential header with a literal value, in any step; its value is exactly one placeholder.
 func TestWP31_M1_TemplateWithACredentialHeaderIsRefused(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	for _, h := range []string{"X-API-Key: abc", "x-api-key: abc", "X-ApiKey: abc", "Apikey: abc", "Token: abc", "X-Auth: abc", "X-Password: abc", "X-Session: abc", "X-Auth-Token: abc", "Api-Key: abc",
 		"X-PAN-KEY: abc", "X-Vendor-Token: abc", "X-App-Secret: abc", "Cookie: a=b", "Proxy-Authorization: x", "Accept: json\nX-Api-Key: abc",
@@ -186,6 +191,7 @@ func sshRequest(t *testing.T, e *env, run string, risk response.Risk, undo ...st
 
 // M2: a high-risk, ten-line change reaches the approver in full and with no button.
 func TestWP31_M2_HighRiskMultiLineChangeIsInFullWithoutButtons(t *testing.T) {
+	t.Parallel()
 	e := telegramEnv(t)
 	sshRequest(t, e, lines(10), response.RiskHigh)
 	m := e.note.requests()
@@ -203,6 +209,7 @@ func TestWP31_M2_HighRiskMultiLineChangeIsInFullWithoutButtons(t *testing.T) {
 }
 
 func TestWP31_M2_LowRiskShortChangeKeepsTheButtons(t *testing.T) {
+	t.Parallel()
 	e := telegramEnv(t)
 	sshRequest(t, e, lines(3), response.RiskLow)
 	m := e.note.requests()
@@ -213,6 +220,7 @@ func TestWP31_M2_LowRiskShortChangeKeepsTheButtons(t *testing.T) {
 
 // A change that does not fit one message gets no button, and the message says to open Vedette.
 func TestWP31_M2_LowRiskChangeOverTheLimitHasNoButtons(t *testing.T) {
+	t.Parallel()
 	e := telegramEnv(t)
 	long := func(tag string) string {
 		var l []string
@@ -230,6 +238,7 @@ func TestWP31_M2_LowRiskChangeOverTheLimitHasNoButtons(t *testing.T) {
 
 // L6: an AI request carries the label in the message and on the page of the link.
 func TestWP31_L6_AIRequestCarriesTheLabel(t *testing.T) {
+	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	e.note.chs = []response.NotifyChannel{{Type: "email", Label: "Email", Configured: true, Enabled: true, Approvals: true, Approvers: 1}}
 	e.saveSettings(func(in *response.SettingsInput) { in.ApprovalChannels = []string{"email"} })
@@ -243,6 +252,7 @@ func TestWP31_L6_AIRequestCarriesTheLabel(t *testing.T) {
 
 // D-175 (3): the rows of the chain hold the whole call; a cap that cuts keeps the SHA-256 of the whole text.
 func TestWP31_M2_ChainRowsHoldTheFullCall(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	req := sshRequest(t, e, lines(10), response.RiskLow)
 	want := "show ip route 198.51.100.7" + `\n` + strings.ReplaceAll(lines(10), "\n", `\n`)
@@ -257,6 +267,7 @@ func TestWP31_M2_ChainRowsHoldTheFullCall(t *testing.T) {
 }
 
 func TestWP31_M2_ACutCallKeepsItsHash(t *testing.T) {
+	t.Parallel()
 	e := precheckEnv(t)
 	var l []string
 	for i := range 40 {
@@ -280,6 +291,7 @@ func TestWP31_M2_ACutCallKeepsItsHash(t *testing.T) {
 }
 
 func TestWP31_L6_LinkPageOfAnAIRequestCarriesTheLabel(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
 	tok := e.mint(a.ID, "u-op", "it@acme.example")
@@ -294,6 +306,7 @@ func TestWP31_L6_LinkPageOfAnAIRequestCarriesTheLabel(t *testing.T) {
 
 // The link page is an approver's: it shows the values of the call, never a credential's.
 func TestWP31_M1_LinkPageShowsValuesButNoCredential(t *testing.T) {
+	t.Parallel()
 	e := newLinkEnv(t)
 	e.conns.list = []response.ConnectionInfo{{Connection: response.Connection{ID: "cn-http", Name: "API", Enabled: true, Kind: "http", WriteTools: []string{"w"}}, Target: "https://api.lan"}}
 	in := apiAction()

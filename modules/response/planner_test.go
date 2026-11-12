@@ -75,6 +75,7 @@ func aiPlanEnv(t *testing.T) (*env, *fakePlanner, *[]response.PlanTarget) {
 }
 
 func TestPlanJobPicksOpenCriticalFindingsWithoutAPlan(t *testing.T) {
+	t.Parallel()
 	e, fp, _ := aiPlanEnv(t)
 	n, err := e.svc.PlanOpen(e.ctx())
 	e.must(err)
@@ -103,6 +104,7 @@ func TestPlanJobPicksOpenCriticalFindingsWithoutAPlan(t *testing.T) {
 }
 
 func TestPlanJobAtMostThreePerRun(t *testing.T) {
+	t.Parallel()
 	e, fp, targets := aiPlanEnv(t)
 	for _, id := range []string{"f4", "f5", "f6", "f7"} {
 		*targets = append(*targets, response.PlanTarget{FindingID: id, CVE: "CVE-2024-0009", AssetID: "a1", AssetName: "NAS", AssetIP: "192.168.10.21"})
@@ -115,6 +117,7 @@ func TestPlanJobAtMostThreePerRun(t *testing.T) {
 }
 
 func TestPlanStoresActionIDAndCheckedValuesOnly(t *testing.T) {
+	t.Parallel()
 	e, fp, _ := aiPlanEnv(t)
 	fp.steps = func(response.PlanTarget) []response.DraftStep {
 		return []response.DraftStep{{Kind: "contain", Title: "Block", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: " 192.168.10.21 "}}}}
@@ -143,6 +146,7 @@ func TestPlanStoresActionIDAndCheckedValuesOnly(t *testing.T) {
 }
 
 func TestPlanRefusedAndAudited(t *testing.T) {
+	t.Parallel()
 	cases := map[string][]response.DraftStep{
 		"unknown action":         {{Kind: "contain", Title: "t", Detail: "d", ActionID: "rm_rf", Params: nil}},
 		"bad type":               {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "1.2.3.4; reboot"}}}},
@@ -180,6 +184,7 @@ func TestPlanRefusedAndAudited(t *testing.T) {
 }
 
 func TestPlanAIOffAsksNothingAndTheRestWorks(t *testing.T) {
+	t.Parallel()
 	e, fp, _ := aiPlanEnv(t)
 	fp.on = false
 	n, err := e.svc.PlanOpen(e.ctx())
@@ -207,6 +212,7 @@ func TestPlanAIOffAsksNothingAndTheRestWorks(t *testing.T) {
 }
 
 func TestPlanUnavailableStopsAndFailureWaits(t *testing.T) {
+	t.Parallel()
 	e, fp, _ := aiPlanEnv(t)
 	fp.err = response.ErrPlanUnavailable
 	n, err := e.svc.PlanOpen(e.ctx())
@@ -233,6 +239,7 @@ func TestPlanUnavailableStopsAndFailureWaits(t *testing.T) {
 // A plan is text and proposals. Writing it changes nothing and runs nothing; a proposal becomes a request only when a person asks, and a
 // request still waits for approval (FORBID-5).
 func TestPlanNeverExecutesWithoutTheApprovalFlow(t *testing.T) {
+	t.Parallel()
 	e, _, _ := aiPlanEnv(t)
 	e.turnOn()
 	_, err := e.svc.PlanOpen(e.ctx())
@@ -274,6 +281,7 @@ func (e *env) planRefused(why string) {
 
 // H1: the AI picks the values of an action, nothing else ties them to the device of the finding, so the plan must.
 func TestPlanTargetMustBeTheDeviceOfTheFinding(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		action string
 		param  response.DraftParam
@@ -316,6 +324,7 @@ func TestPlanTargetMustBeTheDeviceOfTheFinding(t *testing.T) {
 
 // The same check is made again when a proposal is requested, against the inventory's word about the device.
 func TestRequestProposalRefusesAnotherTarget(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.turnOn()
 	e.dir.findings["f1"] = response.FindingInfo{ID: "f1", AssetID: "a1", CVE: "CVE-2024-0001", Severity: "critical", Status: "confirmed"}
@@ -330,6 +339,7 @@ func TestRequestProposalRefusesAnotherTarget(t *testing.T) {
 }
 
 func TestPlanRefusedWhenTheActionIsNotAllowedOrTooBig(t *testing.T) {
+	t.Parallel()
 	block := func(ip string) response.DraftStep {
 		return response.DraftStep{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: ip}}}
 	}
@@ -365,6 +375,7 @@ func TestPlanRefusedWhenTheActionIsNotAllowedOrTooBig(t *testing.T) {
 }
 
 func TestPlanBackoffAndDailyBudget(t *testing.T) {
+	t.Parallel()
 	e, fp, targets := aiPlanEnv(t)
 	*targets = (*targets)[1:2] // f2 alone
 	fp.err = errors.New("the answer did not fit the format")
@@ -407,6 +418,7 @@ func TestPlanBackoffAndDailyBudget(t *testing.T) {
 }
 
 func TestPlanAndRequestStopWhileTheAIIsPaused(t *testing.T) {
+	t.Parallel()
 	e, fp, _ := aiPlanEnv(t)
 	e.turnOn()
 	if _, err := e.svc.PlanOpen(e.ctx()); err != nil {
@@ -426,6 +438,7 @@ func TestPlanAndRequestStopWhileTheAIIsPaused(t *testing.T) {
 }
 
 func TestPlanDoesNotListChannelsItWasNotSentTo(t *testing.T) {
+	t.Parallel()
 	e, _, _ := aiPlanEnv(t)
 	e.exec1(`UPDATE resp_plans SET steps = '[]'`)
 	pl, err := e.svc.Plans(e.ctx(), "")
@@ -438,6 +451,7 @@ func TestPlanDoesNotListChannelsItWasNotSentTo(t *testing.T) {
 // Every value must be the device's address: one that is, next to one that is not, does not carry the other through (a custom action with
 // {ip} and {interface}, or {ip} and {cidr}).
 func TestPlanEveryValueMustBeTheDeviceAddress(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		cli    string
 		params []response.DraftParam
@@ -477,6 +491,7 @@ func TestPlanEveryValueMustBeTheDeviceAddress(t *testing.T) {
 
 // A name is self-announced by the device, so it is no evidence: a host that calls itself like a VIP does not get its VIP switched off.
 func TestPlanNameIsNoEvidence(t *testing.T) {
+	t.Parallel()
 	e, fp, targets := aiPlanEnv(t)
 	e.firewall("fgt_vip_disable")
 	e.aiMayPropose("fgt_vip_disable", true)
@@ -501,6 +516,7 @@ func TestPlanNameIsNoEvidence(t *testing.T) {
 
 // Plans send no messages: an action with only free text is neither offered nor accepted, in a plan or when a proposal is requested.
 func TestPlanRefusesActionsWithOnlyFreeText(t *testing.T) {
+	t.Parallel()
 	e, fp, _ := aiPlanEnv(t)
 	e.aiMayPropose("msg_send", true)
 	fp.steps = func(response.PlanTarget) []response.DraftStep {

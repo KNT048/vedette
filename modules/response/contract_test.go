@@ -14,11 +14,13 @@ import (
 )
 
 func TestMigrationsUsePrefix(t *testing.T) {
+	t.Parallel()
 	storetest.AssertMigrationsUsePrefix(t, "response", response.Migrations, "resp_", storetest.Migration{Module: "core", FS: core.Migrations})
 }
 
 // The roles of the routes are the contract (INV-3, INV-5, INV-7, INV-8, INV-12, INV-17, FORBID-4).
 func TestContract_Roles(t *testing.T) {
+	t.Parallel()
 	want := map[string]routes.Role{
 		"response_post_response_actions_id_approve": routes.Operator, "response_post_response_actions_id_reject": routes.Operator, "response_post_response_actions_id_rollback": routes.Operator,
 		"response_post_response_proposals_id_request": routes.Operator, "response_get_response_settings": routes.Admin, "response_put_response_settings": routes.Admin,
@@ -39,6 +41,7 @@ func TestContract_Roles(t *testing.T) {
 
 // INV-7: the switch is off by default; turning it on needs an admin with two-step sign-in and the exact phrase; PUT /settings never flips it.
 func TestContract_INV7_ExecutionSwitch(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	if e.settings().Execution || e.settings().AcceptedBy != nil {
 		t.Fatalf("the switch starts on: %+v", e.settings())
@@ -83,6 +86,7 @@ func TestContract_INV7_ExecutionSwitch(t *testing.T) {
 
 // INV-8: the emergency stop turns execution off and cancels every pending request in one transaction, and returns the count.
 func TestContract_INV8_EmergencyStop(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.turnOn()
 	e.rule("Block bad destinations", "ioc_connection", blockAction(60), nil)
@@ -111,6 +115,7 @@ func TestContract_INV8_EmergencyStop(t *testing.T) {
 
 // INV-12: a per-rule limit, and a global breaker that pauses every rule until an admin resets it.
 func TestContract_INV12_RuleLimit(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("One an hour", "ioc_connection", blockAction(60), func(in *response.RuleInput) { in.MaxPerHour = 1 })
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
@@ -126,6 +131,7 @@ func TestContract_INV12_RuleLimit(t *testing.T) {
 }
 
 func TestContract_INV12_Breaker(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.saveSettings(func(in *response.SettingsInput) { in.BreakerMaxPerHour = 2 })
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
@@ -163,6 +169,7 @@ func TestContract_INV12_Breaker(t *testing.T) {
 
 // INV-1, INV-6: a request is pending until someone approves; after its time it expires, nothing changes and approving is refused.
 func TestContract_INV1_INV6_ExpiryAndNotPending(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
@@ -205,6 +212,7 @@ func TestContract_INV1_INV6_ExpiryAndNotPending(t *testing.T) {
 }
 
 func TestExpirySettingsRange(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	for _, bad := range []int{14, 31, 0} {
 		st := e.settings()
@@ -224,6 +232,7 @@ func TestExpirySettingsRange(t *testing.T) {
 
 // INV-1, POST-1: approving a box action runs it without the execution switch; the block list gets the entry; the result is read back.
 func TestApproveBoxActionRunsWithoutTheSwitch(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
@@ -250,6 +259,7 @@ func TestApproveBoxActionRunsWithoutTheSwitch(t *testing.T) {
 
 // INV-2, INV-9: a high-risk request needs two different approvers; the second must approve the same actions; the same person twice is refused.
 func TestContract_INV2_TwoApprovers(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_policy_disable")
 	e.turnOn()
@@ -293,6 +303,7 @@ func TestContract_INV2_TwoApprovers(t *testing.T) {
 }
 
 func TestContract_INV2_MultiTarget(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.saveSettings(func(in *response.SettingsInput) { in.MultiTargetMax = 1 })
 	e.rule("Two blocks", "ioc_connection", twoBlocks(), nil)
@@ -305,6 +316,7 @@ func TestContract_INV2_MultiTarget(t *testing.T) {
 
 // INV-7, INV-9: a device action is refused at approval while execution is off; the hourly limit counts approved device actions.
 func TestContract_INV9_DeviceGates(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	e.rule("Ban", "honeypot", []response.RuleAction{{ActionID: "fgt_ban_ip", Params: map[string]string{"ip": "{{trigger.source_ip}}"}, TTLMin: intp(60)}}, nil)
@@ -343,6 +355,7 @@ func TestContract_INV9_DeviceGates(t *testing.T) {
 
 // INV-9: the gates run again right before an item runs. The second approver approves after the address was put on the never-touch list.
 func TestContract_INV9_GatesAgainRightBeforeRunning(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.saveSettings(func(in *response.SettingsInput) { in.MultiTargetMax = 1 })
 	e.rule("Two blocks", "ioc_connection", twoBlocks(), nil)
@@ -367,6 +380,7 @@ func TestContract_INV9_GatesAgainRightBeforeRunning(t *testing.T) {
 
 // INV-10: never-touch at planning: a listed address, a range that holds it, the box itself, a domain and its subdomains.
 func TestContract_INV10_NeverTouchAtPlanning(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, func(c *response.Config) {
 		c.BoxAddrs = func() ([]netipAddr, error) { return []netipAddr{mustAddr("203.0.113.250")}, nil }
 	})
@@ -393,6 +407,7 @@ func TestContract_INV10_NeverTouchAtPlanning(t *testing.T) {
 // INV-14d: a new rule starts in dry run whatever the client sends; a match is logged and nothing is requested or run;
 // simulate renders the exact requests and executes nothing.
 func TestContract_INV14d_DryRunAndSimulate(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	r, err := e.svc.AddRule(e.ctx(), admin, response.RuleInput{Name: "Block", Enabled: true, Live: true, Trigger: "ioc_connection", Match: "all", Conditions: []response.Condition{}, Actions: blockAction(60), MaxPerHour: 5})
 	e.must(err)
@@ -422,6 +437,7 @@ func TestContract_INV14d_DryRunAndSimulate(t *testing.T) {
 
 // Even a simulation of a device action sends nothing to the executor.
 func TestSimulateDeviceActionExecutesNothing(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	e.turnOn()
@@ -435,6 +451,7 @@ func TestSimulateDeviceActionExecutesNothing(t *testing.T) {
 
 // Attacker-controlled trigger data: refused at run time and nothing is requested.
 func TestContract_INV14a_TriggerDataIsTypeChecked(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	bads := []string{"198.51.100.7; reboot", "198.51.100.7\nblocklist add 8.8.8.8", "$(id)", "198.51.100.7 && x", "127.0.0.1", "0.0.0.0", "169.254.1.1", "224.0.0.1", "fe80::1%eth0", ""}
@@ -454,6 +471,7 @@ func TestContract_INV14a_TriggerDataIsTypeChecked(t *testing.T) {
 
 // A rule is checked when saved: unknown fields, wrong types, a mix of text and a trigger field in a typed parameter.
 func TestRuleIsCheckedWhenSaved(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	base := func() response.RuleInput {
 		return response.RuleInput{Name: "R", Enabled: true, Trigger: "ioc_connection", Match: "all", Conditions: []response.Condition{}, Actions: blockAction(60), MaxPerHour: 5}
@@ -519,6 +537,7 @@ func TestRuleIsCheckedWhenSaved(t *testing.T) {
 
 // INV-5: pre-approved only for low-risk, reversible actions with an undo time of 24 hours or less; checked on save and when the rule runs.
 func TestContract_INV5_PreApproved(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	mk := func(actions []response.RuleAction) error {
@@ -559,6 +578,7 @@ func TestContract_INV5_PreApproved(t *testing.T) {
 
 // INV-11: the same target and action already open or in force is merged; one run is one request.
 func TestContract_INV11_Dedupe(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block", "ioc_connection", append(blockAction(60), blockAction(60)...), nil)
 	sum := e.fire(e.iocEvent("e1", "198.51.100.7"))
@@ -580,6 +600,7 @@ func TestContract_INV11_Dedupe(t *testing.T) {
 
 // INV-13: rollback undoes the change (a device action is refused when execution is off), the undo time undoes it by itself, and it is verified.
 func TestContract_INV13_RollbackAndTTL(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(30), nil)
 	e.fire(e.iocEvent("e1", "198.51.100.7"))
@@ -613,6 +634,7 @@ func TestContract_INV13_RollbackAndTTL(t *testing.T) {
 }
 
 func TestContract_INV13_DeviceRollbackNeedsExecution(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	e.turnOn()
@@ -629,19 +651,20 @@ func TestContract_INV13_DeviceRollbackNeedsExecution(t *testing.T) {
 	e.must(err)
 	_, err = e.svc.Rollback(e.ctx(), oper, a.ID)
 	wantCode(t, err, 409, "execution_off")
-	if got := e.exec.phases(); strings.Join(got, ",") != "run,verify" {
+	if got := e.exec.phases(); strings.Join(got, ",") != "verify,run,verify" { // the read before the run (D-356), the run, the read-back
 		t.Fatalf("steps = %v", got)
 	}
 	// Removing the change at the end of its undo time is the safe direction: it does not wait for the switch.
 	e.clock.Advance(31 * time.Minute)
 	e.must(e.svc.Sweep(e.ctx()))
-	if got := e.exec.phases(); strings.Join(got, ",") != "run,verify,rollback,verify" || e.only().Status != response.StatusRolledBack {
+	if got := e.exec.phases(); strings.Join(got, ",") != "verify,run,verify,rollback,verify" || e.only().Status != response.StatusRolledBack {
 		t.Fatalf("steps = %v, request %+v", got, e.only())
 	}
 }
 
 // A device that does not answer: the item fails and nothing is claimed.
 func TestDeviceThatDoesNotAnswerFails(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
 	e.turnOn()
@@ -657,6 +680,7 @@ func TestDeviceThatDoesNotAnswerFails(t *testing.T) {
 
 // With no executor in the build nothing is sent to any device.
 func TestNoExecutorSendsNothing(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, func(c *response.Config) { c.Executor = nil })
 	e.firewall("fgt_ban_ip")
 	e.turnOn()
@@ -671,6 +695,7 @@ func TestNoExecutorSendsNothing(t *testing.T) {
 
 // INV-19: the log is a hash chain with the shared formula, oldest first; there is no way to update or delete a line.
 func TestContract_INV19_LogChain(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.turnOn()
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
@@ -717,6 +742,7 @@ func TestContract_INV19_LogChain(t *testing.T) {
 
 // INV-20 and SYS-4: every mutation is audited; no secret reaches the log or the audit.
 func TestContract_INV20_AuditAndNoSecrets(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.turnOn()
 	e.saveSettings(func(in *response.SettingsInput) { in.MaxPerHour = 5 })
@@ -749,6 +775,7 @@ func TestContract_INV20_AuditAndNoSecrets(t *testing.T) {
 }
 
 func TestMetrics(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.rule("Block", "ioc_connection", blockAction(60), nil)
 	for i, ipv := range []string{"198.51.100.1", "198.51.100.2", "198.51.100.3", "198.51.100.4"} {
@@ -771,6 +798,7 @@ func TestMetrics(t *testing.T) {
 }
 
 func TestSettingsValidation(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	base := func() response.SettingsInput {
 		st := e.settings()
@@ -817,6 +845,7 @@ func TestSettingsValidation(t *testing.T) {
 }
 
 func TestChannelsInSettings(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.note.chs = []response.NotifyChannel{
 		{Type: "slack", Label: "Slack #sec", Configured: true, Enabled: true, Approvals: true, Approvers: 1},

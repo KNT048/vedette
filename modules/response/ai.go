@@ -1,6 +1,7 @@
 package response
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -90,50 +91,51 @@ type AiState struct {
 
 // ---- approving (INV-16) ----
 
-// aiStepUp is the part of an approval that comes before its transaction, for a high-risk AI request: in the app only, not already
-// approved by this person, then the two-step code for this request. The code is checked outside the transaction because checking it
-// writes (the limiter, the replay guard, the audit line). Anything that is not such a request returns (false, nil) here and the
-// transaction answers (not found, expired, not pending). A code is spent only when the cheap refusals have passed, so a wrong pick or
-// a second click by the same person does not cost one. stepped is true only when the code of this person for this request passed: the
-// transaction refuses an in_app_only request that did not get it (L1), so a path that reaches the approval without this check, or a
-// clock that moved back between the two reads, fails closed.
+// aiStepUp is the part of an approval that comes before its transaction, for a high-risk AI request: in the app only, then every refusal
+// of the transaction that only reads (approvalGate: the pick, the second approver, the approver's role, the execution switch, the catalog,
+// the connections, the hourly device limit), on one read snapshot, then the two-step code for this request (D-357). The code is checked
+// outside the transaction because checking it writes (the limiter, the replay guard, the audit line). Anything that is not such a request
+// returns (false, nil) here and the transaction answers (not found, expired, not pending). A code is spent only when the approval would be
+// recorded as things stand, so a wrong pick, a second click by the same person or an execution switch that is off does not cost one; the
+// transaction runs the same gate again as the authority, and a refusal there after the code says the code was used. stepped is true only
+// when the code of this person for this request passed: the transaction refuses an in_app_only request that did not get it (L1), so a path
+// that reaches the approval without this check, or a clock that moved back between the two reads, fails closed.
 func (s *Service) aiStepUp(ctx context.Context, who Actor, id string, pick []string, code string) (stepped bool, err error) {
-	r, ok, err := loadReq(ctx, s.cfg.DB.Reader(), id)
+	rdb := s.cfg.DB.Reader()
+	r, ok, err := loadReq(ctx, rdb, id)
 	if err != nil {
 		return false, err
 	}
-	if !ok || r.AI == nil || !r.AI.InAppOnly || r.Status != StatusPending || !parseTS(r.ExpiresAt).After(s.now()) {
+	now := s.now()
+	if !ok || r.AI == nil || !r.AI.InAppOnly || r.Status != StatusPending || !parseTS(r.ExpiresAt).After(now) {
 		return false, nil
 	}
 	if who.Via != ViaApp {
 		return false, fail(http.StatusForbidden, "in_app_required", "A high-risk AI request can only be approved in the app with your two-step code, not from chat or email.")
 	}
-	var first *Approval
-	if len(r.Approvals) > 0 {
-		first = &r.Approvals[0]
-	}
-	have := func(x string) bool { return slices.ContainsFunc(r.recs, func(i itemRec) bool { return i.ID == x }) }
-	switch {
-	case slices.ContainsFunc(r.Approvals, func(x Approval) bool { return x.UserID == who.ID }):
-		return false, fail(http.StatusConflict, "same_approver", "You already approved this request. A second, different person must approve it.")
-	case slices.ContainsFunc(pick, func(x string) bool { return !have(x) }):
-		return false, fail(http.StatusBadRequest, "invalid_items", "Pick at least one action of this request.")
-	case first != nil && len(pick) > 0 && !sameSet(pick, first.Items):
-		return false, fail(http.StatusConflict, "selection_differs", "The second approver must approve the same actions as the first.")
+	g, refusal, err := s.approvalGate(ctx, rdb, r, who, pick, true, false, now)
+	if err != nil || refusal != nil {
+		return false, cmp.Or(err, refusal)
 	}
 	if s.cfg.TwoStep == nil {
 		return false, errTwofaRequired()
 	}
-	ids := pick
-	switch {
-	case len(ids) > 0:
-	case first != nil:
-		ids = first.Items
-	}
-	if err := s.cfg.TwoStep.Verify(ctx, who.ID, code, "response.approve."+r.ID, approveSummary(r, ids)); err != nil {
+	if err := s.cfg.TwoStep.Verify(ctx, who.ID, code, "response.approve."+r.ID, approveSummary(r, g.ids)); err != nil {
 		return false, err
 	}
 	return true, nil
+}
+
+// codeSpent adds to a refusal that came after the two-step code passed that the code was used (D-357): it is one use, so the person needs a
+// new one. The code and the status stay.
+func codeSpent(refusal error) error {
+	ae, ok := asAPI(refusal)
+	if !ok {
+		return refusal
+	}
+	c := *ae
+	c.Message = strings.TrimRight(c.Message, " ") + " Your two-step code was used by this attempt; ask for a new one to try again."
+	return &c
 }
 
 func errTwofaRequired() error {

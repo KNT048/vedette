@@ -234,7 +234,8 @@
       "sensor": "Sensor",
       "notify": "Notifications",
       "sensor-ca": "Sensor CA",
-      "sensor-cert": "Sensor certificates"
+      "sensor-cert": "Sensor certificates",
+      "box-ca": "Box CA"
     },
     "action": {
       "auth": {
@@ -466,6 +467,7 @@
       "inventory.set_notes": "Change device notes",
       "inventory.set_regular_scan": "Change regular scanning of a device",
       "inventory.settings": "Change device discovery settings",
+      "inventory.software_expired": "Agent software no longer reported was removed",
       "inventory.software_sync": "Software list synced",
       "network.ntp": "Change time server",
       "notify.approval_fallback": "Approval request sent without buttons",
@@ -480,6 +482,9 @@
       "notify.resend": "Send alert again",
       "notify.rules_save": "Save alert rules",
       "notify.stale_dropped": "Old alerts dropped",
+      "box-ca.create": "Create box certificate authority",
+      "box-ca.migrate": "Move box certificate authority into the database",
+      "box-ca.replace": "Replace box certificate authority (enrolled agents must run the install command again)",
       "notify.retention": "Old alert history deleted",
       "sensor-ca.create": "Create sensor certificate authority",
       "sensor-ca.replace": "Replace sensor certificate authority",

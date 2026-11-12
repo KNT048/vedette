@@ -57,6 +57,13 @@ func syncOnce() sync.Once { return sync.Once{} }
 // returns ErrNoTrustKeys and logs why, once.
 func Embedded() (Trust, error) { return embeddedTrust(testing.Testing()) }
 
+// EmbeddedMinisignKeys returns the minisign public key lines compiled into this build (active, backup) and whether they are the
+// test-only ones. The release preflight (scripts/release) looks for their bytes inside the binary it is about to publish.
+func EmbeddedMinisignKeys() (active, backup string, testOnly bool) {
+	a, b, _, t := embeddedKeys()
+	return a, b, t
+}
+
 // embeddedTrust is Embedded with the "inside a test binary" fact passed in, so a test can prove
 // that test-only keys are refused everywhere else.
 func embeddedTrust(inTest bool) (Trust, error) {

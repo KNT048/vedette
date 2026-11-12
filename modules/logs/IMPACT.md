@@ -18,14 +18,14 @@
 
 ## Modifying: bảng `logs_ioc_hits` (L4, `logs.db`, migration `volume/0005`), sự kiện `logs.ioc_hit.detected` và `logs.bad_address.detected`
 - **logs** (`iochits.go`: `storeIOC`, `iocHits`; `purge.go` `dropStale` xoá hit quá `retention_days`; `anomaly.go`/digest không đọc bảng này qua ảnh chụp). Migration chỉ thêm (D-151). Bảng không có `asset_id` (INV-7): thêm cột thiết bị là lưu dữ liệu cũ khi thiết bị đổi tên. Trần `MaxIocRows`, `MaxIocHitsPerBatch`, `IocEventsPerHour`, `IocDedupe` là cái người dùng thấy (nhiều hay ít hit) và là việc của đường nóng.
-- **notify** (`logs.bad_address.detected` → `logEvent`, loại `bad_address`; khoá gộp (loại, `source` = "logs", `target` = `ioc:<đích>`)): đổi tên trường hay `target` đổi cách gộp incident; `title` > 200 ký tự bị từ chối cả incident. **response** (`logs.ioc_hit.detected` → trigger `ioc_connection`; **chưa nối**: việc của Kiên ở `cmd/vedette/response.go`, xem `.ai/deferred/feat-logs-l4-ioc.md`). **SIEM của logs** (`siem_run.go`): `bad_conn` đọc `id, src_ip, dest, dest_kind, seen_via, asset_id`; lớp `alerts` bỏ incident `bad_address` khi `bad_conn` bật (đổi tên loại incident ở notify → bản ghi gửi hai lần trở lại).
+- **notify** (`logs.bad_address.detected` → `logEvent`, loại `bad_address`; khoá gộp (loại, `source` = "logs", `target` = `ioc:<đích>`)): đổi tên trường hay `target` đổi cách gộp incident; `title` > 200 ký tự bị từ chối cả incident. **response** (`logs.ioc_hit.detected` → trigger `ioc_connection` ở `modules/response/events.go` `iocEvent`, #376, D-335; và bằng chứng `ioc_hit` của đề xuất AI qua `logsIocEvidence` nối ở `cmd/vedette/response.go`, D-337: đổi tên trường của sự kiện hay của `IocHit` là đổi trigger và bằng chứng). **SIEM của logs** (`siem_run.go`): `bad_conn` đọc `id, src_ip, dest, dest_kind, seen_via, asset_id`; lớp `alerts` bỏ incident `bad_address` khi `bad_conn` bật (đổi tên loại incident ở notify → bản ghi gửi hai lần trở lại).
 - **core/export_policy**: không có dòng mới (bảng ở `logs.db`, không ở cơ sở chính, như `logs_events`).
 
 ## Modifying: nguồn xuất `known_bad` (`ExportKnownBad`, L4) — đăng ký ở `registerLogSources` (`cmd/vedette/logexport.go`)
 - **core/logexport**: danh mục `known_bad` hết "missing" (`TestLogSourcesRegisteredByTheBinary`); đổi tên cột của `logs_ioc_hits` là đổi tệp xuất; không có trần byte riêng vì bảng bị chặn ở `MaxIocRows`.
 
 ## Modifying: `IocHit(ctx, id) (IocHit, bool, error)` và `IocHits(ctx, since time.Time, minConf float64) ([]IocHit, error)` — người gọi
-- **response** (sự kiện trigger `ioc_connection`; quy tắc chỉ tự hành động khi độ tin cậy cao): đổi tên/đơn vị `confidence` (0..1 ↔ 0..100; trigger field `confidence` của response là 0..100) → ngưỡng `gte 80` sai. Đổi `seen_via` → mất ngữ cảnh SPAN/syslog.
+- **response** (sự kiện trigger `ioc_connection`; quy tắc chỉ tự hành động khi độ tin cậy cao): đổi tên/đơn vị `confidence` (0..1; trigger field `confidence` của response cũng là 0..1, D-57 (13)) → ngưỡng của quy tắc (vd. `gte 0.8`) sai. Đổi `seen_via` → mất ngữ cảnh SPAN/syslog.
 - **notify** (cảnh báo kết nối xấu): đổi trường → nội dung tin sai.
 - **ai** (`ask-my-data`, `log-investigate` qua công cụ chỉ-đọc).
 

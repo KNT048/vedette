@@ -12,6 +12,7 @@ import (
 // (explicit=false) and as a person's pick in "Scan now" (explicit=true). The configured rate is 50, so a quarter
 // is 12.
 func TestContract_VulnScanPolicy_Rules(t *testing.T) {
+	t.Parallel()
 	deny := func(reason string) inventory.ScanDecision { return inventory.ScanDecision{Reason: reason} }
 	ok := func(rate int) inventory.ScanDecision {
 		return inventory.ScanDecision{Allowed: true, Rate: rate, Reason: inventory.ReasonOK}
@@ -138,6 +139,7 @@ func TestContract_VulnScanPolicy_Rules(t *testing.T) {
 
 // D-126: the sensor-active switch is not the vulnerability scanner's; scope and per-device rules still apply.
 func TestContract_VulnScanPolicy_ScanningOffDoesNotBlock(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	e.confirmScope("192.168.10.0/24")
 	e.record(obs(netip.MustParseAddr("192.168.10.20"), macA, observe.Kind, "pc", observe.Agent, 0.9))
@@ -163,6 +165,7 @@ func TestContract_VulnScanPolicy_ScanningOffDoesNotBlock(t *testing.T) {
 }
 
 func TestContract_VulnScanPolicy_UnknownDevice(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	if _, err := e.svc.VulnScanPolicy(e.ctx(), "a-nope", true); err == nil {
 		t.Fatal("no error for an unknown device")

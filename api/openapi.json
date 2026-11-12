@@ -30512,7 +30512,7 @@
           "200": {
             "description": "File download",
             "content": {
-              "application/octet-stream": {
+              "application/x-pem-file": {
                 "schema": {
                   "type": "string",
                   "format": "binary"

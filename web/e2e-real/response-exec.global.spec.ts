@@ -227,9 +227,9 @@ test('S-RESP-3: an operator approves in the app; the device got the check, the e
   await card.getByRole('button', { name: 'Approve', exact: true }).click()
   await toast(p, /Approved\. The action was carried out\./)
 
-  // what the device received, in order: the check before, the write, the read-back; each with the connection's own sign-in
+  // what the device received, in order: the check before, the read before the write (D-356), the write, the read-back; each with the connection's own sign-in
   const got = await hits(base)
-  expect(got.map((q) => `${q.method} ${q.path}`), 'the requests the device got').toEqual(['GET /api/e2e/status', 'POST /api/e2e/ban', 'GET /api/e2e/bans'])
+  expect(got.map((q) => `${q.method} ${q.path}`), 'the requests the device got').toEqual(['GET /api/e2e/status', 'GET /api/e2e/bans', 'POST /api/e2e/ban', 'GET /api/e2e/bans'])
   for (const q of got) expect(q.authorization, 'the connection\'s own token on every request').toBe(`Bearer ${dev.secret}`)
   const seen = await deviceSeen('http')
   expect(seen.banned, 'the firewall bans the device').toContain(ctx.devIp)

@@ -46,19 +46,8 @@ type env struct {
 
 func newEnv(t *testing.T) *env {
 	t.Helper()
-	cfg, vol := storetest.New(t), storetest.New(t)
-	for _, m := range []struct {
-		name string
-		fs   func() error
-	}{
-		{"core", func() error { return store.Migrate(t.Context(), cfg, "core", core.Migrations) }},
-		{"logs config", func() error { return store.Migrate(t.Context(), cfg, "logs", ConfigMigrations) }},
-		{"logs volume", func() error { return store.Migrate(t.Context(), vol, "logs", VolumeMigrations) }},
-	} {
-		if err := m.fs(); err != nil {
-			t.Fatalf("%s: %v", m.name, err)
-		}
-	}
+	cfg := storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "logs", FS: ConfigMigrations})
+	vol := storetest.Migrated(t, storetest.Migration{Module: "logs", FS: VolumeMigrations})
 	e := &env{t: t, cfg: cfg, vol: vol, clock: new(time.Time)}
 	*e.clock = t0
 	svc, err := NewService(Config{Config: cfg, Volume: vol, Audit: audit.New(func() time.Time { return *e.clock }), Log: slog.New(slog.DiscardHandler),

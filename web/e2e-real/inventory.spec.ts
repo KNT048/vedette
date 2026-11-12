@@ -109,7 +109,7 @@ test.describe('operator, day to day', () => {
     await picker.fill(many)
     await expect(dialog.getByRole('option').first()).toBeVisible()
     expect(await dialog.getByRole('option').count()).toBeLessThanOrEqual(30)
-    await expect(dialog.getByText(/\d+ more match\. Keep typing to narrow the list\./)).toBeVisible()
+    await expect(dialog.getByText(/\d+ more matche?s?\. Keep typing to narrow the list\./)).toBeVisible()
     await shot(page, 'real-inventory', 'picker-many')
     await expectAccessible(page, 'picker open')
     await picker.fill('zzzzqqq')
@@ -252,14 +252,8 @@ test.describe('operator, day to day', () => {
   })
 })
 
-test.describe('not approved devices (S-INV-3)', () => {
-  test.use({ storageState: authFile('operator'), actionTimeout: 10_000 })
-  // A device the sensors found arrives as "not approved". The sensors are slice 7 (another session); until then the only way to get such a
-  // device into the box is a sensor, so this is unbuilt on the harness side, not on the backend.
-  test.fixme('approve and mark unknown from the "new devices not approved" list', async () => {
-    // wp30 slice 7 (sensors) seeds a device from the passive sensor; copy e2e/qa/inventory.spec.ts "not approved: approve, flag as unknown" then.
-  })
-})
+// Not approved devices (S-INV-3: approve, mark unknown) need a device a sensor found; the passive recording can be delivered once per run, so
+// they are tested in sensors.global.spec.ts, not here (this project runs in parallel with the others).
 
 test.describe('viewer, read only', () => {
   test.use({ storageState: authFile('viewer'), actionTimeout: 10_000 })

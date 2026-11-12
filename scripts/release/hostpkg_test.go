@@ -29,7 +29,7 @@ func TestInstallShHostVersionRuleIsTheOneRule(t *testing.T) {
 	for _, v := range []string{
 		"1.4.0", "0.2.0-rc.1", "0.0.1-test.1", "1.0.0-0a.1", "1.0.0-" + strings.Repeat("a", 32), "1.0.0-" + strings.Repeat("a", 33),
 		"0.2.0-rc-1", "0.2.0~rc.1", "1.4.0+b1", "01.4.0", "1.4", "v1.4.0", "1.0.0-01", "1.0.0-rc..1", "1.0.0-", "1.0.0-rc.", "",
-		"1.0.0 ", "1.0.0\n1.0.0", "1.0.0-a_b",
+		"1.0.0 ", "1.0.0\n1.0.0", "1.0.0-a_b", strings.Repeat("9", 40) + "." + strings.Repeat("9", 22) + ".9", // 65 characters, no prerelease
 	} {
 		_, _, want := release.ParseHostPackageName(release.HostPackageName(v, "amd64"))
 		got := exec.CommandContext(t.Context(), "sh", "-c", fn+`host_version_ok "$1"`, "sh", v).Run() == nil //nolint:gosec // the sh function of install.sh under test; the version is $1, never part of the script

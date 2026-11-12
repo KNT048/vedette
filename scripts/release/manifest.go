@@ -98,8 +98,9 @@ var serviceDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 //   - rollback.safe=true without rollback.min_version (below this version), without the migrations at that release, or unless every
 //     migration since that release is add-only (D-183, D-164: the whole span a box may roll back across, not one step);
 //   - an image of an unknown service, a repeated service, a malformed digest, or a missing or unreadable cosign file;
-//   - a host part with a -test. version, a file not named vedette-host_<host.version>_<amd64|arm64>.deb (no "-" inside the
-//     prerelease), or no file for an architecture of the images (buildHostPart).
+//   - no host part, or a host part whose version is not the release's, has -test., or a file not named
+//     vedette-host_<host.version>_<amd64|arm64>.deb (no "-" inside the prerelease), or no file for an architecture of the images
+//     (buildHostPart; D-316 and its 2026-11-12 amendment).
 //
 // The result is then signed and checked by the verifier of internal/release (`release sign`, `release verify`).
 func BuildManifest(in Inputs, env Env) (Result, error) {
@@ -186,13 +187,14 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 			Platforms: im.Platforms, Cosign: cos,
 		})
 	}
-	if in.Host != nil {
-		h, err := buildHostPart(*in.Host, in.Images)
-		if err != nil {
-			return res, err
-		}
-		m.Host = h
+	if in.Host == nil {
+		return res, errors.New("a release needs its host part: install.sh installs vedette-host_<version>_<arch>.deb of every release (D-316)")
 	}
+	h, err := buildHostPart(*in.Host, in.Version, in.Images)
+	if err != nil {
+		return res, err
+	}
+	m.Host = h
 	if in.SBOM != nil {
 		sum, _, err := hashFile(in.SBOM.File)
 		if err != nil {
@@ -211,11 +213,15 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 	return res, nil
 }
 
-// buildHostPart hashes the vedette-host packages (D-316, host-api 6.14). It refuses a -test. version, a file whose name is not
+// buildHostPart hashes the vedette-host packages (D-316, host-api 6.14). It refuses a version other than the release's (install.sh
+// installs vedette-host_<release version>, so a fresh install and a self-update stay in step), a -test. version, a file whose name is not
 // release.HostPackageName(host.version, amd64|arm64) (the one name rule: SemVer form, no "-" inside the prerelease, no build
 // metadata), a file listed twice, and a missing file for an architecture an image is built for: install.sh downloads and the
 // host keeps exactly that name, so a release that breaks it could not be installed or updated on that box.
-func buildHostPart(in HostIn, images []ImageIn) (*release.HostPart, error) {
+func buildHostPart(in HostIn, version string, images []ImageIn) (*release.HostPart, error) {
+	if in.Version != version {
+		return nil, fmt.Errorf("host.version %q is not the release version %q: install.sh installs vedette-host_%s_<arch>.deb of this release", in.Version, version, version)
+	}
 	if err := refuseTestVersion(in.Version); err != nil {
 		return nil, fmt.Errorf("host: %w", err)
 	}

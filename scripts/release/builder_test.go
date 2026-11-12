@@ -74,6 +74,18 @@ func (r *rig) cosignDir(version string, services ...string) (dir string, imgs []
 	return dir, imgs
 }
 
+// hostIn writes the two vedette-host packages of a release (the images are built for amd64 and arm64).
+func hostIn(t testing.TB, version string) *HostIn {
+	t.Helper()
+	dir := t.TempDir()
+	h := &HostIn{Version: version}
+	for _, arch := range []string{"amd64", "arm64"} {
+		h.Files = append(h.Files, filepath.Join(dir, "vedette-host_"+version+"_"+arch+".deb"))
+		must(t, os.WriteFile(h.Files[len(h.Files)-1], []byte("deb "+version+" "+arch), 0o600))
+	}
+	return h
+}
+
 func must(t testing.TB, err error) {
 	t.Helper()
 	if err != nil {
@@ -105,18 +117,12 @@ func (r *rig) build(o buildOpts) (dir string, err error) {
 		o.services = []string{"core", "sensor"}
 	}
 	cdir, imgs := r.cosignDir(o.version, o.services...)
-	debDir := r.t.TempDir()
-	var debs []string
-	for _, arch := range []string{"amd64", "arm64"} { // the images are built for both
-		debs = append(debs, filepath.Join(debDir, "vedette-host_"+o.version+"_"+arch+".deb"))
-		must(r.t, os.WriteFile(debs[len(debs)-1], []byte("deb "+o.version+" "+arch), 0o600))
-	}
 	sbom := filepath.Join(r.t.TempDir(), "sbom.json")
 	must(r.t, os.WriteFile(sbom, []byte(`{"bomFormat":"CycloneDX"}`), 0o600))
 	in := Inputs{
 		Version: o.version, Channel: o.channel, Notes: "Test release & <notes>", InstallModes: []string{"appliance", "container"},
 		Rollback: release.Rollback{Safe: o.safe, MinVersion: o.minVersion}, MinUpgradeFrom: o.minUpgrade, Images: imgs,
-		Host:    &HostIn{Version: o.version, Files: debs},
+		Host:    hostIn(r.t, o.version),
 		Content: []release.Content{{Name: "packs", Version: "1", InImage: "core", Path: "/opt/packs", SHA256: strings.Repeat("0", 64)}},
 		Bundled: []release.Bundled{{Service: "honeypot", Name: "opencanary", Version: "0.9.4"}},
 		SBOM:    &SBOMIn{URL: "https://github.com/knt048/vedette/releases/download/v" + o.version + "/sbom.json", File: sbom},
@@ -201,7 +207,7 @@ func TestRoundTripFirstRelease(t *testing.T) {
 	}
 	// the builder is deterministic: the same files give the same bytes
 	cdir, imgs := r.cosignDir("0.1.0", "core")
-	in := Inputs{Version: "0.1.0", Channel: "beta", InstallModes: []string{"appliance"}, Images: imgs}
+	in := Inputs{Version: "0.1.0", Channel: "beta", InstallModes: []string{"appliance"}, Images: imgs, Host: hostIn(t, "0.1.0")}
 	m1, err1 := BuildManifest(in, Env{Now: t1, CosignDir: cdir, CurTree: addOnlyTree})
 	m2, err2 := BuildManifest(in, Env{Now: t1, CosignDir: cdir, CurTree: addOnlyTree})
 	if err1 != nil || err2 != nil || !bytes.Equal(m1.Manifest, m2.Manifest) {
@@ -331,7 +337,7 @@ func TestRollbackGuard(t *testing.T) {
 func TestBuildManifestRefusals(t *testing.T) {
 	r := newRig(t)
 	cdir, imgs := r.cosignDir("0.1.0", "core")
-	good := Inputs{Version: "0.1.0", Channel: "beta", InstallModes: []string{"appliance"}, Images: imgs}
+	good := Inputs{Version: "0.1.0", Channel: "beta", InstallModes: []string{"appliance"}, Images: imgs, Host: hostIn(t, "0.1.0")}
 	env := Env{Now: t1, CosignDir: cdir, CurTree: addOnlyTree}
 	if _, err := BuildManifest(good, env); err != nil {
 		t.Fatal(err)
@@ -356,7 +362,9 @@ func TestBuildManifestRefusals(t *testing.T) {
 		"missing host file": mod(func(i *Inputs) {
 			i.Host = &HostIn{Version: "0.1.0", Files: []string{"/nonexistent/vedette-host_0.1.0_amd64.deb"}}
 		}),
-		"missing sbom file": mod(func(i *Inputs) { i.SBOM = &SBOMIn{URL: "https://example.com/s", File: "/nonexistent"} }),
+		"missing sbom file":       mod(func(i *Inputs) { i.SBOM = &SBOMIn{URL: "https://example.com/s", File: "/nonexistent"} }),
+		"no host part":            mod(func(i *Inputs) { i.Host = nil }),
+		"host of another version": mod(func(i *Inputs) { i.Host = hostIn(t, "0.0.9") }),
 	}
 	for name, in := range cases {
 		if _, err := BuildManifest(in, env); err == nil {
@@ -822,11 +830,11 @@ func TestBuildHostPartRefusals(t *testing.T) {
 	both := []ImageIn{{Service: "core", Platforms: []string{"linux/amd64", "linux/arm64/v8"}}}
 	amd := []ImageIn{{Service: "core", Platforms: []string{"linux/amd64"}}}
 	a, b := deb("vedette-host_0.2.0-rc.1_amd64.deb"), deb("vedette-host_0.2.0-rc.1_arm64.deb")
-	h, err := buildHostPart(HostIn{Version: "0.2.0-rc.1", Files: []string{a, b}}, both)
+	h, err := buildHostPart(HostIn{Version: "0.2.0-rc.1", Files: []string{a, b}}, "0.2.0-rc.1", both)
 	if err != nil || len(h.Files) != 2 || h.Files[1].Name != "vedette-host_0.2.0-rc.1_arm64.deb" || h.Files[1].Size == 0 {
 		t.Fatalf("good part: %+v %v", h, err)
 	}
-	if _, err := buildHostPart(HostIn{Version: "0.2.0-rc.1", Files: []string{a}}, amd); err != nil {
+	if _, err := buildHostPart(HostIn{Version: "0.2.0-rc.1", Files: []string{a}}, "0.2.0-rc.1", amd); err != nil {
 		t.Errorf("amd64-only images with the amd64 file: %v", err)
 	}
 	for name, c := range map[string]struct {
@@ -842,7 +850,7 @@ func TestBuildHostPartRefusals(t *testing.T) {
 		"listed twice":        {HostIn{Version: "0.2.0-rc.1", Files: []string{a, b, a}}, "twice"},
 		"no arm64 file":       {HostIn{Version: "0.2.0-rc.1", Files: []string{a}}, "linux/arm64/v8"},
 	} {
-		if _, err := buildHostPart(c.in, both); err == nil || !strings.Contains(err.Error(), c.want) {
+		if _, err := buildHostPart(c.in, c.in.Version, both); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: %v", name, err)
 		}
 	}

@@ -532,7 +532,7 @@ func TestManifestCommandReadsGit(t *testing.T) {
 		}
 		doc, err := json.Marshal(map[string]any{
 			"version": version, "channel": "beta", "install_modes": []string{"appliance"}, "images": js,
-			"rollback": map[string]any{"safe": safe, "min_version": minVersion},
+			"rollback": map[string]any{"safe": safe, "min_version": minVersion}, "host": hostIn(t, version),
 		})
 		must(t, err)
 		in := filepath.Join(t.TempDir(), "release.in.json")

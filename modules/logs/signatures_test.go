@@ -1258,29 +1258,37 @@ func TestContract_Events_MinedFloodIsOneSummaryAnHour(t *testing.T) {
 func TestContract_Events_OneOffBurstIsOneSummary(t *testing.T) {
 	t.Parallel()
 	for _, n := range []int{21, 600} {
-		e := newEnv(t)
-		p := &pubs{}
-		e.svc.cfg.Events = p
-		src := e.warmSource("fortigate", "192.168.10.1")
-		minedFlood(e, src, n)
-		for step := 0; step < 26*12; step++ {
-			e.detect()
-			e.advance(5 * time.Minute)
-		}
-		got := summaries(p)
-		if len(got) != 1 || len(p.events()) != 1 {
-			t.Fatalf("a burst of %d: %d summaries in %d events, want 1", n, len(got), len(p.events()))
-		}
-		if !strings.Contains(got[0].Title, fmt.Sprintf("%d new kinds of message since", n)) {
-			t.Fatalf("%q", got[0].Title)
-		}
-		// a real new kind after the burst is announced on its own, not hidden behind the covered burst
-		minedFlood(e, src, n) // the same kinds again are not new
-		e.feed(src, "brandnew kind of line", 1)
+		t.Run(fmt.Sprintf("burst of %d", n), func(t *testing.T) {
+			t.Parallel()
+			oneOffBurst(t, n)
+		})
+	}
+}
+
+func oneOffBurst(t *testing.T, n int) {
+	t.Helper()
+	e := newEnv(t)
+	p := &pubs{}
+	e.svc.cfg.Events = p
+	src := e.warmSource("fortigate", "192.168.10.1")
+	minedFlood(e, src, n)
+	for step := 0; step < 26*12; step++ {
 		e.detect()
-		if len(p.events()) != 2 || !strings.Contains(p.events()[1].Title, "brandnew") {
-			t.Fatalf("the new kind after the burst: %+v", p.events()[1:])
-		}
+		e.advance(5 * time.Minute)
+	}
+	got := summaries(p)
+	if len(got) != 1 || len(p.events()) != 1 {
+		t.Fatalf("a burst of %d: %d summaries in %d events, want 1", n, len(got), len(p.events()))
+	}
+	if !strings.Contains(got[0].Title, fmt.Sprintf("%d new kinds of message since", n)) {
+		t.Fatalf("%q", got[0].Title)
+	}
+	// a real new kind after the burst is announced on its own, not hidden behind the covered burst
+	minedFlood(e, src, n) // the same kinds again are not new
+	e.feed(src, "brandnew kind of line", 1)
+	e.detect()
+	if len(p.events()) != 2 || !strings.Contains(p.events()[1].Title, "brandnew") {
+		t.Fatalf("the new kind after the burst: %+v", p.events()[1:])
 	}
 }
 

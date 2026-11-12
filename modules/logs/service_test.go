@@ -591,7 +591,9 @@ func TestPurgeRunsInChunksAndStopsWhenCancelled(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	s := e.add("FW", "192.168.10.1")
-	e.bulk(s.ID, 25_000, e.clock.Add(-60*24*time.Hour))
+	const chunk = 1000 // purgeChunk is 10 000: the chunking does not depend on the size, and under -race every row costs time
+	e.svc.chunk = chunk
+	e.bulk(s.ID, 2*chunk+chunk/2, e.clock.Add(-60*24*time.Hour))
 	calls := 0
 	e.svc.afterChunk = func() {
 		calls++
@@ -601,19 +603,19 @@ func TestPurgeRunsInChunksAndStopsWhenCancelled(t *testing.T) {
 		}
 	}
 	res, err := e.svc.Purge(t.Context())
-	if err != nil || res.Expired != 25_000 || calls != 3 {
-		t.Fatalf("%+v %v after %d chunks, want 25000 in 3", res, err, calls)
+	if err != nil || res.Expired != 2*chunk+chunk/2 || calls != 3 {
+		t.Fatalf("%+v %v after %d chunks, want %d in 3", res, err, calls, 2*chunk+chunk/2)
 	}
 	// cancelled after the first chunk: only that chunk is gone
-	e.bulk(s.ID, 25_000, e.clock.Add(-60*24*time.Hour))
+	e.bulk(s.ID, 2*chunk+chunk/2, e.clock.Add(-60*24*time.Hour))
 	ctx, cancel := context.WithCancel(t.Context())
 	e.svc.afterChunk = cancel
 	res, err = e.svc.Purge(ctx)
-	if err != context.Canceled || res.Expired != 10_000 { //nolint:errorlint // the context error itself, not a wrapped one: the check between chunks answered
-		t.Fatalf("%+v %v, want 10000 removed and context.Canceled", res, err)
+	if err != context.Canceled || res.Expired != chunk { //nolint:errorlint // the context error itself, not a wrapped one: the check between chunks answered
+		t.Fatalf("%+v %v, want %d removed and context.Canceled", res, err, chunk)
 	}
-	if got := count(t, e.vol, `SELECT count(*) FROM logs_events WHERE ts < ?`, store.FormatTS(e.clock.Add(-30*24*time.Hour))); got != 15_000 {
-		t.Fatalf("%d old lines left, want 15000", got)
+	if got := count(t, e.vol, `SELECT count(*) FROM logs_events WHERE ts < ?`, store.FormatTS(e.clock.Add(-30*24*time.Hour))); got != chunk+chunk/2 {
+		t.Fatalf("%d old lines left, want %d", got, chunk+chunk/2)
 	}
 }
 

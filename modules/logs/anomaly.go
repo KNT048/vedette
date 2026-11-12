@@ -258,26 +258,51 @@ type detail struct {
 // detailOf reads where the latest line of a signature was aimed and its newest sample, over the counters kept (one lookup on the
 // index of the source and signature: at most 10 rows, not a read of the source).
 func (s *Service) detailOf(ctx context.Context, source, sig string, now time.Time) (detail, error) {
-	rows, err := s.cfg.Volume.Reader().QueryContext(ctx, `SELECT dest, sample FROM logs_signature_daily WHERE source_id = ? AND signature = ? AND day >= ? ORDER BY day`,
-		source, sig, now.UTC().Add(-(BaselineDays+2)*day).Format("2006-01-02"))
-	if err != nil {
-		return detail{}, fmt.Errorf("logs: reading signature details: %w", err)
+	m, err := s.detailsOf(ctx, source, []string{sig}, now)
+	return m[sig], err
+}
+
+// detailChunk is how many signatures one detailsOf query names (SQLite allows far more bound values; this keeps a statement small).
+const detailChunk = 200
+
+// detailsOf is detailOf for many signatures of one source, one query per detailChunk of them instead of one per signature: a pass
+// over a flood (MaxAnomaliesPerPass items) made hundreds of lookups every five minutes.
+func (s *Service) detailsOf(ctx context.Context, source string, sigs []string, now time.Time) (map[string]detail, error) {
+	out := make(map[string]detail, len(sigs))
+	since := now.UTC().Add(-(BaselineDays + 2) * day).Format("2006-01-02")
+	for part := range slices.Chunk(sigs, detailChunk) {
+		args := make([]any, 0, len(part)+2)
+		args = append(args, source, since)
+		for _, sig := range part {
+			args = append(args, sig)
+		}
+		rows, err := s.cfg.Volume.Reader().QueryContext(ctx, `SELECT signature, dest, sample FROM logs_signature_daily WHERE source_id = ? AND day >= ? AND signature IN (?`+
+			strings.Repeat(", ?", len(part)-1)+`) ORDER BY signature, day`, args...)
+		if err != nil {
+			return nil, fmt.Errorf("logs: reading signature details: %w", err)
+		}
+		for rows.Next() { // oldest day first within a signature, so the newest non-empty value wins
+			var sig, dest, sample string
+			if err := rows.Scan(&sig, &dest, &sample); err != nil {
+				_ = rows.Close()
+				return nil, fmt.Errorf("logs: reading signature details: %w", err)
+			}
+			d := out[sig]
+			if dest != "" {
+				d.dest = dest
+			}
+			if sample != "" {
+				d.sample = sample
+			}
+			out[sig] = d
+		}
+		err = rows.Err()
+		_ = rows.Close()
+		if err != nil {
+			return nil, fmt.Errorf("logs: reading signature details: %w", err)
+		}
 	}
-	defer func() { _ = rows.Close() }()
-	var d detail
-	for rows.Next() { // oldest day first, so the newest non-empty value wins
-		var dest, sample string
-		if err := rows.Scan(&dest, &sample); err != nil {
-			return detail{}, fmt.Errorf("logs: reading signature details: %w", err)
-		}
-		if dest != "" {
-			d.dest = dest
-		}
-		if sample != "" {
-			d.sample = sample
-		}
-	}
-	return d, rows.Err()
+	return out, nil
 }
 
 // digestItems turns the anomalies into the lists of the digest: at most DigestMax of each, taken round-robin across the sources (the
@@ -581,8 +606,12 @@ func (p *sourcePass) mined(ctx context.Context, waiting []anomaly) error {
 		return nil
 	}
 	slices.SortFunc(waiting, rank)
+	fresh := p.uncovered(waiting) // in the order of rank
+	if len(fresh) == 0 && len(waiting) > MaxAnomaliesPerPass {
+		return nil // all named by an earlier summary and too many to announce one by one: the loop below would end the same, after reading details
+	}
 	picks := [][]anomaly{waiting}
-	if fresh := p.uncovered(waiting); len(fresh) > 0 && len(fresh) < len(waiting) { // all of it, or only what no summary has named
+	if len(fresh) > 0 && len(fresh) < len(waiting) { // all of it, or only what no summary has named
 		picks = append(picks, fresh)
 	} else if len(fresh) == 0 {
 		picks = picks[:1]
@@ -648,14 +677,17 @@ func (s *Service) sentInHour(ctx context.Context, source string, now time.Time, 
 // groupsOf looks up where each anomaly was aimed and groups them by target (the address, or the signature when there is none), in the
 // order of the events: spikes after new, the rarest first, the text last.
 func (s *Service) groupsOf(ctx context.Context, src sourceRow, now time.Time, items []anomaly) ([]*group, map[string]detail, error) {
-	det := map[string]detail{}
+	sigs := make([]string, len(items))
+	for i, a := range items {
+		sigs[i] = a.Signature
+	}
+	det, err := s.detailsOf(ctx, src.ID, sigs, now)
+	if err != nil {
+		return nil, nil, err
+	}
 	groups := map[string]*group{}
 	for _, a := range items {
-		d, err := s.detailOf(ctx, src.ID, a.Signature, now)
-		if err != nil {
-			return nil, nil, err
-		}
-		det[a.Signature] = d
+		d := det[a.Signature]
 		target := d.dest
 		if target == "" {
 			target = a.Signature

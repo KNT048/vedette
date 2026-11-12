@@ -555,7 +555,7 @@ describe('box network: SPAN hidden for v1 (D-403)', () => {
     await open()
     const sec = within(spanSection())
     expect(await sec.findByText('Receiving mirrored traffic', undefined, T)).toBeInTheDocument()
-    expect(sec.getByRole('note')).toHaveTextContent('This version of Vedette no longer sets up SPAN capture. What this box already has keeps working as saved and is shown here read-only. To stop using eth1 for it, set the role of eth1 to Unused under Interfaces.')
+    expect(sec.getByRole('note')).toHaveTextContent('This version of Vedette no longer sets up SPAN capture. What this box already has keeps working as saved and is shown here read-only: you can turn it off, not on again.')
     expect(sec.getByRole('switch', { name: 'Capture mirrored traffic' })).toBeDisabled()
     expect(sec.getByLabelText('Capture port')).toBeDisabled()
     expect(sec.getByRole('button', { name: 'Add exclusion' })).toBeDisabled()
@@ -569,6 +569,18 @@ describe('box network: SPAN hidden for v1 (D-403)', () => {
     await waitFor(() => expect(document.getElementById('span')).toBeNull(), T)
     expect((await get()).span).toMatchObject({ enabled: false, interface: null })
     expect(within(role('eth1')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Management', 'Unused'])
+    expect(main().textContent).not.toMatch(/SPAN|mirror/i)
+  })
+
+  it('Turn off stops SPAN even when its card is no longer in the card list, and SPAN leaves the page', async () => {
+    const u = user()
+    asAdmin()
+    networkStore.update((s) => ({ ...s, ifaces: s.ifaces.filter((i) => i.name !== 'eth1') })) // the USB card was unplugged
+    await open()
+    await u.click(within(spanSection()).getByRole('button', { name: 'Turn off SPAN capture' }))
+    expect(await screen.findByText('SPAN capture turned off.', undefined, T)).toBeInTheDocument()
+    await waitFor(() => expect(document.getElementById('span')).toBeNull(), T)
+    expect((await get()).span).toMatchObject({ enabled: false, interface: null })
     expect(main().textContent).not.toMatch(/SPAN|mirror/i)
   })
 })

@@ -45,7 +45,7 @@ function StatusDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void
   const { t } = useTranslation('inventory')
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t(SPAN_IN_UI ? 'sensors.configBody' : 'sensors.configBodyNoSpan')}>
+      <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t(SPAN_IN_UI || sensor.span ? 'sensors.configBody' : 'sensors.configBodyNoSpan')}>
         <div className="grid gap-4">
           <Hearing sensor={sensor} />
           {SPAN_IN_UI || sensor.span ? <p className="max-w-lg text-[13px] text-muted">{t('sensors.spanHint')}</p> : null}
@@ -107,7 +107,7 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
               </div>
               {showSpan ? <div className="grid gap-1">
                 <div className="flex items-center gap-2">
-                  <Checkbox id="sensor-span" checked={card !== '' && span} disabled={card === '' || (!SPAN_IN_UI && !span)} onCheckedChange={(v) => { setSpan(v === true); setError(null) }}
+                  <Checkbox id="sensor-span" checked={card !== '' && span} disabled={card === ''} aria-disabled={!SPAN_IN_UI && !span ? true : undefined} onCheckedChange={(v) => { if (!SPAN_IN_UI && v === true) return; setSpan(v === true); setError(null) }}
                     aria-invalid={error && errorAt === 'span' ? true : undefined} aria-describedby={error && errorAt === 'span' ? 'sensor-span-error sensor-span-hint' : 'sensor-span-hint'} />
                   <Label htmlFor="sensor-span" className="font-normal">{t('sensors.card.span')}</Label>
                 </div>
@@ -155,7 +155,7 @@ export function SensorsSection() {
     ) },
   ]
   return (
-    <Section id="sensors" title={t('sensors.title')} description={install ? t(`sensors.${install === 'container' ? 'descriptionContainer' : 'description'}${SPAN_IN_UI ? '' : 'NoSpan'}`) : undefined} stories={['S-INV-1', 'S-CORE-8']}>
+    <Section id="sensors" title={t('sensors.title')} description={install ? t(`sensors.${install === 'container' ? 'descriptionContainer' : 'description'}${SPAN_IN_UI || q.data?.sensors.some((x) => x.span) ? '' : 'NoSpan'}`) : undefined} stories={['S-INV-1', 'S-CORE-8']}>
       <RequireModule module="sensor-passive" fallback={<ModuleOff module="sensor-passive">{t('sensors.off')}</ModuleOff>}>
         <QueryState query={q}>
           {(d) => <DataTable caption={t('sensors.caption')} data={d.sensors} columns={columns} />}

@@ -428,7 +428,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await expect(dlg.getByText('eth1')).toBeVisible()
     await expect(dlg.getByRole('switch')).toHaveCount(0)
     await shot(page, 'inventory', 'sensor-config')
-    await expect(dlg.getByRole('link', { name: 'Open Settings → Box network' })).toHaveAttribute('href', '/settings/network')
+    await expect(dlg.getByRole('link', { name: /Settings → Box network$/ })).toHaveAttribute('href', '/settings/network') // either text, SPAN shown or hidden (D-403)
     await page.keyboard.press('Escape')
     await expect(dlg).toBeHidden()
     const row = page.getByRole('table', { name: 'Sensors on this box' }).getByRole('row').nth(1)

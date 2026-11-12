@@ -214,8 +214,9 @@ function NtpForm({ d }: { d: NetworkState }) {
   )
 }
 
-/** D-403: a box that already has SPAN set up (on, or a card with the SPAN role) keeps seeing it while the GUI does not offer it. */
-const spanSetUp = (d: NetworkState) => d.span.enabled || d.interfaces.some((i) => i.role === 'span')
+/** D-403: a box with SPAN on keeps seeing it (read-only, with Turn off) while the GUI does not offer it. A card left in the SPAN role
+ *  with SPAN off keeps "SPAN capture" among its role options, which is its way out. */
+const spanSetUp = (d: NetworkState) => d.span.enabled
 
 function Body({ d }: { d: NetworkState }) {
   const { t } = useTranslation('core')

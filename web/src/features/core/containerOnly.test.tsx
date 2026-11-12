@@ -329,7 +329,9 @@ describe('container-only install (D-381)', () => {
     expect(box).toHaveAccessibleDescription('eno2 is saved as a SPAN port. This version of Vedette no longer sets SPAN up: you can untick it, not tick it again.')
     await u.click(box)
     expect(box).not.toBeChecked()
-    expect(box).toBeDisabled()
+    expect(box).toHaveAttribute('aria-disabled', 'true') // stays focusable (keyboard), but ticking again is ignored
+    await u.click(box)
+    expect(box).not.toBeChecked()
     await u.click(within(dlg).getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(containerSensorStore.get()).toMatchObject({ chosen: 'eno2', span: false })

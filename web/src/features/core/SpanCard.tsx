@@ -40,7 +40,8 @@ function Status({ iface }: { iface: string | null }) {
   )
 }
 
-/** readOnly (D-403, SPAN hidden for v1): what this box already has, every control locked and no Save; the way out is the role Unused. */
+/** readOnly (D-403, SPAN hidden for v1): what this box already has, every control locked, no Save; one way out, Turn off, which also
+ *  works when the SPAN card is no longer in the card list (unplugged, renamed). */
 export function SpanCard({ d, readOnly = false }: { d: NetworkState; readOnly?: boolean }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
@@ -65,7 +66,15 @@ export function SpanCard({ d, readOnly = false }: { d: NetworkState; readOnly?: 
       <div className="grid max-w-3xl gap-5">
         <Status iface={d.span.interface} />
         <p className="-mt-3 text-[13px] text-muted">{t('network.span.statusNote')}</p>
-        {readOnly ? <p role="note" className="rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">{t('network.span.kept', { iface: d.span.interface ?? d.interfaces.find((i) => i.role === 'span')?.name ?? '' })}</p> : null}
+        {readOnly ? (
+          <div className="grid justify-items-start gap-2 rounded-md border border-rule bg-sunken px-3 py-2">
+            <p role="note" className="text-[13px]">{t('network.span.kept')}</p>
+            <Button disabled={gate.disabled || span.isPending} title={gate.title} onClick={() => {
+              setError(null)
+              span.mutate({ ...d.span, enabled: false, interface: null }, { onSuccess: () => toast.success(t('network.span.turnedOff')), onError: (er) => setError(errMsg(er, t)) })
+            }}>{t('network.span.turnOff')}</Button>
+          </div>
+        ) : null}
         <form className="grid gap-5" noValidate onSubmit={(e) => {
           e.preventDefault(); setError(null)
           span.mutate(v, { onSuccess: () => toast.success(t('network.span.saved')), onError: (er) => setError(errMsg(er, t)) })

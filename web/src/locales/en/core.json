@@ -1549,7 +1549,9 @@
       "last": "Last packet",
       "never": "None yet",
       "statusNote": "The status shows the saved settings and refreshes every 5 seconds.",
-      "kept": "This version of Vedette no longer sets up SPAN capture. What this box already has keeps working as saved and is shown here read-only. To stop using {{iface}} for it, set the role of {{iface}} to Unused under Interfaces.",
+      "kept": "This version of Vedette no longer sets up SPAN capture. What this box already has keeps working as saved and is shown here read-only: you can turn it off, not on again.",
+      "turnOff": "Turn off SPAN capture",
+      "turnedOff": "SPAN capture turned off.",
       "verdict": {
         "off": {
           "title": "SPAN is off",

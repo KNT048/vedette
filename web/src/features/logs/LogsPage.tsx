@@ -188,7 +188,7 @@ function DigestSections() {
         ]
         return (
           <>
-            <Section id="bad" title={t('digest.bad.title')} description={t(SPAN_IN_UI ? 'digest.bad.description' : 'digest.bad.descriptionNoSpan')} stories={['S-LOG-2', 'S-LOG-4']}>
+            <Section id="bad" title={t('digest.bad.title')} description={t(SPAN_IN_UI || d.bad_connections.some((h) => h.seen_via.startsWith('span_')) ? 'digest.bad.description' : 'digest.bad.descriptionNoSpan')} stories={['S-LOG-2', 'S-LOG-4']}>
               {d.bad_connections.length ? <><DataTable caption={t('digest.bad.caption')} data={d.bad_connections} columns={bad} rowTone={() => 'danger'} />{SPAN_IN_UI ? <p className="mt-2 text-[13px] text-muted">{t('digest.bad.note')}</p> : d.bad_connections.some((h) => h.seen_via.startsWith('span_')) ? <p className="mt-2 text-[13px] text-muted">{t('digest.bad.noteKept')}</p> : null}</> : feedsOn === false ? <EmptyState title={t('digest.bad.emptyFeedsOff')}><Link to="/settings/modules" className="text-accent underline-offset-4 hover:underline">{t('digest.bad.openModules')}</Link></EmptyState> : <EmptyState title={d.ioc_matching ? t('digest.bad.empty') : t('digest.bad.emptyNoIoc')} />}
             </Section>
             <Section id="new" title={learning ? t('digest.new.titleLearning') : t('digest.new.title', { days })} description={t('digest.new.description')} stories={['S-LOG-1']}>

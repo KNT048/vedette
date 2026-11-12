@@ -114,7 +114,7 @@ func cleanInhibitText(s string, n int) string {
 	}
 	out := b.String()
 	if len(out) > n {
-		out = out[:n]
+		out = strings.TrimRight(out[:n], " ") // a space written with the next character can end up last after the cut
 	}
 	if out == "" {
 		return "unknown"
@@ -122,16 +122,35 @@ func cleanInhibitText(s string, n int) string {
 	return out
 }
 
-// shutdownBlockers asks logind which locks refuse a reboot right now. An error means the list is unknown
-// (busctl failed, timed out, or answered something parseInhibitors does not accept).
-func (o *Ops) shutdownBlockers(ctx context.Context) ([]inhibitor, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+// How long one read of the list may take: inside os.reboot's Check (the server bounds a Check at 5 s), and
+// everywhere else (timers and the reboot itself, no request waits on them).
+const (
+	inhibitReadCheck = 3 * time.Second
+	inhibitReadWait  = 10 * time.Second
+)
+
+// shutdownBlockers asks logind which locks refuse a reboot right now, within d. An error means the list is
+// unknown (busctl failed, timed out, or answered something parseInhibitors does not accept); the first
+// unknown after a good read is logged once (WARN), since on systemd 255 the host's own read is the only
+// guard against rebooting during apt (D-453).
+func (o *Ops) shutdownBlockers(ctx context.Context, d time.Duration) ([]inhibitor, error) {
+	ctx, cancel := context.WithTimeout(ctx, d)
 	defer cancel()
 	res, code, err := o.exec(ctx, binBusctl, argsListInhibitors...)
-	if err != nil || code != 0 || res.Truncated {
-		return nil, errInhibitorsUnknown
+	var bl []inhibitor
+	if err == nil && code == 0 && !res.Truncated {
+		bl, err = parseInhibitors(res.Stdout)
+	} else {
+		err = errInhibitorsUnknown
 	}
-	return parseInhibitors(res.Stdout)
+	if err != nil {
+		if o.inhUnknown.CompareAndSwap(false, true) {
+			o.log.WarnContext(ctx, "could not read logind's shutdown locks; rebooting without the host's own check (systemd 257 and later still refuse a locked reboot, 255 does not)", "exit_code", code)
+		}
+		return nil, err
+	}
+	o.inhUnknown.Store(false)
+	return bl, nil
 }
 
 // inhibitedMessage names who holds the first blocking lock and why, and how many more there are.

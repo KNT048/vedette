@@ -15,6 +15,9 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/host/api"
+	"github.com/knt048/vedette/host/ops"
+	"github.com/knt048/vedette/host/server"
+	"github.com/knt048/vedette/host/server/servertest"
 )
 
 const (
@@ -150,8 +153,9 @@ func fireRetry(t *testing.T, e *sysEnv) {
 	tms[0].fire()
 }
 
-// startRace starts a "now" reboot that logind refuses: the check saw no lock, then apt took one just before
-// systemctl reboot (the fake systemctl fails and sets the marker that makes busctl report apt's lock).
+// startRace starts a "now" reboot that logind refuses, as systemd 257 and later do: the check and the read
+// before the call saw no lock, then apt took one just before systemctl reboot (the fake systemctl fails and sets
+// the marker that makes busctl report apt's lock).
 func startRace(t *testing.T) *sysEnv {
 	t.Helper()
 	e := startSys(t)
@@ -181,14 +185,15 @@ func TestContract_Reboot_ALockTakenAfterTheCheckIsWaitedForWithTheGateUp(t *test
 	if n := len(rebootNotes(t, e, "reboot_waiting_inhibitor")); n != 1 {
 		t.Fatalf("the wait is audited %d times", n)
 	}
-	if len(retryTimers(e)) != 1 || rebootCalls(e) != 3 {
+	// While the list shows the lock, a try does not even call systemctl (systemd 255 would let root through).
+	if len(retryTimers(e)) != 1 || rebootCalls(e) != 1 {
 		t.Fatalf("timers %d, calls %d", len(retryTimers(e)), rebootCalls(e))
 	}
 	// apt is done: the next try reboots, and nothing more is armed.
 	e.m.Mark("apt-done", true)
 	e.m.Mark("apt", false)
 	fireRetry(t, e)
-	if rebootCalls(e) != 4 || len(retryTimers(e)) != 0 || len(rebootNotes(t, e, "reboot_failed")) != 0 {
+	if rebootCalls(e) != 2 || len(retryTimers(e)) != 0 || len(rebootNotes(t, e, "reboot_failed")) != 0 {
 		t.Fatalf("calls %d, timers %d", rebootCalls(e), len(retryTimers(e)))
 	}
 }
@@ -224,8 +229,9 @@ func TestContract_Reboot_AFailureWithoutALockIsReportedAtOnce(t *testing.T) {
 	if f := rebootNotes(t, e, "reboot_failed"); !strings.Contains(string(f[0].ArgsRedacted), `"reason":"systemctl_failed"`) {
 		t.Fatalf("%s", f[0].ArgsRedacted)
 	}
-	if len(retryTimers(e)) != 0 || e.o.WriteGate() != nil {
-		t.Fatal("a failure without a lock is retried or keeps the gate")
+	eventually(t, "the gate down", func() bool { return e.o.WriteGate() == nil }) // reboot_failed is written just before
+	if len(retryTimers(e)) != 0 {
+		t.Fatal("a failure without a lock is retried")
 	}
 }
 
@@ -236,4 +242,133 @@ func TestContract_Reboot_CloseStopsTheWaitForALock(t *testing.T) {
 	if len(retryTimers(e)) != 0 {
 		t.Fatal("the retry is still armed after Close")
 	}
+}
+
+// Systemd 255 (Ubuntu 24.04) lets root reboot past apt's lock of uid 0, so the fake systemctl here always
+// succeeds: only the host's own read just before the call stops a reboot whose lock was taken after the check.
+func TestContract_Reboot_OnSystemd255TheReadBeforeTheCallIsTheGuard(t *testing.T) {
+	t.Parallel()
+	e := startSys(t)
+	e.o.Start(context.Background(), e.h.Server)
+	// The first read (Check) sees no lock; every later one sees apt's, until apt is done.
+	e.m.RuleText("busctl", "ListInhibitors", inhibitNone, 0, "!checked", "checked")
+	inhibitWhile(e, "!apt-done")
+	e.ok(t, "os.reboot", api.OSRebootArgs{When: "now"})
+	eventually(t, "the retry", func() bool { return len(retryTimers(e)) == 1 })
+	if rebootCalls(e) != 0 {
+		t.Fatal("systemctl reboot ran while the list showed apt's lock")
+	}
+	if r := e.o.WriteGate(); r == nil || r.Code != api.CodeRebooting {
+		t.Fatalf("the gate is down while the reboot waits: %+v", r)
+	}
+	if n := len(rebootNotes(t, e, "reboot_waiting_inhibitor")); n != 1 {
+		t.Fatalf("the wait is audited %d times", n)
+	}
+	e.clock.Advance(30 * time.Second)
+	fireRetry(t, e)
+	if rebootCalls(e) != 0 || len(retryTimers(e)) != 1 {
+		t.Fatalf("calls %d, timers %d", rebootCalls(e), len(retryTimers(e)))
+	}
+	e.m.Mark("apt-done", true)
+	e.clock.Advance(30 * time.Second)
+	fireRetry(t, e)
+	if rebootCalls(e) != 1 || len(retryTimers(e)) != 0 {
+		t.Fatalf("calls %d, timers %d", rebootCalls(e), len(retryTimers(e)))
+	}
+}
+
+// A scheduled reboot whose time comes with no lock goes ahead, then meets a lock taken just before systemctl
+// reboot: it waits like a "now" reboot, with the gate up, and reboots once apt is done.
+func TestContract_Reboot_AScheduledRebootThatGoesAheadThenMeetsTheRace(t *testing.T) {
+	t.Parallel()
+	e := startSys(t)
+	e.o.Start(context.Background(), e.h.Server)
+	inhibitWhile(e, "apt")
+	e.m.RuleText("systemctl", "reboot", "", 1, "!apt-done", "apt")
+	at := e.clock.Now().Add(2 * time.Hour)
+	e.ok(t, "os.reboot", api.OSRebootArgs{When: "at", At: at.Format(time.RFC3339)})
+	e.clock.Advance(2 * time.Hour)
+	act := e.timers.active()
+	if len(act) != 1 {
+		t.Fatalf("timers %+v", act)
+	}
+	act[0].fire()
+	if rebootCalls(e) != 1 || len(retryTimers(e)) != 1 {
+		t.Fatalf("calls %d, retries %d", rebootCalls(e), len(retryTimers(e)))
+	}
+	if raw, _ := os.ReadFile(filepath.Join(e.m.State, "os", "reboot.json")); bytes.Contains(raw, []byte(`"schedule"`)) || !bytes.Contains(raw, []byte(`"kind":"scheduled"`)) {
+		t.Fatalf("reboot.json %s", raw)
+	}
+	if r := e.o.WriteGate(); r == nil || r.Code != api.CodeRebooting {
+		t.Fatalf("the gate is down while the started reboot waits: %+v", r)
+	}
+	w := rebootNotes(t, e, "reboot_waiting_inhibitor")
+	if len(w) != 1 || !strings.Contains(string(w[0].ArgsRedacted), `"kind":"scheduled"`) {
+		t.Fatalf("waits %+v", w)
+	}
+	e.m.Mark("apt-done", true)
+	e.m.Mark("apt", false)
+	e.clock.Advance(30 * time.Second)
+	fireRetry(t, e)
+	if rebootCalls(e) != 2 || len(retryTimers(e)) != 0 || len(rebootNotes(t, e, "reboot_failed")) != 0 {
+		t.Fatalf("calls %d, retries %d", rebootCalls(e), len(retryTimers(e)))
+	}
+}
+
+// A host restart while the reboot waits for a lock (same boot, not issued) is reported as reboot_failed
+// host_restarted and not re-armed: no gate, no retry, and no reboot_completed after a later boot.
+func TestContract_Reboot_AHostRestartDuringTheWaitIsReportedNotRearmed(t *testing.T) {
+	t.Parallel()
+	e := startRace(t)
+	e.clock.Advance(2 * time.Minute) // well inside the gate's 10 minutes
+	e.o.Close()
+	timers2 := &fakeTimers{}
+	o2 := e.m.Ops(e.clock.Now, func(_ *ops.Config, d *ops.Deps) { d.AfterFunc = timers2.after })
+	h2 := servertest.Start(t, o2.Commands(), func(o *server.Options) {
+		o.StateDir, o.AuditPath, o.Readers, o.Now = e.m.State, e.h.AuditPath, o2.Readers(), e.clock.Now
+	})
+	o2.Start(context.Background(), h2.Server)
+	defer o2.Close()
+	if r := o2.WriteGate(); r != nil {
+		t.Fatalf("the restarted host keeps the gate of a reboot that will not come: %+v", r)
+	}
+	if len(timers2.active()) != 0 {
+		t.Fatalf("the wait was re-armed: %+v", timers2.active())
+	}
+	var failed []api.AuditRecord
+	for _, a := range audit(t, h2) {
+		if a.Command == "os.reboot" && a.Code != nil && *a.Code == "reboot_failed" && a.Actor == "system" {
+			failed = append(failed, a)
+		}
+	}
+	if len(failed) != 1 || !strings.Contains(string(failed[0].ArgsRedacted), `"reason":"host_restarted"`) || !strings.Contains(string(failed[0].ArgsRedacted), `"issued":false`) {
+		t.Fatalf("reboot_failed %+v", failed)
+	}
+	if raw, _ := os.ReadFile(filepath.Join(e.m.State, "os", "reboot.json")); bytes.Contains(raw, []byte(`"pending"`)) {
+		t.Fatalf("the pending reboot is kept: %s", raw)
+	}
+	// A later boot claims nothing.
+	e.m.SetBootID("99999999-8888-4777-8666-555555555555")
+	o3 := e.m.Ops(e.clock.Now, func(_ *ops.Config, d *ops.Deps) { d.AfterFunc = (&fakeTimers{}).after })
+	h3 := servertest.Start(t, o3.Commands(), func(o *server.Options) {
+		o.StateDir, o.AuditPath, o.Readers, o.Now = e.m.State, e.h.AuditPath, o3.Readers(), e.clock.Now
+	})
+	o3.Start(context.Background(), h3.Server)
+	defer o3.Close()
+	for _, a := range audit(t, h3) {
+		if a.Code != nil && *a.Code == "reboot_completed" {
+			t.Fatal("reboot_completed for a reboot the host never issued")
+		}
+	}
+}
+
+// An issued reboot keeps its gate across a host restart in the shutdown window (INV-15), and is marked issued.
+func TestContract_Reboot_AnIssuedRebootIsRecordedAsIssued(t *testing.T) {
+	t.Parallel()
+	e := startSys(t)
+	e.ok(t, "os.reboot", api.OSRebootArgs{When: "now"})
+	eventually(t, "issued", func() bool {
+		raw, _ := os.ReadFile(filepath.Join(e.m.State, "os", "reboot.json"))
+		return bytes.Contains(raw, []byte(`"issued":true`))
+	})
 }

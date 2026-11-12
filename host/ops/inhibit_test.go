@@ -1,6 +1,8 @@
 package ops
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -10,6 +12,18 @@ import (
 const inhibitorsAPT = `{"type":"a(ssssuu)","data":[[["sleep","ModemManager","ModemManager needs to reset devices","delay",0,5445],` +
 	`["shutdown","Unattended Upgrades Shutdown","Stop ongoing upgrades or perform upgrades before shutdown","delay",0,5402],` +
 	`["shutdown:sleep","APT","APT is installing or removing packages","block",0,7781]]]}` + "\n"
+
+// The answer of an idle Ubuntu 26.04 box (systemd 259), saved by the lead: delay locks only, none blocks.
+func TestParseInhibitorsSystemd259Fixture(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile(filepath.Join("testdata", "inhibitors_systemd259.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := parseInhibitors(raw); err != nil || len(got) != 0 {
+		t.Fatalf("%+v %v", got, err)
+	}
+}
 
 func TestParseInhibitors(t *testing.T) {
 	t.Parallel()
@@ -65,7 +79,8 @@ func TestCleanInhibitText(t *testing.T) {
 		" \t ":                    "unknown",
 		`<script>"x"&'y'` + "`\\": "?script??x???y???",
 		"caf" + string(rune(0xe9)) + " \x1b[31mred" + string(rune(0x202e)) + "!": "caf? ?[31mred?!", // e acute, ESC, RIGHT-TO-LEFT OVERRIDE
-		strings.Repeat("a", 200): strings.Repeat("a", 64),
+		strings.Repeat("a", 200):       strings.Repeat("a", 64),
+		strings.Repeat("a", 63) + " b": strings.Repeat("a", 63), // the cut falls right after a space
 	} {
 		if got := cleanInhibitText(in, inhibitWhoMax); got != want {
 			t.Errorf("clean(%q) = %q, want %q", in, got, want)

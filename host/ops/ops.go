@@ -159,6 +159,7 @@ type Ops struct {
 	// the scheduled reboot's wait for a shutdown lock is already audited. Both guarded by rbMu.
 	stopRetry   func() bool
 	rbWaitNoted bool
+	inhUnknown  atomic.Bool // the last read of logind's locks was unknown and that is logged (logged once per run of unknowns)
 
 	netMu   sync.Mutex // guards the confirm-window timer and the run Resume kept
 	netStop func() bool

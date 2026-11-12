@@ -51,8 +51,12 @@ say "1/6 throwaway keys"
 keys=$work/keys
 if [ -n "${KEYS:-}" ]; then
 	case $KEYS in /*) keys=$KEYS ;; *) keys=$PWD/$KEYS ;; esac
-	case $keys/ in "$out"/*) fail "KEYS must not be inside the output folder $out (the private keys would ship)" ;; esac
+	keys=$(realpath -m "$keys")
+	rout=$(realpath -m "$out")
+	case $keys/ in "$rout"/*) fail "KEYS must not be inside the output folder $out (the private keys would ship)" ;; esac
+	case $rout/ in "$keys"/*) fail "the output folder $out is inside KEYS=$keys (the private keys would ship)" ;; esac
 	case $keys/ in "$root"/*) git check-ignore -q "$keys" || fail "KEYS=$keys is inside the repository and not git-ignored: use a folder outside it (the private keys must never be committed)" ;; esac
+	if [ -d "$keys" ] && [ -n "$(ls -A "$keys")" ] && [ ! -e "$keys/minisign-active.seed" ]; then fail "KEYS=$keys is not empty and holds no test keys (minisign-active.seed): use an empty or new folder"; fi
 	mkdir -p "$keys" && chmod 0700 "$keys"
 	if [ -e "$keys/minisign-active.seed" ]; then say "reusing the test keys in $keys"; else say "making test keys in $keys (kept; TEST-ONLY, never use them for a release)"; fi
 fi

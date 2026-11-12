@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 )
 
@@ -38,10 +39,18 @@ func TestReleaseBaseTestChannel(t *testing.T) {
 			t.Errorf("%s: got %q, want %q", c.name, got, c.want)
 		}
 	}
-	for _, bad := range []string{"https://example.com/x", "http://8.8.8.8:5078", "ftp://172.30.1.1", "http://172.30.1.1/x/", "http://172.30.1.1/?a=b", "http://u@172.30.1.1", "172.30.1.1", ""} {
+	for _, bad := range []string{"https://example.com/x", "http://8.8.8.8:5078", "ftp://172.30.1.1", "http://172.30.1.1/x/", "http://172.30.1.1/?a=b", "http://172.30.1.1/x#", "http://172.30.1.1/x?", "http://u@172.30.1.1", "172.30.1.1", ""} {
 		write(bad)
 		if got := mk("0.0.1-test.1", DefaultReleaseBase, dir).releaseBase(); got != DefaultReleaseBase {
 			t.Errorf("%q was accepted: %q", bad, got)
 		}
+	}
+	// a FIFO under the name must not block the check
+	fifo := t.TempDir()
+	if err := syscall.Mkfifo(filepath.Join(fifo, testBaseFile), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := mk("0.0.1-test.1", DefaultReleaseBase, fifo).releaseBase(); got != DefaultReleaseBase {
+		t.Errorf("fifo: %q", got)
 	}
 }

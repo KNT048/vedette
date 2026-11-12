@@ -62,6 +62,7 @@ type updCheck struct {
 	version string // the running release (main.version)
 	base    string // DefaultReleaseBase, or a test server
 	dataDir string // core_data: where a test-channel build looks for testBaseFile
+	src     string // where this check downloads from: releaseBase(), read once at its start (checkMu)
 	client  *http.Client
 	trust   func() (release.Trust, error)
 	started time.Time // process start: the installed_at of the running release (no better record exists in core)
@@ -116,7 +117,11 @@ func (h *OSHandlers) releaseBase() string {
 	if u.base != DefaultReleaseBase || u.dataDir == "" || !isTestVersion(u.version) {
 		return u.base
 	}
-	f, err := os.Open(filepath.Join(u.dataDir, testBaseFile))
+	path := filepath.Join(u.dataDir, testBaseFile)
+	if st, err := os.Lstat(path); err != nil || !st.Mode().IsRegular() { // a FIFO would block the check
+		return u.base
+	}
+	f, err := os.Open(path) //nolint:gosec // the constant name testBaseFile under core_data
 	if err != nil {
 		return u.base
 	}
@@ -130,7 +135,7 @@ func (h *OSHandlers) releaseBase() string {
 		return v
 	}
 	if u.firstWarn("test-release-base") {
-		h.log.Warn("core: " + testBaseFile + " is not an http(s) address of this machine or its LAN (a private IP, no path query or trailing slash); using the release source")
+		h.log.Warn("core: " + testBaseFile + " is not an http(s) address of this machine or its LAN (a private IP; no query, fragment, user info or trailing slash); using the release source")
 	}
 	return u.base
 }
@@ -138,7 +143,7 @@ func (h *OSHandlers) releaseBase() string {
 // testBase accepts http(s)://<private or loopback IP>[:port][/path] only.
 func testBase(b string) (string, bool) {
 	p, err := url.Parse(b)
-	if err != nil || len(b) > 256 || (p.Scheme != "http" && p.Scheme != "https") || p.User != nil || p.RawQuery != "" || p.Fragment != "" || strings.HasSuffix(b, "/") {
+	if err != nil || len(b) > 256 || (p.Scheme != "http" && p.Scheme != "https") || p.User != nil || p.RawQuery != "" || p.Fragment != "" || strings.ContainsAny(b, "?#") || strings.HasSuffix(b, "/") {
 		return "", false
 	}
 	ip, err := netip.ParseAddr(p.Hostname())
@@ -471,7 +476,12 @@ func (h *OSHandlers) fetchDoc(ctx context.Context, rawURL string, limit int64) (
 }
 
 // fetchPair downloads a document and its .minisig.
+// docURL is a URL under the fixed upd.base (the one the signed index may name); the bytes come from the check's source,
+// which differs from it only on a test-channel build (releaseBase).
 func (h *OSHandlers) fetchPair(ctx context.Context, docURL string) (doc, sig []byte, err error) {
+	if rest, ok := strings.CutPrefix(docURL, h.upd.base); ok && h.upd.src != "" {
+		docURL = h.upd.src + rest
+	}
 	if doc, err = h.fetchDoc(ctx, docURL, release.MaxDocBytes); err != nil {
 		return nil, nil, err
 	}
@@ -481,10 +491,10 @@ func (h *OSHandlers) fetchPair(ctx context.Context, docURL string) (doc, sig []b
 	return doc, sig, nil
 }
 
-// manifestURL is the only place a release's manifest is accepted from (D-341): the index names it, and it must be
+// manifestURL is (under the fixed base, never the test source) the only place a release's manifest is accepted from (D-341): the index names it, and it must be
 // exactly this (case-insensitive, as GitHub owners are), so a signed index cannot send the box to another host.
 func (h *OSHandlers) manifestURL(version string) string {
-	return h.releaseBase() + "/v" + version + "/release-manifest.json"
+	return h.upd.base + "/v" + version + "/release-manifest.json"
 }
 
 // ---- POST /core/updates/check ----
@@ -534,6 +544,7 @@ func (h *OSHandlers) CorePostCoreUpdatesCheck(ctx context.Context) (*oas.CorePos
 	defer leave()
 	h.upd.checkMu.Lock()
 	defer h.upd.checkMu.Unlock()
+	h.upd.src = h.releaseBase()
 	detail, cerr := h.runCheck(ctx, c.Email)
 	if cerr != nil {
 		cerr = h.checkFailure(ctx, cerr)
@@ -576,7 +587,7 @@ func (h *OSHandlers) runCheck(ctx context.Context, by string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	raw, sig, err := h.fetchPair(ctx, h.releaseBase()+"/index/index.json")
+	raw, sig, err := h.fetchPair(ctx, h.upd.base+"/index/index.json")
 	if err != nil {
 		return "", err
 	}

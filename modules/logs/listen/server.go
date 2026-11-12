@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"container/list"
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"crypto/tls"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -26,6 +29,8 @@ type Limits struct {
 	MaxConnsIP       int           // TCP connections at once from one source (256)
 	Idle             time.Duration // a connection that sends nothing for this long is closed (5 min)
 	HandshakeTimeout time.Duration // a TLS connection must finish its handshake within this (10 s): a half-open or silent one cannot hold a slot
+	HandshakeRate    float64       // TLS connections a second one declared sender may start (20): a handshake costs the box CPU (about 0.5 ms with ECDSA, D-436); a connection above it is closed before any handshake and counted in ConnRejected
+	HandshakeBurst   int           // and the burst of them it may start at once (100): a fleet of devices reconnecting after a restart of the box
 	FrameTimeout     time.Duration // once a frame has started, the rest must arrive within this (30 s): slow-loris
 	Rate             float64       // lines a second one source may send (2,000)
 	Burst            int           // and the burst it may send at once (10,000); above Queue on purpose: the queue is the buffer behind the bucket, a UDP burst over it is dropped and counted, and TCP waits
@@ -59,6 +64,10 @@ func (l Limits) withDefaults() Limits {
 	if l.Rate <= 0 {
 		l.Rate = 2000
 	}
+	if l.HandshakeRate <= 0 {
+		l.HandshakeRate = 20
+	}
+	def(&l.HandshakeBurst, 100)
 	def(&l.Burst, 10000)
 	def(&l.BatchLines, 500)
 	def(&l.BatchBytes, 1<<20)
@@ -71,10 +80,14 @@ func (l Limits) withDefaults() Limits {
 }
 
 // Source is a declared sender: the line's source id and the protocol it was declared with ("udp", "tcp" or "tls"; "tls" is served only
-// when Config.TLS is set). The sender is identified by its IP address only, also over TLS (no client certificate, D-214).
+// when Config.TLS is set). The sender is identified by its IP address, also over TLS; a TLS source may also pin a client certificate (D-214, D-435).
 type Source struct {
 	ID    string
 	Proto string
+	// ClientCertSHA256 (a "tls" source only; 64 lowercase hex characters of the SHA-256 of the DER certificate, "" = none) is the pin of
+	// the sender's client certificate (RFC 5425 4.2.1, D-435): the connection must present exactly that certificate. It is a pin, not a
+	// chain check: whoever holds the private key of the pinned certificate is the sender, as with rsyslog's x509/fingerprint.
+	ClientCertSHA256 string
 }
 
 // Line is one received message, handed to the Sink.
@@ -131,15 +144,18 @@ type Server struct {
 
 	rateMu  sync.Mutex
 	buckets map[string]*bucket
+	hsRate  map[netip.Addr]*bucket // handshake buckets of the declared TLS senders (under rateMu; SetSources drops the others)
 
 	unkMu   sync.Mutex
 	unknown *lru
 
-	logMu     sync.Mutex
-	lastLog   time.Time
-	lastTLSLg time.Time
+	logMu      sync.Mutex
+	lastLog    time.Time
+	lastTLSLg  time.Time
+	lastCertLg time.Time
 
-	afterHandshake func(net.Conn) // tests only
+	afterHandshake func(net.Conn)          // tests only
+	wrapRaw        func(net.Conn) net.Conn // tests only: wraps the raw socket of a TLS connection before tls.Server sees it
 
 	st counters
 }
@@ -147,6 +163,7 @@ type Server struct {
 type counters struct {
 	received, unknown, rateDropped, queueDropped, truncated atomic.Int64
 	connRejected, badFrames, sinkLost, handshakeFailed      atomic.Int64
+	certRejected                                            atomic.Int64
 	rfc5424, rfc3164, cef, leef, raw                        atomic.Int64
 }
 
@@ -155,7 +172,7 @@ func New(cfg Config) (*Server, error) {
 	if cfg.Sink == nil || cfg.Log == nil || len(cfg.Ports) == 0 {
 		return nil, errors.New("listen: creating server: Sink, Log and Ports are required")
 	}
-	s := &Server{cfg: cfg, lim: cfg.Limits.withDefaults(), now: cfg.Now, sources: map[netip.Addr]Source{}, conns: map[net.Conn]connInfo{}, perIP: map[netip.Addr]int{}, buckets: map[string]*bucket{}}
+	s := &Server{cfg: cfg, lim: cfg.Limits.withDefaults(), now: cfg.Now, sources: map[netip.Addr]Source{}, conns: map[net.Conn]connInfo{}, perIP: map[netip.Addr]int{}, buckets: map[string]*bucket{}, hsRate: map[netip.Addr]*bucket{}}
 	if s.now == nil {
 		s.now = time.Now
 	}
@@ -187,6 +204,11 @@ func (s *Server) SetSources(m map[netip.Addr]Source) error {
 	for id := range s.buckets {
 		if !live[id] {
 			delete(s.buckets, id)
+		}
+	}
+	for ip := range s.hsRate {
+		if src, ok := cp[ip]; !ok || src.Proto != "tls" {
+			delete(s.hsRate, ip)
 		}
 	}
 	s.rateMu.Unlock()
@@ -238,7 +260,9 @@ func (s *Server) applyLocked() error {
 	}
 	s.closeLocked(!needUDP, !needTCP, !needTLS)
 	for conn, ci := range s.conns { // a sender that is gone or changed protocol
-		if src, ok := s.sources[ci.ip]; !ok || src.Proto != ci.proto {
+		if src, ok := s.sources[ci.ip]; !ok || src.Proto != ci.proto || src.ClientCertSHA256 != ci.pin { // gone, another protocol, or another pin
+			ci.cut = true
+			s.conns[conn] = ci
 			closeNow(conn)
 		}
 	}
@@ -268,7 +292,7 @@ func (s *Server) applyLocked() error {
 			errs = append(errs, fmt.Errorf("tls: %w", err))
 			s.noteBind(2, err)
 		} else {
-			s.tlsL = tls.NewListener(sock.(net.Listener), s.cfg.TLS) // the config is used as it is: GetCertificate runs for each handshake
+			s.tlsL = tls.NewListener(s.rawTLS(sock.(net.Listener)), s.tlsConfig()) // GetCertificate runs for each handshake
 			s.wg.Add(1)
 			go s.acceptLoop(s.tlsL, "tls")
 		}
@@ -283,6 +307,53 @@ func (s *Server) applyLocked() error {
 		s.noteBind(2, nil)
 	}
 	return errors.Join(errs...)
+}
+
+// rawTLS is the listener tls.NewListener wraps: the TCP listener itself, or (a test) one whose connections pass through wrapRaw.
+func (s *Server) rawTLS(l net.Listener) net.Listener {
+	if s.wrapRaw == nil {
+		return l
+	}
+	return wrapListener{l, s.wrapRaw}
+}
+
+type wrapListener struct {
+	net.Listener
+	wrap func(net.Conn) net.Conn
+}
+
+func (w wrapListener) Accept() (net.Conn, error) {
+	c, err := w.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	return w.wrap(c), nil
+}
+
+// tlsConfig is Config.TLS plus the request for a client certificate from a sender whose source pins one (D-435): the certificate is
+// asked for only then, so a device with no certificate configured is never offered a request it cannot answer. The pin itself is
+// checked in serveConn, with the connection's source at that moment. Resumption is off for such a connection: the pin is checked on
+// the certificate of this handshake, never on a remembered one.
+func (s *Server) tlsConfig() *tls.Config {
+	base := s.cfg.TLS
+	c := base.Clone()
+	inner := base.GetConfigForClient
+	c.GetConfigForClient = func(h *tls.ClientHelloInfo) (*tls.Config, error) {
+		if ap, ok := h.Conn.RemoteAddr().(*net.TCPAddr); ok {
+			if src, ok := s.lookup(ap.AddrPort().Addr().Unmap(), "tls"); ok && src.ClientCertSHA256 != "" {
+				pinned := base.Clone()
+				pinned.GetConfigForClient = nil
+				pinned.ClientAuth = tls.RequestClientCert
+				pinned.SessionTicketsDisabled = true
+				return pinned, nil
+			}
+		}
+		if inner != nil {
+			return inner(h)
+		}
+		return nil, nil
+	}
+	return c
 }
 
 // noteBind records why socket i (0 udp, 1 tcp, 2 tls) is not open, or clears it, and logs a failure when the reason is new (a retry
@@ -458,6 +529,7 @@ type Stats struct {
 	BadFrames       int64 // connections closed for a bad octet count, an oversized frame or a stream that ended inside one
 	SinkLost        int64 // lines in batches the Sink refused
 	HandshakeFailed int64 // TLS connections that did not complete the handshake (not TLS, a bad version, too slow)
+	CertRejected    int64 // TLS connections whose source pins a client certificate and that presented none or another (D-435)
 	// Formats counts accepted lines by what their header was: rfc5424, rfc3164, cef, leef, raw.
 	Formats       map[string]int64
 	UnknownSender []UnknownSender // most recent first, at most Limits.UnknownKept
@@ -467,7 +539,7 @@ type Stats struct {
 func (s *Server) Stats() Stats {
 	return Stats{
 		Received: s.st.received.Load(), Unknown: s.st.unknown.Load(), RateDropped: s.st.rateDropped.Load(), QueueDropped: s.st.queueDropped.Load(),
-		Truncated: s.st.truncated.Load(), ConnRejected: s.st.connRejected.Load(), BadFrames: s.st.badFrames.Load(), SinkLost: s.st.sinkLost.Load(), HandshakeFailed: s.st.handshakeFailed.Load(),
+		Truncated: s.st.truncated.Load(), ConnRejected: s.st.connRejected.Load(), BadFrames: s.st.badFrames.Load(), SinkLost: s.st.sinkLost.Load(), HandshakeFailed: s.st.handshakeFailed.Load(), CertRejected: s.st.certRejected.Load(),
 		Formats:       map[string]int64{FormatRFC5424: s.st.rfc5424.Load(), FormatRFC3164: s.st.rfc3164.Load(), "cef": s.st.cef.Load(), "leef": s.st.leef.Load(), FormatRaw: s.st.raw.Load()},
 		UnknownSender: s.unknownList(),
 	}
@@ -581,6 +653,11 @@ func (s *Server) acceptLoop(l net.Listener, proto string) {
 			_ = conn.Close()
 			continue
 		}
+		if proto == "tls" && !s.allowHandshake(ip) { // before the connection takes a slot or a handshake is paid for
+			s.st.connRejected.Add(1)
+			_ = conn.Close()
+			continue
+		}
 		switch s.register(l, conn, ip, proto) {
 		case regOverLimit:
 			s.st.connRejected.Add(1)
@@ -621,7 +698,7 @@ func (s *Server) register(l net.Listener, conn net.Conn, ip netip.Addr, proto st
 	if len(s.conns) >= s.lim.MaxConns || s.perIP[ip] >= s.lim.MaxConnsIP {
 		return regOverLimit
 	}
-	s.conns[conn] = connInfo{ip: ip, proto: proto}
+	s.conns[conn] = connInfo{ip: ip, proto: proto, pin: s.sources[ip].ClientCertSHA256}
 	s.perIP[ip]++
 	return regOK
 }
@@ -630,6 +707,16 @@ func (s *Server) register(l net.Listener, conn net.Conn, ip netip.Addr, proto st
 type connInfo struct {
 	ip    netip.Addr
 	proto string
+	pin   string // the client certificate pin its source had when it was accepted
+	cut   bool   // SetSources closed it: the sender is gone or declared with another protocol (not a failed handshake)
+}
+
+// wasCut says whether SetSources closed the connection (its sender was removed or changed protocol): that is the owner's edit, not a
+// device that failed a handshake.
+func (s *Server) wasCut(conn net.Conn) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.conns[conn].cut
 }
 
 func (s *Server) unregister(conn net.Conn, ip netip.Addr) {
@@ -659,10 +746,19 @@ func (s *Server) serveConn(conn net.Conn, ip netip.Addr, proto string) {
 		err := tc.HandshakeContext(s.ctx)                          // bounded by the deadline above; a shutdown cancels it
 		_ = tc.SetDeadline(time.Time{})
 		if err != nil {
-			if s.ctx.Err() == nil {
+			if s.ctx.Err() == nil && !s.wasCut(conn) {
 				s.handshakeFailed(ip, err)
 			}
 			return
+		}
+	}
+	peer := "" // the SHA-256 of the client certificate the sender presented, when one was asked for
+	if tc, ok := conn.(*tls.Conn); ok {
+		if src, ok := s.lookup(ip, proto); ok && src.ClientCertSHA256 != "" {
+			if peer = peerPin(tc); !pinMatches(peer, src.ClientCertSHA256) {
+				s.certRejected(ip, peer == "")
+				return
+			}
 		}
 	}
 	if s.afterHandshake != nil { // a test seam: the handshake is done, nothing has been read
@@ -691,8 +787,8 @@ func (s *Server) serveConn(conn net.Conn, ip netip.Addr, proto string) {
 			}
 			return
 		}
-		src, ok := s.lookup(ip, proto) // still declared, and under the same id
-		if !ok {
+		src, ok := s.lookup(ip, proto)                                                      // still declared, and under the same id
+		if !ok || (src.ClientCertSHA256 != "" && !pinMatches(peer, src.ClientCertSHA256)) { // a pin added or changed since the handshake ends the connection
 			return
 		}
 		if !s.accept(s.ctx, src, frame, trunc, true) {
@@ -709,16 +805,34 @@ type bucket struct {
 
 // allow spends one token of the source's bucket: Rate a second, Burst at most.
 func (s *Server) allow(id string) bool {
-	now := s.now()
 	s.rateMu.Lock()
 	defer s.rateMu.Unlock()
 	b := s.buckets[id]
 	if b == nil {
-		b = &bucket{tokens: float64(s.lim.Burst), last: now}
+		b = &bucket{tokens: float64(s.lim.Burst), last: s.now()}
 		s.buckets[id] = b
 	}
+	return b.take(s.now(), s.lim.Rate, s.lim.Burst)
+}
+
+// allowHandshake spends one token of the sender's handshake bucket. The map holds declared TLS senders only (SetSources prunes it,
+// acceptLoop asks after the sender check), so it is as large as the sources are.
+func (s *Server) allowHandshake(ip netip.Addr) bool {
+	now := s.now()
+	s.rateMu.Lock()
+	defer s.rateMu.Unlock()
+	b := s.hsRate[ip]
+	if b == nil {
+		b = &bucket{tokens: float64(s.lim.HandshakeBurst), last: now}
+		s.hsRate[ip] = b
+	}
+	return b.take(now, s.lim.HandshakeRate, s.lim.HandshakeBurst)
+}
+
+// take refills the bucket (rate a second, burst at most) and spends one token.
+func (b *bucket) take(now time.Time, rate float64, burst int) bool {
 	if d := now.Sub(b.last); d > 0 {
-		b.tokens = min(float64(s.lim.Burst), b.tokens+d.Seconds()*s.lim.Rate)
+		b.tokens = min(float64(burst), b.tokens+d.Seconds()*rate)
 		b.last = now
 	}
 	if b.tokens < 1 {
@@ -816,6 +930,32 @@ func (s *Server) batcher(ctx context.Context, quit <-chan struct{}) {
 				}
 			}
 		}
+	}
+}
+
+// peerPin is the SHA-256 (lowercase hex) of the first certificate the peer presented, "" when it presented none.
+func peerPin(tc *tls.Conn) string {
+	certs := tc.ConnectionState().PeerCertificates
+	if len(certs) == 0 {
+		return ""
+	}
+	sum := sha256.Sum256(certs[0].Raw)
+	return hex.EncodeToString(sum[:])
+}
+
+// pinMatches compares a presented fingerprint with the pinned one in constant time; "" never matches.
+func pinMatches(got, want string) bool {
+	return got != "" && len(got) == len(want) && subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
+}
+
+// certRejected counts a TLS sender that did not present the pinned client certificate and logs one now and then, like handshakeFailed.
+func (s *Server) certRejected(ip netip.Addr, none bool) {
+	s.st.certRejected.Add(1)
+	s.logMu.Lock()
+	defer s.logMu.Unlock()
+	if now := s.now(); now.Sub(s.lastCertLg) >= s.lim.ErrorLogEvery {
+		s.lastCertLg = now
+		s.cfg.Log.WarnContext(s.ctx, "logs: a syslog TLS sender was refused: its source requires a client certificate and it presented none or another; more are only counted", "sender", ip.String(), "presented_none", none)
 	}
 }
 

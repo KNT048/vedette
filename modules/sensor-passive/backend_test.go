@@ -1160,6 +1160,55 @@ func TestUnknownDropCountersAreIgnoredAndLoggedOnce(t *testing.T) {
 	wantCode(t, err, sensorlink.CodeInvalidRequest)
 }
 
+// D-399 (3), walk 4: a sensor that beats but cannot capture (no CAP_NET_RAW in a rootless container) must not look healthy. Its
+// heartbeat's reason reaches GET /inventory/sensors while it is online; a reason this core does not know is shown as capture_failed
+// (logged once); an offline sensor's old reason says nothing about now.
+func TestCaptureErrorShowsWhileOnline(t *testing.T) {
+	t.Parallel()
+	backendOnly(t)
+	var buf syncBuffer
+	e := newEnv(t, nil, false, withLog(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	var mu sync.Mutex
+	now := pktgen.T0.Add(time.Minute)
+	e.setClock(func() time.Time { mu.Lock(); defer mu.Unlock(); return now })
+	link := linktest.New(t, linktest.Passive(e.svc))
+	pas := link.Client(t, sensorlink.Passive)
+	capture := func(reason string) *string {
+		t.Helper()
+		hb := &sensorlink.PassiveHeartbeat{Version: "1.2.3", Interfaces: []sensorlink.HeartbeatIface{}, Drops: map[string]int64{}, CaptureError: reason}
+		if _, err := pas.PassiveHeartbeat(t.Context(), hb); err != nil {
+			t.Fatal(err)
+		}
+		list, err := e.svc.Status(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return list[0].CaptureError
+	}
+	if got := capture(sensorlink.CaptureNoPermission); got == nil || *got != "no_permission" {
+		t.Errorf("no_permission: %v", got)
+	}
+	if got := capture(""); got != nil {
+		t.Errorf("capturing again: %q", *got)
+	}
+	for range 2 {
+		if got := capture("from_the_future"); got == nil || *got != sensorlink.CaptureFailed {
+			t.Errorf("a reason this core does not know: %v", got)
+		}
+	}
+	if n := strings.Count(buf.String(), "from_the_future"); n != 1 {
+		t.Errorf("the unknown reason was logged %d times, want once", n)
+	}
+	capture(sensorlink.CaptureNoInterface)
+	mu.Lock()
+	now = now.Add(91 * time.Second) // the sensor goes quiet: offline
+	mu.Unlock()
+	list, _ := e.svc.Status(t.Context())
+	if list[0].Status != "offline" || list[0].CaptureError != nil {
+		t.Errorf("offline: %+v", list[0])
+	}
+}
+
 // D-380 (#471): with no card chosen the sensor listens on the management card the host reports, with no setup (S-INV-1);
 // a chosen card wins and the default comes back when the choice is cleared. A name that is not an interface name is never
 // passed on. Without a host the default is the one wired card with an address in the sensor's heartbeat.

@@ -47,16 +47,19 @@ COPY deploy/osquery/PINS /pins/osquery.pins
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
 RUN set -eu; \
     . /pins/osquery.pins; \
-    [ -n "${OSQUERY_VERSION}" ] && [ -n "${OSQUERY_DEB_AMD64_SHA256}" ] && [ -n "${OSQUERY_RPM_X86_64_SHA256}" ] && [ -n "${OSQUERY_MSI_SHA256}" ] || { echo "deploy/osquery/PINS is incomplete" >&2; exit 1; }; \
+    [ -n "${OSQUERY_VERSION}" ] && [ -n "${OSQUERY_DEB_AMD64_SHA256}" ] && [ -n "${OSQUERY_RPM_X86_64_SHA256}" ] && [ -n "${OSQUERY_DEB_ARM64_SHA256}" ] && [ -n "${OSQUERY_RPM_AARCH64_SHA256}" ] && [ -n "${OSQUERY_MSI_SHA256}" ] || { echo "deploy/osquery/PINS is incomplete" >&2; exit 1; }; \
     deb="osquery_${OSQUERY_VERSION}-1.linux_amd64.deb"; rpm="osquery-${OSQUERY_VERSION}-1.linux.x86_64.rpm"; msi="osquery-${OSQUERY_VERSION}.msi"; \
+    deba="osquery_${OSQUERY_VERSION}-1.linux_arm64.deb"; rpma="osquery-${OSQUERY_VERSION}-1.linux.aarch64.rpm"; \
     mkdir -p -m 0755 /out; \
-    for f in "${deb}" "${rpm}" "${msi}"; do \
+    for f in "${deb}" "${rpm}" "${deba}" "${rpma}" "${msi}"; do \
       curl -fsSL --proto '=https' --proto-redir '=https' --max-time 600 -o "/out/${f}" "https://github.com/osquery/osquery/releases/download/${OSQUERY_VERSION}/${f}"; \
     done; \
     echo "${OSQUERY_DEB_AMD64_SHA256}  /out/${deb}" | sha256sum -c -; \
     echo "${OSQUERY_RPM_X86_64_SHA256}  /out/${rpm}" | sha256sum -c -; \
+    echo "${OSQUERY_DEB_ARM64_SHA256}  /out/${deba}" | sha256sum -c -; \
+    echo "${OSQUERY_RPM_AARCH64_SHA256}  /out/${rpma}" | sha256sum -c -; \
     echo "${OSQUERY_MSI_SHA256}  /out/${msi}" | sha256sum -c -; \
-    printf '%s  %s\n' "${OSQUERY_DEB_AMD64_SHA256}" "${deb}" "${OSQUERY_RPM_X86_64_SHA256}" "${rpm}" "${OSQUERY_MSI_SHA256}" "${msi}" > /out/SHA256SUMS; \
+    printf '%s  %s\n' "${OSQUERY_DEB_AMD64_SHA256}" "${deb}" "${OSQUERY_RPM_X86_64_SHA256}" "${rpm}" "${OSQUERY_DEB_ARM64_SHA256}" "${deba}" "${OSQUERY_RPM_AARCH64_SHA256}" "${rpma}" "${OSQUERY_MSI_SHA256}" "${msi}" > /out/SHA256SUMS; \
     chmod 0644 /out/*
 # The licence texts of osquery (Apache-2.0 section 4(a): a copy of the licence goes with every redistribution; the files are offered under Apache-2.0,
 # the GPL-2.0 text goes with them because the project is dual-licensed). They are the files of the osquery 5.12.1 source tree (LICENSE,

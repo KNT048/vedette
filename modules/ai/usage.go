@@ -146,7 +146,7 @@ type RunView struct {
 // the profile's own cap stopped (outcome capped) is capped; one that spent nothing for any other reason (the provider was unreachable, or
 // no profile could take it and nothing was sent, outcome not_sent) is failed. The status comes from the outcome column, never the summary.
 func (s *Service) Runs(ctx context.Context) ([]RunView, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT id, ts, job, model, tokens_in, tokens_out, result, profile, COALESCE(outcome, '') FROM ai_activity WHERE result <> 'blocked_by_hook' ORDER BY seq DESC LIMIT 200`)
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT id, ts, job, model, tokens_in, tokens_out, result, profile, COALESCE(outcome, ''), summary FROM ai_activity WHERE result <> 'blocked_by_hook' ORDER BY seq DESC LIMIT 200`)
 	if err != nil {
 		return nil, fmt.Errorf("ai: runs: %w", err)
 	}
@@ -154,8 +154,8 @@ func (s *Service) Runs(ctx context.Context) ([]RunView, error) {
 	out := []RunView{}
 	for rows.Next() {
 		var r RunView
-		var result, outcome string
-		if err := rows.Scan(&r.ID, &r.TS, &r.Skill, &r.Model, &r.TokensIn, &r.TokensOut, &result, &r.Profile, &outcome); err != nil {
+		var result, outcome, summary string
+		if err := rows.Scan(&r.ID, &r.TS, &r.Skill, &r.Model, &r.TokensIn, &r.TokensOut, &result, &r.Profile, &outcome, &summary); err != nil {
 			return nil, fmt.Errorf("ai: runs: %w", err)
 		}
 		switch {
@@ -163,7 +163,8 @@ func (s *Service) Runs(ctx context.Context) ([]RunView, error) {
 			r.Status = "ok"
 		case r.TokensIn+r.TokensOut > 0:
 			r.Status = "schema_error"
-		case outcome == OutcomeCapped:
+		// rows written before the outcome column (migration 0007) have no outcome; their summary says the cap stopped them
+		case outcome == OutcomeCapped || (outcome == "" && summary == capSummary):
 			r.Status = "capped"
 		default:
 			r.Status = "failed"

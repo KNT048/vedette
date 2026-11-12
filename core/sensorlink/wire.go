@@ -84,7 +84,22 @@ type PassiveHeartbeat struct {
 	Span        HeartbeatSpan    `json:"span"`
 	Drops       map[string]int64 `json:"drops"`
 	DevicesSeen int64            `json:"devices_seen"`
+	// CaptureError says why the capture on the chosen card is not running now (proto 4, D-399 (3)): one of CaptureErrors, "" (or
+	// absent) while it runs or while no card is chosen. Never the error text: that stays in the sensor's log.
+	CaptureError string `json:"capture_error,omitempty"`
 }
+
+// The reasons a passive heartbeat may give in capture_error (sensor-protocol.md 6.3). A reason of a good shape outside this set is
+// shown by core as CaptureFailed, so a newer sensor does not make core refuse its heartbeat (like DropKeys).
+const (
+	CaptureNoPermission   = "no_permission"   // the capture socket cannot be opened: no CAP_NET_RAW (rootless Docker or Podman)
+	CaptureNoInterface    = "no_interface"    // the card core named is not on this machine
+	CaptureFiltersInvalid = "filters_invalid" // the filters from core cannot be read: nothing is captured until they change
+	CaptureFailed         = "capture_failed"  // anything else: the capture opened and failed, or could not open for another reason
+)
+
+// CaptureErrors is the closed set of capture_error reasons.
+var CaptureErrors = []string{CaptureNoPermission, CaptureNoInterface, CaptureFiltersInvalid, CaptureFailed}
 
 // HeartbeatIface is one network card the sensor sees.
 type HeartbeatIface struct {
@@ -388,6 +403,9 @@ func decodePassiveHeartbeat(raw []byte) (*PassiveHeartbeat, error) {
 	}
 	if h.Span.PPS < 0 || h.Span.OtherMACs < 0 || h.DevicesSeen < 0 {
 		return nil, invalid("counter")
+	}
+	if h.CaptureError != "" && !dropKeyRE.MatchString(h.CaptureError) { // the shape of a drop key: a lower-case word, at most 48 bytes
+		return nil, invalid("capture_error")
 	}
 	if len(h.Drops) > MaxDropKeys {
 		return nil, invalid("drops")

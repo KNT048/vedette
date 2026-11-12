@@ -31,7 +31,7 @@ Mô hình tin cậy: sensor là **máy bị tấn công được** (nằm trên 
 
 - HTTPS, JSON (`Content-Type: application/json`), không nén (`Content-Encoding` bất kỳ → `400 invalid_request`). TLS **1.3** tối thiểu; HTTP/2 khi ALPN đề nghị, không bắt buộc.
 - Listener riêng của `core`, bật bằng `-sensor-listen :8444` (trong container) cùng `-sensor-creds <thư mục>` (D-141; rỗng = không nghe), tách khỏi listener UI 8443; `core` mở PKI, ghi hai bó khoá, **rồi mới** nghe, và việc `sensor-cert-renew` hằng ngày gọi `Authority.Renew`; trên appliance chỉ publish `127.0.0.1:8444` (`DEPLOYMENT.md` §6.1). `ClientAuth = RequireAndVerifyClientCert`, pool chỉ chứa CA sensor.
-- Tiền tố `/sensor/v1/`. Mọi request mang `X-Vedette-Proto: 3` (bản 3: `host_errors` của kết quả nuclei, D-165; bản 2: loại job `nuclei`, D-125/D-133).
+- Tiền tố `/sensor/v1/`. Mọi request mang `X-Vedette-Proto: 4` (bản 4: `capture_error` trong heartbeat thụ động, D-399; bản 3: `host_errors` của kết quả nuclei, D-165; bản 2: loại job `nuclei`, D-125/D-133).
 - `ReadHeaderTimeout` 5 s, `WriteTimeout` 35 s (long-poll giữ tối đa 30 s).
 - Thân: `http.MaxBytesReader` theo trần của route (§9) **trước** khi giải mã; giải mã bằng `internal/jsonstrict` (trường lạ, khoá trùng, khoá trùng sau gập chữ, độ sâu > 32 → `400 invalid_request`). Query lạ → `400 invalid_request`.
 - SP-1 (làm rõ): thân POST phải có `Content-Type: application/json` (thiếu hoặc khác → `400 invalid_request`); thân đọc tối đa **10 s** (đồng hồ ổ cắm, không phải seam; `ReadTimeout` toàn yêu cầu 15 s, D-176; 10 s cho 11 MiB tức ~9 Mbit/s, chỉ đúng cho sensor cục bộ, tính lại khi dựng sensor từ xa) và kết nối bị đóng khi thân dừng giữa chừng hoặc vượt trần (net/http không có hạn đọc thân nào mà không làm hỏng long-poll); `IdleTimeout` 2 phút; `MaxHeaderBytes` 16 KiB. `If-None-Match` phải có dạng `"<1…64 ký tự [A-Za-z0-9._:-]>"`, không thì `400`. `wait` là một số nguyên 0…30 (một giá trị, không lặp); `running` là 32 hex hoặc rỗng.
@@ -150,7 +150,7 @@ Mỗi 30 s. Thân theo vai (giải mã chặt: trường của vai kia là trư�
                   { "name": "enp2s0", "mac": "aa:bb:cc:00:00:02", "link": true, "ipv4": [] } ],
   "span": { "pps": 1200, "other_macs": 37, "last_packet_at": "2026-11-10T08:00:29Z" },
   "drops": { "malformed_dhcp": 2, "new_macs_dropped": 0 },
-  "devices_seen": 214 }
+  "devices_seen": 214, "capture_error": "no_permission" }
 ```
 
 ```json
@@ -164,13 +164,14 @@ Mỗi 30 s. Thân theo vai (giải mã chặt: trường của vai kia là trư�
 | `span` (passive) | `pps` ≥ 0; `other_macs` = số MAC khác hộp thấy trong 5 phút (chỉ khung unicast giữa hai máy không phải hộp, sensor-passive INV-9); `last_packet_at` hoặc `null` |
 | `drops` (passive) | ≤ 64 khoá thuộc **tập đóng** của bộ đếm bỏ trong `capture` (`malformed_*`, `excluded`, `value_empty`, `fragment_skipped`, `new_macs_unconfirmed`, `new_macs_dropped`, `values_dropped`, `observation_failed`…; 34 khoá, danh sách ở khối "SP-4" của §6 và `sensorlink.DropKeys`); giá trị ≥ 0 |
 | `devices_seen` (passive) | ≥ 0 |
+| `capture_error` (passive, bản 4, D-399) | vì sao bắt gói trên card được chọn không chạy lúc này: tập đóng `sensorlink.CaptureErrors` = `no_permission` (mở socket bị EPERM/EACCES: không có `CAP_NET_RAW`, như container rootless), `no_interface` (card không có trên máy), `filters_invalid` (bộ lọc không đọc được), `capture_failed` (mọi lỗi khác); vắng hoặc `""` khi đang bắt gói hay không có card nào được chọn. Sensor đặt nó khi mở card hay một phiên hỏng, xoá khi card mở được hay khi thôi bắt gói. Không bao giờ là chữ của lỗi (chữ đó ở log của sensor). Dạng: chữ thường `[a-z][a-z0-9_]{0,47}`, khác dạng → `400`; đúng dạng mà `core` không biết → `core` hiện `capture_failed` và log một lần (giữ tối đa 64 tên lạ) |
 | `nmap` (active) | `present` = `/usr/bin/nmap` có và chạy được `--version`; `version` ≤ 32 byte |
 | `nuclei` (active, bản 2) | `present` = `/usr/local/bin/nuclei` có và chạy được `-version -duc` (nuclei in phiên bản ra stderr); `version` ≤ 32 byte; `pack` = `version` (`AAAA.M.N`) và `sha256` (64 hex) của chỉ mục gói mẫu nằm sẵn trong image, **cả hai rỗng** khi chưa có chỉ mục dùng được (không đọc được hoặc không qua `pack.Parse`); một rỗng một không → `400` |
 
 Trả `200 { "instance": "<32 hex>" }`: nonce sinh mỗi lần tiến trình `core` khởi động (lease của §6.4).
 
 `core` dùng heartbeat cho (D-112 (5)):
-- `Sensor.status`: `online` khi có heartbeat trong **90 s**; `last_seen`, `version`, `devices_seen`, `interfaces` (tên card) của `GET /inventory/sensors` lấy từ heartbeat thụ động mới nhất;
+- `Sensor.status`: `online` khi có heartbeat trong **90 s**; `last_seen`, `version`, `devices_seen`, `interfaces` (tên card) của `GET /inventory/sensors` lấy từ heartbeat thụ động mới nhất; `capture_error` cũng vậy nhưng **chỉ khi `online`** (heartbeat cũ không nói gì về lúc này; giữ trong bộ nhớ, không vào DB; GUI: "Reporting, not capturing" kèm lý do, D-399);
 - `SpanStats()` / `span_status`: `off` (cấu hình `span=false`), `no_link` (card SPAN `link=false`), `no_traffic` (`last_packet_at` cũ hơn 30 s, `null`, hoặc sensor `offline`), `own_only` (`other_macs = 0`), `ok`;
 - `SetInterface`: `interface` phải là một card của host (D-118); chỉ khi core chạy không có host thì là một card trong heartbeat thụ động mới nhất (D-263); `400 bad_interface` (sensor-passive INV-9); không có host và chưa có heartbeat → `bad_interface`;
 - địa chỉ của hộp (`ProtectedIPs` của sensor-active, kiểm IP bẫy của honeypot, `conn`) **tới khi** lát host 3-3 có `GET /v1/state/net` (D-114 (5));
@@ -365,7 +366,7 @@ Các số là điểm xuất phát để đo lại khi có mã (ARCHITECTURE §1
 
 ## 10. Versioning
 
-- Đường dẫn `/sensor/v1`; `X-Vedette-Proto` là số nguyên, hiện `3` (bản 3: `host_errors` trên kết quả nuclei, D-165; bản 2: `Job.kind`, job và kết quả nuclei, heartbeat `nuclei`, `running` nhiều id). `core` chỉ nhận **đúng** proto của mình, nên worker bản 1 gặp `426` và không bao giờ nhận job nuclei (nó cũng không giải mã nổi `kind`); worker bản 2 gặp job không có `kind` thì chạy như nmap. Vì giải mã chặt, mọi đổi dây (kể cả thêm trường hay thêm `shape`) tăng proto.
+- Đường dẫn `/sensor/v1`; `X-Vedette-Proto` là số nguyên, hiện `4` (bản 4: `capture_error` trong heartbeat thụ động, D-399; bản 3: `host_errors` trên kết quả nuclei, D-165; bản 2: `Job.kind`, job và kết quả nuclei, heartbeat `nuclei`, `running` nhiều id). `core` chỉ nhận **đúng** proto của mình, nên worker bản 1 gặp `426` và không bao giờ nhận job nuclei (nó cũng không giải mã nổi `kind`); worker bản 2 gặp job không có `kind` thì chạy như nmap. Vì giải mã chặt, mọi đổi dây (kể cả thêm trường hay thêm `shape`) tăng proto.
 - Cập nhật appliance khởi động lại `sensor`/`scan` **trước** `core` (`host-api.md` §6.8): trong cửa sổ đó sensor mới nhận `426`, giữ hàng đợi và đợi; `core` mới lên thì nối lại. Hoàn tác riêng `core` (giữ `sensor`/`scan` mới) để sensor ở `426` và `offline` tới khi chúng cũng được `container.rollback`; đường hoàn tác của `core` phải hoàn tác cả `sensor`/`scan` khi proto khác nhau (chưa có, `.ai/deferred/feat-sensor-protocol.md`).
 - Sensor gặp `shape` hay trường không biết: `refused` (`invalid_job`) / `400` khi giải mã, không crash.
 

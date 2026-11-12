@@ -11,7 +11,7 @@ import (
 // Limits of the protocol (sensor-protocol.md section 9). They are starting points to measure again, not measurements.
 const (
 	ProtoHeader  = "X-Vedette-Proto"
-	ProtoVersion = "3" // 3: host_errors on a nuclei result (D-165); 2: nuclei jobs (D-133)
+	ProtoVersion = "4" // 4: capture_error in the passive heartbeat (D-399); 3: host_errors on a nuclei result (D-165); 2: nuclei jobs (D-133)
 	PathPrefix   = "/sensor/v1"
 
 	MaxObservationsBody = 1 << 20

@@ -451,10 +451,10 @@ func (o *Ops) waitHealthy(ctx context.Context, rc *server.RunContext, service, d
 		seen := "no container yet"
 		if err == nil {
 			seen = fmt.Sprintf("health %s, running %t, image matches %t", info.Health, info.Running, info.Digest == digest)
+			if service == api.ServiceCore && info.Digest == digest && info.Running {
+				o.coreLooked(ctx, info) // the host just (re)started core: stale syslog flows go as soon as the new run is seen, not after the 30 to 60 s health wait or the next watch tick (D-268); one run clears once
+			}
 			if info.Digest == digest && info.Running && info.Health == api.HealthHealthy {
-				if service == api.ServiceCore {
-					o.coreLooked(ctx, info) // the host just (re)started core: stale syslog flows go now, not at the next poll (D-268)
-				}
 				return true
 			}
 		}

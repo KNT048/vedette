@@ -151,3 +151,55 @@ func TestInventoryCiteNamesTheBoxApart(t *testing.T) {
 		t.Errorf("explain citation = %q", cites[0].Title)
 	}
 }
+
+// A Remember line cut at the token limit is taken out and suggests nothing; a whole sentence is kept (deferred: half-sentence suggestions).
+func TestTakeRememberKeepsWholeSentencesOnly(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name, in, rest string
+		fact           []string
+	}{
+		{"whole", "RDP is open.\nRemember: SRV-AD is the only domain controller.", "RDP is open.", []string{"SRV-AD is the only domain controller."}},
+		{"bold and bracket", "RDP is open.\n**Remember:** the NAS backs up at night (02:00).**", "RDP is open.", []string{"the NAS backs up at night (02:00)."}},
+		{"cut", "RDP is open.\nRemember: the NAS makes a backup every", "RDP is open.", nil},
+		{"only a cut line", "Remember: the NAS makes a", "the NAS makes a", nil},
+		{"no line", "RDP is open.", "RDP is open.", nil},
+	} {
+		rest, fact := takeRemember(c.in)
+		if rest != c.rest || len(fact) != len(c.fact) || (len(fact) == 1 && fact[0] != c.fact[0]) {
+			t.Errorf("%s: got %q %q, want %q %q", c.name, rest, fact, c.rest, c.fact)
+		}
+	}
+}
+
+// linkDevices and hasWord: a name or an address counts as a whole word, and an item with two devices has no link (D-428).
+func TestLinkDevicesNamesWholeWordsAndOneDevice(t *testing.T) {
+	t.Parallel()
+	s := func(v string) *string { return &v }
+	conns := []LogDigestBadConn{
+		{AssetName: s("PC-03"), SrcIP: "10.0.0.3", AssetID: s("a3")},
+		{AssetName: s("PC-03"), SrcIP: "10.0.0.3", AssetID: s("a3")}, // the same device twice
+		{AssetName: s("SRV"), SrcIP: "10.0.0.30", AssetID: s("a30")},
+		{AssetName: nil, SrcIP: "10.0.0.9", AssetID: nil}, // not in the inventory: no id to give
+	}
+	for _, c := range []struct{ title, ev, want string }{
+		{"pc-03 talks to a listed address", "", "a3"},
+		{"Device (PC-03).", "", "a3"},
+		{"x", "from 10.0.0.3 to 1.2.3.4", "a3"},
+		{"x", "from 10.0.0.30:443", "a30"},
+		{"PC-03 and SRV", "", ""},
+		{"PC-03X is not it", "", ""},
+		{"SRV-2 is not it", "", ""},
+		{"x", "10.0.0.9", ""},
+		{"x", "from 10.0.0.3.", "a3"},
+		{"on pc-03.", "", "a3"},
+		{"pc-03.example.com", "", ""},
+		{"nothing named", "", ""},
+	} {
+		items := []LogDigestItem{{Title: c.title, Evidence: []string{c.ev}}}
+		linkDevices(items, conns)
+		if items[0].AssetID != c.want {
+			t.Errorf("%q %q: asset_id %q, want %q", c.title, c.ev, items[0].AssetID, c.want)
+		}
+	}
+}

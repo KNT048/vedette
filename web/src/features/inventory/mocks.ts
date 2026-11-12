@@ -9,7 +9,7 @@ import { collection, dataMode, daysAgo, newId, nowIso } from '@/mocks/db'
 import { networkStore, spanStatusOf } from '@/mocks/network'
 import type { Asset, AssetKind, ObsSource, Software } from '@/lib/types'
 import { OSQUERY_SCHEDULE } from './agentConfig'
-import { linuxInstallScript, OSQUERY_VERSION, windowsInstallScript } from './installScripts'
+import { linuxInstallScript, NO_BOX_ADDRESS, OSQUERY_VERSION, windowsInstallScript } from './installScripts'
 import { sha256Hex } from './kinds'
 import { customEntry, findById, findCatalog, searchCatalog, type CatalogEntry } from './catalog'
 import type {
@@ -20,7 +20,8 @@ import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, normalizeRange, overlapping } from './validate'
 
 // Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
-const serverUrl = () => `https://${boxInfo().ip ?? '<VEDETTE_BOX_IP>'}:8443`
+const serverUrl = () => `https://${boxInfo().ip ?? NO_BOX_ADDRESS}:8443`
+const noBoxAddress = () => fail(404, 'no_box_address', "This box knows no address that other machines can reach, so an install script would point nowhere. Open Vedette at its network address; on a container-only install first set VEDETTE_BIND_IP to this machine's LAN address and VEDETTE_HOSTS to that address or a name for it. Then copy the command again.")
 const FIELD_ORDER: ObsField[] = ['kind', 'hostname', 'mac', 'vendor', 'model', 'os']
 
 const kevVulns = (kev as { vulns: { cve: string; vendor: string; product: string }[] }).vulns
@@ -45,7 +46,7 @@ const settingsStore = collection<InventorySettings>('inv_settings', () => ({
   scope_confirmed_at: null, scope_confirmed_by: null,
 }))
 // Chỉ cảm biến của chính hộp này (đa site chưa hỗ trợ — chủ dự án, D-28).
-type StoredSensor = Omit<Sensor, 'interface' | 'interfaces' | 'span' | 'chosen' | 'span_status'>
+type StoredSensor = Omit<Sensor, 'interface' | 'interfaces' | 'span' | 'chosen' | 'span_status' | 'capture_error'>
 const sensorsStore = collection<StoredSensor[]>('sp_sensor', () => [
   { id: 'sn-local', name: 'vedette-hq', status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 30 },
 ], () => [
@@ -55,7 +56,8 @@ const sensorsStore = collection<StoredSensor[]>('sp_sensor', () => [
 /** Container-only install (D-263, D-387, D-393): the cards the sensor container reported in its heartbeat and the card the admin
  *  chose (null: the default card, D-380), SPAN or not. A clean install has not started the sensor yet (compose.sensors.yaml): no heartbeat, no card. */
 type ReportedCard = { name: string; ipv4: string | null; link: boolean }
-export const containerSensorStore = collection<{ connected: boolean; cards: ReportedCard[]; chosen: string | null; span: boolean }>('sp_container', () => ({
+/** capture_error: what the sensor's heartbeat says about its capture (D-399 (3)); unset = it captures. A rootless container reports no_permission. */
+export const containerSensorStore = collection<{ connected: boolean; cards: ReportedCard[]; chosen: string | null; span: boolean; capture_error?: Sensor['capture_error'] }>('sp_container', () => ({
   connected: true, chosen: null, span: false,
   cards: [{ name: 'eno1', ipv4: '192.168.10.20/24', link: true }, { name: 'eno2', ipv4: null, link: true }, { name: 'wlp2s0', ipv4: null, link: false }, { name: 'docker0', ipv4: '172.17.0.1/16', link: true }, { name: 'lo', ipv4: '127.0.0.1/8', link: true }],
 }), () => ({ connected: false, cards: [], chosen: null, span: false }))
@@ -75,6 +77,7 @@ function containerSensors() {
     ...s, status: c.connected ? s.status : 'never_connected' as const, last_seen: c.connected ? s.last_seen : null, version: c.connected ? s.version : null, devices_seen: c.connected ? s.devices_seen : 0,
     interface: c.chosen ?? dflt, interfaces: cards.map((x) => x.name).sort(), span: c.span, chosen: c.chosen !== null,
     span_status: c.span ? { verdict: 'ok' as const, packets_per_s: 140, other_macs: 12 } : { verdict: 'off' as const, packets_per_s: 0, other_macs: 0 },
+    capture_error: c.connected ? (c.capture_error ?? null) : null, // only an online sensor's heartbeat says anything about now
   }))
 }
 const agentsStore = collection<AgentToken[]>('intake_agent_tokens', () => [
@@ -655,7 +658,7 @@ export const handlers = [
     const st = spanStatusOf(net)
     const spanOn = net.span.enabled && !!net.span.interface
     const mgmt = net.ifaces.find((i) => i.role === 'management')?.name ?? null
-    return HttpResponse.json({ sensors: sensorsStore.get().map((s) => ({ ...s, interface: spanOn ? net.span.interface : mgmt, interfaces: net.ifaces.map((i) => i.name), span: spanOn, chosen: spanOn, span_status: { verdict: st.verdict, packets_per_s: st.packets_per_s, other_macs: st.other_macs } })) })
+    return HttpResponse.json({ sensors: sensorsStore.get().map((s) => ({ ...s, interface: spanOn ? net.span.interface : mgmt, interfaces: net.ifaces.map((i) => i.name), span: spanOn, chosen: spanOn, span_status: { verdict: st.verdict, packets_per_s: st.packets_per_s, other_macs: st.other_macs }, capture_error: null })) })
   }),
 
   // D-387: only a container-only install chooses the card here; an appliance sets it in Settings → Box network (D-56, D-118).
@@ -688,8 +691,9 @@ export const handlers = [
   }),
 
   // Công khai (không bí mật): script do hộp phục vụ; SHA-256 hiện trong giao diện tính đúng trên nội dung này.
-  http.get(`${API}/install/osquery.sh`, () => new HttpResponse(linuxInstallScript(serverUrl(), MOCK_CA), { headers: { 'Content-Type': 'text/x-shellscript; charset=utf-8' } })),
-  http.get(`${API}/install/osquery.ps1`, () => new HttpResponse(windowsInstallScript(serverUrl(), MOCK_CA), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })),
+  // D-399 (2): no script pinned to the placeholder address: it would pass its SHA-256 check and then fail on every server.
+  http.get(`${API}/install/osquery.sh`, () => serverUrl().includes(NO_BOX_ADDRESS) ? noBoxAddress() : new HttpResponse(linuxInstallScript(serverUrl(), MOCK_CA), { headers: { 'Content-Type': 'text/x-shellscript; charset=utf-8' } })),
+  http.get(`${API}/install/osquery.ps1`, () => serverUrl().includes(NO_BOX_ADDRESS) ? noBoxAddress() : new HttpResponse(windowsInstallScript(serverUrl(), MOCK_CA), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })),
 
   // Script cài hỏi trạng thái bằng token trong header (không bao giờ trong URL). Token chỉ cho phép việc này và đăng ký osquery.
   http.post(`${API}/intake/osquery/status`, async ({ request }) => {
@@ -722,10 +726,10 @@ export const handlers = [
     return HttpResponse.json({ node_invalid: !/^mock-node-/.test(b.node_key ?? '') })
   }),
   http.get(`${API}/intake/ca.pem`, () => new HttpResponse(`${MOCK_CA}\n`, { headers: { 'Content-Type': 'application/x-pem-file' } })),
-  // The mock has no package files: only SHA256SUMS exists; the three package names of the real box answer 404 here (they are binaries of 20 to 30 MB).
+  // The mock has no package files: only SHA256SUMS exists; the five package names of the real box answer 404 here (they are binaries of 20 to 30 MB).
   http.get(`${API}/install/osquery/:file`, ({ params }) => {
     if (params.file !== 'SHA256SUMS') return fail(404, 'not_found', 'The mock box ships no osquery package files.')
-    const names = [`osquery_${OSQUERY_VERSION}-1.linux_amd64.deb`, `osquery-${OSQUERY_VERSION}-1.linux.x86_64.rpm`, `osquery-${OSQUERY_VERSION}.msi`]
+    const names = [`osquery_${OSQUERY_VERSION}-1.linux_amd64.deb`, `osquery-${OSQUERY_VERSION}-1.linux.x86_64.rpm`, `osquery_${OSQUERY_VERSION}-1.linux_arm64.deb`, `osquery-${OSQUERY_VERSION}-1.linux.aarch64.rpm`, `osquery-${OSQUERY_VERSION}.msi`]
     return new HttpResponse(names.map((n) => `${'0'.repeat(64)}  ${n}`).join('\n') + '\n', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
   }),
 

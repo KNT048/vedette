@@ -9,9 +9,12 @@
 // - Cờ TLS: config_plugin, logger_plugin, enroll_secret_path, tls_server_certs, tls_hostname (kèm cổng, không https://), *_tls_endpoint, host_identifier.
 //   https://osquery.readthedocs.io/en/stable/deployment/remote/
 // TÊN GÓI do hộp phản chiếu (theo tên tệp phát hành osquery trên GitHub; backend làm thật phải khớp): osquery_<ver>-1.linux_amd64.deb, osquery-<ver>-1.linux.x86_64.rpm,
-// osquery-<ver>.msi, kèm SHA256SUMS, tất cả dưới /api/v1/install/osquery/. Đường dẫn /api/v1/install/*, /api/v1/intake/* là của riêng Vedette (tên mock).
+// osquery_<ver>-1.linux_arm64.deb, osquery-<ver>-1.linux.aarch64.rpm (D-399), osquery-<ver>.msi, kèm SHA256SUMS, tất cả dưới /api/v1/install/osquery/. Đường dẫn /api/v1/install/*, /api/v1/intake/* là của riêng Vedette (tên mock).
 
 export const OSQUERY_VERSION = '5.12.1'
+/** The host part of server_url while the box knows no address other machines can reach (agent-intake PRE-3): the box serves no script
+ *  then (404 no_box_address) and the GUI shows how to give it one instead of a command that cannot work (D-399 (2)). */
+export const NO_BOX_ADDRESS = '<VEDETTE_BOX_IP>'
 
 import BASH from './scripts/osquery.sh?raw'
 import PWSH from './scripts/osquery.ps1?raw'

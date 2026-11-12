@@ -10,12 +10,13 @@ import { useAddSource, useDeleteSource, useEditSource } from './api'
 import { CATALOG, GROUP_LABEL, GROUPS, searchCatalog } from './catalog'
 import { BOX_PLACEHOLDER } from './snippets'
 import { defaultPort } from './types'
-import type { LogSource, Proto, SourceKind } from './types'
+import { fmtDate } from '@/lib/format'
+import type { BoxTls, LogSource, Proto, SourceKind } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
-type FormField = 'name' | 'ip' | 'proto' | 'port'
+type FormField = 'name' | 'ip' | 'proto' | 'port' | 'cert'
 // The box names the wrong field by its code: the message goes under that field (a phone may have the top of the dialog scrolled away).
-const FIELD_OF: Record<string, FormField> = { bad_name: 'name', bad_ip: 'ip', duplicate: 'ip', bad_proto: 'proto', tls_unavailable: 'proto', bad_port: 'port' }
+const FIELD_OF: Record<string, FormField> = { bad_name: 'name', bad_ip: 'ip', duplicate: 'ip', bad_proto: 'proto', tls_unavailable: 'proto', bad_port: 'port', bad_client_cert: 'cert' }
 
 /** Chọn loại thiết bị: ô tìm + danh sách theo nhóm. Enter chọn kết quả đầu tiên khi chỉ còn một. */
 function KindPicker({ find, setFind, onPick }: { find: string; setFind: (v: string) => void; onPick: (k: SourceKind) => void }) {
@@ -65,6 +66,7 @@ export function SourceFormDialog({ open, onOpenChange, source, sender, onAdded }
   const [ip, setIp] = useState(source?.sender_ip ?? sender?.ip ?? '')
   const [proto, setProto] = useState<Proto>(source?.proto ?? sender?.proto ?? 'udp')
   const [port, setPort] = useState(String(source?.port ?? defaultPort(sender?.proto ?? 'udp')))
+  const [cert, setCert] = useState(source?.client_cert_sha256 ?? '')
   const [error, setError] = useState<{ field?: FormField; message: string } | null>(null)
   const pending = add.isPending || edit.isPending
   const fieldErr = (f: FormField) => (error?.field === f ? error.message : undefined)
@@ -92,7 +94,10 @@ export function SourceFormDialog({ open, onOpenChange, source, sender, onAdded }
     e.preventDefault()
     setError(null)
     if (!kind) return
-    const v = { kind, name: name.trim(), sender_ip: ip.trim(), proto, port: Number(port) }
+    // A fingerprint is pasted the way tools print it (AB:CD:..., spaces, upper case): normalised here, validated again by the box.
+    const pin = proto === 'tls' ? cert.replace(/[\s:]/g, '').toLowerCase() : ''
+    if (pin && !/^[0-9a-f]{64}$/.test(pin)) { fail(new ApiError(400, 'bad_client_cert', t('form.certBad'))); return }
+    const v = { kind, name: name.trim(), sender_ip: ip.trim(), proto, port: Number(port), client_cert_sha256: pin || null }
     if (source) {
       edit.mutate({ ...v, id: source.id }, { onSuccess: () => { toast.success(t('form.edited')); onOpenChange(false) }, onError: fail })
     } else {
@@ -132,6 +137,11 @@ export function SourceFormDialog({ open, onOpenChange, source, sender, onAdded }
               <Input id="ls-port" type="number" min={1} max={65535} value={port} onChange={(e) => { setPort(e.target.value); fixed('port') }} {...aria('port', true)} />
             </Field>
           </div>
+          {proto === 'tls' ? (
+            <Field label={t('form.cert')} hint={t('form.certHint')} htmlFor="ls-cert" error={fieldErr('cert')}>
+              <Input id="ls-cert" value={cert} onChange={(e) => { setCert(e.target.value); fixed('cert') }} autoComplete="off" spellCheck={false} className="font-mono" {...aria('cert', true)} />
+            </Field>
+          ) : null}
           </>) : null}
           <DialogFooter>
             <Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button>
@@ -154,6 +164,7 @@ export function ConfigDialog({ source, boxIp, lan, onClose }: { source: LogSourc
         return (
           <DialogContent wide title={t('config.title', { name: source.name })} description={t('config.target', { ip, port: source.port, proto: source.proto.toUpperCase(), sender: source.sender_ip })}>
             {boxIp ? null : <p role="alert" className="rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-sm">{lan ? t('config.noIpLan', { lan, placeholder: BOX_PLACEHOLDER }) : t('config.noIp', { placeholder: BOX_PLACEHOLDER })}</p>}
+            {source.proto === 'tls' ? <p className="rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">{t(source.client_cert_sha256 ? 'config.tlsTrustPinned' : 'config.tlsTrust')}</p> : null}
             <p className="text-sm">{e.intro}</p>
             <p className="rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]"><span className="font-medium">{t('config.reads')}: </span>{e.readsNote}</p>
             <h3 className="text-sm font-medium">{t('config.steps')}</h3>
@@ -183,5 +194,30 @@ export function DeleteDialog({ source, onClose }: { source: LogSource | null; on
         </DialogContent>
       ) : null}
     </Dialog>
+  )
+}
+
+/** The certificate the box presents on the syslog TLS port (S-LOG-1, D-434): what a device must trust or pin, with a download. */
+export function BoxCertificate({ tls }: { tls: BoxTls }) {
+  const { t } = useTranslation('logs')
+  function download() {
+    const url = URL.createObjectURL(new Blob([tls.pem], { type: 'application/x-pem-file' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = tls.kind === 'box_ca' ? 'vedette-box-ca.pem' : 'vedette-syslog-tls.pem'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+  return (
+    <div className="mt-4 grid gap-2 rounded-md border border-rule bg-sunken px-3 py-3 text-sm" aria-labelledby="box-cert-title">
+      <h3 id="box-cert-title" className="font-medium">{t('boxCert.title')}</h3>
+      <p className="text-[13px] text-muted">{t(`boxCert.${tls.kind}`, { port: tls.port, issuer: tls.issuer })}</p>
+      <dl className="grid gap-1 text-[13px]">
+        <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t(`boxCert.fingerprint_${tls.kind}`)}</dt><dd><code className="break-all font-mono">{tls.fingerprint_sha256}</code></dd></div>
+        <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t('boxCert.subject')}</dt><dd>{tls.subject}</dd></div>
+        <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t('boxCert.expires')}</dt><dd>{fmtDate(tls.not_after)}</dd></div>
+      </dl>
+      <div><Button size="sm" onClick={download}>{t('boxCert.download')}</Button></div>
+    </div>
   )
 }

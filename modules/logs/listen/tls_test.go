@@ -5,17 +5,20 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"errors"
 	"io"
 	"log/slog"
 	"math/big"
 	"net"
 	"net/netip"
+	"strings"
+	"sync"
 	"sync/atomic"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -322,37 +325,56 @@ func TestNoTLSPortAfterTheLastPort(t *testing.T) {
 	}
 }
 
+// stuckConn is the raw socket of the server side of a stuck sender: once armed, a Write signals that it started and blocks until the
+// connection is closed (a send buffer that never drains, without filling a real one).
+type stuckConn struct {
+	net.Conn
+	armed    atomic.Bool
+	writing  chan struct{}
+	closed   chan struct{}
+	closeOne sync.Once
+}
+
+func (c *stuckConn) Write(p []byte) (int, error) {
+	if !c.armed.Load() {
+		return c.Conn.Write(p)
+	}
+	select {
+	case c.writing <- struct{}{}:
+	default:
+	}
+	<-c.closed
+	return 0, net.ErrClosed
+}
+
+func (c *stuckConn) Close() error {
+	c.closeOne.Do(func() { close(c.closed) })
+	return c.Conn.Close()
+}
+
 // wedge sets up the frozen sender: a declared TLS 1.3 client completes the handshake, never reads again, and sends a record the server
-// cannot decrypt. The server answers with an alert, a write inside Read that holds the TLS output lock; its socket's send buffer was
-// filled behind its back (afterHandshake), so that write blocks. This is the state a KeyUpdate request flood puts Go in (no TLS client
-// in the standard library can send one), without needing openssl. It returns once the server is blocked.
+// cannot decrypt. The server answers with an alert, a write inside Read that holds the TLS output lock; the raw socket under it
+// (srv.wrapRaw) blocks every write once the handshake is done. This is the state a KeyUpdate request flood puts Go in (no TLS client
+// in the standard library can send one), without needing openssl. It returns once the server's write has started and is blocked.
 func (tr *tlsRig) wedge() {
 	tr.t.Helper()
-	filled := make(chan struct{})
+	sc := &stuckConn{writing: make(chan struct{}, 1), closed: make(chan struct{})}
 	var first atomic.Bool
-	tr.srv.afterHandshake = func(c net.Conn) {
+	tr.srv.wrapRaw = func(c net.Conn) net.Conn {
 		if !first.CompareAndSwap(false, true) { // only the stuck sender's connection
-			return
+			return c
 		}
-		raw := c.(*tls.Conn).NetConn()
-		for _, size := range []int{64 << 10, 1} { // until nothing more fits, then until not even one byte does: the alert is a few bytes
-			junk := make([]byte, size)
-			for {
-				_ = raw.SetWriteDeadline(time.Now().Add(50 * time.Millisecond))
-				if _, err := raw.Write(junk); err != nil {
-					break
-				}
-			}
+		sc.Conn = c
+		return sc
+	}
+	tr.srv.afterHandshake = func(c net.Conn) {
+		if c.(*tls.Conn).NetConn() == net.Conn(sc) {
+			sc.armed.Store(true)
 		}
-		_ = raw.SetWriteDeadline(time.Time{})
-		close(filled)
 	}
 	tr.start()
 	tr.set("tls")
-	d := net.Dialer{Control: func(_, _ string, c syscall.RawConn) error { // a small receive window: the server's buffer fills at once
-		return c.Control(func(fd uintptr) { _ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF, 1024) })
-	}}
-	raw, err := d.DialContext(context.Background(), "tcp4", tr.tlsAddr())
+	raw, err := (&net.Dialer{}).DialContext(context.Background(), "tcp4", tr.tlsAddr())
 	if err != nil {
 		tr.t.Fatal(err)
 	}
@@ -361,16 +383,16 @@ func (tr *tlsRig) wedge() {
 	if err := tc.HandshakeContext(context.Background()); err != nil {
 		tr.t.Fatal(err)
 	}
-	select {
-	case <-filled:
-	case <-time.After(20 * time.Second):
-		tr.t.Fatal("the server's send buffer did not fill")
-	}
+	waitFor(tr.t, "the server to finish the handshake", func() bool { return sc.armed.Load() })
 	rec := append([]byte{23, 3, 3, 0, 32}, make([]byte, 32)...) // application data that fails its authentication
 	if _, err := raw.Write(rec); err != nil {
 		tr.t.Fatal(err)
 	}
-	<-time.After(500 * time.Millisecond) // the server reads it in microseconds; there is nothing to poll for while it is blocked in the write
+	select {
+	case <-sc.writing: // the alert write has started and is blocked
+	case <-time.After(30 * time.Second):
+		tr.t.Fatal("the server never wrote the alert")
+	}
 }
 
 func within(t *testing.T, what string, d time.Duration, f func()) {
@@ -416,4 +438,148 @@ func TestAStuckTLSSenderCannotHoldTheShutdown(t *testing.T) {
 			t.Errorf("Run returned %v, want nil or context.Canceled", err)
 		}
 	})
+}
+
+func pinOf(c tls.Certificate) string {
+	sum := sha256.Sum256(c.Certificate[0])
+	return hex.EncodeToString(sum[:])
+}
+
+// dialAs is a TLS client that presents cert (nil: none). With TLS 1.3 the server's refusal of a certificate shows on the first read, not in
+// the handshake, so the caller learns of it by writing and then reading until the connection is closed.
+func (tr *tlsRig) dialAs(cert *tls.Certificate) *tls.Conn {
+	tr.t.Helper()
+	cfg := &tls.Config{RootCAs: tr.pool, ServerName: "127.0.0.1", MinVersion: tls.VersionTLS12}
+	if cert != nil {
+		cfg.Certificates = []tls.Certificate{*cert}
+	}
+	c, err := (&tls.Dialer{Config: cfg}).DialContext(context.Background(), "tcp4", tr.tlsAddr())
+	if err != nil {
+		tr.t.Fatal(err)
+	}
+	tr.t.Cleanup(func() { _ = c.Close() })
+	return c.(*tls.Conn)
+}
+
+// closedByServer says whether the server ends the connection (a read returns an error) within the test's patience.
+func closedByServer(t *testing.T, c net.Conn) bool {
+	t.Helper()
+	_ = c.SetReadDeadline(time.Now().Add(30 * time.Second))
+	_, err := c.Read(make([]byte, 1))
+	var ne net.Error
+	return err != nil && (!errors.As(err, &ne) || !ne.Timeout())
+}
+
+// D-435: a source that pins a client certificate takes lines only from the connection that presents exactly that certificate; no
+// certificate, another one, and a pin changed under a live connection all end it, and nothing is stored.
+func TestTLSPinnedClientCertificate(t *testing.T) {
+	t.Parallel()
+	tr := newTLSRig(t, Limits{}, true)
+	good, _ := testCert(t, "device")
+	other, _ := testCert(t, "other")
+	tr.start()
+	pin := func(p string) {
+		t.Helper()
+		if err := tr.srv.SetSources(map[netip.Addr]Source{lo: {ID: "src-1", Proto: "tls", ClientCertSHA256: p}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pin(pinOf(good))
+	for name, cert := range map[string]*tls.Certificate{"no certificate": nil, "another certificate": &other} {
+		c := tr.dialAs(cert)
+		_, _ = io.WriteString(c, "<34>refused\n")
+		if !closedByServer(t, c) {
+			t.Errorf("%s: the connection was not closed", name)
+		}
+	}
+	waitFor(t, "two refusals", func() bool { return tr.srv.Stats().CertRejected == 2 })
+	if n := len(tr.lines()); n != 0 {
+		t.Fatalf("%d lines stored from a sender without the pinned certificate", n)
+	}
+	c := tr.dialAs(&good)
+	if _, err := io.WriteString(c, "<34>accepted\n"); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the line of the pinned certificate", func() bool { return len(tr.lines()) == 1 })
+	pin(pinOf(other)) // the owner changes the pin: the live connection ends, it is not a failed handshake
+	if !closedByServer(t, c) {
+		t.Fatal("a connection whose certificate is no longer the pinned one stayed open")
+	}
+	if st := tr.srv.Stats(); st.HandshakeFailed != 0 {
+		t.Errorf("stats %+v", st)
+	}
+	pin("") // no pin: a sender with no certificate is served again (the certificate is not even requested)
+	c2 := tr.dialAs(nil)
+	if _, err := io.WriteString(c2, "<34>again\n"); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "a line without a pin", func() bool { return len(tr.lines()) == 2 })
+}
+
+func TestPinMatches(t *testing.T) {
+	t.Parallel()
+	p := "ab" + strings.Repeat("0", 62)
+	for _, tc := range []struct {
+		got, want string
+		ok        bool
+	}{{p, p, true}, {"", "", false}, {"", p, false}, {p, "", false}, {p[:63], p, false}, {strings.Repeat("0", 64), p, false}} {
+		if pinMatches(tc.got, tc.want) != tc.ok {
+			t.Errorf("pinMatches(%q, %q) != %v", tc.got, tc.want, tc.ok)
+		}
+	}
+}
+
+// D-436: a declared sender may start HandshakeBurst TLS connections at once and HandshakeRate a second after that; the rest are closed before a
+// handshake is paid for and counted as rejected.
+func TestTLSHandshakeRatePerSender(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC)
+	var mu sync.Mutex
+	clock := func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
+	tr := newTLSRig(t, Limits{HandshakeRate: 1, HandshakeBurst: 2}, true)
+	tr.srv.now = clock
+	tr.start()
+	tr.set("tls")
+	for i := range 2 {
+		c, err := tr.dial(tr.tlsAddr(), tr.pool)
+		if err != nil {
+			t.Fatalf("connection %d inside the burst: %v", i+1, err)
+		}
+		_ = c.Close()
+	}
+	if _, err := tr.dial(tr.tlsAddr(), tr.pool); err == nil {
+		t.Fatal("a third handshake inside the same instant was served")
+	}
+	if tr.srv.Stats().ConnRejected != 1 || tr.srv.Stats().HandshakeFailed != 0 {
+		t.Fatalf("stats %+v", tr.srv.Stats())
+	}
+	mu.Lock()
+	now = now.Add(1100 * time.Millisecond) // one token back
+	mu.Unlock()
+	c, err := tr.dial(tr.tlsAddr(), tr.pool)
+	if err != nil {
+		t.Fatalf("after a token was refilled: %v", err)
+	}
+	_ = c.Close()
+}
+
+// A source removed while its connection is still in the handshake closes it; that is the owner's edit, not a failed handshake (review L3).
+func TestAConnectionCutBySetSourcesIsNotAFailedHandshake(t *testing.T) {
+	t.Parallel()
+	tr := newTLSRig(t, Limits{}, true)
+	tr.start()
+	tr.set("tls")
+	raw, err := (&net.Dialer{}).DialContext(context.Background(), "tcp4", tr.tlsAddr()) // connects and says nothing: the server waits in the handshake
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = raw.Close() }()
+	waitFor(t, "the connection to be counted", func() bool { return tr.srv.Status().Conns == 1 })
+	if err := tr.srv.SetSources(nil); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the connection to be gone", func() bool { return tr.srv.Status().Conns == 0 })
+	if got := tr.srv.Stats().HandshakeFailed; got != 0 {
+		t.Fatalf("a connection cut by SetSources was counted as a failed handshake (%d)", got)
+	}
 }

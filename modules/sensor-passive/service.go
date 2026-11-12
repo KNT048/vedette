@@ -123,10 +123,11 @@ type Service struct {
 // heartbeat is what core remembers of the last heartbeat. The card list lives only here: after a restart of core it is empty
 // until the sensor's next beat (at most 30 s).
 type heartbeat struct {
-	at      time.Time
-	ifaces  []sensorlink.HeartbeatIface
-	drops   map[string]int64
-	version string
+	at         time.Time
+	ifaces     []sensorlink.HeartbeatIface
+	drops      map[string]int64
+	version    string
+	captureErr string // one of sensorlink.CaptureErrors, "" while the capture runs or no card is chosen (D-399 (3))
 }
 
 // New returns the service.
@@ -198,6 +199,9 @@ type Sensor struct {
 	LastSeen    *string    `json:"last_seen"`
 	Version     *string    `json:"version"`
 	DevicesSeen int        `json:"devices_seen"`
+	// CaptureError is why the sensor, online, does not capture on its card (sensorlink.CaptureErrors); nil while it captures, has
+	// no card, or is not online (an old heartbeat says nothing about now). D-399 (3).
+	CaptureError *string `json:"capture_error"`
 }
 
 // SpanStatus is Sensor.span_status.
@@ -298,6 +302,10 @@ func (s *Service) Status(ctx context.Context) ([]Sensor, error) {
 	switch {
 	case s.online(r):
 		out.Status = "online"
+		if hb := s.lastBeat(); hb != nil && hb.captureErr != "" {
+			e := hb.captureErr
+			out.CaptureError = &e
+		}
 	case !r.lastSeen.Valid: // offline means it reported once; never heard from is not "lost contact" (D-387)
 		out.Status = "never_connected"
 	}

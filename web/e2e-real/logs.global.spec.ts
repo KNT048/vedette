@@ -273,13 +273,20 @@ test('lines sent over UDP and TCP are stored exactly, the source turns to Receiv
     const src = (await sources(c)).sources[0]!
     expect(src.state).toBe('receiving')
     expect(src.last_received).not.toBeNull()
-    const digest = await api<{ lines_24h: number }>(c, 'GET', '/logs/digest')
+    type Digest = { lines_24h: number; history_days: number; baseline_days: number; new: unknown[]; spikes: unknown[]; bad_connections: unknown[] }
+    const digest = await api<Digest>(c, 'GET', '/logs/digest')
     expect(digest.body.lines_24h).toBe(linesBefore + 4)
 
+    // The headline says what the digest holds (LogsPage Content): nothing found and fewer days of logs than the baseline is the
+    // warm-up sentence, a fresh box's truth; anything found is the "Today:" count. The page's line count is the digest's.
+    const d = digest.body
+    const learning = d.history_days < d.baseline_days
     await page.goto('/logs')
-    await expect(h1(page)).toContainText('Today:')
+    if (d.new.length + d.spikes.length + d.bad_connections.length === 0) {
+      await expect(h1(page)).toHaveText(learning ? `Learning what is normal: ${d.history_days} of ${d.baseline_days} days of logs so far.` : 'Today: logs look normal, nothing new compared with the last 7 days.')
+    } else await expect(h1(page)).toContainText('Today:')
     await expect(srcRow(page, udp.name)).toContainText('Receiving')
-    await expect(page.getByText(`From ${linesBefore + 4} log lines in the last 24 hours`)).toBeVisible()
+    await expect(page.getByText(learning ? `From ${linesBefore + 4} log lines in the last 24 hours. Updated` : `From ${linesBefore + 4} log lines in the last 24 hours, compared with the previous ${d.baseline_days} days.`)).toBeVisible()
     await page.getByLabel('Keyword').fill(tok)
     await expect(page.getByText('4 of 4 matching lines.')).toBeVisible()
     await page.getByLabel('Keyword').fill(`${tok} tcp counted`)

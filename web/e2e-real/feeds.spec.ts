@@ -166,7 +166,9 @@ test.describe('Settings -> Feeds as an administrator (S-FEED-4, S-FEED-5)', () =
     await dlg.getByRole('button', { name: 'Test on a sample' }).click()
     await expect(dlg.getByRole('status')).toContainText('2 rows accepted')
     await expect(dlg.getByRole('status')).toContainText('1 row rejected')
-    await expect(dlg.getByText(/First rejected rows \(numbers\): 2/)).toBeVisible()
+    // walk 2 (#511): a plain list names the rejected line of the sample, and the first word of that line as the value
+    await expect(dlg.getByText('First rejected lines of the sample')).toBeVisible()
+    await expect(dlg.getByRole('listitem').filter({ hasText: 'Line 2:' })).toContainText('indicator: "not" is not a valid indicator')
   })
 
   test('a built-in feed mirror address: https only (or internal), saved and reset', async ({ page }) => {
@@ -192,7 +194,7 @@ test.describe('operator and viewer (S-FEED-4)', () => {
       const errors = collectErrors(page)
       await page.goto(SETTINGS)
       await expect(feedRow(page, 'CISA KEV')).toBeVisible()
-      for (const b of [page.getByRole('button', { name: 'Settings for CISA KEV' }), page.getByRole('button', { name: 'Fetch now: CISA KEV' }), page.getByRole('switch', { name: 'Enable CISA KEV' })]) {
+      for (const b of [page.getByRole('button', { name: 'Settings for CISA KEV' }), page.getByRole('button', { name: 'Fetch now: CISA KEV' }), page.getByRole('switch', { name: /^(Enable|Disable) CISA KEV$/ })]) { // the switch names what it would do (D-381 G9)
         await expect(b).toBeDisabled()
         await expect(b).toHaveAttribute('title', /Requires .+ role/)
       }

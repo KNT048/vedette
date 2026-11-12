@@ -1449,7 +1449,7 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			// No key outside the ones the templates use: a new key is a decision (add it here and to the table).
 			known := []string{"Description", "After", "Wants", "Requires", "ContainerName", "Image", "Network", "PublishPort", "Volume", "ReadOnly", "Tmpfs",
 				"NoNewPrivileges", "DropCapability", "AddCapability", "User", "UserNS", "LogDriver", "PodmanArgs", "HealthCmd", "HealthInterval",
-				"HealthStartPeriod", "HealthRetries", "Exec", "Restart", "TimeoutStartSec", "WantedBy", "Pull", "RunInit", "Environment", "ContainersConfModule", "HostName"}
+				"HealthStartPeriod", "HealthRetries", "Exec", "Restart", "TimeoutStartSec", "WantedBy", "Pull", "RunInit", "Environment", "ContainersConfModule"}
 			for k := range u {
 				if !slices.Contains(known, k) {
 					t.Errorf("%s has the key %s", svc, k)
@@ -1459,10 +1459,10 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			if want := []string(nil); svc != api.ServiceCore && !slices.Equal(u["Environment"], want) || svc == api.ServiceCore && !slices.Equal(u["Environment"], []string{"GOMEMLIMIT=1800MiB"}) {
 				t.Errorf("%s: Environment=%v (only core has GOMEMLIMIT=1800MiB, D-150)", svc, u["Environment"])
 			}
-			// #471: core alone has HostName=vedette, so the self-signed certificate and the passive sensor get a name, not the container id
-			// (the box's device row and the SIEM HOSTNAME use the OS host name from GET /v1/info instead).
-			if want := []string(nil); svc != api.ServiceCore && !slices.Equal(u["HostName"], want) || svc == api.ServiceCore && !slices.Equal(u["HostName"], []string{"vedette"}) {
-				t.Errorf("%s: HostName=%v (only core has HostName=vedette)", svc, u["HostName"])
+			// #471: no unit has HostName= (core had HostName=vedette until the box's certificate, its passive sensor and its device row
+			// took the OS host name vedette-host reports in GET /v1/info; the old core unit is migrated, quadlet_legacy.go "core-3").
+			if _, has := u["HostName"]; has {
+				t.Errorf("%s: HostName=%v (no unit names its container; core takes the box's name from vedette-host)", svc, u["HostName"])
 			}
 			// D-146: only scan runs under an init (nmap can leave children that detach from the process group the worker kills).
 			if _, has := u["RunInit"]; has != (svc == api.ServiceScan) {

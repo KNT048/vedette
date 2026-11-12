@@ -77,7 +77,7 @@ Mã: `capture/` (nửa sensor: `Runner`, `Engine`, sổ thiết bị, bộ phân
 Box network (card quản trị/SPAN, hướng dẫn mirror, IP phụ, NTP — D-56): `host`, nhóm B.
 
 ## Tables owned (`sp_`)
-`sp_sensor` (id, interface, span, version, last_seen), `sp_span_stat` (đo SPAN), `sp_seq` (seq đã nhận).
+`sp_sensor` (id, name, interface, span, version, last_seen), `sp_span_stat` (đo SPAN), `sp_seq` (seq đã nhận). Khoá của dòng là `SensorID` (hằng); `name` **chỉ để hiển thị** (`Sensor.name` của GET), không phải danh tính: liên kết sensor xác thực bằng mTLS của vai `passive` (`core/sensorlink`, D-110), không theo tên. `Config.Name` là hàm hỏi lại mỗi lần `ensureSensor` (#471: `core` đưa tên hộp do vedette-host báo, `cmd/vedette/boxname.go`); tên khác lần ghi trước thì cùng dòng được ghi lại tên mới, không đổi gì khác; `nil` → tên máy của chính tiến trình, rỗng → `vedette` (`TestSensorsHandler`).
 
 ## Events
 - **Phát**: `sensor.status.changed {id, online}`, `sensor.span.metadata_batch {seq, items[]}` (tiêu thụ bởi `logs`).

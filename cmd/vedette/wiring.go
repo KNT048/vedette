@@ -219,6 +219,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	// two-step accounts get 503 twofa_email_unavailable (INV-8, never password-only).
 	var err error
 	d.Inventory = newInventory(d) // before feeds: feeds takes the inventory (feeds.Inventory)
+	d.BoxName.useRow(boxRowName(d.Inventory))
 	notifySvc := newNotify(d)
 	if d.Auth, err = auth.New(auth.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Mailer: notifySvc.CodeMailer(), Clock: d.Clock, Log: d.Log, Argon2: d.Argon2}); err != nil {
 		return fmt.Errorf("auth: %w", err)

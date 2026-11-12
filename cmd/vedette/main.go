@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -203,7 +204,16 @@ func isLoopback(addr string) (bool, error) {
 // certificate the owner supplied: the box then tells browsers to insist on HTTPS. A self-signed pair gets
 // no HSTS, or a browser would refuse to let the owner click through its warning for a year. The box's own pair is signed by the box
 // CA that ca keeps in core_secret (D-351), so transport runs once the database is open and migrated.
-func transport(ctx context.Context, o options, ca *boxCAStore) (cfg *tls.Config, hosts []string, hsts bool, renew *selfSignedRenewer, err error) {
+//
+// The box's own pair also covers the box's name (certBoxName of box: the OS host name vedette-host reports, core's own host name
+// without a host), and without -hosts the allowlist holds it too. It is asked once here (at most boxNameTimeout): vedette-host
+// starts before core, so the name is normally known at the first start and on every later one. It only ever adds to the names of
+// before (localNames keeps "vedette", the addresses stay), so no name that opened the box before stops working. A box whose
+// certificate lacks it (an upgraded box) gets it at the renewer's first Check, right after start; one whose host does not answer
+// now gets it in the certificate once the host answers (Check), and in the allowlist at the next start.
+// ponytail: the allowlist's names are fixed for the life of the process, as they always were (core/server.HostAllowlistWith);
+// a name learned later waits for a restart. Upgrade path: a matcher that also asks certBoxName's cached answer.
+func transport(ctx context.Context, o options, ca *boxCAStore, box *boxHostName) (cfg *tls.Config, hosts []string, hsts bool, renew *selfSignedRenewer, err error) {
 	hosts, err = parseHosts(o.hosts)
 	flagHosts := hosts
 	if err != nil {
@@ -217,10 +227,15 @@ func transport(ctx context.Context, o options, ca *boxCAStore) (cfg *tls.Config,
 	if certPath == "" && loop {
 		return nil, hosts, false, nil, nil // plain HTTP on loopback
 	}
+	var name string // the box's name, for its own pair only (an owner's certificate says which names it covers)
 	if certPath == "" {
 		dir := filepath.Dir(o.db)
 		certPath, keyPath = filepath.Join(dir, "vedette-selfsigned.crt"), filepath.Join(dir, "vedette-selfsigned.key")
-		if err := ensureCertAt(ctx, ca, certPath, keyPath, hosts, time.Now, o.log); err != nil {
+		certHosts := hosts
+		if name = certBoxName(ctx, box); name != "" {
+			certHosts = append(slices.Clone(hosts), name)
+		}
+		if err := ensureCertAt(ctx, ca, certPath, keyPath, certHosts, time.Now, o.log); err != nil {
 			return nil, nil, false, nil, err
 		}
 	}
@@ -229,11 +244,15 @@ func transport(ctx context.Context, o options, ca *boxCAStore) (cfg *tls.Config,
 		return nil, nil, false, nil, err
 	}
 	if o.tlsCert == "" { // the box's own pair: serve it through GetCertificate so a renewal needs no restart
-		renew = &selfSignedRenewer{certPath: certPath, keyPath: keyPath, hosts: flagHosts, ca: ca, now: time.Now, cert: &cfg.Certificates[0], kick: make(chan struct{}, 1)}
+		renew = &selfSignedRenewer{certPath: certPath, keyPath: keyPath, hosts: flagHosts, ca: ca, now: time.Now, cert: &cfg.Certificates[0], kick: make(chan struct{}, 1),
+			box: func(ctx context.Context) string { return certBoxName(ctx, box) }}
 		cfg.Certificates, cfg.GetCertificate = nil, renew.GetCertificate
 	}
 	if len(hosts) == 0 {
 		hosts = names
+		if name != "" && !slices.Contains(names, name) { // an upgraded box: the renewer's first Check adds it to the certificate
+			hosts = append(hosts, name)
+		}
 	}
 	return cfg, hosts, o.tlsCert != "", renew, nil
 }
@@ -305,7 +324,8 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err := boxCAs.migrateLegacy(ctx, log); err != nil { // whatever the TLS mode: no plaintext CA key stays on disk (D-351)
 		log.WarnContext(ctx, "the old box CA files could not be moved into the database; tried again at the next start", "error", err)
 	}
-	tlsCfg, hosts, hsts, renew, err := transport(ctx, o, boxCAs)
+	boxName := newBoxHostName(o.hostSocket) // before TLS: the box's own certificate carries its name
+	tlsCfg, hosts, hsts, renew, err := transport(ctx, o, boxCAs, boxName)
 	if err != nil {
 		return err
 	}
@@ -323,7 +343,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	}
 	sched := jobs.New(log, reg, nil, jobs.WithRecorder(jobs.NewHistory(db))) // before the services: deps.Wake hands them sched.Wake
 	d := deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, BaseURL: boxBaseURL(hosts, o.listen), CertKick: func() { renew.Kick(); warner.Kick() }, Wake: sched.Wake,
-		HostSocket: o.hostSocket, HostNet: newHostNetCache(hostSocketNet(o.hostSocket, log), time.Now), BoxName: newBoxHostName(o.hostSocket), DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir,
+		HostSocket: o.hostSocket, HostNet: newHostNetCache(hostSocketNet(o.hostSocket, log), time.Now), BoxName: boxName, DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir,
 		Restart: func() {
 			log.InfoContext(ctx, "the data was purged: stopping so the supervisor starts a fresh box")
 			cancel()

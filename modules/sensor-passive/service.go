@@ -54,7 +54,9 @@ type Config struct {
 	Clock   func() time.Time
 	Log     *slog.Logger
 	Version string // of core; the in-process capture reports it as its own
-	Name    string // sensor display name; default the host name
+	// Name is the sensor's display name (sp_sensor.name), asked each time the row is ensured: core gives the box's name (#471, the OS
+	// host name vedette-host reports). nil: core's own host name, else "vedette"; "" from it: "vedette".
+	Name func(ctx context.Context) string
 
 	// Enabled says whether the module is on; Observations asks it again under its lock before it writes (SYS-5): a batch that was
 	// let in by the listener a moment before the module was turned off is not recorded. nil means on.
@@ -87,7 +89,7 @@ type Service struct {
 	clock    func() time.Time
 	log      *slog.Logger
 	version  string
-	name     string
+	name     func(ctx context.Context) string
 	open     func(string) (capture.Source, error)
 	instance string // the nonce of this process, in every heartbeat reply
 
@@ -96,7 +98,7 @@ type Service struct {
 	recheck                                                        time.Duration
 	flushEvery, beatEvery, retryEvery, summaryEvery, retryAfterCap time.Duration
 
-	ensured atomic.Bool // the sensor row exists
+	ensured atomic.Pointer[string] // the name the sensor row was last written with; nil: not yet
 
 	submitMu sync.Mutex // one batch at a time: the seq check, the write and the seq save are one step
 	budget   *capture.FloodBudget
@@ -142,12 +144,12 @@ func New(cfg Config) (*Service, error) {
 	if s.log == nil {
 		s.log = slog.New(slog.DiscardHandler)
 	}
-	if s.name == "" {
+	if s.name == nil {
+		name := "vedette"
 		if h, err := os.Hostname(); err == nil && h != "" {
-			s.name = h
-		} else {
-			s.name = "vedette"
+			name = h
 		}
+		s.name = func(context.Context) string { return name }
 	}
 	if s.version == "" {
 		s.version = "0.0.0-dev"
@@ -161,19 +163,24 @@ func New(cfg Config) (*Service, error) {
 	return s, nil
 }
 
-// ensureSensor creates the row of this box's sensor once and refreshes its name.
+// ensureSensor creates the row of this box's sensor once and writes its display name again when Config.Name gives another one
+// (the box's name became known, or the machine was renamed). The row's key is SensorID; the name is only shown.
 func (s *Service) ensureSensor(ctx context.Context) error {
-	if s.ensured.Load() {
+	name := s.name(ctx)
+	if name == "" {
+		name = "vedette"
+	}
+	if p := s.ensured.Load(); p != nil && *p == name {
 		return nil
 	}
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO sp_sensor (id, name) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET name = excluded.name`, SensorID, s.name); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO sp_sensor (id, name) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET name = excluded.name`, SensorID, name); err != nil {
 			return fmt.Errorf("sensorpassive: create sensor: %w", err)
 		}
 		return nil
 	})
 	if err == nil {
-		s.ensured.Store(true)
+		s.ensured.Store(&name)
 	}
 	return err
 }

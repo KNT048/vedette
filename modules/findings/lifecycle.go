@@ -74,7 +74,7 @@ type Finding struct {
 type HistoryEntry struct {
 	TS     time.Time
 	User   string
-	Action string // created, confirmed, rescanned, rescan_clear, no_longer_matches, reopened, patched, mitigated, false_positive, not_relevant
+	Action string // created, confirmed, rescanned, rescan_clear, no_longer_matches, matches_again, reopened, patched, mitigated, false_positive, not_relevant
 	Note   string
 }
 

@@ -652,3 +652,31 @@ func TestUpsert_NoLongerMatchesIsNotedOnceAndNeverClosed(t *testing.T) {
 		t.Fatalf("the finding was closed: %d suspected", n)
 	}
 }
+
+// D-439: match, no longer match, match again: one history row each way, none added by repeated runs.
+func TestUpsert_NoLongerMatchesThenMatchesAgain(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.seed()
+	moved := Vuln{CVE: "CVE-2022-27593", Vendor: "QNAP", Product: "Other Station"}
+	run := func(v Vuln) {
+		t.Helper()
+		if _, err := e.svc.UpsertFromMatch(t.Context(), nas(""), []Vuln{v}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	count := func(a string) int {
+		return e.count(`SELECT count(*) FROM fnd_finding_history WHERE action = '` + a + `'`)
+	}
+	run(moved)
+	run(moved)
+	run(qnapVuln())
+	run(qnapVuln())
+	if count("no_longer_matches") != 1 || count("matches_again") != 1 {
+		t.Fatalf("rows: %d and %d, want 1 and 1", count("no_longer_matches"), count("matches_again"))
+	}
+	run(moved) // flaps again: the newest row is matches_again, so a new note is written
+	if count("no_longer_matches") != 2 {
+		t.Fatalf("second no_longer_matches: %d", count("no_longer_matches"))
+	}
+}

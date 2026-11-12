@@ -95,7 +95,7 @@ func (t Template) check() error {
 		return errors.New("cve is not a CVE id")
 	case !nucleiargv.ValidTemplatePath(t.Path):
 		return errors.New("path is not a relative .yaml path")
-	case !runsUnderProtocols(t.Path):
+	case !RunsUnderProtocols(t.Path):
 		return errors.New("path is not under http/, network/ or ssl/: nuclei runs with -pt http,tcp,ssl and would drop it without a line")
 	case !shaRE.MatchString(t.SHA256):
 		return errors.New("sha256 is not a lower-case SHA-256")
@@ -124,10 +124,10 @@ func (t Template) check() error {
 	return nil
 }
 
-// runsUnderProtocols says whether a template path sits in a directory of a protocol nuclei runs (-pt http,tcp,ssl in
+// RunsUnderProtocols says whether a template path sits in a directory of a protocol nuclei runs (-pt http,tcp,ssl in
 // nucleiargv): every other protocol is dropped silently and would read as "no match reported", so the pack refuses it
 // here and a template of the pack always runs.
-func runsUnderProtocols(path string) bool {
+func RunsUnderProtocols(path string) bool {
 	return strings.HasPrefix(path, "http/") || strings.HasPrefix(path, "network/") || strings.HasPrefix(path, "ssl/")
 }
 

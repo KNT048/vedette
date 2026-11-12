@@ -197,6 +197,14 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 					return err
 				}
 			}
+			if n := len(r.History); n > 0 && r.History[n-1].Action == "no_longer_matches" { // matches again: the newest line must not say otherwise
+				if err := insertHistory(ctx, tx, r.ID, HistoryEntry{TS: now, User: SystemUser, Action: "matches_again", Note: "The device matches this entry again."}); err != nil {
+					return err
+				}
+				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.matches_again", Target: r.ID, Detail: r.CVE}); err != nil {
+					return err
+				}
+			}
 			res.Touched++
 		}
 		return s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, now)

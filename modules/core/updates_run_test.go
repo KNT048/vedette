@@ -666,6 +666,33 @@ func TestUpdateCoreSwitchRetriesWithANewSnapshot(t *testing.T) {
 	}
 }
 
+// A host that refuses every snapshot ends the run after maxSnapRefused new ones, not in an endless loop.
+func TestUpdateCoreSwitchStopsAfterRepeatedSnapshotRefusals(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+	fh.refuse["start core"] = api.CodeSnapshotInvalid
+	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+	if run := endedRun(t, e); run["status"] == "done" || run["status"] == "running" {
+		t.Fatalf("run = %v, want it ended without the switch", run)
+	}
+	if n := countOf(fh.callList(), "start core 1.4.0 snap"); n > 3 {
+		t.Errorf("core's switch sent %d times, want at most 3 (calls %q)", n, fh.callList())
+	}
+}
+
+// A host that answers busy for ever does not keep the run alive: resends are not progress, so the 6-hour rule ends it.
+func TestUpdateRunThatTheHostKeepsRefusingMeetsTheSixHourRule(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+	fh.refuse["start core"] = api.CodeBusy
+	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+	waitCall(t, fh, "start core")
+	e.clock.Advance(7 * time.Hour)
+	if run := endedRun(t, e); run["status"] == "done" {
+		t.Fatalf("run = %v, want it ended by the 6-hour rule", run)
+	}
+}
+
 // A run whose end could not be stored is settled again later, not dropped as settled.
 func TestUpdateRunEndThatCouldNotBeStoredIsSettledLater(t *testing.T) {
 	t.Parallel()

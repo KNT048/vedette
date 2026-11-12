@@ -104,8 +104,13 @@ type updateRunRec struct {
 	Calls      []updateCall `json:"calls"`
 	Snapshot   string       `json:"snapshot,omitempty"` // backs core's container.start; removed when the run ends
 	Release    *runRelease  `json:"release,omitempty"`  // update only, until the run ends
-	// Progress is when the run was last written down; the 6-hour rule counts from it (or from this process's start).
+	// Progress is when the run last moved (a step began, the host took a call or a call ended); a resend or a wait
+	// does not count, so a host that refuses for ever still meets the 6-hour rule. The rule counts from it (or from
+	// this process's start).
 	Progress time.Time `json:"progress"`
+	// SnapRefused counts the host's snapshot_required/snapshot_invalid answers to core's switch: a new snapshot is
+	// tried up to maxSnapRefused times, then the refusal is final (a deployment error or clock skew, not a wait).
+	SnapRefused int `json:"snap_refused,omitempty"`
 	// Outcome and Why are the end decided by a failure while the undo calls still run.
 	Outcome string `json:"outcome,omitempty"`
 	Why     string `json:"why,omitempty"`
@@ -128,7 +133,6 @@ func (h *OSHandlers) loadUpdateRun(ctx context.Context) (*updateRunRec, error) {
 func (h *OSHandlers) saveUpdateRun(parent context.Context, rec *updateRunRec) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), 10*time.Second)
 	defer cancel()
-	rec.Progress = h.now()
 	return h.db.Write(ctx, func(tx *sql.Tx) error { return h.putSetting(ctx, tx, keyUpdateRun, rec, rec.User) })
 }
 
@@ -527,7 +531,7 @@ func (f *updFollower) advance(ctx context.Context) (done bool, err error) {
 		}
 		if !c.Undo && (rec.Step == nil || *rec.Step != c.Step) {
 			step := c.Step
-			rec.Step = &step
+			rec.Step, rec.Progress = &step, h.now()
 			if err := h.saveUpdateRun(ctx, rec); err != nil {
 				return false, err
 			}
@@ -536,7 +540,7 @@ func (f *updFollower) advance(ctx context.Context) (done bool, err error) {
 		if err != nil {
 			return false, err
 		}
-		rec.Calls[i].Status = string(run.Status)
+		rec.Calls[i].Status, rec.Progress = string(run.Status), h.now()
 		if run.Error != nil {
 			rec.Calls[i].Code = run.Error.Code
 		}
@@ -582,7 +586,7 @@ func (f *updFollower) call(ctx context.Context, rec *updateRunRec, i int) (api.R
 			return api.Run{}, err
 		}
 		if found {
-			c.RunID = run.RunID
+			c.RunID, rec.Progress = run.RunID, h.now()
 			if err := h.saveUpdateRun(ctx, rec); err != nil {
 				return api.Run{}, err
 			}
@@ -596,6 +600,9 @@ func (f *updFollower) call(ctx context.Context, rec *updateRunRec, i int) (api.R
 	}
 	return f.send(ctx, rec, i)
 }
+
+// maxSnapRefused bounds the new snapshots core's switch tries after the host refused one (SnapRefused).
+const maxSnapRefused = 2
 
 // codeInterrupted is the run side's own end code of core's switch when core stopped before the host took it.
 const codeInterrupted = "interrupted"
@@ -656,9 +663,10 @@ func (f *updFollower) send(ctx context.Context, rec *updateRunRec, i int) (api.R
 		case api.CodeBusy, api.CodeRateLimited, api.CodeShuttingDown, api.CodePendingConfirm, api.CodeNetPendingConfirm:
 			return api.Run{}, err // the host did not take it and says try later; a refusal frees the key (host-api 4)
 		case api.CodeSnapshotRequired, api.CodeSnapshotInvalid:
-			if coreSwitch { // too old after a wait: a new snapshot, the same key (a refusal frees it)
+			if coreSwitch && rec.SnapRefused < maxSnapRefused { // too old after a wait: a new snapshot, the same key (a refusal frees it)
 				h.removeSnapshot(rec.Snapshot)
 				rec.Snapshot = ""
+				rec.SnapRefused++
 				if err := h.saveUpdateRun(ctx, rec); err != nil {
 					return api.Run{}, err
 				}
@@ -667,7 +675,7 @@ func (f *updFollower) send(ctx context.Context, rec *updateRunRec, i int) (api.R
 		}
 		return api.Run{Status: api.StatusRefused, Error: &api.RunError{Code: he.Code, Message: he.Message}}, nil
 	}
-	c.RunID = run.RunID
+	c.RunID, rec.Progress = run.RunID, h.now()
 	if err := h.saveUpdateRun(ctx, rec); err != nil {
 		return api.Run{}, err
 	}

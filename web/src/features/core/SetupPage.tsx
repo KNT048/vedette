@@ -164,7 +164,7 @@ export default function SetupPage() {
         ))}
       </ol>
 
-      {step === 'account' ? (
+      {step === 'account' && import.meta.env.VITE_API_MOCK !== 'off' ? (
         <section className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed border-rule px-5 py-3" aria-labelledby="sample-title">
           <div className="grid max-w-md gap-0.5">
             <h2 id="sample-title" className="text-sm font-semibold">{t('setup.sample.title')}</h2>

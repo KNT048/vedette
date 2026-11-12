@@ -186,6 +186,15 @@ describe('core: cài đặt ban đầu', () => {
     expect(usersStore.get().find((x) => x.id === sessionStore.get().userId)?.email).toBe('admin@acme.example')
   })
 
+  it('the release build (VITE_API_MOCK=off) shows no Use sample data in setup (D-369)', async () => {
+    vi.stubEnv('VITE_API_MOCK', 'off')
+    try {
+      renderApp('/setup', { role: null, setupComplete: false })
+      await screen.findByRole('heading', { level: 1 })
+      expect(screen.queryByRole('button', { name: 'Use sample data' })).not.toBeInTheDocument()
+    } finally { vi.unstubAllEnvs() }
+  })
+
   it('the LAN range typed in setup is stored where Devices → Scope keeps ranges, and the commitment with it', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
     const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.18.0/24', '10.1.0.0/16'], bundle: 'smb', commitment: true }) })

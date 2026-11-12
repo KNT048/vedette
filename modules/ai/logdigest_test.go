@@ -249,3 +249,61 @@ func TestLogDigestAnswerGoesThroughTheAfterAIHooks(t *testing.T) {
 		t.Fatalf("row = %+v", last)
 	}
 }
+
+// The documents of the knowledge base the call would carry are part of the inputs of a stored digest (INV-6b, D-221): adding one makes
+// the next POST ask again, and the document reaches the request.
+func TestLogDigestCacheKeyFollowsTheDocuments(t *testing.T) {
+	a := newAPI(t)
+	a.kbIndexProfile()
+	id := a.addProfile(cloudBody("Claude", keyA))["id"].(string)
+	a.fake.setAnswer(goodDigest)
+	a.assign(false, ai.JobLogDigest, id, "")
+	a.logs.set(someDigest())
+	a.digest("POST", "operator", 200, "")
+	calls := a.fake.total()
+	a.digest("POST", "operator", 200, "")
+	if a.fake.total() != calls {
+		t.Fatal("no cache with no documents")
+	}
+	a.kbAdd("fw.md", []byte("FW-HQ is the firewall of the head office; logon failures from it go to the IT team on call."), `["log-digest"]`)
+	a.digest("POST", "operator", 200, "")
+	if a.fake.total() != calls+1 {
+		t.Fatalf("calls = %d, want %d: a stored digest was served after a document was added", a.fake.total(), calls+1)
+	}
+	if user := a.fake.lastRequest(t).Messages[0].Text; !strings.Contains(user, "IT team on call") {
+		t.Fatalf("the document did not reach the digest: %s", user)
+	}
+	a.digest("POST", "operator", 200, "")
+	if a.fake.total() != calls+1 {
+		t.Fatal("not cached again")
+	}
+}
+
+// With the logs module off, GET says so (409) also when a digest was stored before: a stored digest is not served for logs that are off.
+func TestLogDigestGetWithLogsOffIgnoresAStoredDigest(t *testing.T) {
+	a := newAPI(t)
+	a.addProfile(cloudBody("Claude", keyA))
+	a.fake.setAnswer(goodDigest)
+	a.logs.set(someDigest())
+	a.digest("POST", "operator", 200, "")
+	digestOf(t, a.digest("GET", "viewer", 200, ""))
+	a.logs.mu.Lock()
+	a.logs.on = false
+	a.logs.mu.Unlock()
+	a.digest("GET", "viewer", 409, "ai_unavailable")
+}
+
+// Counts are written with thousands separators, so a 9-digit count is a number of lines, not an identity number the hooks block.
+func TestLogDigestBigCountsAreNotBlockedAsIDNumbers(t *testing.T) {
+	a := newAPI(t)
+	a.addProfile(cloudBody("Claude", keyA))
+	a.fake.setAnswer(goodDigest)
+	d := someDigest()
+	d.Lines24h = 123456789
+	d.New[0].Count = 987654321
+	a.logs.set(d)
+	a.digest("POST", "operator", 200, "")
+	if user := a.fake.lastRequest(t).Messages[0].Text; !strings.Contains(user, "123,456,789") || !strings.Contains(user, "987,654,321 lines") {
+		t.Fatalf("request = %s", user)
+	}
+}

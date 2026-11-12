@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -132,20 +133,21 @@ func digestBlock(d LogDigestData, tier Tier) DataBlock {
 		n = digestListMaxMin
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "Window: the last 24 hours. Lines received: %d. Baseline: %d days.\n", d.Lines24h, d.BaselineDays)
+	// counts carry thousands separators: a 9- or 12-digit count must not read as an identity number to the hooks
+	fmt.Fprintf(&b, "Window: the last 24 hours. Lines received: %s. Baseline: %d days.\n", number(d.Lines24h), d.BaselineDays)
 	b.WriteString("New kinds of line (not seen from this source in the baseline):\n")
 	for i, x := range d.New {
 		if i == n {
 			break
 		}
-		fmt.Fprintf(&b, "- source %q: %s (%d lines, first seen %s)\n", clip(x.SourceName, digestNameChars), clip(x.Signature, digestSigChars), x.Count, clip(x.FirstSeen, 32))
+		fmt.Fprintf(&b, "- source %q: %s (%s lines, first seen %s)\n", clip(x.SourceName, digestNameChars), clip(x.Signature, digestSigChars), number(x.Count), clip(x.FirstSeen, 32))
 	}
 	b.WriteString("Kinds of line far above their usual rate:\n")
 	for i, x := range d.Spikes {
 		if i == n {
 			break
 		}
-		fmt.Fprintf(&b, "- source %q: %s (%d lines in 24 hours, usually about %.0f a day)\n", clip(x.SourceName, digestNameChars), clip(x.Signature, digestSigChars), x.Count, x.BaselinePerDay)
+		fmt.Fprintf(&b, "- source %q: %s (%s lines in 24 hours, usually about %s a day)\n", clip(x.SourceName, digestNameChars), clip(x.Signature, digestSigChars), number(x.Count), number(int(math.Round(x.BaselinePerDay))))
 	}
 	b.WriteString("Connections to addresses on threat feeds:\n")
 	for i, x := range d.BadConnections {
@@ -269,18 +271,19 @@ func (s *Service) readLogDigest(ctx context.Context) (LogDigestData, error) {
 }
 
 // CachedLogDigest is GET /ai/logs/digest: the newest digest made at the level in force, with no AI call (INV-6). nil when none was
-// made yet. When the logs hold no events there is nothing to summarise: the answer says so (empty), which needs no AI either.
+// made yet. When the logs hold no events there is nothing to summarise: the answer says so (empty), which needs no AI either. With the
+// logs module off it is 409 like POST, also when a digest was stored before: a stale digest is not served for logs that are off.
 func (s *Service) CachedLogDigest(ctx context.Context) (*LogDigestResult, error) {
+	d, err := s.readLogDigest(ctx)
+	if err != nil {
+		return nil, err
+	}
 	tier := s.meter.Tier()
 	if v, ok, err := s.loadDigest(ctx, tier, ""); err != nil || ok {
 		if err != nil {
 			return nil, err
 		}
 		return &v, nil
-	}
-	d, err := s.readLogDigest(ctx)
-	if err != nil {
-		return nil, err
 	}
 	if d.empty() {
 		v := s.digestEmpty(tier, s.cfg.Clock())
@@ -316,17 +319,14 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 			rules = append(rules, r.Text)
 		}
 	}
-	hash := HashContent("log-digest-v1\n" + string(tier) + "\n" + block.Text + "\nmemory:" + mem.block.Text + "\nrules:" + strings.Join(rules, "\n"))
-	if v, ok, err := s.loadDigest(ctx, tier, hash); err != nil || ok {
-		return v, err
-	}
 	var body logDigestBody
 	now := s.cfg.Clock()
 	maxTokens := 2500
 	if tier == TierMin {
 		maxTokens = 1200
 	}
-	res, err := s.RunJob(ctx, JobSpec{
+	var hash string
+	spec := JobSpec{
 		Job: JobLogDigest, Actor: actor, Task: digestTask,
 		Question:  "What in the logs of the last 24 hours should be looked at first?",
 		Data:      []DataBlock{block},
@@ -353,7 +353,19 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 			}
 			return nil
 		},
-	})
+	}
+	// The pieces of the knowledge base the call would carry are part of the inputs, like in explain: a changed document is a cache miss.
+	// Retrieved once here and handed to RunJob (one retrieval, one hook pass).
+	know, err := s.knowledgeForCall(ctx, har.runner, JobLogDigest, knowledgeQuery(spec))
+	if err != nil {
+		return LogDigestResult{}, err
+	}
+	spec.knowledge = &know
+	hash = HashContent("log-digest-v1\n" + string(tier) + "\n" + block.Text + "\nmemory:" + mem.block.Text + knowledgeKey(know) + "\nrules:" + strings.Join(rules, "\n"))
+	if v, ok, err := s.loadDigest(ctx, tier, hash); err != nil || ok {
+		return v, err
+	}
+	res, err := s.RunJob(ctx, spec)
 	if err != nil {
 		return LogDigestResult{}, err
 	}

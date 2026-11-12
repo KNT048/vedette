@@ -375,7 +375,7 @@ describe('core: dữ liệu', () => {
     renderApp('/settings/data')
     const before = await screen.findAllByRole('button', { name: 'Restore' })
     expect(screen.queryByText('Before restore')).toBeNull()
-    await u.click(before[0])
+    await u.click(before[0]!)
     const dlg = await screen.findByRole('dialog', { name: /Restore the backup from/ })
     within(dlg).getByText(/Everything written since then is replaced/)
     within(dlg).getByText(/keeps a copy of the data it has now/)
@@ -392,7 +392,7 @@ describe('core: dữ liệu', () => {
     renderApp('/settings/data')
     await screen.findAllByRole('button', { name: 'Restore' })
     const r = await fetch(`${location.origin}/api/v1/core/data/backups`).then((x) => x.json()) as { backups: { id: string }[] }
-    const res = await fetch(`${location.origin}/api/v1/core/data/restore`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ backup_id: r.backups[0].id }) })
+    const res = await fetch(`${location.origin}/api/v1/core/data/restore`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ backup_id: r.backups[0]!.id }) })
     expect(res.status).toBe(409)
     expect((await res.json() as { error: { code: string } }).error.code).toBe('confirm_required')
   })

@@ -420,9 +420,14 @@ func TestFriendlyErrorNeverRepeatsTheOtherSide(t *testing.T) {
 		"smtp":     {&channel.StatusError{Channel: channel.Email, Code: 550, Reason: "mx.internal.corp says no"}, "The mail server refused the message (SMTP code 550)."},
 		"telegram": {&channel.StatusError{Channel: channel.Telegram, Code: 403, Reason: "bot was blocked"}, "Telegram refused the message (HTTP 403)."},
 		"webhook":  {&channel.StatusError{Channel: channel.Webhook, Code: 404, Reason: "no such path /internal"}, "The webhook server answered with an error, so it did not accept the message."},
-		"provider": {&channel.ProviderError{Channel: channel.Zalo, Code: -216, Reason: "secret detail"}, "Zalo refused the message (code -216)."},
-		"timeout":  {errors.New("notify: slack: send failed: timed out"), "The server did not answer in time."},
-		"other":    {errors.New("notify: slack: send failed: dial tcp 10.1.1.1:443: connect: connection refused"), "The message could not be sent. The server could not be reached or answered something unexpected."},
+		"provider": {&channel.ProviderError{Channel: channel.Zalo, Code: -201, Reason: "secret detail"}, "Zalo refused the message (code -201)."},
+		"zalo token": {&channel.ProviderError{Channel: channel.Zalo, Code: -220, Reason: "secret detail"},
+			"Zalo refused the message (code -220): the access token is invalid or expired (OA tokens last 25 hours). Get a new token in Zalo Developers and save it."},
+		"zalo 7 days": {&channel.ProviderError{Channel: channel.Zalo, Code: -230, Reason: "secret detail"},
+			"Zalo refused the message (code -230): Zalo delivers these messages only to people who interacted with the OA in the last 7 days. Ask the recipient to send the OA a message, then try again."},
+		"zalo personal keeps the bare code": {&channel.ProviderError{Channel: channel.ZaloPersonal, Code: -216, Reason: "secret detail"}, "Zalo refused the message (code -216)."},
+		"timeout":                           {errors.New("notify: slack: send failed: timed out"), "The server did not answer in time."},
+		"other":                             {errors.New("notify: slack: send failed: dial tcp 10.1.1.1:443: connect: connection refused"), "The message could not be sent. The server could not be reached or answered something unexpected."},
 	} {
 		if got := friendlyError(c.err); got != c.want {
 			t.Errorf("%s: %q, want %q", name, got, c.want)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { render, screen, within, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
@@ -679,5 +679,41 @@ describe('ai: Add AI profile form matrix (docs/QA.md §2)', () => {
     expect(p).toMatchObject({ location: 'internal', model: 'qwen3:8b' })
     const sel = await screen.findByLabelText('Primary profile for Log summaries')
     expect(within(sel).getByRole('option', { name: 'Local model' })).toBeEnabled()
+  })
+})
+
+describe('AI profile form matrix (docs/QA.md §2, QA walk 2026-11-12)', () => {
+  it('"Connected" holds only for what was tested; choosing Inside your network clears the https error', async () => {
+    const v = renderUi(<AiSettings />)
+    await v.ready
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add AI profile' }))[0]!)
+    const dlg = await screen.findByRole('dialog', { name: 'Add AI profile' })
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), 'Custom')
+    fireEvent.change(within(dlg).getByLabelText('Server address'), { target: { value: 'http://10.0.0.5:8000/v1' } })
+    fireEvent.change(within(dlg).getByLabelText('Model'), { target: { value: 'llama-4' } })
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Test connection' }))
+    await within(dlg).findByText(/must start with https:\/\//)
+    await eachOption([
+      { option: 'Inside your network', hidden: [/must start with https:\/\//] },
+      { option: 'Test connection', shown: ['Connected'] },
+      { option: 'another model', hidden: ['Connected'] },
+    ], async (o) => {
+      if (o === 'Inside your network') await userEvent.click(within(dlg).getByRole('radio', { name: /Inside your network/ }))
+      else if (o === 'Test connection') { await userEvent.click(within(dlg).getByRole('button', { name: o })); await within(dlg).findByText('Connected') }
+      else fireEvent.change(within(dlg).getByLabelText('Model'), { target: { value: 'other-model' } })
+    }, dlg)
+  })
+
+  it('editing: the stored key is offered only for its own provider', async () => {
+    const v = renderUi(<AiSettings />)
+    await v.ready
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit Claude Haiku' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Edit Claude Haiku' })
+    const kept = /A key ending in 7Qk2 is stored/
+    await eachOption([
+      { option: 'Anthropic', shown: [kept] },
+      { option: 'OpenAI', hidden: [kept] },
+      { option: 'Anthropic', shown: [kept] },
+    ], (o) => userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), o), dlg)
   })
 })

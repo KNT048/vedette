@@ -92,6 +92,8 @@ function AddTarget() {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
+  // Cancel, Esc and X all drop the draft and its error, so the next opening never shows an error for text that is gone.
+  const toggle = (o: boolean) => { setOpen(o); if (!o) { setError(null); setValue('') } }
   function submit(e: FormEvent) {
     e.preventDefault()
     setError(null)
@@ -102,7 +104,7 @@ function AddTarget() {
     })
   }
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setError(null) }}>
+    <Dialog open={open} onOpenChange={toggle}>
       <DialogTrigger asChild>
         <Button variant="primary" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })}><Plus />{t('add.button')}</Button>
       </DialogTrigger>
@@ -112,7 +114,7 @@ function AddTarget() {
             <Input id="ex-new" value={value} onChange={(e) => setValue(e.target.value)} autoFocus autoComplete="off" spellCheck={false} aria-invalid={error ? true : undefined} aria-describedby={error ? 'ex-new-error' : 'ex-new-hint'} />
           </Field>
           <DialogFooter>
-            <Button onClick={() => setOpen(false)}>{t('common:cancel')}</Button>
+            <Button onClick={() => toggle(false)}>{t('common:cancel')}</Button>
             <Button type="submit" variant="primary" disabled={add.isPending}>{t('add.submit')}</Button>
           </DialogFooter>
         </form>

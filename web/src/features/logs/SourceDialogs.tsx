@@ -13,6 +13,9 @@ import { defaultPort } from './types'
 import type { LogSource, Proto, SourceKind } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
+type FormField = 'name' | 'ip' | 'proto' | 'port'
+// The box names the wrong field by its code: the message goes under that field (a phone may have the top of the dialog scrolled away).
+const FIELD_OF: Record<string, FormField> = { bad_name: 'name', bad_ip: 'ip', duplicate: 'ip', bad_proto: 'proto', tls_unavailable: 'proto', bad_port: 'port' }
 
 /** Chọn loại thiết bị: ô tìm + danh sách theo nhóm. Enter chọn kết quả đầu tiên khi chỉ còn một. */
 function KindPicker({ find, setFind, onPick }: { find: string; setFind: (v: string) => void; onPick: (k: SourceKind) => void }) {
@@ -61,8 +64,16 @@ export function SourceFormDialog({ open, onOpenChange, source, onAdded }: { open
   const [ip, setIp] = useState(source?.sender_ip ?? '')
   const [proto, setProto] = useState<Proto>(source?.proto ?? 'udp')
   const [port, setPort] = useState(String(source?.port ?? 514))
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ field?: FormField; message: string } | null>(null)
   const pending = add.isPending || edit.isPending
+  const fieldErr = (f: FormField) => (error?.field === f ? error.message : undefined)
+  const fixed = (f: FormField) => { if (error?.field === f) setError(null) }
+  const aria = (f: FormField, hint: boolean) => ({ 'aria-invalid': fieldErr(f) ? true : undefined, 'aria-describedby': fieldErr(f) ? `ls-${f}-error` : hint ? `ls-${f}-hint` : undefined })
+  const fail = (er: unknown) => {
+    const field = er instanceof ApiError ? FIELD_OF[er.code] : undefined
+    setError({ field, message: errMsg(er) })
+    if (field) document.getElementById(`ls-${field}`)?.focus()
+  }
 
   function pickKind(k: SourceKind) {
     setKind(k)
@@ -71,6 +82,7 @@ export function SourceFormDialog({ open, onOpenChange, source, onAdded }: { open
     if (!protos.includes(proto)) { setProto(protos[0]!); setPort(String(defaultPort(protos[0]!))) }
   }
   function changeProto(p: Proto) {
+    fixed('proto')
     if (Number(port) === defaultPort(proto)) setPort(String(defaultPort(p)))
     setProto(p)
   }
@@ -80,16 +92,16 @@ export function SourceFormDialog({ open, onOpenChange, source, onAdded }: { open
     if (!kind) return
     const v = { kind, name: name.trim(), sender_ip: ip.trim(), proto, port: Number(port) }
     if (source) {
-      edit.mutate({ ...v, id: source.id }, { onSuccess: () => { toast.success(t('form.edited')); onOpenChange(false) }, onError: (er) => setError(errMsg(er)) })
+      edit.mutate({ ...v, id: source.id }, { onSuccess: () => { toast.success(t('form.edited')); onOpenChange(false) }, onError: fail })
     } else {
-      add.mutate(v, { onSuccess: (s) => { toast.success(t('form.added')); onOpenChange(false); onAdded?.(s) }, onError: (er) => setError(errMsg(er)) })
+      add.mutate(v, { onSuccess: (s) => { toast.success(t('form.added')); onOpenChange(false); onAdded?.(s) }, onError: fail })
     }
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent title={source ? t('form.editTitle') : t('form.addTitle')} description={source ? undefined : t('form.addDesc')}>
         <form onSubmit={submit} className="grid gap-4" noValidate>
-          {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error}</p> : null}
+          {error && !error.field ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error.message}</p> : null}
           {kind ? (
             <div className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-rule bg-sunken px-3 py-2">
               <div className="grid gap-0.5 text-sm">
@@ -102,20 +114,20 @@ export function SourceFormDialog({ open, onOpenChange, source, onAdded }: { open
             <KindPicker find={find} setFind={setFind} onPick={pickKind} />
           )}
           {kind ? (<>
-          <Field label={t('form.name')} hint={t('form.nameHint')} htmlFor="ls-name">
-            <Input id="ls-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" required aria-describedby="ls-name-hint" />
+          <Field label={t('form.name')} hint={t('form.nameHint')} htmlFor="ls-name" error={fieldErr('name')}>
+            <Input id="ls-name" value={name} onChange={(e) => { setName(e.target.value); fixed('name') }} autoComplete="off" required {...aria('name', true)} />
           </Field>
-          <Field label={t('form.ip')} hint={t('form.ipHint')} htmlFor="ls-ip">
-            <Input id="ls-ip" value={ip} onChange={(e) => setIp(e.target.value)} inputMode="decimal" autoComplete="off" required aria-describedby="ls-ip-hint" />
+          <Field label={t('form.ip')} hint={t('form.ipHint')} htmlFor="ls-ip" error={fieldErr('ip')}>
+            <Input id="ls-ip" value={ip} onChange={(e) => { setIp(e.target.value); fixed('ip') }} inputMode="decimal" autoComplete="off" required {...aria('ip', true)} />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t('form.proto')} htmlFor="ls-proto">
-              <Select id="ls-proto" value={proto} onChange={(e) => changeProto(e.target.value as Proto)}>
+            <Field label={t('form.proto')} htmlFor="ls-proto" error={fieldErr('proto')}>
+              <Select id="ls-proto" value={proto} onChange={(e) => changeProto(e.target.value as Proto)} {...aria('proto', false)}>
                 {CATALOG[kind].protos.map((p) => <option key={p} value={p}>{p.toUpperCase()}</option>)}
               </Select>
             </Field>
-            <Field label={t('form.port')} hint={t('form.portHint')} htmlFor="ls-port">
-              <Input id="ls-port" type="number" min={1} max={65535} value={port} onChange={(e) => setPort(e.target.value)} aria-describedby="ls-port-hint" />
+            <Field label={t('form.port')} hint={t('form.portHint')} htmlFor="ls-port" error={fieldErr('port')}>
+              <Input id="ls-port" type="number" min={1} max={65535} value={port} onChange={(e) => { setPort(e.target.value); fixed('port') }} {...aria('port', true)} />
             </Field>
           </div>
           </>) : null}

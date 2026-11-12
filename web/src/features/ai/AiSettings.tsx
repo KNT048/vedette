@@ -169,6 +169,8 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
 const FIELD_OF: Record<string, 'name' | 'base_url' | 'model' | 'key' | 'cap' | 'style' | 'location'> = { invalid_name: 'name', duplicate_name: 'name', invalid_base_url: 'base_url', invalid_model: 'model', invalid_key: 'key', key_required: 'key', invalid_cap: 'cap', invalid_style: 'style', invalid_location: 'location' }
 type Errs = Partial<Record<'name' | 'base_url' | 'model' | 'key' | 'cap' | 'style' | 'location', string>>
 
+const sameOrigin = (a: string, b: string) => { try { return new URL(a).origin === new URL(b.trim()).origin } catch { return false } }
+
 function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | null; existing: AiProfile[]; onClose: () => void }) {
   const { t } = useTranslation('ai')
   const save = useSaveProfile()
@@ -190,6 +192,8 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
   const serverField = (e: unknown) => (e instanceof ApiError ? FIELD_OF[e.code] : undefined)
   const err = (k: keyof Errs) => errs[k] ?? (serverField(save.error) === k ? (save.error as Error).message : serverField(test.error) === k ? (test.error as Error).message : undefined)
   const upd = (k: keyof Errs) => setErrs((x) => ({ ...x, [k]: undefined }))
+  // The stored key is offered only for the provider and address it was saved for; another provider or origin needs the key again (validate, server).
+  const keptKey = profile?.key_last4 && profile.kind === kind && sameOrigin(profile.base_url, baseUrl) ? profile.key_last4 : null
 
   function pickKind(k: ProfileKind) {
     save.reset(); test.reset(); setErrs({})
@@ -226,6 +230,9 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
   }
   function runTest() { save.reset(); if (validate(true)) test.mutate(input()) }
   const aria = (k: keyof Errs, hint?: boolean) => ({ 'aria-invalid': err(k) ? true : undefined, 'aria-describedby': err(k) ? `pf-${k}-error` : hint ? `pf-${k}-hint` : undefined })
+  // "Connected" holds only for what was tested: a changed provider, address, model, key or location hides it until Test runs again.
+  const conn = (i: ProfileInput) => JSON.stringify([i.kind, i.api_style, i.base_url, i.model, i.api_key, i.location])
+  const tested = test.data && test.variables && conn(test.variables) === conn(input()) ? test.data : undefined
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
@@ -249,12 +256,12 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
             <Field label={t('profiles.f.model')} htmlFor="pf-model" hint={t('profiles.f.modelHint')} error={err('model')} className="sm:col-span-2">
               <Input id="pf-model" value={model} onChange={(e) => { setModel(e.target.value); upd('model') }} autoComplete="off" {...aria('model', true)} />
             </Field>
-            <Field label={t('profiles.f.key')} htmlFor="pf-key" error={err('key')} hint={profile?.key_last4 ? t('profiles.f.keySaved', { last4: profile.key_last4 }) : location === 'internal' ? t('profiles.f.keyOptional') : t('profiles.f.keyHint')} className="sm:col-span-2">
-              <Input id="pf-key" type="password" value={key} onChange={(e) => { setKey(e.target.value); upd('key') }} autoComplete="off" placeholder={profile?.key_last4 ? `••••${profile.key_last4}` : ''} {...aria('key', true)} />
+            <Field label={t('profiles.f.key')} htmlFor="pf-key" error={err('key')} hint={keptKey ? t('profiles.f.keySaved', { last4: keptKey }) : location === 'internal' ? t('profiles.f.keyOptional') : t('profiles.f.keyHint')} className="sm:col-span-2">
+              <Input id="pf-key" type="password" value={key} onChange={(e) => { setKey(e.target.value); upd('key') }} autoComplete="off" placeholder={keptKey ? `••••${keptKey}` : ''} {...aria('key', true)} />
             </Field>
             <div className="grid gap-1.5 sm:col-span-2">
               <Label id="pf-location-label">{t('profiles.f.location')}</Label>
-              <RadioGroup value={location} onValueChange={(v) => setLocation(v as 'internal' | 'cloud')} aria-labelledby="pf-location-label" disabled={cloudOnly}>
+              <RadioGroup value={location} onValueChange={(v) => { setLocation(v as 'internal' | 'cloud'); setErrs((x) => ({ ...x, base_url: undefined, key: undefined })) }} aria-labelledby="pf-location-label" disabled={cloudOnly}>
                 {(['internal', 'cloud'] as const).map((l) => (
                   <div key={l} className="flex items-start gap-3 rounded-md border border-rule bg-surface p-3">
                     <RadioItem id={`pf-loc-${l}`} value={l} className="mt-0.5" disabled={cloudOnly && l === 'internal'} />
@@ -274,7 +281,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
               <Label htmlFor="pf-ack" className="font-normal">{t('profiles.f.ack', { host })}</Label>
             </div>
           ) : null}
-          {test.data ? <p role="status" className="flex flex-wrap items-center gap-2 text-sm"><Chip tone="ok">{t('profiles.testOk')}</Chip>{t('profiles.testDetail', { name: name.trim() || t('profiles.thisProfile'), ms: test.data.latency_ms, input: test.data.tokens_in, output: test.data.tokens_out })} {t(test.data.capabilities.tools ? 'profiles.capTools' : 'profiles.capNoTools')}</p> : null}
+          {tested ? <p role="status" className="flex flex-wrap items-center gap-2 text-sm"><Chip tone="ok">{t('profiles.testOk')}</Chip>{t('profiles.testDetail', { name: name.trim() || t('profiles.thisProfile'), ms: tested.latency_ms, input: tested.tokens_in, output: tested.tokens_out })} {t(tested.capabilities.tools ? 'profiles.capTools' : 'profiles.capNoTools')}</p> : null}
           {test.error && !serverField(test.error) ? <ActionError error={test.error} /> : null}
           {save.error && !serverField(save.error) ? <ActionError error={save.error} /> : null}
           <DialogFooter>

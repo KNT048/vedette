@@ -1,6 +1,6 @@
 // Harness AI (S-AI-7): bộ máy hook, "Ask your data" áp hook, và vài thao tác trên giao diện.
 import { describe, expect, it } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
@@ -152,5 +152,25 @@ describe('Hooks form: form matrix (docs/QA.md §2)', () => {
     }
     // the server refuses a regex that does not compile, and keywords that are only separators
     expect((await post('/ai/hooks', { name: 'x', when: 'before_ai', match: { type: 'keywords', pattern: ' , ' }, action: 'block', message: 'No.', enabled: true })).status).toBe(400)
+  })
+
+  it('a test result holds for the hook it ran on: changing the action or the words hides it (QA walk 2026-11-12)', async () => {
+    renderTab('hooks')
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add hook' }))[0]!)
+    const dlg = await screen.findByRole('dialog', { name: 'Add hook' })
+    fireEvent.change(within(dlg).getByLabelText('Keywords'), { target: { value: 'falcon' } })
+    fireEvent.change(within(dlg).getByLabelText('Sample text'), { target: { value: 'status of project falcon' } })
+    const action = within(dlg).getByLabelText('What it does')
+    await eachOption([
+      { option: 'Mask', hidden: ['Blocked'] },
+      { option: 'other words', hidden: ['Blocked'] },
+    ], async (o) => {
+      await userEvent.selectOptions(action, 'Block')
+      fireEvent.change(within(dlg).getByLabelText('Keywords'), { target: { value: 'falcon' } })
+      await userEvent.click(within(dlg).getByRole('button', { name: 'Test' }))
+      await within(dlg).findByText('Blocked')
+      if (o === 'Mask') await userEvent.selectOptions(action, 'Mask')
+      else fireEvent.change(within(dlg).getByLabelText('Keywords'), { target: { value: 'nothing-matches' } })
+    }, dlg)
   })
 })

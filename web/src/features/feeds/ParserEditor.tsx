@@ -26,7 +26,10 @@ export function ParserEditor({ kind, parser, onChange, onFormat }: { kind: FeedK
   const mapped = fmt === 'json' || fmt === 'csv' || fmt === 'rss'
   const fields = FIELDS[kind].filter((f) => mapped || (fmt === 'lines' && f.id === 'indicator'))
   const sourceHint = fmt === 'json' ? t('parser.srcJson') : fmt === 'csv' ? t('parser.srcCsv') : t('parser.srcRss')
-  const err = test.error instanceof ApiError || test.error instanceof Error ? test.error.message : null
+  // A result belongs to the type and rules it was run with: switching the type or the format (which resets the rules) hides it.
+  const fresh = test.variables?.kind === kind && JSON.stringify(test.variables.parser) === JSON.stringify(parser)
+  const result = fresh ? test.data : undefined
+  const err = fresh && (test.error instanceof ApiError || test.error instanceof Error) ? test.error.message : null
 
   return (
     <div className="grid gap-4 rounded-md border border-rule p-4" role="group" aria-label={t('parser.title')}>
@@ -100,26 +103,26 @@ export function ParserEditor({ kind, parser, onChange, onFormat }: { kind: FeedK
         <span className="text-[13px] text-muted">{t('parser.limits', { size: SIZE_LIMIT / 1_000_000, rows: fmtNumber(ROW_LIMIT) })}</span>
       </div>
       {err ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{err}</p> : null}
-      {test.data ? (
+      {result ? (
         <div className="grid gap-3" aria-live="polite">
           <p className="flex flex-wrap items-center gap-2 text-sm" role="status">
-            <Chip tone={test.data.accepted ? 'ok' : 'danger'}>{t('parser.accepted', { count: test.data.accepted })}</Chip>
-            <Chip tone={test.data.rejected ? 'warn' : 'off'}>{t('parser.rejected', { count: test.data.rejected })}</Chip>
-            <span className="text-muted">{test.data.sample_label}</span>
+            <Chip tone={result.accepted ? 'ok' : 'danger'}>{t('parser.accepted', { count: result.accepted })}</Chip>
+            <Chip tone={result.rejected ? 'warn' : 'off'}>{t('parser.rejected', { count: result.rejected })}</Chip>
+            <span className="text-muted">{result.sample_label}</span>
           </p>
-          {test.data.truncated ? <p className="text-[13px] text-warn">{t('parser.truncated', { rows: fmtNumber(ROW_LIMIT) })}</p> : null}
-          {test.data.records.length ? (
-            <DataTable<ParseRecord> caption={t('parser.previewCaption')} data={test.data.records} pageSize={20}
-              columns={test.data.columns.map((c) => ({ id: c, header: t(`parser.field.${c}`), accessorFn: (r: ParseRecord) => r[c] ?? '', cell: ({ getValue }: { getValue: () => unknown }) => <span className="block max-w-72 truncate" title={String(getValue())}>{String(getValue()) || <span className="text-muted">-</span>}</span> }))} />
+          {result.truncated ? <p className="text-[13px] text-warn">{t('parser.truncated', { rows: fmtNumber(ROW_LIMIT) })}</p> : null}
+          {result.records.length ? (
+            <DataTable<ParseRecord> caption={t('parser.previewCaption')} data={result.records} pageSize={20}
+              columns={result.columns.map((c) => ({ id: c, header: t(`parser.field.${c}`), accessorFn: (r: ParseRecord) => r[c] ?? '', cell: ({ getValue }: { getValue: () => unknown }) => <span className="block max-w-72 truncate" title={String(getValue())}>{String(getValue()) || <span className="text-muted">-</span>}</span> }))} />
           ) : <p className="text-sm text-muted">{t('parser.noRecords')}</p>}
-          {test.data.rejected ? (
+          {result.rejected ? (
             <div className="grid gap-1 text-sm">
               <p className="font-medium">{t('parser.whyRejected')}</p>
-              <ul className="list-disc pl-5 text-[13px]">{test.data.reasons.slice(0, 6).map((r) => <li key={r.reason}>{r.reason} <span className="text-muted">({fmtNumber(r.count)})</span></li>)}</ul>
-              <p className="text-[13px] text-muted">{t('parser.firstRejected', { rows: test.data.rejects.map((r) => r.row).join(', ') })}</p>
+              <ul className="list-disc pl-5 text-[13px]">{result.reasons.slice(0, 6).map((r) => <li key={r.reason}>{r.reason} <span className="text-muted">({fmtNumber(r.count)})</span></li>)}</ul>
+              <p className="text-[13px] text-muted">{t('parser.firstRejected', { rows: result.rejects.map((r) => r.row).join(', ') })}</p>
             </div>
           ) : null}
-          <details className="text-sm"><summary className="cursor-pointer text-muted">{t('parser.showSample')}</summary><div className="mt-2 max-h-72 overflow-auto"><CodeBlock code={test.data.sample.slice(0, 6000)} label={test.data.sample_label} /></div></details>
+          <details className="text-sm"><summary className="cursor-pointer text-muted">{t('parser.showSample')}</summary><div className="mt-2 max-h-72 overflow-auto"><CodeBlock code={result.sample.slice(0, 6000)} label={result.sample_label} /></div></details>
         </div>
       ) : null}
     </div>

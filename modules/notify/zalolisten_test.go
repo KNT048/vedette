@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/modules/notify"
@@ -18,11 +19,15 @@ const zaloStranger = "4756102938475610293"
 type fakeInbox struct {
 	texts []channel.ZaloText
 	end   error
+	after func() // when set, runs after each text is taken, before the next one
 }
 
 func (f *fakeInbox) Run(_ context.Context, take func(channel.ZaloText)) error {
 	for _, m := range f.texts {
 		take(m)
+		if f.after != nil {
+			f.after()
+		}
 	}
 	return f.end
 }
@@ -238,6 +243,15 @@ func TestZaloAnswersAreRationedPerApprover(t *testing.T) {
 	l := newZaloListenEnv(t, notify.DecisionResult{Status: "invalid_code", Message: "That code is not valid."}, nil)
 	for i := range 8 {
 		l.inbox.texts = append(l.inbox.texts, channel.ZaloText{ID: fmt.Sprint(100 + i), From: zaloAdmin, Text: "A-AAAAAA"})
+	}
+	// one reply at a time, as a person types them: each is decided before the next arrives, so none meets four busy workers (a
+	// busy pool drops a reply on purpose, and back-to-back texts on a loaded machine did, failing this test)
+	l.dec.each = make(chan struct{}, 8)
+	l.inbox.after = func() {
+		select {
+		case <-l.dec.each:
+		case <-time.After(30 * time.Second): // a dropped reply makes no decision: the count check below says so, the test does not hang
+		}
 	}
 	_ = l.svc.ListenZaloForTest(l.ctx())
 	if len(l.dec.got()) != 8 || len(l.z.sent) != 5 {

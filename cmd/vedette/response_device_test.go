@@ -465,12 +465,12 @@ func TestDeviceSSHExactLinesRefusalAndStop(t *testing.T) {
 		got := e.approve()
 		it := got.Items[0]
 		// The refused line is an unclear outcome (the wording of a device never decides "nothing changed"); the read-back that follows, in a
-		// new session, shows the port is not shut, so the item is settled: not in force.
+		// new session, shows the port is not shut, so the item is settled: not in force. After the refused line only end goes out (D-358).
 		if it.Status != response.ItemFailed || it.StateUnknown || !strings.Contains(*it.Result, "not in force") {
 			t.Fatalf("item %+v", it)
 		}
 		want := "terminal length 0|show interfaces " + port + " switchport|show interfaces " + port + "|terminal length 0|configure terminal|interface " + port +
-			"|terminal length 0|show interfaces " + port + " status"
+			"|end|terminal length 0|show interfaces " + port + " status"
 		if join(f.Lines()) != want {
 			t.Fatalf("lines\n got %s\nwant %s", join(f.Lines()), want)
 		}

@@ -68,6 +68,9 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	stateDir := fs.String("state-dir", "/var/lib/vedette-host", "directory for runs and idempotency records")
 	auditLog := fs.String("audit-log", "/var/log/vedette-host/audit.jsonl", "append-only audit log")
 	bootstrap := fs.Bool("bootstrap", false, "first install: verify a signed release, pull its images and write the first units, then exit (needs the four documents below; refuses while the daemon runs)")
+	doRecover := fs.Bool("recover-core-data", false, "after core_data_unrecoverable: show what is in core_data, and with -use and -yes put it right; refuses while the daemon or core runs (RUNBOOK 5.5)")
+	recoverUse := fs.String("use", "", "-recover-core-data: rollback (put the .rollback copies back) or current (keep the files now there)")
+	recoverYes := fs.Bool("yes", false, "-recover-core-data: do what -use says; without it only shows")
 	var bf bootFlags
 	fs.StringVar(&bf.index, "index", "", "-bootstrap: index.json")
 	fs.StringVar(&bf.indexSig, "index-sig", "", "-bootstrap: index.json.minisig")
@@ -83,6 +86,12 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	}
 	if !*bootstrap && bf.given() {
 		return errors.New("-index, -index-sig, -manifest, -manifest-sig, -services and -force-units belong to -bootstrap")
+	}
+	if !*doRecover && (*recoverUse != "" || *recoverYes) {
+		return errors.New("-use and -yes belong to -recover-core-data")
+	}
+	if *doRecover && (*bootstrap || bf.given()) {
+		return errors.New("-recover-core-data and -bootstrap are separate commands")
 	}
 	if *showVersion {
 		_, err := fmt.Fprintln(stdout, version)
@@ -103,6 +112,9 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 			return fmt.Errorf("-socket: %w", err)
 		}
 		cfg.Socket = *socket
+	}
+	if *doRecover {
+		return runRecover(ctx, cfg, *recoverUse, *recoverYes, *stateDir, *auditLog, stdout, env)
 	}
 	if *bootstrap {
 		return runBootstrap(ctx, cfg, bf, *stateDir, *auditLog, stdout, env)

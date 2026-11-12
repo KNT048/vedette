@@ -288,3 +288,23 @@ func FuzzParseUnit(f *testing.F) {
 		}
 	})
 }
+
+// The honeypot log volume (D-318) is constant text: a tmpfs capped in bytes and in files, mounted with no suid, device or exec.
+func TestHoneypotLogVolumeMatchesItsGoldenFile(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join("testdata", "units", hpLogVolumeFileName)
+	if os.Getenv("UPDATE_GOLDEN") == "1" {
+		if err := os.WriteFile(path, hpLogVolumeText, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want, err := os.ReadFile(path) //nolint:gosec // a golden file under testdata
+	if err != nil || !bytes.Equal(hpLogVolumeText, want) {
+		t.Errorf("%s differs from its golden file (%v):\n%s", hpLogVolumeFileName, err, hpLogVolumeText)
+	}
+	for _, need := range []string{"Type=tmpfs\n", "Device=tmpfs\n", "size=64m,", "nr_inodes=1024,", "nosuid,nodev,noexec\n"} {
+		if !strings.Contains(string(hpLogVolumeText), need) {
+			t.Errorf("the log volume lacks %q", need)
+		}
+	}
+}

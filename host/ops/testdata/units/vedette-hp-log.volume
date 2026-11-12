@@ -1,0 +1,8 @@
+[Unit]
+Description=Vedette honeypot log (tmpfs, size-capped)
+
+[Volume]
+VolumeName=vedette-hp-log
+Type=tmpfs
+Device=tmpfs
+Options=size=64m,nr_inodes=1024,nosuid,nodev,noexec

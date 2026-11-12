@@ -70,8 +70,10 @@ type SSH struct {
 	total  int
 	rdErr  error
 	closed bool
-	over   bool     // the device sent more than MaxOutput: the reader stopped and the session was closed
-	redact []string // the credentials, removed from any line of device text that is kept
+	// refused: the device refused a line; the session stays open at its prompt for Leave and takes no further Run.
+	refused bool
+	over    bool     // the device sent more than MaxOutput: the reader stopped and the session was closed
+	redact  []string // the credentials, removed from any line of device text that is kept
 }
 
 // promptRE is what a device prints when it waits for a command: a short last line that ends in #, >, $ or % (Cisco-like "Switch#",
@@ -317,12 +319,15 @@ func isPrompt(b []byte) bool {
 }
 
 // errorMarkers are the starts of a line by which devices say that a command failed (spec action-templates 9.3): Cisco-like "%",
-// "Invalid input", "Error", and "Unknown command".
-var errorMarkers = []string{"%", "Error", "Invalid", "Unknown command"}
+// "Invalid input", "Error", and "Unknown command"; FortiOS "command parse error before '…'", "value parse error before '…'" and the
+// "Command fail. Return code -N" that ends every refused FortiOS line (D-358). Without them a refused FortiOS "set" went unseen and
+// the next "next"/"end" saved the entry without it.
+var errorMarkers = []string{"%", "Error", "Invalid", "Unknown command", "command parse error", "value parse error", "Command fail"}
 
 // Run sends one line, waits for the next prompt and returns the output without the echo of the line and without the prompt. A
-// line of the output that begins like an error ends the session: the error is a DeviceError with that one line, cleaned, and the
-// session is closed.
+// line of the output that begins like an error stops the chain: the error is a DeviceError with that one line, cleaned, and the
+// session takes no further Run. It stays open at the device's prompt so that the caller may send the line that leaves configuration
+// mode (Leave, D-358); the caller closes it. Any other error (a time-out, a closed session, too much output) closes the session.
 func (s *SSH) Run(ctx context.Context, line string) (string, error) {
 	// A terminal acts on more than the line break: Ctrl-Z ends configuration mode, Ctrl-U kills what the template put before a
 	// parameter, Ctrl-V quotes the next key, ESC and the C1 controls start escape sequences. One approved line stays one line.
@@ -330,7 +335,7 @@ func (s *SSH) Run(ctx context.Context, line string) (string, error) {
 		return "", errors.New("a command is one line of printable characters")
 	}
 	s.mu.Lock()
-	over, closed := s.over, s.closed
+	over, closed, refused := s.over, s.closed, s.refused
 	s.buf = s.buf[:0]
 	s.mu.Unlock()
 	if over {
@@ -338,6 +343,9 @@ func (s *SSH) Run(ctx context.Context, line string) (string, error) {
 	}
 	if closed {
 		return "", deviceErr("the device closed the session")
+	}
+	if refused {
+		return "", deviceErr("the device refused an earlier command; no further command is sent")
 	}
 	// A line has LineTimeout to be written, whatever the window of the channel says: the timer closes the socket under the write.
 	limit := LineTimeout
@@ -368,7 +376,9 @@ func (s *SSH) Run(ctx context.Context, line string) (string, error) {
 	for _, l := range lines {
 		for _, m := range errorMarkers { // at the start of the line: command output is indented, a device's own message is not
 			if strings.HasPrefix(l, m) {
-				s.Close()
+				s.mu.Lock()
+				s.refused = true
+				s.mu.Unlock()
 				return "", deviceErr("the device refused a command: %s", CleanLine(l, s.redact...))
 			}
 		}
@@ -428,6 +438,27 @@ func (s *SSH) RunRead(ctx context.Context, line string, limit int) (string, bool
 			return "", false, err
 		}
 	}
+}
+
+// Leave ends a session whose last Run the device refused (D-358): it types line, the device's line that leaves configuration mode
+// without saving what is pending, waits for the prompt for at most limit, and closes the session. limit is the leave's own budget,
+// on top of the session's. Nothing is typed when the session was not stopped by a refused line (it timed out, closed, or never
+// failed), when ctx has ended (the emergency stop sends no further line, D-179 (4)), or when line is empty or not one printable
+// line. How it went is not reported: the step's outcome is already decided, and the session is closed in every case.
+func (s *SSH) Leave(ctx context.Context, line string, limit time.Duration) {
+	defer s.Close()
+	s.mu.Lock()
+	ok := s.refused && !s.closed && !s.over
+	s.buf = s.buf[:0]
+	s.mu.Unlock()
+	if !ok || ctx.Err() != nil || strings.TrimSpace(line) == "" || strings.ContainsFunc(line, unicode.IsControl) {
+		return
+	}
+	s.deadline = time.Now().Add(limit) // write and waitPrompt are held to it
+	if err := s.write(line + "\r"); err != nil {
+		return
+	}
+	_, _, _ = s.waitPrompt(ctx, limit, false)
 }
 
 // write sends text to the session, which closes under it when the device does not take it in time.

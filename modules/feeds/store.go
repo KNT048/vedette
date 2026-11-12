@@ -845,6 +845,8 @@ type IOCSighting struct {
 	SourceID   string
 	SourceName string
 	Confidence float64
+	// Enabled is whether the feed is switched on now: a switched-off feed is never pulled and its listings are not pruned, so they go stale (logs ignores them).
+	Enabled bool
 }
 
 // IOCRecord is an indicator with the feeds that list it now.
@@ -876,7 +878,7 @@ func (s *Store) IOCLookup(ctx context.Context, kind, value string) (IOCRecord, b
 	if rec.LastSeen, err = parseTS(last); err != nil {
 		return IOCRecord{}, false, fmt.Errorf("feeds: stored time of an indicator: %w", err)
 	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT s.source_id, f.name, s.confidence FROM feeds_ioc_source s
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT s.source_id, f.name, s.confidence, f.enabled FROM feeds_ioc_source s
 JOIN feeds_source f ON f.id = s.source_id WHERE s.ioc_id = ?`, id)
 	if err != nil {
 		return IOCRecord{}, false, fmt.Errorf("feeds: read listings: %w", err)
@@ -884,7 +886,7 @@ JOIN feeds_source f ON f.id = s.source_id WHERE s.ioc_id = ?`, id)
 	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var g IOCSighting
-		if err := rows.Scan(&g.SourceID, &g.SourceName, &g.Confidence); err != nil {
+		if err := rows.Scan(&g.SourceID, &g.SourceName, &g.Confidence, &g.Enabled); err != nil {
 			return IOCRecord{}, false, fmt.Errorf("feeds: read listings: %w", err)
 		}
 		rec.Sightings = append(rec.Sightings, g)

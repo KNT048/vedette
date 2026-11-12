@@ -53,6 +53,8 @@ type fakeSlack struct {
 	updates   []map[string]any // chat.update bodies
 	updMode   string           // how chat.update answers: "" ok, "gone" (message_not_found), "auth" (token_revoked), "500", "429", "404", "garbage", "drop" (no answer)
 	updTries  int              // every chat.update request, answered or not
+	hooks     []string         // bodies posted to the Incoming Webhook (/services/…)
+	postErr   string           // when set, chat.postMessage answers {"ok":false,"error":<this>} ("not_in_channel", "token_revoked")
 }
 
 type slackConn struct{ out chan []byte }
@@ -104,13 +106,23 @@ func (f *fakeSlack) serve(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		f.posts = append(f.posts, m)
 		f.auths = append(f.auths, r.Header.Get("Authorization"))
-		ts := f.postTS
+		ts, perr := f.postTS, f.postErr
 		f.mu.Unlock()
+		if perr != "" {
+			_, _ = io.WriteString(w, `{"ok":false,"error":`+jsonStr(perr)+`}`)
+			return
+		}
 		_, _ = io.WriteString(w, `{"ok":true,"channel":"`+slChannel+`","ts":"`+ts+`"}`)
 	case r.Host == "slack.com" && r.URL.Path == "/api/chat.update":
 		f.update(w, r)
 	case r.Host == "wss-primary.slack.com" && strings.HasPrefix(r.URL.Path, "/link"):
 		f.socket(w, r)
+	case r.Host == "hooks.slack.com" && strings.HasPrefix(r.URL.Path, "/services/"):
+		b, _ := io.ReadAll(r.Body)
+		f.mu.Lock()
+		f.hooks = append(f.hooks, string(b))
+		f.mu.Unlock()
+		_, _ = io.WriteString(w, "ok")
 	case r.Host == "hooks.slack.com" && strings.HasPrefix(r.URL.Path, "/actions/"):
 		b, _ := io.ReadAll(r.Body)
 		var m map[string]any
@@ -391,6 +403,43 @@ func TestContract_PRE8_SlackApprovalIsPostedWithButtonsAndKeptByTS(t *testing.T)
 	for _, tok := range []string{slackBotTok, slackAppTok} {
 		if se.count(`SELECT COUNT(*) FROM notify_send WHERE message LIKE '%'||?||'%' OR error LIKE '%'||?||'%'`, tok, tok) != 0 {
 			t.Fatal("a token is in the send history")
+		}
+	}
+}
+
+// Review of slice 3: when the bot post of an approval fails the request still reaches the channel, through the webhook, without buttons.
+func TestContract_PRE8_SlackBotPostFailureFallsBackToTheWebhookWithoutButtons(t *testing.T) {
+	for _, why := range []string{"not_in_channel", "token_revoked", "channel_not_found"} {
+		se := newSLEnv(t)
+		se.sl.mu.Lock()
+		se.sl.postErr = why
+		se.sl.mu.Unlock()
+		if _, err := se.svc.SendApprovalRequest(se.ctx(), se.approvalReq("act-1", channel.Slack)); err != nil {
+			t.Fatal(why, err)
+		}
+		se.sl.mu.Lock()
+		hook, posts := append([]string(nil), se.sl.hooks...), len(se.sl.posts)
+		se.sl.mu.Unlock()
+		if posts != 1 || len(hook) != 1 {
+			t.Fatalf("%s: bot posts = %d (the failed attempt), webhook calls = %d", why, posts, len(hook))
+		}
+		if !strings.Contains(hook[0], "Open Vedette to approve") || strings.Contains(hook[0], "vedette_a") || strings.Contains(hook[0], `"actions"`) {
+			t.Fatalf("%s: the webhook message must send people to Vedette and carry no buttons: %s", why, hook[0])
+		}
+		if se.count(`SELECT COUNT(*) FROM notify_slack_button`) != 0 {
+			t.Fatal("no buttons were posted: nothing may be kept for a press")
+		}
+		// both attempts are in the history (the failed bot post, then the webhook) and the fallback is audited
+		if se.count(`SELECT COUNT(*) FROM notify_send WHERE kind = 'approval' AND channel = 'slack' AND ok = 0`) != 1 || se.count(`SELECT COUNT(*) FROM notify_send WHERE kind = 'approval' AND channel = 'slack' AND ok = 1`) != 1 {
+			t.Fatalf("%s: history rows are not one failed and one sent", why)
+		}
+		if se.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.approval_fallback'`) != 1 {
+			t.Fatalf("%s: the fallback is not audited", why)
+		}
+		for _, tok := range []string{slackBotTok, slackAppTok} {
+			if se.dbHolds(tok) != "" {
+				t.Fatalf("%s: a token is stored in clear", why)
+			}
 		}
 	}
 }

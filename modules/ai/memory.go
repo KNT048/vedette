@@ -27,7 +27,7 @@ const (
 	evidenceMax    = 200
 )
 
-// Errors of SuggestMemory. The producer of suggestions (slice 5) treats them as "nothing to do", not as failures.
+// Errors of SuggestMemory. The producers of suggestions (the log digest, Ask) treat them as "nothing to do", not as failures.
 var (
 	ErrSuggestionsOff     = errors.New("ai: memory suggestions are off")
 	ErrTooManySuggestions = errors.New("ai: too many suggestions are waiting")
@@ -410,7 +410,7 @@ func (s *Service) RejectSuggestion(ctx context.Context, who, id string) error {
 
 // SuggestMemory stores a suggestion of the AI (INV-8). It is the only way a suggestion enters the box: it does nothing unless an
 // administrator allowed suggestions (ErrSuggestionsOff), at most MaxSuggestions wait (ErrTooManySuggestions), and a text that is
-// already remembered or already waiting is not stored again. Nothing calls it yet (the ask flow of slice 5 will). The suggestion is
+// already remembered or already waiting is not stored again. The log digest (D-223) and Ask (D-225) call it. The suggestion is
 // not memory: it reaches no prompt until an administrator accepts it.
 func (s *Service) SuggestMemory(ctx context.Context, text, evidence string) error {
 	_, err := s.suggestMemory(ctx, text, evidence)

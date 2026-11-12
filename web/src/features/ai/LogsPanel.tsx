@@ -6,6 +6,7 @@ import { EmptyState, ErrorState, Loading, ModuleOff } from '@/components/common/
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { fmtDateTime } from '@/lib/format'
+import { useCan } from '@/lib/session'
 import { useDigest, useRefreshDigest } from './api'
 import { ActionError, ToSettings, useAiGate } from './parts'
 
@@ -14,6 +15,7 @@ const SEV: Record<string, Tone> = { high: 'danger', medium: 'warn', info: 'off' 
 /** Slot `logs.panels` (S-AI-4): digest log bằng AI theo mức đã chọn. Log là dữ liệu không tin cậy; AI chỉ tóm tắt, không hành động. */
 export default function LogsPanel() {
   const { t } = useTranslation('ai')
+  const admin = useCan('admin') // the Memory tab is the administrator's (S-AI-7)
   const gate = useAiGate('operator', 'log-digest')
   const digest = useDigest()
   const refresh = useRefreshDigest()
@@ -50,7 +52,7 @@ export default function LogsPanel() {
               </div>
             ) : null}
           </AiBlock>
-          {d.memories_suggested > 0 ? <p className="text-[13px]">{t('logs.suggested', { count: d.memories_suggested })} <Link to="/settings/ai?tab=memory" className="text-accent underline underline-offset-4">{t('logs.suggestedLink')}</Link></p> : null}
+          {d.memories_suggested > 0 ? <p className="text-[13px]">{t('logs.suggested', { count: d.memories_suggested })} {admin ? <Link to="/settings/ai?tab=memory" className="text-accent underline underline-offset-4">{t('logs.suggestedLink')}</Link> : null}</p> : null}
           <p className="text-[12px] text-muted">{t('logs.meta', { time: fmtDateTime(d.generated_at) })}</p>
         </div>
       ) : null}

@@ -10,6 +10,7 @@ import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { fmtDateTime, fmtNumber } from '@/lib/format'
+import { useCan } from '@/lib/session'
 import { useAiConfig, useAsk, useAsks, useRuns, useUsage } from './api'
 import ActivityPanel from './ActivityPanel'
 import { ActionError, ToSettings, useAiGate } from './parts'
@@ -92,6 +93,7 @@ function Ask() {
 
 function Answer({ r }: { r: AskResult }) {
   const { t } = useTranslation('ai')
+  const admin = useCan('admin') // the Memory tab is the administrator's (S-AI-7)
   const cols: ColumnDef<{ href?: string; cells: string[] }>[] = (r.table?.columns ?? []).map((c, i) => ({
     id: `c${i}`, header: c, accessorFn: (row: { cells: string[] }) => row.cells[i] ?? '',
     cell: ({ row }: { row: { original: { href?: string; cells: string[] } } }) => (i === 0 && row.original.href ? <Link to={row.original.href} className="text-accent underline-offset-4 hover:underline">{row.original.cells[0]}</Link> : row.original.cells[i]),
@@ -111,7 +113,7 @@ function Answer({ r }: { r: AskResult }) {
           {r.answer.map((p, i) => <p key={i}>{p}</p>)}
         </AiBlock>
       )}
-      {r.memories_suggested > 0 ? <p className="text-[13px]">{t('logs.suggested', { count: r.memories_suggested })} <Link to="/settings/ai?tab=memory" className="text-accent underline underline-offset-4">{t('logs.suggestedLink')}</Link></p> : null}
+      {r.memories_suggested > 0 ? <p className="text-[13px]">{t('logs.suggested', { count: r.memories_suggested })} {admin ? <Link to="/settings/ai?tab=memory" className="text-accent underline underline-offset-4">{t('logs.suggestedLink')}</Link> : null}</p> : null}
       {hooks.length ? (
         <div className="rounded-md border border-rule bg-surface p-3 text-sm">
           <h3 className="mb-1 text-sm font-medium">{t('ask.hooksTitle')}</h3>

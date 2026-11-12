@@ -399,7 +399,7 @@ export const handlers = [
     // memory suggestions (S-AI-7, D-225): at most one per answer that used a tool, only while allowed, never the same text twice; history reads back 0
     const fact = 'FW-HQ is the only firewall and the gateway of the office network.'
     const fresh = !stop && ans.tool_calls.length > 0 && memorySettings.get().suggest_enabled && !suggestionsStore.get().some((x) => x.text === fact) && !memoryStore.get().some((x) => x.text === fact) && !rejectedTexts.get().includes(fact)
-    if (fresh) suggestionsStore.update((l) => [...l, { id: newId('sg'), text: fact, created_at: nowIso(), evidence: `asked "${sent.slice(0, 190)}"` }])
+    if (fresh) suggestionsStore.update((l) => [...l, { id: newId('sg'), text: fact, created_at: nowIso(), evidence: `asked "${sent.slice(0, 150)}" and read ${[...new Set(ans.tool_calls.map((tc) => tc.tool))].join(', ')}` }])
     return HttpResponse.json({ ...res, memories_suggested: fresh ? 1 : 0 })
   }),
 

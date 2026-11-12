@@ -7,10 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
+	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -106,20 +110,41 @@ const askTask = `Answer the question about this company's network using only wha
 // askRememberTask is added while the AI may suggest memories (D-225): one trailing line the box takes out of the answer.
 const askRememberTask = ` If the tool results show a lasting fact about this network that would help later answers (for example which device makes a nightly backup), end the answer with one line "Remember: " and that fact in one short sentence, at most one such line. Never put a person's name, a password, a key or an address of a threat feed there. An administrator reviews it before it is kept.`
 
-// takeRemember takes every line that starts with "Remember:" out of the answer and returns the first one's fact (D-225).
+// rememberLine is the trailing line of an answer that suggests a memory (D-225); markdown bold or a list mark around it is allowed.
+var rememberLine = regexp.MustCompile(`(?i)^[\s*•-]*remember\s*:[\s*]*(.+?)[\s*]*$`)
+
+// takeRemember takes the last line of the answer out when it is a "Remember:" line and returns its fact (D-225). A "Remember:" line
+// elsewhere is advice, and stays. An answer that is only that line keeps the fact as its text.
 func takeRemember(text string) (string, []string) {
-	var keep, facts []string
-	for _, l := range strings.Split(text, "\n") {
-		t := strings.TrimSpace(l)
-		if len(t) >= 9 && strings.EqualFold(t[:9], "remember:") {
-			if f := strings.TrimSpace(t[9:]); f != "" && len(facts) == 0 {
-				facts = append(facts, f)
-			}
-			continue
-		}
-		keep = append(keep, l)
+	lines := strings.Split(strings.TrimRight(text, " \t\r\n"), "\n")
+	m := rememberLine.FindStringSubmatch(lines[len(lines)-1])
+	if m == nil {
+		return text, nil
 	}
-	return strings.Join(keep, "\n"), facts
+	rest := strings.Join(lines[:len(lines)-1], "\n")
+	if strings.TrimSpace(rest) == "" {
+		rest = m[1]
+	}
+	return rest, []string{m[1]}
+}
+
+// askEvidence names the question and the tools the fact came from, at most evidenceMax characters, without the invisible
+// characters that SuggestMemory refuses (pasted questions often carry them).
+func askEvidence(question string, calls []AskToolCall) string {
+	var tools []string
+	for _, c := range calls {
+		if !slices.Contains(tools, c.Tool) {
+			tools = append(tools, c.Tool)
+		}
+	}
+	tail := clipRunes(`" and read `+strings.Join(tools, ", "), 80)
+	q := strings.Map(func(r rune) rune {
+		if auth.HasInvisible(string(r)) {
+			return -1
+		}
+		return r
+	}, question)
+	return clipRunes(`asked "`+q, evidenceMax-utf8.RuneCountInString(tail)) + tail
 }
 
 // parseAsk turns the model's plain text into paragraphs: control characters out, paragraphs split on a blank line, each cut, at most askParas.
@@ -186,8 +211,9 @@ func (s *Service) Ask(ctx context.Context, actor, question string) (AskResult, e
 	}
 	sent := QuestionForStorage(q, pre)
 	suggest, err := suggestOn(ctx, s.cfg.DB.Reader())
-	if err != nil {
-		return AskResult{}, err
+	if err != nil { // a broken memory setting must not stop questions: no suggestion this time
+		s.cfg.Log.WarnContext(ctx, "ai: could not read whether memory suggestions are on", "error", err)
+		suggest = false
 	}
 	task := askTask
 	if suggest {
@@ -225,7 +251,9 @@ func (s *Service) Ask(ctx context.Context, actor, question string) (AskResult, e
 	}
 	sctx, cancel := detached(ctx) // the tokens are spent: the suggestion is kept even if the person has gone
 	defer cancel()
-	out.MemoriesSuggested = s.suggestFrom(sctx, remember, clipRunes(`asked "`+sent, evidenceMax-1)+`"`, "a question")
+	if len(ts.calls) > 0 { // the fact must come from what the tools returned, not from the question alone (D-225)
+		out.MemoriesSuggested = s.suggestFrom(sctx, remember, askEvidence(sent, ts.calls), "a question")
+	}
 	return out, nil
 }
 

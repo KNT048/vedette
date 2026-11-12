@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/modreg"
+	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/inventory"
@@ -274,6 +275,41 @@ func TestWiringSpanPortCanBeChosenWithTheModuleOff(t *testing.T) {
 	}
 	if rep, err := s.d.SensorPassive.Config(ctx, 0, ""); err != nil || rep.Config.Interface != "eth1" || !rep.Config.Span {
 		t.Errorf("config %+v %v", rep, err)
+	}
+}
+
+// D-393 (M3): a container-only box (no host) with two cards that have an address gives no default card (D-380); through the
+// real route the admin chooses one of them without SPAN, the sensor is told that card, GET says it is a choice (chosen), and
+// null brings the default rule back.
+func TestWiringContainerOnlyAdminChoosesAnAddressedCard(t *testing.T) {
+	t.Parallel()
+	s := newStackWith(t, func(*deps) {})
+	ctx := t.Context()
+	beat := &sensorlink.PassiveHeartbeat{Version: "1.0.0", Drops: map[string]int64{}, Interfaces: []sensorlink.HeartbeatIface{
+		{Name: "enp2s0", MAC: "02:00:00:00:00:01", Link: true, IPv4: []string{"192.168.18.141/24"}},
+		{Name: "eno1", MAC: "02:00:00:00:00:02", Link: true, IPv4: []string{"10.0.0.5/24"}},
+	}}
+	if _, err := s.d.SensorPassive.PassiveHeartbeat(ctx, beat); err != nil {
+		t.Fatal(err)
+	}
+	sensor := func(m map[string]any) map[string]any {
+		t.Helper()
+		if l, ok := m["sensors"].([]any); ok && len(l) == 1 {
+			m, _ = l[0].(map[string]any)
+		}
+		return m
+	}
+	if code, m := s.do("GET", "/inventory/sensors", "admin", ""); code != 200 || sensor(m)["interface"] != nil || sensor(m)["chosen"] != false {
+		t.Fatalf("two cards, nothing chosen: %d %v", code, m)
+	}
+	if code, m := s.do("PATCH", "/inventory/sensors/sn-local", "admin", `{"interface":"eno1","span":false}`); code != 200 || m["interface"] != "eno1" || m["span"] != false || m["chosen"] != true {
+		t.Fatalf("choose eno1: %d %v", code, m)
+	}
+	if rep, err := s.d.SensorPassive.Config(ctx, 0, ""); err != nil || rep.Config.Interface != "eno1" || rep.Config.Span {
+		t.Errorf("the sensor is told %+v %v", rep, err)
+	}
+	if code, m := s.do("PATCH", "/inventory/sensors/sn-local", "admin", `{"interface":null,"span":false}`); code != 200 || m["interface"] != nil || m["chosen"] != false {
+		t.Errorf("back to the default: %d %v", code, m)
 	}
 }
 

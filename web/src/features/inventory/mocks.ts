@@ -45,31 +45,35 @@ const settingsStore = collection<InventorySettings>('inv_settings', () => ({
   scope_confirmed_at: null, scope_confirmed_by: null,
 }))
 // Chỉ cảm biến của chính hộp này (đa site chưa hỗ trợ — chủ dự án, D-28).
-type StoredSensor = Omit<Sensor, 'interface' | 'interfaces' | 'span' | 'span_status'>
+type StoredSensor = Omit<Sensor, 'interface' | 'interfaces' | 'span' | 'chosen' | 'span_status'>
 const sensorsStore = collection<StoredSensor[]>('sp_sensor', () => [
   { id: 'sn-local', name: 'vedette-hq', status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 30 },
 ], () => [
   // Cài sạch: cảm biến của chính hộp, chưa thấy thiết bị nào.
   { id: 'sn-local', name: boxInfo().hostname, status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 0 },
 ])
-/** Container-only install (D-263, D-387): the cards the sensor container reported in its heartbeat and the SPAN card the admin
- *  chose. A clean install has not started the sensor yet (compose.sensors.yaml): no heartbeat, no card. */
+/** Container-only install (D-263, D-387, D-393): the cards the sensor container reported in its heartbeat and the card the admin
+ *  chose (null: the default card, D-380), SPAN or not. A clean install has not started the sensor yet (compose.sensors.yaml): no heartbeat, no card. */
 type ReportedCard = { name: string; ipv4: string | null; link: boolean }
 export const containerSensorStore = collection<{ connected: boolean; cards: ReportedCard[]; chosen: string | null; span: boolean }>('sp_container', () => ({
   connected: true, chosen: null, span: false,
-  cards: [{ name: 'eno1', ipv4: '192.168.10.20/24', link: true }, { name: 'eno2', ipv4: null, link: true }, { name: 'wlp2s0', ipv4: null, link: false }],
+  cards: [{ name: 'eno1', ipv4: '192.168.10.20/24', link: true }, { name: 'eno2', ipv4: null, link: true }, { name: 'wlp2s0', ipv4: null, link: false }, { name: 'docker0', ipv4: '172.17.0.1/16', link: true }, { name: 'lo', ipv4: '127.0.0.1/8', link: true }],
 }), () => ({ connected: false, cards: [], chosen: null, span: false }))
+/** core/sensorlink VirtualIfaceName: a link that is not a network card. */
+const VIRTUAL = /^(lo|veth|podman|cni|docker|br|virbr|vdh|bond|tun|tap|wg|dummy|vnet|macvtap|ifb|vedette)|[.@]/
 /** GET /inventory/sensors on a container-only install: everything about the cards comes from the heartbeat (D-263); never_connected before the first one. */
 function containerSensors() {
   const c = containerSensorStore.get()
   // D-380: of the cards that are up with an address, the one wired card, else the one card; two candidates → none.
   // The backend counts only a global IPv4 (globalIPv4); the fixtures hold no link-local address.
-  const withAddress = c.cards.filter((x) => x.link && x.ipv4)
+  // D-393: links that are not cards (sensorlink.VirtualIfaceName: loopback, container bridges, veth, VPN) are never the default nor listed.
+  const cards = c.cards.filter((x) => !VIRTUAL.test(x.name))
+  const withAddress = cards.filter((x) => x.link && x.ipv4)
   const wired = withAddress.filter((x) => !/^w[lw]/.test(x.name))
   const dflt = wired.length === 1 ? wired[0]!.name : wired.length === 0 && withAddress.length === 1 ? withAddress[0]!.name : null
   return sensorsStore.get().map((s) => ({
     ...s, status: c.connected ? s.status : 'never_connected' as const, last_seen: c.connected ? s.last_seen : null, version: c.connected ? s.version : null, devices_seen: c.connected ? s.devices_seen : 0,
-    interface: c.chosen ?? dflt, interfaces: c.cards.map((x) => x.name).sort(), span: c.span,
+    interface: c.chosen ?? dflt, interfaces: cards.map((x) => x.name).sort(), span: c.span, chosen: c.chosen !== null,
     span_status: c.span ? { verdict: 'ok' as const, packets_per_s: 140, other_macs: 12 } : { verdict: 'off' as const, packets_per_s: 0, other_macs: 0 },
   }))
 }
@@ -651,7 +655,7 @@ export const handlers = [
     const st = spanStatusOf(net)
     const spanOn = net.span.enabled && !!net.span.interface
     const mgmt = net.ifaces.find((i) => i.role === 'management')?.name ?? null
-    return HttpResponse.json({ sensors: sensorsStore.get().map((s) => ({ ...s, interface: spanOn ? net.span.interface : mgmt, interfaces: net.ifaces.map((i) => i.name), span: spanOn, span_status: { verdict: st.verdict, packets_per_s: st.packets_per_s, other_macs: st.other_macs } })) })
+    return HttpResponse.json({ sensors: sensorsStore.get().map((s) => ({ ...s, interface: spanOn ? net.span.interface : mgmt, interfaces: net.ifaces.map((i) => i.name), span: spanOn, chosen: spanOn, span_status: { verdict: st.verdict, packets_per_s: st.packets_per_s, other_macs: st.other_macs } })) })
   }),
 
   // D-387: only a container-only install chooses the card here; an appliance sets it in Settings → Box network (D-56, D-118).
@@ -665,6 +669,7 @@ export const handlers = [
     const name = b.interface === '' ? null : b.interface as string | null
     if (name && !c.connected) return fail(400, 'bad_interface', 'The sensor has not reported its network cards in the last 90 seconds; check that it runs, wait for its next heartbeat (30 s) and try again.')
     if (name && !/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,14}$/.test(name)) return fail(400, 'bad_interface', `"${name}" is not an interface name.`)
+    if (name && VIRTUAL.test(name)) return fail(400, 'bad_interface', `"${name}" is not a network card (loopback, container, bridge or VPN link).`)
     const card = name ? c.cards.find((x) => x.name === name) : undefined
     if (b.span && !name) return fail(400, 'bad_interface', 'A SPAN port needs an interface.')
     if (name && !card) return fail(400, 'bad_interface', `"${name}" is not an interface of this box.`)

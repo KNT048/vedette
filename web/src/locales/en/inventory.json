@@ -357,7 +357,7 @@
   "sensors": {
     "title": "Sensor on this box",
     "description": "The sensor listens to the network (DHCP, ARP, mDNS, SSDP, LLDP) to learn devices without scanning. The port it listens on and SPAN are set in Settings → Box network.",
-    "descriptionContainer": "The sensor listens to the network (DHCP, ARP, mDNS, SSDP, LLDP) to learn devices without scanning. On this container-only install you choose its SPAN card here, with Configure.",
+    "descriptionContainer": "The sensor listens to the network (DHCP, ARP, mDNS, SSDP, LLDP) to learn devices without scanning. On this container-only install you choose the card it listens on, and the SPAN card, here with Configure.",
     "off": "The passive sensor is off, so Vedette does not discover new devices by itself. Devices you add by hand still work.",
     "caption": "Sensors on this box",
     "col": {
@@ -375,11 +375,15 @@
     },
     "startHint": "Start it with compose.sensors.yaml on this machine.",
     "card": {
-      "body": "Choose the card that receives the mirrored traffic among the cards the sensor reported. This machine's network is yours: Vedette does not change the card.",
-      "label": "SPAN card",
-      "hint": "Prepare the card on this machine first: no IP address, promiscuous mode, connected to the switch's mirror port.",
-      "noSpan": "None (listen on the card with this machine's address)",
-      "notListening": "The sensor is not listening on any card: by itself it only takes the one card of this machine that has an address.",
+      "body": "Choose the card the sensor listens on among the cards it reported, and whether it is a SPAN card that receives mirrored traffic. This machine's network is yours: Vedette does not change the card.",
+      "label": "Listen on",
+      "hint": "Run ip -br address on this machine to see which card has which address. Choose the card on the network you want to discover.",
+      "auto": "Automatic ({{name}})",
+      "autoNone": "Automatic (no card now)",
+      "autoChosen": "Automatic (the one card of this machine with an address)",
+      "span": "SPAN port: this card receives the switch's mirrored traffic",
+      "spanHint": "Prepare the card on this machine first: no IP address, promiscuous mode, connected to the switch's mirror port.",
+      "notListening": "The sensor is not listening on any card: by itself it only takes the one card of this machine that has an address, and there is not exactly one. Choose the card below.",
       "notReported": "{{name}} (not reported now)",
       "none": "No card reported yet: start the sensor with compose.sensors.yaml.",
       "saved": "Sensor card saved."

@@ -1752,10 +1752,10 @@ func (UnimplementedHandler) InventoryPatchInventoryDevicesID(ctx context.Context
 
 // InventoryPatchInventorySensorsID implements inventory_patch_inventory_sensors_id operation.
 //
-// Container-only install: choose the card the sensor reads and whether it is the SPAN card, among the
-// cards of its last heartbeat (D-387). 400 bad_interface: not a reported card, no heartbeat in 90 s,
-// or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box
-// network sets it.
+// Container-only install: choose the card the sensor reads (any card of its last heartbeat, with or
+// without an address; null: back to the default card) and whether it is the SPAN card (D-387, D-393).
+// 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409
+// set_in_box_network on an appliance, where Settings → Box network sets it.
 //
 // PATCH /inventory/sensors/{id}
 func (UnimplementedHandler) InventoryPatchInventorySensorsID(ctx context.Context, req *InventoryPatchInventorySensorsIDReq, params InventoryPatchInventorySensorsIDParams) (r *InventoryPatchInventorySensorsIDOK, _ error) {

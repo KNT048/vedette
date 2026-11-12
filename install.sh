@@ -850,7 +850,7 @@ do_uninstall() {
 	say "stopping Vedette"
 	# the containers first, then the Quadlet network and volume units (they stay "active" after their one-shot run and would stop a
 	# later install from making the network again)
-	for u in vedette-honeypot vedette-scan vedette-sensor vedette-core vedette-host "$REGISTRY_UNIT" vedette-int-network vedette-creds-passive-volume vedette-creds-active-volume; do
+	for u in vedette-honeypot vedette-scan vedette-sensor vedette-core vedette-host "$REGISTRY_UNIT" vedette-int-network vedette-creds-passive-volume vedette-creds-active-volume vedette-hp-log-volume; do
 		systemctl stop "$u.service" >/dev/null 2>&1 || true
 	done
 	if have podman; then
@@ -864,7 +864,7 @@ do_uninstall() {
 	systemctl reset-failed >/dev/null 2>&1 || true
 	if have podman; then
 		podman network rm -f vedette-int >/dev/null 2>&1 || true
-		podman volume rm -f vedette-creds-passive vedette-creds-active >/dev/null 2>&1 || true
+		podman volume rm -f vedette-creds-passive vedette-creds-active vedette-hp-log >/dev/null 2>&1 || true
 		podman images --format '{{.ID}} {{.Repository}}' 2>/dev/null | awk '$2 ~ /^(ghcr\.io\/knt048\/vedette-|localhost\/vedette-scan-nmap)/ {print $1}' | sort -u | while read -r id; do
 			podman rmi -f "$id" >/dev/null 2>&1 || true
 		done

@@ -136,7 +136,7 @@ func TestHoneypotImageFitsItsUnit(t *testing.T) {
 		switch {
 		case strings.HasSuffix(parts[0], "/config"):
 			conf = parts[1]
-		case strings.HasSuffix(parts[0], "/log"):
+		case parts[0] == "vedette-hp-log.volume": // the size-capped tmpfs volume of log/ (D-318)
 			log = parts[1]
 			if len(parts) != 3 || parts[2] != "U" {
 				t.Errorf("the log volume %q needs :U so the container's user owns it under UserNS=auto", v)

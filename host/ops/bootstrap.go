@@ -241,6 +241,14 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 			}
 		}
 	}
+	// The honeypot log volume unit is written with the first unit of core or honeypot (D-318): same refusal.
+	if slices.ContainsFunc(steps, func(s *bsStep) bool {
+		return s.plan.service == api.ServiceCore || s.plan.service == api.ServiceHoneypot
+	}) {
+		if _, st := o.readNoFollowIn(unitsRel, hpLogVolumeFileName, maxUnitSize); st == fileBroken {
+			return bsErr(api.CodeUnitUnsafe, hpLogVolumeFileName+" is not a regular file the host can trust")
+		}
+	}
 	if err := o.bootstrapSpace(ctx, steps); err != nil {
 		return err
 	}

@@ -186,7 +186,7 @@ func (r *Registry) List() []State {
 	out := make([]State, 0, len(r.order))
 	for _, id := range r.order {
 		e := r.mods[id]
-		out = append(out, State{ID: id, Tier: e.Tier, Depends: slices.Clone(e.Depends), Enabled: e.enabled, EnabledAt: e.enabledAt, Available: !(r.containerOnly && e.NeedsHost)})
+		out = append(out, State{ID: id, Tier: e.Tier, Depends: slices.Clone(e.Depends), Enabled: e.enabled, EnabledAt: e.enabledAt, Available: !r.containerOnly || !e.NeedsHost})
 	}
 	return out
 }

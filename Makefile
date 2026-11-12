@@ -97,14 +97,15 @@ verify-web: node-version-check
 	$(MAKE) clean
 
 verify-go: verify-go-static
-	$(MAKE) test-go vuln
+	$(MAKE) lint-go test-go vuln
 	$(MAKE) clean
 
-# CI job "go-static" (D-140): everything in verify-go except the tests and govulncheck, which run in their own jobs.
+# CI job "go-static" (D-140): everything in verify-go except golangci-lint (job go-lint), the tests and govulncheck. No
+# `make contract` (D-372): go-test runs every TestContract… already, with -race on the merge queue; `make contract` stays for check.
 verify-go-static:
 	go build ./...
 	go vet ./...
-	$(MAKE) generate-check contract lint-go test-go-shards-check
+	$(MAKE) generate-check test-go-shards-check
 	$(MAKE) notices-check NOTICES_WEB_LICENSES=0
 	bash scripts/dev/orphan-reaper-test.sh
 

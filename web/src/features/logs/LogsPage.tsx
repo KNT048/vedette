@@ -1,4 +1,5 @@
 import { useDeferredValue, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -33,9 +34,15 @@ function SourcesSection() {
   const [guide, setGuide] = useState<LogSource | null>(null)
   const need = isAdmin ? undefined : t('common:needRole', { role: t('common:role.admin') })
   const addButton = <Button variant="primary" disabled={!isAdmin} title={need} onClick={() => setAdding(true)}><Plus />{t('sources.add')}</Button>
-  const refresh = <Button onClick={() => void q.refetch()} disabled={q.isFetching}><RefreshCw />{t('refresh')}</Button>
+  const qc = useQueryClient()
+  // Refresh the whole page's log data, not only this table: the headline, the digest, the event search and the AI digest panel of the
+  // logs.panels slot (QA walk 2026-11-12: new lines showed here while the rest still said no line was received).
+  const refreshAll = () => { void qc.invalidateQueries({ queryKey: ['logs'] }); void qc.invalidateQueries({ queryKey: ['ai', 'digest'] }) }
+  const refresh = <Button onClick={refreshAll} disabled={q.isFetching}><RefreshCw />{t('refresh')}</Button>
+  const box = q.data?.box
+  const description = !box ? t('sources.description', { ip: '' }) : box.ip ? t('sources.description', { ip: box.ip }) : box.lan ? t('sources.descriptionNoIpLan', { lan: box.lan }) : t('sources.descriptionNoIp')
   return (
-    <Section id="sources" title={t('sources.title')} description={q.data && !q.data.box.ip ? t('sources.descriptionNoIp') : t('sources.description', { ip: q.data?.box.ip ?? '' })} stories={['S-LOG-1']} actions={<>{refresh}{addButton}</>}>
+    <Section id="sources" title={t('sources.title')} description={description} stories={['S-LOG-1']} actions={<>{refresh}{addButton}</>}>
       <QueryState query={q}>
         {(d) => {
           const columns: ColumnDef<LogSource>[] = [
@@ -91,7 +98,7 @@ function SourcesSection() {
               {adding ? <SourceFormDialog open onOpenChange={(o) => { if (!o) setAdding(false) }} onAdded={setGuide} /> : null}
               {editing ? <SourceFormDialog key={editing.id} open source={editing} onOpenChange={(o) => { if (!o) setEditing(null) }} /> : null}
               <DeleteDialog source={deleting} onClose={() => setDeleting(null)} />
-              <ConfigDialog source={guide} boxIp={d.box.ip} onClose={() => setGuide(null)} />
+              <ConfigDialog source={guide} boxIp={d.box.ip} lan={d.box.lan} onClose={() => setGuide(null)} />
             </>
           )
         }}
@@ -110,6 +117,7 @@ function DigestSections() {
     <QueryState query={q}>
       {(d) => {
         const days = d.baseline_days
+        const learning = d.history_days < days
         const via = (v: string) => (v.startsWith('syslog:') ? t('digest.bad.via.syslog', { name: v.slice(7) }) : t(`digest.bad.via.${v}`, { defaultValue: v }))
         const bad: ColumnDef<IocHit>[] = [
           { id: 'last', header: t('digest.bad.col.last'), accessorFn: (r) => r.ts, cell: ({ row }) => <span className="whitespace-nowrap">{fmtDateTime(row.original.ts)}</span> },
@@ -142,10 +150,10 @@ function DigestSections() {
         return (
           <>
             <Section id="bad" title={t('digest.bad.title')} description={t('digest.bad.description')} stories={['S-LOG-2', 'S-LOG-4']}>
-              {d.bad_connections.length ? <><DataTable caption={t('digest.bad.caption')} data={d.bad_connections} columns={bad} rowTone={() => 'danger'} /><p className="mt-2 text-[13px] text-muted">{t('digest.bad.note')}</p></> : <EmptyState title={feedsOn === false ? t('digest.bad.emptyFeedsOff') : d.ioc_matching ? t('digest.bad.empty') : t('digest.bad.emptyNoIoc')} />}
+              {d.bad_connections.length ? <><DataTable caption={t('digest.bad.caption')} data={d.bad_connections} columns={bad} rowTone={() => 'danger'} /><p className="mt-2 text-[13px] text-muted">{t('digest.bad.note')}</p></> : feedsOn === false ? <EmptyState title={t('digest.bad.emptyFeedsOff')}><Link to="/settings/modules" className="text-accent underline-offset-4 hover:underline">{t('digest.bad.openModules')}</Link></EmptyState> : <EmptyState title={d.ioc_matching ? t('digest.bad.empty') : t('digest.bad.emptyNoIoc')} />}
             </Section>
-            <Section id="new" title={t('digest.new.title', { days })} description={t('digest.new.description')} stories={['S-LOG-1']}>
-              {d.new.length ? <DataTable caption={t('digest.new.caption')} data={d.new} columns={fresh} /> : <EmptyState title={t('digest.new.empty', { days })} />}
+            <Section id="new" title={learning ? t('digest.new.titleLearning') : t('digest.new.title', { days })} description={t('digest.new.description')} stories={['S-LOG-1']}>
+              {d.new.length ? <DataTable caption={t('digest.new.caption')} data={d.new} columns={fresh} /> : <EmptyState title={learning ? t('digest.new.emptyLearning', { n: d.history_days, days }) : t('digest.new.empty', { days })} />}
             </Section>
             <Section id="spikes" title={t('digest.spikes.title')} description={t('digest.spikes.description', { days })}>
               {d.spikes.length ? <DataTable caption={t('digest.spikes.caption')} data={d.spikes} columns={spikes} /> : <EmptyState title={t('digest.spikes.empty')} />}
@@ -197,7 +205,7 @@ function RetentionSection({ days, linesPerHour }: { days: number; linesPerHour: 
   const [pending, setPending] = useState<number | null>(null)
   const save = (n: number) => set.mutate(n, { onSuccess: () => toast.success(t('retention.saved')), onError: (er) => toast.error(er instanceof ApiError ? er.message : String(er)), onSettled: () => setPending(null) })
   return (
-    <Section id="retention" title={t('retention.title')} description={t('retention.description', { days, mb })}>
+    <Section id="retention" title={t('retention.title')} description={linesPerHour > 0 ? t('retention.description', { days, mb }) : t('retention.descriptionNone')}>
       <Field label={t('retention.label')} htmlFor="ret-days" className="max-w-xs">
         <Select id="ret-days" value={days} disabled={!isAdmin || set.isPending} title={isAdmin ? undefined : t('common:needRole', { role: t('common:role.admin') })}
           onChange={(e) => { const n = Number(e.target.value); if (n < days) setPending(n); else save(n) }}>
@@ -222,20 +230,25 @@ function Content() {
   const { t } = useTranslation('logs')
   const sources = useSources()
   const digest = useDigest()
+  const feedsOn = useModuleEnabled('feeds')
   let title = t('titleLoading')
   const noSources = sources.data?.sources.length === 0
   const noLogs = !noSources && digest.data !== undefined && digest.data.lines_24h === 0
+  const learning = digest.data !== undefined && digest.data.history_days < digest.data.baseline_days
   if (noSources) title = t('titleNoSources')
   else if (noLogs) title = t('titleNoLogs')
   else if (digest.data) {
     const { bad_connections: b, new: n, spikes: s } = digest.data
-    title = b.length + n.length + s.length === 0 ? t('titleQuiet') : t('title', { bad: b.length, fresh: n.length, spikes: s.length })
+    // No count of bad connections when none can be matched (Feeds off, or no IOC feed lists anything): "0" would read as "none happened".
+    const unmatched = b.length === 0 && (feedsOn === false || !digest.data.ioc_matching)
+    if (b.length + n.length + s.length === 0) title = learning ? t('titleLearning', { n: digest.data.history_days, days: digest.data.baseline_days }) : t('titleQuiet')
+    else title = unmatched ? t('titleNoIoc', { fresh: n.length, spikes: s.length }) : t('title', { bad: b.length, fresh: n.length, spikes: s.length })
   }
   const sourceList = sources.data?.sources ?? []
   return (
     <>
       <PageHeader title={title} stories={['S-LOG-1', 'S-LOG-2', 'S-LOG-4']}
-        meta={digest.data && !noSources && !noLogs ? <span className="inline-flex flex-wrap items-center gap-2">{t('meta', { lines: fmtNumber(digest.data.lines_24h), days: digest.data.baseline_days, time: fmtDateTime(digest.data.generated_at) })}<SampleDataNote /></span> : null} />
+        meta={digest.data && !noSources && !noLogs ? <span className="inline-flex flex-wrap items-center gap-2">{t(learning ? 'metaLearning' : 'meta', { lines: fmtNumber(digest.data.lines_24h), days: digest.data.baseline_days, time: fmtDateTime(digest.data.generated_at) })}<SampleDataNote /></span> : null} />
       <SourcesSection />
       {noSources ? null : noLogs ? <EmptyState title={t('digest.none.title')}>{t('digest.none.body')}</EmptyState> : <DigestSections />}
       {noSources ? null : <Slot name="logs.panels" props={{}} />}

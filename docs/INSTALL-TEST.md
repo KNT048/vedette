@@ -67,6 +67,33 @@ Known noise that is not an installer fault: the apt lists and the apt/dpkg/journ
 7. **Uninstall**: `sh /root/vedette-test/art/install.sh --uninstall` (only says what it would do), then `sh /root/vedette-test/art/install.sh --uninstall --yes`. This deletes the test box's Vedette database and key.
 8. **After**: snapshot and the `diff` above must say IDENTICAL (apart from the noise listed); `ss -ltn` has no 8443/8444; `ip -o link` has no leftover macvlan or decoy link; `ls /run/netns` has no `vedette-hp`; `cat /proc/sys/net/ipv4/ip_forward` is the value of the snapshot; `nft list tables` is as in the snapshot.
 
+## Upgrade test: install test.1, update to test.2 from the GUI, roll back (#469, D-382)
+
+Tests the real software update of the test channel: the host package (`host.self_update`, host-self-update plan slice 6) and the core image (#432), signed with the same throwaway keys. Nothing here exists on a customer box: the release source below is read only by a build whose version has a `-test.` prerelease, and the documents are still verified with the keys compiled into that build. Not a customer data flow (a test machine on the tester's own LAN), so PRIVACY.md is unchanged.
+
+**On the build box (Linux, podman), the SAME keys folder for both builds**, outside the repository and outside `dist/` (the folder keeps the private test keys, 0600, test-only, never commit or reuse them for a release):
+
+1. `make install-artifacts TEST_VERSION=0.0.1-test.1 KEYS=$HOME/vedette-testkeys OUT=$HOME/vedette-art/test.1` (the first run makes the keys; the output says "making test keys").
+2. `make install-artifacts TEST_VERSION=0.0.1-test.2 KEYS=$HOME/vedette-testkeys OUT=$HOME/vedette-art/test.2` (the output says "reusing the test keys"). Give test.2 something visible (a commit on the build box's branch) or just the version, which the GUI shows.
+3. Copy both folders to the box as in step 0 above (`/root/vedette-test/art-1`, `/root/vedette-test/art-2`; root-owned, no group/other write). `sha256sum -c SHA256SUMS` in each.
+
+**On the box, as root:**
+
+4. Install test.1 as steps 1-4 above: `sh /root/vedette-test/art-1/install.sh --test-artifacts /root/vedette-test/art-1`. Finish the wizard. Settings → Updates shows `0.0.1-test.1` and no update.
+5. If the box has a firewall (ufw, firewalld), allow `vedette0` to reach `$BR:5078` (core and podman connect from the bridge). The install removed its registry and mirror at the end. Start the update source from test.2 on the bridge of the containers (core runs in a container and cannot reach the box's loopback). `BR=$(ip -4 -o addr show vedette0 | awk '{print $4}' | cut -d/ -f1)` (172.30.x.1), then
+   `systemd-run --unit=vedette-testupdate /root/vedette-test/art-2/vedette-testchannel serve -dir /root/vedette-test/art-2/registry -releases /root/vedette-test/art-2 -listen $BR:5078`,
+   `curl -fs http://$BR:5078/release/index/index.json | head -c 100`, and
+   `curl -fs http://$BR:5078/v2/` (`{}`).
+6. Tell core where the source is, and let podman pull test.2's images from it (the same mirror file the installer uses, removed in step 10):
+   `echo "http://$BR:5078/release" > /var/lib/vedette/test-release-base` (core_data of `host.conf`; core reads it on each check, no restart),
+   `printf '[[registry]]\nprefix = "ghcr.io/knt048"\nlocation = "ghcr.io/knt048"\n[[registry.mirror]]\nlocation = "%s:5078"\ninsecure = true\n' "$BR" > /etc/containers/registries.conf.d/vedette-test-mirror.conf`.
+7. **GUI**: Settings → Updates → Channel: **Beta** (the test channel signs only a `beta` channel; a new box is on stable), then Check. Expect `0.0.1-test.2` offered (the sequence of the index is above test.1's). Nothing offered, or "source unreachable": `journalctl -u vedette-testupdate`, `podman logs vedette-core | grep -i 'release\|test-release-base'` (a bad address in the file is ignored with one warning, and core then asks GitHub).
+8. **Update** (host first, then the images, core last). Before: `dpkg-query -W -f '${Version}\n' vedette-host`, `systemctl show -p MainPID vedette-host`, `podman ps --format '{{.Names}} {{.Image}}'`, and note something in the database (a user, a setting). During: `systemctl status vedette-host-upgrade` and `/proc/<pid>/cgroup` of the applier (its own cgroup). After: the run is `succeeded` in the GUI; `dpkg-query` shows `0.0.1~test.2`; a new MainPID; `ls /var/lib/vedette-host/selfupdate/packages` holds both; images are the test.2 digests (`podman ps`); the GUI reconnects and shows `0.0.1-test.2`; the data from before is there; the honeypot, if on, came back.
+9. **Roll back** (Settings → Updates → History → Roll back, when the GUI offers it for a component; core image rollback #432). Expect it to ask you to confirm data loss (the test channel signs `rollback.safe=false`, `scripts/testchannel`); confirm. After: the version is test.1 again, the data is there, `podman ps` shows the test.1 digests. The host package has no manual rollback (plan: only the automatic one after a failed start).
+10. **Clean up**: `systemctl stop vedette-testupdate; rm -f /etc/containers/registries.conf.d/vedette-test-mirror.conf /var/lib/vedette/test-release-base`, then step 7 of the plan above (uninstall) and the `diff`.
+
+Negative checks (cheap): build a third version with a DIFFERENT keys folder (omit `KEYS`) and serve it the same way: Check must refuse it (signature), never offer it. `echo http://8.8.8.8/x > /var/lib/vedette/test-release-base` is ignored (public address).
+
 ## Not failures
 
 The container run (`make install-check`) cannot show, and this plan checks on the box instead: macvlan decoys on a real wire, a second NIC and SPAN, `netplan` and the network hand-over (not exercised on this box on purpose), a reboot (the units come back after boot: only with the supervisor's OK). If the box has no second NIC, SPAN is skipped, not failed. The scan image build needs `deb.debian.org`; a box that cannot reach it installs without active scanning (the installer says so and goes on).

@@ -34770,6 +34770,12 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
                     },
+                    "history_days": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Whole days of logs so far, at most baseline_days: from the first line of the source heard from the longest. Below baseline_days the digest is still learning what is normal"
+                    },
                     "new": {
                       "type": "array",
                       "items": {
@@ -34936,6 +34942,7 @@
                     "generated_at",
                     "lines_24h",
                     "baseline_days",
+                    "history_days",
                     "new",
                     "spikes",
                     "bad_connections",
@@ -35553,7 +35560,7 @@
                       "type": "object",
                       "properties": {
                         "ip": {
-                          "description": "Box address on the LAN; null when no LAN range is declared",
+                          "description": "Box address on the LAN; null when no LAN range is declared, or when the box has no address in it (a container cannot see the host's LAN address)",
                           "type": [
                             "string",
                             "null"

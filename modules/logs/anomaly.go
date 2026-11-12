@@ -208,6 +208,8 @@ func (s *Service) anomalies(ctx context.Context, now time.Time) ([]anomaly, map[
 		if t, ok := started[r.ID]; ok && r.Since.After(t) {
 			started[r.ID] = r.Since
 		}
+		r.Started = started[r.ID]
+		names[r.ID] = r // the digest reads how many days of logs it has from here (history_days)
 	}
 	frac := float64(now.Sub(today)) / float64(day)
 	var out []anomaly

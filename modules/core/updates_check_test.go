@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -138,11 +139,18 @@ func newUpdEnv(t *testing.T, o osOpts) *updEnv {
 	if !o.noHost {
 		host = e.gate
 	}
+	version, base := runningVersion, e.srv.URL
+	if o.testBase {
+		version, base = runningVersion+"-test.1", ""
+		if err := os.WriteFile(filepath.Join(e.m.CoreData, "test-release-base"), []byte(e.srv.URL+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	h, err := core.NewOSHandlers(core.OSConfig{
 		DB: e.env.DB, Auth: e.env.Svc, Audit: e.env.Audit, Log: e.logger(), Host: host,
 		DataDir: e.m.CoreData, KeyPath: filepath.Join(e.m.CoreData, "vedette.key"),
 		Zone: e.h.OrgTimeZone, Clock: e.clock.Now, Gate: e.purgeGate,
-		Version: runningVersion, ReleaseBase: e.srv.URL, HTTPClient: e.srv.Client(), Trust: e.srv.rel.Keys,
+		Version: version, ReleaseBase: base, HTTPClient: e.srv.Client(), Trust: e.srv.rel.Keys,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -426,5 +434,25 @@ func TestUpdateStateWithAHost(t *testing.T) {
 	wantOK(t, e.oper.post("/core/updates/check", nil), 200)
 	if v, err := e.upd.OfferedVersionForTest(t.Context()); err != nil || v != "1.4.0" {
 		t.Errorf("offered() = %q %v", v, err)
+	}
+}
+
+// #469: a test-channel build downloads from the local source, but the signed index must still name the project's release
+// URL (core.DefaultReleaseBase), exactly as the test channel signs it. A release build ignores the file.
+func TestUpdateCheckTestChannelSource(t *testing.T) {
+	t.Parallel()
+	e := newUpdEnv(t, osOpts{noHost: true, testBase: true})
+	m := e.srv.manifest(t, "1.4.0", nil)
+	e.srv.index(t, 5, m, 100, func(d opstest.Doc) {
+		ch, _ := d["channels"].(opstest.Doc)["stable"].(opstest.Doc)
+		ch["manifest"] = core.DefaultReleaseBase + "/v1.4.0/release-manifest.json"
+	})
+	r := e.oper.post("/core/updates/check", nil)
+	wantOK(t, r, 200)
+	if av := getArr(r, "available"); len(av) != 1 {
+		t.Fatalf("available = %s", r.Raw)
+	}
+	if e.srv.hit("/index/index.json") == 0 || e.srv.hit("/v1.4.0/release-manifest.json") == 0 {
+		t.Fatal("the documents did not come from the test source")
 	}
 }

@@ -142,7 +142,7 @@ export function SourceFormDialog({ open, onOpenChange, source, onAdded }: { open
   )
 }
 
-export function ConfigDialog({ source, boxIp, onClose }: { source: LogSource | null; boxIp: string | null; onClose: () => void }) {
+export function ConfigDialog({ source, boxIp, lan, onClose }: { source: LogSource | null; boxIp: string | null; lan: string | null; onClose: () => void }) {
   const { t } = useTranslation('logs')
   return (
     <Dialog open={source !== null} onOpenChange={(o) => { if (!o) onClose() }}>
@@ -152,7 +152,7 @@ export function ConfigDialog({ source, boxIp, onClose }: { source: LogSource | n
         const ctx = { ip, port: source.port, proto: source.proto }
         return (
           <DialogContent wide title={t('config.title', { name: source.name })} description={t('config.target', { ip, port: source.port, proto: source.proto.toUpperCase(), sender: source.sender_ip })}>
-            {boxIp ? null : <p role="alert" className="rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-sm">{t('config.noIp', { placeholder: BOX_PLACEHOLDER })}</p>}
+            {boxIp ? null : <p role="alert" className="rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-sm">{lan ? t('config.noIpLan', { lan, placeholder: BOX_PLACEHOLDER }) : t('config.noIp', { placeholder: BOX_PLACEHOLDER })}</p>}
             <p className="text-sm">{e.intro}</p>
             <p className="rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]"><span className="font-medium">{t('config.reads')}: </span>{e.readsNote}</p>
             <h3 className="text-sm font-medium">{t('config.steps')}</h3>

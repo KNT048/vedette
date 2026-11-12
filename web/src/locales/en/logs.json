@@ -4,9 +4,12 @@
   },
   "title": "Today: {{bad}} connections to bad destinations, {{fresh}} new log types, {{spikes}} spikes.",
   "titleQuiet": "Today: logs look normal, nothing new compared with the last 7 days.",
+  "titleLearning": "Learning what is normal: {{n}} of {{days}} days of logs so far.",
+  "titleNoIoc": "Today: {{fresh}} new log types, {{spikes}} spikes.",
   "titleLoading": "Logs",
   "titleNoSources": "No device is sending logs to the box yet.",
   "meta": "From {{lines}} log lines in the last 24 hours, compared with the previous {{days}} days. Updated {{time}}.",
+  "metaLearning": "From {{lines}} log lines in the last 24 hours. Updated {{time}}.",
   "refresh": "Refresh",
   "sources": {
     "title": "Log sources",
@@ -40,7 +43,8 @@
     "notInInventory": "Not in the inventory",
     "emptyTitle": "No log sources yet",
     "emptyBody": "Add the first device or program that sends logs, such as a firewall, NAS, Windows server or web server. Vedette then shows the exact settings to enter on it.",
-    "descriptionNoIp": "Devices that send syslog to the box. The box address is not known yet: add your LAN range first (Devices, Scope and sensors)."
+    "descriptionNoIp": "Devices that send syslog to the box. The box address is not known yet: add your LAN range first (Devices, Scope and sensors).",
+    "descriptionNoIpLan": "Devices that send syslog to the box. The box cannot see its own address in your LAN range {{lan}}, as when it runs in a container: point devices at the address of the machine that runs Vedette, the one you open this page on."
   },
   "form": {
     "addTitle": "Add log source",
@@ -48,7 +52,7 @@
     "addDesc": "Choose what will send logs. The next step shows the exact settings to enter on that device.",
     "kind": "Device type",
     "name": "Name",
-    "nameHint": "Letters without accents, digits, dashes. Example: FW-HQ.",
+    "nameHint": "Letters without accents, digits, dashes, dots and underscores, starting with a letter or digit. Example: FW-HQ.",
     "ip": "IP of the sending device",
     "ipHint": "The box only accepts logs from this IP. Example: 192.168.10.1.",
     "proto": "Protocol",
@@ -78,7 +82,8 @@
     "notes": "Good to know",
     "parsed": "Read and analysed",
     "stored": "Stored only",
-    "noIp": "The box address is not known yet. Add your LAN range first (Devices, Scope and sensors). Until then the settings below show {{placeholder}} where the box address goes."
+    "noIp": "The box address is not known yet. Add your LAN range first (Devices, Scope and sensors). Until then the settings below show {{placeholder}} where the box address goes.",
+    "noIpLan": "The box cannot see its own address in your LAN range {{lan}}, as when it runs in a container. Use the address of the machine that runs Vedette, the one you open this page on: the settings below show {{placeholder}} where it goes."
   },
   "digest": {
     "bad": {
@@ -96,6 +101,7 @@
       "lookup": "Look up {{dst}}",
       "empty": "None of your devices connected to a listed bad address in the last 24 hours.",
       "emptyFeedsOff": "The Feeds module is off, so no connection can be matched against threat feeds. Switch it on under Settings, Modules.",
+      "openModules": "Open Settings, Modules",
       "emptyNoIoc": "No switched-on threat feed lists any IP address or domain yet, so no connection can be matched. Switch on an IOC feed under Feeds, or wait for its first download.",
       "via": {
         "span_dns": "SPAN: DNS query",
@@ -108,6 +114,7 @@
     },
     "new": {
       "title": "New compared with {{days}} days ago",
+      "titleLearning": "New log types",
       "description": "Log types never seen before from the same source, grouped by type rather than listed line by line.",
       "caption": "New log types",
       "col": {
@@ -116,7 +123,8 @@
         "count": "Times",
         "first": "First seen"
       },
-      "empty": "No new log types compared with {{days}} days ago."
+      "empty": "No new log types compared with {{days}} days ago.",
+      "emptyLearning": "No new log types yet. The box is still learning what is normal: {{n}} of {{days}} days of logs so far."
     },
     "spikes": {
       "title": "Spikes",
@@ -164,6 +172,7 @@
   "retention": {
     "title": "Log retention",
     "description": "Logs past the period are deleted automatically. At the current rate, {{days}} days take about {{mb}} MB.",
+    "descriptionNone": "Logs past the period are deleted automatically. No log lines are arriving now, so there is no size estimate yet.",
     "label": "Keep logs for",
     "option": "{{n}} days",
     "shortenTitle": "Keep logs for {{n}} days only?",

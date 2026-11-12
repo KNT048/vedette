@@ -112,3 +112,72 @@ func TestRegistryServesByDigestOnly(t *testing.T) {
 		t.Fatal("a non-loopback listen address was accepted")
 	}
 }
+
+// A folder that holds keys keeps them (KEYS=<dir>, #469): the second `keys` run writes the same public keys.
+func TestKeysReusedInAFolder(t *testing.T) {
+	dir := t.TempDir()
+	repo := t.TempDir()
+	read := func() string {
+		b, err := os.ReadFile(filepath.Join(dir, "keys_prod.go")) //nolint:gosec // a temp folder of this test
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	if err := cmdKeys([]string{"-out", dir, "-repo", repo}); err != nil {
+		t.Fatal(err)
+	}
+	first := read()
+	if err := cmdKeys([]string{"-out", dir, "-repo", repo}); err != nil {
+		t.Fatal(err)
+	}
+	if read() != first {
+		t.Fatal("the second run made new keys")
+	}
+	if st, err := os.Stat(filepath.Join(dir, "minisign-active.seed")); err != nil || st.Mode().Perm() != 0o600 {
+		t.Fatalf("private key: %v %v", st, err)
+	}
+}
+
+func TestReleaseHandlerLayout(t *testing.T) {
+	dir := t.TempDir()
+	for _, n := range []string{"index.json", "release-manifest.json", "vedette-host_0.0.1-test.2_amd64.deb", "SHA256SUMS", "install.sh"} {
+		if err := os.WriteFile(filepath.Join(dir, n), []byte(n), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	srv := httptest.NewServer(releaseHandler(dir, registryHandler(t.TempDir())))
+	defer srv.Close()
+	code := func(path string) int {
+		req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+path, http.NoBody)
+		r, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = r.Body.Close()
+		return r.StatusCode
+	}
+	for path, want := range map[string]int{
+		"/release/index/index.json":                                  200,
+		"/release/v0.0.1-test.2/release-manifest.json":               200,
+		"/release/v0.0.1-test.2/vedette-host_0.0.1-test.2_amd64.deb": 200,
+		"/release/v0.0.1-test.2/index.json":                          404, // index only under index/
+		"/release/index/release-manifest.json":                       404,
+		"/release/v1.0.0/release-manifest.json":                      404, // not a -test. version
+		"/release/v0.0.1-test.2/SHA256SUMS":                          404,
+		"/release/v0.0.1-test.2/install.sh":                          404,
+		"/release/v0.0.1-test.2/../../etc/passwd":                    404,
+		"/release/index/index.json.minisig":                          404, // not in the folder
+		"/v2/":                                                       200,
+	} {
+		if got := code(path); got != want {
+			t.Errorf("%s: %d, want %d", path, got, want)
+		}
+	}
+	if err := cmdServe([]string{"-dir", dir, "-listen", "172.30.77.1:1"}); err == nil {
+		t.Fatal("a private address without -releases was accepted")
+	}
+	if err := cmdServe([]string{"-dir", dir, "-releases", dir, "-listen", "8.8.8.8:1"}); err == nil {
+		t.Fatal("a public address was accepted")
+	}
+}

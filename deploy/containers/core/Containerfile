@@ -10,6 +10,9 @@ ARG DISTROLESS_IMAGE
 FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS build
 ARG VERSION
 ARG MIN_SEQUENCE
+# TEST CHANNEL ONLY (make install-artifacts, #469): base64 of the generated internal/release/keys_prod.go that holds the PUBLIC throwaway keys
+# of the test release, so that this core verifies the update documents of the test channel. Empty for every real build; refused unless VERSION has a -test. prerelease.
+ARG TEST_KEYS_B64=""
 ARG TARGETOS
 ARG TARGETARCH
 WORKDIR /src
@@ -17,6 +20,10 @@ COPY . .
 RUN set -eu; \
     printf '%s' "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "VERSION must be SemVer without v, got '${VERSION}'" >&2; exit 1; }; \
     printf '%s' "${MIN_SEQUENCE}" | grep -Eq '^(0|[1-9][0-9]{0,17})$' || { echo "MIN_SEQUENCE must be a plain decimal number, got '${MIN_SEQUENCE}'" >&2; exit 1; }; \
+    if [ -n "${TEST_KEYS_B64}" ]; then \
+      case "${VERSION}" in *-test.*) ;; *) echo "TEST_KEYS_B64 is for a -test. version only, got '${VERSION}'" >&2; exit 1;; esac; \
+      printf '%s' "${TEST_KEYS_B64}" | base64 -d > internal/release/keys_prod.go; \
+    fi; \
     test -s internal/webui/dist/index.html || { echo "internal/webui/dist/index.html is missing: run make core-image (it runs make webui-dist first)" >&2; exit 1; }; \
     if [ -e internal/webui/dist/mockServiceWorker.js ] || grep -rqE '\[MSW\]|mswjs' internal/webui/dist; then echo "internal/webui/dist holds the mock layer (MSW): build it with make webui-dist (VITE_API_MOCK=off)" >&2; exit 1; fi; \
     GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \

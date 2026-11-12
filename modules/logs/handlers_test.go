@@ -189,7 +189,7 @@ func TestDigestWithItemsOverHTTP(t *testing.T) {
 	code, b := e.call("GET", "/logs/digest", "viewer", "")
 	spikes, _ := b["spikes"].([]any)
 	news, _ := b["new"].([]any)
-	if code != 200 || len(spikes) != 1 || len(news) != 1 {
+	if code != 200 || len(spikes) != 1 || len(news) != 1 || b["history_days"] != float64(3) {
 		t.Fatalf("%d %v", code, b)
 	}
 	n := news[0].(map[string]any)

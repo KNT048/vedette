@@ -375,6 +375,6 @@
     "resendFor": "Send again via {{channel}}",
     "resendOk": "Sent again via {{channel}}.",
     "emptyTitle": "Nothing sent yet",
-    "emptyBody": "Messages appear here once a channel is on and something worth telling you happens."
+    "emptyBody": "Messages appear here once a channel is on and something worth telling you happens. Test messages are not listed here; each channel shows its last test."
   }
 }

@@ -629,3 +629,33 @@ func TestNoTLSSocketWhileTheModuleIsOff(t *testing.T) {
 		t.Error("the TLS port still accepts connections after the module was turned off")
 	}
 }
+
+// Editing a source to TLS is accepted on a box that has a TLS config, and opens the TLS socket in place of the plain one.
+func TestEditingASourceToTLSIsAcceptedOnABoxWithTLS(t *testing.T) {
+	t.Parallel()
+	e, _ := tlsEnv(t)
+	s := e.sourceOn("FW", "udp")
+	stop := e.runSyslogJob()
+	defer func() { _ = stop() }()
+	waitUntil(t, "the UDP socket", func() bool { u, _ := e.addrs(); return u != nil })
+	got, err := e.svc.UpdateSource(t.Context(), "admin@acme.example", s.ID, Input{Kind: "fortigate", Name: "FW", SenderIP: "127.0.0.1", Proto: "tls", Port: 6514})
+	if err != nil || got.Proto != "tls" {
+		t.Fatalf("edit to tls: %+v %v", got, err)
+	}
+	waitUntil(t, "the TLS socket instead of the UDP one", func() bool { u, _ := e.addrs(); return u == nil && e.tlsAddr() != nil })
+}
+
+// A left-over tls row on a box that now has a TLS config is served, and the "not served" warning (for a box with none) is not logged.
+func TestALeftOverTLSRowIsServedAndNotWarnedAboutOnABoxWithTLS(t *testing.T) {
+	t.Parallel()
+	e, _ := tlsEnv(t)
+	logs := &logCapture{}
+	e.svc.cfg.Log = slog.New(logs)
+	e.exec(e.cfg, `INSERT INTO logs_sources (id, kind, name, sender_ip, proto, port, created_at) VALUES ('ls-old', 'fortigate', 'FW-TLS', '127.0.0.1', 'tls', 6514, '2026-11-01T00:00:00.000Z')`)
+	stop := e.runSyslogJob()
+	defer func() { _ = stop() }()
+	waitUntil(t, "the TLS socket for the old row", func() bool { return e.tlsAddr() != nil })
+	if n := logs.count("are not served"); n != 0 {
+		t.Errorf("the not-served warning was logged %d times on a box that serves TLS", n)
+	}
+}

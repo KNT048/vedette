@@ -2750,16 +2750,16 @@ func (s *AiGetAiKnowledgeOKItemsItemStatus) UnmarshalText(data []byte) error {
 }
 
 type AiGetAiLogsDigestOK struct {
-	Digest AiGetAiLogsDigestOKDigest `json:"digest"`
+	Digest NilAiGetAiLogsDigestOKDigest `json:"digest"`
 }
 
 // GetDigest returns the value of Digest.
-func (s *AiGetAiLogsDigestOK) GetDigest() AiGetAiLogsDigestOKDigest {
+func (s *AiGetAiLogsDigestOK) GetDigest() NilAiGetAiLogsDigestOKDigest {
 	return s.Digest
 }
 
 // SetDigest sets the value of Digest.
-func (s *AiGetAiLogsDigestOK) SetDigest(val AiGetAiLogsDigestOKDigest) {
+func (s *AiGetAiLogsDigestOK) SetDigest(val NilAiGetAiLogsDigestOKDigest) {
 	s.Digest = val
 }
 
@@ -70731,6 +70731,51 @@ func (o NilAiGetAiCveIDCachedOKNews) Get() (v AiGetAiCveIDCachedOKNews, ok bool)
 
 // Or returns value if set, or given parameter if does not.
 func (o NilAiGetAiCveIDCachedOKNews) Or(d AiGetAiCveIDCachedOKNews) AiGetAiCveIDCachedOKNews {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilAiGetAiLogsDigestOKDigest returns new NilAiGetAiLogsDigestOKDigest with value set to v.
+func NewNilAiGetAiLogsDigestOKDigest(v AiGetAiLogsDigestOKDigest) NilAiGetAiLogsDigestOKDigest {
+	return NilAiGetAiLogsDigestOKDigest{
+		Value: v,
+	}
+}
+
+// NilAiGetAiLogsDigestOKDigest is nullable AiGetAiLogsDigestOKDigest.
+type NilAiGetAiLogsDigestOKDigest struct {
+	Value AiGetAiLogsDigestOKDigest
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilAiGetAiLogsDigestOKDigest) SetTo(v AiGetAiLogsDigestOKDigest) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilAiGetAiLogsDigestOKDigest) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilAiGetAiLogsDigestOKDigest) SetToNull() {
+	o.Null = true
+	var v AiGetAiLogsDigestOKDigest
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilAiGetAiLogsDigestOKDigest) Get() (v AiGetAiLogsDigestOKDigest, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilAiGetAiLogsDigestOKDigest) Or(d AiGetAiLogsDigestOKDigest) AiGetAiLogsDigestOKDigest {
 	if v, ok := o.Get(); ok {
 		return v
 	}

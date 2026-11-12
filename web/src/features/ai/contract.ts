@@ -161,6 +161,6 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/ai/cve/{id}/cached', summary: 'Previously generated explanation and news for a CVE', stories: ['S-AI-2', 'S-AI-3'], role: 'viewer', params: z.object({ id: cve }), response: CachedCve, example: { params: { id: 'CVE-2022-27593' } } },
   { method: 'post', path: '/ai/cve/{id}/explain', summary: 'AI explains a CVE in terms of my devices', stories: ['S-AI-2'], role: 'operator', params: z.object({ id: cve }), response: ExplainResult },
   { method: 'post', path: '/ai/cve/{id}/news', summary: 'Box fetches advisories/PoC/RSS for a CVE, then the AI summarizes them', stories: ['S-AI-3'], role: 'operator', params: z.object({ id: cve }), response: NewsResult },
-  { method: 'get', path: '/ai/logs/digest', summary: 'AI log digest for the selected tier', stories: ['S-AI-4'], role: 'viewer', response: z.object({ digest: LogDigest }) },
+  { method: 'get', path: '/ai/logs/digest', summary: 'AI log digest for the selected tier (null = none generated yet; no AI call, INV-6)', stories: ['S-AI-4'], role: 'viewer', response: z.object({ digest: LogDigest.nullable() }) },
   { method: 'post', path: '/ai/logs/digest', summary: 'Regenerate the log digest now', stories: ['S-AI-4'], role: 'operator', response: z.object({ digest: LogDigest }) },
 ])

@@ -1,7 +1,6 @@
 # Deferred from feat/e2e-real-specs-sal (WP-30 specs for logs, scan, ai; D-198)
 
-- [ ] The AI digest panel on the Logs page: `GET /ai/logs/digest` answers 501 once a source exists (`AI_DIGEST_501` in logs.global.spec.ts, test 4 fails the day it answers 200: remove the constant then). Owner: Mlee (ai S-AI-4).
-- [ ] ai: `POST /ai/ask` and `GET /ai/asks`, `POST /ai/cve/{id}/news`, `POST /ai/logs/digest`, `/ai/memory`, `/ai/skills`, `/ai/knowledge` answer 501. `/assistant` is in KNOWN_501 (`GET /ai/asks`). fixme blocks in ai.global.spec.ts hold the real flows. A model answer needs a provider key: the specs never configure one (PRIVACY flow 3).
+- [ ] ai: `POST /ai/ask` and `GET /ai/asks`, `POST /ai/cve/{id}/news`, `/ai/memory`, `/ai/skills`, `/ai/knowledge` answer 501. `/assistant` is in KNOWN_501 (`GET /ai/asks`). fixme blocks in ai.global.spec.ts hold the real flows. A model answer needs a provider key: the specs never configure one (PRIVACY flow 3).
 - [ ] scan: a run, Stop now, auto-stop and the rescan on a new KEV need the scan worker (sensor seam, WP-30 slice 7) and the scan image: four fixme blocks in scan.global.spec.ts, with `can_scan=false` and `503 scanner_unavailable` tested meanwhile.
 - [ ] Known GUI bug seen again: toast `div[data-title=""]` fails axe color-contrast (first found in exposure.spec.ts, `.ai/deferred/feat-e2e-real-exposure-fakes.md:5`). The new specs run axe on a reloaded page, with no toast on it.
 - [ ] logs: the box address is null when the LAN range has no address of the box (`box.ip` null on the e2e box), so the setup dialog shows the "address not known" alert: nothing to fix, noted for slice 10 (mobile).

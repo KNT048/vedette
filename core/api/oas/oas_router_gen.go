@@ -9015,7 +9015,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = AiGetAiLogsDigestOperation
-								r.summary = "AI log digest for the selected tier"
+								r.summary = "AI log digest for the selected tier (null = none generated yet; no AI call, INV-6)"
 								r.operationID = "ai_get_ai_logs_digest"
 								r.operationGroup = ""
 								r.pathPattern = "/ai/logs/digest"

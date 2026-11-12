@@ -16,10 +16,10 @@ import (
 // ponytail: only secrets that carry a marker (a keyword, a type number, a hash prefix, ENC); a cleartext `enable password x` or
 // `username a password b` has none a pattern can tell from prose, and a FortiGate `set name "x"` inside an SNMP community block is
 // not recognised; upgrade path: a config-aware parser per vendor, if a customer needs it.
-const secretValue = `("[^"\n]*"|'[^'\n]*'|\S+)`
+const secretValue = `("[^"\n]*"|'[^'\n]*'|\S+)` //nolint:gosec // a regexp fragment, not a credential
 
 // secretKeyStart: the keyword begins at the start of a line or after a character that cannot be part of a word.
-const secretKeyStart = `(?i)(?:^|[^a-z0-9_])`
+const secretKeyStart = `(?i)(?:^|[^a-z0-9_])` //nolint:gosec // a regexp fragment, not a credential
 
 var deviceSecretPatterns = []*regexp.Regexp{
 	// Cisco type 0-9 (password 7 <hex>, secret 5 $1$..., secret 8 $8$..., secret 9 $9$..., key 7 ..., md5 7 ..., key-string 7 ...).

@@ -114,3 +114,7 @@
 - Không bảng mới, không migration (dùng `ai_result` kind `news`), không sự kiện, không job nền. Tắt module: không route, không fetch.
 - **Luồng dữ liệu 8 (PRIVACY.md) viết rõ host**, luồng 3 thêm câu về văn bản công khai đã fetch gửi tới nhà cung cấp.
 
+
+## Modifying: `Config.LogDigest`, `Service.CachedLogDigest`, `Service.LogDigest` (D-221)
+- **logs** (`Service.Digest`, adapter `cmd/vedette/ailogdigest.go`): thêm trường vào `LogDigestData` = thêm dữ liệu log rời hộp (PRIVACY luồng 3, `privacy.flow.3.*`); không bao giờ thêm `sample` hay dòng gốc (INV-11 của logs). Đổi tên trường JSON của `GET /logs/digest` → adapter chép qua JSON sẽ mất trường đó (test `TestAILogDigestReadsKindsAndCountsNotLines`).
+- **GUI** (`web/src/features/ai/LogsPanel.tsx`, slot `logs.panels`): `GET` có thể trả `digest: null`; `LogDigest` của `contract.ts` là hợp đồng của kết quả.

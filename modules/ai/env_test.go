@@ -145,6 +145,7 @@ type env struct {
 	askTimeout  time.Duration // 0 = the default
 	data        *fakeData
 	conns       *fakeConns
+	logs        *fakeLogs
 }
 
 func (e *env) ctx() context.Context { return e.t.Context() }
@@ -163,7 +164,7 @@ func newEnv(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e := &env{t: t, db: db, sec: sec, fake: &fakeProviders{fail: map[string]error{}, tools: true, structd: true}, clock: &clock{t: time.Date(2026, 11, 10, 3, 0, 0, 0, time.UTC)}, facts: newFacts(), pruner: &fakePruner{}, data: newFakeData(), conns: &fakeConns{}}
+	e := &env{t: t, db: db, sec: sec, fake: &fakeProviders{fail: map[string]error{}, tools: true, structd: true}, clock: &clock{t: time.Date(2026, 11, 10, 3, 0, 0, 0, time.UTC)}, facts: newFacts(), pruner: &fakePruner{}, data: newFakeData(), conns: &fakeConns{}, logs: &fakeLogs{on: true}}
 	e.svc = e.newService()
 	return e
 }
@@ -171,7 +172,7 @@ func newEnv(t *testing.T) *env {
 // newService builds a service over the same database, as a restart does.
 func (e *env) newService() *ai.Service {
 	e.t.Helper()
-	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Factory: e.fake.factory, Facts: e.facts, ChainPruner: e.pruner, HookTimeout: e.hookTimeout, Data: e.data, Conns: e.conns, ConnTargets: e.conns.targets, AskTimeout: e.askTimeout})
+	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Factory: e.fake.factory, Facts: e.facts, ChainPruner: e.pruner, HookTimeout: e.hookTimeout, Data: e.data, Conns: e.conns, ConnTargets: e.conns.targets, AskTimeout: e.askTimeout, LogDigest: e.logs.read})
 	if err != nil {
 		e.t.Fatal(err)
 	}

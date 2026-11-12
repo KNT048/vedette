@@ -562,6 +562,13 @@ describe('ai: log digest panel (S-AI-4)', () => {
     await expectNoA11yViolations()
   })
 
+  it('nothing generated yet (null, no AI call) says so and the button still works', async () => {
+    server.use(http.get(`${location.origin}/api/v1/ai/logs/digest`, () => HttpResponse.json({ digest: null })))
+    renderUi(<LogsPanel />)
+    expect(await screen.findByText('No summary has been made at this level yet. Press Regenerate now.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Regenerate now' })).toBeEnabled()
+  })
+
   it('minimum level has fewer items; maximum has the read-only investigation tools', async () => {
     aiConfigStore.update((c) => ({ ...c, tier: 'min' }))
     const min = renderUi(<LogsPanel />)

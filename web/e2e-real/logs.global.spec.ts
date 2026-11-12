@@ -73,15 +73,13 @@ const sockets = (c: 'udp' | 'tcp', want: 'open' | 'closed') =>
   expect.poll(() => (c === 'udp' ? udpState() : tcpState()), { message: `the ${c} socket of the syslog listener is ${want}`, timeout: 40_000 }).toBe(want)
 
 
-/** The only answer of the real box that is 501 on this page while a source exists: the AI digest panel (module ai, S-AI-4; .ai/deferred of ai). KNOWN_501 only shrinks:
- *  test 4 fails when it answers 200, and any other 5xx fails the test that saw it. */
-const AI_DIGEST_501 = 'GET /api/v1/ai/logs/digest'
+/** Every 5xx the page saw: the AI digest panel (GET /ai/logs/digest) answers now, so nothing on this page is allowed to be 501. */
 function watch5xx(page: Page): string[] {
   const seen: string[] = []
   page.on('response', (r) => { const u = new URL(r.url()); if (u.pathname.startsWith('/api/') && r.status() >= 500) seen.push(`${r.request().method()} ${u.pathname} ${r.status()}`) })
   return seen
 }
-const only501 = (seen: string[]) => expect(seen.filter((k) => k !== `${AI_DIGEST_501} 501`), 'a 5xx other than the known 501').toEqual([])
+const no5xx = (seen: string[]) => expect(seen, 'no 5xx').toEqual([])
 
 let original = 30
 /** Every source of this file goes, and the listener with it. */
@@ -125,10 +123,7 @@ const stored = (c: APIRequestContext, line: string, sourceId: string) =>
 test('an empty box says what to do first; the page and the API agree; no script error, no 5xx, English only', async ({ page }) => {
   const errors = collectErrors(page)
   const server: string[] = []
-  // GET /ai/logs/digest is not built yet and answers 501 (.ai/deferred/feat-ai-activity.md:18): the one answer the page may get
-  let digest501 = 0
   page.on('response', (r) => {
-    if (r.url().endsWith('/api/v1/ai/logs/digest')) { if (r.status() === 501) digest501++; return }
     if (r.url().includes('/api/') && r.status() >= 500) server.push(`${r.request().method()} ${new URL(r.url()).pathname} ${r.status()}`)
   })
   const c = await as('admin')
@@ -145,9 +140,7 @@ test('an empty box says what to do first; the page and the API agree; no script 
     await expectAccessible(page, 'logs, empty')
     await noVietnamese(page, 'logs, empty')
     expect(server).toEqual([])
-    // the console line of a 501 has no URL: there must be exactly as many as GET /ai/logs/digest answered (the page asks for it even with no source)
-    expect(errors.filter((e) => /status of 501/.test(e)), 'every console 501 is the AI digest').toHaveLength(digest501)
-    noErrors(errors, /status of 501/)
+    noErrors(errors)
   } finally { await c.dispose() }
 })
 
@@ -202,8 +195,8 @@ test('add a source in the page: the picker, the setup dialog, the row, a duplica
     await d2.getByRole('button', { name: 'Cancel' }).click()
     expect((await sources(c)).sources, 'the refusal saved nothing').toHaveLength(1)
     expect(await auditTotal(c, 'logs.'), 'the two refusals left no audit row').toBe(auditDup)
-    only501(five)
-    noErrors(errors, /status of (409|501)/)
+    no5xx(five)
+    noErrors(errors, /status of 409/)
   } finally { await c.dispose() }
 })
 
@@ -298,9 +291,8 @@ test('lines sent over UDP and TCP are stored exactly, the source turns to Receiv
     await expect(page.getByText('4 of 4 matching lines.')).toBeVisible() // this source only: the lines of deleted sources are not in its filter
     await expectAccessible(page, 'logs with lines')
     await noVietnamese(page, 'logs with lines')
-    expect(five, 'the AI digest panel is 501 until slice S-AI-4 is built: remove AI_DIGEST_501 when this fails').toContain(`${AI_DIGEST_501} 501`)
-    only501(five)
-    noErrors(errors, /status of 501/)
+    no5xx(five)
+    noErrors(errors)
   } finally { await c.dispose() }
 })
 
@@ -381,8 +373,8 @@ test('edit and delete a source in the page: Escape deletes nothing, the lines al
     await sendUdp(`<34>Nov 11 12:31:01 gw app[1]: ${tok} after delete`)
     await new Promise((ok) => setTimeout(ok, 3_000)) // longer than the batch time of the listener
     expect((await events(c, { q: tok })).total, 'nothing is stored for a sender that is no longer declared').toBe(1)
-    only501(five)
-    noErrors(errors, /status of 501/)
+    no5xx(five)
+    noErrors(errors)
   } finally { await c.dispose() }
 })
 
@@ -409,8 +401,8 @@ test('retention: the page changes it, the API refuses anything but 7, 30, 90, 18
     expect(await auditTotal(c, 'logs.'), 'the refusals left no audit row').toBe(auditRet)
     const back = await api(c, 'PUT', '/logs/retention', { days: original })
     expect(back.status).toBe(200)
-    only501(five)
-    noErrors(errors, /status of (400|501)/)
+    no5xx(five)
+    noErrors(errors, /status of 400/)
   } finally { await c.dispose() }
 })
 
@@ -513,7 +505,7 @@ test('digest of a fresh source (INV-6, PRE-3): inside the 24 h warm-up nothing i
       await expect(page.getByText(/The Feeds module is off, so no connection can be matched/)).toBeVisible()
     } finally { expect((await api(c, 'PATCH', '/modules/feeds', { enabled: feedsWas })).status).toBe(200) }
     await noVietnamese(page, 'logs digest')
-    noErrors(errors, /status of (501|404)/)
+    noErrors(errors, /status of 404/)
   } finally { await c.dispose() }
 })
 
@@ -566,7 +558,7 @@ test('phone width: the Logs page with a source and lines fits a 390 px screen: n
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     expect(overflow, 'no horizontal page scroll at 390 px').toBeLessThanOrEqual(0)
     await expect(page.getByRole('button', { name: 'Add log source' }).first()).toBeVisible()
-    noErrors(errors, /status of 501/)
+    noErrors(errors)
   } finally { await ctx.close(); await c.dispose() }
 })
 

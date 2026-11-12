@@ -114,6 +114,10 @@
 - Bộ áp (`ops.Apply`, `ApplyWithDeps` cho test) có runner riêng (`applierBinaries`); `cmd/vedette-host -self-update-apply rn_<16 hex>` là đường vào duy nhất, từ chối khi không root, có cờ khác, hay không chạy từ `<state>/selfupdate/applier`. Đổi pha, cách chọn cài, phép kiểm khoẻ → `TestContract_SelfUpdate_*` và RUNBOOK §5.6.
 - Seam test mới: `Deps.StartUnit` (thay `systemd-run`, sau cùng bộ kiểm), `Deps.PID`; `ApplyDeps.Stop` (bộ áp "chết" sau một pha). Production không đặt chúng.
 
+## Modifying: phụ thuộc mới của một lần tự nâng (`host/ops/selfupdate.go` `SelfUpdateSim`, `recordAddedPackages`; `install.sh` `by_us_packages`, D-316 (9))
+- `SelfUpdateSimOK` đổi tên `SelfUpdateSim` và trả thêm danh sách gói mới; Run 3c ghi `<state>/selfupdate/installed-by-us` trước nhật ký. Người đọc duy nhất là `install.sh --uninstall` (`by_us_packages`, `purge_added_packages`); `--keep-data` xoá tệp đó. Đổi tên tệp, định dạng (một tên mỗi dòng) hay `HOST_STATE` → `TestInstallShUninstallReadsTheListTheHostWrites` đỏ, và install-check case D-316 (9).
+- Thêm một lý do `applier_failed` trước khi đổi gì (không ghi được danh sách); `core` đã hiểu mã đó (câu "failed" của S-CORE-2).
+
 ## Absence of this component
 - Kiểu "Chỉ container": Settings → Updates (OS) và Box network hiện "không hỗ trợ ở kiểu cài này"; honeypot không dựng được IP phụ (macvlan), SPAN không cấu hình được; cập nhật phần mềm Vedette làm tay. `client.ErrUnreachable` là tín hiệu.
 - Appliance mất liên lạc với `host`: các module khác vẫn chạy; không cài bản vá, không đổi mạng, không đổi/hoàn tác image cho tới khi khôi phục.

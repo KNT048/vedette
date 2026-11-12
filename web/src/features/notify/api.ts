@@ -7,7 +7,7 @@ export const useIncident = (id: string) => useQuery({ queryKey: ['notify', 'inci
 export const useHistory = () => useQuery({ queryKey: ['notify', 'history'], queryFn: () => api.get<HistoryResponse>('/notify/history') })
 export const useFindingNotices = (id: string) => useQuery({ queryKey: ['notify', 'finding', id], queryFn: () => api.get<FindingNotices>(`/notify/findings/${encodeURIComponent(id)}/notices`) })
 export const useLegacyTarget = (id: string) => useQuery({ queryKey: ['notify', 'legacy', id], queryFn: () => api.get<{ to: string }>(`/notify/alerts/${encodeURIComponent(id)}/target`), retry: false })
-export const useChannels = (opts: { retry?: boolean } = {}) => useQuery({ queryKey: ['notify', 'channels'], queryFn: () => api.get<ChannelsResponse>('/notify/channels'), ...opts })
+export const useChannels = (opts: { retry?: boolean; enabled?: boolean } = {}) => useQuery({ queryKey: ['notify', 'channels'], queryFn: () => api.get<ChannelsResponse>('/notify/channels'), ...opts })
 
 function useInvalidating<V, R>(fn: (v: V) => Promise<R>) {
   const qc = useQueryClient()

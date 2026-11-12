@@ -29,9 +29,12 @@ const MaxDests = 2
 type Dest struct{ Kind, Value string }
 
 // Conn is a connection a line is about: a LAN device (private IPv4) and where it went. The zero Conn (Local not valid) is no connection.
+// Blocked says that the device that logged it stopped it (the profile's conn_blocked, D-227): the line records an attempt. False when the
+// format does not say so, which is read as a connection that went through.
 type Conn struct {
-	Local netip.Addr
-	Dests []Dest
+	Local   netip.Addr
+	Dests   []Dest
+	Blocked bool
 }
 
 // LocalOK says whether an address can be the LAN device of a connection: a private IPv4 address (RFC 1918).
@@ -201,6 +204,12 @@ func (p *profile) connByFields(msg string) Conn {
 	}
 	if len(c.Dests) == 0 {
 		return Conn{}
+	}
+	c.Blocked = len(p.Rule.ConnBlocked) > 0
+	for k, blocked := range p.Rule.ConnBlocked {
+		if v, has := vals[k]; !has || !slices.Contains(blocked, v) {
+			c.Blocked = false
+		}
 	}
 	return c
 }

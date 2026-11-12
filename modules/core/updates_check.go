@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
@@ -31,7 +32,7 @@ import (
 // index and the offered manifest from the project's GitHub releases, verify them with internal/release, keep the
 // newest verified index (sequence floor, revocations) and the offered manifest in core_setting, and build
 // UpdatesState. Nothing here installs anything: the run side (updates_run.go) takes offered() to the host, which
-// verifies everything again (host-api 6.7).
+// verifies everything again (host-api 6.7); the periodic check and the automatic mode are in updates_auto.go.
 
 // DefaultReleaseBase is where the release documents are downloaded from (PRIVACY.md flow 6): the index at
 // <base>/index/index.json and a release's manifest at <base>/v<version>/release-manifest.json, each with .minisig.
@@ -67,7 +68,9 @@ type updCheck struct {
 	trust   func() (release.Trust, error)
 	started time.Time // process start: the installed_at of the running release (no better record exists in core)
 
-	checkMu sync.Mutex // one check at a time: two checks could otherwise store an older index over a newer one
+	checkMu sync.Mutex  // one check at a time: two checks could otherwise store an older index over a newer one
+	next    time.Time   // when the periodic check is due (updates_auto.go); zero until the job first looks; guarded by checkMu
+	failed  atomic.Bool // the latest check of this process failed: the automatic mode installs nothing (D-388)
 
 	contMu sync.Mutex // the cached state/containers and /v1/info (the page polls every second during a run; the host allows 60 a minute)
 	contAt time.Time
@@ -524,28 +527,52 @@ func (h *OSHandlers) checkFailure(ctx context.Context, err error) error {
 
 // CorePostCoreUpdatesCheck implements POST /core/updates/check (operator): download and verify the index, the
 // offered manifest and (once per running version) the running release's manifest; store them; answer UpdatesState.
-// 409 check_off when update checks are off under Privacy: the box then makes no request at all.
+// 409 check_off when update checks are off under Privacy: the box then makes no request at all. In automatic mode the
+// release on offer is then installed as user "system" when the maintenance window allows (autoInstall, updates_auto.go):
+// the answer shows the run going, and applied stays 0 because the software reports at the end of its run (as the mock).
 func (h *OSHandlers) CorePostCoreUpdatesCheck(ctx context.Context) (*oas.CorePostCoreUpdatesCheckOK, error) {
 	c, err := callerOf(ctx, h.auth)
 	if err != nil {
 		return nil, err
 	}
-	on, err := h.updateCheckOn(ctx)
+	if err := h.check(ctx, c); err != nil {
+		return nil, err
+	}
+	if err := h.autoInstall(ctx, c.Email); err != nil { // the check itself succeeded; the next tick of the job tries again
+		h.log.WarnContext(ctx, "core: the automatic software update did not start", "error", err)
+	}
+	v, err := h.updatesState(ctx)
 	if err != nil {
 		return nil, err
 	}
+	return asOAS[oas.CorePostCoreUpdatesCheckOK](struct {
+		updatesStateView
+		Applied int `json:"applied"`
+	}{v, 0})
+}
+
+// check is one software update check, the same code for POST /core/updates/check and the periodic job (c = systemCaller):
+// 409 check_off when update checks are off under Privacy (no request at all); otherwise one check under checkMu, one
+// update.check audit row after it, and the next periodic check due 6 hours ± 30 minutes from now (§12).
+func (h *OSHandlers) check(ctx context.Context, c caller) error {
+	on, err := h.updateCheckOn(ctx)
+	if err != nil {
+		return err
+	}
 	if !on {
-		return nil, apierr.New(409, CodeCheckOff, "Update checks are off under Privacy. Turn them on or import an offline bundle.")
+		return apierr.New(409, CodeCheckOff, "Update checks are off under Privacy. Turn them on or import an offline bundle.")
 	}
 	leave, ok := h.gate.Enter()
 	if !ok {
-		return nil, errPurging()
+		return errPurging()
 	}
 	defer leave()
 	h.upd.checkMu.Lock()
 	defer h.upd.checkMu.Unlock()
 	h.upd.src = h.releaseBase()
 	detail, cerr := h.runCheck(ctx, c.Email)
+	h.upd.next = h.now().Add(checkInterval())
+	h.upd.failed.Store(cerr != nil)
 	if cerr != nil {
 		cerr = h.checkFailure(ctx, cerr)
 		code := "error"
@@ -556,20 +583,9 @@ func (h *OSHandlers) CorePostCoreUpdatesCheck(ctx context.Context) (*oas.CorePos
 	}
 	// One row per check, after it (§5.3: who, when, version, sha256); the row of a cancelled request is still written.
 	if err := h.record(context.WithoutCancel(ctx), c, false, "update.check", "updates", detail); err != nil {
-		return nil, err
+		return err
 	}
-	if cerr != nil {
-		return nil, cerr
-	}
-	v, err := h.updatesState(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// applied stays 0: the automatic mode installs through the run side (.ai/deferred/feat-core-updates.md).
-	return asOAS[oas.CorePostCoreUpdatesCheckOK](struct {
-		updatesStateView
-		Applied int `json:"applied"`
-	}{v, 0})
+	return cerr
 }
 
 // runCheck is one check. The newest verified index is stored even when the manifest fails, since it carries the
@@ -778,6 +794,16 @@ type updatesStateView struct {
 	Advisories   []advisoryView        `json:"advisories"`
 	Run          *updateRunView        `json:"run"`
 	Managed      []managedView         `json:"managed"`
+	// RunningRevoked and StaleSince are D-386: what the stored index says about the running release and itself.
+	RunningRevoked *runningRevokedView `json:"running_revoked"`
+	StaleSince     *time.Time          `json:"stale_since"` // expires_at of the stored index once it has passed
+}
+
+type runningRevokedView struct {
+	Version string    `json:"version"`
+	Reason  string    `json:"reason"`
+	Since   time.Time `json:"since"`
+	Action  string    `json:"action"`
 }
 
 // CoreGetCoreUpdates implements GET /core/updates (viewer).
@@ -848,8 +874,55 @@ func (h *OSHandlers) updatesState(ctx context.Context) (updatesStateView, error)
 		Channel: s.Channel, Mode: s.Mode, CheckEnabled: on, LastCheck: last,
 		Components: comps, Available: availableOf(r.offer, s.Channel, helper),
 		History: nonNil(hist), Advisories: advisoriesOf(r.idx, h.upd.version), Run: run,
-		Managed: managedOf(r.running, r.offer),
+		Managed:        managedOf(r.running, r.offer),
+		RunningRevoked: runningRevokedOf(r.idx, r.running, h.upd.version),
+		StaleSince:     staleSince(r.idx, h.now()),
 	}, nil
+}
+
+// warnsRunning: the revocation actions that tell a box running the release, on every page (D-386 (2)).
+func warnsRunning(action string) bool {
+	return action == "block_install_and_warn" || action == "rollback_if_possible"
+}
+
+// runningRevokedOf is the revocation in idx that hits the running release (update-manifest §8, D-386 (1)): its version,
+// or a digest of its manifest when that is known; one with a warning action wins. A key revocation is not one: the box
+// keeps the software and only stops trusting new documents signed by that key.
+func runningRevokedOf(idx *release.Index, running *release.Manifest, version string) *runningRevokedView {
+	if idx == nil {
+		return nil
+	}
+	digests := map[string]bool{}
+	if running != nil {
+		for _, im := range running.Images {
+			digests[im.Digest] = true
+		}
+	}
+	var hit *release.Revocation
+	for i := range idx.Revoked {
+		r := &idx.Revoked[i]
+		hits := (r.Kind == release.KindRelease && r.ID == version) || (r.Kind == release.KindImageDigest && digests[r.ID])
+		if !hits {
+			continue
+		}
+		if hit == nil || (!warnsRunning(hit.Action) && warnsRunning(r.Action)) {
+			hit = r
+		}
+	}
+	if hit == nil {
+		return nil
+	}
+	return &runningRevokedView{Version: version, Reason: hit.Reason, Since: hit.Since.UTC(), Action: hit.Action}
+}
+
+// staleSince is the stored index's expires_at once now is past it (§4.1, §13 (d), D-386 (3)); nil while it is current
+// or none is stored. It only warns: nothing is blocked by it.
+func staleSince(idx *release.Index, now time.Time) *time.Time {
+	if idx == nil || !idx.Expired(now) {
+		return nil
+	}
+	t := idx.ExpiresAt.UTC()
+	return &t
 }
 
 // refreshHost reads state/containers and /v1/info again when the copies are stateTTL old; the caller holds contMu.

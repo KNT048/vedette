@@ -52,7 +52,13 @@ export function useToggleModule() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (v: { id: ModuleId; enabled: boolean; withDependencies?: boolean }) => patchModule(v.id, v.enabled, v.withDependencies === true),
-    onSuccess: (r) => { if (r.kind === 'ok') { void qc.invalidateQueries({ queryKey: ['modules'] }); void qc.invalidateQueries({ queryKey: ['core', 'mcp'] }) } },
+    onSuccess: async (r, v) => {
+      if (r.kind !== 'ok') return
+      await qc.invalidateQueries({ queryKey: ['modules'] }) // so the MCP page sees the module off before its cached answer is dropped
+      // off, every /core/mcp path is 404 (D-230): drop the cached answer instead of refetching it
+      if (v.id === 'mcp-server' && !v.enabled) qc.removeQueries({ queryKey: ['core', 'mcp'] })
+      else void qc.invalidateQueries({ queryKey: ['core', 'mcp'] })
+    },
   })
 }
 
@@ -105,6 +111,8 @@ export const useUpdates = () => useQuery({
   queryKey: ['core', 'updates'], queryFn: () => api.get<UpdatesState>('/core/updates'),
   refetchInterval: (q) => (q.state.data?.run?.status === 'running' ? 1000 : false), refetchIntervalInBackground: true,
 })
+/** The every-page banner of D-386: the same data, read again every 10 minutes (an open tab learns of a withdrawal the periodic check stored), never at the 1 s pace of a run (only the Updates page follows a run). */
+export const useUpdatesBanner = () => useQuery({ queryKey: ['core', 'updates'], queryFn: () => api.get<UpdatesState>('/core/updates'), staleTime: 60_000, refetchInterval: 10 * 60_000 })
 export function useUpdateMutations() {
   const qc = useQueryClient()
   // Cancel a poll already on its way first: an older answer arriving after this one would hide a run that just started.

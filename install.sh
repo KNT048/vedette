@@ -5,7 +5,7 @@
 #   sh install.sh [--network-handover] [--uninstall --yes [--keep-data]] [--test-artifacts DIR]
 #
 # What it does, in this order, and stops at the first thing it cannot do (a refusal in step 1 changes nothing):
-#   1. preflight: OS, architecture, root, systemd, disk, ports 8443/8444, no other Vedette, a sane clock
+#   1. preflight: OS, architecture, root, systemd, disk, ports 8443/8444 and the syslog ports 514 and 6514, no other Vedette, a sane clock
 #   2. installs the packages Vedette needs that are MISSING (podman, chrony, netplan.io, nftables, ...) with apt, never upgrading
 #      a package that is already there
 #   3. downloads the vedette-host .deb of THIS release, checks its sha256 against the value written into this script by the
@@ -170,6 +170,8 @@ cidr_overlap() {
 }
 
 port_listening() { ss -H -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]$1\$"; }
+# port_listening_any <port>: the same for TCP and UDP (the syslog port 514 is both; rootful podman publishes it for core)
+port_listening_any() { ss -H -ltnu 2>/dev/null | awk '{print $5}' | grep -Eq "[:.]$1\$"; }
 
 installed_pkg() { dpkg-query -W -f='${db:Status-Status}' "$1" 2>/dev/null | grep -qx installed; }
 
@@ -272,6 +274,11 @@ preflight() {
 		for p in 8443 8444; do
 			! port_listening "$p" || die "port $p is already in use by another program (ss -ltnp). Vedette needs 8443 (interface) and 8444 (sensor link)."
 		done
+		# syslog: podman reserves 514 (udp+tcp) and 6514 (tcp, TLS) for core; rsyslog's imudp/imtcp usually holds them, and core
+		# (and 8443 with it) would not start
+		for p in 514 6514; do
+			! port_listening_any "$p" || die "port $p is already in use by another program (ss -lntup). Vedette needs 514 (syslog, udp and tcp) and 6514 (syslog over TLS, tcp): stop rsyslog's network input (imudp, imtcp) or the other syslog service and run this again."
+		done
 		if [ -e /etc/vedette/host.conf ] || installed_pkg vedette-host || getent passwd vedette >/dev/null; then
 			die "another Vedette install is here (host.conf, the package or the user vedette) that this script did not make. Remove it first (docs/RUNBOOK.md) or use --uninstall from the script that made it."
 		fi
@@ -304,9 +311,9 @@ preflight() {
 	[ -s "$STATE/owner" ] || printf 'channel=%s\n' "$WANT" >"$STATE/owner"
 	if [ -n "$rerun" ]; then
 		# a re-run does not check the ports: Vedette itself may hold them (the check above is for a fresh box only)
-		say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, re-run of an earlier install (ports 8443 and 8444 not checked)"
+		say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, re-run of an earlier install (ports 8443, 8444, 514 and 6514 not checked)"
 	else
-		say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, ports 8443 and 8444 free"
+		say "ok: $id $ver $ARCH, $((free / 1048576)) GiB free, ports 8443, 8444, 514 and 6514 free"
 	fi
 }
 
@@ -790,7 +797,7 @@ do_install() {
 }
 
 # forward_check (D-267): Docker sets the iptables FORWARD policy to DROP, and an accept in netavark's nftables table does not undo that:
-# without a rule in DOCKER-USER the LAN cannot reach 8443 or 514 and the containers cannot reach the internet. vedette-host keeps two
+# without a rule in DOCKER-USER the LAN cannot reach 8443, 514 or 6514 and the containers cannot reach the internet. vedette-host keeps two
 # rules in DOCKER-USER for the container network while that chain exists; here the effect is checked, and a firewall that is not
 # Docker's is only reported, never changed.
 forward_check() {
@@ -809,9 +816,9 @@ forward_check() {
 			sleep 2
 			n=$((n + 1))
 		done
-		warn "the four DOCKER-USER rules for vedette0 and $fw_net are not there after 30 s: the LAN may not reach 8443 or 514 and the containers may not reach the internet (journalctl -u vedette-host)"
+		warn "the four DOCKER-USER rules for vedette0 and $fw_net are not there after 30 s: the LAN may not reach 8443, 514 or 6514 and the containers may not reach the internet (journalctl -u vedette-host)"
 	elif iptables -w 5 -S FORWARD 2>/dev/null | grep -qx -- '-P FORWARD DROP'; then
-		warn "the iptables FORWARD policy is DROP and there is no DOCKER-USER chain (ufw DEFAULT_FORWARD_POLICY, firewalld or your own firewall): the LAN cannot reach 8443 or 514 and the containers cannot reach the internet. Allow forwarding to and from $fw_net in that firewall; Vedette does not change a firewall that is not Docker's."
+		warn "the iptables FORWARD policy is DROP and there is no DOCKER-USER chain (ufw DEFAULT_FORWARD_POLICY, firewalld or your own firewall): the LAN cannot reach 8443, 514 or 6514 and the containers cannot reach the internet. Allow forwarding to and from $fw_net in that firewall; Vedette does not change a firewall that is not Docker's."
 	fi
 }
 
@@ -895,6 +902,14 @@ restore_runtime() {
 	fi
 }
 
+# by_us_packages: the packages apt newly installed for Vedette, one valid name per line, sorted: this script's own list and the one
+# vedette-host keeps of what its self-updates added (D-316 (9); a plain file, never a link)
+by_us_packages() {
+	for f in "$STATE/installed-by-us" "$HOST_STATE/selfupdate/installed-by-us"; do
+		if [ -f "$f" ] && [ ! -L "$f" ]; then cat "$f"; fi
+	done | grep -E '^[a-z0-9][a-z0-9+.-]*$' | sort -u
+}
+
 # purge_added_packages: vedette-host first, then what the script asked apt for: marked auto, and only what apt then finds
 # unneeded (and was not removable before) is purged. A package someone else installed on top of ours keeps ours (H2 of review 1).
 purge_added_packages() {
@@ -907,10 +922,13 @@ purge_added_packages() {
 	fi
 	# shellcheck disable=SC2086 # package names, one word each
 	[ -z "$asked" ] || apt-mark auto $asked >/dev/null
-	# the only packages this script may remove: the ones it asked for, and the ones apt NEWLY installed for them (N1, N2). Whatever else
-	# became removable meanwhile (old kernels after an unattended upgrade) is the administrator's, and so is a package marked manual.
+	# the only packages this script may remove: the ones it asked for, and the ones apt NEWLY installed for them (N1, N2), by this script
+	# or by a self-update of vedette-host (a Depends a later release added; the host records them before it installs, D-316 (9)).
+	# Whatever else became removable meanwhile (old kernels after an unattended upgrade) is the administrator's, and so is a package
+	# marked manual.
 	touch "$STATE/asked-packages" "$STATE/installed-by-us"
-	cat "$STATE/asked-packages" "$STATE/installed-by-us" | sort -u >"$TMP/cand.all"
+	by_us_packages >"$TMP/by-us"
+	cat "$STATE/asked-packages" "$TMP/by-us" | sort -u >"$TMP/cand.all"
 	apt-mark showmanual 2>/dev/null | sort -u >"$TMP/manual"
 	comm -23 "$TMP/cand.all" "$TMP/manual" >"$TMP/cand"
 	# a purge can leave a library nothing needs any more (its user was in the first set): go round until nothing is left
@@ -935,11 +953,9 @@ purge_added_packages() {
 	done
 	# what apt installed for us and autoremove keeps (a package another one only Recommends): purged when nothing depends on it
 	left=
-	if [ -s "$STATE/installed-by-us" ]; then
-		while read -r p; do
-			if printf '%s' "$p" | grep -Eq '^[a-z0-9][a-z0-9+.-]*$' && installed_pkg "$p" && ! grep -qxF "$p" "$TMP/manual"; then left="$left $p"; fi
-		done <"$STATE/installed-by-us"
-	fi
+	while read -r p; do
+		if installed_pkg "$p" && ! grep -qxF "$p" "$TMP/manual"; then left="$left $p"; fi
+	done <"$TMP/by-us"
 	if [ -n "$left" ]; then
 		# a package goes when purging it removes nothing but packages of this list (tzdata-legacy needs tzdata: both go); one that
 		# something else depends on (ufw needs iptables) stays, and so does everything that package needs
@@ -972,7 +988,8 @@ do_uninstall() {
 	fi
 	if [ -z "$YES" ]; then
 		say "this would stop Vedette and remove: its containers, images, networks and volumes, the unit files, the package vedette-host,"
-		say "the packages this script asked apt for (listed in $STATE/asked-packages) when nothing else needs them${KEEP_DATA:+ (the data and the users are KEPT)}"
+		say "the packages this script asked apt for (listed in $STATE/asked-packages) and the ones apt installed for them or for an update of"
+		say "vedette-host ($STATE/installed-by-us, $HOST_STATE/selfupdate/installed-by-us), each when nothing else needs it${KEEP_DATA:+ (the data and the users are KEPT)}"
 		[ -n "$KEEP_DATA" ] || say "and DELETE the database and the master key in /var/lib/vedette (no way back), /etc/vedette and the users vedette and vedette-sensor"
 		die "run again with --yes to do it"
 	fi
@@ -1039,6 +1056,8 @@ do_uninstall() {
 		: >"$STATE/asked-packages"
 		: >"$STATE/removed-packages"
 		: >"$STATE/installed-by-us"
+		# the host's list was handled above with ours; the data is kept, this list is not (a link is removed, never followed)
+		rm -f "$HOST_STATE/selfupdate/installed-by-us"
 		# the next install saves the forwarding and nft state again, as it will be then
 		rm -f "$STATE/runtime-saved" "$STATE/ip_forward.orig" "$STATE/ip6_forward.orig" "$STATE/nft.before"
 		say "kept: /var/lib/vedette*, /etc/vedette and the users"

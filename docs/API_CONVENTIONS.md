@@ -89,7 +89,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (231 mã)
+#### HTTP 400 (233 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -262,6 +262,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `no_prefix` | 400 | "${r}" has no prefix length. Add it so Vedette scans the right size of network, for example ${r}/24 or ${r}/25. | `PUT /inventory/settings` |
 | `no_ranges` | 400 | Active scanning needs at least one network range. | `PUT /inventory/settings` |
 | `no_recipients` | 400 | Automatic sending needs at least one recipient. Add an email, then save. | `POST /reports/weekly/send` |
+| `no_rows` | 400 | No device rows were found below the column headers. Add at least one row and choose the file again. | `POST /inventory/import` |
 | `no_such_user` | 400 | One of the approvers does not exist or is disabled. | module notify (validator dùng chung) |
 | `no_targets` | 400 | Choose at least one device to scan. | `POST /scans/runs` |
 | `no_window` | 400 | There is no maintenance window yet. Set the days and hours first, or pick a time yourself. | `POST /core/updates/os/reboot` |
@@ -306,6 +307,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown_product` | 400 | That product is not in the list. Pick one from the suggestions, or enter the vendor and product yourself. | module inventory (validator dùng chung) |
 | `unknown_profile` | 400 | This AI profile no longer exists. Pick another. | `PUT /ai/knowledge/settings` |
 | `unknown_target` | 400 | There is no target "${id.slice(0, 40)}" in the scan list. | `POST /scans/runs` |
+| `url_unreadable` | 400 | The saved webhook URL cannot be read. Enter it again and save. | `PUT /notify/channels/webhook` (chỉ backend: URL đã niêm phong không mở được, ví dụ khoá đổi; mock không có trạng thái niêm phong nên không trả mã này). Mã riêng vì `secret_required` của webhook là khoá ký; GUI hiện dưới trường URL |
 | `username_required` | 400 | Enter the user name the box signs in with. | `POST /core/connections`; `PUT /core/connections/{id}` (SSH and Basic sign-in) |
 | `viewer_not_allowed` | 400 | A viewer cannot be an approver. | module notify (validator dùng chung) |
 | `weak_password` | 400 | The password needs at least ${MIN_PASSWORD} characters. A long sentence is easier to remember than random characters. | `POST /core/account/password`; `POST /core/setup` |
@@ -363,7 +365,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (89 mã)
+#### HTTP 409 (90 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -421,6 +423,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `rule_rate_limited` | 409 | Limit of N runs per hour reached. | rule runs (resp_log only: an event is not an API call) |
 | `same_approver` | 409 | You already approved this request. A second, different person must approve it. | module response (validator dùng chung) |
 | `selection_differs` | 409 | The second approver must approve the same actions as the first. | module response (validator dùng chung) |
+| `set_in_box_network` | 409 | On this box the card the sensor listens on is chosen in Settings → Box network. Backend [ĐX] (D-387): có `vedette-host` (appliance, hay host đã cấu hình mà không đưa được danh sách card), nơi host áp card SPAN (D-56, D-118); không gì đổi. | `PATCH /inventory/sensors/{id}` |
 | `skill_off` | 409 | The "Ask your data" skill is turned off. Turn it on in Settings, AI assistant, Skills. | `POST /ai/ask` |
 | `sso_user` | 409 | This account signs in through SSO. Its password, two-step sign-in and role come from the identity provider. | `PATCH /core/users/{id}` (role), `POST /core/users/{id}/reset-password`, `POST /core/account/password`, `POST /core/account/2fa/start`, `POST /core/account/2fa/email/start` (D-195 (2), (5)) |
 | `sso_wrong_address` | 409 | SSO sign-in works at ${address}. Open Vedette there to sign in with SSO. | `POST /auth/oidc/start` from an address other than the redirect URI saved in Settings, Users (D-194 (5)); `address` in the body |

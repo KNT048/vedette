@@ -34,7 +34,8 @@ test.describe('operator, day to day', () => {
     expect(gone.status, 'DELETE the box device').toBe(409)
     expect(JSON.stringify(gone.body)).toContain('box_device')
     await open(page)
-    await expect(h1(page)).toHaveText(/^\d+ devices?,/)
+    // Parallel specs may not have added a device yet: a box-only list has its own heading (#489).
+    await expect(h1(page)).toHaveText(/^(\d+ devices?,|Only the Vedette box so far)/)
     await shot(page, 'real-inventory', 'list')
     await page.goto(`/devices/${boxDev!.id}`)
     await expect(page.getByRole('button', { name: 'Remove from list' })).toBeDisabled()
@@ -141,7 +142,7 @@ test.describe('operator, day to day', () => {
     const csv = `﻿Device name;IP address;Product;Version;Type\r\n\r\n${a};${ipA};FortiGate;7.2.5;Firewall\r\n\r\n${b};${ipB};;;Printer\r\n;;;;\r\nBad one;999.1.1.1;;;\r\n${c};;;;Server\r\n`
     await page.getByLabel('Choose a CSV file').setInputFiles({ name: 'devices.csv', mimeType: 'text/csv', buffer: Buffer.from(csv, 'utf8') })
     const dlg = page.getByRole('dialog')
-    await expect(dlg.getByText('Added 3 devices, skipped 1 rows.')).toBeVisible()
+    await expect(dlg.getByText('Added 3 devices, skipped 1 row.')).toBeVisible()
     await expect(dlg.getByText('Line 7:')).toBeVisible()
     await shot(page, 'real-inventory', 'import-result')
     await dlg.getByRole('button', { name: 'Close', exact: true }).first().click()

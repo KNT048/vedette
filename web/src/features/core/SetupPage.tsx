@@ -126,6 +126,8 @@ export default function SetupPage() {
         setFinished(false)
         // A wrong setup code belongs on the first step, next to its field.
         if (err instanceof ApiError && err.code === 'invalid_setup_code') { setErrors({ code: errMsg(err, t) }); setStep('account'); return }
+        // So does a password the box refuses (D-389: too easy to guess), next to the password field.
+        if (err instanceof ApiError && err.code === 'weak_password') { setErrors({ password: errMsg(err, t) }); setStep('account'); return }
         setFormError(errMsg(err, t)); return
       }
       setSetupDone(true)
@@ -269,7 +271,7 @@ function ModulesStep({ s, set, error }: { s: State; set: (p: Partial<State>) => 
             <RadioItem id={`bundle-${b}`} value={b} className="mt-0.5" />
             <label htmlFor={`bundle-${b}`} className="grid gap-0.5 text-sm">
               <span className="font-medium">{t(`setup.modules.${b}.name`)}</span>
-              <span className="text-[13px] text-muted">{t(`setup.modules.${b}.desc`)}</span>
+              <span className="text-[13px] text-muted">{t(b === 'smb' && !here('honeypot') ? 'setup.modules.smb.descNoTraps' : `setup.modules.${b}.desc`)}</span>
               {b !== 'custom' ? <span className="text-[13px] text-muted">{bundle(b).filter((m) => m !== 'core').map(name).join(', ')}</span> : null}
             </label>
           </div>

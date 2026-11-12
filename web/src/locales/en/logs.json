@@ -88,7 +88,7 @@
   "digest": {
     "bad": {
       "title": "Connections to bad IPs or domains",
-      "description": "A device on your network connected to an address on a threat feed stored on the box. The box sees this in metadata from a SPAN or mirror port (DNS queries, TLS server names, HTTP host names, flows) or in syslog from a firewall, DNS server or proxy.",
+      "description": "A device on your network connected to, or tried to reach, an address on a threat feed stored on the box. The box sees this in metadata from a SPAN or mirror port (DNS queries, TLS server names, HTTP host names, flows) or in syslog from a firewall, DNS server or proxy.",
       "caption": "Connections to bad IPs or domains",
       "col": {
         "last": "When",
@@ -99,6 +99,8 @@
         "confidence": "Confidence"
       },
       "lookup": "Look up {{dst}}",
+      "blocked": "Blocked",
+      "blockedHint": "The device that sent this log blocked the connection: the line records an attempt. A device that tries to reach a listed address may still be infected.",
       "empty": "None of your devices connected to a listed bad address in the last 24 hours.",
       "emptyFeedsOff": "The Feeds module is off, so no connection can be matched against threat feeds. Switch it on under Settings, Modules.",
       "openModules": "Open Settings, Modules",

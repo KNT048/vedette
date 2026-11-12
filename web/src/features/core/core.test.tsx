@@ -301,7 +301,7 @@ describe('core: module (S-CORE-1)', () => {
   it('tắt module: liệt kê module bị ảnh hưởng và nói dữ liệu được giữ', async () => {
     const u = user()
     renderApp('/settings/modules')
-    await u.click(await screen.findByRole('switch', { name: 'Turn on module Inventory' }))
+    await u.click(await screen.findByRole('switch', { name: 'Turn off module Inventory' }))
     const dlg = await screen.findByRole('dialog', { name: 'Turn off Inventory?' })
     expect(within(dlg).getByText(/The module's data is kept/)).toBeInTheDocument()
     expect(within(dlg).getByText('Passive sensor')).toBeInTheDocument()
@@ -312,8 +312,8 @@ describe('core: module (S-CORE-1)', () => {
 
   it('vai chỉ xem không bật tắt được, module lõi bị khoá', async () => {
     renderApp('/settings/modules', { role: 'viewer' })
-    expect(await screen.findByRole('switch', { name: 'Turn on module Inventory' })).toBeDisabled()
-    expect(screen.getByRole('switch', { name: 'Turn on module Core' })).toBeDisabled()
+    expect(await screen.findByRole('switch', { name: 'Turn off module Inventory' })).toBeDisabled()
+    expect(screen.getByRole('switch', { name: 'Turn off module Core' })).toBeDisabled()
     await expectNoA11yViolations()
   })
 })
@@ -1090,8 +1090,14 @@ describe('core: MCP (S-MCP-1)', () => {
     setModule('mcp-server', true)
     renderApp('/settings/mcp')
     expect(await screen.findByRole('heading', { level: 1, name: 'MCP server is on, read-only, 0 tokens' })).toBeInTheDocument()
-    await u.click(screen.getByRole('switch', { name: 'Turn on MCP server' }))
+    const real = globalThis.fetch
+    const asked: string[] = []
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => { asked.push(String(input instanceof Request ? input.url : input)); return real(input, init) })
+    await u.click(screen.getByRole('switch', { name: 'Turn off MCP server' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'MCP server is off' })).toBeInTheDocument()
+    expect(await screen.findByRole('switch', { name: 'Turn on MCP server' })).toBeInTheDocument()
+    expect(asked.filter((x) => x.endsWith('/api/v1/core/mcp'))).toEqual([]) // no 404 call once it is off
+    spy.mockRestore()
     expect(modulesStore.get().find((m) => m.id === 'mcp-server')?.enabled).toBe(false)
     expect(screen.queryByText('127.0.0.1:8765')).not.toBeInTheDocument()
     expect((await call('/core/mcp', 'GET')).status).toBe(404)
@@ -1145,7 +1151,7 @@ describe('core: tài khoản', () => {
     expect(screen.getByRole('button', { name: 'Set up email code' })).toBeDisabled()
     await u.type(screen.getByLabelText('Your current password'), 'wrong password here')
     await u.click(start)
-    expect(await screen.findByText(/The password is needed to turn on two-factor authentication/)).toBeInTheDocument()
+    expect(await screen.findByText(/The password is needed to turn on two-step sign-in/)).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'QR code for your authenticator app' })).not.toBeInTheDocument()
     await u.clear(screen.getByLabelText('Your current password'))
     await u.type(screen.getByLabelText('Your current password'), 'vedette-demo')
@@ -1180,9 +1186,33 @@ describe('core: tài khoản', () => {
   it('kết thúc phiên khác, a11y sạch', async () => {
     const u = user()
     renderApp('/account', { role: 'viewer' })
-    await u.click(await screen.findByRole('button', { name: 'End session Firefox on Windows' }))
+    await u.click(await screen.findByRole('button', { name: 'End session Firefox on Windows at 192.168.10.61' }))
     expect(await screen.findByText('Session ended.')).toBeInTheDocument()
     await expectNoA11yViolations()
+  })
+
+  it('walk 2026-11-12: short device label with the raw text as tooltip; a guessable new password is refused under New password (D-389)', async () => {
+    const u = user()
+    renderApp('/account')
+    const label = await screen.findByText('Firefox on Windows')
+    expect(label).toHaveAttribute('title', expect.stringMatching(/^Mozilla\/5\.0 \(Windows NT 10\.0/))
+    await u.type(screen.getByLabelText('Current password'), 'vedette-demo')
+    await u.type(screen.getByLabelText('New password'), 'password1234')
+    await u.type(screen.getByLabelText('Repeat new password'), 'password1234')
+    await u.click(screen.getByRole('button', { name: 'Change password' }))
+    expect(await screen.findByText(/^This password is too easy to guess/)).toBeInTheDocument()
+    expect(screen.getByLabelText('New password')).toHaveAttribute('aria-invalid', 'true')
+    expect(usersStore.get().find((x) => x.id === 'u-admin')!.password).toBe('vedette-demo')
+  })
+
+  it('two-step on: an administrator sees the box-console reset with their email, another user is told to ask an administrator (D-389)', async () => {
+    usersStore.update((l) => l.map((x) => (x.id === 'u-admin' || x.id === 'u-op' ? { ...x, twofa: true, twofa_method: 'app' } : x)))
+    const { unmount } = renderApp('/account')
+    expect(await screen.findByText("docker exec vedette-core /vedette reset-admin 'admin@acme.example'")).toBeInTheDocument()
+    unmount()
+    renderApp('/account', { role: 'operator' })
+    expect(await screen.findByText(/Ask an administrator to turn two-step sign-in off for you/)).toBeInTheDocument()
+    expect(screen.queryByText(/reset-admin/)).not.toBeInTheDocument()
   })
 })
 
@@ -1410,6 +1440,20 @@ describe('core: two-step sign-in, email code method (D-35)', () => {
     expect(screen.queryByLabelText('6-digit code')).not.toBeInTheDocument()
   })
 
+  it('login: after 10 wrong passwords the page says how long to wait, and the right password waits too (S-CORE-3)', async () => {
+    const u = user()
+    for (let i = 0; i < 10; i++) {
+      const r = await fetch(`${location.origin}/api/v1/auth/login`, { method: 'POST', body: JSON.stringify({ email: 'it@acme.example', password: `wrong password ${i}` }) })
+      expect(r.status).toBe(400)
+    }
+    renderApp('/login', { role: null })
+    await u.type(await screen.findByLabelText('Email'), 'it@acme.example')
+    await u.type(screen.getByLabelText('Password'), 'vedette-demo')
+    await u.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByText(/^Too many failed sign-in attempts\. Try again in \d+ seconds\.$/)).toBeInTheDocument()
+    expect(sessionStore.get().userId).toBeNull()
+  })
+
   it('login: an authenticator-app user still sees the authenticator copy and no resend button', async () => {
     const u = user()
     setUser('u-op', { twofa: true })
@@ -1477,13 +1521,13 @@ describe('core: turning off Notifications warns about email-code users (D-35)', 
   it('the module dialog says how many users will be locked out; no warning when there are none', async () => {
     const u = user()
     renderApp('/settings/modules')
-    await u.click(await screen.findByRole('switch', { name: 'Turn on module Notifications' }))
+    await u.click(await screen.findByRole('switch', { name: 'Turn off module Notifications' }))
     const none = await screen.findByRole('dialog', { name: 'Turn off Notifications?' })
     expect(within(none).queryByText(/sign in with email codes/)).not.toBeInTheDocument()
     await u.click(within(none).getByRole('button', { name: 'Cancel' }))
     setUser('u-op', { twofa: true, twofa_method: 'email' })
     setUser('u-view', { twofa: true, twofa_method: 'email' })
-    await u.click(screen.getByRole('switch', { name: 'Turn on module Notifications' }))
+    await u.click(screen.getByRole('switch', { name: 'Turn off module Notifications' }))
     const dlg = await screen.findByRole('dialog', { name: 'Turn off Notifications?' })
     expect(await within(dlg).findByText(/2 users sign in with email codes\. They will not be able to sign in until the email channel is back on or an administrator resets their two-step sign-in\./)).toBeInTheDocument()
   })

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
+	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
@@ -447,7 +448,9 @@ func store2(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05.000
 // from a SYN alone, so any LAN host can make it name 1.1.1.1 (D-286 (4), review of #304). A known-bad connection is read from a syslog
 // line, which a LAN host can forge too (D-213): a hit on a domain only (a DNS forwarder or a proxy is "the device" of every client
 // behind it) waits for a person, and so does an action that names the device of the hit, whether the rule puts {{trigger.src_ip}},
-// {{trigger.device}} or {{trigger.switch_port}} into any value (text included) or a fixed value equals one of them (D-336).
+// {{trigger.device}} or {{trigger.switch_port}} into any value (text included) or a fixed value equals one of them (D-336). A new
+// port's address is the customer's own public address or whatever a name of theirs resolves to, so an action on that address
+// (block it, ACL it) waits for a person; a message about it does not (D-384).
 func heldForAuto(ev Det, specs []RuleAction, recs []itemRec) string {
 	switch {
 	case ev.Trigger == "honeypot" && ev.Fields["kind"] == "scan":
@@ -456,8 +459,23 @@ func heldForAuto(ev Det, specs []RuleAction, recs []itemRec) string {
 		return "the hit names a domain only, so the device it names may be a DNS forwarder or a proxy: a person approves it"
 	case ev.Trigger == "ioc_connection" && (namesSource(specs) || slices.ContainsFunc(recs, func(r itemRec) bool { return touchesSource(r.Values, ev) })):
 		return "the action is on the device of a syslog line, which can be forged: a person approves it"
+	case ev.Trigger == "new_port" && slices.ContainsFunc(recs, func(r itemRec) bool { return actsOnAddr(r.Values, ev.Fields["ip"]) }):
+		return "the address of a new port is your own public address or one a name of yours points at (shared hosting, a dangling record): a person approves an action on it"
 	}
 	return ""
+}
+
+// actsOnAddr reports whether an action's address or range values cover addr (D-384): a message that only names it in text does not.
+func actsOnAddr(vals map[ParamType]string, addr string) bool {
+	a, err := netip.ParseAddr(addr)
+	if err != nil {
+		return false
+	}
+	if v := vals[PIP]; v != "" && addrOf(v) == a {
+		return true
+	}
+	p, err := netip.ParsePrefix(vals[PCIDR])
+	return err == nil && p.Contains(a)
 }
 
 // namesSource reports whether a rule's actions put a field of the hit's device into any value, alone or inside text.

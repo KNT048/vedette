@@ -309,12 +309,12 @@ func searchTerms(q string) []string {
 	return terms
 }
 
-func (c *Catalog) search(q string, limit int) ([]*catEntry, int) {
+func (c *Catalog) search(q string) ([]*catEntry, int) {
 	terms := searchTerms(q)
 	if len(terms) == 0 {
 		var out []*catEntry
 		for _, e := range c.entries {
-			if e.curated && len(out) < limit {
+			if e.curated && len(out) < MaxCatalogHits {
 				out = append(out, e)
 			}
 		}
@@ -336,8 +336,8 @@ func (c *Catalog) search(q string, limit int) ([]*catEntry, int) {
 		}
 		return hits[i].e.order < hits[j].e.order
 	})
-	out := make([]*catEntry, 0, min(limit, len(hits)))
-	for _, h := range hits[:min(limit, len(hits))] {
+	out := make([]*catEntry, 0, min(MaxCatalogHits, len(hits)))
+	for _, h := range hits[:min(MaxCatalogHits, len(hits))] {
 		out = append(out, h.e)
 	}
 	return out, len(hits)
@@ -349,7 +349,7 @@ func (c *Catalog) Search(q string) CatalogResult {
 	if utf8.RuneCountInString(q) > 80 {
 		q = string([]rune(q)[:80])
 	}
-	list, total := c.search(q, MaxCatalogHits)
+	list, total := c.search(q)
 	res := CatalogResult{Items: make([]CatalogItem, 0, len(list)), Total: total}
 	for _, e := range list {
 		res.Items = append(res.Items, e.item())
@@ -357,33 +357,50 @@ func (c *Catalog) Search(q string) CatalogResult {
 	return res
 }
 
-// find matches the text of a CSV cell: an id, a display name, "vendor product", an alias, or the first
-// search hit that contains every word.
+// find matches the text of a CSV cell exactly: an id, a display name, "vendor product" or an alias. There is no
+// fuzzy fallback: a product the catalog does not know must stay unknown (the hand-entry box suggests, a person
+// picks; a file cannot pick), or "Dns" would silently become D-Link. An alias shared by several products ("dns"
+// is D-Link's NAS series and BIND) is not a match.
 func (c *Catalog) find(text string) *catEntry {
 	n := fold(text)
 	if n == "" {
 		return nil
 	}
 	id := strings.TrimSpace(text)
+	var aliasHits, productHits, vendorHits []*catEntry
 	for _, e := range c.entries {
-		if e.id == id || e.hName == n || e.hVendorProduct == n || indexOf(e.hAlias, n) {
+		if e.id == id || e.hName == n || e.hVendorProduct == n {
 			return e
 		}
-	}
-	terms := searchTerms(text)
-	list, _ := c.search(text, 5)
-	for _, e := range list {
-		all := true
-		for _, t := range terms {
-			if !strings.Contains(e.hAll, t) {
-				all = false
-			}
+		if indexOf(e.hAlias, n) {
+			aliasHits = append(aliasHits, e)
 		}
-		if all {
-			return e
+		if e.hProduct == n {
+			productHits = append(productHits, e)
+		}
+		if e.curated && e.hVendor == n {
+			vendorHits = append(vendorHits, e)
 		}
 	}
-	return nil
+	// Several products may share the text ("synology" is two Synology products, "dns" is D-Link and BIND, "php"
+	// belongs to two vendors): the first (most popular) is taken only when they all have the same vendor, so the
+	// make is never a guess. A bare vendor name is taken only when the vendor has one curated product.
+	hits := aliasHits
+	if len(hits) == 0 {
+		hits = productHits
+	}
+	if len(hits) == 0 && len(vendorHits) == 1 {
+		hits = vendorHits
+	}
+	for _, e := range hits {
+		if e.hVendor != hits[0].hVendor {
+			return nil
+		}
+	}
+	if len(hits) == 0 {
+		return nil
+	}
+	return hits[0]
 }
 
 // custom is a product a person typed (vendor + product): matched to the exact KEV pair when there is one,

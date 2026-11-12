@@ -33,13 +33,15 @@ const (
 	seenAhead      = 5 * time.Minute  // and one further in the future
 	keptEpochs     = 2                // epochs remembered per sensor
 	defaultRecheck = 5 * time.Second  // how often an open config long poll looks again at what the admin chose
+	notReadyRetry  = 5 * time.Second  // Retry-After of 503 not_ready: the box's own cards are not known yet (D-385)
 )
 
-// Errors of Service. ErrBadInterface carries the API code "bad_interface" (INV-9).
+// Errors of Service. ErrBadInterface carries the API code "bad_interface" (INV-9); ErrUseBoxNetwork "set_in_box_network" (D-387).
 var (
-	ErrNotFound     = errors.New("sensorpassive: sensor not found")
-	ErrBadInterface = errors.New("sensorpassive: bad interface")
-	ErrInvalid      = errors.New("sensorpassive: invalid input")
+	ErrNotFound      = errors.New("sensorpassive: sensor not found")
+	ErrBadInterface  = errors.New("sensorpassive: bad interface")
+	ErrInvalid       = errors.New("sensorpassive: invalid input")
+	ErrUseBoxNetwork = errors.New("sensorpassive: this box has vedette-host; the card is chosen in Settings, Box network")
 )
 
 // Config is what New needs. DB, Audit, Sink and Host are required; Meta defaults to dropping metadata.
@@ -184,7 +186,7 @@ type Sensor struct {
 	Interfaces  []string   `json:"interfaces"`
 	Span        bool       `json:"span"`
 	SpanStatus  SpanStatus `json:"span_status"`
-	Status      string     `json:"status"` // online | offline
+	Status      string     `json:"status"` // online | offline | never_connected
 	LastSeen    *string    `json:"last_seen"`
 	Version     *string    `json:"version"`
 	DevicesSeen int        `json:"devices_seen"`
@@ -234,6 +236,16 @@ func (s *Service) lastBeat() *heartbeat {
 	return s.hb
 }
 
+// freshBeat is the last heartbeat while it is younger than 90 seconds (the rule of online), else nil. Without a host the
+// cards it lists are the box's own (D-385); an older list may name cards or addresses the box no longer has.
+func (s *Service) freshBeat() *heartbeat {
+	hb := s.lastBeat()
+	if hb == nil || s.clock().Sub(hb.at) >= onlineWithin {
+		return nil
+	}
+	return hb
+}
+
 // online reports whether the sensor has sent a heartbeat in the last 90 seconds (sensor-protocol.md 6.3).
 func (s *Service) online(r sensorRow) bool {
 	if !r.lastSeen.Valid {
@@ -272,8 +284,11 @@ func (s *Service) Status(ctx context.Context) ([]Sensor, error) {
 	out := Sensor{ID: SensorID, Name: r.name.String, Interface: iface, Interfaces: names, Span: r.span,
 		SpanStatus: SpanStatus{st.Verdict, st.PPS, st.OtherMACs}, Status: "offline", LastSeen: nullable(r.lastSeen),
 		Version: nullable(r.version), DevicesSeen: r.devices}
-	if s.online(r) {
+	switch {
+	case s.online(r):
 		out.Status = "online"
+	case !r.lastSeen.Valid: // offline means it reported once; never heard from is not "lost contact" (D-387)
+		out.Status = "never_connected"
 	}
 	return []Sensor{out}, nil
 }
@@ -335,7 +350,8 @@ func (s *Service) spanStats(ctx context.Context, r sensorRow) (SpanStats, error)
 // of the box as the host reports it (Host.HostCards: the authority, D-118; never a list a sensor sent, so a sensor cannot steer
 // the capture onto a card it invented); a SPAN card has no IP address. Only when no host answers (container-only install,
 // D-168) the authority is the latest heartbeat of the authenticated sensor, which runs on the host network: nothing else
-// sees the real cards there, and the list is bounded and validated by sensorlink. The choice is stored whether or not the module is on and
+// sees the real cards there, and the list is bounded and validated by sensorlink. That heartbeat must be younger than 90 s
+// (the rule of online, D-385): an offline sensor's old list is not the box's cards now. The choice is stored whether or not the module is on and
 // whether or not the sensor has sent a heartbeat: the capture uses it once it runs. The change is audited in the same transaction
 // and the config long poll is woken, so the capture moves to the new card at once.
 func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, span bool) error {
@@ -347,9 +363,9 @@ func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, spa
 		return fmt.Errorf("sensorpassive: list interfaces: %w", err)
 	}
 	if !fromHost && iface != "" { // no host (container-only, D-168): the sensor, on the host network, is the only one that sees the real cards
-		hb := s.lastBeat()
+		hb := s.freshBeat()
 		if hb == nil {
-			return fmt.Errorf("%w: the sensor has not reported its network cards yet; wait for its next heartbeat (30 s) and try again", ErrBadInterface)
+			return fmt.Errorf("%w: the sensor has not reported its network cards in the last 90 seconds; check that it runs, wait for its next heartbeat (30 s) and try again", ErrBadInterface)
 		}
 		if !sensorlink.ValidIfaceName(iface) {
 			return fmt.Errorf("%w: %q is not an interface name", ErrBadInterface, iface)
@@ -385,6 +401,20 @@ func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, spa
 	}
 	s.ConfigChanged()
 	return nil
+}
+
+// ChooseCard is SetInterface from the GUI of a container-only install (PATCH /inventory/sensors/{id}, D-387): only when core
+// runs without vedette-host, where the sensor's fresh heartbeat is the list of cards (D-263, D-385). With a host, or a configured
+// host that gives no list, it changes nothing and returns ErrUseBoxNetwork: there the host applies the SPAN card (D-56, D-118)
+// through Settings, Box network, which calls SetInterface itself.
+func (s *Service) ChooseCard(ctx context.Context, actor, id, iface string, span bool) error {
+	if id != SensorID {
+		return ErrNotFound
+	}
+	if _, fromHost, err := s.host.HostCards(ctx); fromHost || err != nil {
+		return ErrUseBoxNetwork
+	}
+	return s.SetInterface(ctx, actor, id, iface, span)
 }
 
 // listenOn is the card the sensor listens on: the one chosen (the SPAN port of Settings, Box network, or any card set by

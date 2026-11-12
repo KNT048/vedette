@@ -207,6 +207,7 @@ var Operations = map[string]Operation{
 	"inventory_get_inventory_sensors":                       {Method: "GET", Path: "/inventory/sensors", MinRole: Admin, Tag: "inventory"},
 	"inventory_get_inventory_settings":                      {Method: "GET", Path: "/inventory/settings", MinRole: Admin, Tag: "inventory"},
 	"inventory_patch_inventory_devices_id":                  {Method: "PATCH", Path: "/inventory/devices/{id}", MinRole: Operator, Tag: "inventory"},
+	"inventory_patch_inventory_sensors_id":                  {Method: "PATCH", Path: "/inventory/sensors/{id}", MinRole: Admin, Tag: "inventory"},
 	"inventory_post_intake_osquery_config":                  {Method: "POST", Path: "/intake/osquery/config", MinRole: Public, Tag: "inventory"},
 	"inventory_post_intake_osquery_enroll":                  {Method: "POST", Path: "/intake/osquery/enroll", MinRole: Public, Tag: "inventory"},
 	"inventory_post_intake_osquery_log":                     {Method: "POST", Path: "/intake/osquery/log", MinRole: Public, Tag: "inventory"},

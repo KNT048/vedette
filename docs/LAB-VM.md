@@ -41,7 +41,7 @@ The port is 22404 for ubuntu2404 and 22013 for debian13.
 
 ## Network
 
-**Default: passt** (user mode). There are no host bridges, firewall rules or routes. SSH listens on 127.0.0.1 only. The VM reaches
+**Default: passt** (user mode), started by QEMU itself (`-netdev passt`, QEMU 10.1 or newer, so the host is Ubuntu 26.04 or newer). There are no host bridges, firewall rules or routes. SSH listens on 127.0.0.1 only. The VM reaches
 the LAN and the Internet through the host's sockets, so it can pull images, run apt, talk to Telegram/email and SSH to a lab
 switch.
 

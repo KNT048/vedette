@@ -18,8 +18,8 @@ MEM_HEADROOM_MB=1536   # start refuses below MEM_MB + this of MemAvailable
 MEM_MAX_PCT=90         # and when the box would pass this share of its memory with the VM up
 LAN_LINK=vlab0         # the only link lan-up/lan-down ever create or delete
 # Minimum versions (D-155 style floors): Ubuntu 24.04's packages, the oldest supported host; Debian 13 is above all of them.
-# qemu >= 7.2 is needed for `-netdev stream` (the passt socket).
-FLOORS="qemu-system-x86=1:8.2.2 qemu-utils=1:8.2.2 cloud-image-utils=0.33 passt=0.0~git20240220"
+# qemu >= 10.1 is needed for `-netdev passt` (QEMU starts passt itself over a socketpair).
+FLOORS="qemu-system-x86=1:10.1.0 qemu-utils=1:8.2.2 cloud-image-utils=0.33 passt=0.0~git20240220"
 # Packages setup installs when missing: the floors above, plus what this script calls (nc for QMP, ssh, curl, gpg).
 PACKAGES="qemu-system-x86 qemu-utils cloud-image-utils passt netcat-openbsd openssh-client curl gpg gpgv"
 # Ubuntu cloud images: SHA256SUMS.gpg is signed by "UEC Image Automatic Signing Key <cdimage@ubuntu.com>" (read from the signature's
@@ -63,8 +63,8 @@ lab_dir() {
 	# Paths go into QEMU option strings (commas split options) and into `sg -c` (a shell string): allow only plain characters.
 	case $LAB in /*) ;; *) die "HOME must be an absolute path" ;; esac
 	if printf '%s' "$LAB" | LC_ALL=C grep -q '[^A-Za-z0-9/._-]'; then die "unsupported character in $LAB (allowed: A-Z a-z 0-9 / . _ -)"; fi
-	# A unix socket path is limited to 108 bytes; the longest one is <vm dir>/passt.sock.
-	[ "${#LAB}" -le 70 ] || die "$LAB is too long for the QEMU/passt unix sockets"
+	# A unix socket path is limited to 108 bytes; the longest one is <vm dir>/qmp.sock.
+	[ "${#LAB}" -le 70 ] || die "$LAB is too long for the QEMU unix sockets"
 }
 
 check_vm() {
@@ -384,39 +384,36 @@ cmd_start() {
 	[ "$lan" = 0 ] || lan_tap
 	if [ "$DRY" = 0 ] && [ -n "$(ss -Htln "sport = :$port" 2>/dev/null)" ]; then die "port 127.0.0.1:$port is in use"; fi
 
-	# passt forks to the background and exits by itself when QEMU closes the socket (--one-off). No --log-file: passt's AppArmor
-	# profile denies reading it back (measured 2026-11-12); its start-up output goes to passt.log, later messages to the journal.
-	local passt_argv=(passt --socket "$d/passt.sock" --pid "$d/passt.pid" --one-off --tcp-ports "127.0.0.1/$port:22")
+	# QEMU starts passt itself (`-netdev passt`) and hands it one end of a socketpair; passt exits when QEMU does. Not a passt of
+	# our own on a unix socket: passt's AppArmor profile makes its accept() of QEMU's connection fail with EACCES (no audit line),
+	# so the guest never gets a DHCP answer (measured 2026-11-12, Ubuntu 26.04, kernel 7.0, passt git20260120, QEMU 10.2.1).
 	local qemu_argv=(qemu-system-x86_64 -name "vedette-lab-$vm"
 		-machine "q35,accel=kvm" -cpu host -smp "$CPUS" -m "$MEM_MB" -nodefaults -display none
+		-vga std # Debian 13's image resets right after GRUB when there is no display device (measured 2026-11-12); Ubuntu does not care
 		-serial "file:$d/console.log"
 		-drive "if=virtio,file=$d/disk.qcow2,format=qcow2,discard=unmap"
 		-drive "if=virtio,file=$d/seed.iso,format=raw,readonly=on"
-		-netdev "stream,id=n0,server=off,addr.type=unix,addr.path=$d/passt.sock"
+		-netdev "passt,id=n0,tcp-ports=127.0.0.1/$port:22"
 		-device "virtio-net-pci,netdev=n0,mac=$(vm_nat_mac "$vm"),romfile="
 		-device virtio-rng-pci
 		-qmp "unix:$d/qmp.sock,server=on,wait=off"
 		-pidfile "$d/qemu.pid" -daemonize)
 	[ "$lan" = 0 ] || qemu_argv+=(-netdev "tap,id=n1,fd=3" -device "virtio-net-pci,netdev=n1,mac=$(vm_lan_mac "$vm"),romfile=")
 	if [ "$DRY" = 1 ]; then
-		echo "+ ${passt_argv[*]}"
 		echo "+ ${qemu_argv[*]}${TAP:+ 3<>$TAP}"
 		return 0
 	fi
 	need qemu-system-x86_64 passt ss nc
 	kvm_launcher
-	rm -f "$d/passt.sock" "$d/qmp.sock" "$d/qemu.pid" "$d/passt.pid"
-	timeout "$T_QUICK" "${passt_argv[@]}" >"$d/passt.log" 2>&1 || die "passt did not start (log: $d/passt.log)"
-	for _ in 1 2 3 4 5 6 7 8 9 10; do [ -S "$d/passt.sock" ] && break; sleep 0.5; done
-	[ -S "$d/passt.sock" ] || die "passt made no socket (log: $d/passt.log)"
+	rm -f "$d/qmp.sock" "$d/qemu.pid"
 	[ "$lan" = 0 ] || exec 3<>"$TAP"
 	if [ "$LAUNCH" = direct ]; then
-		timeout "$T_NET" "${qemu_argv[@]}" || { stop_passt "$d"; die "QEMU did not start (console: $d/console.log)"; }
+		timeout "$T_NET" "${qemu_argv[@]}" || die "QEMU did not start (console: $d/console.log)"
 	else
-		timeout "$T_NET" sg kvm -c "exec $(shq "${qemu_argv[@]}")" || { stop_passt "$d"; die "QEMU did not start under sg kvm"; }
+		timeout "$T_NET" sg kvm -c "exec $(shq "${qemu_argv[@]}")" || die "QEMU did not start under sg kvm"
 	fi
 	[ "$lan" = 0 ] || exec 3>&-
-	p=$(vm_pid "$vm") || { stop_passt "$d"; die "QEMU exited right away (console: $d/console.log)"; }
+	p=$(vm_pid "$vm") || die "QEMU exited right away (console: $d/console.log)"
 	say "$vm runs (pid $p, ${CPUS} vCPU, ${MEM_MB} MiB${TAP:+, lan via $LAN_LINK}); waiting for SSH on 127.0.0.1:$port"
 	ssh_cmd "$vm"
 	local end=$((SECONDS + T_BOOT))
@@ -433,16 +430,6 @@ cmd_start() {
 	*) die "cloud-init status --wait failed ($rc)" ;;
 	esac
 	say "ready: $0 ssh   (console log: $d/console.log)"
-}
-
-stop_passt() {
-	local d=$1 p
-	[ -f "$d/passt.pid" ] || return 0
-	p=$(tr -dc 0-9 <"$d/passt.pid")
-	if [ -n "$p" ] && [ -r "/proc/$p/cmdline" ] && tr '\0' '\n' <"/proc/$p/cmdline" | grep -qxF "$d/passt.sock"; then
-		kill -TERM "$p" 2>/dev/null || true
-	fi
-	rm -f "$d/passt.pid"
 }
 
 wait_gone() { # wait_gone <pid> <seconds>
@@ -462,7 +449,7 @@ cmd_stop() {
 	local d=$LAB/$vm
 	if ! p=$(vm_pid "$vm"); then
 		say "$vm is not running"
-		[ "$DRY" = 1 ] || { stop_passt "$d"; rm -f "$d/qmp.sock" "$d/passt.sock"; }
+		[ "$DRY" = 1 ] || rm -f "$d/qmp.sock"
 		return 0
 	fi
 	if [ "$DRY" = 1 ]; then say "dry-run: would send system_powerdown to $d/qmp.sock, kill pid $p after ${T_POWERDOWN}s"; return 0; fi
@@ -478,8 +465,7 @@ cmd_stop() {
 			wait_gone "$p" 5 || die "pid $p does not exit"
 		fi
 	fi
-	stop_passt "$d"
-	rm -f "$d/qmp.sock" "$d/passt.sock" "$d/qemu.pid"
+	rm -f "$d/qmp.sock" "$d/qemu.pid"
 	say "$vm stopped"
 }
 

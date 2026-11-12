@@ -66,7 +66,7 @@ for vm in ubuntu2404 debian13; do
 	: >"$d/seed.iso"
 	echo /base.qcow2 >"$d/base"
 done
-expect "start dry-run: passt on loopback only" 0 'passt .*--one-off --tcp-ports 127\.0\.0\.1/22404:22' -- --dry-run start ubuntu2404
+expect "start dry-run: passt on loopback only" 0 '-netdev passt,id=n0,tcp-ports=127\.0\.0\.1/22404:22 ' -- --dry-run start ubuntu2404
 expect "start dry-run: 2 vCPU, 2560 MiB, KVM" 0 'qemu-system-x86_64 -name vedette-lab-ubuntu2404 -machine q35,accel=kvm -cpu host -smp 2 -m 2560' -- --dry-run start ubuntu2404
 expect "start dry-run: overlay + seed + qmp" 0 "file=$tmp/home/.cache/vedette-lab/debian13/disk.qcow2,format=qcow2.*seed.iso,format=raw,readonly=on.*-qmp unix:.*/debian13/qmp.sock" -- --dry-run start debian13
 out=$(HOME=$tmp/home LAB_MEMINFO=$tmp/meminfo "$s" --dry-run start ubuntu2404 2>&1)

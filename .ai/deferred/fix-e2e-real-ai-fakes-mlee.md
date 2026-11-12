@@ -1,0 +1,3 @@
+# Deferred from fix/e2e-real-ai-fakes-mlee (E4-ai: the ai fixmes of web/e2e-real made real)
+
+- [ ] 2026-11-12 — make the last ai fixme real ("CVE news: the box fetches the sources…" in `web/e2e-real/ai.global.spec.ts`): a test-only transport for the news fetcher (NVD, GitHub, vendor page, feeds answered by a loopback server of the e2e box), set by `cmd/vedette/e2ebox_test.go`, with the fake pages' URLs in ready.json — vì sao để sau: needs a product seam in `modules/ai/news_fetch.go` (its transport refuses non-global addresses by design, D-281) for one spec, and the Go contract tests already carry the flow (D-426) — ở đâu: modules/ai/news_fetch.go, cmd/vedette/e2ebox_test.go, web/e2e-real/ai.global.spec.ts

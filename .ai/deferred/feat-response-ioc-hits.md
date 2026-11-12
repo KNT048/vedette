@@ -1,0 +1,3 @@
+# Deferred: feat/response-ioc-hits (#376, D-335..D-339)
+
+- [ ] 2026-11-12 — (review r1, D-338) Once `ioc_hit` evidence is wired (D-337), a future AI caller of `Propose` for `ioc_connection` could count a forged `ioc_hit` as one of the two pieces the high-risk second check needs; decide whether an `ioc_hit` (syslog, forgeable) counts for the second check, together with the open question of reads (deferred line 5 of feat-ai-propose) — vì sao để sau: no such caller exists (the plan job proposes for findings only); a person (two for high risk) still approves — ở đâu: modules/response/propose.go step 12

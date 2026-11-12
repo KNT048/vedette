@@ -39,6 +39,7 @@ func TestIocHitEvent(t *testing.T) {
 		"shell in source":   iocHit("h5", "192.168.10.105; reboot", "185.220.101.47", "ip"),
 		"domain as ip":      iocHit("h6", "192.168.10.105", "badhost.example", "ip"),
 		"ip with a quote":   iocHit("h7", "192.168.10.105", "185.220.101.47\"", "ip"),
+		"private dest":      iocHit("h10", "192.168.10.105", "10.0.0.5", "ip"),
 		"unknown kind":      iocHit("h8", "192.168.10.105", "185.220.101.47", "url"),
 		"confidence > 1": func() map[string]any {
 			h := iocHit("h9", "192.168.10.105", "185.220.101.47", "ip")

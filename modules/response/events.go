@@ -335,7 +335,8 @@ const maxIocPerHour = 60
 
 // iocEvent records a logs.ioc_hit.detected (the IocHit of logs, D-213) as an ioc_connection event (D-335). Every field is checked at
 // the edge, as the honeypot hit is: an id, a private source address, a destination of its kind (an address or a domain), a
-// confidence from 0 to 1. Anything else is skipped with a warning; nothing of the line's text reaches a rule.
+// public destination address, a confidence from 0 to 1. Anything else is skipped with a warning. Of the line's text only the
+// destination reaches a rule, after that check; the feed names and the device name come from feeds and the inventory.
 func (s *Service) iocEvent(ctx context.Context, data any) error {
 	var e struct {
 		ID         string   `json:"id"`
@@ -355,8 +356,9 @@ func (s *Service) iocEvent(ctx context.Context, data any) error {
 	var dest string
 	destOK := false
 	switch e.DestKind {
-	case "ip":
+	case "ip": // a listed address is a public one (logs refuses the rest); a feed listing private space must not make a rule block a LAN host
 		dest, destOK = CheckValue(PIP, e.Dest)
+		destOK = destOK && addrOf(dest).IsGlobalUnicast() && !addrOf(dest).IsPrivate()
 	case "domain":
 		dest, destOK = CheckValue(PDomain, e.Dest)
 	}
@@ -388,8 +390,8 @@ func (s *Service) iocEvent(ctx context.Context, data any) error {
 		}
 	}
 	name := oneLine(dev.Name, 100)
-	if name == "" && e.AssetName != nil {
-		name = oneLine(*e.AssetName, 100)
+	if name == "" && e.AssetName != nil && (e.AssetID == nil || *e.AssetID == "" || s.cfg.Directory == nil) {
+		name = oneLine(*e.AssetName, 100) // the hit's own name only when the directory could not be asked: a moved device is not named
 	}
 	who := name
 	if who == "" {

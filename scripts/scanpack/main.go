@@ -286,6 +286,9 @@ func qualify(rel string, body []byte) (pack.Template, string) {
 	if !nucleiargv.ValidTemplatePath(rel) {
 		return zero, "path"
 	}
+	if !pack.RunsUnderProtocols(rel) { // the folder rule of pack.Parse: a template there would fail the whole build
+		return zero, "folder"
+	}
 	var doc map[string]any
 	if err := yaml.Unmarshal(body, &doc); err != nil || doc == nil {
 		return zero, "yaml"

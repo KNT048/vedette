@@ -506,7 +506,7 @@ describe('logs: SIEM forwarding (S-LOG-3)', () => {
   it('no a11y violations; an unconfigured form shows a sample record', async () => {
     renderSiem()
     expect(await screen.findByRole('heading', { name: 'Forward to a SIEM' })).toBeInTheDocument()
-    expect(screen.getByText(/<130>1 .* finding\.confirmed/)).toBeInTheDocument()
+    expect(screen.getByText(/<131>1 .* finding\.created/)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 

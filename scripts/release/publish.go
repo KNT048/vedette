@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -52,28 +53,34 @@ type publishPlan struct {
 	Rescue                    bool
 }
 
-// bakedLineRE is one of install.sh's three baked lines (release-bake-install, part A): KEY="value" alone on its line.
-var bakedLineRE = regexp.MustCompile(`(?m)^(VEDETTE_VERSION|VEDETTE_DEB_SHA256_AMD64|VEDETTE_DEB_SHA256_ARM64)=(.*)$`)
+// bakedNames are install.sh's three baked variables (release-bake-install, part A).
+var bakedNames = []string{"VEDETTE_VERSION", "VEDETTE_DEB_SHA256_AMD64", "VEDETTE_DEB_SHA256_ARM64"}
+
+// assignBakedRE finds any line that may set a baked variable, in every shell form: NAME=, NAME+=, export/readonly/local NAME=,
+// indented or after a BOM or another command on the line, and ${NAME=…} / ${NAME:=…}. Like checkEnvImages for vedette.env: each such
+// line must be exactly the baked line, so a second, later assignment cannot override the checked one.
+var assignBakedRE = regexp.MustCompile(`\b(VEDETTE_VERSION|VEDETTE_DEB_SHA256_AMD64|VEDETTE_DEB_SHA256_ARM64)(\s*\+?=|:?=)`)
 
 // checkInstaller verifies install.sh as boxes and customers will run it: signed by the key that signed the manifest, with the trusted
-// comment "file:install.sh version:<v>", and its three baked lines naming exactly this release and the SHA-256 of its two packages.
-func checkInstaller(dir string, m *release.Manifest, manifestKey string, trust release.Trust) error {
-	raw, sig, err := readSigned(filepath.Join(dir, installer))
+// comment "file:install.sh version:<v>", and its three baked lines naming exactly this release and the SHA-256 of both packages. It
+// returns the bytes it verified and their signature, which planPublish records.
+func checkInstaller(dir string, m *release.Manifest, manifestKey string, trust release.Trust) (raw, sig []byte, err error) {
+	raw, sig, err = readSigned(filepath.Join(dir, installer))
 	if err != nil {
-		return fmt.Errorf("%s and its signature: %w (release-bake-install writes them into %s)", installer, err, dir)
+		return nil, nil, fmt.Errorf("%s and its signature: %w (release-bake-install writes them into %s)", installer, err, dir)
 	}
 	if err := release.VerifyContent(raw, sig, trust); err != nil {
-		return fmt.Errorf("%s: %w", installer, err)
+		return nil, nil, fmt.Errorf("%s: %w", installer, err)
 	}
 	tc, key, err := minisigCommentAndKey(sig, trust)
 	if err != nil {
-		return fmt.Errorf("%s: %w", installer, err)
+		return nil, nil, fmt.Errorf("%s: %w", installer, err)
 	}
 	if key != manifestKey {
-		return fmt.Errorf("%s is signed by %s, the manifest by %s", installer, key, manifestKey)
+		return nil, nil, fmt.Errorf("%s is signed by %s, the manifest by %s", installer, key, manifestKey)
 	}
 	if want := "file:" + installer + " version:" + m.Version; tc != want {
-		return fmt.Errorf("%s: trusted comment %q, want %q", installer, tc, want)
+		return nil, nil, fmt.Errorf("%s: trusted comment %q, want %q", installer, tc, want)
 	}
 	want := map[string]string{"VEDETTE_VERSION": m.Version}
 	for _, f := range m.Host.Files {
@@ -81,19 +88,26 @@ func checkInstaller(dir string, m *release.Manifest, manifestKey string, trust r
 			want["VEDETTE_DEB_SHA256_"+strings.ToUpper(arch)] = f.SHA256
 		}
 	}
+	for _, k := range bakedNames {
+		if want[k] == "" { // install.sh serves both architectures: a release without one of them would bake an empty checksum
+			return nil, nil, fmt.Errorf("the signed manifest gives no value for %s: a release ships vedette-host for amd64 and arm64", k)
+		}
+	}
 	seen := map[string]int{}
-	for _, l := range bakedLineRE.FindAllStringSubmatch(string(raw), -1) {
-		seen[l[1]]++
-		if w, ok := want[l[1]]; !ok || l[2] != `"`+w+`"` {
-			return fmt.Errorf("%s: %s=%s, want %q (the signed manifest)", installer, l[1], l[2], want[l[1]])
+	for i, l := range strings.Split(string(raw), "\n") {
+		for _, mm := range assignBakedRE.FindAllStringSubmatch(l, -1) {
+			if l != mm[1]+`="`+want[mm[1]]+`"` {
+				return nil, nil, fmt.Errorf("%s line %d %q sets %s: only the one baked line %s=%q may (the signed manifest)", installer, i+1, l, mm[1], mm[1], want[mm[1]])
+			}
+			seen[mm[1]]++
 		}
 	}
-	for _, k := range []string{"VEDETTE_VERSION", "VEDETTE_DEB_SHA256_AMD64", "VEDETTE_DEB_SHA256_ARM64"} {
+	for _, k := range bakedNames {
 		if seen[k] != 1 {
-			return fmt.Errorf("%s: the baked line %s is there %d times, want once", installer, k, seen[k])
+			return nil, nil, fmt.Errorf("%s: the baked line %s is there %d times, want once", installer, k, seen[k])
 		}
 	}
-	return nil
+	return raw, sig, nil
 }
 
 // planPublish lists and records the files of a directory VerifyDir has just passed. in is the release description (the .deb
@@ -111,6 +125,7 @@ func planPublish(dir string, s *Summary, in *Inputs, trust release.Trust) (*publ
 		p.Index = append(p.Index, l, l+".minisig")
 	}
 	var m release.Manifest
+	verified := map[string][]byte{} // bytes this function checked itself: recorded as checked, not read again
 	if !s.IndexOnly {
 		if err := refuseTestVersion(s.Version); err != nil {
 			return nil, err
@@ -131,9 +146,11 @@ func planPublish(dir string, s *Summary, in *Inputs, trust release.Trust) (*publ
 		if _, p.ManifestKeyID, err = minisigCommentAndKey(msig, trust); err != nil {
 			return nil, fmt.Errorf("manifest: %w", err)
 		}
-		if err := checkInstaller(dir, &m, p.ManifestKeyID, trust); err != nil {
+		raw, sig, err := checkInstaller(dir, &m, p.ManifestKeyID, trust)
+		if err != nil {
 			return nil, err
 		}
+		verified[installer], verified[installerSig] = raw, sig
 		p.Version = s.Version
 		p.Prerelease = s.Channel == "beta" || strings.Contains(s.Version, "-")
 		p.Notes = m.Notes
@@ -164,6 +181,10 @@ func planPublish(dir string, s *Summary, in *Inputs, trust release.Trust) (*publ
 		name := filepath.Base(f)
 		if _, dup := p.Record[name]; dup {
 			return nil, fmt.Errorf("two files are named %s", name)
+		}
+		if b, ok := verified[name]; ok {
+			p.Record[name] = fileRecord{strings.TrimPrefix(digestBytes(b), "sha256:"), int64(len(b))}
+			continue
 		}
 		sum, size, err := hashFile(f)
 		if err != nil {
@@ -202,19 +223,34 @@ func (p *publishPlan) checkLocal(files []string) error {
 // requireProductionSigners refuses a real publish of anything not signed by the keys compiled into this build (prod): the active
 // key, or the backup key for a rescue. -keys-dir changes what verify reasons with (a rescue checks against the keys the installed
 // boxes trust), never which signer may be published.
-func requireProductionSigners(p *publishPlan, prod release.Trust) error {
+//
+// Key ids are 8 bytes and chosen by whoever made the key, so the signer is resolved by id in trust (the keys VerifyDir verified with)
+// and its whole public key compared; every cosign key of trust (what verify checked the images with) must also be a production one.
+func requireProductionSigners(p *publishPlan, trust, prod release.Trust) error {
 	if prod.TestOnly {
 		return errors.New("this build carries the throwaway release keys: a real publish needs a build without -tags releasetestkeys")
 	}
-	ok := []string{prod.Active.KeyID()}
+	ok := []release.MinisignKey{prod.Active}
 	if p.Rescue {
-		ok = append(ok, prod.Backup.KeyID())
+		ok = append(ok, prod.Backup)
 	}
-	for what, id := range map[string]string{"index": p.IndexKeyID, "manifest": p.ManifestKeyID} {
-		if (what == "manifest" && p.Version == "") || slices.Contains(ok, id) {
+	for _, s := range []struct{ what, id string }{{"index", p.IndexKeyID}, {"manifest", p.ManifestKeyID}} {
+		if s.what == "manifest" && p.Version == "" {
 			continue
 		}
-		return fmt.Errorf("the %s is signed by %s, not by the production key %s compiled into this build", what, id, strings.Join(ok, " or "))
+		signer := []release.MinisignKey{trust.Active, trust.Backup}
+		i := slices.IndexFunc(signer, func(k release.MinisignKey) bool { return k.KeyID() == s.id })
+		if i < 0 || !slices.ContainsFunc(ok, func(k release.MinisignKey) bool { return k.ID == signer[i].ID && k.Key.Equal(signer[i].Key) }) {
+			return fmt.Errorf("the %s is signed by %s, which is not the production key %s compiled into this build", s.what, s.id, ok[0].KeyID())
+		}
+	}
+	if len(trust.Cosign) == 0 {
+		return errors.New("no cosign key to check the images with")
+	}
+	for _, c := range trust.Cosign {
+		if !slices.ContainsFunc(prod.Cosign, func(pc *ecdsa.PublicKey) bool { return pc.Equal(c) }) {
+			return fmt.Errorf("the images were verified with cosign key %s, which is not compiled into this build", release.CosignKeyID(c))
+		}
 	}
 	return nil
 }
@@ -367,47 +403,62 @@ func (e publishEnv) checkPullable(ctx context.Context, p *publishPlan) error {
 // liveIndex is the index boxes read now: the bytes of index.json and its signature on the release "index", verified, and the same
 // bytes as the -prev-index the release was built on (or, for the first release, no index at all). It returns the bytes so a later
 // look can tell whether the index moved meanwhile.
-func (e publishEnv) liveIndex(ctx context.Context) ([]byte, error) {
+//
+// ours is true when the live index is this run's own index, byte for byte: an earlier run already uploaded it (the index goes up
+// last, so everything before it is done too); the caller then only checks the assets.
+func (e publishEnv) liveIndex(ctx context.Context, p *publishPlan) (live []byte, ours bool, err error) {
 	r, err := e.viewRelease(ctx, indexTag)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if r == nil || r.IsDraft {
-		return nil, fmt.Errorf("no published release %q: kien creates it once by hand (docs/plans/2026-11-12-wp08k-release-job.md §3)", indexTag)
+		return nil, false, fmt.Errorf("no published release %q: kien creates it once by hand (docs/plans/2026-11-12-wp08k-release-job.md §3)", indexTag)
 	}
 	if !r.has(indexFile) {
 		if !e.firstRelease || e.prevDir != "" {
-			return nil, fmt.Errorf("the release %q has no %s: only the first release publishes without one (-first-release, no -prev-index)", indexTag, indexFile)
+			return nil, false, fmt.Errorf("the release %q has no %s: only the first release publishes without one (-first-release, no -prev-index)", indexTag, indexFile)
 		}
-		return nil, nil
-	}
-	if e.firstRelease {
-		return nil, fmt.Errorf("-first-release, but the release %q already has an %s: build on it (-prev-index)", indexTag, indexFile)
-	}
-	if e.prevDir == "" {
-		return nil, errors.New("a real publish needs -prev-index (RELEASE_PREV_INDEX): the published index this release was built on")
+		return nil, false, nil
 	}
 	tmp, err := e.download(ctx, indexTag, indexFile, indexFile+".minisig")
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
-	if _, err := LoadPrevIndex(tmp, e.trust); err != nil {
-		return nil, fmt.Errorf("the live index: %w", err)
-	}
-	var live []byte
+	files := [][]byte{}
+	ours = true
 	for _, n := range []string{indexFile, indexFile + ".minisig"} {
-		a, err1 := readDoc(filepath.Join(tmp, n))
-		b, err2 := readDoc(filepath.Join(e.prevDir, n))
-		if err := errors.Join(err1, err2); err != nil {
-			return nil, err
+		b, err := readDoc(filepath.Join(tmp, n))
+		if err != nil {
+			return nil, false, err
 		}
-		if !bytes.Equal(a, b) {
-			return nil, fmt.Errorf("the live %s differs from -prev-index %s: another index was published since; build again on the live one", n, e.prevDir)
-		}
-		live = append(live, a...)
+		files = append(files, b)
+		live = append(live, b...)
+		ours = ours && digestBytes(b) == "sha256:"+p.Record[n].SHA256
 	}
-	return live, nil
+	const halfReplaced = "if an earlier run stopped while uploading the index, follow docs/plans/2026-11-12-wp08k-release-job.md §2, row \"publish 7\""
+	if _, err := LoadPrevIndex(tmp, e.trust); err != nil {
+		return nil, false, fmt.Errorf("the live index does not verify (%w); %s", err, halfReplaced)
+	}
+	if ours {
+		return live, true, nil
+	}
+	if e.firstRelease {
+		return nil, false, fmt.Errorf("-first-release, but the release %q already has an %s: build on it (-prev-index)", indexTag, indexFile)
+	}
+	if e.prevDir == "" {
+		return nil, false, errors.New("a real publish needs -prev-index (RELEASE_PREV_INDEX): the published index this release was built on")
+	}
+	for i, n := range []string{indexFile, indexFile + ".minisig"} {
+		b, err := readDoc(filepath.Join(e.prevDir, n))
+		if err != nil {
+			return nil, false, err
+		}
+		if !bytes.Equal(files[i], b) {
+			return nil, false, fmt.Errorf("the live %s differs from -prev-index %s: another index was published since (build again on the live one); %s", n, e.prevDir, halfReplaced)
+		}
+	}
+	return live, false, nil
 }
 
 // Publish prints the gh commands (doRun false) or runs them. Run, it is safe to repeat after a failure: a draft is filled again,
@@ -463,7 +514,7 @@ func Publish(ctx context.Context, e publishEnv, p *publishPlan, doRun bool) erro
 		_, err := e.run(c, argv...)
 		return err
 	}
-	live, err := e.liveIndex(ctx)
+	live, done, err := e.liveIndex(ctx, p)
 	if err != nil {
 		return err
 	}
@@ -515,18 +566,22 @@ func Publish(ctx context.Context, e publishEnv, p *publishPlan, doRun bool) erro
 	if err := e.checkPullable(ctx, p); err != nil {
 		return fmt.Errorf("%w (the index was not uploaded)", err)
 	}
-	again, err := e.liveIndex(ctx)
+	again, _, err := e.liveIndex(ctx, p)
 	if err != nil {
 		return err
 	}
 	if !bytes.Equal(again, live) {
 		return errors.New("the live index changed while publishing: the index was not uploaded")
 	}
-	if err := p.checkLocal(p.Index); err != nil {
-		return err
-	}
-	if err := long(index); err != nil {
-		return fmt.Errorf("%w (the index may be half replaced: boxes refuse it until the next run uploads both files; run again now)", err)
+	if done {
+		say(e.stdout, "the live index is already this release's (an earlier run uploaded it): checking its assets only")
+	} else {
+		if err := p.checkLocal(p.Index); err != nil {
+			return err
+		}
+		if err := long(index); err != nil {
+			return fmt.Errorf("%w (the index may be half replaced: boxes refuse it until both files are up; follow docs/plans/2026-11-12-wp08k-release-job.md §2, row \"publish 7\")", err)
+		}
 	}
 	r, err := e.readBack(ctx, indexTag)
 	if err != nil {
@@ -599,7 +654,7 @@ func cmdPublish(ctx context.Context, args []string, stdout io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if err := requireProductionSigners(p, prod); err != nil {
+		if err := requireProductionSigners(p, trust, prod); err != nil {
 			return err
 		}
 	}

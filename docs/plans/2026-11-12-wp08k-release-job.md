@@ -93,14 +93,20 @@ existing `release.in.json` (it may hold notes). The result is parsed back with `
   exactly once, equal to the signed manifest's version and package SHA-256s.
 - Each `.deb` named in `release.in.json` must have the SHA-256 and size of the **signed** manifest; tag `v<v>` must exist.
 - With `PUBLISH=1`: the manifest and index signers must be the keys **compiled into this build** (active; the backup key only for a
-  rescue), never test keys; `-keys-dir` changes what verify reasons with (a rescue checks against the keys installed boxes trust), never
-  which signer may be published.
+  rescue), never test keys. The signer is found by key id in the keys verify used and its **whole** public key compared (an id is 8
+  bytes anyone can copy), and every cosign key verify used must be a compiled-in one. `-keys-dir` changes what verify reasons with (a
+  rescue checks against the keys installed boxes trust), never which signer may be published.
+- install.sh is recorded from the very bytes `checkInstaller` verified; any line that can set a baked variable (indented,
+  `export`/`readonly`/`local`, `+=`, `${X=…}`/`${X:=…}`, after another command, a BOM or CR) must be exactly the baked line, and a
+  manifest without both packages is refused (an empty checksum would be baked).
 
 Default: prints the commands (the notes go to `dist/release/release-notes.md`). `PUBLISH=1` runs:
 
-1. The **live index**: the release `index` must exist and be published. If it has `index.json`, it is downloaded, verified, and must be
-   byte-identical (with its `.minisig`) to `RELEASE_PREV_INDEX`, which is then mandatory; if it has none, only `FIRST_RELEASE=1` without
-   `RELEASE_PREV_INDEX` proceeds. Either way a release built on a stale index is refused before anything is uploaded.
+1. The **live index**: the release `index` must exist and be published. If it has `index.json`, it is downloaded and verified. When it
+   is byte-identical (with its `.minisig`) to this run's own index, an earlier run already uploaded it: the steps below only check
+   (nothing is uploaded). Otherwise it must be byte-identical to `RELEASE_PREV_INDEX`, which is then mandatory; with no live index only
+   `FIRST_RELEASE=1` without `RELEASE_PREV_INDEX` proceeds. Either way a release built on a stale index is refused before anything is
+   uploaded; a live index that does not verify points at row "publish 7" of §2.
 2. `gh release view v<v>`; if absent `gh release create v<v> --verify-tag --draft --title "Vedette <v>" --notes-file <temp file with the
    manifest notes>` (`--prerelease` for channel beta or a SemVer prerelease). `--verify-tag` aborts when the tag is not on GitHub.
 3. Files re-hashed against the record, then `gh release upload v<v> --clobber` of: `release-manifest.json(.minisig)`, `install.sh(.minisig)`,
@@ -144,11 +150,25 @@ Failure at each point and what to do:
 | 5–12 | nothing public references anything | fix and re-run the step |
 | publish 2–5 | a draft `v<v>`, maybe partial | `release-publish PUBLISH=1` again: the draft is filled (`--clobber`) and checked |
 | publish 6 | `v<v>` published, index old | run again: published assets are compared, then the index goes up. Boxes still see the previous release: correct |
-| publish 7 | index half replaced (`--clobber` deletes then uploads; a box may fetch the new `index.json` with the old signature) | boxes fail closed (signature check), keep their stored index and retry later; run again at once (the live-index check then sees a half-new index: compare it with `dist/release` by hand and re-upload with the printed command) |
+| publish 7 | index half replaced (`--clobber` deletes then uploads; a box may fetch the new `index.json` with the old signature) | boxes fail closed (signature check), keep their stored index and retry later; fix at once by hand ("Row publish 7, by hand" below) |
 | a bad release found after publishing | | never delete or edit `v<v>`: publish `v<v+1>`, and revoke `<v>` through the index (`revoked[]` kind `release`, D-108) |
 
 The two `--clobber` windows (index file and signature are two uploads, GitHub has no atomic replace) are a known limit: the box treats
 a mismatched pair as a failed check and keeps what it has (D-104, D-341), so the window costs a delay, never a wrong update.
+
+**Row "publish 7", by hand.** A run stopped during the index upload leaves `index.json` and `index.json.minisig` of two different
+indexes on the release `index`; `release-publish` then refuses (the live index does not verify, or is neither this run's nor
+`-prev-index`). Download both (`gh release download index --repo KNT048/vedette -p 'index.json*' -D /tmp/live`), check that each file is
+byte-identical either to `dist/release/` (this run) or to `<prev>` (nothing else may be there), then upload this run's pair with the
+printed `gh release upload index … --clobber` command and run `release-publish PUBLISH=1` once more: it finds its own index live and
+only checks the assets. A live index that is neither: stop, someone else published.
+
+**A rescue (D-258, D-259) is published by hand.** When the leaked active key's holder has replaced the live index, it is neither the
+rescue's own index nor `-prev-index` (kien's archived copy, RELEASE_KEYS.md "Bản cứu" step 3), so `PUBLISH=1` refuses before uploading
+anything, by design. Path: verify the live index with the old keys and confirm it is not one kien published (signed by the leaked key,
+not in the archive); run `release-publish` without `PUBLISH` to print the commands; run them one by one, checking after the upload
+that every asset of `v<v>` has the SHA-256 of `dist/release/` (`gh release view v<v> --json assets`); upload the rescue index last.
+`-keys-dir` is the old keys for verify; the signers must still be the compiled-in production keys (the backup key for a rescue).
 
 ## 3. One-time manual steps for kien
 

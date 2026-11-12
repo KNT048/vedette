@@ -244,15 +244,44 @@ func TestPublishRun(t *testing.T) {
 		if slices.ContainsFunc(fr2.joined(), func(c string) bool { return strings.Contains(c, " v0.2.0 ") }) {
 			t.Errorf("%v", fr2.joined())
 		}
-		// and a run again of 0.3.0 changes nothing published
+		// a run again of 0.3.0 finds its own index live: it checks the assets and uploads nothing
 		e3, fr3 := env(g, r, ghcr(t, http.StatusOK), dir, false)
-		if err := Publish(context.Background(), e3, p2, true); err == nil || !strings.Contains(err.Error(), "differs from -prev-index") {
-			t.Errorf("the index moved on to 0.3.0, so -prev-index (0.2.0's) is stale: %v", err)
-		}
+		var out3 bytes.Buffer
+		e3.stdout = &out3
+		must(t, Publish(context.Background(), e3, p2, true))
 		if slices.ContainsFunc(fr3.joined(), func(c string) bool {
+			return strings.HasPrefix(c, "gh release upload") || strings.HasPrefix(c, "gh release create") || strings.HasPrefix(c, "gh release edit")
+		}) || !strings.Contains(out3.String(), "already this release's") {
+			t.Errorf("%v\n%s", fr3.joined(), out3.String())
+		}
+		// another 0.3.0 built on the same -prev-index is stale now: the live index is neither its own nor -prev-index
+		dirB, sB, inB := signedRelease(t, r, "0.3.0", dir)
+		pB, err := planPublish(dirB, sB, inB, r.trust)
+		must(t, err)
+		eB, frB := env(g, r, ghcr(t, http.StatusOK), dir, false)
+		if err := Publish(context.Background(), eB, pB, true); err == nil || !strings.Contains(err.Error(), "differs from -prev-index") {
+			t.Errorf("stale -prev-index: %v", err)
+		}
+		if slices.ContainsFunc(frB.joined(), func(c string) bool {
 			return strings.HasPrefix(c, "gh release upload") || strings.HasPrefix(c, "gh release create")
 		}) {
-			t.Errorf("%v", fr3.joined())
+			t.Errorf("%v", frB.joined())
+		}
+	})
+	t.Run("a half-replaced live index points at the manual fix", func(t *testing.T) {
+		dir2, s2, in2 := signedRelease(t, r, "0.3.0", dir)
+		p2, err := planPublish(dir2, s2, in2, r.trust)
+		must(t, err)
+		g := newGH()
+		g.seedIndex(t, dir)                                 // 0.2.0's index and signature ...
+		b, _ := os.ReadFile(filepath.Join(dir2, indexFile)) // ... then only the new index.json went up
+		g.put(indexTag, indexFile, b)
+		e, fr := env(g, r, ghcr(t, http.StatusOK), dir, false)
+		if err := Publish(context.Background(), e, p2, true); err == nil || !strings.Contains(err.Error(), `row "publish 7"`) {
+			t.Fatalf("%v", err)
+		}
+		if slices.ContainsFunc(fr.joined(), func(c string) bool { return strings.HasPrefix(c, "gh release upload") }) {
+			t.Errorf("%v", fr.joined())
 		}
 	})
 	t.Run("a draft left by a failed run is filled again", func(t *testing.T) {
@@ -283,6 +312,7 @@ func TestPublishRun(t *testing.T) {
 		}
 	})
 
+	otherDir, _, _ := signedRelease(t, r, "0.2.0", "") // another build: its index is not this run's
 	refusals := map[string]struct {
 		setup     func(g *ghFake) (prev string, first bool)
 		pull      int
@@ -292,8 +322,8 @@ func TestPublishRun(t *testing.T) {
 		"no tag":                     {setup: func(g *ghFake) (string, bool) { g.noTag = true; return "", true }, want: "no tag v0.2.0"},
 		"no index release":           {setup: func(g *ghFake) (string, bool) { delete(g.rel, indexTag); return "", true }, want: `no published release "index"`},
 		"not first but no index yet": {setup: func(*ghFake) (string, bool) { return "", false }, want: "only the first release"},
-		"first but an index is live": {setup: func(g *ghFake) (string, bool) { g.seedIndex(t, dir); return "", true }, want: "already has an index.json"},
-		"no -prev-index":             {setup: func(g *ghFake) (string, bool) { g.seedIndex(t, dir); return "", false }, want: "needs -prev-index"},
+		"first but an index is live": {setup: func(g *ghFake) (string, bool) { g.seedIndex(t, otherDir); return "", true }, want: "already has an index.json"},
+		"no -prev-index":             {setup: func(g *ghFake) (string, bool) { g.seedIndex(t, otherDir); return "", false }, want: "needs -prev-index"},
 		"upload corrupted":           {setup: func(g *ghFake) (string, bool) { g.corrupt = "vedette.env"; return "", true }, want: "still a draft"},
 		"package private":            {setup: func(*ghFake) (string, bool) { return "", true }, pull: http.StatusUnauthorized, want: "make the package public"},
 		"published and changed": {setup: func(g *ghFake) (string, bool) {
@@ -343,6 +373,121 @@ func TestPublishRun(t *testing.T) {
 	})
 }
 
+// installerCase signs dir's install.sh after edit changed it, and runs checkInstaller with the signed manifest of dir (mut may
+// change that manifest first).
+func installerCase(t *testing.T, r *rig, dir string, edit func(string) string, mut func(*release.Manifest)) error {
+	t.Helper()
+	p := filepath.Join(dir, installer)
+	b, err := os.ReadFile(p)
+	must(t, err)
+	must(t, os.WriteFile(p, []byte(edit(string(b))), 0o600))
+	must(t, testSigner{t, r.active}.SignFile(context.Background(), p, p+".minisig", "file:install.sh version:0.2.0"))
+	raw, err := os.ReadFile(filepath.Join(dir, manifestFile))
+	must(t, err)
+	var m release.Manifest
+	must(t, json.Unmarshal(raw, &m))
+	if mut != nil {
+		mut(&m)
+	}
+	_, _, err = checkInstaller(dir, &m, r.trust.Active.KeyID(), r.trust)
+	return err
+}
+
+// TestCheckInstallerStrictLines: any line that can set a baked variable must be exactly the baked line (the rule of checkEnvImages),
+// whatever shell form it takes; and a manifest without one of the two packages is refused instead of baking an empty checksum.
+func TestCheckInstallerStrictLines(t *testing.T) {
+	r := newRig(t)
+	appendLine := func(l string) func(string) string { return func(s string) string { return s + l + "\n" } }
+	cases := map[string]func(string) string{
+		"indented":              appendLine(`  VEDETTE_VERSION="0.2.0"`),
+		"export":                appendLine(`export VEDETTE_VERSION="9.9.9"`),
+		"readonly":              appendLine(`readonly VEDETTE_DEB_SHA256_AMD64="` + strings.Repeat("0", 64) + `"`),
+		"local in a function":   appendLine(`f() { local VEDETTE_VERSION=9.9.9; }`),
+		"append":                appendLine(`VEDETTE_VERSION+="-evil"`),
+		"default assign":        appendLine(`: ${VEDETTE_VERSION:=9.9.9}`),
+		"default assign no :":   appendLine(`: ${VEDETTE_DEB_SHA256_ARM64=abc}`),
+		"after another command": appendLine(`true; VEDETTE_VERSION="9.9.9"`),
+		"BOM":                   appendLine(bom + `VEDETTE_VERSION="0.2.0"`),
+		"CRLF baked line": func(s string) string {
+			return strings.Replace(s, `VEDETTE_VERSION="0.2.0"`+"\n", `VEDETTE_VERSION="0.2.0"`+"\r\n", 1)
+		},
+		"spaces around =": appendLine(`VEDETTE_VERSION = "9.9.9"`),
+	}
+	for name, edit := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir, _, _ := signedRelease(t, r, "0.2.0", "")
+			if err := installerCase(t, r, dir, edit, nil); err == nil || !strings.Contains(err.Error(), "sets VEDETTE_") {
+				t.Fatalf("got %v", err)
+			}
+		})
+	}
+	t.Run("a manifest with one architecture", func(t *testing.T) {
+		dir, _, _ := signedRelease(t, r, "0.2.0", "")
+		err := installerCase(t, r, dir, func(s string) string { return s }, func(m *release.Manifest) { m.Host.Files = m.Host.Files[:1] })
+		if err == nil || !strings.Contains(err.Error(), "amd64 and arm64") {
+			t.Fatalf("got %v", err)
+		}
+	})
+	t.Run("uses of the variables are not assignments", func(t *testing.T) {
+		dir, _, _ := signedRelease(t, r, "0.2.0", "")
+		uses := appendLine(`[ -n "$VEDETTE_VERSION" ] || die "x"; case $ARCH in amd64) DEB_SUM=$VEDETTE_DEB_SHA256_AMD64 ;; esac; RELEASE=${VEDETTE_VERSION:-}`)
+		must(t, installerCase(t, r, dir, uses, nil))
+	})
+}
+
+// TestCheckInstallerOnTheRealScript: the repository's install.sh with its three lines filled the way part A fills them passes; no use
+// of the variables in it is taken for an assignment.
+func TestCheckInstallerOnTheRealScript(t *testing.T) {
+	r := newRig(t)
+	dir, _, _ := signedRelease(t, r, "0.2.0", "")
+	script, err := os.ReadFile("../../install.sh")
+	must(t, err)
+	baked, err := os.ReadFile(filepath.Join(dir, installer)) // the fixture's three lines, with the packages' hashes
+	must(t, err)
+	lines := map[string]string{}
+	for _, l := range strings.Split(string(baked), "\n") {
+		for _, n := range bakedNames {
+			if strings.HasPrefix(l, n+"=") {
+				lines[n] = l
+			}
+		}
+	}
+	s := string(script)
+	for _, n := range bakedNames {
+		if !strings.Contains(s, "\n"+n+"=\"\"\n") {
+			t.Fatalf("install.sh has no empty line %s=\"\"", n)
+		}
+		s = strings.Replace(s, "\n"+n+"=\"\"\n", "\n"+lines[n]+"\n", 1)
+	}
+	must(t, installerCase(t, r, dir, func(string) string { return s }, nil))
+}
+
+// TestPlanPublishRecordsTheVerifiedInstaller: the record of install.sh is of the bytes checkInstaller verified.
+func TestPlanPublishRecordsTheVerifiedInstaller(t *testing.T) {
+	r := newRig(t)
+	dir, s, in := signedRelease(t, r, "0.2.0", "")
+	p, err := planPublish(dir, s, in, r.trust)
+	must(t, err)
+	raw, sig, err := checkInstaller(dir, mustManifest(t, dir), r.trust.Active.KeyID(), r.trust)
+	must(t, err)
+	if p.Record[installer] != (fileRecord{strings.TrimPrefix(digestBytes(raw), "sha256:"), int64(len(raw))}) ||
+		p.Record[installerSig] != (fileRecord{strings.TrimPrefix(digestBytes(sig), "sha256:"), int64(len(sig))}) {
+		t.Errorf("%+v", p.Record)
+	}
+	must(t, os.WriteFile(filepath.Join(dir, installer), append(raw, '\n'), 0o600))
+	if err := p.checkLocal(p.Assets); err == nil || !strings.Contains(err.Error(), "changed since it was verified") {
+		t.Errorf("%v", err)
+	}
+}
+
+func mustManifest(t *testing.T, dir string) *release.Manifest {
+	raw, err := os.ReadFile(filepath.Join(dir, manifestFile))
+	must(t, err)
+	var m release.Manifest
+	must(t, json.Unmarshal(raw, &m))
+	return &m
+}
+
 func TestPlanPublishRefusals(t *testing.T) {
 	r := newRig(t)
 	other := newRig(t)
@@ -373,7 +518,7 @@ func TestPlanPublishRefusals(t *testing.T) {
 		}, "install.sh"},
 		"baked version wrong": {func(d string, in *Inputs, _ *Summary) {
 			bakeInstaller(t, r, d, *in, "0.1.9", "file:install.sh version:0.2.0")
-		}, `VEDETTE_VERSION="0.1.9"`},
+		}, `"VEDETTE_VERSION=\"0.1.9\"" sets VEDETTE_VERSION`},
 		"baked sha256 wrong": {func(d string, in *Inputs, _ *Summary) {
 			x := *in
 			x.Host = &HostIn{Version: "0.2.0", Files: []string{in.Host.Files[1], in.Host.Files[1]}}
@@ -419,22 +564,49 @@ func TestRequireProductionSigners(t *testing.T) {
 	if p.ManifestKeyID != r.trust.Active.KeyID() || p.IndexKeyID != r.trust.Active.KeyID() {
 		t.Fatalf("%+v", p)
 	}
-	must(t, requireProductionSigners(p, r.trust))
-	if err := requireProductionSigners(p, other.trust); err == nil || !strings.Contains(err.Error(), "not by the production key") {
+	must(t, requireProductionSigners(p, r.trust, r.trust))
+	if err := requireProductionSigners(p, r.trust, other.trust); err == nil || !strings.Contains(err.Error(), "not the production key") {
 		t.Errorf("signed by keys of -keys-dir, not the compiled-in ones: %v", err)
 	}
 	test := r.trust
 	test.TestOnly = true
-	if err := requireProductionSigners(p, test); err == nil || !strings.Contains(err.Error(), "throwaway") {
+	if err := requireProductionSigners(p, r.trust, test); err == nil || !strings.Contains(err.Error(), "throwaway") {
 		t.Errorf("%v", err)
 	}
 	backup := *p
 	backup.ManifestKeyID, backup.IndexKeyID = r.trust.Backup.KeyID(), r.trust.Backup.KeyID()
-	if err := requireProductionSigners(&backup, r.trust); err == nil {
+	if err := requireProductionSigners(&backup, r.trust, r.trust); err == nil {
 		t.Error("the backup key signs only a rescue")
 	}
 	backup.Rescue = true
-	must(t, requireProductionSigners(&backup, r.trust))
+	must(t, requireProductionSigners(&backup, r.trust, r.trust))
+}
+
+// TestRequireProductionSignersComparesWholeKeys: a key id is 8 bytes its maker chooses; a -keys-dir key with the production id
+// but another key, or another cosign key, is refused.
+func TestRequireProductionSignersComparesWholeKeys(t *testing.T) {
+	r, other := newRig(t), newRig(t)
+	dir, s, in := signedRelease(t, r, "0.2.0", "")
+	p, err := planPublish(dir, s, in, r.trust)
+	must(t, err)
+	sameID := r.trust
+	sameID.Active = release.MinisignKey{ID: r.trust.Active.ID, Key: other.trust.Active.Key}
+	if sameID.Active.KeyID() != p.IndexKeyID {
+		t.Fatal("the forged key must carry the production id")
+	}
+	if err := requireProductionSigners(p, sameID, r.trust); err == nil || !strings.Contains(err.Error(), "not the production key") {
+		t.Errorf("same id, other key: %v", err)
+	}
+	otherCosign := r.trust
+	otherCosign.Cosign = other.trust.Cosign
+	if err := requireProductionSigners(p, otherCosign, r.trust); err == nil || !strings.Contains(err.Error(), "cosign key") {
+		t.Errorf("other cosign.pub: %v", err)
+	}
+	extra := r.trust
+	extra.Cosign = append(slices.Clone(r.trust.Cosign), other.trust.Cosign...)
+	if err := requireProductionSigners(p, extra, r.trust); err == nil {
+		t.Error("a second, non-production cosign key in -keys-dir")
+	}
 }
 
 func TestPublishRefreshIsTheIndexOnly(t *testing.T) {
@@ -449,7 +621,7 @@ func TestPublishRefreshIsTheIndexOnly(t *testing.T) {
 	if p.Version != "" || len(p.Assets) != 0 || len(p.Index) != 2 || len(p.Images) != 0 {
 		t.Fatalf("%+v", p)
 	}
-	must(t, requireProductionSigners(p, r.trust))
+	must(t, requireProductionSigners(p, r.trust, r.trust))
 	g := newGH()
 	g.seedIndex(t, prev)
 	e, fr := env(g, r, registryHTTP{}, prev, false)

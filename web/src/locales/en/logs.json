@@ -165,6 +165,9 @@
     "description": "Logs past the period are deleted automatically. At the current rate, {{days}} days take about {{mb}} MB.",
     "label": "Keep logs for",
     "option": "{{n}} days",
+    "shortenTitle": "Keep logs for {{n}} days only?",
+    "shortenBody": "Log lines older than {{n}} days will be deleted at the next cleanup (within about an hour) and cannot be restored.",
+    "shortenConfirm": "Delete older lines",
     "saved": "Log retention saved."
   },
   "siem": {

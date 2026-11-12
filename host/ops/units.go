@@ -163,6 +163,39 @@ func (o *Ops) writeUnitForStart(service string, text []byte) error {
 	return o.writeUnit(service, text, true) // the old bytes go to .prev, like every unit change that is not a revert
 }
 
+// errVolumeOwner: a credential .volume unit the host wrote names another core_uid or sensor_gid than host.conf gives now (D-316 (9)).
+// Quadlet sets User= and Group= only when it creates the volume, so rewriting the unit would change nothing on the volume and leave
+// core unable to write the bundles; the host never changes the owner of what a container wrote (core can point a root chown of its
+// tree at another file with a link it planted), so the change of ids is refused and the RUNBOOK says how to make it by hand.
+var errVolumeOwner = errors.New("ops: a credential volume was made for other ids than host.conf gives now")
+
+// volumeOwnerText is the message of the refusal (unit_unsafe) for errVolumeOwner.
+const volumeOwnerText = "host.conf gives another core_uid or sensor_gid than the sensor credential volumes were made for; Podman does not change the owner of an existing volume and the host does not either. Put the ids back in host.conf, or change the owner by hand as RUNBOOK section 3 says."
+
+// volumeOwnerChanged returns the name of a credential .volume unit the host wrote for other ids than host.conf gives now ("" when
+// there is none; a missing, odd or hand-edited file is not this refusal: the write path deals with it).
+func (o *Ops) volumeOwnerChanged() string {
+	r, err := o.openUnitDir()
+	if err != nil {
+		return "" // the caller refuses an unsafe directory on its own
+	}
+	defer func() { _ = r.Close() }()
+	return volumeOwnerChangedIn(r, o.cfg.CoreUID, o.cfg.SensorGID)
+}
+
+func volumeOwnerChangedIn(r *os.Root, coreUID, sensorGID int) string {
+	for _, role := range credsRoles {
+		text, st := readNoFollow(r, volumeFileName(role), maxUnitSize)
+		if st != fileOK {
+			continue
+		}
+		if u, g, ok := volumeIDs(role, text); ok && (u != coreUID || g != sensorGID) {
+			return volumeFileName(role)
+		}
+	}
+	return ""
+}
+
 // ensureVolumeUnits puts the .volume units a service mounts in place in the opened Quadlet directory: the two credential volumes
 // for core, sensor and scan (constant text, host.conf ids; see renderVolume) and the honeypot log volume for core and honeypot. A unit that already holds the right bytes is not touched; a link or odd
 // file at its name is refused. The text never depends on a service or an image, so it needs no .prev and no journal: writing it again is always right.
@@ -179,6 +212,9 @@ func (o *Ops) ensureVolumeUnits(r *os.Root, service string) error {
 				return err // errBadFill: host.conf does not give usable ids (host_conf_incomplete), not an unsafe directory
 			}
 			vols = append(vols, vol{volumeFileName(role), text})
+		}
+		if name := volumeOwnerChangedIn(r, o.cfg.CoreUID, o.cfg.SensorGID); name != "" { // before any write: all or nothing
+			return fmt.Errorf("%w: %s: %w", errUnitUnsafe, name, errVolumeOwner)
 		}
 	}
 	if service == api.ServiceCore || service == api.ServiceHoneypot { // the two that mount the honeypot log volume (D-318)

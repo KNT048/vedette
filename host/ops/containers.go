@@ -237,6 +237,9 @@ func (o *Ops) checkContainerStart(ctx context.Context, a api.ContainerStartArgs)
 	if _, _, err := o.currentUnit(a.Service); err != nil {
 		return err
 	}
+	if a.Service != api.ServiceHoneypot && o.volumeOwnerChanged() != "" { // the start writes the credential volume units (D-316 (9))
+		return refuse412(api.CodeUnitUnsafe, volumeOwnerText)
+	}
 	if a.Version == "" {
 		return nil
 	}
@@ -807,6 +810,9 @@ func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.
 }
 
 func unitWriteFailure(err error) error {
+	if errors.Is(err, errVolumeOwner) {
+		return fail(api.CodeUnitUnsafe, volumeOwnerText)
+	}
 	if errors.Is(err, errBadFill) {
 		return fail(api.CodeHostConfIncomplete, "host.conf does not give the uid and gid the credential volumes need.")
 	}
@@ -984,8 +990,11 @@ func (o *Ops) recoverTransitions(ctx context.Context) {
 			o.note(t.command(), "transition_interrupted", detail)
 		}
 	}
+	if o.migrateUnits(rctx) { // units of an earlier host release, to the current template (D-316 (9)): the same one reload
+		changed = true
+	}
 	if changed && !o.sctl(rctx, reloadLimit, "daemon-reload") {
-		o.log.ErrorContext(ctx, "systemd would not reload after the unit bytes were put back; AfterReady tries again")
+		o.log.ErrorContext(ctx, "systemd would not reload after the unit bytes were put back or migrated; AfterReady or the next unit command reloads")
 	}
 }
 

@@ -29,6 +29,11 @@ import (
 //	      container (Podman's own "Containers" count; and rmi has no force flag, so Podman refuses an
 //	      image that a container uses anyway).
 //
+// The one image with no name that is the service's own is a scan image built on the box whose tag moved to a newer build of the
+// same version (D-147 (2)), or a build that failed its check and could not be removed then: it carries the label of the constant
+// Containerfile (scanBuildLabel, the same mark install.sh --uninstall removes it by), and it is removed by its ID when no unit,
+// record or container keeps "sha256:<ID>" (D-316 (9)).
+//
 // There is no "image prune -a". A failed rmi is logged and audited, and never fails the run: the
 // service already switched. The list Podman prints is untrusted: strict, capped, and an image that
 // does not read as expected is left alone.
@@ -42,12 +47,13 @@ const (
 )
 
 type imageListDoc struct {
-	ID          string   `json:"Id"`
-	Digest      string   `json:"Digest"`
-	Names       []string `json:"Names"`
-	RepoTags    []string `json:"RepoTags"`
-	RepoDigests []string `json:"RepoDigests"`
-	Containers  int      `json:"Containers"`
+	ID          string            `json:"Id"`
+	Digest      string            `json:"Digest"`
+	Names       []string          `json:"Names"`
+	RepoTags    []string          `json:"RepoTags"`
+	RepoDigests []string          `json:"RepoDigests"`
+	Containers  int               `json:"Containers"`
+	Labels      map[string]string `json:"Labels"`
 }
 
 // listedImage is an image that belongs to the service and may be considered for removal.
@@ -64,8 +70,9 @@ var errImageList = errors.New("ops: podman image ls output is not usable")
 // belong to service and nothing else: a JSON array (nothing after it, 1 MiB at most, 512 images at
 // most) whose entries have an Id of 64 hex digits, a Digest of the form sha256:<64 hex> and at least one name, every name of
 // which is in ghcr.io/knt048/vedette-<service> or localhost/vedette-<service> (with a tag or a digest
-// or neither). An entry that does not read like that is left out, not an error; an output that is not
-// that array is an error. Exported for fuzzing.
+// or neither); for scan also an entry with no name at all that carries the build label (scanBuildLabel).
+// An entry that does not read like that is left out, not an error; an output that is not that array is
+// an error. Exported for fuzzing.
 func ParseImageList(out []byte, service string) ([]string, error) {
 	imgs, err := parseImageList(out, service)
 	var ids []string
@@ -92,11 +99,17 @@ func parseImageList(out []byte, service string) ([]listedImage, error) {
 	}
 	var res []listedImage
 	for _, d := range docs {
-		if !imageIDRE.MatchString(d.ID) || !digestRE.MatchString(d.Digest) || len(d.Names)+len(d.RepoTags)+len(d.RepoDigests) > 3*maxRepoDigests {
+		if !imageIDRE.MatchString(d.ID) || len(d.Names)+len(d.RepoTags)+len(d.RepoDigests) > 3*maxRepoDigests {
 			continue
 		}
 		names := slices.Concat(d.Names, d.RepoTags, d.RepoDigests)
-		if len(names) == 0 || !slices.ContainsFunc(names, func(n string) bool { return ownedName(n, service) }) {
+		if len(names) == 0 {
+			if services[service].byID && d.Labels[scanBuildLabel] == scanBuildLabelValue { // a build of the box that lost its tag (L4)
+				res = append(res, listedImage{ID: d.ID, Digests: []string{"sha256:" + d.ID}, InUse: d.Containers != 0})
+			}
+			continue
+		}
+		if !digestRE.MatchString(d.Digest) || !slices.ContainsFunc(names, func(n string) bool { return ownedName(n, service) }) {
 			continue
 		}
 		if slices.ContainsFunc(names, func(n string) bool { return !ownedName(n, service) }) {

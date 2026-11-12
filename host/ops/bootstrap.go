@@ -241,6 +241,10 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 				return bsErr(api.CodeUnitUnsafe, volumeFileName(role)+" is not a regular file the host can trust")
 			}
 		}
+		// Even with -force-units: rewriting the volume unit for new ids would not change the owner of the volume (D-316 (9)).
+		if name := o.volumeOwnerChanged(); name != "" {
+			return bsErr(api.CodeUnitUnsafe, name+": "+volumeOwnerText)
+		}
 	}
 	// The honeypot log volume unit is written with the first unit of core or honeypot (D-318): same refusal.
 	if slices.ContainsFunc(steps, func(s *bsStep) bool {

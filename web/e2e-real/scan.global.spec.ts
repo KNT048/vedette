@@ -1,11 +1,14 @@
-// The scan module on the real backend, on a box with no scan worker (S-SCAN-1, S-SCAN-4; scan INV-1, INV-2, INV-3, INV-5, INV-7 read side, INV-4 `dangerous_locked`).
-// What is built on main and needs no worker: the settings (validation, partial save, audit), the target list and why a device is not on it, the refusals of a run,
-// the probe log (empty) and its CSV, the rescan log (empty), the page and the roles. The box of the run has no scan container, so `can_scan` is false with the reason
-// the page shows; a run that reaches the worker (progress, results, Stop now, auto-stop, the probe rows and the findings a match confirms) is test.fixme with the real
-// flow in its body (D-171 (2), D-198: it needs the sensor seam of WP-30 slice 7 and the scan image). Global project: the settings are box-wide and the specs put
-// them back; the devices the file declares are swept by id after every test.
+// The scan module on the real backend (S-SCAN-1, S-SCAN-2, S-SCAN-4; scan INV-1, INV-2, INV-3, INV-5, INV-6, INV-7, INV-8, INV-9, INV-4 `dangerous_locked`).
+// The first part runs with no scan worker: the settings (validation, partial save, audit), the target list and why a device is not on it, the refusals
+// of a run, the probe log (empty) and its CSV, the rescan log (empty), the page and the roles; `can_scan` is false with the reason the page shows.
+// The second part (`with the scanner`, D-427) starts the REAL worker of sensor-active in the box process with a FAKE nuclei (cmd/vedette/e2escan_test.go):
+// a run to the end with a match, Stop now, auto-stop, and the new-KEV rescan log. Global project: the settings are box-wide and the specs put them back;
+// the devices the file declares are swept by id after every test.
+import { createServer, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { expect, request, test, type APIRequestContext, type Page } from '@playwright/test'
-import { api, authFile, box, uniq } from './box'
+import { api, authFile, box, nucleiRuns, scanWorker, sensorCtl, uniq } from './box'
+import { finding, seed, startFeedServer, stopFeedServer, sweep } from './findings-seed'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'
 import { collectErrors } from '../e2e/helpers'
 
@@ -30,10 +33,14 @@ const auditTotal = async (c: APIRequestContext, q: string) => (await api<{ total
 let original: Cfg['config']
 let seq = 0
 const made: string[] = []
-/** A device declared by hand inside the confirmed scope (10.1.0.0/16 of the setup run): hand-declared, so it is pick-only (INV-1). */
-async function device(c: APIRequestContext) {
+/** An address inside the confirmed scope (10.1.0.0/16 of the setup run): a counter, and the process id: no address repeats in a run or between two workers. */
+function nextIp() {
   const n = seq++
-  const ip = `10.1.${100 + (process.pid % 50) * 2 + Math.floor(n / 200)}.${(n % 200) + 1}` // a counter, and the process id: no address repeats in a run or between two workers
+  return `10.1.${100 + (process.pid % 50) * 2 + Math.floor(n / 200)}.${(n % 200) + 1}`
+}
+/** A device declared by hand inside the confirmed scope: hand-declared, so it is pick-only (INV-1). */
+async function device(c: APIRequestContext) {
+  const ip = nextIp()
   const name = uniq('scan')
   const r = await api<{ id: string }>(c, 'POST', '/inventory/devices', { vendor: `Vend-${name}`, product: `Prod-${name}`, version: '1.0', name, ip })
   expect(r.status, JSON.stringify(r.body)).toBe(201)
@@ -72,14 +79,13 @@ test('no scan container: the settings say so with the reason, the box itself is 
     expect((await api(c, 'GET', '/scans/events')).body).toEqual({ items: [], auto_rescan: true })
 
     await page.goto('/scans')
-    // BUG (.ai/deferred/feat-e2e-real-specs-sal.md): the title and the meta line say "confirm the scan scope first" because they key on can_scan alone, while the commitment is ticked
-    // and the real block is the missing scanner. Not asserted here: asserting the wrong text would make the fix fail this spec.
-    await expect(h1(page)).toBeVisible()
+    await expect(h1(page)).toHaveText('Cannot scan: the vulnerability scanner is not available') // the commitment is ticked: the block is the scanner
+    await expect(page.locator('header').getByText(UNAVAILABLE, { exact: true }), 'the reason under the title').toBeVisible()
     await expect(page.getByText(`Confirmed scope: ${s.scope.networks.join(', ')}. Vedette never scans any address outside it.`)).toBeVisible()
     await expect(page.getByText(/^Scan scope commitment ticked on .*, confirmed by admin@e2e\.test\.$/)).toBeVisible()
     await expect(page.getByText('This is the Vedette box itself, never scanned')).toBeVisible()
     await expect(page.getByRole('button', { name: /^Scan now/ })).toBeDisabled()
-    await expect(page.getByText(UNAVAILABLE, { exact: true }), 'the reason stands next to the disabled button').toBeVisible()
+    await expect(page.getByRole('tabpanel', { name: 'Scans and history' }).getByText(UNAVAILABLE, { exact: true }), 'the reason stands next to the disabled button').toBeVisible()
     await expect(page.getByText('Vedette is provided as-is. Its author is not responsible for how you use it.')).toBeVisible()
     await expectAccessible(page, 'scans')
     await noVietnamese(page, 'scans')
@@ -267,37 +273,203 @@ test('roles: a viewer reads, an operator may start and stop (and meets the same 
   } finally { await admin.dispose() }
 })
 
-// ---- needs the scan worker (slice 7 seam) and the scan image: the real flow is in the body (D-171 (2), D-198) ----
-test.fixme('a run goes to the end: progress, per-device results, a match confirms a finding and links to it, the probe log has one row per device and template (INV-3, INV-7, INV-8; needs the worker)', async ({ page }) => {
-  const c = await as('admin')
-  const d = await device(c)
-  const start = await api<{ id: string }>(c, 'POST', '/scans/runs', { targets: [d.id] })
-  expect(start.status).toBe(201)
-  await page.goto('/scans')
-  await expect(h1(page)).toContainText('Scanning')
-  await expect(h1(page)).toContainText('Last scan', { timeout: 60_000 })
-  await c.dispose()
-})
-test.fixme('Stop now: Stopping, then Stopped within 5 seconds, devices not reached are not touched; a second run while one runs is 409 already_running (INV-3, INV-6; needs the worker)', async ({ page }) => {
-  const c = await as('admin')
-  const d = await device(c)
-  const run = await api<{ id: string }>(c, 'POST', '/scans/runs', { targets: [d.id] })
-  expect((await api<Err>(c, 'POST', '/scans/runs', { targets: [d.id] })).body.error.code).toBe('already_running')
-  await page.goto('/scans')
-  await page.getByRole('button', { name: 'Stop now' }).click()
-  await expect(h1(page)).toContainText('was stopped', { timeout: 5_000 })
-  expect((await api<Err>(c, 'POST', `/scans/runs/${run.body.id}/stop`)).body.error.code).toBe('not_running')
-  await c.dispose()
-})
-test.fixme('auto-stop: a device that stops answering ends the run as auto_stopped with the reason (INV-6; needs the worker, WP-23 deferred line "stop when a device does not respond")', async () => {
-  const c = await as('admin')
-  const d = await device(c)
-  await api(c, 'POST', '/scans/runs', { targets: [d.id] })
-  await expect.poll(async () => (await api<{ items: { status: string; stop_reason: string | null }[] }>(c, 'GET', '/scans/runs')).body.items[0]?.status, { timeout: 60_000 }).toBe('auto_stopped')
-  await c.dispose()
-})
-test.fixme('a new KEV with a scan template rescans exactly the matching devices within 60 minutes and the event is in the log; with auto rescan off it is skipped_off (INV-9; needs the worker and a KEV with a template)', async () => {
-  const c = await as('admin')
-  await expect.poll(async () => (await api<{ items: unknown[] }>(c, 'GET', '/scans/events')).body.items.length, { timeout: 60_000 }).toBeGreaterThan(0)
-  await c.dispose()
+// ---- with the scanner (D-427): the REAL worker of sensor-active in the box process, on the real sensor link, with the committed pack and a FAKE
+// nuclei that sends nothing (cmd/vedette/e2escan_test.go). The devices carry a real finding: a KEV entry of a CVE of the pack, for a made-up
+// product, pulled through the CISA feed's mirror address (findings-seed.ts); the nuclei-templates feed is pointed at a loopback list of the
+// same CVEs first, so the entries have `has_template` and announce a new KEV with a template (INV-9). ----
+const PACK_CVES = { match: 'CVE-2002-1131', stop: 'CVE-2005-3128', next: 'CVE-2010-0738', dead: 'CVE-2007-0885', off: 'CVE-2008-2398', pick: 'CVE-2009-0545' } as const
+/** The pack path of a CVE's one template (a pack template is http/cves/<year>/<id>.yaml for these). */
+const tplPath = (cve: string) => `http/cves/${cve.slice(4, 8)}/${cve}.yaml`
+interface Row { target_id: string; label: string; ip: string; template: string | null; result: string; finding_id: string | null; note: string }
+interface Run { id: string; trigger: string; status: string; started_by: string; total: number; done: number; current: unknown; results: Row[]; matched: number; stop_reason: string | null }
+interface Probe { run_id: string | null; ip: string; template: string; result: string }
+interface Ev { cve: string; devices: string[]; run_id: string | null; result: string }
+const runs = async (c: APIRequestContext) => (await api<{ items: Run[]; engine_busy: boolean }>(c, 'GET', '/scans/runs')).body
+const probesOf = async (c: APIRequestContext, run: string) => (await api<{ items: Probe[] }>(c, 'GET', '/scans/probes')).body.items.filter((p) => p.run_id === run).map((p) => [p.ip, p.template, p.result])
+const eventOf = async (c: APIRequestContext, cve: string) => (await api<{ items: Ev[] }>(c, 'GET', '/scans/events')).body.items.find((e) => e.cve === cve)
+/** The run once it has ended (the fake answers at once; the engine call may still be returning, so wait for engine_busy too). */
+async function ended(c: APIRequestContext, id: string): Promise<Run> {
+  let run: Run | undefined
+  await expect.poll(async () => { const r = await runs(c); run = r.items.find((x) => x.id === id); return [run?.status, r.engine_busy] }, { message: `run ${id} ends`, timeout: 60_000 })
+    .toEqual([expect.stringMatching(/^(done|stopped|auto_stopped)$/), false])
+  return run!
+}
+
+test.describe('with the scanner', () => {
+  let tplServer: Server | undefined
+  let inv: { active: { enabled: boolean } } & Record<string, unknown>
+  test.beforeAll(async () => {
+    test.setTimeout(120_000)
+    const a = await as('admin')
+    try {
+      // the worker sits in the slot of the active sensor: with discovery on and its window open the box would send it sweeps of the scope,
+      // which change what the sensors spec sees later (D-427); this block needs no discovery, so it is off while the worker runs
+      inv = (await api(a, 'GET', '/inventory/settings')).body
+      const off = await api(a, 'PUT', '/inventory/settings', { ...inv, active: { ...inv.active, enabled: false }, scope_confirmed: true })
+      expect(off.status, `discovery off: ${JSON.stringify(off.body)}`).toBe(200)
+    } finally { await a.dispose() }
+    tplServer = createServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(Object.values(PACK_CVES).map((id) => JSON.stringify({ ID: id, Info: { Name: id }, file_path: tplPath(id) })).join('\n'))
+    })
+    await new Promise<void>((ok) => tplServer!.listen(0, '127.0.0.1', ok))
+    const c = await as('admin')
+    try {
+      const url = `http://e2e-loopback.lan:${(tplServer.address() as AddressInfo).port}/cves.json` // the box sends this name to 127.0.0.1 (e2eOffline)
+      expect((await api(c, 'PUT', '/feeds/sources/nuclei-templates', { url })).status, 'the template list address').toBe(200)
+      const pulled = await api(c, 'POST', '/feeds/sources/nuclei-templates/fetch')
+      expect(pulled.status, `templates: ${JSON.stringify(pulled.body)}`).toBe(200)
+      const src = (await api<{ items: { id: string; status: string; error: string | null }[] }>(c, 'GET', '/feeds/sources')).body.items.find((i) => i.id === 'nuclei-templates')
+      expect(src, 'the template list pulled from the loopback server').toMatchObject({ status: 'ok', error: null })
+      await startFeedServer()
+      await scanWorker('nomatch')
+      await expect.poll(async () => (await cfg(c)).can_scan, { message: 'the worker reports nuclei and the pack core plans with', timeout: 60_000 }).toBe(true)
+      expect((await cfg(c)).block_reason).toBeNull()
+    } finally { await c.dispose() }
+  })
+  test.afterEach(sweep)
+  test.afterAll(async () => {
+    test.setTimeout(240_000)
+    await sensorCtl({ stop: 'active' })
+    await stopFeedServer()
+    const c = await as('admin')
+    try {
+      expect((await api(c, 'PUT', '/feeds/sources/nuclei-templates', { url: '' })).status, 'reset of the template list address').toBe(200)
+      // discovery back on only once the box no longer counts on the stopped worker (its heartbeat is fresh for 90 s): before that a sweep would be
+      // queued for it, logged in the probe log, and never run
+      await expect.poll(async () => (await cfg(c)).can_scan, { message: 'the box sees the worker gone', timeout: 150_000, intervals: [5_000] }).toBe(false)
+      expect((await api(c, 'PUT', '/inventory/settings', { ...inv, scope_confirmed: true })).status, 'discovery as it was').toBe(200)
+      expect((await api<typeof inv>(c, 'GET', '/inventory/settings')).body.active).toEqual(inv.active)
+    } finally {
+      await c.dispose()
+      if (tplServer) await new Promise((ok) => tplServer!.close(ok))
+    }
+  })
+
+  test('a run goes to the end: progress, per-device results, a match confirms the finding and links to it, nuclei gets only that device and its template, one probe row per device and template (INV-3, INV-7, INV-8)', async ({ page }) => {
+    test.setTimeout(120_000)
+    const errors = collectErrors(page)
+    const c = await as('admin')
+    try {
+      await scanWorker('match')
+      const hit = await seed({ cve: PACK_CVES.match, ip: nextIp() })
+      const plain = await device(c) // no finding: no template applies, nothing is sent for it
+      const sent = (await nucleiRuns()).length
+      const start = await api<Run>(c, 'POST', '/scans/runs', { targets: [hit.deviceId, plain.id] })
+      expect(start.status, JSON.stringify(start.body)).toBe(201)
+      expect(start.body).toMatchObject({ status: 'running', trigger: 'manual', started_by: 'admin@e2e.test', total: 2, done: 0 })
+      const run = await ended(c, start.body.id)
+      expect(run).toMatchObject({ status: 'done', total: 2, done: 2, matched: 1, stop_reason: null, current: null })
+      expect(run.results.find((r) => r.target_id === hit.deviceId)).toMatchObject({ ip: hit.ip, template: tplPath(PACK_CVES.match), result: 'matched', finding_id: hit.findingId })
+      expect(run.results.find((r) => r.target_id === plain.id)).toMatchObject({ ip: plain.ip, result: 'not_applicable', finding_id: null, note: 'No scan template applies to the software on this device.' })
+      expect((await finding(c, hit.findingId)).body.status, 'the match confirms the finding (INV-8)').toBe('confirmed')
+
+      const lines = (await nucleiRuns()).slice(sent)
+      expect(lines, 'one nuclei run: the device with a template').toHaveLength(1)
+      expect(lines[0]).toContain(`-t /usr/share/vedette/nuclei-templates/${tplPath(PACK_CVES.match)}`)
+      expect(lines[0]).toContain(`-u http://${hit.ip}:80 -u https://${hit.ip}:443`) // no known port: 80 and 443
+      expect(lines[0]).not.toContain(plain.ip)
+      expect(lines[0].match(/ -t /g), 'only the template of the finding, never the whole pack').toHaveLength(1)
+      expect(await probesOf(c, run.id), 'one probe row per device and template, written before the job left and closed with its result (INV-7)').toEqual([[hit.ip, tplPath(PACK_CVES.match), 'matched']])
+      expect(await auditTotal(c, 'scan.start')).toBeGreaterThan(0)
+
+      await page.goto('/scans')
+      await expect(h1(page)).toContainText('2 devices checked, 1 device matches a vulnerability')
+      await page.getByRole('button', { name: /^View results of the scan from/ }).filter({ visible: true }).first().click()
+      const table = page.getByRole('table', { name: 'Per-device results' })
+      await expect(table.getByRole('row').filter({ hasText: hit.ip })).toContainText('Matches, still vulnerable')
+      await expect(table.getByRole('row').filter({ hasText: plain.ip })).toContainText('No template applies')
+      await table.getByRole('link', { name: 'Open finding' }).click()
+      await expect(page).toHaveURL(new RegExp(`/findings/${hit.findingId}$`))
+      noErrors(errors)
+    } finally { await c.dispose() }
+  })
+
+  test('Stop now: Stopping, then Stopped within 5 seconds; the device on its way is "stopped" in the probe log, the device not reached is not touched; a second run while one runs is 409 already_running (INV-3, INV-6, INV-7)', async ({ page }) => {
+    test.setTimeout(120_000)
+    const c = await as('admin')
+    try {
+      await scanWorker('hang')
+      const slow = await seed({ cve: PACK_CVES.stop, ip: nextIp() })
+      const next = await seed({ cve: PACK_CVES.next, ip: nextIp() }) // a finding with a template: it would be sent one, if it were reached
+      const sent = (await nucleiRuns()).length
+      const run = await api<Run>(c, 'POST', '/scans/runs', { targets: [slow.deviceId, next.deviceId] })
+      expect(run.status, JSON.stringify(run.body)).toBe(201)
+      const again = await api<Err>(c, 'POST', '/scans/runs', { targets: [next.deviceId] })
+      expect([again.status, again.body.error.code], 'one run at a time').toEqual([409, 'already_running'])
+      await expect.poll(async () => (await nucleiRuns()).length, { message: 'nuclei runs on the first device', timeout: 30_000 }).toBe(sent + 1)
+
+      await page.goto('/scans')
+      await expect(h1(page)).toContainText('Scanning: 0/2 devices done')
+      await expect(page.getByText(`Scanning ${slow.host} (${slow.ip})`)).toBeVisible()
+      const t0 = Date.now()
+      await page.getByRole('button', { name: 'Stop now' }).click()
+      await expect(h1(page)).toContainText('Last scan was stopped', { timeout: 5_000 })
+      expect(Date.now() - t0, 'Stopped within 5 seconds').toBeLessThan(5_000)
+
+      const done = await ended(c, run.body.id) // engine_busy false: the worker killed nuclei and answered
+      expect(done).toMatchObject({ status: 'stopped', stop_reason: 'You pressed Stop now.' })
+      expect(done.results.find((r) => r.target_id === slow.deviceId)).toMatchObject({ result: 'skipped', note: 'Stopped while this device was being scanned: no result. The requests on their way are in the probe log as stopped.' })
+      expect(done.results.find((r) => r.target_id === next.deviceId)).toMatchObject({ result: 'skipped', note: 'Not scanned because the scan was stopped. This device was not touched.' })
+      expect(await probesOf(c, done.id)).toEqual([[slow.ip, tplPath(PACK_CVES.stop), 'stopped']])
+      const lines = (await nucleiRuns()).slice(sent)
+      expect(lines, 'nothing was sent for the device not reached').toHaveLength(1)
+      expect(lines[0]).not.toContain(next.ip)
+      expect((await finding(c, slow.findingId)).body.status, 'a stopped run concludes nothing').toBe('suspected')
+      const stop = await api<Err>(c, 'POST', `/scans/runs/${done.id}/stop`)
+      expect([stop.status, stop.body.error.code]).toEqual([409, 'not_running'])
+    } finally { await c.dispose() }
+  })
+
+  test('auto-stop: a device that stops answering ends the run as auto_stopped with the reason; the devices after it are not touched and the finding stays suspected (INV-6)', async ({ page }) => {
+    test.setTimeout(120_000)
+    const c = await as('admin')
+    try {
+      await scanWorker('dead')
+      const dead = await seed({ cve: PACK_CVES.dead, ip: nextIp() })
+      const after = await device(c)
+      const label = (await targets(c)).find((t) => t.id === dead.deviceId)!.label
+      const start = await api<Run>(c, 'POST', '/scans/runs', { targets: [dead.deviceId, after.id] })
+      expect(start.status, JSON.stringify(start.body)).toBe(201)
+      const run = await ended(c, start.body.id)
+      expect(run).toMatchObject({ status: 'auto_stopped', stop_reason: `${label} (${dead.ip}) stopped responding after 3 failed requests. Vedette stopped so the device is not hung.` })
+      expect(run.results.find((r) => r.target_id === dead.deviceId)).toMatchObject({ result: 'no_response', note: 'No response; scanning stopped so the device is not hung.' })
+      expect(run.results.find((r) => r.target_id === after.id)).toMatchObject({ result: 'skipped' })
+      expect(await probesOf(c, run.id)).toEqual([[dead.ip, tplPath(PACK_CVES.dead), 'no_response']])
+      expect((await finding(c, dead.findingId)).body.status, 'no response is never "not vulnerable"').toBe('suspected')
+
+      await page.goto('/scans')
+      await expect(h1(page)).toContainText('Last scan was stopped')
+      await expect(page.getByRole('table', { name: 'History of scans' }).getByRole('row').nth(1)).toContainText('Auto-stopped')
+    } finally { await c.dispose() }
+  })
+
+  test('a new KEV with a scan template: with auto rescan off the event is skipped_off; on, a matching device that only a hand pick may scan is pick_only with its name; neither sends anything (INV-9)', async ({ page }) => {
+    // A rescan that runs is not here: every device a spec can make is declared by hand (origin manual), which INV-1 keeps out of automatic scans,
+    // and a discovered one would change the box the sensors spec counts. TestContract_INV9_RescanAfterANewKEV carries it (D-427).
+    test.setTimeout(6 * 60_000)
+    const c = await as('admin')
+    try {
+      await scanWorker('match')
+      const sent = (await nucleiRuns()).length
+      const before = (await runs(c)).items.length
+      expect((await api(c, 'PUT', '/scans/config', { ...original, auto_rescan: false })).status).toBe(200)
+      await seed({ cve: PACK_CVES.off, ip: nextIp() })
+      // the rescan job looks every minute and waits a minute for the inventory and the findings to catch up
+      await expect.poll(async () => (await eventOf(c, PACK_CVES.off))?.result, { message: 'the event is logged as skipped', timeout: 180_000, intervals: [5_000] }).toBe('skipped_off')
+      expect((await eventOf(c, PACK_CVES.off))!.run_id).toBeNull()
+
+      expect((await api(c, 'PUT', '/scans/config', { ...original, auto_rescan: true })).status).toBe(200)
+      const pick = await seed({ cve: PACK_CVES.pick, ip: nextIp() })
+      await expect.poll(async () => (await eventOf(c, PACK_CVES.pick))?.result, { message: 'the event is logged as pick-only', timeout: 180_000, intervals: [5_000] }).toBe('pick_only')
+      expect(await eventOf(c, PACK_CVES.pick)).toMatchObject({ devices: [pick.host], run_id: null })
+      expect((await runs(c)).items, 'no run was started').toHaveLength(before)
+      expect((await nucleiRuns()).length, 'nothing was sent').toBe(sent)
+
+      await page.goto('/scans?tab=auto')
+      const log = page.getByRole('table', { name: 'Auto rescan event log' })
+      await expect(log.getByRole('row').filter({ hasText: PACK_CVES.pick })).toContainText('Not scanned automatically: 1 device needs a hand pick in Scan now')
+      await expect(log.getByRole('row').filter({ hasText: PACK_CVES.off })).toContainText('Skipped: turned off')
+    } finally { await c.dispose() }
+  })
 })

@@ -39,8 +39,13 @@ type exitError struct {
 func (e *exitError) Error() string { return e.line }
 
 func newExit(code int, errCode, msg string) *exitError {
+	return newExitIn("bootstrap", code, errCode, msg)
+}
+
+// newExitIn is newExit for another one-shot command (-recover-core-data): the line says which.
+func newExitIn(cmd string, code int, errCode, msg string) *exitError {
 	msg = strings.Join(strings.Fields(msg), " ") // one line, whatever the message holds
-	return &exitError{code: code, line: "vedette-host: bootstrap: " + errCode + ": " + msg}
+	return &exitError{code: code, line: "vedette-host: " + cmd + ": " + errCode + ": " + msg}
 }
 
 // bootFlags are the flags that only -bootstrap takes.
@@ -55,7 +60,10 @@ func (b bootFlags) given() bool {
 }
 
 // exitFor maps an error of the bootstrap to its exit.
-func exitFor(err error) *exitError {
+func exitFor(err error) *exitError { return exitForIn("bootstrap", err) }
+
+func exitForIn(cmd string, err error) *exitError {
+	newExit := func(c int, e, m string) *exitError { return newExitIn(cmd, c, e, m) }
 	code, msg := ops.BootstrapCode(err)
 	switch code {
 	case ops.BootstrapAlreadyInstalled:
@@ -68,6 +76,8 @@ func exitFor(err error) *exitError {
 		return newExit(exitUsage, code, msg)
 	case ops.BootstrapFailed, "unit_unwritable": // the host could not do what was asked: a failure, not a refusal
 		return newExit(exitFailed, code, msg)
+	case ops.RecoverNotUnrecoverable, ops.RecoverJournalInvalid, ops.RecoverCoreRunning, ops.RecoverNoCopy, ops.RecoverVersions, ops.RecoverUnitMismatch, ops.RecoverDBCopyMissing, ops.RecoverInProgress, ops.RecoverCoreRan:
+		return newExit(exitRefused, code, msg)
 	case api.CodeCoreDataInvalid, ops.BootstrapMixedVersions: // refused by a check of the machine or of the release
 		return newExit(exitRefused, code, msg)
 	}

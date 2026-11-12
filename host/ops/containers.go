@@ -509,6 +509,9 @@ type transition struct {
 	// Unrecoverable says the host gave up putting core's data back (errUnrecoverable): the journal stays so
 	// that commands for core keep refusing, but nothing retries and core is left as it is (D-138 N1).
 	Unrecoverable bool `json:"unrecoverable,omitempty"`
+	// Recover is the progress of vedette-host -recover-core-data (D-317), written before its first rename so that
+	// a rerun finishes the job instead of guessing from the files. Nothing else reads or writes it.
+	Recover *recoverState `json:"recover,omitempty"`
 }
 
 const (
@@ -663,7 +666,7 @@ func (o *Ops) loadJournal(service string) (transition, jstate, error) {
 		!digestRE.MatchString(t.Digest) || !shaRE.MatchString(t.PrevSHA) || !shaRE.MatchString(t.NewSHA) || (t.RunID != "" && !runIDRE.MatchString(t.RunID)) ||
 		(t.Version != "" && (len(t.Version) > 64 || !tagVersionRE.MatchString(t.Version))) || (t.FromDigest != "" && !digestRE.MatchString(t.FromDigest)) ||
 		(t.BackupID != "" && !hexIDRE.MatchString(t.BackupID)) || (t.DBRevert != "" && t.DBRevert != dbBackup && t.DBRevert != dbAside) ||
-		len(t.Aside) > 8 || slices.ContainsFunc(t.Aside, func(n string) bool { return !isAsideName(n) }) {
+		len(t.Aside) > 8 || slices.ContainsFunc(t.Aside, func(n string) bool { return !isAsideName(n) }) || !t.Recover.valid() {
 		return transition{}, jInvalid, nil
 	}
 	return t, jOK, nil

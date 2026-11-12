@@ -7,6 +7,7 @@ import { Toaster, toast } from 'sonner'
 import { makeQueryClient } from '@/app/App'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
+import { collection } from '@/mocks/db'
 import { assetsStore, auditStore, modulesStore, orgStore, sessionStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
 import SiemSettings from './SiemSettings'
@@ -283,6 +284,26 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(((await getJson('/logs/sources')).retention_days)).toBe(90)
   })
 
+  it('shortening the retention asks first: Cancel keeps it, Delete older lines saves; lengthening needs no dialog', async () => {
+    renderApp('/logs')
+    const select = await screen.findByLabelText('Keep logs for')
+    await userEvent.selectOptions(select, '7')
+    const dialog = await screen.findByRole('dialog', { name: 'Keep logs for 7 days only?' })
+    expect(within(dialog).getByText('Log lines older than 7 days will be deleted at the next cleanup (within about an hour) and cannot be restored.')).toBeInTheDocument()
+    await expectNoA11yViolations(dialog)
+    expect((await getJson('/logs/sources')).retention_days).toBe(30)
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect((await getJson('/logs/sources')).retention_days).toBe(30)
+    await userEvent.selectOptions(select, '7')
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete older lines' }))
+    await waitFor(async () => expect((await getJson('/logs/sources')).retention_days).toBe(7))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await userEvent.selectOptions(select, '180')
+    await waitFor(async () => expect((await getJson('/logs/sources')).retention_days).toBe(180))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('no sources yet: the empty state says what to do and nothing else is shown', async () => {
     server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({ box: { ip: '192.168.10.250', hostname: 'vedette-hq' }, sources: [], retention_days: 30 })))
     renderApp('/logs')
@@ -313,15 +334,28 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 
-  it('an empty list of bad connections says why it is empty, and says so differently when Feeds is off', async () => {
+  it('an empty list of bad connections says plainly that nothing was found, and says why when Feeds is off', async () => {
     const digest = { generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, new: [], spikes: [], bad_connections: [] }
     server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json(digest)))
     const first = renderApp('/logs')
-    expect(await screen.findByText(/not switched on yet, so an empty list does not mean the network is clean/)).toBeInTheDocument()
+    expect(await screen.findByText('None of your devices connected to a listed bad address in the last 24 hours.')).toBeInTheDocument()
+    expect(screen.queryByText(/not switched on yet/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/The Feeds module is off/)).not.toBeInTheDocument()
     first.unmount()
     modulesStore.update((l) => l.map((m) => (m.id === 'feeds' ? { ...m, enabled: false } : m)))
     renderApp('/logs')
     expect(await screen.findByText(/The Feeds module is off, so no connection can be matched/)).toBeInTheDocument()
+  })
+
+  it('the digest shows the hits of the last 24 hours only, newest first, with the device resolved when it is read', async () => {
+    const row = (id: string, hours: number, ip: string, dest: string) => ({ id, ts: new Date(Date.now() - hours * 3600e3).toISOString(), src_ip: ip, dest, dest_kind: 'ip' as const, seen_via: 'syslog:FW-HQ', feeds: ['x'], confidence: 0.5 })
+    collection<ReturnType<typeof row>[]>('logs_ioc_hits', () => []).set([row('b-old', 30, '192.168.10.20', '203.0.113.99'), row('b-a', 5, '192.168.10.20', '203.0.113.51'), row('b-b', 1, '192.168.10.20', '203.0.113.50')])
+    renderApp('/logs')
+    const table = await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })
+    expect(within(table).queryByText('203.0.113.99')).not.toBeInTheDocument()
+    expect(within(table).getAllByRole('link', { name: /^Look up / }).map((a) => a.textContent)).toEqual(['Look up 203.0.113.50', 'Look up 203.0.113.51'])
+    const nas = assetsStore.get().find((a) => a.ip === '192.168.10.20')!
+    expect(within(table).getAllByRole('link', { name: nas.hostname! })).toHaveLength(2)
   })
 
   it('logs module off: says where to turn it on', async () => {

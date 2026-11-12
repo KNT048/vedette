@@ -1,6 +1,7 @@
 package signature
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -215,7 +216,7 @@ func FuzzSignature(f *testing.F) {
 		if len(r.Dest) > MaxDestBytes || len(r.Src) > MaxDestBytes {
 			t.Fatalf("address too long: %q %q", r.Src, r.Dest)
 		}
-		if again := set.Of(kind, line); again != r {
+		if again := set.Of(kind, line); !reflect.DeepEqual(again, r) {
 			t.Fatalf("not deterministic: %+v then %+v", r, again)
 		}
 	})

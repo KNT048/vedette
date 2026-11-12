@@ -5,7 +5,7 @@ import { expect, type APIRequestContext } from '@playwright/test'
 import { api, sensorCtl } from './box'
 export { as } from './findings-seed'
 
-export interface Svc { port: number; proto?: string; name?: string; product?: string | null; version?: string | null }
+export interface Svc { port: number; proto?: string; name?: string; product?: string | null; version?: string | null; source: string; confidence: number }
 export interface Obs { id: string; field: string; value: string; source: string; confidence: number; current: boolean }
 export interface Dev {
   id: string; ip: string; mac: string | null; kind: string; hostname: string | null; approved: boolean; is_box: boolean; first_scan_at: string | null; origin: string

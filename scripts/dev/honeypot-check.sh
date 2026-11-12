@@ -18,6 +18,7 @@ tag=hpcheck
 img=localhost/vedette-honeypot:$tag
 id=$$
 name=vedette-hp-check-$id
+vol=vedette-hp-log-check-$id
 client=vedette-hp-client-$id
 net=vedette-hp-net-$id
 # shellcheck disable=SC1091
@@ -28,6 +29,7 @@ work=$(mktemp -d "$root/check.XXXXXX")
 cleanup() {
 	$c rm -f "$name" "$client" >/dev/null 2>&1 || true
 	$c network rm -f "$net" >/dev/null 2>&1 || true
+	$c volume rm -f "$vol" >/dev/null 2>&1 || true
 	[ "${VEDETTE_HP_KEEP_IMAGE:-0}" = 1 ] || $c rmi -f "$img" >/dev/null 2>&1 || true
 	# the log files belong to the container's user (podman's :U): remove them from inside the user namespace
 	$c unshare rm -rf "$work" 2>/dev/null || rm -rf "$work"
@@ -47,11 +49,19 @@ VEDETTE_HP_OUT="$work/config" go test ./deploy/containers -run '^TestHoneypotWri
 [ -s "$work/config/opencanary.conf" ] && [ -s "$work/config/honeytokens.json" ] || fail "fixture files missing"
 ok "opencanary.conf and honeytokens.json written by modules/honeypot"
 
-# 2. run it as the unit does
+# 2. run it as the unit does. log/ is the size-capped tmpfs volume of the unit (D-318): its options are read from the golden file of
+# vedette-hp-log.volume, so this check and the shipped unit cannot drift apart.
+volfile=host/ops/testdata/units/vedette-hp-log.volume
+grep -qx 'Type=tmpfs' "$volfile" && grep -qx 'Device=tmpfs' "$volfile" || fail "$volfile is not a tmpfs volume"
+volopts=$(sed -n 's/^Options=//p' "$volfile")
+[ -n "$volopts" ] || fail "no Options= in $volfile"
+$c volume create --opt device=tmpfs --opt type=tmpfs --opt "o=$volopts" "$vol" >/dev/null
+# what core does: read the log through a second container, another uid, read-only (the "other" bits of init.py's mode 0755)
+snap() { $c run --rm --user 10001:10002 --entrypoint /bin/cat -v "$vol:/var/lib/vedette/honeypot/log:ro,noexec" "$img" /var/lib/vedette/honeypot/log/opencanary.jsonl >"$work/log/opencanary.jsonl" 2>/dev/null || true; }
 $c network create "$net" >/dev/null
 $c run -d --name "$name" --network "$net" --read-only --tmpfs /tmp --cap-drop=ALL --security-opt no-new-privileges \
 	--sysctl net.ipv4.ip_unprivileged_port_start=0 --memory 256m --memory-swap 256m --pids-limit 128 \
-	-v "$work/config:/var/lib/vedette/honeypot/config:ro" -v "$work/log:/var/lib/vedette/honeypot/log:U" "$img" >/dev/null
+	-v "$work/config:/var/lib/vedette/honeypot/config:ro" -v "$vol:/var/lib/vedette/honeypot/log:U,noexec" "$img" >/dev/null
 ip=
 for _ in $(seq 1 90); do
 	[ "$($c inspect -f '{{.State.Running}}' "$name")" = true ] || fail "the container stopped"
@@ -121,13 +131,15 @@ $c exec "$client" smbclient -U 'x|6.6.6.6|7.7.7.7%y' "//$ip/Shared" -c 'get "Q4 
 # 5. the lines in the mounted log/
 want=4000,3000,5000
 for _ in $(seq 1 30); do
+	snap
 	n=$(grep -c '"logtype": 5000' "$work/log/opencanary.jsonl" 2>/dev/null || true)
 	h=$(grep -c '"logtype": 3000' "$work/log/opencanary.jsonl" 2>/dev/null || true)
 	s=$(grep -c '"logtype": 4000' "$work/log/opencanary.jsonl" 2>/dev/null || true)
 	[ "${n:-0}" -ge 2 ] && [ "${h:-0}" -ge 1 ] && [ "${s:-0}" -ge 1 ] && break
 	sleep 1
 done
-[ -s "$work/log/opencanary.jsonl" ] || fail "no opencanary.jsonl in the mounted log/"
+snap
+[ -s "$work/log/opencanary.jsonl" ] || fail "no opencanary.jsonl in the mounted log/ (read through a second container, uid 10001, read-only)"
 python3 -I -c '
 import json, sys
 for l in open(sys.argv[1]):
@@ -142,10 +154,45 @@ case "$smb_lines" in *'"FILENAME": "/Q4 payroll.xlsx"'*) ;; *) fail "no SMB hit 
 grep '"logtype": 5000' "$work/log/opencanary.jsonl" | grep -v "\"src_host\": \"$cip\"" | grep -q . && fail "an SMB line whose source is not the client $cip"
 grep -q '6\.6\.6\.6' "$work/log/opencanary.jsonl" && fail "a forged source address reached the log"
 ok "log/opencanary.jsonl holds log types 4000, 3000 and 5000 (file tokens), every SMB source is the client $cip, no forged address"
-stat -c '%a %U' "$work/log/opencanary.jsonl" | sed 's/^/    log file mode and owner: /'
 VEDETTE_HP_LOGFILE="$work/log/opencanary.jsonl" VEDETTE_HP_WANT=$want go test ./deploy/containers -run '^TestHoneypotLogFileParses$' -count=1 -v 2>&1 | grep -vE '^(=== RUN|PASS$)' | cut -c1-600 | sed 's/^/    /' || true
 VEDETTE_HP_LOGFILE="$work/log/opencanary.jsonl" VEDETTE_HP_WANT=$want go test ./deploy/containers -run '^TestHoneypotLogFileParses$' -count=1 >/dev/null || fail "honeypot.ParseLine does not accept the log"
 ok "modules/honeypot ParseLine accepts every line"
+
+# 5b. the cap (D-318): the mount has the unit's options, and a container that writes past size= gets ENOSPC (and so does the 1025th file);
+# the second container still cannot write (:ro). Done last: log/ is full for a moment, so OpenCanary could lose a line meanwhile.
+mnt=$($c exec "$name" /usr/bin/python3 -I -c 'print([l for l in open("/proc/mounts") if " /var/lib/vedette/honeypot/log " in l][0].strip())')
+echo "    log mount: $mnt"
+for need in 'tmpfs ' size=65536k nr_inodes=1024 nosuid nodev noexec; do
+	case "$mnt" in *"$need"*) ;; *) fail "the log mount lacks $need: $mnt" ;; esac
+done
+res=$($c exec "$name" /usr/bin/python3 -I -c '
+import errno, os
+d = "/var/lib/vedette/honeypot/log/"
+fd = os.open(d + "fill", os.O_WRONLY | os.O_CREAT, 0o644)
+chunk = b"x" * (1 << 20)
+n = 0
+try:
+    while n < 200:
+        os.write(fd, chunk); n += 1
+    print("no ENOSPC after", n, "MiB")
+except OSError as e:
+    print("ENOSPC" if e.errno == errno.ENOSPC else "errno %d" % e.errno, "after", n, "MiB")
+os.close(fd); os.unlink(d + "fill")
+made = []
+try:
+    for i in range(5000):
+        os.close(os.open(d + "n%d" % i, os.O_WRONLY | os.O_CREAT, 0o644)); made.append(i)
+    print("no ENOSPC for files")
+except OSError as e:
+    print("files:", "ENOSPC" if e.errno == errno.ENOSPC else "errno %d" % e.errno, "after", len(made))
+for i in made:
+    os.unlink(d + "n%d" % i)
+')
+echo "$res" | sed 's/^/    /'
+echo "$res" | grep -q '^ENOSPC after 6[0-9] MiB$' || fail "writing past the 64 MiB cap did not end in ENOSPC: $res"
+echo "$res" | grep -q '^files: ENOSPC after ' || fail "creating files past nr_inodes did not end in ENOSPC: $res"
+if $c run --rm --user 10001:10002 --entrypoint /usr/bin/python3 -v "$vol:/var/lib/vedette/honeypot/log:ro,noexec" "$img" -I -c 'open("/var/lib/vedette/honeypot/log/x", "w")' 2>/dev/null; then fail "log/ is writable through the read-only mount"; fi
+ok "log/ is a tmpfs capped at 64 MiB and 1024 files: past the cap the container gets ENOSPC; the :ro reader (uid 10001) sees the log and cannot write"
 
 # 6. size and contents
 $c image inspect "$img" --format 'honeypot image: {{.Size}} bytes, user {{.Config.User}}, arch {{.Architecture}}'

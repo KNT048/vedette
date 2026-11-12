@@ -497,3 +497,73 @@ func TestContract_Scan_ARecordWithoutTheBuiltImageIsNoRecord(t *testing.T) {
 		t.Error("a scan record with no base digest was believed")
 	}
 }
+
+// D-318: a link at the honeypot log volume unit is refused in step 1 too, whichever of core and honeypot is requested, before any
+// credential volume or unit is written.
+func TestContract_Bootstrap_ALinkAtTheLogVolumeIsRefusedBeforeAnyWrite(t *testing.T) {
+	t.Parallel()
+	for _, svcs := range [][]string{{api.ServiceHoneypot}, {api.ServiceCore}, {api.ServiceHoneypot, api.ServiceCore}} {
+		e := startUpd(t)
+		target := filepath.Join(e.m.Root, "elsewhere")
+		if err := os.WriteFile(target, []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(target, filepath.Join(e.m.UnitsDir(), "vedette-hp-log.volume")); err != nil {
+			t.Fatal(err)
+		}
+		a := e.bsDocs(t, 5, v1, bsDigest)
+		a.Services = svcs
+		_, err := e.bootstrap(a)
+		if code, _ := ops.BootstrapCode(err); code != api.CodeUnitUnsafe {
+			t.Fatalf("%v: %v", svcs, err)
+		}
+		e.bsNothingButScan(t, "bad log volume file")
+		if w := e.writes(); len(w) != 0 {
+			t.Errorf("%v: podman wrote before the refusal: %v", svcs, w)
+		}
+		for _, role := range []string{"passive", "active"} {
+			if _, err := os.Lstat(filepath.Join(e.m.UnitsDir(), "vedette-creds-"+role+".volume")); err == nil {
+				t.Errorf("%v: a credential volume was written before the refusal", svcs)
+			}
+		}
+		if b, _ := os.ReadFile(target); string(b) != "x" { //nolint:gosec // test: a path under the fake root
+			t.Errorf("%v: the host wrote through a link: %q", svcs, b)
+		}
+	}
+}
+
+// D-318: core and honeypot share the log volume, so one of them must not move to it while the other still binds the old directory
+// (core would read an empty tmpfs while the honeypot writes to disk: every hit lost without an error).
+func TestContract_Bootstrap_CoreAndHoneypotMoveToTheLogVolumeTogether(t *testing.T) {
+	t.Parallel()
+	oldUnit := "[Container]\nVolume=/var/lib/vedette-honeypot/log:/var/lib/vedette/honeypot/log:U\n"
+	for _, c := range []struct{ asked, other string }{{api.ServiceCore, api.ServiceHoneypot}, {api.ServiceHoneypot, api.ServiceCore}} {
+		e := startUpd(t)
+		e.m.WriteRoot("etc/containers/systemd/vedette-"+c.other+".container", oldUnit)
+		a := e.bsDocs(t, 5, v1, bsDigest)
+		a.Services = []string{c.asked}
+		a.ForceUnits = true
+		_, err := e.bootstrap(a)
+		if code, _ := ops.BootstrapCode(err); code != "invalid_args" {
+			t.Errorf("%s alone beside an old %s unit: %v", c.asked, c.other, err)
+		}
+		if _, err := e.m.Unit(c.asked); err == nil {
+			t.Errorf("a unit for %s was written", c.asked)
+		}
+		if b, _ := e.m.Unit(c.other); b != oldUnit {
+			t.Errorf("the %s unit changed: %q", c.other, b)
+		}
+		// both together are accepted
+		a.Services = []string{api.ServiceCore, api.ServiceHoneypot}
+		if _, err := e.bootstrap(a); err != nil {
+			t.Errorf("core and honeypot together: %v", err)
+		}
+	}
+	// no honeypot unit at all (module never enabled): core alone is fine
+	e := startUpd(t)
+	a := e.bsDocs(t, 5, v1, bsDigest)
+	a.Services = []string{api.ServiceCore}
+	if _, err := e.bootstrap(a); err != nil {
+		t.Errorf("core alone, no honeypot unit: %v", err)
+	}
+}

@@ -42,7 +42,7 @@ function Shell() {
   }, [live, list, t])
 
   const title = !list ? t('titleLoading')
-    : !live && !last && cfg.data && !cfg.data.can_scan ? t('titleSetup')
+    : !live && !last && cfg.data && !cfg.data.can_scan ? t(cfg.data.scope.commitment ? 'titleScannerDown' : 'titleSetup')
     : live ? (live.status === 'stopping' ? t('titleStopping') : t('titleRunning', { done: live.done, total: live.total }))
     : !last ? t('titleNone')
     : last.status === 'done' ? t('titleDone', { time: fmtRelative(last.ended_at), total: last.total, count: last.matched })
@@ -53,7 +53,7 @@ function Shell() {
       <PageHeader
         title={title}
         stories={['S-SCAN-1', 'S-SCAN-2', 'S-SCAN-3', 'S-SCAN-4', 'S-SCAN-5']}
-        meta={!cfg.data ? null : !cfg.data.can_scan || !cfg.data.scope.networks.length ? t('metaSetup') : t('meta', { networks: cfg.data.scope.networks.join(', '), next: cfg.data.next_run ? fmtDateTime(cfg.data.next_run) : cfg.data.schedule_blocked_reason ? t('noScheduleZone') : t('noSchedule') })}
+        meta={!cfg.data ? null : !cfg.data.can_scan ? (cfg.data.scope.commitment ? (cfg.data.block_reason ?? t('metaScannerDown')) : t('metaSetup')) : !cfg.data.scope.networks.length ? t('metaSetup') : t('meta', { networks: cfg.data.scope.networks.join(', '), next: cfg.data.next_run ? fmtDateTime(cfg.data.next_run) : cfg.data.schedule_blocked_reason ? t('noScheduleZone') : t('noSchedule') })}
         actions={<SampleDataNote />}
       />
       <Tabs value={tab} onValueChange={(v) => { const p = new URLSearchParams(params); p.set('tab', v); setParams(p, { replace: true }) }}>

@@ -1,6 +1,4 @@
 # Deferred: feat/logs-l3-signatures (WP-24 L3)
 
 - [ ] 2026-11-11 — The profiles are checked against documented sample lines only (FortiOS log reference, RouterOS manual, Windows event ids), not against a real device: run FortiGate, MikroTik and a Windows NXLog/Snare forwarder in the lab, paste real lines into `samples`, and check what the digest says of a quiet day — why later: needs the lab — where: modules/logs/data/profiles/*.json.
-- [ ] 2026-11-11 — `Result.Src` (the profile's source address) is parsed and tested but not stored: the daily row has no source address, only the destination, as the plan says. L4 (IOC hits, `src_ip`) reads it — why later: L4 — where: modules/logs/signature/signature.go `Result`.
 - [ ] 2026-11-11 — `docs/DATA_MODEL.md` 4.8 still names `logs_signature_day` (source FK, 8 days); the real tables are `logs_signature_daily`, `logs_signature_buckets`, `logs_anomaly_sent` in logs.db (CONTRACT "Tables owned"). Fix the row with the next docs pass — why later: shared doc, not part of the slice — where: docs/DATA_MODEL.md:304.
-- [ ] 2026-11-11 — PR notes: volume migration 0003 (and config 0002) were rewritten in place during review, which is fine because they are not on main; any box that ran an earlier build of this branch must delete logs.db — where: modules/logs/migrations.

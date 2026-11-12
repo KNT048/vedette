@@ -168,7 +168,7 @@ func (s *Service) scanNewest(ctx context.Context, out EventsView, where string, 
 		rangeArgs := append(append([]any{}, args...), hiArgs...)
 		// The lower end of this step: the rowsPer-th row below hi; no such row = the step reaches the start of the window.
 		var lo cursor
-		err := vol.QueryRowContext(ctx, `SELECT ts, id FROM logs_events WHERE `+where+hiSQL+` ORDER BY ts DESC, id DESC LIMIT 1 OFFSET `+strconv.Itoa(rowsPer-1), rangeArgs...).Scan(&lo.ts, &lo.id) //nolint:gosec // where and hiSQL are constants with ? placeholders; every value is bound
+		err := vol.QueryRowContext(ctx, `SELECT ts, id FROM logs_events WHERE `+where+hiSQL+` ORDER BY ts DESC, id DESC LIMIT 1 OFFSET `+strconv.Itoa(rowsPer-1), rangeArgs...).Scan(&lo.ts, &lo.id)
 		last := errors.Is(err, sql.ErrNoRows)
 		if err != nil && !last {
 			return s.stepFailed(ctx, out, hi, step, err)

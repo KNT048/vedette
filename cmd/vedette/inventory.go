@@ -8,7 +8,6 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
-	"github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/inventory"
 )

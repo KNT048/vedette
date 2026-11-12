@@ -26,7 +26,7 @@
 - **GUI**: SHA-256 của script thay đổi khi chứng chỉ ghim đổi (script nhúng nó).
 
 ## Modifying: kéo Wazuh (`wazuh.go`, `wazuh_client.go`, `wazuh_handlers.go`, job `wazuh-pull`, lát 4, D-305..D-309)
-- **core/jobs**: nhịp 1 phút; chu kỳ thật là `interval_minutes` ∈ {5, 15, 60, 360, 1440} (`WazuhIntervals` = GUI `WazuhInput.interval_minutes`; đổi một bên làm bên kia vỡ).
+- **core/jobs**: nhịp 1 phút; chu kỳ thật là `interval_minutes` ∈ {5, 15, 60, 360, 1440} (`WazuhIntervals` = GUI `WazuhInput.interval_minutes`; đổi một bên làm bên kia vỡ). Lượt kéo đầu có agent chưa có `netaddr` đặt `next_pull` = +1 phút một lần (đổi `wazuhPullEvery` hay `last_sync` làm test `FirstPullRetriesOnce` vỡ).
 - **core/conn** (facade `Service.NewHTTPS`, `HTTPSTargetProblem`, D-305): đổi chính sách địa chỉ hay TLS của `core/conn` là đổi luôn của Wazuh; `TestWazuh_FormChecks` (loopback, metadata, hộp) và `TestWazuh_PinMismatchStopsThePull` phải chạy lại. Mật khẩu Wazuh nằm trong `core_secret` purpose `intake_wazuh.password`, mở bằng `Secrets.Open` như các module khác (không `Reserve`/`Restrict`, hai test quét mã không đổi).
 - **Settings → Privacy** (`modules/core/handlers_privacy.go` luồng 14, `PrivacyFacts.WazuhConnected`, `cmd/vedette` `privacyFacts`, mock `web/src/features/core/mocks.ts`, `PRIVACY.md` hàng 14): đổi cái được gửi (đường dẫn, trường, nhịp) phải sửa cả bốn cùng commit (rules/legal.md).
 - **inventory**: số `agents`/`packages` hiện trong thẻ Wazuh; gói vào kho qua `ReplaceSoftware` với gợi ý chỉ IP (D-307); đổi cách kho tìm thiết bị (MAC trước) → xem lại `agentIP`.

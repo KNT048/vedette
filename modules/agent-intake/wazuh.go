@@ -425,6 +425,12 @@ func (s *Service) WazuhPull(ctx context.Context) error {
 		var q string
 		var args []any
 		switch {
+		case perr == nil && res.unbound > 0 && w.LastSync.IsZero():
+			// The first pull after Save met an agent whose syscollector has not reported its addresses yet (agent just installed): read
+			// again at the next tick, once, so the device appears in about a minute and not after a whole interval. Only the first pull
+			// does this (last_sync is empty only until it succeeds), so a NAT agent that never binds costs one extra pull, not one a minute.
+			q, args = `UPDATE intake_wazuh SET status = 'connected', error = NULL, last_sync = ?, agents = ?, packages = pass_packages + ?, resume_after = NULL, pass_packages = 0, next_pull = ? WHERE id = 1 AND generation = ?`,
+				[]any{store.FormatTS(s.now()), res.agents, res.packages, store.FormatTS(s.now().Add(wazuhPullEvery)), w.generation}
 		case perr == nil:
 			q, args = `UPDATE intake_wazuh SET status = 'connected', error = NULL, last_sync = ?, agents = ?, packages = pass_packages + ?, resume_after = NULL, pass_packages = 0 WHERE id = 1 AND generation = ?`,
 				[]any{store.FormatTS(s.now()), res.agents, res.packages, w.generation}

@@ -380,7 +380,10 @@ func TestWazuh_PullFillsTheInventory(t *testing.T) {
 	if _, ok := r.device("203.0.113.9"); ok || r.deviceCount() != 2 {
 		t.Fatalf("an agent whose address is not its own was written (%d devices)", r.deviceCount())
 	}
-	// Not due again until the interval has passed; a failure does not pull sooner.
+	// The NAT'd agent was unbound in this first pull: one more pull comes after a minute (TestWazuh_FirstPullRetriesOnceWhenAnAgentHasNoAddressesYet),
+	// then the interval rules: not due again until it has passed; a failure does not pull sooner.
+	r.clock.Advance(time.Minute)
+	r.pull()
 	n := len(r.srv.Requests())
 	r.clock.Advance(59 * time.Minute)
 	r.pull()
@@ -393,6 +396,51 @@ func TestWazuh_PullFillsTheInventory(t *testing.T) {
 		t.Fatal("did not pull after the interval")
 	}
 	r.assertWazuhNowhere()
+}
+
+// A Wazuh agent installed a moment ago has no syscollector netaddr/netiface yet (the API answers an empty affected_items, as in the real run of
+// 2026-11-12): the first pull cannot bind it, and used to wait a whole interval. It now reads again at the next tick, once; the device appears
+// in the same pull that finds its addresses. A later pull that skips an agent does not go back to a one-minute rhythm (last_sync is set).
+func TestWazuh_FirstPullRetriesOnceWhenAnAgentHasNoAddressesYet(t *testing.T) {
+	r := newWzRig(t)
+	r.fake.netaddr["001"], r.fake.netiface["001"] = nil, nil // web01 has not reported yet
+	r.save()
+	r.pull()
+	if _, ok := r.device(ipLinux); ok {
+		t.Fatal("an agent without addresses was written")
+	}
+	// The agent's syscollector reports; one minute later (not an interval) the same Service pulls again and the device is there.
+	r.fake.mu.Lock()
+	r.fake.netaddr["001"] = []map[string]any{{"iface": "eth0", "address": ipLinux, "proto": "ipv4"}}
+	r.fake.netiface["001"] = []map[string]any{{"name": "eth0", "mac": macLinux}}
+	r.fake.mu.Unlock()
+	r.clock.Advance(time.Minute)
+	r.pull()
+	d, ok := r.device(ipLinux)
+	if !ok || d.MAC == nil || *d.MAC != macLinux {
+		t.Fatalf("the device did not appear in the pull after one minute: %v %+v", ok, d.AssetCore)
+	}
+	// The NAT'd agent is still unbound, but that was the one retry: the next pull is an interval away.
+	n := len(r.srv.Requests())
+	r.clock.Advance(time.Minute)
+	r.pull()
+	if len(r.srv.Requests()) != n {
+		t.Fatal("pulled again after a minute although the one retry was already used")
+	}
+}
+
+// Nothing unbound in the first pull: no early retry, the interval rules from the start.
+func TestWazuh_FirstPullWithEveryAgentBoundWaitsTheInterval(t *testing.T) {
+	r := newWzRig(t)
+	r.fake.agents = r.fake.agents[:3:3] // without the NAT'd agent 003
+	r.save()
+	r.pull()
+	n := len(r.srv.Requests())
+	r.clock.Advance(time.Minute)
+	r.pull()
+	if len(r.srv.Requests()) != n {
+		t.Fatal("pulled again after a minute with every agent bound")
+	}
 }
 
 // FORBID-4: one POST (the login), GETs on the allow-list, nothing else, whatever the account may do.

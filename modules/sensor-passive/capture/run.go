@@ -510,7 +510,7 @@ func (r *Runner) flush(ctx context.Context, eng *Engine, final bool) {
 			eng.Requeue(obs)
 			return
 		}
-		// Only a 503 can be about the items, and only while core answers a heartbeat (its store takes a write) at this moment: a
+		// Only a 503 store_busy can be about the items, and only while core answers a heartbeat (its store takes a write) at this moment: a
 		// rate limit, an update window, a certificate being rotated or no answer at all say nothing about any item.
 		if res == busy && !final && r.coreTakesWrites(ctx) && r.poisoned(obs[:n]) {
 			if n > 1 {
@@ -643,7 +643,7 @@ func (r *Runner) deliver(ctx context.Context, eng *Engine, batch []observe.Obser
 		case e.Status == 429 || e.Status == 503 || e.Status == 426 || e.Code == sensorlink.CodeCertRetired:
 			r.retryAfter = e.RetryAfter
 			r.log.WarnContext(ctx, "sensor-passive: core did not take the observations", "count", len(batch), "code", e.Code, "status", e.Status)
-			if e.Status == 503 {
+			if e.Code == sensorlink.CodeStoreBusy { // 503 not_ready is core not knowing enough yet, never an item (D-385)
 				return busy
 			}
 			return retry

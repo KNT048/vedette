@@ -13,6 +13,7 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/modules/logs/signature"
 )
 
 // Events this module publishes, after the transaction that caused them committed (payloads: CONTRACT "Events").
@@ -65,22 +66,33 @@ type BreakerEvent struct {
 	TrippedAt  string `json:"tripped_at"`
 }
 
-// Events this module listens to. The names of the later triggers are listed so the producers know what to publish; this
-// part subscribes to the modules that exist and to nothing else:
+// Events this module listens to (it imports none of their producers; of logs only the stdlib-only address check of logs/signature):
 //
 //	findings.finding.created, findings.finding.status_changed (to confirmed) -> trigger finding
 //	inventory.asset.discovered (a device that is not approved)               -> trigger unknown_device
 //	honeypot.hit.created (a real hit; a test hit publishes nothing)          -> trigger honeypot
 //	logs.ioc_hit.detected (logs L4, D-213)                                   -> trigger ioc_connection (D-335)
 //	(no event) logs.Counts read by PollLogs every minute                    -> trigger log_threshold (#332, D-287)
-//	exposure.port.opened                                                     -> trigger new_port (module not built yet)
+//	exposure.port.opened (cmd/vedette, from exposure's own Diff, D-384)     -> trigger new_port
 const (
 	EventFindingCreated       = "findings.finding.created"
 	EventFindingStatusChanged = "findings.finding.status_changed"
 	EventAssetDiscovered      = "inventory.asset.discovered"
 	EventHoneypotHit          = "honeypot.hit.created"
 	EventIocHit               = "logs.ioc_hit.detected"
+	EventPortOpened           = "exposure.port.opened"
 )
+
+// PortOpenedEvent is the payload of exposure.port.opened (D-384): one port that a scan of an exposure target saw open and the
+// previous scan day of that target did not. cmd/vedette publishes it from exposure's own Diff; the exposure module does not know
+// the name.
+type PortOpenedEvent struct {
+	TargetID string `json:"target_id"`
+	Date     string `json:"date"` // the scan day that saw it, YYYY-MM-DD
+	IP       string `json:"ip"`
+	Port     int    `json:"port"`
+	Service  string `json:"service"`
+}
 
 // decode reads event data, whatever Go type the producer used, through its JSON form: this module does not import the
 // producing modules, only the field names they document.
@@ -112,6 +124,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventAssetDiscovered, s.assetEvent)
 	on(EventHoneypotHit, s.honeypotEvent)
 	on(EventIocHit, s.iocEvent)
+	on(EventPortOpened, s.portEvent)
 	return func() {
 		for _, u := range undo {
 			u()
@@ -356,9 +369,10 @@ func (s *Service) iocEvent(ctx context.Context, data any) error {
 	var dest string
 	destOK := false
 	switch e.DestKind {
-	case "ip": // a listed address is a public one (logs refuses the rest); a feed listing private space must not make a rule block a LAN host
+	case "ip": // a listed address is a public one by logs' own rule (it refuses the rest): a feed listing private, carrier-grade NAT
+		// (a Tailscale peer), documentation or benchmarking space must not make a rule block a host the customer reaches
 		dest, destOK = CheckValue(PIP, e.Dest)
-		destOK = destOK && addrOf(dest).IsGlobalUnicast() && !addrOf(dest).IsPrivate()
+		destOK = destOK && signature.PublicDest(addrOf(dest))
 	case "domain":
 		dest, destOK = CheckValue(PDomain, e.Dest)
 	}
@@ -439,6 +453,42 @@ func (s *Service) iocRoom(ctx context.Context) bool {
 		}
 	}
 	return false
+}
+
+// portEvent records an exposure.port.opened as a new_port event (D-384). The scan was of the customer's own verified target, but its
+// text came from the network (the service guess is read from a banner), so every field is checked at the edge as for the other
+// triggers: an id-like target, a scan day, a public address, a port 1..65535, a one-line service guess. Anything
+// else is skipped with a warning. The event id is the target, the day, the address and the port, so a second scan on the same day
+// (it replaces that day's snapshot) never runs a rule twice for one port; a port that closes and opens again on a later day does.
+func (s *Service) portEvent(ctx context.Context, data any) error {
+	var e PortOpenedEvent
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	ip, ipOK := CheckValue(PIP, e.IP)
+	_, dateErr := time.Parse(time.DateOnly, e.Date)
+	switch {
+	case !nameRE.MatchString(e.TargetID):
+		s.cfg.Log.WarnContext(ctx, "response: new port skipped: no valid target id")
+		return nil
+	case dateErr != nil:
+		s.cfg.Log.WarnContext(ctx, "response: new port skipped: no valid scan day")
+		return nil
+	case !ipOK || !publishable(addrOf(ip)): // the block list's own "public": not CGNAT, 198.18/15, 6to4…; IPv4 documentation kept (D-88 L4)
+		s.cfg.Log.WarnContext(ctx, "response: new port skipped: the address is not a public address")
+		return nil
+	case e.Port < 1 || e.Port > 65535:
+		s.cfg.Log.WarnContext(ctx, "response: new port skipped: the port is not between 1 and 65535")
+		return nil
+	}
+	port := strconv.Itoa(e.Port)
+	service := oneLine(cleanLine(e.Service), 60) // cleanLine also drops bidi and other invisible characters a banner may carry
+	summary := "New open port " + port + " on public IP " + ip
+	if service != "" {
+		summary += " (" + service + ")"
+	}
+	return s.StoreEvent(ctx, Det{ID: "port:" + e.TargetID + ":" + e.Date + ":" + ip + ":" + port, Trigger: "new_port", TS: s.ts(),
+		Summary: oneLine(summary, 300), Fields: map[string]string{"ip": ip, "port": port, "service": service, "device": ""}})
 }
 
 func addrOf(s string) netip.Addr { a, _ := netip.ParseAddr(s); return a }

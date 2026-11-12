@@ -9,8 +9,9 @@ import (
 )
 
 // The maintenance window (S-CORE-7, D-53) is core's own setting: days and hours in the organization time
-// zone. It restricts only when a reboot may be scheduled; installs are not tied to it, and unattended-upgrades
-// runs on apt's own timers (host-api 6.3). Same rules as web/src/features/core/osMock.ts.
+// zone. It restricts when a reboot may be scheduled and when the automatic mode of the software update may start a run
+// (updates_auto.go, update-manifest §6); OS installs are not tied to it, and unattended-upgrades runs on apt's own
+// timers (host-api 6.3). Same rules as web/src/features/core/osMock.ts.
 
 // Error codes of the OS endpoints that core decides itself (the host's own are in oshost.go).
 const (

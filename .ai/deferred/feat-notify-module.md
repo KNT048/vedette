@@ -7,7 +7,6 @@
 - [ ] `findings.finding.status_changed`: only `to=confirmed` becomes a notice; decide with the findings module whether reopened or regressed findings should notify too.
 - [ ] Zalo OA token refresh (access tokens last about 25 h; needs refresh_token + app secret_key, a second secret and a contract.ts change): unchanged from feat-notify-adapters.md; the single saved token is used until Zalo rejects it.
 - [ ] Zalo personal sign-in: the QR button in the GUI is a mock that yields a string, not the JSON session NewZaloPersonal needs (the real API answers 400 bad_secret); decide paste-cookies (n8n style) vs porting loginQR; the GUI/mock change is Kiên's.
-- [ ] Retention of notify_send, notify_incident and notify_notice (DATA_MODEL: 1 year, marked [ĐX]): not pruned; only notify_kev is (30 days).
 - [ ] GUI: switch ChannelsSettings, History and Incidents from mock to the real API after WP-05 (`make dev-api REAL=notify`) with the QA.md form matrix and Playwright.
 - [x] Unwired in cmd/vedette: `Tokens` (response module's token record) — Done (#128)
 - [x] Unwired in cmd/vedette: `Config.BoxAddrs` (host LAN IP, WP-08, see the packaging line below) — Moved → #62

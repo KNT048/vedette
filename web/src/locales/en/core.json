@@ -476,6 +476,7 @@
       "notify.resend": "Send alert again",
       "notify.rules_save": "Save alert rules",
       "notify.stale_dropped": "Old alerts dropped",
+      "notify.retention": "Old alert history deleted",
       "sensor-ca.create": "Create sensor certificate authority",
       "sensor-ca.replace": "Replace sensor certificate authority",
       "sensor-cert.issue": "Issue sensor certificate",

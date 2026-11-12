@@ -20,6 +20,10 @@ const (
 	rebootStaleAt   = 5 * time.Minute // a schedule found this late after a host restart is dropped, not run
 	rebootRetryBusy = time.Minute
 	rebootGateTTL   = 10 * time.Minute // a started reboot that has not happened this long after is assumed not to be coming
+	// A started reboot that logind refuses because of a block inhibitor (apt running, D-453) is tried again
+	// this often, for this long, with the write gate raised again at every try; then it is given up.
+	rebootInhibitRetry = 30 * time.Second
+	rebootInhibitWait  = 30 * time.Minute
 )
 
 // rebootGate is set from the moment the host decides to reboot until the boot id changes: every
@@ -147,7 +151,7 @@ func (o *Ops) cmdReboot() server.Command {
 			}
 			return nil
 		},
-		Check: func(_ context.Context, a api.OSRebootArgs) error {
+		Check: func(ctx context.Context, a api.OSRebootArgs) error {
 			if o.installing.Load() {
 				return refuse409(api.CodeInstallInProgress, "An operating system install is running; reboot after it ends.")
 			}
@@ -170,6 +174,16 @@ func (o *Ops) cmdReboot() server.Command {
 			o.rbMu.Unlock()
 			if n >= rebootNowLimit {
 				return refuse409(api.CodeRebootLimit, "The box already rebooted 3 times in the last 24 hours.")
+			}
+			// A block inhibitor (apt installing) refuses now (D-453). An unknown list does not: logind still
+			// refuses the reboot itself, and doReboot then waits for the lock or reports the failure.
+			bl, err := o.shutdownBlockers(ctx)
+			if err != nil {
+				o.log.WarnContext(ctx, "could not read logind's inhibitors; logind decides at reboot time")
+				return nil
+			}
+			if len(bl) > 0 {
+				return refuse409(api.CodeRebootInhibited, inhibitedMessage(bl))
 			}
 			return nil
 		},
@@ -233,6 +247,7 @@ func (o *Ops) setSchedule(at time.Time) error {
 	if err := o.saveRebootLocked(st); err != nil {
 		return err
 	}
+	o.rbWaitNoted = false // a new schedule audits its own wait for a shutdown lock
 	o.armRebootLocked(at)
 	return nil
 }
@@ -277,17 +292,61 @@ func (o *Ops) clearPending() {
 	}
 }
 
-// doReboot audits and runs systemctl reboot. It is the only place the host reboots the machine.
+// doReboot audits and runs systemctl reboot. It is the only place the host reboots the machine. It never
+// passes --check-inhibitors=no or --force (D-453): rebooting while dpkg configures can leave packages broken.
 func (o *Ops) doReboot(ctx context.Context, kind string) {
 	o.note("os.reboot", "reboot_started", map[string]any{"kind": kind})
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	_, code, err := o.exec(ctx, binSystemctl, "reboot")
-	if err != nil || code != 0 {
-		o.log.ErrorContext(ctx, "systemctl reboot failed", "kind", kind, "exit_code", code)
-		o.note("os.reboot", "reboot_failed", map[string]any{"kind": kind})
-		o.clearPending()
+	o.tryReboot(ctx, kind, o.d.Now().Add(rebootInhibitWait), false)
+}
+
+// tryReboot runs systemctl reboot once. When it fails and logind's list shows a block inhibitor (taken after
+// the check, D-453), it raises the write gate again and tries again in rebootInhibitRetry until deadline; the
+// wait is audited once (reboot_waiting_inhibitor). The cause is read from the list again, never from
+// systemctl's text. Any other failure, an unknown list, or the deadline: reboot_failed with the reason, and
+// the gate comes down.
+func (o *Ops) tryReboot(ctx context.Context, kind string, deadline time.Time, waitNoted bool) {
+	rctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	_, code, err := o.exec(rctx, binSystemctl, "reboot")
+	cancel()
+	if err == nil && code == 0 {
+		return
 	}
+	bl, lerr := o.shutdownBlockers(ctx)
+	inhibited := lerr == nil && len(bl) > 0
+	if now := o.d.Now(); inhibited && now.Before(deadline) {
+		if !waitNoted {
+			o.log.WarnContext(ctx, "the reboot waits for a shutdown lock", "kind", kind, "who", bl[0].Who, "why", bl[0].Why)
+			o.note("os.reboot", "reboot_waiting_inhibitor", inhibitDetail(kind, bl))
+		}
+		o.raiseGate(now.UTC()) // keep refusing writes past the gate's 10 minutes while the reboot waits
+		o.rbMu.Lock()
+		if o.stopRetry != nil {
+			o.stopRetry() // the try that is running now (a fired timer; stopping it does nothing more)
+		}
+		o.stopRetry = o.d.AfterFunc(rebootInhibitRetry, func() {
+			if o.isClosed() {
+				return // the host is stopping; the next start drops the pending reboot (startReboot)
+			}
+			o.tryReboot(ctx, kind, deadline, true) // AfterFinish's context is never cancelled; the scheduled path's is Background
+		})
+		o.rbMu.Unlock()
+		return
+	}
+	reason := "systemctl_failed"
+	if inhibited {
+		reason = "inhibited"
+	}
+	o.log.ErrorContext(ctx, "systemctl reboot failed", "kind", kind, "exit_code", code, "reason", reason)
+	d := inhibitDetail(kind, bl)
+	d["reason"] = reason
+	o.note("os.reboot", "reboot_failed", d)
+	o.clearPending()
+}
+
+func (o *Ops) isClosed() bool {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.closed
 }
 
 // gateThenBusy raises the write gate and only then asks whether a command is running. The server
@@ -340,6 +399,25 @@ func (o *Ops) fireScheduled() {
 		o.note("os.reboot", "reboot_skipped_limit", map[string]any{"at": sch.At.Format(time.RFC3339)})
 		return
 	}
+	// A block inhibitor (apt installing) postpones the scheduled reboot like a running command does (D-453):
+	// the schedule stays (reboot_scheduled_at), the wait is audited once, and the 24 hour expiry above bounds
+	// it. An unknown list goes on: logind still refuses, and doReboot waits or reports it.
+	if bl, err := o.shutdownBlockers(context.Background()); err == nil && len(bl) > 0 {
+		o.gate.Store(nil)
+		if o.stopTick != nil {
+			o.stopTick()
+		}
+		o.stopTick = o.d.AfterFunc(rebootRetryBusy, o.fireScheduled)
+		first := !o.rbWaitNoted
+		o.rbWaitNoted = true
+		o.rbMu.Unlock()
+		if first {
+			o.log.Warn("the scheduled reboot waits for a shutdown lock", "who", bl[0].Who, "why", bl[0].Why)
+			o.note("os.reboot", "reboot_waiting_inhibitor", inhibitDetail("scheduled", bl))
+		}
+		return
+	}
+	o.rbWaitNoted = false
 	st.Schedule = nil
 	o.stopTick = nil
 	err := o.markStartedLocked(st, "scheduled")

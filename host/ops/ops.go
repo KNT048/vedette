@@ -155,6 +155,11 @@ type Ops struct {
 	stopTick func() bool
 	gate     atomic.Pointer[rebootGate] // set while a reboot the host started has not completed (WriteGate); never taken under rbMu
 
+	// stopRetry stops the next try of a started reboot that a shutdown lock refused (D-453); rbWaitNoted says
+	// the scheduled reboot's wait for a shutdown lock is already audited. Both guarded by rbMu.
+	stopRetry   func() bool
+	rbWaitNoted bool
+
 	netMu   sync.Mutex // guards the confirm-window timer and the run Resume kept
 	netStop func() bool
 	resumed string // the net.apply run Resume kept; Start reads and clears it
@@ -449,6 +454,10 @@ func (o *Ops) Close() {
 	if o.stopTick != nil {
 		o.stopTick()
 		o.stopTick = nil
+	}
+	if o.stopRetry != nil {
+		o.stopRetry()
+		o.stopRetry = nil
 	}
 	o.rbMu.Unlock()
 	o.mu.Lock()

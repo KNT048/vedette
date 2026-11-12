@@ -819,8 +819,8 @@
       "10": {
         "name": "Time sync (NTP)",
         "what": "A time request (UDP port 123) so the box clock stays right. No Vedette data is in it; the server only sees the box's IP address.",
-        "to": "pool.ntp.org by default, or the NTP servers you enter (they can be inside your network)",
-        "control": "Enter your own NTP server in Box network to keep time requests inside your network.",
+        "to": "The time sources of your operating system's own chrony setup (for example ntp.ubuntu.com or the Debian pool), any NTP server your DHCP server hands out, and the servers you enter in Box network (they can be inside your network); pool.ntp.org when you save with none",
+        "control": "Not from Vedette's screens: the operating system's own time sources stay. To send nothing outside, point the box's chrony at a server inside your network yourself (see the runbook).",
         "link": "Open Box network"
       },
       "11": {
@@ -1440,13 +1440,13 @@
       "title": "Time (NTP)",
       "desc": "Where the box gets the time. Correct time matters for logs and certificates.",
       "mode": "Time source",
-      "default": "Default pool ({{pool}})",
-      "custom": "Your own servers",
-      "defaultNote": "The box asks the public pool for the time.",
+      "default": "Default (adds {{pool}})",
+      "custom": "Your own servers (added)",
+      "defaultNote": "The box also asks the public pool.ntp.org for the time, next to the time sources its operating system already uses.",
       "servers": "NTP servers",
-      "serversHint": "One to four names or addresses, separated by commas. Use a server inside your network to send nothing outside.",
+      "serversHint": "One to four names or addresses, separated by commas. They are added to the time sources the operating system already uses; those stay.",
       "saved": "Time servers saved.",
-      "privacy": "Asking a public pool for the time is a data flow that leaves the box (it sees the box's IP address).",
+      "privacy": "The operating system keeps its own time sources, so time requests still reach public servers (they see the box's IP address). Servers you enter here are added, not substituted.",
       "privacyLink": "See Privacy, flow 10"
     }
   },

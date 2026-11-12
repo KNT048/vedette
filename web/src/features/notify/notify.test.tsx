@@ -274,6 +274,22 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(await within(dlg).findByRole('alert')).toHaveTextContent('A recipient email is not valid')
   })
 
+  it('SMTP email: the port follows the encryption; leaving SSL/TLS drops 465 for 587 (QA walk b)', async () => {
+    renderChannels()
+    await press('Edit Email')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Email' })
+    const enc = within(dlg).getByLabelText('Encryption')
+    const port = within(dlg).getByLabelText('Port')
+    await userEvent.selectOptions(enc, 'ssl')
+    expect(port).toHaveValue(465)
+    await userEvent.selectOptions(enc, 'none')
+    expect(port).toHaveValue(587)
+    await userEvent.clear(port)
+    await userEvent.type(port, '2525')
+    await userEvent.selectOptions(enc, 'ssl')
+    expect(port).toHaveValue(2525)
+  })
+
   it('webhook: generate a random key and save; an unreachable host makes the test fail with advice', async () => {
     renderChannels()
     await press('Set up Webhook')

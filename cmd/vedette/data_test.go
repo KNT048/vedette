@@ -350,9 +350,10 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(filepath.Dir(hpLog), 0o700) }) //nolint:gosec // a directory of this test
-	// The running honeypot module reads the line and stores its position (offset 17: the bytes of the line); wait for that.
+	// The running honeypot module reads the line and stores its position (offset 17: the bytes of the line); wait for that. Its job runs
+	// every 15 s, so the bound is four of its periods: 20 s left a loaded runner a few seconds for the read and its write after a full period.
 	var tailValue string
-	for range 100 {
+	for range 300 {
 		if tailValue = rowValue(t, db, `SELECT value FROM hp_config WHERE key = 'tail'`); strings.Contains(tailValue, `"offset":17`) {
 			break
 		}

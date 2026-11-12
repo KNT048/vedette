@@ -137,6 +137,8 @@ func TestInteropMinisignCLI(t *testing.T) {
 	must(t, os.MkdirAll(filepath.Join(repo, "modules/a/migrations/sqlite"), 0o750))
 	must(t, os.WriteFile(filepath.Join(repo, "modules/a/migrations/sqlite/0001_a.sql"), up("CREATE TABLE a (id INT);"), 0o600))
 	copyContainerTemplate(t, repo) // D-451: the real compose files and vedette.env, read back from git at the tag
+	// D-457 part A: install.sh is baked from git at the tag
+	must(t, os.WriteFile(filepath.Join(repo, installer), realInstaller(t), 0o600))
 	// the migrations are read from git: a repository with the release tagged
 	gitT(t, repo, "init", "-q")
 	gitT(t, repo, "add", "-A")
@@ -167,6 +169,7 @@ func TestInteropMinisignCLI(t *testing.T) {
 	for _, step := range [][]string{
 		{"manifest", "-in", in, "-cosign-dir", cdir, "-out", out, "-repo", repo},
 		{"container-assets", "-in", in, "-out", out, "-repo", repo},
+		{"bake-install", "-dir", out, "-in", in, "-repo", repo, "-key", pub("active.key"), "-minisign", bin, "-keys-dir", keys},
 		{"index", "-out", out, "-manifest", filepath.Join(out, manifestFile)},
 		{"sign", "-dir", out, "-key", pub("active.key"), "-minisign", bin, "-slot", "active"},
 	} {
@@ -210,7 +213,7 @@ func TestInteropMinisignCLI(t *testing.T) {
 	}
 	// the customer's check of the container-only files (ContainerOnly.tsx, docs/INSTALL-CONTAINER.md, D-451): `minisign -VQm` prints
 	// exactly the trusted comment, which the page compares with "file:<that file> version:<release>"
-	for _, f := range containerAssets {
+	for _, f := range append([]string{installer}, containerAssets...) {
 		o, err := ms(t, bin, "", "-VQm", filepath.Join(out, f), "-p", pub("minisign.pub"))
 		if err != nil || o != "file:"+f+" version:0.1.0-beta.1\n" {
 			t.Errorf("minisign -VQm %s: %v %q", f, err, o)

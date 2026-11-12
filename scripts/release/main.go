@@ -17,6 +17,8 @@
 //	go run ./scripts/release push        -version 0.2.0 [-registry ghcr.io/knt048] [-platforms linux/amd64,linux/arm64] -out dist/release   (D-457: the lists of make images, by digest; writes images.json)
 //	go run ./scripts/release in          -images dist/release/images.json -channel stable -rollback-safe false [-rollback-min-version V] [-min-upgrade-from V] [-deb-dir dist] -out release.in.json
 //	go run ./scripts/release publish     -dir dist/release -in release.in.json [-prev-index DIR | -first-release] [-keys-dir DIR] [-run]   (prints, or runs, the gh release commands; the index last)
+//	go run ./scripts/release deb-name    -version 1.0.0-beta.1 [-dir dist]   (part A: nfpm's vedette-host_1.0.0~beta.1_<arch>.deb to the SemVer name, before in)
+//	go run ./scripts/release bake-install -dir dist/release -in release.in.json -key ~/keys/minisign.key -minisign /abs/minisign [-ref v<version>] [-keys-dir DIR] [-passphrase-stdin]   (part A: install.sh at the tag with its three lines baked from the manifest, signed "file:install.sh version:<v>")
 //
 // push and publish talk to the registry and GitHub (podman's login, gh's token); every other command is offline.
 //
@@ -45,7 +47,7 @@ func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		say(stderr, "usage: release cosign-plan|manifest|container-assets|index|min-sequence|check-binaries|sign|verify|packs|push|in|publish [flags]")
+		say(stderr, "usage: release cosign-plan|manifest|container-assets|index|min-sequence|check-binaries|sign|verify|packs|push|in|publish|deb-name|bake-install [flags]")
 		return 2
 	}
 	var err error
@@ -75,6 +77,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdInputs(ctx, args[1:], stdout)
 	case "publish":
 		err = cmdPublish(ctx, args[1:], stdout)
+	case "deb-name":
+		err = cmdDebName(args[1:], stdout)
+	case "bake-install":
+		err = cmdBakeInstall(ctx, args[1:], stdin, stdout)
 	default:
 		say(stderr, "release: unknown command %q", args[0])
 		return 2

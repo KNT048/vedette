@@ -337,8 +337,15 @@ func TestRenewJobIsScheduledAndRenews(t *testing.T) {
 	now := time.Now()
 	clock := func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
 	s := newStackWith(t, func(d *deps) { d.Clock = clock })
-	if jobs := coreJobs(*s.d); len(jobs) != 0 {
-		t.Fatalf("no sensor link, yet core registers %d jobs", len(jobs))
+	prune := false
+	for _, j := range coreJobs(*s.d) {
+		if j.Name == "sensor-cert-renew" {
+			t.Fatal("no sensor link, yet core registers sensor-cert-renew")
+		}
+		prune = prune || j.Name == "auth-prune" && j.Module == "core" && j.Run(t.Context()) == nil // INV-30
+	}
+	if !prune {
+		t.Fatal("core does not schedule auth-prune, or it failed")
 	}
 	_, creds := s.testLink(t)
 	var job func(context.Context) error

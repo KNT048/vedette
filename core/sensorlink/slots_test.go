@@ -174,7 +174,7 @@ func TestBodylessRouteWithABodyIs400AndClosed(t *testing.T) {
 	}
 }
 
-// serveRig runs the real listener of core (Serve: LimitListener, TLS with the per-role charge, timeouts) on a loopback port.
+// serveRig runs the real listener of core (Serve: PendingListener, TLS with the per-role charge, timeouts) on a loopback port.
 func serveRig(t *testing.T, o sensorlink.Options) (*rig, string) {
 	t.Helper()
 	r := newRig(t, rigOpt{})
@@ -370,5 +370,29 @@ func TestRefusalOverH2KeepsTheConnection(t *testing.T) {
 	}
 	if _, reused, st := do("GET", "/sensor/v1/config", nil); !reused || st != 200 {
 		t.Errorf("second request: reused=%v status=%d, want the same h2 connection and 200", reused, st)
+	}
+}
+
+// D-326 (D-176 (5) residual): a local process that opens raw TCP connections, never starts TLS and holds them cannot keep the listener: 16 of
+// them wait in the pending pool (the rest are closed at once), and once they are older than the minimum age the scan role's connection takes
+// the place of the oldest. A sustained flood is not covered (see PendingListener).
+func TestUnauthenticatedConnectionsCannotStarveTheSensors(t *testing.T) {
+	t.Parallel()
+	r, addr := serveRig(t, sensorlink.Options{})
+	act := r.ca.leaf(t, leafOpts{serial: 200, uris: []string{"vedette:sensor:active"}})
+	var junk []net.Conn
+	for range sensorlink.MaxConns * 2 {
+		c, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		junk = append(junk, c)
+		t.Cleanup(func() { _ = c.Close() })
+	}
+	time.Sleep(sensorlink.MinPendingAge + 100*time.Millisecond) //nolint:forbidigo // real sockets: the junk grows older than the minimum age
+	p := r.peer(t, act)
+	p.c.Timeout = 3 * time.Second
+	if got, err := p.call(t, "https://"+addr, "GET", "/sensor/v1/jobs?wait=0", nil, nil); err != nil || got.status != 200 {
+		t.Fatalf("the scan role polling while %d raw connections are open: %v %d", len(junk), err, got.status)
 	}
 }

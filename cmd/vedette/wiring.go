@@ -236,7 +236,11 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	d.Logs = logexport.New()
 	d.PurgeGate = &core.PurgeGate{}
-	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{Logs: d.Logs, SpoolDir: logSpoolDir(d.DataDir), DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn, d: d}, Conns: d.Conn,
+	var scope core.SetupScope // the wizard's LAN ranges become the inventory's scope (INV-15, #350)
+	if d.Inventory != nil {
+		scope = d.Inventory
+	}
+	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{Scope: scope, Logs: d.Logs, SpoolDir: logSpoolDir(d.DataDir), DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn, d: d}, Conns: d.Conn,
 		DataDir: d.DataDir, DataFiles: moduleDataFiles, Schema: schemaSets(wiredModules()), Restart: d.Restart, KeyPath: d.KeyPath,
 		Host: purgeHost(d), OSBusy: func(ctx context.Context) bool { return d.OS != nil && d.OS.Busy(ctx) }, BeforeWipe: purgeBeforeWipe(d), Gate: d.PurgeGate, AlsoKept: purgeAlsoKept(d), KeepRows: purgeKeptRows(d), AlsoFreeze: purgeFreezes(d)}); err != nil {
 		return fmt.Errorf("core: %w", err)
@@ -356,9 +360,10 @@ func subscribe(d deps) {
 	}))
 }
 
-// privacyFacts answers what the Privacy page asks of modules that have no backend yet, with what is true today:
-// the AI flow is on when a profile is usable, the NTP servers are the default ones (the host module is not built), flow 11 when
-// auth-oidc has an issuer. Each answer moves to its module's service when that module gets a backend.
+// privacyFacts answers what the Privacy page asks of other modules: the AI flow is on when a profile is usable, flow 11 when
+// auth-oidc has an issuer, flow 12 while a connection is enabled. NTP (flow 10) is always on: the servers of Box network are added
+// to the distribution's own chrony sources, which the box never removes (D-166, PRIVACY.md), and core cannot see whether the
+// owner removed them by hand. ponytail: "off" needs the host to report chrony's whole source list (`chronyc sources`), a host API change.
 type privacyFacts struct {
 	conns *conn.Service
 	d     *deps // read lazily: the ai service is built after core, which takes this value
@@ -369,7 +374,7 @@ func (p privacyFacts) AIConfigured(context.Context) bool {
 	return p.d != nil && p.d.AI != nil && p.d.AI.Configured()
 }
 
-func (privacyFacts) NTPPublic(context.Context) bool { return true }
+func (privacyFacts) NTPPublic(context.Context) bool { return true } // see privacyFacts
 
 // OIDCConfigured: flow 11 and the SSO button (auth-options) while auth-oidc has an issuer saved; the caller checks that the module is
 // on. A store that cannot be read counts as "yes", like ConnectionsConfigured: the page must not say nothing leaves when it does not know.

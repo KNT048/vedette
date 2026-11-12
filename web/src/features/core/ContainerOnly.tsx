@@ -84,17 +84,22 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
   const { t } = useTranslation('core')
   const offer = s.available.find((a) => a.component === 'software')
   const running = s.components.find((c) => c.id === 'software')?.version ?? ''
-  if (offer) return (
+  const main = offer ? (
     <div className="grid gap-1 rounded-md border border-accent/40 bg-accent-soft px-4 py-3 text-sm">
       <p className="font-medium">{t('container.updates.offer', { version: offer.version, running })}</p>
       {offer.note ? <p className="whitespace-pre-line text-muted">{offer.note}</p> : null}
     </div>
-  )
-  if (!s.check_enabled) return (
+  ) : !s.check_enabled ? (
     <p className="text-sm">{t('container.updates.checkOff')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('container.updates.privacyLink')}</Link>.</p>
+  ) : !s.last_check ? <p className="text-sm">{t('container.updates.notYet')}</p>
+  : <p className="text-sm">{t('container.updates.latest')}</p>
+  // The running version and the last check, always (the offer and "never" texts alone do not say both).
+  return (
+    <>
+      {main}
+      <p className="text-[13px] text-muted">{t('container.updates.running', { version: running })} {s.last_check ? t('container.updates.checked', { when: fmtRelative(s.last_check) }) : t('container.updates.neverChecked')}</p>
+    </>
   )
-  if (!s.last_check) return <p className="text-sm">{t('container.updates.notYet')}</p>
-  return <p className="text-sm">{t('container.updates.latest', { version: running, when: fmtRelative(s.last_check) })}</p>
 }
 
 /**

@@ -16,6 +16,7 @@ import { ApiError } from '@/lib/api'
 import { useMe, type Role } from '@/lib/session'
 import { useOidc, useOidcMutations, useToggleModule, useUserMutations, useUsers } from './api'
 import { errMsg } from './parts'
+import { OidcCaField } from './OidcCaField'
 import { EMAIL_RE } from './util'
 import type { AdminUser, OidcConfig, OidcSave } from './types'
 
@@ -92,8 +93,8 @@ function OidcPanel() {
 }
 
 const NO_ACCESS = 'none'
-type OidcField = 'issuer' | 'client' | 'secret' | 'scopes' | 'claim' | 'form'
-const OIDC_FIELD: Record<string, OidcField | undefined> = { invalid_issuer: 'issuer', invalid_client: 'client', invalid_secret: 'secret', invalid_scopes: 'scopes', invalid_claim: 'claim' }
+type OidcField = 'issuer' | 'client' | 'secret' | 'scopes' | 'claim' | 'ca' | 'form'
+const OIDC_FIELD: Record<string, OidcField | undefined> = { invalid_issuer: 'issuer', invalid_client: 'client', invalid_secret: 'secret', invalid_scopes: 'scopes', invalid_claim: 'claim', invalid_ca: 'ca' }
 
 function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }) {
   const { t } = useTranslation('core')
@@ -130,6 +131,7 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
       <Field label={t('oidc.secret')} hint={cfg.secret_last4 ? t('oidc.secretSaved', { last4: cfg.secret_last4 }) : t('oidc.secretHint')} htmlFor="oidc-secret" error={errOf('secret')}><Input id="oidc-secret" type="password" autoComplete="off" value={v.client_secret} aria-invalid={!!errOf('secret')} onChange={(e) => setV({ ...v, client_secret: e.target.value })} /></Field>
       <Field label={t('oidc.scopes')} hint={t('oidc.scopesHint')} htmlFor="oidc-scopes" error={errOf('scopes')}><Input id="oidc-scopes" value={v.scopes} spellCheck={false} aria-invalid={!!errOf('scopes')} onChange={(e) => setV({ ...v, scopes: e.target.value })} /></Field>
       <Field label={t('oidc.claim')} hint={t('oidc.claimHint')} htmlFor="oidc-claim" error={errOf('claim')}><Input id="oidc-claim" className="max-w-56" value={v.groups_claim} spellCheck={false} aria-invalid={!!errOf('claim')} onChange={(e) => setV({ ...v, groups_claim: e.target.value })} /></Field>
+      <OidcCaField cfg={cfg} value={v.ca_pem} error={errOf('ca')} onChange={(ca_pem) => setV({ ...v, ca_pem })} />
       <fieldset className="grid gap-2">
         <legend className="text-sm font-medium">{t('oidc.map')}</legend>
         <p className="text-[13px] text-muted">{t('oidc.mapHint')}</p>

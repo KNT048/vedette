@@ -633,6 +633,38 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     await expectNoA11yViolations()
   })
 
+  // D-378: an IdP behind a private CA (the mock stands for one with an issuer under .internal).
+  it('OIDC: CA nội bộ của IdP: dán, kiểm, hiện hạn, gỡ (D-378)', async () => {
+    const u = user()
+    const pem = '-----BEGIN CERTIFICATE-----\nMIIBszCCAVmgAwIBAgIBATAKBggqhkjOPQQDAjAUMRIwEAYDVQQDEwlBY21lIFJvb3Q=\n-----END CERTIFICATE-----\n'
+    renderApp('/settings/users')
+    await u.click(await screen.findByRole('button', { name: 'Turn on SSO sign-in' }))
+    await u.type(await screen.findByLabelText('Issuer'), 'https://sso.acme.internal/realms/main')
+    await u.type(screen.getByLabelText('Client ID'), 'vedette')
+    await u.type(screen.getByLabelText('Client secret'), 'bi-mat-rat-dai')
+    await u.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText(/ending in/)).toBeInTheDocument()
+    await u.click(screen.getByRole('button', { name: 'Test connection' }))
+    expect(await screen.findByText(/does not trust the identity provider's certificate/)).toBeInTheDocument()
+    const ca = screen.getByLabelText('Identity provider CA certificate (optional)')
+    await u.click(ca)
+    await u.paste('-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----')
+    await u.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText(/only certificates are accepted/)).toBeInTheDocument()
+    expect(ca).toHaveAttribute('aria-invalid', 'true')
+    await u.clear(ca)
+    await u.paste(pem)
+    await u.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText(/Saved: Mock internal CA 1, expires/)).toBeInTheDocument()
+    await u.click(screen.getByRole('button', { name: 'Test connection' }))
+    expect(await screen.findByRole('region', { name: 'Endpoints read from the identity provider' })).toBeInTheDocument()
+    await u.click(screen.getByRole('button', { name: 'Remove CA certificate' }))
+    await u.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByText(/Saved: Mock internal CA/)).toBeNull())
+    expect(screen.getByLabelText('Identity provider CA certificate (optional)')).toHaveValue('')
+    await expectNoA11yViolations()
+  })
+
   it('trang đăng nhập có nút SSO khi auth-oidc bật và đã cấu hình', async () => {
     setModule('auth-oidc', true)
     const r = await fetch(`${location.origin}/api/v1/core/auth-options`)

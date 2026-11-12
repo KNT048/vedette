@@ -1,6 +1,6 @@
 # Auth-OIDC Contract
 
-> Tier: tuỳ chọn (tắt mặc định) · Story: S-CORE-3 · Quyết định: D-194 (luồng), D-195 (tài khoản, vai), D-196 (hai bước, dự phòng), D-197 (thư viện), D-35, D-71, D-77 · Last verified: 2026-11-11 (PR 2: `go test ./modules/auth-oidc/ -run Contract`, IdP giả trên httptest TLS)
+> Tier: tuỳ chọn (tắt mặc định) · Story: S-CORE-3 · Quyết định: D-194 (luồng), D-195 (tài khoản, vai), D-196 (hai bước, dự phòng), D-197 (thư viện), D-378 (CA nội bộ của IdP), D-35, D-71, D-77 · Last verified: 2026-11-11 (PR 2: `go test ./modules/auth-oidc/ -run Contract`, IdP giả trên httptest TLS)
 > GUI nằm dưới `core` (`web/src/features/core/{contract,UsersSection,SsoCallbackPage,ssoFlow,mocks}.ts`, mục Settings → Users, trang `/sso/callback`). Backend là module riêng.
 > Mock bỏ qua IdP: `authorize_url` của mock là chính trang `/sso/callback` kèm một mã, người dùng ở IdP là `MOCK_IDP_USER`.
 
@@ -16,6 +16,7 @@
 - **INV-9** Đăng nhập SSO thành công tạo phiên **như đăng nhập mật khẩu** (`__Host-vedette_session` + `__Host-vedette_csrf`, D-71); **không** đặt hay đọc `__Secure-vedette_device` (D-196 (2)); không qua hai bước của hộp (IdP lo MFA).
 - **INV-10** Mọi đăng nhập SSO thành công/thất bại, lưu và thử cấu hình ghi `core_audit` (SYS-3): `auth.login` `SSO`, `auth.login_failed` `SSO: <state|binding|token|id_token|no_access|email_in_use|email_unverified|disabled>`, `oidc.update`, `oidc.test`, `user.create` `SSO`, `user.role` `SSO groups`, `user.sso_relink`.
 - **INV-11** Dữ liệu từ IdP (discovery, JWKS, phản hồi token, claim) là không tin cậy (SYS-6): ≤ 1 MiB, 10 s, kiểm kiểu, fail-closed; `issuer` trong discovery phải trùng issuer đã lưu; điểm authorization/token/jwks phải https; không theo chuyển hướng (SYS-7).
+- **INV-12** **CA của IdP** (D-378): `ca_pem` tuỳ chọn; khi có, mọi lời gọi tới IdP (discovery, JWKS, điểm token) đi qua một client riêng với `RootCAs` = gốc hệ thống + các CA đó, cùng giới hạn INV-11; các lời gọi khác của hộp không tin CA này; không bao giờ `InsecureSkipVerify`. Kiểm ở biên khi lưu: chỉ khối PEM `CERTIFICATE` không header, 1..5 cái, tổng ≤ 64 KB, mỗi cái `basicConstraints CA:TRUE` và chưa hết hạn, không có văn bản ngoài khối; sai → 400 `invalid_ca`, không lưu gì. Lưu PEM chuẩn hoá (không phải bí mật); GET trả `ca_pem` và `ca_certs [{subject, expires_at}]`. PUT không có `ca_pem` = giữ; `""` = gỡ. Đổi CA bỏ bộ nhớ đệm discovery (bộ đệm cũng gắn với CA). `TestContract_INV12_PrivateCA` (IdP httptest không được gốc hệ thống tin: hỏng khi không có CA, Test và đăng nhập qua được khi có, giữ khi bỏ trường, hỏng lại khi gỡ), `TestContract_INV12_CARefused`.
 
 ## Preconditions (trước khi gọi)
 - **PRE-1** `PUT /core/oidc`, `POST /core/oidc/test`, `GET /core/oidc`: vai admin, module bật.
@@ -48,7 +49,7 @@
 Trang SPA `/sso/callback` là `redirect_uri` (D-194 (4)): IdP đưa trình duyệt về đó, trang gửi `POST /auth/oidc/callback`.
 
 ## Tables owned
-`oidc_config` (issuer, client_id, bí mật mã hoá qua `core/secrets` purpose `oidc_config.client_secret`, scopes, groups_claim, default_role, role_map, redirect_uri), `oidc_flow` (luồng đang chờ, INV-5). Định danh SSO (`sso_issuer`, `sso_subject`), người dùng và phiên thuộc `core` (`core_user`, `core_session`), chỉ qua `core/auth.SSOSignIn`, `RefuseSSO`, `CountSSOUsers` (D-197).
+`oidc_config` (issuer, client_id, bí mật mã hoá qua `core/secrets` purpose `oidc_config.client_secret`, scopes, groups_claim, default_role, role_map, redirect_uri, `ca_pem` (D-378, migration 0002)), `oidc_flow` (luồng đang chờ, INV-5). Định danh SSO (`sso_issuer`, `sso_subject`), người dùng và phiên thuộc `core` (`core_user`, `core_session`), chỉ qua `core/auth.SSOSignIn`, `RefuseSSO`, `CountSSOUsers` (D-197).
 
 ## Events
 - **Phát**: không (audit qua `core`). **Nhận**: không.

@@ -259,14 +259,29 @@ const accountHandlers = [
 ]
 
 // ---------- Người dùng, OIDC ----------
-interface OidcStored { issuer: string; client_id: string; secret: string; scopes: string; groups_claim: string; default_role: Role | null; role_map: { group: string; role: Role }[]; /** D-194 (5): pinned when an administrator saves, from the address they used */ redirect_uri?: string }
+interface OidcStored { issuer: string; client_id: string; secret: string; scopes: string; groups_claim: string; default_role: Role | null; role_map: { group: string; role: Role }[]; /** D-194 (5): pinned when an administrator saves, from the address they used */ redirect_uri?: string; /** D-378 */ ca_pem?: string }
 const oidcStore = collection<OidcStored>('oidc_config', () => ({ issuer: '', client_id: '', secret: '', scopes: 'openid email profile', groups_claim: 'groups', default_role: null, role_map: [] }))
 const oidcView = (): OidcConfig => {
   const c = oidcStore.get()
   return {
     issuer: c.issuer, client_id: c.client_id, secret_last4: c.secret ? c.secret.slice(-4) : null, scopes: c.scopes ?? 'openid email profile', groups_claim: c.groups_claim ?? 'groups',
     default_role: c.default_role ?? null, role_map: c.role_map, redirect_uri: c.redirect_uri || `${location.origin}/sso/callback`, sso_users: usersStore.get().filter((u) => u.sso).length,
+    ca_pem: c.ca_pem ?? '', ca_certs: caBlocks(c.ca_pem ?? '').map((_, i) => ({ subject: `Mock internal CA ${i + 1}`, expires_at: MOCK_CA_EXPIRES })),
   }
+}
+// D-378: the mock cannot read X.509, so it checks the shape only (PEM CERTIFICATE blocks, nothing else, 1 to 5, at most 64 KB) and
+// names each block "Mock internal CA n". The box parses each certificate and refuses a non-CA or an expired one.
+const MOCK_CA_EXPIRES = '2030-01-01T00:00:00.000Z'
+const caBlocks = (pemText: string) => pemText.match(/-----BEGIN CERTIFICATE-----[A-Za-z0-9+/=\s]+-----END CERTIFICATE-----/g) ?? []
+function caError(raw: string): string | null {
+  const text = raw.trim()
+  if (!text) return null
+  const blocks = caBlocks(text)
+  if (raw.length > 64 * 1024) return 'The CA certificate text is larger than 64 KB.'
+  if (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(text)) return 'The CA certificate text holds a PRIVATE KEY block; only certificates are accepted (never a private key).'
+  if (!blocks.length || blocks.join('').replace(/\s/g, '') !== text.replace(/\s/g, '')) return 'The CA certificate text is not PEM, or has text outside the PEM blocks. Paste the PEM of the CA that signed the identity provider\'s certificate (-----BEGIN CERTIFICATE-----).'
+  if (blocks.length > 5) return 'The CA certificate text holds more than 5 certificates.'
+  return null
 }
 // Luồng đăng nhập SSO đang chờ gọi lại (D-194): state, binding, hạn 10 phút, dùng một lần. Bản thật chỉ giữ SHA-256 của hai giá trị.
 const oidcFlows = collection<{ state: string; binding: string; expires: number; issuer: string; client_id: string }[]>('oidc_flow', () => [])
@@ -387,7 +402,10 @@ const usersHandlers = [
     const map = (b.role_map ?? []).filter((m) => String(m.group ?? '').trim())
     if (map.length > 10) return fail(400, 'too_many', 'At most 10 role mapping rows.')
     if (map.some((m) => !ROLES.includes(m.role) || m.group.trim().length > 256)) return fail(400, 'invalid_role', 'One mapping row has an invalid role or a group name longer than 256 characters.')
-    oidcStore.set({ issuer, client_id: clientId, secret, scopes: [...new Set(scopes)].join(' '), groups_claim: claim, default_role: (b.default_role ?? null) as Role | null, role_map: map.map((m) => ({ group: m.group.trim(), role: m.role })), redirect_uri: `${location.origin}/sso/callback` })
+    const ca = b.ca_pem === undefined ? (cur.ca_pem ?? '') : String(b.ca_pem)
+    const caErr = caError(ca)
+    if (caErr) return fail(400, 'invalid_ca', caErr)
+    oidcStore.set({ issuer, client_id: clientId, secret, scopes: [...new Set(scopes)].join(' '), groups_claim: claim, default_role: (b.default_role ?? null) as Role | null, role_map: map.map((m) => ({ group: m.group.trim(), role: m.role })), redirect_uri: `${location.origin}/sso/callback`, ca_pem: caBlocks(ca).map((x) => `${x}\n`).join('') })
     audit('oidc.update', issuer)
     return HttpResponse.json(oidcView())
   }),
@@ -399,6 +417,8 @@ const usersHandlers = [
     const host = new URL(c.issuer).hostname
     audit('oidc.test', c.issuer)
     if (host.includes('invalid') || host.endsWith('.local')) return fail(502, 'discovery_failed', `Cannot read ${c.issuer}/.well-known/openid-configuration. Check the issuer and the network path from the box to the IdP.`)
+    // D-378: an issuer under .internal stands for an IdP behind a private CA; it works once a CA is saved.
+    if (host.endsWith('.internal') && !c.ca_pem) return fail(502, 'discovery_failed', `Cannot read ${c.issuer}/.well-known/openid-configuration: the box does not trust the identity provider's certificate (an internal CA? paste it under Identity provider CA certificate). Check the issuer and the network path from the box to the identity provider.`)
     return HttpResponse.json({ ok: true, endpoints: { authorization: `${c.issuer}/protocol/openid-connect/auth`, token: `${c.issuer}/protocol/openid-connect/token`, jwks: `${c.issuer}/protocol/openid-connect/certs` } })
   }),
 

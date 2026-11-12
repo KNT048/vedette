@@ -26,6 +26,7 @@ export default function ModulesSection() {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
   const q = useModules()
+  const install = q.data?.install
   const toggle = useToggleModule()
   const [confirm, setConfirm] = useState<Confirm>(null)
   const name = (id: ModuleId) => t(`modules.${id}.name`, { ns: 'common' })

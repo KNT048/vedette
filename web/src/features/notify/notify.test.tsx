@@ -109,6 +109,16 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(res.status).toBe(403)
   })
 
+  it('a viewer does not ask for the alert channels (403 in the console)', async () => {
+    const real = globalThis.fetch
+    const asked: string[] = []
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => { asked.push(String(input instanceof Request ? input.url : input)); return real(input, init) })
+    renderApp('/incidents', { role: 'viewer' })
+    await screen.findByRole('heading', { level: 1 })
+    expect(asked.filter((x) => x.includes('/notify/channels'))).toEqual([])
+    spy.mockRestore()
+  })
+
   it('an unknown incident says so', async () => {
     renderApp('/incidents/al-zzz')
     expect(await screen.findByText(/No such incident/)).toBeInTheDocument()

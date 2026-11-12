@@ -45,7 +45,6 @@ describe('container-only install (D-381)', () => {
   })
 
   it('Modules: the active sensor does not claim nmap here; the response gallery cannot clone a trap template', async () => {
-    const u = userEvent.setup()
     renderApp('/settings/modules')
     expect(await screen.findByText('Light scans of your network inside the allowed time window.')).toBeInTheDocument()
     expect(screen.queryByText(/nmap/)).toBeNull()
@@ -53,8 +52,7 @@ describe('container-only install (D-381)', () => {
     const clone = await screen.findByRole('button', { name: /^Clone Trap touched: block the source on FortiGate/ })
     expect(clone).toBeDisabled()
     expect(within(clone.closest('li')!).getByText(/Not available on this install/)).toBeInTheDocument()
-    await u.hover(clone)
-    expect(screen.getByRole('button', { name: /^Clone Ioc|^Clone .*(blocklist|IOC)/i })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /^Clone Known-bad connection: add the destination to the block list/ })).toBeEnabled()
   })
 
   it('setup: the code hint names vedette-core and the bundles leave the honeypot out', async () => {

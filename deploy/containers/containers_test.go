@@ -317,7 +317,7 @@ func TestMinSequenceFlag(t *testing.T) {
 		if err != nil {
 			t.Fatal(target, err, out)
 		}
-		for _, line := range strings.Split(out, "\n") {
+		for _, line := range strings.FieldsFunc(out, func(r rune) bool { return r == '\n' || r == '&' }) { // images: one recipe line, builds joined by &&
 			core := strings.Contains(line, "deploy/containers/core/Containerfile")
 			if has := strings.Contains(line, "--build-arg MIN_SEQUENCE=7"); core != has && (core || strings.Contains(line, "/Containerfile")) {
 				t.Errorf("make %s: MIN_SEQUENCE on a build line: core=%v has=%v: %s", target, core, has, line)

@@ -353,3 +353,21 @@ describe('feeds: Settings -> Feeds lists every host the box pulls from (INV-13, 
     expect(within(sec).getByRole('link', { name: 'See Privacy, flow 1' })).toHaveAttribute('href', '/settings/privacy')
   })
 })
+
+describe('feeds: parser preview form matrix (docs/QA.md §2, QA walk 2026-11-12)', () => {
+  it('a preview belongs to the type and format it ran with: changing either hides it', async () => {
+    renderApp('/settings/feeds')
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add a feed' }))[0]!)
+    const dlg = await screen.findByRole('dialog', { name: 'Add a feed' })
+    const ran = /rows? accepted/
+    await eachOption([
+      { option: 'CSV', hidden: [ran] },
+      { option: 'Vulnerabilities', hidden: [ran] },
+    ], async (o) => {
+      await userEvent.click(within(dlg).getByRole('button', { name: 'Test on a sample' }))
+      await within(dlg).findByText(ran)
+      if (o === 'CSV') await userEvent.selectOptions(within(dlg).getByLabelText('Format'), 'CSV')
+      else await userEvent.click(within(dlg).getByRole('button', { name: o }))
+    }, dlg)
+  })
+})

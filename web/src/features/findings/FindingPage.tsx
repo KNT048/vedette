@@ -29,6 +29,9 @@ function StatusDialog({ f, open, onOpenChange, opener }: { f: FindingDetail; ope
   const [action, setAction] = useState<StatusAction>('patched')
   const [note, setNote] = useState('')
   const [error, setError] = useState<string | undefined>()
+  // Every opening starts clean: Cancel or Esc drops the draft, and a saved status is not offered again the next time.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) { setWasOpen(open); if (open) { setAction('patched'); setNote(''); setError(undefined) } }
   const needNote = action === 'false_positive' || action === 'not_relevant'
   function submit() {
     if (needNote && note.trim().length < 3) { setError(t('status.noteRequired')); return }

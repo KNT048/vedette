@@ -78,11 +78,11 @@ test.describe('logs: log sources (S-LOG-1)', () => {
     await expect(d.getByText('Device type: FortiGate (FortiOS)')).toBeVisible()
     // gửi trống: lỗi nói sai gì
     await d.getByRole('button', { name: 'Add and show setup' }).click()
-    await expect(d.getByRole('alert')).toContainText('The name may only contain')
+    await expect(d.getByLabel('Name')).toHaveAccessibleDescription(/The name may only contain/)
     await d.getByLabel('Name').fill('FW-TEST')
     await d.getByLabel('IP of the sending device').fill('999.1.1.1')
     await d.getByLabel('IP of the sending device').press('Enter')
-    await expect(d.getByRole('alert')).toContainText('The IP address of the sending device is not valid')
+    await expect(d.getByLabel('IP of the sending device')).toHaveAccessibleDescription(/The IP address of the sending device is not valid/)
     await expect(d.getByLabel('Name')).toHaveValue('FW-TEST')
     await d.getByLabel('Protocol').selectOption('tls')
     await expect(d.getByLabel('Port the box listens on')).toHaveValue('6514')
@@ -105,7 +105,7 @@ test.describe('logs: log sources (S-LOG-1)', () => {
     await d2.getByLabel('Name').fill('RT-DUP')
     await d2.getByLabel('IP of the sending device').fill('192.168.10.77')
     await d2.getByRole('button', { name: 'Add and show setup' }).click()
-    await expect(d2.getByRole('alert')).toContainText('There is already a log source with this IP address')
+    await expect(d2.getByLabel('IP of the sending device')).toHaveAccessibleDescription(/There is already a log source with this IP address/)
     await d2.getByRole('button', { name: 'Cancel' }).click()
     await expect(d2).toBeHidden()
     // sửa

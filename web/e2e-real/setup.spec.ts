@@ -34,8 +34,8 @@ test('"Use sample data" is refused cleanly by the real box and creates nothing (
   // the release GUI still offers the button (deferred: feat-core-auth-api.md); pressing it shows the refusal and stays on the form
   await page.goto('/')
   await expect(page).toHaveURL(/\/setup/)
-  await page.getByRole('button', { name: 'Use sample data' }).click()
-  await expect(page.getByText(/no sample data/i).first()).toBeVisible()
+  await expect(page.getByRole('heading').first()).toBeVisible() // the form is drawn
+  await expect(page.getByRole('button', { name: 'Use sample data' })).toHaveCount(0) // the release GUI hides it (D-369)
   await expect(page).toHaveURL(/\/setup/)
   expect((await api<{ complete: boolean }>(request, 'GET', '/setup')).body.complete).toBe(false)
   expect((await api(request, 'GET', '/core/users')).status).toBe(401) // still nobody

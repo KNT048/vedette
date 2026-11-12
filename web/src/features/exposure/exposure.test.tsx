@@ -911,3 +911,19 @@ describe('exposure: QA pass fixes (paused IP, copy, dates, IPv6, remove dialog, 
     expect(screen.queryByText(/Try again in about/)).toBeNull()
   })
 })
+
+describe('exposure: Add a domain form matrix (docs/QA.md §2, QA walk 2026-11-12)', () => {
+  it('Cancel drops the text and its error: the next opening is empty', async () => {
+    renderApp('/exposure')
+    const add = await screen.findByRole('button', { name: 'Add domain' })
+    await userEvent.click(add)
+    await userEvent.type(screen.getByRole('textbox', { name: 'Domain' }), 'shop.example.com:8443')
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }))
+    await screen.findByText(/without http:\/\/, a path/)
+    await eachOption([{ option: 'Cancel, open again', shown: ['Domain'], hidden: [/without http:\/\/, a path/] }], async () => {
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      await userEvent.click(add)
+    })
+    expect(screen.getByRole('textbox', { name: 'Domain' })).toHaveValue('')
+  })
+})

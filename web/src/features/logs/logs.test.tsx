@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { Toaster, toast } from 'sonner'
 import { makeQueryClient } from '@/app/App'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
+import { eachOption } from '@/test/formMatrix'
 import { server } from '@/test/server'
 import { collection } from '@/mocks/db'
 import { assetsStore, auditStore, modulesStore, orgStore, sessionStore } from '@/mocks/stores'
@@ -197,7 +198,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     await userEvent.type(within(form).getByLabelText('Name'), 'FW-CN1')
     await userEvent.type(within(form).getByLabelText('IP of the sending device'), '300.1.1.1')
     await userEvent.click(within(form).getByRole('button', { name: 'Add and show setup' }))
-    expect(await within(form).findByRole('alert')).toHaveTextContent('The IP address of the sending device is not valid')
+    await waitFor(() => expect(within(form).getByLabelText('IP of the sending device')).toHaveAccessibleDescription(/The IP address of the sending device is not valid/))
     expect(within(form).getByLabelText('Name')).toHaveValue('FW-CN1')
     await userEvent.clear(within(form).getByLabelText('IP of the sending device'))
     await userEvent.type(within(form).getByLabelText('IP of the sending device'), '192.168.30.1')
@@ -237,7 +238,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     await userEvent.type(within(form).getByLabelText('Name'), 'RT-NEW')
     await userEvent.type(within(form).getByLabelText('IP of the sending device'), '192.168.10.1')
     await userEvent.click(within(form).getByRole('button', { name: 'Add and show setup' }))
-    expect(await within(form).findByRole('alert')).toHaveTextContent('There is already a log source with this IP address')
+    await waitFor(() => expect(within(form).getByLabelText('IP of the sending device')).toHaveAccessibleDescription(/There is already a log source with this IP address/))
     await userEvent.click(within(form).getByRole('button', { name: 'Change device type' }))
     await userEvent.click(within(form).getByRole('button', { name: /FortiGate/ }))
     expect(within(within(form).getByLabelText('Protocol')).getAllByRole('option')).toHaveLength(3)
@@ -345,6 +346,8 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'feeds' ? { ...m, enabled: false } : m)))
     renderApp('/logs')
     expect(await screen.findByText(/The Feeds module is off, so no connection can be matched/)).toBeInTheDocument()
+    // with Feeds off nothing was matched, so the list must not read as "no device connected" (D-300; QA walk 2026-11-12)
+    expect(screen.queryByText(/None of your devices connected/)).not.toBeInTheDocument()
   })
 
   it('the digest shows the hits of the last 24 hours only, newest first, with the device resolved when it is read', async () => {
@@ -459,5 +462,28 @@ describe('logs: Add log source form matrix (docs/QA.md §2)', () => {
     expect((await post({ kind: only.id, name: 'TLS-ONLY', sender_ip: '192.168.10.77', proto: 'tls', port: 6514 })).status).toBe(400)
     expect((await post({ kind: only.id, name: 'bad name!', sender_ip: '192.168.10.77', proto: only.protos[0], port: 514 })).status).toBe(400)
     expect((await post({ kind: only.id, name: 'OK-1', sender_ip: '999.1.1.1', proto: only.protos[0], port: 514 })).status).toBe(400)
+  })
+})
+
+describe('logs: Add log source form matrix (docs/QA.md §2, QA walk 2026-11-12)', () => {
+  it('a refused value is told under its own field, which takes focus; fixing the field clears it', async () => {
+    renderApp('/logs')
+    const form = await openAdd(/^FortiGate/)
+    const name = within(form).getByLabelText('Name')
+    const NAME_ERR = /may only contain letters without accents/
+    fireEvent.change(within(form).getByLabelText('IP of the sending device'), { target: { value: '192.168.10.77' } })
+    await eachOption([
+      { option: 'FW HQ ă', shown: [NAME_ERR] },
+      { option: 'FW-HQ', hidden: [NAME_ERR] },
+    ], async (o) => {
+      fireEvent.change(name, { target: { value: o } })
+      if (o === 'FW HQ ă') { await userEvent.click(within(form).getByRole('button', { name: 'Add and show setup' })); await within(form).findByText(NAME_ERR) }
+    }, form)
+    fireEvent.change(name, { target: { value: 'FW HQ ă' } })
+    await userEvent.click(within(form).getByRole('button', { name: 'Add and show setup' }))
+    await waitFor(() => expect(name).toHaveFocus())
+    expect(name).toBeInvalid()
+    expect(name).toHaveAccessibleDescription(NAME_ERR)
+    expect(within(form).queryByRole('alert')).toBeNull()
   })
 })

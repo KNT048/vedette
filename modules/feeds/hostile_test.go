@@ -175,7 +175,7 @@ func TestCSVQuirks(t *testing.T) {
 // csvCells is parseCSV reduced to the cells, for tests that do not care about flags.
 func csvCells(text string, delim rune) [][]string {
 	var out [][]string
-	for _, r := range parseCSV(text, delim, true) {
+	for _, r := range parseCSV(text, delim) {
 		out = append(out, r.cells)
 	}
 	return out

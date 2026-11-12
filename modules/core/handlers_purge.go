@@ -34,7 +34,9 @@ import (
 // in one transaction, except the migration records (the schema stays); then the rows a fresh install has (the seeds of the
 // migrations, the default state of the modules) are put back; the module data files and the snapshots are removed with it;
 // one audit row says it happened. The encryption key (vedette.key) and the TLS certificate are not touched: the box must still
-// start and be reachable.
+// start and be reachable. The box CA (a core_secret row, D-351, cmd/vedette/boxca.go) is a row like the others, so it goes too: the next
+// start makes a new CA and re-issues the leaf under it (same leaf key), browsers warn again about the new certificate, and
+// enrolled osquery agents must run the install command again (their nodes are deleted by the purge anyway).
 
 // CodeConfirmMismatch is the 400 of a purge whose typed name is not the organization's (API_CONVENTIONS 3.3).
 const CodeConfirmMismatch = "confirm_mismatch"

@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/x509"
 	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -568,9 +571,28 @@ func TestExport_PlantedSecretsNeverLeave(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// The box CA (D-351) is a core_secret row: its key never leaves in the export, nor does the row.
+	boxCAs, err := newBoxCAStore(s.d.DB, s.d.Secrets, s.d.Audit, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	boxCA, err := boxCAs.ensure(ctx, time.Now(), slog.New(slog.DiscardHandler), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caKeyDER, err := x509.MarshalPKCS8PrivateKey(boxCA.key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	c, body := call("GET", "/core/data/export", nil)
 	if c != 200 {
 		t.Fatalf("export = %d %.300s", c, body)
+	}
+	for _, sct := range []string{base64.StdEncoding.EncodeToString(caKeyDER), hex.EncodeToString(caKeyDER), "core_box_ca", "PRIVATE KEY"} {
+		if strings.Contains(body, sct) {
+			t.Errorf("the export holds the box CA (%.12q)", sct)
+		}
 	}
 	var doc struct {
 		Tables    map[string][]map[string]any `json:"tables"`

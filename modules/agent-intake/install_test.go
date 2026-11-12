@@ -259,6 +259,29 @@ func TestInstall_CertificateServing(t *testing.T) {
 	}
 }
 
+// INV-11: only CERTIFICATE blocks leave, re-encoded without headers, whatever cmd/vedette hands over (an owner's -tls-cert may hold the
+// key in the same file); nothing that is a certificate = 500, never the bytes as given.
+func TestContract_INV11_CaPemServesTheCertificateOnly(t *testing.T) {
+	key := "-----BEGIN PRIVATE KEY-----\nc2VjcmV0IGtleSBtYXRlcmlhbCwgbmV2ZXIgc2VydmVk\n-----END PRIVATE KEY-----\n"
+	withHeader := "-----BEGIN CERTIFICATE-----\nX-Note: hi\n\n" + strings.TrimPrefix(testCA, "-----BEGIN CERTIFICATE-----\n")
+	w := newWorld(t, func(c *agentintake.Config) {
+		c.TrustAnchor = func() ([]byte, error) { return []byte(key + withHeader + key), nil }
+	})
+	res, body := w.get("/intake/ca.pem", "", "")
+	if res.code != 200 || string(body) != testCA {
+		t.Fatalf("ca.pem: %d %q, want the certificate alone", res.code, body)
+	}
+	for _, p := range []string{"/install/osquery.sh", "/install/osquery.ps1"} {
+		if r, b := w.get(p, "", ""); r.code != 200 || strings.Contains(string(b), "PRIVATE KEY") || strings.Contains(string(b), "X-Note") || !strings.Contains(string(b), strings.TrimSpace(testCA)) {
+			t.Errorf("%s: %d, want the certificate and no key", p, r.code)
+		}
+	}
+	keyOnly := newWorld(t, func(c *agentintake.Config) { c.TrustAnchor = func() ([]byte, error) { return []byte(key), nil } })
+	if r, b := keyOnly.get("/intake/ca.pem", "", ""); r.code != 500 || strings.Contains(string(b), "PRIVATE") {
+		t.Fatalf("a key alone: %d %q", r.code, b)
+	}
+}
+
 // ---- the package mirror ----
 
 var mirrorNames = []string{

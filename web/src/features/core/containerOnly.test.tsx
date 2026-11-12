@@ -41,12 +41,18 @@ describe('container-only install (D-381)', () => {
     renderApp('/settings/updates')
     expect(await screen.findByText('Vedette 0.9.4 is available. This machine runs 0.9.3.')).toBeInTheDocument()
     expect(screen.getByText(/oversized syslog packets/)).toBeInTheDocument()
-    expect(screen.getByText('mv vedette.env vedette.env.old')).toBeInTheDocument()
-    expect(screen.getByText('minisign -Vm vedette.env -p vedette.pub')).toBeInTheDocument()
+    // in the order that is safe: keep, minisign, cosign + the digests of vedette.env, and only then pull and up -d
+    const steps = within(screen.getByRole('list')).getAllByRole('listitem').map((li) => li.querySelector('code')!.textContent!)
+    expect(steps.map((c) => c.split(' ')[0])).toEqual(['mv', 'minisign', 'cosign', 'docker'])
+    expect(steps[0]).toBe('mv -n vedette.env vedette.env.old')
+    expect(steps[1]).toBe('minisign -Vm vedette.env -p vedette.pub')
     // one line per image this install runs (not the honeypot), by the digest of the release information; no made-up URL
     const lines = screen.getByText(/^cosign verify/).textContent!.split('\n')
     expect(lines.map((l) => /vedette-(\w+)@/.exec(l)?.[1])).toEqual(['core', 'sensor', 'scan'])
     for (const l of lines) expect(l).toMatch(/^cosign verify --key cosign\.pub ghcr\.io\/knt048\/vedette-\w+@sha256:[0-9a-f]{64}$/)
+    const grep = screen.getByText(/^grep -F/).textContent!
+    for (const l of lines) expect(grep).toContain(`-e '${l.split(' ').at(-1)!}'`)
+    expect(screen.getByText(/it must print 3 lines/)).toBeInTheDocument()
     expect(screen.queryByText(/https?:\/\//)).toBeNull()
     expect(screen.queryByRole('button', { name: /Apply|Roll back|Check for releases/ })).toBeNull()
     expect(screen.queryByText(/System helper/)).toBeNull()
@@ -55,13 +61,24 @@ describe('container-only install (D-381)', () => {
     expect(screen.queryByText(/docker compose/)).toBeNull()
   })
 
-  it('Updates without a newer release says why and keeps the general pull and up -d block', async () => {
-    const state = { channel: 'stable', mode: 'manual', check_enabled: true, last_check: null, components: [{ id: 'software', kind: 'software', version: '0.9.3', previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }], available: [], history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null }
+  it.each([
+    ['no check has succeeded', { last_check: null }, /No release information yet/],
+    ['the check is off', { check_enabled: false }, /The update check is off/],
+    ['nothing newer', { last_check: '2026-11-12T00:00:00Z' }, /No newer release is offered to this install \(it runs 0\.9\.3\)/],
+  ])('Updates without a newer release says why (%s) and keeps the general pull and up -d block', async (_, over, said) => {
+    const state = { channel: 'stable', mode: 'manual', check_enabled: true, last_check: null, components: [{ id: 'software', kind: 'software', version: '0.9.3', previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }], available: [], history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null, ...over }
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(state)))
     renderApp('/settings/updates')
-    expect(await screen.findByText(/No release information yet/)).toBeInTheDocument()
+    expect(await screen.findByText(said)).toBeInTheDocument()
     expect(screen.getByText(/docker compose --env-file vedette.env pull/)).toBeInTheDocument()
     expect(screen.queryByText(/minisign|cosign verify/)).toBeNull()
+  })
+
+  it('Updates: when the update state cannot be read, the error has Try again and the general block stays', async () => {
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ error: { code: 'x', message: 'The settings server is not responding.' } }, { status: 503 })))
+    renderApp('/settings/updates')
+    expect(await screen.findByRole('button', { name: /Try again/ })).toBeInTheDocument()
+    expect(screen.getByText(/docker compose --env-file vedette.env pull/)).toBeInTheDocument()
   })
 
   it('Modules: what needs the host is not on this install; off it cannot be turned on, on (sample data) it can be turned off', async () => {

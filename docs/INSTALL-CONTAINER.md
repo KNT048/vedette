@@ -82,10 +82,11 @@ Keep the same `-f` list on every later command (`ps`, `down`, `pull`, `up`), or 
 Vedette looks for a new release every 6 hours (while the update check is on under Settings → Privacy). When it finds one, Settings → Updates names the version and its notes and shows these commands with the release's own image digests, for Docker or Podman; there is no Apply button. Until the first release is published (WP-08k) the page says there is no release information yet.
 
 ```sh
-mv vedette.env vedette.env.old                       # the way back
+mv -n vedette.env vedette.env.old                    # the way back
 # download vedette.env and vedette.env.minisig of the new release from its release page into this folder
-minisign -Vm vedette.env -p vedette.pub
+minisign -Vm vedette.env -p vedette.pub              # the key you kept from the install, not one from the same page
 cosign verify --key cosign.pub ghcr.io/knt048/vedette-core@sha256:<digest>            # and -sensor, -scan; the page fills the digests
+grep -F -e 'ghcr.io/knt048/vedette-core@sha256:<digest>' -e ... vedette.env          # vedette.env names those same digests (one line each)
 # copy your VEDETTE_BIND_IP and VEDETTE_HOSTS lines from vedette.env.old into vedette.env (a release leaves them empty)
 docker compose --env-file vedette.env pull           # podman compose ... the same
 docker compose --env-file vedette.env up -d

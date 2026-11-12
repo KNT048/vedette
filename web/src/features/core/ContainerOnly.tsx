@@ -35,14 +35,16 @@ docker compose --env-file vedette.env start core`
 
 type Engine = 'docker' | 'podman'
 /** The same commands for Podman: `podman compose` (compose v2 provider), `podman run` and `podman logs` take the same arguments (docs/INSTALL-CONTAINER.md). */
-export const forEngine = (cmd: string, e: Engine) => (e === 'docker' ? cmd : cmd.replace(/^docker /gm, 'podman '))
+const forEngine = (cmd: string, e: Engine) => (e === 'docker' ? cmd : cmd.replace(/^docker /gm, 'podman '))
 /** The images a container-only install runs (compose.yaml, compose.sensors.yaml): the cosign lines name only these. */
 const CONTAINER_SERVICES = ['core', 'sensor', 'scan']
 /** release.RegistryPrefix: the only registry and repository family of the release images (D-104 (1)). */
 const REGISTRY = 'ghcr.io/knt048/vedette-'
+type Image = { service: string; digest: string }
 /** One `cosign verify` per image of the release this install runs, by the digest of its signed manifest. */
-export const verifyCmd = (images: ReadonlyArray<{ service: string; digest: string }>) =>
-  images.filter((i) => CONTAINER_SERVICES.includes(i.service)).map((i) => `cosign verify --key cosign.pub ${REGISTRY}${i.service}@${i.digest}`).join('\n')
+const verifyCmd = (images: readonly Image[]) => images.map((i) => `cosign verify --key cosign.pub ${REGISTRY}${i.service}@${i.digest}`).join('\n')
+/** The image lines of the downloaded vedette.env must name those same digests: one printed line per image. */
+const matchCmd = (images: readonly Image[]) => `grep -F ${images.map((i) => `-e '${REGISTRY}${i.service}@${i.digest}'`).join(' ')} vedette.env`
 
 /**
  * Settings → Updates on a container-only install (S-CORE-9 G4, D-381): core's own update check says whether a newer
@@ -62,7 +64,7 @@ export function ContainerUpdates() {
           <Segmented label={t('container.updates.engine')} value={engine} onChange={setEngine} className="justify-self-start"
             options={[{ value: 'docker', label: 'Docker' }, { value: 'podman', label: 'Podman' }]} />
           <QueryState query={q}>{(s) => <ReleaseStatus s={s} />}</QueryState>
-          {offer ? <OfferSteps offer={offer} engine={engine} /> : (
+          {offer ? <OfferSteps offer={offer} engine={engine} /> : !q.data && !q.error ? null : (
             <>
               <CodeBlock label={t('container.updates.label')} code={forEngine(UPDATE_CMD, engine)} />
               <p className="text-[13px] text-muted">{t('container.updates.back')}</p>
@@ -81,38 +83,43 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
   const offer = s.available.find((a) => a.component === 'software')
   const running = s.components.find((c) => c.id === 'software')?.version ?? ''
   if (offer) return (
-    <div role="status" className="grid gap-1 rounded-md border border-accent/40 bg-accent-soft px-4 py-3 text-sm">
+    <div className="grid gap-1 rounded-md border border-accent/40 bg-accent-soft px-4 py-3 text-sm">
       <p className="font-medium">{t('container.updates.offer', { version: offer.version, running })}</p>
       {offer.note ? <p className="whitespace-pre-line text-muted">{offer.note}</p> : null}
     </div>
   )
   if (!s.check_enabled) return (
-    <p role="status" className="text-sm">{t('container.updates.checkOff')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('container.updates.privacyLink')}</Link>.</p>
+    <p className="text-sm">{t('container.updates.checkOff')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('container.updates.privacyLink')}</Link>.</p>
   )
-  if (!s.last_check) return <p role="status" className="text-sm">{t('container.updates.notYet')}</p>
-  return <p role="status" className="text-sm">{t('container.updates.latest', { version: running, when: fmtRelative(s.last_check) })}</p>
+  if (!s.last_check) return <p className="text-sm">{t('container.updates.notYet')}</p>
+  return <p className="text-sm">{t('container.updates.latest', { version: running, when: fmtRelative(s.last_check) })}</p>
 }
 
-/** The two blocks of S-CORE-9 G4 for the offered release: (1) update, (2) check each image with cosign. */
+/**
+ * The steps of S-CORE-9 G4 for the offered release, in the order they are safe to run: keep the old file, check the
+ * new one's minisign signature, check each image with cosign and that vedette.env names those same digests (block 2),
+ * and only then copy the two local lines, pull and start (block 1).
+ */
 function OfferSteps({ offer, engine }: { offer: UpdateAvailable; engine: Engine }) {
   const { t } = useTranslation('core')
-  const verify = verifyCmd(offer.images ?? [])
+  const images = (offer.images ?? []).filter((i) => CONTAINER_SERVICES.includes(i.service))
   return (
     <>
       <h3 className="mt-2 text-sm font-semibold">{t('container.updates.block1', { version: offer.version })}</h3>
       <ol className="grid list-decimal gap-3 pl-5 text-sm">
-        <li className="grid gap-1.5">{t('container.updates.stepKeep')}<CodeBlock code="mv vedette.env vedette.env.old" /></li>
+        <li className="grid gap-1.5">{t('container.updates.stepKeep')}<CodeBlock code="mv -n vedette.env vedette.env.old" /></li>
         <li className="grid gap-1.5">{t('container.updates.stepFetch', { version: offer.version })}<CodeBlock code="minisign -Vm vedette.env -p vedette.pub" /></li>
+        {images.length ? (
+          <li className="grid gap-1.5">
+            {t('container.updates.verifyWhy', { version: offer.version })}
+            <CodeBlock label={t('container.updates.verifyLabel')} code={verifyCmd(images)} />
+            {t('container.updates.matchWhy', { count: images.length })}
+            <CodeBlock code={matchCmd(images)} />
+          </li>
+        ) : null}
         <li className="grid gap-1.5">{t('container.updates.stepLines')}<CodeBlock code={forEngine(UPDATE_CMD, engine)} /></li>
       </ol>
       <p className="text-[13px] text-muted">{t('container.updates.back')}</p>
-      {verify ? (
-        <>
-          <h3 className="mt-2 text-sm font-semibold">{t('container.updates.block2')}</h3>
-          <p className="text-sm">{t('container.updates.verifyWhy', { version: offer.version })}</p>
-          <CodeBlock label={t('container.updates.verifyLabel')} code={verify} />
-        </>
-      ) : null}
     </>
   )
 }

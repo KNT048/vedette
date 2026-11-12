@@ -147,13 +147,14 @@ func TestInstall_VersionsAgree(t *testing.T) {
 	if pins["OSQUERY_VERSION"] != agentintake.OsqueryVersion || guiVersion(t) != agentintake.OsqueryVersion {
 		t.Fatalf("versions: PINS %q, GUI %q, Go %q", pins["OSQUERY_VERSION"], guiVersion(t), agentintake.OsqueryVersion)
 	}
-	for _, k := range []string{"OSQUERY_DEB_AMD64_SHA256", "OSQUERY_RPM_X86_64_SHA256", "OSQUERY_MSI_SHA256"} {
+	for _, k := range []string{"OSQUERY_DEB_AMD64_SHA256", "OSQUERY_RPM_X86_64_SHA256", "OSQUERY_MSI_SHA256",
+		"OSQUERY_LICENSE_SHA256", "OSQUERY_LICENSE_APACHE_SHA256", "OSQUERY_LICENSE_GPL2_SHA256"} {
 		if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(pins[k]) {
 			t.Errorf("PINS %s = %q is not a SHA-256", k, pins[k])
 		}
 	}
-	if len(pins) != 4 {
-		t.Errorf("PINS has %d keys, want the version and three hashes", len(pins))
+	if len(pins) != 7 {
+		t.Errorf("PINS has %d keys, want the version, three package hashes and three licence hashes", len(pins))
 	}
 	sh := readFile(t, "scripts/osquery.sh")
 	for _, want := range []string{`FILE="osquery_${VERSION}-1.linux_amd64.deb"`, `FILE="osquery-${VERSION}-1.linux.x86_64.rpm"`} {

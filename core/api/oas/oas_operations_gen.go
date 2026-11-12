@@ -189,6 +189,7 @@ const (
 	InventoryGetInventorySensorsOperation                   OperationName = "InventoryGetInventorySensors"
 	InventoryGetInventorySettingsOperation                  OperationName = "InventoryGetInventorySettings"
 	InventoryPatchInventoryDevicesIDOperation               OperationName = "InventoryPatchInventoryDevicesID"
+	InventoryPatchInventorySensorsIDOperation               OperationName = "InventoryPatchInventorySensorsID"
 	InventoryPostIntakeOsqueryConfigOperation               OperationName = "InventoryPostIntakeOsqueryConfig"
 	InventoryPostIntakeOsqueryEnrollOperation               OperationName = "InventoryPostIntakeOsqueryEnroll"
 	InventoryPostIntakeOsqueryLogOperation                  OperationName = "InventoryPostIntakeOsqueryLog"

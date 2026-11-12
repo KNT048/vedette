@@ -241,6 +241,10 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 				return bsErr(api.CodeUnitUnsafe, volumeFileName(role)+" is not a regular file the host can trust")
 			}
 		}
+		// Even with -force-units: rewriting the volume unit for new ids would not change the owner of a volume that exists (D-316 (10)).
+		if name := o.volumeOwnerChanged(ctx); name != "" {
+			return bsErr(api.CodeUnitUnsafe, name+": "+volumeOwnerText)
+		}
 	}
 	// The honeypot log volume unit is written with the first unit of core or honeypot (D-318): same refusal.
 	if slices.ContainsFunc(steps, func(s *bsStep) bool {
@@ -329,7 +333,7 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 			if s.replace {
 				logf(fmt.Sprintf("replacing %s (%s); the old bytes are kept as containers/units/%s", unitFileName(svc), s.reason, o.prevName(svc)))
 			}
-			if err := o.writeUnitForStart(svc, s.want); err != nil {
+			if err := o.writeUnitForStart(ctx, svc, s.want); err != nil {
 				if errors.Is(err, errBadFill) {
 					return bsErr(api.CodeHostConfIncomplete, "host.conf does not give the uid and gid the credential volumes need")
 				}

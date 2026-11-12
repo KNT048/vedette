@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { findCatalog, searchCatalog } from './catalog'
 
 const QUERIES = ['', 'forti', 'fortigate 60f', 'synology', 'windows server 2019', 'tuong lua', 'cisco asa', 'wordpress', 'office', 'qnap', 'zzzzqq', 'microsoft', 'apache', 'hikvision', 'camera', 'nas', 'vpn', 'ivanti', 'sophos', 'tường lửa', 'ms exchange', '  FortiGate  ', 'a']
-const FINDS = ['FortiGate', 'Synology NAS (DSM)', 'wordpress', 'Microsoft Office', 'kev:fortinet:fortios', 'nothing like this', '', 'apache http server']
+const FINDS = ['FortiGate', 'Synology NAS (DSM)', 'wordpress', 'Microsoft Office', 'kev:fortinet:fortios', 'nothing like this', '', 'apache http server', 'Dns', 'Synology', 'php', 'Exchange Server']
 
 function compute() {
   return {

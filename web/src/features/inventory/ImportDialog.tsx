@@ -49,12 +49,20 @@ function ImportForm({ onClose }: { onClose: () => void }) {
       {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
       {result ? (
         <div role="status" className="grid gap-2 rounded-md border border-rule bg-sunken p-3 text-sm">
-          <p className="font-medium">{t('import.summary', { created: result.created, skipped: result.skipped })}</p>
+          <p className="font-medium">{t('import.summary', { added: t('import.added', { count: result.created }), skipped: t('import.skipped', { count: result.skipped }) })}</p>
           {result.errors.length ? (
             <>
               <p className="text-[13px] text-muted">{t('import.errorsHint')}</p>
               <ul className="grid max-h-48 gap-1 overflow-y-auto">
                 {result.errors.map((e) => <li key={e.line}><span className="font-medium">{t('import.line', { line: e.line })}</span> {e.message}</li>)}
+              </ul>
+            </>
+          ) : null}
+          {result.notes.length ? (
+            <>
+              <p className="text-[13px] text-muted">{t('import.notesHint')}</p>
+              <ul className="grid max-h-48 gap-1 overflow-y-auto">
+                {result.notes.map((e) => <li key={e.line}><span className="font-medium">{t('import.line', { line: e.line })}</span> {e.message}</li>)}
               </ul>
             </>
           ) : null}

@@ -78,6 +78,36 @@ func TestLogin_ErrorsAreTheMocks(t *testing.T) {
 	wantStatus(t, c.request("POST", "/auth/login", nil), 400, "invalid")
 }
 
+// The walk of 2026-11-12 (findings G6): nine wrong passwords for one account, then the right one, signs in (the limit is ten
+// failures, API_CONVENTIONS section 8). The tenth wrong one starts the wait: the right password is then refused with 429, the
+// sentence the sign-in page shows, and Retry-After. Every client here shares one address, as behind the port proxy of a
+// container-only install (the tester's sessions came from the bridge, 172.18.0.1).
+func TestLogin_ThrottleAfterTenFailures(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	w.env.User(t, "ann@acme.example", "viewer")
+	w.env.User(t, "bob@acme.example", "viewer")
+	wrong := func(c *client, email string, n int) {
+		for range n {
+			wantStatus(t, c.post("/auth/login", map[string]any{"email": email, "password": "wrong password here"}), 400, "invalid_credentials")
+		}
+	}
+	c := w.client()
+	wrong(c, "ann@acme.example", 9)
+	wantOK(t, c.login("ann@acme.example"), 200)
+
+	c = w.client()
+	wrong(c, "bob@acme.example", 10)
+	r := c.login("bob@acme.example")
+	wantStatus(t, r, 429, "rate_limited")
+	if msg := r.str("error", "message"); msg != "Too many failed sign-in attempts. Try again in 30 seconds." {
+		t.Fatalf("message = %q", msg)
+	}
+	if r.Header.Get("Retry-After") != "30" {
+		t.Fatalf("Retry-After = %q", r.Header.Get("Retry-After"))
+	}
+}
+
 func TestLogin_DisabledAccount(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t)

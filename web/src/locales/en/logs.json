@@ -210,6 +210,7 @@
       "honeypot": "Honeypot touches",
       "bad_conn": "Connections to bad IPs or domains"
     },
+    "noHoneypot": "Not on this install: the honeypot needs the appliance install.",
     "sample": "Sample of one record that will be sent",
     "save": "Save",
     "saved": "SIEM settings saved.",

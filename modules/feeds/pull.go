@@ -156,8 +156,10 @@ func userError(err error, rawURL string) string {
 		return fmt.Sprintf("The source answered HTTP %d.", se.Code)
 	case errors.Is(err, ErrBoxAddrsUnknown):
 		return "Vedette does not know its own addresses yet, so it did not connect. It will try again at the next pull."
+	case errors.Is(err, ErrOwnAddress):
+		return ownText
 	case errors.Is(err, ErrBlockedAddress):
-		return "Vedette does not pull feeds from itself or from loopback, link-local or cloud metadata addresses."
+		return blockedText
 	case errors.Is(err, context.DeadlineExceeded):
 		return "The source did not answer in time."
 	case errors.As(err, &dns):
@@ -172,22 +174,32 @@ func accepted(st Stats) error {
 		return nil
 	}
 	if st.Rejected > 0 && len(st.Reasons) > 0 {
-		return fail(ErrBadSample, "All %s rows were rejected: %s.", grouped(st.Rejected), st.Reasons[0].Reason)
+		return fail(ErrBadSample, "All %s rows were rejected: %s.", grouped(st.Rejected), mostOften(st.Reasons[0]))
 	}
 	return fail(ErrBadSample, "The feed returned no records.")
 }
 
 // note is the status line of an ok pull that dropped rows: the counts as the GUI writes numbers (fmtNumber,
-// en-GB), the most common reason (a message template, feed values left out: INV-3) and why that is fine.
+// en-GB), the most common reason with one row of it as a sample (mostOften, INV-3) and why that is fine.
 func note(st Stats) string {
 	if st.Rejected == 0 {
 		return ""
 	}
 	m := fmt.Sprintf("%s of %s rows were rejected.", grouped(st.Rejected), grouped(st.Accepted+st.Rejected))
 	if len(st.Reasons) > 0 {
-		m += fmt.Sprintf(" Most often: %s.", st.Reasons[0].Reason)
+		m += fmt.Sprintf(" Most often: %s.", mostOften(st.Reasons[0]))
 	}
 	return m + " A few bad lines in a public list are normal; they are skipped."
+}
+
+// mostOften is a reason for the status line: its first row with the value shown (quoteVal: at most 40 UTF-16 units,
+// unprintable runes as spaces, quoted), so the admin sees what was rejected (D-420 (3)); the masked template when
+// there is no example ("other").
+func mostOften(r Reason) string {
+	if r.Example != "" {
+		return r.Example
+	}
+	return r.Reason
 }
 
 // grouped writes n with a comma every three digits (185987 -> "185,987").
@@ -297,7 +309,7 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 			if vulns, long = vulnsOf(res.Records); long > 0 { // fail-closed: such a row is rejected with its reason
 				st.Accepted -= long
 				st.Rejected += long
-				st.Reasons = append(slices.Clone(st.Reasons), Reason{"vendor or product: longer than 200 characters", long})
+				st.Reasons = append(slices.Clone(st.Reasons), Reason{Reason: "vendor or product: longer than 200 characters", Count: long})
 			}
 		}
 		if err := accepted(st); err != nil {
@@ -446,7 +458,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		return src, 0, nil
 	}
 	if perr != nil {
-		s.Log.WarnContext(ctx, "feed pull failed", "feed", src.ID, "error", perr)
+		s.Log.WarnContext(ctx, "feed pull failed", "feed", src.ID, "name", src.Name, "error", perr) // the name too: an admin knows the feed by it (D-420 (2))
 		p = pullPlan{out: outcome{Err: userError(perr, src.URL)}}
 	}
 	p.out.Started, p.out.Finished = started, s.now()

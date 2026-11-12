@@ -260,7 +260,7 @@ func reservedName(name string) bool {
 // reserved or local top-level label, or a name that is itself a public suffix
 // ("com.vn", "co.uk", "github.io"). domain must be a valid lower-case name.
 func localName(domain string) bool {
-	if reservedName(domain) {
+	if reservedName(domain) || testName(domain) {
 		return true
 	}
 	suffix, _ := publicsuffix.PublicSuffix(domain)
@@ -274,9 +274,26 @@ var emptyFileHashes = map[string]bool{
 	"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855": true,
 }
 
-// testTLDs are the reserved top-level labels for documentation and tests (RFC 2606,
-// RFC 6761), a subset of reservedTLDs: refused, but they are not local hosts.
-var testTLDs = map[string]bool{"example": true, "test": true, "invalid": true}
+// testTLDs are the reserved top-level labels for documentation and tests (RFC 2606 §2, RFC 6761 §6.2-6.4; .localhost
+// §6.3), a subset of reservedTLDs: refused, but named as test names rather than local hosts (D-420 (6)).
+var testTLDs = map[string]bool{"example": true, "test": true, "invalid": true, "localhost": true}
+
+// testDomains are the second-level names reserved for documentation (RFC 2606 §3): they and every name under them.
+var testDomains = []string{"example.com", "example.net", "example.org"}
+
+// testName reports a name under a test top-level label (bad.test, x.localhost) or under a documentation domain
+// (example.com, bad.example.org). A single label (localhost itself) is not one: it is a local host.
+func testName(name string) bool {
+	if i := strings.LastIndexByte(name, '.'); i > 0 && testTLDs[name[i+1:]] {
+		return true
+	}
+	for _, d := range testDomains {
+		if name == d || strings.HasSuffix(name, "."+d) {
+			return true
+		}
+	}
+	return false
+}
 
 // hostRejection says why a URL host is refused (an IP literal must be public, a
 // name must not be local or reserved); none() when the host is public. The
@@ -292,7 +309,7 @@ func hostRejection(host string) rej {
 	if !validDomain(h) {
 		return rj("%s points at a local or private host")
 	}
-	if i := strings.LastIndexByte(h, '.'); i > 0 && testTLDs[h[i+1:]] {
+	if testName(h) {
 		return rj("%s points at a reserved example or test name")
 	}
 	if reservedName(h) {
@@ -319,6 +336,9 @@ func normaliseIOC(kind, value string) (string, rej) {
 			return "", rj("%s is not a valid domain")
 		}
 		d := strings.ToLower(value)
+		if testName(d) {
+			return "", rj("%s is a reserved example or test name")
+		}
 		if localName(d) {
 			return "", rj("%s is a local, reserved or public-suffix name")
 		}

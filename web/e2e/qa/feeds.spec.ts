@@ -341,7 +341,7 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     await page.getByRole('button', { name: 'Add a feed' }).first().click()
     const dlg = page.getByRole('dialog', { name: 'Add a feed' })
     await dlg.locator('#cf-name').fill('Unreachable partner')
-    await dlg.getByLabel('Address').fill('http://127.0.0.1:1/list.txt')
+    await dlg.getByLabel('Address').fill('http://unreachable.lan:1/list.txt') // a loopback address is refused at save (D-420)
     await dlg.locator('#pe-format').selectOption('lines')
     await dlg.getByRole('button', { name: 'Add feed' }).click()
     await toast(page, /Unreachable partner added/)

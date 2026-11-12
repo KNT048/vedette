@@ -290,11 +290,15 @@ func TestD208_GatewayIsTheBoxAndRefusedPullsHaveAPlainMessage(t *testing.T) {
 	c := newClient(2*time.Second, fixedResolver(&calls, map[string][]string{"gw.lan": {"172.17.0.1"}}))
 	f := Fetcher{Client: c, Gateway: func() (netip.Addr, bool) { return netip.MustParseAddr("172.17.0.1"), true }}
 	_, err := f.Fetch(context.Background(), Request{URL: "http://gw.lan/"})
-	if !errors.Is(err, ErrBlockedAddress) {
+	if !errors.Is(err, ErrBlockedAddress) || !errors.Is(err, ErrOwnAddress) {
 		t.Fatalf("%v", err)
 	}
-	if msg := userError(err, "http://gw.lan/"); !strings.HasPrefix(msg, "Vedette does not pull feeds from itself") {
+	// D-420 (7): the gateway is the machine Docker runs on; the message says so instead of claiming loopback
+	if msg := userError(err, "http://gw.lan/"); !strings.HasPrefix(msg, "This address is the machine Vedette runs on") {
 		t.Errorf("message = %q", msg)
+	}
+	if msg := userError(ErrBlockedAddress, "http://x/"); !strings.HasPrefix(msg, "Vedette does not pull feeds from itself") {
+		t.Errorf("loopback message = %q", msg)
 	}
 }
 

@@ -1,5 +1,5 @@
 // The feeds module on the real backend, on a box with no internet (S-FEED-1..5, D-91, D-92, D-134). Steps from e2e/qa/feeds.spec.ts.
-// No test makes the box pull from a public URL: the only pull is of a custom feed pointed at a node `http` server on 127.0.0.1 (INV-2
+// No test makes the box pull from a public URL: the only pull is of a custom feed pointed at a node `http` server on 127.0.0.1, named e2e-loopback.lan (D-420; INV-2
 // lets internal hosts use http), so the run needs no network. Entities are per test (uniq names); nothing here changes a built-in feed's state.
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -29,7 +29,7 @@ async function sweep() {
 }
 test.afterEach(sweep)
 const LINES = { format: 'lines', records_path: '', delimiter: '', has_header: false, fields: { indicator: { source: '', regex: '', trim: true, lowercase: false, date_format: 'auto' } } }
-const customBody = (name: string, url = 'http://127.0.0.1:9/x.txt') => ({ name, kind: 'ioc', url, enabled: true, interval_hours: 24, auth: { type: 'none', header_name: null, username: null }, parser: LINES })
+const customBody = (name: string, url = 'http://e2e-loopback.lan:9/x.txt') => ({ name, kind: 'ioc', url, enabled: true, interval_hours: 24, auth: { type: 'none', header_name: null, username: null }, parser: LINES })
 
 test.describe('home and the CISA list on a box with no internet (S-FEED-1, D-134 (4))', () => {
   test.use({ storageState: authFile('viewer') })
@@ -166,7 +166,9 @@ test.describe('Settings -> Feeds as an administrator (S-FEED-4, S-FEED-5)', () =
     await dlg.getByRole('button', { name: 'Test on a sample' }).click()
     await expect(dlg.getByRole('status')).toContainText('2 rows accepted')
     await expect(dlg.getByRole('status')).toContainText('1 row rejected')
-    await expect(dlg.getByText(/First rejected rows \(numbers\): 2/)).toBeVisible()
+    // walk 2 (#511): a plain list names the rejected line of the sample, and the first word of that line as the value
+    await expect(dlg.getByText('First rejected lines of the sample')).toBeVisible()
+    await expect(dlg.getByRole('listitem').filter({ hasText: 'Line 2:' })).toContainText('indicator: "not" is not a valid indicator')
   })
 
   test('a built-in feed mirror address: https only (or internal), saved and reset', async ({ page }) => {
@@ -192,7 +194,7 @@ test.describe('operator and viewer (S-FEED-4)', () => {
       const errors = collectErrors(page)
       await page.goto(SETTINGS)
       await expect(feedRow(page, 'CISA KEV')).toBeVisible()
-      for (const b of [page.getByRole('button', { name: 'Settings for CISA KEV' }), page.getByRole('button', { name: 'Fetch now: CISA KEV' }), page.getByRole('switch', { name: 'Enable CISA KEV' })]) {
+      for (const b of [page.getByRole('button', { name: 'Settings for CISA KEV' }), page.getByRole('button', { name: 'Fetch now: CISA KEV' }), page.getByRole('switch', { name: /^(Enable|Disable) CISA KEV$/ })]) { // the switch names what it would do (D-381 G9)
         await expect(b).toBeDisabled()
         await expect(b).toHaveAttribute('title', /Requires .+ role/)
       }
@@ -277,7 +279,7 @@ test.describe('a feed pull from loopback (S-FEED-4, INV-4, INV-8)', () => {
   test.beforeAll(async () => {
     srv = createServer((req, res) => { const s = served[req.url ?? ''] ?? { status: 404, body: 'no' }; res.writeHead(s.status, { 'Content-Type': 'text/plain' }); res.end(s.body) })
     await new Promise<void>((ok) => srv.listen(0, '127.0.0.1', ok))
-    base = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`
+    base = `http://e2e-loopback.lan:${(srv.address() as AddressInfo).port}` // the box sends this name to 127.0.0.1 (e2eOffline): a loopback address is refused at save (D-420)
   })
   test.afterAll(async () => { await new Promise((ok) => srv.close(ok)) })
 

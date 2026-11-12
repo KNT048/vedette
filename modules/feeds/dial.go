@@ -3,6 +3,7 @@ package feeds
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/netip"
 	"syscall"
@@ -11,6 +12,11 @@ import (
 
 // ErrBlockedAddress is a connection the dialer refuses by address.
 var ErrBlockedAddress = errors.New("feeds: connection to this address is refused")
+
+// ErrOwnAddress is ErrBlockedAddress for an address of the box itself that is not loopback: one of its interfaces,
+// the address vedette-host reports, or the container's default gateway (on a container-only install, the machine
+// Docker runs on). userError says so in plain words (D-420 (7)).
+var ErrOwnAddress = fmt.Errorf("%w: it is the machine Vedette runs on", ErrBlockedAddress)
 
 // resolver turns a host name into addresses. Tests replace it.
 type resolver func(ctx context.Context, host string) ([]netip.Addr, error)
@@ -77,6 +83,16 @@ func (g *destGuard) refused(ip netip.Addr, box []netip.Addr) bool {
 		}
 	}
 	return false
+}
+
+// own reports whether ip is refused as one of box rather than as loopback (refused is true for both).
+func (g *destGuard) own(ip netip.Addr, box []netip.Addr) bool {
+	for _, f := range addrForms(ip) {
+		if f.IsLoopback() {
+			return false
+		}
+	}
+	return g.refused(ip, box)
 }
 
 // addrForms is ip plus the IPv4 address a transition form carries: NAT64 (64:ff9b::/96, 64:ff9b:1::/48), 6to4 (2002::/16)
@@ -206,6 +222,9 @@ func destControl(g *destGuard, box []netip.Addr, strict bool) func(_, address st
 			return ErrBoxAddrsUnknown
 		}
 		if box != nil && g.refused(ip, box) {
+			if g.own(ip, box) {
+				return ErrOwnAddress
+			}
 			return ErrBlockedAddress
 		}
 		return nil
@@ -236,9 +255,13 @@ func guardedDial(res resolver) func(ctx context.Context, network, addr string) (
 		}
 		d := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second, Control: destControl(g, box, strict)}
 		var last error
-		waiting := false
+		waiting, own := false, false
 		for _, ip := range ips {
-			if !dialAllowed(ip, scheme) || g.refused(ip, box) {
+			if !dialAllowed(ip, scheme) {
+				continue
+			}
+			if g.refused(ip, box) {
+				own = own || g.own(ip, box)
 				continue
 			}
 			if strict && !globalOnly(ip) {
@@ -258,6 +281,9 @@ func guardedDial(res resolver) func(ctx context.Context, network, addr string) (
 		if last == nil {
 			if waiting {
 				return nil, ErrBoxAddrsUnknown
+			}
+			if own {
+				return nil, ErrOwnAddress
 			}
 			return nil, ErrBlockedAddress
 		}

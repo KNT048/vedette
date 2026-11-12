@@ -273,13 +273,20 @@ test('lines sent over UDP and TCP are stored exactly, the source turns to Receiv
     const src = (await sources(c)).sources[0]!
     expect(src.state).toBe('receiving')
     expect(src.last_received).not.toBeNull()
-    const digest = await api<{ lines_24h: number }>(c, 'GET', '/logs/digest')
+    type Digest = { lines_24h: number; history_days: number; baseline_days: number; new: unknown[]; spikes: unknown[]; bad_connections: unknown[] }
+    const digest = await api<Digest>(c, 'GET', '/logs/digest')
     expect(digest.body.lines_24h).toBe(linesBefore + 4)
 
+    // The headline says what the digest holds (LogsPage Content): nothing found and fewer days of logs than the baseline is the
+    // warm-up sentence, a fresh box's truth; anything found is the "Today:" count. The page's line count is the digest's.
+    const d = digest.body
+    const learning = d.history_days < d.baseline_days
     await page.goto('/logs')
-    await expect(h1(page)).toContainText('Today:')
+    if (d.new.length + d.spikes.length + d.bad_connections.length === 0) {
+      await expect(h1(page)).toHaveText(learning ? `Learning what is normal: ${d.history_days} of ${d.baseline_days} days of logs so far.` : 'Today: logs look normal, nothing new compared with the last 7 days.')
+    } else await expect(h1(page)).toContainText('Today:')
     await expect(srcRow(page, udp.name)).toContainText('Receiving')
-    await expect(page.getByText(`From ${linesBefore + 4} log lines in the last 24 hours`)).toBeVisible()
+    await expect(page.getByText(learning ? `From ${linesBefore + 4} log lines in the last 24 hours. Updated` : `From ${linesBefore + 4} log lines in the last 24 hours, compared with the previous ${d.baseline_days} days.`)).toBeVisible()
     await page.getByLabel('Keyword').fill(tok)
     await expect(page.getByText('4 of 4 matching lines.')).toBeVisible()
     await page.getByLabel('Keyword').fill(`${tok} tcp counted`)
@@ -501,7 +508,8 @@ test('digest of a fresh source (INV-6, PRE-3): inside the 24 h warm-up nothing i
       await expect(h1(page)).toContainText('Today: logs look normal') // titleQuiet: no bad connection, no new type, no spike
       await expect(page.getByText('No new log types compared with 7 days ago.')).toBeVisible()
     }
-    await expect(page.getByText('None of your devices connected to a listed bad address in the last 24 hours.')).toBeVisible()
+    // the empty list says plainly why: nothing found, or no switched-on feed lists any IP or domain yet (the e2e box pulls no IOC feed)
+    await expect(page.getByText(/^(None of your devices connected to a listed bad address in the last 24 hours\.|No switched-on threat feed lists any IP address or domain yet, so no connection can be matched\.)/)).toBeVisible()
     // Feeds off: the page says that instead (PRE-3); the digest itself keeps working
     const mods = await api<{ modules: { id: string; enabled: boolean }[] }>(c, 'GET', '/modules')
     const feedsWas = mods.body.modules.find((m) => m.id === 'feeds')?.enabled === true
@@ -558,7 +566,7 @@ test('phone width: the Logs page with a source and lines fits a 390 px screen: n
     const page = await ctx.newPage()
     const errors = collectErrors(page)
     await page.goto('/logs')
-    await expect(h1(page)).toContainText('Today:')
+    await expect(h1(page)).toContainText(/^(Today:|Learning what is normal:)/) // a fresh box may still be in the 7-day warm-up (the spec at :280 checks which)
     // at phone width the sources and the events are lists of cards, not tables
     await expect(page.getByRole('list', { name: 'Log sources currently received' }).getByRole('listitem').filter({ hasText: src.name })).toBeVisible()
     await page.getByLabel('Keyword').fill(tok)
@@ -583,7 +591,7 @@ test('bad connections: a LAN device that asks for a domain a feed lists is in th
   await new Promise<void>((ok) => srv.listen(0, '127.0.0.1', ok))
   let feedId = ''
   try {
-    const url = `http://127.0.0.1:${(srv.address() as AddressInfo).port}/list.txt`
+    const url = `http://e2e-loopback.lan:${(srv.address() as AddressInfo).port}/list.txt` // the box sends this name to 127.0.0.1 (e2eOffline, D-420)
     const lines = { format: 'lines', records_path: '', delimiter: '', has_header: false, fields: { indicator: { source: '', regex: '', trim: true, lowercase: false, date_format: 'auto' } } }
     const made = await api<{ id: string }>(c, 'POST', '/feeds/custom', { name: feed, kind: 'ioc', url, enabled: true, interval_hours: 24, auth: { type: 'none', header_name: null, username: null }, parser: lines })
     expect(made.status, JSON.stringify(made.body)).toBe(201)

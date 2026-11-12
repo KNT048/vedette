@@ -573,27 +573,36 @@ func TestCallRead_RateCapPerConnection(t *testing.T) {
 	}
 }
 
-// L3: closing a session gets what is left of the call's budget, and at least a floor of one second. The rule is checked on the fake
-// clock of a synctest bubble, where what is left is exact.
-func TestCloseTimeIsWhatIsLeftOfTheBudget(t *testing.T) {
+// L3: closing a session ends with the call's budget, and at least a floor of one second from when it starts. The rule is checked on the
+// fake clock of a synctest bubble, where every deadline is exact.
+func TestCloseDeadlineIsTheEndOfTheBudget(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		if got := read.CloseTimeForTest(t.Context()); got != time.Second {
-			t.Errorf("no budget: close time %s, want the floor", got)
+		if got, want := read.CloseDeadlineForTest(t.Context()), time.Now().Add(time.Second); !got.Equal(want) {
+			t.Errorf("no budget: close deadline %s, want the floor %s", got, want)
 		}
 		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 		defer cancel()
-		for _, step := range []struct{ wait, want time.Duration }{{0, 5 * time.Second}, {3 * time.Second, 2 * time.Second}, {1500 * time.Millisecond, time.Second}, {time.Second, time.Second}} {
+		dl, _ := ctx.Deadline()
+		for _, step := range []struct {
+			wait  time.Duration
+			floor bool // the floor, not the end of the budget
+		}{{0, false}, {3 * time.Second, false}, {1500 * time.Millisecond, true}, {time.Second, true}} {
 			<-time.After(step.wait)
-			if got := read.CloseTimeForTest(ctx); got != step.want {
-				dl, _ := ctx.Deadline()
-				t.Errorf("%s left of the budget: close time %s, want %s", time.Until(dl), got, step.want)
+			want := dl
+			if step.floor {
+				want = time.Now().Add(time.Second)
+			}
+			if got := read.CloseDeadlineForTest(ctx); !got.Equal(want) {
+				t.Errorf("%s left of the budget: close deadline %s, want %s", time.Until(dl), got, want)
 			}
 		}
 	})
 }
 
-// L3, end to end: a server that never answers the close neither fails the call nor holds it. The call keeps its whole budget: with the
-// 400 ms this test once gave it, a starved runner could not fit the call itself, and it timed out before the close was reached.
+// L3, end to end: the close of a call's session runs under the call's own deadline, so a server that never answers it neither fails the
+// call nor holds it past the budget. The call keeps its whole budget (with the 400 ms this test once gave it, a starved runner could not
+// fit the call itself), so the close starts with far more than the floor left and its deadline must be exactly the call's: a close that
+// ignored the budget (no deadline, the floor alone, a fresh budget) would have another one.
 func TestCallRead_CloseIsInsideTheBudget(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
@@ -602,18 +611,27 @@ func TestCallRead_CloseIsInsideTheBudget(t *testing.T) {
 	release := make(chan struct{})
 	t.Cleanup(func() { close(release) })
 	f.Hang(release, "DELETE")
+	type deadlines struct {
+		call, closing time.Time
+		ok            bool
+	}
+	closes := make(chan deadlines, 1)
+	r.r.SetOnCloseForTest(func(call, closing context.Context) {
+		cd, ok1 := call.Deadline()
+		xd, ok2 := closing.Deadline()
+		closes <- deadlines{cd, xd, ok1 && ok2}
+	})
 	type result struct {
 		out string
 		err error
 	}
 	done := make(chan result, 1)
-	start := time.Now()
 	go func() { out, err := r.call(c, "list_resources", nil); done <- result{out, err} }()
 	if got := receive(t, done); got.err != nil || got.out == "" {
 		t.Fatalf("got %q, %v", got.out, got.err)
 	}
-	if d := time.Since(start); d > read.CallBudget+time.Second {
-		t.Errorf("a call with a server that does not answer the close took %s, more than its budget and the floor", d)
+	if d := receive(t, closes); !d.ok || !d.closing.Equal(d.call) {
+		t.Errorf("the close ran under deadline %s (set: %v), want the call's %s", d.closing, d.ok, d.call)
 	}
 }
 

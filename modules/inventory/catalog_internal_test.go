@@ -52,7 +52,7 @@ func TestContract_INV12_CatalogMatchesTheWebGolden(t *testing.T) {
 	}
 	c := embeddedCatalog(t)
 	for _, g := range golden.Search {
-		list, total := c.search(g.Q, MaxCatalogHits)
+		list, total := c.search(g.Q)
 		if total != g.Total || len(list) != len(g.Items) {
 			t.Errorf("search %q: total/len = %d/%d, web has %d/%d", g.Q, total, len(list), g.Total, len(g.Items))
 			continue
@@ -124,7 +124,7 @@ func FuzzParseCSV(f *testing.F) {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, text string) {
-		rows := parseCSV(text)
+		rows, _ := parseCSV(text)
 		cells := 0
 		for _, r := range rows {
 			if r == nil {
@@ -166,8 +166,8 @@ func TestSearchTermsAreCapped(t *testing.T) {
 	}
 	c := embeddedCatalog(t)
 	// the first eight words decide: the rest cannot change the answer or its cost
-	a, _ := c.search("forti "+strings.Repeat("x ", 7), 30)
-	b, _ := c.search("forti "+strings.Repeat("x ", 70), 30)
+	a, _ := c.search("forti " + strings.Repeat("x ", 7))
+	b, _ := c.search("forti " + strings.Repeat("x ", 70))
 	if len(a) != len(b) {
 		t.Fatalf("%d vs %d hits", len(a), len(b))
 	}

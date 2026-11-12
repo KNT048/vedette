@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// The current templates are pinned: a change of one must keep its text before the change in legacyTemplates (D-316 (9)), or every
+// The current templates are pinned: a change of one must keep its text before the change in legacyTemplates (D-316 (10)), or every
 // box that runs the earlier host would find its units "not ours" after a self-update and refuse every container command.
 func TestUnitTemplatesArePinned(t *testing.T) {
 	t.Parallel()
@@ -170,6 +170,28 @@ func TestVolumeIDsReadsBackOnlyWhatTheHostWrote(t *testing.T) {
 			if _, _, ok := volumeIDs(role, []byte(bad)); ok {
 				t.Errorf("%s %s: read back", role, name)
 			}
+		}
+	}
+}
+
+// "podman volume exists" is allowed only for the two credential volumes, in exactly that shape.
+func TestPodmanGrammarOfTheVolumeLook(t *testing.T) {
+	t.Parallel()
+	for _, role := range credsRoles {
+		argv, err := volumeExistsArgv(role)
+		if err != nil || validatePodman(argv) != nil {
+			t.Fatalf("%s: %v %v", role, argv, err)
+		}
+	}
+	if _, err := volumeExistsArgv("other"); err == nil {
+		t.Error("a role outside the list got an argv")
+	}
+	for _, bad := range [][]string{
+		{"volume", "exists", "vedette-hp-log"}, {"volume", "exists", "vedette-creds-"}, {"volume", "exists", "vedette-creds-passive", "x"},
+		{"volume", "rm", "vedette-creds-passive"}, {"volume", "inspect", "vedette-creds-passive"}, {"volume", "exists", "--help"},
+	} {
+		if validatePodman(bad) == nil {
+			t.Errorf("accepted %v", bad)
 		}
 	}
 }

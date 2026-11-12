@@ -2,6 +2,7 @@ package ops
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -148,13 +149,13 @@ func (o *Ops) writeUnit(service string, text []byte, keepPrev bool) error {
 // writeUnitForStart is writeUnit for the paths that start a service (bootstrap, container.start with or without a version): the
 // .volume units the service mounts (see ensureVolumeUnits) are put in place first (idempotent). Rollback and the recovery of an
 // interrupted change use plain writeUnit: they put back what was there, and a volume unit is not part of what they undo (L5).
-func (o *Ops) writeUnitForStart(service string, text []byte) error {
+func (o *Ops) writeUnitForStart(ctx context.Context, service string, text []byte) error {
 	if service == api.ServiceCore || service == api.ServiceSensor || service == api.ServiceScan || service == api.ServiceHoneypot {
 		r, err := o.openUnitDir()
 		if err != nil {
 			return err
 		}
-		err = o.ensureVolumeUnits(r, service)
+		err = o.ensureVolumeUnits(ctx, r, service)
 		_ = r.Close()
 		if err != nil {
 			return err
@@ -163,7 +164,8 @@ func (o *Ops) writeUnitForStart(service string, text []byte) error {
 	return o.writeUnit(service, text, true) // the old bytes go to .prev, like every unit change that is not a revert
 }
 
-// errVolumeOwner: a credential .volume unit the host wrote names another core_uid or sensor_gid than host.conf gives now (D-316 (9)).
+// errVolumeOwner: a credential .volume unit the host wrote names another core_uid or sensor_gid than host.conf gives now, and the
+// volume exists (D-316 (10)).
 // Quadlet sets User= and Group= only when it creates the volume, so rewriting the unit would change nothing on the volume and leave
 // core unable to write the bundles; the host never changes the owner of what a container wrote (core can point a root chown of its
 // tree at another file with a link it planted), so the change of ids is refused and the RUNBOOK says how to make it by hand.
@@ -172,34 +174,48 @@ var errVolumeOwner = errors.New("ops: a credential volume was made for other ids
 // volumeOwnerText is the message of the refusal (unit_unsafe) for errVolumeOwner.
 const volumeOwnerText = "host.conf gives another core_uid or sensor_gid than the sensor credential volumes were made for; Podman does not change the owner of an existing volume and the host does not either. Put the ids back in host.conf, or change the owner by hand as RUNBOOK section 3 says."
 
-// volumeOwnerChanged returns the name of a credential .volume unit the host wrote for other ids than host.conf gives now ("" when
-// there is none; a missing, odd or hand-edited file is not this refusal: the write path deals with it).
-func (o *Ops) volumeOwnerChanged() string {
+// volumeOwnerChanged returns the name of a credential .volume unit the host wrote for other ids than host.conf gives now while
+// the Podman volume itself exists ("" when there is none). A missing, odd or hand-edited file is not this refusal (the write path
+// deals with it), and neither is a volume that is gone: Quadlet makes it again, with the ids of the unit the host then writes.
+func (o *Ops) volumeOwnerChanged(ctx context.Context) string {
 	r, err := o.openUnitDir()
 	if err != nil {
 		return "" // the caller refuses an unsafe directory on its own
 	}
 	defer func() { _ = r.Close() }()
-	return volumeOwnerChangedIn(r, o.cfg.CoreUID, o.cfg.SensorGID)
+	return o.volumeOwnerChangedIn(ctx, r)
 }
 
-func volumeOwnerChangedIn(r *os.Root, coreUID, sensorGID int) string {
+func (o *Ops) volumeOwnerChangedIn(ctx context.Context, r *os.Root) string {
 	for _, role := range credsRoles {
 		text, st := readNoFollow(r, volumeFileName(role), maxUnitSize)
 		if st != fileOK {
 			continue
 		}
-		if u, g, ok := volumeIDs(role, text); ok && (u != coreUID || g != sensorGID) {
+		if u, g, ok := volumeIDs(role, text); ok && (u != o.cfg.CoreUID || g != o.cfg.SensorGID) && o.volumeExists(ctx, role) {
 			return volumeFileName(role)
 		}
 	}
 	return ""
 }
 
+// volumeExists asks "podman volume exists vedette-creds-<role>": only its exit 1 ("no such volume", podman-volume-exists(1)) says
+// the volume is gone; any other answer (0, an error, a time-out) counts as there, so an unsure look refuses.
+func (o *Ops) volumeExists(ctx context.Context, role string) bool {
+	argv, err := volumeExistsArgv(role)
+	if err != nil {
+		return true
+	}
+	cctx, cancel := context.WithTimeout(ctx, probeLimit)
+	defer cancel()
+	_, code, err := o.exec(cctx, binPodman, argv...)
+	return err != nil || code != 1
+}
+
 // ensureVolumeUnits puts the .volume units a service mounts in place in the opened Quadlet directory: the two credential volumes
 // for core, sensor and scan (constant text, host.conf ids; see renderVolume) and the honeypot log volume for core and honeypot. A unit that already holds the right bytes is not touched; a link or odd
 // file at its name is refused. The text never depends on a service or an image, so it needs no .prev and no journal: writing it again is always right.
-func (o *Ops) ensureVolumeUnits(r *os.Root, service string) error {
+func (o *Ops) ensureVolumeUnits(ctx context.Context, r *os.Root, service string) error {
 	type vol struct {
 		name string
 		text []byte
@@ -213,7 +229,7 @@ func (o *Ops) ensureVolumeUnits(r *os.Root, service string) error {
 			}
 			vols = append(vols, vol{volumeFileName(role), text})
 		}
-		if name := volumeOwnerChangedIn(r, o.cfg.CoreUID, o.cfg.SensorGID); name != "" { // before any write: all or nothing
+		if name := o.volumeOwnerChangedIn(ctx, r); name != "" { // before any write: all or nothing
 			return fmt.Errorf("%w: %s: %w", errUnitUnsafe, name, errVolumeOwner)
 		}
 	}

@@ -319,7 +319,7 @@ func (o *Ops) runSwitch(ctx context.Context, rc *server.RunContext, a api.Contai
 		id := bk.BackupID
 		res.BackupID = &id
 	}
-	if err := o.writeUnitForStart(svc, want); err != nil {
+	if err := o.writeUnitForStart(ctx, svc, want); err != nil {
 		o.removeJournal(svc)
 		return nil, unitWriteFailure(err)
 	}

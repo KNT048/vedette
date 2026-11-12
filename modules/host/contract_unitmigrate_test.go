@@ -1,6 +1,7 @@
 package host_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"slices"
@@ -12,7 +13,7 @@ import (
 	"github.com/knt048/vedette/host/ops/opstest"
 )
 
-// Units between host releases (UNIT-4, D-316 (9)): a unit that an earlier release of the host wrote from an earlier template is still
+// Units between host releases (UNIT-4, D-316 (10)): a unit that an earlier release of the host wrote from an earlier template is still
 // the host's own, and is rewritten to the current template before READY without restarting anything; a unit a person edited stays
 // refused; nothing moves while a self-update is not committed. Credential volumes made for other ids are refused, never re-owned.
 
@@ -91,6 +92,37 @@ func TestContract_UnitMigration_StartRewritesAnEarlierTemplateBeforeReadyWithout
 	e.startHost(t)
 	if got := e.ctl(); !slices.Equal(got, []string{"daemon-reload"}) {
 		t.Fatalf("a second start reloaded again: %v", got)
+	}
+}
+
+// The migration runs once per start: the retries of the journal recovery after READY (recoverAndFinish) do not try it again, so a
+// migration that fails leaves one unit_migration_failed line per start, not one per retry.
+func TestContract_UnitMigration_RunsOncePerStartNotInTheRetriesAfterReady(t *testing.T) {
+	t.Parallel()
+	e := startCtr(t)
+	cfg := e.m.Config()
+	old := e.writeLegacy(t, api.ServiceCore, digA, 0, true)
+	vol, err := ops.RenderVolume("passive", cfg.CoreUID+1, cfg.SensorGID) // core's migration fails: a volume made for other ids
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(e.m.UnitsDir(), "vedette-creds-passive.volume"), vol, 0o644); err != nil { //nolint:gosec // a unit file of the fake root
+		t.Fatal(err)
+	}
+	oldText, newText := e.hpTexts(t)
+	e.seedTransition(t, seed{op: "start", svc: "honeypot", phase: "pending", oldText: oldText, newText: newText, keepPrev: true})
+	e.m.Mark("host-starting", true)
+	rec := e.startHost(t)
+	e.m.Mark("host-starting", false)
+	e.o.AfterReady(context.Background(), e.h.Server) // the recovery loop after READY: recoverAndFinish
+	if e.journalExists(api.ServiceHoneypot) {
+		t.Fatal("the honeypot journal was not settled after READY")
+	}
+	if n := strings.Count(rec.text(), "unit_migration_failed"); n != 1 {
+		t.Fatalf("%d unit_migration_failed lines, want 1: %s", n, rec.text())
+	}
+	if e.unit(t, api.ServiceCore) != old {
+		t.Error("core's unit changed although its migration failed")
 	}
 }
 
@@ -176,6 +208,22 @@ func TestContract_Container_ACredentialVolumeMadeForOtherIdsIsRefusedNotReowned(
 	if r := e.start(t, api.ServiceHoneypot, false); r.Status != api.StatusSucceeded {
 		t.Fatalf("%+v", r)
 	}
+	// The refusal asked podman whether the volume is there (exit 0 of the fake: it is).
+	if !slices.ContainsFunc(e.m.Calls("podman"), func(c []string) bool {
+		return slices.Equal(c, []string{"volume", "exists", "vedette-creds-passive"})
+	}) {
+		t.Fatalf("no volume exists look: %v", e.m.Calls("podman"))
+	}
+	// The volume itself is gone (podman volume exists: exit 1): Quadlet makes it again from the unit, so the start is not refused
+	// and writes the unit for the ids of now.
+	e.m.RuleText("podman", "volume exists vedette-creds-passive", "", 1, "", "")
+	if r := e.start(t, api.ServiceSensor, true); r.Status != api.StatusSucceeded {
+		t.Fatalf("a gone volume still refused: %+v %+v", r, r.Error)
+	}
+	want, _ := ops.RenderVolume("passive", cfg.CoreUID, cfg.SensorGID)
+	if b, _ := os.ReadFile(p); string(b) != string(want) { //nolint:gosec // test: a path under the fake root
+		t.Fatalf("the unit of a gone volume was not written for the ids of now:\n%s", b)
+	}
 	// A hand-edited volume unit is not this refusal: the start writes the host's text over it, as before.
 	if err := os.WriteFile(p, []byte("[Volume]\nVolumeName=vedette-creds-passive\n"), 0o644); err != nil { //nolint:gosec // a unit file of the fake root
 		t.Fatal(err)
@@ -183,7 +231,7 @@ func TestContract_Container_ACredentialVolumeMadeForOtherIdsIsRefusedNotReowned(
 	if r := e.start(t, api.ServiceSensor, true); r.Status != api.StatusSucceeded {
 		t.Fatalf("%+v %+v", r, r.Error)
 	}
-	if want, _ := ops.RenderVolume("passive", cfg.CoreUID, cfg.SensorGID); func() string { b, _ := os.ReadFile(p); return string(b) }() != string(want) { //nolint:gosec // test path
+	if b, _ := os.ReadFile(p); string(b) != string(want) { //nolint:gosec // test: a path under the fake root
 		t.Error("the edited volume unit was not rewritten")
 	}
 }

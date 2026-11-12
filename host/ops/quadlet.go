@@ -420,7 +420,7 @@ func unitFileName(service string) string { return "vedette-" + service + ".conta
 
 // ourUnit is parseUnit plus identity: the bytes must be exactly what this host would write for that
 // digest and [Install] state with the host.conf ids it has now (D-123 L2), or what an earlier release of
-// the host wrote for them (a template of quadlet_legacy.go, D-316 (9)). A unit that differs in any byte
+// the host wrote for them (a template of quadlet_legacy.go, D-316 (10)). A unit that differs in any byte
 // from all of those (other ids, a hand edit, a template older than the legacy lists) is not ours and is
 // never read, restarted or rewritten by a container command; -bootstrap -force-units rewrites it.
 func (o *Ops) ourUnit(service string, text []byte) (digest string, install bool, err error) {

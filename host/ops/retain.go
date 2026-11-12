@@ -32,7 +32,7 @@ import (
 // The one image with no name that is the service's own is a scan image built on the box whose tag moved to a newer build of the
 // same version (D-147 (2)), or a build that failed its check and could not be removed then: it carries the label of the constant
 // Containerfile (scanBuildLabel, the same mark install.sh --uninstall removes it by), and it is removed by its ID when no unit,
-// record or container keeps "sha256:<ID>" (D-316 (9)).
+// record or container keeps "sha256:<ID>" (D-316 (10)).
 //
 // There is no "image prune -a". A failed rmi is logged and audited, and never fails the run: the
 // service already switched. The list Podman prints is untrusted: strict, capped, and an image that

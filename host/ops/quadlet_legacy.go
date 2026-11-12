@@ -8,14 +8,14 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// Unit migration between host releases (D-316 (9)). vedette-host updates itself (host.self_update), so a new host can find on disk
+// Unit migration between host releases (D-316 (10)). vedette-host updates itself (host.self_update), so a new host can find on disk
 // a unit that an earlier host wrote from an earlier template. Such a unit is still the host's own: ourUnit accepts it when its bytes
 // are exactly what one of the earlier templates below makes for the same digest, the same [Install] state and the host.conf ids of
 // now, the way dpkg replaces a conffile silently only while it still has the bytes of the version that shipped it. A unit edited by
 // a person matches no template and stays "not ours" (unit_unsafe, unit_foreign).
 //
-// A unit on an earlier template is rewritten to the current one at host start (migrateUnits, inside the one daemon-reload of
-// recoverTransitions) or by the next command that writes the unit; the running container is never restarted for it: the new text
+// A unit on an earlier template is rewritten to the current one once per host start (migrateUnits, inside the one daemon-reload of
+// Start's recoverTransitions, never in the retries after READY) or by the next command that writes the unit; the running container is never restarted for it: the new text
 // takes effect at the next restart of the service (the image step of the same software run, D-340 (8), or a reboot).
 //
 // When a template changes, its text before the change is appended to its service's list here (TestUnitTemplatesArePinned fails
@@ -32,7 +32,7 @@ var legacyTemplates = map[string][]*template.Template{
 	},
 }
 
-// migrateUnits rewrites, at start, every unit that is on an earlier template (ourUnitAge says stale) to the current template for the
+// migrateUnits rewrites, once per start (recoverTransitions with atStart), every unit that is on an earlier template (ourUnitAge says stale) to the current template for the
 // same digest and [Install] state, with the .volume units it mounts (writeUnitForStart; .prev keeps the old bytes), and says whether
 // it wrote one: recoverTransitions then makes its one daemon-reload, before READY. It restarts nothing: systemd keeps a running
 // service as it is until its next restart, which is where the new text takes effect. It skips:
@@ -62,7 +62,7 @@ func (o *Ops) migrateUnits(ctx context.Context) (wrote bool) {
 		detail := map[string]any{"service": svc, "digest": digest}
 		want, err := renderUnit(svc, o.fillFor(digest, install))
 		if err == nil {
-			err = o.writeUnitForStart(svc, want)
+			err = o.writeUnitForStart(ctx, svc, want)
 		}
 		if err != nil {
 			o.log.ErrorContext(ctx, "could not rewrite a unit of an earlier host release to the current template", "service", svc, "error", err.Error())

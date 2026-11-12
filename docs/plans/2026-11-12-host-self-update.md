@@ -294,7 +294,23 @@ driven through the API):**
   the rollback first, then the update and the host update; core is back on the test.5 digest; `software` shows
   test.5 with `previous` test.6. The host stays on test.6 (as designed). One oddity: after the restore the update's history
   `ts` is the time core rebuilt it (14:52:37), not when it ended (14:50:58) (findings inbox, L).
-- Not done yet: check 2 with a build that exits 1, check 3 (`Depends`), check 4 during dpkg's unpack, Ubuntu 26.04.
+- Variant builds for checks 2–4 (`debian13`, Debian 13.7, fresh VM, `make install-artifacts FAST=1`, `0.0.1-test.7…10` from
+  main 584bd044 with one lab-only change each, never merged): test.8's `vedette-host` exits 1 at start; test.9 adds
+  `Depends: jq`; test.10's postinst sleeps 150 s in `configure` on an upgrade.
+- Check 2, test.7 → test.8 (a host that exits 1): `checking` → `rolling_back` → `rolled_back`; `dpkg-query` shows test.7
+  again; the run is `reverted` with "The new system helper 0.0.1-test.8 did not start correctly".
+- Check 3, test.8 (rolled back to test.7) → test.9 (`Depends: jq`): run `done`; jq 1.7.1 installed; `selfupdate/installed-by-us`
+  lists `jq`, `libjq1`, `libonig5` (#537 on a real box).
+- Check 4 during dpkg, test.7 → test.10: the box was rebooted while `dpkg-query` showed vedette-host `half-configured`
+  (test.10's postinst running). After the boot the applier ran again with `attempt` 2 ("dpkg is half done for vedette-host:
+  installing with dpkg -i"), `checking`, `installed`; `dpkg-query` shows test.10 `ii`, `dpkg --audit` is clean, both packages
+  kept, nothing looped. (The run then stopped at the image download only because the lab's transient test source did not
+  survive the reboot, as in the first check 4.)
+- Found on Debian 13: APT holds a logind **block** shutdown inhibitor while it installs ("APT is installing or removing
+  packages"). A plain `sudo systemctl reboot` over SSH is refused ("Access denied"), and `--check-inhibitors=no` asks for
+  interactive authentication; the lab used `systemctl reboot --force` (PID 1, not logind) to cut dpkg. So a reboot asked
+  while apt runs may not happen: the host's own `systemctl reboot` (`host/ops/reboot.go`) is in the findings inbox to check.
+- Not done yet: Ubuntu 26.04; a power cut (not a reboot) during dpkg's unpack.
 
 ## 2. Risks
 

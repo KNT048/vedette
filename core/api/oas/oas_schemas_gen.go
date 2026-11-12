@@ -107973,6 +107973,8 @@ type ResponseGetResponseTriggersOKItemsItemFieldsItem struct {
 	Example string                                               `json:"example"`
 	Key     string                                               `json:"key"`
 	Label   string                                               `json:"label"`
+	Max     NilFloat64                                           `json:"max"`
+	Min     NilFloat64                                           `json:"min"`
 	Type    ResponseGetResponseTriggersOKItemsItemFieldsItemType `json:"type"`
 }
 
@@ -107994,6 +107996,16 @@ func (s *ResponseGetResponseTriggersOKItemsItemFieldsItem) GetKey() string {
 // GetLabel returns the value of Label.
 func (s *ResponseGetResponseTriggersOKItemsItemFieldsItem) GetLabel() string {
 	return s.Label
+}
+
+// GetMax returns the value of Max.
+func (s *ResponseGetResponseTriggersOKItemsItemFieldsItem) GetMax() NilFloat64 {
+	return s.Max
+}
+
+// GetMin returns the value of Min.
+func (s *ResponseGetResponseTriggersOKItemsItemFieldsItem) GetMin() NilFloat64 {
+	return s.Min
 }
 
 // GetType returns the value of Type.
@@ -108019,6 +108031,16 @@ func (s *ResponseGetResponseTriggersOKItemsItemFieldsItem) SetKey(val string) {
 // SetLabel sets the value of Label.
 func (s *ResponseGetResponseTriggersOKItemsItemFieldsItem) SetLabel(val string) {
 	s.Label = val
+}
+
+// SetMax sets the value of Max.
+func (s *ResponseGetResponseTriggersOKItemsItemFieldsItem) SetMax(val NilFloat64) {
+	s.Max = val
+}
+
+// SetMin sets the value of Min.
+func (s *ResponseGetResponseTriggersOKItemsItemFieldsItem) SetMin(val NilFloat64) {
+	s.Min = val
 }
 
 // SetType sets the value of Type.

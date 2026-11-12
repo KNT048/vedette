@@ -166,8 +166,8 @@ func TestSearchTermsAreCapped(t *testing.T) {
 	}
 	c := embeddedCatalog(t)
 	// the first eight words decide: the rest cannot change the answer or its cost
-	a, _ := c.search("forti "+strings.Repeat("x ", 7))
-	b, _ := c.search("forti "+strings.Repeat("x ", 70))
+	a, _ := c.search("forti " + strings.Repeat("x ", 7))
+	b, _ := c.search("forti " + strings.Repeat("x ", 70))
 	if len(a) != len(b) {
 		t.Fatalf("%d vs %d hits", len(a), len(b))
 	}

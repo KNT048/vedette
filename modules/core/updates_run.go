@@ -727,6 +727,15 @@ func tryLater(code string) bool {
 	return false
 }
 
+// sentAgain: a refusal after which core sends the call again under the same key (try later, or core's switch with a
+// new snapshot): the refused run the host records under that key is not the call's outcome.
+func sentAgain(r api.Run) bool {
+	if r.Status != api.StatusRefused || r.Error == nil {
+		return false
+	}
+	return tryLater(r.Error.Code) || r.Error.Code == api.CodeSnapshotRequired || r.Error.Code == api.CodeSnapshotInvalid
+}
+
 // codeNotOffered: the release the run installs is no longer offered (a newer check replaced it) after a restart.
 const codeNotOffered = "not_offered"
 
@@ -767,10 +776,9 @@ func (h *OSHandlers) findRun(ctx context.Context, command, requestID string) (ap
 		return api.Run{}, false, err
 	}
 	for _, r := range runs {
-		// the host also records a refusal under the call's key (host-api 4), but a "try later" did not take the call
-		// and freed the key: that one is not the call's outcome, the call is sent again (slice 6 lab: a busy
-		// host.self_update right after the install ended the whole run as failed)
-		if r.RequestID == requestID && r.Command == command && (r.Status != api.StatusRefused || r.Error == nil || !tryLater(r.Error.Code)) {
+		// the host also records a refusal under the call's key (host-api 4) and frees the key: one core sends again
+		// is not the call's outcome (slice 6 lab: a busy host.self_update right after the install ended the run)
+		if r.RequestID == requestID && r.Command == command && !sentAgain(r) {
 			return r, true, nil
 		}
 	}

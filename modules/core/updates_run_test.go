@@ -164,6 +164,10 @@ func (f *updHost) take(cmd, short, svc, version, extra, args, rid, actor string)
 	}
 	if code := f.once[key]; code != "" {
 		delete(f.once, key)
+		f.seq++
+		now := f.now()
+		f.runs = append([]*updRun{{run: api.Run{RunID: fmt.Sprintf("rn_%016x", f.seq), Command: cmd, Status: api.StatusRefused, StartedAt: now, FinishedAt: &now,
+			Actor: actor, RequestID: rid, Error: &api.RunError{Code: code, Message: "refused once by the fake"}}, svc: svc, ver: version}}, f.runs...)
 		return api.Run{}, &hostclient.Error{Status: 412, Code: code, Message: "refused once by the fake"}
 	}
 	f.args[rid] = args // a refusal frees the id (host-api 4); a run binds it

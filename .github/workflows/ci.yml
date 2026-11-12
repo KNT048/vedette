@@ -127,7 +127,7 @@ jobs:
   # D-365: a failed daily run adds its failed tests to the one open issue labelled flaky. Only this job may write issues.
   flaky:
     needs: [changes, go-test]
-    if: always() && github.event_name == 'schedule' && needs.go-test.result == 'failure'
+    if: always() && github.event_name == 'schedule' && needs.go-test.result != 'success' && needs.go-test.result != 'skipped' # a timed-out shard ends cancelled
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

@@ -138,8 +138,8 @@ SHARDS ?= 4
 test-go-shard:
 	@test -n "$(SHARD)" || { echo "usage: make test-go-shard SHARD=1 (of $(SHARDS))"; exit 2; }
 	@c=$$(go run ./scripts/ci shard $(SHARD) $(SHARDS) cached) && u=$$(go run ./scripts/ci shard $(SHARD) $(SHARDS) uncached) || exit 1; \
-	if [ -n "$$c" ]; then go test -race -timeout 18m $(GOTESTFLAGS) $$c || exit 1; fi; \
-	if [ -n "$$u" ]; then go test -race -count=1 -timeout 18m $(GOTESTFLAGS) $$u; fi
+	s=0; if [ -n "$$c" ]; then go test -race -timeout 18m $(GOTESTFLAGS) $$c || s=1; fi; \
+	if [ -n "$$u" ]; then go test -race -count=1 -timeout 18m $(GOTESTFLAGS) $$u || s=1; fi; exit $$s
 
 # The shards together must be exactly `go list ./...` (no package lost, none twice).
 test-go-shards-check:
@@ -155,8 +155,9 @@ ci-changes:
 ci-flaky:
 	@test -n "$$GITHUB_RUN_ID" && test -n "$$GH_REPO" || { echo "ci-flaky runs in CI (GITHUB_RUN_ID, GH_REPO, GH_TOKEN)"; exit 2; }
 	@url="$$GITHUB_SERVER_URL/$$GH_REPO/actions/runs/$$GITHUB_RUN_ID"; \
-	jobs=$$(gh api "repos/$$GH_REPO/actions/runs/$$GITHUB_RUN_ID/jobs?per_page=100" --jq '.jobs[] | select(.conclusion == "failure" and (.name | startswith("go-test"))) | .id') || exit 1; \
-	for j in $$jobs; do gh api "repos/$$GH_REPO/actions/jobs/$$j/logs" || exit 1; done | go run ./scripts/ci flaky "$$url" > flaky.md || exit 1; \
+	jobs=$$(gh api "repos/$$GH_REPO/actions/runs/$$GITHUB_RUN_ID/jobs?per_page=100" --jq '.jobs[] | select(.conclusion != "success" and .conclusion != "skipped" and (.name | startswith("go-test"))) | .id') || exit 1; \
+	: > logs.txt; for j in $$jobs; do gh api "repos/$$GH_REPO/actions/jobs/$$j/logs" >> logs.txt || exit 1; done; \
+	go run ./scripts/ci flaky "$$url" < logs.txt > flaky.md || exit 1; rm -f logs.txt; \
 	[ -s flaky.md ] || echo "The daily run failed in go-test, but no failed test was found in its logs: $$url" > flaky.md; \
 	gh label create flaky --color d93f0b --description "A test failed in the daily -count=2 -shuffle=on run (D-365)" --force >/dev/null || exit 1; \
 	n=$$(gh issue list --label flaky --state open --json number --jq '.[0].number') || exit 1; \

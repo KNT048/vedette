@@ -159,7 +159,7 @@ function TwoFactor({ a }: { a: Account }) {
       ) : (
         <div className="grid gap-4">
           <Field label={t('account.twofa.startPassword')} hint={t('account.twofa.startPasswordHint')} htmlFor="twofa-start-pw" error={startPwErr ?? undefined}>
-            <Input id="twofa-start-pw" type="password" autoComplete="current-password" value={startPw} aria-invalid={!!startPwErr} onChange={(e) => setStartPw(e.target.value)} className="max-w-sm" />
+            <Input id="twofa-start-pw" type="password" autoComplete="current-password" value={startPw} aria-invalid={!!startPwErr} onChange={(e) => { setStartPw(e.target.value); setStartPwErr(null) }} className="max-w-sm" />
           </Field>
           <div className="grid gap-4 md:grid-cols-2">
           <div className="grid content-start gap-3 rounded-md border border-rule bg-surface p-4">

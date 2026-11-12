@@ -26,7 +26,7 @@ export function Field({ label, hint, error, htmlFor, children, className }: { la
     <div className={cn('grid content-start gap-1.5', className)}>
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
-      {error ? <p className="text-[13px] text-danger" id={`${htmlFor}-error`}>{error}</p> : hint ? <p className="text-[13px] text-muted" id={`${htmlFor}-hint`}>{hint}</p> : null}
+      {error ? <p className="text-[13px] text-danger [overflow-wrap:anywhere]" id={`${htmlFor}-error`}>{error}</p> : hint ? <p className="text-[13px] text-muted [overflow-wrap:anywhere]" id={`${htmlFor}-hint`}>{hint}</p> : null}
     </div>
   )
 }

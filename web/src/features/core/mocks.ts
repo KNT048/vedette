@@ -870,6 +870,8 @@ const boxBackupsStore = collection<BoxBackup[]>('core_box_backups', () => [
   { id: 'b3c1a7e0d2f94b5e8a6c0d1e2f3a4b5c', kind: 'pre_os_update', created_at: daysAgo(1), size: 48_300_000, includes_key: true },
   { id: 'a9e2c4f6b8d0e1f2a3b4c5d6e7f8a9b0', kind: 'pre_update', created_at: daysAgo(6), size: 47_100_000, includes_key: true },
   { id: '0f1e2d3c4b5a69788796a5b4c3d2e1f0', kind: 'manual', created_at: daysAgo(12), size: 45_900_000, includes_key: false },
+  { id: '3c4d5e6f708192a3b4c5d6e7f8091021', kind: 'pre_restore', created_at: daysAgo(9), size: 45_100_000, includes_key: true },
+  { id: '2b3c4d5e6f708192a3b4c5d6e7f80910', kind: 'pre_restore', created_at: daysAgo(15), size: 44_800_000, includes_key: true },
   { id: '1a2b3c4d5e6f708192a3b4c5d6e7f809', kind: 'pre_restore', created_at: daysAgo(20), size: 44_200_000, includes_key: true },
 ])
 const restoreRunStore = collection<{ run: RestoreRun | null }>('core_restore_run', () => ({ run: null }))

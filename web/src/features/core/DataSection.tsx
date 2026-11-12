@@ -170,9 +170,9 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
   if (list.isError) return <p role="alert" className="text-sm text-danger">{errMsg(list.error, t)}</p>
   const rows = list.data?.backups ?? []
   const when = run ? fmtDateTime(run.backup_created_at) : ''
-  // The helper keeps the newest 3 automatic (pre_*) copies; the Before restore copy is one more, so with 3 already the oldest goes.
-  const auto = rows.filter((b) => b.kind !== 'manual')
-  const pushedOut = auto.length >= 3 ? auto[auto.length - 1] : undefined
+  // The helper keeps the newest 3 Before restore copies in a pool of their own (#458); with 3 already, the new one pushes the oldest out.
+  const pre = rows.filter((b) => b.kind === 'pre_restore')
+  const pushedOut = pre.length >= 3 ? pre[pre.length - 1] : undefined
   return (
     <div className="grid gap-3">
       {run ? (
@@ -201,7 +201,7 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
         <DialogContent title={t('data.restore.ask.title', { when: pick ? fmtDateTime(pick.created_at) : '' })} description={t('data.restore.ask.lost')}>
           <ul className="list-disc pl-5 text-sm">
             <li>{t('data.restore.ask.kept')}</li>
-            <li>{t('data.restore.ask.retention')}{pushedOut ? ' ' + t('data.restore.ask.pushesOut', { kind: t(`data.restore.kind.${pushedOut.kind}`), when: fmtDateTime(pushedOut.created_at) }) : ''}</li>
+            <li>{t('data.restore.ask.retention')}{pushedOut ? ' ' + t('data.restore.ask.pushesOut', { when: fmtDateTime(pushedOut.created_at) }) : ''}</li>
             <li>{t('data.restore.ask.restart')}</li>
           </ul>
           <Field label={t('data.restore.ask.password')} htmlFor="restore-password">

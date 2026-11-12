@@ -24,14 +24,16 @@ func TestAwaiting_TheBoundCountsTheTimeTheRunAlreadyTook(t *testing.T) {
 			},
 		})
 	}
-	h := prepareAwait(t, []server.Command{slow("test.edge_ok", 659*time.Second), slow("test.edge_over", 660*time.Second)})
+	// edge_ok fits as long as the run took less than 30 s (hangBound); edge_over is over only because the 150 ms the
+	// command spent count. Neither depends on the speed of the machine (D-373).
+	h := prepareAwait(t, []server.Command{slow("test.edge_ok", 660*time.Second-hangBound), slow("test.edge_over", 660*time.Second-100*time.Millisecond)})
 	h.Serve(t)
 	ok := run(t, h.Client, "test.edge_ok", nil, rid1)
 	waitStatus(t, h.Client, ok.RunID, api.StatusAwaitingConfirm)
 	if err := h.Server.Settle(ok.RunID, api.StatusSucceeded, nil); err != nil {
 		t.Fatal(err)
 	}
-	// 660 s from "now" is more than 660 s from the start: the park is refused and the run fails.
+	// 659.9 s from "now" is more than 660 s from the start: the park is refused and the run fails.
 	over := run(t, h.Client, "test.edge_over", nil, rid2)
 	r := waitStatus(t, h.Client, over.RunID, api.StatusFailed)
 	if r.Error == nil || r.Error.Code != api.CodeCommandFailed {

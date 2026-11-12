@@ -73,3 +73,7 @@ var ErrWriteBusy = server.ErrWriteBusy
 
 // DockerFwdTick runs one look at the Docker forward rules (D-267).
 func (o *Ops) DockerFwdTick(ctx context.Context) { o.dockerFwdTick(ctx) }
+
+// HangBound is how long a test waits for something that must happen before it calls the code hung (D-373): long enough
+// that a loaded machine never trips it, so a red run means a real hang.
+const HangBound = 30 * time.Second

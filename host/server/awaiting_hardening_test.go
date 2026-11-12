@@ -148,7 +148,7 @@ func TestAwaiting_LockStaysHeldWhenTheTimerSettlesWhileAConfirmStillRuns(t *test
 		select {
 		case <-x.blocking:
 			t.Errorf("write %s started while write %s (WhileAwaiting) was still running: two writes at once", r.RunID, held.RunID)
-		case <-time.After(5 * time.Second):
+		case <-time.After(hangBound):
 			t.Errorf("write %s was accepted (not busy) while %s was still running", r.RunID, held.RunID)
 		}
 	} else if !client.IsCode(err, api.CodeBusy) {
@@ -184,13 +184,10 @@ func TestAwaiting_AwaitingFromAReadCommandIsInvalid(t *testing.T) {
 	blk := run(t, h.Client, "rv.block", nil, uuid(1))
 	<-x.blocking
 	rp := run(t, h.Client, "rv.read_park", nil, uuid(2))
-	deadline := time.Now().Add(5 * time.Second)
-	for !h.Server.AwaitingConfirm() && time.Now().Before(deadline) {
-		if r, _ := h.Client.GetRun(context.Background(), rp.RunID); r.Status.Terminal() {
-			break
-		}
-		<-time.After(5 * time.Millisecond)
-	}
+	waitFor(t, "the read command to park or end", func() bool {
+		r, _ := h.Client.GetRun(context.Background(), rp.RunID)
+		return h.Server.AwaitingConfirm() || r.Status.Terminal()
+	})
 	if !h.Server.AwaitingConfirm() {
 		got, _ := h.Client.GetRun(context.Background(), rp.RunID)
 		if got.Status != api.StatusFailed || got.Error == nil || got.Error.Code != api.CodeCommandFailed {
@@ -218,13 +215,10 @@ func TestAwaiting_AwaitingFromAWhileAwaitingCommandIsInvalidAndDoesNotOrphanTheW
 	h, _ := startReview(t)
 	parked := park(t, h, rid1)
 	cp := run(t, h.Client, "rv.confirm_park", runIDArgs{RunID: parked.RunID}, uuid(1))
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if r, _ := h.Client.GetRun(context.Background(), cp.RunID); r.Status != api.StatusRunning && r.Status != api.StatusQueued {
-			break
-		}
-		<-time.After(5 * time.Millisecond)
-	}
+	waitFor(t, "the WhileAwaiting command to end", func() bool {
+		r, _ := h.Client.GetRun(context.Background(), cp.RunID)
+		return r.Status != api.StatusRunning && r.Status != api.StatusQueued
+	})
 	if got, _ := h.Client.GetRun(context.Background(), cp.RunID); got.Status != api.StatusFailed || got.Error == nil || got.Error.Code != api.CodeCommandFailed {
 		t.Errorf("the WhileAwaiting command's run = %+v, want failed command_failed", got)
 	}

@@ -148,7 +148,7 @@ func TestPart1_AfterFinishRunsOnlyAfterTheRunIsRecorded(t *testing.T) {
 		if !got.Status.Terminal() {
 			t.Fatalf("run not final in the callback: %+v", got)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(hangBound):
 		t.Fatal("the callback never ran")
 	}
 	runWait(t, h, "p1.afterfail", rid2)
@@ -157,7 +157,7 @@ func TestPart1_AfterFinishRunsOnlyAfterTheRunIsRecorded(t *testing.T) {
 		if st != api.StatusFailed {
 			t.Fatalf("callback status %s, want failed", st)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(hangBound):
 		t.Fatal("the callback of a failed run never ran")
 	}
 }

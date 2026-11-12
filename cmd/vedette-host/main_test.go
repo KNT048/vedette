@@ -134,37 +134,43 @@ func TestServesAndStopsOnSignal(t *testing.T) {
 	}()
 	c := client.New(sock)
 	defer c.Close()
-	deadline := time.After(10 * time.Second)
+	// The server is up once its socket has mode 0660: secureSocket sets it after listen(2), so a connection from then on
+	// is queued until Serve accepts it. Wait on that state (at most 30 s, D-373), then ask once.
+	end := time.Now().Add(30 * time.Second)
+	tick := time.NewTicker(time.Millisecond)
+	defer tick.Stop()
 	for {
-		info, err := c.Info(context.Background())
-		if err == nil {
-			want := []string{"backup.create", "backup.purge", "backup.restore", "container.pull", "container.rollback", "container.start", "container.stop", "decoy_ip.add", "decoy_ip.remove", "logs.export", "net.apply", "net.confirm", "net.revert", "os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel"}
-			if info.Proto != 1 || info.HostVersion != "dev" || !slices.Equal(info.Commands, want) {
-				t.Fatalf("info = %+v", info)
-			}
-			// The state endpoints of the system commands are wired, and the state directory holds their directories.
-			if bl, err := c.StateBackups(context.Background()); err != nil || len(bl.Backups) != 0 {
-				t.Fatalf("state/backups: %+v %v", bl, err)
-			}
-			if _, err := c.StateOS(context.Background()); !client.IsCode(err, "no_check_yet") {
-				t.Fatalf("state/os before a check: %v", err)
-			}
-			for _, d := range []string{"os", "backups", "exports"} {
-				if st, err := os.Stat(filepath.Join(dir, "state", d)); err != nil || st.Mode().Perm() != 0o700 {
-					t.Fatalf("state/%s: %v %v", d, st, err)
-				}
-			}
+		if st, err := os.Lstat(sock); err == nil && st.Mode().Type() == os.ModeSocket && st.Mode().Perm() == 0o660 {
 			break
 		}
-		if !errors.Is(err, client.ErrUnreachable) {
-			t.Fatal(err)
-		}
 		select {
-		case <-deadline:
-			t.Fatalf("the server never came up: %v", err)
 		case e := <-done:
 			t.Fatalf("run returned early: %v", e)
-		case <-time.After(10 * time.Millisecond):
+		default:
+		}
+		if time.Now().After(end) {
+			t.Fatal("the server never came up")
+		}
+		<-tick.C
+	}
+	info, err := c.Info(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"backup.create", "backup.purge", "backup.restore", "container.pull", "container.rollback", "container.start", "container.stop", "decoy_ip.add", "decoy_ip.remove", "logs.export", "net.apply", "net.confirm", "net.revert", "os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel"}
+	if info.Proto != 1 || info.HostVersion != "dev" || !slices.Equal(info.Commands, want) {
+		t.Fatalf("info = %+v", info)
+	}
+	// The state endpoints of the system commands are wired, and the state directory holds their directories.
+	if bl, err := c.StateBackups(context.Background()); err != nil || len(bl.Backups) != 0 {
+		t.Fatalf("state/backups: %+v %v", bl, err)
+	}
+	if _, err := c.StateOS(context.Background()); !client.IsCode(err, "no_check_yet") {
+		t.Fatalf("state/os before a check: %v", err)
+	}
+	for _, d := range []string{"os", "backups", "exports"} {
+		if st, err := os.Stat(filepath.Join(dir, "state", d)); err != nil || st.Mode().Perm() != 0o700 {
+			t.Fatalf("state/%s: %v %v", d, st, err)
 		}
 	}
 	// The daemon holds the state lock: a bootstrap (or a second daemon) on the same directory cannot take it (D-142).

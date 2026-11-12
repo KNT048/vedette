@@ -24,26 +24,100 @@ func fixture(t testing.TB) []byte {
 	return b
 }
 
-// The fixture: one match with request and response, one non-match, one error line (-ms).
+// The fixture is a real recording (lab VM ubuntu2404, 2026-11-12): the pinned nuclei v3.11.1 with the argv of
+// nucleiargv.Build (-rl 5 -mhe 3), three pack templates and four targets served inside the VM: 192.168.10.21:5000 answers
+// like a vulnerable QNAP Photo Station, 192.168.10.21:21 like a vulnerable ProFTPd, 192.168.10.22:80 drops every packet
+// (timeouts), 192.168.11.30:80 has no host behind it (no route to host). nuclei 3.11.1 writes "host" as the bare address
+// with "port" apart.
+var (
+	labTemplates = []string{"CVE-2015-3306", "CVE-2001-0537", "CVE-2022-27593"}
+	labTargets   = []string{"192.168.10.21:5000", "192.168.10.22:80", "192.168.11.30:80", "192.168.10.21:21"}
+)
+
 func TestParse_Fixture(t *testing.T) {
 	t.Parallel()
-	res, err := Parse(fixture(t), templates, targets)
+	res, err := Parse(fixture(t), labTemplates, labTargets)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res) != 3 {
+	type want struct {
+		tpl, target string
+		matched     bool
+		err         string
+	}
+	wants := []want{
+		{"CVE-2015-3306", "192.168.10.21:21", true, ""},
+		{"CVE-2015-3306", "192.168.10.21:5000", false, "EOF"},
+		{"CVE-2015-3306", "192.168.10.22:80", false, "context cancelled before establishing connection"},
+		{"CVE-2015-3306", "192.168.11.30:80", false, "port closed or filtered"},
+		{"CVE-2001-0537", "192.168.10.21:21", false, "tls: first record does not look like a TLS handshake"},
+		{"CVE-2001-0537", "192.168.10.21:5000", false, ""},
+		{"CVE-2001-0537", "192.168.10.22:80", false, "got err while executing http://192.168.10.22:80/level/16/exec/show/config/CR"},
+		{"CVE-2001-0537", "192.168.11.30:80", false, "port closed or filtered"},
+		{"CVE-2022-27593", "192.168.10.21:21", false, "tls: first record does not look like a TLS handshake"},
+		{"CVE-2022-27593", "192.168.10.21:5000", true, ""},
+		{"CVE-2022-27593", "192.168.11.30:80", false, "host was skipped as it was found unresponsive"}, // "host" is the input URL here, no "port"
+		{"CVE-2022-27593", "192.168.10.22:80", false, "net/http: request canceled while waiting for connection (Client.Timeout exceeded while awaiting headers)"},
+	}
+	if len(res) != len(wants) {
 		t.Fatalf("%d results: %+v", len(res), res)
 	}
-	m := res[0]
-	if m.Template != "CVE-2022-27593" || !m.Matched || m.Target != "192.168.10.21:5000" || m.Error != "" ||
-		!strings.HasPrefix(m.Request, "GET /photo/p/api/video.php") || !strings.HasPrefix(m.Response, "HTTP/1.1 200 OK") {
-		t.Fatalf("match: %+v", m)
+	for i, w := range wants {
+		if r := res[i]; r.Template != w.tpl || r.Target != w.target || r.Matched != w.matched || r.Error != w.err {
+			t.Errorf("line %d: %+v, want %+v", i+1, r, w)
+		}
 	}
-	if n := res[1]; n.Matched || n.Template != "CVE-2024-3400" || n.Error != "" {
-		t.Fatalf("non-match: %+v", n)
+	if m := res[9]; !strings.HasPrefix(m.Request, "GET /photo/combine.php?type=javascript") || !strings.HasPrefix(m.Response, "HTTP/1.0 200 OK") ||
+		!strings.Contains(m.Response, "module.exports") {
+		t.Fatalf("http match evidence: %+v", m)
 	}
-	if e := res[2]; e.Matched || e.Error != "context deadline exceeded (Client.Timeout exceeded while awaiting headers)" || e.Request != "" || e.Target != "192.168.10.21:443" {
-		t.Fatalf("error line: %+v", e)
+	if m := res[0]; !strings.Contains(m.Response, "Copy successful") {
+		t.Fatalf("tcp match evidence: %+v", m)
+	}
+	// a line for a target or a template the job did not name still throws the whole run away
+	if _, err := Parse(fixture(t), labTemplates, labTargets[:3]); err == nil {
+		t.Fatal("a target outside the job was accepted")
+	}
+	if _, err := Parse(fixture(t), labTemplates[1:], labTargets); err == nil {
+		t.Fatal("a template outside the job was accepted")
+	}
+}
+
+// nuclei 3.11.1's bare host with its port, and the older shapes; "port" beside a host that has one must agree with it.
+func TestParse_HostAndPort(t *testing.T) {
+	t.Parallel()
+	for in, want := range map[string]string{
+		`"host":"192.168.10.21","port":"5000"`:                "192.168.10.21:5000",
+		`"host":"http://192.168.10.21:5000","port":"5000"`:    "192.168.10.21:5000",
+		`"host":"192.168.10.21:5000","port":"5000"`:           "192.168.10.21:5000",
+		`"host":"https://192.168.10.21","port":"443"`:         "192.168.10.21:443",
+		`"host":"http://192.168.10.21:5000"`:                  "192.168.10.21:5000",
+		`"host":"192.168.10.21","port":"443","url":"x"`:       "192.168.10.21:443",
+		`"host":"192.168.10.21","port":"22","scheme":"https"`: "192.168.10.21:22",
+		`"host":"192.168.10.21:5000","port":"443"`:            "",
+		`"host":"http://192.168.10.21:5000","port":"443"`:     "",
+		`"host":"192.168.10.21","port":"05000"`:               "",
+		`"host":"192.168.10.21","port":""`:                    "",
+		`"host":"192.168.10.21","port":"0"`:                   "",
+		`"host":"192.168.10.21/x","port":"5000"`:              "",
+		`"host":"a@192.168.10.21","port":"5000"`:              "",
+		`"host":"","port":"5000"`:                             "",
+		`"host":"192.168.10.21.evil.example","port":"5000"`:   "",
+		`"host":"192.168.10.21","port":"5000/anything"`:       "", // a port that is not only digits
+		`"host":"http","port":"//192.168.10.21:5000"`:         "", // the two fields making up a URL together
+		`"host":"192.168.10.21","port":"5000?x"`:              "",
+		`"host":"192.168.010.21","port":"5000"`:               "",
+		`"host":"192.168.10.21","port":"+5000"`:               "",
+		`"host":"192.168.10.21","port":"65536"`:               "",
+	} {
+		line := `{"template-id":"CVE-2022-27593",` + in + `,"matcher-status":false}`
+		res, err := Parse([]byte(line), templates, targets)
+		switch {
+		case want == "" && err == nil:
+			t.Errorf("%s accepted: %+v", in, res)
+		case want != "" && (err != nil || res[0].Target != want):
+			t.Errorf("%s: %+v %v, want %s", in, res, err, want)
+		}
 	}
 }
 

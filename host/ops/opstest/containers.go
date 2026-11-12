@@ -302,6 +302,10 @@ case "$1" in
     [ -e "$REC/mark.rmi-fails" ] && { echo "Error: rmi failed" >&2; exit 125; }
     [ -e "$S/used.$d" ] && { echo "Error: image is in use by a container" >&2; exit 2; }
     [ -e "$S/have.$d" ] || { echo "Error: no such image $d" >&2; exit 1; }
+    # Podman 4.9.3 (lab): rmi by ID refuses an image with more than one name; its names are its tags and its pull reference
+    names=$(grep -c " $d\$" "$S/tags" 2>/dev/null); names=${names:-0}; svc=$(cat "$S/have.$d")
+    [ -n "$svc" ] && [ "$svc" != scan-nmap ] && names=$((names+1))
+    [ "$names" -gt 1 ] && { echo "Error: unable to delete image \"$2\" by ID with more than one tag: please force removal" >&2; exit 125; }
     rm -f "$S/have.$d"
     for f in "$S"/tag.*; do [ -e "$f" ] && [ "$(cat "$f")" = "$d" ] && rm -f "$f"; done
     grep -v " $d\$" "$S/tags" > "$S/tags.tmp" 2>/dev/null; mv "$S/tags.tmp" "$S/tags" 2>/dev/null
@@ -317,7 +321,8 @@ case "$1" in
         d="${f##*/have.}"; svc=$(cat "$f")
         [ $first = 1 ] || printf ','
         first=0
-        printf '{"Id":"%s","Digest":"%s","Names":[' "${d#sha256:}" "$d"
+        # as Podman 4.9.3 prints it (lab): Names holds the local tags and the pull reference, RepoTags is null
+        printf '{"Id":"%s","Digest":"%s","RepoTags":null,"Names":[' "${d#sha256:}" "$d"
         n=1
         while read -r ref dg; do
           [ "$dg" = "$d" ] || continue
@@ -325,6 +330,10 @@ case "$1" in
           n=0
           printf '"%s"' "$ref"
         done < "$S/tags" 2>/dev/null
+        if [ -n "$svc" ] && [ "$svc" != scan-nmap ]; then
+          [ $n = 1 ] || printf ','
+          printf '"ghcr.io/knt048/vedette-%s@%s"' "$svc" "$d"
+        fi
         printf '],"RepoDigests":['
         [ -n "$svc" ] && [ "$svc" != scan-nmap ] && printf '"ghcr.io/knt048/vedette-%s@%s"' "$svc" "$d"
         c=0; [ -e "$S/used.$d" ] && c=1
@@ -351,6 +360,15 @@ case "$1" in
       shown=sha256:0000000000000000000000000000000000000000000000000000000000000000; repo="$d"
     fi
     printf '[{"Id":"%s","Digest":"%s","RepoDigests":["ghcr.io/knt048/vedette-%s@%s"],"Architecture":"amd64","Os":"linux"}]\n' "$iid" "$shown" "$svc" "$repo"
+    ;;
+  untag)
+    # "untag <image id> <local tag>": the tag is taken off that image
+    d="sha256:$2"
+    [ -e "$REC/mark.untag-fails" ] && { echo "Error: untag failed" >&2; exit 125; }
+    [ "$(cat "$S/tag.$(key "$3")" 2>/dev/null)" = "$d" ] || { echo "Error: $3: tag not known" >&2; exit 125; }
+    rm -f "$S/tag.$(key "$3")"
+    grep -v "^$3 " "$S/tags" > "$S/tags.tmp" 2>/dev/null; mv "$S/tags.tmp" "$S/tags" 2>/dev/null
+    echo "$3" >> "$S/untagged"
     ;;
   tag)
     [ -e "$REC/mark.tag-fails" ] && { echo "Error: tagging failed" >&2; exit 125; }
@@ -408,7 +426,9 @@ esac
 // container.start with a version needs. "image ls --format json" lists every image the fake holds with
 // its local tags and, when the service is known (a pull, or PresentImage), its pull reference; "rmi
 // <digest>" removes it and its tags and records the digest (see ImageRemoved), exit 125 and nothing
-// removed when the marker "rmi-fails" exists, exit 2 for an image MarkImageUsed named.
+// removed when the marker "rmi-fails" exists, exit 2 for an image MarkImageUsed named, and exit 125 for an image
+// with more than one name (its tags plus its pull reference), as Podman 4.9.3 does (lab, 2026-11-12); "untag <id>
+// <tag>" takes one tag off (exit 125 when the marker "untag-fails" exists).
 func (m *Machine) StatefulPodman() {
 	m.t.Helper()
 	m.writeFakeWith("podman", "if [ \"$1\" = container ]; then\n"+containerPodman+"\nexit 0\nfi\n"+imagePodman)
@@ -439,6 +459,12 @@ func (m *Machine) MarkImageUsed(digest string) {
 // ImageRemoved lists the digests the fake podman removed with rmi, in order.
 func (m *Machine) ImageRemoved() []string {
 	b, _ := os.ReadFile(filepath.Join(m.Rec, "img", "removed"))
+	return strings.Fields(string(b))
+}
+
+// ImageUntagged lists the local tags the fake podman took off with untag, in order.
+func (m *Machine) ImageUntagged() []string {
+	b, _ := os.ReadFile(filepath.Join(m.Rec, "img", "untagged"))
 	return strings.Fields(string(b))
 }
 

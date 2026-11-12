@@ -308,7 +308,9 @@ func TestSwitchingTheModuleOnShowsStarting(t *testing.T) {
 	}
 	close(bh.release)
 	cancel()
-	_ = <-done
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
 }
 
 // A trap is switched on at the moment the decoy IP is removed: the trap must not end up on with no IP (INV-6).

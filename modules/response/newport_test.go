@@ -19,7 +19,7 @@ func TestNewPortEvent(t *testing.T) {
 		t.Helper()
 		e.must(e.bus.Publish(context.Background(), events.Event{Name: response.EventPortOpened, Data: ev}))
 	}
-	ok := response.PortOpenedEvent{TargetID: "xt-abc", Date: "2026-11-12", IP: "203.0.113.10", Port: 8080, Service: "http-alt‮"}
+	ok := response.PortOpenedEvent{TargetID: "xt-abc", Date: "2026-11-12", IP: "203.0.113.10", Port: 8080, Service: "http-alt\u202e"}
 	pub(ok)
 	pub(ok) // a second scan on the same day: one event
 	next := ok

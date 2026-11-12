@@ -15,6 +15,7 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 - Chấp nhận: câu tiếng Việt do pipeline sinh từ dữ liệu (không cần AI của khách); mỗi dòng có nút "Tôi có"/"Không liên quan".
 
 **S-FEED-3** (P2, P4) `[đạt]` — Tra một CVE/sản phẩm/IP/domain và biết ngay: bị khai thác chưa, PoC chưa, IOC nào liên quan.
+- Chấp nhận (2026-11-12, POST-4): kết quả tra IP/domain chỉ nêu feed **đang bật**; chỉ báo mà chỉ feed đã tắt liệt kê thì là "không bị liệt kê" (Look up, `lookup_ioc` của AI và MCP); domain có TLD quốc tế dạng `xn--` (như `.xn--p1ai`) tra được như domain thường.
 
 **S-FEED-4** (P2, P4) `[đạt]` (D-36, D-37) — Trong Cài đặt → Feed, tôi thấy các feed có sẵn (bật/tắt, sửa lịch và địa chỉ) và thêm feed riêng của công ty (lỗ hổng hoặc IOC), bật/tắt/sửa/xoá; mỗi feed hiện lần kéo gần nhất, số bản ghi, lỗi.
 - Tiêu chí bổ sung (INV-13, PRIVACY luồng 1): Cài đặt → Feed có mục "Where this box connects" liệt kê **mọi host** hộp kéo feed, có sẵn và feed riêng, đọc từ `GET /feeds/sources` (không viết cứng; chỉ tên host, không đường dẫn hay query vì chúng có thể chứa token); feed đang tắt ghi "off, not pulled"; danh sách CISA ghi thêm `raw.githubusercontent.com` là địa chỉ dự phòng; có liên kết tới Settings → Privacy, luồng 1.

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,6 +23,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/client"
+	"github.com/knt048/vedette/internal/release"
 )
 
 // OSHandlers implements the operating system part of Settings → Updates (S-CORE-7: /core/updates/os*) and the
@@ -56,6 +58,8 @@ type OSHandlers struct {
 
 	dlMu   sync.Mutex // one backup download at a time: held from the busy check until backup.create ends
 	lastDL time.Time  // when the last download started its snapshot; guarded by dlMu
+
+	upd updCheck // the check side of the software update (updates_check.go)
 }
 
 // stateTTL is how long GET /core/updates/os may answer from one read of the host: the host allows 60 requests a
@@ -93,6 +97,15 @@ type OSConfig struct {
 	Clock func() time.Time // nil: time.Now
 	// Gate is shut while a factory reset runs: every host write then answers 409 busy (N4). The same gate as HandlersConfig.Gate; nil = never shut.
 	Gate *PurgeGate
+
+	// Software update check (updates_check.go, D-341). Version is the running release (main.version); ReleaseBase
+	// is where the signed release documents are downloaded from ("" = DefaultReleaseBase; tests: a local server);
+	// HTTPClient nil = a client with timeouts that follows redirects only to the GitHub hosts of PRIVACY.md flow 6;
+	// Trust nil = release.Embedded.
+	Version     string
+	ReleaseBase string
+	HTTPClient  *http.Client
+	Trust       func() (release.Trust, error)
 }
 
 // NewOSHandlers returns the handlers and sweeps the snapshot directories an earlier run left behind.
@@ -104,6 +117,9 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 		c.Clock = time.Now
 	}
 	h := &OSHandlers{gate: c.Gate, db: c.DB, auth: c.Auth, audit: c.Audit, host: c.Host, zone: c.Zone, log: c.Log, now: c.Clock, loadTimeout: loadTimeout}
+	if err := h.upd.init(c, c.Clock()); err != nil {
+		return nil, err
+	}
 	if c.Host != nil {
 		if c.DataDir == "" || c.KeyPath == "" {
 			return nil, errors.New("core: OSConfig with a Host needs DataDir and KeyPath")

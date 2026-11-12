@@ -30,7 +30,7 @@ func TestContract_EventsAroundCountsKindsOfOneAddress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Lines != 6 || len(got.Kinds) != 2 || got.Kinds[0] != (AroundKind{SourceName: "FW-HQ", Signature: e.sshSig(), Count: 5}) || got.Kinds[1].Count != 1 {
+	if got.Lines != 6 || len(got.Kinds) != 2 || got.Kinds[0] != (AroundKind{SourceName: "FW-HQ", Signature: e.sshSig(), Count: 5}) || got.Kinds[1] != (AroundKind{SourceName: "FW-HQ", Signature: e.svc.sigs.Of("linux-rsyslog", accepted).Signature, Count: 1}) {
 		t.Fatalf("%+v", got)
 	}
 	if len(got.Connections) != 1 || got.Connections[0].ID != "h1" {

@@ -216,17 +216,14 @@ func unfence(text string) string {
 }
 
 // parseDigest reads the model's answer strictly: the schema's fields and nothing else, a known severity, text cleaned and cut. With
-// remember the answer must have the remember field (at most digestRememberMax suggestions are kept); without, that field is refused.
+// remember the answer may have the remember field (at most digestRememberMax suggestions are kept); without, that field is refused.
 func parseDigest(text string, remember bool) (logDigestBody, []string, error) {
 	var a digestAnswer
 	text = unfence(text)
 	dec := json.NewDecoder(bytes.NewReader([]byte(text)))
 	dec.DisallowUnknownFields()
-	keys := []string{"summary", "items"}
-	if remember {
-		keys = append(keys, "remember")
-	}
-	if err := dec.Decode(&a); err != nil || dec.More() || !hasKeys(text, keys...) || (!remember && a.Remember != nil) {
+	// remember may be missing when suggestions are on: the tool loop has no schema to make the model write an empty list
+	if err := dec.Decode(&a); err != nil || dec.More() || !hasKeys(text, "summary", "items") || (!remember && a.Remember != nil) {
 		return logDigestBody{}, nil, ErrBadOutput
 	}
 	out := logDigestBody{Summary: cleanLine(a.Summary, digestMaxSummary), Items: []LogDigestItem{}}
@@ -440,9 +437,9 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 	if err != nil {
 		return LogDigestResult{}, err
 	}
-	if !res.Blocked {
-		s.suggestFromDigest(ctx, remember, now)
-	}
+	sctx, cancel := detached(ctx) // the tokens are spent: the suggestions are kept even if the person has gone
+	defer cancel()
+	s.suggestFromDigest(sctx, remember, now)
 	return s.digestView(tier, body, res.Model, res.Profile, res.TokensIn, res.TokensOut, now), nil
 }
 

@@ -299,6 +299,11 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		s.touchSent(ctx, mem.ids, res)
 		return JobResult{}, s.failed(ctx, spec, entry, res, err)
 	}
+	if spec.tools != nil && spec.Schema != nil {
+		// the tool loop asks for the JSON without structured output (D-223): out of a code block before the hooks walk its strings, so a
+		// \u escape cannot hide a word from an after_ai pattern
+		res.Response.Text = unfence(res.Response.Text)
+	}
 	entry.Profile, entry.ProfileID, entry.Model, entry.TokensIn, entry.TokensOut = res.Profile, res.ProfileID, res.Model, res.Response.Usage.InputTokens, res.Response.Usage.OutputTokens
 	entry.OutputHash = HashContent(res.Response.Text)
 	entry.Result = ResultOK

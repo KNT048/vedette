@@ -357,6 +357,13 @@ func TestLogInvestigateAtMaxChecksPointsWithReadTools(t *testing.T) {
 	if got := digestOf(t, a.digest("GET", "viewer", 200, "")); len(got["tool_calls"].([]any)) != 1 {
 		t.Fatalf("GET = %v", got)
 	}
+	// a fenced answer is taken out of its block before the after_ai hooks walk its strings: an escaped word is still stopped
+	a.want("POST", "/ai/hooks", "admin", hookJSON("No payroll", "after_ai", "keywords", "payroll", "block", "Payroll is out of scope."), 200, "")
+	next := someDigest()
+	next.Lines24h++
+	a.logs.set(next)
+	a.fake.play(turn{text: "```json\n" + strings.Replace(goodDigest, "Look at PC-ACCOUNTS-03 first.", `Look at the p\u0061yroll server first.`, 1) + "\n```"})
+	a.digest("POST", "operator", 409, "ai_unavailable")
 	// Log investigation that cannot run (its skill off): the plain digest, and the level says why no tool was used
 	a.want("PUT", "/ai/skills/log-investigate", "admin", `{"enabled":false}`, 200, "")
 	a.fake.setAnswer(goodDigest)

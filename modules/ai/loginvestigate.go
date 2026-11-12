@@ -1,10 +1,12 @@
 package ai
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/netip"
+	"strings"
 	"time"
 )
 
@@ -80,7 +82,7 @@ func (s *Service) toolEventsAround(ctx context.Context, raw map[string]any) (too
 		kinds = append(kinds, map[string]any{"source": clip(k.SourceName, digestNameChars), "kind": clip(k.Signature, digestSigChars), "lines": number(k.Count)})
 	}
 	conns := []map[string]any{}
-	for _, c := range d.Connections[:min(len(d.Connections), 10)] { // with 20 kinds this stays under the cap of one result
+	for _, c := range d.Connections[:min(len(d.Connections), 10)] {
 		who := ""
 		if c.AssetName != nil {
 			who = clip(*c.AssetName, digestNameChars)
@@ -88,11 +90,25 @@ func (s *Service) toolEventsAround(ctx context.Context, raw map[string]any) (too
 		conns = append(conns, map[string]any{"ts": clip(c.TS, 32), "device": who, "src_ip": clip(c.SrcIP, 45), "dest": clip(c.Dest, 253), "seen_via": clip(c.SeenVia, 60),
 			"feeds": cleanAll(c.Feeds[:min(len(c.Feeds), digestFeedsMax)], digestNameChars), "confidence": c.Confidence})
 	}
-	m["lines"], m["kinds"], m["connections_to_listed"] = number(d.Lines), kinds, conns
-	b, err := json.Marshal(m)
-	if err != nil {
-		return toolOut{}, errToolFailed{"the box could not read that data"}
+	m["lines"] = number(d.Lines)
+	// as many connections, then kinds, as fit one result: a cut in the middle would leave no JSON (signatures are full of < and >,
+	// written as they are, not escaped)
+	for {
+		m["kinds"], m["connections_to_listed"] = kinds, conns
+		var b bytes.Buffer
+		enc := json.NewEncoder(&b)
+		enc.SetEscapeHTML(false)
+		if err := enc.Encode(m); err != nil {
+			return toolOut{}, errToolFailed{"the box could not read that data"}
+		}
+		if b.Len() <= askResultBytes || (len(kinds) == 0 && len(conns) == 0) {
+			return toolOut{Text: strings.TrimSuffix(b.String(), "\n"), Summary: fmt.Sprintf("%s lines of %s, %s", number(d.Lines), plural(len(kinds), "kind", "kinds"), plural(len(conns), "bad connection", "bad connections")),
+				Cite: "Logs: counts per address"}, nil
+		}
+		if len(conns) > 0 {
+			conns = conns[:len(conns)-1]
+		} else {
+			kinds = kinds[:len(kinds)-1]
+		}
 	}
-	return toolOut{Text: string(b), Summary: fmt.Sprintf("%s lines of %s, %s", number(d.Lines), plural(len(d.Kinds), "kind", "kinds"), plural(len(d.Connections), "bad connection", "bad connections")),
-		Cite: "Logs: counts per address"}, nil
 }

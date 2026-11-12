@@ -20,6 +20,10 @@ type Host interface {
 	// install, D-168, D-263): SetInterface then validates against the cards in the sensor's heartbeat. A configured host
 	// that gives no list is an error, never ok=false (D-118).
 	HostCards(ctx context.Context) (cards []capture.Interface, ok bool, err error)
+	// ManagementCard is the management card vedette-host reports (the configured one, else the card of the default route),
+	// where the sensor listens while no card is chosen (D-380); "" when none is known yet. ok is false only when core runs
+	// without a host (container-only, D-168): the default then comes from the sensor's heartbeat.
+	ManagementCard(ctx context.Context) (name string, ok bool)
 	// SpanOptions returns the extraction switches and exclusion filters of the SPAN settings (Settings, Box network, D-56).
 	SpanOptions(ctx context.Context) (sensorlink.Extract, []sensorlink.Filter, error)
 }

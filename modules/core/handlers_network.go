@@ -114,6 +114,7 @@ type NetworkHandlers struct {
 	}
 	cardsMu   sync.Mutex
 	lastCards []Card // the last list of cards the host gave (Cards)
+	lastMgmt  string // the last management card the host gave (ManagementCard)
 	sensorMu  sync.Mutex
 	sensorOn  string // the SPAN port the sensor was last told to use ("eth1/true", "/false"); "" before the first time
 	after     func(d time.Duration, f func())
@@ -352,7 +353,8 @@ func (h *NetworkHandlers) packetsPerSecond(c *api.NetInterface) int {
 // virtualName is the name of a link that is not a card: container and virtual links, bridges, bonds, VLANs.
 // vedette-host lists every interface that has an address (core must know them all as "the box"), so the screen
 // keeps the cards and the two roles.
-var virtualName = regexp.MustCompile(`^(lo|veth|podman|cni|docker|br|virbr|vdh|bond|tun|tap|wg|dummy|vnet|macvtap|ifb)|[.@]`)
+// vedette is the box's own container bridge vedette0 (install.sh, D-267; #471).
+var virtualName = regexp.MustCompile(`^(lo|veth|podman|cni|docker|br|virbr|vdh|bond|tun|tap|wg|dummy|vnet|macvtap|ifb|vedette)|[.@]`)
 
 func cardsOf(st api.NetState) []api.NetInterface {
 	var out []api.NetInterface
@@ -1425,6 +1427,49 @@ type Card struct {
 // HasHost reports whether core was started with a vedette-host socket (an appliance). False is a container-only install
 // (-host-socket=""), the only case in which the passive sensor's heartbeat may decide the card (D-263).
 func (h *NetworkHandlers) HasHost() bool { return h != nil && h.host != nil }
+
+// ManagementCard is the card the passive sensor listens on when no SPAN port is chosen (D-380): the management card
+// (mgmtIface: the configured one, else the card of the default route, else the one card with an address), and only
+// when it is a card of the box (cardsOf: never loopback, a bridge such as vedette0, or a container link). ok is false
+// when there is no host to ask (no socket, or a host that says this is no appliance): the sensor's heartbeat then
+// decides. A host that does not answer right now gives the last name it gave ("" before there is one), so the
+// sensor does not stop listening because the helper hiccups.
+func (h *NetworkHandlers) ManagementCard(ctx context.Context) (name string, ok bool) {
+	if h == nil || h.host == nil {
+		return "", false
+	}
+	st, err := h.state(ctx, false)
+	if err != nil {
+		if ae, isAPI := apierr.As(err); isAPI && ae.Code == CodeNotAppliance {
+			return "", false
+		}
+		// Unlike Cards, ok stays true before the first answer: ok=false would let the sensor's heartbeat pick the card
+		// on an appliance, which D-118 forbids. "" here means "no default yet"; the next look asks the host again.
+		h.cardsMu.Lock()
+		defer h.cardsMu.Unlock()
+		return h.lastMgmt, true
+	}
+	name = mgmtIface(st)
+	cards := cardsOf(st)
+	if !slices.ContainsFunc(cards, func(c api.NetInterface) bool { return c.Name == name }) {
+		// The management card is a virtual link (default route on wg0, br0...): the one real card with an
+		// IPv4 address, when there is exactly one.
+		name = ""
+		for _, c := range cards {
+			if _, has := ipv4Of(&c); has {
+				if name != "" {
+					name = ""
+					break
+				}
+				name = c.Name
+			}
+		}
+	}
+	h.cardsMu.Lock()
+	h.lastMgmt = name
+	h.cardsMu.Unlock()
+	return name, true
+}
 
 // Cards lists the cards the host reports. ok is false when there is no host to ask (no socket configured, or its
 // file is absent: a container-only install): the caller then reads the interfaces of the operating system it

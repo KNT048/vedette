@@ -1093,3 +1093,71 @@ func TestUnknownDropCountersAreIgnoredAndLoggedOnce(t *testing.T) {
 	_, err := pas.PassiveHeartbeat(t.Context(), hb)
 	wantCode(t, err, sensorlink.CodeInvalidRequest)
 }
+
+// D-380 (#471): with no card chosen the sensor listens on the management card the host reports, with no setup (S-INV-1);
+// a chosen card wins and the default comes back when the choice is cleared. A name that is not an interface name is never
+// passed on. Without a host the default is the one wired card with an address in the sensor's heartbeat.
+func TestDefaultCardIsTheManagementCard(t *testing.T) {
+	t.Parallel()
+	backendOnly(t)
+	e := newEnv(t, nil, false)
+	ctx := t.Context()
+	listensOn := func() (string, bool) {
+		t.Helper()
+		rep, err := e.svc.Config(ctx, 0, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		list, err := e.svc.Status(ctx)
+		if err != nil || len(list) != 1 {
+			t.Fatalf("status %v %v", list, err)
+		}
+		if shown := list[0].Interface; (shown == nil) != (rep.Config.Interface == "") || shown != nil && *shown != rep.Config.Interface {
+			t.Errorf("GET /inventory/sensors shows %v, the sensor is told %q", shown, rep.Config.Interface)
+		}
+		return rep.Config.Interface, rep.Config.Span
+	}
+	if got, _ := listensOn(); got != "" {
+		t.Errorf("no management card known yet: %q", got)
+	}
+	e.host.setMgmt("eth0")
+	if got, span := listensOn(); got != "eth0" || span {
+		t.Errorf("nothing chosen: %q span=%v, want the management card", got, span)
+	}
+	if err := e.svc.SetInterface(ctx, "admin@example.org", sp.SensorID, "eth1", true); err != nil {
+		t.Fatal(err)
+	}
+	if got, span := listensOn(); got != "eth1" || !span {
+		t.Errorf("the SPAN port chosen: %q span=%v", got, span)
+	}
+	if err := e.svc.SetInterface(ctx, "admin@example.org", sp.SensorID, "", false); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := listensOn(); got != "eth0" {
+		t.Errorf("SPAN off again: %q, want the management card", got)
+	}
+	e.host.setMgmt("en p3s0;rm")
+	if got, _ := listensOn(); got != "" {
+		t.Errorf("a name that is not an interface name was passed on: %q", got)
+	}
+
+	e.host.setNoHost(true)
+	card := func(name string, ips ...string) sensorlink.HeartbeatIface {
+		return sensorlink.HeartbeatIface{Name: name, MAC: "02:00:00:00:00:01", Link: true, IPv4: append([]string{}, ips...)}
+	}
+	for name, c := range map[string]struct {
+		cards []sensorlink.HeartbeatIface
+		want  string
+	}{
+		"the wired card with an address": {[]sensorlink.HeartbeatIface{card("enp2s0", "192.168.18.141/24"), card("wlp3s0", "192.168.18.142/24"), card("enp3s0"), card("eno2", "169.254.3.4/16")}, "enp2s0"},
+		"only a wireless card":           {[]sensorlink.HeartbeatIface{card("wlp3s0", "192.168.18.142/24"), card("enp3s0")}, "wlp3s0"},
+		"two wired cards: not clear":     {[]sensorlink.HeartbeatIface{card("enp2s0", "192.168.18.141/24"), card("eno1", "10.0.0.5/24")}, ""},
+	} {
+		if _, err := e.svc.PassiveHeartbeat(ctx, &sensorlink.PassiveHeartbeat{Version: "1.0.0", Interfaces: c.cards, Drops: map[string]int64{}}); err != nil {
+			t.Fatal(err)
+		}
+		if got, _ := listensOn(); got != c.want {
+			t.Errorf("no host, %s: %q, want %q", name, got, c.want)
+		}
+	}
+}

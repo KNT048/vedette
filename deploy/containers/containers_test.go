@@ -485,6 +485,19 @@ func TestEveryImageShipsItsThirdPartyLicenses(t *testing.T) {
 			t.Errorf("%s/Containerfile: the final stage does not copy the license file to /usr/share/doc/vedette/", f)
 		}
 	}
+	// scan-base also lists the modules linked into nuclei (D-454): the same generator, inside the nuclei source tree, offline from the
+	// modules of its go.sum, shipped next to nuclei-LICENSE.md in both licence folders.
+	scan := read(t, "scan-base/Containerfile")
+	for _, want := range []string{
+		"COPY --from=build /tools/hostlicenses /usr/local/bin/hostlicenses",
+		"GOFLAGS=-mod=readonly GOPROXY=off \\\n    hostlicenses -goos \"${TARGETOS}\" -goarch \"${TARGETARCH}\" -pkg ./cmd/nuclei -name nuclei -out /out/third-party-licenses",
+		"COPY --from=nuclei /out/third-party-licenses /usr/local/share/vedette/licenses/nuclei-third-party-licenses\n",
+		"COPY --from=nuclei /out/third-party-licenses /usr/share/doc/vedette/nuclei-third-party-licenses\n",
+	} {
+		if !strings.Contains(scan, want) {
+			t.Errorf("scan-base/Containerfile: the licences of nuclei's modules lack %q", want)
+		}
+	}
 	core, pins := read(t, "core/Containerfile"), read(t, "../osquery/PINS")
 	if !strings.Contains(core, "-name vedette-core -tags webui") {
 		t.Error("core/Containerfile: the license list must be made with the same -tags webui as the binary")

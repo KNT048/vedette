@@ -40,6 +40,16 @@ var (
 	ErrNotImplemented = apiErr(501, "not_implemented", "This part of the box is not built yet.")
 )
 
+// The answers of a scan that the runner did not do (INV-12, D-229). Nothing is stored for them.
+var (
+	// ErrScanOff: the scan module, which owns the runner, is off.
+	ErrScanOff = apiErr(409, "module_off", "The Vulnerability scans module is off, so the box cannot scan. An admin can turn it on in Settings, Modules.")
+	// ErrCTDown: the certificate-transparency search gave no answer; a snapshot without the subdomains would say they are gone.
+	ErrCTDown = apiErr(502, "unreachable", "The certificate-transparency search (crt.sh) did not answer, so the scan stopped and nothing was saved. Try again in a few minutes.")
+	// ErrScanTooLong: the scan hit its time cap.
+	ErrScanTooLong = apiErr(502, "unreachable", "The scan did not finish within 5 minutes, so nothing was saved. Try again later.")
+)
+
 // Messages that are shared by a response and the stored result of a check.
 const (
 	msgOffline  = "The box could not reach the public IP services (checkip.amazonaws.com, icanhazip.com, ifconfig.me/ip). Check that this box can make outgoing HTTPS connections, then try again."

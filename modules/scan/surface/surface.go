@@ -94,7 +94,7 @@ func New(cfg Config) (*Scanner, error) {
 		s.resolve = net.DefaultResolver
 	}
 	if s.ct == nil {
-		s.ct = &http.Client{Transport: http.DefaultTransport.(*http.Transport).Clone()} //nolint:forcetypeassert // the standard library's own type
+		s.ct = &http.Client{Timeout: ctTimeout, Transport: http.DefaultTransport.(*http.Transport).Clone()} //nolint:forcetypeassert // the standard library's own type
 	}
 	return s, nil
 }

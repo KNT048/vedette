@@ -2,6 +2,7 @@ package exposure
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -124,13 +125,17 @@ func TestContract_INV12_ScanGate(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	v := e.committedDomain()
-	// no runner yet: the gate passes and the answer is 501 (the scan module has not registered one)
+	// no runner: the gate passes and the answer is 501 (no scan module registered one)
 	_, err := e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
 	wantAPI(t, err, 501, "not_implemented")
 	run := &fakeRunner{content: sampleContent()}
 	e.svc.SetRunner(run)
 	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", v.ID); err != nil {
 		t.Fatal(err)
+	}
+	evs := e.pub.names() // POST-1: the snapshot is announced (response's new_port trigger listens)
+	if len(evs) == 0 || evs[len(evs)-1] != EventSnapshotCreated {
+		t.Fatalf("events %v", evs)
 	}
 	// a failing runner is a failure of the box, and leaves no snapshot
 	e.advance(day)
@@ -141,7 +146,18 @@ func TestContract_INV12_ScanGate(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM exp_snapshot`); n != 1 {
 		t.Fatalf("%d snapshots", n)
 	}
-	// the runner is told what to scan and nothing else
+	// the runner's own refusals reach the person as they are, and leave no snapshot either: the scan module is off (D-229), the
+	// certificate-transparency search did not answer
+	run.err = ErrScanOff
+	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
+	wantAPI(t, err, 409, "module_off")
+	run.err = fmt.Errorf("%w (crt.sh answered 502)", ErrCTDown)
+	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
+	wantAPI(t, err, 502, "unreachable")
+	if n := e.count(`SELECT count(*) FROM exp_snapshot`); n != 1 || len(e.pub.names()) != len(evs) {
+		t.Fatalf("%d snapshots, events %v", n, e.pub.names())
+	}
+	// no runner at all (a build without the scan module): 501 after the gate
 	run.err = nil
 	e.svc.SetRunner(nil)
 	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)

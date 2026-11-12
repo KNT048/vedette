@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/scan"
 	"github.com/knt048/vedette/modules/scan/nucleiout"
+	"github.com/knt048/vedette/modules/scan/surface"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
@@ -225,4 +227,81 @@ func (e scanEngine) Run(ctx context.Context, j scan.Job) (nucleiout.Outcome, err
 		return nucleiout.Outcome{}, fmt.Errorf("%w: %w", scan.ErrEngineDown, err)
 	}
 	return res, err
+}
+
+// scanRunner is the scan module's exposure.Runner (D-229, exposure INV-12): the surface scan of modules/scan/surface (certificate
+// transparency, DNS, a TCP connect to a fixed list of ports, the first page of the web ports, the certificates), on the addresses
+// exposure's own rule calls public. It runs only while the scan module is on; off, every scan answers 409 module_off and nothing
+// is probed.
+func scanRunner(d deps) exposure.Runner {
+	s, err := surface.New(surface.Config{Public: exposure.IsPublicIPv4, Log: d.Log})
+	if err != nil { // only a missing dependency: a programming error in serve
+		panic("vedette: " + err.Error())
+	}
+	return exposureRunner{on: func() bool { return d.Reg == nil || d.Reg.Enabled("scan") }, scan: s} // a nil Reg: tests that build by hand
+}
+
+// surfaceScan is the part of *surface.Scanner the runner calls (a test hands it a fake that probes nothing).
+type surfaceScan interface {
+	Domain(ctx context.Context, domain string) (surface.Result, error)
+	IP(ctx context.Context, ip netip.Addr) (surface.Result, error)
+}
+
+type exposureRunner struct {
+	on   func() bool
+	scan surfaceScan
+}
+
+func (r exposureRunner) Scan(ctx context.Context, t exposure.ScanTarget) (exposure.Content, error) {
+	if !r.on() {
+		return exposure.Content{}, exposure.ErrScanOff
+	}
+	var res surface.Result
+	var err error
+	switch t.Kind {
+	case exposure.KindDomain:
+		res, err = r.scan.Domain(ctx, t.Value)
+	case exposure.KindIP:
+		ip, perr := netip.ParseAddr(t.Value)
+		if perr != nil {
+			return exposure.Content{}, fmt.Errorf("vedette: scanning %q: %w", t.Value, perr)
+		}
+		res, err = r.scan.IP(ctx, ip)
+	default:
+		return exposure.Content{}, fmt.Errorf("vedette: scanning %q: unknown kind %q", t.Value, t.Kind)
+	}
+	switch {
+	case err == nil:
+	case ctx.Err() != nil: // the person hung up: not a fault of the targets
+		return exposure.Content{}, err
+	case errors.Is(err, surface.ErrCT):
+		return exposure.Content{}, fmt.Errorf("%w (%w)", exposure.ErrCTDown, err)
+	case errors.Is(err, surface.ErrTooLong):
+		return exposure.Content{}, exposure.ErrScanTooLong
+	default:
+		return exposure.Content{}, err
+	}
+	return contentOf(res), nil
+}
+
+// contentOf is a surface result in exposure's shape; exposure limits it again before storing it (INV-10).
+func contentOf(r surface.Result) exposure.Content {
+	c := exposure.Content{Hosts: []exposure.HostRow{}, Ports: []exposure.PortRow{}, AdminPanels: []exposure.AdminRow{}, Certs: []exposure.CertRow{}}
+	for _, h := range r.Hosts {
+		c.Hosts = append(c.Hosts, exposure.HostRow{Name: h.Name, IP: h.IP.String()})
+	}
+	for _, p := range r.Ports {
+		c.Ports = append(c.Ports, exposure.PortRow{IP: p.IP.String(), Port: p.Port, Service: p.Service, Product: p.Product})
+	}
+	for _, a := range r.Admin {
+		risk := "warn"
+		if a.Danger {
+			risk = "danger"
+		}
+		c.AdminPanels = append(c.AdminPanels, exposure.AdminRow{URL: a.URL, Product: a.Product, IP: a.IP.String(), Port: a.Port, Risk: risk})
+	}
+	for _, x := range r.Certs {
+		c.Certs = append(c.Certs, exposure.CertRow{Host: x.Host, Issuer: x.Issuer, ExpiresAt: x.NotAfter.UTC().Format(time.RFC3339)})
+	}
+	return c
 }

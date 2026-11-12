@@ -226,6 +226,10 @@ func TestUpdateAutoRemembersAFailedCheckAfterARestart(t *testing.T) {
 	if ce, _ := g.JSON["last_check_error"].(map[string]any); ce["code"] != core.CodeUpdateCheckFailed {
 		t.Fatalf("last_check_error after a restart = %v", g.JSON["last_check_error"])
 	}
+	// Changing the channel or mode keeps it: only a good check clears it.
+	if p := e.admin.patch("/core/updates", map[string]any{"mode": "auto", "channel": "stable"}); p.JSON["last_check_error"] == nil {
+		t.Fatalf("PATCH /core/updates dropped last_check_error: %s", p.Raw)
+	}
 	e.srv.put("/index/index.json.minisig", good)
 	r := e.oper.post("/core/updates/check", nil)
 	wantOK(t, r, 200)

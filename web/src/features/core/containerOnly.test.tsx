@@ -84,6 +84,8 @@ describe('container-only install (D-381)', () => {
     renderApp('/settings/updates')
     expect(await screen.findByText(`Last check failed 1 hour ago: ${message}`)).toBeInTheDocument()
     expect(screen.queryByText(/has never been read/)).toBeNull()
+    expect(screen.getByText('No release information yet: no update check has succeeded on this install. Vedette tries again every 6 hours.')).toBeInTheDocument()
+    expect(screen.queryByText(/cannot reach github\.com/)).toBeNull() // the failure line says the real reason
   })
 
   it('Updates: when the update state cannot be read, the error has Try again and the general block stays', async () => {

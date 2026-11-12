@@ -91,7 +91,7 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
     </div>
   ) : !s.check_enabled ? (
     <p className="text-sm">{t('container.updates.checkOff')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('container.updates.privacyLink')}</Link>.</p>
-  ) : !s.last_check ? <p className="text-sm">{t('container.updates.notYet')}</p>
+  ) : !s.last_check ? <p className="text-sm">{t(s.last_check_error ? 'container.updates.notYetFailed' : 'container.updates.notYet')}</p>
   : <p className="text-sm">{t('container.updates.latest')}</p>
   // The running version and the last check, always (the offer and "never" texts alone do not say both); a failed check
   // says why itself, so "never read" then drops its guess at the cause (D-392).

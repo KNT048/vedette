@@ -94,6 +94,8 @@ type Service struct {
 	reenabled atomic.Bool
 	// urlSealed is set once no webhook row is left with a plain URL (sealLegacyURL).
 	urlSealed atomic.Bool
+	// urlSealFailing is set while sealLegacyURL keeps failing, so the warning is logged once.
+	urlSealFailing atomic.Bool
 	// tgOffset is the next Telegram update the approval listener reads (tglisten.go).
 	tgOffset telegramOffset
 }

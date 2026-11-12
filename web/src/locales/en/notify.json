@@ -244,6 +244,7 @@
     "titleNone": "No new incidents",
     "titleLoading": "Incidents",
     "meta": "Something happening on your network now. Vulnerabilities to patch are in Findings.",
+    "retention": "History and resolved incidents are kept for 1 year.",
     "filter": "Filter incidents",
     "open": "Open",
     "all": "All",
@@ -349,6 +350,7 @@
   "history": {
     "title": "History",
     "description": "Every message Vedette sent: incidents, vulnerability notices and approval requests.",
+    "retention": "History and resolved incidents are kept for 1 year.",
     "meta": "Vedette only alerts for products you own. {{count}} new vulnerabilities in the last {{days}} days match none of your devices, so nothing was sent.",
     "meta_one": "Vedette only alerts for products you own. {{count}} new vulnerability in the last {{days}} days matches none of your devices, so nothing was sent.",
     "meta_other": "Vedette only alerts for products you own. {{count}} new vulnerabilities in the last {{days}} days match none of your devices, so nothing was sent.",

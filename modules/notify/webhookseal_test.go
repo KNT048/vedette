@@ -2,6 +2,7 @@ package notify_test
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/notify/channel"
@@ -212,13 +214,14 @@ func TestWebhookURLSavedBeforeSealingIsMaskedThenSealed(t *testing.T) {
 	if e.dbHolds(whToken) == "" {
 		t.Fatal("the fixture is not a legacy row")
 	}
-	v, err := e.svc.Channels(e.ctx()) // reading seals it
+	v, err := e.svc.Channels(e.ctx()) // a read masks it
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := v.Channels[5].Fields["url"]; got != "https://hooks.company.com/…"+whURL[len(whURL)-4:] {
 		t.Fatalf("shows %q", got)
 	}
+	e.flush() // the deliver job seals it
 	if where := e.dbHolds(whToken); where != "" {
 		t.Fatalf("still in clear in %s", where)
 	}
@@ -248,5 +251,36 @@ func TestWebhookURLSavedBeforeSealingIsSealedByTheDeliverJob(t *testing.T) {
 	e.flush()
 	if where := e.dbHolds(whToken); where != "" {
 		t.Fatalf("still in clear in %s", where)
+	}
+}
+
+// Channels is called inside another module's write transaction (response's breaker check): it must never open a write of its own,
+// or it would wait for the one writer conn it is already holding. A legacy row is masked by the read and sealed by the next Flush.
+func TestChannelsInsideAWriteTransactionReturnsPromptlyEvenWithALegacyURL(t *testing.T) {
+	e, _ := webhookEnv(t)
+	fj, _ := json.Marshal(map[string]string{"url": whURL})
+	e.write(func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO notify_channel (type, configured, enabled, fields, min_severity, updated_at) VALUES ('webhook', 1, 1, ?, 'low', '2026-11-09T10:00:00.000Z')`, string(fj))
+		return err
+	})
+	ctx, cancel := context.WithTimeout(e.ctx(), 5*time.Second)
+	defer cancel()
+	var got string
+	err := e.db.Write(ctx, func(_ *sql.Tx) error {
+		v, err := e.svc.Channels(ctx)
+		if err == nil {
+			got = v.Channels[5].Fields["url"]
+		}
+		return err
+	})
+	if err != nil {
+		t.Fatalf("Channels inside a write transaction: %v", err)
+	}
+	if strings.Contains(got, whToken) || got == "" {
+		t.Fatalf("shows %q", got)
+	}
+	e.flush()
+	if where := e.dbHolds(whToken); where != "" {
+		t.Fatalf("still in clear in %s after the Flush", where)
 	}
 }

@@ -198,7 +198,6 @@ func (c channelRow) view(approvers []Approver) Channel {
 
 // Channels returns the six channels, the rules and the number of two-step email users (GET /notify/channels).
 func (s *Service) Channels(ctx context.Context) (ChannelsView, error) {
-	s.sealLegacyURL(ctx)
 	db := s.cfg.DB.Reader()
 	out := ChannelsView{Channels: make([]Channel, 0, len(channelTypes))}
 	for _, t := range channelTypes {
@@ -322,7 +321,7 @@ func (s *Service) sendFields(ctx context.Context, q dbtx, c channelRow) (map[str
 }
 
 // sealLegacyURL seals the plain webhook URL of a row saved before the URL was sealed (migration 0007 adds the columns; SQL cannot open
-// the key). Cheap when there is nothing to do: it runs at every Flush and every read of the channels, and stops looking once it found nothing.
+// the key). Cheap when there is nothing to do: it runs at every Flush (never from a read: Channels is called inside other modules' write transactions, and a nested DB.Write would wait for the one writer forever) and stops looking once it found nothing. A failure is logged once per streak.
 func (s *Service) sealLegacyURL(ctx context.Context) {
 	if s.urlSealed.Load() {
 		return
@@ -347,9 +346,12 @@ func (s *Service) sealLegacyURL(ctx context.Context) {
 		return err
 	})
 	if err != nil {
-		s.cfg.Log.WarnContext(ctx, "notify: the saved webhook URL could not be sealed yet", "error", err.Error())
+		if s.urlSealFailing.CompareAndSwap(false, true) { // once per streak, not at every run of the job
+			s.cfg.Log.WarnContext(ctx, "notify: the saved webhook URL could not be sealed yet", "error", err.Error())
+		}
 		return
 	}
+	s.urlSealFailing.Store(false)
 	s.urlSealed.Store(true)
 }
 

@@ -27,6 +27,7 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 **S-ALERT-1** (P1, P2) `[đạt]` — Khi có KEV mới **khớp thứ tôi có** (khai tay hoặc kiểm kê tự động), tôi nhận Zalo/Telegram/email trong ≤60 phút với: cái gì, mức khẩn, làm gì trước.
 **S-ALERT-3** (P2) `[đạt]` (D-52) — Trang Incidents cho tôi thấy điều đang xảy ra (chạm bẫy, kết nối độc hại, log bất thường, thiết bị lạ), xác nhận/đóng từng mục và bấm Respond; lỗ hổng nằm ở Findings, không lặp lại ở đây.
 - Chấp nhận: không gửi CVE không khớp; gộp nhiều CVE cùng sản phẩm vào một tin; có link mở gói giảm thiểu; có nút "đã xử lý/không liên quan" trong UI; nhật ký gửi.
+- Chấp nhận (D-215, D-160): trang Incidents và màn hình History của notify nói thời hạn lưu: "History and resolved incidents are kept for 1 year."; quá 1 năm, tin đã gửi, incident đã `resolved` và tin lỗ hổng bị xoá (incident đang mở và hàng đợi gửi không bao giờ bị xoá); mỗi lượt xoá ghi một mục kiểm toán "Old alert history deleted".
 
 **S-ALERT-2** (P3) `[rớt]` (hoãn, D-24) — Là MSP, tôi nhận một tin gộp "KEV X khớp 7/40 khách: A, B, C…".
 

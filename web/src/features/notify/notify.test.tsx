@@ -189,6 +189,16 @@ describe('notify: delivery history (S-NOT-1, D-52)', () => {
   })
 })
 
+describe('notify: retention is published (D-160, D-215)', () => {
+  it('the Incidents page and the History screen say history and resolved incidents are kept for 1 year', async () => {
+    const inc = renderApp('/incidents')
+    expect(await screen.findByText(/History and resolved incidents are kept for 1 year\./)).toBeInTheDocument()
+    inc.unmount()
+    renderChannels() // the History screen is a section of Settings, Alert channels
+    expect(await screen.findByText(/History and resolved incidents are kept for 1 year\./)).toBeInTheDocument()
+  })
+})
+
 describe('notify: alert channels (S-NOT-1)', () => {
   it('lists 6 channels with their status, no a11y violations', async () => {
     renderChannels()

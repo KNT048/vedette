@@ -24,6 +24,8 @@ func TestRetentionDeletesOnlyHistoryOlderThanAYear(t *testing.T) {
 			// incidents: resolved old / resolved young / open (new) very old / acknowledged very old / resolved without handled_at, old last_seen
 			incident("i-res-old", "resolved", old, old), incident("i-res-new", "resolved", young, young),
 			incident("i-open-new", "new", old, ""), incident("i-open-ack", "acknowledged", old, old), incident("i-res-nohandled", "resolved", old, ""),
+			incident("i-res-resent", "resolved", old, old),
+			`INSERT INTO notify_send (id, kind, ref_id, channel, "to", at, ok, what, link, message) VALUES ('s-resend', 'incident', 'i-res-resent', 'slack', 'x', '` + young + `', 1, 'w', '/incidents/i-res-resent', '{}')`,
 			`INSERT INTO notify_incident_device (incident_id, asset_id, name) VALUES ('i-res-old', 'a1', 'PC')`,
 			// notices: old and loose / old but queued / old but a young send still covers it / young
 			notice("n-loose", old), notice("n-queued", old), notice("n-covered", old), notice("n-young", young),
@@ -46,7 +48,7 @@ func TestRetentionDeletesOnlyHistoryOlderThanAYear(t *testing.T) {
 		want      int
 	}{
 		{"notify_send", "s-old", 0}, {"notify_send", "s-new", 1},
-		{"notify_incident", "i-res-old", 0}, {"notify_incident", "i-res-nohandled", 0}, {"notify_incident", "i-res-new", 1}, {"notify_incident", "i-open-new", 1}, {"notify_incident", "i-open-ack", 1},
+		{"notify_incident", "i-res-old", 0}, {"notify_incident", "i-res-nohandled", 0}, {"notify_incident", "i-res-new", 1}, {"notify_incident", "i-res-resent", 1}, {"notify_incident", "i-open-new", 1}, {"notify_incident", "i-open-ack", 1},
 		{"notify_notice", "n-loose", 0}, {"notify_notice", "n-queued", 1}, {"notify_notice", "n-covered", 1}, {"notify_notice", "n-young", 1},
 	} {
 		if n := e.count(`SELECT COUNT(*) FROM `+c.table+` WHERE id = ?`, c.id); n != c.want {

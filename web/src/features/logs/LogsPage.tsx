@@ -17,10 +17,10 @@ import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtNumber, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan } from '@/lib/session'
-import { useDigest, useEvents, useSetRetention, useSources, useUnknownSenders } from './api'
+import { fetchOlderEvents, useDigest, useEvents, useSetRetention, useSources, useUnknownSenders } from './api'
 import { CATALOG } from './catalog'
 import { BoxCertificate, ConfigDialog, DeleteDialog, SourceFormDialog } from './SourceDialogs'
-import type { IocHit, EventWindow, LogEvent, LogSource, NewItem, SourcesResponse, SpikeItem, UnknownSender } from './types'
+import type { IocHit, EventsResponse, EventWindow, LogEvent, LogSource, NewItem, SourcesResponse, SpikeItem, UnknownSender } from './types'
 
 const STATE_TONE = { receiving: 'ok', silent: 'warn', never: 'off' } as const
 
@@ -208,7 +208,21 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
   const [win, setWin] = useState<EventWindow>('24h')
   const [source, setSource] = useState('')
   const [text, setText] = useState('')
-  const q = useEvents({ window: win, source, q: useDeferredValue(text) })
+  const kw = useDeferredValue(text)
+  const q = useEvents({ window: win, source, q: kw })
+  // The keyword search can stop before the start of the window (D-441): "Search older lines" appends the next step below what is shown.
+  const [older, setOlder] = useState<{ key: string; fetched: boolean; events: LogEvent[]; next?: string; back?: string; busy: boolean; failed: boolean }>({ key: '', fetched: false, events: [], busy: false, failed: false })
+  const key = `${win}|${source}|${kw}|${q.dataUpdatedAt}`
+  const extra = older.key === key ? older : { key, fetched: false, events: [] as LogEvent[], next: undefined, back: undefined, busy: false, failed: false }
+  const searchOlder = (d: EventsResponse) => {
+    const before = extra.fetched ? extra.next : d.next_cursor
+    if (!before) return
+    setOlder({ ...extra, busy: true, failed: false })
+    fetchOlderEvents({ window: win, source, q: kw }, before).then(
+      (r) => setOlder({ key, fetched: true, events: [...extra.events, ...r.events], next: r.next_cursor ?? undefined, back: r.searched_back_to, busy: false, failed: false }),
+      () => setOlder({ ...extra, busy: false, failed: true }),
+    )
+  }
   const columns: ColumnDef<LogEvent>[] = [
     { id: 'time', header: t('events.col.time'), accessorFn: (r) => r.ts, cell: ({ row }) => <span className="whitespace-nowrap">{fmtDateTime(row.original.ts)}</span> },
     { id: 'source', header: t('events.col.source'), accessorFn: (r) => r.source_name },
@@ -222,14 +236,27 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
         <Field label={t('events.q')} htmlFor="ev-q"><Input id="ev-q" className="h-8 w-56" value={text} onChange={(e) => setText(e.target.value)} placeholder={t('events.qPlaceholder')} autoComplete="off" /></Field>
       </div>
       <QueryState query={q}>
-        {(d) => (
+        {(d) => {
+          const rows = [...d.events, ...extra.events]
+          const next = extra.fetched ? extra.next : d.next_cursor ?? undefined
+          const back = extra.fetched ? extra.back : d.searched_back_to
+          return (
           <>
-            <p className="mb-2 text-[13px] text-muted">{t('events.count', { shown: d.events.length, total: d.total })} {d.total > d.events.length ? t('events.capped') : ''}</p>
-            <DataTable key={`${win}-${source}-${text}`} caption={t('events.caption')} data={d.events} columns={columns} pageSize={25} mobileRow={(r) => (
+            {next ? (
+              <div className="mb-2 flex flex-wrap items-center gap-3 text-[13px] text-muted">
+                <p aria-live="polite">{t('events.partial', { count: rows.length, time: back ? fmtDateTime(back) : '' })}</p>
+                <Button disabled={extra.busy || q.isPlaceholderData} aria-busy={extra.busy} onClick={() => searchOlder(d)}>{t('events.searchOlder')}</Button>
+                {extra.failed ? <span role="alert" className="text-danger">{t('events.searchOlderFailed')}</span> : null}
+              </div>
+            ) : (
+              <p className="mb-2 text-[13px] text-muted">{kw.trim() ? t('events.found', { count: rows.length }) : t('events.count', { shown: d.events.length, total: d.total })} {!kw.trim() && d.total > d.events.length ? t('events.capped') : ''}</p>
+            )}
+            <DataTable key={`${win}-${source}-${text}`} caption={t('events.caption')} data={rows} columns={columns} pageSize={25} mobileRow={(r) => (
               <div className="grid gap-1"><p className="text-[12px] text-muted">{fmtDateTime(r.ts)}, {r.source_name}</p><p className="break-all font-mono text-[12px]">{r.line}</p></div>
             )} empty={!text.trim() && !source ? t('events.emptyNone') : t('events.empty')} />
           </>
-        )}
+          )
+        }}
       </QueryState>
     </Section>
   )

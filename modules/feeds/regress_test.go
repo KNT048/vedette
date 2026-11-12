@@ -267,7 +267,7 @@ func TestRegress_CSVFieldsPerRowAreCapped(t *testing.T) {
 	}
 	// Exactly the cap is fine.
 	exact := strings.Repeat("x,", maxCSVFields-1) + "x"
-	if rows := parseCSV(exact+"\n", ',', true); len(rows) != 1 || rows[0].bad != "" || len(rows[0].cells) != maxCSVFields {
+	if rows := parseCSV(exact+"\n", ','); len(rows) != 1 || rows[0].bad != "" || len(rows[0].cells) != maxCSVFields {
 		t.Errorf("exact cap: %+v", rows)
 	}
 }

@@ -72882,13 +72882,30 @@ func (s *LogsGetLogsDigestOKSpikesItem) SetSourceName(val string) {
 
 type LogsGetLogsEventsOK struct {
 	Events []LogsGetLogsEventsOKEventsItem `json:"events"`
-	// Number of matching rows; events returns at most the 200 newest.
+	// Opaque cursor (API_CONVENTIONS section 4): send it as cursor to search the older lines of the
+	// window. null = the whole window was searched.
+	NextCursor NilString `json:"next_cursor"`
+	// Present with next_cursor: the search has covered the lines from now back to this time and stopped
+	// before the start of the window (200 matches found, or the time budget ran out).
+	SearchedBackTo OptDateTime `json:"searched_back_to"`
+	// Number of matching rows; events returns at most the 200 newest. With a keyword, the matches found so
+	// far (the search walks back from the newest line and stops at 200 matches or when its time is up).
 	Total int `json:"total"`
 }
 
 // GetEvents returns the value of Events.
 func (s *LogsGetLogsEventsOK) GetEvents() []LogsGetLogsEventsOKEventsItem {
 	return s.Events
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *LogsGetLogsEventsOK) GetNextCursor() NilString {
+	return s.NextCursor
+}
+
+// GetSearchedBackTo returns the value of SearchedBackTo.
+func (s *LogsGetLogsEventsOK) GetSearchedBackTo() OptDateTime {
+	return s.SearchedBackTo
 }
 
 // GetTotal returns the value of Total.
@@ -72899,6 +72916,16 @@ func (s *LogsGetLogsEventsOK) GetTotal() int {
 // SetEvents sets the value of Events.
 func (s *LogsGetLogsEventsOK) SetEvents(val []LogsGetLogsEventsOKEventsItem) {
 	s.Events = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *LogsGetLogsEventsOK) SetNextCursor(val NilString) {
+	s.NextCursor = val
+}
+
+// SetSearchedBackTo sets the value of SearchedBackTo.
+func (s *LogsGetLogsEventsOK) SetSearchedBackTo(val OptDateTime) {
+	s.SearchedBackTo = val
 }
 
 // SetTotal sets the value of Total.

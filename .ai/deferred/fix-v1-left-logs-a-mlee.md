@@ -1,3 +1,3 @@
 # Deferred: fix/v1-left-logs-a-mlee
 
-- [ ] 2026-11-13 — a keyword that matches nothing over 7 days of a 5M-line box answers 503 `server_busy` after 5 s (D-432); an FTS5 index is the upgrade if a customer needs it — vì sao để sau: no customer asked, a migration doubling the largest table — ở đâu: `modules/logs/events.go` `search`.
+- [x] 2026-11-13 — a keyword that matches nothing over 7 days of a 5M-line box answers 503 `server_busy` after 5 s (D-432); an FTS5 index is the upgrade if a customer needs it — vì sao để sau: no customer asked, a migration doubling the largest table — ở đâu: `modules/logs/events.go` `search`. — Done: keyword search is a time-budgeted newest-first scan that answers what it found, `searched_back_to` and a `next` cursor (GUI "Search older lines"), no FTS5; 5M lines over 7 days, keyword matching nothing: 5.0 s, 200 with 2.6M of 5M lines searched and a cursor, was 503 (D-441, this PR)

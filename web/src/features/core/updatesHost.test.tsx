@@ -2,10 +2,13 @@
 // No real-clock wait (D-376): Date.now is moved past the host step instead of sleeping.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { toast } from 'sonner'
 import { renderApp } from '@/test/render'
 import { orgStore, sessionStore } from '@/mocks/stores'
+import { collection } from '@/mocks/db'
 import { hostScenario, RUN_STEP_MS, type HostOutcome } from './mocks'
-import type { UpdatesState } from './types'
+import type { UpdateComponent, UpdatesState } from './types'
 
 const realNow = Date.now
 const later = () => vi.spyOn(Date, 'now').mockImplementation(() => realNow.call(Date) + RUN_STEP_MS + 1) // past the host step
@@ -18,19 +21,19 @@ const helperRow = () => within(screen.getByRole('table', { name: 'Versions in us
 
 const REVERTED = 'The new system helper 0.9.4 did not start correctly, so the box went back to 0.9.3 by itself. Nothing else was changed.'
 const HALF_WAY = 'The system helper update stopped half way and could not be undone. Vedette keeps running; follow the runbook section "vedette-host self-update stopped half way".'
-// [code, end, helper version in the release (null: 0.9.4), the story's sentence]
-const ENDS: [HostOutcome, 'reverted' | 'failed', string | null, string][] = [
-  ['self_update_unhealthy', 'reverted', null, REVERTED],
-  ['install_failed', 'reverted', null, REVERTED],
-  ['signature_invalid', 'failed', null, 'The system helper in this update is not signed by the Vedette release key. Nothing was installed.'],
-  ['checksum_mismatch', 'failed', null, 'The downloaded system helper does not match the signed release. Nothing was installed.'],
-  ['downgrade_not_allowed', 'failed', '0.9.2', 'System helper 0.9.2 is older than the one running (0.9.3). The helper is never taken back by an update.'],
-  ['test_version_refused', 'failed', '0.9.4-test.1', '0.9.4-test.1 is a test build. It is never installed on a real box.'],
-  ['dependencies_unavailable', 'failed', null, "The new system helper needs operating system packages that the box's package sources do not offer. Nothing was installed."],
-  ['dpkg_locked', 'failed', null, 'The box is installing operating system packages. Try again in a few minutes.'],
-  ['rollback_failed', 'failed', null, HALF_WAY],
-  ['self_update_interrupted', 'failed', null, HALF_WAY],
-  ['host_too_old', 'failed', null, "This box's system helper (0.9.3) is too old to update itself. Run install.sh of release 0.9.4 on the box (it upgrades the helper and keeps your data), then apply again."],
+// [code, end, the story's sentence]; the mock's helper is 0.9.4, 0.9.2 for the older one, 0.9.4-test.1 for the test build
+const ENDS: [HostOutcome, 'reverted' | 'failed', string][] = [
+  ['self_update_unhealthy', 'reverted', REVERTED],
+  ['install_failed', 'reverted', REVERTED],
+  ['signature_invalid', 'failed', 'The system helper in this update is not signed by the Vedette release key. Nothing was installed.'],
+  ['checksum_mismatch', 'failed', 'The downloaded system helper does not match the signed release. Nothing was installed.'],
+  ['downgrade_not_allowed', 'failed', 'System helper 0.9.2 is older than the one running (0.9.3). The helper is never taken back by an update.'],
+  ['test_version_refused', 'failed', '0.9.4-test.1 is a test build. It is never installed on a real box.'],
+  ['dependencies_unavailable', 'failed', "The new system helper needs operating system packages that the box's package sources do not offer. Nothing was installed."],
+  ['dpkg_locked', 'failed', 'The box is installing operating system packages. Try again in a few minutes.'],
+  ['rollback_failed', 'failed', HALF_WAY],
+  ['self_update_interrupted', 'failed', HALF_WAY],
+  ['host_too_old', 'failed', "This box's system helper (0.9.3) is too old to update itself. Run install.sh of release 0.9.4 on the box (it upgrades the helper and keeps your data), then apply again."],
 ]
 
 describe('core: system helper update (S-CORE-2 criterion D-316)', () => {
@@ -77,8 +80,30 @@ describe('core: system helper update (S-CORE-2 criterion D-316)', () => {
     expect((await call('POST', '/apply', { component: 'software' })).run?.steps).toEqual(['download', 'start', 'restart'])
   })
 
-  it.each(ENDS)('%s: the run ends %s with the story sentence; the helper and the images are unchanged', async (code, end, v, sentence) => {
-    hostScenario.set({ code, version: v })
+  it('a container-only install (no helper row, criterion g): no System helper row, no "Includes system helper", no host step', async () => {
+    signIn()
+    await call('GET') // seeds the table
+    collection<{ components: UpdateComponent[] }>('core_updates', () => ({ components: [] })).update((s) => ({ ...s, components: s.components.filter((c) => c.id !== 'host') }))
+    expect((await call('GET')).available[0]?.host_version).toBeUndefined()
+    renderApp('/settings/updates')
+    await screen.findByRole('table', { name: 'Versions in use' })
+    expect(screen.queryByText('System helper')).toBeNull()
+    expect(screen.queryByText(/Includes system helper/)).toBeNull()
+    expect((await call('POST', '/apply', { component: 'software' })).run?.steps).toEqual(['download', 'start', 'restart'])
+  })
+
+  it('host_too_old ends at once and is still announced: a toast and an alert (criterion h)', async () => {
+    const error = vi.spyOn(toast, 'error')
+    hostScenario.set({ code: 'host_too_old', version: null })
+    renderApp('/settings/updates')
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Update Vedette software' }))
+    const why = "This box's system helper (0.9.3) is too old to update itself. Run install.sh of release 0.9.4 on the box (it upgrades the helper and keeps your data), then apply again."
+    expect(await screen.findByText(why, { selector: '[role="alert"]' })).toBeInTheDocument()
+    expect(error).toHaveBeenCalledWith(why)
+  })
+
+  it.each(ENDS)('%s: the run ends %s with the story sentence; the helper and the images are unchanged', async (code, end, sentence) => {
+    hostScenario.set({ code, version: null })
     signIn()
     await call('POST', '/apply', { component: 'software' })
     later()

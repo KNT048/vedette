@@ -567,8 +567,8 @@ const runSteps = (action: UpdateRun['action'], restore: boolean): UpdateRun['ste
 
 /**
  * How the system helper step of the next software update ends (S-CORE-2 criterion D-316); code null = it succeeds. Only tests and
- * e2e set it (no button: on a real box the host decides). `version` stands in for the helper version of the release (an older
- * build or a test build for those refusals).
+ * e2e set it (no button: on a real box the host decides). `version` stands in for the helper version of the release; without it
+ * downgrade_not_allowed uses 0.9.2 and test_version_refused `<release>-test.1`.
  */
 export type HostOutcome = 'self_update_unhealthy' | 'install_failed' | 'signature_invalid' | 'checksum_mismatch' | 'downgrade_not_allowed' | 'test_version_refused' | 'dependencies_unavailable' | 'dpkg_locked' | 'rollback_failed' | 'self_update_interrupted' | 'host_too_old'
 export const hostScenario = collection<{ code: HostOutcome | null; version: string | null }>('core_updates_host_scenario', () => ({ code: null, version: null }))
@@ -591,7 +591,8 @@ const hostRow = () => updStore.get().components.find((c) => c.id === 'host')
 function hostTarget(release: string): string | undefined {
   const cur = hostRow()
   const sc = hostScenario.get()
-  const v = sc.version ?? HOST_IN[release]
+  // the two version refusals need an older or a test build to make sense; the others keep the release's own helper
+  const v = sc.version ?? (sc.code === 'downgrade_not_allowed' ? '0.9.2' : sc.code === 'test_version_refused' ? `${release}-test.1` : HOST_IN[release])
   if (!cur || !v) return undefined // container-only install, or a release without a helper
   return compareVersion(v, cur.version) > 0 || sc.code ? v : undefined
 }

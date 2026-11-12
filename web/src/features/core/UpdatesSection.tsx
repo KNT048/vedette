@@ -19,24 +19,29 @@ import { Band, errMsg, ReadOnlyNote, useGate } from './parts'
 import { MAX_UPLOAD, sha256Hex, toBase64 } from './util'
 import type { ManagedPackage, UpdateAvailable, UpdateComponent, UpdateHistory, UpdateRun, UpdatesState } from './types'
 
-/** The software install or rollback (D-340): its steps while it runs, its end in words, and one toast (with Reload: the page now runs the old code) when a run this page saw running ends. */
-function RunPanel({ run, name, reconnecting }: { run: UpdateRun; name: string; reconnecting: boolean }) {
+/**
+ * The software install or rollback (D-340): its steps while it runs, its end in words, and one toast (with Reload: the page now runs the old code) when a run this page saw running ends.
+ * `after`: the run on screen when this page last pressed Apply on the software; a different run is one Apply started, announced even when it ended at once (D-316 (h), host_too_old).
+ */
+function RunPanel({ run, name, reconnecting, after }: { run: UpdateRun; name: string; reconnecting: boolean; after?: string | null }) {
   const { t } = useTranslation('core')
   const seen = useRef<string | null>(null)
   // The run this page watched while it ran: only its end is announced and offers Reload (an old end is not news).
   const [watched, setWatched] = useState<string | null>(null)
-  if (run.status === 'running' && watched !== run.id) setWatched(run.id)
+  const started = after !== undefined && run.id !== after
+  if ((run.status === 'running' || started) && watched !== run.id) setWatched(run.id)
   const sawEnd = watched === run.id && run.status !== 'running'
   useEffect(() => {
     if (run.status === 'running') { seen.current = `${run.id}:running`; return }
-    if (seen.current === `${run.id}:running`) {
+    if (seen.current === `${run.id}:end`) return
+    if (seen.current === `${run.id}:running` || started) {
       const reload = { action: { label: t('updates.run.reload'), onClick: () => window.location.reload() } }
       if (run.status === 'done') toast.success(t(run.action === 'update' ? 'updates.appliedSoftware' : 'updates.rolledBack', { name }), reload)
       else if (run.status === 'reverted') toast.error(run.error ?? t(`updates.run.revertedToast.${run.action}`, { from: run.from ?? '' }))
       else toast.error(run.error ?? t(`updates.run.failedToast.${run.action}`))
     }
     seen.current = `${run.id}:end`
-  }, [run.id, run.status, run.action, run.error, run.from, name, t])
+  }, [run.id, run.status, run.action, run.error, run.from, name, t, started])
   const at = run.step ? run.steps.indexOf(run.step) : -1
   const tone = run.status === 'running' ? 'accent' : run.status === 'done' ? 'ok' : 'danger'
   const why = run.status === 'failed' || run.status === 'reverted' ? (run.error ?? t(`updates.run.${run.status}Toast.${run.action}`, { from: run.from ?? '' })) : null
@@ -48,16 +53,18 @@ function RunPanel({ run, name, reconnecting }: { run: UpdateRun; name: string; r
         <span className="text-[13px] text-muted">{fmtDateTime(run.started_at)}, {run.user === 'system' ? t('updates.hist.system') : run.user}</span>
       </div>
       {run.status === 'running' ? (
-        <ol className="grid gap-1 text-sm" aria-live="polite">
-          {run.steps.map((st, i) => (
-            <li key={st} className={i === at ? 'font-medium' : 'text-muted'} aria-current={i === at ? 'step' : undefined}>
-              {t('updates.run.stepOf', { n: i + 1, total: run.steps.length })} {t(`updates.run.step.${st}`)}{i < at ? ` ${t('updates.run.stepDone')}` : ''}
-            </li>
-          ))}
-        </ol>
+        <div className="grid gap-3" aria-live="polite">
+          <ol className="grid gap-1 text-sm">
+            {run.steps.map((st, i) => (
+              <li key={st} className={i === at ? 'font-medium' : 'text-muted'} aria-current={i === at ? 'step' : undefined}>
+                {t('updates.run.stepOf', { n: i + 1, total: run.steps.length })} {t(`updates.run.step.${st}`)}{i < at ? ` ${t('updates.run.stepDone')}` : ''}
+              </li>
+            ))}
+          </ol>
+          {run.step === 'restart' ? <p className="text-[13px] text-muted">{t('updates.run.restartNote')}</p> : null}
+          {run.step === 'host' ? <p className="text-[13px] text-muted">{t('updates.run.hostNote')}</p> : null}
+        </div>
       ) : null}
-      {run.status === 'running' && run.step === 'restart' ? <p className="text-[13px] text-muted">{t('updates.run.restartNote')}</p> : null}
-      {run.status === 'running' && run.step === 'host' ? <p className="text-[13px] text-muted">{t('updates.run.hostNote')}</p> : null}
       {reconnecting ? <p role="status" className="text-[13px] text-muted">{t('updates.run.reconnecting')}</p> : null}
       {run.status === 'done' && sawEnd ? <div><Button size="sm" onClick={() => window.location.reload()}>{t('updates.run.reload')}</Button> <span className="text-[13px] text-muted">{t('updates.run.reloadWhy')}</span></div> : null}
       {why ? <p role={sawEnd ? 'alert' : undefined} className="text-sm text-danger">{why}</p> : null}
@@ -73,6 +80,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
   const m = useUpdateMutations()
   const [rollback, setRollback] = useState<UpdateComponent | null>(null)
   const [dataLossOk, setDataLossOk] = useState(false)
+  const [after, setAfter] = useState<string | null | undefined>(undefined) // see RunPanel; undefined until Apply
   const running = s.run?.status === 'running' // only the software waits for its run; data and packs still update
   const askRollback = (c: UpdateComponent) => { setDataLossOk(false); setRollback(c) }
   const file = useRef<HTMLInputElement>(null)
@@ -89,10 +97,12 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
     } catch (e) { toast.error(errMsg(e, t)) }
   }
   async function apply(id: string) {
+    if (id === 'software') setAfter(s.run?.id ?? null)
     try {
       await m.apply.mutateAsync(id)
       if (id !== 'software') toast.success(t('updates.applied', { name: comp(id) })) // the software reports at the end of its run (RunPanel)
     } catch (e) { toast.error(errMsg(e, t)) }
+    // not reset: the new run reaches the page after this returns (react-query notifies later); a refused Apply leaves the same run on screen
   }
   async function doRollback(c: UpdateComponent) {
     try {
@@ -133,7 +143,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
         </div>
       )
     } },
-    { id: 'rollback', header: t('updates.col.rollback'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => (row.original.previous
+    { id: 'rollback', header: t('updates.col.rollback'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => (row.original.id === 'host' ? <span className="text-muted">–</span> : row.original.previous
       ? <Button size="sm" disabled={admin.disabled || (running && row.original.id === 'software')} title={admin.title} onClick={() => askRollback(row.original)}>{t('updates.rollbackTo', { version: row.original.previous })} <span className="sr-only">{comp(row.original.id)}</span></Button>
       : <span className="text-muted">{t('updates.noPrevious')}</span>) },
   ]
@@ -162,7 +172,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
 
       <section id="vedette" aria-labelledby="vedette-band" className="mt-12">
         <Band id="vedette-band" n="3" title={t('updates.vedette.title')} desc={t('updates.vedette.desc')} />
-      {s.run ? <RunPanel run={s.run} name={comp(s.run.component)} reconnecting={reconnecting} /> : null}
+      {s.run ? <RunPanel run={s.run} name={comp(s.run.component)} reconnecting={reconnecting} after={after} /> : null}
       {affected.length ? (
         <div role="alert" className="mb-6 rounded-md border border-danger/40 bg-danger-soft px-4 py-3 text-sm">
           <p className="font-medium text-danger">{t('updates.advisoryBanner', { count: affected.length })}</p>

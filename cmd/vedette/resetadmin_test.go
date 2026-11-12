@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"database/sql"
-	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -36,7 +35,7 @@ func TestResetAdminCommand(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		log := slog.New(slog.NewTextHandler(io.Discard, nil))
+		log := slog.New(slog.DiscardHandler)
 		db, err := store.Open(t.Context(), dbPath, log)
 		if err != nil {
 			t.Fatal(err)

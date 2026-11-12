@@ -63,6 +63,8 @@ func RenderConfig(in ConfigInput) ([]byte, error) {
 		"rdp.enabled": on(RDP), "rdp.port": RDP.Port(),
 		"mssql.enabled": on(MSSQL), "mssql.port": MSSQL.Port(), "mssql.version": "2012",
 		"http.enabled": on(HTTP), "http.port": HTTP.Port(), "http.banner": "Apache/2.4.52 (Ubuntu)", "http.skin": skin,
+		// OpenCanary logs GET / (its redirect to the login page) and refused methods only when asked; without these the first request of any scanner is invisible.
+		"http.log_redirect_request": on(HTTP), "http.log_unimplemented_method_requests": on(HTTP),
 		"logger": map[string]any{
 			"class": "PyLogger",
 			"kwargs": map[string]any{

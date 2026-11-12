@@ -33,11 +33,11 @@
     "http": "HTTP (fake admin page)"
   },
   "serviceHint": {
-    "smb": "Intruders moving inside a network usually probe file shares first",
-    "rdp": "A favourite target of ransomware",
-    "ssh": "Password guessing against Linux servers and network gear",
-    "mssql": "Probing accounting and sales databases",
-    "http": "Fake login page that catches web scanners"
+    "smb": "Counted when a client opens the share or a file in it",
+    "rdp": "Counted when a client sends an RDP connection request",
+    "ssh": "Counted on every connection, even one that only reads the banner",
+    "mssql": "Counted when a client tries to log in",
+    "http": "Counted on GET /, the fake login page and refused methods"
   },
   "state": {
     "listening": "Listening",
@@ -47,7 +47,7 @@
   },
   "traps": {
     "title": "Traps by service",
-    "description": "Turn on each service so the decoy opens the matching port. Any connection to that port counts as a trap hit.",
+    "description": "Turn on each service so the decoy opens the matching port. A trap records what its service can see, listed under each service. A bare TCP connect that sends nothing is not recorded for SMB or MSSQL.",
     "caption": "Traps and their status",
     "col": {
       "service": "Service",

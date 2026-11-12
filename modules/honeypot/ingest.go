@@ -273,7 +273,7 @@ func classify(lt int) (svc ServiceName, scan, ok bool) {
 		return RDP, false, true
 	case lt == ltMSSQLSQL || lt == ltMSSQLWin:
 		return MSSQL, false, true
-	case lt == ltHTTPGet || lt == ltHTTPLogin:
+	case lt >= ltHTTPGet && lt <= ltHTTPRedirect:
 		return HTTP, false, true
 	case lt == ltSMBFile:
 		return SMB, false, true
@@ -299,9 +299,16 @@ func detail(r Record, svc ServiceName) string {
 		return s
 	case ltHTTPGet:
 		return "request GET " + r.Path + userAgent(r)
+	case ltHTTPRedirect:
+		return "request GET " + r.Path + " (redirected to the login page)" + userAgent(r)
+	case ltHTTPOther:
+		return "request with a method the page refuses, " + r.Path + userAgent(r)
 	case ltHTTPLogin:
 		return "login attempt, account " + q(r.User) + " on " + r.Path + userAgent(r)
 	case ltSMBFile:
+		if r.Filename == "" || r.Filename == "/" { // Samba's "connect": the client opened the share itself
+			return "share opened"
+		}
 		return "file opened " + q(r.Filename)
 	}
 	return string(svc) + " activity"

@@ -62,12 +62,25 @@ func inventoryJobs(d deps) []jobs.Job {
 		_, err := svc.PruneServices(ctx)
 		return err
 	}}
+	var hostc *hostclient.Client // one client for every run of the box job
+	if d.HostSocket != "" {
+		hostc = hostclient.New(d.HostSocket)
+	}
 	return []jobs.Job{prune, {Module: "inventory", Name: "box", Every: time.Hour, Run: func(ctx context.Context) error {
 		host, err := os.Hostname()
 		if err != nil || host == "" {
 			host = "vedette"
 		}
-		if _, err := svc.EnsureBox(ctx, inventory.BoxInfo{Hostname: host}); err != nil {
+		var ip string
+		if hostc != nil {
+			// Best effort: a host that does not answer leaves the address unknown until the next run.
+			cctx, cancel := context.WithTimeout(ctx, hostNetTimeout)
+			if st, err := hostc.StateNet(cctx); err == nil {
+				ip = boxManagementIPv4(st)
+			}
+			cancel()
+		}
+		if _, err := svc.EnsureBox(ctx, inventory.BoxInfo{Hostname: host, IP: ip}); err != nil {
 			return err
 		}
 		return svc.RefreshBoxPackages(ctx)

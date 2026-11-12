@@ -231,7 +231,7 @@ function WazuhCard({ w }: { w: WazuhConnection | null }) {
 export function AgentsSection() {
   const { t } = useTranslation('inventory')
   const { revoke, sampleToken } = useAgentActions()
-  const on = useModuleEnabled('agent-intake') !== false
+  const on = useModuleEnabled('agent-intake') === true
   const q = useAgents(on)
   const [creating, setCreating] = useState(false)
   const [showing, setShowing] = useState<AgentToken | null>(null)

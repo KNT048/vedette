@@ -231,7 +231,7 @@ test.describe('findings: no pack yet, and the AI (S-MIT-1, S-AI-2)', () => {
       await ask.click()
       await expect(page.getByText(/AI-generated/).first()).toBeVisible()
       await page.reload()
-      await expect(page.getByRole('button', { name: /Ask again/ })).toHaveCount(1)
+      await expect(page.getByRole('button', { name: /^Ask my AI again$/ })).toHaveCount(1)
     }
     expect(errors, errors.join('\n')).toEqual([])
   })

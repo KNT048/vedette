@@ -3901,6 +3901,12 @@
                             "empty": {
                               "type": "boolean",
                               "description": "true = no log events to summarize yet; AI not called, no tokens spent"
+                            },
+                            "memories_suggested": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "memories the AI suggested while making this digest (0 when read back); they wait for an administrator (S-AI-7, D-223)"
                             }
                           },
                           "required": [
@@ -3913,7 +3919,8 @@
                             "model",
                             "profile",
                             "tokens",
-                            "empty"
+                            "empty",
+                            "memories_suggested"
                           ],
                           "additionalProperties": false
                         },
@@ -4073,6 +4080,12 @@
                         "empty": {
                           "type": "boolean",
                           "description": "true = no log events to summarize yet; AI not called, no tokens spent"
+                        },
+                        "memories_suggested": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "memories the AI suggested while making this digest (0 when read back); they wait for an administrator (S-AI-7, D-223)"
                         }
                       },
                       "required": [
@@ -4085,7 +4098,8 @@
                         "model",
                         "profile",
                         "tokens",
-                        "empty"
+                        "empty",
+                        "memories_suggested"
                       ],
                       "additionalProperties": false
                     }

@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { API, audit, body, fail, guard } from '@/mocks/http'
 import { newId, nowIso } from '@/mocks/db'
 import { aiProfilesStore } from '@/mocks/stores'
-import { activeDefs, BUILTIN_HOOKS, BUILTIN_RULES, builtinHookState, builtinHooksView, buildMatch, chunksOf, customHooksStore, docView, draftDef, knowledgeSettings, knowledgeStore, memorySettings, memoryStore, newHookId, newRuleId, rulesStore, runHooks, skillsStore, skillsView, suggestionsStore } from './harness'
+import { activeDefs, BUILTIN_HOOKS, BUILTIN_RULES, builtinHookState, builtinHooksView, buildMatch, chunksOf, customHooksStore, docView, draftDef, knowledgeSettings, knowledgeStore, memorySettings, memoryStore, newHookId, rejectedTexts, newRuleId, rulesStore, runHooks, skillsStore, skillsView, suggestionsStore } from './harness'
 import { AiJob } from './contract'
 import type { CustomHook, HookInput, KnowledgeInput, MemoryEntry, MemoryView, Rule, RuleInput } from './types'
 
@@ -101,6 +101,8 @@ export const harnessHandlers = [
   http.post(`${API}/ai/memory/suggestions/:id/reject`, ({ params }) => {
     const denied = guard('admin'); if (denied) return denied
     if (!suggestionsStore.get().some((x) => x.id === params.id)) return notFound('suggestion')
+    const text = suggestionsStore.get().find((x) => x.id === params.id)!.text
+    rejectedTexts.update((l) => [...l, text]) // the box refuses the same text for 30 days (ai_memory_rejected)
     suggestionsStore.update((l) => l.filter((x) => x.id !== params.id)); audit('ai.memory.reject', String(params.id))
     return ok204()
   }),

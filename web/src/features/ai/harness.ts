@@ -28,6 +28,7 @@ export const suggestionsStore = collection<MemorySuggestion[]>('ai_memory_sugges
   { id: 'sg-1', text: 'The accounting team works from PC-ACCOUNTS-01 to PC-ACCOUNTS-03 and uses the file server over SMB.', created_at: ago(1), evidence: 'log summary of the last 24 hours' },
   { id: 'sg-2', text: 'Backups of the file server run every night at 01:00 to the NAS.', created_at: ago(0, 5), evidence: 'asked "when does the NAS get busy?"' },
 ], () => [])
+export const rejectedTexts = collection<string[]>('ai_memory_rejected', () => [], () => [])
 export const memorySettings = collection<{ suggest_enabled: boolean }>('ai_memory_settings', () => ({ suggest_enabled: true }), () => ({ suggest_enabled: false }))
 
 // ---- Skills (docs/AI_ASSISTANT.md §2)

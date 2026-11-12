@@ -50,6 +50,7 @@ export default function LogsPanel() {
               </div>
             ) : null}
           </AiBlock>
+          {d.memories_suggested > 0 ? <p className="text-[13px]">{t('logs.suggested', { count: d.memories_suggested })} <Link to="/settings/ai?tab=memory" className="text-accent underline underline-offset-4">{t('logs.suggestedLink')}</Link></p> : null}
           <p className="text-[12px] text-muted">{t('logs.meta', { time: fmtDateTime(d.generated_at) })}</p>
         </div>
       ) : null}

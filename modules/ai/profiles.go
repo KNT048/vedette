@@ -480,7 +480,8 @@ func probeFailure(err error, baseURL string) error {
 	case errors.Is(err, provider.ErrAuth) && status == http.StatusForbidden:
 		return bad(fmt.Sprintf("%s accepted the connection but refused this key for this request (HTTP 403). Check the permission of the key for this model.", host))
 	case errors.Is(err, provider.ErrAuth):
-		return apierr.New(http.StatusUnauthorized, "key_rejected", "The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider.")
+		// 502 like every other answer of the provider: 401 is the API's own "not signed in"
+		return apierr.New(http.StatusBadGateway, "key_rejected", "The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider.")
 	case errors.Is(err, provider.ErrNoWorkspace):
 		return bad("This Anthropic key is not tied to a workspace. Create the API key inside a workspace in the Anthropic console and use that key.")
 	case errors.Is(err, provider.ErrRateLimited):

@@ -6414,6 +6414,10 @@ func (s *AiGetAiLogsDigestOKDigest) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("memories_suggested")
+		e.Int(s.MemoriesSuggested)
+	}
+	{
 		e.FieldStart("model")
 		e.Str(s.Model)
 	}
@@ -6443,17 +6447,18 @@ func (s *AiGetAiLogsDigestOKDigest) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfAiGetAiLogsDigestOKDigest = [10]string{
-	0: "cadence",
-	1: "empty",
-	2: "generated_at",
-	3: "items",
-	4: "model",
-	5: "profile",
-	6: "summary",
-	7: "tier",
-	8: "tokens",
-	9: "tool_calls",
+var jsonFieldsNameOfAiGetAiLogsDigestOKDigest = [11]string{
+	0:  "cadence",
+	1:  "empty",
+	2:  "generated_at",
+	3:  "items",
+	4:  "memories_suggested",
+	5:  "model",
+	6:  "profile",
+	7:  "summary",
+	8:  "tier",
+	9:  "tokens",
+	10: "tool_calls",
 }
 
 // Decode decodes AiGetAiLogsDigestOKDigest from json.
@@ -6519,8 +6524,20 @@ func (s *AiGetAiLogsDigestOKDigest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"items\"")
 			}
-		case "model":
+		case "memories_suggested":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.MemoriesSuggested = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"memories_suggested\"")
+			}
+		case "model":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Model = string(v)
@@ -6532,7 +6549,7 @@ func (s *AiGetAiLogsDigestOKDigest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "profile":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Profile = string(v)
@@ -6544,7 +6561,7 @@ func (s *AiGetAiLogsDigestOKDigest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"profile\"")
 			}
 		case "summary":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Summary = string(v)
@@ -6556,7 +6573,7 @@ func (s *AiGetAiLogsDigestOKDigest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"summary\"")
 			}
 		case "tier":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Tier.Decode(d); err != nil {
 					return err
@@ -6566,7 +6583,7 @@ func (s *AiGetAiLogsDigestOKDigest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tier\"")
 			}
 		case "tokens":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Tokens.Decode(d); err != nil {
 					return err
@@ -6576,7 +6593,7 @@ func (s *AiGetAiLogsDigestOKDigest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tokens\"")
 			}
 		case "tool_calls":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				s.ToolCalls = make([]AiGetAiLogsDigestOKDigestToolCallsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -6604,7 +6621,7 @@ func (s *AiGetAiLogsDigestOKDigest) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -15591,6 +15608,10 @@ func (s *AiPostAiLogsDigestOKDigest) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("memories_suggested")
+		e.Int(s.MemoriesSuggested)
+	}
+	{
 		e.FieldStart("model")
 		e.Str(s.Model)
 	}
@@ -15620,17 +15641,18 @@ func (s *AiPostAiLogsDigestOKDigest) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfAiPostAiLogsDigestOKDigest = [10]string{
-	0: "cadence",
-	1: "empty",
-	2: "generated_at",
-	3: "items",
-	4: "model",
-	5: "profile",
-	6: "summary",
-	7: "tier",
-	8: "tokens",
-	9: "tool_calls",
+var jsonFieldsNameOfAiPostAiLogsDigestOKDigest = [11]string{
+	0:  "cadence",
+	1:  "empty",
+	2:  "generated_at",
+	3:  "items",
+	4:  "memories_suggested",
+	5:  "model",
+	6:  "profile",
+	7:  "summary",
+	8:  "tier",
+	9:  "tokens",
+	10: "tool_calls",
 }
 
 // Decode decodes AiPostAiLogsDigestOKDigest from json.
@@ -15696,8 +15718,20 @@ func (s *AiPostAiLogsDigestOKDigest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"items\"")
 			}
-		case "model":
+		case "memories_suggested":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.MemoriesSuggested = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"memories_suggested\"")
+			}
+		case "model":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Model = string(v)
@@ -15709,7 +15743,7 @@ func (s *AiPostAiLogsDigestOKDigest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "profile":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Profile = string(v)
@@ -15721,7 +15755,7 @@ func (s *AiPostAiLogsDigestOKDigest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"profile\"")
 			}
 		case "summary":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Summary = string(v)
@@ -15733,7 +15767,7 @@ func (s *AiPostAiLogsDigestOKDigest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"summary\"")
 			}
 		case "tier":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Tier.Decode(d); err != nil {
 					return err
@@ -15743,7 +15777,7 @@ func (s *AiPostAiLogsDigestOKDigest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tier\"")
 			}
 		case "tokens":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Tokens.Decode(d); err != nil {
 					return err
@@ -15753,7 +15787,7 @@ func (s *AiPostAiLogsDigestOKDigest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tokens\"")
 			}
 		case "tool_calls":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				s.ToolCalls = make([]AiPostAiLogsDigestOKDigestToolCallsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -15781,7 +15815,7 @@ func (s *AiPostAiLogsDigestOKDigest) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

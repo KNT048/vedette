@@ -413,21 +413,28 @@ func (s *Service) RejectSuggestion(ctx context.Context, who, id string) error {
 // already remembered or already waiting is not stored again. Nothing calls it yet (the ask flow of slice 5 will). The suggestion is
 // not memory: it reaches no prompt until an administrator accepts it.
 func (s *Service) SuggestMemory(ctx context.Context, text, evidence string) error {
+	_, err := s.suggestMemory(ctx, text, evidence)
+	return err
+}
+
+// suggestMemory is SuggestMemory that also says whether a new suggestion was stored.
+func (s *Service) suggestMemory(ctx context.Context, text, evidence string) (bool, error) {
 	if err := s.harnessGuard(); err != nil {
-		return err
+		return false, err
 	}
 	text = tidy(text)
 	evidence = tidy(evidence)
 	if n := utf8.RuneCountInString(text); n < memoryMin || n > memoryMax || auth.HasInvisible(text) {
-		return fmt.Errorf("%w: a suggestion must be 3 to 300 characters", ErrInvalidPromptInput)
+		return false, fmt.Errorf("%w: a suggestion must be 3 to 300 characters", ErrInvalidPromptInput)
 	}
 	if n := utf8.RuneCountInString(evidence); n < 1 || n > evidenceMax || auth.HasInvisible(evidence) {
-		return fmt.Errorf("%w: the evidence of a suggestion must be 1 to 200 characters", ErrInvalidPromptInput)
+		return false, fmt.Errorf("%w: the evidence of a suggestion must be 1 to 200 characters", ErrInvalidPromptInput)
 	}
 	if _, bad := s.hookRefuses(ctx, s.Hooks(), text); bad {
-		return nil // a text the hooks would stop could never be sent, so it is not worth asking about
+		return false, nil // a text the hooks would stop could never be sent, so it is not worth asking about
 	}
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+	stored := false
+	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		on, err := suggestOn(ctx, tx)
 		if err != nil {
 			return err
@@ -463,8 +470,10 @@ func (s *Service) SuggestMemory(ctx context.Context, text, evidence string) erro
 		if _, err := tx.ExecContext(ctx, `INSERT INTO ai_memory_suggestion (id, text, created_at, evidence) VALUES (?, ?, ?, ?)`, id, text, store.FormatTS(s.cfg.Clock()), evidence); err != nil {
 			return fmt.Errorf("ai: save suggestion: %w", err)
 		}
+		stored = true
 		return s.auditTx(ctx, tx, "system", "ai.memory.suggest", id, "")
 	})
+	return stored && err == nil, err
 }
 
 // memCall is the memory of one call: the block to send, the ids it carries, the memories left out and the hooks that acted on it.

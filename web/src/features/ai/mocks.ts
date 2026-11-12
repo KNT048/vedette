@@ -7,7 +7,7 @@ import { collection, dataMode, newId, nowIso } from '@/mocks/db'
 import { AI_JOBS, aiAssignStore, aiAvailable, aiCandidates, aiConfigStore, aiProfilesStore, aiProfileUsable, aiRunsStore, assetsStore, findingsStore, isOn, recordAiRun } from '@/mocks/stores'
 import type { AiAssign, AiJob, AiProfile as StoredProfile } from '@/mocks/stores'
 import { answerQuestion } from './ask'
-import { activeDefs, memoryStore, runHooks, skillsView } from './harness'
+import { activeDefs, memorySettings, memoryStore, rejectedTexts, runHooks, skillsView, suggestionsStore } from './harness'
 import { harnessHandlers } from './harness-mocks'
 import { activityHandlers, recordActivity } from './activity'
 import type { ActivityInput } from './activity'
@@ -237,9 +237,10 @@ function buildNews(v: Kev): Omit<NewsResult, 'generated_at' | 'model' | 'profile
 }
 
 function buildDigest(tier: AiTier): Omit<LogDigest, 'generated_at' | 'model' | 'profile' | 'tokens'> {
-  const cadence = tier === 'min' ? 'One summary a day, only the most serious anomalies' : tier === 'med' ? 'Every hour, covering new events and anomalies per time window' : 'Per new alert, investigated with read-only tools'
+  // the same words as the box (modules/ai/logdigest.go digestCadence): every digest is made when someone asks (D-221, D-223)
+  const cadence = tier === 'min' ? 'A short summary of the most serious points, made when you ask' : tier === 'med' ? 'A full summary of new kinds of line, spikes and bad connections, made when you ask' : 'A full summary made when you ask, with the AI checking points through read-only tools (what the logs counted for an address, devices, threat feeds, the exploited list)'
   // Cài sạch: chưa có nguồn log nào gửi về nên không có gì để tóm tắt; không gọi AI, không tốn token.
-  if (dataMode() === 'clean') return { tier, cadence, empty: true, summary: 'There are no log events to summarise yet. Add a log source on the Logs page; once events arrive, the summary appears here.', items: [], tool_calls: [] }
+  if (dataMode() === 'clean') return { tier, cadence, empty: true, summary: 'There are no log events to summarise yet. Add a log source on the Logs page; once events arrive, the summary appears here.', items: [], tool_calls: [], memories_suggested: 0 }
   const as = assetsStore.get()
   const nm = (id: string, fb: string) => as.find((a) => a.id === id)?.hostname ?? fb
   const ipOf = (id: string, fb: string) => as.find((a) => a.id === id)?.ip ?? fb
@@ -255,7 +256,7 @@ function buildDigest(tier: AiTier): Omit<LogDigest, 'generated_at' | 'model' | '
     { tool: 'search_assets', args: '{"ip": "192.168.20.11"}', result: '1 device: CAM-GATE (Hikvision)' },
   ] : []
   const high = items.filter((i) => i.severity === 'high').length
-  return { tier, cadence, empty: false, summary: `${plural(items.length, 'point')} worth a look, ${high} high. Handle the first two today.`, items, tool_calls }
+  return { tier, cadence, empty: false, summary: `${plural(items.length, 'point')} worth a look, ${high} high. Handle the first two today.`, items, tool_calls, memories_suggested: 0 }
 }
 const DIGEST_TOKENS: Record<AiTier, [number, number]> = { min: [2100, 420], med: [4800, 900], max: [9600, 2300] }
 const nameOfJob = (job: AiJob) => aiCandidates(job)[0]
@@ -330,7 +331,7 @@ export const handlers = [
     const cur = b.id ? aiProfilesStore.get().find((p) => p.id === b.id) : undefined
     const ok = checkProfile({ ...b, name: b.name || cur?.name || 'Test', daily_cap: 1000 }, cur); if (ok instanceof Response) return ok
     if (ok.url.hostname.includes('unreachable')) return fail(502, 'unreachable', `Could not connect to ${ok.url.hostname}. Check the address, the box's network and the firewall.`)
-    if (ok.key?.startsWith('bad')) return fail(401, 'key_rejected', 'The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider.')
+    if (ok.key?.startsWith('bad')) return fail(502, 'key_rejected', 'The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider.')
     recordAiRun('connection-test', 14, 3, b.model, { id: cur?.id ?? 'draft', name: ok.name, kind: b.kind!, api_style: ok.style, base_url: ok.url.toString(), model: b.model!, key_last4: null, location: b.location!, daily_cap: 1000 })
     recordActivity({ job: 'connection-test', profile: ok.name, model: b.model!, hooks: [], tools: [], input: 'ping', output: 'pong', summary: `Connection test of ${ok.name}`, tokens_in: 14, tokens_out: 3, result: 'ok' })
     audit('ai.test', ok.name, `model=${b.model}`)
@@ -462,6 +463,10 @@ export const handlers = [
     const t = aiConfigStore.get().tier // có thể vừa bị hạ mức
     const d: LogDigest = { ...buildDigest(t), generated_at: nowIso(), model: c.profile!.model, profile: c.profile!.name, tokens: { input: i, output: o } }
     digests.update((m) => ({ ...m, [t]: d }))
-    return HttpResponse.json({ digest: d })
+    // memory suggestions (S-AI-7, D-223): only while allowed, never the same text twice; the stored digest reads back 0
+    const fact = 'SRV-AD receives RDP only through the VPN.'
+    const fresh = memorySettings.get().suggest_enabled && !suggestionsStore.get().some((x) => x.text === fact) && !memoryStore.get().some((x) => x.text === fact) && !rejectedTexts.get().includes(fact)
+    if (fresh) suggestionsStore.update((l) => [...l, { id: newId('sg'), text: fact, created_at: nowIso(), evidence: `log summary of ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` }])
+    return HttpResponse.json({ digest: { ...d, memories_suggested: fresh ? 1 : 0 } })
   }),
 ]

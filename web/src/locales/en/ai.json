@@ -124,26 +124,26 @@
     },
     "tier": {
       "title": "Token level",
-      "intro": "The level decides what Vedette sends and when. Past the daily cap Vedette lowers the level itself and records it.",
+      "intro": "The level decides how much one log digest sends and whether the AI may check points with read-only tools. Log digests, explanations, CVE news and report comments run only when someone clicks. Response plans, once you give them a profile, run by themselves (every 5 minutes, at most 20 calls a day); the level does not change them. Past the daily cap Vedette lowers the level itself and records it.",
       "min": {
         "name": "Minimum",
-        "sends": "One log digest per day with the worst anomalies. Explaining a vulnerability runs only when you click."
+        "sends": "Short log digests: at most 5 new kinds of line, 5 spikes and 5 bad connections."
       },
       "med": {
         "name": "Medium",
-        "sends": "Hourly digest of new log events. Automatically explains new high-severity findings."
+        "sends": "Full log digests: up to 20 new kinds of line, 20 spikes and 20 bad connections."
       },
       "max": {
         "name": "Maximum",
-        "sends": "Per new alert, the AI investigates with read-only tools. Automatically fetches and summarises news on new CVEs."
+        "sends": "Full log digests, and the AI may check points with read-only tools (Log investigation): what the logs counted for an address, devices, threat feeds and the exploited list."
       },
-      "estimate": "About {{n}} tokens per day.",
-      "estimateMax": "Depends on alert volume; you set the cap below."
+      "estimate": "Suggested daily cap at this level: {{n}} tokens.",
+      "estimateMax": "Depends on how many tool calls the AI makes; you set the cap below."
     },
     "cap": "Daily token cap for all profiles together",
     "capHint": "From 1,000 to 5,000,000. The medium level default is 60,000. Each profile also has its own cap.",
     "redact": "Mask personal information before sending",
-    "redactHint": "This is the Block personal data hook: it masks email addresses and phone numbers, and stops a call whose text holds an ID number, before anything is sent. It does not mask passwords or tokens; add a hook for those.",
+    "redactHint": "This is the Block personal data hook: it masks email addresses and phone numbers, and stops a call whose text holds an ID number, before anything is sent. It also masks device secrets that come with their marker in configurations, log lines and tool results (passwords, password hashes, SNMP communities, keys). A password or token in free text is not caught; add a hook for those.",
     "saving": "Saving",
     "err": {
       "cap": "The cap must be a whole number from 1,000 to 5,000,000."
@@ -202,7 +202,10 @@
     "tools": "Read-only tools used to investigate",
     "meta": "Summarised {{time}}.",
     "emptyHint": "Add a log source",
-    "noItems": "Nothing in the current log data needs a look."
+    "noItems": "Nothing in the current log data needs a look.",
+    "suggested_one": "The AI suggested 1 memory about this network. Nothing is remembered until an administrator accepts it.",
+    "suggested_other": "The AI suggested {{count}} memories about this network. Nothing is remembered until an administrator accepts them.",
+    "suggestedLink": "Review in Settings, AI assistant, Memory"
   },
   "profiles": {
     "title": "AI profiles",
@@ -319,7 +322,7 @@
       "fallback": "Fallback profile"
     },
     "data": {
-      "internal": "Your logs and devices",
+      "internal": "Data of your network",
       "public": "Public data only"
     },
     "none": "None",
@@ -328,7 +331,7 @@
     "fallbackNeedsPrimary": "Pick a primary profile first",
     "optNoKey": "no key yet",
     "optCloud": "cloud, not allowed for internal data",
-    "fallbackNote": "The suggestion puts a fast model on batch tasks such as log digests, news and translation, and a strong model on tasks that need reasoning such as explanations and asking your data. Tasks with internal data prefer profiles inside your network.",
+    "fallbackNote": "The suggestion puts a fast model on batch tasks such as log digests, news and translation, and a strong model on tasks that need reasoning such as explanations and asking your data. Between two profiles that fit equally, a task with internal data gets the one inside your network. To keep internal data on your network whatever the model, turn on the rule above.",
     "save": "Save routing",
     "saving": "Saving",
     "saved": "Job routing saved",
@@ -354,7 +357,7 @@
     },
     "log-investigate": {
       "name": "Log investigation",
-      "what": "Follows an alert with read-only tools"
+      "what": "Checks the log digest with read-only tools, at the maximum level"
     },
     "weekly-report": {
       "name": "Weekly report comments",

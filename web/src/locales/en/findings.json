@@ -166,7 +166,7 @@
   },
   "ai": {
     "running": "Asking AI",
-    "again": "Ask again",
+    "again": "{{label}} again",
     "unavailable": "The AI assistant is off, or no AI profile is assigned to this job.",
     "openSettings": "Open AI assistant settings",
     "privacy": "Sent to the AI provider you configured, with your key. Data level is set in Settings, AI assistant."

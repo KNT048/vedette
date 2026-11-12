@@ -140,9 +140,9 @@ test.describe('findings: IT operator', () => {
     await page.getByRole('button', { name: 'Ask my AI' }).click()
     await expect(page.getByText(/AI-generated/).first()).toBeVisible()
     await page.getByRole('button', { name: 'Explain', exact: true }).click()
-    await expect(page.getByRole('button', { name: /Ask again/ })).toHaveCount(2)
+    await expect(page.getByRole('button', { name: /^(Explain|Ask my AI) again$/ })).toHaveCount(2)
     await page.reload()
-    await expect(page.getByRole('button', { name: /Ask again/ })).toHaveCount(2)
+    await expect(page.getByRole('button', { name: /^(Explain|Ask my AI) again$/ })).toHaveCount(2)
     await english(page, 'f-2 AI output')
   })
 

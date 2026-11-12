@@ -80,6 +80,7 @@ export const DigestItem = z.object({ severity: z.enum(['high', 'medium', 'info']
 export const LogDigest = z.object({
   tier: AiTier, generated_at: iso, cadence: z.string(), summary: z.string(), items: z.array(DigestItem), tool_calls: z.array(ToolCall), model: z.string(), profile: z.string(), tokens: Tokens,
   empty: z.boolean().describe('true = no log events to summarize yet; AI not called, no tokens spent'),
+  memories_suggested: z.number().int().min(0).describe('memories the AI suggested while making this digest (0 when read back); they wait for an administrator (S-AI-7, D-223)'),
 })
 
 // ---- AI harness (D-39, S-AI-7): rules, memory, skills, knowledge, hooks (connections moved to core, D-93)

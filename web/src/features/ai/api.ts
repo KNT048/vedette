@@ -18,7 +18,8 @@ export function useSaveConfig() {
 export const useProfiles = () => useQuery({ queryKey: ['ai', 'profiles'], queryFn: () => api.get<{ items: AiProfile[] }>('/ai/profiles') })
 export function useSaveProfile() {
   const done = useInvalidateAi()
-  return useMutation({ mutationFn: (b: ProfileInput) => (b.id ? api.put<AiProfile>(`/ai/profiles/${encodeURIComponent(b.id)}`, b) : api.post<AiProfile>('/ai/profiles', b)), onSuccess: done })
+  // gcTime 0: the variables hold the API key; nothing keeps them once the dialog is gone
+  return useMutation({ mutationFn: (b: ProfileInput) => (b.id ? api.put<AiProfile>(`/ai/profiles/${encodeURIComponent(b.id)}`, b) : api.post<AiProfile>('/ai/profiles', b)), onSuccess: done, gcTime: 0 })
 }
 export function useRemoveProfile() {
   const done = useInvalidateAi()
@@ -26,7 +27,7 @@ export function useRemoveProfile() {
 }
 export function useTestProfile() {
   const done = useInvalidateAi()
-  return useMutation({ mutationFn: (b: TestInput) => api.post<TestResult>('/ai/profiles/test', b), onSuccess: done })
+  return useMutation({ mutationFn: (b: TestInput) => api.post<TestResult>('/ai/profiles/test', b), onSuccess: done, gcTime: 0 })
 }
 export const useAssignments = () => useQuery({ queryKey: ['ai', 'assignments'], queryFn: () => api.get<Assignments>('/ai/assignments') })
 export function useSaveAssignments() {

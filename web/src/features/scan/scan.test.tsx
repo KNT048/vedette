@@ -122,6 +122,7 @@ describe('scan: trang chính và chọn mục tiêu (S-SCAN-1)', () => {
     renderApp('/scans')
     expect(await screen.findByRole('button', { name: /Scan now/ })).toBeDisabled()
     expect(screen.getAllByText(/The scan scope commitment is not ticked yet/).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Vedette scans no address until you set the scan scope and tick the commitment/)).toBeInTheDocument()
     as('u-admin')
     const res = await postRun(['a-nas02'])
     expect(res.status).toBe(400)
@@ -210,6 +211,8 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     renderApp('/scans')
     expect(await screen.findByRole('button', { name: /Scan now/ })).toBeDisabled()
     expect(screen.getAllByText(/The vulnerability scanner is not available: the scan container or its scanner is missing/).length).toBeGreaterThan(0)
+    // the commitment is ticked, so the page must not blame it
+    expect(screen.queryByText(/Vedette scans no address until you set the scan scope/)).not.toBeInTheDocument()
     const cfg = await (await fetch(`${base()}/scans/config`)).json()
     expect(cfg.can_scan).toBe(false)
     expect(cfg.block_reason).toMatch(/^The vulnerability scanner is not available/)

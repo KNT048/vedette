@@ -9,6 +9,7 @@ import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/compone
 import { Chip } from '@/components/common/StatusChip'
 import { Slot } from '@/components/common/Slot'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { ApiError } from '@/lib/api'
@@ -193,14 +194,26 @@ function RetentionSection({ days, linesPerHour }: { days: number; linesPerHour: 
   const set = useSetRetention()
   const isAdmin = useCan('admin')
   const mb = fmtNumber(Math.max(1, Math.round((linesPerHour * 24 * days * 220) / 1e6)))
+  const [pending, setPending] = useState<number | null>(null)
+  const save = (n: number) => set.mutate(n, { onSuccess: () => toast.success(t('retention.saved')), onError: (er) => toast.error(er instanceof ApiError ? er.message : String(er)), onSettled: () => setPending(null) })
   return (
     <Section id="retention" title={t('retention.title')} description={t('retention.description', { days, mb })}>
       <Field label={t('retention.label')} htmlFor="ret-days" className="max-w-xs">
         <Select id="ret-days" value={days} disabled={!isAdmin || set.isPending} title={isAdmin ? undefined : t('common:needRole', { role: t('common:role.admin') })}
-          onChange={(e) => set.mutate(Number(e.target.value), { onSuccess: () => toast.success(t('retention.saved')), onError: (er) => toast.error(er instanceof ApiError ? er.message : String(er)) })}>
+          onChange={(e) => { const n = Number(e.target.value); if (n < days) setPending(n); else save(n) }}>
           {[7, 30, 90, 180].map((n) => <option key={n} value={n}>{t('retention.option', { n })}</option>)}
         </Select>
       </Field>
+      <Dialog open={pending !== null} onOpenChange={(o) => { if (!o) setPending(null) }}>
+        {pending !== null ? (
+          <DialogContent title={t('retention.shortenTitle', { n: pending })} description={t('retention.shortenBody', { n: pending })}>
+            <DialogFooter>
+              <Button onClick={() => setPending(null)}>{t('common:cancel')}</Button>
+              <Button variant="danger" disabled={set.isPending} onClick={() => save(pending)}>{t('retention.shortenConfirm')}</Button>
+            </DialogFooter>
+          </DialogContent>
+        ) : null}
+      </Dialog>
     </Section>
   )
 }

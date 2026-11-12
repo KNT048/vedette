@@ -283,6 +283,27 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(((await getJson('/logs/sources')).retention_days)).toBe(90)
   })
 
+  it('shortening the retention asks first: Cancel keeps it, Delete older lines saves; lengthening needs no dialog', async () => {
+    renderApp('/logs')
+    const select = await screen.findByLabelText('Keep logs for')
+    await userEvent.selectOptions(select, '7')
+    const dialog = await screen.findByRole('dialog', { name: 'Keep logs for 7 days only?' })
+    expect(within(dialog).getByText('Log lines older than 7 days are deleted now and cannot be restored.')).toBeInTheDocument()
+    await expectNoA11yViolations(dialog)
+    expect((await getJson('/logs/sources')).retention_days).toBe(30)
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect((await getJson('/logs/sources')).retention_days).toBe(30)
+    await userEvent.selectOptions(select, '7')
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete older lines' }))
+    expect(await screen.findByText('Log retention saved.')).toBeInTheDocument()
+    expect((await getJson('/logs/sources')).retention_days).toBe(7)
+    await userEvent.selectOptions(select, '180')
+    expect(await screen.findAllByText('Log retention saved.')).not.toHaveLength(0)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect((await getJson('/logs/sources')).retention_days).toBe(180)
+  })
+
   it('no sources yet: the empty state says what to do and nothing else is shown', async () => {
     server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({ box: { ip: '192.168.10.250', hostname: 'vedette-hq' }, sources: [], retention_days: 30 })))
     renderApp('/logs')

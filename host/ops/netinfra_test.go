@@ -82,10 +82,15 @@ func TestParseDefaultRoutes6IsBounded(t *testing.T) {
 	}
 	var many strings.Builder
 	for i := range 40 {
-		many.WriteString(route6Line(fmt.Sprintf("fe80000000000000000000000000%04x", i+1), "00000001", "00000003", "eth0"))
+		many.WriteString(route6Line(fmt.Sprintf("fe80000000000000000000000000%04x", i+1), "00000400", "00000003", "eth0"))
 	}
 	if n := len(parseDefaultRoutes6(strings.NewReader(many.String()))); n != maxRoutes6 {
 		t.Fatalf("%d routes, cap is %d", n, maxRoutes6)
+	}
+	// The cut keeps the lowest metrics wherever they are in the file (review round 2, LOW 1): the main route last after 40 others.
+	many.WriteString(route6Line("20010db8000000000000000000000001", "00000001", "00000003", "eth1"))
+	if rs := parseDefaultRoutes6(strings.NewReader(many.String())); len(rs) != maxRoutes6 || rs[0] != (api.NetRoute{Iface: "eth1", Gateway: "2001:db8::1"}) {
+		t.Fatalf("the lowest-metric route, last in the file, was cut: %+v", rs)
 	}
 }
 

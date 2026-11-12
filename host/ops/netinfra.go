@@ -51,8 +51,8 @@ const zero128 = "00000000000000000000000000000000"
 // destination ::/0, flags UP and GATEWAY and not REJECT, a unicast next hop (link-local is the usual one: a router advertisement's) on a
 // valid interface name. The file lists every routing table (a VPN's, a VRF's, a policy table's) and each next hop of an equal-cost
 // route on a line of its own, and any of them may carry the box's traffic, so all are reported (D-384 review, LOW 1); the same next hop
-// on the same card once. Lines that do not parse are skipped; input and line count are bounded, at most maxRoutes6 routes, and the
-// scanner stops at an over-long line (as parseDefaultRoute). Never nil.
+// on the same card once. Lines that do not parse are skipped; input and line count are bounded, the maxRoutes6 lowest-metric routes are
+// kept, and the scanner stops at an over-long line (as parseDefaultRoute). Never nil.
 func parseDefaultRoutes6(r io.Reader) []api.NetRoute {
 	sc := bufio.NewScanner(io.LimitReader(r, maxRoute6Bytes))
 	sc.Buffer(make([]byte, 0, 512), 4096)
@@ -61,6 +61,7 @@ func parseDefaultRoutes6(r io.Reader) []api.NetRoute {
 		metric uint64
 	}
 	var all []route
+	index := map[api.NetRoute]int{}
 	for n := 0; sc.Scan() && n < maxRoute6Lines; n++ {
 		// destination, its prefix length, source, its prefix length, next hop, metric, refcount, use, flags, device
 		f := strings.Fields(sc.Text())
@@ -74,15 +75,17 @@ func parseDefaultRoutes6(r io.Reader) []api.NetRoute {
 			continue
 		}
 		nr := api.NetRoute{Iface: f[9], Gateway: g.String()}
-		if i := slices.IndexFunc(all, func(x route) bool { return x.NetRoute == nr }); i >= 0 {
+		if i, ok := index[nr]; ok {
 			all[i].metric = min(all[i].metric, metric)
-		} else if len(all) < maxRoutes6 {
-			all = append(all, route{nr, metric})
+		} else {
+			index[nr] = len(all)
+			all = append(all, route{nr, metric}) // bounded by maxRoute6Lines
 		}
 	}
+	// sorted before the cut, so a low-metric route late in the file is never the one dropped (review round 2, LOW 1)
 	slices.SortStableFunc(all, func(a, b route) int { return cmp.Compare(a.metric, b.metric) })
-	out := make([]api.NetRoute, 0, len(all))
-	for _, x := range all {
+	out := make([]api.NetRoute, 0, min(len(all), maxRoutes6))
+	for _, x := range all[:min(len(all), maxRoutes6)] {
 		out = append(out, x.NetRoute)
 	}
 	return out

@@ -301,7 +301,7 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 		jb := code[strings.Index(code, "\n  "+j+":\n")+1:]
 		jb = jb[:regexp.MustCompile(`\n  [a-z]`).FindStringIndex(jb)[0]]
 		cond := regexp.MustCompile(`(?m)^    if: (.*)$`).FindStringSubmatch(jb)
-		c := regexp.MustCompile(`(?m)^ +check `+j+` "\$([A-Z_]+)" "\$([A-Z_]+)"$`).FindStringSubmatch(agg)
+		c := regexp.MustCompile(`(?m)^ +check ` + j + ` "\$([A-Z_]+)" "\$([A-Z_]+)"$`).FindStringSubmatch(agg)
 		switch {
 		case !slices.Contains(strings.Split(strings.ReplaceAll(needs[1], " ", ""), ","), j) || c == nil:
 			t.Errorf("the go aggregator does not need and check job %s", j)

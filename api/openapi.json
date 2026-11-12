@@ -29463,7 +29463,7 @@
                       ]
                     },
                     "problem": {
-                      "description": "Why a switched-on trap is not listening (state failed), with the host reason when it gave one; null otherwise",
+                      "description": "Why a switched-on trap is not listening (state failed, or conflict with no inventory device in conflict_asset), with the host reason when it gave one; null otherwise",
                       "type": [
                         "string",
                         "null"
@@ -29737,7 +29737,7 @@
                       ]
                     },
                     "problem": {
-                      "description": "Why a switched-on trap is not listening (state failed), with the host reason when it gave one; null otherwise",
+                      "description": "Why a switched-on trap is not listening (state failed, or conflict with no inventory device in conflict_asset), with the host reason when it gave one; null otherwise",
                       "type": [
                         "string",
                         "null"
@@ -31615,7 +31615,7 @@
                       ]
                     },
                     "problem": {
-                      "description": "Why a switched-on trap is not listening (state failed), with the host reason when it gave one; null otherwise",
+                      "description": "Why a switched-on trap is not listening (state failed, or conflict with no inventory device in conflict_asset), with the host reason when it gave one; null otherwise",
                       "type": [
                         "string",
                         "null"

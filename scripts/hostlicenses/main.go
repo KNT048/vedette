@@ -2,12 +2,13 @@
 // /usr/share/doc/vedette-host/third-party-licenses (WP-08g, D-155): the Go license for the standard library and runtime that
 // the static binary contains, then the license files of every module linked into ./cmd/vedette-host (the main module
 // included), found with `go list -deps` in the module cache. A linked module without a license file is an error, so a new
-// dependency cannot ship unlicensed. Run by `make host-deb`; the file is generated into dist/, never committed.
+// dependency cannot ship unlicensed (one recorded exception at one exact version: noLicenseFile, D-454). Run by `make host-deb`; the file is generated into dist/, never committed.
 //
 //	go run ./scripts/hostlicenses -goos linux -goarch amd64 -out dist/host-deb/amd64/third-party-licenses
 //
 // The container images use the same program over their own main package (-pkg, -name, -tags): each Containerfile build stage
-// runs it and the image carries the result as /usr/share/doc/vedette/third-party-licenses (D-155 (10)).
+// runs it and the image carries the result as /usr/share/doc/vedette/third-party-licenses (D-155 (10)). The scan-base image
+// also runs it inside the nuclei source tree over ./cmd/nuclei (nuclei-third-party-licenses, D-454).
 package main
 
 import (
@@ -32,6 +33,36 @@ var licenseName = regexp.MustCompile(`(?i)^(licen[sc]e|copying|unlicense|notice)
 const defaultPkg = "github.com/knt048/vedette/cmd/vedette-host"
 
 type module struct{ path, version, dir string }
+
+// noLicenseFile is the one exception to "a linked module without a license file is an error" (D-454): a module at ONE exact
+// version whose author states the license elsewhere, shipped with the standard text of that license, as Debian and Fedora
+// package such modules. A new version of the module fails again until someone re-reads its source and updates this entry.
+var noLicenseFile = map[string]struct{ heading, text string }{
+	// nuclei (scan-base image, D-319) links it. The README at the tag shows the MIT badge, linked to opensource.org/licenses/MIT;
+	// the repository has no LICENSE file (main neither, 2026-11-12) and its issues are disabled (D-454).
+	"github.com/censys/censys-sdk-go@v0.19.1": {
+		heading: "MIT per the README, https://github.com/censys/censys-sdk-go/blob/v0.19.1/README.md; upstream has no LICENSE file",
+		text:    mitCensys,
+	},
+}
+
+// The standard MIT text (https://opensource.org/license/mit). Upstream names no holder or year; the holder is the publisher.
+const mitCensys = `The MIT License (MIT)
+
+Copyright (c) Censys, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files
+(the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR
+ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH
+THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+`
 
 func main() {
 	goos := flag.String("goos", "linux", "target GOOS")
@@ -123,10 +154,14 @@ func licenseFiles(dir string) (map[string][]byte, error) {
 	return out, nil
 }
 
-func section(w *bytes.Buffer, title, dir string) error {
+// section writes the license files found in dir; a module (path@version) with none is looked up in noLicenseFile.
+func section(w *bytes.Buffer, title, dir, pathAtVersion string) error {
 	files, err := licenseFiles(dir)
 	if err != nil {
 		return err
+	}
+	if x, ok := noLicenseFile[pathAtVersion]; ok && len(files) == 0 {
+		files = map[string][]byte{x.heading: []byte(x.text)}
 	}
 	if len(files) == 0 {
 		return fmt.Errorf("%s has no license file in %s", title, dir)
@@ -160,7 +195,7 @@ func generate(goos, goarch, pkg, name, tags string) ([]byte, error) {
 	var w bytes.Buffer
 	fmt.Fprintf(&w, "Third-party licenses of %s\n\n", name)
 	w.WriteString("The Go standard library and runtime, then every Go module linked into the binary.\nVedette itself is Apache-2.0.\n\n")
-	if err := section(&w, "Go standard library and runtime", strings.TrimSpace(string(root))); err != nil {
+	if err := section(&w, "Go standard library and runtime", strings.TrimSpace(string(root)), ""); err != nil {
 		return nil, err
 	}
 	for _, m := range mods {
@@ -168,7 +203,7 @@ func generate(goos, goarch, pkg, name, tags string) ([]byte, error) {
 		if m.version != "" {
 			title += " " + m.version
 		}
-		if err := section(&w, title, m.dir); err != nil {
+		if err := section(&w, title, m.dir, m.path+"@"+m.version); err != nil {
 			return nil, err
 		}
 	}

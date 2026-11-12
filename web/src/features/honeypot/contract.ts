@@ -21,7 +21,7 @@ export const Trap = z.object({
 export const HpOverview = z.object({
   secondary_ip: z.string().nullable(),
   secondary_mac: z.string().nullable().describe('MAC address the box gave the secondary IP, as the host reports it; null until known'),
-  problem: z.string().nullable().describe('Why a switched-on trap is not listening (state failed), with the host reason when it gave one; null otherwise'),
+  problem: z.string().nullable().describe('Why a switched-on trap is not listening (state failed, or conflict with no inventory device in conflict_asset), with the host reason when it gave one; null otherwise'),
   hostname: z.string(),
   lan: z.string().nullable().describe('Box network range; null on a fresh install with no LAN range declared'),
   box: z.object({ ip: z.string().nullable(), name: z.string() }),

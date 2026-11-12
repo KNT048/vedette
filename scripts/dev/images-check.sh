@@ -49,6 +49,13 @@ bad=$($c run --rm --entrypoint sh "localhost/vedette-scan-base:$tag" -c 'find /u
 ok "scan-base: pack index present, $n template files, only plain files and folders"
 if $c run --rm --entrypoint sh "localhost/vedette-scan-base:$tag" -c 'command -v nmap' >/dev/null 2>&1; then fail "scan-base holds nmap (D-4, D-113 (7))"; fi
 ok "scan-base: no nmap (command -v nmap finds nothing)"
+# D-454: the licences of the modules linked into nuclei, with the one recorded exception (censys-sdk-go, MIT per its README).
+for f in /usr/local/share/vedette/licenses/nuclei-third-party-licenses /usr/share/doc/vedette/nuclei-third-party-licenses; do
+	$c run --rm --entrypoint grep "localhost/vedette-scan-base:$tag" -q '^== github.com/projectdiscovery/nuclei/v3 (LICENSE.md)$' "$f" || fail "$f does not carry nuclei's own licence"
+	$c run --rm --entrypoint grep "localhost/vedette-scan-base:$tag" -q '^== github.com/censys/censys-sdk-go v0.19.1 (MIT per the README' "$f" || fail "$f lacks censys-sdk-go"
+done
+nl=$($c run --rm --entrypoint grep "localhost/vedette-scan-base:$tag" -c '^== ' /usr/share/doc/vedette/nuclei-third-party-licenses)
+ok "scan-base: nuclei-third-party-licenses holds $nl licence texts (censys-sdk-go: MIT per its README)"
 
 mk scan-image
 got=$($c run --rm --entrypoint nmap "localhost/vedette-scan-nmap:$tag" --version | head -1)

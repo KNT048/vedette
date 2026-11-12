@@ -5,6 +5,7 @@
 //
 //	go run ./scripts/release cosign-plan -in release.in.json -key ~/keys/cosign.key -out dist/release/cosign
 //	go run ./scripts/release manifest    -in release.in.json -cosign-dir dist/release/cosign -out dist/release [-prev-index DIR -ref v0.2.0 -baseline-ref v0.1.0 -keys-dir DIR]
+//	go run ./scripts/release container-assets -in release.in.json -out dist/release [-ref v0.2.0 -compose-dir deploy/compose/container-only]   (D-451: the compose files and the filled vedette.env, read from git at the tag; sign signs them, verify checks them)
 //	go run ./scripts/release index       -out dist/release -manifest dist/release/release-manifest.json [-prev-index DIR -keys-dir DIR]
 //	go run ./scripts/release index       -out dist/refresh -prev-index DIR        (the weekly refresh: no manifest; then sign and verify the same directory)
 //	go run ./scripts/release index       ... -revoke-key <key id> -revoke-reason TEXT   (a key revocation; it counts only in an index the backup key signs)
@@ -39,7 +40,7 @@ func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		say(stderr, "usage: release cosign-plan|manifest|index|min-sequence|check-binaries|sign|verify|packs [flags]")
+		say(stderr, "usage: release cosign-plan|manifest|container-assets|index|min-sequence|check-binaries|sign|verify|packs [flags]")
 		return 2
 	}
 	var err error
@@ -49,6 +50,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdCosignPlan(args[1:], stdout)
 	case "manifest":
 		err = cmdManifest(ctx, args[1:], stdout, stderr)
+	case "container-assets":
+		err = cmdContainerAssets(ctx, args[1:], stdout)
 	case "index":
 		err = cmdIndex(args[1:], stdout)
 	case "min-sequence":
@@ -424,6 +427,9 @@ func cmdVerify(args []string, stdout io.Writer) error {
 	say(stdout, "verified: index sequence %d signed by %s, release %s (%s), backup signature %t", s.Sequence, s.IndexKeyID, s.Version, s.Channel, s.BackupSig)
 	for _, im := range s.Images {
 		say(stdout, "  image %s (cosign verified)", im)
+	}
+	if s.ContainerAssets {
+		say(stdout, "  container assets %s: signed, vedette.env names the images above", strings.Join(containerAssets, ", "))
 	}
 	return nil
 }

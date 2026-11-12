@@ -79,10 +79,14 @@ func TestContract_INV8_WebhookSchemeRules(t *testing.T) {
 		"https://0x7f.1/x":            "bad_url",
 		"https://127.1/x":             "bad_url",
 		// The same classes over plain http (loopback stays allowed there).
-		"http://169.254.1.1/x":  "insecure_url", // not on the internal list at all
-		"http://0.0.0.0/x":      "insecure_url",
-		"http://224.0.0.1/x":    "insecure_url",
-		"http://192.168.10.2/x": "blocked_host",
+		// A forbidden target is named as such before the http rule (walk 3 G13): metadata gets the precise sentence.
+		"http://169.254.169.254/latest": "blocked_host",
+		"http://169.254.1.1/x":          "blocked_host",
+		"http://0.0.0.0/x":              "blocked_host",
+		"http://224.0.0.1/x":            "blocked_host",
+		"http://[fe80::1]/x":            "blocked_host",
+		"http://192.168.10.2/x":         "blocked_host",
+		"http://2130706433/x":           "bad_url",
 	} {
 		c := wh(in)
 		c.BoxAddrs = []netip.Addr{box}

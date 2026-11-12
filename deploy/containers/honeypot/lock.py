@@ -22,6 +22,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 import urllib.request
 
 ARCHS = ("x86_64", "aarch64")
@@ -32,17 +33,57 @@ HERE = __file__.rsplit("/", 1)[0] if "/" in __file__ else "."
 
 
 def pip_report(requirements_in):
-    out = subprocess.run(
-        [sys.executable, "-m", "pip", "install", "--break-system-packages", "--dry-run", "--ignore-installed", "--quiet",
-         "--report", "-", "-r", requirements_in],
-        check=True, capture_output=True, text=True, timeout=600).stdout
-    return [(i["metadata"]["name"], i["metadata"]["version"]) for i in json.loads(out)["install"]]
+    """The resolved set of requirements_in. Lines ending in "# override" (name==version) are kept out of pip's input, which would refuse
+    them against the exact pins of OpenCanary, and replace the version of that name in the result (requirements.in says why)."""
+    lines = open(requirements_in).read().splitlines()
+    overrides = {}
+    for line in lines:
+        if not line.rstrip().endswith("override"):
+            continue
+        m = re.fullmatch(r"([A-Za-z0-9_.-]+)==([A-Za-z0-9_.]+)\s+#\s*override", line.rstrip())
+        if not m:
+            sys.exit("requirements.in: %r is marked override but is not 'name==version  # override' (it would be silently dropped)" % line)
+        key = re.sub(r"[-_.]+", "-", m.group(1)).lower()
+        if key in overrides:
+            sys.exit("requirements.in: %s is overridden twice" % key)
+        overrides[key] = m.group(2)
+    with tempfile.NamedTemporaryFile("w", suffix=".in") as tmp:
+        tmp.write("\n".join(l for l in lines if not l.rstrip().endswith("override")) + "\n")
+        tmp.flush()
+        out = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--break-system-packages", "--dry-run", "--ignore-installed", "--quiet",
+             "--report", "-", "-r", tmp.name],
+            check=True, capture_output=True, text=True, timeout=600).stdout
+    resolved = [(i["metadata"]["name"], i["metadata"]["version"]) for i in json.loads(out)["install"]]
+    names = {re.sub(r"[-_.]+", "-", n).lower() for n, _ in resolved}
+    if not set(overrides) <= names:
+        sys.exit("override of a package that is not in the resolved set: %s" % sorted(set(overrides) - names))
+    locked = [(n, overrides.get(re.sub(r"[-_.]+", "-", n).lower(), v)) for n, v in resolved]
+    check_overrides(overrides, {re.sub(r"[-_.]+", "-", n).lower(): v for n, v in locked})
+    return locked
+
+
+def check_overrides(overrides, versions):
+    """The image installs with --no-deps, so nothing else checks that what an override needs is in the locked set (markers and extras ignored)."""
+    from pip._vendor.packaging.requirements import Requirement
+    for name, version in overrides.items():
+        for r in release_json(name, version)["info"].get("requires_dist") or []:
+            req = Requirement(r)
+            if req.marker is not None and "extra" in str(req.marker):
+                continue
+            have = versions.get(re.sub(r"[-_.]+", "-", req.name).lower())
+            if have is None or not req.specifier.contains(have, prereleases=True):
+                sys.exit("override %s==%s needs %s, the locked set has %s" % (name, version, r, have))
+
+
+def release_json(name, version):
+    url = "https://pypi.org/pypi/%s/%s/json" % (name, version)
+    with urllib.request.urlopen(url, timeout=60) as r:
+        return json.load(r)
 
 
 def release_files(name, version):
-    url = "https://pypi.org/pypi/%s/%s/json" % (name, version)
-    with urllib.request.urlopen(url, timeout=60) as r:
-        return [u for u in json.load(r)["urls"] if not u.get("yanked")]
+    return [u for u in release_json(name, version)["urls"] if not u.get("yanked")]
 
 
 def wheel_archs(filename):

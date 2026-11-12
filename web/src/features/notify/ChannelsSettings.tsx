@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { QrCode, Send, TriangleAlert, X } from 'lucide-react'
+import { LoaderCircle, QrCode, Send, TriangleAlert, X } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
@@ -18,7 +18,7 @@ import { useUsers } from '@/features/core/api'
 import { checkFeedUrl } from '@/features/feeds/defaults'
 import History from './History'
 import { useChannels, useRemoveChannel, useSaveChannel, useSaveRules, useTestChannel } from './api'
-import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES } from './types'
+import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES, forbiddenHost } from './types'
 import type { Approver, Channel, Grouping, Quiet, RouteSeverity } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
@@ -88,7 +88,9 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
     const errs: Record<string, string> = {}
     const url = (fields.url ?? '').trim()
     const u = url ? checkFeedUrl(url) : channel.fields.url ? 'ok' : 'url' // empty keeps the saved URL
-    if (u !== 'ok') errs.url = t(u === 'https' ? 'channels.err.insecureUrl' : 'channels.err.badUrl')
+    // A forbidden target gets the box's precise sentence before the http rule, as the box checks it (webhook.go, walk 3 G13).
+    if (u !== 'url' && url && forbiddenHost(new URL(url).hostname)) errs.url = t('channels.err.blockedUrl')
+    else if (u !== 'ok') errs.url = t(u === 'https' ? 'channels.err.insecureUrl' : 'channels.err.badUrl')
     if (secret ? secret.length < 16 : !channel.secret_last4) errs.secret = t(secret ? 'channels.err.shortKey' : 'channels.err.noKey')
     return errs
   }
@@ -254,35 +256,65 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
   const need = isAdmin ? undefined : t('channels.needRole')
   const runTest = (type: Channel['type']) => test.mutate(type, { onSuccess: (res) => (res.ok ? toast.success(res.detail) : toast.error(res.detail)), onError: (e) => toast.error(errMsg(e)) })
   const dest = (c: Channel) => (!c.configured ? '' : c.type === 'zalo-personal' ? t('channels.dest.zaloPersonal', { id: c.fields.user_id }) : c.type === 'telegram' ? t('channels.dest.telegram', { id: c.fields.chat_id }) : c.type === 'slack' ? (c.fields.label || t('channels.dest.slack')) : c.type === 'zalo' ? t('channels.dest.zalo', { id: c.fields.oa_id, user: c.fields.user_id }) : c.type === 'email' ? (c.fields.to ?? '') : (c.fields.url ?? ''))
+  const chName = (r: Channel) => <span className="font-medium">{t(`ch.${r.type}`)}{r.configured && r.approvals ? <Chip tone="ok" className="ml-2">{t('approve.chip')}</Chip> : null}</span>
+  const min = (r: Channel) => (r.configured ? t('channels.min', { sev: t(`common:severity.${r.min_severity}`) }) : '')
+  const status = (r: Channel) => <Chip tone={!r.configured ? 'off' : r.enabled ? 'ok' : 'off'}>{t(`channels.state.${!r.configured ? 'none' : r.enabled ? 'on' : 'off'}`)}</Chip>
+  // A test waits for the far end (up to 30 s): the row says so, and a failure shows its reason as text, not only as a hover title (walk 3 G13).
+  const lastTest = (r: Channel) => {
+    if (!r.configured) return null
+    if (test.isPending && test.variables === r.type) return <span role="status" className="inline-flex items-center gap-1.5 text-muted"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />{t('channels.testing')}</span>
+    if (!r.last_test) return <span className="text-[13px] text-muted">{t('channels.testNever')}</span>
+    if (r.last_test.ok) return <span className="text-[13px] text-ok">{t('channels.testOk', { time: fmtDateTime(r.last_test.at) })}</span>
+    return (
+      <span className="grid min-w-[12rem] max-w-72 gap-0.5">
+        <span className="text-[13px] font-medium text-danger">{t('channels.testFail', { time: fmtDateTime(r.last_test.at) })}</span>
+        <span className="text-[12px]">{r.last_test.detail}</span>
+        {r.enabled ? <span className="text-[12px] text-muted">{t('channels.onButFailed')}</span> : null}
+      </span>
+    )
+  }
+  const actions = (r: Channel, stacked = false) => {
+    const name = t(`ch.${r.type}`)
+    return (
+      <div className={stacked ? 'grid justify-items-start gap-1' : 'flex flex-wrap gap-1'}>
+        <Button size="sm" variant={r.configured ? 'secondary' : 'primary'} disabled={!isAdmin} title={need} onClick={() => setEditing(r)}>{r.configured ? t('channels.edit') : t('channels.configure')} <span className="sr-only">{name}</span></Button>
+        {r.configured ? (
+          <>
+            <Button size="sm" disabled={!isAdmin || test.isPending} title={need}
+              onClick={() => runTest(r.type)}>{t('channels.test')} <span className="sr-only">{name}</span></Button>
+            <Button size="sm" variant="ghost" disabled={!isAdmin} title={need} onClick={() => setRemoving(r)}>{t('channels.remove')} <span className="sr-only">{name}</span></Button>
+          </>
+        ) : null}
+      </div>
+    )
+  }
+  // Three columns, so the table fits the ~730 px content column of a 1280 px screen (app sidebar + settings nav): where it sends and
+  // from which severity under the channel's name, the last test under its status, the actions stacked (walk 3 G13, D-423).
   const columns: ColumnDef<Channel>[] = [
-    { id: 'channel', header: t('channels.col.channel'), accessorFn: (r) => r.type, cell: ({ row }) => <span className="font-medium">{t(`ch.${row.original.type}`)}{row.original.configured && row.original.approvals ? <Chip tone="ok" className="ml-2">{t('approve.chip')}</Chip> : null}</span> },
-    { id: 'dest', header: t('channels.col.dest'), enableSorting: false, cell: ({ row }) => <span className="inline-block min-w-[12rem] break-words">{dest(row.original)}</span> },
-    { id: 'min', header: t('channels.col.min'), enableSorting: false, cell: ({ row: { original: r } }) => (r.configured ? t('channels.min', { sev: t(`common:severity.${r.min_severity}`) }) : '') },
-    { id: 'status', header: t('channels.col.status'), accessorFn: (r) => (r.configured ? (r.enabled ? 0 : 1) : 2), cell: ({ row: { original: r } }) => <Chip tone={!r.configured ? 'off' : r.enabled ? 'ok' : 'off'}>{t(`channels.state.${!r.configured ? 'none' : r.enabled ? 'on' : 'off'}`)}</Chip> },
-    { id: 'test', header: t('channels.col.test'), enableSorting: false, cell: ({ row: { original: r } }) => {
-      if (!r.configured) return null
-      if (!r.last_test) return <span className="text-muted">{t('channels.testNever')}</span>
-      return <span className={r.last_test.ok ? 'text-ok' : 'font-medium text-danger'} title={r.last_test.detail}>{t(r.last_test.ok ? 'channels.testOk' : 'channels.testFail', { time: fmtDateTime(r.last_test.at) })}</span>
-    } },
-    { id: 'actions', header: t('channels.col.actions'), enableSorting: false, cell: ({ row: { original: r } }) => {
-      const name = t(`ch.${r.type}`)
-      return (
-        <div className="flex gap-1">
-          <Button size="sm" variant={r.configured ? 'secondary' : 'primary'} disabled={!isAdmin} title={need} onClick={() => setEditing(r)}>{r.configured ? t('channels.edit') : t('channels.configure')} <span className="sr-only">{name}</span></Button>
-          {r.configured ? (
-            <>
-              <Button size="sm" disabled={!isAdmin || test.isPending} title={need}
-                onClick={() => runTest(r.type)}>{t('channels.test')} <span className="sr-only">{name}</span></Button>
-              <Button size="sm" variant="ghost" disabled={!isAdmin} title={need} onClick={() => setRemoving(r)}>{t('channels.remove')} <span className="sr-only">{name}</span></Button>
-            </>
-          ) : null}
-        </div>
-      )
-    } },
+    { id: 'channel', header: t('channels.col.channel'), accessorFn: (r) => r.type, cell: ({ row: { original: r } }) => (
+      <span className="grid gap-0.5">
+        {chName(r)}
+        {r.configured ? <span className="max-w-[18rem] break-words text-[12px] text-muted">{dest(r)}</span> : null}
+        {r.configured ? <span className="text-[12px] text-muted">{min(r)}</span> : null}
+      </span>
+    ) },
+    { id: 'status', header: t('channels.col.status'), accessorFn: (r) => (r.configured ? (r.enabled ? 0 : 1) : 2), cell: ({ row: { original: r } }) => (
+      <span className="grid justify-items-start gap-1">{status(r)}{lastTest(r)}</span>
+    ) },
+    { id: 'actions', header: t('channels.col.actions'), enableSorting: false, cell: ({ row }) => actions(row.original, true) },
   ]
+  // Under 768 px each channel is a card with its actions in it (the table's pattern, as Feeds does; D-423).
+  const mobileRow = (r: Channel) => (
+    <div className="grid gap-1.5 text-sm">
+      <p className="flex flex-wrap items-center gap-2">{chName(r)} {status(r)}</p>
+      {r.configured ? <p className="break-words text-muted">{[dest(r), min(r)].filter(Boolean).join(', ')}</p> : null}
+      {lastTest(r)}
+      {actions(r)}
+    </div>
+  )
   return (
     <>
-      <DataTable caption={t('channels.caption')} data={channels} columns={columns} />
+      <DataTable caption={t('channels.caption')} data={channels} columns={columns} mobileRow={mobileRow} />
       {editing ? <ChannelDialog key={editing.type} channel={editing} codeUsers={codeUsers} onClose={() => setEditing(null)} onSaved={(thenTest) => { setEditing(null); if (thenTest) runTest(editing.type) }} /> : null}
       <Dialog open={removing !== null} onOpenChange={(o) => { if (!o) setRemoving(null) }}>
         {removing ? (

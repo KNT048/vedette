@@ -160,6 +160,18 @@ describe('container-only install (D-381)', () => {
     expect(screen.getByRole('button', { name: /^Clone Known-bad connection: add the destination to the block list/ })).toBeEnabled()
   })
 
+  it('Response: Add a rule does not offer the honeypot trigger and Recent events does not promise honeypot touches (D-390)', async () => {
+    const u = userEvent.setup()
+    renderApp('/response')
+    expect(await screen.findByText(/^What the triggers watch for: known-bad connections/)).toBeInTheDocument()
+    expect(screen.queryByText(/honeypot touches/)).toBeNull()
+    await u.click(screen.getByRole('button', { name: 'Add a rule' }))
+    const trigger = await within(await screen.findByRole('dialog')).findByLabelText('When this happens')
+    const names = within(trigger).getAllByRole('option').map((o) => o.textContent)
+    expect(names).toContain('A device connects to a known-bad address')
+    expect(names.some((n) => /honeypot/.test(n ?? ''))).toBe(false)
+  })
+
   it('setup: the code hint names vedette-core and the bundles leave the honeypot out', async () => {
     const u = userEvent.setup()
     renderApp('/setup', { role: null, setupComplete: false })

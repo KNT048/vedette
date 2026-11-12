@@ -53,8 +53,30 @@ var (
 func TestHoneypotPipLockIsHashed(t *testing.T) {
 	t.Parallel()
 	p := pins(t)
-	if got := strings.TrimSpace(read(t, "honeypot/requirements.in")); got != "opencanary=="+p["OPENCANARY_VERSION"] {
-		t.Errorf("requirements.in is %q, want opencanary==%s (pins.env OPENCANARY_VERSION)", got, p["OPENCANARY_VERSION"])
+	if got := strings.SplitN(strings.TrimSpace(read(t, "honeypot/requirements.in")), "\n", 2)[0]; got != "opencanary=="+p["OPENCANARY_VERSION"] {
+		t.Errorf("requirements.in starts with %q, want opencanary==%s (pins.env OPENCANARY_VERSION)", got, p["OPENCANARY_VERSION"])
+	}
+	// The lines after the first are overrides (lock.py): comments, or name==version  # override, and the lock pins exactly that version.
+	overrideLine := regexp.MustCompile(`^([A-Za-z0-9_.-]+)==([A-Za-z0-9_.]+)  # override$`)
+	norm := strings.NewReplacer("_", "-", ".", "-")
+	locked := map[string]string{}
+	for _, l := range strings.Split(read(t, "honeypot/requirements.txt"), "\n") {
+		if m := reqLine.FindStringSubmatch(l); m != nil {
+			locked[strings.ToLower(norm.Replace(m[1]))] = m[2]
+		}
+	}
+	for _, l := range strings.Split(strings.TrimSpace(read(t, "honeypot/requirements.in")), "\n")[1:] {
+		if l == "" || strings.HasPrefix(l, "#") {
+			continue
+		}
+		m := overrideLine.FindStringSubmatch(l)
+		if m == nil {
+			t.Errorf("requirements.in: %q is neither a comment nor 'name==version  # override'", l)
+			continue
+		}
+		if got := locked[strings.ToLower(norm.Replace(m[1]))]; got != m[2] {
+			t.Errorf("requirements.in overrides %s==%s, requirements.txt pins %q", m[1], m[2], got)
+		}
 	}
 	seen := map[string]bool{}
 	for _, f := range []string{"honeypot/requirements.txt", "honeypot/requirements-sdist.txt"} {

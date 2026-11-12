@@ -160,10 +160,10 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 			var fbMsg channel.Message
 			if ac.Type == channel.Slack && !req.NoChatButtons && channel.SlackFits(m) { // buttons through the bot; the posted message is kept (slacklisten.go)
 				if bs, btns := s.slackApprovalSender(ctx, c, req); bs != nil {
-					// the bot post can fail while the webhook works (not_in_channel, a revoked bot token): then the request still reaches the
+					// the bot post can fail while the webhook works (not_in_channel, a revoked bot token; after a timeout the post may even have gone out, its buttons then refused: the text says so): then the request still reaches the
 					// channel, through the webhook and without buttons, and says so
 					fb, fbMsg = snd, m
-					fbMsg.Action = "Open Vedette to approve. The Approve and Reject buttons could not be posted to this channel."
+					fbMsg.Action = "Open Vedette to approve. Approve and Reject buttons may have been posted to this channel; they are not active, so use Vedette."
 					snd, m.Buttons = bs, btns
 				}
 			}
@@ -300,29 +300,44 @@ func (s *Service) VerifyApprovalLink(ctx context.Context, token string, b Bindin
 // With Config.ApproverLinks set, the address must also be linked by the user in My account (D-191); an error from it is a problem too.
 // It returns why not, or "" when the approver is fine. A directory that cannot answer counts as not fine (fail closed).
 func (s *Service) approverProblem(ctx context.Context, ch channel.Type, a Approver) string {
+	why, err := s.approverCheck(ctx, ch, a)
+	if err != nil {
+		return err.Error()
+	}
+	return why
+}
+
+// approverCheck is approverProblem with a check that could not be made (a user directory or link store that did not answer) apart
+// from a "no": the caller that must not turn a transient failure into a refusal (a resend) gets the error.
+func (s *Service) approverCheck(ctx context.Context, ch channel.Type, a Approver) (string, error) {
 	u, found, err := s.cfg.Users.Lookup(ctx, a.UserID)
 	switch {
 	case err != nil:
-		return "the user directory could not be read"
+		return "", errApproverDirectory
 	case !found:
-		return "the user no longer exists"
+		return "the user no longer exists", nil
 	case !u.Active:
-		return "the user is disabled"
+		return "the user is disabled", nil
 	case u.Role != "operator" && u.Role != "admin":
-		return "the user is no longer an operator or administrator"
+		return "the user is no longer an operator or administrator", nil
 	case ch == channel.Email && !strings.EqualFold(strings.TrimSpace(a.Address), u.Email):
-		return "the saved address is no longer the sign-in email of the user"
+		return "the saved address is no longer the sign-in email of the user", nil
 	}
 	if s.cfg.ApproverLinks == nil {
-		return ""
+		return "", nil
 	}
 	linked, err := s.cfg.ApproverLinks.Linked(ctx, a.UserID, ch, a.Address)
 	switch {
 	case err != nil:
 		s.cfg.Log.WarnContext(ctx, "approval request: approver link check failed", "user", a.UserID, "channel", string(ch), "error", err.Error())
-		return "whether the approver linked this address could not be checked"
+		return "", errApproverLinks
 	case !linked:
-		return "the approver has not linked this address in My account"
+		return "the approver has not linked this address in My account", nil
 	}
-	return ""
+	return "", nil
 }
+
+var (
+	errApproverDirectory = errors.New("the user directory could not be read")
+	errApproverLinks     = errors.New("whether the approver linked this address could not be checked")
+)

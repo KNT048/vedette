@@ -122,8 +122,8 @@ export function ParserEditor({ kind, parser, onChange, onFormat }: { kind: FeedK
               <p className="font-medium">{t('parser.whyRejected')}</p>
               <ul className="list-disc pl-5 text-[13px]">{result.reasons.slice(0, 6).map((r) => <li key={r.reason}>{r.reason} <span className="text-muted">({fmtNumber(r.count)})</span></li>)}</ul>
               {/* Each reject shows its value: the sample is the admin's own paste or the built-in one, never a fetched feed (INV-7). Text only, never HTML. */}
-              <p className="font-medium">{t(fmt === 'lines' ? 'parser.firstRejectedLines' : 'parser.firstRejectedRows')}</p>
-              <ul className="grid gap-0.5 text-[13px]">{result.rejects.map((r, i) => <li key={i} className="break-words"><span className="text-muted">{t(fmt === 'lines' ? 'parser.rejectLine' : 'parser.rejectRow', { n: r.row })}</span> {r.reason}</li>)}</ul>
+              <p className="font-medium">{t(fmt === 'lines' || fmt === 'csv' ? 'parser.firstRejectedLines' : 'parser.firstRejectedRows')}</p>
+              <ul className="grid gap-0.5 text-[13px]">{result.rejects.map((r, i) => <li key={i} className="break-words"><span className="text-muted">{t(fmt === 'lines' || fmt === 'csv' ? 'parser.rejectLine' : 'parser.rejectRow', { n: r.row })}</span> {r.reason}</li>)}</ul>
             </div>
           ) : null}
           <details className="text-sm"><summary className="cursor-pointer text-muted">{t('parser.showSample')}</summary><div className="mt-2 max-h-72 overflow-auto"><CodeBlock code={result.sample.slice(0, 6000)} label={result.sample_label} /></div></details>

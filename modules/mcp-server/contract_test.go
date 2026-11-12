@@ -12,6 +12,7 @@ import (
 	"net/netip"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -845,7 +846,8 @@ func TestContract_PortHeldElsewhereIsReported(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Listening || got.ListenError.Null || !strings.Contains(got.ListenError.Value, "could not be opened") {
+	port := strconv.Itoa(squatter.Addr().(*net.TCPAddr).Port)
+	if got.Listening || got.ListenError.Null || got.ListenError.Value != "The port "+port+" could not be opened: another program may hold it. Vedette tries again every 15 seconds." {
 		t.Fatalf("GET /core/mcp = listening %v, %+v", got.Listening, got.ListenError)
 	}
 	done, cancel := context.WithCancel(t.Context())

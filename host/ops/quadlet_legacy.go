@@ -40,7 +40,10 @@ var legacyTemplates = map[string][]*template.Template{
 //   - everything while a self-update journal is there: the new host is not committed and the previous one may be put back, which must
 //     find the units it wrote (D-316 (6b)); the image steps of the run, after the commit, rewrite the units they start, and the next
 //     host start the rest;
-//   - a service whose unit change is still being recovered (a transition journal): that is the recovery's to settle.
+//   - a service whose unit change is still being recovered (a transition journal): that is the recovery's to settle;
+//   - a unit whose current template publishes a host port the earlier one did not (D-455), busy or not: the earlier unit stays, one
+//     unit_migration_deferred line per start names the ports, and the container.start that next restarts the service checks the
+//     ports and writes the current template.
 //
 // A failure is logged and audited (unit_migration_failed) and changes nothing else: the unit stays ours on its earlier template, and
 // the next start, or the next command that writes it, tries again.
@@ -62,6 +65,13 @@ func (o *Ops) migrateUnits(ctx context.Context) (wrote bool) {
 		}
 		detail := map[string]any{"service": svc, "digest": digest}
 		want, err := renderUnit(svc, o.fillFor(digest, install))
+		if added := addedPorts(text, want); len(added) > 0 { // want is nil after an error: it adds no port
+			// The migration never adds a host port (D-455): it runs at boot, before the programs that may hold the port have bound
+			// it, and its text takes effect at the next restart with no health revert behind it. The container.start that restarts
+			// the service checks the port and writes the current template.
+			o.noteUnitDeferred(ctx, svc, digest, "", added)
+			continue
+		}
 		if err == nil {
 			err = o.writeUnitForStart(ctx, svc, want)
 		}
@@ -74,6 +84,23 @@ func (o *Ops) migrateUnits(ctx context.Context) (wrote bool) {
 		o.note(api.CmdContainerStart, "unit_migrated", detail)
 	}
 	return wrote
+}
+
+// ownTemplate renders text's own template (the current one, or the earlier one an earlier host wrote it from) again for the same
+// digest with install, so a change of [Install] alone never moves a unit to another template (D-455: the current one may add host
+// ports). text must be ours with the [Install] state had.
+func (o *Ops) ownTemplate(service string, text []byte, digest string, had, install bool) ([]byte, error) {
+	s, ok := services[service]
+	if !ok {
+		return nil, errNoTemplate
+	}
+	f := o.fillFor(digest, had)
+	for _, t := range append([]*template.Template{s.tmpl}, legacyTemplates[service]...) {
+		if b, err := s.render(t, f); err == nil && bytes.Equal(b, text) {
+			return s.render(t, o.fillFor(digest, install))
+		}
+	}
+	return nil, errUnitNotOurs
 }
 
 // RenderLegacyUnits builds the unit of a service from each of its earlier templates, oldest first (none for a service whose template

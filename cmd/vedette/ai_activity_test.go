@@ -57,11 +57,18 @@ func TestAIActivityPruneEndToEnd(t *testing.T) {
 		if w.Jobs == nil {
 			t.Fatal("the ai module registers no job: the retention prune never runs")
 		}
+		names := map[string]bool{}
 		for _, j := range w.Jobs(*s.d) {
-			if j.Module != "ai" || j.Name != "activity-prune" {
+			names[j.Name] = true
+			switch {
+			case j.Module != "ai" || (j.Name != "activity-prune" && j.Name != "activity-verify"):
 				t.Fatalf("unexpected ai job %+v", j)
+			case j.Name == "activity-prune":
+				job = j.Run
 			}
-			job = j.Run
+		}
+		if !names["activity-verify"] { // D-430: the daily check of the chain raises a notify incident
+			t.Fatal("no activity-verify job: a broken chain is never reported")
 		}
 	}
 	if job == nil {

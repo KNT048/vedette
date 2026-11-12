@@ -94,6 +94,9 @@ type Config struct {
 	// destinations, never a line; D-223): the events_around tool of log investigation. The bool is false while the logs module is off.
 	// nil = the tool is not offered.
 	LogAround func(ctx context.Context, ip netip.Addr, from, to time.Time) (LogAroundData, bool, error)
+	// Alert raises an incident notice (notify: every enabled channel whose minimum severity it meets). The daily verify of the
+	// activity log calls it when the chain is broken (S-AI-8, D-430); nil = no verify job is offered. The adapter is in cmd/vedette.
+	Alert func(ctx context.Context, id, title, text string) error
 	// AskTimeout bounds one question in all: every model turn and every tool call. 0 = 2 minutes. Tests set a tiny one.
 	AskTimeout time.Duration
 	// HookTimeout bounds the after_ai hooks of one call and one hook test. 0 = 5 seconds. Tests set a tiny one to run out of time.
@@ -172,7 +175,8 @@ type Service struct {
 	queued    atomic.Int64                    // uploads that hold their bytes in memory until they are read
 	indexing  sync.WaitGroup                  // the readers in flight: a test waits for them
 	snap      atomic.Pointer[snapshot]
-	news      *newsFetcher // the box's own fetcher of public pages for CVE news (S-AI-3)
+	alerted   atomic.Pointer[string] // the break the last alert named (entry id and count): the same break is not raised again until a restart
+	news      *newsFetcher           // the box's own fetcher of public pages for CVE news (S-AI-3)
 }
 
 // New loads the settings and builds the router and the meter. A saved state that the rules refuse is an error: the service does

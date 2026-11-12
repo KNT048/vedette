@@ -140,7 +140,7 @@ describe('container-only install (D-381)', () => {
   })
 
   it.each([
-    ['no check has succeeded', { last_check: null }, /No release information yet/],
+    ['no check has run', { last_check: null }, /No release information yet: no update check has run on this install\./],
     ['the check is off', { check_enabled: false }, /The update check is off/],
     ['nothing newer', { last_check: '2026-11-12T00:00:00Z' }, /No newer release is offered to this install\./],
   ])('Updates without a newer release says why (%s) and keeps the general pull and up -d block', async (_, over, said) => {
@@ -148,7 +148,8 @@ describe('container-only install (D-381)', () => {
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(state)))
     renderApp('/settings/updates')
     expect(await screen.findByText(said)).toBeInTheDocument()
-    expect(screen.getByText(/Running version 0\.9\.3\. (Update information last read|Update information has never been read)/)).toBeInTheDocument()
+    expect(screen.getByText(/Running version 0\.9\.3\. (Update information last read|No check has run yet\.)/)).toBeInTheDocument()
+    expect(screen.queryByText(/cannot reach github\.com/)).toBeNull() // D-398: no cause is guessed for a check that never ran
     expect(screen.getByText(/docker compose --env-file vedette.env pull/)).toBeInTheDocument()
     expect(screen.queryByText(/minisign|cosign verify/)).toBeNull()
     // the block says what it does and does not do; no "kept files" that this state never made (QA M3)
@@ -162,7 +163,7 @@ describe('container-only install (D-381)', () => {
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(state)))
     renderApp('/settings/updates')
     expect(await screen.findByText(`Last check failed 1 hour ago: ${message}`)).toBeInTheDocument()
-    expect(screen.queryByText(/has never been read/)).toBeNull()
+    expect(screen.queryByText(/No check has run yet/)).toBeNull()
     expect(screen.getByText('No release information yet: no update check has succeeded on this install. Vedette tries again every 6 hours.')).toBeInTheDocument()
     expect(screen.queryByText(/cannot reach github\.com/)).toBeNull() // the failure line says the real reason
   })
@@ -330,6 +331,29 @@ describe('container-only install (D-381)', () => {
     await u.click(within(dlg).getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(containerSensorStore.get()).toMatchObject({ chosen: null, span: false })
+  })
+
+  it('the honeypot page says once why traps cannot run and reads no honeypot route (walk 4)', async () => {
+    renderApp('/honeypot')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Honeypot' })).toBeInTheDocument()
+    expect(screen.getAllByText('Traps need the appliance install')).toHaveLength(1)
+    expect(calls.filter((u) => new URL(u, location.origin).pathname.startsWith('/api/v1/honeypot'))).toEqual([])
+  })
+
+  it('Download logs greys "Honeypot hits" and leaves it out of the export (S-CORE-6, walk 4)', async () => {
+    renderApp('/settings/data')
+    const box = await screen.findByRole('checkbox', { name: /Honeypot hits/ })
+    await waitFor(() => expect(box).toBeDisabled())
+    expect(box).not.toBeChecked()
+    expect(screen.getByText('(traps need the appliance install)')).toBeInTheDocument()
+  })
+
+  it('Privacy shows the container-only rows of flows 6 and 10, with no helper, apt, nmap or chrony (S-CORE-4, walk 4)', async () => {
+    renderApp('/settings/privacy')
+    expect((await screen.findAllByText(/a container-only install has no `vedette-host`, so the box runs no `apt`/)).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/A container-only install sets no time source/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/installs nmap|chrony configuration|through the privileged helper/)).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Open Box network' })).toBeNull()
   })
 
   it('PATCH /inventory/sensors/{id} on an appliance is 409 set_in_box_network', async () => {

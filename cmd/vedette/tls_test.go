@@ -81,9 +81,10 @@ func TestEnsureCert(t *testing.T) {
 	if c.IsCA {
 		t.Error("the certificate may sign others")
 	}
-	// Idempotent: a second call leaves the pair alone.
+	// Idempotent: a second call whose names the pair covers leaves it alone (a new -hosts entry re-issues it, D-397:
+	// TestEnsureCertReissuesForANewHostsEntry).
 	before, _ := os.ReadFile(crt) //nolint:gosec // a path the test made
-	if err := ensureCert(t, crt, key, []string{"other.example"}); err != nil {
+	if err := ensureCert(t, crt, key, []string{"192.0.2.10"}); err != nil {
 		t.Fatal(err)
 	}
 	if after, _ := os.ReadFile(crt); string(after) != string(before) { //nolint:gosec // a path the test made

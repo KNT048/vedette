@@ -55,6 +55,9 @@ func (s *Service) SetRetention(ctx context.Context, who string, days int) (int, 
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.degraded != "" {
+		return 0, s.errDegraded()
+	}
 	now := s.cfg.Clock()
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		if err := upsertSetting(ctx, tx, "activity", map[string]int{"retention_days": days}, now, who); err != nil {

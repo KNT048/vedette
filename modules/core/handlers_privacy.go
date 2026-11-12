@@ -87,7 +87,8 @@ func (h *APIHandlers) privacyFlows(ctx context.Context, p privacySetting) []oas.
 		{ID: 7, State: always, Control: rs},
 		{ID: 8, State: cond(h.reg.Enabled("ai")), Control: rs},
 		{ID: 9, State: state(h.reg.Enabled("exposure")), Control: rs},
-		{ID: 10, State: state(ntpPub), Control: rs},
+		// A container-only install sets no time source: the container keeps the clock of the machine that runs it (D-381, S-CORE-4).
+		{ID: 10, State: state(ntpPub && !h.reg.ContainerOnly()), Control: rs},
 		{ID: 11, State: cond(h.reg.Enabled("auth-oidc") && oidcConf), Control: rs},
 		{ID: 12, State: state(connConf), Control: rs}, // core cannot be turned off, so there is no module condition
 		// D-233: the box sends nothing itself; an agent the administrator connects reads by token, and where it sends that is its own business

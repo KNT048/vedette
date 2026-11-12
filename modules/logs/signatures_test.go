@@ -1659,7 +1659,7 @@ func TestMeasureFiveMillionLines(t *testing.T) {
 		for _, w := range []string{"1h", "24h", "7d"} {
 			start = time.Now()
 			v, err := e.svc.Events(t.Context(), EventQuery{Window: w, Q: q})
-			t.Logf("Events window=%s q=%q: %v total=%d searched_back_to=%v next=%q err=%v", w, q, time.Since(start), v.Total, v.SearchedBackTo, v.Next, err)
+			t.Logf("Events window=%s q=%q: %v total=%d searched_back_to=%v next_cursor set=%v err=%v", w, q, time.Since(start), v.Total, v.SearchedBackTo, v.NextCursor != nil, err)
 		}
 	}
 }

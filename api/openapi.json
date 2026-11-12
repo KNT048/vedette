@@ -36162,11 +36162,11 @@
             }
           },
           {
-            "name": "before",
+            "name": "cursor",
             "in": "query",
             "required": false,
             "schema": {
-              "description": "The next of a previous answer: search the lines older than it",
+              "description": "The next_cursor of a previous answer: search the lines older than it. Only with q (else 400 bad_cursor)",
               "type": "string",
               "maxLength": 64
             }
@@ -36220,20 +36220,28 @@
                       "description": "Number of matching rows; events returns at most the 200 newest. With a keyword, the matches found so far (the search walks back from the newest line and stops at 200 matches or when its time is up)"
                     },
                     "searched_back_to": {
-                      "description": "Present with next: the search has covered the lines from now back to this time and stopped before the start of the window (200 matches found, or the time budget ran out)",
+                      "description": "Present with next_cursor: the search has covered the lines from now back to this time and stopped before the start of the window (200 matches found, or the time budget ran out)",
                       "type": "string",
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
-                    "next": {
-                      "description": "Present when older lines of the window are not searched yet: send it as before to continue. Absent = the whole window was searched",
-                      "type": "string",
-                      "maxLength": 64
+                    "next_cursor": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 64
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Opaque cursor (API_CONVENTIONS section 4): send it as cursor to search the older lines of the window. null = the whole window was searched"
                     }
                   },
                   "required": [
                     "events",
-                    "total"
+                    "total",
+                    "next_cursor"
                   ],
                   "additionalProperties": false
                 }

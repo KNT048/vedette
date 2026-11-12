@@ -135,17 +135,17 @@ type EventQuery struct {
 	Window string // 1h | 24h | 7d
 	Source string // a source id, or empty
 	Q      string // a keyword, matched in the line and in the source name
-	Before string // the Next of a previous answer: search the lines older than it (a keyword search only)
+	Cursor string // the NextCursor of a previous answer: search the lines older than it (a keyword search only)
 }
 
 // EventsView is the answer of GET /logs/events.
 type EventsView struct {
 	Events []Event `json:"events"`
 	Total  int     `json:"total"`
-	// SearchedBackTo and Next are set when a keyword search stopped before the start of the window (EventsPage matches found, or the
-	// time budget spent): the lines from now back to SearchedBackTo were searched, Next is the cursor that continues from there.
+	// SearchedBackTo and NextCursor are set when a keyword search stopped before the start of the window (EventsPage matches found, or the
+	// time budget spent): the lines from now back to SearchedBackTo were searched, NextCursor is the cursor that continues from there.
 	SearchedBackTo *time.Time `json:"searched_back_to,omitempty"`
-	Next           string     `json:"next,omitempty"`
+	NextCursor     *string    `json:"next_cursor"`
 }
 
 // NewItem is a kind of line a source had not sent before (NewItem of contract.ts).

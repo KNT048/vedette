@@ -41441,7 +41441,7 @@ func (s *LogsGetLogsEventsOK) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.Next.Get(); ok {
+		if value, ok := s.NextCursor.Get(); ok {
 			if err := func() error {
 				if err := (validate.String{
 					MinLength:     0,
@@ -41466,7 +41466,7 @@ func (s *LogsGetLogsEventsOK) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "next",
+			Name:  "next_cursor",
 			Error: err,
 		})
 	}

@@ -147796,10 +147796,8 @@ func (s *LogsGetLogsEventsOK) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
-		if s.Next.Set {
-			e.FieldStart("next")
-			s.Next.Encode(e)
-		}
+		e.FieldStart("next_cursor")
+		s.NextCursor.Encode(e)
 	}
 	{
 		if s.SearchedBackTo.Set {
@@ -147815,7 +147813,7 @@ func (s *LogsGetLogsEventsOK) encodeFields(e *jx.Encoder) {
 
 var jsonFieldsNameOfLogsGetLogsEventsOK = [4]string{
 	0: "events",
-	1: "next",
+	1: "next_cursor",
 	2: "searched_back_to",
 	3: "total",
 }
@@ -147847,15 +147845,15 @@ func (s *LogsGetLogsEventsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"events\"")
 			}
-		case "next":
+		case "next_cursor":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
-				s.Next.Reset()
-				if err := s.Next.Decode(d); err != nil {
+				if err := s.NextCursor.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"next\"")
+				return errors.Wrap(err, "decode field \"next_cursor\"")
 			}
 		case "searched_back_to":
 			if err := func() error {
@@ -147889,7 +147887,7 @@ func (s *LogsGetLogsEventsOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00001011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

@@ -100,7 +100,7 @@ func (h *LogsHandlers) LogsDeleteLogsSourcesID(ctx context.Context, params oas.L
 
 // LogsGetLogsEvents implements logs_get_logs_events (viewer).
 func (h *LogsHandlers) LogsGetLogsEvents(ctx context.Context, params oas.LogsGetLogsEventsParams) (*oas.LogsGetLogsEventsOK, error) {
-	v, err := h.svc.Events(ctx, EventQuery{Window: string(params.Window), Source: params.Source.Or(""), Q: params.Q.Or(""), Before: params.Before.Or("")})
+	v, err := h.svc.Events(ctx, EventQuery{Window: string(params.Window), Source: params.Source.Or(""), Q: params.Q.Or(""), Cursor: params.Cursor.Or("")})
 	if err != nil {
 		return nil, err
 	}

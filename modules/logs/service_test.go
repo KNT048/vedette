@@ -1558,7 +1558,7 @@ func TestEventsKeywordSearchContinuesWhereItStopped(t *testing.T) {
 	e.svc.scanRows = 7
 	e.svc.timeUp = func(step int) bool { return step >= 2 } // two steps of 7 rows, then the time is up
 	v, err := e.svc.Events(t.Context(), EventQuery{Window: "24h", Q: "NEEDLE"})
-	if err != nil || v.Next == "" || v.SearchedBackTo == nil || v.Total != len(v.Events) {
+	if err != nil || v.NextCursor == nil || v.SearchedBackTo == nil || v.Total != len(v.Events) {
 		t.Fatalf("a search out of time answers with a cursor: %+v %v", v, err)
 	}
 	if v.SearchedBackTo.Before(e.clock.Add(-14 * time.Minute)) { // 14 rows back, not further
@@ -1569,8 +1569,8 @@ func TestEventsKeywordSearchContinuesWhereItStopped(t *testing.T) {
 		seen[ev.ID] = true
 	}
 	e.svc.timeUp = nil
-	rest, err := e.svc.Events(t.Context(), EventQuery{Window: "24h", Q: "NEEDLE", Before: v.Next})
-	if err != nil || rest.Next != "" || rest.SearchedBackTo != nil {
+	rest, err := e.svc.Events(t.Context(), EventQuery{Window: "24h", Q: "NEEDLE", Cursor: *v.NextCursor})
+	if err != nil || rest.NextCursor != nil || rest.SearchedBackTo != nil {
 		t.Fatalf("the continuation reaches the start of the window: %+v %v", rest, err)
 	}
 	for _, ev := range rest.Events {
@@ -1583,13 +1583,13 @@ func TestEventsKeywordSearchContinuesWhereItStopped(t *testing.T) {
 		t.Fatalf("found %d of the 8 matching lines", len(seen))
 	}
 	whole, err := e.svc.Events(t.Context(), EventQuery{Window: "24h", Q: "needle"})
-	if err != nil || len(whole.Events) != 8 || whole.Next != "" {
+	if err != nil || len(whole.Events) != 8 || whole.NextCursor != nil {
 		t.Fatalf("a whole-window search: %+v %v", whole, err)
 	}
 	// A keyword that matches nothing, out of time after a step: an empty list that says where it looked, not an error.
 	e.svc.timeUp = func(step int) bool { return step >= 1 }
 	none, err := e.svc.Events(t.Context(), EventQuery{Window: "24h", Q: "zzz"})
-	if err != nil || len(none.Events) != 0 || none.Next == "" || none.Events == nil {
+	if err != nil || len(none.Events) != 0 || none.NextCursor == nil || none.Events == nil {
 		t.Fatalf("no match, out of time: %+v %v", none, err)
 	}
 	e.svc.timeUp = func(int) bool { return true } // nothing searched at all
@@ -1603,14 +1603,58 @@ func TestEventsCursorIsValidated(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	for _, c := range []string{"x", "1_2", "2026-11-09T10:00:00.000Z", "2026-11-09T10:00:00.000Z_-1", "2026-11-09T10:00:00.000Z_1; DROP TABLE logs_events", "2026-11-09 10:00:00_5", "2026-11-09T10:00:00Z_5"} {
-		if _, err := e.svc.Events(t.Context(), EventQuery{Window: "1h", Q: "a", Before: c}); code(err) != "bad_cursor" {
+		if _, err := e.svc.Events(t.Context(), EventQuery{Window: "1h", Q: "a", Cursor: c}); code(err) != "bad_cursor" {
 			t.Fatalf("cursor %q: %v", c, err)
 		}
 	}
-	if _, err := e.svc.Events(t.Context(), EventQuery{Window: "1h", Before: "2026-11-09T10:00:00.000Z_5"}); code(err) != "bad_cursor" {
+	if _, err := e.svc.Events(t.Context(), EventQuery{Window: "1h", Cursor: "2026-11-09T10:00:00.000Z_5"}); code(err) != "bad_cursor" {
 		t.Fatalf("a cursor without a keyword: %v", err)
 	}
-	if _, err := e.svc.Events(t.Context(), EventQuery{Window: "1h", Q: "a", Before: "2026-11-09T10:00:00.000Z_5"}); err != nil {
+	if _, err := e.svc.Events(t.Context(), EventQuery{Window: "1h", Q: "a", Cursor: "2026-11-09T10:00:00.000Z_5"}); err != nil {
 		t.Fatalf("a good cursor: %v", err)
+	}
+}
+
+// The page fills on the last step of the window (a quiet box: fewer rows than one step): the answer still has a cursor, and continuing
+// reaches every match exactly once.
+func TestEventsFullPageOnTheLastStepStillHasACursor(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s := e.add("FW", "192.168.10.1")
+	var b []Line
+	for i := range 300 {
+		b = append(b, Line{SourceID: s.ID, At: e.clock.Add(-time.Duration(300-i) * time.Second), Text: "needle " + strconv.Itoa(i)})
+	}
+	for start := 0; start < len(b); start += 100 {
+		if _, err := e.svc.Ingest(t.Context(), b[start:start+100]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	seen := map[string]bool{}
+	cur := ""
+	for page := 0; ; page++ {
+		v, err := e.svc.Events(t.Context(), EventQuery{Window: "1h", Q: "needle", Cursor: cur})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, ev := range v.Events {
+			if seen[ev.ID] {
+				t.Fatalf("line %s answered twice", ev.ID)
+			}
+			seen[ev.ID] = true
+		}
+		if v.NextCursor == nil {
+			break
+		}
+		if page > 3 || len(v.Events) != EventsPage {
+			t.Fatalf("page %d: %d events with a cursor", page, len(v.Events))
+		}
+		cur = *v.NextCursor
+	}
+	if len(seen) != 300 {
+		t.Fatalf("found %d of 300 matches", len(seen))
+	}
+	if v, err := e.svc.Events(t.Context(), EventQuery{Window: "1h", Q: "needle 1"}); err != nil || v.NextCursor != nil {
+		t.Fatalf("a search that fits the page has no cursor: %+v %v", v, err)
 	}
 }

@@ -215,11 +215,11 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
   const key = `${win}|${source}|${kw}|${q.dataUpdatedAt}`
   const extra = older.key === key ? older : { key, fetched: false, events: [] as LogEvent[], next: undefined, back: undefined, busy: false, failed: false }
   const searchOlder = (d: EventsResponse) => {
-    const before = extra.fetched ? extra.next : d.next
+    const before = extra.fetched ? extra.next : d.next_cursor
     if (!before) return
     setOlder({ ...extra, busy: true, failed: false })
     fetchOlderEvents({ window: win, source, q: kw }, before).then(
-      (r) => setOlder({ key, fetched: true, events: [...extra.events, ...r.events], next: r.next, back: r.searched_back_to, busy: false, failed: false }),
+      (r) => setOlder({ key, fetched: true, events: [...extra.events, ...r.events], next: r.next_cursor ?? undefined, back: r.searched_back_to, busy: false, failed: false }),
       () => setOlder({ ...extra, busy: false, failed: true }),
     )
   }
@@ -238,14 +238,14 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
       <QueryState query={q}>
         {(d) => {
           const rows = [...d.events, ...extra.events]
-          const next = extra.fetched ? extra.next : d.next
+          const next = extra.fetched ? extra.next : d.next_cursor ?? undefined
           const back = extra.fetched ? extra.back : d.searched_back_to
           return (
           <>
             {next ? (
               <div className="mb-2 flex flex-wrap items-center gap-3 text-[13px] text-muted">
-                <p>{t('events.partial', { count: rows.length, time: back ? fmtDateTime(back) : '' })}</p>
-                <Button disabled={extra.busy} onClick={() => searchOlder(d)}>{t('events.searchOlder')}</Button>
+                <p aria-live="polite">{t('events.partial', { count: rows.length, time: back ? fmtDateTime(back) : '' })}</p>
+                <Button disabled={extra.busy || q.isPlaceholderData} aria-busy={extra.busy} onClick={() => searchOlder(d)}>{t('events.searchOlder')}</Button>
                 {extra.failed ? <span role="alert" className="text-danger">{t('events.searchOlderFailed')}</span> : null}
               </div>
             ) : (

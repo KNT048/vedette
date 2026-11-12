@@ -95,12 +95,12 @@ func (s *Service) search(ctx context.Context, q EventQuery, span time.Duration) 
 		args = append(args, q.Source)
 	}
 	if needle == "" {
-		if q.Before != "" {
+		if q.Cursor != "" {
 			return EventsView{}, errBadCursor()
 		}
 		return s.listNewest(ctx, vol, out, where, args, names)
 	}
-	return s.scanNewest(ctx, out, where, args, needle, byName, names, q.Before)
+	return s.scanNewest(ctx, out, where, args, needle, byName, names, q.Cursor)
 }
 
 func errBadCursor() error {
@@ -134,7 +134,7 @@ func parseCursor(s string) (cursor, error) {
 // two cases the answer says how far back it looked (SearchedBackTo) and gives the cursor (Next) that continues from there, so a
 // keyword that matches nothing over days of a big box is an honest "searched back to ..." and not a 503. A budget spent before the
 // first step is done is still 503 server_busy (nothing was searched).
-func (s *Service) scanNewest(ctx context.Context, out EventsView, where string, args []any, needle string, byName []string, names map[string]string, before string) (EventsView, error) {
+func (s *Service) scanNewest(ctx context.Context, out EventsView, where string, args []any, needle string, byName []string, names map[string]string, after string) (EventsView, error) {
 	vol := s.cfg.Volume.Reader()
 	cond := "instr(lower(line), ?) > 0"
 	matchArgs := []any{needle}
@@ -146,8 +146,8 @@ func (s *Service) scanNewest(ctx context.Context, out EventsView, where string, 
 	}
 	// hi is the exclusive upper end of what is still to search; the zero value means "from the newest line".
 	var hi cursor
-	if before != "" {
-		c, err := parseCursor(before)
+	if after != "" {
+		c, err := parseCursor(after)
 		if err != nil {
 			return EventsView{}, err
 		}
@@ -182,18 +182,23 @@ func (s *Service) scanNewest(ctx context.Context, out EventsView, where string, 
 			stepArgs = append(stepArgs, lo.ts, lo.id)
 		}
 		stepArgs = append(stepArgs, matchArgs...)
-		got, lastRow, err := s.readMatches(ctx, vol, stepWhere+" AND ("+cond+")", stepArgs, EventsPage-len(out.Events), names)
+		room := EventsPage - len(out.Events)
+		got, _, err := s.readMatches(ctx, vol, stepWhere+" AND ("+cond+")", stepArgs, room+1, names) // one more than fits: tells whether lines remain
 		if err != nil {
 			return s.stepFailed(ctx, out, hi, step, err)
 		}
+		more := len(got) > room
+		if more {
+			got = got[:room]
+		}
 		out.Events = append(out.Events, got...)
 		out.Total = len(out.Events)
-		if len(out.Events) >= EventsPage {
-			// Page full: continue below the last line shown, unless this step was the last of the window.
-			if last {
+		if more || len(out.Events) >= EventsPage {
+			// Page full: continue below the last line shown. Only a page that is exactly the last matches of the window has no cursor.
+			if last && !more {
 				return out, nil
 			}
-			return s.withNext(out, lastRow), nil
+			return s.withNext(out, cursorOf(got[len(got)-1])), nil
 		}
 		if last {
 			return out, nil
@@ -220,12 +225,18 @@ func (s *Service) stepFailed(ctx context.Context, out EventsView, hi cursor, ste
 	return EventsView{}, fmt.Errorf("logs: searching lines: %w", err)
 }
 
+func cursorOf(e Event) cursor {
+	id, _ := strconv.ParseInt(strings.TrimPrefix(e.ID, "le-"), 10, 64)
+	return cursor{ts: store.FormatTS(e.TS), id: id}
+}
+
 func (s *Service) withNext(out EventsView, c cursor) EventsView {
 	t, err := time.Parse("2006-01-02T15:04:05.000Z", c.ts)
 	if err == nil {
 		out.SearchedBackTo = &t
 	}
-	out.Next = c.String()
+	next := c.String()
+	out.NextCursor = &next
 	return out
 }
 

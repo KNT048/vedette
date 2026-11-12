@@ -6002,7 +6002,7 @@ type LogsGetLogsEventsParams struct {
 	Window LogsGetLogsEventsWindow
 	Source OptString `json:",omitempty,omitzero"`
 	Q      OptString `json:",omitempty,omitzero"`
-	Before OptString `json:",omitempty,omitzero"`
+	Cursor OptString `json:",omitempty,omitzero"`
 }
 
 func unpackLogsGetLogsEventsParams(packed middleware.Parameters) (params LogsGetLogsEventsParams) {
@@ -6033,11 +6033,11 @@ func unpackLogsGetLogsEventsParams(packed middleware.Parameters) (params LogsGet
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "before",
+			Name: "cursor",
 			In:   "query",
 		}
 		if v, ok := packed[key]; ok {
-			params.Before = v.(OptString)
+			params.Cursor = v.(OptString)
 		}
 	}
 	return params
@@ -6198,17 +6198,17 @@ func decodeLogsGetLogsEventsParams(args [0]string, argsEscaped bool, r *http.Req
 			Err:  err,
 		}
 	}
-	// Decode query: before.
+	// Decode query: cursor.
 	if err := func() error {
 		cfg := uri.QueryParameterDecodingConfig{
-			Name:    "before",
+			Name:    "cursor",
 			Style:   uri.QueryStyleForm,
 			Explode: true,
 		}
 
 		if err := q.HasParam(cfg); err == nil {
 			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
-				var paramsDotBeforeVal string
+				var paramsDotCursorVal string
 				if err := func() error {
 					val, err := d.DecodeValue()
 					if err != nil {
@@ -6220,18 +6220,18 @@ func decodeLogsGetLogsEventsParams(args [0]string, argsEscaped bool, r *http.Req
 						return err
 					}
 
-					paramsDotBeforeVal = c
+					paramsDotCursorVal = c
 					return nil
 				}(); err != nil {
 					return err
 				}
-				params.Before.SetTo(paramsDotBeforeVal)
+				params.Cursor.SetTo(paramsDotCursorVal)
 				return nil
 			}); err != nil {
 				return err
 			}
 			if err := func() error {
-				if value, ok := params.Before.Get(); ok {
+				if value, ok := params.Cursor.Get(); ok {
 					if err := func() error {
 						if err := (validate.String{
 							MinLength:     0,
@@ -6261,7 +6261,7 @@ func decodeLogsGetLogsEventsParams(args [0]string, argsEscaped bool, r *http.Req
 		return nil
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
-			Name: "before",
+			Name: "cursor",
 			In:   "query",
 			Err:  err,
 		}

@@ -76,15 +76,17 @@ func TestContract_INV12_CARefused(t *testing.T) {
 	w.configure(authoidc.Save{CAPEM: ptr(good)})
 	key := string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: []byte("x")}))
 	for name, in := range map[string]string{
-		"not PEM":       "hello",
-		"text after":    good + "trailing words",
-		"private key":   good + key,
-		"broken DER":    string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("not der")})),
-		"not a CA":      certPEM(t, "idp.acme.example", false, now.Add(time.Hour)),
-		"expired":       certPEM(t, "Old Root", true, now.Add(-time.Hour)),
-		"six":           strings.Repeat(good, 6),
-		"over 64 KB":    good + strings.Repeat(" ", 64<<10),
-		"with a header": "-----BEGIN CERTIFICATE-----\nProc-Type: 4,ENCRYPTED\n\nAAAA\n-----END CERTIFICATE-----\n",
+		"not PEM":          "hello",
+		"text before":      "hello\n" + good,
+		"broken key block": "-----BEGIN PRIVATE KEY-----\nAAAA\n" + good,
+		"text after":       good + "trailing words",
+		"private key":      good + key,
+		"broken DER":       string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("not der")})),
+		"not a CA":         certPEM(t, "idp.acme.example", false, now.Add(time.Hour)),
+		"expired":          certPEM(t, "Old Root", true, now.Add(-time.Hour)),
+		"six":              strings.Repeat(good, 6),
+		"over 64 KB":       good + strings.Repeat(" ", 64<<10),
+		"with a header":    "-----BEGIN CERTIFICATE-----\nProc-Type: 4,ENCRYPTED\n\nAAAA\n-----END CERTIFICATE-----\n",
 	} {
 		_, err := w.svc.Store(t.Context(), "admin@acme.example", origin, authoidc.Save{Issuer: w.idp.issuer(), ClientID: "vedette", Scopes: "openid", GroupsClaim: "groups", CAPEM: ptr(in)})
 		if e, ok := apierr.As(err); !ok || e.Status != 400 || e.Code != "invalid_ca" {
@@ -94,7 +96,32 @@ func TestContract_INV12_CARefused(t *testing.T) {
 	if c, _, _ := w.svc.View(t.Context(), origin); c.CAPEM != good {
 		t.Fatalf("a refused save changed the CA: %q", c.CAPEM)
 	}
-	if _, err := w.svc.Store(t.Context(), "admin@acme.example", origin, authoidc.Save{Issuer: w.idp.issuer(), ClientID: "vedette", Scopes: "openid", GroupsClaim: "groups", CAPEM: ptr(strings.Repeat(good, 5))}); err != nil {
+	if _, err := w.svc.Store(t.Context(), "admin@acme.example", origin, authoidc.Save{Issuer: w.idp.issuer(), ClientID: "vedette", ClientSecret: w.idp.secret, Scopes: "openid", GroupsClaim: "groups", CAPEM: ptr(strings.Repeat(good, 5))}); err != nil {
 		t.Fatalf("five CAs: %v", err)
+	}
+}
+
+// INV-3 + INV-12: a new CA without the client secret is refused (a CA the attacker controls would send the real secret to their
+// host under the same issuer name); the same CA again, or removing it, keeps the secret. Every CA change is in the audit detail.
+func TestContract_INV12_CAChangeNeedsTheSecret(t *testing.T) {
+	w := newWorld(t)
+	now := w.env.Clock.Now()
+	a, b := certPEM(t, "Root A", true, now.Add(time.Hour)), certPEM(t, "Root B", true, now.Add(time.Hour))
+	w.configure(authoidc.Save{CAPEM: ptr(a)})
+	save := func(ca string) error {
+		_, err := w.svc.Store(t.Context(), "admin@acme.example", origin, authoidc.Save{Issuer: w.idp.issuer(), ClientID: "vedette", Scopes: "openid", GroupsClaim: "groups", CAPEM: ptr(ca)})
+		return err
+	}
+	wantCode(t, save(b), 400, "invalid_secret")
+	if err := save(a); err != nil {
+		t.Fatalf("same CA without the secret: %v", err)
+	}
+	if err := save(""); err != nil {
+		t.Fatalf("removing the CA without the secret: %v", err)
+	}
+	for _, like := range []string{"ca added: sha256:%", "ca removed: sha256:%"} {
+		if w.env.Count(t, `SELECT count(*) FROM core_audit WHERE action = 'oidc.update' AND detail LIKE ?`, like) != 1 {
+			t.Errorf("no oidc.update with detail %q", like)
+		}
 	}
 }

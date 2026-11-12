@@ -655,6 +655,10 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     await u.clear(ca)
     await u.paste(pem)
     await u.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText(/CA changed: enter the Client secret again/)).toBeInTheDocument() // INV-3: a new CA needs the secret
+    expect(screen.getByLabelText('Client secret')).toHaveAttribute('aria-invalid', 'true')
+    await u.type(screen.getByLabelText('Client secret'), 'bi-mat-rat-dai')
+    await u.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText(/Saved: Mock internal CA 1, expires/)).toBeInTheDocument()
     await u.click(screen.getByRole('button', { name: 'Test connection' }))
     expect(await screen.findByRole('region', { name: 'Endpoints read from the identity provider' })).toBeInTheDocument()

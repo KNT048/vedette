@@ -405,6 +405,8 @@ const usersHandlers = [
     const ca = b.ca_pem === undefined ? (cur.ca_pem ?? '') : String(b.ca_pem)
     const caErr = caError(ca)
     if (caErr) return fail(400, 'invalid_ca', caErr)
+    // D-378 (INV-3): a new CA needs the secret again, like a new issuer; removing it does not.
+    if (ca.trim() && caBlocks(ca).join('') !== caBlocks(cur.ca_pem ?? '').join('') && !b.client_secret) return fail(400, 'invalid_secret', 'The issuer, Client ID or CA changed: enter the Client secret again.')
     oidcStore.set({ issuer, client_id: clientId, secret, scopes: [...new Set(scopes)].join(' '), groups_claim: claim, default_role: (b.default_role ?? null) as Role | null, role_map: map.map((m) => ({ group: m.group.trim(), role: m.role })), redirect_uri: `${location.origin}/sso/callback`, ca_pem: caBlocks(ca).map((x) => `${x}\n`).join('') })
     audit('oidc.update', issuer)
     return HttpResponse.json(oidcView())

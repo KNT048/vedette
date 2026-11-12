@@ -132,12 +132,23 @@ func normalize(in Save, cur Config, now time.Time) (Save, *apierr.Error) {
 	if n := utf8.RuneCountInString(in.ClientID); n < 1 || n > 200 || auth.HasInvisible(in.ClientID) {
 		return Save{}, apierr.New(400, "invalid_client", "Enter the Client ID (at most 200 characters).")
 	}
-	keep := cur.secretID != "" && cur.Issuer == in.Issuer && cur.ClientID == in.ClientID
+	if in.CAPEM == nil {
+		in.CAPEM = &cur.CAPEM
+	} else {
+		ca, err := parseCA(*in.CAPEM, now)
+		if err != nil {
+			return Save{}, err
+		}
+		in.CAPEM = &ca
+	}
+	// A new CA could make an attacker's certificate for the same issuer name trusted (D-378): like a new issuer, it needs the secret
+	// again. Removing the CA only narrows trust, so it keeps the secret.
+	keep := cur.secretID != "" && cur.Issuer == in.Issuer && cur.ClientID == in.ClientID && (*in.CAPEM == cur.CAPEM || *in.CAPEM == "")
 	switch {
 	case in.ClientSecret != "" && (len(in.ClientSecret) < 8 || len(in.ClientSecret) > 1024):
 		return Save{}, apierr.New(400, "invalid_secret", "Enter the Client secret (at least 8 characters).")
 	case in.ClientSecret == "" && cur.secretID != "" && !keep:
-		return Save{}, apierr.New(400, "invalid_secret", "The issuer or Client ID changed: enter the Client secret again.")
+		return Save{}, apierr.New(400, "invalid_secret", "The issuer, Client ID or CA changed: enter the Client secret again.")
 	case in.ClientSecret == "" && !keep:
 		return Save{}, apierr.New(400, "invalid_secret", "Enter the Client secret (at least 8 characters).")
 	}
@@ -173,15 +184,6 @@ func normalize(in Save, cur Config, now time.Time) (Save, *apierr.Error) {
 		return Save{}, apierr.New(400, "too_many", "At most 10 role mapping rows.")
 	}
 	in.RoleMap = rows
-	if in.CAPEM == nil {
-		in.CAPEM = &cur.CAPEM
-	} else {
-		ca, err := parseCA(*in.CAPEM, now)
-		if err != nil {
-			return Save{}, err
-		}
-		in.CAPEM = &ca
-	}
 	return in, nil
 }
 
@@ -230,7 +232,7 @@ func (s *Service) Store(ctx context.Context, actor, origin string, in Save) (Con
 		if err != nil {
 			return fmt.Errorf("authoidc: save config: %w", err)
 		}
-		return s.audit.Append(ctx, tx, audit.Entry{User: actor, Action: "oidc.update", Target: in.Issuer})
+		return s.audit.Append(ctx, tx, audit.Entry{User: actor, Action: "oidc.update", Target: in.Issuer, Detail: caChange(cur.CAPEM, *in.CAPEM)})
 	})
 	if err != nil {
 		return Config{}, err

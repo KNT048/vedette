@@ -2,8 +2,10 @@ package authoidc
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"net/http"
 	"strings"
@@ -38,10 +40,12 @@ func parseCA(raw string, now time.Time) (string, *apierr.Error) {
 	n := 0
 	var out bytes.Buffer
 	for len(bytes.TrimSpace(rest)) > 0 {
+		// pem.Decode skips text before a block, and a broken block up to the next BEGIN: refuse both.
+		at := bytes.TrimSpace(rest)
 		var b *pem.Block
-		b, rest = pem.Decode(rest)
+		b, rest = pem.Decode(at)
 		switch {
-		case b == nil:
+		case b == nil || !bytes.HasPrefix(at, []byte("-----BEGIN ")) || bytes.Count(at[:len(at)-len(rest)], []byte("-----BEGIN ")) != 1:
 			return "", invalidCA("text is not PEM, or has text outside the PEM blocks")
 		case b.Type != "CERTIFICATE" || len(b.Headers) > 0:
 			return "", invalidCA("text holds a " + pemType(b.Type) + " block; only certificates are accepted (never a private key)")
@@ -61,7 +65,32 @@ func parseCA(raw string, now time.Time) (string, *apierr.Error) {
 		n++
 		_ = pem.Encode(&out, &pem.Block{Type: "CERTIFICATE", Bytes: b.Bytes}) // a bytes.Buffer does not fail
 	}
+	if out.Len() > maxCAPEM { // re-encoding can be longer than what was pasted; the column has the same cap
+		return "", invalidCA("text is larger than 64 KB")
+	}
 	return out.String(), nil
+}
+
+// caChange is the oidc.update audit detail of a CA change (D-378): "" when unchanged, else what happened with the SHA-256
+// fingerprints of the certificates, so the log says which CA was trusted when.
+func caChange(old, cur string) string {
+	fp := func(text string) string {
+		var out []string
+		for _, c := range certsOf(text) {
+			sum := sha256.Sum256(c.Raw)
+			out = append(out, "sha256:"+hex.EncodeToString(sum[:]))
+		}
+		return strings.Join(out, ", ")
+	}
+	switch {
+	case old == cur:
+		return ""
+	case old == "":
+		return "ca added: " + fp(cur)
+	case cur == "":
+		return "ca removed: " + fp(old)
+	}
+	return "ca changed: " + fp(cur) + " (was " + fp(old) + ")"
 }
 
 // pemType names a block type in a refusal without echoing more than a short, printable word.

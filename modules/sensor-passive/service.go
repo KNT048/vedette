@@ -192,6 +192,7 @@ type Sensor struct {
 	Interface   *string    `json:"interface"`
 	Interfaces  []string   `json:"interfaces"`
 	Span        bool       `json:"span"`
+	Chosen      bool       `json:"chosen"` // Interface is a stored choice, not the default card (D-380, D-393)
 	SpanStatus  SpanStatus `json:"span_status"`
 	Status      string     `json:"status"` // online | offline | never_connected
 	LastSeen    *string    `json:"last_seen"`
@@ -264,7 +265,8 @@ func (s *Service) online(r sensorRow) bool {
 
 // Status lists the sensors of this box (GET /inventory/sensors): at most one. Everything about the sensor comes from its
 // heartbeat (D-112 (5)): online within 90 s of the last one, its version, devices heard, the cards it reported and the SPAN
-// measurement; what the admin chose (interface, SPAN) is core's own.
+// measurement; what the admin chose (interface, SPAN) is core's own. Chosen says the card is a stored choice: false while it is the
+// default (D-380), so the GUI of a container-only install shows "Automatic" and never saves the default by accident (D-393).
 func (s *Service) Status(ctx context.Context) ([]Sensor, error) {
 	if err := s.ensureSensor(ctx); err != nil {
 		return nil, err
@@ -276,7 +278,9 @@ func (s *Service) Status(ctx context.Context) ([]Sensor, error) {
 	names := []string{}
 	if hb := s.lastBeat(); hb != nil {
 		for _, i := range hb.ifaces {
-			names = append(names, i.Name)
+			if !sensorlink.VirtualIfaceName(i.Name) { // loopback, container bridges, veth, VPN: not cards to listen on (D-393)
+				names = append(names, i.Name)
+			}
 		}
 	}
 	slices.Sort(names)
@@ -288,7 +292,7 @@ func (s *Service) Status(ctx context.Context) ([]Sensor, error) {
 	if n := s.listenOn(ctx, r); n != "" {
 		iface = &n
 	}
-	out := Sensor{ID: SensorID, Name: r.name.String, Interface: iface, Interfaces: names, Span: r.span,
+	out := Sensor{ID: SensorID, Name: r.name.String, Interface: iface, Interfaces: names, Span: r.span, Chosen: r.iface.String != "",
 		SpanStatus: SpanStatus{st.Verdict, st.PPS, st.OtherMACs}, Status: "offline", LastSeen: nullable(r.lastSeen),
 		Version: nullable(r.version), DevicesSeen: r.devices}
 	switch {
@@ -377,6 +381,9 @@ func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, spa
 		if !sensorlink.ValidIfaceName(iface) {
 			return fmt.Errorf("%w: %q is not an interface name", ErrBadInterface, iface)
 		}
+		if sensorlink.VirtualIfaceName(iface) { // the heartbeat lists every link of the machine; Box network offers only cards (D-393)
+			return fmt.Errorf("%w: %q is not a network card (loopback, container, bridge or VPN link)", ErrBadInterface, iface)
+		}
 		cards = cardsOfHeartbeat(hb.ifaces)
 	}
 	var card *capture.Interface
@@ -410,7 +417,8 @@ func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, spa
 	return nil
 }
 
-// ChooseCard is SetInterface from the GUI of a container-only install (PATCH /inventory/sensors/{id}, D-387): only when core
+// ChooseCard is SetInterface from the GUI of a container-only install (PATCH /inventory/sensors/{id}, D-387, D-393: any card of
+// the fresh heartbeat, with or without an address, SPAN or not; "" goes back to the default card): only when core
 // runs without vedette-host, where the sensor's fresh heartbeat is the list of cards (D-263, D-385). With a host, or a configured
 // host that gives no list, it changes nothing and returns ErrUseBoxNetwork: there the host applies the SPAN card (D-56, D-118)
 // through Settings, Box network, which calls SetInterface itself.
@@ -442,7 +450,9 @@ func (s *Service) listenOn(ctx context.Context, r sensorRow) string {
 }
 
 // defaultOfHeartbeat is the default card without vedette-host (container-only, D-168, D-380): of the cards in the sensor's last
-// heartbeat that are up and have a global IPv4 address, the one wired card, else the one card. Wireless cards (wl*, ww*) are
+// heartbeat that are up and have a global IPv4 address and are cards (never loopback, a container bridge such as docker0 or
+// the br-… of a compose network, veth or a VPN link: sensorlink.VirtualIfaceName, the rule of Box network, D-393), the one
+// wired card, else the one card. Wireless cards (wl*, ww*) are
 // taken only when nothing else is there. Two candidates is not a clear answer: "" and the sensor waits for the admin.
 func defaultOfHeartbeat(hb *heartbeat) string {
 	if hb == nil {
@@ -450,7 +460,7 @@ func defaultOfHeartbeat(hb *heartbeat) string {
 	}
 	var wired, all []string
 	for _, c := range hb.ifaces {
-		if !c.Link || !slices.ContainsFunc(c.IPv4, globalIPv4) {
+		if !c.Link || !slices.ContainsFunc(c.IPv4, globalIPv4) || sensorlink.VirtualIfaceName(c.Name) {
 			continue
 		}
 		all = append(all, c.Name)

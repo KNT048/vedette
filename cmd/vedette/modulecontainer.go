@@ -29,8 +29,9 @@ import (
 //     (lab ubuntu2404, 2026-11-12: one extra restart of a running sensor after each update's core restart, none after a plain
 //     restart of core). The wait is bounded: once the state has stayed unreadable (failed reads, a host answer that does not
 //     list the service, "unknown") for unsureFor since the first such read, the start goes out anyway, so a box whose reads
-//     always time out (a stuck podman, a loaded box) or a core/host version skew still gets a down container started, as
-//     before. A good read resets the wait. Each start logs, at WARN and rate limited, which field of the host's answer
+//     are refused or fail fast, a host that does not list the service (a core/host version skew) or a unit_state that stays
+//     unknown still gets a down container started, as before (a read that times out uses up the attempt's context, so the
+//     start then fails too, as it did before). A good read resets the wait. Each start logs, at WARN and rate limited, which field of the host's answer
 //     called for it, or "state unreadable for <how long>";
 //   - off (core starts with the module off, and after every switch-off): container.stop with persist, so the unit loses
 //     [Install] and a reboot does not bring it back, unless the host trusts the unit and says it is already stopped and
@@ -74,6 +75,7 @@ func (c *moduleContainer) ensureOn(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if !c.reg.Enabled(c.module) { // checked under the lock: a switch-off between the guard's check and the host call wins
+		c.unsureSince = time.Time{} // the next switch-on waits its own unsureFor
 		return nil
 	}
 	// Skip only what the host vouches for: a unit it trusts (Installed), with [Install], that is active or coming up, running the
@@ -205,10 +207,10 @@ func isDown(unitState string) bool {
 func (c *moduleContainer) ensureOff(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.unsureSince = time.Time{} // the next switch-on waits its own unsureFor, even after a quick off-on
 	if c.reg.Enabled(c.module) {
 		return nil
 	}
-	c.unsureSince = time.Time{} // the next switch-on waits its own unsureFor
 	// Skip only a unit the host trusts that is already stopped and without [Install]; an untrusted or missing unit, or a
 	// state that cannot be read, goes to the stop (a missing one succeeds at once, an edited one is refused unit_unsafe,
 	// logged and retried).

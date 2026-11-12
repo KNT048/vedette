@@ -13,6 +13,8 @@
   "noSchedule": "schedule is off",
   "noScheduleZone": "on hold, the time zone cannot be read",
   "titleSetup": "Cannot scan yet: confirm the scan scope first",
+  "titleScannerDown": "Cannot scan: the vulnerability scanner is not available",
+  "metaScannerDown": "The scan scope is confirmed, but the scanner in the scan container is not available. Check the box's services.",
   "metaSetup": "Vedette scans no address until you set the scan scope and tick the commitment that you may scan it.",
   "tabs": {
     "label": "Sections of the Vulnerability scans page",
@@ -209,6 +211,7 @@
     "at": "Run at",
     "next": "Next scan: {{time}}.",
     "nextNone": "The schedule is off.",
+    "nextScannerDown": "The schedule is on, but nothing runs while the vulnerability scanner is not available. Check the box's services.",
     "nextBlocked": "The schedule is on, but nothing runs until the scan scope commitment is ticked under Devices, Scope and sensors.",
     "save": "Save settings",
     "saved": "Scan settings saved"

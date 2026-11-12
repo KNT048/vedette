@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check syslog-ports-check scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
+.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check syslog-ports-check scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check check-fast verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes ci-flaky contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -14,8 +14,9 @@ PIN_ARGS := $(foreach v,GOLANG_IMAGE DEBIAN_IMAGE DISTROLESS_IMAGE NUCLEI_VERSIO
 PACK_DIR := deploy/containers/scan-base/pack
 # Multi-arch images (WP-08d, D-158): `make images` builds sensor, scan-base and core for PLATFORMS as one manifest list per image.
 PLATFORMS ?= linux/amd64,linux/arm64
-# The index sequence floor compiled into vedette-host, the only binary that links internal/release (core does not, a test keeps that true).
-# A plain decimal: it is the -X value of internal/release.MinSequenceText. The release job (WP-08f/k) passes the sequence of the index current at build time.
+# The index sequence floor compiled into the binaries that link internal/release: vedette-host, and core (since D-347, for the signed
+# mitigation packs; a test keeps the list exact). A plain decimal: it is the -X value of internal/release.MinSequenceText. The release
+# job (WP-08f/k) passes the sequence of the index current at build time.
 MIN_SEQUENCE ?= 0
 RELEASE_PKG := github.com/knt048/vedette/internal/release
 
@@ -27,7 +28,8 @@ endif
 help:
 	@echo "make dev           chạy giao diện với dữ liệu mẫu tại http://localhost:5173"
 	@echo "make dev-api      backend Go thật + giao diện; REAL=core,inventory chọn module thật, còn lại là mock"
-	@echo "make check         kiểm nhanh phần đã đổi so với origin/main (cổng PR); đổi file dùng chung thì chạy verify"
+	@echo "make check-fast    cổng trước khi push: build, vet, lint dòng mới, test (không -race) của gói đã đổi, tsc/lint/vitest --changed (D-370)"
+	@echo "make check         kiểm phần đã đổi so với origin/main kèm -race và gói phụ thuộc (tuỳ chọn; tái hiện CI đỏ)"
 	@echo "make verify        web + Go: gõ kiểu, lint, test, kiểm lệch hợp đồng, build (rồi dọn)"
 	@echo "make verify-web    chỉ phần giao diện"
 	@echo "make verify-go     chỉ phần Go: build, vet, generate-check, test -race, contract, golangci-lint, govulncheck"
@@ -41,6 +43,7 @@ help:
 	@echo "make fixtures      kéo dữ liệu KEV/EPSS thật cho bảng nóng"
 	@echo "make dev-sensors   core + sensor (pcap replay) + scan (fake nmap, fake nuclei) with docker compose, profile dev (D-146)"
 	@echo "make dev-sensors-smoke   the same, checks that a device appears via the API within a bound, then tears down"
+	@echo "make container-only-smoke   the container-only install on Docker and Podman (builds images, checks ports/key/uid/caps, tears down); opt-in, slow, not in check or CI"
 	@echo "make webui-dist    build the web release and copy it to internal/webui/dist (embedded by -tags webui; core-image runs it, D-149)"
 	@echo "make sensor-image scan-base-image scan-image core-image  build the container images (CONTAINER=podman|docker); images-check builds and checks them by effect"
 	@echo "make honeypot-image  build the honeypot image (OpenCanary + Samba, D-162); make honeypot-check builds it and checks it by effect (opt-in)"
@@ -50,6 +53,7 @@ help:
 	@echo "make notices-check  THIRD_PARTY_NOTICES.md against the Go modules linked into the binaries and the web production dependencies; no GPL/AGPL (D-159)"
 	@echo "make install-artifacts [FAST=1] [TEST_VERSION=0.0.1-test.1]   the TEST release for install.sh --test-artifacts into dist/install (.deb, images, documents signed with throwaway keys; WP-08h, D-166); install-check runs install.sh end to end in systemd containers (opt-in)"
 	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f, D-164): print the cosign commands, build release-manifest.json + index.json (refuses rollback.safe=true unless rollback.min_version is set and every migration since that release, read from git, is add-only, D-183); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index), sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
+	@echo "make release-packs PACKS_VERSION=<n.n.n>   sign the confirmed mitigation packs of content/mitigation/packs with the release minisign key before the core image is built (D-345; MINISIGN_KEY, maintainer machine)"
 	@echo "make release-interop   the builder and the box's verifier against the real pinned minisign (downloads it into ~/.cache/vedette-minisign, checks deploy/tools.env)"
 	@echo "make host-deb VERSION=x.y.z [ARCH=amd64|arm64]   build dist/vedette-host_<version>_<arch>.deb with nfpm (WP-08g, D-155); host-deb-check installs it in systemd containers (opt-in, pulls images)"
 	@echo "make reaper-install cài bộ dọn tiến trình test/dev mồ côi (10 phút một lần)"
@@ -66,6 +70,10 @@ dev-api:
 # Cổng PR (D-62): chỉ phần đã đổi; file dùng chung đổi thì tự chuyển sang verify đầy đủ.
 check:
 	scripts/check.sh
+
+# Cổng trước khi push (D-370): gói đã đổi, không -race, không gói phụ thuộc, không Playwright; không cần khe việc nặng. CI là cổng merge.
+check-fast:
+	scripts/check-fast.sh
 
 verify: verify-web verify-go
 
@@ -128,13 +136,18 @@ test-go-release:
 	go test -race -tags releasetestkeys -run 'Pull|Embedded|CommittedVectors' ./modules/host/
 
 # CI (D-140): the same `go test -race ./...` in SHARDS parallel jobs. `make test-go-shard SHARD=2` runs the second.
-# scripts/ci splits `go list ./...` by test-file size; every package lands in exactly one shard.
+# scripts/ci splits `go list ./...` by the measured test time of scripts/ci/testtime.tsv (D-365); every package lands in
+# exactly one shard. The shard's packages may come from go test's cache, except those whose tests read files through a child
+# process (go build, go list), which the cache cannot see: they always run (`ci shard I N uncached`, D-365). GOTESTFLAGS adds go
+# test flags (CI's daily run: -count=2 -shuffle=on and a longer -timeout, uncached).
 # -timeout 18m (the job allows 20 m) is a stopgap: modules/response alone passes go test's default 10 m under -race on CI and turned
-# main red (2026-11-12). The real fix is fast response tests (branch fix/response-test-hang, target < 90 s); then drop the flag.
-SHARDS ?= 3
+# main red (2026-11-12). The real fix is fast response tests (branch fix/storetest-sync-off, target < 120 s); then lower it.
+SHARDS ?= 4
 test-go-shard:
 	@test -n "$(SHARD)" || { echo "usage: make test-go-shard SHARD=1 (of $(SHARDS))"; exit 2; }
-	go test -race -timeout 18m $$(go run ./scripts/ci shard $(SHARD) $(SHARDS))
+	@c=$$(go run ./scripts/ci shard $(SHARD) $(SHARDS) cached) && u=$$(go run ./scripts/ci shard $(SHARD) $(SHARDS) uncached) || exit 1; \
+	s=0; if [ -n "$$c" ]; then go test -race -timeout 18m $(GOTESTFLAGS) $$c || s=1; fi; \
+	if [ -n "$$u" ]; then go test -race -count=1 -timeout 18m $(GOTESTFLAGS) $$u || s=1; fi; exit $$s
 
 # The shards together must be exactly `go list ./...` (no package lost, none twice).
 test-go-shards-check:
@@ -144,6 +157,20 @@ test-go-shards-check:
 # CI change detection (D-140): prints go/web/vuln/audit switches (to $$GITHUB_OUTPUT when set) from GITHUB_EVENT_NAME and git diff HEAD^1..HEAD.
 ci-changes:
 	go run ./scripts/ci changes
+
+# The daily run's flaky issue (D-365), CI only (GH_TOKEN, GH_REPO): the failed go-test jobs' logs of this run become the list of
+# failed tests by package, added to the one open issue labelled flaky (or a new one).
+ci-flaky:
+	@test -n "$$GITHUB_RUN_ID" && test -n "$$GH_REPO" || { echo "ci-flaky runs in CI (GITHUB_RUN_ID, GH_REPO, GH_TOKEN)"; exit 2; }
+	@url="$$GITHUB_SERVER_URL/$$GH_REPO/actions/runs/$$GITHUB_RUN_ID"; \
+	jobs=$$(gh api "repos/$$GH_REPO/actions/runs/$$GITHUB_RUN_ID/jobs?per_page=100" --jq '.jobs[] | select(.conclusion != "success" and .conclusion != "skipped" and (.name | startswith("go-test"))) | .id') || exit 1; \
+	: > logs.txt; for j in $$jobs; do gh api "repos/$$GH_REPO/actions/jobs/$$j/logs" >> logs.txt || exit 1; done; \
+	go run ./scripts/ci flaky "$$url" < logs.txt > flaky.md || exit 1; rm -f logs.txt; \
+	[ -s flaky.md ] || echo "The daily run failed in go-test, but no failed test was found in its logs: $$url" > flaky.md; \
+	gh label create flaky --color d93f0b --description "A test failed in the daily -count=2 -shuffle=on run (D-365)" --force >/dev/null || exit 1; \
+	n=$$(gh issue list --label flaky --state open --json number --jq '.[0].number') || exit 1; \
+	if [ -n "$$n" ]; then gh issue comment "$$n" --body-file flaky.md; else gh issue create --title "Flaky tests (daily -count=2 -shuffle=on run)" --label flaky --body-file flaky.md; fi; \
+	s=$$?; rm -f flaky.md; exit $$s
 
 # Mỗi INV/POST trong modules/<id>/CONTRACT.md có một TestContract… (docs/MODULE_CONTRACTS.md).
 # Chưa có module Go nào thì bỏ qua thay vì lỗi "matched no packages".
@@ -221,8 +248,8 @@ webui-csp-check: webui-dist
 	$(MAKE) clean
 
 # The generated web/dist and internal/webui/dist are removed on every exit path (build-artifacts rule), a failed build included.
-core-image: webui-dist
-	$(CONTAINER) build -f deploy/containers/core/Containerfile $(PIN_ARGS) -t localhost/vedette-core:$(IMAGE_TAG) . || { rm -rf web/dist internal/webui/dist; exit 1; }
+core-image: webui-dist check-min-sequence
+	$(CONTAINER) build -f deploy/containers/core/Containerfile $(PIN_ARGS) --build-arg MIN_SEQUENCE=$(MIN_SEQUENCE) -t localhost/vedette-core:$(IMAGE_TAG) . || { rm -rf web/dist internal/webui/dist; exit 1; }
 	rm -rf web/dist internal/webui/dist
 
 # The safe template pack: pinned download of nuclei-templates, filter, index (scripts/scanpack). Rebuilt (the folder removed first) whenever pins.env or the builder changes.
@@ -237,15 +264,15 @@ $(PACK_DIR)/index.json: deploy/containers/pins.env $(wildcard scripts/scanpack/*
 # Multi-arch (WP-08d, D-158): one manifest list per image, every platform of PLATFORMS in it, local only (the push is the release job's, WP-08k).
 # The Go and download stages run on this machine ($BUILDPLATFORM) and the target stages only COPY, so arm64 needs no qemu/binfmt.
 # podman: `podman build --platform a,b --manifest`; docker: buildx writes an OCI archive to dist/images/ (the classic image store holds no
-# manifest list) and a single platform is loaded with --load. $(1) = image name, $(2) = Containerfile.
+# manifest list) and a single platform is loaded with --load. $(1) = image name, $(2) = Containerfile, $(3) = extra build arguments.
 ifeq ($(CONTAINER),docker)
-MULTI = { mkdir -p dist/images && docker buildx build --platform $(PLATFORMS) $(if $(findstring $(comma),$(PLATFORMS)),--output type=oci$(comma)dest=dist/images/vedette-$(1)-$(IMAGE_TAG).tar,--load -t localhost/vedette-$(1):$(IMAGE_TAG)) -f $(2) $(PIN_ARGS) .; }
+MULTI = { mkdir -p dist/images && docker buildx build --platform $(PLATFORMS) $(if $(findstring $(comma),$(PLATFORMS)),--output type=oci$(comma)dest=dist/images/vedette-$(1)-$(IMAGE_TAG).tar,--load -t localhost/vedette-$(1):$(IMAGE_TAG)) -f $(2) $(PIN_ARGS) $(3) .; }
 else
-MULTI = { $(CONTAINER) rmi -f localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&1 || true; $(CONTAINER) build --platform $(PLATFORMS) --manifest localhost/vedette-$(1):$(IMAGE_TAG) -f $(2) $(PIN_ARGS) .; }
+MULTI = { $(CONTAINER) rmi -f localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&1 || true; $(CONTAINER) build --platform $(PLATFORMS) --manifest localhost/vedette-$(1):$(IMAGE_TAG) -f $(2) $(PIN_ARGS) $(3) .; }
 endif
 comma := ,
-images: webui-dist scan-pack
-	$(call MULTI,sensor,deploy/containers/sensor/Containerfile) && $(call MULTI,scan-base,deploy/containers/scan-base/Containerfile) && $(call MULTI,core,deploy/containers/core/Containerfile) && $(call MULTI,honeypot,deploy/containers/honeypot/Containerfile) || { rm -rf web/dist internal/webui/dist; exit 1; }
+images: webui-dist scan-pack check-min-sequence
+	$(call MULTI,sensor,deploy/containers/sensor/Containerfile) && $(call MULTI,scan-base,deploy/containers/scan-base/Containerfile) && $(call MULTI,core,deploy/containers/core/Containerfile,--build-arg MIN_SEQUENCE=$(MIN_SEQUENCE)) && $(call MULTI,honeypot,deploy/containers/honeypot/Containerfile) || { rm -rf web/dist internal/webui/dist; exit 1; }
 	rm -rf web/dist internal/webui/dist
 
 # The honeypot image (WP-08e, D-162): OpenCanary + Samba. Needs the network at build time (apt, PyPI). Its effects are checked by `make honeypot-check`.
@@ -328,6 +355,13 @@ dev-sensors-down:
 dev-sensors-smoke: scan-pack
 	scripts/dev/sensors-smoke.sh
 
+# The container-only install (WP-08m, D-168) the way docs/INSTALL-CONTAINER.md tells a customer, on Docker and on Podman: builds the three images
+# locally, checks by effect (ports, key owner and mode, uid and capabilities), tears down. Slow, opt-in, not in check or CI. Run it as
+# `~/vedette-wt/heavy make container-only-smoke`; SMOKE_RUNTIMES="docker" or "podman" picks one. The scan pack folder is a build output: removed after.
+.PHONY: container-only-smoke
+container-only-smoke:
+	scripts/dev/container-only-smoke.sh; rc=$$?; rm -rf $(PACK_DIR); exit $$rc
+
 # ---- install.sh (WP-08h, D-166) ----------------------------------------------------------------------------------------------
 # install-artifacts: the TEST release for `install.sh --test-artifacts DIR`, signed with throwaway keys made on the spot (the real keys and
 # images do not exist before WP-08k). The folder dist/install is the product (copy it to the box); the work folder and the local images
@@ -359,7 +393,7 @@ install-check:
 #   COSIGN_KEY / MINISIGN_KEY  paths of the private key files (outside the repo, mode 600); passphrases are never arguments:
 #                  cosign reads COSIGN_PASSWORD from your shell, minisign asks on the terminal (PASSPHRASE_STDIN=1 reads one line of stdin)
 #   MINISIGN_BIN   a minisign you trust (default: the pinned one, fetched by scripts/release/minisign.sh)
-.PHONY: release-cosign-plan release-manifest release-refresh release-sign release-verify release-interop
+.PHONY: release-cosign-plan release-manifest release-refresh release-sign release-verify release-interop release-packs
 RELEASE_OUT := dist/release
 RELEASE_IN ?= release.in.json
 RELEASE_PREV_INDEX ?=
@@ -389,6 +423,13 @@ release-sign:
 release-verify:
 	$(RELEASE_GO) verify -dir $(RELEASE_OUT) $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(RELEASE_KEYS_ARG)
 	@if [ "$(RELEASE)" != 1 ]; then rm -rf $(RELEASE_OUT); rmdir dist 2>/dev/null || true; fi
+
+# The confirmed mitigation packs that ship in the core image (D-345): signed before the image is built, on the maintainer's machine.
+# PACKS_VERSION: dotted numbers newer than content/mitigation/packs/VERSION. The result (VERSION, packs.list, packs.minisig) is committed.
+release-packs:
+	@test -n "$$MINISIGN_KEY" || { echo "release-packs: set MINISIGN_KEY to the path of the minisign secret key (outside the repo)" >&2; exit 1; }
+	@test -n "$(PACKS_VERSION)" || { echo "release-packs: set PACKS_VERSION (dotted numbers, such as 2026.12.2.1)" >&2; exit 1; }
+	$(RELEASE_GO) packs -dir content/mitigation/packs -version "$(PACKS_VERSION)" -key "$$MINISIGN_KEY" -minisign "$${MINISIGN_BIN:-$$(scripts/release/minisign.sh)}" $(RELEASE_KEYS_ARG) $(if $(PASSPHRASE_STDIN),-passphrase-stdin)
 
 # The builder and the verifier against the real, pinned minisign (fails when the tool is missing, unlike `go test`, which skips).
 release-interop:

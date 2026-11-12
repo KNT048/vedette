@@ -16,6 +16,7 @@ import (
 	"net/netip"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -563,39 +564,70 @@ func TestSiemRecordsFromEventsAreClean(t *testing.T) {
 	}
 }
 
-// A SIEM that never answers must not slow the bus or the module that publishes, and must not make the queue grow.
+// A SIEM that never answers must not slow the bus or the module that publishes, and must not make the queue grow. Time is the bubble's:
+// the sender sits in its first send for the whole test, and every publish returns while it does without any bubble time passing (a
+// publish that waited on the sender would let the clock run, or leave the bubble deadlocked), whatever the load of the machine.
 func TestSiemSlowDestinationNeverSlowsThePublisher(t *testing.T) {
-	e := newSiemEnv(t)
-	bus := events.NewBus(slog.New(slog.DiscardHandler))
-	e.svc.Subscribe(bus)
-	e.saveSiem(syslogInput("192.168.10.50", 514, "tcp"))
-	block := make(chan struct{})
-	e.svc.siemSendFn = func(ctx context.Context, _ siemRow, _ []siemRecord) (string, error) {
-		select {
-		case <-block:
-		case <-ctx.Done():
+	synctest.Test(t, func(t *testing.T) {
+		e := newSiemEnv(t)
+		bus := events.NewBus(slog.New(slog.DiscardHandler))
+		e.svc.Subscribe(bus)
+		e.saveSiem(syslogInput("192.168.10.50", 514, "tcp"))
+		block := make(chan struct{})
+		var sends atomic.Int32
+		e.svc.siemSendFn = func(ctx context.Context, _ siemRow, _ []siemRecord) (string, error) {
+			sends.Add(1)
+			select {
+			case <-block:
+			case <-ctx.Done():
+			}
+			return "", errors.New("down")
 		}
-		return "", errors.New("down")
-	}
-	ctx, cancel := context.WithCancel(t.Context())
-	done := make(chan struct{})
-	go func() { _ = e.svc.runSiem(ctx); close(done) }()
-	defer func() { cancel(); close(block); <-done }()
-	waitFor(t, func() bool { return e.svc.siemCache.Load() != nil })
-	start := time.Now()
-	for i := range 20000 {
-		publish(t, bus, siemEventHoneypot, map[string]any{"id": fmt.Sprint(i), "service": "ssh"})
-	}
-	if d := time.Since(start); d > 5*time.Second {
-		t.Fatalf("20,000 events took %v with the SIEM blocked", d)
-	}
-	recs, _ := e.svc.siemQ.peek(SiemQueueMax + 10)
-	if len(recs) > SiemQueueMax || e.svc.siemQ.droppedCount() < 20000-SiemQueueMax-siemBatch {
-		t.Fatalf("queue %d, dropped %d", len(recs), e.svc.siemQ.droppedCount())
-	}
-	if recs[len(recs)-1].Fields[0].Val != "19999" { // the newest is kept
-		t.Fatalf("newest record lost: %v", recs[len(recs)-1].Fields)
-	}
+		ctx, cancel := context.WithCancel(t.Context())
+		done := make(chan struct{})
+		go func() { _ = e.svc.runSiem(ctx); close(done) }()
+		defer func() { cancel(); close(block); <-done }()
+		synctest.Wait()
+		if e.svc.siemCache.Load() == nil {
+			t.Fatal("the forwarder did not load the configuration")
+		}
+		publish(t, bus, siemEventHoneypot, map[string]any{"id": "first", "service": "ssh"})
+		synctest.Wait() // the forwarder took the record and is blocked in the send
+		if n := sends.Load(); n != 1 {
+			t.Fatalf("sends before the burst = %d, want 1 (blocked)", n)
+		}
+		// The burst runs in a goroutine of its own, so a publish that waits on the blocked sender fails here after an hour of bubble
+		// time (the other goroutines' timers let the clock run) instead of hanging the test.
+		published := make(chan time.Duration, 1)
+		go func() {
+			start := time.Now()
+			for i := range 20000 {
+				if err := bus.Publish(t.Context(), events.Event{Name: siemEventHoneypot, Data: map[string]any{"id": fmt.Sprint(i), "service": "ssh"}}); err != nil {
+					t.Error(err) // not Fatal: this is not the test's goroutine
+					break
+				}
+			}
+			published <- time.Since(start)
+		}()
+		select {
+		case d := <-published:
+			if d != 0 {
+				t.Fatalf("the publishes waited %v of bubble time with the SIEM blocked", d)
+			}
+		case <-time.After(time.Hour):
+			t.Fatal("a publish waited on the blocked SIEM")
+		}
+		if n := sends.Load(); n != 1 {
+			t.Fatalf("sends = %d: the first send was supposed to be still blocked", n)
+		}
+		recs, _ := e.svc.siemQ.peek(SiemQueueMax + 10)
+		if len(recs) != SiemQueueMax || e.svc.siemQ.droppedCount() != 20001-SiemQueueMax { // the oldest go, the count says how many
+			t.Fatalf("queue %d, dropped %d", len(recs), e.svc.siemQ.droppedCount())
+		}
+		if recs[0].Fields[0].Val != fmt.Sprint(20000-SiemQueueMax) || recs[len(recs)-1].Fields[0].Val != "19999" { // the newest are kept
+			t.Fatalf("queue holds %v .. %v", recs[0].Fields, recs[len(recs)-1].Fields)
+		}
+	})
 }
 
 // Retry with a growing wait, then success; the records are not lost while the SIEM is down. Time is the bubble's.

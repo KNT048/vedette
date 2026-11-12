@@ -183,7 +183,7 @@ function Meter({ query }: { query: { data: Usage | undefined; error: unknown; is
 function RunLog() {
   const { t } = useTranslation('ai')
   const runs = useRuns()
-  const statusTone = { ok: 'ok', schema_error: 'warn', capped: 'warn' } as const
+  const statusTone = { ok: 'ok', schema_error: 'warn', capped: 'warn', failed: 'danger' } as const
   const num = ({ getValue }: { getValue: () => unknown }) => fmtNumber(getValue() as number)
   return (
     <Section title={t('runs.title')} description={t('runs.description')} stories={['S-AI-4']}>

@@ -14,16 +14,17 @@ import (
 // support is the static table of supported releases and their end dates (D-57 (1): Ubuntu
 // 24.04 and 26.04 LTS, Debian 13). Dates are the end of standard security support and of the
 // extended program (Ubuntu Pro ESM, Debian LTS). A new release means a new host version (spec 6.1).
-// ponytail: dates written from the distributions' published schedules; check them against the
-// vendor pages before a release (deferred), and extend the table by hand when a release appears.
+// Exact days from distro-info-data 2026.10.12 (/usr/share/distro-info/{ubuntu,debian}.csv, the data Ubuntu's and Debian's own tools
+// read: columns eol-server/eol-esm and eol/eol-lts), checked 2026-11-11; they agree with https://ubuntu.com/about/release-cycle (months
+// only) and https://www.debian.org/releases/trixie/. Extend the table by hand when a release appears.
 type support struct {
 	End      string
 	Extended string
 }
 
 var supportTable = map[string]support{
-	"ubuntu/24.04": {End: "2029-05-31", Extended: "2034-04-30"},
-	"ubuntu/26.04": {End: "2031-04-30", Extended: "2036-04-30"},
+	"ubuntu/24.04": {End: "2029-05-31", Extended: "2034-04-25"},
+	"ubuntu/26.04": {End: "2031-05-29", Extended: "2036-04-23"},
 	"debian/13":    {End: "2028-08-09", Extended: "2030-06-30"},
 }
 

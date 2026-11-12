@@ -72,7 +72,7 @@ export const customHooksStore = collection<CustomHook[]>('ai_hooks', () => [
   { id: 'hk-2', name: 'No firewall admin changes in chat', when: 'before_ai', match: { type: 'keywords', pattern: 'delete policy, factory reset, disable firewall' }, action: 'block', message: 'The AI does not take part in firewall changes from chat. Use a response action that a person approves.', enabled: true },
 ], () => [])
 export const BUILTIN_HOOKS: Omit<BuiltinHook, 'enabled'>[] = [
-  { id: 'block-pii', name: 'Block personal data', description: 'Masks email addresses, phone numbers and names written next to an account, and refuses text that contains an ID number.', locked: false },
+  { id: 'block-pii', name: 'Block personal data', description: 'Masks email addresses, phone numbers, names written next to an account and device secrets (passwords, password hashes, SNMP communities, pre-shared keys, private keys), and refuses text that contains an ID number.', locked: false },
   { id: 'security-only', name: 'Security work only', description: "Refuses tasks that are not about this box's security job, for example writing a poem.", locked: false },
   { id: 'write-approval', name: 'Write tools need approval', description: 'A tool that changes something runs only through an action a person approves in the AI response module, never from a chat answer.', locked: true },
 ]

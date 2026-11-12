@@ -183,6 +183,39 @@ func jsonQuote(s string) string {
 	return b.String()
 }
 
+func deref(p *string) string {
+	if p == nil {
+		return "<nil>"
+	}
+	return *p
+}
+
+// lanAddr is a private address this machine does not hold. The guard refuses the box's own interface addresses (D-208) whether the
+// host has answered or not, and a CI runner's eth0 is itself a 10.x address: a fixed LAN address can be the runner, and its pull is
+// then refused as the box, not left waiting.
+func lanAddr(t *testing.T) string {
+	t.Helper()
+	ifs, err := net.InterfaceAddrs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	held := map[netip.Addr]bool{}
+	for _, a := range ifs {
+		if p, ok := a.(*net.IPNet); ok {
+			if ip, ok := netip.AddrFromSlice(p.IP); ok {
+				held[ip.Unmap()] = true
+			}
+		}
+	}
+	for _, c := range []string{"192.168.213.7", "172.30.213.7", "10.213.7.9"} {
+		if !held[netip.MustParseAddr(c)] {
+			return c
+		}
+	}
+	t.Fatal("this machine holds every candidate LAN address")
+	return ""
+}
+
 func TestD208_ColdStartPullsPublicFeedsAndWaitsForLANOnes(t *testing.T) {
 	t.Parallel()
 	plain, plainHits := countingServer(t, false)
@@ -191,7 +224,7 @@ func TestD208_ColdStartPullsPublicFeedsAndWaitsForLANOnes(t *testing.T) {
 	defer tlsSrv.Close()
 	hostPort := func(s *httptest.Server) string { return "127.0.0.1:" + portOf(t, s.URL) }
 	var calls atomic.Int32
-	c := newClient(5*time.Second, fixedResolver(&calls, map[string][]string{"example.com": {"8.8.8.8"}, "intranet.lan": {"10.1.1.1"}}))
+	c := newClient(5*time.Second, fixedResolver(&calls, map[string][]string{"example.com": {"8.8.8.8"}, "intranet.lan": {lanAddr(t)}}))
 	c.Transport.(*http.Transport).TLSClientConfig = tlsSrv.Client().Transport.(*http.Transport).TLSClientConfig.Clone()
 	var known atomic.Bool
 	f := Fetcher{Client: c, Version: "test",
@@ -215,14 +248,14 @@ func TestD208_ColdStartPullsPublicFeedsAndWaitsForLANOnes(t *testing.T) {
 		t.Errorf("the public feed was not pulled: hits %d, %+v", tlsHits.Load(), e.feed("tor-exit"))
 	}
 	if lan := e.feed("et-open"); plainHits.Load() != 0 || lan.Failures != 0 || lan.Status == "error" || lan.Error != nil {
-		t.Errorf("the LAN feed while unknown: hits %d, %+v", plainHits.Load(), lan)
+		t.Errorf("the LAN feed while unknown: hits %d, %+v, error %v", plainHits.Load(), lan, deref(lan.Error))
 	}
 	known.Store(true)
 	if err := e.svc.RunPull(t.Context()); err != nil { // the unknown pull left the feed due: no back-off to wait out
 		t.Fatal(err)
 	}
 	if plainHits.Load() != 1 || e.feed("et-open").Status != "ok" {
-		t.Errorf("the LAN feed once known: hits %d, %+v", plainHits.Load(), e.feed("et-open"))
+		t.Errorf("the LAN feed once known: hits %d, %+v, error %v", plainHits.Load(), e.feed("et-open"), deref(e.feed("et-open").Error))
 	}
 }
 

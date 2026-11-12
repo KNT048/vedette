@@ -407,7 +407,7 @@ func TestContract_OSCheck_ArgvEnvResultAndDurableSnapshot(t *testing.T) {
 	if st.OS.Distro != "ubuntu" || st.OS.Name != "Ubuntu 24.04.3 LTS" || st.OS.Release != "24.04" || st.OS.Kernel != "6.8.0-45-generic" {
 		t.Errorf("os = %+v", st.OS)
 	}
-	if st.OS.SupportEnd != "2029-05-31" || st.OS.ExtendedEnd == nil || *st.OS.ExtendedEnd != "2034-04-30" {
+	if st.OS.SupportEnd != "2029-05-31" || st.OS.ExtendedEnd == nil || *st.OS.ExtendedEnd != "2034-04-25" {
 		t.Errorf("support = %s / %v", st.OS.SupportEnd, st.OS.ExtendedEnd)
 	}
 	if !st.LastCheck.Equal(now) || !st.OS.LastCheck.Equal(now) || !st.OS.BootedAt.Equal(time.Date(2026, 11, 9, 10, 59, 59, 0, time.UTC)) {

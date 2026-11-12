@@ -23,7 +23,7 @@ Còn lại của tài liệu này mô tả kênh dữ liệu/nội dung/advisory
 | Kênh | Nội dung | Chu kỳ | Cơ chế | Rollback |
 |---|---|---|---|---|
 | **1. Dữ liệu** | `feeds/*` (vuln, hot, ioc, slug) | 30–60 phút | `index.json` ký; ETag; delta | giữ bản trước; `revoked[]` rút file xấu |
-| **2. Gói nội dung** | skill, mitigation pack, nuclei subset, recog DB, parser log, rule pack, template câu tiếng Việt | ngày | `content-packs/<name>-<semver>.tar.zst` ký; manifest liệt kê file + sha256 | N-1 giữ; chuyển về 1 bấm |
+| **2. Gói nội dung** (gói giảm thiểu: đi trong image `core` ký, D-36, D-345) | skill, mitigation pack, nuclei subset, recog DB, parser log, rule pack, template câu tiếng Việt | ngày | `content-packs/<name>-<semver>.tar.zst` ký; manifest liệt kê file + sha256 | N-1 giữ; chuyển về 1 bấm |
 | **3. Phần mềm** (D-55) | image OCI `core`/`sensor`/`honeypot`/`scan` (SPA nhúng trong `core`); ~~binary + A/B slot~~ | theo phát hành; kênh `stable`/`beta` | `release.json` ký minisign; kéo image theo digest, cosign bắt buộc; thay container, health gate; fail → về digest trước | tag/digest cũ (giữ 1 đời); nút Rollback; xem §0 |
 | **4. Advisory sản phẩm** | lỗ hổng của chính Vedette, dependency | khi có | `security.json` trong index; UI banner; mail/Telegram cho admin | — |
 

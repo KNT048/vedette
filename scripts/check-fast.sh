@@ -23,6 +23,7 @@ if has "$go_paths"; then
 	ran=1
 	echo "check-fast: Go"
 	go build ./...
+	go vet ./... # every package: build skips _test.go files, and another package's tests may use what changed (cached, cheap)
 	# The packages with a changed file (migrations, testdata, queries and the API spec count for their package tree).
 	dirs=$( {
 		printf '%s\n' "$changed" | grep '\.go$' | xargs -n1 dirname 2>/dev/null
@@ -36,12 +37,11 @@ if has "$go_paths"; then
 		make generate-check
 	fi
 	if [ -n "$pkgs" ]; then
-		# shellcheck disable=SC2086 # word splitting of the package list is intended
-		go vet $pkgs
-		# Only issues on lines this branch changed; the whole set of linters, as CI runs them.
+		# Only issues on lines this branch changed; the whole set of linters, as CI runs them (CI lints the whole repository).
 		# golangci-lint takes directories, not import paths.
-		# shellcheck disable=SC2086
-		pdirs=$(go list -f '{{.Dir}}' $pkgs | sed "s#^$PWD#.#")
+		pdirs=""
+		# shellcheck disable=SC2086 # word splitting of the package list is intended
+		for d in $(go list -f '{{.Dir}}' $pkgs); do pdirs="$pdirs ./${d#"$PWD"/}"; done
 		# shellcheck disable=SC2086
 		go tool -modfile=tools/go.mod golangci-lint run --new-from-rev="$base" $pdirs
 		# The changed packages' own tests, contract tests included (TestContract…), without -race: CI runs -race on every package.
@@ -50,6 +50,10 @@ if has "$go_paths"; then
 	fi
 	if has '^(internal/release|modules/host|scripts/release)/'; then
 		go test -tags releasetestkeys ./internal/release/... # the throwaway release keys (keys_testonly.go)
+		go test -tags releasetestkeys -run 'Pull|Embedded|CommittedVectors' ./modules/host/ # the host's real-vector test needs them too
+	fi
+	if has '^(modules|core)/'; then
+		make contract # every module's TestContract…: a core change can break another module's invariant
 	fi
 fi
 
@@ -64,6 +68,11 @@ if has '^web/'; then
 	if has '^web/src/features/[^/]+/contract\.ts$|^web/scripts/openapi'; then
 		make openapi-check
 	fi
+fi
+
+if has '^scripts/dev/'; then
+	ran=1
+	bash scripts/dev/orphan-reaper-test.sh
 fi
 
 if [ "$ran" = 0 ]; then

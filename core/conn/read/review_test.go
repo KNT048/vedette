@@ -1,6 +1,7 @@
 package read_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/knt048/vedette/core/conn"
@@ -360,21 +362,73 @@ func TestListReadTools_BudgetAndCache(t *testing.T) {
 	if inits(f1) != a1 || inits(f2) != a2 {
 		t.Errorf("the servers were asked again within the cache time: %d %d", inits(f1)-a1, inits(f2)-a2)
 	}
-	// Two servers hang: the listing ends within its budget, with what answered.
+	// Two servers hang: the listing keeps what answered. When it ends is the test's to choose (a cancel once f1 has given its tools and
+	// the two others are stuck), not a wall-clock budget that a starved runner can spend before f1 answers (CI listed nothing in 2 s).
 	release := make(chan struct{})
 	t.Cleanup(func() { close(release) })
 	f2.Hang(release, "")
 	f3.Hang(release, "")
+	closes := func(f *conntest.MCP) (n int) {
+		for _, mc := range f.Calls() {
+			if mc.HTTPMethod == http.MethodDelete {
+				n++
+			}
+		}
+		return n
+	}
+	c1Closes, b2, b3 := closes(f1), inits(f2), inits(f3)
 	r.r.FlushCacheForTest()
-	r.r.SetListBudgetForTest(2 * time.Second) // the answering server must fit in it on a loaded CI runner (500 ms listed nothing there)
-	start := time.Now()
-	got := r.list()
-	if d := time.Since(start); d > 4*time.Second {
-		t.Errorf("a listing with two hanging servers took %s", d)
+	r.r.SetListBudgetForTest(time.Hour)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	listed := make(chan []read.ReadTool, 1)
+	list := func(ctx context.Context) {
+		l, err := r.r.ListReadTools(ctx)
+		if err != nil {
+			t.Error(err)
+		}
+		listed <- l
 	}
-	if len(got) != 1 || got[0].ConnectionID != c1.ID {
-		t.Errorf("listed %v", toolNames(got))
+	go list(ctx)
+	// f1's session is closed only after its tools were read (a deferred close); a hanging server records its initialize, then hangs.
+	waitUntil(t, "f1 to answer and f2, f3 to hang", func() bool { return closes(f1) > c1Closes && inits(f2) > b2 && inits(f3) > b3 })
+	cancel()
+	if got := receive(t, listed); len(got) != 1 || got[0].ConnectionID != c1.ID {
+		t.Errorf("listed %v, want the one server that answered", toolNames(got))
 	}
+	// The budget alone ends a listing whose servers hang: without it the listing would wait for release, which comes only at cleanup.
+	r.r.FlushCacheForTest()
+	r.r.SetListBudgetForTest(200 * time.Millisecond)
+	go list(t.Context())
+	for _, tl := range receive(t, listed) {
+		if tl.ConnectionID != c1.ID {
+			t.Errorf("a hanging server was listed: %s", tl.ConnectionName)
+		}
+	}
+}
+
+// waitUntil polls cond until it holds. A condition that never comes fails the test after a minute: a bound for a starved machine, never
+// reached when all is well.
+func waitUntil(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	for deadline := time.Now().Add(time.Minute); !cond(); pause(5 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+	}
+}
+
+// receive takes one value from ch; a value that never comes fails the test after a minute.
+func receive[T any](t *testing.T, ch <-chan T) T {
+	t.Helper()
+	select {
+	case v := <-ch:
+		return v
+	case <-time.After(time.Minute):
+		t.Fatal("no answer within a minute")
+	}
+	var zero T
+	return zero
 }
 
 // M4: a listing does not wait for the connection's turn, and a call does not wait for a listing.
@@ -519,7 +573,27 @@ func TestCallRead_RateCapPerConnection(t *testing.T) {
 	}
 }
 
-// L3: closing a session is inside the budget of the call (with a floor of one second).
+// L3: closing a session gets what is left of the call's budget, and at least a floor of one second. The rule is checked on the fake
+// clock of a synctest bubble, where what is left is exact.
+func TestCloseTimeIsWhatIsLeftOfTheBudget(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		if got := read.CloseTimeForTest(t.Context()); got != time.Second {
+			t.Errorf("no budget: close time %s, want the floor", got)
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+		for _, step := range []struct{ wait, want time.Duration }{{0, 5 * time.Second}, {3 * time.Second, 2 * time.Second}, {1500 * time.Millisecond, time.Second}, {time.Second, time.Second}} {
+			<-time.After(step.wait)
+			if got := read.CloseTimeForTest(ctx); got != step.want {
+				dl, _ := ctx.Deadline()
+				t.Errorf("%s left of the budget: close time %s, want %s", time.Until(dl), got, step.want)
+			}
+		}
+	})
+}
+
+// L3, end to end: a server that never answers the close neither fails the call nor holds it. The call keeps its whole budget: with the
+// 400 ms this test once gave it, a starved runner could not fit the call itself, and it timed out before the close was reached.
 func TestCallRead_CloseIsInsideTheBudget(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
@@ -528,13 +602,18 @@ func TestCallRead_CloseIsInsideTheBudget(t *testing.T) {
 	release := make(chan struct{})
 	t.Cleanup(func() { close(release) })
 	f.Hang(release, "DELETE")
-	r.r.SetBudgetForTest(400 * time.Millisecond)
-	start := time.Now()
-	if _, err := r.call(c, "list_resources", nil); err != nil {
-		t.Fatal(err)
+	type result struct {
+		out string
+		err error
 	}
-	if d := time.Since(start); d > 3*time.Second {
-		t.Errorf("a call with a server that does not answer the close took %s", d)
+	done := make(chan result, 1)
+	start := time.Now()
+	go func() { out, err := r.call(c, "list_resources", nil); done <- result{out, err} }()
+	if got := receive(t, done); got.err != nil || got.out == "" {
+		t.Fatalf("got %q, %v", got.out, got.err)
+	}
+	if d := time.Since(start); d > read.CallBudget+time.Second {
+		t.Errorf("a call with a server that does not answer the close took %s, more than its budget and the floor", d)
 	}
 }
 

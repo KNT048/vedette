@@ -1,6 +1,12 @@
 package read
 
-import "time"
+import (
+	"context"
+	"time"
+)
+
+// CloseTimeForTest is how long the close of a session under ctx may take.
+func CloseTimeForTest(ctx context.Context) time.Duration { return closeTime(ctx) }
 
 // SetBudgetForTest shortens the time of a call.
 func (r *Reader) SetBudgetForTest(d time.Duration) { r.budget = d }

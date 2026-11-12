@@ -215,3 +215,21 @@ func FuzzCheckValueThenFill(f *testing.F) {
 		}
 	})
 }
+
+// D-390: a rule stored before the range check (confidence at most -3 matched every event) matches nothing until it is saved again.
+func TestStoredRuleWithAValueOutOfRangeMatchesNothing(t *testing.T) {
+	t.Parallel()
+	s := &Service{}
+	if err := s.loadData(); err != nil {
+		t.Fatal(err)
+	}
+	rule := func(c Condition) RuleInput { return RuleInput{Trigger: "ioc_connection", Conditions: []Condition{c}} }
+	if !s.storedCondsOK(rule(Condition{Field: "confidence", Op: "gte", Value: "0.8"})) {
+		t.Error("a condition inside the range was refused")
+	}
+	for _, c := range []Condition{{Field: "confidence", Op: "lte", Value: "-3"}, {Field: "confidence", Op: "gte", Value: "NaN"}, {Field: "dest_kind", Op: "eq", Value: "ipv4"}, {Field: "gone", Op: "eq", Value: "x"}} {
+		if s.storedCondsOK(rule(c)) {
+			t.Errorf("%+v: a stored condition the save check refuses still matches", c)
+		}
+	}
+}

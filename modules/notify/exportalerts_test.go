@@ -13,7 +13,9 @@ import (
 func TestExportAlertsIsTheDeliveryLogByDateRangeWithoutTokens(t *testing.T) {
 	e := newEnv(t)
 	tok := strings.Join([]string{"tok", "approve", "c4e91a"}, "-")
-	at := func(h int) string { return "2026-11-09T" + strings.Repeat("0", 2-len(itoa(h))) + itoa(h) + ":00:00.000Z" }
+	at := func(h int) string {
+		return "2026-11-09T" + strings.Repeat("0", 2-len(itoa(h))) + itoa(h) + ":00:00.000Z"
+	}
 	e.write(func(tx *sql.Tx) error {
 		for _, r := range []struct{ id, kind, to, link string }{
 			{"s-3", "approval", "email", "/response"},

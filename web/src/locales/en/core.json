@@ -1767,7 +1767,7 @@
       "label": "Back up (in the folder of compose.yaml)",
       "keep": "vedette-data.tgz holds the key: keep it as safe as a password. If you run the sensors, back up the creds-passive and creds-active volumes the same way.",
       "restoreLabel": "Restore into a fresh volume",
-      "podmanNote": "On a machine with SELinux (Fedora, RHEL), add :Z to the \"$PWD\":/backup mount of both commands."
+      "podmanNote": "On a machine with SELinux (Fedora, RHEL), add :Z to the \"$PWD\":/backup mount of the backup command and :ro,Z to the same mount of the restore command."
     },
     "network": {
       "meta": "This is a container-only install: the network of this machine is yours to set up.",

@@ -107,7 +107,7 @@ type Rule struct {
 	ConnRefuse string              `json:"conn_refuse,omitempty"`
 	// ConnBlocked (kv): the connection of a line was stopped by the device that logged it (the line records an attempt) only when each key
 	// listed is written once and holds one of the values (FortiGate: action deny, dropped, blocked, block, reset). A line it does not settle
-	// is not blocked: "connected" is said unless the format says otherwise, never guessed (D-384).
+	// is not blocked: "connected" is said unless the format says otherwise, never guessed (D-227).
 	ConnBlocked map[string][]string `json:"conn_blocked,omitempty"`
 }
 

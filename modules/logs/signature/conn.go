@@ -29,7 +29,7 @@ const MaxDests = 2
 type Dest struct{ Kind, Value string }
 
 // Conn is a connection a line is about: a LAN device (private IPv4) and where it went. The zero Conn (Local not valid) is no connection.
-// Blocked says that the device that logged it stopped it (the profile's conn_blocked, D-384): the line records an attempt. False when the
+// Blocked says that the device that logged it stopped it (the profile's conn_blocked, D-227): the line records an attempt. False when the
 // format does not say so, which is read as a connection that went through.
 type Conn struct {
 	Local   netip.Addr

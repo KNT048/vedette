@@ -78,7 +78,7 @@ type IocHit struct {
 	// Confidence is the highest confidence of the feeds that list the destination, between 0 and 1.
 	Confidence float64 `json:"confidence"`
 	// Blocked says that the device that logged the line stopped the connection (an attempt: a FortiGate deny, a blocked web-filter
-	// request; the profile's conn_blocked, D-384). False when the line does not say so.
+	// request; the profile's conn_blocked, D-227). False when the line does not say so.
 	Blocked bool `json:"blocked"`
 }
 
@@ -177,7 +177,7 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 }
 
 // recentHitSQL finds a stored hit of a pair newer than a cutoff that makes a new one a repeat: any hit for a blocked attempt, only a hit
-// that went through for a connection that went through (a blocked attempt must not hide, for 24 hours, the connection that follows it; D-384).
+// that went through for a connection that went through (a blocked attempt must not hide, for 24 hours, the connection that follows it; D-227).
 const recentHitSQL = `SELECT 1 FROM logs_ioc_hits WHERE src_ip = ? AND dest = ? AND ts > ? AND (? OR blocked = 0) LIMIT 1`
 
 // hasRecentHit says whether the pair has a stored hit newer than cutoff that makes it a repeat (a read on the reader pool, the index
@@ -339,7 +339,7 @@ func (r iocRow) hit(devices map[string]Device) IocHit {
 }
 
 // badAddressEvent is the event notify and the SIEM forwarder read. A blocked attempt (h.Blocked) is said as one: "tried to reach … (blocked
-// by <the device that logged it>)", never "connected to" (D-384).
+// by <the device that logged it>)", never "connected to" (D-227).
 func badAddressEvent(h IocHit) BadAddressEvent {
 	who := h.SrcIP
 	devices := []DeviceInfo{}

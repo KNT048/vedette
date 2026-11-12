@@ -415,7 +415,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(within(table).getAllByRole('link', { name: /^Look up / }).map((a) => a.textContent)).toEqual(['Look up 203.0.113.50', 'Look up 203.0.113.51'])
     const nas = assetsStore.get().find((a) => a.ip === '192.168.10.20')!
     expect(within(table).getAllByRole('link', { name: nas.hostname! })).toHaveLength(2)
-    // D-384: a line the firewall blocked is an attempt, marked Blocked; the one that went through is not
+    // D-227: a line the firewall blocked is an attempt, marked Blocked; the one that went through is not
     const [newest, older] = within(table).getAllByRole('row').slice(1)
     expect(within(older!).getByText('Blocked')).toBeInTheDocument()
     expect(within(newest!).queryByText('Blocked')).not.toBeInTheDocument()

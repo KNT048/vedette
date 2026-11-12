@@ -852,7 +852,7 @@ func TestIOCEventLinesMakeNoHit(t *testing.T) {
 	}
 }
 
-// D-384: a line the device blocked (FortiGate action deny/blocked/…) is said as an attempt, "tried to reach … (blocked by <source>)", and
+// D-227: a line the device blocked (FortiGate action deny/blocked/…) is said as an attempt, "tried to reach … (blocked by <source>)", and
 // kept as blocked for the page; a line that went through says "connected to"; a blocked attempt does not hide, for 24 hours, the
 // connection of the same pair that follows it.
 func TestIOCBlockedLineIsAnAttempt(t *testing.T) {

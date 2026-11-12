@@ -119,7 +119,7 @@ func (s *Service) tally(kinds map[string]string, senders map[string]netip.Addr, 
 				k := connKey{c.Local, d.Kind, d.Value}
 				if o := b.conns[k]; o.source == "" {
 					b.conns[k] = connObs{l.SourceID, l.At, c.Blocked}
-				} else if o.blocked && !c.Blocked { // one line of the batch that went through makes the pair a connection (D-384)
+				} else if o.blocked && !c.Blocked { // one line of the batch that went through makes the pair a connection (D-227)
 					o.blocked = false
 					b.conns[k] = o
 				}

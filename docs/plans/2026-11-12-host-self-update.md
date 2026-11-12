@@ -49,13 +49,17 @@ Why this slice exists (review H1): today a SIGTERM makes `Server.Shutdown` cance
   run ends `failed shutting_down` as today and the lock is released; `Settle` ends it once and a racing second `Settle`
   gets `not_parked`; a Resume that panics counts as "no" (`failed host_restarted`); `Settle` after `Shutdown` began is
   refused and changes nothing; an invalid `Parked` (deadline in the past, command without `Spec.Parks`) gives
-  `failed command_failed` and releases the lock.
+  `failed command_failed` and releases the lock. Review r2: the command's **first** side effect outside its state dir
+  happens after parking. The test command's "dispatch" runs in the settle goroutine, so a SIGTERM before parking leaves
+  nothing running. A dispatch failure is a `Settle(failed)` that releases the lock.
 
 ### Slice 2: the host command, the applier, the reader (`host/ops`, `cmd/vedette-host`)
 
 - `host/ops/selfupdate.go`: `Check` (order of host-api §6.14; step 5 compares `versions.json.current`, the binary's own
   version and `dpkg-query`), `Run` (stage, `dpkg-deb --field`, `apt-get update` when stale, `apt-get -s`, journal with
-  `deadline`, copy `/proc/self/exe` to `selfupdate/applier`, `systemd-run`, then return `server.Parked`).
+  `deadline`, copy `/proc/self/exe` to `selfupdate/applier`, journal `staged` with `attempt: 0`, then return
+  `server.Parked`; **park first, dispatch after**: the settle goroutine's first round writes `attempt: 1` and runs
+  `systemd-run`, and a failed dispatch settles `failed applier_failed`).
   `selfupdatestate.go`: `versions.json`, `journal.json`, `started.json` with strict readers and atomic writes, adoption
   at `Start`, keeping `packages/` at two files with one SemVer file-name validator. `selfupdateapply.go`: the applier,
   with phases, the install-method choice (apt when `installed` and `dpkg --audit` is clean, `dpkg -i` otherwise), effect
@@ -65,8 +69,14 @@ Why this slice exists (review H1): today a SIGTERM makes `Server.Shutdown` cance
   or a restart of its own unit. `core/exec` `Binary.Env` allows the two constant `NEEDRESTART_*` keys.
 - `Ops.Start`/`AfterReady`: read the journal before Listen, answer `Options.Resume`, send READY before waiting on
   anything of the applier, write `started.json`, then start the settle goroutine. Each 2 s round reads the journal **and**
-  `systemctl is-active vedette-host-upgrade.service`, dispatches the applier copy again when the run is not ended and the
-  applier is dead (`attempt` ≤ 2), and ends the run at `journal.deadline` once the unit has stopped.
+  `systemctl is-active vedette-host-upgrade.service`. When the run is not ended and the applier is dead, it dispatches
+  the applier copy again (`attempt` 2) only if now + 60 min ≤ `journal.deadline`; otherwise it ends the run
+  `self_update_interrupted`. It ends the run at `journal.deadline` once the unit has stopped. Orphan journals at
+  `Start` (the run is not `running`): `attempt: 0` → clean up and audit `self_update_abandoned`; `attempt` ≥ 1 → raise
+  the write gate (`409 transition_pending`), follow the journal to its end without a run, then lower the gate.
+- Applier lock wait before every `dpkg -i` (review r2): the `F_GETLK` probe of `host/ops/lock.go` (four lock files)
+  every 5 s, up to 10 min in total per install. If `dpkg -i` fails while the probe sees the lock again, the applier waits
+  within the same budget and retries once.
 - State formats (review M6): no host state file is rewritten into a form the previous release cannot read while a
   self-update journal is not `installed`; any real format change runs after `Settle(succeeded)`. Keep a `testdata`
   state folder per release (taken at `checking`) and test that the previous release's `Start` accepts it.
@@ -84,13 +94,18 @@ Why this slice exists (review H1): today a SIGTERM makes `Server.Shutdown` cance
   phase X", **"dpkg interrupted"** (status `half-installed`, `--audit` not clean, apt refuses "dpkg was interrupted":
   only `dpkg -i` of this package succeeds), **"lock taken after Check"** (the first apt waits on
   `DPkg::Lock::Timeout`; when the lock outlives it, apt exits 100 and nothing changed, so the rollback sees `from`
-  installed and healthy and does not reinstall).
+  installed and healthy and does not reinstall), **"lock taken right after the probe"** (`dpkg -i` exits on the lock
+  once; the applier waits and retries within the 10 min budget), **"SIGTERM before parking"** (no `systemd-run` call,
+  journal `staged` cleaned at the next `Start`), **"dispatch fails"** (`applier_failed`, lock released), **"run file
+  lost after dispatch"** (orphan journal, write gate), **"applier dies at minute 75"** (no second applier, because it
+  would pass the deadline).
 - Tests, all in `modules/host/contract_selfupdate_test.go` and `host/ops/selfupdate*_test.go`: the contract tests named in
   host-api §6.14 "Đề xuất cho CONTRACT.md" (INV-26 … INV-30, POST-5, FORBID-7). Also
   `TestTimeLimitsAreConsistent`: the pre-park `Spec.Timeout` of 10 min covers update + simulation; one applier run's
-  `RuntimeMaxSec` of 60 min covers lock wait + install with `TimeoutStartSec` + health + rollback lock wait + rollback
-  install + health (57 min); `journal.deadline` = start + 130 min covers pre-park + two applier runs + slack, and core's
-  wait for the step is longer than that. Also fuzz for every new validator and for the journal
+  `RuntimeMaxSec` of 60 min covers lock wait (≤ 10 min in total, also for `dpkg -i` with its one retry) + install with
+  `TimeoutStartSec` + health + rollback lock wait (≤ 10 min) + rollback install + health (57 min); `journal.deadline` =
+  start + 130 min covers pre-park + two applier runs + slack; a second applier is only started when now + 60 min ≤
+  deadline, so no applier outlives the deadline; core waits until deadline + 5 min. Also fuzz for every new validator and for the journal
   and started readers, and the real `internal/release` vectors under `-tags releasetestkeys` (a manifest with a `host`
   part).
 - Docs in the same PR: add INV-26 … INV-30, POST-5 and FORBID-7 to `modules/host/CONTRACT.md` and the allowlist row, update
@@ -180,6 +195,9 @@ On `ubuntu2404` and `debian13` (and Ubuntu 26.04 on Mlee's box, D-198), using te
 | Deadlock: postinst `try-restart` waits for READY, and a new host that waits for the applier before READY | The host reads the journal before Listen but waits for it only after READY (same lesson as UNIT-2/D-123 H1); lab check 8 |
 | The new host crash-loops and the box reboots during the applier window, so nobody restarts the applier | Accepted limit (D-316); RUNBOOK; the GUI shows the host unreachable with its last known version |
 | The run ends `failed` on the SIGTERM that postinst sends (review H1) | `server.Parked` + Resume for parked runs (slice 1), test with SIGTERM while parked |
+| A SIGTERM between dispatch and parking leaves an applier running with no run and no lock (review r2) | Park first, dispatch after (the settle goroutine dispatches); orphan journals handled at `Start` |
+| A second applier outlives core's wait (review r2) | Attempt 2 only when now + 60 min ≤ deadline; core waits until deadline + 5 min |
+| `dpkg -i` hits the lock just after a reboot, when the apt timers fire (review r2) | `F_GETLK` wait (10 min in total) before every `dpkg -i` and one retry |
 | A dpkg cut mid-unpack blocks every apt install (review H2) | The applier picks `dpkg -i` of this package when its status is not `installed` or `dpkg --audit` is not clean; the "dpkg interrupted" marker; lab check 4 |
 | unattended-upgrades takes the lock between Check and the install (review M1) | `DPkg::Lock::Timeout=600`; the rollback checks the effect before reinstalling |
 | The second dispatch runs the new, broken binary (review M2) | The applier is a copy of the old binary in `selfupdate/`, with its hash in the journal |

@@ -105,6 +105,10 @@ type Rule struct {
 	// lines, whose fields an attacker partly writes). ConnRefuse (template): a line that matches it has none (MikroTik: a connection that is not new).
 	ConnWhen   map[string][]string `json:"conn_when,omitempty"`
 	ConnRefuse string              `json:"conn_refuse,omitempty"`
+	// ConnBlocked (kv): the connection of a line was stopped by the device that logged it (the line records an attempt) only when each key
+	// listed is written once and holds one of the values (FortiGate: action deny, dropped, blocked, block, reset). A line it does not settle
+	// is not blocked: "connected" is said unless the format says otherwise, never guessed (D-227).
+	ConnBlocked map[string][]string `json:"conn_blocked,omitempty"`
 }
 
 // Sample is a documented line and what the rule must make of it; Load runs every sample.
@@ -113,9 +117,10 @@ type Sample struct {
 	Signature string   `json:"signature"`
 	Src       string   `json:"src,omitempty"`
 	Dest      string   `json:"dest,omitempty"`
-	Remote    string   `json:"remote,omitempty"` // the remote peer's address the rule must find (empty: none)
-	Local     string   `json:"local,omitempty"`  // the LAN device of the connection the rule must find (empty: none)
-	Dests     []string `json:"dests,omitempty"`  // its destinations as "ip:<address>" or "domain:<name>"
+	Remote    string   `json:"remote,omitempty"`  // the remote peer's address the rule must find (empty: none)
+	Local     string   `json:"local,omitempty"`   // the LAN device of the connection the rule must find (empty: none)
+	Dests     []string `json:"dests,omitempty"`   // its destinations as "ip:<address>" or "domain:<name>"
+	Blocked   bool     `json:"blocked,omitempty"` // the connection was stopped by the device (conn_blocked)
 }
 
 type profile struct {
@@ -210,9 +215,9 @@ func Load(fsys fs.FS, dir string) (*Set, error) {
 					dests = append(dests, d.Kind+":"+d.Value)
 				}
 			}
-			if r.Profile != p.ID || r.Signature != s.Signature || r.Src != s.Src || r.Dest != s.Dest || remote != s.Remote || local != s.Local || !slices.Equal(dests, s.Dests) {
-				return nil, fmt.Errorf("signature: profile %s sample %d: the rule gives profile %q signature %q src %q dest %q remote %q local %q dests %q, the sample says signature %q src %q dest %q remote %q local %q dests %q",
-					p.ID, i+1, r.Profile, r.Signature, r.Src, r.Dest, remote, local, dests, s.Signature, s.Src, s.Dest, s.Remote, s.Local, s.Dests)
+			if r.Profile != p.ID || r.Signature != s.Signature || r.Src != s.Src || r.Dest != s.Dest || remote != s.Remote || local != s.Local || !slices.Equal(dests, s.Dests) || r.Conn.Blocked != s.Blocked {
+				return nil, fmt.Errorf("signature: profile %s sample %d: the rule gives profile %q signature %q src %q dest %q remote %q local %q dests %q blocked %t, the sample says signature %q src %q dest %q remote %q local %q dests %q blocked %t",
+					p.ID, i+1, r.Profile, r.Signature, r.Src, r.Dest, remote, local, dests, r.Conn.Blocked, s.Signature, s.Src, s.Dest, s.Remote, s.Local, s.Dests, s.Blocked)
 			}
 		}
 	}
@@ -336,7 +341,7 @@ func compile(f File) (*profile, error) {
 			return nil, fmt.Errorf("an event_id rule needs 1 to %d patterns", MaxPatterns)
 		}
 		if len(r.Fields)+len(r.Mined)+len(r.Vocab)+len(r.HeadVocab)+len(r.RemoteFields)+len(r.DestHostFields) != 0 || r.SrcField != "" || r.DstField != "" || r.Prefix != "" ||
-			r.LocalField != "" || r.DestIPField != "" || r.ConnPattern != "" || len(r.ConnWhen) != 0 || r.ConnRefuse != "" {
+			r.LocalField != "" || r.DestIPField != "" || r.ConnPattern != "" || len(r.ConnWhen)+len(r.ConnBlocked) != 0 || r.ConnRefuse != "" {
 			return nil, errors.New("an event_id rule takes only patterns, titles, src_pattern, dst_pattern and remote_patterns")
 		}
 		if len(r.Titles) == 0 || len(r.Titles) > MaxTitles {
@@ -357,7 +362,7 @@ func compile(f File) (*profile, error) {
 		}
 	case TypeTemplate:
 		if len(r.Fields)+len(r.Mined)+len(r.Patterns)+len(r.Titles)+len(r.Vocab)+len(r.RemoteFields)+len(r.DestHostFields) != 0 || r.SrcField != "" || r.DstField != "" ||
-			r.LocalField != "" || r.DestIPField != "" || len(r.ConnWhen) != 0 {
+			r.LocalField != "" || r.DestIPField != "" || len(r.ConnWhen)+len(r.ConnBlocked) != 0 {
 			return nil, errors.New("a template rule takes only prefix, head_vocab, src_pattern, dst_pattern, remote_patterns and conn_pattern")
 		}
 		if r.ConnPattern != "" {
@@ -596,22 +601,27 @@ func (p *profile) read(msg string) (Result, bool) {
 // compileConnFields checks the connection fields of a kv rule: all or none of the local field and a destination field.
 func (p *profile) compileConnFields(r Rule) error {
 	if r.LocalField == "" && r.DestIPField == "" && len(r.DestHostFields) == 0 {
+		if len(r.ConnWhen)+len(r.ConnBlocked) != 0 {
+			return errors.New("conn_when and conn_blocked need local_field")
+		}
 		return nil
 	}
 	if r.LocalField == "" || r.DestIPField == "" && len(r.DestHostFields) == 0 || len(r.DestHostFields) > MaxDests {
 		return fmt.Errorf("local_field and at least one destination field (dest_ip_field, dest_host_fields: at most %d) go together", MaxDests)
 	}
 	p.connWanted = map[string]bool{}
-	for k, vals := range r.ConnWhen {
-		if !validKey(k) || len(vals) == 0 || len(vals) > 8 {
-			return fmt.Errorf("conn_when %q: a key name and 1 to 8 values", k)
-		}
-		for _, v := range vals {
-			if v == "" || len(v) > maxValue || clean(v) != v {
-				return fmt.Errorf("conn_when %q: %q is not a plain value", k, v)
+	for name, m := range map[string]map[string][]string{"conn_when": r.ConnWhen, "conn_blocked": r.ConnBlocked} {
+		for k, vals := range m {
+			if !validKey(k) || len(vals) == 0 || len(vals) > 8 {
+				return fmt.Errorf("%s %q: a key name and 1 to 8 values", name, k)
 			}
+			for _, v := range vals {
+				if v == "" || len(v) > maxValue || clean(v) != v {
+					return fmt.Errorf("%s %q: %q is not a plain value", name, k, v)
+				}
+			}
+			p.connWanted[k] = true
 		}
-		p.connWanted[k] = true
 	}
 	for _, k := range append([]string{r.LocalField, r.DestIPField}, r.DestHostFields...) {
 		if k == "" {

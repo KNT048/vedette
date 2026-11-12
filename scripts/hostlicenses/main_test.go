@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"os"
 	"os/exec" //nolint:depguard // the test asks go which modules are linked: fixed argv, no shell
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -40,6 +43,47 @@ func TestGenerateNamesEveryLinkedModule(t *testing.T) {
 		if !strings.Contains(string(text), want) {
 			t.Errorf("the file lacks %q", want)
 		}
+	}
+}
+
+// The one exception (D-454) covers censys-sdk-go at v0.19.1 only: the same path at another version, and any other module without
+// a license file, still fail; a module that has a license file keeps its own text even when it is listed.
+func TestNoLicenseFileException(t *testing.T) {
+	empty := t.TempDir()
+	if err := os.WriteFile(filepath.Join(empty, "README.md"), []byte("License: MIT\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var w bytes.Buffer
+	if err := section(&w, "github.com/censys/censys-sdk-go v0.19.1", empty, "github.com/censys/censys-sdk-go@v0.19.1"); err != nil {
+		t.Fatalf("the recorded exception failed: %v", err)
+	}
+	for _, want := range []string{
+		"== github.com/censys/censys-sdk-go v0.19.1 (MIT per the README, https://github.com/censys/censys-sdk-go/blob/v0.19.1/README.md; upstream has no LICENSE file)",
+		"Permission is hereby granted, free of charge",
+	} {
+		if !strings.Contains(w.String(), want) {
+			t.Errorf("the exception's section lacks %q:\n%s", want, w.String())
+		}
+	}
+	for _, c := range []struct{ title, key string }{
+		{"github.com/censys/censys-sdk-go v0.19.2", "github.com/censys/censys-sdk-go@v0.19.2"},
+		{"github.com/censys/censys-sdk-go v0.19.0", "github.com/censys/censys-sdk-go@v0.19.0"},
+		{"example.com/unlicensed v1.0.0", "example.com/unlicensed@v1.0.0"},
+	} {
+		if err := section(&bytes.Buffer{}, c.title, empty, c.key); err == nil || !strings.Contains(err.Error(), "has no license file") {
+			t.Errorf("%s without a license file: err = %v, want 'has no license file'", c.key, err)
+		}
+	}
+	withFile := t.TempDir()
+	if err := os.WriteFile(filepath.Join(withFile, "LICENSE"), []byte("upstream text\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	w.Reset()
+	if err := section(&w, "github.com/censys/censys-sdk-go v0.19.1", withFile, "github.com/censys/censys-sdk-go@v0.19.1"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(w.String(), "upstream text") || strings.Contains(w.String(), "MIT per the README") {
+		t.Errorf("a module with a license file must ship that file, not the exception:\n%s", w.String())
 	}
 }
 

@@ -1,6 +1,6 @@
 // Feed parsers (S-FEED-5, D-37). Run inside the mock so the preview is real; the Go box later implements the same rules.
 // Fail closed: size and row limits, bad rows are counted with a reason (never crash), regexes are length-limited and compile-checked.
-import { DOMAIN_RE, IPV4_RE } from '@/mocks/http'
+import { IPV4_RE } from '@/mocks/http'
 import { FIELDS, ROW_LIMIT, SIZE_LIMIT } from './defaults'
 import type { FeedKind, FieldMap, ParseRecord, Parser } from './types'
 
@@ -173,12 +173,14 @@ export function normDate(raw: string, fmt: FieldMap['date_format']): string | nu
 }
 const KIND_ALIAS: Record<string, string> = { ip: 'ip', ipv4: 'ip', ip_address: 'ip', 'ipv4-addr': 'ip', 'ip:port': 'ip', domain: 'domain', fqdn: 'domain', hostname: 'domain', 'domain-name': 'domain', url: 'url', hash: 'hash', md5: 'hash', sha1: 'hash', sha256: 'hash', md5_hash: 'hash', sha256_hash: 'hash' }
 const HASH_RE = /^([a-f0-9]{32}|[a-f0-9]{40}|[a-f0-9]{64})$/i
+/** A feed's domain (Go validDomain): the last label is letters, or an IDN top-level domain in ASCII form (`xn--p1ai`, hagezi TIF lists such names). */
+export const FEED_DOMAIN_RE = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+([a-z]{2,63}|xn--[a-z0-9-]{0,58}[a-z0-9])$/i
 const IPV6_RE = /^[0-9a-f:]{3,39}$/i
 function detectKind(v: string): string | null {
   if (IPV4_RE.test(v) || (v.includes(':') && IPV6_RE.test(v))) return 'ip'
   if (/^https?:\/\//i.test(v)) return 'url'
   if (HASH_RE.test(v)) return 'hash'
-  return DOMAIN_RE.test(v) ? 'domain' : null
+  return FEED_DOMAIN_RE.test(v) ? 'domain' : null
 }
 
 function applyField(id: string, raw: string | null, f: FieldMap | undefined, dateField: boolean): string | null | Rejection {
@@ -221,7 +223,7 @@ function build(kind: FeedKind, raw: Raw, p: Parser): ParseRecord | Rejection {
     let value = ind
     if (given === 'ip' && /^\d+\.\d+\.\d+\.\d+:\d+$/.test(ind)) value = ind.replace(/:\d+$/, '')
     const kindOut = given ?? detectKind(value)
-    const ok = kindOut === 'ip' ? (IPV4_RE.test(value) || (value.includes(':') && IPV6_RE.test(value))) : kindOut === 'domain' ? DOMAIN_RE.test(value) : kindOut === 'url' ? /^https?:\/\/[^\s/]+/i.test(value) && value.length <= 2000 : kindOut === 'hash' ? HASH_RE.test(value) : false
+    const ok = kindOut === 'ip' ? (IPV4_RE.test(value) || (value.includes(':') && IPV6_RE.test(value))) : kindOut === 'domain' ? FEED_DOMAIN_RE.test(value) : kindOut === 'url' ? /^https?:\/\/[^\s/]+/i.test(value) && value.length <= 2000 : kindOut === 'hash' ? HASH_RE.test(value) : false
     if (!kindOut || !ok) return { reject: `indicator: "${ind.slice(0, 40)}" is not a valid ${kindOut ?? 'indicator'}` }
     out.indicator = value; out.kind = kindOut
     if (out.confidence !== null && out.confidence !== undefined) {

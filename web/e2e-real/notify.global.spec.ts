@@ -339,9 +339,9 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       expect(generated, 'a random key is 24 bytes in hex').toMatch(/^[0-9a-f]{48}$/)
       expect((await channel('webhook')).configured, 'a refused save saved something').toBe(false)
       const saved = await saveOk(page, d, 'webhook')
-      expect(saved).toMatchObject({ type: 'webhook', configured: true, enabled: false, fields: { url: 'https://hooks.e2e.invalid/vedette' }, secret_last4: last4(generated), min_severity: 'medium', approvals: false, approvers: [] })
+      expect(saved).toMatchObject({ type: 'webhook', configured: true, enabled: false, fields: { url: 'https://hooks.e2e.invalid/…ette' }, secret_last4: last4(generated), min_severity: 'medium', approvals: false, approvers: [] })
       await toast(page, 'Channel Webhook saved.')
-      await expect(chanRow(page, saved)).toContainText('https://hooks.e2e.invalid/vedette')
+      await expect(chanRow(page, saved)).toContainText('https://hooks.e2e.invalid/…ette') // sealed (SYS-4, #426): scheme://host/… and the last 4 characters
       await noEcho(page, generated)
 
       // an edit to an address on this machine is refused too, and the saved channel stays as it was
@@ -474,9 +474,9 @@ test.describe('the box refuses what D-86 forbids, and keeps the rest (INV-8)', (
       expect(await newAudit(c, before), 'a refusal wrote an audit row').toEqual([])
       // an internal SIEM on plain http (RFC 1918) and a public https name are fine: saved (turned off, so nothing is ever sent)
       const ok1 = await call<Ch>(c, 'PUT', '/notify/channels/webhook', body('http://10.99.99.99:9/hook'))
-      expect(ok1, 'private http').toMatchObject({ status: 200, body: { configured: true, fields: { url: 'http://10.99.99.99:9/hook' }, secret_last4: last4(WEBHOOK_KEY) } })
+      expect(ok1, 'private http').toMatchObject({ status: 200, body: { configured: true, fields: { url: 'http://10.99.99.99:9/…hook' }, secret_last4: last4(WEBHOOK_KEY) } })
       const ok2 = await call<Ch>(c, 'PUT', '/notify/channels/webhook', body('https://hooks.e2e.invalid/hook'))
-      expect(ok2, 'public https').toMatchObject({ status: 200, body: { configured: true, fields: { url: 'https://hooks.e2e.invalid/hook' } } })
+      expect(ok2, 'public https').toMatchObject({ status: 200, body: { configured: true, fields: { url: 'https://hooks.e2e.invalid/…hook' } } })
       await auditHasNo(c, WEBHOOK_KEY)
     } finally { await c.dispose() }
   })

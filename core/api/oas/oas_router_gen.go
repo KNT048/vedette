@@ -8985,7 +8985,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = AiGetAiKnowledgeOperation
-								r.summary = "Knowledge base documents with indexing status, and the profile that builds the index"
+								r.summary = "Knowledge base documents with indexing status, and the AI profile chosen for the index"
 								r.operationID = "ai_get_ai_knowledge"
 								r.operationGroup = ""
 								r.pathPattern = "/ai/knowledge"
@@ -9031,7 +9031,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "PUT":
 										r.name = AiPutAiKnowledgeSettingsOperation
-										r.summary = "Choose the AI profile that builds the index"
+										r.summary = "Choose the AI profile for the index (required; the index is built on the box)"
 										r.operationID = "ai_put_ai_knowledge_settings"
 										r.operationGroup = ""
 										r.pathPattern = "/ai/knowledge/settings"

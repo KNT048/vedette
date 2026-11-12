@@ -1927,7 +1927,7 @@ func (s *Server) handleAiGetAiHooksRequest(args [0]string, argsEscaped bool, w h
 
 // handleAiGetAiKnowledgeRequest handles ai_get_ai_knowledge operation.
 //
-// Knowledge base documents with indexing status, and the profile that builds the index.
+// Knowledge base documents with indexing status, and the AI profile chosen for the index.
 //
 // GET /ai/knowledge
 func (s *Server) handleAiGetAiKnowledgeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1996,7 +1996,7 @@ func (s *Server) handleAiGetAiKnowledgeRequest(args [0]string, argsEscaped bool,
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AiGetAiKnowledgeOperation,
-			OperationSummary: "Knowledge base documents with indexing status, and the profile that builds the index",
+			OperationSummary: "Knowledge base documents with indexing status, and the AI profile chosen for the index",
 			OperationID:      "ai_get_ai_knowledge",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -5645,7 +5645,7 @@ func (s *Server) handleAiPutAiKnowledgeIDRequest(args [1]string, argsEscaped boo
 
 // handleAiPutAiKnowledgeSettingsRequest handles ai_put_ai_knowledge_settings operation.
 //
-// Choose the AI profile that builds the index.
+// Choose the AI profile for the index (required; the index is built on the box).
 //
 // PUT /ai/knowledge/settings
 func (s *Server) handleAiPutAiKnowledgeSettingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5729,7 +5729,7 @@ func (s *Server) handleAiPutAiKnowledgeSettingsRequest(args [0]string, argsEscap
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AiPutAiKnowledgeSettingsOperation,
-			OperationSummary: "Choose the AI profile that builds the index",
+			OperationSummary: "Choose the AI profile for the index (required; the index is built on the box)",
 			OperationID:      "ai_put_ai_knowledge_settings",
 			Body:             request,
 			RawBody:          rawBody,

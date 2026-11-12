@@ -493,7 +493,7 @@ func TestEveryImageShipsItsThirdPartyLicenses(t *testing.T) {
 		t.Error(".dockerignore must let scripts/hostlicenses into the build context")
 	}
 	for _, n := range []string{"LICENSE", "LICENSE-Apache-2.0", "LICENSE-GPL-2.0"} {
-		b, err := os.ReadFile("../osquery/" + n)
+		b, err := os.ReadFile("../osquery/" + n) //nolint:gosec // test: fixed file names
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -34,8 +34,11 @@ security find-generic-password -s vedette-release-minisign -a "$USER" -w | make 
 ```
 
 ```bash
-COSIGN_PASSWORD=$(security find-generic-password -s vedette-release-cosign -a "$USER" -w) $(scripts/release/cosign.sh) sign …   # đúng argv của make release-cosign-plan
+make -s release-cosign-plan COSIGN_KEY=$HOME/.vedette-release-keys/cosign.key > dist/cosign-plan.sh && less dist/cosign-plan.sh   # chỉ in lệnh (cosign đã ghim); đọc lại
+COSIGN_PASSWORD=$(security find-generic-password -s vedette-release-cosign -a "$USER" -w) sh -eu dist/cosign-plan.sh
 ```
+
+Kế hoạch bắt đầu bằng `cd` về gốc repo, rồi `cosign sign` cho từng image (ghi `dist/release/cosign/<service>.{payload.json,sig}` cho `release-manifest`), rồi `cosign attest --type cyclonedx` cho từng SBOM theo kiến trúc (`dist/sbom` của `make sbom RELEASE=1 IMAGE_TAG=<v>`), tải lên ghcr cạnh digest của kiến trúc đó. Mỗi SBOM phải là SBOM của đúng image đã đẩy: `aquasecurity:trivy:ImageID` của trivy phải bằng config digest mà `release-push` ghi cho kiến trúc đó trong `images.json` (dựng lại image sau khi đẩy thì SBOM mới bị từ chối). cosign cần đăng nhập ghcr (`~/.docker/config.json`, hoặc `REGISTRY_AUTH_FILE` trỏ tới `auth.json` của podman). Chạy lại sau lỗi: `--replace` thay attestation CycloneDX cũ của cùng digest (chưa đo trên ghcr; `.ai/deferred/feat-release-cosign-plan.md`) (D-457, phần C).
 
 Khoá dự phòng chỉ được lấy ra khi cần ký index thu hồi (`RELEASE_SLOT=backup`) hay bản cứu (D-258).
 

@@ -68,10 +68,12 @@ type PushedImage struct {
 	Platforms   []PlatformDigest `json:"platforms"`
 }
 
-// PlatformDigest is one platform of a manifest list.
+// PlatformDigest is one platform of a manifest list. Config, in images.json only, is the config digest of the platform image that
+// was pushed (the local image ID; a push does not change it): part C attests to Digest only the SBOM trivy made of that image.
 type PlatformDigest struct {
 	Platform string `json:"platform"`
 	Digest   string `json:"digest"`
+	Config   string `json:"config,omitempty"`
 }
 
 const imagesFile = "images.json"
@@ -375,6 +377,13 @@ func Push(ctx context.Context, run runFunc, o pushOpts, stdout io.Writer) (*Imag
 		if !slices.Equal(byTag, plats) {
 			return nil, fmt.Errorf("%s:%s does not name the list just pushed (%s): another push of this version?", repo, o.Version, digest)
 		}
+		for i := range plats {
+			j := slices.IndexFunc(lp, func(l localPlatform) bool { return l.Platform == plats[i].Platform })
+			if j < 0 {
+				return nil, fmt.Errorf("%s@%s: %s is not a platform of %s", repo, digest, plats[i].Platform, local)
+			}
+			plats[i].Config = lp[j].Config
+		}
 		doc.Images = append(doc.Images, PushedImage{Service: im.service, Repo: repo, IndexDigest: digest, Platforms: plats})
 		say(stdout, "in the registry and read back: %s@%s (%s)", repo, digest, strings.Join(o.Platforms, ", "))
 	}
@@ -460,7 +469,7 @@ func readImages(p string) (*ImagesDoc, error) {
 			return nil, fmt.Errorf("%s: %s has a malformed index digest or no platform", p, im.Service)
 		}
 		for _, pl := range im.Platforms {
-			if !platformRE.MatchString(pl.Platform) || !serviceDigestRE.MatchString(pl.Digest) {
+			if !platformRE.MatchString(pl.Platform) || !serviceDigestRE.MatchString(pl.Digest) || !serviceDigestRE.MatchString(pl.Config) {
 				return nil, fmt.Errorf("%s: %s has a malformed platform %q or digest", p, im.Service, pl.Platform)
 			}
 		}

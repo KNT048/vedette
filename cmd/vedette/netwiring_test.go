@@ -100,6 +100,43 @@ func TestWiringSensorCardsComeFromTheHost(t *testing.T) {
 	}
 }
 
+// D-380 (#471): with no role set (a fresh install) the sensor's default card is the card of the default route, never the
+// box's own bridge vedette0; a host that hiccups gives the last answer; without a host there is no answer (ok=false).
+func TestWiringSensorDefaultCardIsTheDefaultRouteCard(t *testing.T) {
+	t.Parallel()
+	fresh := api.NetState{Interfaces: []api.NetInterface{
+		{Name: "enp2s0", MAC: "02:00:00:00:00:01", State: "up", Addresses: []string{"192.168.18.141/24"}},
+		{Name: "vedette0", MAC: "02:00:00:00:00:02", State: "up", Addresses: []string{"172.30.7.1/24"}},
+		{Name: "wlp3s0", MAC: "02:00:00:00:00:03", State: "up", Addresses: []string{"192.168.18.142/24"}},
+	}, DefaultRoute: &api.NetRoute{Iface: "enp2s0", Gateway: "192.168.18.1"}}
+	f := startFakeHost(t, fresh)
+	var skew atomic.Int64
+	s := newStackWith(t, func(d *deps) {
+		d.HostSocket, d.DataDir, d.KeyPath = f.sock, t.TempDir(), filepath.Join(t.TempDir(), "vedette.key")
+		d.Clock = func() time.Time { return time.Now().Add(time.Duration(skew.Load())) }
+	})
+	nh := netHost{box: s.d.Network}
+	if name, ok := nh.ManagementCard(t.Context()); name != "enp2s0" || !ok {
+		t.Fatalf("default card = %q %v, want enp2s0", name, ok)
+	}
+	f.failing.Store(true)
+	skew.Store(int64(10 * time.Second))
+	if name, ok := nh.ManagementCard(t.Context()); name != "enp2s0" || !ok {
+		t.Errorf("while the host hiccups = %q %v, want the last answer", name, ok)
+	}
+	f.failing.Store(false)
+	bridge := fresh
+	bridge.DefaultRoute = &api.NetRoute{Iface: "vedette0", Gateway: "172.30.7.254"}
+	f.state.Store(bridge)
+	skew.Store(int64(20 * time.Second))
+	if name, ok := nh.ManagementCard(t.Context()); name != "" || !ok {
+		t.Errorf("a default route on the bridge = %q %v, want none", name, ok)
+	}
+	if name, ok := (netHost{box: newStackWith(t, func(*deps) {}).d.Network}).ManagementCard(t.Context()); name != "" || ok {
+		t.Errorf("without a host = %q %v", name, ok)
+	}
+}
+
 // M1: a container-only install (no socket file) reads the interfaces of the operating system, and never fails.
 func TestWiringSensorCardsWithoutAHostFallBackToTheOperatingSystem(t *testing.T) {
 	t.Parallel()

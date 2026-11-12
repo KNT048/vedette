@@ -6,11 +6,13 @@ import core from '../../locales/en/core.json'
 // rules/legal.md: Settings → Privacy must match PRIVACY.md. Flow 6 is word for word (bold markers are not shown in the UI);
 // every flow must name each host that PRIVACY.md lists in its "Where to" cell.
 const rows = new Map<number, string[]>()
+const containerRows = new Map<number, string[]>() // "| 6 (container-only) | …": what a container-only install shows (D-381)
 for (const line of readFileSync(resolve(__dirname, '../../../../PRIVACY.md'), 'utf8').split('\n')) {
-  const m = /^\| (\d+) \| /.exec(line)
-  if (m) rows.set(Number(m[1]!), line.replace(/^\||\|$/g, '').split(/ \| /).map((c) => c.trim()))
+  const m = /^\| (\d+)( \(container-only\))? \| /.exec(line)
+  if (m) (m[2] ? containerRows : rows).set(Number(m[1]!), line.replace(/^\||\|$/g, '').split(/ \| /).map((c) => c.trim()))
 }
-const flows = (core as { privacy: { flow: Record<string, { what: string; to: string; control: string }> } }).privacy.flow
+type Texts = { what: string; to: string; control: string }
+const flows = (core as { privacy: { flow: Record<string, Texts & { container?: Texts }> } }).privacy.flow
 const plain = (s: string) => s.replaceAll('**', '')
 
 describe('Settings → Privacy flows match PRIVACY.md', () => {
@@ -20,6 +22,11 @@ describe('Settings → Privacy flows match PRIVACY.md', () => {
     expect(flows['6']!.to).toBe(plain(r[3]!))
     expect(flows['6']!.control).toBe(plain(r[4]!))
   })
+  it.each([6, 10])('flow %i of a container-only install is word for word (S-CORE-4)', (id) => {
+    const r = containerRows.get(id)!
+    expect(flows[String(id)]!.container).toEqual({ what: plain(r[2]!), to: plain(r[3]!), control: plain(r[4]!) })
+  })
+  it('PRIVACY.md has container-only rows only for the flows the page swaps', () => expect([...containerRows.keys()]).toEqual([6, 10]))
   it.each([...rows.keys()])('flow %i names every host of its "Where to" cell', (id) => {
     const ui = `${flows[String(id)]!.what} ${flows[String(id)]!.to}`
     const hosts = (plain(rows.get(id)![3]!).match(/[a-z0-9*-]+(?:\.[a-z0-9-]+)+/g) ?? []).filter((h) => /\.(com|org|net|io|me|gov|dev|google|co)$/.test(h))

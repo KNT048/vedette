@@ -122,6 +122,9 @@ type OSConfig struct {
 	ReleaseBase string
 	HTTPClient  *http.Client
 	Trust       func() (release.Trust, error)
+	// Wake runs the core/software-update job now (core/jobs Scheduler.Wake): a box that never checked checks
+	// firstCheckAfter after its process started, not at the next tick (D-398). nil: no early run (tests).
+	Wake func()
 }
 
 // NewOSHandlers returns the handlers and sweeps the snapshot directories an earlier run left behind.
@@ -164,6 +167,11 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 // Close stops the followers of install runs and waits for them. The run itself goes on in the host.
 func (h *OSHandlers) Close() {
 	h.cancel()
+	h.upd.wakeMu.Lock()
+	if h.upd.wakeT != nil {
+		h.upd.wakeT.Stop()
+	}
+	h.upd.wakeMu.Unlock()
 	h.wg.Wait()
 }
 

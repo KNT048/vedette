@@ -22,6 +22,11 @@ const (
 	UpdateTickEvery   = 10 * time.Minute
 	updateCheckEvery  = 6 * time.Hour    // update-manifest §12
 	updateCheckJitter = 30 * time.Minute // ± around updateCheckEvery
+	// firstCheckAfter is when a box that never checked (no last_check, no last_check_error) checks after its process
+	// started (D-398): a box set up a minute ago, or recreated with `up -d` before its first check, learns of updates
+	// within minutes instead of waiting for a tick that a restart keeps pushing away. A restart loop shorter than this
+	// makes no request, and once a check is stored the 6-hour rule applies.
+	firstCheckAfter = 2 * time.Minute
 	// autoFresh is how old the last good check may be when the automatic mode installs: one regular interval and a tick.
 	// A check that fails (an index held back to hide a revocation, §13) stops installs until a check succeeds (upd.failed,
 	// and the stored last_check_error that a restart keeps, D-392); last_check (moved only by a good check) growing past
@@ -47,7 +52,8 @@ func checkInterval() time.Duration {
 var errAutoSkip = errors.New("core: the automatic mode does not install now")
 
 // UpdateTick is the job: a check when one is due (6 hours ± 30 minutes after the last one this process made, or after the
-// stored last_check when it has made none, never before UpdateTickEvery after the process started), then the automatic
+// stored last_check when it has made none, never before UpdateTickEvery after the process started; on a box that never
+// checked, firstCheckAfter after the process started, D-398, the job being woken then), then the automatic
 // install unless that check failed. Off under Privacy, or before first-run setup (no install id: the administrator has not
 // seen Privacy yet): nothing.
 func (h *OSHandlers) UpdateTick(ctx context.Context) error {
@@ -78,9 +84,19 @@ func (h *OSHandlers) checkDue(ctx context.Context) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		// Never at the first tick of a process: a core that restarts (its own update switch does) adds no check, and
-		// a box never checked checks one tick after it starts.
-		h.upd.next = later(s.LastCheck.Add(checkInterval()), h.upd.started.Add(UpdateTickEvery))
+		// Never at the first tick of a process: a core that restarts (its own update switch does) adds no check. A box
+		// that never checked (nothing stored, not even a failure) checks firstCheckAfter after it started: the job is
+		// woken then (D-398); without a wake, at the first tick after that, as at setup on a fresh box.
+		if s.LastCheck.IsZero() && s.LastCheckError == nil {
+			h.upd.next = h.upd.started.Add(firstCheckAfter)
+			if d := h.upd.next.Sub(h.now()); d > 0 && h.upd.wake != nil {
+				h.upd.wakeMu.Lock()
+				h.upd.wakeT = time.AfterFunc(d, h.upd.wake)
+				h.upd.wakeMu.Unlock()
+			}
+		} else {
+			h.upd.next = later(s.LastCheck.Add(checkInterval()), h.upd.started.Add(UpdateTickEvery))
+		}
 	}
 	return !h.now().Before(h.upd.next), nil
 }

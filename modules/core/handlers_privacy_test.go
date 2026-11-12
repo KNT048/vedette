@@ -243,6 +243,15 @@ func TestPrivacy_FactsPort(t *testing.T) {
 	if s, _ := state(mk(nil), 10); s != "on" { // no port: default NTP servers, public
 		t.Errorf("flow 10 without a port = %s", s)
 	}
+	// A container-only install sends no time request of its own (S-CORE-4): flow 10 is off whatever the port says.
+	cw := newWorldKind(t, true, nil)
+	ch, err := core.NewAPIHandlers(core.HandlersConfig{DB: cw.env.DB, Auth: cw.env.Svc, Reg: cw.reg, Audit: cw.env.Audit, Secrets: cw.env.Secrets, Log: slog.New(slog.DiscardHandler), Facts: fakeFacts{ntp: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s, _ := state(ch, 10); s != "off" {
+		t.Errorf("flow 10 on a container-only install = %s", s)
+	}
 }
 
 // rawPatch sends PATCH /core/privacy with a body as written (nil = no body at all).

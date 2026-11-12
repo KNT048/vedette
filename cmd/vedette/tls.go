@@ -178,7 +178,8 @@ func ensureCertAt(ctx context.Context, ca *boxCAStore, certPath, keyPath string,
 }
 
 // renewSelfSigned replaces the certificate of a pair this program made when it expires within
-// selfSignedRenewBefore of now(), signing with the key already there (one atomic file write: a crash cannot
+// selfSignedRenewBefore of now(), or when it does not cover every entry of hosts (D-397: the owner changed -hosts,
+// VEDETTE_HOSTS, and started again), signing with the key already there (one atomic file write: a crash cannot
 // leave a certificate that does not match the key). It reports whether it replaced it. A pair it cannot
 // read, or one that is not its own, is left for loadTLS to judge.
 func renewSelfSigned(ctx context.Context, ca *boxCAStore, certPath, keyPath string, hosts []string, now func() time.Time, log *slog.Logger) (bool, error) {
@@ -186,7 +187,11 @@ func renewSelfSigned(ctx context.Context, ca *boxCAStore, certPath, keyPath stri
 }
 
 // reissueSelfSigned is renewSelfSigned with the reason as a parameter: a pair this program made is given a new
-// certificate (same key, one atomic write) when need says so about the current one.
+// certificate (same key, one atomic write) when need says so about the current one, or when it lacks an entry of
+// hosts (uncoveredHosts). For a missing entry the new certificate keeps every name and address the old one had
+// (a name dropped from -hosts is still refused by the Host allowlist; a bookmark of an address keeps working), is
+// signed by the same box CA (agents pinned to it keep working, D-262) and is logged. Like the upgrade under the
+// CA, it is optional: a CA that cannot be read or a directory that cannot be written keeps the leaf in use.
 func reissueSelfSigned(ctx context.Context, cas *boxCAStore, certPath, keyPath string, hosts []string, now func() time.Time, need func(*x509.Certificate) bool, log *slog.Logger) (bool, error) {
 	if log == nil {
 		log = slog.Default()
@@ -214,8 +219,8 @@ func reissueSelfSigned(ctx context.Context, cas *boxCAStore, certPath, keyPath s
 		}
 		return false, err
 	}
-	upgrade := notSignedBy(leaf, ca)
-	if upgrade { // an old self-signed leaf (D-262): same key, same names, under the CA
+	upgrade, missing := notSignedBy(leaf, ca), uncoveredHosts(leaf, hosts)
+	if upgrade || len(missing) > 0 { // an old self-signed leaf (D-262) or a -hosts change (D-397): same key, the names it had and the new ones, under the CA
 		hosts = append(append(append([]string(nil), hosts...), leaf.DNSNames...), addrStrings(certIPs(leaf))...)
 	} else if !need(leaf) {
 		return false, nil
@@ -231,7 +236,35 @@ func reissueSelfSigned(ctx context.Context, cas *boxCAStore, certPath, keyPath s
 		}
 		return false, err
 	}
+	if len(missing) > 0 {
+		log.InfoContext(ctx, "the self-signed certificate was re-issued for the names of -hosts or the box name it did not cover", "added", missing)
+	}
 	return true, nil
+}
+
+// uncoveredHosts is the entries of hosts (-hosts, the box's name) that leaf has neither as a DNS name (compared without case;
+// a "*." entry is compared as written) nor as an IP address. localNames is left out: the container's own addresses change with
+// every new container and are not names the owner chose (Check never re-issues for them either).
+func uncoveredHosts(leaf *x509.Certificate, hosts []string) []string {
+	local := map[string]bool{}
+	for _, h := range localNames() {
+		local[h] = true
+	}
+	ips := certIPs(leaf)
+	var out []string
+	for _, h := range hosts {
+		if local[h] || slices.Contains(out, h) {
+			continue
+		}
+		if a, err := netip.ParseAddr(h); err == nil {
+			if !ips[a.Unmap()] {
+				out = append(out, h)
+			}
+		} else if !slices.ContainsFunc(leaf.DNSNames, func(n string) bool { return strings.EqualFold(n, h) }) {
+			out = append(out, h)
+		}
+	}
+	return out
 }
 
 // selfSignedRenewer serves the box's own self-signed pair through tls.Config.GetCertificate and swaps in

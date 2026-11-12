@@ -82,6 +82,23 @@ describe('Settings → Connections: the page', () => {
     expect((await post('/core/connections', { ...HTTP, name: 'Another one' })).status).toBe(201)
   })
 
+  it('a change of sign-in type clears the typed secret only, and the hint says so (G14, walk 4)', async () => {
+    const u = user()
+    renderApp('/settings/connections')
+    await u.click(await screen.findByRole('button', { name: 'Add connection' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Add connection' })
+    await u.type(within(dlg).getByLabelText('Name'), 'Core switch')
+    await u.type(within(dlg).getByLabelText('Allow-list (one per line)'), 'https://192.168.10.60/api/')
+    await u.selectOptions(within(dlg).getByLabelText('Sign-in'), 'basic')
+    await u.type(within(dlg).getByLabelText('User name'), 'ops')
+    await u.type(within(dlg).getByLabelText('Secret'), 'a-long-enough-secret')
+    await u.selectOptions(within(dlg).getByLabelText('Sign-in'), 'token')
+    expect(within(dlg).getByLabelText('Secret')).toHaveValue('')
+    expect(within(dlg).getByLabelText('Name')).toHaveValue('Core switch')
+    expect(within(dlg).getByLabelText('Allow-list (one per line)')).toHaveValue('https://192.168.10.60/api/')
+    expect(within(dlg).getByLabelText('Sign-in')).toHaveAccessibleDescription(/clears the secret you typed/)
+  })
+
   it('empty state offers a single way to add one', async () => {
     connectorsStore.set([])
     renderApp('/settings/connections')

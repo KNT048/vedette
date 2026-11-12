@@ -893,7 +893,12 @@
         "what": "Your current Vedette version (in the request to GitHub). For the operating system (D-53) the box runs `apt` through the privileged helper `vedette-host`, and the request carries what any apt client sends: the release and architecture of this machine and the package names it asks about. To install an update, the same helper pulls the container images of the Vedette release by digest, and the request carries what any container client sends: the image name and digest and the architecture of this machine. `vedette-host` also builds the `scan` image on the box from the signed base image (D-113 (7), D-147), at install on every box (whether or not active scanning is turned on) and again whenever the `scan` image is pulled or updated: a build container, run with the network, installs nmap from the Debian package repository, and that request carries what any apt client sends (the release and architecture of the base image and the package name `nmap`). No Vedette data, no inventory, no findings",
         "to": "GitHub releases (signed software updates and the package of the system helper `vedette-host`; confirmed recommendation packs ship inside them; a release file download is redirected to a GitHub-owned file host, `objects.githubusercontent.com` or `release-assets.githubusercontent.com`), ghcr.io (the signed container images of a release, pulled by digest) with the host it redirects to for the image layers, pkg-containers.githubusercontent.com, and the distribution's package mirrors: Ubuntu `archive.ubuntu.com` and `security.ubuntu.com`, Debian `deb.debian.org` and `security.debian.org`. You can point apt at a local mirror inside your network (edit the apt sources on the box; the mirror host list in Settings → Updates follows), so nothing leaves the network. The `scan` image build is the exception: it contacts Debian's `deb.debian.org` from inside the build container, also on an Ubuntu box, and the local mirror you gave apt on the box does not apply to it (the container has its own apt configuration)",
         "control": "Yes — switch update checks off to update by hand or by bundle only. Operating system updates that you start yourself, or that unattended-upgrades installs, still contact the mirrors unless apt points at a local mirror, and an update you install by hand from the registry (not from a bundle) still contacts `ghcr.io` and GitHub releases (the system helper package). There is no setting that skips the `scan` image build at install or when the image is pulled. A box that cannot reach `deb.debian.org` installs without active scanning (core, sensor and honeypot still install) and tries the build again the next time the `scan` image is pulled; switching update checks off stops the later updates, not the build at install",
-        "switch": "Automatic update check"
+        "switch": "Automatic update check",
+        "container": {
+          "what": "Your current Vedette version (in the request to GitHub): the box downloads the signed release index, the manifest of the release it runs (once per version) and, when a newer release is offered to it, that release's manifest. Nothing else: a container-only install has no `vedette-host`, so the box runs no `apt`, pulls no image and builds no `scan` image. The `pull` you run yourself from Settings → Updates goes from your machine to `ghcr.io`, as any container client does. No Vedette data, no inventory, no findings",
+          "to": "GitHub releases (signed software updates; confirmed recommendation packs ship inside them; a release file download is redirected to a GitHub-owned file host, `objects.githubusercontent.com` or `release-assets.githubusercontent.com`)",
+          "control": "Yes — switch update checks off; Settings → Updates then cannot tell you when a release is out. A `pull` you run yourself still contacts `ghcr.io` and the host it redirects to for the image layers, `pkg-containers.githubusercontent.com`"
+        }
       },
       "7": {
         "name": "Forwarding to a SIEM",
@@ -921,7 +926,12 @@
         "what": "A time request (UDP port 123) so the box clock stays right. No Vedette data is in it; the server only sees the box's IP address.",
         "to": "The time sources of your distribution's own chrony configuration, which the installer leaves as it finds it (D-166): Ubuntu 24.04 `ntp.ubuntu.com` and the `0-2.ubuntu.pool.ntp.org` pools (in `/etc/chrony/chrony.conf`); Ubuntu 26.04 the NTS servers `1-4.ntp.ubuntu.com` and `ntp-bootstrap.ubuntu.com` (in `/etc/chrony/sources.d/`); Debian 13 `2.debian.pool.ntp.org` (in `/etc/chrony/chrony.conf`); read the files on your box for the exact list. Also any NTP servers your DHCP server hands out (`/run/chrony-dhcp`). Once Settings → Box network is saved, the servers you enter there (they can be inside your network) are added to those, and if you save it with no NTP server, `pool.ntp.org` is added",
         "control": "Not from Vedette's screens: the operating system's own time sources stay. To send nothing outside, point the box's chrony at a server inside your network yourself (see the runbook).",
-        "link": "Open Box network"
+        "link": "Open Box network",
+        "container": {
+          "what": "Nothing from Vedette. A container-only install sets no time source: the containers keep the clock of the machine that runs them",
+          "to": "Nowhere from Vedette. The time service of the machine that runs the containers (set up by you or its operating system) is outside Vedette",
+          "control": "Not sent by Vedette. Keep the clock of that machine right (Linux: systemd-timesyncd or chrony; macOS and Windows set it by themselves): sign-in codes, certificates and the update check need a correct clock"
+        }
       },
       "11": {
         "name": "Single sign-on (OIDC)",
@@ -1138,6 +1148,7 @@
       "none": "Pick at least one log.",
       "range": "The start date is after the end date.",
       "verify": "Verify offline: hash = SHA-256(previous hash + the entry as JSON with sorted keys, without its hash).",
+      "noTraps": "(traps need the appliance install)",
       "cat": {
         "audit": "Audit log",
         "ai_activity": "AI activity",
@@ -1667,6 +1678,7 @@
       "target_mcp-stdio": "Command that starts the MCP server",
       "targetExample": "For example {{example}}",
       "auth": "Sign-in",
+      "authHint": "Changing it clears the secret you typed (a password is not a token); the user name and the other fields stay.",
       "secret": "Secret",
       "secretHint": "Token, password or key. Stored encrypted; only the last 4 characters are shown afterwards.",
       "secretSaved": "Saved, ending {{last4}}. Leave blank to keep it.",
@@ -1741,13 +1753,13 @@
       "offerUnknown": "Vedette {{version}} is available. This machine's version is not known.",
       "checkOff": "The update check is off, so Vedette cannot tell you here when a new release is out. Watch the release page, or turn the check on under",
       "privacyLink": "Privacy",
-      "notYet": "No release information yet: no update check has succeeded on this install. Vedette looks every 6 hours; until a release is published, or while it cannot reach github.com over HTTPS, there is nothing new to show.",
+      "notYet": "No release information yet: no update check has run on this install. Vedette checks a few minutes after setup or a restart, then every 6 hours.",
       "notYetFailed": "No release information yet: no update check has succeeded on this install. Vedette tries again every 6 hours.",
       "latest": "No newer release is offered to this install.",
       "running": "Running version {{version}}.",
       "runningUnknown": "This machine's version is not known.",
       "checked": "Update information last read {{when}}.",
-      "neverChecked": "Update information has never been read: the check has not succeeded yet. If this stays so, the box cannot reach github.com over HTTPS (the reason is in the core log).",
+      "neverChecked": "No check has run yet.",
       "block1": "Update to {{version}}",
       "unsafe": "The version offered ({{version}}) or the version this machine runs ({{running}}) cannot be put into a command as it is, so no commands are shown here. Follow docs/INSTALL-CONTAINER.md section 5 by hand.",
       "unsafeUnknown": "This machine's version is not known, so no commands are shown here. Follow docs/INSTALL-CONTAINER.md section 5 by hand.",
@@ -1781,7 +1793,7 @@
       "title": "Backup",
       "desc": "Everything Vedette keeps, the key that unlocks its secrets included, is in the Docker or Podman volume vedette_data. Copy it with core stopped.",
       "label": "Back up (in the folder of compose.yaml)",
-      "keep": "vedette-data.tgz holds the key: keep it as safe as a password. If you run the sensors, back up the creds-passive and creds-active volumes the same way.",
+      "keep": "vedette-data.tgz holds the key: keep it as safe as a password. The sensors' creds-passive and creds-active volumes need no backup: core writes them again from vedette_data at every start.",
       "restoreLabel": "Restore into a fresh volume",
       "podmanNote": "On a machine with SELinux (Fedora, RHEL), add :Z to the \"$PWD\":/backup mount of the backup command and :ro,Z to the same mount of the restore command."
     },

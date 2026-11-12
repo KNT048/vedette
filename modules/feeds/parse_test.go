@@ -204,8 +204,52 @@ func TestCross_Lines(t *testing.T) {
 			t.Errorf("kind = %v", rec["kind"])
 		}
 	}
-	if r.Rejects[0].Row != 4 || r.Records[1]["indicator"] != "45.148.10.95" {
+	// Plain list: the reject names the line of the sample (two comments and a blank line before it).
+	if r.Rejects[0].Row != 7 || r.Records[1]["indicator"] != "45.148.10.95" {
 		t.Errorf("rejects %v, records %v", r.Rejects, r.Records)
+	}
+}
+
+// Walk 2 (S-FEED-5): a pasted plain list names the rejected lines, with the value, and a
+// reserved test name is not called a local host; the grouped reasons stay masked.
+func TestWalk2_LinesRejectsNameTheLineAndValue(t *testing.T) {
+	t.Parallel()
+	text := "# partner list\n203.0.113.9\nbad.example.com extra words\nhttp://evil.example/x\nnot an ip!!\n10.0.0.1\n44d88612fea8a8f36de82e1278abb02f\n"
+	r, err := ParseFeed(context.Background(), []byte(text), KindIOC, DefaultParser(KindIOC, FormatLines))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Reject{
+		{2, `indicator: "203.0.113.9" is a private, reserved or special-purpose address`},
+		{4, `indicator: "http://evil.example/x" points at a reserved example or test name`},
+		{5, `indicator: "not" is not a valid indicator`},
+		{6, `indicator: "10.0.0.1" is a private, reserved or special-purpose address`},
+	}
+	if !reflect.DeepEqual(r.Rejects, want) || r.Accepted != 2 {
+		t.Errorf("accepted %d, rejects %+v", r.Accepted, r.Rejects)
+	}
+	for _, x := range r.Reasons {
+		if strings.Contains(x.Reason, "evil") || strings.Contains(x.Reason, "10.0.0.1") {
+			t.Errorf("grouped reason shows a value: %q", x.Reason)
+		}
+	}
+}
+
+func TestWalk2_URLHostReasons(t *testing.T) {
+	t.Parallel()
+	for in, want := range map[string]string{
+		"http://evil.example/x":      "%s points at a reserved example or test name",
+		"https://a.test/":            "%s points at a reserved example or test name",
+		"http://x.invalid/":          "%s points at a reserved example or test name",
+		"http://nas.local/":          "%s points at a local or private host",
+		"http://intranet/":           "%s points at a local or private host",
+		"http://10.1.2.3/":           "%s points at a private, reserved or special-purpose address",
+		"http://[::1]/":              "%s points at a private, reserved or special-purpose address",
+		"https://evil.example.com/x": "",
+	} {
+		if _, why := normaliseIOC("url", in); why.tmpl != want {
+			t.Errorf("%s: %q, want %q", in, why.tmpl, want)
+		}
 	}
 }
 

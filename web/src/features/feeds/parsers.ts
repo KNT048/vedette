@@ -12,6 +12,8 @@ export interface ParseOutput { records: ParseRecord[]; accepted: number; rejecte
 
 const MAX_REJECT_LIST = 200
 type Raw = Record<string, string | null>
+/** Raw key holding the line of a plain-list row, so a rejection names the line of the sample (comments and blank lines counted). */
+const LINE = '\u0001'
 type Rejection = { reject: string }
 
 // ---------- JSONPath subset: $ .key ['key'] [n] [*] .*  (no filters, no recursive descent)
@@ -149,7 +151,7 @@ function extractStix(text: string): Raw[] {
   return out.slice(0, ROW_LIMIT + 1)
 }
 function extractLines(text: string): Raw[] {
-  return text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#')).slice(0, ROW_LIMIT + 1).map((l) => ({ indicator: l.split(/\s+/)[0]! }))
+  return text.split(/\r?\n/).map((l, i) => [l.trim(), i + 1] as const).filter(([l]) => l && !l.startsWith('#')).slice(0, ROW_LIMIT + 1).map(([l, n]) => ({ indicator: l.split(/\s+/)[0]!, [LINE]: String(n) }))
 }
 
 // ---------- normalisation and validation
@@ -245,7 +247,7 @@ export function parseFeed(text: string, kind: FeedKind, p: Parser): ParseOutput 
       rejected++
       const key = r.reject.replace(/"[^"]*"/g, '"…"')
       counts.set(key, (counts.get(key) ?? 0) + 1)
-      if (rejects.length < MAX_REJECT_LIST) rejects.push({ row: i + 1, reason: r.reject })
+      if (rejects.length < MAX_REJECT_LIST) rejects.push({ row: raw[LINE] ? Number(raw[LINE]) : i + 1, reason: r.reject })
     } else { accepted++; if (records.length < 20) records.push(r as ParseRecord) }
   })
   return { records, accepted, rejected, reasons: [...counts].map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count), rejects: rejects.slice(0, 10), truncated }

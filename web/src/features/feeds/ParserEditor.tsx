@@ -8,7 +8,7 @@ import { Chip } from '@/components/common/StatusChip'
 import { DataTable } from '@/components/common/DataTable'
 import { ApiError } from '@/lib/api'
 import { fmtNumber } from '@/lib/format'
-import { FIELDS, FORMATS, ROW_LIMIT, SIZE_LIMIT } from './defaults'
+import { FIELDS, FORMATS, ROW_LIMIT, SIZE_LIMIT, defaultParser } from './defaults'
 import { useParseTest } from './api'
 import type { DateFormat, FeedFormat, FeedKind, FieldMap, ParseRecord, Parser } from './types'
 
@@ -25,7 +25,9 @@ export function ParserEditor({ kind, parser, onChange, onFormat }: { kind: FeedK
   const setField = (id: string, patch: Partial<FieldMap>) => set({ fields: { ...parser.fields, [id]: { ...parser.fields[id]!, ...patch } } })
   const mapped = fmt === 'json' || fmt === 'csv' || fmt === 'rss'
   const fields = FIELDS[kind].filter((f) => mapped || (fmt === 'lines' && f.id === 'indicator'))
-  const sourceHint = fmt === 'json' ? t('parser.srcJson') : fmt === 'csv' ? t('parser.srcCsv') : t('parser.srcRss')
+  // JSON examples come from the starting rules of this feed type, so an IOC field shows $.ioc or $.type, not a CVE path.
+  const jsonExample = defaultParser(kind, 'json').fields
+  const sourceHint = (id: string) => fmt === 'json' ? t('parser.srcJson', { example: jsonExample[id]?.source }) : fmt === 'csv' ? t('parser.srcCsv') : t('parser.srcRss')
   // A result belongs to the type and rules it was run with: switching the type or the format (which resets the rules) hides it.
   const fresh = test.variables?.kind === kind && JSON.stringify(test.variables.parser) === JSON.stringify(parser)
   const result = fresh ? test.data : undefined
@@ -58,7 +60,7 @@ export function ParserEditor({ kind, parser, onChange, onFormat }: { kind: FeedK
           </div>
         ) : null}
       </div>
-      <p className="text-[13px] text-muted">{t(`parser.note.${fmt}`)}</p>
+      <p className="text-[13px] text-muted">{t(`parser.note.${fmt}`, { example: jsonExample[FIELDS[kind][0]!.id]?.source })}</p>
 
       {fields.length ? (
         <div className="grid gap-3">
@@ -68,7 +70,7 @@ export function ParserEditor({ kind, parser, onChange, onFormat }: { kind: FeedK
               <fieldset key={id} className="grid gap-3 rounded-md border border-rule p-3 sm:grid-cols-2">
                 <legend className="px-1 text-[13px] font-medium">{t(`parser.field.${id}`)}{required ? ` (${t('parser.required')})` : ''}</legend>
                 {mapped ? (
-                  <Field label={t('parser.source')} htmlFor={`pe-${id}-src`} hint={sourceHint}>
+                  <Field label={t('parser.source')} htmlFor={`pe-${id}-src`} hint={sourceHint(id)}>
                     <Input id={`pe-${id}-src`} value={f.source} onChange={(e) => setField(id, { source: e.target.value })} autoComplete="off" spellCheck={false} className="font-mono text-[13px]" />
                   </Field>
                 ) : null}
@@ -119,7 +121,9 @@ export function ParserEditor({ kind, parser, onChange, onFormat }: { kind: FeedK
             <div className="grid gap-1 text-sm">
               <p className="font-medium">{t('parser.whyRejected')}</p>
               <ul className="list-disc pl-5 text-[13px]">{result.reasons.slice(0, 6).map((r) => <li key={r.reason}>{r.reason} <span className="text-muted">({fmtNumber(r.count)})</span></li>)}</ul>
-              <p className="text-[13px] text-muted">{t('parser.firstRejected', { rows: result.rejects.map((r) => r.row).join(', ') })}</p>
+              {/* Each reject shows its value: the sample is the admin's own paste or the built-in one, never a fetched feed (INV-7). Text only, never HTML. */}
+              <p className="font-medium">{t(fmt === 'lines' ? 'parser.firstRejectedLines' : 'parser.firstRejectedRows')}</p>
+              <ul className="grid gap-0.5 text-[13px]">{result.rejects.map((r, i) => <li key={i} className="break-words"><span className="text-muted">{t(fmt === 'lines' ? 'parser.rejectLine' : 'parser.rejectRow', { n: r.row })}</span> {r.reason}</li>)}</ul>
             </div>
           ) : null}
           <details className="text-sm"><summary className="cursor-pointer text-muted">{t('parser.showSample')}</summary><div className="mt-2 max-h-72 overflow-auto"><CodeBlock code={result.sample.slice(0, 6000)} label={result.sample_label} /></div></details>

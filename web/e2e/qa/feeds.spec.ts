@@ -366,7 +366,7 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     await dlg.getByRole('button', { name: 'Test on a sample' }).click()
     await expect(dlg.getByRole('status')).toContainText('2 rows accepted')
     await expect(dlg.getByRole('status')).toContainText('1 row rejected')
-    await expect(dlg.getByText(/First rejected rows \(numbers\): 2/)).toBeVisible()
+    await expect(dlg.getByRole('listitem').filter({ hasText: 'Line 2:' })).toContainText('indicator: "not" is not a valid indicator')
     await expect(dlg.getByRole('status')).toContainText('Your sample')
     await shot(page, 'feeds', `${info.project.name}-parse-test`)
     await dlg.locator('#pe-own').fill('')

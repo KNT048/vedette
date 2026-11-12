@@ -18,7 +18,10 @@ type Reason struct {
 	Count  int    `json:"count"`
 }
 
-// Reject is one rejected row (row numbers start at 1, after header and comments).
+// Reject is one rejected row. Row is the line of the input for a plain list
+// (comments and blank lines counted); for the other formats the record number
+// (from 1, after header and comments). Reason shows the value (quoteVal); only
+// parse-test returns Rejects over the API; a pull keeps the masked Reasons (INV-3).
 type Reject struct {
 	Row    int    `json:"row"`
 	Reason string `json:"reason"`
@@ -270,7 +273,11 @@ func parseWith(ctx context.Context, data []byte, kind Kind, p Parser, maxRows in
 		}
 		rec, why := pl.build(raw)
 		if !why.none() {
-			t.rejectR(i+1, why)
+			row := i + 1
+			if raw.line > 0 {
+				row = raw.line
+			}
+			t.rejectR(row, why)
 			continue
 		}
 		t.Accepted++

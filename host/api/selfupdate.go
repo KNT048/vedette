@@ -12,7 +12,7 @@ const CmdHostSelfUpdate = "host.self_update"
 const (
 	CodeHostVersionUnknown      = "host_version_unknown"     // the running binary has no SemVer version (a dev build)
 	CodeNoHostPackage           = "no_host_package"          // the manifest has no host part, or its file entry is out of range
-	CodeTestVersionRefused      = "test_version_refused"     // a -test. host version and a build that does not trust the test keys
+	CodeTestVersionRefused      = "test_version_refused"     // a -test. host version, a build that does not trust the test keys, on a host that is not itself a test build
 	CodeCurrentPackageMissing   = "current_package_missing"  // versions.json, the binary and dpkg do not agree, or the kept .deb of the running version is gone
 	CodePackageMissing          = "package_missing"          // core's file host-packages/<package>.deb is not there
 	CodePackageInvalid          = "package_invalid"          // core's file is not a plain file of core, or its size is not the manifest's

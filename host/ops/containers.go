@@ -234,17 +234,24 @@ func (o *Ops) checkContainerStart(ctx context.Context, a api.ContainerStartArgs)
 	if _, _, err := o.unitDirChain(); err != nil {
 		return refuse412(api.CodeUnitUnsafe, "The Quadlet directory is not safe to write as root.")
 	}
-	if _, _, err := o.currentUnit(a.Service); err != nil {
+	old, digest, err := o.currentUnit(a.Service)
+	if err != nil {
 		return err
 	}
 	if a.Service != api.ServiceHoneypot && o.volumeOwnerChanged(ctx) != "" { // the start writes the credential volume units (D-316 (10))
 		return refuse412(api.CodeUnitUnsafe, volumeOwnerText)
 	}
 	if a.Version == "" {
-		return nil
+		return o.portsFreeFor(a.Service, old, digest)
 	}
 	plan, err := o.planStartVersion(ctx, a)
 	if err != nil {
+		return err
+	}
+	if plan.change {
+		digest = plan.rec.Digest
+	}
+	if err := o.portsFreeFor(a.Service, old, digest); err != nil { // before the backup: a refusal here changes nothing (D-455)
 		return err
 	}
 	if plan.change && a.Service == api.ServiceCore {
@@ -755,6 +762,9 @@ func (o *Ops) runStartCurrent(ctx context.Context, rc *server.RunContext, a api.
 	}
 	want, err := o.renderFor(svc, digest)
 	if err != nil {
+		return nil, err
+	}
+	if err := o.portsFree(svc, old, want); err != nil { // a unit of an earlier template gains a port (D-455)
 		return nil, err
 	}
 	res := api.ContainerStartResult{Service: svc, Digest: digest, Healthy: true}

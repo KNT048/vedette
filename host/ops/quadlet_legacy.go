@@ -3,6 +3,7 @@ package ops
 import (
 	"bytes"
 	"context"
+	"strings"
 	"text/template"
 
 	"github.com/knt048/vedette/host/api"
@@ -40,7 +41,9 @@ var legacyTemplates = map[string][]*template.Template{
 //   - everything while a self-update journal is there: the new host is not committed and the previous one may be put back, which must
 //     find the units it wrote (D-316 (6b)); the image steps of the run, after the commit, rewrite the units they start, and the next
 //     host start the rest;
-//   - a service whose unit change is still being recovered (a transition journal): that is the recovery's to settle.
+//   - a service whose unit change is still being recovered (a transition journal): that is the recovery's to settle;
+//   - a unit whose current template publishes a host port the earlier one did not while another program listens on it (D-455):
+//     the earlier unit stays, one unit_migration_deferred line names the ports, and the next start looks again.
 //
 // A failure is logged and audited (unit_migration_failed) and changes nothing else: the unit stays ours on its earlier template, and
 // the next start, or the next command that writes it, tries again.
@@ -62,6 +65,14 @@ func (o *Ops) migrateUnits(ctx context.Context) (wrote bool) {
 		}
 		detail := map[string]any{"service": svc, "digest": digest}
 		want, err := renderUnit(svc, o.fillFor(digest, install))
+		if busy := o.busyPorts(svc, text, want); len(busy) > 0 { // want is nil after an error: it adds no port
+			// The current template publishes a port another program holds: written now, the unit would not start at the next
+			// restart (a reboot), so the earlier one stays and the next start looks again (D-455).
+			detail["ports"] = busyList(busy)
+			o.log.WarnContext(ctx, "a unit of an earlier host release is kept: a port the current template publishes is in use", "service", svc, "ports", strings.Join(busyList(busy), ", "))
+			o.note(api.CmdContainerStart, "unit_migration_deferred", detail)
+			continue
+		}
 		if err == nil {
 			err = o.writeUnitForStart(ctx, svc, want)
 		}

@@ -246,6 +246,76 @@ func (s *Service) ResetPassword(ctx context.Context, actorID, actorEmail, actorS
 	return temp, nil
 }
 
+// ConsoleReset is `vedette reset-admin <email>` on the box console (D-389): the way back in for an administrator
+// who lost the two-step device or the password when no other administrator can help. Whoever runs it already
+// holds the database and its key, so it asks for nothing else; the web has no such path. In one transaction it
+// sets a temporary password (TempPasswordLifetime, replaced at the next sign-in, D-180), turns two-step sign-in
+// off, ends every session of the account and writes the audit row user.console_reset. Only an active
+// administrator who signs in with a password qualifies: others are reset by an administrator in Settings -> Users,
+// and an SSO account signs in at its identity provider. The errors are sentences for the console.
+func (s *Service) ConsoleReset(ctx context.Context, email string) (temp string, sessionsEnded int, err error) {
+	email = normalizeEmail(email)
+	t, err := coredb.New(s.db.Reader()).GetUserByEmail(ctx, email)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", 0, fmt.Errorf("no account has the email %q", email)
+	}
+	if err != nil {
+		return "", 0, fmt.Errorf("auth: read user: %w", err)
+	}
+	if err := consoleResetRefusal(t); err != nil {
+		return "", 0, err
+	}
+	temp, err = NewTempPassword()
+	if err != nil {
+		return "", 0, err
+	}
+	hash, err := s.hashPassword(ctx, temp)
+	if err != nil {
+		return "", 0, err
+	}
+	_, err = write(ctx, s.db, func(tx *sql.Tx) (struct{}, *apierr.Error, error) {
+		q := coredb.New(tx)
+		cur, err := q.GetUserByID(ctx, t.ID) // re-checked where it is written: demoted or disabled meanwhile changes nothing
+		if err != nil {
+			return struct{}{}, nil, fmt.Errorf("auth: re-read user: %w", err)
+		}
+		if err := consoleResetRefusal(cur); err != nil {
+			return struct{}{}, nil, err
+		}
+		if _, err := q.UpdateUserPassword(ctx, coredb.UpdateUserPasswordParams{PasswordHash: hash, TempPasswordExpiresAt: s.tempExpiry(), ID: cur.ID}); err != nil {
+			return struct{}{}, nil, fmt.Errorf("auth: set password: %w", err)
+		}
+		twofa := "two-step sign-in was off"
+		if cur.TwofaMethod != nil {
+			twofa = "two-step sign-in turned off"
+			if err := s.clearTwoFA(ctx, tx, cur.ID); err != nil {
+				return struct{}{}, nil, err
+			}
+		}
+		if sessionsEnded, err = s.Sessions.RevokeAllForUser(ctx, tx, cur.ID); err != nil {
+			return struct{}{}, nil, err
+		}
+		return struct{}{}, nil, s.audit.Append(ctx, tx, audit.Entry{User: "console", Action: "user.console_reset", Target: cur.Email,
+			Detail: fmt.Sprintf("temporary password set; %s; %d sessions ended", twofa, sessionsEnded)})
+	})
+	if err != nil {
+		return "", 0, err
+	}
+	return temp, sessionsEnded, nil
+}
+
+func consoleResetRefusal(u coredb.CoreUser) error {
+	switch {
+	case u.Role != string(routes.Admin):
+		return fmt.Errorf("%s is not an administrator: an administrator resets other accounts in Settings -> Users", u.Email)
+	case u.SsoIssuer != nil:
+		return fmt.Errorf("%s signs in through the identity provider (SSO): reset it there", u.Email)
+	case u.Disabled != 0:
+		return fmt.Errorf("%s is disabled: reset an administrator account that is not", u.Email)
+	}
+	return nil
+}
+
 // ChangeOwnPassword is POST /core/account/password: the current password must be right (400 wrong_password,
 // counted by the same rate limit as sign-in), the new one must pass the policy (weak_password) and differ
 // (same_password). Every session of the user ends, the current one (currentSessionID) included, and a new

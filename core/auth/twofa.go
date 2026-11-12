@@ -25,7 +25,7 @@ func alreadyOn() *apierr.Error {
 }
 
 func noPending() *apierr.Error {
-	return apierr.New(409, CodeNoPending, `No key is waiting for confirmation. Click "Turn on two-factor authentication" to create one.`)
+	return apierr.New(409, CodeNoPending, `No key is waiting for confirmation. Choose "Set up authenticator app" again to get a new one.`)
 }
 
 func emailNotReady() *apierr.Error {
@@ -51,7 +51,7 @@ func (s *Service) user(ctx context.Context, id string) (coredb.CoreUser, error) 
 }
 
 // enableWrongPassword is the message of a wrong password when two-step sign-in is being turned on (D-76).
-const enableWrongPassword = "Wrong password. The password is needed to turn on two-factor authentication."
+const enableWrongPassword = "Wrong password. The password is needed to turn on two-step sign-in."
 
 // StartTOTP creates a new unconfirmed key for the user (replacing an earlier unconfirmed one) and returns it.
 // Turning two-step on needs the current password, like turning it off (D-76): 400 wrong_password, counted by
@@ -150,7 +150,7 @@ func (s *Service) ConfirmTOTP(ctx context.Context, userID, currentSessionID, cod
 	}
 	// The key's own count is reserved before the code is judged (atomically per secret id), so parallel
 	// guesses cannot get more than maxPendingTOTPTries codes judged against one key.
-	tooMany := apierr.New(400, CodeTooManyTries, "Too many wrong codes. Turn on two-factor authentication again to get a new key.")
+	tooMany := apierr.New(400, CodeTooManyTries, `Too many wrong codes. Choose "Set up authenticator app" again to get a new key.`)
 	n := s.pendingTries.reserve(p.SecretID)
 	if n > maxPendingTOTPTries { // the key has had its tries; whoever used the last one drops it
 		s.pendingTries.refund(p.SecretID)
@@ -341,7 +341,7 @@ func (s *Service) DisableTwoFA(ctx context.Context, userID, currentSessionID, pa
 	if err != nil {
 		return Issued{}, err
 	}
-	if err := s.checkOwnPassword(ctx, t, password, "Wrong password. The password is needed to turn off two-factor authentication."); err != nil {
+	if err := s.checkOwnPassword(ctx, t, password, "Wrong password. The password is needed to turn off two-step sign-in."); err != nil {
 		return Issued{}, err
 	}
 	return write(ctx, s.db, func(tx *sql.Tx) (Issued, *apierr.Error, error) {

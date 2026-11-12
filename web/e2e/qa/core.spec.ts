@@ -234,7 +234,7 @@ test.describe('sign-in and two-step', () => {
     // D-76: turning two-step on needs the current password, as turning it off does
     await page.getByLabel('Your current password').fill('wrong')
     await page.getByRole('button', { name: 'Set up authenticator app' }).click()
-    await expect(page.getByText(/The password is needed to turn on two-factor authentication/)).toBeVisible()
+    await expect(page.getByText(/The password is needed to turn on two-step sign-in/)).toBeVisible()
     await page.getByLabel('Your current password').fill(SAMPLE.password)
     await page.getByRole('button', { name: 'Set up authenticator app' }).click()
     const key = (await page.getByLabel('Manual key').innerText()).trim()
@@ -482,7 +482,7 @@ test.describe('updates: system helper (D-316)', () => {
     await expect(helperRow(page).getByRole('button')).toHaveCount(0)
     await page.getByRole('button', { name: /^Update Vedette software$/ }).click()
     await expect(page.getByText('Step 1 of 4: update the system helper')).toBeVisible()
-    await expect(page.getByText('Updating the system helper. Vedette keeps running; settings that need the helper may not answer for up to a minute.')).toBeVisible()
+    await expect(page.getByText('Updating the system helper. Vedette keeps running; settings that need the helper cannot be changed until this step ends.')).toBeVisible()
     await expect(page.getByRole('button', { name: /^Back to .*Vedette software/ })).toBeDisabled()
   }
 

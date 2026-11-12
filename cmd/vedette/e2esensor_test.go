@@ -59,7 +59,7 @@ type e2eSensors struct {
 	mu   sync.Mutex
 	addr string // the sensor link's address, "" until the box logs it
 	kids map[string]*e2eKid
-	nmap string // the fake nmap, written once (a running sensor may be executing it)
+	nmap string        // the fake nmap, written once (a running sensor may be executing it)
 	scan *e2eScanFakes // the scan worker's pack, nuclei and nmap, written once (e2escan_test.go)
 }
 

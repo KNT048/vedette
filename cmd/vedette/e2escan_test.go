@@ -183,7 +183,7 @@ func (s *e2eSensors) scanRoutes(mux *http.ServeMux) {
 		}
 		f, err := s.scanFakes()
 		if err == nil {
-			err = os.WriteFile(f.modeFile(), []byte(in.Nuclei), 0o600)
+			err = os.WriteFile(f.modeFile(), []byte(in.Nuclei), 0o600) //nolint:gosec // G703: the run's folder, a fixed name; the body is one of e2eScanModes
 		}
 		if err == nil {
 			err = s.startScan(f) //nolint:contextcheck // the worker lives as long as the box (s.ctx), not as long as this request
@@ -198,7 +198,7 @@ func (s *e2eSensors) scanRoutes(mux *http.ServeMux) {
 		f, err := s.scanFakes()
 		var b []byte
 		if err == nil {
-			b, err = os.ReadFile(f.argvLog())
+			b, err = os.ReadFile(f.argvLog()) //nolint:gosec // G703: the run's folder, a fixed name
 		}
 		if err != nil && !os.IsNotExist(err) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

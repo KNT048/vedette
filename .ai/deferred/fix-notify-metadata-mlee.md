@@ -1,0 +1,4 @@
+# fix/notify-metadata-mlee — việc để sau
+
+- [ ] 2026-11-13 — (Opus r1 LOW) `addrForms` in notify, feeds and logs decodes `64:ff9b:1::/48` only in its RFC 6052 /48 layout; a local NAT64 run under a /64 layout of that prefix (e.g. `64:ff9b:1:1:64:6464:c800::` → 100.100.100.200) passes — vì sao để sau: needs a NAT64 translator configured on a non-standard layout of the local-use prefix; the standard layouts are covered — ở đâu: modules/notify/channel/webhook.go addrForms, modules/feeds/dial.go, modules/logs/siem_send.go
+- [ ] 2026-11-13 — `modules/response/webhook.go` (Kiên-side) has the same webhook guard without the non-link-local cloud metadata addresses (100.100.100.200, 192.0.0.192, fd00:ec2::254, fd20:ce::254) — vì sao để sau: Kiên's module, reported to the supervisor 2026-11-13 — ở đâu: modules/response/webhook.go:116-125

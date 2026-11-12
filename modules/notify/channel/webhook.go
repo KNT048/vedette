@@ -81,9 +81,9 @@ func forbiddenAddr(a netip.Addr, allowLoopback bool, box []netip.Addr) bool {
 	return false
 }
 
-// metadataAddrs are cloud instance-metadata endpoints that are not link-local (169.254.169.254 is): AWS over IPv6, Alibaba,
-// Oracle. Same list as feeds and logs.
-var metadataAddrs = []netip.Addr{netip.MustParseAddr("fd00:ec2::254"), netip.MustParseAddr("100.100.100.200"), netip.MustParseAddr("192.0.0.192")}
+// metadataAddrs are cloud instance-metadata endpoints that are not link-local (169.254.169.254 is): AWS and Google Cloud over
+// IPv6, Alibaba, Oracle. Same list as feeds and logs.
+var metadataAddrs = []netip.Addr{netip.MustParseAddr("fd00:ec2::254"), netip.MustParseAddr("fd20:ce::254"), netip.MustParseAddr("100.100.100.200"), netip.MustParseAddr("192.0.0.192")}
 
 func metadataAddr(a netip.Addr) bool {
 	for _, m := range metadataAddrs {

@@ -145,7 +145,7 @@ func TestForbiddenAddrClasses(t *testing.T) {
 		"127.0.0.1": true, "::1": true, "169.254.0.1": true, "fe80::1": true, "0.0.0.0": true, "::": true,
 		"224.0.0.1": true, "ff02::1": true, "::ffff:169.254.1.1": true,
 		"100.100.100.200": true, "192.0.0.192": true, "fd00:ec2::254": true, "64:ff9b::6464:64c8": true, "2002:a9fe:a9fe::1": true,
-		"::ffff:100.100.100.200": true, "fd00:ec2::1": false,
+		"::ffff:100.100.100.200": true, "fd20:ce::254": true, "fd00:ec2::1": false,
 		"10.1.1.1": false, "192.168.0.9": false, "172.16.5.5": false, "8.8.8.8": false, "2001:db8::1": false,
 	} {
 		if got := forbiddenAddr(netip.MustParseAddr(in), false, nil); got != want {
@@ -174,7 +174,7 @@ func TestWebhookDialGuardRefusesResolvedAddresses(t *testing.T) {
 	box := []netip.Addr{netip.MustParseAddr("192.168.10.2")}
 	for addr, wantErr := range map[string]bool{
 		"127.0.0.1:443": true, "169.254.169.254:80": true, "0.0.0.0:80": true, "[::1]:443": true, "224.0.0.1:80": true,
-		"192.168.10.2:443": true, "[fd00:ec2::254]:80": true, "100.100.100.200:443": true, "192.168.10.9:443": false, "8.8.8.8:443": false, "not-an-address": true, "example.com:443": true,
+		"192.168.10.2:443": true, "[fd00:ec2::254]:80": true, "100.100.100.200:443": true, "192.0.0.192:80": true, "[64:ff9b::6464:64c8]:443": true, "[fd20:ce::254]:80": true, "192.168.10.9:443": false, "8.8.8.8:443": false, "not-an-address": true, "example.com:443": true,
 	} {
 		if err := dialControl(false, func() ([]netip.Addr, bool) { return box, true })("tcp", addr, nil); (err != nil) != wantErr {
 			t.Errorf("https %s: err = %v", addr, err)

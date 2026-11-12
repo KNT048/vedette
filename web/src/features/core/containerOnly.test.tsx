@@ -2,10 +2,11 @@
 // install comes from GET /modules, host pages show what the customer does instead and never call the host endpoints,
 // the honeypot cannot be turned on and its page claims no coverage, the setup code hint names vedette-core.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp } from '@/test/render'
-import { installStore } from '@/mocks/stores'
+import { installStore, sessionStore } from '@/mocks/stores'
+import { containerSensorStore } from '@/features/inventory/mocks'
 import { MOCK_SETUP_CODE } from './mocks'
 
 const HOST_PATHS = ['/core/updates/os', '/core/data/backups', '/core/data/restore/run', '/core/network']
@@ -62,5 +63,53 @@ describe('container-only install (D-381)', () => {
     expect(within(small).getByText(/Reports/)).toBeInTheDocument()
     expect(within(small).queryByText(/Internal traps/)).toBeNull()
     expect(screen.getByText(/Not on this install: .*Internal traps/)).toBeInTheDocument()
+  })
+
+  // The setup page re-mounts its sections once right after first paint (inventory.test.tsx clickUntil): click again until the dialog shows.
+  const openSensorDialog = async (u: ReturnType<typeof userEvent.setup>) => {
+    await screen.findByRole('button', { name: 'Configure sensor vedette-hq' }, { timeout: 5000 })
+    await waitFor(async () => { await u.click(screen.getByRole('button', { name: 'Configure sensor vedette-hq' })); screen.getByRole('dialog') }, { timeout: 8000 })
+  }
+  // S-CORE-8 G6, D-387: the SPAN card is chosen under Sensors among the cards the sensor reported; Box network has no SPAN here.
+  it('Sensors: Configure picks the SPAN card among the reported cards; the box refuses a card with an address', async () => {
+    const u = userEvent.setup()
+    renderApp('/devices/setup')
+    await openSensorDialog(u)
+    const dlg = screen.getByRole('dialog')
+    expect(within(dlg).queryByRole('link', { name: /Box network/ })).toBeNull()
+    const pick = within(dlg).getByRole('combobox', { name: 'SPAN card' })
+    expect(within(pick).getAllByRole('option').map((o) => o.textContent)).toEqual(["None (listen on the card with this machine's address)", 'eno1', 'eno2', 'wlp2s0'])
+    await u.selectOptions(pick, 'eno1')
+    await u.click(within(dlg).getByRole('button', { name: 'Save' }))
+    expect(await within(dlg).findByRole('alert')).toHaveTextContent('"eno1" has an IP address; a SPAN port has none.')
+    await u.selectOptions(pick, 'eno2')
+    await u.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(containerSensorStore.get()).toMatchObject({ chosen: 'eno2', span: true })
+    await waitFor(() => expect(screen.getByRole('cell', { name: /eno2/ })).toBeInTheDocument())
+    expect(calls.some((u) => new URL(u, location.origin).pathname.startsWith('/api/v1/core/network'))).toBe(false)
+  })
+
+  it('Sensors: a sensor never started says Not connected yet and how to start it; no card reported yet, no Save', async () => {
+    containerSensorStore.set({ connected: false, cards: [], chosen: null, span: false })
+    const u = userEvent.setup()
+    renderApp('/devices/setup')
+    await waitFor(() => {
+      expect(screen.getByText('Not connected yet')).toBeInTheDocument()
+      expect(screen.getByText('Start it with compose.sensors.yaml on this machine.')).toBeInTheDocument()
+    }, { timeout: 5000 })
+    expect(screen.queryByText('Lost contact')).toBeNull()
+    await openSensorDialog(u)
+    const dlg = screen.getByRole('dialog')
+    expect(within(dlg).getByRole('status')).toHaveTextContent('No card reported yet: start the sensor with compose.sensors.yaml.')
+    expect(within(dlg).queryByRole('button', { name: 'Save' })).toBeNull()
+  })
+
+  it('PATCH /inventory/sensors/{id} on an appliance is 409 set_in_box_network', async () => {
+    installStore.set({ kind: 'appliance' })
+    sessionStore.set({ userId: 'u-admin' })
+    const r = await fetch(`${location.origin}/api/v1/inventory/sensors/sn-local`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ interface: 'eth1', span: true }) })
+    expect(r.status).toBe(409)
+    expect(((await r.json()) as { error: { code: string } }).error.code).toBe('set_in_box_network')
   })
 })

@@ -351,6 +351,7 @@
   "sensors": {
     "title": "Sensor on this box",
     "description": "The sensor listens to the network (DHCP, ARP, mDNS, SSDP, LLDP) to learn devices without scanning. The port it listens on and SPAN are set in Settings → Box network.",
+    "descriptionContainer": "The sensor listens to the network (DHCP, ARP, mDNS, SSDP, LLDP) to learn devices without scanning. On this container-only install you choose its SPAN card here, with Configure.",
     "off": "The passive sensor is off, so Vedette does not discover new devices by itself. Devices you add by hand still work.",
     "caption": "Sensors on this box",
     "col": {
@@ -363,7 +364,17 @@
     },
     "status": {
       "online": "Reporting",
-      "offline": "Lost contact"
+      "offline": "Lost contact",
+      "never_connected": "Not connected yet"
+    },
+    "startHint": "Start it with compose.sensors.yaml on this machine.",
+    "card": {
+      "body": "Choose the card that receives the mirrored traffic among the cards the sensor reported. This machine's network is yours: Vedette does not change the card.",
+      "label": "SPAN card",
+      "hint": "Prepare the card on this machine first: no IP address, promiscuous mode, connected to the switch's mirror port.",
+      "noSpan": "None (listen on the card with this machine's address)",
+      "none": "No card reported yet: start the sensor with compose.sensors.yaml.",
+      "saved": "Sensor card saved."
     },
     "lastSeen": "Contact {{when}}",
     "spanOn": "SPAN",

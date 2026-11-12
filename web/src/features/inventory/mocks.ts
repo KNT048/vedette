@@ -3,7 +3,7 @@
 import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, CIDR_RE, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
-import { assetsStore, boxInfo, isOn, findingsStore } from '@/mocks/stores'
+import { assetsStore, boxInfo, installStore, isOn, findingsStore } from '@/mocks/stores'
 import { matchAssetToKev } from '@/mocks/match'
 import { collection, dataMode, daysAgo, newId, nowIso } from '@/mocks/db'
 import { networkStore, spanStatusOf } from '@/mocks/network'
@@ -52,6 +52,24 @@ const sensorsStore = collection<StoredSensor[]>('sp_sensor', () => [
   // Cài sạch: cảm biến của chính hộp, chưa thấy thiết bị nào.
   { id: 'sn-local', name: boxInfo().hostname, status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 0 },
 ])
+/** Container-only install (D-263, D-387): the cards the sensor container reported in its heartbeat and the SPAN card the admin
+ *  chose. A clean install has not started the sensor yet (compose.sensors.yaml): no heartbeat, no card. */
+type ReportedCard = { name: string; ipv4: string | null; link: boolean }
+export const containerSensorStore = collection<{ connected: boolean; cards: ReportedCard[]; chosen: string | null; span: boolean }>('sp_container', () => ({
+  connected: true, chosen: null, span: false,
+  cards: [{ name: 'eno1', ipv4: '192.168.10.20/24', link: true }, { name: 'eno2', ipv4: null, link: true }, { name: 'wlp2s0', ipv4: null, link: false }],
+}), () => ({ connected: false, cards: [], chosen: null, span: false }))
+/** GET /inventory/sensors on a container-only install: everything about the cards comes from the heartbeat (D-263); never_connected before the first one. */
+function containerSensors() {
+  const c = containerSensorStore.get()
+  const withAddress = c.cards.filter((x) => x.link && x.ipv4)
+  const dflt = withAddress.length === 1 ? withAddress[0]!.name : null // D-380: the one card with an address, else none
+  return sensorsStore.get().map((s) => ({
+    ...s, status: c.connected ? s.status : 'never_connected' as const, last_seen: c.connected ? s.last_seen : null, version: c.connected ? s.version : null, devices_seen: c.connected ? s.devices_seen : 0,
+    interface: c.chosen ?? dflt, interfaces: c.cards.map((x) => x.name).sort(), span: c.span,
+    span_status: c.span ? { verdict: 'ok' as const, packets_per_s: 140, other_macs: 12 } : { verdict: 'off' as const, packets_per_s: 0, other_macs: 0 },
+  }))
+}
 const agentsStore = collection<AgentToken[]>('intake_agent_tokens', () => [
   { id: 'tk-osquery', name: 'osquery on SRV-AD and SRV-FILE', kind: 'osquery', last4: 'k3Pq', created_at: daysAgo(12), last_received: daysAgo(0, 3), hosts: 2, expires_at: new Date(Date.now() + 5 * 864e5).toISOString() },
 ], () => [])
@@ -589,12 +607,32 @@ export const handlers = [
 
   http.get(`${API}/inventory/sensors`, () => {
     const denied = guard('admin'); if (denied) return denied
+    if (installStore.get().kind === 'container') return HttpResponse.json({ sensors: containerSensors() })
     // SPAN and the listening port are owned by Settings → Box network (D-56); the sensor row only reflects them.
     const net = networkStore.get()
     const st = spanStatusOf(net)
     const spanOn = net.span.enabled && !!net.span.interface
     const mgmt = net.ifaces.find((i) => i.role === 'management')?.name ?? null
     return HttpResponse.json({ sensors: sensorsStore.get().map((s) => ({ ...s, interface: spanOn ? net.span.interface : mgmt, interfaces: net.ifaces.map((i) => i.name), span: spanOn, span_status: { verdict: st.verdict, packets_per_s: st.packets_per_s, other_macs: st.other_macs } })) })
+  }),
+
+  // D-387: only a container-only install chooses the card here; an appliance sets it in Settings → Box network (D-56, D-118).
+  http.patch(`${API}/inventory/sensors/:id`, async ({ request, params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    if (installStore.get().kind !== 'container') return fail(409, 'set_in_box_network', 'On this box the card the sensor listens on is chosen in Settings → Box network.')
+    if (!sensorsStore.get().some((s) => s.id === params.id)) return fail(404, 'not_found', 'No such sensor.')
+    const b = await body<{ interface?: unknown; span?: unknown }>(request)
+    if (typeof b.span !== 'boolean' || (b.interface !== null && (typeof b.interface !== 'string' || b.interface.length > 15))) return fail(400, 'invalid', 'Give interface (a card name or null) and span (true or false).')
+    const c = containerSensorStore.get()
+    const name = b.interface === '' ? null : b.interface as string | null
+    if (name && !c.connected) return fail(400, 'bad_interface', 'The sensor has not reported its network cards in the last 90 seconds; check that it runs, wait for its next heartbeat (30 s) and try again.')
+    const card = name ? c.cards.find((x) => x.name === name) : undefined
+    if (b.span && !name) return fail(400, 'bad_interface', 'A SPAN port needs an interface.')
+    if (name && !card) return fail(400, 'bad_interface', `"${name}" is not an interface of this box.`)
+    if (b.span && card?.ipv4) return fail(400, 'bad_interface', `"${name}" has an IP address; a SPAN port has none.`)
+    containerSensorStore.set({ ...c, chosen: name, span: b.span })
+    audit('sensor.interface_set', String(params.id), `interface="${name ?? ''}" span=${b.span}`)
+    return HttpResponse.json(containerSensors().find((s) => s.id === params.id))
   }),
 
 

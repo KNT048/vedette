@@ -275,6 +275,16 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 		!strings.Contains(code, "GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=2 -shuffle=on -timeout=40m' || '' }}") {
 		t.Errorf("-count and -shuffle (they turn the test cache off) must be set by the daily schedule only (%d settings)", got)
 	}
+	// D-371: only a pull request drops -race; the merge queue (the merge gate), main and the daily run keep it.
+	if got := len(regexp.MustCompile(`\bRACE\b`).FindAllString(code, -1)); got != 3 ||
+		!strings.Contains(code, "RACE: ${{ github.event_name != 'pull_request' && '-race' || '' }}") ||
+		!strings.Contains(code, `make test-go-shard SHARD=${{ matrix.shard }} RACE="$RACE"`) {
+		t.Errorf("go-test must drop -race on a pull request only (%d RACE settings)", got)
+	}
+	if !regexp.MustCompile(`(?m)^RACE \?= -race$`).MatchString(mk) ||
+		len(regexp.MustCompile(`(?m)^\t.*go test \$\(RACE\) `).FindAllString(mk, -1)) != 2 {
+		t.Error("make test-go-shard must run both go test calls with $(RACE), -race unless set")
+	}
 	cached := regexp.MustCompile(`(?m)^\t.*go test .*\$\$c\b.*$`).FindAllString(mk, -1)
 	if len(cached) != 1 || strings.Contains(cached[0], "-count") {
 		t.Errorf("make test-go-shard must run the cached packages in one go test without -count: %q", cached)

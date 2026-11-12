@@ -257,7 +257,8 @@ func (h *OSHandlers) CorePostCoreUpdatesRollback(ctx context.Context, req *oas.C
 }
 
 // beginUpdate is the common start of a run: no purge, not busy, the plan, then in one transaction the admin
-// check, the audit row of the intent, the stored run and what the action adds (also); then the follower.
+// check (none for the automatic mode, c = systemCaller), the audit row of the intent, the stored run and what the
+// action adds (also); then the follower.
 func (h *OSHandlers) beginUpdate(ctx context.Context, c caller, plan func(context.Context) (*updateRunRec, string, func(*sql.Tx) error, error)) error {
 	leave, ok := h.gate.Enter()
 	if !ok {
@@ -272,6 +273,9 @@ func (h *OSHandlers) beginUpdate(ctx context.Context, c caller, plan func(contex
 	if h.busy(ctx) {
 		return apierr.New(409, codeBusy, "An operating system update is running. Wait for it to finish, then try again.")
 	}
+	if h.restoreRunning(ctx) {
+		return apierr.New(409, codeBusy, "A backup is being restored. Wait for it to finish, then try again.")
+	}
 	rec, detail, also, err := plan(ctx)
 	if err != nil {
 		return err
@@ -281,8 +285,10 @@ func (h *OSHandlers) beginUpdate(ctx context.Context, c caller, plan func(contex
 		action = "update.rollback"
 	}
 	err = h.db.Write(ctx, func(tx *sql.Tx) error {
-		if err := h.auth.CheckAdmin(ctx, tx, c.ID, c.SessionID); err != nil {
-			return err
+		if !c.system() {
+			if err := h.auth.CheckAdmin(ctx, tx, c.ID, c.SessionID); err != nil {
+				return err
+			}
 		}
 		if err := h.audit.Append(ctx, tx, audit.Entry{User: c.Email, Action: action, Target: softwareComponent, Detail: cutAtRune(detail, auditMaxDetail)}); err != nil {
 			return err
@@ -509,9 +515,9 @@ func (h *OSHandlers) followOne() {
 			}
 			h.log.Log(h.ctx, lvl, "core: the software update run waits for vedette-host", "error", err)
 		}
-		wait := retry
-		if h.urun.retry <= 0 { // tests set their own pause
-			wait = retryWait(err, retry)
+		wait := f.pause(err, retry)
+		if h.urun.retry > 0 { // tests set their own pause
+			wait = retry
 		}
 		select {
 		case <-h.ctx.Done():
@@ -520,18 +526,52 @@ func (h *OSHandlers) followOne() {
 	}
 }
 
-// retryWait is the pause before the next try: base, or the host's retry_after_s (dpkg_locked, rate_limited) when
-// that is longer, at most maxRetryAfter.
-func retryWait(err error, base time.Duration) time.Duration {
-	var he *client.Error
-	if errors.As(err, &he) && he.RetryAfterS > 0 {
-		return max(base, min(time.Duration(he.RetryAfterS)*time.Second, maxRetryAfter))
+// pause counts the try-later answers in a row (another answer resets the count) and returns retryWait's pause.
+func (f *updFollower) pause(err error, base time.Duration) time.Duration {
+	if isTryLater(err) {
+		f.refused++
+	} else {
+		f.refused = 0
 	}
-	return base
+	return retryWait(err, base, f.refused)
 }
 
-// maxRetryAfter caps the wait a host's retry_after_s asks for.
-const maxRetryAfter = 5 * time.Minute
+// retryWait is the pause before the next try. refused counts the try-later answers in a row, this one included:
+// the first busyTries wait base, the next busyWait, any after that busyWaitMax (each refusal is a run file and an
+// audit line on the host, which keeps 500 runs: a 5 s pause would push older runs out of reach in 42 minutes). The
+// host's retry_after_s (dpkg_locked, rate_limited) wins when longer, at most maxRetryAfter.
+func retryWait(err error, base time.Duration, refused int) time.Duration {
+	var he *client.Error
+	if !errors.As(err, &he) {
+		return base
+	}
+	w := base
+	if tryLater(he.Code) {
+		switch {
+		case refused > busyTries+1:
+			w = max(w, busyWaitMax)
+		case refused > busyTries:
+			w = max(w, busyWait)
+		}
+	}
+	if he.RetryAfterS > 0 {
+		w = max(w, min(time.Duration(he.RetryAfterS)*time.Second, maxRetryAfter))
+	}
+	return w
+}
+
+// isTryLater: err is the host's try-later answer.
+func isTryLater(err error) bool {
+	var he *client.Error
+	return errors.As(err, &he) && tryLater(he.Code)
+}
+
+const (
+	maxRetryAfter = 5 * time.Minute // caps the wait a host's retry_after_s asks for
+	busyTries     = 3               // try-later answers in a row at the follower's normal pause
+	busyWait      = 30 * time.Second
+	busyWaitMax   = time.Minute // ~360 refusals per 6 hours without progress: the host's 500 runs keep the run's own calls
+)
 
 // updFollower carries the stored run forward. sent holds the request ids THIS process sent: only those may be
 // sent again when the host does not know them (core's own switch is never sent again after a restart).
@@ -540,6 +580,7 @@ type updFollower struct {
 	sent    map[string]bool
 	fetched map[string]bool // system helper packages this process downloaded and checked (by id)
 	started time.Time       // the 6-hour rule never counts time before this process followed the run
+	refused int             // try-later answers in a row (retryWait); another answer or a call that ends resets it
 }
 
 // errTransient is a call whose outcome is not known yet: the follower tries again later with the same key.
@@ -583,6 +624,7 @@ func (f *updFollower) advance(ctx context.Context) (done bool, err error) {
 			return false, err
 		}
 		rec.Calls[i].Status, rec.Progress = string(run.Status), h.now()
+		f.refused = 0
 		if run.Error != nil {
 			rec.Calls[i].Code = run.Error.Code
 		}

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -107,6 +107,16 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(screen.getByRole('button', { name: 'Resolve' })).toBeDisabled()
     const res = await fetch(`${location.origin}/api/v1/notify/incidents/al-4`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'resolved' }) })
     expect(res.status).toBe(403)
+  })
+
+  it('a viewer does not ask for the alert channels (403 in the console)', async () => {
+    const real = globalThis.fetch
+    const asked: string[] = []
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => { asked.push(String(input instanceof Request ? input.url : input)); return real(input, init) })
+    renderApp('/incidents', { role: 'viewer' })
+    await screen.findByRole('heading', { level: 1 })
+    expect(asked.filter((x) => x.includes('/notify/channels'))).toEqual([])
+    spy.mockRestore()
   })
 
   it('an unknown incident says so', async () => {

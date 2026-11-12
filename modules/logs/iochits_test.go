@@ -193,11 +193,68 @@ func TestIOCDomainHits(t *testing.T) {
 	}
 }
 
+// D-228: a feed that lists a name with all of its subdomains (hagezi TIF) makes a subdomain the device asked for a hit; the hit keeps the
+// name asked for, the incident says which name is listed and is keyed on it, and the parents that names of a batch share are looked up once.
+func TestIOCSubdomainOfANameListedWithItsSubdomains(t *testing.T) {
+	t.Parallel()
+	e, src, ff, p := iocEnv(t)
+	ff.listed["domain:tif-listed.net"] = Listing{Feeds: []string{"hagezi TIF"}, Confidence: 0.8, SubFeeds: []string{"hagezi TIF"}, SubConfidence: 0.8}
+	e.feedAll(src, []string{dnsLine(lanDevice, "A.B.Tif-Listed.NET."), dnsLine(lanDevice, "c.tif-listed.net")})
+	if h, b := p.counts(); h != 2 || b != 2 {
+		t.Fatalf("%d hits %d events", h, b)
+	}
+	for i, want := range []string{"a.b.tif-listed.net", "c.tif-listed.net"} {
+		h, b := p.hits[i], p.bad[i]
+		if h.Dest != want || h.DestKind != "domain" || h.Confidence != 0.8 || strings.Join(h.Feeds, ",") != "hagezi TIF" || b.Dest != want ||
+			b.Target != "ioc:tif-listed.net" || !strings.Contains(b.What, "(listed as tif-listed.net, with all of its subdomains)") || !strings.Contains(b.Title, want) {
+			t.Errorf("hit %d %+v %+v", i, h, b)
+		}
+	}
+	got := strings.Join(ff.lookups(), " ")
+	if got != "domain:a.b.tif-listed.net domain:b.tif-listed.net domain:tif-listed.net domain:c.tif-listed.net" {
+		t.Errorf("lookups %s", got)
+	}
+}
+
+// D-228: a feed that lists names exactly (no SubFeeds: a custom feed, URLhaus) never makes a subdomain a hit, and a top-level domain
+// is never looked up, even if a feed listed it.
+func TestIOCSubdomainOfAnExactListingOrATopLevelDomainIsNoHit(t *testing.T) {
+	t.Parallel()
+	e, src, ff, p := iocEnv(t)
+	ff.listed["domain:net"] = Listing{Feeds: []string{"x"}, Confidence: 1, SubFeeds: []string{"x"}, SubConfidence: 1}
+	e.feedAll(src, []string{dnsLine(lanDevice, "www."+badDomain), dnsLine(lanDevice, "fine.net")})
+	if h, _ := p.counts(); h != 0 || hitCount(t, e) != 0 {
+		t.Fatalf("hits %+v", p.hits)
+	}
+	got := strings.Join(ff.lookups(), " ")
+	if got != "domain:fine.net domain:www."+badDomain+" domain:"+badDomain+" domain:example.net" { // in the order of the batch's pairs; never "domain:net"
+		t.Errorf("lookups %s", got)
+	}
+}
+
+// The walk keeps the shortest maxIocParents parents of a long name, nearest first, and never a single label.
+func TestParentDomains(t *testing.T) {
+	t.Parallel()
+	if got := parentDomains("a.b.bad.example"); strings.Join(got, " ") != "b.bad.example bad.example" {
+		t.Errorf("%v", got)
+	}
+	for _, n := range []string{"bad.example", "example", "", "a..example", ".a.example"} {
+		if got := parentDomains(n); len(got) != 0 {
+			t.Errorf("%q: %v", n, got)
+		}
+	}
+	long := strings.Repeat("x.", 125) + "bad.example" // 127 labels
+	got := parentDomains(long)
+	if len(got) != maxIocParents || got[len(got)-1] != "bad.example" || got[0] != strings.Repeat("x.", 9)+"bad.example" {
+		t.Errorf("%d parents, %q … %q", len(got), got[0], got[len(got)-1])
+	}
+}
+
 // Private and special destinations are never looked up, and neither is a connection that is not from a LAN device.
 func TestIOCOnlyPublicDestinationsFromLANDevices(t *testing.T) {
 	t.Parallel()
 	e, src, ff, p := iocEnv(t)
-	ff.listed["ip:10.1.1.1"], ff.listed["ip:203.0.113.9"], ff.listed["ip:8.8.8.8"] = Listing{[]string{"x"}, 1}, Listing{[]string{"x"}, 1}, Listing{[]string{"x"}, 1}
+	ff.listed["ip:10.1.1.1"], ff.listed["ip:203.0.113.9"], ff.listed["ip:8.8.8.8"] = Listing{Feeds: []string{"x"}, Confidence: 1}, Listing{Feeds: []string{"x"}, Confidence: 1}, Listing{Feeds: []string{"x"}, Confidence: 1}
 	var texts []string
 	for _, d := range []string{"10.1.1.1", "192.168.1.1", "127.0.0.1", "169.254.9.9", "224.0.0.251", "100.64.1.1", "203.0.113.9", "198.51.100.5", "255.255.255.255", "0.0.0.0", "fc00::1", "::1"} {
 		texts = append(texts, traffic(lanDevice, d))
@@ -421,7 +478,7 @@ func TestIOCFloodIsBounded(t *testing.T) {
 	var texts []string
 	for i := range MaxBatch {
 		d := fmt.Sprintf("45.%d.%d.9", i/200+1, i%200+1)
-		ff.listed["ip:"+d] = Listing{[]string{"flood"}, 0.5}
+		ff.listed["ip:"+d] = Listing{Feeds: []string{"flood"}, Confidence: 0.5}
 		texts = append(texts, traffic(lanDevice, d))
 	}
 	e.feedAll(src, texts)
@@ -436,7 +493,7 @@ func TestIOCFloodIsBounded(t *testing.T) {
 		var more []string
 		for i := range MaxIocHitsPerBatch {
 			d := fmt.Sprintf("46.%d.%d.9", k, i+1)
-			ff.listed["ip:"+d] = Listing{[]string{"flood"}, 0.5}
+			ff.listed["ip:"+d] = Listing{Feeds: []string{"flood"}, Confidence: 0.5}
 			more = append(more, traffic(lanDevice, d))
 		}
 		e.feedAll(src, more)
@@ -448,7 +505,7 @@ func TestIOCFloodIsBounded(t *testing.T) {
 		t.Fatalf("%d rows: a hit past the budget must still be stored", n)
 	}
 	e.advance(time.Hour) // the next clock hour: the budget is new
-	ff.listed["ip:47.0.0.9"] = Listing{[]string{"flood"}, 0.5}
+	ff.listed["ip:47.0.0.9"] = Listing{Feeds: []string{"flood"}, Confidence: 0.5}
 	e.feedAll(src, []string{traffic(lanDevice, "47.0.0.9")})
 	if h, _ := p.counts(); h != IocEventsPerHour+1 {
 		t.Fatalf("%d events", h)
@@ -537,7 +594,7 @@ func TestIOCDigestShowsANewHitAtOnce(t *testing.T) {
 	for i := range 30 { // the digest lists at most DigestMax, the newest first
 		e.advance(time.Second)
 		dst := fmt.Sprintf("60.0.0.%d", i+1)
-		e.svc.cfg.Feeds.(*fakeFeeds).listed["ip:"+dst] = Listing{[]string{"f"}, 0.5}
+		e.svc.cfg.Feeds.(*fakeFeeds).listed["ip:"+dst] = Listing{Feeds: []string{"f"}, Confidence: 0.5}
 		e.feedAll(src, []string{traffic(lanDevice, dst)})
 	}
 	d = e.digest()
@@ -664,7 +721,7 @@ func TestIOCEventTextIsPlainAndBounded(t *testing.T) {
 		t.Errorf("severity %s", b.Severity)
 	}
 	// A weak listing is a medium incident.
-	e.svc.cfg.Feeds.(*fakeFeeds).listed["ip:71.0.0.1"] = Listing{[]string{"f"}, 0.3}
+	e.svc.cfg.Feeds.(*fakeFeeds).listed["ip:71.0.0.1"] = Listing{Feeds: []string{"f"}, Confidence: 0.3}
 	e.feedAll(src, []string{traffic("192.168.10.88", "71.0.0.1")})
 	if got := p.bad[len(p.bad)-1]; got.Severity != "medium" || len(got.Devices) != 0 || !strings.Contains(got.Title, "192.168.10.88") {
 		t.Errorf("%+v", got)
@@ -743,7 +800,7 @@ func TestIOCChattyDeviceDoesNotHideAnotherDevicesFirstHit(t *testing.T) {
 	var chatty []string
 	for i := range MaxIocHitsPerBatch {
 		d := fmt.Sprintf("48.0.0.%d", i+1)
-		ff.listed["ip:"+d] = Listing{[]string{"f"}, 0.5}
+		ff.listed["ip:"+d] = Listing{Feeds: []string{"f"}, Confidence: 0.5}
 		chatty = append(chatty, traffic(lanDevice, d))
 	}
 	e.feedAll(src, chatty)
@@ -818,7 +875,7 @@ func TestIOCBudgetRunningOutIsLoggedOncePerHour(t *testing.T) {
 		var more []string
 		for i := range MaxIocHitsPerBatch {
 			d := fmt.Sprintf("49.%d.%d.9", k, i+1)
-			ff.listed["ip:"+d] = Listing{[]string{"f"}, 0.5}
+			ff.listed["ip:"+d] = Listing{Feeds: []string{"f"}, Confidence: 0.5}
 			more = append(more, traffic(lanDevice, d))
 		}
 		e.feedAll(src, more)
@@ -827,12 +884,12 @@ func TestIOCBudgetRunningOutIsLoggedOncePerHour(t *testing.T) {
 		t.Fatalf("%d warnings in one hour", n)
 	}
 	e.advance(time.Hour)
-	ff.listed["ip:49.9.9.9"], ff.listed["ip:49.9.9.8"] = Listing{[]string{"f"}, 0.5}, Listing{[]string{"f"}, 0.5}
+	ff.listed["ip:49.9.9.9"], ff.listed["ip:49.9.9.8"] = Listing{Feeds: []string{"f"}, Confidence: 0.5}, Listing{Feeds: []string{"f"}, Confidence: 0.5}
 	for k := 0; k < 3; k++ {
 		var more []string
 		for i := range MaxIocHitsPerBatch {
 			d := fmt.Sprintf("50.%d.%d.9", k, i+1)
-			ff.listed["ip:"+d] = Listing{[]string{"f"}, 0.5}
+			ff.listed["ip:"+d] = Listing{Feeds: []string{"f"}, Confidence: 0.5}
 			more = append(more, traffic(lanDevice, d))
 		}
 		e.feedAll(src, more)

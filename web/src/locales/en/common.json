@@ -113,7 +113,8 @@
     },
     "sensor-active": {
       "name": "Active sensor",
-      "summary": "Light nmap scans inside the allowed time window."
+      "summary": "Light nmap scans inside the allowed time window.",
+      "summaryContainer": "Light scans of your network inside the allowed time window."
     },
     "findings": {
       "name": "Findings",

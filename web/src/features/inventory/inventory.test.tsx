@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
-import { assetsStore, auditStore, findingsStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
+import { assetsStore, auditStore, findingsStore, installStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
 import kevProducts from '../../../../content/catalog/kev-products.json'
 import { linuxOneLiner, OSQUERY_SCHEDULE, osquerySteps, wazuhReaderSteps, windowsOneLiner } from './agentConfig'
 import { catalogPath, CATALOG_Q_MAX } from './api'
@@ -727,6 +727,14 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     const s = (await call('GET', '/settings')).json!
     expect(s.lan_ranges).toContain('10.0.5.0/24')
     expect(s.scope_confirmed_by).toBe('admin@acme.example')
+  })
+
+  it('Add range with the box empty says so under the box', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/setup')
+    await screen.findByLabelText('Add a network range', undefined, T)
+    await user.click(screen.getByRole('button', { name: 'Add range' }))
+    expect(await screen.findByText(/Type a range first/, undefined, T)).toBeInTheDocument()
   })
 
   it('a bare address is rejected with a clear message, never turned into /24; with the prefix it is added and saved as typed', async () => {
@@ -1502,6 +1510,20 @@ describe('inventory: the box is the first device (S-INV-5, D-53)', () => {
     expect(within(sw).getAllByText('This box').length).toBeGreaterThan(5)
     expect(screen.getAllByText('This box').length).toBeGreaterThan(1) // badge and software sources
     await expectNoA11yViolations()
+  })
+
+  it('S-CORE-9 G3: on the appliance the box page says its packages are read with dpkg', async () => {
+    renderApp(`/devices/${BOX_ID}`)
+    expect(await screen.findByText(/Its packages are read from the box \(dpkg\)/, undefined, T)).toBeInTheDocument()
+  })
+
+  it('S-CORE-9 G3: on a container-only install the box page says there is no package list and never mentions dpkg', async () => {
+    installStore.set({ kind: 'container' })
+    try {
+      renderApp(`/devices/${BOX_ID}`)
+      expect(await screen.findByText(/The package list of this machine is not available in a container-only install\./, undefined, T)).toBeInTheDocument()
+      expect(screen.queryByText(/dpkg/)).not.toBeInTheDocument()
+    } finally { installStore.set({ kind: 'appliance' }) }
   })
 
   it('it cannot be deleted: the button is disabled with the reason and the server refuses', async () => {

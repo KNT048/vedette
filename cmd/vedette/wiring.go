@@ -20,6 +20,7 @@ import (
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	authoidc "github.com/knt048/vedette/modules/auth-oidc"
 	"github.com/knt048/vedette/modules/core"
+	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/honeypot"
@@ -262,7 +263,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	d.SensorPassive = sp
 	sensor.svc = sp
-	d.SensorDispatcher = sensoractive.NewDispatcher(sensoractive.DispatcherOptions{Now: d.Clock, Log: d.Log})
+	d.SensorDispatcher = sensoractive.NewDispatcher(sensoractive.DispatcherOptions{Now: d.Clock, Log: d.Log, ContainerOnly: d.Reg != nil && d.Reg.ContainerOnly()})
 	fs, err := feedsService(*d)
 	if err != nil {
 		return fmt.Errorf("feeds: %w", err)
@@ -361,6 +362,7 @@ func subscribe(d deps) {
 		_, err := d.Inventory.RematchAll(ctx)
 		return err
 	}))
+	d.Bus.Subscribe(exposure.EventSnapshotCreated, on("response", exposurePortsOpened(d))) // D-384: new_port, the one reader of a new port
 }
 
 // rematchUpdated handles feeds.vuln.updated (D-328): the payload names the CISA entries that changed, any field, and the has_template flips

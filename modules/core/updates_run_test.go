@@ -65,6 +65,7 @@ type updHost struct {
 	lists       int
 	stateDown   int             // StateContainers answers unreachable that many times
 	dropped     map[string]bool // "start core": every call never reaches the host (no run, no answer)
+	rebootAt    *time.Time      // state/os reboot_scheduled_at
 }
 
 func ver(s string) *string { return &s }
@@ -247,6 +248,13 @@ func (f *updHost) StateContainers(context.Context) (api.ContainersState, error) 
 	b, _ := json.Marshal(f.st) // a deep copy
 	var out api.ContainersState
 	return out, json.Unmarshal(b, &out)
+}
+
+// StateOS: the automatic mode reads the scheduled reboot (rebootAt, nil = none).
+func (f *updHost) StateOS(context.Context) (api.OSState, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return api.OSState{RebootScheduledAt: f.rebootAt}, nil
 }
 
 func (f *updHost) ContainerPull(_ context.Context, a api.ContainerPullArgs, rid, actor string) (api.Run, error) {
@@ -825,22 +833,48 @@ func TestUpdateRollbackLostToARestoredDatabaseSurvivesFailedHostReads(t *testing
 	}
 }
 
+// The follower's count of try-later answers in a row: it grows on each one and another answer resets it.
+func TestUpdateFollowerPauseCountsTryLaterInARow(t *testing.T) {
+	t.Parallel()
+	busy := &hostclient.Error{Code: api.CodeBusy}
+	other := errors.New("x")
+	got := core.PauseStepsForTest([]error{busy, busy, busy, busy, busy, other, busy, nil, busy}, 5*time.Second)
+	s := 5 * time.Second
+	want := []time.Duration{s, s, s, 30 * time.Second, time.Minute, s, s, s, s}
+	if !slices.Equal(got, want) {
+		t.Errorf("waits = %v, want %v", got, want)
+	}
+}
+
 func TestRetryWait(t *testing.T) {
 	t.Parallel()
+	busy := &hostclient.Error{Code: api.CodeBusy}
 	for _, tc := range []struct {
-		name string
-		err  error
-		want time.Duration
+		name    string
+		err     error
+		refused int
+		want    time.Duration
 	}{
-		{"no error", nil, 5 * time.Second},
-		{"unrelated error", errors.New("x"), 5 * time.Second},
-		{"no retry_after_s", &hostclient.Error{Code: api.CodeBusy}, 5 * time.Second},
-		{"shorter than the pause", &hostclient.Error{Code: api.CodeRateLimited, RetryAfterS: 2}, 5 * time.Second},
-		{"longer than the pause", &hostclient.Error{Code: api.CodeDpkgLocked, RetryAfterS: 60}, time.Minute},
-		{"wrapped", fmt.Errorf("x: %w", &hostclient.Error{Code: api.CodeDpkgLocked, RetryAfterS: 60}), time.Minute},
-		{"capped", &hostclient.Error{Code: api.CodeDpkgLocked, RetryAfterS: 99999}, 5 * time.Minute},
+		{"no error", nil, 0, 5 * time.Second},
+		{"unrelated error", errors.New("x"), 0, 5 * time.Second},
+		{"unrelated error after refusals", errors.New("x"), 9, 5 * time.Second},
+		{"no retry_after_s", busy, 1, 5 * time.Second},
+		{"shorter than the pause", &hostclient.Error{Code: api.CodeRateLimited, RetryAfterS: 2}, 1, 5 * time.Second},
+		{"longer than the pause", &hostclient.Error{Code: api.CodeDpkgLocked, RetryAfterS: 60}, 1, time.Minute},
+		{"wrapped", fmt.Errorf("x: %w", &hostclient.Error{Code: api.CodeDpkgLocked, RetryAfterS: 60}), 1, time.Minute},
+		{"capped", &hostclient.Error{Code: api.CodeDpkgLocked, RetryAfterS: 99999}, 1, 5 * time.Minute},
+		// back-off on try-later answers in a row: 5 s, 5 s, 5 s, 30 s, then 60 s
+		{"busy 3rd", busy, 3, 5 * time.Second},
+		{"busy 4th", busy, 4, 30 * time.Second},
+		{"busy 5th", busy, 5, time.Minute},
+		{"busy 100th", busy, 100, time.Minute},
+		{"wrapped busy 4th", fmt.Errorf("x: %w", busy), 4, 30 * time.Second},
+		{"rebooting 5th", &hostclient.Error{Code: api.CodeRebooting}, 5, time.Minute},
+		{"retry_after_s longer than the back-off", &hostclient.Error{Code: api.CodeDpkgLocked, RetryAfterS: 120}, 5, 2 * time.Minute},
+		{"retry_after_s shorter than the back-off", &hostclient.Error{Code: api.CodeRateLimited, RetryAfterS: 10}, 4, 30 * time.Second},
+		{"not a try-later code", &hostclient.Error{Code: api.CodeSnapshotInvalid}, 9, 5 * time.Second},
 	} {
-		if got := core.RetryWaitForTest(tc.err, 5*time.Second); got != tc.want {
+		if got := core.RetryWaitForTest(tc.err, 5*time.Second, tc.refused); got != tc.want {
 			t.Errorf("%s: %v, want %v", tc.name, got, tc.want)
 		}
 	}

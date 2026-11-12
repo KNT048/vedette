@@ -7,10 +7,10 @@
 - Khi không có thiết bị hoặc IP không hợp lệ, văn bản có `<IP>`/`<HOST>` (mock dùng `<IP-NAS>`/IP). Dán nhầm vào shell thì vô hại: `<` là chuyển hướng nhập từ một tệp không tồn tại nên lệnh lỗi, không chạy gì. Khi tên máy không an toàn hoặc vắng thì `{HOST}` là IP thiết bị, đúng như mock (`hostname ?? ip`).
 
 ## Modifying: các interface `Verifier`, `AI`, `Vendors` (mitigation/ports.go)
-- **core/updates** (cài `Verifier`: chữ ký của bản cập nhật; thiếu = từ chối mọi gói), **ai** (cài `AI`: `Available`, `Run` qua RunJob), **inventory** (cài `Vendors.HasFirewallVendor`: `cmd/vedette/wiring.go` hỏi `inventory.HasDevice` với loại `firewall` hoặc `router`, so hãng không phân biệt hoa thường, kể cả hãng của phần mềm trên thiết bị). Đổi chữ ký = đổi chỗ nối trong `cmd/vedette`. Hiện `AI` là `aiOff` (không bao giờ sẵn sàng) và `Loader` chưa được dựng (không có `Verifier`).
+- **`cmd/vedette` `packVerifier`** (cài `Verifier` trên `internal/release.VerifyContent` và khoá phát hành nhúng, D-346; thiếu = từ chối mọi gói): đổi `Statement` phải đổi cùng lúc công cụ ký `release packs` (`scripts/release`) và mọi chữ ký đã phát hành không còn khớp, **ai** (cài `AI`: `Available`, `Run` qua RunJob), **inventory** (cài `Vendors.HasFirewallVendor`: `cmd/vedette/wiring.go` hỏi `inventory.HasDevice` với loại `firewall` hoặc `router`, so hãng không phân biệt hoa thường, kể cả hãng của phần mềm trên thiết bị). Đổi chữ ký = đổi chỗ nối trong `cmd/vedette`. Hiện `AI` là `aiOff` (không bao giờ sẵn sàng) và `Loader` chưa được dựng (không có `Verifier`).
 
 ## Modifying: nạp gói (`Loader.Install`) và định dạng `MitigationPack`
-- **tooling `vedette-author`** (S-MIT-4) và builder phát hành: schema chung; đổi trường = đổi cả công cụ lẫn bộ nạp. **core/updates**: gói đi cùng bản cập nhật ký.
+- **tooling `vedette-author`** (S-MIT-4) và builder phát hành: schema chung; đổi trường = đổi cả công cụ lẫn bộ nạp. Gói đi cùng image `core` đã ký (D-36, D-345): đổi thư mục `/opt/vedette/content/mitigation` hay bố cục `ReadPackDir` phải đổi cùng `deploy/containers/core/Containerfile` và job `load-packs`.
 
 ## Modifying: gọi `ai.Run(skill, input)` (`explain`, `mitigation-config`)
 - **ai** (nhóm B): đổi tên skill/schema đầu ra làm `ai_available` sai và kết quả mất nhãn.

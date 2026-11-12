@@ -70,6 +70,11 @@ func TestReadPackDirIsBoundedAndFailsClosed(t *testing.T) {
 	if _, err := ReadPackDir(filepath.Join(t.TempDir(), "none")); !errors.Is(err, ErrNoPackDir) {
 		t.Fatalf("missing dir: %v", err)
 	}
+	readme := t.TempDir()
+	writeFiles(t, readme, map[string]string{"README.md": "packs go here"})
+	if _, err := ReadPackDir(readme); !errors.Is(err, ErrNoPackDir) {
+		t.Fatalf("a directory with only a README: %v", err)
+	}
 	dir := t.TempDir()
 	writeFiles(t, dir, map[string]string{"VERSION": "2026.11.1\n", "packs.minisig": "sig", "packs.list": "ignored", "README.md": "x", "CVE-2024-0001.json": "{}"})
 	if err := os.Mkdir(filepath.Join(dir, "sub"), 0o700); err != nil {
@@ -84,8 +89,12 @@ func TestReadPackDirIsBoundedAndFailsClosed(t *testing.T) {
 		"no version":   func(d string) { _ = os.Remove(filepath.Join(d, "VERSION")) },
 		"no signature": func(d string) { _ = os.Remove(filepath.Join(d, "packs.minisig")) },
 		"stray file":   func(d string) { writeFiles(t, d, map[string]string{"run.sh": "x"}) },
-		"big doc":      func(d string) { writeFiles(t, d, map[string]string{"CVE-2024-0002.json": strings.Repeat(" ", maxDocBytes+1)}) },
-		"big sig":      func(d string) { writeFiles(t, d, map[string]string{"packs.minisig": strings.Repeat("s", maxSigBytes+1)}) },
+		"big doc": func(d string) {
+			writeFiles(t, d, map[string]string{"CVE-2024-0002.json": strings.Repeat(" ", maxDocBytes+1)})
+		},
+		"big sig": func(d string) {
+			writeFiles(t, d, map[string]string{"packs.minisig": strings.Repeat("s", maxSigBytes+1)})
+		},
 		"link": func(d string) {
 			if err := os.Symlink("/etc/hosts", filepath.Join(d, "CVE-2024-0003.json")); err != nil {
 				t.Fatal(err)

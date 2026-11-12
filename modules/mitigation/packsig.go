@@ -83,7 +83,7 @@ func clipName(s string) string {
 	return strings.ToValidUTF8(s, "?")
 }
 
-// ErrNoPackDir means the directory does not exist: this build ships no packs.
+// ErrNoPackDir means the directory does not exist or holds no pack, no VERSION and no signature: this build ships no packs.
 var ErrNoPackDir = errors.New("no pack directory")
 
 // ReadPackDir reads a pack directory into an Update (fail closed): only regular files are read, never a link or anything below a
@@ -138,6 +138,9 @@ func ReadPackDir(dir string) (Update, error) {
 		default:
 			u.Docs = append(u.Docs, Doc{Name: name, Data: data})
 		}
+	}
+	if !haveVersion && !haveSig && len(u.Docs) == 0 {
+		return Update{}, ErrNoPackDir // the directory of a build that ships no packs (only its README)
 	}
 	if !haveVersion || !haveSig {
 		return Update{}, fmt.Errorf("mitigation: the pack directory has no %s or no %s", PackVersionFile, PackSignatureFile)

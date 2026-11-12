@@ -194,6 +194,12 @@ func (l *Loader) Install(ctx context.Context, u Update) (InstallResult, error) {
 	return res, nil
 }
 
+// CheckPack reports whether the box would load this pack document (the release tool runs it before signing, D-345).
+func CheckPack(data []byte) error {
+	_, err := parsePack(data)
+	return err
+}
+
 // parsePack reads and validates one pack document. It is fail-closed: unknown fields, trailing data,
 // oversize input and any missing proof of confirmation are errors.
 func parsePack(data []byte) (packDoc, error) {

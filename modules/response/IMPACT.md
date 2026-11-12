@@ -31,8 +31,8 @@
 - `portLikeParams` (`params.go`): thêm kiểu tham số mới có thể gọi tên cổng thì thêm vào đây.
 
 ## Modifying: `TriggerField{Min, Max, Choices}`, `data/triggers.json`, `condValueProblem` (D-390)
-- **GUI** (`web/src/features/response/contract.ts` `TriggerField`, `logic.ts` `condProblem`/`condValueProblem`, mock `data.ts`): form Rule kiểm cùng câu với hộp và hiện dưới ô; đổi khoảng hay câu ở Go thì đổi `logic.ts` + `data.ts` cùng commit (không có test so hai bản danh mục trigger). `api/openapi.json` + `core/api/oas` sinh lại khi đổi hình dạng trường.
-- **Quy tắc đã lưu, mẫu (`rule-templates.json`)**: thu hẹp khoảng làm mẫu vi phạm → `loadData` lỗi, hộp không khởi động; quy tắc đã lưu không bị kiểm lại tới khi được lưu lại (bật/tắt trên thẻ cũng là lưu lại).
+- **GUI** (`web/src/features/response/contract.ts` `TriggerField`, `logic.ts` `condProblem`/`condValueProblem`, mock `data.ts`): form Rule kiểm cùng câu với hộp và hiện dưới ô; đổi khoảng hay câu ở Go thì đổi `logic.ts` + `data.ts` cùng commit. `api/openapi.json` + `core/api/oas` sinh lại khi đổi hình dạng trường.
+- **Quy tắc đã lưu, mẫu (`rule-templates.json`)**: thu hẹp khoảng làm mẫu vi phạm → `loadData` lỗi, hộp không khởi động; quy tắc đã lưu vi phạm thì `storedCondsOK` làm nó không khớp gì (`Evaluate`, `handleInTx`) tới khi được lưu lại (bật/tắt trên thẻ cũng là lưu lại, nên gặp 400 tới khi sửa). Thu hẹp khoảng là tắt ngầm các quy tắc đang dùng giá trị cũ: ghi vào ghi chú phát hành. `triggers.test.ts` so `triggers.json` với `data.ts`.
 
 ## Modifying: `Fill(tpl, values, transport) (string, error)` / `ValidateParam(type, v)` (D-47, INV-14)
 - **Rule engine**, **Catalog editor** (kiểm mẫu khi lưu), **Simulate**, **AI proposals**: đổi tập ký tự cho phép hoặc quy tắc escape → có thể mở đường tiêm lệnh từ dữ liệu của kẻ tấn công (tên máy, tên miền). Phải chạy lại fuzz với dữ liệu trigger độc hại.

@@ -100,6 +100,25 @@ func condValueProblem(f TriggerField, op, value string) string {
 	return ""
 }
 
+// storedCondsOK is false when a stored rule has a condition the save check now refuses (a rule saved before D-390, such as
+// "confidence at most -3", which would match every event): such a rule matches nothing until it is saved again (fail closed).
+func (s *Service) storedCondsOK(r RuleInput) bool {
+	trig := s.trigger(r.Trigger)
+	if trig == nil {
+		return false
+	}
+	for _, c := range r.Conditions {
+		if c.Op == "device_type" {
+			continue
+		}
+		i := slices.IndexFunc(trig.Fields, func(f TriggerField) bool { return f.Key == c.Field })
+		if i < 0 || condValueProblem(trig.Fields[i], c.Op, c.Value) != "" {
+			return false
+		}
+	}
+	return true
+}
+
 func all(l []string, ok func(string) bool) bool {
 	for _, v := range l {
 		if !ok(v) {
@@ -163,7 +182,7 @@ func (s *Service) checkRule(b RuleInput, cats map[string]catRow, st Settings) (R
 				return b, invalid("In range: give a CIDR range such as 192.168.10.0/24.")
 			}
 		case "gte", "lte":
-			if _, err := strconv.ParseFloat(c.Value, 64); err != nil || c.Value == "" {
+			if !decimalRE.MatchString(c.Value) { // the same pattern as the GUI: no spaces, hex, exponent, Inf or NaN (D-390)
 				return b, invalid("At least / at most: give a number.")
 			}
 		case "count_window":

@@ -123,7 +123,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
   const alertRef = useRef<HTMLParagraphElement>(null)
   // S-CORE-9 G5, D-390: a trigger that needs a module this install cannot run is not offered; a rule that already uses it keeps it, marked
   const noHoneypot = useModuleAvailable('honeypot') === false
-  const triggers = (trigQ.data?.items ?? []).filter((x) => !(noHoneypot && x.id === 'honeypot' && r.trigger !== 'honeypot')), cat = catQ.data
+  const triggers = (trigQ.data?.items ?? []).filter((x) => !(noHoneypot && x.id === 'honeypot' && rule?.trigger !== 'honeypot')), cat = catQ.data
   const seeded = useRef(false)
   // A new rule starts with one sensible action: the first enabled one that can run.
   useEffect(() => {

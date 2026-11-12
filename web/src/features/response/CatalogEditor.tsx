@@ -57,7 +57,7 @@ function TplFields({ id, legend, kind, value, onChange, tools, tool, onTool, hin
   const has = (f: TplField) => KIND_FIELDS[kind].includes(f)
   const bad = error ? { 'aria-invalid': true, 'aria-describedby': `${id}-error` } : {} // the error of the group is under it (D-390)
   return (
-    <fieldset className="grid gap-3 rounded-md border border-rule p-3">
+    <fieldset id={id} tabIndex={-1} className="grid gap-3 rounded-md border border-rule p-3">
       <legend className="px-1 text-sm font-medium">{legend}</legend>
       {isMcp(kind) ? (
         <>

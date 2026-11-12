@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/api/routes"
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/chain"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
@@ -512,25 +513,6 @@ func TestRuleIsCheckedWhenSaved(t *testing.T) {
 		"count": func(in *response.RuleInput) {
 			in.Conditions = []response.Condition{{Field: "dest_ip", Op: "count_window", Value: "", N: intp(0)}}
 		},
-		// D-390: a value outside the field's range or choices would match every event (-3) or none (7)
-		"confidence 7": func(in *response.RuleInput) {
-			in.Conditions = []response.Condition{{Field: "confidence", Op: "gte", Value: "7"}}
-		},
-		"confidence -3": func(in *response.RuleInput) {
-			in.Conditions = []response.Condition{{Field: "confidence", Op: "lte", Value: "-3"}}
-		},
-		"confidence NaN": func(in *response.RuleInput) {
-			in.Conditions = []response.Condition{{Field: "confidence", Op: "gte", Value: "NaN"}}
-		},
-		"confidence in 2": func(in *response.RuleInput) {
-			in.Conditions = []response.Condition{{Field: "confidence", Op: "in", Value: "0.5, 2"}}
-		},
-		"at least on text": func(in *response.RuleInput) {
-			in.Conditions = []response.Condition{{Field: "device", Op: "gte", Value: "3"}}
-		},
-		"choice": func(in *response.RuleInput) {
-			in.Conditions = []response.Condition{{Field: "dest_kind", Op: "eq", Value: "ipv4"}}
-		},
 	}
 	for name, mod := range bad {
 		in := base()
@@ -538,6 +520,21 @@ func TestRuleIsCheckedWhenSaved(t *testing.T) {
 		_, err := e.svc.AddRule(e.ctx(), admin, in)
 		if s, c := apiCode(err); s != 400 || c != "invalid" {
 			t.Errorf("%s: %v (%d %s), want 400 invalid", name, err, s, c)
+		}
+	}
+	// D-390: a value outside the field's range or choices would match every event (-3) or none (7); the words are the GUI's (logic.ts)
+	conf := "Confidence (0 to 1): give a number from 0 to 1."
+	for _, c := range []struct{ field, op, value, msg string }{
+		{"confidence", "gte", "7", conf}, {"confidence", "lte", "-3", conf}, {"confidence", "gte", "NaN", "At least / at most: give a number."},
+		{"confidence", "gte", "0.5 ", "At least / at most: give a number."}, {"confidence", "gte", "0x1", "At least / at most: give a number."},
+		{"confidence", "in", "0.5, 2", "Confidence (0 to 1): give numbers from 0 to 1, separated by commas."}, {"confidence", "eq", "", conf},
+		{"device", "gte", "3", "At least / at most: only for a number field."}, {"dest_kind", "eq", "ipv4", "Destination kind: use one of ip, domain."},
+	} {
+		in := base()
+		in.Conditions = []response.Condition{{Field: c.field, Op: c.op, Value: c.value}}
+		_, err := e.svc.AddRule(e.ctx(), admin, in)
+		if ae, ok := apierr.As(err); !ok || ae.Status != 400 || ae.Message != c.msg {
+			t.Errorf("%s %s %q: %v, want 400 %q", c.field, c.op, c.value, err, c.msg)
 		}
 	}
 	if len(mustRules(e)) != 0 {

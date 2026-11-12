@@ -264,7 +264,7 @@ export function condProblem(trigger: { id: string; fields: CondField[] }, c: Con
   const value = logSignature(trigger.id, c) ? goTrim(c.value) : c.value
   if (logSignature(trigger.id, c)) { if (!value || /[\u0000-\u001f\u007f\u0085\u2028\u2029]/.test(value) || [...value].length > 200) return 'Log signature: one line of up to 200 characters, as the Logs digest shows it.' } else if (!TEXT_VAL.test(value)) return 'Condition values: letters, numbers and . , : / @ # - only.'
   if (c.op === 'in_cidr' && !isCidr(value)) return 'In range: give a CIDR range such as 192.168.10.0/24.'
-  if ((c.op === 'gte' || c.op === 'lte') && !(value !== '' && Number.isFinite(Number(value)))) return 'At least / at most: give a number.'
+  if ((c.op === 'gte' || c.op === 'lte') && !DECIMAL.test(value)) return 'At least / at most: give a number.'
   if (c.op === 'count_window' && (c.n === null || c.n < 1 || c.n > 1000 || c.window_min === null || c.window_min < 1 || c.window_min > 1440)) return 'Count in window: give how many (1 to 1000) and the minutes (1 to 1440).'
   if (c.op === 'first_time' && (c.n === null || c.n < 1 || c.n > 720)) return 'First time: give the hours (1 to 720).'
   return f && c.op !== 'device_type' ? condValueProblem(f, c.op, value) : null

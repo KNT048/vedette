@@ -1646,8 +1646,10 @@ describe('response: rule editor form matrix (docs/QA.md §2)', () => {
     expect(trig.fields.find((f) => f.key === 'confidence')).toMatchObject({ min: 0, max: 1 })
     expect(trig.fields.find((f) => f.key === 'device')).toMatchObject({ min: null, max: null })
     const cond = (field: string, op: Condition['op'], value: string) => addRule({ conditions: [{ field, op, value, n: null, window_min: null }] })
-    for (const [field, op, value, msg] of [['confidence', 'gte', '7', 'Confidence (0 to 1): give a number from 0 to 1.'], ['confidence', 'lte', '-3', 'Confidence (0 to 1): give a number from 0 to 1.'], ['confidence', 'gte', '1e0', 'Confidence (0 to 1): give a number from 0 to 1.'],
-      ['confidence', 'in', '0.5, 2', 'Confidence (0 to 1): give numbers from 0 to 1, separated by commas.'], ['device', 'gte', '3', 'At least / at most: only for a number field.'], ['dest_kind', 'eq', 'ipv4', 'Destination kind: use one of ip, domain.']] as const) {
+    // the same rows and words as the box's TestRuleIsCheckedWhenSaved
+    const conf = 'Confidence (0 to 1): give a number from 0 to 1.', num = 'At least / at most: give a number.'
+    for (const [field, op, value, msg] of [['confidence', 'gte', '7', conf], ['confidence', 'lte', '-3', conf], ['confidence', 'gte', 'NaN', num], ['confidence', 'gte', '0.5 ', num], ['confidence', 'gte', '0x1', num], ['confidence', 'gte', '1e0', num],
+      ['confidence', 'in', '0.5, 2', 'Confidence (0 to 1): give numbers from 0 to 1, separated by commas.'], ['confidence', 'eq', '', conf], ['device', 'gte', '3', 'At least / at most: only for a number field.'], ['dest_kind', 'eq', 'ipv4', 'Destination kind: use one of ip, domain.']] as const) {
       const r = await cond(field, op, value)
       expect([r.status, r.json.error?.message], `${field} ${op} ${value}`).toEqual([400, msg])
     }

@@ -6,6 +6,7 @@
 #
 # Shape (D-140, D-365): `changes` decides what a run needs (scripts/ci, no third-party action);
 # go-static, go-test (4 shards, weighted by scripts/ci/testtime.tsv) and go-release run in parallel; web-verify runs the web suite.
+# go-test runs -race everywhere except on a pull request (D-371): the merge queue, which gates main, runs it with -race.
 # A push to main runs only go-test, mostly from the cache, to save main's Go test cache (the merge queue already ran every job on
 # that tree); the daily schedule runs everything twice, uncached and shuffled (-count=2 -shuffle=on), and its failed tests go to
 # the issue labelled flaky.

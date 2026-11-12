@@ -148,6 +148,13 @@
 - **`backup.restore`**: `coreFreeForRestore` là chỗ duy nhất cho một nhật ký `unrecoverable` đi qua; sửa `loadJournal` hay `markUnrecoverable` thì phải giữ test INV-23. Khôi phục thành công xoá nhật ký của `core`.
 - **`host/server.SocketLive`**: là phép thử "daemon đang chạy" dùng chung của `Listen` và bootstrap.
 
+## Modifying: `vedette-host -recover-core-data`, `host/ops/recover.go`, `cmd/vedette-host/recover.go`, `coreVersionPlan` (D-317, INV-25)
+- **Người vận hành (`docs/RUNBOOK.md` §5.5)**: lệnh là bước sửa của `core_data_unrecoverable` khi `core` đứng yên; đổi tên cờ, mã từ chối, hậu tố `.replaced-` hay chữ của báo cáo là đổi RUNBOOK cùng lượt. Lệnh **không** khởi động `core`.
+- **`markUnrecoverable`, `putAsideBack`, `planAside`, `loadJournal` (`Aside`, `Unrecoverable`)** là nguồn của thứ lệnh đọc: đổi tên `.rollback`, danh sách `asideCandidates`, hay trường nhật ký thì sửa `inventory`/`putRecovered` và giữ `TestContract_Recover_*`. Cùng quy tắc "WAL của CSDL khác không gặp CSDL cũ" với `putAsideBack`.
+- **`reconcileCoreVersion` / `coreVersionPlan` (`restore.go`)**: dùng chung bởi `backup.restore` (INV-23) và lệnh này; sửa phần đọc thì cả hai đổi; `coreVersionPlan` không được ghi gì.
+- **`cmd/vedette-host`**: `newExitIn`/`exitForIn` dùng chung với `-bootstrap` (tiền tố dòng stderr là tên lệnh); thêm mã từ chối mới = thêm vào `exitForIn`. `-use`/`-yes` chỉ thuộc `-recover-core-data`; tách khỏi `-bootstrap`.
+- **Kiểm toán**: dòng `core_data_recovered` thêm `command: recover-core-data` (cùng loại mã với dòng của `backup.restore`); người đọc `GET /v1/audit` thấy hai giá trị `command` cho một mã.
+
 ## Modifying: xoá conntrack của cổng syslog (`host/ops/conntrack.go`, hook trong `waitHealthy`, vòng `watchCore` bắt đầu ở `Ops.Start`, D-268)
 - **Hai cách thấy `core` chạy lại**: `waitHealthy` của `core` (mọi đường khởi động do host làm) và `watchCore` mỗi 30 s (sập rồi systemd restart, `backup.restore`). `inspectInfo.Started` = ID + `StartedAt` từ `podman container inspect`; sửa `parseInspect` thì giữ hai trường này (rỗng = không phân biệt được = không xoá).
 - **Cổng 514** là hằng `syslogPublishedPort`, phải khớp `PublishPort=514:5514` trong `quadlet.go`; đổi cổng publish thì đổi cả argv và validator.

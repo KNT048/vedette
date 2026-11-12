@@ -993,6 +993,12 @@ do_uninstall() {
 		podman images -a --filter dangling=true --filter label=io.vedette.build=scan --format '{{.ID}}' 2>/dev/null | sort -u | while read -r id; do
 			podman rmi -f "$id" >/dev/null 2>&1 || true
 		done
+		# and our released images that lost their name (a pulled vedette-scan-base after a failed build or an upgrade): untagged, with our
+		# source label and a vedette-* title; an image of anyone else has neither and is never touched
+		podman images -a --filter dangling=true --filter 'label=org.opencontainers.image.source=https://github.com/KNT048/vedette' --format '{{.ID}}' 2>/dev/null | sort -u | while read -r id; do
+			title=$(podman image inspect --format '{{index .Labels "org.opencontainers.image.title"}}' "$id" 2>/dev/null) || continue
+			case "$title" in vedette-*) podman rmi -f "$id" >/dev/null 2>&1 || true ;; esac
+		done
 	fi
 	restore_runtime
 	say "removing packages"

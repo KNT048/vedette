@@ -848,12 +848,17 @@ func (h *OSHandlers) recoverRun(ctx context.Context, err error, command, request
 		return api.Run{}, false, false
 	}
 	for _, r := range runs {
-		if r.RequestID == requestID && r.Command == command {
+		if r.RequestID == requestID && r.Command == command && !neverRan(r) {
 			return r, true, true
 		}
 	}
 	return api.Run{}, false, true
 }
+
+// neverRan: the host refused the call in its check (busy, dpkg_locked, ...) and still recorded the refusal as a run
+// under the call's key (host-api 4, 11); nothing ran, so it is never the run of that command: not the OS run after
+// a restart, not a restore to settle (no data.restore_done), not the run a lost answer stood for.
+func neverRan(r api.Run) bool { return r.Status == api.StatusRefused }
 
 // snapshotFailure is the answer for a snapshot that could not be written: 409 low_disk when the disk is full
 // or too small for a copy, else 502 snapshot_failed; never a 500.

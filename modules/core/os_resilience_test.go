@@ -171,6 +171,24 @@ func TestOSRestartAfterTheRunEndedAuditsAndRemovesTheSnapshot(t *testing.T) {
 	}
 }
 
+// The host records a refusal as a run (host-api 4): a busy os.install that is the newest run is not "the OS run"
+// after a restart, it never ran (G4).
+func TestOSRestartDoesNotTakeARefusedInstallForTheRun(t *testing.T) {
+	t.Parallel()
+	e, hh := newHookEnv(t)
+	at := time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)
+	hh.onListRuns = func(context.Context, int) ([]api.Run, error) {
+		return []api.Run{{RunID: "rn_busy", Command: api.CmdOSInstall, Status: api.StatusRefused, StartedAt: at, FinishedAt: &at, Error: &api.RunError{Code: api.CodeBusy}}}, nil
+	}
+	e.newHandlers(t, hh, 0)
+	if r := e.viewer.get("/core/updates/os/run"); r.Code != 200 || string(r.Raw) != "null" {
+		t.Fatalf("run after restart = %d %s, want null", r.Code, r.Raw)
+	}
+	if n := countOf(e.actions(), "os.install_done"); n != 0 {
+		t.Errorf("os.install_done audited %d times for a run that never ran", n)
+	}
+}
+
 // ---- slow host ----
 
 // A hung host call must not stall the other requests: the rebuild of the run after a restart runs outside runMu,
@@ -591,6 +609,27 @@ func TestOSLostAnswerOfInstallThatTheHostNeverSawFailsAndCleansUp(t *testing.T) 
 	}
 	if !slices.Contains(e.actions(), "os.install_failed") {
 		t.Errorf("audit rows: %v", e.actions())
+	}
+}
+
+// The answer was lost but the host refused the call (busy): the refusal it recorded under the key is not a run that
+// was taken, so the install fails and its snapshot goes (G4).
+func TestOSLostAnswerOfInstallThatTheHostRefusedFailsAndCleansUp(t *testing.T) {
+	t.Parallel()
+	e, hh := newHookEnv(t)
+	e.checked()
+	var key atomic.Value
+	hh.onOSInstall = func(_ context.Context, _, _, id, _ string) (api.Run, error) {
+		key.Store(id)
+		return api.Run{}, errLost
+	}
+	hh.onListRuns = func(context.Context, int) ([]api.Run, error) {
+		id, _ := key.Load().(string)
+		return []api.Run{{RunID: "rn_busy", RequestID: id, Command: api.CmdOSInstall, Status: api.StatusRefused, Error: &api.RunError{Code: api.CodeBusy}}}, nil
+	}
+	wantStatus(t, e.admin.post("/core/updates/os/install", map[string]any{"scope": "all"}), 503, "host_unreachable")
+	if d := e.snapshotDirs(); len(d) != 0 {
+		t.Errorf("snapshot directories left: %v", d)
 	}
 }
 

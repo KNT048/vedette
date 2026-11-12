@@ -172,7 +172,7 @@ func (h *OSHandlers) loadRun(ctx context.Context) (*osRunState, error) {
 		return nil, err
 	}
 	for _, r := range runs { // newest first
-		if r.Command == api.CmdOSInstall {
+		if r.Command == api.CmdOSInstall && !neverRan(r) {
 			return h.rebuild(ctx, r)
 		}
 	}

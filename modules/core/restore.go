@@ -279,7 +279,7 @@ func (h *OSHandlers) restoreLatest(ctx context.Context) (*restoreRec, error) {
 			return nil, err
 		}
 	}
-	i := slices.IndexFunc(runs, func(r api.Run) bool { return r.Command == api.CmdBackupRestore }) // newest first
+	i := slices.IndexFunc(runs, func(r api.Run) bool { return r.Command == api.CmdBackupRestore && !neverRan(r) }) // newest first
 	if i < 0 || (rec != nil && rec.RunID != runs[i].RunID && rec.StartedAt.After(runs[i].StartedAt)) {
 		return rec, nil
 	}

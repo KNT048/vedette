@@ -161,6 +161,22 @@ func TestRestoreIntoADatabaseThatForgotTheRun(t *testing.T) {
 	eventuallyOS(t, "one audit row of the end", func() bool { return e.count("data.restore_done") == 1 })
 }
 
+// The host records a refusal as a run (host-api 4): a busy backup.restore that is the newest run is not a restore
+// to settle: no data.restore_done, no failed restore shown (G4).
+func TestRestoreRefusedByTheHostIsNotSettled(t *testing.T) {
+	t.Parallel()
+	e, f := newRestoreEnv(t)
+	at := time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)
+	f.runs = []api.Run{{RunID: "rn_busy", Command: api.CmdBackupRestore, Status: api.StatusRefused, StartedAt: at, FinishedAt: &at, Error: &api.RunError{Code: api.CodeBusy}}}
+	e.newHandlers(t, f, 0)
+	if r := e.admin.get("/core/data/restore/run"); r.Code != 200 || string(r.Raw) != "null" {
+		t.Fatalf("run = %d %s, want null", r.Code, r.Raw)
+	}
+	if n := e.count("data.restore_done"); n != 0 {
+		t.Errorf("data.restore_done audited %d times for a restore that never ran", n)
+	}
+}
+
 // Restore asks for the current password like Delete all data: a wrong one is 400 wrong_password and reaches nothing.
 func TestRestoreNeedsTheCurrentPassword(t *testing.T) {
 	t.Parallel()

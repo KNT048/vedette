@@ -190,13 +190,13 @@ func TestUpdateCheckOffersTheNewRelease(t *testing.T) {
 	before := e.viewer.get("/core/updates")
 	wantOK(t, before, 200)
 	if before.str("channel") != "stable" || before.str("mode") != "manual" || getVal(before, "check_enabled") != true ||
-		!strings.HasPrefix(before.str("last_check"), "0001-01-01") || len(getArr(before, "available")) != 0 {
+		before.JSON["last_check"] != nil || len(getArr(before, "available")) != 0 {
 		t.Fatalf("state before any check = %s", before.Raw)
 	}
 
 	r := e.oper.post("/core/updates/check", nil)
 	wantOK(t, r, 200)
-	if getVal(r, "applied") != float64(0) || r.str("last_check") == before.str("last_check") {
+	if getVal(r, "applied") != float64(0) || r.str("last_check") == "" {
 		t.Errorf("applied/last_check = %v %v", getVal(r, "applied"), r.str("last_check"))
 	}
 	av := getArr(r, "available")
@@ -348,8 +348,8 @@ func TestUpdateCheckRefusesWhatDoesNotVerify(t *testing.T) {
 			}
 			g := e.viewer.get("/core/updates")
 			wantOK(t, g, 200)
-			if !strings.HasPrefix(g.str("last_check"), "0001-01-01") {
-				t.Errorf("last_check moved after a failed check: %s", g.str("last_check"))
+			if g.JSON["last_check"] != nil {
+				t.Errorf("last_check moved after a failed check: %v", g.JSON["last_check"])
 			}
 			e.wantNothingOffered(t, g)
 			if e.srv.hit("/v1.4.0/release-manifest.json") != 0 && name == "foreign manifest url" {

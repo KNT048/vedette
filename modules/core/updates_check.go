@@ -771,7 +771,7 @@ type updatesStateView struct {
 	Channel      string                `json:"channel"`
 	Mode         string                `json:"mode"`
 	CheckEnabled bool                  `json:"check_enabled"`
-	LastCheck    time.Time             `json:"last_check"`
+	LastCheck    *time.Time            `json:"last_check"` // null until the first check
 	Components   []updateComponentView `json:"components"`
 	Available    []updateAvailableView `json:"available"`
 	History      []updateHistoryView   `json:"history"`
@@ -840,8 +840,12 @@ func (h *OSHandlers) updatesState(ctx context.Context) (updatesStateView, error)
 		helper = &info
 		comps = append(comps, hostComponentOf(info, hist, h.upd.started))
 	}
+	var last *time.Time // null until the first check, not Go's zero time (S-CORE-2)
+	if !s.LastCheck.IsZero() {
+		last = &s.LastCheck
+	}
 	return updatesStateView{
-		Channel: s.Channel, Mode: s.Mode, CheckEnabled: on, LastCheck: s.LastCheck,
+		Channel: s.Channel, Mode: s.Mode, CheckEnabled: on, LastCheck: last,
 		Components: comps, Available: availableOf(r.offer, s.Channel, helper),
 		History: nonNil(hist), Advisories: advisoriesOf(r.idx, h.upd.version), Run: run,
 		Managed: managedOf(r.running, r.offer),

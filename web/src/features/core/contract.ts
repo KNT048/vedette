@@ -107,7 +107,7 @@ export const UpdateRun = z.object({
   error: z.string().nullable().describe('Only when failed or reverted: why, in words, naming the service that failed; for the system helper (host step, or host_too_old before it) the sentences of S-CORE-2 criterion D-316'),
 })
 export const UpdatesState = z.object({
-  channel: UpdateChannel, mode: z.enum(['auto', 'manual']), check_enabled: z.boolean(), last_check: ts,
+  channel: UpdateChannel, mode: z.enum(['auto', 'manual']), check_enabled: z.boolean(), last_check: ts.nullable().describe('null until the first update check'),
   components: z.array(UpdateComponent), available: z.array(UpdateAvailable), history: z.array(UpdateHistory).describe('Latest 20'), advisories: z.array(Advisory),
   run: UpdateRun.nullable().describe('The software install or rollback running now, or one that ended in the last 24 hours; null otherwise'),
   managed: z.array(ManagedPackage).describe('Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)'),

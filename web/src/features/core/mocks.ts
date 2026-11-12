@@ -79,7 +79,7 @@ const setupHandlers = [
         const lacking = all.find((x) => x.id === id)?.depends.filter((d) => !enable.includes(d)) ?? []
         if (lacking.length) return fail(400, 'missing_dependencies', `Module ${id} also needs: ${lacking.join(', ')}.`)
       }
-    } else return fail(400, 'invalid_bundle', 'Choose a module bundle: small, medium or custom.')
+    } else return fail(400, 'invalid_bundle', 'Choose a module bundle: smb, mid or custom.')
 
     // Cài thật: xoá sạch rồi vào chế độ 'clean' để MỌI module bắt đầu rỗng (không tài khoản, thiết bị, cảnh báo mẫu).
     const install = installStore.get() // the install kind is the box, not its data
@@ -545,7 +545,7 @@ const HOST_IN: Record<string, string> = { '0.9.4': '0.9.4', '0.10.0-beta.1': '0.
 /** Bản phát hành khai `rollback.safe=false` (đổi DB): rollback khỏi bản này khôi phục DB trước cập nhật (D-104, D-340). */
 const RESTORES_DATA = new Set(['0.9.4'])
 const comp = (id: string, kind: UpdateComponent['kind'], version: string, previous: string | null, ago: number): UpdateComponent => ({ id, kind, version, previous, installed_at: daysAgo(ago), signature: 'valid', rollback_restores_data: false })
-const updStore = collection<{ channel: UpdateChannel; mode: 'auto' | 'manual'; components: UpdateComponent[]; history: UpdateHistory[]; last_check: string; run?: UpdateRun | null }>('core_updates', () => ({
+const updStore = collection<{ channel: UpdateChannel; mode: 'auto' | 'manual'; components: UpdateComponent[]; history: UpdateHistory[]; last_check: string | null; run?: UpdateRun | null }>('core_updates', () => ({
   channel: 'stable',
   mode: 'manual',
   last_check: daysAgo(0, 2),
@@ -561,7 +561,7 @@ const updStore = collection<{ channel: UpdateChannel; mode: 'auto' | 'manual'; c
   // Cài sạch: bản vừa cài, chưa có lịch sử cập nhật và chưa có "bản trước" để quay về.
   channel: 'stable',
   mode: 'manual',
-  last_check: nowIso(),
+  last_check: null,
   components: [comp('software', 'software', '0.9.3', null, 0), comp('host', 'software', '0.9.3', null, 0), comp('data', 'data', '20261106.08', null, 0), comp('pack-mitigation', 'content', '2026.11.04', null, 0), comp('pack-nuclei', 'content', '2026.11.05', null, 0), comp('pack-parsers', 'content', '1.4.0', null, 0)],
   history: [],
 }))

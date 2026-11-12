@@ -366,9 +366,8 @@ func TestUpdateApplyPullsEveryServiceStartsTheOthersThenCoreLast(t *testing.T) {
 	if a := e.actions(); countOf(a, "update.apply") != 1 || countOf(a, "update.apply_done") != 1 {
 		t.Errorf("audit = %v", a)
 	}
-	if d := e.snapshotDirs(); len(d) != 0 {
-		t.Errorf("snapshot left: %v", d)
-	}
+	// The snapshot is removed just after the end is stored, so the run can read done a moment before.
+	eventuallyOS(t, "the snapshot to be removed", func() bool { return len(e.snapshotDirs()) == 0 })
 }
 
 // core's own switch restarts core: the next process finds the stored run, asks the host about the stored run id
@@ -403,9 +402,8 @@ func TestUpdateRunIsCarriedOnAfterCoreRestarts(t *testing.T) {
 	if len(hist) != 1 || hist[0].(map[string]any)["to"] != "1.4.0" {
 		t.Errorf("history = %v", hist)
 	}
-	if d := e.snapshotDirs(); len(d) != 0 {
-		t.Errorf("snapshot left: %v", d)
-	}
+	// The snapshot is removed just after the end is stored, so the run can read done a moment before.
+	eventuallyOS(t, "the snapshot to be removed", func() bool { return len(e.snapshotDirs()) == 0 })
 }
 
 // After a restart, a switch of core that the host never took is not sent again: the run stops and the services it
@@ -661,9 +659,8 @@ func TestUpdateCoreSwitchRetriesWithANewSnapshot(t *testing.T) {
 	if n := countOf(fh.callList(), "start core 1.4.0 snap"); n != 2 {
 		t.Errorf("core's switch sent %d times, want 2 (calls %q)", n, fh.callList())
 	}
-	if d := e.snapshotDirs(); len(d) != 0 {
-		t.Errorf("snapshots left: %v", d)
-	}
+	// The snapshot is removed just after the end is stored, so the run can read done a moment before.
+	eventuallyOS(t, "the snapshot to be removed", func() bool { return len(e.snapshotDirs()) == 0 })
 }
 
 // A host that refuses every snapshot ends the run after maxSnapRefused new ones, not in an endless loop.

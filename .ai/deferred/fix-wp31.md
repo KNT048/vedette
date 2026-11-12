@@ -2,5 +2,4 @@
 
 Full report: kien's Mac `vedette-wt/wp31-findings.md` (24 findings: 0 High, 7 Medium, 17 Low). One line per finding; a line goes when its PR merges.
 
-- [ ] M4 host/ops: backup retention can drop the backup a revert/rollback needs; missing backup loops; `os.install` skips `coreFree()` → AI-Trưởng (host).
 - [ ] LAB list for WP-08 lab: SO_PEERPIDFD + core cgroup under Quadlet; NET_RAW ambient for non-root sensor/scan; L10 chown; process-group kill and Pdeathsig; nuclei egress; nmap overriding a passive kind (M5).

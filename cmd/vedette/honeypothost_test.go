@@ -117,6 +117,14 @@ func (e *hpHost) systemctl(verb string) int {
 	return n
 }
 
+// waitIdle waits until no write command holds the host's write lock: the runs core started and then stopped following
+// (their answers were lost) have ended at the host. A run ends and frees the lock in one step (host/server finish), so
+// the next write after this is never refused busy because of them. The bound only catches a host that hangs.
+func (e *hpHost) waitIdle(t *testing.T) {
+	t.Helper()
+	eventually(t, "the host's write lock is free", func() bool { return !e.h.Server.WriteActive() })
+}
+
 func (e *hpHost) decoysFile() string {
 	b, _ := os.ReadFile(filepath.Join(e.m.State, "hp", "decoys.json"))
 	return string(b)
@@ -508,10 +516,8 @@ func TestHoneypotUnknownOutcomeIsNotForgottenByTheTeardown(t *testing.T) {
 	if err := s.d.Honeypot.Apply(t.Context()); err == nil || errors.Is(err, honeypot.ErrRefused) {
 		t.Fatalf("Apply with a host whose answers are lost: %v", err)
 	}
-	deadline := time.Now().Add(10 * time.Second) // the run goes on at the host after core stopped following it
-	for len(e.decoyLinks()) != 1 && time.Now().Before(deadline) {
-		<-time.After(20 * time.Millisecond)
-	}
+	// The add goes on at the host after core stopped following it: wait for it to end (its link appears before it ends).
+	e.waitIdle(t)
 	if got := e.decoyLinks(); len(got) != 1 {
 		t.Fatalf("the host did take the address, links: %v", got)
 	}
@@ -524,13 +530,11 @@ func TestHoneypotUnknownOutcomeIsNotForgottenByTheTeardown(t *testing.T) {
 	if err := teardown(t.Context()); err == nil {
 		t.Fatal("the teardown said done while it could not read what the host did")
 	}
+	// The failed teardown's own stop or remove may still run at the host, as the add did: once it ended, nothing holds the
+	// write lock and the next teardown is not refused busy.
+	e.waitIdle(t)
 	broken.Store(false)
-	// The add may still hold the host's write lock (it ends after its link appears): busy is retried, as OffGuard does.
-	err := teardown(t.Context())
-	for deadline := time.Now().Add(10 * time.Second); errors.Is(err, errHostBusy) && time.Now().Before(deadline); err = teardown(t.Context()) {
-		<-time.After(50 * time.Millisecond)
-	}
-	if err != nil {
+	if err := teardown(t.Context()); err != nil {
 		t.Fatalf("teardown: %v", err)
 	}
 	if got := e.decoyLinks(); len(got) != 0 || strings.Contains(e.decoysFile(), "192.168.10.240") {

@@ -244,7 +244,7 @@ function Body() {
       {!a.approved ? <Approval d={d} /> : null}
       <Section id="overview" title={t('detail.overview')}><Panel className="p-4"><Overview d={d} /></Panel></Section>
       <Section id="obs" title={t('obs.title')} description={t('obs.description')}><Observations list={d.observations} /></Section>
-      <Section id="services" title={t('services.title')}><Services list={a.services} fragile={a.fragile} /></Section>
+      <Section id="services" title={t('services.title')} description={t('services.description')}><Services list={a.services} fragile={a.fragile} /></Section>
       <Section id="software" title={t('software.title')} description={t('software.description')}
         actions={<Button disabled={!can} title={needRole} onClick={() => setAdding(true)}><Plus />{t('software.add')}</Button>}>
         <SoftwareList d={d} />

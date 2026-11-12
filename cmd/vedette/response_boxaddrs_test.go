@@ -90,3 +90,46 @@ func TestResponseBoxMACsHoldTheDecoysAndTheCards(t *testing.T) {
 		t.Errorf("no host: %v, %v", got, err)
 	}
 }
+
+// D-325: the gateway of the kernel's default route and the gateway and DNS servers saved for the management card reach response's never-touch
+// list; unknown before the first answer, kept after a failed refresh, empty without a host. Loopback and unspecified values are not addresses.
+func TestResponseHostInfraHoldsTheGatewayAndDNS(t *testing.T) {
+	now := time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC)
+	f := &fakeNetState{st: api.NetState{
+		DefaultRoute: &api.NetRoute{Iface: "eth0", Gateway: "192.168.10.1"},
+		Config:       api.NetConfig{Mgmt: &api.NetMgmt{Iface: "eth0", Mode: "static", Gateway: "192.168.10.254", DNS: []string{"192.168.10.53", "127.0.0.53", "0.0.0.0", "bad"}}},
+	}}
+	h := &hostMACs{r: f, now: func() time.Time { return now }}
+	got, err := h.Infra(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"gateway 192.168.10.1", "gateway 192.168.10.254", "dns 192.168.10.53"}
+	var have []string
+	for _, x := range got {
+		have = append(have, x.Kind+" "+x.Addr.String())
+	}
+	if !slices.Equal(have, want) {
+		t.Fatalf("infra %v, want %v", have, want)
+	}
+	f.st = api.NetState{} // a moment with no default route (a lease renewing): the last gateways stay
+	now = now.Add(time.Minute)
+	if got, err := h.Infra(t.Context()); err != nil || len(got) != 2 || got[0].Kind != "gateway" {
+		t.Fatalf("an answer without a default route: %v, %v", got, err)
+	}
+	f.err = errors.New("host down")
+	now = now.Add(time.Minute)
+	if got, err := h.Infra(t.Context()); err != nil || len(got) != 2 {
+		t.Fatalf("after a failed refresh: %v, %v", got, err)
+	}
+	if _, err := (&hostMACs{r: f, now: func() time.Time { return now }}).Infra(t.Context()); err == nil {
+		t.Error("a host that never answered was taken for no gateway")
+	}
+	if got, err := (&hostMACs{}).Infra(t.Context()); err != nil || got != nil {
+		t.Errorf("no host: %v, %v", got, err)
+	}
+	cfg, err := responseConfig(newStack(t).d)
+	if err != nil || cfg.HostInfra == nil {
+		t.Fatalf("responseConfig leaves HostInfra unset: %v", err)
+	}
+}

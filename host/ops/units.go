@@ -145,16 +145,16 @@ func (o *Ops) writeUnit(service string, text []byte, keepPrev bool) error {
 	return writeAtomicIn(r, name, text, 0o644)
 }
 
-// writeUnitForStart is writeUnit for the paths that start a service (bootstrap, container.start with or without a version): for
-// core, sensor and scan the two credential .volume units are put in place first (idempotent). Rollback and the recovery of an
+// writeUnitForStart is writeUnit for the paths that start a service (bootstrap, container.start with or without a version): the
+// .volume units the service mounts (see ensureVolumeUnits) are put in place first (idempotent). Rollback and the recovery of an
 // interrupted change use plain writeUnit: they put back what was there, and a volume unit is not part of what they undo (L5).
 func (o *Ops) writeUnitForStart(service string, text []byte) error {
-	if service == api.ServiceCore || service == api.ServiceSensor || service == api.ServiceScan {
+	if service == api.ServiceCore || service == api.ServiceSensor || service == api.ServiceScan || service == api.ServiceHoneypot {
 		r, err := o.openUnitDir()
 		if err != nil {
 			return err
 		}
-		err = o.ensureVolumeUnits(r)
+		err = o.ensureVolumeUnits(r, service)
 		_ = r.Close()
 		if err != nil {
 			return err
@@ -163,16 +163,29 @@ func (o *Ops) writeUnitForStart(service string, text []byte) error {
 	return o.writeUnit(service, text, true) // the old bytes go to .prev, like every unit change that is not a revert
 }
 
-// ensureVolumeUnits puts the two credential .volume units in place (constant text, host.conf ids; see renderVolume) in the opened
-// Quadlet directory. A unit that already holds the right bytes is not touched; a link or odd file at its name is refused. The text
-// never depends on a service or an image, so it needs no .prev and no journal: writing it again is always right.
-func (o *Ops) ensureVolumeUnits(r *os.Root) error {
-	for _, role := range credsRoles {
-		text, err := renderVolume(role, o.cfg.CoreUID, o.cfg.SensorGID)
-		if err != nil {
-			return err // errBadFill: host.conf does not give usable ids (host_conf_incomplete), not an unsafe directory
+// ensureVolumeUnits puts the .volume units a service mounts in place in the opened Quadlet directory: the two credential volumes
+// for core, sensor and scan (constant text, host.conf ids; see renderVolume) and the honeypot log volume for core and honeypot. A unit that already holds the right bytes is not touched; a link or odd
+// file at its name is refused. The text never depends on a service or an image, so it needs no .prev and no journal: writing it again is always right.
+func (o *Ops) ensureVolumeUnits(r *os.Root, service string) error {
+	type vol struct {
+		name string
+		text []byte
+	}
+	var vols []vol
+	if service != api.ServiceHoneypot { // the honeypot mounts no credential volume
+		for _, role := range credsRoles {
+			text, err := renderVolume(role, o.cfg.CoreUID, o.cfg.SensorGID)
+			if err != nil {
+				return err // errBadFill: host.conf does not give usable ids (host_conf_incomplete), not an unsafe directory
+			}
+			vols = append(vols, vol{volumeFileName(role), text})
 		}
-		name := volumeFileName(role)
+	}
+	if service == api.ServiceCore || service == api.ServiceHoneypot { // the two that mount the honeypot log volume (D-318)
+		vols = append(vols, vol{hpLogVolumeFileName, hpLogVolumeText})
+	}
+	for _, v := range vols {
+		name, text := v.name, v.text
 		old, state := readNoFollow(r, name, maxUnitSize)
 		switch {
 		case state == fileBroken:

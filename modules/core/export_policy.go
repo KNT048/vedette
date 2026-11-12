@@ -36,7 +36,7 @@ const tblCoreConnection = "core_" + "connection"
 
 // exportPolicy is keyed by table name.
 var exportPolicy = map[string]tablePolicy{
-	"ai_activity":            {export: "seq id ts job profile profile_id model trigger input_hash output_hash summary tokens_in tokens_out result prev_hash hash", json: "hooks tools links"},
+	"ai_activity":            {export: "seq id ts job profile profile_id model trigger input_hash output_hash summary tokens_in tokens_out result outcome prev_hash hash", json: "hooks tools links"},
 	"ai_downgrade":           {export: "id ts from_tier to_tier reason"},
 	"ai_hook":                {export: "id name name_key when match_type pattern action message enabled created_at updated_at"},
 	"ai_hook_state":          {export: "builtin_id enabled"},
@@ -99,7 +99,7 @@ var exportPolicy = map[string]tablePolicy{
 	"mit_pack":               {export: "cve confirmed_by confirmed_at drafted_with pack_version", json: "body compromise"},
 	"mit_pack_state":         {export: "id version installed_at"},
 	"notify_approver":        {export: "channel_type user_id address"},
-	"notify_channel":         {export: "type configured enabled secret_last4 app_token_last4 bot_token_last4 min_severity approvals rev updated_at", jsonURL: "fields", json: "last_test", skip: "secret_id app_token_secret_id bot_token_secret_id"},
+	"notify_channel":         {export: "type configured enabled secret_last4 app_token_last4 bot_token_last4 url_last4 min_severity approvals rev updated_at", jsonURL: "fields", json: "last_test", skip: "secret_id app_token_secret_id bot_token_secret_id url_secret_id"},
 	"notify_incident":        {export: "id kind title link severity what action first_seen last_seen count status handled_by handled_at note dedupe_key"},
 	"notify_incident_device": {export: "incident_id asset_id name"},
 	"oidc_config":            {export: "id client_id secret_last4 scopes groups_claim default_role updated_at", json: "role_map", url: "issuer redirect_uri", skip: "secret_id"},
@@ -112,6 +112,7 @@ var exportPolicy = map[string]tablePolicy{
 	"intake_agent_tokens":    {export: "id name kind last4 created_at expires_at last_received", skip: "token_hash"},                                                                                                                              // the hash never leaves (agent-intake INV-3)
 	"intake_wazuh":           {export: "id username password_last4 interval_minutes tls_pin tls_pin_first_seen generation status last_sync next_pull agents packages error resume_after pass_packages updated_at", url: "url", skip: "secret_id"}, // the password stays in core_secret (agent-intake INV-6)
 	"intake_osquery_nodes":   {export: "id token_id host_identifier hostname platform osquery_version enrolled_at last_seen last_result_at bound_ip bound_mac", skip: "node_key_hash"},                                                            // the key hash never leaves
+	"intake_prune_clock":     {export: "id last_run"},                                                                                                                                                                                             // when node-prune last ran (agent-intake POST-4)
 	"mcp_tokens":             {export: "id name last4 created_at last_used", json: "scopes", skip: "token_hash"},                                                                                                                                  // the hash never leaves (mcp-server INV-3)
 	"notify_send_notice":     {export: "send_id notice_id"},
 	"notify_setting":         {export: "key updated_at updated_by", json: "value"},

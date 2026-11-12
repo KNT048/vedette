@@ -271,9 +271,20 @@ type Config struct {
 	// BoxMACs adds to the MAC addresses of the network interfaces, which count as never-touch too: the decoys of the honeypot (macvlan links with
 	// MACs of their own) and the cards of the appliance. An error is as for BoxAddrs.
 	BoxMACs func() ([]string, error)
+	// HostInfra lists the network the box itself depends on, as vedette-host reports it: the default gateway of the kernel's route and the
+	// gateway and DNS servers of the management card's saved configuration (D-325). They count as never-touch without being listed (INV-10):
+	// an automated ban on the gateway or the resolver would cut the box off with the rest of the network. An error is as for BoxAddrs
+	// (fail closed). nil = none known (no host: a container-only box, whose own route is the container bridge).
+	HostInfra func() ([]HostInfra, error)
 	// BaseURL is the address people open Vedette at (https://192.168.10.2:8443). It is the start of the block list address;
 	// empty = the address is shown from /api/v1 on.
 	BaseURL string
+}
+
+// HostInfra is one address of the network the box depends on (Config.HostInfra).
+type HostInfra struct {
+	Addr netip.Addr
+	Kind string // "gateway" or "dns"
 }
 
 // Service is the response module. Create it once with New and share it between the handlers, the jobs and the event

@@ -328,6 +328,11 @@ func (h *OSHandlers) acceptable(m *release.Manifest, latest string) string {
 	if h.host != nil && m.CheckInstallMode("appliance") != nil {
 		return "the release is not for appliance installs"
 	}
+	// Without a host this is a container-only install (D-381): the customer pulls the release's images, so it must say
+	// it is built for that (S-CORE-9 G4).
+	if h.host == nil && m.CheckInstallMode("container") != nil {
+		return "the release is not for container-only installs"
+	}
 	return ""
 }
 
@@ -763,6 +768,14 @@ type updateAvailableView struct {
 	SizeKB      int64  `json:"size_kb"`
 	Note        string `json:"note"`
 	HostVersion string `json:"host_version,omitempty"` // the release's system helper when it is above the running one (D-316)
+	// Images are the release's images by digest from the verified manifest: a container-only install shows one
+	// cosign verify per image it runs (S-CORE-9 G4).
+	Images []releaseImageView `json:"images"`
+}
+
+type releaseImageView struct {
+	Service string `json:"service"`
+	Digest  string `json:"digest"`
 }
 
 type advisoryView struct {
@@ -999,14 +1012,16 @@ func availableOf(v *verifiedRelease, channel string, helper *api.Info) []updateA
 		return []updateAvailableView{}
 	}
 	var size int64
+	images := make([]releaseImageView, 0, len(v.M.Images))
 	for _, im := range v.M.Images {
 		size += im.Size
+		images = append(images, releaseImageView{Service: im.Service, Digest: im.Digest}) // both checked by manifest validate
 	}
 	note := []rune(v.M.Notes)
 	if len(note) > maxNoteRunes {
 		note = note[:maxNoteRunes]
 	}
-	a := updateAvailableView{Component: softwareComponent, Version: v.M.Version, Channel: channel, Note: string(note)}
+	a := updateAvailableView{Component: softwareComponent, Version: v.M.Version, Channel: channel, Note: string(note), Images: images}
 	if helper != nil && hostNewer(v.M, helper.HostVersion) {
 		a.HostVersion = v.M.Host.Version
 		if f := hostFileOf(v.M, helper.Arch); f != nil {

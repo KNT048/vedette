@@ -13781,6 +13781,27 @@
                           "host_version": {
                             "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                             "type": "string"
+                          },
+                          "images": {
+                            "description": "Software only: the images of the release by digest, from its verified manifest; a container-only install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "service": {
+                                  "type": "string"
+                                },
+                                "digest": {
+                                  "type": "string",
+                                  "description": "sha256:<64 hex>"
+                                }
+                              },
+                              "required": [
+                                "service",
+                                "digest"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -14292,6 +14313,27 @@
                           "host_version": {
                             "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                             "type": "string"
+                          },
+                          "images": {
+                            "description": "Software only: the images of the release by digest, from its verified manifest; a container-only install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "service": {
+                                  "type": "string"
+                                },
+                                "digest": {
+                                  "type": "string",
+                                  "description": "sha256:<64 hex>"
+                                }
+                              },
+                              "required": [
+                                "service",
+                                "digest"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -14797,6 +14839,27 @@
                           "host_version": {
                             "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                             "type": "string"
+                          },
+                          "images": {
+                            "description": "Software only: the images of the release by digest, from its verified manifest; a container-only install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "service": {
+                                  "type": "string"
+                                },
+                                "digest": {
+                                  "type": "string",
+                                  "description": "sha256:<64 hex>"
+                                }
+                              },
+                              "required": [
+                                "service",
+                                "digest"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -15355,6 +15418,27 @@
                               "host_version": {
                                 "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                                 "type": "string"
+                              },
+                              "images": {
+                                "description": "Software only: the images of the release by digest, from its verified manifest; a container-only install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise",
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "service": {
+                                      "type": "string"
+                                    },
+                                    "digest": {
+                                      "type": "string",
+                                      "description": "sha256:<64 hex>"
+                                    }
+                                  },
+                                  "required": [
+                                    "service",
+                                    "digest"
+                                  ],
+                                  "additionalProperties": false
+                                }
                               }
                             },
                             "required": [
@@ -15848,6 +15932,27 @@
                           "host_version": {
                             "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                             "type": "string"
+                          },
+                          "images": {
+                            "description": "Software only: the images of the release by digest, from its verified manifest; a container-only install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "service": {
+                                  "type": "string"
+                                },
+                                "digest": {
+                                  "type": "string",
+                                  "description": "sha256:<64 hex>"
+                                }
+                              },
+                              "required": [
+                                "service",
+                                "digest"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -17993,6 +18098,27 @@
                           "host_version": {
                             "description": "Software only: the system helper (vedette-host) version this release brings, when it is above the running one; the software run then updates it first (D-316). Absent otherwise",
                             "type": "string"
+                          },
+                          "images": {
+                            "description": "Software only: the images of the release by digest, from its verified manifest; a container-only install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "service": {
+                                  "type": "string"
+                                },
+                                "digest": {
+                                  "type": "string",
+                                  "description": "sha256:<64 hex>"
+                                }
+                              },
+                              "required": [
+                                "service",
+                                "digest"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [

@@ -33109,6 +33109,16 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.Images != nil {
+			e.FieldStart("images")
+			e.ArrStart()
+			for _, elem := range s.Images {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("note")
 		e.Str(s.Note)
 	}
@@ -33122,13 +33132,14 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCoreGetCoreUpdatesOKAvailableItem = [6]string{
+var jsonFieldsNameOfCoreGetCoreUpdatesOKAvailableItem = [7]string{
 	0: "channel",
 	1: "component",
 	2: "host_version",
-	3: "note",
-	4: "size_kb",
-	5: "version",
+	3: "images",
+	4: "note",
+	5: "size_kb",
+	6: "version",
 }
 
 // Decode decodes CoreGetCoreUpdatesOKAvailableItem from json.
@@ -33172,8 +33183,25 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"host_version\"")
 			}
+		case "images":
+			if err := func() error {
+				s.Images = make([]CoreGetCoreUpdatesOKAvailableItemImagesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CoreGetCoreUpdatesOKAvailableItemImagesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Images = append(s.Images, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"images\"")
+			}
 		case "note":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -33185,7 +33213,7 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "size_kb":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Float64()
 				s.SizeKB = float64(v)
@@ -33197,7 +33225,7 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"size_kb\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -33218,7 +33246,7 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111011,
+		0b01110011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -33300,6 +33328,119 @@ func (s CoreGetCoreUpdatesOKAvailableItemChannel) MarshalJSON() ([]byte, error) 
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CoreGetCoreUpdatesOKAvailableItemChannel) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CoreGetCoreUpdatesOKAvailableItemImagesItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CoreGetCoreUpdatesOKAvailableItemImagesItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("digest")
+		e.Str(s.Digest)
+	}
+	{
+		e.FieldStart("service")
+		e.Str(s.Service)
+	}
+}
+
+var jsonFieldsNameOfCoreGetCoreUpdatesOKAvailableItemImagesItem = [2]string{
+	0: "digest",
+	1: "service",
+}
+
+// Decode decodes CoreGetCoreUpdatesOKAvailableItemImagesItem from json.
+func (s *CoreGetCoreUpdatesOKAvailableItemImagesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetCoreUpdatesOKAvailableItemImagesItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "digest":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Digest = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"digest\"")
+			}
+		case "service":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Service = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CoreGetCoreUpdatesOKAvailableItemImagesItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCoreGetCoreUpdatesOKAvailableItemImagesItem) {
+					name = jsonFieldsNameOfCoreGetCoreUpdatesOKAvailableItemImagesItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CoreGetCoreUpdatesOKAvailableItemImagesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetCoreUpdatesOKAvailableItemImagesItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -39226,6 +39367,16 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.Images != nil {
+			e.FieldStart("images")
+			e.ArrStart()
+			for _, elem := range s.Images {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("note")
 		e.Str(s.Note)
 	}
@@ -39239,13 +39390,14 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePatchCoreUpdatesOKAvailableItem = [6]string{
+var jsonFieldsNameOfCorePatchCoreUpdatesOKAvailableItem = [7]string{
 	0: "channel",
 	1: "component",
 	2: "host_version",
-	3: "note",
-	4: "size_kb",
-	5: "version",
+	3: "images",
+	4: "note",
+	5: "size_kb",
+	6: "version",
 }
 
 // Decode decodes CorePatchCoreUpdatesOKAvailableItem from json.
@@ -39289,8 +39441,25 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"host_version\"")
 			}
+		case "images":
+			if err := func() error {
+				s.Images = make([]CorePatchCoreUpdatesOKAvailableItemImagesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CorePatchCoreUpdatesOKAvailableItemImagesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Images = append(s.Images, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"images\"")
+			}
 		case "note":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -39302,7 +39471,7 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "size_kb":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Float64()
 				s.SizeKB = float64(v)
@@ -39314,7 +39483,7 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"size_kb\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -39335,7 +39504,7 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111011,
+		0b01110011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -39417,6 +39586,119 @@ func (s CorePatchCoreUpdatesOKAvailableItemChannel) MarshalJSON() ([]byte, error
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePatchCoreUpdatesOKAvailableItemChannel) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePatchCoreUpdatesOKAvailableItemImagesItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePatchCoreUpdatesOKAvailableItemImagesItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("digest")
+		e.Str(s.Digest)
+	}
+	{
+		e.FieldStart("service")
+		e.Str(s.Service)
+	}
+}
+
+var jsonFieldsNameOfCorePatchCoreUpdatesOKAvailableItemImagesItem = [2]string{
+	0: "digest",
+	1: "service",
+}
+
+// Decode decodes CorePatchCoreUpdatesOKAvailableItemImagesItem from json.
+func (s *CorePatchCoreUpdatesOKAvailableItemImagesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePatchCoreUpdatesOKAvailableItemImagesItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "digest":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Digest = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"digest\"")
+			}
+		case "service":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Service = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePatchCoreUpdatesOKAvailableItemImagesItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePatchCoreUpdatesOKAvailableItemImagesItem) {
+					name = jsonFieldsNameOfCorePatchCoreUpdatesOKAvailableItemImagesItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePatchCoreUpdatesOKAvailableItemImagesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePatchCoreUpdatesOKAvailableItemImagesItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -54099,6 +54381,16 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.Images != nil {
+			e.FieldStart("images")
+			e.ArrStart()
+			for _, elem := range s.Images {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("note")
 		e.Str(s.Note)
 	}
@@ -54112,13 +54404,14 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesApplyOKAvailableItem = [6]string{
+var jsonFieldsNameOfCorePostCoreUpdatesApplyOKAvailableItem = [7]string{
 	0: "channel",
 	1: "component",
 	2: "host_version",
-	3: "note",
-	4: "size_kb",
-	5: "version",
+	3: "images",
+	4: "note",
+	5: "size_kb",
+	6: "version",
 }
 
 // Decode decodes CorePostCoreUpdatesApplyOKAvailableItem from json.
@@ -54162,8 +54455,25 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"host_version\"")
 			}
+		case "images":
+			if err := func() error {
+				s.Images = make([]CorePostCoreUpdatesApplyOKAvailableItemImagesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CorePostCoreUpdatesApplyOKAvailableItemImagesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Images = append(s.Images, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"images\"")
+			}
 		case "note":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -54175,7 +54485,7 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "size_kb":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Float64()
 				s.SizeKB = float64(v)
@@ -54187,7 +54497,7 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"size_kb\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -54208,7 +54518,7 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111011,
+		0b01110011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -54290,6 +54600,119 @@ func (s CorePostCoreUpdatesApplyOKAvailableItemChannel) MarshalJSON() ([]byte, e
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePostCoreUpdatesApplyOKAvailableItemChannel) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreUpdatesApplyOKAvailableItemImagesItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreUpdatesApplyOKAvailableItemImagesItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("digest")
+		e.Str(s.Digest)
+	}
+	{
+		e.FieldStart("service")
+		e.Str(s.Service)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreUpdatesApplyOKAvailableItemImagesItem = [2]string{
+	0: "digest",
+	1: "service",
+}
+
+// Decode decodes CorePostCoreUpdatesApplyOKAvailableItemImagesItem from json.
+func (s *CorePostCoreUpdatesApplyOKAvailableItemImagesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesApplyOKAvailableItemImagesItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "digest":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Digest = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"digest\"")
+			}
+		case "service":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Service = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreUpdatesApplyOKAvailableItemImagesItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreUpdatesApplyOKAvailableItemImagesItem) {
+					name = jsonFieldsNameOfCorePostCoreUpdatesApplyOKAvailableItemImagesItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreUpdatesApplyOKAvailableItemImagesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesApplyOKAvailableItemImagesItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -56545,6 +56968,16 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) encodeFields(e *jx.Encod
 		}
 	}
 	{
+		if s.Images != nil {
+			e.FieldStart("images")
+			e.ArrStart()
+			for _, elem := range s.Images {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("note")
 		e.Str(s.Note)
 	}
@@ -56558,13 +56991,14 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) encodeFields(e *jx.Encod
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesBundleOKStateAvailableItem = [6]string{
+var jsonFieldsNameOfCorePostCoreUpdatesBundleOKStateAvailableItem = [7]string{
 	0: "channel",
 	1: "component",
 	2: "host_version",
-	3: "note",
-	4: "size_kb",
-	5: "version",
+	3: "images",
+	4: "note",
+	5: "size_kb",
+	6: "version",
 }
 
 // Decode decodes CorePostCoreUpdatesBundleOKStateAvailableItem from json.
@@ -56608,8 +57042,25 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) Decode(d *jx.Decoder) er
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"host_version\"")
 			}
+		case "images":
+			if err := func() error {
+				s.Images = make([]CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Images = append(s.Images, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"images\"")
+			}
 		case "note":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -56621,7 +57072,7 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "size_kb":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Float64()
 				s.SizeKB = float64(v)
@@ -56633,7 +57084,7 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"size_kb\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -56654,7 +57105,7 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) Decode(d *jx.Decoder) er
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111011,
+		0b01110011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -56736,6 +57187,119 @@ func (s CorePostCoreUpdatesBundleOKStateAvailableItemChannel) MarshalJSON() ([]b
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePostCoreUpdatesBundleOKStateAvailableItemChannel) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("digest")
+		e.Str(s.Digest)
+	}
+	{
+		e.FieldStart("service")
+		e.Str(s.Service)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreUpdatesBundleOKStateAvailableItemImagesItem = [2]string{
+	0: "digest",
+	1: "service",
+}
+
+// Decode decodes CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem from json.
+func (s *CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "digest":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Digest = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"digest\"")
+			}
+		case "service":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Service = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreUpdatesBundleOKStateAvailableItemImagesItem) {
+					name = jsonFieldsNameOfCorePostCoreUpdatesBundleOKStateAvailableItemImagesItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -58948,6 +59512,16 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.Images != nil {
+			e.FieldStart("images")
+			e.ArrStart()
+			for _, elem := range s.Images {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("note")
 		e.Str(s.Note)
 	}
@@ -58961,13 +59535,14 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesCheckOKAvailableItem = [6]string{
+var jsonFieldsNameOfCorePostCoreUpdatesCheckOKAvailableItem = [7]string{
 	0: "channel",
 	1: "component",
 	2: "host_version",
-	3: "note",
-	4: "size_kb",
-	5: "version",
+	3: "images",
+	4: "note",
+	5: "size_kb",
+	6: "version",
 }
 
 // Decode decodes CorePostCoreUpdatesCheckOKAvailableItem from json.
@@ -59011,8 +59586,25 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"host_version\"")
 			}
+		case "images":
+			if err := func() error {
+				s.Images = make([]CorePostCoreUpdatesCheckOKAvailableItemImagesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CorePostCoreUpdatesCheckOKAvailableItemImagesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Images = append(s.Images, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"images\"")
+			}
 		case "note":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -59024,7 +59616,7 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "size_kb":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Float64()
 				s.SizeKB = float64(v)
@@ -59036,7 +59628,7 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"size_kb\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -59057,7 +59649,7 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111011,
+		0b01110011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -59139,6 +59731,119 @@ func (s CorePostCoreUpdatesCheckOKAvailableItemChannel) MarshalJSON() ([]byte, e
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePostCoreUpdatesCheckOKAvailableItemChannel) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreUpdatesCheckOKAvailableItemImagesItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreUpdatesCheckOKAvailableItemImagesItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("digest")
+		e.Str(s.Digest)
+	}
+	{
+		e.FieldStart("service")
+		e.Str(s.Service)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreUpdatesCheckOKAvailableItemImagesItem = [2]string{
+	0: "digest",
+	1: "service",
+}
+
+// Decode decodes CorePostCoreUpdatesCheckOKAvailableItemImagesItem from json.
+func (s *CorePostCoreUpdatesCheckOKAvailableItemImagesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesCheckOKAvailableItemImagesItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "digest":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Digest = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"digest\"")
+			}
+		case "service":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Service = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreUpdatesCheckOKAvailableItemImagesItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreUpdatesCheckOKAvailableItemImagesItem) {
+					name = jsonFieldsNameOfCorePostCoreUpdatesCheckOKAvailableItemImagesItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreUpdatesCheckOKAvailableItemImagesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesCheckOKAvailableItemImagesItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -64130,6 +64835,16 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) encodeFields(e *jx.Encoder)
 		}
 	}
 	{
+		if s.Images != nil {
+			e.FieldStart("images")
+			e.ArrStart()
+			for _, elem := range s.Images {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("note")
 		e.Str(s.Note)
 	}
@@ -64143,13 +64858,14 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) encodeFields(e *jx.Encoder)
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesRollbackOKAvailableItem = [6]string{
+var jsonFieldsNameOfCorePostCoreUpdatesRollbackOKAvailableItem = [7]string{
 	0: "channel",
 	1: "component",
 	2: "host_version",
-	3: "note",
-	4: "size_kb",
-	5: "version",
+	3: "images",
+	4: "note",
+	5: "size_kb",
+	6: "version",
 }
 
 // Decode decodes CorePostCoreUpdatesRollbackOKAvailableItem from json.
@@ -64193,8 +64909,25 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"host_version\"")
 			}
+		case "images":
+			if err := func() error {
+				s.Images = make([]CorePostCoreUpdatesRollbackOKAvailableItemImagesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CorePostCoreUpdatesRollbackOKAvailableItemImagesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Images = append(s.Images, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"images\"")
+			}
 		case "note":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -64206,7 +64939,7 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "size_kb":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Float64()
 				s.SizeKB = float64(v)
@@ -64218,7 +64951,7 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"size_kb\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -64239,7 +64972,7 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) Decode(d *jx.Decoder) error
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111011,
+		0b01110011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -64321,6 +65054,119 @@ func (s CorePostCoreUpdatesRollbackOKAvailableItemChannel) MarshalJSON() ([]byte
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePostCoreUpdatesRollbackOKAvailableItemChannel) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreUpdatesRollbackOKAvailableItemImagesItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreUpdatesRollbackOKAvailableItemImagesItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("digest")
+		e.Str(s.Digest)
+	}
+	{
+		e.FieldStart("service")
+		e.Str(s.Service)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreUpdatesRollbackOKAvailableItemImagesItem = [2]string{
+	0: "digest",
+	1: "service",
+}
+
+// Decode decodes CorePostCoreUpdatesRollbackOKAvailableItemImagesItem from json.
+func (s *CorePostCoreUpdatesRollbackOKAvailableItemImagesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesRollbackOKAvailableItemImagesItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "digest":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Digest = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"digest\"")
+			}
+		case "service":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Service = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreUpdatesRollbackOKAvailableItemImagesItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreUpdatesRollbackOKAvailableItemImagesItem) {
+					name = jsonFieldsNameOfCorePostCoreUpdatesRollbackOKAvailableItemImagesItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreUpdatesRollbackOKAvailableItemImagesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesRollbackOKAvailableItemImagesItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

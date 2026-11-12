@@ -4,7 +4,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
 import { renderApp } from '@/test/render'
+import { server } from '@/test/server'
 import { installStore } from '@/mocks/stores'
 import { MOCK_SETUP_CODE } from './mocks'
 
@@ -32,6 +34,34 @@ describe('container-only install (D-381)', () => {
     renderApp('/settings/network')
     expect(await screen.findByText(/Prepare the SPAN card on this machine yourself/)).toBeInTheDocument()
     expect(hostCalls()).toEqual([])
+  })
+
+  it('Updates names the offered release and its notes, with the update and cosign blocks for Docker or Podman and no Apply (S-CORE-9 G4)', async () => {
+    const u = userEvent.setup()
+    renderApp('/settings/updates')
+    expect(await screen.findByText('Vedette 0.9.4 is available. This machine runs 0.9.3.')).toBeInTheDocument()
+    expect(screen.getByText(/oversized syslog packets/)).toBeInTheDocument()
+    expect(screen.getByText('mv vedette.env vedette.env.old')).toBeInTheDocument()
+    expect(screen.getByText('minisign -Vm vedette.env -p vedette.pub')).toBeInTheDocument()
+    // one line per image this install runs (not the honeypot), by the digest of the release information; no made-up URL
+    const lines = screen.getByText(/^cosign verify/).textContent!.split('\n')
+    expect(lines.map((l) => /vedette-(\w+)@/.exec(l)?.[1])).toEqual(['core', 'sensor', 'scan'])
+    for (const l of lines) expect(l).toMatch(/^cosign verify --key cosign\.pub ghcr\.io\/knt048\/vedette-\w+@sha256:[0-9a-f]{64}$/)
+    expect(screen.queryByText(/https?:\/\//)).toBeNull()
+    expect(screen.queryByRole('button', { name: /Apply|Roll back|Check for releases/ })).toBeNull()
+    expect(screen.queryByText(/System helper/)).toBeNull()
+    await u.click(screen.getByRole('button', { name: 'Podman' }))
+    expect(screen.getByText(/^podman compose --env-file vedette.env pull/).textContent).toBe('podman compose --env-file vedette.env pull\npodman compose --env-file vedette.env up -d')
+    expect(screen.queryByText(/docker compose/)).toBeNull()
+  })
+
+  it('Updates without a newer release says why and keeps the general pull and up -d block', async () => {
+    const state = { channel: 'stable', mode: 'manual', check_enabled: true, last_check: null, components: [{ id: 'software', kind: 'software', version: '0.9.3', previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }], available: [], history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null }
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(state)))
+    renderApp('/settings/updates')
+    expect(await screen.findByText(/No release information yet/)).toBeInTheDocument()
+    expect(screen.getByText(/docker compose --env-file vedette.env pull/)).toBeInTheDocument()
+    expect(screen.queryByText(/minisign|cosign verify/)).toBeNull()
   })
 
   it('Modules: what needs the host is not on this install; off it cannot be turned on, on (sample data) it can be turned off', async () => {

@@ -16129,9 +16129,12 @@ type CoreGetCoreUpdatesOKAvailableItem struct {
 	// Software only: the system helper (vedette-host) version this release brings, when it is above the
 	// running one; the software run then updates it first (D-316). Absent otherwise.
 	HostVersion OptString `json:"host_version"`
-	Note        string    `json:"note"`
-	SizeKB      float64   `json:"size_kb"`
-	Version     string    `json:"version"`
+	// Software only: the images of the release by digest, from its verified manifest; a container-only
+	// install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise.
+	Images  []CoreGetCoreUpdatesOKAvailableItemImagesItem `json:"images"`
+	Note    string                                        `json:"note"`
+	SizeKB  float64                                       `json:"size_kb"`
+	Version string                                        `json:"version"`
 }
 
 // GetChannel returns the value of Channel.
@@ -16147,6 +16150,11 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) GetComponent() string {
 // GetHostVersion returns the value of HostVersion.
 func (s *CoreGetCoreUpdatesOKAvailableItem) GetHostVersion() OptString {
 	return s.HostVersion
+}
+
+// GetImages returns the value of Images.
+func (s *CoreGetCoreUpdatesOKAvailableItem) GetImages() []CoreGetCoreUpdatesOKAvailableItemImagesItem {
+	return s.Images
 }
 
 // GetNote returns the value of Note.
@@ -16177,6 +16185,11 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) SetComponent(val string) {
 // SetHostVersion sets the value of HostVersion.
 func (s *CoreGetCoreUpdatesOKAvailableItem) SetHostVersion(val OptString) {
 	s.HostVersion = val
+}
+
+// SetImages sets the value of Images.
+func (s *CoreGetCoreUpdatesOKAvailableItem) SetImages(val []CoreGetCoreUpdatesOKAvailableItemImagesItem) {
+	s.Images = val
 }
 
 // SetNote sets the value of Note.
@@ -16233,6 +16246,32 @@ func (s *CoreGetCoreUpdatesOKAvailableItemChannel) UnmarshalText(data []byte) er
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type CoreGetCoreUpdatesOKAvailableItemImagesItem struct {
+	// Sha256:<64 hex>.
+	Digest  string `json:"digest"`
+	Service string `json:"service"`
+}
+
+// GetDigest returns the value of Digest.
+func (s *CoreGetCoreUpdatesOKAvailableItemImagesItem) GetDigest() string {
+	return s.Digest
+}
+
+// GetService returns the value of Service.
+func (s *CoreGetCoreUpdatesOKAvailableItemImagesItem) GetService() string {
+	return s.Service
+}
+
+// SetDigest sets the value of Digest.
+func (s *CoreGetCoreUpdatesOKAvailableItemImagesItem) SetDigest(val string) {
+	s.Digest = val
+}
+
+// SetService sets the value of Service.
+func (s *CoreGetCoreUpdatesOKAvailableItemImagesItem) SetService(val string) {
+	s.Service = val
 }
 
 type CoreGetCoreUpdatesOKChannel string
@@ -19484,9 +19523,12 @@ type CorePatchCoreUpdatesOKAvailableItem struct {
 	// Software only: the system helper (vedette-host) version this release brings, when it is above the
 	// running one; the software run then updates it first (D-316). Absent otherwise.
 	HostVersion OptString `json:"host_version"`
-	Note        string    `json:"note"`
-	SizeKB      float64   `json:"size_kb"`
-	Version     string    `json:"version"`
+	// Software only: the images of the release by digest, from its verified manifest; a container-only
+	// install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise.
+	Images  []CorePatchCoreUpdatesOKAvailableItemImagesItem `json:"images"`
+	Note    string                                          `json:"note"`
+	SizeKB  float64                                         `json:"size_kb"`
+	Version string                                          `json:"version"`
 }
 
 // GetChannel returns the value of Channel.
@@ -19502,6 +19544,11 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) GetComponent() string {
 // GetHostVersion returns the value of HostVersion.
 func (s *CorePatchCoreUpdatesOKAvailableItem) GetHostVersion() OptString {
 	return s.HostVersion
+}
+
+// GetImages returns the value of Images.
+func (s *CorePatchCoreUpdatesOKAvailableItem) GetImages() []CorePatchCoreUpdatesOKAvailableItemImagesItem {
+	return s.Images
 }
 
 // GetNote returns the value of Note.
@@ -19532,6 +19579,11 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) SetComponent(val string) {
 // SetHostVersion sets the value of HostVersion.
 func (s *CorePatchCoreUpdatesOKAvailableItem) SetHostVersion(val OptString) {
 	s.HostVersion = val
+}
+
+// SetImages sets the value of Images.
+func (s *CorePatchCoreUpdatesOKAvailableItem) SetImages(val []CorePatchCoreUpdatesOKAvailableItemImagesItem) {
+	s.Images = val
 }
 
 // SetNote sets the value of Note.
@@ -19588,6 +19640,32 @@ func (s *CorePatchCoreUpdatesOKAvailableItemChannel) UnmarshalText(data []byte) 
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type CorePatchCoreUpdatesOKAvailableItemImagesItem struct {
+	// Sha256:<64 hex>.
+	Digest  string `json:"digest"`
+	Service string `json:"service"`
+}
+
+// GetDigest returns the value of Digest.
+func (s *CorePatchCoreUpdatesOKAvailableItemImagesItem) GetDigest() string {
+	return s.Digest
+}
+
+// GetService returns the value of Service.
+func (s *CorePatchCoreUpdatesOKAvailableItemImagesItem) GetService() string {
+	return s.Service
+}
+
+// SetDigest sets the value of Digest.
+func (s *CorePatchCoreUpdatesOKAvailableItemImagesItem) SetDigest(val string) {
+	s.Digest = val
+}
+
+// SetService sets the value of Service.
+func (s *CorePatchCoreUpdatesOKAvailableItemImagesItem) SetService(val string) {
+	s.Service = val
 }
 
 type CorePatchCoreUpdatesOKChannel string
@@ -26758,9 +26836,12 @@ type CorePostCoreUpdatesApplyOKAvailableItem struct {
 	// Software only: the system helper (vedette-host) version this release brings, when it is above the
 	// running one; the software run then updates it first (D-316). Absent otherwise.
 	HostVersion OptString `json:"host_version"`
-	Note        string    `json:"note"`
-	SizeKB      float64   `json:"size_kb"`
-	Version     string    `json:"version"`
+	// Software only: the images of the release by digest, from its verified manifest; a container-only
+	// install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise.
+	Images  []CorePostCoreUpdatesApplyOKAvailableItemImagesItem `json:"images"`
+	Note    string                                              `json:"note"`
+	SizeKB  float64                                             `json:"size_kb"`
+	Version string                                              `json:"version"`
 }
 
 // GetChannel returns the value of Channel.
@@ -26776,6 +26857,11 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) GetComponent() string {
 // GetHostVersion returns the value of HostVersion.
 func (s *CorePostCoreUpdatesApplyOKAvailableItem) GetHostVersion() OptString {
 	return s.HostVersion
+}
+
+// GetImages returns the value of Images.
+func (s *CorePostCoreUpdatesApplyOKAvailableItem) GetImages() []CorePostCoreUpdatesApplyOKAvailableItemImagesItem {
+	return s.Images
 }
 
 // GetNote returns the value of Note.
@@ -26806,6 +26892,11 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) SetComponent(val string) {
 // SetHostVersion sets the value of HostVersion.
 func (s *CorePostCoreUpdatesApplyOKAvailableItem) SetHostVersion(val OptString) {
 	s.HostVersion = val
+}
+
+// SetImages sets the value of Images.
+func (s *CorePostCoreUpdatesApplyOKAvailableItem) SetImages(val []CorePostCoreUpdatesApplyOKAvailableItemImagesItem) {
+	s.Images = val
 }
 
 // SetNote sets the value of Note.
@@ -26862,6 +26953,32 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItemChannel) UnmarshalText(data []by
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type CorePostCoreUpdatesApplyOKAvailableItemImagesItem struct {
+	// Sha256:<64 hex>.
+	Digest  string `json:"digest"`
+	Service string `json:"service"`
+}
+
+// GetDigest returns the value of Digest.
+func (s *CorePostCoreUpdatesApplyOKAvailableItemImagesItem) GetDigest() string {
+	return s.Digest
+}
+
+// GetService returns the value of Service.
+func (s *CorePostCoreUpdatesApplyOKAvailableItemImagesItem) GetService() string {
+	return s.Service
+}
+
+// SetDigest sets the value of Digest.
+func (s *CorePostCoreUpdatesApplyOKAvailableItemImagesItem) SetDigest(val string) {
+	s.Digest = val
+}
+
+// SetService sets the value of Service.
+func (s *CorePostCoreUpdatesApplyOKAvailableItemImagesItem) SetService(val string) {
+	s.Service = val
 }
 
 type CorePostCoreUpdatesApplyOKChannel string
@@ -28176,9 +28293,12 @@ type CorePostCoreUpdatesBundleOKStateAvailableItem struct {
 	// Software only: the system helper (vedette-host) version this release brings, when it is above the
 	// running one; the software run then updates it first (D-316). Absent otherwise.
 	HostVersion OptString `json:"host_version"`
-	Note        string    `json:"note"`
-	SizeKB      float64   `json:"size_kb"`
-	Version     string    `json:"version"`
+	// Software only: the images of the release by digest, from its verified manifest; a container-only
+	// install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise.
+	Images  []CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem `json:"images"`
+	Note    string                                                    `json:"note"`
+	SizeKB  float64                                                   `json:"size_kb"`
+	Version string                                                    `json:"version"`
 }
 
 // GetChannel returns the value of Channel.
@@ -28194,6 +28314,11 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) GetComponent() string {
 // GetHostVersion returns the value of HostVersion.
 func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) GetHostVersion() OptString {
 	return s.HostVersion
+}
+
+// GetImages returns the value of Images.
+func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) GetImages() []CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem {
+	return s.Images
 }
 
 // GetNote returns the value of Note.
@@ -28224,6 +28349,11 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) SetComponent(val string)
 // SetHostVersion sets the value of HostVersion.
 func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) SetHostVersion(val OptString) {
 	s.HostVersion = val
+}
+
+// SetImages sets the value of Images.
+func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) SetImages(val []CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem) {
+	s.Images = val
 }
 
 // SetNote sets the value of Note.
@@ -28280,6 +28410,32 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItemChannel) UnmarshalText(dat
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem struct {
+	// Sha256:<64 hex>.
+	Digest  string `json:"digest"`
+	Service string `json:"service"`
+}
+
+// GetDigest returns the value of Digest.
+func (s *CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem) GetDigest() string {
+	return s.Digest
+}
+
+// GetService returns the value of Service.
+func (s *CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem) GetService() string {
+	return s.Service
+}
+
+// SetDigest sets the value of Digest.
+func (s *CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem) SetDigest(val string) {
+	s.Digest = val
+}
+
+// SetService sets the value of Service.
+func (s *CorePostCoreUpdatesBundleOKStateAvailableItemImagesItem) SetService(val string) {
+	s.Service = val
 }
 
 type CorePostCoreUpdatesBundleOKStateChannel string
@@ -29615,9 +29771,12 @@ type CorePostCoreUpdatesCheckOKAvailableItem struct {
 	// Software only: the system helper (vedette-host) version this release brings, when it is above the
 	// running one; the software run then updates it first (D-316). Absent otherwise.
 	HostVersion OptString `json:"host_version"`
-	Note        string    `json:"note"`
-	SizeKB      float64   `json:"size_kb"`
-	Version     string    `json:"version"`
+	// Software only: the images of the release by digest, from its verified manifest; a container-only
+	// install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise.
+	Images  []CorePostCoreUpdatesCheckOKAvailableItemImagesItem `json:"images"`
+	Note    string                                              `json:"note"`
+	SizeKB  float64                                             `json:"size_kb"`
+	Version string                                              `json:"version"`
 }
 
 // GetChannel returns the value of Channel.
@@ -29633,6 +29792,11 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) GetComponent() string {
 // GetHostVersion returns the value of HostVersion.
 func (s *CorePostCoreUpdatesCheckOKAvailableItem) GetHostVersion() OptString {
 	return s.HostVersion
+}
+
+// GetImages returns the value of Images.
+func (s *CorePostCoreUpdatesCheckOKAvailableItem) GetImages() []CorePostCoreUpdatesCheckOKAvailableItemImagesItem {
+	return s.Images
 }
 
 // GetNote returns the value of Note.
@@ -29663,6 +29827,11 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) SetComponent(val string) {
 // SetHostVersion sets the value of HostVersion.
 func (s *CorePostCoreUpdatesCheckOKAvailableItem) SetHostVersion(val OptString) {
 	s.HostVersion = val
+}
+
+// SetImages sets the value of Images.
+func (s *CorePostCoreUpdatesCheckOKAvailableItem) SetImages(val []CorePostCoreUpdatesCheckOKAvailableItemImagesItem) {
+	s.Images = val
 }
 
 // SetNote sets the value of Note.
@@ -29719,6 +29888,32 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItemChannel) UnmarshalText(data []by
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type CorePostCoreUpdatesCheckOKAvailableItemImagesItem struct {
+	// Sha256:<64 hex>.
+	Digest  string `json:"digest"`
+	Service string `json:"service"`
+}
+
+// GetDigest returns the value of Digest.
+func (s *CorePostCoreUpdatesCheckOKAvailableItemImagesItem) GetDigest() string {
+	return s.Digest
+}
+
+// GetService returns the value of Service.
+func (s *CorePostCoreUpdatesCheckOKAvailableItemImagesItem) GetService() string {
+	return s.Service
+}
+
+// SetDigest sets the value of Digest.
+func (s *CorePostCoreUpdatesCheckOKAvailableItemImagesItem) SetDigest(val string) {
+	s.Digest = val
+}
+
+// SetService sets the value of Service.
+func (s *CorePostCoreUpdatesCheckOKAvailableItemImagesItem) SetService(val string) {
+	s.Service = val
 }
 
 type CorePostCoreUpdatesCheckOKChannel string
@@ -32259,9 +32454,12 @@ type CorePostCoreUpdatesRollbackOKAvailableItem struct {
 	// Software only: the system helper (vedette-host) version this release brings, when it is above the
 	// running one; the software run then updates it first (D-316). Absent otherwise.
 	HostVersion OptString `json:"host_version"`
-	Note        string    `json:"note"`
-	SizeKB      float64   `json:"size_kb"`
-	Version     string    `json:"version"`
+	// Software only: the images of the release by digest, from its verified manifest; a container-only
+	// install shows one cosign verify line per image it runs (S-CORE-9 G4). Absent otherwise.
+	Images  []CorePostCoreUpdatesRollbackOKAvailableItemImagesItem `json:"images"`
+	Note    string                                                 `json:"note"`
+	SizeKB  float64                                                `json:"size_kb"`
+	Version string                                                 `json:"version"`
 }
 
 // GetChannel returns the value of Channel.
@@ -32277,6 +32475,11 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) GetComponent() string {
 // GetHostVersion returns the value of HostVersion.
 func (s *CorePostCoreUpdatesRollbackOKAvailableItem) GetHostVersion() OptString {
 	return s.HostVersion
+}
+
+// GetImages returns the value of Images.
+func (s *CorePostCoreUpdatesRollbackOKAvailableItem) GetImages() []CorePostCoreUpdatesRollbackOKAvailableItemImagesItem {
+	return s.Images
 }
 
 // GetNote returns the value of Note.
@@ -32307,6 +32510,11 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) SetComponent(val string) {
 // SetHostVersion sets the value of HostVersion.
 func (s *CorePostCoreUpdatesRollbackOKAvailableItem) SetHostVersion(val OptString) {
 	s.HostVersion = val
+}
+
+// SetImages sets the value of Images.
+func (s *CorePostCoreUpdatesRollbackOKAvailableItem) SetImages(val []CorePostCoreUpdatesRollbackOKAvailableItemImagesItem) {
+	s.Images = val
 }
 
 // SetNote sets the value of Note.
@@ -32363,6 +32571,32 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItemChannel) UnmarshalText(data [
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type CorePostCoreUpdatesRollbackOKAvailableItemImagesItem struct {
+	// Sha256:<64 hex>.
+	Digest  string `json:"digest"`
+	Service string `json:"service"`
+}
+
+// GetDigest returns the value of Digest.
+func (s *CorePostCoreUpdatesRollbackOKAvailableItemImagesItem) GetDigest() string {
+	return s.Digest
+}
+
+// GetService returns the value of Service.
+func (s *CorePostCoreUpdatesRollbackOKAvailableItemImagesItem) GetService() string {
+	return s.Service
+}
+
+// SetDigest sets the value of Digest.
+func (s *CorePostCoreUpdatesRollbackOKAvailableItemImagesItem) SetDigest(val string) {
+	s.Digest = val
+}
+
+// SetService sets the value of Service.
+func (s *CorePostCoreUpdatesRollbackOKAvailableItemImagesItem) SetService(val string) {
+	s.Service = val
 }
 
 type CorePostCoreUpdatesRollbackOKChannel string

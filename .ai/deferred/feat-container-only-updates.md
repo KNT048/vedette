@@ -1,0 +1,3 @@
+# Deferred: feat/container-only-updates (G-D, S-CORE-9 G4)
+
+- [ ] 2026-11-12 — Settings → Data on container-only still shows Docker-only backup/restore commands (`docker run`, `docker compose`); the Updates page now has a Docker / Podman switch (`forEngine` in `ContainerOnly.tsx`). Give Data the same switch once the Podman form of the volume backup is proved (rootless volume path, SELinux `:Z` on the bind mount not checked) — vì sao để sau: not proved on Podman, outside G4 — ở đâu: `web/src/features/core/ContainerOnly.tsx` (`ContainerBackup`), `docs/INSTALL-CONTAINER.md` §6, `scripts/dev/container-only-smoke.sh`

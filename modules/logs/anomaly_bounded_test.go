@@ -2,6 +2,7 @@ package logs
 
 import (
 	"crypto/sha256"
+	"database/sql"
 	"fmt"
 	"strings"
 	"testing"
@@ -52,7 +53,7 @@ func TestBoundedVocabularyFitsTheQuotas(t *testing.T) {
 func TestContract_Events_BoundedOverflowIsNeverSilent(t *testing.T) {
 	t.Parallel()
 	for _, reps := range []int{1, 2, 50} { // a real event of one, two or fifty lines: the count does not put it behind a flood of 1-line items
-		t.Run(fmt.Sprintf("real event of %d lines", reps), func(t *testing.T) { boundedOverflow(t, reps) })
+		t.Run(fmt.Sprintf("real event of %d lines", reps), func(t *testing.T) { t.Parallel(); boundedOverflow(t, reps) })
 	}
 }
 
@@ -226,54 +227,105 @@ func TestContract_INV6_DigestIsRoundRobinAcrossSources(t *testing.T) {
 func TestContract_Events_TrickleDoesNotKeepARealEventInTheBacklog(t *testing.T) {
 	t.Parallel()
 	for _, perHour := range []int{21, 25} {
-		e := newEnv(t)
-		p := &pubs{}
-		e.svc.cfg.Events = p
-		src := e.warmSource("fortigate", "192.168.10.1")
-		realLine := `logid="0101039947" type="event" action="tunnel-up" dstip=203.0.113.9`
-		realSig := e.svc.sigs.Of("fortigate", realLine).Signature
-		var spoof []string
-		for _, l := range allBoundedFortiLines() {
-			if sig := e.svc.sigs.Of("fortigate", l).Signature; sig != sigFor(22) && sig != realSig {
-				spoof = append(spoof, l)
-			}
+		t.Run(fmt.Sprintf("%d an hour", perHour), func(t *testing.T) {
+			t.Parallel()
+			trickle(t, perHour)
+		})
+	}
+}
+
+func trickle(t *testing.T, perHour int) {
+	t.Helper()
+	e := newEnv(t)
+	p := &pubs{}
+	e.svc.cfg.Events = p
+	src := e.warmSource("fortigate", "192.168.10.1")
+	realLine := `logid="0101039947" type="event" action="tunnel-up" dstip=203.0.113.9`
+	realSig := e.svc.sigs.Of("fortigate", realLine).Signature
+	var spoof []string
+	for _, l := range allBoundedFortiLines() {
+		if sig := e.svc.sigs.Of("fortigate", l).Signature; sig != sigFor(22) && sig != realSig {
+			spoof = append(spoof, l)
 		}
-		e.feed(src, realLine, 1)
-		start := e.svc.now()
-		realAt := time.Duration(-1)
-		used := 0
-		seen := map[string]bool{}
-		for step := 0; step < 40*12; step++ { // 16 hours of trickle, then time for the first ones to age out
-			if step%12 == 0 && step < 16*12 && used < len(spoof) {
-				e.advance(time.Second)
-				k := min(perHour, len(spoof)-used)
-				ingestAll(e, src, k, func(i int) string { return spoof[used+i] }, 1)
-				used += k
+	}
+	e.feed(src, realLine, 1)
+	start := e.svc.now()
+	realAt := time.Duration(-1)
+	used := 0
+	seen := map[string]bool{}
+	for step := 0; step < 40*12; step++ { // 16 hours of trickle, then time for the first ones to age out
+		if step%12 == 0 && step < 16*12 && used < len(spoof) {
+			e.advance(time.Second)
+			k := min(perHour, len(spoof)-used)
+			ingestAll(e, src, k, func(i int) string { return spoof[used+i] }, 1)
+			used += k
+		}
+		before := len(p.events())
+		e.detect()
+		for _, ev := range p.events()[before:] {
+			if ev.Target == BoundedPrefix+realSig && realAt < 0 {
+				realAt = e.svc.now().Sub(start)
 			}
-			before := len(p.events())
-			e.detect()
-			for _, ev := range p.events()[before:] {
-				if ev.Target == BoundedPrefix+realSig && realAt < 0 {
-					realAt = e.svc.now().Sub(start)
+			if sig, ok := strings.CutPrefix(ev.Target, BoundedPrefix); ok && !strings.HasPrefix(sig, BacklogTarget) {
+				seen[sig] = true
+			}
+			for _, line := range strings.Split(ev.What, "\n") {
+				if rest, ok := strings.CutPrefix(line, "New: "); ok && strings.Contains(rest, " (") {
+					seen[rest[:strings.LastIndex(rest, " (")]] = true
 				}
-				if sig, ok := strings.CutPrefix(ev.Target, BoundedPrefix); ok && !strings.HasPrefix(sig, BacklogTarget) {
-					seen[sig] = true
-				}
-				for _, line := range strings.Split(ev.What, "\n") {
-					if rest, ok := strings.CutPrefix(line, "New: "); ok && strings.Contains(rest, " (") {
-						seen[rest[:strings.LastIndex(rest, " (")]] = true
-					}
-				}
-			}
-			e.advance(5 * time.Minute)
-		}
-		if realAt < 0 || realAt > 2*time.Hour+10*time.Minute {
-			t.Fatalf("%d an hour: the real event had its own event after %v", perHour, realAt)
-		}
-		for _, l := range spoof[:used] {
-			if sig := e.svc.sigs.Of("fortigate", l).Signature; !seen[sig] {
-				t.Fatalf("%d an hour: %s was neither announced nor named", perHour, sig)
 			}
 		}
+		e.advance(5 * time.Minute)
+	}
+	if realAt < 0 || realAt > 2*time.Hour+10*time.Minute {
+		t.Fatalf("%d an hour: the real event had its own event after %v", perHour, realAt)
+	}
+	for _, l := range spoof[:used] {
+		if sig := e.svc.sigs.Of("fortigate", l).Signature; !seen[sig] {
+			t.Fatalf("%d an hour: %s was neither announced nor named", perHour, sig)
+		}
+	}
+}
+
+// detailsOf answers as one lookup per signature did: over more than one chunk of signatures, the newest non-empty destination and
+// sample of each win, a signature with no row is the zero detail, and a day older than the counters kept is not read.
+func TestDetailsOfIsOneLookupPerSignature(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	now := e.svc.now()
+	dayOf := func(back int) string { return now.UTC().Add(-time.Duration(back) * day).Format("2006-01-02") }
+	first := now.UTC().Format("2006-01-02T15:04:05.000Z")
+	var sigs []string
+	if err := e.vol.Write(t.Context(), func(tx *sql.Tx) error {
+		for i := range 2*detailChunk + 5 {
+			sig := fmt.Sprintf("sig%04d", i)
+			sigs = append(sigs, sig)
+			for back, row := range [][2]string{{"", "today"}, {"203.0.113.1", ""}, {"203.0.113.2", "older"}, {"", ""}} { // back 0..3
+				if _, err := tx.ExecContext(t.Context(), `INSERT INTO logs_signature_daily (day, source_id, signature, dest, count, first_seen, sample, mined) VALUES (?, 'ls-1', ?, ?, 1, ?, ?, 1)`,
+					dayOf(back), sig, row[0], first, row[1]); err != nil {
+					return err
+				}
+			}
+		}
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO logs_signature_daily (day, source_id, signature, dest, count, first_seen, sample, mined) VALUES (?, 'ls-1', 'sig-old', '198.51.100.9', 1, ?, 'gone', 1)`,
+			dayOf(BaselineDays+3), first)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.svc.detailsOf(t.Context(), "ls-1", append(sigs, "sig-none", "sig-old", sigs[0]), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sig := range sigs {
+		if d := got[sig]; d.dest != "203.0.113.1" || d.sample != "today" {
+			t.Fatalf("%s: %+v, want the newest non-empty destination and sample", sig, d)
+		}
+		if one, err := e.svc.detailOf(t.Context(), "ls-1", sig, now); err != nil || one != got[sig] {
+			t.Fatalf("%s: detailOf %+v %v, detailsOf %+v", sig, one, err, got[sig])
+		}
+	}
+	if got["sig-none"] != (detail{}) || got["sig-old"] != (detail{}) {
+		t.Fatalf("no row in the counters kept: %+v %+v", got["sig-none"], got["sig-old"])
 	}
 }

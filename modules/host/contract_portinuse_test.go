@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/knt048/vedette/host/api"
@@ -194,6 +195,59 @@ func TestContract_PortInUse_ACoreSwitchIsRefusedAndTheRunningReleaseStays(t *tes
 	e.refused(t, api.CmdContainerRollback, api.ContainerRollbackArgs{Service: "core"}, 412, api.CodePortInUse)
 	if v, _ := e.versions(t, "core"); v != v2 {
 		t.Fatalf("version %q after a refused rollback", v)
+	}
+}
+
+// The port is taken while the pre_update backup runs (it can take minutes): the switch checks once more right before the unit write
+// and is refused there. The hook is the existing journal seam: the journal write that records the backup id is the one step between
+// the backup and the unit write, and it makes 8765 busy (a table written aside beforehand is moved in place, so the hook, which runs
+// on the run's goroutine, needs no testing.T). The journal is dropped, the backup kept, the unit and the version unchanged.
+func TestContract_PortInUse_APortTakenDuringTheBackupRefusesTheSwitchBeforeTheUnitWrite(t *testing.T) {
+	t.Parallel()
+	var (
+		armed   atomic.Bool
+		pending atomic.Int32
+		busy    atomic.Bool
+		from    atomic.Pointer[string] // the prepared table, and where it goes
+		to      atomic.Pointer[string]
+	)
+	e := startUpd(t, func(_ *ops.Config, d *ops.Deps) {
+		d.JournalFault = func(svc, phase string) error {
+			if armed.Load() && svc == api.ServiceCore && phase == "pending" && pending.Add(1) == 2 { // 1: before the backup, 2: after it
+				busy.Store(os.Rename(*from.Load(), *to.Load()) == nil)
+			}
+			return nil
+		}
+	})
+	e.adopt(t, "core", rel1(d1, d1))
+	old := legacyCore3(t, e.m, d1, true)
+	e.pullRel(t, "core", rel2(d2, d2))
+	holdPort8765(t, e.m, pinUserCg) // the process and its socket; the table is moved aside until the hook puts it back
+	table := filepath.Join(e.m.Root, "proc", "net", "tcp")
+	aside := filepath.Join(e.m.Root, "proc", "tcp.aside")
+	if err := os.Rename(table, aside); err != nil {
+		t.Fatal(err)
+	}
+	from.Store(&aside)
+	to.Store(&table)
+	e.forget()
+	armed.Store(true)
+	r := e.final(t, api.CmdContainerStart, e.startArgs("core", v2), api.StatusRefused, api.CodePortInUse)
+	armed.Store(false)
+	if !busy.Load() || !strings.Contains(r.Error.Message, "8765/tcp (python3, pid 4242)") {
+		t.Fatalf("the hook did not run between the backup and the unit write (%t): %+v", busy.Load(), r.Error)
+	}
+	if e.journal("core") {
+		t.Error("the journal stayed")
+	}
+	if bk, err := e.h.Client.StateBackups(context.Background()); err != nil || len(bk.Backups) != 1 || bk.Backups[0].Kind != "pre_update" {
+		t.Errorf("the pre_update backup is not kept: %+v %v", bk, err)
+	}
+	if e.unit(t, "core") != old || e.restarts("core") != 0 || slices.Contains(e.ctl(), "daemon-reload") {
+		t.Fatalf("the unit changed or core was restarted: %v", e.ctl())
+	}
+	if v, _ := e.versions(t, "core"); v != v1 {
+		t.Fatalf("version %q", v)
 	}
 }
 

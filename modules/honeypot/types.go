@@ -287,6 +287,12 @@ type HostStatus struct {
 // the host may hold the address, so the module keeps it on record for the teardown and shows no conflict (SYS-5).
 var ErrRefused = errors.New("the host refused")
 
+// ErrHostFailed is wrapped, besides ErrRefused, by a refusal that is about the host and not the address: the host could
+// not set the address up (its decoy build or namespace failed, its state is unusable). The address is still dropped from
+// the record (the host does not hold it), but it is no conflict: the trap shows "off", as for any other host failure
+// (INV-7), never "IP clashes with a device" (#475).
+var ErrHostFailed = errors.New("the host could not set up the address")
+
 // Host is the module's only way to the OS (FORBID-3, SYS-1): decoy IPs (host-api 6.6) and the `honeypot` container
 // (6.8, 6.9). Every call is idempotent.
 type Host interface {

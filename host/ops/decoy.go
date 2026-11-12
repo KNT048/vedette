@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -383,6 +384,27 @@ func (o *Ops) hostHasLink(name string) (bool, error) {
 // ipRun runs one ip command line and reports success; a non-zero exit is an error naming the verb.
 func (o *Ops) ipRun(ctx context.Context, args []string) error {
 	_, code, err := o.exec(ctx, binIP, args...)
+	return ipErr(args, code, err)
+}
+
+// fibTableMissingRE is the kernel's answer (through iproute2 6.19 and later, exit 2, then "Flush terminated") to
+// "route flush table N" for a table the namespace does not have; older iproute2 exits 0 there (#475).
+var fibTableMissingRE = regexp.MustCompile(`(?m)^Error: ipv4: FIB table does not exist\.$`)
+
+// routeFlush empties a decoy's table. The table does not exist until its first route (a new decoy, a namespace made
+// again after a reboot), and a table that does not exist has nothing to flush: exit 2 with the kernel's "FIB table does
+// not exist" is success. Every other answer is a failure, as with ipRun. Asking first ("route show table N") would not
+// avoid it: the same kernel check refuses the dump of a missing table.
+func (o *Ops) routeFlush(ctx context.Context, table int) error {
+	args := argvRouteFlush(table)
+	res, code, err := o.exec(ctx, binIP, args...)
+	if err == nil && code == 2 && fibTableMissingRE.Match(res.Stderr) {
+		return nil
+	}
+	return ipErr(args, code, err)
+}
+
+func ipErr(args []string, code int, err error) error {
 	if err != nil {
 		return fmt.Errorf("ops: ip %s: %w", strings.Join(args[:min(len(args), 4)], " "), err)
 	}
@@ -423,7 +445,7 @@ func (o *Ops) buildDecoy(ctx context.Context, d decoyEntry, m mgmtNet) error {
 // sends through that table. It is the part a gateway change needs.
 func (o *Ops) configureRouting(ctx context.Context, d decoyEntry, m mgmtNet) error {
 	ip, name := d.addr(), linkName(d.addr())
-	if err := o.ipRun(ctx, argvRouteFlush(d.Table)); err != nil {
+	if err := o.routeFlush(ctx, d.Table); err != nil {
 		return err
 	}
 	if err := o.ipRun(ctx, argvRouteSubnet(m.subnet(), name, ip, d.Table)); err != nil {

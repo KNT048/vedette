@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/netip"
+	"slices"
 	"sync"
 	"time"
 
@@ -372,11 +373,17 @@ func (h *honeypotHost) follow(ctx context.Context, run api.Run) (api.Run, error)
 	return run, nil
 }
 
-// refusedError is a refusal of the host: the module's ErrRefused, with a plain sentence for the user.
-type refusedError struct{ what, code string }
+// refusedError is a refusal of the host: the module's ErrRefused, with a plain sentence for the user. hostFault: the
+// refusal is not about the address (the host could not set it up), so it is also the module's ErrHostFailed (#475).
+type refusedError struct {
+	what, code string
+	hostFault  bool
+}
 
-func (e refusedError) Error() string        { return e.what + " (" + e.code + ")" }
-func (e refusedError) Is(target error) bool { return target == honeypot.ErrRefused }
+func (e refusedError) Error() string { return e.what + " (" + e.code + ")" }
+func (e refusedError) Is(target error) bool {
+	return target == honeypot.ErrRefused || e.hostFault && target == honeypot.ErrHostFailed
+}
 
 // refusal logs what the host said (its text is not for the user) and returns a plain sentence with the code: the module
 // shows the text beside the address it could not place.
@@ -392,6 +399,8 @@ func (h *honeypotHost) refusal(ctx context.Context, command, code, hostMsg strin
 		what = "the address belongs to the gateway, the box or the network itself"
 	case api.CodeIPInUse:
 		what = "another device already answers on this address"
+	case api.CodeMACInUse:
+		what = "the MAC address this address would get is already another decoy's"
 	case api.CodeLimitReached:
 		what = "the host holds the most decoy addresses it allows"
 	case api.CodeUnitUnknown, api.CodeNotPulled:
@@ -401,8 +410,14 @@ func (h *honeypotHost) refusal(ctx context.Context, command, code, hostMsg strin
 	case api.CodeNotAppliance:
 		what = notApplianceReason
 	}
-	return refusedError{what: what, code: code}
+	return refusedError{what: what, code: code, hostFault: !slices.Contains(addressRefusals, code)}
 }
+
+// addressRefusals are the codes of decoy_ip.add that are about the address itself; the module shows them as a conflict.
+// Any other code (decoy_failed, a namespace or state of the host that is not usable, a failed ARP probe, an unknown code)
+// is the host failing, and no conflict (#475).
+var addressRefusals = []string{api.CodeIPNotInMgmtSubnet, api.CodeIPIsGateway, api.CodeIPIsHost, api.CodeIPIsNetwork,
+	api.CodeIPIsBroadcast, api.CodeIPInUse, api.CodeMACInUse, api.CodeLimitReached}
 
 // warnDue says whether a warning for key may be logged now: at most once per hostWarnEvery for a key: a loop that fails the same way every minute must not fill the log.
 func (h *honeypotHost) warnDue(key string) bool {

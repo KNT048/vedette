@@ -61,15 +61,16 @@ try {
   Set-Service osqueryd -StartupType Automatic
   # status: hosts = machines that enrolled with this token; success = it grew past what it was before the restart (or the first report is in)
   $base = 0
-  try { $b = & $Curl -fsS --cacert $Ca -X POST -H "Authorization: Bearer $Token" "$Box/api/v1/intake/osquery/status"; if ($b -match '"hosts":(\d+)') { $base = [int]$Matches[1] } } catch { $base = 0 }
+  try { $b = & $Curl -fsS --cacert $Ca -X POST -H "Authorization: Bearer $Token" "$Box/api/v1/intake/osquery/status"; if ($b -match '"hosts":(\d{1,9})') { $base = [int]$Matches[1] } } catch { $base = 0 }
   Restart-Service osqueryd
 
   Write-Host 'Waiting for this machine to enrol with Vedette (up to 2 minutes)...'
   for ($i = 0; $i -lt 24; $i++) {
-    $r = & $Curl -fsS --cacert $Ca -X POST -H "Authorization: Bearer $Token" "$Box/api/v1/intake/osquery/status"
+    $r = $null
+    try { $r = & $Curl -fsS --cacert $Ca -X POST -H "Authorization: Bearer $Token" "$Box/api/v1/intake/osquery/status" } catch { $r = $null }
     $now = 0
-    if ($r -match '"hosts":(\d+)') { $now = [int]$Matches[1] }
-    if ($now -gt $base -or $r -match '"enrolled":true') { Write-Host 'Installed and enrolled; the first report arrives within about an hour.'; return }
+    if ($r -match '"hosts":(\d{1,9})') { $now = [int]$Matches[1] }
+    if ((Get-Service osqueryd).Status -eq 'Running' -and ($now -gt $base -or $r -match '"enrolled":true')) { Write-Host 'Installed and enrolled; the first report arrives within about an hour.'; return }
     Start-Sleep -Seconds 5
   }
   Write-Warning 'osquery is installed, but this machine did not enrol with Vedette within 2 minutes. Check that the box address is reachable from here and the token is still valid, then: Get-Service osqueryd'

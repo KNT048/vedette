@@ -214,6 +214,9 @@ func TestInstall_ExitsZeroWhenEnrolledNotWhenFirstReportArrives(t *testing.T) {
 			t.Errorf("%s: still reports a missing first report as the end of the install", name)
 		}
 	}
+	if !strings.Contains(sh, "systemctl is-active --quiet osqueryd") || !strings.Contains(ps1, "-eq 'Running'") {
+		t.Error("success also needs the service to be running")
+	}
 	if !strings.Contains(sh, "did not enrol") || !strings.HasSuffix(strings.TrimSpace(sh), "exit 3") {
 		t.Error("the Linux script must end with exit 3 only when the machine did not enrol")
 	}

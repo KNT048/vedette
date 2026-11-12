@@ -425,7 +425,21 @@ func TestWazuh_FirstPullRetriesOnceWhenAnAgentHasNoAddressesYet(t *testing.T) {
 	r.clock.Advance(time.Minute)
 	r.pull()
 	if len(r.srv.Requests()) != n {
-		t.Fatal("pulled again after a minute although the first pull had already succeeded")
+		t.Fatal("pulled again after a minute although the one retry was already used")
+	}
+}
+
+// Nothing unbound in the first pull: no early retry, the interval rules from the start.
+func TestWazuh_FirstPullWithEveryAgentBoundWaitsTheInterval(t *testing.T) {
+	r := newWzRig(t)
+	r.fake.agents = append(r.fake.agents[:3:3]) // without the NAT'd agent 003
+	r.save()
+	r.pull()
+	n := len(r.srv.Requests())
+	r.clock.Advance(time.Minute)
+	r.pull()
+	if len(r.srv.Requests()) != n {
+		t.Fatal("pulled again after a minute with every agent bound")
 	}
 }
 

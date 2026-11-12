@@ -83,7 +83,7 @@ i=0
 while [ $i -lt 24 ]; do
   ST=$(vstatus)
   NOW=$(printf '%s' "$ST" | sed -n 's/.*"hosts":\([0-9][0-9]*\).*/\1/p'); NOW=${NOW:-0}
-  if [ "$NOW" -gt "$BASE" ] || printf '%s' "$ST" | grep -q '"enrolled":true'; then
+  if systemctl is-active --quiet osqueryd && { [ "$NOW" -gt "$BASE" ] || printf '%s' "$ST" | grep -q '"enrolled":true'; }; then
     echo "Installed and enrolled; the first report arrives within about an hour."; exit 0
   fi
   i=$((i+1)); sleep 5

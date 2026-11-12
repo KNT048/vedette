@@ -96,20 +96,9 @@ func TestReviewM1_AbandonedCommandKeepsTheWriteLock(t *testing.T) {
 	// Once it really returns the lock frees.
 	close(o.release)
 	<-o.returned
-	deadline := time.After(5 * time.Second)
-	for {
-		_, err = h.Client.Run(context.Background(), "rv.probe", nil, rid3, "a")
-		if err == nil {
-			break
-		}
-		if !client.IsCode(err, api.CodeBusy) {
-			t.Fatal(err)
-		}
-		select {
-		case <-deadline:
-			t.Fatalf("lock never freed: %v", err)
-		case <-time.After(10 * time.Millisecond):
-		}
+	waitFor(t, "the write lock to be free", func() bool { return !h.Server.WriteActive() })
+	if _, err = h.Client.Run(context.Background(), "rv.probe", nil, rid3, "a"); err != nil {
+		t.Fatalf("a write once the lock is free: %v", err)
 	}
 	if o.max.Load() != 1 {
 		t.Fatalf("%d write handlers ran at once", o.max.Load())
@@ -129,7 +118,7 @@ func TestReviewM1_HardCeilingAuditsAndExits(t *testing.T) {
 		if code == 0 {
 			t.Fatal("exit code 0: systemd would not restart the host")
 		}
-	case <-time.After(10 * time.Second):
+	case <-time.After(hangBound):
 		t.Fatal("the host did not exit for a command that never returns")
 	}
 	var found bool
@@ -413,20 +402,9 @@ func TestReviewL1b_AHungCheckKeepsTheWriteLockUntilItReturns(t *testing.T) {
 	}
 	close(release)
 	<-returned
-	deadline := time.After(5 * time.Second)
-	for {
-		_, err = h.Client.Run(context.Background(), "rv.ok", nil, rid3, "a")
-		if err == nil {
-			break
-		}
-		if !client.IsCode(err, api.CodeBusy) {
-			t.Fatal(err)
-		}
-		select {
-		case <-deadline:
-			t.Fatal("lock never freed")
-		case <-time.After(10 * time.Millisecond):
-		}
+	waitFor(t, "the write lock to be free", func() bool { return !h.Server.WriteActive() })
+	if _, err = h.Client.Run(context.Background(), "rv.ok", nil, rid3, "a"); err != nil {
+		t.Fatalf("a write once the lock is free: %v", err)
 	}
 	if ranDuringCheck.Load() != 0 {
 		t.Fatal("a Run executed during a Check")
@@ -489,7 +467,7 @@ func TestReviewInfo_ABodyThatNeverArrivesIsCutOff(t *testing.T) {
 	defer func() { _ = c.Close() }()
 	// A GET that announces a body and sends only part of it.
 	_, _ = c.Write([]byte("GET /v1/info HTTP/1.1\r\nHost: h\r\nX-Vedette-Host-Proto: 1\r\nContent-Length: 10\r\n\r\nab"))
-	_ = c.SetReadDeadline(time.Now().Add(5 * time.Second))
+	_ = c.SetReadDeadline(time.Now().Add(hangBound))
 	buf := make([]byte, 4096)
 	for { // read the response, then the server must close the connection by itself
 		if _, err := c.Read(buf); err != nil {

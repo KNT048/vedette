@@ -268,22 +268,14 @@ func TestShuttingDownAnswers503(t *testing.T) {
 	r := run(t, h.Client, "test.hang", nil, rid1) // holds Shutdown for its kill grace
 	_ = r
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), hangBound)
 		defer cancel()
 		_ = h.Server.Shutdown(ctx)
 	}()
-	deadline := time.After(5 * time.Second)
-	for {
+	waitFor(t, "a 503 shutting_down from /v1/info", func() bool {
 		st, b := raw(t, h, http.MethodGet, "/v1/info", goodHeaders(rid1), "")
-		if st == http.StatusServiceUnavailable && strings.Contains(string(b), api.CodeShuttingDown) {
-			break
-		}
-		select {
-		case <-deadline:
-			t.Fatalf("never saw 503 (last %d %s)", st, b)
-		case <-time.After(5 * time.Millisecond):
-		}
-	}
+		return st == http.StatusServiceUnavailable && strings.Contains(string(b), api.CodeShuttingDown)
+	})
 	close(f.release)
 }
 

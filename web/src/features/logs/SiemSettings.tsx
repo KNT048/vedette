@@ -12,6 +12,7 @@ import { Segmented } from '@/components/ui/segmented'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
+import { useModules } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { useSaveSiem, useSiem, useSources, useTestSiem } from './api'
 import { siemSample } from './snippets'
@@ -42,8 +43,11 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
   const [events, setEvents] = useState<SiemEvent[]>(cfg.events)
   const [error, setError] = useState<string | null>(null)
   const busy = save.isPending || test.isPending
+  // D-229 (5): a container-only install has no honeypot (available false, D-381), so it has no touches to forward.
+  const noHoneypot = useModules().data?.modules.find((m) => m.id === 'honeypot')?.available === false
+  const shown = (ev: SiemEvent) => !(noHoneypot && ev === 'honeypot')
 
-  const body = () => ({ enabled, format, host: host.trim(), port: Number(port), proto, url: url.trim(), events, secret: secret || undefined })
+  const body = () => ({ enabled, format, host: host.trim(), port: Number(port), proto, url: url.trim(), events: events.filter(shown), secret: secret || undefined })
   function onSave(e: { preventDefault(): void }, thenTest = false) {
     e.preventDefault()
     setError(null)
@@ -88,9 +92,10 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
         <div role="group" aria-labelledby="siem-events-label" className="grid gap-2">
           <span id="siem-events-label" className="text-sm font-medium">{t('siem.events')}</span>
           {SIEM_EVENTS.map((ev) => (
-            <div key={ev} className="flex items-center gap-2">
-              <Checkbox id={`siem-ev-${ev}`} checked={events.includes(ev)} onCheckedChange={(c) => toggleEvent(ev, c === true)} />
-              <Label htmlFor={`siem-ev-${ev}`} className="font-normal">{t(`siem.event.${ev}`)}</Label>
+            <div key={ev} className="flex flex-wrap items-center gap-x-2">
+              <Checkbox id={`siem-ev-${ev}`} checked={shown(ev) && events.includes(ev)} disabled={!shown(ev)} aria-describedby={shown(ev) ? undefined : 'siem-ev-honeypot-why'} onCheckedChange={(c) => toggleEvent(ev, c === true)} />
+              <Label htmlFor={`siem-ev-${ev}`} className={shown(ev) ? 'font-normal' : 'font-normal text-muted'}>{t(`siem.event.${ev}`)}</Label>
+              {shown(ev) ? null : <span id="siem-ev-honeypot-why" className="text-[13px] text-muted">{t('siem.noHoneypot')}</span>}
             </div>
           ))}
         </div>

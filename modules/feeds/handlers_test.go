@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"strings"
 	"sync"
@@ -853,5 +854,65 @@ func TestBuiltinFeedsAreSeededOnFirstUse(t *testing.T) {
 	rows, err := svc.sources(t.Context())
 	if err != nil || len(rows) != len(BuiltinSources()) {
 		t.Fatalf("%d feeds, %v", len(rows), err)
+	}
+}
+
+// D-229 (1), (2): an address the pull would refuse is refused when the feed is saved (create, edit, built-in mirror),
+// with the pull's sentence; a name is not resolved (a public-looking name passes, the dialer judges it at pull); an
+// address another feed already pulls is refused and the message names that feed.
+func TestD229_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
+	t.Parallel()
+	e := newEnvFetcher(t, Fetcher{Client: &http.Client{Transport: failingTransport{t}}, BoxAddrs: func() ([]netip.Addr, bool) {
+		return []netip.Addr{netip.MustParseAddr("192.168.77.10")}, true
+	}})
+	withURL := func(name, u string) string {
+		return strings.Replace(strings.Replace(customBody, "https://threat-share.example.net/c2.csv", u, 1), "Partner C2 list", name, 1)
+	}
+	for _, u := range []string{
+		"https://localhost:8443/x", "http://LOCALHOST/x", "https://feeds.localhost/x", "https://127.0.0.1/list.txt", "http://127.5.5.5/x",
+		"https://[::1]:8443/x", "https://169.254.169.254/latest/meta-data", "https://[fe80::1]/x", "https://0.0.0.0/x",
+		"https://[::ffff:127.0.0.1]/x", "https://[64:ff9b::a9fe:a9fe]/x", "https://100.100.100.200/x", "https://192.168.77.10:8443/x",
+	} {
+		got, b, _ := e.do("POST", "/feeds/custom", "admin", withURL("Blocked", u))
+		if got != 400 || code(b) != "blocked_host" || !strings.HasPrefix(fmt.Sprint(b["error"].(map[string]any)["message"]), "Vedette does not pull feeds from itself") {
+			t.Errorf("POST %s: %d %v, want 400 blocked_host", u, got, b)
+		}
+	}
+	if got, b, _ := e.do("PUT", "/feeds/sources/ipsum", "admin", `{"url":"https://169.254.169.254/ipsum.txt"}`); got != 400 || code(b) != "blocked_host" {
+		t.Errorf("mirror at metadata: %d %v", got, b)
+	}
+	// a public https address, a LAN feed that is not the box, and a name (not resolved) are accepted
+	for i, u := range []string{"https://203.0.114.9/c2.csv", "http://192.168.77.20/misp.txt", "https://misp.corp.example.org/x"} {
+		if got, b, _ := e.do("POST", "/feeds/custom", "admin", withURL(fmt.Sprintf("Fine %d", i), u)); got != 201 {
+			t.Errorf("POST %s: %d %v, want 201", u, got, b)
+		}
+	}
+	// the same address as a built-in feed (IPsum) or another custom feed, case and default port aside
+	ipsum, _ := BuiltinByID("ipsum")
+	for _, c := range []struct{ u, other string }{
+		{strings.Replace(ipsum.URL, "https://raw.githubusercontent.com", "HTTPS://Raw.GitHubUserContent.com:443", 1), ipsum.Name},
+		{"https://203.0.114.9/c2.csv#top", "Fine 0"},
+	} {
+		got, b, _ := e.do("POST", "/feeds/custom", "admin", withURL("Copy", c.u))
+		if got != 400 || code(b) != "duplicate_url" || !strings.Contains(fmt.Sprint(b["error"].(map[string]any)["message"]), `"`+c.other+`"`) {
+			t.Errorf("POST %s: %d %v, want duplicate_url naming %q", c.u, got, b, c.other)
+		}
+	}
+	// editing a feed keeps its own address; moving it onto another feed's address or the box is refused
+	_, list, _ := e.do("GET", "/feeds/sources", "admin", "")
+	id := ""
+	for _, it := range list["items"].([]any) {
+		if m := it.(map[string]any); m["name"] == "Fine 1" {
+			id = m["id"].(string)
+		}
+	}
+	if got, b, _ := e.do("PUT", "/feeds/custom/"+id, "admin", withURL("Fine 1", "http://192.168.77.20/misp.txt")); got != 200 {
+		t.Errorf("edit, same address: %d %v", got, b)
+	}
+	if got, b, _ := e.do("PUT", "/feeds/custom/"+id, "admin", withURL("Fine 1", "https://203.0.114.9/c2.csv")); got != 400 || code(b) != "duplicate_url" {
+		t.Errorf("edit onto Fine 0: %d %v", got, b)
+	}
+	if got, b, _ := e.do("PUT", "/feeds/custom/"+id, "admin", withURL("Fine 1", "http://192.168.77.10/x")); got != 400 || code(b) != "blocked_host" {
+		t.Errorf("edit onto the box: %d %v", got, b)
 	}
 }

@@ -89,7 +89,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (232 mã)
+#### HTTP 400 (234 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -325,6 +325,8 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_limit` | 400 | The CPU cap must be a whole number from 5 to 50 percent. (backend: giản đồ OpenAPI từ chối trước, mã chung `invalid`) | `PUT /core/network/span` |
 | `default_no_servers` | 400 | The default pool takes no server list. Choose "your own servers" to enter some. | `PUT /core/network/ntp` |
 | `bad_ntp` | 400 | Give 1 to 4 NTP servers. (cùng nhóm: tên hoặc IPv4 sai, trùng; backend: tên chỉ gồm số như `1.2.3` bị từ chối, host cũng từ chối) | `PUT /core/network/ntp` |
+| `blocked_host` | 400 | Vedette does not pull feeds from itself or from loopback, link-local or cloud metadata addresses. Also: The SIEM cannot be this machine, a link-local, multicast or unspecified address, or an address of this box. | `POST /feeds/custom`; `PUT /feeds/custom/{id}`; `PUT /feeds/sources/{id}`; `PUT /logs/siem` |
+| `duplicate_url` | 400 | The feed "Tor exit list" already uses this address. | `POST /feeds/custom`; `PUT /feeds/custom/{id}` |
 
 #### HTTP 401 (3 mã)
 

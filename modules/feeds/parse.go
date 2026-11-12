@@ -12,10 +12,12 @@ import (
 	"unicode/utf8"
 )
 
-// Reason counts rejected rows with the same cause (quoted values masked).
+// Reason counts rejected rows with the same cause (quoted values masked). Example is the first of those rows with
+// its value shown (quoteVal), for the status line of a pull (note, accepted; D-229 (3)); it is not part of the API.
 type Reason struct {
-	Reason string `json:"reason"`
-	Count  int    `json:"count"`
+	Reason  string `json:"reason"`
+	Count   int    `json:"count"`
+	Example string `json:"-"`
 }
 
 // Reject is one rejected row. Row is the line of the input for a plain list
@@ -62,13 +64,14 @@ const maxReasons = 50
 // values left out), so a hostile value can neither split nor flood the groups.
 type tally struct {
 	Stats
-	counts map[string]int
-	order  []string
-	other  int
+	counts   map[string]int
+	examples map[string]string // the first row of each reason, value shown
+	order    []string
+	other    int
 }
 
 func newTally() *tally {
-	return &tally{Stats: Stats{Reasons: []Reason{}, Rejects: []Reject{}}, counts: map[string]int{}}
+	return &tally{Stats: Stats{Reasons: []Reason{}, Rejects: []Reject{}}, counts: map[string]int{}, examples: map[string]string{}}
 }
 
 func fill(tmpl string, vals []string, show func(string) string) string {
@@ -89,6 +92,7 @@ func (t *tally) reject(row int, tmpl string, vals ...string) {
 	} else if len(t.order) < maxReasons {
 		t.order = append(t.order, key)
 		t.counts[key] = 1
+		t.examples[key] = fill(tmpl, vals, quoteVal)
 	} else {
 		t.other++
 	}
@@ -103,11 +107,11 @@ func (t *tally) stats() Stats {
 	s := t.Stats
 	s.Reasons = make([]Reason, 0, len(t.order)+1)
 	for _, k := range t.order {
-		s.Reasons = append(s.Reasons, Reason{k, t.counts[k]})
+		s.Reasons = append(s.Reasons, Reason{Reason: k, Count: t.counts[k], Example: t.examples[k]})
 	}
 	sort.SliceStable(s.Reasons, func(i, j int) bool { return s.Reasons[i].Count > s.Reasons[j].Count })
 	if t.other > 0 {
-		s.Reasons = append(s.Reasons, Reason{"other", t.other})
+		s.Reasons = append(s.Reasons, Reason{Reason: "other", Count: t.other})
 	}
 	return s
 }

@@ -144,6 +144,10 @@ func apiError(err error) error {
 		return e(http.StatusBadRequest, "invalid_name", "Enter a name of up to 60 characters.")
 	case errors.Is(err, ErrDuplicateName):
 		return e(http.StatusBadRequest, "duplicate_name", "A feed with this name already exists.")
+	case errors.Is(err, ErrDuplicateURL):
+		return e(http.StatusBadRequest, "duplicate_url", "Another feed already uses this address.")
+	case errors.Is(err, ErrBlockedHost):
+		return e(http.StatusBadRequest, "blocked_host", blockedText)
 	case errors.Is(err, ErrInvalidAuth), errors.Is(err, ErrInvalidSecret):
 		return e(http.StatusBadRequest, "invalid_auth", "Check the authentication settings.")
 	case errors.Is(err, ErrTooLarge):

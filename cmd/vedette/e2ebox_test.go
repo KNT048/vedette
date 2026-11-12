@@ -256,7 +256,7 @@ const e2eKEV = `{"title":"E2E catalog","catalogVersion":"2026.11.11","dateReleas
 {"cveID":"CVE-2026-0001","vendorProject":"E2E Vendor","product":"E2E Product","vulnerabilityName":"E2E fixture vulnerability","dateAdded":"2026-11-10","shortDescription":"A fixture entry of the end-to-end run.","requiredAction":"None.","dueDate":"2026-12-01","knownRansomwareCampaignUse":"Unknown","notes":"","cwes":[]}]}`
 
 // e2eOffline gives the box of the run no internet. The feeds client answers the built-in CISA address (and its mirror) from e2eKEV, a
-// loopback address from the real network (a custom feed pointed at a 127.0.0.1 fake, feeds.spec.ts), and refuses every other address at
+// loopback address or e2eLoopbackName from the real network (a custom feed pointed at a 127.0.0.1 fake, feeds.spec.ts), and refuses every other address at
 // once, so EPSS and the IOC lists fail fast. Without this the box pulled the public feeds at start: ~80 MB written in one transaction that
 // held the database writer for ~13 s, so the first sign-ins, the first-run setup and the first user created after the start stalled past
 // the 8 s expect timeout, and what the specs saw depended on the network. TestMain calls it once for the whole package and never puts
@@ -281,6 +281,11 @@ func e2eOffline() func() {
 		if ip, err := netip.ParseAddr(r.URL.Hostname()); err == nil && ip.IsLoopback() {
 			return loop.RoundTrip(r)
 		}
+		if r.URL.Hostname() == e2eLoopbackName { // D-229 (1): feeds refuses a loopback address at save, so the specs name the fakes
+			lr := r.Clone(r.Context())
+			lr.URL.Host = net.JoinHostPort("127.0.0.1", r.URL.Port())
+			return loop.RoundTrip(lr)
+		}
 		if r.URL.Path == "/sites/default/files/feeds/known_exploited_vulnerabilities.json" && r.URL.Host == "www.cisa.gov" ||
 			r.URL.Path == "/cisagov/kev-data/develop/known_exploited_vulnerabilities.json" && r.URL.Host == "raw.githubusercontent.com" {
 			h := http.Header{"Content-Type": {"application/json"}}
@@ -291,6 +296,11 @@ func e2eOffline() func() {
 	feedsClient = c
 	return e2eOfflineRelease
 }
+
+// e2eLoopbackName is the host name the e2e-real specs give a feed served by a node server on 127.0.0.1 (feeds.spec.ts,
+// findings-seed.ts, logs.global.spec.ts): the save check of feeds refuses loopback addresses (D-229 (1)), a `.lan` name may use
+// http (INV-2), and e2eOffline sends it to 127.0.0.1 on the same port.
+const e2eLoopbackName = "e2e-loopback.lan"
 
 var (
 	e2eOfflineMu   sync.Mutex

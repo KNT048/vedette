@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
-import { useModuleEnabled, type ModuleId } from '@/lib/modules'
+import { useModuleEnabled, useModules, type ModuleId } from '@/lib/modules'
 import { ApiError, api } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 
@@ -62,6 +62,17 @@ export function QueryState<T>({ query, children }: { query: { data: T | undefine
 /** S-CORE-1: module tắt thì nói rõ vì sao thiếu dữ liệu và chỗ bật. */
 export function ModuleOff({ module, children }: { module: ModuleId; children?: ReactNode }) {
   const { t } = useTranslation()
+  // A module this install cannot run (available false: needs vedette-host on a container-only install, D-381) cannot be
+  // turned on, so the box says so instead of inviting the user to switch it on (S-CORE-9 G5, D-229 (4)).
+  const notHere = useModules().data?.modules.find((m) => m.id === module)?.available === false
+  if (notHere) {
+    return (
+      <div className="rounded-md border border-rule bg-off-soft px-4 py-3 text-sm">
+        <p className="font-medium">{t('moduleOff.notHereTitle', { name: t(`modules.${module}.name`) })}</p>
+        <p className="mt-1 text-muted">{t('moduleOff.notHereBody')}</p>
+      </div>
+    )
+  }
   return (
     <div className="rounded-md border border-rule bg-off-soft px-4 py-3 text-sm">
       <p className="font-medium">{t('moduleOff.title', { name: t(`modules.${module}.name`) })}</p>

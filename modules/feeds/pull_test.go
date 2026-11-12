@@ -3,6 +3,7 @@ package feeds
 import (
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,11 +15,17 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 )
 
-// onlyLoopback lets a test reach its own origin and fails on any other host: no real network in tests.
+// onlyLoopback lets a test reach its own origin and fails on any other host: no real network in tests. The origin is
+// named originHost in feed addresses (a loopback address is refused when a feed is saved, D-229) and reached on 127.0.0.1.
 type onlyLoopback struct{ t *testing.T }
 
+const originHost = "origin.lan"
+
 func (o onlyLoopback) RoundTrip(r *http.Request) (*http.Response, error) {
-	if r.URL.Hostname() != "127.0.0.1" {
+	if h := r.URL.Hostname(); h == originHost {
+		r = r.Clone(r.Context())
+		r.URL.Host = net.JoinHostPort("127.0.0.1", r.URL.Port())
+	} else if h != "127.0.0.1" {
 		o.t.Errorf("request to a real host: %s", r.URL.Host)
 		return nil, fmt.Errorf("no network in this test")
 	}
@@ -57,7 +64,9 @@ func newOrigin(t *testing.T) *origin {
 	return o
 }
 
-func (o *origin) url(path string) string { return o.srv.URL + path }
+func (o *origin) url(path string) string {
+	return strings.Replace(o.srv.URL, "127.0.0.1", originHost, 1) + path
+}
 
 func (o *origin) serve(path string, h http.HandlerFunc) {
 	o.mu.Lock()
@@ -569,8 +578,8 @@ func TestJobsRunOnlyThroughTheScheduler(t *testing.T) {
 
 // Walk 2026-11-12: the rejected-rows note writes numbers as the GUI does and says why a few rows were dropped.
 func TestNote_GroupedCountsAndReason(t *testing.T) {
-	got := note(Stats{Accepted: 185937, Rejected: 50, Reasons: []Reason{{`"…" is not a domain`, 48}, {"other", 2}}})
-	want := `50 of 185,987 rows were rejected. Most often: "…" is not a domain. A few bad lines in a public list are normal; they are skipped.`
+	got := note(Stats{Accepted: 185937, Rejected: 50, Reasons: []Reason{{Reason: `"…" is not a domain`, Count: 48, Example: `"a b" is not a domain`}, {Reason: "other", Count: 2}}})
+	want := `50 of 185,987 rows were rejected. Most often: "a b" is not a domain. A few bad lines in a public list are normal; they are skipped.`
 	if got != want {
 		t.Fatalf("note = %q, want %q", got, want)
 	}
@@ -581,5 +590,26 @@ func TestNote_GroupedCountsAndReason(t *testing.T) {
 	}
 	if note(Stats{Accepted: 3}) != "" {
 		t.Error("no rejected row: no note")
+	}
+}
+
+// D-229 (3): the status line of a pull shows one real rejected value of the most common reason (quoted, cut to 40
+// UTF-16 units, unprintable runes as spaces), not an ellipsis; the grouped reasons of the API stay masked.
+func TestNote_ShowsOneRejectedValue(t *testing.T) {
+	in := "8.8.8.8\nbad!" + strings.Repeat("v", 50) + "\nalso!bad\n1.1.1.1\n"
+	r, err := ParseFeed(t.Context(), []byte(in), KindIOC, DefaultParser(KindIOC, FormatLines))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := note(r.Stats)
+	if !strings.Contains(got, `Most often: indicator: "bad!`+strings.Repeat("v", 36)+`" is not a valid indicator.`) {
+		t.Errorf("note = %q", got)
+	}
+	if !strings.Contains(r.Reasons[0].Reason, `"…"`) || strings.Contains(r.Reasons[0].Reason, "bad") {
+		t.Errorf("grouped reason must stay masked: %q", r.Reasons[0].Reason)
+	}
+	all := accepted(Stats{Rejected: r.Rejected, Reasons: r.Reasons})
+	if all == nil || !strings.Contains(all.Error(), `"bad!vvv`) {
+		t.Errorf("all rejected: %v", all)
 	}
 }

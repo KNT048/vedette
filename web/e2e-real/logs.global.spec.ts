@@ -583,7 +583,7 @@ test('bad connections: a LAN device that asks for a domain a feed lists is in th
   await new Promise<void>((ok) => srv.listen(0, '127.0.0.1', ok))
   let feedId = ''
   try {
-    const url = `http://127.0.0.1:${(srv.address() as AddressInfo).port}/list.txt`
+    const url = `http://e2e-loopback.lan:${(srv.address() as AddressInfo).port}/list.txt` // the box sends this name to 127.0.0.1 (e2eOffline, D-229)
     const lines = { format: 'lines', records_path: '', delimiter: '', has_header: false, fields: { indicator: { source: '', regex: '', trim: true, lowercase: false, date_format: 'auto' } } }
     const made = await api<{ id: string }>(c, 'POST', '/feeds/custom', { name: feed, kind: 'ioc', url, enabled: true, interval_hours: 24, auth: { type: 'none', header_name: null, username: null }, parser: lines })
     expect(made.status, JSON.stringify(made.body)).toBe(201)

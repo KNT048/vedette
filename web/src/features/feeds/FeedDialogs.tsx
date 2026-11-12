@@ -6,14 +6,14 @@ import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/u
 import { Field, Input, Select } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { ApiError } from '@/lib/api'
-import { checkFeedUrl, defaultParser, everyLabel, FORMATS } from './defaults'
+import { blockedFeedHost, checkFeedUrl, defaultParser, everyLabel, FORMATS } from './defaults'
 import { useDeleteCustomFeed, usePatchFeed, useSaveCustomFeed } from './api'
 import { ParserEditor } from './ParserEditor'
 import type { Feed, FeedAuthType, FeedFormat, FeedKind, Parser } from './types'
 
 const INTERVALS = [1, 3, 6, 12, 24, 72, 168]
 const intervalOptions = (cur: number) => [...new Set([...INTERVALS, cur])].sort((a, b) => a - b)
-const FIELD_OF: Record<string, 'name' | 'url' | 'auth' | 'parser'> = { invalid_name: 'name', duplicate_name: 'name', invalid_url: 'url', invalid_auth: 'auth', bad_config: 'parser', invalid_format: 'parser' }
+const FIELD_OF: Record<string, 'name' | 'url' | 'auth' | 'parser'> = { invalid_name: 'name', duplicate_name: 'name', invalid_url: 'url', blocked_host: 'url', duplicate_url: 'url', invalid_auth: 'auth', bad_config: 'parser', invalid_format: 'parser' }
 const serverField = (e: unknown) => (e instanceof ApiError ? FIELD_OF[e.code] : undefined)
 
 function Interval({ id, value, onChange }: { id: string; value: number; onChange: (n: number) => void }) {
@@ -35,7 +35,7 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
   const urlErr = err ?? (serverField(patch.error) === 'url' ? (patch.error as Error).message : undefined)
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    const c = checkFeedUrl(url)
+    const c = checkFeedUrl(url) === 'ok' && blockedFeedHost(url) ? 'blocked' : checkFeedUrl(url)
     if (c !== 'ok') { setErr(t(`dialog.err.${c}`)); document.getElementById('bf-url')?.focus(); return }
     patch.mutate({ id: feed.id, interval_hours: hours, url: url.trim() }, { onSuccess: () => { toast.success(t('dialog.saved', { name: feed.name })); onClose() }, onError: () => document.getElementById('bf-url')?.focus() })
   }
@@ -102,6 +102,7 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
     if (!name.trim()) n.name = t('dialog.err.name')
     const c = checkFeedUrl(url)
     if (c !== 'ok') n.url = t(`dialog.err.${c}`)
+    else if (blockedFeedHost(url)) n.url = t('dialog.err.blocked') // D-229 (1): the server refuses it too (blocked_host)
     if (auth === 'header' && !/^[A-Za-z0-9-]{1,80}$/.test(header)) n.auth = t('dialog.err.header')
     else if (auth === 'basic' && !user.trim()) n.auth = t('dialog.err.user')
     else if (auth !== 'none' && !secret && !hadSecret) n.auth = t('dialog.err.secret')
@@ -125,7 +126,7 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
       <DialogContent wide title={title} description={t('dialog.customBody')}>
         <form noValidate onSubmit={submit} className="grid gap-4" aria-label={title}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t('dialog.name')} htmlFor="cf-name" error={err('name')}>
+            <Field label={t('dialog.name')} htmlFor="cf-name" hint={t('dialog.nameHint')} error={err('name')}>
               <Input id="cf-name" value={name} maxLength={60} onChange={(e) => { setName(e.target.value); clear('name') }} autoComplete="off" {...aria('name')} />
             </Field>
             <div className="grid gap-1.5">

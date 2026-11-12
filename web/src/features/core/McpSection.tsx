@@ -14,7 +14,7 @@ import { Field, Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useMcp, useMcpMutations, useToggleModule } from './api'
-import { useModuleEnabled } from '@/lib/modules'
+import { useInstallKind, useModuleEnabled } from '@/lib/modules'
 import { errMsg, useGate } from './parts'
 import type { McpState, McpToken } from './types'
 
@@ -23,6 +23,7 @@ function McpSwitch({ on }: { on: boolean }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
   const toggle = useToggleModule()
+  const container = useInstallKind() === 'container'
   async function flip(v: boolean) {
     try { await toggle.mutateAsync({ id: 'mcp-server', enabled: v }); toast.success(v ? t('mcp.enabledToast') : t('mcp.disabledToast')) } catch (e) { toast.error(errMsg(e, t)) }
   }
@@ -31,7 +32,7 @@ function McpSwitch({ on }: { on: boolean }) {
       <Switch id="mcp-switch" checked={on} disabled={gate.disabled || toggle.isPending} title={gate.title} aria-label={t('mcp.switch')} onCheckedChange={(v) => void flip(v)} />
       <label htmlFor="mcp-switch" className="text-sm font-medium">{t('mcp.switch')}</label>
       {on ? <Chip tone="ok">{t('mcp.readOnly')}</Chip> : null}
-      <span className="text-[13px] text-muted">{on ? t('mcp.onHint') : t('mcp.offHint')}</span>
+      <span className="text-[13px] text-muted">{on ? t(container ? 'mcp.onHintContainer' : 'mcp.onHint') : t('mcp.offHint')}</span>
     </div>
   )
 }
@@ -40,6 +41,7 @@ function Body({ s }: { s: McpState }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
   const m = useMcpMutations()
+  const container = useInstallKind() === 'container' // D-229 (4): the container does not publish the MCP port (S-CORE-9)
   const [name, setName] = useState('')
   const [scopes, setScopes] = useState<string[]>(['assets', 'findings', 'feeds'])
   const [formErr, setFormErr] = useState<string | null>(null)
@@ -83,7 +85,9 @@ function Body({ s }: { s: McpState }) {
               { label: t('mcp.endpoint'), value: <span className="font-mono text-[12.5px]">{s.endpoint}</span> },
             ]} />
             <div className="mt-3"><CodeBlock label={t('mcp.clientConfig')} code={JSON.stringify({ mcpServers: { vedette: { type: 'http', url: s.endpoint, headers: { Authorization: 'Bearer <token>' } } } }, null, 2)} /></div>
-            <p className="mt-2 text-[13px] text-muted">{t('mcp.remote')}</p>
+            {container
+              ? <p role="note" className="mt-2 rounded-md border border-dashed border-warn bg-warn-soft/60 px-3 py-2 text-sm">{t('mcp.remoteContainer')}</p>
+              : <p className="mt-2 text-[13px] text-muted">{t('mcp.remote')}</p>}
             <p className="mt-1 text-[13px] text-muted">{t('mcp.verify')}</p>
           </Section>
 

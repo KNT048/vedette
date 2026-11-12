@@ -424,3 +424,36 @@ describe('feeds: Add a feed walk 2, 2026-11-12 (S-FEED-5)', () => {
     expect(dlg.querySelector('img')).toBeNull()
   })
 })
+
+describe('feeds: an address Vedette never pulls from is refused when the feed is saved (D-229)', () => {
+  async function openAdd() {
+    renderApp('/settings/feeds')
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add a feed' }))[0]!)
+    return screen.findByRole('dialog', { name: 'Add a feed' })
+  }
+  const add = (dlg: HTMLElement) => userEvent.click(within(dlg).getByRole('button', { name: /^Add feed$|^Add$/ }))
+
+  it('loopback, the box itself and cloud metadata show the pull\'s sentence under the address; a copy of a built-in names it', async () => {
+    const dlg = await openAdd()
+    await userEvent.type(within(dlg).getByLabelText('Name'), 'Metadata')
+    for (const url of ['https://169.254.169.254/latest/meta-data', 'https://localhost:8443/x', 'https://127.0.0.1/list.txt']) {
+      await userEvent.clear(within(dlg).getByLabelText('Address')); await userEvent.type(within(dlg).getByLabelText('Address'), url)
+      await add(dlg)
+      expect(within(dlg).getByLabelText('Address')).toHaveFocus()
+      expect(dlg.querySelector('#cf-url-error')).toHaveTextContent('Vedette does not pull feeds from itself or from loopback, link-local or cloud metadata addresses.')
+    }
+    await userEvent.clear(within(dlg).getByLabelText('Address')); await userEvent.type(within(dlg).getByLabelText('Address'), 'https://check.torproject.org/torbulkexitlist')
+    await add(dlg)
+    await waitFor(() => expect(dlg.querySelector('#cf-url-error')).toHaveTextContent('The feed "Tor exit list" already uses this address.'))
+    expect(within(dlg).getByLabelText('Address')).toHaveFocus()
+  })
+
+  it('a new feed that has not been fetched says when it will be; the name field says its limit', async () => {
+    const dlg = await openAdd()
+    expect(within(dlg).getByText('Up to 60 characters.')).toBeInTheDocument()
+    await userEvent.type(within(dlg).getByLabelText('Name'), 'Partner IOC')
+    await userEvent.type(within(dlg).getByLabelText('Address'), 'https://feeds.partner.example/ioc.json')
+    await add(dlg)
+    expect((await screen.findAllByText('Fetched at the next scheduled check (every 5 minutes), or now with Fetch now.')).length).toBeGreaterThan(0)
+  })
+})

@@ -57,6 +57,56 @@ func checkURL(raw string, maxLen int) error {
 	return fail(ErrInvalidURL, "Enter a full address such as https://example.com/feed.json.")
 }
 
+// blockedText is the sentence for an address a feed may never be pulled from (D-208), at save (CheckDest) and at pull (userError).
+const blockedText = "Vedette does not pull feeds from itself or from loopback, link-local or cloud metadata addresses."
+
+// CheckDest is the save-time half of INV-17 (D-229 (1)): an address whose host is a literal IP the pull would refuse
+// (loopback, link-local, cloud metadata, unspecified, multicast, in any transition form, or one of box: the box's own
+// addresses) or a loopback name (localhost, *.localhost) is refused when the feed is saved, with the pull's sentence.
+// Other names are not resolved here (no DNS lookup in a request; the answer could change before the pull anyway): a name
+// that resolves to a refused address is still refused by the dialer at every pull (guardedDial, destControl).
+func CheckDest(raw string, box []netip.Addr) error {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return nil // CheckURL refuses it with its own sentence
+	}
+	h := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+	if ip, err := netip.ParseAddr(h); err == nil {
+		if refusedAlways(ip) || (&destGuard{}).refused(ip, box) {
+			return fail(ErrBlockedHost, blockedText)
+		}
+		return nil
+	}
+	if h == "localhost" || strings.HasSuffix(h, ".localhost") {
+		return fail(ErrBlockedHost, blockedText)
+	}
+	return nil
+}
+
+// sameAddress reports whether two feed addresses fetch the same document (D-229 (2)): scheme and host compared without
+// case, a default port left out, the fragment ignored; the path and query must match exactly.
+func sameAddress(a, b string) bool {
+	ka, oka := addressKey(a)
+	kb, okb := addressKey(b)
+	return oka && okb && ka == kb
+}
+
+func addressKey(raw string) (string, bool) {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u.Hostname() == "" {
+		return "", false
+	}
+	scheme, host, port := strings.ToLower(u.Scheme), strings.TrimSuffix(strings.ToLower(u.Hostname()), "."), u.Port()
+	if (scheme == "https" && port == "443") || (scheme == "http" && port == "80") {
+		port = ""
+	}
+	path := u.EscapedPath()
+	if path == "" {
+		path = "/"
+	}
+	return scheme + "://" + host + ":" + port + path + "?" + u.RawQuery, true
+}
+
 // CheckInterval is INV-5: 1..168 hours.
 func CheckInterval(hours int) error {
 	if hours < 1 || hours > 168 {

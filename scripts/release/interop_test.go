@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"os"
 	"os/exec" //nolint:depguard // test of a release tool outside the product: fixed argv, no shell
 	"path/filepath"
@@ -152,7 +153,9 @@ func TestInteropMinisignCLI(t *testing.T) {
 		imgs = append(imgs, `{"service":"`+s+`","digest":"`+d+`","size":5,"platforms":["linux/amd64"]}`)
 	}
 	in := filepath.Join(work, "release.in.json")
-	must(t, os.WriteFile(in, []byte(`{"version":"0.1.0-beta.1","channel":"beta","notes":"interop","install_modes":["appliance","container"],"rollback":{"safe":false,"min_version":""},"images":[`+strings.Join(imgs, ",")+`]}`), 0o600))
+	host, err := json.Marshal(hostIn(t, "0.1.0-beta.1"))
+	must(t, err)
+	must(t, os.WriteFile(in, []byte(`{"version":"0.1.0-beta.1","channel":"beta","notes":"interop","install_modes":["appliance","container"],"rollback":{"safe":false,"min_version":""},"images":[`+strings.Join(imgs, ",")+`],"host":`+string(host)+`}`), 0o600))
 	out := filepath.Join(work, "out")
 
 	do := func(stdin string, args ...string) (int, string) {

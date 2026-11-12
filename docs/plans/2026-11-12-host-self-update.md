@@ -163,7 +163,8 @@ Settled while building 2a:
 
 ### Slice 3: ship the first kept package (`install.sh`, release builder)
 
-- `install.sh` `install_deb`: after the install is verified, put the `.deb` at
+- `install.sh` `install_deb` (as built: the file goes in **before** apt installs the verified `.deb`, because on an upgrade postinst
+  restarts the host inside that apt run and the host adopts only at its start; it is checked again after the install): put the `.deb` at
   `/var/lib/vedette-host/selfupdate/packages/vedette-host_${RELEASE}_${ARCH}.deb` (the SemVer form, the same name as the
   release asset and as `host.files[].name`, never the Debian `~` form; 0600 root, `install -d -m 0700` for the folders). This runs on every install and every repair or upgrade by `install.sh`. The host adopts the file at its next
   start. `--uninstall` removes the folder with the rest of `/var/lib/vedette-host` (it already does for purge; check the

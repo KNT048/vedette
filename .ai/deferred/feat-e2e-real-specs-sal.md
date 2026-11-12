@@ -1,8 +1,5 @@
 # Deferred from feat/e2e-real-specs-sal (WP-30 specs for logs, scan, ai; D-198)
 
-- [ ] SIEM forwarding (logs L5): `GET /logs/siem` answers 501 `not_implemented`; `/settings/siem` is in KNOWN_501 of gaps.spec.ts. The real flow is the `test.fixme` in logs.global.spec.ts (owner: Mlee, logs L5).
-- [ ] Digest new log types, spikes and bad connections (logs L3, L4): `GET /logs/digest` only has `lines_24h`; fixme in logs.global.spec.ts (owner: Mlee).
-- [ ] TLS syslog source on 6514 (D-203): `tls` is refused (`tls_unavailable`); fixme in logs.global.spec.ts. Needs the TLS seam of the box (#266, Kiên).
 - [ ] The AI digest panel on the Logs page: `GET /ai/logs/digest` answers 501 once a source exists (`AI_DIGEST_501` in logs.global.spec.ts, test 4 fails the day it answers 200: remove the constant then). Owner: Mlee (ai S-AI-4).
 - [ ] ai: `POST /ai/ask` and `GET /ai/asks`, `POST /ai/cve/{id}/news`, `POST /ai/logs/digest`, `/ai/memory`, `/ai/skills`, `/ai/knowledge` answer 501. `/assistant` is in KNOWN_501 (`GET /ai/asks`). fixme blocks in ai.global.spec.ts hold the real flows. A model answer needs a provider key: the specs never configure one (PRIVACY flow 3).
 - [ ] scan: a run, Stop now, auto-stop and the rescan on a new KEV need the scan worker (sensor seam, WP-30 slice 7) and the scan image: four fixme blocks in scan.global.spec.ts, with `can_scan=false` and `503 scanner_unavailable` tested meanwhile.

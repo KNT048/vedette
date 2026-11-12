@@ -104,8 +104,8 @@ type EvidenceRef struct {
 type EvidencePorts struct {
 	// IocHit finds a known-bad connection by id (logs, WP-24). Nil until that module offers a read-only lookup (D-119).
 	IocHit func(ctx context.Context, id string) (EvidenceRef, bool, error)
-	// ConfigRead finds a read the AI made, by its read record. Nil until the ai module offers a lookup of the reads it really made,
-	// at most 24 hours old (D-119): an existing read tool proves nothing.
+	// ConfigRead finds a read the box made through a connection, by its read record: the ai module's ai_read, at most 24 hours old
+	// (D-119, D-311); an existing read tool proves nothing. Nil (a binary without the ai module) = no read is evidence.
 	ConfigRead func(ctx context.Context, id string) (EvidenceRef, bool, error)
 }
 
@@ -638,6 +638,9 @@ type AIAction struct {
 	Reversible  bool      `json:"reversible"`
 	Available   bool      `json:"available"`
 	Params      []AIParam `json:"params"`
+	// ConnectionID is the connection of a device action ("" for an action of the box): a read through it is the only read that can be
+	// evidence for the action (D-119). Not part of what is sent to the model as JSON.
+	ConnectionID string `json:"-"`
 }
 
 var paramPattern = map[ParamType]string{PDomain: domainRE.String(), PMAC: macRE.String(), PInterface: interfaceRE.String(), PName: nameRE.String(), PText: textRE.String(), PID: digitsRE.String()}
@@ -666,6 +669,9 @@ func (s *Service) AIActions(ctx context.Context) ([]AIAction, error) {
 			continue
 		}
 		a := AIAction{ID: c.ID, Name: oneLine(c.Name, 120), Description: truncRunes(cleanLine(c.Description), 300), Risk: c.Risk, Reversible: c.reversible(), Available: unavailable(c, cs) == "", Params: []AIParam{}}
+		if c.device() {
+			a.ConnectionID = c.ConnectionID
+		}
 		for _, p := range c.params() {
 			ap := AIParam{Name: string(p), Type: string(p), Label: ParamLabel[p], Pattern: paramPattern[p]}
 			if r, ok := paramRange[p]; ok {

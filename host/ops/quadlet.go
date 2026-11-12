@@ -48,6 +48,16 @@ const (
 // with the binary. Exported for the package and contract tests.
 const HoneypotConfModule = "/usr/lib/vedette/honeypot-containers.conf"
 
+// AppArmorConfModule is the containers.conf module every unit loads (D-458): apparmor_profile = "vedette-container", the profile
+// the vedette-host .deb installs as /etc/apparmor.d/vedette-container and loads (deploy/deb/vedette-container.apparmor). It is
+// Podman's default profile plus signal and ptrace rules that also match the label crun gives a container under NoNewPrivileges
+// ("crun//&vedette-container"): with Podman's own profile no process of a container could signal another (podman-init's SIGTERM
+// to the scan worker, Go's SIGURG preemption). Podman ignores the name where AppArmor is off. Exported for the package and contract tests.
+const AppArmorConfModule = "/usr/lib/vedette/apparmor-containers.conf"
+
+// AppArmorProfile is the name the module gives and the profile file defines. Exported for the package test.
+const AppArmorProfile = "vedette-container"
+
 // installSection is what makes a service start at boot. Quadlet applies [Install] when it generates
 // the unit (a generated unit cannot be enabled or disabled), so "persist" is its presence.
 const installSection = "\n[Install]\nWantedBy=multi-user.target\n"
@@ -137,6 +147,7 @@ Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
 ReadOnly=true
 Tmpfs=/tmp:size=64m
 NoNewPrivileges=true
+ContainersConfModule=` + AppArmorConfModule + `
 DropCapability=ALL
 User={{.CoreUID}}:{{.CoreGID}}
 LogDriver=journald
@@ -167,6 +178,7 @@ User={{.SensorUID}}:{{.SensorGID}}
 DropCapability=ALL
 AddCapability=NET_RAW
 NoNewPrivileges=true
+ContainersConfModule=` + AppArmorConfModule + `
 ReadOnly=true
 Tmpfs=/tmp
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds:ro
@@ -194,6 +206,7 @@ Pull=never
 Network=ns:/run/netns/vedette-hp
 DropCapability=ALL
 NoNewPrivileges=true
+ContainersConfModule=` + AppArmorConfModule + `
 ReadOnly=true
 Tmpfs=/tmp
 UserNS=auto
@@ -225,6 +238,7 @@ User={{.SensorUID}}:{{.SensorGID}}
 DropCapability=ALL
 AddCapability=NET_RAW
 NoNewPrivileges=true
+ContainersConfModule=` + AppArmorConfModule + `
 RunInit=true
 ReadOnly=true
 Tmpfs=/tmp

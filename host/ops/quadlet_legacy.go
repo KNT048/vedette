@@ -24,12 +24,20 @@ import (
 // needs its own migration step. The lists start after D-318; a box with older units needs -bootstrap -force-units (RUNBOOK).
 var legacyTemplates = map[string][]*template.Template{
 	api.ServiceCore: {
-		mustTemplate("core-1", coreUnitTextD318),     // D-318 (2026-11-12): the honeypot log volume, 514 only
-		mustTemplate("core-2", coreUnitTextD214),     // D-214 (2026-11-12): 6514:5515/tcp published, no HostName yet
-		mustTemplate("core-3", coreUnitTextHostName), // #489 (2026-11-12): HostName=vedette, no 127.0.0.1:8765 publish yet (D-395)
+		mustTemplate("core-1", coreUnitTextD318),       // D-318 (2026-11-12): the honeypot log volume, 514 only
+		mustTemplate("core-2", coreUnitTextD214),       // D-214 (2026-11-12): 6514:5515/tcp published, no HostName yet
+		mustTemplate("core-3", coreUnitTextHostName),   // #489 (2026-11-12): HostName=vedette, no 127.0.0.1:8765 publish yet (D-395)
+		mustTemplate("core-4", coreUnitTextBeforeD458), // D-395 (2026-11-12): Podman's default AppArmor profile (D-458)
+	},
+	api.ServiceSensor: {
+		mustTemplate("sensor-1", sensorUnitTextBeforeD458), // before D-458 (2026-11-12): Podman's default AppArmor profile
 	},
 	api.ServiceHoneypot: {
-		mustTemplate("honeypot-1", honeypotUnitTextD318), // D-318 (2026-11-12): before ContainersConfModule (#486)
+		mustTemplate("honeypot-1", honeypotUnitTextD318),       // D-318 (2026-11-12): before ContainersConfModule (#486)
+		mustTemplate("honeypot-2", honeypotUnitTextBeforeD458), // #486 (2026-11-12): Podman's default AppArmor profile (D-458)
+	},
+	api.ServiceScan: {
+		mustTemplate("scan-1", scanUnitTextBeforeD458), // before D-458 (2026-11-12): Podman's default AppArmor profile
 	},
 }
 
@@ -234,6 +242,138 @@ HealthCmd=["/vedette","honeypot","healthcheck"]
 HealthInterval=30s
 HealthStartPeriod=30s
 HealthRetries=3
+
+[Service]
+Restart=always
+`
+
+// The four templates before D-458 (each unit loads the containers.conf module that selects the AppArmor profile vedette-container).
+
+const coreUnitTextBeforeD458 = `[Unit]
+Description=Vedette core
+After=network-online.target vedette-host.service
+Wants=network-online.target
+
+[Container]
+ContainerName=vedette-core
+HostName=vedette
+Image=` + repoCore + `@{{.Digest}}
+Pull=never
+Network=vedette-int.network
+PublishPort=8443:8443
+PublishPort=127.0.0.1:8444:8444
+PublishPort=127.0.0.1:8765:8765
+PublishPort=514:5514/udp
+PublishPort=514:5514/tcp
+PublishPort=6514:5515/tcp
+Volume={{.DataDir}}:/var/lib/vedette
+Volume=` + hpHostDir + `/config:/var/lib/vedette/honeypot/config
+Volume=` + hpLogVolume + `.volume:/var/lib/vedette/honeypot/log:ro,noexec
+Volume=/run/vedette:/run/vedette
+Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
+Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
+ReadOnly=true
+Tmpfs=/tmp:size=64m
+NoNewPrivileges=true
+DropCapability=ALL
+User={{.CoreUID}}:{{.CoreGID}}
+LogDriver=journald
+PodmanArgs=--memory=2g --memory-swap=2g --cpus=2 --pids-limit=512 --group-add={{.SensorGID}}
+Environment=GOMEMLIMIT=1800MiB
+HealthCmd=["/vedette","healthcheck"]
+HealthInterval=30s
+HealthStartPeriod=60s
+HealthRetries=3
+Exec=-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds -syslog-port 5514
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+`
+
+const sensorUnitTextBeforeD458 = `[Unit]
+Description=Vedette sensor (passive capture)
+After=vedette-core.service
+Wants=vedette-core.service
+
+[Container]
+ContainerName=vedette-sensor
+Image=` + repoSensor + `@{{.Digest}}
+Pull=never
+Network=host
+User={{.SensorUID}}:{{.SensorGID}}
+DropCapability=ALL
+AddCapability=NET_RAW
+NoNewPrivileges=true
+ReadOnly=true
+Tmpfs=/tmp
+Volume=vedette-creds-passive.volume:/var/lib/vedette-creds:ro
+LogDriver=journald
+PodmanArgs=--memory=512m --memory-swap=512m --cpus=1 --pids-limit=256
+HealthCmd=["/vedette-sensor","healthcheck"]
+HealthInterval=30s
+HealthStartPeriod=30s
+HealthRetries=3
+Exec=passive --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem
+
+[Service]
+Restart=always
+`
+
+const honeypotUnitTextBeforeD458 = `[Unit]
+Description=Vedette honeypot (all decoys, namespace vedette-hp)
+After=vedette-host.service
+Requires=vedette-host.service
+
+[Container]
+ContainerName=vedette-honeypot
+Image=` + repoHoneypot + `@{{.Digest}}
+Pull=never
+Network=ns:/run/netns/vedette-hp
+DropCapability=ALL
+NoNewPrivileges=true
+ReadOnly=true
+Tmpfs=/tmp
+UserNS=auto
+ContainersConfModule=` + HoneypotConfModule + `
+Volume=` + hpHostDir + `/config:/var/lib/vedette/honeypot/config:ro
+Volume=` + hpLogVolume + `.volume:/var/lib/vedette/honeypot/log:U,noexec
+LogDriver=journald
+PodmanArgs=--memory=256m --memory-swap=256m --cpus=0.5 --pids-limit=128
+HealthCmd=["/vedette","honeypot","healthcheck"]
+HealthInterval=30s
+HealthStartPeriod=30s
+HealthRetries=3
+
+[Service]
+Restart=always
+`
+
+const scanUnitTextBeforeD458 = `[Unit]
+Description=Vedette scan (active scanning)
+After=vedette-core.service
+Wants=vedette-core.service
+
+[Container]
+ContainerName=vedette-scan
+Image={{.ID}}
+Pull=never
+Network=host
+User={{.SensorUID}}:{{.SensorGID}}
+DropCapability=ALL
+AddCapability=NET_RAW
+NoNewPrivileges=true
+RunInit=true
+ReadOnly=true
+Tmpfs=/tmp
+Volume=vedette-creds-active.volume:/var/lib/vedette-creds:ro
+LogDriver=journald
+PodmanArgs=--memory=1g --memory-swap=1g --cpus=2 --pids-limit=512 --cpu-shares=128
+HealthCmd=["/vedette-sensor","healthcheck"]
+HealthInterval=30s
+HealthStartPeriod=30s
+HealthRetries=3
+Exec=active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem
 
 [Service]
 Restart=always

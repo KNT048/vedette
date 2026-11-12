@@ -24,6 +24,7 @@ Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
 ReadOnly=true
 Tmpfs=/tmp:size=64m
 NoNewPrivileges=true
+ContainersConfModule=/usr/lib/vedette/apparmor-containers.conf
 DropCapability=ALL
 User=10001:10002
 LogDriver=journald

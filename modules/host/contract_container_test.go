@@ -1370,10 +1370,11 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			if (svc == api.ServiceCore || svc == api.ServiceSensor || svc == api.ServiceScan) && strings.Contains(text, "UserNS") {
 				t.Errorf("%s runs without UserNS", svc)
 			}
-			// ContainersConfModule=: only the honeypot, the packaged module that clears default_sysctls in vedette-hp (#486)
-			var wantMod []string
+			// ContainersConfModule=: every unit the packaged module that selects the AppArmor profile vedette-container (D-458); the
+			// honeypot alone also the one that clears default_sysctls in vedette-hp (#486)
+			wantMod := []string{ops.AppArmorConfModule}
 			if svc == api.ServiceHoneypot {
-				wantMod = []string{ops.HoneypotConfModule}
+				wantMod = append(wantMod, ops.HoneypotConfModule)
 			}
 			if !slices.Equal(u["ContainersConfModule"], wantMod) {
 				t.Errorf("%s: ContainersConfModule=%v, want %v", svc, u["ContainersConfModule"], wantMod)

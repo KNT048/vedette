@@ -144,6 +144,22 @@ func TestTheHostRunnerNeverInstallsAndTheApplierRunnerDoes(t *testing.T) {
 	}
 }
 
+// The package has a conffile (the AppArmor profile, D-458): dpkg -i, like apt, decides it with confdef + confold, so the applier never
+// stops at dpkg's conffile prompt with stdin on /dev/null; the bare "-i <file>" form, or the options in another order, is refused.
+func TestDpkgInstallDecidesConffilesItself(t *testing.T) {
+	t.Parallel()
+	for _, f := range []string{suStaged, suKept} {
+		if got, want := dpkgInstallArgv(f), []string{"--force-confdef", "--force-confold", "-i", f}; !slices.Equal(got, want) {
+			t.Errorf("dpkg -i argv %q, want %q", got, want)
+		}
+		for _, bad := range [][]string{{"-i", f}, {"--force-confold", "--force-confdef", "-i", f}, {"--force-confdef", "-i", f}, {"--force-confnew", "--force-confold", "-i", f}} {
+			if ValidateApplierArgv(suState, binDpkg, bad) == nil {
+				t.Errorf("the applier runner accepts dpkg %q", bad)
+			}
+		}
+	}
+}
+
 func FuzzValidateSelfUpdateArgv(f *testing.F) {
 	for _, a := range [][]string{aptInstallArgv(suStaged, false, 600), aptInstallArgv(suKept, true, 0), dpkgInstallArgv(suKept), aptSimInstallArgv(suStaged), dpkgDebFieldArgv(suStaged)} {
 		f.Add(strings.Join(a, "\x00"))

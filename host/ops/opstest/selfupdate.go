@@ -259,10 +259,10 @@ esac
 `)
 	w.M.writeFakeWith("dpkg", restart+`case "$args" in
   "--audit") [ -e "$REC/mark.half" ] && echo "The following packages are only half installed: vedette-host"; exit 0 ;;
-  "-i "*"/selfupdate/staged/"*)
+  "--force-confdef --force-confold -i "*"/selfupdate/staged/"*)
     if [ -e "$REC/mark.dpkg-lock-once" ]; then rm -f "$REC/mark.dpkg-lock-once"; : > "$REC/mark.lock-held-once"; echo "dpkg: error: dpkg frontend lock is locked"; exit 2; fi
     rm -f "$REC/mark.half"; : > "$REC/mark.inst-new"; req_restart; exit 0 ;;
-  "-i "*"/selfupdate/packages/"*) rm -f "$REC/mark.half" "$REC/mark.inst-new"; req_restart; exit 0 ;;
+  "--force-confdef --force-confold -i "*"/selfupdate/packages/"*) rm -f "$REC/mark.half" "$REC/mark.inst-new"; req_restart; exit 0 ;;
 esac
 `)
 	w.M.writeFakeWith("dpkg-query", `if [ -e "$REC/mark.half" ]; then echo "`+toDeb+`|half-installed"

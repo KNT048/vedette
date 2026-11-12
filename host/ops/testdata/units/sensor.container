@@ -12,6 +12,7 @@ User=10003:10004
 DropCapability=ALL
 AddCapability=NET_RAW
 NoNewPrivileges=true
+ContainersConfModule=/usr/lib/vedette/apparmor-containers.conf
 ReadOnly=true
 Tmpfs=/tmp
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds:ro

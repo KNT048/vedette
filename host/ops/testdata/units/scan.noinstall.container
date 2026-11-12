@@ -12,6 +12,7 @@ User=10003:10004
 DropCapability=ALL
 AddCapability=NET_RAW
 NoNewPrivileges=true
+ContainersConfModule=/usr/lib/vedette/apparmor-containers.conf
 RunInit=true
 ReadOnly=true
 Tmpfs=/tmp

@@ -9164,7 +9164,8 @@ func (s *Server) handleCoreGetCorePrivacyRequest(args [0]string, argsEscaped boo
 
 // handleCoreGetCoreSetupModulesRequest handles core_get_core_setup_modules operation.
 //
-// Modules and dependencies for the bundle step (does not reveal what is on).
+// Modules and dependencies for the bundle step (does not reveal what is on), and the install kind for
+// the setup code hint and the modules this install cannot run (D-381).
 //
 // GET /core/setup/modules
 func (s *Server) handleCoreGetCoreSetupModulesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9183,7 +9184,7 @@ func (s *Server) handleCoreGetCoreSetupModulesRequest(args [0]string, argsEscape
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CoreGetCoreSetupModulesOperation,
-			OperationSummary: "Modules and dependencies for the bundle step (does not reveal what is on)",
+			OperationSummary: "Modules and dependencies for the bundle step (does not reveal what is on), and the install kind for the setup code hint and the modules this install cannot run (D-381)",
 			OperationID:      "core_get_core_setup_modules",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -10919,7 +10920,8 @@ func (s *Server) handleCorePatchCoreUsersIDRequest(args [1]string, argsEscaped b
 
 // handleCorePatchModulesIDRequest handles core_patch_modules_id operation.
 //
-// Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies.
+// Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies;
+// turning on a module this install cannot run (available false) gives 409 not_appliance (D-381).
 //
 // PATCH /modules/{id}
 func (s *Server) handleCorePatchModulesIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -11013,7 +11015,7 @@ func (s *Server) handleCorePatchModulesIDRequest(args [1]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePatchModulesIDOperation,
-			OperationSummary: "Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies",
+			OperationSummary: "Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies; turning on a module this install cannot run (available false) gives 409 not_appliance (D-381)",
 			OperationID:      "core_patch_modules_id",
 			Body:             request,
 			RawBody:          rawBody,
@@ -13595,7 +13597,8 @@ func (s *Server) handleCorePostCoreOidcTestRequest(args [0]string, argsEscaped b
 // handleCorePostCoreSetupRequest handles core_post_core_setup operation.
 //
 // First-run setup: create the organization and administrator, choose a module bundle, or use sample
-// data.
+// data. A bundle leaves out the modules this install cannot run (available false, D-381); naming one
+// under custom gives 409 not_appliance.
 //
 // POST /core/setup
 func (s *Server) handleCorePostCoreSetupRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -13633,7 +13636,7 @@ func (s *Server) handleCorePostCoreSetupRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostCoreSetupOperation,
-			OperationSummary: "First-run setup: create the organization and administrator, choose a module bundle, or use sample data",
+			OperationSummary: "First-run setup: create the organization and administrator, choose a module bundle, or use sample data. A bundle leaves out the modules this install cannot run (available false, D-381); naming one under custom gives 409 not_appliance",
 			OperationID:      "core_post_core_setup",
 			Body:             request,
 			RawBody:          rawBody,

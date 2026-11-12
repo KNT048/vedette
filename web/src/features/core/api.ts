@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from '@/lib/api'
-import type { ModuleId } from '@/lib/modules'
+import type { InstallKind, ModuleId } from '@/lib/modules'
 import type { Role } from '@/lib/session'
 import type {
   Account, AdminUser, AuditQuery, AuditResult, AuthOptions, GeneralSettings, McpState, McpTokenCreated, OidcConfig, OidcSave, PrivacyState, SetupModule, SetupPayload, SetupStatus, TotpStart, EmailCodeSent,
@@ -17,7 +17,7 @@ const qs = (q: Partial<AuditQuery>) => {
 }
 
 // ---- cài đặt ban đầu ----
-export const useSetupModules = () => useQuery({ queryKey: ['core', 'setup-modules'], queryFn: () => api.get<{ modules: SetupModule[] }>('/core/setup/modules'), retry: false })
+export const useSetupModules = () => useQuery({ queryKey: ['core', 'setup-modules'], queryFn: () => api.get<{ modules: SetupModule[]; install: InstallKind }>('/core/setup/modules'), retry: false })
 export const useSetupStatus = () => useQuery({ queryKey: ['setup'], queryFn: () => api.get<SetupStatus>('/setup') })
 export function useSubmitSetup() {
   const qc = useQueryClient()
@@ -120,6 +120,8 @@ export function useUpdateMutations() {
 }
 
 // ---- hệ điều hành của hộp (D-53) ----
+// D-381: the pages that use the endpoints of vedette-host mount them only on the appliance (useInstallKind); on a container-only
+// install they could only answer 409 not_appliance.
 export const useOsState = () => useQuery({ queryKey: ['core', 'os'], queryFn: () => api.get<OsState>('/core/updates/os') })
 /** Lần chạy hiện tại hoặc gần nhất; tự hỏi lại mỗi 0,5 giây khi đang chạy để có log trực tiếp. */
 export const useOsRun = () => useQuery({
@@ -193,7 +195,7 @@ export const useRestore = () => {
 export const usePurge = () => useMutation({ mutationFn: (v: { confirm: string; password: string; code?: string }) => api.post<{ ok: true; removed: Record<string, number>; kept: string[] }>('/core/data/purge', v) })
 
 // ---- mạng của hộp (D-56) ----
-export const useNetwork = () => useQuery({ queryKey: ['core', 'network'], queryFn: () => api.get<NetworkState>('/core/network'), refetchInterval: (q) => (q.state.data?.pending ? 10000 : false) })
+export const useNetwork = (enabled: boolean) => useQuery({ queryKey: ['core', 'network'], queryFn: () => api.get<NetworkState>('/core/network'), enabled, refetchInterval: (q) => (q.state.data?.pending ? 10000 : false) })
 /** Polled while the page is open: the point of the card is to watch traffic arrive. */
 export const useSpanStatus = () => useQuery({ queryKey: ['core', 'network', 'span-status'], queryFn: () => api.get<SpanStatus>('/core/network/span/status'), refetchInterval: 5000 })
 export function useNetworkActions() {

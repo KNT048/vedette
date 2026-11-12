@@ -32,6 +32,9 @@ type Config struct {
 	Version   string           // stored in core_module.version for rows created now
 	Clock     func() time.Time // nil: time.Now
 	Log       *slog.Logger
+	// ContainerOnly: core runs without vedette-host (started with an empty -host-socket, D-55, D-168). The install
+	// kind of the whole box comes from here (D-381): modules with needs_host cannot be turned on, and GET /modules says so.
+	ContainerOnly bool
 }
 
 // State is one module as GET /modules shows it.
@@ -41,6 +44,8 @@ type State struct {
 	Depends   []string
 	Enabled   bool
 	EnabledAt *time.Time // nil while off
+	// Available is false for a module this install cannot run (needs_host on a container-only install, D-381).
+	Available bool
 }
 
 type entry struct {
@@ -60,6 +65,8 @@ type Registry struct {
 	order []string // module ids (not components), core first, then standard, then optional, each by id
 	next  atomic.Uint64
 	ver   string // Config.Version, for the rows Reset makes
+	// containerOnly is Config.ContainerOnly: the install kind, fixed for the life of the process.
+	containerOnly bool
 
 	mu   sync.RWMutex
 	mods map[string]*entry
@@ -80,7 +87,7 @@ func New(ctx context.Context, cfg Config) (*Registry, error) {
 	if err != nil {
 		return nil, err
 	}
-	r := &Registry{db: cfg.DB, audit: cfg.Audit, now: cfg.Clock, log: cfg.Log, ver: cfg.Version, mods: make(map[string]*entry, len(manifests))}
+	r := &Registry{db: cfg.DB, audit: cfg.Audit, now: cfg.Clock, log: cfg.Log, ver: cfg.Version, containerOnly: cfg.ContainerOnly, mods: make(map[string]*entry, len(manifests))}
 	if r.now == nil {
 		r.now = time.Now
 	}
@@ -179,10 +186,14 @@ func (r *Registry) List() []State {
 	out := make([]State, 0, len(r.order))
 	for _, id := range r.order {
 		e := r.mods[id]
-		out = append(out, State{ID: id, Tier: e.Tier, Depends: slices.Clone(e.Depends), Enabled: e.enabled, EnabledAt: e.enabledAt})
+		out = append(out, State{ID: id, Tier: e.Tier, Depends: slices.Clone(e.Depends), Enabled: e.enabled, EnabledAt: e.enabledAt, Available: !r.containerOnly || !e.NeedsHost})
 	}
 	return out
 }
+
+// ContainerOnly reports the install kind (D-381): true when core runs without vedette-host. It is the one place the
+// API and the GUI learn it from (GET /modules, GET /core/setup/modules).
+func (r *Registry) ContainerOnly() bool { return r.containerOnly }
 
 // OnChange registers fn, called after a change is published, once per module whose state flipped.
 // fn runs on the publishing goroutine and must not block; it must not call back into Publish.
@@ -263,6 +274,15 @@ func (r *Registry) toggleable(id string) error {
 	return nil
 }
 
+// notHere refuses to turn on a module this install cannot run (D-381), with the code the OS endpoints of a
+// container-only install already use.
+func (r *Registry) notHere(id string) error {
+	if e := r.mods[id]; r.containerOnly && e != nil && e.NeedsHost {
+		return apierr.New(http.StatusConflict, "not_appliance", fmt.Sprintf("Module %s needs vedette-host, which only the appliance install has. This is a container-only install, so it cannot run here.", id))
+	}
+	return nil
+}
+
 // Enable turns a module on inside tx and writes the core_audit row (module.enable) in the same
 // transaction. When modules it depends on are off it returns 409 missing_dependencies with
 // Extra "missing" (all of them, dependencies first) and changes nothing, unless withDeps is true:
@@ -271,12 +291,20 @@ func (r *Registry) Enable(ctx context.Context, tx *sql.Tx, actor, id string, wit
 	if err := r.toggleable(id); err != nil {
 		return Change{}, err
 	}
+	if err := r.notHere(id); err != nil {
+		return Change{}, err
+	}
 	on, err := r.state(ctx, tx)
 	if err != nil {
 		return Change{}, err
 	}
 	var missing []string
 	r.collectMissing(id, on, map[string]bool{id: true}, &missing)
+	for _, m := range missing { // a dependency switched on with it must be runnable here too (D-381)
+		if err := r.notHere(m); err != nil {
+			return Change{}, err
+		}
+	}
 	if len(missing) > 0 && !withDeps {
 		return Change{}, apierr.New(http.StatusConflict, apierr.CodeMissingDeps,
 			fmt.Sprintf("Module %s also needs: %s. Turn them on first, or turn them on together.", id, strings.Join(missing, ", "))).

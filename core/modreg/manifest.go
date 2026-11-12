@@ -35,6 +35,9 @@ type Manifest struct {
 	Component bool
 	Default   bool // on at first start
 	Depends   []string
+	// NeedsHost: the module runs only where vedette-host is (the appliance): on a container-only install it cannot be
+	// turned on (D-381).
+	NeedsHost bool
 }
 
 type rawManifest struct {
@@ -43,6 +46,8 @@ type rawManifest struct {
 	Tier    string   `yaml:"tier"`
 	Default any      `yaml:"default"`
 	Depends []string `yaml:"depends"`
+	// NeedsHost is needs_host: true in MANIFEST.yaml.
+	NeedsHost bool `yaml:"needs_host"`
 }
 
 // ErrManifest is wrapped by every manifest validation failure.
@@ -91,7 +96,7 @@ func parse(dir string, b []byte) (Manifest, error) {
 	if !idRE.MatchString(raw.ID) {
 		return Manifest{}, fmt.Errorf("id %q must match %s", raw.ID, idRE)
 	}
-	m := Manifest{ID: raw.ID, Tier: Tier(raw.Tier), Depends: raw.Depends}
+	m := Manifest{ID: raw.ID, Tier: Tier(raw.Tier), Depends: raw.Depends, NeedsHost: raw.NeedsHost}
 	switch raw.Kind {
 	case "":
 	case KindComponent:
@@ -112,6 +117,9 @@ func parse(dir string, b []byte) (Manifest, error) {
 		return Manifest{}, errors.New("a core module cannot default to off")
 	}
 	m.Default = def
+	if m.NeedsHost && def { // D-381: a container-only install could not run it, yet would start with it on
+		return Manifest{}, errors.New("a module that needs vedette-host (needs_host) cannot default to on")
+	}
 	seen := map[string]bool{}
 	for _, d := range m.Depends {
 		if !idRE.MatchString(d) {

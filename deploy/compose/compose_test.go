@@ -297,4 +297,12 @@ func TestInstallGuideUsesThePinnedDebianImage(t *testing.T) {
 	if strings.Contains(string(guide), "alpine") {
 		t.Error("docs/INSTALL-CONTAINER.md: no unpinned third-party image")
 	}
+	// The Data page of a container-only install shows the same two commands (D-381).
+	page, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "features", "core", "ContainerOnly.tsx"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(page), string(m[1])) {
+		t.Errorf("web/src/features/core/ContainerOnly.tsx must name %s in its backup and restore commands", m[1])
+	}
 }

@@ -10969,7 +10969,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "POST":
 							r.name = CorePostCoreSetupOperation
-							r.summary = "First-run setup: create the organization and administrator, choose a module bundle, or use sample data"
+							r.summary = "First-run setup: create the organization and administrator, choose a module bundle, or use sample data. A bundle leaves out the modules this install cannot run (available false, D-381); naming one under custom gives 409 not_appliance"
 							r.operationID = "core_post_core_setup"
 							r.operationGroup = ""
 							r.pathPattern = "/core/setup"
@@ -10994,7 +10994,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = CoreGetCoreSetupModulesOperation
-								r.summary = "Modules and dependencies for the bundle step (does not reveal what is on)"
+								r.summary = "Modules and dependencies for the bundle step (does not reveal what is on), and the install kind for the setup code hint and the modules this install cannot run (D-381)"
 								r.operationID = "core_get_core_setup_modules"
 								r.operationGroup = ""
 								r.pathPattern = "/core/setup/modules"
@@ -14129,7 +14129,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "PATCH":
 								r.name = CorePatchModulesIDOperation
-								r.summary = "Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies"
+								r.summary = "Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies; turning on a module this install cannot run (available false) gives 409 not_appliance (D-381)"
 								r.operationID = "core_patch_modules_id"
 								r.operationGroup = ""
 								r.pathPattern = "/modules/{id}"

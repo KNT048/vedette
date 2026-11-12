@@ -14,6 +14,8 @@ import { resetMockDb } from '@/mocks/db'
 const isPreview = () => import.meta.env.VITE_API_MOCK !== 'off'
 import { useQueryClient } from '@tanstack/react-query'
 import { useBoxBackups, usePurge, useRestore, useRestoreRun } from './api'
+import { useInstallKind } from '@/lib/modules'
+import { ContainerBackup, InstallPending } from './ContainerOnly'
 import type { BoxBackup } from './types'
 import { fmtDateTime } from '@/lib/format'
 import { errMsg, useGate } from './parts'
@@ -28,6 +30,7 @@ export default function DataSection() {
   const gate = useGate('admin')
   const me = useMe().data
   const org = me?.org ?? ''
+  const install = useInstallKind() // D-381: a container-only install has no helper, so no box backups; the customer copies the volume (S-CORE-9 G2)
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
   const [kept, setKept] = useState<string[] | null>(null) // set once the purge is done and something could not be deleted
@@ -66,13 +69,17 @@ export default function DataSection() {
 
   return (
     <>
-      <PageHeader title={t('data.title')} meta={t('data.meta')} stories={['S-CORE-1']} />
-      <Section title={t('data.backup.title')} description={t('data.backup.desc')}>
-        <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/backup', `vedette-backup-${day}.tar.gz`)}><Download />{t('data.backup.button')}</Button>
-      </Section>
-      <Section title={t('data.restore.title')} description={t('data.restore.desc')}>
-        <BoxBackups disabled={gate.disabled} title={gate.title} />
-      </Section>
+      <PageHeader title={t('data.title')} meta={install === 'container' ? t('container.data.meta') : t('data.meta')} stories={['S-CORE-1']} />
+      {install === 'container' ? <ContainerBackup /> : install === 'appliance' ? (
+        <>
+          <Section title={t('data.backup.title')} description={t('data.backup.desc')}>
+            <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/backup', `vedette-backup-${day}.tar.gz`)}><Download />{t('data.backup.button')}</Button>
+          </Section>
+          <Section title={t('data.restore.title')} description={t('data.restore.desc')}>
+            <BoxBackups disabled={gate.disabled} title={gate.title} />
+          </Section>
+        </>
+      ) : <InstallPending />}
       <Section title={t('data.export.title')} description={t('data.export.desc')}>
         <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/export', `vedette-export-${day}.json`)}><Download />{t('data.export.button')}</Button>
       </Section>

@@ -306,11 +306,11 @@ func (s *Service) packages(ctx context.Context) []oas.InventoryGetInventoryAgent
 	}
 	for _, f := range mirrorPackages {
 		h, ok := sums[f.name]
-		if !ok {
-			continue
-		}
 		size, err := statIn(s.cfg.MirrorDir, f.name)
-		if err != nil {
+		if !ok || err != nil {
+			if s.warnDue(time.Minute, "mirror:package") {
+				s.cfg.Log.WarnContext(ctx, "agent-intake: an osquery package or its SHA256SUMS line is missing; the agent dialog leaves it out", "file", f.name, "in_sums", ok, "error", err)
+			}
 			continue
 		}
 		out = append(out, oas.InventoryGetInventoryAgentsOKInstallPackagesItem{File: f.name, Platform: f.platform, Format: f.format, Arch: f.arch, Size: int(size), SHA256: h})

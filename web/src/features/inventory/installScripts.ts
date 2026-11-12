@@ -3,7 +3,7 @@
 // mọi lần tải sau đó dùng --cacert/CA này (không còn -k). Gói osquery do hộp phản chiếu từ bản phát hành chính thức và kiểm checksum nên máy chủ không cần Internet.
 // Đối chiếu tài liệu (2026-11-06):
 // - Linux: gói .deb/.rpm, dịch vụ systemd "osqueryd" (/usr/lib/systemd/system/osqueryd.service), cấu hình /etc/osquery/, `systemctl enable --now osqueryd`.
-//   https://osquery.readthedocs.io/en/stable/installation/install-linux/ ; kho chính thức pkg.osquery.io (deb/pubkey.gpg, rpm/GPG) dùng cho cách cài thủ công trong agentConfig.ts
+//   https://osquery.readthedocs.io/en/stable/installation/install-linux/ ; cài tay trong agentConfig.ts cũng tải gói từ hộp (D-404), không dùng kho ngoài.
 // - Windows: MSI cài vào C:\Program Files\osquery, daemon osqueryd\osqueryd.exe, dịch vụ "osqueryd" tạo bằng manage-osqueryd.ps1 -install -startupArgs "--flagfile=…", Start-Service osqueryd.
 //   https://osquery.readthedocs.io/en/stable/installation/install-windows/
 // - Cờ TLS: config_plugin, logger_plugin, enroll_secret_path, tls_server_certs, tls_hostname (kèm cổng, không https://), *_tls_endpoint, host_identifier.

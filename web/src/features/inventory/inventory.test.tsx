@@ -1530,13 +1530,16 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(all).not.toMatch(/osquery\.io|choco|yum-config-manager|apt-get/)
     for (const p of pkgs) expect(all).toContain(p.sha256)
     const deb = osquerySteps('linux', BOX, 't', pkgs).find((s) => s.key === 'installDeb')!.code
-    expect(deb).toContain(`curl -fSLk ${BOX}/api/v1/install/osquery/$f -o $f && \\`)
-    expect(deb).toContain(`grep " $f\\$" | sha256sum -c - && \\\nsudo dpkg -i $f`)
-    expect(deb).toContain('linux_$(dpkg --print-architecture).deb')
-    expect(osquerySteps('linux', BOX, 't', pkgs).find((s) => s.key === 'installRpm')!.code).toMatch(/linux\.\$\(uname -m\)\.rpm[\s\S]*sudo rpm -Uvh \$f$/)
+    // three lines that each stand alone (a file copied over skips the download line); the check and the install are one command
+    const lines = deb.split('\n')
+    expect(lines).toHaveLength(3)
+    expect(lines[0]).toBe(`f=osquery_${OSQUERY_VERSION}-1.linux_$(dpkg --print-architecture).deb`)
+    expect(lines[1]).toBe(`cd "$(mktemp -d)" && curl -fSLk ${BOX}/api/v1/install/osquery/$f -o $f`)
+    expect(lines[2]).toMatch(/^printf '%s\\n' ('[0-9a-f]{64} {2}osquery_\S+\.deb' ){2}\| grep " \$f\\\$" \| sha256sum -c - && sudo dpkg -i \$f$/)
+    expect(osquerySteps('linux', BOX, 't', pkgs).find((s) => s.key === 'installRpm')!.code).toMatch(/^f=osquery-[\d.]+-1\.linux\.\$\(uname -m\)\.rpm\n[\s\S]*sha256sum -c - && sudo rpm -Uvh \$f$/)
     const msi = osquerySteps('windows', BOX, 't', pkgs).find((s) => s.key === 'install')!.code
     expect(msi).toContain(`curl.exe -fSLk ${BOX}/api/v1/install/osquery/osquery-${OSQUERY_VERSION}.msi`)
-    expect(msi).toMatch(/-ieq '[0-9a-f]{64}'\) \{ Start-Process msiexec\.exe .*\} else \{ throw 'Checksum mismatch: do not install this file' \}$/)
+    expect(msi).toMatch(/-ieq '[0-9a-f]{64}'\) \{ \$p = Start-Process msiexec\.exe -Wait -PassThru .*-notin 0, 3010.*\} else \{ throw 'Checksum mismatch: do not install this file' \}$/)
     // no package on the box: no install step at all, never an outside source
     expect(osquerySteps('linux', BOX, 't', []).map((s) => s.key)).toEqual(['secret', 'flags', 'start'])
     expect(osquerySteps('windows', BOX, 't', []).map((s) => s.key)).toEqual(['secret', 'flags', 'service'])

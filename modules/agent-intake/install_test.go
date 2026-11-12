@@ -465,6 +465,12 @@ func TestAdmin_PageListsTheServedPackages(t *testing.T) {
 	if p := none.admin("GET", "/inventory/agents", nil); !strings.Contains(p.raw, `"packages":[]`) {
 		t.Fatalf("no mirror: %s", p.raw)
 	}
+	if err := os.Remove(filepath.Join(w.mirror, "SHA256SUMS")); err != nil { // the packages are there, SHA256SUMS is not
+		t.Fatal(err)
+	}
+	if p := w.admin("GET", "/inventory/agents", nil); p.code != 200 || !strings.Contains(p.raw, `"packages":[]`) {
+		t.Fatalf("no SHA256SUMS: %d %s", p.code, p.raw)
+	}
 }
 
 // Only the four names exist. A request's text is a key into a table, never a path: traversal, encoded separators, NUL, other names, other

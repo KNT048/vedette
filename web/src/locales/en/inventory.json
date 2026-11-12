@@ -499,7 +499,7 @@
       "uninstall": "Remove osquery from the server again",
       "security": "The token can only enroll osquery on a machine and reads nothing from Vedette. It is shown once, expires (7 days by default) and can be revoked. It is sent as an argument and in a header, never in a web address. Every install and enrollment is recorded in the audit log.",
       "advanced": "Advanced: manual setup",
-      "advancedBody": "The same result step by step, for locked-down servers or your own packaging. The package comes from this box; a file you copied over (USB stick) skips the download: compare its SHA-256 with the table above, then install it with the last line.",
+      "advancedBody": "The same result step by step, for locked-down servers or your own packaging. The package comes from this box and is installed only when its SHA-256 matches the table above. For a file you copied over (USB stick), leave out the download line: on Linux run the first and last lines in the folder that holds the file; on Windows set $f to the file's path, then run the last line.",
       "queries": "What Vedette asks osquery for",
       "queriesBody": "Read-only queries, delivered through the config endpoint. Packages differ per distribution, so each machine runs only the ones that fit it. The interfaces query reports the machine's IPv4 addresses and MAC addresses so Vedette can match it to the right device."
     },
@@ -511,7 +511,7 @@
       "link": "Download {{file}}",
       "size": "{{mb}} MB",
       "format": { "deb": "Debian, Ubuntu", "rpm": "RHEL, Rocky, AlmaLinux", "msi": "Windows Server" },
-      "none": "This box has no copy of the osquery packages (a development build), so the command below stops at the package download. Update Vedette to the release."
+      "none": "This box has no copy of the osquery packages for this operating system, so the command below stops at the package download. Update Vedette to the release, which ships them."
     },
     "steps": {
       "linux": {

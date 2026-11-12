@@ -45,7 +45,8 @@ export function osquerySteps(platform: Platform, serverUrl: string, token: strin
     if (!sums.length) return []
     return [{
       key: format === 'deb' ? 'installDeb' : 'installRpm', file: format === 'deb' ? 'Debian, Ubuntu (shell)' : 'RHEL, Rocky, AlmaLinux (shell)',
-      code: `cd "$(mktemp -d)" && f=${file} && \\\ncurl -fSLk ${mirror}/$f -o $f && \\\nprintf '%s\\n' ${sums.join(' ')} | grep " $f\\$" | sha256sum -c - && \\\n${install} $f`,
+      // Three lines that each stand alone: a copied file (USB) skips the second, the third checks and installs in one command.
+      code: `f=${file}\ncd "$(mktemp -d)" && curl -fSLk ${mirror}/$f -o $f\nprintf '%s\\n' ${sums.join(' ')} | grep " $f\\$" | sha256sum -c - && ${install} $f`,
     }]
   }
   if (platform === 'linux') {
@@ -62,7 +63,7 @@ export function osquerySteps(platform: Platform, serverUrl: string, token: strin
   return [
     ...packages.filter((p) => p.format === 'msi').slice(0, 1).map((p) => ({
       key: 'install', file: 'PowerShell (Administrator)',
-      code: `$f = "$env:TEMP\\${p.file}"\ncurl.exe -fSLk ${mirror}/${p.file} -o $f\nif ((Get-FileHash $f -Algorithm SHA256).Hash -ieq '${p.sha256}') { Start-Process msiexec.exe -Wait -ArgumentList "/i \`"$f\`" /qn /norestart" } else { throw 'Checksum mismatch: do not install this file' }`,
+      code: `$f = "$env:TEMP\\${p.file}"\ncurl.exe -fSLk ${mirror}/${p.file} -o $f\nif ((Get-FileHash $f -Algorithm SHA256).Hash -ieq '${p.sha256}') { $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList "/i \`"$f\`" /qn /norestart"; if ($p.ExitCode -notin 0, 3010) { throw "msiexec failed with exit code $($p.ExitCode)" } } else { throw 'Checksum mismatch: do not install this file' }`,
     })),
     { key: 'secret', file: 'PowerShell (Administrator)', code: `Set-Content -Path "${dir}\\enroll.secret" -Value '${token}' -NoNewline -Encoding ascii\ncurl.exe -fsSk ${serverUrl}/api/v1/intake/ca.pem -o "${dir}\\vedette-ca.pem"\ncertutil -dump "${dir}\\vedette-ca.pem"` },
     { key: 'flags', file: `${dir}\\osquery.flags`, code: `--config_plugin=tls\n--logger_plugin=tls\n--host_identifier=hostname\n--enroll_secret_path=${dir}\\enroll.secret\n--tls_server_certs=${dir}\\vedette-ca.pem\n--tls_hostname=${host}\n--enroll_tls_endpoint=/api/v1/intake/osquery/enroll\n--config_tls_endpoint=/api/v1/intake/osquery/config\n--logger_tls_endpoint=/api/v1/intake/osquery/log` },

@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"io"
 	"time"
 
@@ -69,3 +70,6 @@ var ErrUnitUnsafe = errUnitUnsafe
 
 // ErrWriteBusy is what a Locker answers while a command holds the write lock.
 var ErrWriteBusy = server.ErrWriteBusy
+
+// DockerFwdTick runs one look at the Docker forward rules (D-267).
+func (o *Ops) DockerFwdTick(ctx context.Context) { o.dockerFwdTick(ctx) }

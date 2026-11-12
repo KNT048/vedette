@@ -593,6 +593,69 @@ func (q *Queries) PruneEmailCodeSends(ctx context.Context, arg PruneEmailCodeSen
 	return err
 }
 
+const pruneEmailCodes = `-- name: PruneEmailCodes :execrows
+DELETE FROM core_email_code WHERE expires_at < ?
+`
+
+func (q *Queries) PruneEmailCodes(ctx context.Context, expiresAt string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, pruneEmailCodes, expiresAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const pruneOldEmailCodeSends = `-- name: PruneOldEmailCodeSends :execrows
+DELETE FROM core_email_code_send WHERE sent_at < ?
+`
+
+func (q *Queries) PruneOldEmailCodeSends(ctx context.Context, sentAt string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, pruneOldEmailCodeSends, sentAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const prunePendingTotp = `-- name: PrunePendingTotp :many
+DELETE FROM core_user_totp WHERE confirmed = 0 AND created_at < ? RETURNING secret_id
+`
+
+func (q *Queries) PrunePendingTotp(ctx context.Context, createdAt string) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, prunePendingTotp, createdAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var secret_id string
+		if err := rows.Scan(&secret_id); err != nil {
+			return nil, err
+		}
+		items = append(items, secret_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pruneSessions = `-- name: PruneSessions :execrows
+DELETE FROM core_session WHERE expires_at < ?1 OR revoked_at < ?1 OR last_seen < ?1
+`
+
+func (q *Queries) PruneSessions(ctx context.Context, cutoff string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, pruneSessions, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const rehashUserPassword = `-- name: RehashUserPassword :execrows
 UPDATE core_user SET password_hash = ? WHERE id = ? AND cred_version = ?
 `

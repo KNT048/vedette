@@ -146,3 +146,15 @@ SELECT chain, last_hash, count, updated_at FROM core_chain_head WHERE chain = ?;
 INSERT INTO core_chain_head (chain, last_hash, count, updated_at)
 VALUES (?, ?, 1, ?)
 ON CONFLICT (chain) DO UPDATE SET last_hash = excluded.last_hash, count = core_chain_head.count + 1, updated_at = excluded.updated_at;
+
+-- name: PruneSessions :execrows
+DELETE FROM core_session WHERE expires_at < sqlc.arg(cutoff) OR revoked_at < sqlc.arg(cutoff) OR last_seen < sqlc.arg(cutoff);
+
+-- name: PrunePendingTotp :many
+DELETE FROM core_user_totp WHERE confirmed = 0 AND created_at < ? RETURNING secret_id;
+
+-- name: PruneEmailCodes :execrows
+DELETE FROM core_email_code WHERE expires_at < ?;
+
+-- name: PruneOldEmailCodeSends :execrows
+DELETE FROM core_email_code_send WHERE sent_at < ?;

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { useGeneral, useSaveGeneral } from './api'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
-import { browserTimeZone, TIMEZONES } from './util'
+import { browserTimeZone, TIMEZONES, validTimeZone } from './util'
 import type { GeneralSettings } from './types'
 
 function Form({ initial }: { initial: GeneralSettings }) {
@@ -23,7 +23,7 @@ function Form({ initial }: { initial: GeneralSettings }) {
     e.preventDefault()
     setError(null)
     if (v.name.trim().length < 2) { setError(t('general.nameError')); return }
-    if (!TIMEZONES.includes(v.timezone)) { setTzError(t('general.timezoneError')); return }
+    if (!validTimeZone(v.timezone)) { setTzError(t('general.timezoneError')); return }
     setTzError(null)
     try {
       await save.mutateAsync({ ...v, name: v.name.trim() })

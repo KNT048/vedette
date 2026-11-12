@@ -109,15 +109,15 @@ describe('Settings, AI assistant tabs', () => {
     expect(await screen.findByText('Masked')).toBeInTheDocument()
     await waitFor(() => expect(screen.getByText(/mail me at \[masked\]/)).toBeInTheDocument())
   })
-  it('knowledge tab warns when the index profile is a cloud profile', async () => {
+  it('knowledge tab says that building the index sends nothing to the cloud profile that is chosen', async () => {
     renderAt('/settings/ai?tab=knowledge')
-    const sel = await screen.findByLabelText('AI profile that builds the index')
+    const sel = await screen.findByLabelText('AI profile for the index')
     await userEvent.selectOptions(sel, 'p-haiku')
-    expect(await screen.findByText(/leaves your network and goes to api\.anthropic\.com/)).toBeInTheDocument()
+    expect(await screen.findByText(/Building the index sends nothing to api\.anthropic\.com/)).toBeInTheDocument()
   })
   it('knowledge tab: a PDF is picked and uploaded; another type is refused on the page (S-AI-7, INV-10)', async () => {
     renderAt('/settings/ai?tab=knowledge')
-    await userEvent.selectOptions(await screen.findByLabelText('AI profile that builds the index'), 'p-haiku')
+    await userEvent.selectOptions(await screen.findByLabelText('AI profile for the index'), 'p-haiku')
     await waitFor(() => expect(screen.getByRole('button', { name: 'Upload document' })).toBeEnabled())
     const input = screen.getByTestId('kb-file')
     await userEvent.upload(input, new File(['%PDF-1.4\n%fake but named right\n'], 'runbook.pdf', { type: 'application/pdf' }), { applyAccept: false })

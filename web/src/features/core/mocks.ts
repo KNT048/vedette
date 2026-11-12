@@ -696,12 +696,6 @@ function telemetryPayload() {
   }
 }
 
-/** Flow 10: time requests leave the LAN unless every NTP server is an internal address. Host names count as public (cannot tell from here). */
-function ntpPublic() {
-  const n = networkStore.get().ntp
-  return n.mode === 'default' || n.servers.some((x) => !isPrivateCidr(`${x}/32`))
-}
-
 function privacyView() {
   const p = privacyStore.get()
   const ai = aiConfigStore.get().configured && isOn('ai')
@@ -715,7 +709,7 @@ function privacyView() {
     { id: 7, state: 'conditional', control: 'reason' },
     { id: 8, state: isOn('ai') ? 'conditional' : 'off', control: 'reason' },
     { id: 9, state: isOn('exposure') ? 'on' : 'off', control: 'reason' },
-    { id: 10, state: ntpPublic() ? 'on' : 'off', control: 'reason' },
+    { id: 10, state: 'on', control: 'reason' }, // always on (D-166 (4)): the distribution's own chrony sources stay whatever is entered; the real backend answers true too
     { id: 11, state: isOn('auth-oidc') && !!oidcStore.get().issuer ? 'conditional' : 'off', control: 'reason' },
     { id: 12, state: connectorsStore.get().some((c) => c.enabled && c.kind !== 'mcp-stdio') ? 'on' : 'off', control: 'reason' },
     { id: 13, state: isOn('mcp-server') ? 'conditional' : 'off', control: 'reason' },

@@ -104,4 +104,12 @@ export async function seed(over: { cve?: string; ip?: string } = {}): Promise<Se
   } finally { await admin.dispose() }
 }
 
+/** Gives a made-up CVE (CVE-2099-*) a confirmed mitigation pack, through the control route of the box (cmd/vedette/e2epack_test.go): the box cannot
+ *  load a signed pack (the release key is offline), so the pack of content/mitigation/testdata is written into its database as a developer seed. */
+export async function seedPack(cve: string) {
+  const b = box()
+  const r = await fetch(`${b.control}/packs/seed`, { method: 'POST', headers: { Authorization: `Bearer ${b.control_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ cve }) })
+  expect(r.status, `pack seed for ${cve}: ${await r.text()}`).toBe(204)
+}
+
 export const finding = async (c: APIRequestContext, id: string) => api<Detail>(c, 'GET', `/findings/${id}`)

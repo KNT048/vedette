@@ -232,7 +232,7 @@ Phát hiện (finding) thuộc module `findings` (D-57(6), bảng `fnd_*`); `mit
 | `resolution_note` | text | có | ≤ 500 ký tự (`note_too_long`); bắt buộc ≥ 3 ký tự với `false_positive`/`not_relevant` (`note_required`) |
 
 UQ `(asset_id, cve)`. IX `(status)`, `(cve)`, `(asset_id, status)`. CHECK nhất quán: `status <> 'confirmed' OR (basis = 'scan' AND evidence IS NOT NULL)` (INV-2 của `findings`). Giữ: mãi (cùng thiết bị). R `GET /findings`, `/findings/{id}`, `/inventory/devices/{id}`, báo cáo, notify; W `POST /findings/{id}/status\|applied`, bộ khớp và `scan` (qua sự kiện).
-**`fnd_finding_history`** (`Finding.history[]`): `id:id` · `finding_id:id` FK→fnd_finding CASCADE · `ts:ts` · `user:text` (email hoặc `system`) · `action:text` (`created`, `confirmed`, `rescanned`, `rescan_clear`, `reopened`, `patched`, `mitigated`, `false_positive`, `not_relevant`) · `note:text?`; IX(finding_id, ts). Chỉ thêm, không sửa. Giữ: cùng finding.
+**`fnd_finding_history`** (`Finding.history[]`): `id:id` · `finding_id:id` FK→fnd_finding CASCADE · `ts:ts` · `user:text` (email hoặc `system`) · `action:text` (`created`, `confirmed`, `rescanned`, `rescan_clear`, `no_longer_matches`, `matches_again`, `reopened`, `patched`, `mitigated`, `false_positive`, `not_relevant`) · `note:text?`; IX(finding_id, ts). Chỉ thêm, không sửa. Giữ: cùng finding.
 **`mit_applied`** (`AppliedEntry`; mục "Đã áp dụng", INV-4): `finding_id:id` FK→fnd_finding CASCADE · `item:enum(patch\|workaround\|fortigate\|mikrotik\|generic)` · `ts:ts` · `user:text`; PK(finding_id, item) (mỗi item một lần). Không đổi `status`. R `GET /findings/{id}`; W `POST /findings/{id}/applied`.
 
 | Bảng (mock) | Cột | Khoá / index | Giữ | R / W |

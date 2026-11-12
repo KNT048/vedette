@@ -9,6 +9,7 @@
 #     the real client (a client user name with `|` in it cannot forge another source);
 #   * `/vedette honeypot healthcheck` (the unit's HealthCmd) passes;
 #   * every process is uid 1000 gid 0 with all five capability sets empty and NoNewPrivs; config/ is read-only, the root is read-only, log/ is writable;
+#   * a stop (SIGTERM) ends init.py with exit 0 in under 8 s and no traceback;
 #   * no GPL Python package is in the image (hpfeeds is a stub).
 # Runs rootless podman (CONTAINER=podman) with the unit's flags (host/ops/quadlet.go honeypotUnitText): read-only root, tmpfs /tmp, all capabilities
 # dropped, no-new-privileges, the log volume with :U. What a rootless run cannot show (UserNS=auto, the macvlan namespace, packet capture) is in
@@ -256,6 +257,18 @@ echo "$res" | grep -q '^ENOSPC after 6[0-9] MiB$' || fail "writing past the 64 M
 echo "$res" | grep -q '^files: ENOSPC after ' || fail "creating files past nr_inodes did not end in ENOSPC: $res"
 if $c run --rm --user 10001:10002 --entrypoint /usr/bin/python3 -v "$vol:/var/lib/vedette/honeypot/log:ro,noexec" "$img" -I -c 'open("/var/lib/vedette/honeypot/log/x", "w")' 2>/dev/null; then fail "log/ is writable through the read-only mount"; fi
 ok "log/ is a tmpfs capped at 64 MiB and 1024 files: past the cap the container gets ENOSPC; the :ro reader (uid 10001) sees the log and cannot write"
+
+# 5c. a normal stop (SIGTERM, what the unit's stop sends) ends init.py with exit 0 well within podman's 10 s and without a traceback, so the
+# unit ends inactive, not failed. A rootless run has no AppArmor: the refused signal of Ubuntu 24.04 is covered by TestHoneypotInitStops*.
+t0=$(date +%s)
+$c stop -t 10 "$name" >/dev/null
+took=$(($(date +%s) - t0))
+code=$($c inspect -f '{{.State.ExitCode}}' "$name")
+[ "$code" = 0 ] || fail "init.py exited $code on SIGTERM, want 0"
+[ "$took" -lt 8 ] || fail "the stop took $took s (init.py gives its children at most 5 s; podman kills at 10 s)"
+$c logs "$name" 2>&1 | grep -q 'vedette-hp: stopped on signal 15' || fail "init.py did not report its stop"
+if $c logs "$name" 2>&1 | grep -q 'Traceback'; then fail "a traceback on stop"; fi
+ok "a stop (SIGTERM) ends init.py with exit 0 in $took s"
 
 # 6. size and contents
 $c image inspect "$img" --format 'honeypot image: {{.Size}} bytes, user {{.Config.User}}, arch {{.Architecture}}'

@@ -21,6 +21,7 @@ import (
 	"github.com/knt048/vedette/core/pki"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/internal/release"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	"github.com/knt048/vedette/modules/ai"
 	authoidc "github.com/knt048/vedette/modules/auth-oidc"
@@ -97,9 +98,15 @@ type deps struct {
 	Findings           *findings.Service
 	FindingHandlers    *findings.FindingHandlers // also carries mitigation's guidance (SetGuidance) and is mitigation's Details
 	MitigationHandlers *mitigation.ActionHandlers
-	Honeypot           *honeypot.Service      // the run job, the HTTP handler and the inventory subscription share it
-	HoneypotDir        string                 // shared volume with the honeypot container (-honeypot-dir); empty = no container wired
-	SensorPassive      *sensorpassive.Service // the sensor link and the HTTP handler share it: the SPAN measurement lives in its memory
+	Honeypot           *honeypot.Service // the run job, the HTTP handler and the inventory subscription share it
+	HoneypotDir        string            // shared volume with the honeypot container (-honeypot-dir); empty = no container wired
+	// PackDir is the directory of the signed confirmed mitigation packs shipped in the core image (D-345); "" = defaultPackDir.
+	// PackTrust gives the release keys that sign them; nil = release.Embedded (tests pass throwaway keys).
+	PackDir   string
+	PackTrust func() (release.Trust, error)
+	// PackLoader loads them into mitigation (the job load-packs). Set by buildServices.
+	PackLoader    *mitigation.Loader
+	SensorPassive *sensorpassive.Service // the sensor link and the HTTP handler share it: the SPAN measurement lives in its memory
 	// SensorDispatcher is the Prober of sensor-active and the active half of the sensor link's Backend (D-113): one instance, so the
 	// job the service queues is the job the worker polls. Authority and SensorCreds exist only when -sensor-listen is set (D-141).
 	SensorDispatcher *sensoractive.Dispatcher
@@ -134,7 +141,7 @@ func wiredModules() []moduleWiring {
 		{ID: "sensor-active", Migrations: sensoractive.Migrations, Jobs: sensorActiveJobs},
 		{ID: "honeypot", Migrations: honeypot.Migrations, Jobs: honeypotJobs, EnsureOff: honeypotEnsureOff},
 		{ID: "findings", Migrations: findings.Migrations, Jobs: findingsJobs},
-		{ID: "mitigation", Migrations: mitigation.Migrations},
+		{ID: "mitigation", Migrations: mitigation.Migrations, Jobs: mitigationJobs},
 		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},
 		{ID: "sensor-passive", Migrations: sensorpassive.Migrations},                   // no capture job: packets are read in the sensor container only (D-141)
 		{ID: "response", Migrations: response.Migrations, Jobs: responseJobs},          // after notify and inventory (manifest depends)

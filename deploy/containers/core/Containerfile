@@ -5,20 +5,26 @@ ARG GOLANG_IMAGE
 ARG DISTROLESS_IMAGE
 
 # Multi-arch (D-158): this stage runs on the BUILD machine and cross-compiles; the final stage has no RUN, so no CPU emulation is needed.
-# MIN_SEQUENCE is not passed: this binary does not link internal/release (a test keeps that true).
+# MIN_SEQUENCE: core links internal/release for the signed mitigation packs (D-347), so it takes the index sequence floor like vedette-host.
 FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS build
 ARG VERSION
+ARG MIN_SEQUENCE
 ARG TARGETOS
 ARG TARGETARCH
 WORKDIR /src
 COPY . .
 RUN set -eu; \
     printf '%s' "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "VERSION must be SemVer without v, got '${VERSION}'" >&2; exit 1; }; \
+    printf '%s' "${MIN_SEQUENCE}" | grep -Eq '^(0|[1-9][0-9]{0,17})$' || { echo "MIN_SEQUENCE must be a plain decimal number, got '${MIN_SEQUENCE}'" >&2; exit 1; }; \
     test -s internal/webui/dist/index.html || { echo "internal/webui/dist/index.html is missing: run make core-image (it runs make webui-dist first)" >&2; exit 1; }; \
     if [ -e internal/webui/dist/mockServiceWorker.js ] || grep -rqE '\[MSW\]|mswjs' internal/webui/dist; then echo "internal/webui/dist holds the mock layer (MSW): build it with make webui-dist (VITE_API_MOCK=off)" >&2; exit 1; fi; \
     GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
-    go build -tags webui -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette ./cmd/vedette
+    go build -tags webui -trimpath -ldflags "-s -w -X main.version=${VERSION} -X github.com/knt048/vedette/internal/release.MinSequenceText=${MIN_SEQUENCE}" -o /out/vedette ./cmd/vedette
 RUN mkdir -p -m 0750 /out/dirs/var/lib/vedette /out/dirs/var/lib/vedette-creds/passive /out/dirs/var/lib/vedette-creds/active
+# The signed confirmed mitigation packs (D-345): the regular files of content/mitigation/packs, hidden ones left out (a Finder .DS_Store
+# would make the box refuse the folder), modes set here and not by COPY --chmod (podman applies it to folders too, scan-base).
+RUN set -eu; install -d -m 0755 /out/content/mitigation; \
+    find content/mitigation/packs -maxdepth 1 -type f ! -name '.*' -exec install -m 0644 {} /out/content/mitigation/ \;
 
 FROM ${DISTROLESS_IMAGE}
 ARG VERSION
@@ -32,5 +38,8 @@ COPY --from=build /out/vedette /vedette
 # /var/lib (root-owned in distroless) to 65532 (BuildKit and buildah both overwrite the owner of existing parents).
 COPY --from=build --chown=65532:65532 --chmod=0750 /out/dirs/var/lib/vedette/ /var/lib/vedette/
 COPY --from=build --chown=65532:65532 --chmod=0750 /out/dirs/var/lib/vedette-creds/ /var/lib/vedette-creds/
+# The confirmed mitigation packs of this release, signed with the release minisign key (D-345, `make release-packs`); owned by root
+# and read-only for core, which loads them only when the signature holds (job mitigation/load-packs). Modes come from the build stage.
+COPY --from=build /out/content/mitigation/ /opt/vedette/content/mitigation/
 USER 65532:65532
 ENTRYPOINT ["/vedette"]

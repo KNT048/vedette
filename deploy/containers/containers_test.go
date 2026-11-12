@@ -270,11 +270,11 @@ func TestPublishedImagesBuildWithoutEmulation(t *testing.T) {
 	}
 }
 
-// The index sequence floor goes only where internal/release is linked. Core does not link it; if that changes, core must take
-// MIN_SEQUENCE too (Containerfile, Makefile) and this test is updated with it.
+// The index sequence floor goes only where internal/release is linked: vedette-host, and core since D-347 (the signed mitigation
+// packs), which takes MIN_SEQUENCE too (Containerfile, Makefile core-image and images, compose). The sensor does not link it.
 func TestOnlyHostLinksTheReleasePackage(t *testing.T) {
 	t.Parallel()
-	for bin, want := range map[string]bool{"vedette": false, "vedette-sensor": false, "vedette-host": true} {
+	for bin, want := range map[string]bool{"vedette": true, "vedette-sensor": false, "vedette-host": true} {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "go", "list", "-deps", "./cmd/"+bin) //nolint:gosec // test: fixed argv
@@ -285,7 +285,7 @@ func TestOnlyHostLinksTheReleasePackage(t *testing.T) {
 			t.Fatalf("go list %s: %v", bin, err)
 		}
 		if got := strings.Contains(string(out), "\ngithub.com/knt048/vedette/internal/release\n"); got != want {
-			t.Errorf("%s links internal/release = %v, want %v: the Makefile and the Containerfiles pass MIN_SEQUENCE to vedette-host only", bin, got, want)
+			t.Errorf("%s links internal/release = %v, want %v: the Makefile and the Containerfiles pass MIN_SEQUENCE to vedette-host and core only", bin, got, want)
 		}
 	}
 }
@@ -309,6 +309,22 @@ func TestMinSequenceFlag(t *testing.T) {
 	for _, good := range []string{"0", "7", "1234567890123456"} {
 		if out, err := run("check-min-sequence", "MIN_SEQUENCE="+good); err != nil {
 			t.Errorf("MIN_SEQUENCE=%q was refused: %v %s", good, err, out)
+		}
+	}
+	// core links internal/release too (D-347): both image targets hand the floor to its build, the other images get none
+	for _, target := range []string{"core-image", "images"} {
+		out, err := run("-n", target, "MIN_SEQUENCE=7")
+		if err != nil {
+			t.Fatal(target, err, out)
+		}
+		for _, line := range strings.FieldsFunc(out, func(r rune) bool { return r == '\n' || r == '&' }) { // images: one recipe line, builds joined by &&
+			core := strings.Contains(line, "deploy/containers/core/Containerfile")
+			if has := strings.Contains(line, "--build-arg MIN_SEQUENCE=7"); core != has && (core || strings.Contains(line, "/Containerfile")) {
+				t.Errorf("make %s: MIN_SEQUENCE on a build line: core=%v has=%v: %s", target, core, has, line)
+			}
+		}
+		if !strings.Contains(out, "core/Containerfile") || !strings.Contains(out, "--build-arg MIN_SEQUENCE=7") {
+			t.Errorf("make %s does not pass MIN_SEQUENCE to the core build:\n%s", target, out)
 		}
 	}
 	out, err := run("-n", "host-deb", "VERSION=1.2.3", "MIN_SEQUENCE=7")

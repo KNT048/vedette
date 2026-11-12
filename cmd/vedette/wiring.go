@@ -296,6 +296,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.MitigationHandlers, err = mitigation.NewActionHandlers(d.DB, d.Audit, d.Findings, d.FindingHandlers, aiDoor, d.Clock); err != nil {
 		return err
 	}
+	d.PackLoader = mitigation.NewLoader(d.DB, d.Audit, packVerifier{trust: d.PackTrust}, d.Log, d.Clock)
 	if d.Response, err = newResponse(d); err != nil { //nolint:contextcheck // response's BoxAddrs port has no context: it reads the decoys with its own short budget
 		return fmt.Errorf("response: %w", err)
 	}

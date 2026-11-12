@@ -80,7 +80,7 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 **S-MIT-3** (P2) `[đạt]` — "Tôi đã bị chưa?": dấu hiệu khai thác (log pattern, file, process) + câu lệnh kiểm tra.
 **S-MIT-4** (người duy trì dự án) `[đạt]` (D-21) — Có KEV mới ảnh hưởng thiết bị phổ biến ở SMB VN, tôi muốn có gói giảm thiểu đáng tin cho mọi hộp mà không viết tay từ đầu.
 - Kích hoạt: danh sách CVE chưa có gói, xếp theo `hot_score`. Thấy: công cụ soạn (`vedette-author`) dùng AI với key của dự án, chỉ trên dữ liệu công khai (KEV, cvelist, advisory hãng), ra bản nháp theo schema gói giảm thiểu, mỗi ý có nguồn. Bấm: sửa, ghi tên người xác nhận, mở PR lên GitHub. Nhận: sau khi merge, gói vào content pack ký và hiện "Vedette đã xác nhận" trên hộp khách trong chu kỳ content pack kế tiếp.
-- Chấp nhận: không có PR được CODEOWNERS duyệt → không vào content pack; builder từ chối gói `status` khác `confirmed`; mỗi gói ghi `drafted_with` (model), `confirmed_by`, `confirmed_at`, nguồn; đoạn cấu hình có tác dụng phụ và bước kiểm tra; công cụ không đọc dữ liệu khách nào.
+- Chấp nhận: không có PR được CODEOWNERS duyệt → không vào content pack; builder từ chối gói `status` khác `confirmed`; mỗi gói ghi `drafted_with` (model), `confirmed_by`, `confirmed_at`, nguồn; đoạn cấu hình có tác dụng phụ và bước kiểm tra; công cụ không đọc dữ liệu khách nào. **Tiêu chí gói ký (D-345..D-349):** gói xác nhận nằm trong `content/mitigation/packs` và đi cùng bản cập nhật phần mềm ký (image `core`, D-36); `make release-packs` từ chối gói hộp sẽ không nạp, ký danh sách (phiên bản + SHA-256 + tên mọi tệp) bằng khoá minisign phát hành; hộp chỉ nạp khi chữ ký đúng và phiên bản mới hơn, đổi một byte, thêm/bớt/đổi tên tệp hay đổi phiên bản đều bị từ chối, không đổi gì.
 
 ## HP — Honeypot nội bộ
 

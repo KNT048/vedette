@@ -8,7 +8,8 @@
     "week_one": "Traps were hit {{count}} time in 7 days, last {{when}} from {{src}}",
     "week_other": "Traps were hit {{count}} times in 7 days, last {{when}} from {{src}}",
     "quiet": "No trap was hit in the last 7 days",
-    "failed": "A trap is on, but the box could not set up the decoy. Nothing is listening."
+    "failed": "A trap is on, but the box could not set up the decoy",
+    "starting": "Traps are starting. Nothing is listening yet."
   },
   "meta": "Updated {{time}}. Traps only listen and log. They do not block or hit back.",
   "needAdmin": "Only administrators can change the secondary IP or switch traps. Operators can still view and test traps.",
@@ -24,7 +25,8 @@
     "ipHint": "An unused address inside {{lan}}. Vedette rejects an address that matches a device in the inventory. To remove the decoy IP, turn all traps off, empty this field and save.",
     "mac": "The box gave this address the MAC address {{mac}}.",
     "removed": "Decoy IP removed",
-    "problem": "The box could not set up the decoy: {{reason}}.",
+    "problemTitle": "The decoy is not up",
+    "problem": "Reason from the box: {{reason}}.",
     "hostname": "Fake hostname",
     "hostnameHint": "Pick a name that looks like a real server, such as FILESRV-OLD. Up to 15 characters.",
     "saved": "Decoy saved"

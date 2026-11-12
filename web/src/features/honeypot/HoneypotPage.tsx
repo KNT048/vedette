@@ -50,6 +50,7 @@ function HoneypotBody() {
   const title = !o ? t('titleLoading')
     : !o.traps.some((x) => x.enabled) ? t('title.noTraps')
     : o.problem ? t('title.failed')
+    : !o.traps.some((x) => x.state === 'listening') && o.traps.some((x) => x.state === 'starting') ? t('title.starting')
     : o.summary.today > 0 ? t('title.today', { count: o.summary.today })
     : o.summary.week > 0 ? t('title.week', { count: o.summary.week, when: fmtRelative(o.summary.last_hit_at), src: o.summary.last_src ?? '' })
     : t('title.quiet')
@@ -68,7 +69,7 @@ function HoneypotBody() {
             ) : null}
             {data.problem ? (
               <div role="alert" className="mb-6 rounded-md border border-danger/40 bg-danger-soft px-4 py-3 text-sm">
-                <p className="font-medium text-danger">{t('title.failed')}</p>
+                <p className="font-medium text-danger">{t('decoy.problemTitle')}</p>
                 <p className="mt-1">{t('decoy.problem', { reason: data.problem.replace(/[.\s]+$/, '') })}</p>
               </div>
             ) : null}

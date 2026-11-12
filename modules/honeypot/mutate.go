@@ -1,6 +1,7 @@
 package honeypot
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -180,6 +181,13 @@ func (s *Service) SetTrap(ctx context.Context, actor string, svc ServiceName, en
 	}
 	err = s.db.Write(ctx, func(tx *sql.Tx) error {
 		if enabled {
+			var cur configRow // checked where the write is: the decoy IP may have been removed since the read above (INV-6, INV-21)
+			if err := loadJSON(ctx, tx, "config", &cur); err != nil {
+				return err
+			}
+			if !cur.has() {
+				return conflictErr("no_secondary_ip", "Set a secondary IP for the traps before turning one on.")
+			}
 			_, err := tx.ExecContext(ctx, `UPDATE hp_trap SET enabled = 1, since = coalesce(since, ?) WHERE service = ?`, store.FormatTS(s.now()), string(svc))
 			if err != nil {
 				return fmt.Errorf("honeypot: turn trap on: %w", err)
@@ -303,6 +311,8 @@ func (w *world) withState(d decoyRow, hv hostView) Decoy {
 	for _, t := range w.traps {
 		anyTrap = anyTrap || t.enabled
 	}
+	secWhy, secFault := hv.conflicts[w.secIP], hv.hostFailed[w.secIP]
+	secProblem := w.secIP.IsValid() && w.ipProblem(w.secIP) != ""
 	switch why, hostFault := hv.conflicts[d.ip], hv.hostFailed[d.ip]; {
 	case !d.Enabled:
 		if hv.pending && hv.placed[d.ip] {
@@ -310,7 +320,16 @@ func (w *world) withState(d decoyRow, hv hostView) Decoy {
 		}
 		return set(StateOff, "")
 	case !anyTrap:
+		if hv.pending && hv.placed[d.ip] { // the last trap was just turned off: the host still holds the address
+			return set(StateStopping, "")
+		}
 		return set(StateOff, "No trap is on, so nothing listens on this address.")
+	case !w.secIP.IsValid():
+		return set(StateOff, "No decoy IP is set, so no trap listens.")
+	case secProblem || (secWhy != "" && !secFault):
+		return set(StateConflict, "The decoy IP cannot be used, so no trap listens: "+cmp.Or(w.ipProblem(w.secIP), secWhy))
+	case secWhy != "":
+		return set(StateFailed, "The box could not set up the decoy IP: "+secWhy)
 	case w.ipProblem(d.ip) != "":
 		return set(StateConflict, w.ipProblem(d.ip))
 	case why != "" && hostFault:

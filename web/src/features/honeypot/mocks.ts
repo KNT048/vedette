@@ -11,10 +11,10 @@ const PORTS: Record<HpService, number> = { smb: 445, rdp: 3389, ssh: 22, mssql: 
 const LABEL: Record<HpService, string> = { smb: 'SMB', rdp: 'RDP', ssh: 'SSH', mssql: 'MSSQL', http: 'HTTP' }
 const WINDOW_MINUTES = 60
 
-interface Config { secondary_ip: string | null; hostname: string; traps: Record<HpService, { enabled: boolean; since: string | null }>; ignored_7d: number }
+interface Config { secondary_ip: string | null; hostname: string; traps: Record<HpService, { enabled: boolean; since: string | null }>; ignored_7d: number; settle?: Partial<Record<HpService, { kind: 'starting' | 'stopping'; until: number }>> }
 // kind, source_ip, label, token_id: S-HP-2. Rows written before S-HP-2 lack them, so every read falls back (kind = service).
 interface Stored { id: string; ts: string; kind?: HitKind; service: HpService | null; label?: string; token_id?: string; port: number | null; src_ip: string; source_ip?: string; src_asset_id: string | null; is_test: boolean; excerpt: string; events: HitEvent[]; trap_ip: string; trap_hostname: string; seed?: { srcName: string | null; lan: [string, string] } }
-interface StoredDecoy { id: string; personality: Personality; name: string; ip: string; enabled: boolean; created_at: string }
+interface StoredDecoy { id: string; personality: Personality; name: string; ip: string; enabled: boolean; created_at: string; fail?: string }
 type StoredToken = Omit<Token, 'last_triggered_at' | 'triggers'>
 
 const SESSION: Record<HpService, { first: string; excerpt: string }> = {
@@ -84,6 +84,8 @@ const hitsStore = collection<Stored[]>('hp_hits', () => {
 const decoys = collection<StoredDecoy[]>('hp_decoys', () => [
   { id: 'dec-1', personality: 'nas', name: 'NAS-ARCHIVE', ip: '192.168.10.241', enabled: true, created_at: daysAgo(9) },
   { id: 'dec-2', personality: 'printer', name: 'PRN-FLOOR2', ip: '192.168.10.242', enabled: true, created_at: daysAgo(9) },
+  // One decoy the host could not set up, so the failed state can be walked on `make dev`.
+  { id: 'dec-3', personality: 'camera', name: 'CAM-DOCK', ip: '192.168.10.243', enabled: true, created_at: daysAgo(2), fail: 'the host could not do it' },
 ], () => [])
 
 const tokens = collection<StoredToken[]>('hp_tokens', () => [
@@ -113,9 +115,16 @@ const conflictAsset = (ip: string | null) => (ip ? assetsStore.get().find((a) =>
 const macOf = (ip: string) => `06:b7:36:${ip.split('.').slice(1).map((n) => Number(n).toString(16).padStart(2, '0')).join(':')}`
 function decoyView(d: StoredDecoy): Decoy {
   const anyTrap = Object.values(config.get().traps).some((t) => t.enabled)
-  const state: Decoy['state'] = !d.enabled || !anyTrap ? 'off' : conflictAsset(d.ip) ? 'conflict' : 'listening'
-  return { ...d, state, reason: d.enabled && !anyTrap ? 'No trap is on, so nothing listens on this address.' : state === 'conflict' ? 'A device of the inventory has this address' : null, mac: state === 'listening' ? macOf(d.ip) : null, services: personalityDef(d.personality).services }
+  const starting = HP_SERVICES.some((k) => settlingNow(k) === 'starting')
+  const state: Decoy['state'] = !d.enabled || !anyTrap ? 'off' : conflictAsset(d.ip) ? 'conflict' : d.fail ? 'failed' : starting ? 'starting' : 'listening'
+  const { fail, ...rest } = d
+  return { ...rest, state, reason: d.enabled && !anyTrap ? 'No trap is on, so nothing listens on this address.' : state === 'conflict' ? 'A device of the inventory has this address' : state === 'failed' ? fail ?? null : null, mac: state === 'listening' ? macOf(d.ip) : null, services: personalityDef(d.personality).services }
 }
+
+// The real box takes minutes to bring a trap up or down; the mock shows the same states for a few seconds after a switch (S-HP-1).
+const SETTLE_MS = 4000
+// Kept in the config row, so it resets with the store.
+const settlingNow = (service: HpService) => { const x = config.get().settle?.[service]; return x && x.until > Date.now() ? x.kind : undefined }
 
 const maskPassword = (pw: string) => '\u2022'.repeat(8) + (pw.length >= 8 ? pw.slice(-4) : '')
 
@@ -166,7 +175,7 @@ function overview(): HpOverview {
     const tr = c.traps[service]
     return {
       service, port: PORTS[service], enabled: tr.enabled, since: tr.since,
-      state: !tr.enabled ? 'off' : conflict ? 'conflict' : 'listening',
+      state: !tr.enabled ? (settlingNow(service) === 'stopping' ? 'stopping' : 'off') : conflict ? 'conflict' : settlingNow(service) === 'starting' ? 'starting' : 'listening',
       hits_7d: own.filter((h) => new Date(h.ts).getTime() >= weekAgo).length,
       last_hit_at: own[0]?.ts ?? null,
     }
@@ -230,7 +239,7 @@ export const handlers = [
       const clash = conflictAsset(c.secondary_ip)
       if (clash) return fail(409, 'ip_in_use', `The secondary IP ${c.secondary_ip} clashes with device ${assetName(clash)}. Change the secondary IP before turning a trap on.`)
     }
-    config.update((x) => ({ ...x, traps: { ...x.traps, [service]: { enabled: b.enabled!, since: b.enabled ? nowIso() : null } } }))
+    config.update((x) => ({ ...x, settle: { ...x.settle, [service]: { kind: b.enabled ? 'starting' : 'stopping', until: Date.now() + SETTLE_MS } }, traps: { ...x.traps, [service]: { enabled: b.enabled!, since: b.enabled ? nowIso() : null } } }))
     audit(b.enabled ? 'honeypot.trap_enable' : 'honeypot.trap_disable', LABEL[service])
     return HttpResponse.json(overview())
   }),

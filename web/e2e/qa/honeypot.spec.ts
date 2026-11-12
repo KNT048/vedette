@@ -75,7 +75,7 @@ test('sample: IP clash, hostname clash, hit timeline, device page panel, missing
   const errors = collectErrors(page)
   await sampleStart(page)
   await page.goto('/honeypot')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Traps were hit 2 times in 7 days/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Traps were hit 4 times in 7 days/)
   const devs = (await call(page, '/inventory/devices')).items as { ip: string; hostname: string | null }[]
   const named = devs.find((d) => d.hostname && d.ip.startsWith('192.168.10.'))!
   const ip = page.getByLabel('Trap secondary IP')

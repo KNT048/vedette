@@ -463,10 +463,10 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 	return out, nil
 }
 
-// reasonOrDefault is the sentence for a trap that is on but cannot listen when the host gave none.
+// reasonOrDefault is the reason shown for a trap that is on but cannot listen when the host gave none.
 func reasonOrDefault(r string) string {
 	if r == "" {
-		return "the box could not set up the decoy"
+		return "the host gave no reason"
 	}
 	return r
 }

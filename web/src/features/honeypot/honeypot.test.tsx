@@ -42,7 +42,7 @@ describe('honeypot: main page (S-HP-1)', () => {
     expect(sw).not.toBeDisabled()
     await userEvent.click(sw)
     expect(await screen.findByText('MSSQL (SQL Server) trap is on')).toBeInTheDocument()
-    await waitFor(() => expect(within(trapRow(/MSSQL/)).getByText('Listening')).toBeInTheDocument())
+    await waitFor(() => expect(within(trapRow(/MSSQL/)).getByText('Starting')).toBeInTheDocument())
     expect(auditStore.get().some((a) => a.action === 'honeypot.trap_enable')).toBe(true)
   })
 
@@ -124,8 +124,8 @@ describe('honeypot: what the box reports (S-HP-1)', () => {
   it('a trap that is on but could not be set up shows an error with the host reason, not "Off" and not "No trap was hit"', async () => {
     server.use(http.get('*/api/v1/honeypot', () => HttpResponse.json(overview('failed', 'the honeypot container did not start'))))
     renderApp('/honeypot')
-    expect(await screen.findByRole('heading', { level: 1, name: /the box could not set up the decoy/ })).toBeInTheDocument()
-    expect(screen.getByRole('alert')).toHaveTextContent('The box could not set up the decoy: the honeypot container did not start.')
+    expect(await screen.findByRole('heading', { level: 1, name: /A trap is on, but the box could not set up the decoy/ })).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Reason from the box: the honeypot container did not start.')
     expect(within(trapRow(/SSH/)).getByText('Error: not set up')).toBeInTheDocument()
     expect(screen.getByText(/The box gave this address the MAC address 06:b7:36:4f:54:67/)).toBeInTheDocument()
   })
@@ -135,6 +135,7 @@ describe('honeypot: what the box reports (S-HP-1)', () => {
     renderApp('/honeypot')
     await screen.findByRole('table', { name: 'Traps and their status' })
     expect(within(trapRow(/SSH/)).getByText('Starting')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Traps are starting. Nothing is listening yet.' })).toBeInTheDocument()
   })
 
   it('an extra decoy shows the state the host reports, with its reason and MAC, not its switch', async () => {

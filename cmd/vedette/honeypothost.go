@@ -395,6 +395,9 @@ type refusedError struct {
 }
 
 func (e refusedError) Error() string { return e.what + " (" + e.code + ")" }
+
+// UserReason is the plain sentence without the code: what the module shows beside the address (honeypot.userReason).
+func (e refusedError) UserReason() string { return e.what }
 func (e refusedError) Is(target error) bool {
 	return target == honeypot.ErrRefused || e.hostFault && target == honeypot.ErrHostFailed
 }

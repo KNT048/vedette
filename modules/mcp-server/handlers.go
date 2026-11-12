@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
@@ -78,7 +79,8 @@ func (h *McpHandlers) CoreGetCoreMcp(ctx context.Context) (*oas.CoreGetCoreMcpOK
 	if !listening {
 		msg := "The port is not open yet."
 		if lerr != nil {
-			msg = "The port " + bind.String() + " could not be opened: another program may hold it. Vedette tries again every 15 seconds."
+			// the port only: in a container the listen that failed is on the container's own address, not the host side in bind (D-395)
+			msg = "The port " + strconv.Itoa(int(bind.Port())) + " could not be opened: another program may hold it. Vedette tries again every 15 seconds."
 		}
 		why = &msg
 	}

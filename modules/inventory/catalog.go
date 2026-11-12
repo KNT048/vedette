@@ -309,12 +309,12 @@ func searchTerms(q string) []string {
 	return terms
 }
 
-func (c *Catalog) search(q string, limit int) ([]*catEntry, int) {
+func (c *Catalog) search(q string) ([]*catEntry, int) {
 	terms := searchTerms(q)
 	if len(terms) == 0 {
 		var out []*catEntry
 		for _, e := range c.entries {
-			if e.curated && len(out) < limit {
+			if e.curated && len(out) < MaxCatalogHits {
 				out = append(out, e)
 			}
 		}
@@ -336,8 +336,8 @@ func (c *Catalog) search(q string, limit int) ([]*catEntry, int) {
 		}
 		return hits[i].e.order < hits[j].e.order
 	})
-	out := make([]*catEntry, 0, min(limit, len(hits)))
-	for _, h := range hits[:min(limit, len(hits))] {
+	out := make([]*catEntry, 0, min(MaxCatalogHits, len(hits)))
+	for _, h := range hits[:min(MaxCatalogHits, len(hits))] {
 		out = append(out, h.e)
 	}
 	return out, len(hits)
@@ -349,7 +349,7 @@ func (c *Catalog) Search(q string) CatalogResult {
 	if utf8.RuneCountInString(q) > 80 {
 		q = string([]rune(q)[:80])
 	}
-	list, total := c.search(q, MaxCatalogHits)
+	list, total := c.search(q)
 	res := CatalogResult{Items: make([]CatalogItem, 0, len(list)), Total: total}
 	for _, e := range list {
 		res.Items = append(res.Items, e.item())

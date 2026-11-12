@@ -20,6 +20,10 @@ const (
 	rebootStaleAt   = 5 * time.Minute // a schedule found this late after a host restart is dropped, not run
 	rebootRetryBusy = time.Minute
 	rebootGateTTL   = 10 * time.Minute // a started reboot that has not happened this long after is assumed not to be coming
+	// A started reboot that logind refuses because of a block inhibitor (apt running, D-453) is tried again
+	// this often, for this long, with the write gate raised again at every try; then it is given up.
+	rebootInhibitRetry = 30 * time.Second
+	rebootInhibitWait  = 30 * time.Minute
 )
 
 // rebootGate is set from the moment the host decides to reboot until the boot id changes: every
@@ -63,6 +67,9 @@ type rebootPending struct {
 	BootID    string    `json:"boot_id"`
 	StartedAt time.Time `json:"started_at"`
 	Kind      string    `json:"kind"` // "now" | "scheduled"
+	// Issued: systemctl reboot was accepted, so the box is going down (D-453). Until then the host may still be
+	// waiting for a shutdown lock, and a host start on the same boot finds a reboot that will not come.
+	Issued bool `json:"issued,omitempty"`
 }
 
 // rebootState is reboot.json: the one schedule, the reboots the host started in the last 24 hours,
@@ -147,7 +154,7 @@ func (o *Ops) cmdReboot() server.Command {
 			}
 			return nil
 		},
-		Check: func(_ context.Context, a api.OSRebootArgs) error {
+		Check: func(ctx context.Context, a api.OSRebootArgs) error {
 			if o.installing.Load() {
 				return refuse409(api.CodeInstallInProgress, "An operating system install is running; reboot after it ends.")
 			}
@@ -170,6 +177,16 @@ func (o *Ops) cmdReboot() server.Command {
 			o.rbMu.Unlock()
 			if n >= rebootNowLimit {
 				return refuse409(api.CodeRebootLimit, "The box already rebooted 3 times in the last 24 hours.")
+			}
+			// A block inhibitor (apt installing) refuses now (D-453). An unknown list does not (logged once):
+			// doReboot reads it again before systemctl reboot, and systemd 257 and later also refuse a locked
+			// reboot themselves (255 does not, for root).
+			bl, err := o.shutdownBlockers(ctx, inhibitReadCheck)
+			if err != nil {
+				return nil
+			}
+			if len(bl) > 0 {
+				return refuse409(api.CodeRebootInhibited, inhibitedMessage(bl))
 			}
 			return nil
 		},
@@ -233,6 +250,7 @@ func (o *Ops) setSchedule(at time.Time) error {
 	if err := o.saveRebootLocked(st); err != nil {
 		return err
 	}
+	o.rbWaitNoted = false // a new schedule audits its own wait for a shutdown lock
 	o.armRebootLocked(at)
 	return nil
 }
@@ -277,17 +295,84 @@ func (o *Ops) clearPending() {
 	}
 }
 
-// doReboot audits and runs systemctl reboot. It is the only place the host reboots the machine.
+// doReboot audits and runs systemctl reboot. It is the only place the host reboots the machine. It never
+// passes --check-inhibitors=no or --force (D-453): rebooting while dpkg configures can leave packages broken.
 func (o *Ops) doReboot(ctx context.Context, kind string) {
 	o.note("os.reboot", "reboot_started", map[string]any{"kind": kind})
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	_, code, err := o.exec(ctx, binSystemctl, "reboot")
-	if err != nil || code != 0 {
-		o.log.ErrorContext(ctx, "systemctl reboot failed", "kind", kind, "exit_code", code)
-		o.note("os.reboot", "reboot_failed", map[string]any{"kind": kind})
-		o.clearPending()
+	o.tryReboot(ctx, kind, o.d.Now().Add(rebootInhibitWait), false)
+}
+
+// tryReboot reads logind's list and, when no block inhibitor is held, runs systemctl reboot once. The read
+// comes first on every try because systemd 255 (Ubuntu 24.04) lets root reboot past a block lock of uid 0,
+// which APT's is: there the host's own read is the only guard (D-453). A lock in the list before the call, or
+// in the list read again after a failed call (systemd 257 and later refuse; systemctl's text is never parsed),
+// raises the write gate again and tries again in rebootInhibitRetry until deadline; the wait is audited once
+// (reboot_waiting_inhibitor). Any other failure, an unknown list after a failure, or the deadline:
+// reboot_failed with the reason, and the gate comes down. An unknown list before the call does not stop it.
+func (o *Ops) tryReboot(ctx context.Context, kind string, deadline time.Time, waitNoted bool) {
+	bl, lerr := o.shutdownBlockers(ctx, inhibitReadWait)
+	inhibited := lerr == nil && len(bl) > 0
+	code := 0
+	if !inhibited {
+		rctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		var err error
+		_, code, err = o.exec(rctx, binSystemctl, "reboot")
+		cancel()
+		if err == nil && code == 0 {
+			o.markIssued()
+			return
+		}
+		bl, lerr = o.shutdownBlockers(ctx, inhibitReadWait)
+		inhibited = lerr == nil && len(bl) > 0
 	}
+	if now := o.d.Now(); inhibited && now.Before(deadline) {
+		if !waitNoted {
+			o.log.WarnContext(ctx, "the reboot waits for a shutdown lock", "kind", kind, "who", bl[0].Who, "why", bl[0].Why)
+			o.note("os.reboot", "reboot_waiting_inhibitor", inhibitDetail(kind, bl))
+		}
+		o.raiseGate(now.UTC()) // keep refusing writes past the gate's 10 minutes while the reboot waits
+		o.rbMu.Lock()
+		if o.stopRetry != nil {
+			o.stopRetry() // the try that is running now (a fired timer; stopping it does nothing more)
+		}
+		o.stopRetry = o.d.AfterFunc(rebootInhibitRetry, func() {
+			if o.isClosed() {
+				return // the host is stopping; the next start drops the pending reboot (startReboot)
+			}
+			o.tryReboot(ctx, kind, deadline, true) // AfterFinish's context is never cancelled; the scheduled path's is Background
+		})
+		o.rbMu.Unlock()
+		return
+	}
+	reason := "systemctl_failed"
+	if inhibited {
+		reason = "inhibited"
+	}
+	o.log.ErrorContext(ctx, "systemctl reboot failed", "kind", kind, "exit_code", code, "reason", reason)
+	d := inhibitDetail(kind, bl)
+	d["reason"] = reason
+	o.note("os.reboot", "reboot_failed", d)
+	o.clearPending()
+}
+
+// markIssued records that systemctl reboot was accepted (rebootPending.Issued).
+func (o *Ops) markIssued() {
+	o.rbMu.Lock()
+	defer o.rbMu.Unlock()
+	st := o.loadRebootLocked()
+	if st.Pending == nil {
+		return
+	}
+	st.Pending.Issued = true
+	if err := o.saveRebootLocked(st); err != nil {
+		o.log.Error("could not record that the reboot was issued")
+	}
+}
+
+func (o *Ops) isClosed() bool {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.closed
 }
 
 // gateThenBusy raises the write gate and only then asks whether a command is running. The server
@@ -306,6 +391,14 @@ func (o *Ops) gateThenBusy() bool {
 
 // fireScheduled runs when the timer of the scheduled reboot goes off.
 func (o *Ops) fireScheduled() {
+	// A block inhibitor (apt installing) postpones a due scheduled reboot like a running command does (D-453):
+	// the schedule stays (reboot_scheduled_at), the wait is audited once, and the 24 hour expiry bounds it. The
+	// list is read first, outside rbMu and before the write gate goes up, so the minute-by-minute waits never
+	// hold either. An unknown list goes on; doReboot reads it again before systemctl reboot.
+	var bl []inhibitor
+	if at := o.scheduledAt(); at != nil && !o.d.Now().Before(*at) {
+		bl, _ = o.shutdownBlockers(context.Background(), inhibitReadWait)
+	}
 	o.rbMu.Lock()
 	st := o.loadRebootLocked()
 	sch := st.Schedule
@@ -325,6 +418,19 @@ func (o *Ops) fireScheduled() {
 		o.rbMu.Unlock()
 		o.note("os.reboot", "reboot_schedule_expired", map[string]any{"at": sch.At.Format(time.RFC3339)})
 		return
+	case len(bl) > 0:
+		if o.stopTick != nil {
+			o.stopTick()
+		}
+		o.stopTick = o.d.AfterFunc(rebootRetryBusy, o.fireScheduled)
+		first := !o.rbWaitNoted
+		o.rbWaitNoted = true
+		o.rbMu.Unlock()
+		if first {
+			o.log.Warn("the scheduled reboot waits for a shutdown lock", "who", bl[0].Who, "why", bl[0].Why)
+			o.note("os.reboot", "reboot_waiting_inhibitor", inhibitDetail("scheduled", bl))
+		}
+		return
 	case o.gateThenBusy():
 		if o.stopTick != nil {
 			o.stopTick()
@@ -340,6 +446,7 @@ func (o *Ops) fireScheduled() {
 		o.note("os.reboot", "reboot_skipped_limit", map[string]any{"at": sch.At.Format(time.RFC3339)})
 		return
 	}
+	o.rbWaitNoted = false
 	st.Schedule = nil
 	o.stopTick = nil
 	err := o.markStartedLocked(st, "scheduled")
@@ -366,11 +473,20 @@ func (o *Ops) startReboot() {
 				o.note("os.reboot", "reboot_completed", map[string]any{"kind": kind, "started_at": started})
 			})
 		}
-		if cur != "" && p.BootID == cur && o.d.Now().Sub(p.StartedAt) < rebootGateTTL && o.d.Now().Sub(p.StartedAt) > -rebootGateTTL {
+		switch {
+		case cur != "" && p.BootID == cur && p.Issued && o.d.Now().Sub(p.StartedAt) < rebootGateTTL && o.d.Now().Sub(p.StartedAt) > -rebootGateTTL:
 			// The host restarted while the box was shutting down: keep refusing writes.
 			o.gate.Store(&rebootGate{BootID: p.BootID, At: p.StartedAt})
-		} else {
-			st.Pending = nil // same boot, long ago: the reboot never happened
+		case cur != "" && p.BootID == cur:
+			// Same boot: the reboot never happened (it was not issued yet, e.g. waiting for a shutdown lock, or it
+			// was issued long ago). Nothing re-arms it; say so instead of dropping it silently (D-453).
+			st.Pending = nil
+			kind, started, issued := p.Kind, p.StartedAt.Format(time.RFC3339), p.Issued
+			notes = append(notes, func() {
+				o.note("os.reboot", "reboot_failed", map[string]any{"kind": kind, "reason": "host_restarted", "started_at": started, "issued": issued})
+			})
+		default:
+			st.Pending = nil // a new boot (reboot_completed above), or a boot id that cannot be read
 		}
 	}
 	if sch := st.Schedule; sch != nil {

@@ -93,19 +93,8 @@ func checkInstaller(dir string, m *release.Manifest, manifestKey string, trust r
 			return nil, nil, fmt.Errorf("the signed manifest gives no value for %s: a release ships vedette-host for amd64 and arm64", k)
 		}
 	}
-	seen := map[string]int{}
-	for i, l := range strings.Split(string(raw), "\n") {
-		for _, mm := range assignBakedRE.FindAllStringSubmatch(l, -1) {
-			if l != mm[1]+`="`+want[mm[1]]+`"` {
-				return nil, nil, fmt.Errorf("%s line %d %q sets %s: only the one baked line %s=%q may (the signed manifest)", installer, i+1, l, mm[1], mm[1], want[mm[1]])
-			}
-			seen[mm[1]]++
-		}
-	}
-	for _, k := range bakedNames {
-		if seen[k] != 1 {
-			return nil, nil, fmt.Errorf("%s: the baked line %s is there %d times, want once", installer, k, seen[k])
-		}
+	if err := checkBakedLines(raw, want); err != nil {
+		return nil, nil, err
 	}
 	return raw, sig, nil
 }

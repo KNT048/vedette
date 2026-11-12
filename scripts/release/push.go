@@ -560,7 +560,7 @@ func BuildInputs(ctx context.Context, run runFunc, doc *ImagesDoc, o inputsOpts)
 		h.Files = append(h.Files, filepath.Join(o.DebDir, release.HostPackageName(doc.Version, arch)))
 	}
 	if _, err := buildHostPart(h, doc.Version, in.Images); err != nil {
-		return in, fmt.Errorf("%w (host-deb writes them to %s; a version with a prerelease needs the SemVer spelling, not nfpm's ~)", err, o.DebDir)
+		return in, fmt.Errorf("%w (host-deb writes them to %s; a version with a prerelease needs the SemVer spelling, not nfpm's ~: make release-deb-name)", err, o.DebDir)
 	}
 	in.Host = &h
 	if err := checkInstallModes(in.InstallModes); err != nil {

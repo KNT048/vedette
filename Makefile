@@ -200,6 +200,7 @@ build:
 # Release SPA (WP-08a): VITE_API_MOCK=off build, then fail if any mock layer is in web/dist.
 # web/dist is left in place for the core embed (WP-08b); `make clean` removes it (build-artifacts rule).
 web-release:
+	pnpm --dir web install --frozen-lockfile
 	VITE_API_MOCK=off pnpm --dir web build
 	pnpm --dir web exec node scripts/check-release.mjs dist
 

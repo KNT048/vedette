@@ -181,7 +181,7 @@ function ExclusionSection({ data }: { data: HpOverview }) {
     <Section id="exclusion" title={t('exclusion.title')} description={t('exclusion.description')}>
       <Panel className="p-4">
         <KeyValue items={[
-          { label: t('exclusion.who'), value: <span className="flex flex-wrap items-center gap-2">{data.box.name} ({data.box.ip ?? t('lanUnknown')}) <Chip tone="off">{t('exclusion.locked')}</Chip></span> },
+          { label: t('exclusion.who'), value: <span className="flex flex-wrap items-center gap-2">{data.box.name}{data.box.ip ? ` (${data.box.ip})` : ''} <Chip tone="off">{t('exclusion.locked')}</Chip></span> },
           { label: t('exclusion.why'), value: t('exclusion.whyBody') },
           { label: t('exclusion.ignored'), value: t('exclusion.ignoredBody', { count: data.ignored_7d }) },
         ]} />

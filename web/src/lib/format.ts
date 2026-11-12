@@ -10,6 +10,10 @@ export function fmtDateTime(iso: string | null | undefined) {
   if (!iso) return '–'
   return new Intl.DateTimeFormat(loc(), { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'numeric', year: 'numeric' }).format(new Date(iso))
 }
+/** The server sends Go's zero time (0001-01-01) for "never happened". */
+export function isNever(iso: string | null | undefined) {
+  return !iso || new Date(iso).getUTCFullYear() < 1971
+}
 export function fmtRelative(iso: string | null | undefined, now = Date.now()) {
   if (!iso) return '–'
   const diff = (new Date(iso).getTime() - now) / 1000

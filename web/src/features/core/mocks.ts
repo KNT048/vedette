@@ -15,7 +15,7 @@ import { connectionsHandlers } from './connectionsMock'
 import { connectorsStore } from '@/mocks/connectors'
 import { newSecret, verifyTotp } from './totp'
 import { checkCode, clearCode, issueCode, maskEmail, sentBody } from './emailCode'
-import { CIDR_RE, compareVersion, fromBase64, isPrivateCidr, MIN_PASSWORD, TIMEZONES } from './util'
+import { CIDR_RE, compareVersion, fromBase64, isPrivateCidr, MIN_PASSWORD, validTimeZone } from './util'
 import type { AccountSession, AdminUser, BoxBackup, RestoreRun, Advisory, AuditQuery, AuditRow, ManagedPackage, McpToken, OidcConfig, PrivacyFlow, SetupPayload, UpdateAvailable, UpdateChannel, UpdateComponent, UpdateHistory, UpdateRun, UpdatesState } from './types'
 
 const ROLES: Role[] = ['viewer', 'operator', 'admin']
@@ -110,7 +110,7 @@ const generalHandlers = [
     const b = await body<{ name: string; timezone: string }>(request)
     const name = String(b.name ?? '').trim()
     if (name.length < 2 || name.length > 80) return fail(400, 'invalid_org', 'The organization name is 2 to 80 characters.')
-    if (!TIMEZONES.includes(String(b.timezone))) return fail(400, 'invalid_timezone', 'The time zone is not in the list.')
+    if (!validTimeZone(String(b.timezone))) return fail(400, 'invalid_timezone', 'The time zone is not in the list.')
     orgStore.update((o) => ({ ...o, name, timezone: b.timezone as string }))
     audit('core.general', name, `time zone ${b.timezone}`)
     return HttpResponse.json({ name, timezone: b.timezone })

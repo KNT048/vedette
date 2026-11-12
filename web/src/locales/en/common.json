@@ -105,7 +105,7 @@
     },
     "notify": {
       "name": "Notifications",
-      "summary": "Sends alerts via Telegram, Zalo, email, webhook."
+      "summary": "Sends alerts via Telegram, Slack, Zalo, email, webhook."
     },
     "sensor-passive": {
       "name": "Passive sensor",

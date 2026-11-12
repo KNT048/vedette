@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { AiConfigView, AiJob, AiProfile, AskResult, Assignments, ConfigInput, ExplainResult, LogDigest, NewsResult, AiRun, ActivityList, ActivityResult, ActivitySettings, ActivityVerify, ProfileInput, TestInput, TestResult, Usage } from './types'
 
-export const useAiConfig = () => useQuery({ queryKey: ['ai', 'config'], queryFn: () => api.get<AiConfigView>('/ai/config') })
+/** enabled false: not asked (the AI module is off, so /ai/config is 404). */
+export const useAiConfig = (enabled = true) => useQuery({ queryKey: ['ai', 'config'], queryFn: () => api.get<AiConfigView>('/ai/config'), enabled })
 
 function useInvalidateAi() {
   const qc = useQueryClient()

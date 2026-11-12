@@ -2,7 +2,7 @@
 // Các handler còn lại của module core (người dùng, cập nhật, quyền riêng tư…) ở features/core/mocks.ts.
 import { http, HttpResponse } from 'msw'
 import { API, body, fail, guard, currentUser, audit } from './http'
-import { emailChannelReady, modulesStore, orgStore, sessionStore, twofaMethodOf, usersStore } from './stores'
+import { emailChannelReady, moduleAvailable, modulesStore, modulesView, orgStore, sessionStore, twofaMethodOf, usersStore } from './stores'
 import { dataMode } from './db'
 import type { ModuleId } from '@/lib/modules'
 import { collection } from './db'
@@ -86,7 +86,7 @@ export const coreHandlers = [
   http.get(`${API}/modules`, () => {
     const denied = guard('viewer')
     if (denied) return denied
-    return HttpResponse.json({ modules: modulesStore.get() })
+    return HttpResponse.json(modulesView())
   }),
 
   // S-CORE-1: bật module thiếu phụ thuộc → 409 kèm danh sách, UI hỏi bật kèm (rule modules.md: không tự bật ngầm).
@@ -100,6 +100,7 @@ export const coreHandlers = [
     if (!mod) return fail(404, 'not_found', 'No such module.')
     if (mod.tier === 'core') return fail(400, 'core_module', 'Core modules are always on.')
     const enabled = b.enabled === true
+    if (enabled && !moduleAvailable(id)) return fail(409, 'not_appliance', `Module ${id} needs vedette-host, which only the appliance install has. This is a container-only install, so it cannot run here.`)
     const now = new Date().toISOString()
     if (enabled) {
       const missing = mod.depends.filter((d) => !all.find((m) => m.id === d)?.enabled)
@@ -109,9 +110,9 @@ export const coreHandlers = [
       const dependents = all.filter((m) => m.enabled && m.depends.includes(id)).map((m) => m.id)
       modulesStore.set(all.map((m) => (m.id === id ? { ...m, enabled: false } : m)))
       audit('module.disable', id, dependents.length ? `affected: ${dependents.join(', ')}` : undefined)
-      return HttpResponse.json({ modules: modulesStore.get(), affected: dependents })
+      return HttpResponse.json({ modules: modulesView().modules, affected: dependents })
     }
     audit('module.enable', id)
-    return HttpResponse.json({ modules: modulesStore.get(), affected: [] })
+    return HttpResponse.json({ modules: modulesView().modules, affected: [] })
   }),
 ]

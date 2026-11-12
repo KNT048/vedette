@@ -1,0 +1,1 @@
+- [ ] Re-run on a real box after install: GET / on the HTTP trap must now give a hit (logtype 3003); confirm RDP bare connect and SMB `connect` hits as the new S-HP-1 criterion states (lead, real install).

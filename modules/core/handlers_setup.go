@@ -65,15 +65,17 @@ func (h *APIHandlers) CoreGetCoreSetupModules(context.Context) (*oas.CoreGetCore
 	out := &oas.CoreGetCoreSetupModulesOK{Modules: make([]oas.CoreGetCoreSetupModulesOKModulesItem, 0, len(states))}
 	for _, s := range states {
 		it := oas.CoreGetCoreSetupModulesOKModulesItem{
-			ID:      oas.CoreGetCoreSetupModulesOKModulesItemID(s.ID),
-			Tier:    oas.CoreGetCoreSetupModulesOKModulesItemTier(s.Tier),
-			Depends: make([]oas.CoreGetCoreSetupModulesOKModulesItemDependsItem, 0, len(s.Depends)),
+			ID:        oas.CoreGetCoreSetupModulesOKModulesItemID(s.ID),
+			Tier:      oas.CoreGetCoreSetupModulesOKModulesItemTier(s.Tier),
+			Depends:   make([]oas.CoreGetCoreSetupModulesOKModulesItemDependsItem, 0, len(s.Depends)),
+			Available: s.Available,
 		}
 		for _, d := range s.Depends {
 			it.Depends = append(it.Depends, oas.CoreGetCoreSetupModulesOKModulesItemDependsItem(d))
 		}
 		out.Modules = append(out.Modules, it)
 	}
+	out.Install = oas.CoreGetCoreSetupModulesOKInstall(installKind(h.reg))
 	return out, nil
 }
 
@@ -131,6 +133,12 @@ func validOrgName(s string) bool {
 	return n >= 2 && n <= 80 && utf8.ValidString(s) && !auth.HasInvisible(s)
 }
 
+// runnable leaves out of a bundle the modules this install cannot run (D-381): a container-only install has no
+// honeypot, and a bundle does not promise one. A custom choice that names one is refused by the registry instead.
+func runnable(bundle []string, known map[string]modreg.State) []string {
+	return slices.DeleteFunc(slices.Clone(bundle), func(id string) bool { s, ok := known[id]; return ok && !s.Available })
+}
+
 // wantedModules turns the bundle choice of the setup form into the set of modules that must be on.
 func (h *APIHandlers) wantedModules(req *oas.CorePostCoreSetupReq) (map[string]bool, *apierr.Error) {
 	states := h.reg.List()
@@ -141,9 +149,9 @@ func (h *APIHandlers) wantedModules(req *oas.CorePostCoreSetupReq) (map[string]b
 	var ids []string
 	switch oas.CorePostCoreSetupReqBundle(req.Bundle.Or("")) {
 	case "smb":
-		ids = bundleSMB
+		ids = runnable(bundleSMB, known)
 	case "mid":
-		ids = bundleMid
+		ids = runnable(bundleMid, known)
 	case "custom":
 		ids = []string{"core"}
 		for _, m := range req.Modules {

@@ -62,10 +62,16 @@ func newWorld(t *testing.T, modify ...func(*auth.Config)) *world {
 // newWorldWith is newWorld with a say in the handlers' config (the purge tests give it a data directory and the schema).
 func newWorldWith(t *testing.T, tune func(*core.HandlersConfig), modify ...func(*auth.Config)) *world {
 	t.Helper()
+	return newWorldKind(t, false, tune, modify...)
+}
+
+// newWorldKind is newWorldWith on a container-only install (no vedette-host, D-381) when containerOnly is true.
+func newWorldKind(t *testing.T, containerOnly bool, tune func(*core.HandlersConfig), modify ...func(*auth.Config)) *world {
+	t.Helper()
 	env := authtest.New(t, modify...)
 	logs := &bytes.Buffer{}
 	log := slog.New(slog.NewTextHandler(logs, nil))
-	reg, err := modreg.New(t.Context(), modreg.Config{DB: env.DB, Audit: env.Audit, Manifests: modules.Manifests, Version: "test", Clock: env.Clock.Now, Log: log})
+	reg, err := modreg.New(t.Context(), modreg.Config{DB: env.DB, Audit: env.Audit, Manifests: modules.Manifests, Version: "test", Clock: env.Clock.Now, Log: log, ContainerOnly: containerOnly})
 	if err != nil {
 		t.Fatal(err)
 	}

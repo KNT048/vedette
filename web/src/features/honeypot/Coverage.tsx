@@ -16,8 +16,10 @@ const ROWS: { id: string; level: Level }[] = [
   { id: 'email', level: 'none' },
 ]
 
-export default function CoverageSection() {
+/** listening: at least one trap really listens. Without one, nothing the traps would see is covered, and the list says so (2026-11-12 walk). */
+export default function CoverageSection({ listening }: { listening: boolean }) {
   const { t } = useTranslation('honeypot')
+  const level = (l: Level): Level => (listening || l !== 'covered' ? l : 'none')
   return (
     <Section id="coverage" title={t('coverage.title')} description={t('coverage.description')}>
       <Panel className="p-4">
@@ -25,11 +27,11 @@ export default function CoverageSection() {
           {ROWS.map((r) => (
             <li key={r.id} className="grid gap-1 py-2.5 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-4">
               <span className="grid"><span className="text-sm font-medium">{t(`coverage.row.${r.id}.move`)}</span><span className="text-[13px] text-muted">{t(`coverage.row.${r.id}.how`)}{r.id === 'outbound' ? <> <Link to="/logs" className="text-accent underline-offset-4 hover:underline">{t('coverage.openLogs')}</Link></> : null}</span></span>
-              <span className="sm:justify-self-end"><Chip tone={TONE[r.level]}>{t(`coverage.level.${r.level}`)}</Chip></span>
+              <span className="sm:justify-self-end"><Chip tone={TONE[level(r.level)]}>{t(`coverage.level.${level(r.level)}`)}</Chip></span>
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-[13px] text-muted">{t('coverage.note')}</p>
+        <p className="mt-3 text-[13px] text-muted">{listening ? t('coverage.note') : t('coverage.notListening')}</p>
       </Panel>
     </Section>
   )

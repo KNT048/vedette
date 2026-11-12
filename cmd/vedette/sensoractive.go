@@ -68,7 +68,10 @@ func newSensorActive(d deps, prober sensoractive.Prober) (*sensoractive.Service,
 	if err != nil {
 		return nil, err
 	}
-	if h := svc.Health(context.Background()); h.Status != "ok" && d.Log != nil {
+	// A remote worker (the Dispatcher) cannot have reported this early, so only a local nmap is worth a warning at start; the
+	// status page says whether the worker reports.
+	_, remote := prober.(*sensoractive.Dispatcher)
+	if h := svc.Health(context.Background()); !remote && h.Status != "ok" && d.Log != nil {
 		d.Log.Warn("sensor-active is unavailable", "reason", h.Message)
 	}
 	if d.Bus == nil {

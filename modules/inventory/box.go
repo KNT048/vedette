@@ -16,6 +16,8 @@ type BoxInfo struct {
 	Hostname string
 	IP       string // IPv4, "" when unknown
 	OS       string // "" when unknown
+	// ContainerOnly: the box is a container-only install (no vedette-host, D-381); its model then says so instead of appliance.
+	ContainerOnly bool
 }
 
 // EnsureBox makes sure the box is in the inventory as the first device (INV-3, S-INV-5, D-53): created once
@@ -36,6 +38,10 @@ func (s *Service) EnsureBox(ctx context.Context, info BoxInfo) (string, error) {
 		}
 		ip = a.String()
 	}
+	model := "Security box (appliance)"
+	if info.ContainerOnly {
+		model = "Security box (container-only)"
+	}
 	var id string
 	err := s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		now := s.now()
@@ -51,7 +57,7 @@ func (s *Service) EnsureBox(ctx context.Context, info BoxInfo) (string, error) {
 			return fmt.Errorf("inventory: find the box: %w", err)
 		}
 		for _, v := range []struct{ field, value string }{
-			{"hostname", info.Hostname}, {"kind", "server"}, {"vendor", "Vedette"}, {"model", "Security box (appliance)"}, {"os", info.OS},
+			{"hostname", info.Hostname}, {"kind", "server"}, {"vendor", "Vedette"}, {"model", model}, {"os", info.OS},
 		} {
 			if v.value == "" {
 				continue

@@ -92,7 +92,7 @@ function NoDevices({ boxOnly, canOp, canAdmin, needRole, onAdd, onImport }: { bo
   const kind = ranges === 'saved' ? 'Watching' : ranges === 'none' ? '' : 'Neutral'
   const body = (boxOnly ? 'empty.bodyBoxOnly' : 'empty.body') + kind
   return (
-    <EmptyState title={t('empty.title')} action={<div className="flex flex-wrap gap-2"><Button variant="primary" disabled={!canOp} title={needRole} onClick={onAdd}>{t('add.open')}</Button><Button disabled={!canOp} title={needRole} onClick={onImport}>{t('import.open')}</Button>{ranges === 'none' ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}>{t('empty.range')}</Link> : null}</div>}>{t(body)}</EmptyState>
+    <EmptyState title={boxOnly ? t('empty.titleBoxOnly') : t('empty.title')} action={<div className="flex flex-wrap gap-2"><Button variant="primary" disabled={!canOp} title={needRole} onClick={onAdd}>{t('add.open')}</Button><Button disabled={!canOp} title={needRole} onClick={onImport}>{t('import.open')}</Button>{ranges === 'none' ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}>{t('empty.range')}</Link> : null}</div>}>{t(body)}</EmptyState>
   )
 }
 
@@ -106,7 +106,7 @@ function Body() {
   const [importing, setImporting] = useState(false)
   const c = q.data?.counts
   const needRole = canOp ? undefined : t('common:needRole', { role: t('common:role.operator') })
-  const title = !c ? t('list.titleLoading') : c.all === 0 ? t('list.titleEmpty') : c.pending > 0 ? t('list.title', { count: c.all, pending: c.pending }) : t('list.titleAllApproved', { count: c.all })
+  const title = !c ? t('list.titleLoading') : c.all === 0 ? t('list.titleEmpty') : c.all === 1 && q.data?.items[0]?.is_box ? t('list.titleBoxOnly') : c.pending > 0 ? t('list.title', { count: c.all, pending: c.pending }) : t('list.titleAllApproved', { count: c.all })
 
   return (
     <>

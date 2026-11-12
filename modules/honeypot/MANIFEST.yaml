@@ -2,6 +2,7 @@ id: honeypot           # trùng tên thư mục
 name: { vi: "Bẫy nội bộ", en: "Honeypot" }
 summary: { vi: "Bẫy giả (SMB/RDP/SSH/MSSQL/HTTP, vai thiết bị, honey token) trên IP phụ của hộp: ai chạm vào là biết ngay.", en: "Decoy services, device personalities and honey tokens on a secondary IP of the box: any touch is an alert." }
 tier: optional
+needs_host: true      # D-381: chỉ chạy khi có vedette-host (appliance); bản chỉ container không bật được
 default: off
 depends: [core, inventory]
 soft_depends: [notify, response]   # notify: gửi cảnh báo; response: trigger "honeypot" (không có response thì hit vẫn lưu và báo)

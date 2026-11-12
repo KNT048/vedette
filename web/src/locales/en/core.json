@@ -49,6 +49,8 @@
     "off": "Off",
     "always": "Always on",
     "coreLocked": "The core module is always on",
+    "notHere": "Not on this install",
+    "notHereWhy": "Needs the appliance install: this container-only install has no vedette-host to run it.",
     "toggle": "Turn on module {{name}}",
     "enabledToast": "{{name}} is on",
     "disabledToast": "{{name}} is off. Modules affected: {{count}}. Data is kept.",
@@ -1267,7 +1269,9 @@
       "again": "Repeat password",
       "againError": "The two entries do not match.",
       "code": "Setup code",
-      "codeHint": "Vedette prints a one-time code in its log each time it starts while setup is open. Run \"docker logs vedette\" or \"journalctl -u vedette\" and copy the code.",
+      "codeHint": "Vedette prints a one-time code in its log each time it starts while setup is open. On the appliance run \"journalctl -u vedette-core | grep setup_code\"; on a container-only install run \"docker logs vedette-core 2>&1 | grep setup_code\" (or podman logs). Copy the code.",
+      "codeHintAppliance": "Vedette prints a one-time code in its log each time it starts while setup is open. On the box run \"journalctl -u vedette-core | grep setup_code\" and copy the code.",
+      "codeHintContainer": "Vedette prints a one-time code in its log each time it starts while setup is open. Run \"docker logs vedette-core 2>&1 | grep setup_code\" (or \"podman logs vedette-core\") on the machine that runs it, and copy the code.",
       "codeError": "Enter the setup code from the box's log."
     },
     "network": {
@@ -1314,7 +1318,9 @@
       "pick": "Modules to turn on",
       "pickHint": "Core is always on. Picking a module that needs others picks them too; dropping a module also drops those that depend on it.",
       "needs": "Needs: {{list}}",
-      "customEmpty": "Pick at least one module."
+      "customEmpty": "Pick at least one module.",
+      "notHere": "Not on this install: {{list}}. They need the appliance install (vedette-host); this container-only install leaves them out.",
+      "notHereOne": "Needs the appliance install"
     },
     "channel": {
       "title": "Where alerts go",
@@ -1698,5 +1704,33 @@
     "idpError": "Your identity provider did not sign you in ({{error}}). Try again from the sign-in page; if it keeps happening, ask an administrator.",
     "missing": "This page needs the answer from your identity provider. Start again from the sign-in page.",
     "back": "Back to sign in"
+  },
+  "container": {
+    "updates": {
+      "meta": "This is a container-only install on your own Docker or Podman, without the helper vedette-host, so you update Vedette and this machine yourself.",
+      "title": "Update Vedette",
+      "desc": "Take the vedette.env of the new release (keep the old one), check its signature as the release page says, then pull the new images and start them on the machine that runs Vedette.",
+      "label": "In the folder of compose.yaml (podman compose works the same)",
+      "back": "To go back, put the old vedette.env back and run the same two commands. Keep the same -f files on every command if you added the sensors or syslog. A version that changes the database may not go back: read the release notes and back up first."
+    },
+    "os": {
+      "title": "Operating system",
+      "desc": "Update the operating system of this machine yourself, with its own tools; Vedette only updates its own images here."
+    },
+    "data": {
+      "meta": "Export, log downloads and deleting the data work from here. A backup of this container-only install is a copy of its Docker volume, made on the machine that runs it."
+    },
+    "backup": {
+      "title": "Backup",
+      "desc": "Everything Vedette keeps, the key that unlocks its secrets included, is in the Docker or Podman volume vedette_data. Copy it with core stopped.",
+      "label": "Back up (in the folder of compose.yaml)",
+      "keep": "vedette-data.tgz holds the key: keep it as safe as a password. If you run the sensors, back up the creds-passive and creds-active volumes the same way.",
+      "restoreLabel": "Restore into a fresh volume"
+    },
+    "network": {
+      "meta": "This is a container-only install: the network of this machine is yours to set up.",
+      "title": "Network of this machine",
+      "desc": "Prepare the SPAN card on this machine yourself (promiscuous, no address), start the sensor with compose.sensors.yaml, then choose the card under Sensors. The address, extra IP and time server of the machine are set with its own tools."
+    }
   }
 }

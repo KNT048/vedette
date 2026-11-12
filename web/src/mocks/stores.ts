@@ -3,7 +3,7 @@
 import { collection, dataMode, newId, nowIso, peek } from './db'
 import { canonHash, GENESIS } from '@/lib/chain'
 import type { Role } from '@/lib/session'
-import type { ModuleId, ModuleState } from '@/lib/modules'
+import type { InstallKind, ModuleId, ModuleState } from '@/lib/modules'
 import type { Asset, Finding } from '@/lib/types'
 import { realSessionOn, realUser } from './realSession'
 import { seedAssets } from './seed/assets'
@@ -26,7 +26,7 @@ export const usersStore = collection<User[]>('core_users', () => [
 export const sessionStore = collection<{ userId: string | null }>('core_session', () => ({ userId: null }))
 export const orgStore = collection<{ name: string; setup_complete: boolean; timezone: string }>('core_org', () => ({ name: 'Sample Company', setup_complete: false, timezone: 'Asia/Ho_Chi_Minh' }), () => ({ name: '', setup_complete: false, timezone: 'Asia/Ho_Chi_Minh' }))
 
-const MODULES: Array<Omit<ModuleState, 'enabled_at'>> = [
+const MODULES: Array<Omit<ModuleState, 'enabled_at' | 'available'>> = [
   { id: 'core', enabled: true, tier: 'core', depends: [] },
   { id: 'feeds', enabled: true, tier: 'standard', depends: ['core'] },
   { id: 'inventory', enabled: true, tier: 'standard', depends: ['core', 'feeds'] },
@@ -49,7 +49,14 @@ const MODULES: Array<Omit<ModuleState, 'enabled_at'>> = [
   // D-40: AI đề xuất phản ứng (bật). D-41: thực thi đã duyệt là công tắc riêng bên trong module, TẮT mặc định.
   { id: 'response', enabled: true, tier: 'optional', depends: ['ai', 'notify', 'inventory'] },
 ]
-export const modulesStore = collection<ModuleState[]>('core_modules', () => MODULES.map((m) => ({ ...m, enabled_at: m.enabled ? '2026-10-01T02:00:00Z' : null })))
+export const modulesStore = collection<Array<Omit<ModuleState, 'available'>>>('core_modules', () => MODULES.map((m) => ({ ...m, enabled_at: m.enabled ? '2026-10-01T02:00:00Z' : null })))
+/** The install kind the mock box answers (D-381): appliance by default; a test sets container. */
+export const installStore = collection<{ kind: InstallKind }>('core_install', () => ({ kind: 'appliance' }))
+/** needs_host in the manifests (D-381): what a container-only install cannot run. */
+export const NEEDS_HOST: readonly ModuleId[] = ['honeypot', 'scan-credentialed']
+export const moduleAvailable = (id: ModuleId) => installStore.get().kind === 'appliance' || !NEEDS_HOST.includes(id)
+/** GET /modules as the box answers it. */
+export const modulesView = () => ({ modules: modulesStore.get().map((m) => ({ ...m, available: moduleAvailable(m.id) })), install: installStore.get().kind })
 export const isOn = (id: ModuleId) => modulesStore.get().find((m) => m.id === id)?.enabled ?? false
 
 export const assetsStore = collection<Asset[]>('inv_assets', seedAssets, () => [])

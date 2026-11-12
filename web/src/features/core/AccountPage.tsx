@@ -19,7 +19,7 @@ import { useAccount, useAccountMutations } from './api'
 import { PreviewCode, errMsg } from './parts'
 import { useCountdown } from './useCountdown'
 import { QrCode } from './QrCode'
-import { deviceLabel, MIN_PASSWORD } from './util'
+import { deviceLabel, MIN_PASSWORD, shellQuote } from './util'
 import type { Account, AccountSession, TotpStart } from './types'
 
 function Profile({ a }: { a: Account }) {
@@ -137,7 +137,7 @@ function TwoFactor({ a }: { a: Account }) {
           {isAdmin ? (
             <div className="grid gap-2">
               <p className="text-[13px] text-muted">{t('account.twofa.lostAdmin')}</p>
-              <CodeBlock label={t('account.twofa.lostAdminCommand')} code={`docker exec vedette-core /vedette reset-admin ${a.user.email}`} wrapOnPhone />
+              <CodeBlock label={t('account.twofa.lostAdminCommand')} code={`docker exec vedette-core /vedette reset-admin ${shellQuote(a.user.email)}`} wrapOnPhone />
             </div>
           ) : <p className="text-[13px] text-muted">{t('account.twofa.lostUser')}</p>}
           <div><Button variant="danger" onClick={() => { setPw(''); setPwErr(null); setAskOff(true) }}>{t('account.twofa.turnOff')}</Button></div>
@@ -226,7 +226,7 @@ function Sessions({ a }: { a: Account }) {
     { id: 'started', header: t('account.sessions.started'), accessorFn: (s) => s.started_at, cell: ({ row }) => fmtDateTime(row.original.started_at) },
     { id: 'last', header: t('account.sessions.last'), accessorFn: (s) => s.last_seen, cell: ({ row }) => fmtRelative(row.original.last_seen) },
     { id: 'end', header: t('account.sessions.end'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => (row.original.current ? <span className="text-muted">–</span> : (
-      <Button size="sm" aria-label={t('account.sessions.endOf', { device: deviceLabel(row.original.device) })} disabled={m.revoke.isPending} onClick={() => void m.revoke.mutateAsync(row.original.id).then(() => toast.success(t('account.sessions.ended'))).catch((e) => toast.error(errMsg(e, t)))}>{t('account.sessions.endBtn')}</Button>
+      <Button size="sm" aria-label={t('account.sessions.endOf', { device: deviceLabel(row.original.device), ip: row.original.ip })} disabled={m.revoke.isPending} onClick={() => void m.revoke.mutateAsync(row.original.id).then(() => toast.success(t('account.sessions.ended'))).catch((e) => toast.error(errMsg(e, t)))}>{t('account.sessions.endBtn')}</Button>
     )) },
   ]
   const others = a.sessions.filter((s) => !s.current).length

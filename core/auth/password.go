@@ -163,7 +163,7 @@ var keyRuns = []string{"01234567890123456789", "abcdefghijklmnopqrstuvwxyz", "qw
 // characters ("aaaaaaaaaaaa", "121212121212"), or a straight run of the digits, alphabet or keyboard.
 func guessable(password, email string) bool {
 	compact := strings.ReplaceAll(strings.ToLower(password), " ", "")
-	var stem strings.Builder
+	var stem, digits strings.Builder
 	distinct := map[rune]bool{}
 	for _, r := range compact {
 		distinct[r] = true
@@ -174,17 +174,27 @@ func guessable(password, email string) bool {
 			stem.WriteRune('s')
 		case unicode.IsLetter(r):
 			stem.WriteRune(r)
+		case r >= '0' && r <= '9':
+			digits.WriteRune(r)
 		}
 	}
 	if len(distinct) <= 3 {
 		return true
 	}
-	for _, run := range keyRuns {
-		if strings.Contains(run, compact) || strings.Contains(reverse(run), compact) {
-			return true
+	isRun := func(s string) bool {
+		for _, run := range keyRuns {
+			if strings.Contains(run, s) || strings.Contains(reverse(run), s) {
+				return true
+			}
 		}
+		return false
 	}
 	st := stem.String()
+	stemLen := utf8.RuneCountInString(st)
+	// A run, alone or with a few other characters around it: "qwertyuiop2024", "1234567890!!".
+	if isRun(compact) || (stemLen >= 6 && isRun(st)) || (digits.Len() >= 6 && stemLen < 4 && isRun(digits.String())) {
+		return true
+	}
 	if st == "" {
 		return false
 	}

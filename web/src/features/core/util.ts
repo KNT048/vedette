@@ -27,6 +27,9 @@ export function deviceLabel(ua: string): string {
   return browser || os || ua
 }
 
+/** One shell word in single quotes, for a command the page asks the reader to paste (an email may hold ' ; $ and backticks). */
+export const shellQuote = (s: string) => `'${s.replaceAll("'", "'\\''")}'`
+
 // The mock's copy of core/auth guessable (D-389): keep the stems and runs equal to password.go.
 const COMMON_STEMS = ['password', 'passwrd', 'passwort', 'qwerty', 'qwertyuiop', 'asdfgh', 'asdfghjkl', 'zxcvbnm', 'qazwsx', 'iloveyou', 'welcome', 'letmein', 'admin', 'administrator', 'changeme', 'default', 'secret', 'monkey', 'dragon', 'football', 'baseball', 'sunshine', 'princess', 'superman', 'master', 'login', 'abc', 'abcdef', 'trustno', 'vedette']
 const KEY_RUNS = ['01234567890123456789', 'abcdefghijklmnopqrstuvwxyz', 'qwertyuiopasdfghjklzxcvbnm']
@@ -36,8 +39,13 @@ export function guessablePassword(password: string, email: string): boolean {
   const compact = password.toLowerCase().replaceAll(' ', '')
   const chars = [...compact]
   if (new Set(chars).size <= 3) return true
-  if (KEY_RUNS.some((r) => r.includes(compact) || [...r].reverse().join('').includes(compact))) return true
+  const isRun = (s: string) => KEY_RUNS.some((r) => r.includes(s) || [...r].reverse().join('').includes(s))
+  if (isRun(compact)) return true
   const stem = chars.map((c) => (c === '@' ? 'a' : c === '$' ? 's' : /\p{L}/u.test(c) ? c : '')).join('')
+  const digits = chars.filter((c) => c >= '0' && c <= '9').join('')
+  const stemLen = [...stem].length
+  // A run with a few other characters around it: "qwertyuiop2024", "1234567890!!".
+  if ((stemLen >= 6 && isRun(stem)) || (digits.length >= 6 && stemLen < 4 && isRun(digits))) return true
   if (!stem) return false
   if (COMMON_STEMS.some((w) => stem.length % w.length === 0 && stem === w.repeat(stem.length / w.length))) return true
   const at = email.trim().toLowerCase().indexOf('@')

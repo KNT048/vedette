@@ -18,7 +18,10 @@ import (
 // resetAdminCommand reports whether args ask for `reset-admin` (D-389): the box console's way back in for an administrator who
 // lost the two-step device or the password when no other administrator can help. It runs next to the serving process, in the
 // same container (`docker exec vedette-core /vedette reset-admin <email>`, `sudo podman exec ...` on an appliance): SQLite in
-// WAL mode takes the second writer, and core keeps no account state in memory that this would leave stale.
+// WAL mode takes the second writer, and every account fact core checks (password, cred_version, two-step method, sessions) is
+// read from the database. Only the failure counters of the sign-in limit live in core's memory: a wait already running stays
+// (at most 10 minutes; restarting core clears it). ponytail: two argon2 runs (64 MiB each) inside core's container memory
+// limit; upgrade path: skip the dummy hash in this process if a box ever runs that tight.
 func resetAdminCommand(args []string) bool { return len(args) > 0 && args[0] == "reset-admin" }
 
 // runResetAdmin opens the existing database and key (it never creates either: a wrong -db must not make an empty box),
@@ -69,7 +72,11 @@ func runResetAdmin(ctx context.Context, args []string, stdout, stderr io.Writer)
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(stdout, "Reset %s: two-step sign-in is off and %d sessions ended.\n"+
-		"Temporary password (valid 72 hours; you choose a new one when you sign in):\n%s\n", email, ended, temp)
+	sessions := "sessions"
+	if ended == 1 {
+		sessions = "session"
+	}
+	_, err = fmt.Fprintf(stdout, "Reset %s: two-step sign-in is off and %d %s ended.\n"+
+		"Temporary password (valid 72 hours; you choose a new one when you sign in):\n%s\n", email, ended, sessions, temp)
 	return err
 }

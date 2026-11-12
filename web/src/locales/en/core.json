@@ -1219,7 +1219,7 @@
       "end": "End",
       "current": "This session",
       "endBtn": "End",
-      "endOf": "End session {{device}}",
+      "endOf": "End session {{device}} at {{ip}}",
       "endOthers": "End all other sessions",
       "ended": "Session ended.",
       "endedAll": "All other sessions ended."

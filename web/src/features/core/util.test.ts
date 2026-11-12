@@ -26,7 +26,7 @@ describe('deviceLabel (sessions table)', () => {
 })
 
 describe('guessablePassword (mock copy of core/auth, D-389)', () => {
-  it.each(['password1234', 'Qwerty123456!', 'P@$$word2024', 'adminadmin12', 'Vedette2026!!', 'aaaaaaaaaaaa', '121212121212', '123456789012', 'lkjhgfdsapoiu'])('refuses %s', (p) => { expect(guessablePassword(p, 'u@acme.example')).toBe(true) })
+  it.each(['password1234', 'Qwerty123456!', 'P@$$word2024', 'adminadmin12', 'Vedette2026!!', 'aaaaaaaaaaaa', '121212121212', '123456789012', 'lkjhgfdsapoiu', '1234567890!!', 'qwertyuiop2024'])('refuses %s', (p) => { expect(guessablePassword(p, 'u@acme.example')).toBe(true) })
   it('refuses the name of the email', () => { expect(guessablePassword('Someone2026!!', 'someone@acme.example')).toBe(true) })
-  it.each(['correct horse battery staple', 'my password is long now', 'vedette-demo', 'lamp river42'])('accepts %s', (p) => { expect(guessablePassword(p, 'u@acme.example')).toBe(false) })
+  it.each(['correct horse battery staple', 'my password is long now', 'vedette-demo', 'lamp river42', 'Master of puppets 1986'])('accepts %s', (p) => { expect(guessablePassword(p, 'u@acme.example')).toBe(false) })
 })

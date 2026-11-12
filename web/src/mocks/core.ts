@@ -16,9 +16,10 @@ const totpSecrets = collection<Record<string, string>>('core_totp', () => ({}))
 // a wait; a blocked try is not judged and does not count. ponytail: one 30 s wait (the box doubles it per further failure, to 10 min).
 const LOGIN_MAX_FAILURES = 10
 const LOGIN_WAIT_MS = 30_000
-const loginFailures = collection<Record<string, { n: number; until: number }>>('core_login_failures', () => ({}))
+const LOGIN_WINDOW_MS = 15 * 60_000 // a quiet quarter of an hour starts the count over
+const loginFailures = collection<Record<string, { n: number; until: number; last: number }>>('core_login_failures', () => ({}))
 
-const EMAIL_UNAVAILABLE ='Two-step email codes cannot be sent right now. Ask an administrator to turn the email channel back on, or to reset your two-step sign-in.'
+const EMAIL_UNAVAILABLE = 'Two-step email codes cannot be sent right now. Ask an administrator to turn the email channel back on, or to reset your two-step sign-in.'
 
 export const coreHandlers = [
   http.get(`${API}/me`, () => {
@@ -33,14 +34,14 @@ export const coreHandlers = [
     const b = await body<{ email: string; password: string; code: string }>(request)
     const email = String(b.email ?? '').trim().toLowerCase()
     const u = usersStore.get().find((x) => x.email === email && !x.disabled)
-    const tries = loginFailures.get()[email] ?? { n: 0, until: 0 }
+    const tries = loginFailures.get()[email] ?? { n: 0, until: 0, last: 0 }
     if (tries.until > Date.now()) {
       const secs = Math.ceil((tries.until - Date.now()) / 1000)
       return HttpResponse.json({ error: { code: 'rate_limited', message: `Too many failed sign-in attempts. Try again in ${secs} seconds.`, retry_after: secs } }, { status: 429, headers: { 'Retry-After': String(secs) } })
     }
     if (!u || u.sso || u.password !== b.password) {
-      const n = tries.n + 1
-      loginFailures.update((m) => ({ ...m, [email]: { n, until: n >= LOGIN_MAX_FAILURES ? Date.now() + LOGIN_WAIT_MS : 0 } }))
+      const n = Date.now() - tries.last > LOGIN_WINDOW_MS ? 1 : tries.n + 1
+      loginFailures.update((m) => ({ ...m, [email]: { n, until: n >= LOGIN_MAX_FAILURES ? Date.now() + LOGIN_WAIT_MS : 0, last: Date.now() } }))
       return fail(400, 'invalid_credentials', 'Wrong email or password.')
     }
     loginFailures.update((m) => Object.fromEntries(Object.entries(m).filter(([k]) => k !== email)))

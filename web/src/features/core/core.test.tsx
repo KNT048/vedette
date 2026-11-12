@@ -1186,7 +1186,7 @@ describe('core: tài khoản', () => {
   it('kết thúc phiên khác, a11y sạch', async () => {
     const u = user()
     renderApp('/account', { role: 'viewer' })
-    await u.click(await screen.findByRole('button', { name: 'End session Firefox on Windows' }))
+    await u.click(await screen.findByRole('button', { name: 'End session Firefox on Windows at 192.168.10.61' }))
     expect(await screen.findByText('Session ended.')).toBeInTheDocument()
     await expectNoA11yViolations()
   })
@@ -1208,7 +1208,7 @@ describe('core: tài khoản', () => {
   it('two-step on: an administrator sees the box-console reset with their email, another user is told to ask an administrator (D-389)', async () => {
     usersStore.update((l) => l.map((x) => (x.id === 'u-admin' || x.id === 'u-op' ? { ...x, twofa: true, twofa_method: 'app' } : x)))
     const { unmount } = renderApp('/account')
-    expect(await screen.findByText('docker exec vedette-core /vedette reset-admin admin@acme.example')).toBeInTheDocument()
+    expect(await screen.findByText("docker exec vedette-core /vedette reset-admin 'admin@acme.example'")).toBeInTheDocument()
     unmount()
     renderApp('/account', { role: 'operator' })
     expect(await screen.findByText(/Ask an administrator to turn two-step sign-in off for you/)).toBeInTheDocument()

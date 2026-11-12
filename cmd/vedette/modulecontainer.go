@@ -33,6 +33,7 @@ type moduleContainer struct {
 	reg     interface{ Enabled(id string) bool }
 	module  string
 	service string
+	version string // the build version of core (main.version); see startVersion
 	mu      sync.Mutex
 }
 
@@ -46,12 +47,25 @@ func (c *moduleContainer) ensureOn(ctx context.Context) error {
 	// Skip only what the host vouches for: a unit it trusts (Installed), with [Install], that is active or coming up. A unit it
 	// does not call its own (Installed=false: missing, or edited) or a state it cannot read ("unknown") goes on to the write, so a
 	// refusal such as unit_unsafe is logged and retried and never taken for done.
-	if st, ok := c.state(ctx); ok && st.Installed && st.Enabled && (st.UnitState == api.UnitActive || st.UnitState == api.UnitOther) {
+	st, ok := c.state(ctx)
+	if ok && st.Installed && st.Enabled && (st.UnitState == api.UnitActive || st.UnitState == api.UnitOther) {
 		return nil // running / coming up with [Install]: systemd's Restart= owns it
 	}
 	// not_pulled (this box has no unit for the service: not installed, or the scan build was skipped) is "nothing to
 	// start": retrying it every few minutes would only fill the log. Any other refusal or unknown outcome is retried.
-	return c.h.do(ctx, api.CmdContainerStart, api.ContainerStartArgs{Service: c.service}, api.CodeNotPulled)
+	return c.h.do(ctx, api.CmdContainerStart, api.ContainerStartArgs{Service: c.service, Version: c.startVersion(st, ok)}, api.CodeNotPulled)
+}
+
+// startVersion is the version core asks the host to start (D-342 (2)). An update pulls a service whose module is off but does
+// not start it, so the unit still pins the old image; starting the unit as it is would run a sensor or scan that core answers
+// 426 (protocol mismatch). When the host says the version it last pulled for the service is core's own, that is sent; the host
+// repoints the unit, and only a pulled version is accepted (not_pulled otherwise, which would make a box that was never
+// updated unable to start). Nothing pulled, another version pulled or a state that cannot be read: "" = the current image.
+func (c *moduleContainer) startVersion(st api.ContainerState, ok bool) string {
+	if ok && st.LatestPulled != nil && st.LatestPulled.Version != nil && *st.LatestPulled.Version == c.version {
+		return c.version
+	}
+	return ""
 }
 
 // state is the host's look at the service; ok is false when it cannot be read (the caller then acts, it does not skip).
@@ -106,7 +120,7 @@ func newModuleContainers(d deps) map[string]*moduleContainer {
 			return nil
 		}
 		h.who = m.service
-		out[m.module] = &moduleContainer{h: h, reg: d.Reg, module: m.module, service: m.service}
+		out[m.module] = &moduleContainer{h: h, reg: d.Reg, module: m.module, service: m.service, version: version}
 	}
 	return out
 }

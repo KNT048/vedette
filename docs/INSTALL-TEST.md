@@ -81,7 +81,7 @@ Tests the real software update of the test channel: the host package (`host.self
 
 4. Install test.1 as steps 1-4 above: `sh /root/vedette-test/art-1/install.sh --test-artifacts /root/vedette-test/art-1`. Finish the wizard. Settings → Updates shows `0.0.1-test.1` and no update.
 5. If the box has a firewall (ufw, firewalld), allow `vedette0` to reach `$BR:5078` (core and podman connect from the bridge). The install removed its registry and mirror at the end. Start the update source from test.2 on the bridge of the containers (core runs in a container and cannot reach the box's loopback). `BR=$(ip -4 -o addr show vedette0 | awk '{print $4}' | cut -d/ -f1)` (172.30.x.1), then
-   `systemd-run --unit=vedette-testupdate /root/vedette-test/art-2/vedette-testchannel serve -dir /root/vedette-test/art-2/registry -releases /root/vedette-test/art-2 -listen $BR:5078`,
+   (a transient unit: it does not survive a reboot of the box; start it again after one) `systemd-run --unit=vedette-testupdate /root/vedette-test/art-2/vedette-testchannel serve -dir /root/vedette-test/art-2/registry -releases /root/vedette-test/art-2 -listen $BR:5078`,
    `curl -fs http://$BR:5078/release/index/index.json | head -c 100`, and
    `curl -fs http://$BR:5078/v2/` (`{}`).
 6. Tell core where the source is, and let podman pull test.2's images from it (the same mirror file the installer uses, removed in step 10):

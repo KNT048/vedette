@@ -195,8 +195,8 @@ func TestContract_Modules_ListMatchesTheMockShape(t *testing.T) {
 		t.Fatalf("module ids = %v\nwant %v (host is a component and must not be listed)", ids, want)
 	}
 	for id, m := range mods {
-		if len(m) != 5 {
-			t.Errorf("%s has fields %v, want exactly id, enabled, tier, depends, enabled_at", id, m)
+		if len(m) != 6 || m["available"] != true { // available (D-381): every module runs on this box, which has a helper
+			t.Errorf("%s has fields %v, want exactly id, enabled, tier, depends, enabled_at, available (true)", id, m)
 		}
 		if _, ok := m["depends"].([]any); !ok {
 			t.Errorf("%s: depends = %v, want a list (never null)", id, m["depends"])

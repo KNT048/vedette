@@ -75,8 +75,10 @@ func inventoryJobs(d deps) []jobs.Job {
 		if hostc != nil {
 			// Best effort: a host that does not answer leaves the address unknown until the next run.
 			cctx, cancel := context.WithTimeout(ctx, hostNetTimeout)
-			if st, err := hostc.StateNet(cctx); err == nil {
-				ip = boxManagementIPv4(st)
+			if card, ok := d.Network.ManagementCard(cctx); ok && card != "" {
+				if st, err := hostc.StateNet(cctx); err == nil {
+					ip = boxCardIPv4(st, card)
+				}
 			}
 			cancel()
 		}

@@ -5,6 +5,9 @@
 // dependency cannot ship unlicensed. Run by `make host-deb`; the file is generated into dist/, never committed.
 //
 //	go run ./scripts/hostlicenses -goos linux -goarch amd64 -out dist/host-deb/amd64/third-party-licenses
+//
+// The container images use the same program over their own main package (-pkg, -name, -tags): each Containerfile build stage
+// runs it and the image carries the result as /usr/share/doc/vedette/third-party-licenses (D-155 (10)).
 package main
 
 import (
@@ -26,18 +29,23 @@ const maxLicense = 1 << 20
 // licenseName matches the license files at the top of a module: LICENSE, LICENSE.md, COPYING, UNLICENSE, NOTICE...
 var licenseName = regexp.MustCompile(`(?i)^(licen[sc]e|copying|unlicense|notice)([-._].*)?$`)
 
+const defaultPkg = "github.com/knt048/vedette/cmd/vedette-host"
+
 type module struct{ path, version, dir string }
 
 func main() {
 	goos := flag.String("goos", "linux", "target GOOS")
 	goarch := flag.String("goarch", "amd64", "target GOARCH")
 	out := flag.String("out", "", "file to write")
+	pkg := flag.String("pkg", defaultPkg, "main package whose linked modules are listed")
+	name := flag.String("name", "vedette-host", "name of the program, for the file heading")
+	tags := flag.String("tags", "", "build tags of the binary (e.g. webui), as for go build -tags")
 	flag.Parse()
 	if *out == "" {
 		fmt.Fprintln(os.Stderr, "hostlicenses: -out is required")
 		os.Exit(2)
 	}
-	text, err := generate(*goos, *goarch)
+	text, err := generate(*goos, *goarch, *pkg, *name, *tags)
 	if err == nil {
 		err = os.MkdirAll(filepath.Dir(*out), 0o755) //nolint:gosec // dist/ of the build, read by the packager
 	}
@@ -66,8 +74,13 @@ func goCmd(goos, goarch string, args ...string) ([]byte, error) {
 }
 
 // modules lists the modules that provide the packages linked into the host binary.
-func modules(goos, goarch string) ([]module, error) {
-	b, err := goCmd(goos, goarch, "list", "-deps", "-f", `{{with .Module}}{{.Path}}|{{.Version}}|{{.Dir}}{{end}}`, "github.com/knt048/vedette/cmd/vedette-host")
+func modules(goos, goarch, pkg, tags string) ([]module, error) {
+	args := []string{"list", "-deps"}
+	if tags != "" {
+		args = append(args, "-tags", tags)
+	}
+	args = append(args, "-f", `{{with .Module}}{{.Path}}|{{.Version}}|{{.Dir}}{{end}}`, pkg)
+	b, err := goCmd(goos, goarch, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -135,8 +148,8 @@ func section(w *bytes.Buffer, title, dir string) error {
 }
 
 // generate returns the text of the file.
-func generate(goos, goarch string) ([]byte, error) {
-	mods, err := modules(goos, goarch)
+func generate(goos, goarch, pkg, name, tags string) ([]byte, error) {
+	mods, err := modules(goos, goarch, pkg, tags)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +158,8 @@ func generate(goos, goarch string) ([]byte, error) {
 		return nil, err
 	}
 	var w bytes.Buffer
-	w.WriteString("Third-party licenses of vedette-host\n\nThe Go standard library and runtime, then every Go module linked into the binary.\nVedette itself is Apache-2.0 (see copyright).\n\n")
+	fmt.Fprintf(&w, "Third-party licenses of %s\n\n", name)
+	w.WriteString("The Go standard library and runtime, then every Go module linked into the binary.\nVedette itself is Apache-2.0.\n\n")
 	if err := section(&w, "Go standard library and runtime", strings.TrimSpace(string(root))); err != nil {
 		return nil, err
 	}

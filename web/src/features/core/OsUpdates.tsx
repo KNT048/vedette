@@ -13,7 +13,7 @@ import { Input, Label } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
-import { fmtDateTime, fmtRelative } from '@/lib/format'
+import { fmtDateTime, fmtRelative, isNever } from '@/lib/format'
 import { useOsMutations, useOsRun, useOsState } from './api'
 import { Band, errMsg, useGate } from './parts'
 import type { MaintenanceWindow, OsPackage, OsRun, OsState } from './types'
@@ -192,7 +192,7 @@ function Body({ s }: { s: OsState }) {
             <span className="text-[13px] text-muted">{t('updates.os.kernel')}</span>
             <span className="font-mono text-[12.5px]">{s.os.kernel}</span>
             <span className="text-[13px] text-muted">{t('updates.os.lastCheck')}</span>
-            <span className="text-sm">{fmtDateTime(s.os.last_check)} ({fmtRelative(s.os.last_check)})</span>
+            <span className="text-sm">{isNever(s.os.last_check) ? t('updates.os.neverChecked') : `${fmtDateTime(s.os.last_check)} (${fmtRelative(s.os.last_check)})`}</span>
             <span className="text-[13px] text-muted">{t('updates.os.support')}</span>
             <span className="grid gap-1 text-sm">
               <span className="flex flex-wrap items-center gap-2">

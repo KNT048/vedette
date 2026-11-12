@@ -6,27 +6,12 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// boxManagementIPv4 is the IPv4 address of the box's management card, picked as Box network picks that card (modules/core
-// mgmtIface): the configured card, else the host's management role, else the card of the default route. "" when none has a usable
-// address (S-INV-1: the box's own device row shows this address, never a container's).
-func boxManagementIPv4(st api.NetState) string {
-	name := ""
-	switch {
-	case st.Config.Mgmt != nil && st.Config.Mgmt.Iface != "":
-		name = st.Config.Mgmt.Iface
-	default:
-		for _, i := range st.Interfaces {
-			if i.Role == api.NetRoleManagement {
-				name = i.Name
-				break
-			}
-		}
-		if name == "" && st.DefaultRoute != nil {
-			name = st.DefaultRoute.Iface
-		}
-	}
+// boxCardIPv4 is the IPv4 address of the card named by core's management-card rule (core NetworkHandlers.ManagementCard), taken
+// from the host state. "" when the card has no usable address (S-INV-1: the box's own device row shows this address, never a
+// container's).
+func boxCardIPv4(st api.NetState, card string) string {
 	for _, i := range st.Interfaces {
-		if i.Name != name {
+		if i.Name != card {
 			continue
 		}
 		for _, s := range i.Addresses {

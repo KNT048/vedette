@@ -29,7 +29,8 @@ COPY . .
 RUN set -eu; \
     printf '%s' "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "VERSION must be SemVer without v, got '${VERSION}'" >&2; exit 1; }; \
     GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
-    go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette ./cmd/vedette
+    go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette ./cmd/vedette; \
+    CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go run ./scripts/hostlicenses -goos "${TARGETOS}" -goarch "${TARGETARCH}" -pkg ./cmd/vedette -name vedette-honeypot-healthcheck -out /out/licenses/third-party-licenses
 
 # The base of the target architecture: read only for its dpkg status, passwd and group (no RUN, so no emulation).
 FROM ${DEBIAN_IMAGE} AS base
@@ -82,6 +83,18 @@ RUN set -eu; \
     echo 'hp:x:1000:0:honeypot:/tmp/home:/usr/sbin/nologin' >> /rootfs/etc/passwd; \
     ln -s /var/lib/vedette/honeypot/config /rootfs/etc/opencanaryd; \
     ln -s /tmp/samba-audit.log /rootfs/var/log/samba-audit.log; \
+    # the licence texts of OpenCanary and every Python package, gathered from their dist-info (the image keeps them there too); a package that
+    # ships none is named in the file, never skipped silently (ordereddict: its text is in its source header, THIRD_PARTY_NOTICES.md)
+    mkdir -p /rootfs/usr/share/doc/vedette; \
+    lic=/rootfs/usr/share/doc/vedette/python-licenses; : > "$lic"; \
+    echo "Licenses of OpenCanary and the Python packages in /opt/opencanary/lib (pip --require-hashes, requirements.txt); Debian packages: /usr/share/doc/<package>/copyright." >> "$lic"; \
+    for d in /rootfs/opt/opencanary/lib/*.dist-info; do \
+      n=$(basename "$d" .dist-info); found=0; \
+      for f in $(find "$d" -type f \( -iname 'LICEN[SC]E*' -o -iname 'COPYING*' -o -iname 'NOTICE*' -o -iname 'AUTHORS*' \) | sort); do \
+        printf '\n================================================================================\n== %s (%s)\n================================================================================\n' "$n" "$(basename "$f")" >> "$lic"; cat "$f" >> "$lic"; found=1; \
+      done; \
+      [ "$found" = 1 ] || printf '\n== %s: no license file in the package; see THIRD_PARTY_NOTICES.md\n' "$n" >> "$lic"; \
+    done; \
     python3 -I /hp/assemble.py inventory /rootfs /rootfs/usr/share/vedette/honeypot-inventory.txt; \
     find /rootfs -perm /6000 -exec chmod ug-s {} +; \
     chmod -R a+rX,go-w /rootfs; \
@@ -92,6 +105,8 @@ ARG VERSION
 LABEL org.opencontainers.image.title="vedette-honeypot" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.source="https://github.com/KNT048/vedette" org.opencontainers.image.licenses="Apache-2.0 AND BSD-3-Clause AND GPL-3.0-or-later"
 COPY --from=rootfs /rootfs/ /
 COPY --from=build /out/vedette /vedette
+# Third-party licenses of the Go modules linked into /vedette (scripts/hostlicenses, D-155 (10)); the Python ones are in python-licenses (rootfs stage).
+COPY --from=build /out/licenses/ /usr/share/doc/vedette/
 COPY --chmod=0644 deploy/containers/honeypot/smb.conf /etc/samba/smb.conf
 COPY --chmod=0644 deploy/containers/honeypot/init.py /usr/local/lib/vedette-hp/init.py
 # OpenCanary 0.9.10 redirects GET / to /index.html and then reads skin/basicLogin/redirect.html, which its wheel does not ship (only nasLogin has it):

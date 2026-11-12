@@ -17,3 +17,9 @@ OSQUERY_VERSION=5.12.1
 OSQUERY_DEB_AMD64_SHA256=051c287741d71b09184cb6bc53065cda972e3c27592b1e558696aaec9f0eb013
 OSQUERY_RPM_X86_64_SHA256=eb3dccd38dec8f92bfd8616fd24f1210486f5f02ffc9d6c016827ab668f67c08
 OSQUERY_MSI_SHA256=e9b0acfee492bd375714dc3d92d477272623b301b31a459fcc989cc6aa7dd0c0
+# The licence texts shipped next to the packages (core image, /usr/share/doc/vedette/osquery/): the files of the osquery 5.12.1 source tree
+# (https://github.com/osquery/osquery/tree/5.12.1: LICENSE, LICENSE-Apache-2.0, LICENSE-GPL-2.0), copied unmodified into deploy/osquery/ on 2026-11-12;
+# the core build checks each against the hash below. To bump: replace the three files from the new tag and these three hashes with the others.
+OSQUERY_LICENSE_SHA256=8412c04ff027b7c95c9f9f44b4feb321a0416b1c0124f69637d31d0a0de8df3a
+OSQUERY_LICENSE_APACHE_SHA256=c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08
+OSQUERY_LICENSE_GPL2_SHA256=640d90f6ee401241ff62834d0d1b33f83049e99b8bfdfa04ed1b0a1635dde3e7

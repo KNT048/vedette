@@ -37,7 +37,13 @@ export function normaliseCidr(raw: string): NormalisedCidr | null {
   return { value: `${[24, 16, 8, 0].map((sh) => (net >>> sh) & 255).join('.')}/${bits}`, note }
 }
 
-export const TIMEZONES = ['Asia/Ho_Chi_Minh', 'Asia/Bangkok', 'Asia/Singapore', 'Asia/Tokyo', 'Europe/London', 'America/New_York', 'UTC']
+/** Zones offered for search: every IANA zone the browser lists, plus the box default and UTC (some engines list a zone under an older alias, or leave UTC out). */
+export const TIMEZONES: string[] = [...new Set([...Intl.supportedValuesOf('timeZone'), 'Asia/Ho_Chi_Minh', 'UTC'])].sort()
+/** Any name the browser itself accepts as a zone; the box checks the name again (time.LoadLocation). */
+export const validTimeZone = (z: string): boolean => {
+  try { new Intl.DateTimeFormat(undefined, { timeZone: z }); return true } catch { return false }
+}
+export const browserTimeZone = (): string | null => Intl.DateTimeFormat().resolvedOptions().timeZone || null
 
 export async function sha256Hex(buf: ArrayBuffer): Promise<string> {
   const d = await crypto.subtle.digest('SHA-256', buf)

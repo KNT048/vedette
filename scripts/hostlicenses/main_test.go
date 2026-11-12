@@ -11,7 +11,7 @@ import (
 // The file names every module linked into the static host binary (asked from go itself, apart from the generator's own code path)
 // and carries the Go license; a module without a license file would have failed the generation.
 func TestGenerateNamesEveryLinkedModule(t *testing.T) {
-	text, err := generate("linux", "amd64")
+	text, err := generate("linux", "amd64", defaultPkg, "vedette-host", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,6 +37,19 @@ func TestGenerateNamesEveryLinkedModule(t *testing.T) {
 		t.Errorf("only %d linked modules found: the go list query is wrong", len(seen))
 	}
 	for _, want := range []string{"== Go standard library and runtime (LICENSE)", "== github.com/knt048/vedette ("} {
+		if !strings.Contains(string(text), want) {
+			t.Errorf("the file lacks %q", want)
+		}
+	}
+}
+
+// The images run the generator over their own main package: the sensor binary has its own list, under its own name.
+func TestGenerateOverAnotherMainPackage(t *testing.T) {
+	text, err := generate("linux", "amd64", "github.com/knt048/vedette/cmd/vedette-sensor", "vedette-sensor", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Third-party licenses of vedette-sensor", "== Go standard library and runtime (LICENSE)", "== github.com/knt048/vedette ("} {
 		if !strings.Contains(string(text), want) {
 			t.Errorf("the file lacks %q", want)
 		}

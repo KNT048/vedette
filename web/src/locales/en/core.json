@@ -29,7 +29,9 @@
     "nameHint": "Shown in the sidebar, reports and alert messages.",
     "nameError": "The organization name needs at least 2 characters.",
     "timezone": "Time zone",
-    "timezoneHint": "Used for scan windows, quiet hours and the weekly report."
+    "timezoneHint": "Used for scan windows, quiet hours and the weekly report. Start typing a city or region to search.",
+    "timezoneError": "Pick a time zone from the list, for example Europe/Berlin or UTC.",
+    "useBrowserZone": "Use this browser's time zone ({{zone}})"
   },
   "modules": {
     "title": "{{on}} of {{total}} modules are on",
@@ -114,7 +116,7 @@
       "role": "Role",
       "submit": "Create account",
       "nameError": "Enter the user's name.",
-      "emailError": "The email does not look right, for example name@company.vn."
+      "emailError": "The email does not look right, for example name@example.com."
     },
     "temp": {
       "titleCreate": "Account created",
@@ -527,6 +529,7 @@
     "check": "Check for Vedette releases",
     "checkOff": "Update checks are off in Privacy.",
     "lastCheck": "Last checked {{time}}.",
+    "neverChecked": "Never checked.",
     "checkedApplied": "Installed {{count}} new items automatically.",
     "checkedNew": "{{count}} new items. Press Update on the matching row.",
     "checkedNone": "Everything is up to date.",
@@ -556,7 +559,8 @@
     "sig": {
       "valid": "Valid",
       "invalid": "Invalid",
-      "unsigned": "Unsigned"
+      "unsigned": "Unsigned",
+      "dev": "Development build"
     },
     "host": {
       "how": "Updated together with Vedette. If a new version does not start, the box goes back to the one before by itself.",
@@ -642,6 +646,7 @@
       "distro": "Distribution",
       "kernel": "Kernel",
       "lastCheck": "Last checked",
+      "neverChecked": "Never checked",
       "support": "Standard support",
       "supportUntil": "Until {{date}}",
       "extendedUntil": "Extended (LTS) support until {{date}}",
@@ -1257,7 +1262,7 @@
       "name": "Administrator name",
       "nameError": "Enter the administrator's name.",
       "email": "Sign-in email",
-      "emailError": "The email does not look right, for example name@company.vn.",
+      "emailError": "The email does not look right, for example name@example.com.",
       "password": "Password",
       "passwordHint": "At least {{min}} characters. A long sentence is easier to remember than random characters.",
       "passwordError": "The password needs at least {{min}} characters, it has {{count}} so far.",
@@ -1327,7 +1332,7 @@
         "email": "SMTP password"
       },
       "secretHint": "Only the last 4 characters show after saving.",
-      "emailError": "The email does not look right, for example security@company.vn.",
+      "emailError": "The email does not look right, for example security@example.com.",
       "later": "You send a test and set quiet hours in Settings, Alert channels.",
       "skip": "Skip and finish",
       "field": {

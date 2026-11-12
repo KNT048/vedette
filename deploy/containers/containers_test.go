@@ -4,7 +4,9 @@ package containers
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec" //nolint:depguard // the test runs go and make with fixed argv, no shell; SYS-1 is about the product
 	"path/filepath"
@@ -466,6 +468,41 @@ func TestCoreImageShipsThePinnedOsqueryPackages(t *testing.T) {
 	}
 	if _, err := os.Stat("../osquery/PINS"); err != nil {
 		t.Error("deploy/osquery/PINS is missing")
+	}
+}
+
+// Every image carries the third-party license file (D-155 (10)): the build stage runs scripts/hostlicenses over the main package of the binary in
+// the same RUN as the go build, the final stage copies it to /usr/share/doc/vedette/, the build context lets the generator in, and the core image
+// ships the osquery license texts pinned by hash.
+func TestEveryImageShipsItsThirdPartyLicenses(t *testing.T) {
+	t.Parallel()
+	for _, f := range []string{"core", "sensor", "scan-base", "honeypot"} {
+		text := read(t, f+"/Containerfile")
+		if !strings.Contains(text, "go run ./scripts/hostlicenses ") || !strings.Contains(text, "-out /out/licenses/third-party-licenses") {
+			t.Errorf("%s/Containerfile: the build stage does not generate the third-party license file", f)
+		}
+		if !strings.Contains(text, "COPY --from=build /out/licenses/ /usr/share/doc/vedette/\n") {
+			t.Errorf("%s/Containerfile: the final stage does not copy the license file to /usr/share/doc/vedette/", f)
+		}
+	}
+	core, pins := read(t, "core/Containerfile"), read(t, "../osquery/PINS")
+	if !strings.Contains(core, "-name vedette-core -tags webui") {
+		t.Error("core/Containerfile: the license list must be made with the same -tags webui as the binary")
+	}
+	if !strings.Contains(read(t, "../../.dockerignore"), "\n!scripts/hostlicenses\n") {
+		t.Error(".dockerignore must let scripts/hostlicenses into the build context")
+	}
+	for _, n := range []string{"LICENSE", "LICENSE-Apache-2.0", "LICENSE-GPL-2.0"} {
+		b, err := os.ReadFile("../osquery/" + n) //nolint:gosec // test: fixed file names
+		if err != nil {
+			t.Fatal(err)
+		}
+		if sum := fmt.Sprintf("%x", sha256.Sum256(b)); !strings.Contains(pins, sum) {
+			t.Errorf("deploy/osquery/PINS does not pin the SHA-256 of %s (%s)", n, sum)
+		}
+		if !strings.Contains(core, "deploy/osquery/"+n) {
+			t.Errorf("core/Containerfile does not copy deploy/osquery/%s", n)
+		}
 	}
 }
 

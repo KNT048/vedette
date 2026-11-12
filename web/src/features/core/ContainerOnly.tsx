@@ -11,7 +11,7 @@ import { Segmented } from '@/components/ui/segmented'
 import { useModules } from '@/lib/modules'
 import { fmtRelative } from '@/lib/format'
 import { useUpdates } from './api'
-import type { UpdateAvailable, UpdatesState } from './types'
+import type { UpdateAvailable, UpdateCheckError, UpdatesState } from './types'
 
 /** Where a page waits for the install kind (GET /modules): loading, or the error with Try again when it fails; never an endless spinner. */
 export function InstallPending() {
@@ -106,15 +106,24 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
     </div>
   ) : !s.check_enabled ? (
     <p className="text-sm">{t('container.updates.checkOff')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('container.updates.privacyLink')}</Link>.</p>
-  ) : !s.last_check ? <p className="text-sm">{t('container.updates.notYet')}</p>
+  ) : !s.last_check ? <p className="text-sm">{t(s.last_check_error ? 'container.updates.notYetFailed' : 'container.updates.notYet')}</p>
   : <p className="text-sm">{t('container.updates.latest')}</p>
-  // The running version and the last check, always (the offer and "never" texts alone do not say both).
+  // The running version and the last check, always (the offer and "never" texts alone do not say both); a failed check
+  // says why itself, so "never read" then drops its guess at the cause (D-392).
+  const read = s.last_check ? t('container.updates.checked', { when: fmtRelative(s.last_check) }) : s.last_check_error ? '' : t('container.updates.neverChecked')
   return (
     <>
       {main}
-      <p className="text-[13px] text-muted [overflow-wrap:anywhere]">{running ? t('container.updates.running', { version: running }) : t('container.updates.runningUnknown')} {s.last_check ? t('container.updates.checked', { when: fmtRelative(s.last_check) }) : t('container.updates.neverChecked')}</p>
+      <p className="text-[13px] text-muted [overflow-wrap:anywhere]">{running ? t('container.updates.running', { version: running }) : t('container.updates.runningUnknown')} {read}</p>
+      {s.last_check_error ? <CheckFailed e={s.last_check_error} /> : null}
     </>
   )
+}
+
+/** "Last check failed <when>: <reason>" (S-CORE-2 D-392), on both install kinds: the reason is the box's own sentence for the failure code. */
+export function CheckFailed({ e }: { e: UpdateCheckError }) {
+  const { t } = useTranslation('core')
+  return <p className="text-[13px] text-warn">{t('updates.checkFailed', { time: fmtRelative(e.at), reason: e.message })}</p>
 }
 
 /**
@@ -174,15 +183,19 @@ function OfferSteps({ offer, running, engine }: { offer: UpdateAvailable; runnin
   )
 }
 
-/** Settings → Data on a container-only install (S-CORE-9 G2): a backup is a copy of the Docker volume vedette_data. */
+/** Settings → Data on a container-only install (S-CORE-9 G2): a backup is a copy of the volume vedette_data, with the Docker / Podman switch of Updates. */
 export function ContainerBackup() {
   const { t } = useTranslation('core')
+  const [engine, setEngine] = useState<Engine>('docker')
   return (
     <Section title={t('container.backup.title')} description={t('container.backup.desc')}>
       <div className="grid max-w-3xl gap-2">
-        <CodeBlock label={t('container.backup.label')} code={BACKUP_CMD} />
+        <Segmented label={t('container.updates.engine')} value={engine} onChange={setEngine} className="justify-self-start"
+          options={[{ value: 'docker', label: 'Docker' }, { value: 'podman', label: 'Podman' }]} />
+        <CodeBlock label={t('container.backup.label')} code={forEngine(BACKUP_CMD, engine)} />
         <p className="text-[13px] text-muted">{t('container.backup.keep')}</p>
-        <CodeBlock label={t('container.backup.restoreLabel')} code={RESTORE_CMD} />
+        <CodeBlock label={t('container.backup.restoreLabel')} code={forEngine(RESTORE_CMD, engine)} />
+        {engine === 'podman' ? <p className="text-[13px] text-muted">{t('container.backup.podmanNote')}</p> : null}
       </div>
     </Section>
   )

@@ -236,7 +236,7 @@ oui:
 	go run ./scripts/oui
 
 clean:
-	rm -rf bin .dev/bin dist coverage.out web/dist internal/webui/dist web/playwright-report web/test-results web/node_modules/.tmp web/node_modules/.vite $(PACK_DIR)
+	rm -rf bin .dev/bin dist coverage.out web/dist internal/webui/dist internal/webui/licenses web/playwright-report web/test-results web/node_modules/.tmp web/node_modules/.vite $(PACK_DIR)
 
 # Mã Go server sinh từ api/openapi.json (D-60): chuẩn hoá vào thư mục tạm, chạy ogen, ghi bảng vai.
 # Bản chuẩn hoá không commit. Không sửa tay core/api/oas và core/api/routes/routes_gen.go.
@@ -258,10 +258,13 @@ sensor-image:
 	$(CONTAINER) build -f deploy/containers/sensor/Containerfile $(PIN_ARGS) -t localhost/vedette-sensor:$(IMAGE_TAG) .
 
 # The core image embeds the interface (D-149): build it on this machine (Node is pinned by devEngines), copy it where `-tags webui` embeds it from.
+# The licenses of its npm packages go to internal/webui/licenses/ (outside dist, so they are not embedded in the binary; the core image copies them).
 webui-dist: web-release
 	rm -rf internal/webui/dist
 	mkdir -p internal/webui/dist
 	cp -R web/dist/. internal/webui/dist/
+	rm -rf internal/webui/licenses
+	go run ./scripts/weblicenses -web web -out internal/webui/licenses/web-third-party-licenses.txt
 
 # Real-browser CSP check of the embedded interface (D-149); heavy (Chromium), not part of check/verify.
 webui-csp-check: webui-dist
@@ -270,8 +273,8 @@ webui-csp-check: webui-dist
 
 # The generated web/dist and internal/webui/dist are removed on every exit path (build-artifacts rule), a failed build included.
 core-image: webui-dist check-min-sequence
-	$(CONTAINER) build -f deploy/containers/core/Containerfile $(PIN_ARGS) --build-arg MIN_SEQUENCE=$(MIN_SEQUENCE) --build-arg TEST_KEYS_B64=$(TEST_KEYS_B64) -t localhost/vedette-core:$(IMAGE_TAG) . || { rm -rf web/dist internal/webui/dist; exit 1; }
-	rm -rf web/dist internal/webui/dist
+	$(CONTAINER) build -f deploy/containers/core/Containerfile $(PIN_ARGS) --build-arg MIN_SEQUENCE=$(MIN_SEQUENCE) --build-arg TEST_KEYS_B64=$(TEST_KEYS_B64) -t localhost/vedette-core:$(IMAGE_TAG) . || { rm -rf web/dist internal/webui/dist internal/webui/licenses; exit 1; }
+	rm -rf web/dist internal/webui/dist internal/webui/licenses
 
 # The safe template pack: pinned download of nuclei-templates, filter, index (scripts/scanpack). Rebuilt (the folder removed first) whenever pins.env or the builder changes.
 scan-pack: $(PACK_DIR)/index.json
@@ -293,8 +296,8 @@ MULTI = { $(CONTAINER) manifest rm localhost/vedette-$(1):$(IMAGE_TAG) >/dev/nul
 endif
 comma := ,
 images: webui-dist scan-pack check-min-sequence
-	$(call MULTI,sensor,deploy/containers/sensor/Containerfile) && $(call MULTI,scan-base,deploy/containers/scan-base/Containerfile) && $(call MULTI,core,deploy/containers/core/Containerfile,--build-arg MIN_SEQUENCE=$(MIN_SEQUENCE) --build-arg TEST_KEYS_B64=$(TEST_KEYS_B64)) && $(call MULTI,honeypot,deploy/containers/honeypot/Containerfile) || { rm -rf web/dist internal/webui/dist; exit 1; }
-	rm -rf web/dist internal/webui/dist
+	$(call MULTI,sensor,deploy/containers/sensor/Containerfile) && $(call MULTI,scan-base,deploy/containers/scan-base/Containerfile) && $(call MULTI,core,deploy/containers/core/Containerfile,--build-arg MIN_SEQUENCE=$(MIN_SEQUENCE) --build-arg TEST_KEYS_B64=$(TEST_KEYS_B64)) && $(call MULTI,honeypot,deploy/containers/honeypot/Containerfile) || { rm -rf web/dist internal/webui/dist internal/webui/licenses; exit 1; }
+	rm -rf web/dist internal/webui/dist internal/webui/licenses
 
 # The honeypot image (WP-08e, D-162): OpenCanary + Samba. Needs the network at build time (apt, PyPI). Its effects are checked by `make honeypot-check`.
 honeypot-image:

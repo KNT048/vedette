@@ -37,6 +37,18 @@ describe('container-only install (D-381)', () => {
     expect(hostCalls()).toEqual([])
   })
 
+  it('Data backup and restore follow the Docker / Podman switch, with the SELinux note for Podman (S-CORE-9 G2)', async () => {
+    const u = userEvent.setup()
+    renderApp('/settings/data')
+    expect(await screen.findByText(/^docker compose --env-file vedette.env stop core/)).toBeInTheDocument()
+    expect(screen.queryByText(/SELinux/)).toBeNull()
+    await u.click(screen.getByRole('button', { name: 'Podman' }))
+    expect(screen.getByText(/^podman compose --env-file vedette.env stop core/)).toBeInTheDocument()
+    expect(screen.getByText(/^podman compose --env-file vedette.env create core/)).toBeInTheDocument()
+    expect(screen.queryByText(/docker (run|compose)/)).toBeNull()
+    expect(screen.getByText(/SELinux/)).toBeInTheDocument()
+  })
+
   it('Updates names the offered release and its notes, with the update and cosign blocks for Docker or Podman and no Apply (S-CORE-9 G4)', async () => {
     const u = userEvent.setup()
     renderApp('/settings/updates')
@@ -132,7 +144,7 @@ describe('container-only install (D-381)', () => {
     ['the check is off', { check_enabled: false }, /The update check is off/],
     ['nothing newer', { last_check: '2026-11-12T00:00:00Z' }, /No newer release is offered to this install\./],
   ])('Updates without a newer release says why (%s) and keeps the general pull and up -d block', async (_, over, said) => {
-    const state = { channel: 'stable', mode: 'manual', check_enabled: true, last_check: null, components: [{ id: 'software', kind: 'software', version: '0.9.3', previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }], available: [], history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null, ...over }
+    const state = { channel: 'stable', mode: 'manual', check_enabled: true, last_check: null, components: [{ id: 'software', kind: 'software', version: '0.9.3', previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }], available: [], history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null, last_check_error: null, ...over }
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(state)))
     renderApp('/settings/updates')
     expect(await screen.findByText(said)).toBeInTheDocument()
@@ -142,6 +154,17 @@ describe('container-only install (D-381)', () => {
     // the block says what it does and does not do; no "kept files" that this state never made (QA M3)
     expect(screen.getByText(/They do not move you to a new release: the image digests are fixed in vedette\.env/)).toBeInTheDocument()
     expect(screen.queryByText(/kept|go back/)).toBeNull()
+  })
+
+  it('Updates: a failed check says when and why, without guessing the cause (S-CORE-2 D-392)', async () => {
+    const message = "The update information did not pass Vedette's signature checks, so nothing new is offered and nothing was installed. The details are in the box log."
+    const state = { channel: 'stable', mode: 'manual', check_enabled: true, last_check: null, last_check_error: { at: new Date(Date.now() - 3600e3).toISOString(), code: 'update_check_failed', message }, components: [{ id: 'software', kind: 'software', version: '0.9.3', previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }], available: [], history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null }
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(state)))
+    renderApp('/settings/updates')
+    expect(await screen.findByText(`Last check failed 1 hour ago: ${message}`)).toBeInTheDocument()
+    expect(screen.queryByText(/has never been read/)).toBeNull()
+    expect(screen.getByText('No release information yet: no update check has succeeded on this install. Vedette tries again every 6 hours.')).toBeInTheDocument()
+    expect(screen.queryByText(/cannot reach github\.com/)).toBeNull() // the failure line says the real reason
   })
 
   it('Updates: when the update state cannot be read, the error has Try again and the general block stays', async () => {
@@ -233,23 +256,35 @@ describe('container-only install (D-381)', () => {
     await screen.findByRole('button', { name: 'Configure sensor vedette-hq' }, { timeout: 5000 })
     await waitFor(async () => { await u.click(screen.getByRole('button', { name: 'Configure sensor vedette-hq' })); screen.getByRole('dialog') }, { timeout: 8000 })
   }
-  // S-CORE-8 G6, D-387: the SPAN card is chosen under Sensors among the cards the sensor reported; Box network has no SPAN here.
-  it('Sensors: Configure picks the SPAN card among the reported cards; the box refuses a card with an address', async () => {
+  // S-CORE-8 G6, D-387, D-393: the card is chosen under Sensors among the cards the sensor reported; Box network has no SPAN here.
+  it('Sensors: Configure picks the SPAN card among the reported cards; the box refuses SPAN on a card with an address', async () => {
     const u = userEvent.setup()
     renderApp('/devices/setup')
     await openSensorDialog(u)
     const dlg = screen.getByRole('dialog')
     expect(within(dlg).queryByRole('link', { name: /Box network/ })).toBeNull()
-    const pick = within(dlg).getByRole('combobox', { name: 'SPAN card' })
-    expect(within(pick).getAllByRole('option').map((o) => o.textContent)).toEqual(["None (listen on the card with this machine's address)", 'eno1', 'eno2', 'wlp2s0'])
+    const pick = within(dlg).getByRole('combobox', { name: 'Listen on' })
+    expect(within(pick).getAllByRole('option').map((o) => o.textContent)).toEqual(['Automatic (eno1)', 'eno1', 'eno2', 'wlp2s0'])
+    const spanBox = within(dlg).getByRole('checkbox', { name: /SPAN port/ })
+    expect(spanBox).toBeDisabled() // Automatic: no SPAN
     await u.selectOptions(pick, 'eno1')
+    await u.click(spanBox)
     await u.click(within(dlg).getByRole('button', { name: 'Save' }))
     expect(await within(dlg).findByRole('alert')).toHaveTextContent('"eno1" has an IP address; a SPAN port has none.')
-    await u.selectOptions(pick, 'eno2')
+    await u.selectOptions(pick, 'eno2') // another card: SPAN is decided again for it
+    expect(spanBox).not.toBeChecked()
+    await u.click(spanBox)
     await u.click(within(dlg).getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(containerSensorStore.get()).toMatchObject({ chosen: 'eno2', span: true })
     await waitFor(() => expect(screen.getByRole('cell', { name: /eno2/ })).toBeInTheDocument())
+    // Reopened on the stored SPAN choice; Automatic no longer names a card it cannot know (the default is not computed for a choice).
+    await openSensorDialog(u)
+    const again = within(screen.getByRole('dialog'))
+    expect(again.getByRole('combobox', { name: 'Listen on' })).toHaveValue('eno2')
+    expect(again.getByRole('checkbox', { name: /SPAN port/ })).toBeChecked()
+    expect(again.getAllByRole('option')[0]).toHaveTextContent('Automatic (the one card of this machine with an address)')
+    await u.click(again.getByRole('button', { name: 'Cancel' }))
     expect(calls.some((u) => new URL(u, location.origin).pathname.startsWith('/api/v1/core/network'))).toBe(false)
   })
 
@@ -268,12 +303,31 @@ describe('container-only install (D-381)', () => {
     expect(within(dlg).queryByRole('button', { name: 'Save' })).toBeNull()
   })
 
-  it('Sensors: two cards with an address, no SPAN card chosen: the dialog says the sensor is not listening (D-380)', async () => {
+  // D-393 (M3): two cards with an address and no SPAN card: no default (D-380), so the admin picks the card to listen on.
+  it('Sensors: two cards with an address: the dialog says the sensor is not listening, the admin picks one, then back to Automatic', async () => {
     containerSensorStore.set({ connected: true, chosen: null, span: false, cards: [{ name: 'eno1', ipv4: '192.168.10.20/24', link: true }, { name: 'eno2', ipv4: '10.0.0.2/24', link: true }, { name: 'eno3', ipv4: null, link: true }] })
     const u = userEvent.setup()
     renderApp('/devices/setup')
     await openSensorDialog(u)
-    expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent('The sensor is not listening on any card')
+    let dlg = screen.getByRole('dialog')
+    expect(within(dlg).getByRole('status')).toHaveTextContent('The sensor is not listening on any card')
+    let pick = within(dlg).getByRole('combobox', { name: 'Listen on' })
+    expect(within(pick).getAllByRole('option')[0]).toHaveTextContent('Automatic (no card now)')
+    await u.selectOptions(pick, 'eno2')
+    await u.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(containerSensorStore.get()).toMatchObject({ chosen: 'eno2', span: false })
+    await waitFor(() => expect(screen.getByRole('cell', { name: 'eno2' })).toBeInTheDocument())
+    // Reopened, it shows the stored choice, not Automatic; Automatic stores no card again.
+    await openSensorDialog(u)
+    dlg = screen.getByRole('dialog')
+    pick = within(dlg).getByRole('combobox', { name: 'Listen on' })
+    expect(pick).toHaveValue('eno2')
+    expect(within(dlg).getByRole('button', { name: 'Save' })).toBeDisabled()
+    await u.selectOptions(pick, '')
+    await u.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(containerSensorStore.get()).toMatchObject({ chosen: null, span: false })
   })
 
   it('PATCH /inventory/sensors/{id} on an appliance is 409 set_in_box_network', async () => {

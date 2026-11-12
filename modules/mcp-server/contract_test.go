@@ -261,6 +261,10 @@ func TestContract_INV6_INV8_ArgumentsCheckedAndNotAudited(t *testing.T) {
 		{"lookup_cve", map[string]any{"cve": 2024}},
 		{"lookup_ioc", map[string]any{"value": "http://bad.example/x marker-x1"}},
 		{"lookup_ioc", map[string]any{"value": strings.Repeat("a", 254)}},
+		{"lookup_ioc", map[string]any{"value": "bad.example1"}},
+		{"lookup_ioc", map[string]any{"value": "bad.xn--q9jyb4c-"}},
+		{"lookup_ioc", map[string]any{"value": "-bad.example"}},
+		{"lookup_ioc", map[string]any{"value": "bad.example."}},
 		{"get_asset", map[string]any{"id": "../../etc/passwd"}},
 		{"get_asset", map[string]any{"id": "as-fw", "extra": "marker-x1"}},
 		{"get_finding", map[string]any{}},
@@ -319,6 +323,7 @@ func TestContract_INV7_AnswersFitTheirOutputSchema(t *testing.T) {
 		{"lookup_cve", map[string]any{"cve": "CVE-2020-0001"}},
 		{"lookup_ioc", map[string]any{"value": "bad.example"}},
 		{"lookup_ioc", map[string]any{"value": "good.example"}},
+		{"lookup_ioc", map[string]any{"value": "discord.xn--q9jyb4c"}}, // an IDN top-level domain, as feeds lists it
 		{"hot_vulnerabilities", map[string]any{"window": "24h", "limit": 1}},
 	}
 	for _, x := range calls {

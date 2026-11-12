@@ -532,6 +532,7 @@
     "checkOff": "Update checks are off in Privacy.",
     "lastCheck": "Last checked {{time}}.",
     "neverChecked": "Never checked.",
+    "checkFailed": "Last check failed {{time}}: {{reason}}",
     "checkedApplied": "Installed {{count}} new items automatically.",
     "checkedNew": "{{count}} new items. Press Update on the matching row.",
     "checkedNone": "Everything is up to date.",
@@ -686,7 +687,7 @@
       "auto": "Automatic security updates",
       "autoOn": "Automatic security updates are on.",
       "autoOff": "Automatic security updates are off.",
-      "autoHintOn": "unattended-upgrades installs security updates by itself, inside the maintenance window.",
+      "autoHintOn": "unattended-upgrades installs security updates by itself, on the system's own daily apt timer. It does not wait for the maintenance window and never reboots the box; a reboot is yours to schedule.",
       "autoHintOff": "Nothing is installed until you press a button below. Security fixes can wait for days.",
       "windowLabel": "Maintenance window",
       "dayShort": {
@@ -715,8 +716,8 @@
         "from": "From",
         "until": "until",
         "to": "to",
-        "hintAnytime": "Automatic installs and scheduled reboots can happen at any time of day.",
-        "hintWindow": "Automatic installs and scheduled reboots happen only on these days and hours. A window that ends before it starts crosses midnight.",
+        "hintAnytime": "Automatic Vedette updates and scheduled reboots can happen at any time of day.",
+        "hintWindow": "Automatic Vedette updates and scheduled reboots happen only on these days and hours. A window that ends before it starts crosses midnight.",
         "noDays": "Pick at least one day.",
         "empty": "The start and the end are the same, so the window is empty.",
         "save": "Save window",
@@ -779,7 +780,7 @@
         "health": "Health check after the run",
         "failed": "failed",
         "failedChip": "Failed",
-        "failedToast": "The update failed. Nothing was installed.",
+        "failedToast": "The update failed. Some packages may already be installed; the run log below says which.",
         "reboot": "Reboot"
       },
       "upgrade": {
@@ -1300,7 +1301,7 @@
       "title": "Network to watch",
       "desc": "Vedette listens and (if you confirm) scans only inside these ranges.",
       "lan": "Network ranges",
-      "lanHint": "One range per row, like 192.168.10.0/24. A bare address such as 192.168.10.0 is read as /24. Printers and cameras should be inside the list.",
+      "lanHint": "One range per row, like 192.168.10.0/24. Write the prefix length too: a bare address such as 192.168.10.0 is refused. Printers and cameras should be inside the list.",
       "lanRow": "Range {{n}}",
       "lanAdd": "Add range",
       "lanRemove": "Remove range {{n}}",
@@ -1741,6 +1742,7 @@
       "checkOff": "The update check is off, so Vedette cannot tell you here when a new release is out. Watch the release page, or turn the check on under",
       "privacyLink": "Privacy",
       "notYet": "No release information yet: no update check has succeeded on this install. Vedette looks every 6 hours; until a release is published, or while it cannot reach github.com over HTTPS, there is nothing new to show.",
+      "notYetFailed": "No release information yet: no update check has succeeded on this install. Vedette tries again every 6 hours.",
       "latest": "No newer release is offered to this install.",
       "running": "Running version {{version}}.",
       "runningUnknown": "This machine's version is not known.",
@@ -1780,7 +1782,8 @@
       "desc": "Everything Vedette keeps, the key that unlocks its secrets included, is in the Docker or Podman volume vedette_data. Copy it with core stopped.",
       "label": "Back up (in the folder of compose.yaml)",
       "keep": "vedette-data.tgz holds the key: keep it as safe as a password. If you run the sensors, back up the creds-passive and creds-active volumes the same way.",
-      "restoreLabel": "Restore into a fresh volume"
+      "restoreLabel": "Restore into a fresh volume",
+      "podmanNote": "On a machine with SELinux (Fedora, RHEL), add :Z to the \"$PWD\":/backup mount of the backup command and :ro,Z to the same mount of the restore command."
     },
     "network": {
       "meta": "This is a container-only install: the network of this machine is yours to set up.",

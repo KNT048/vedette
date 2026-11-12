@@ -18,6 +18,9 @@ protocol, client OS class, share), and the path, the only free text, has everyth
 A line that does not have exactly that shape is dropped and counted.
 
 If any child exits, the container exits (the unit restarts it): a half-running honeypot must not look healthy.
+
+4. OpenCanary runs from TWISTD below, which repairs one method of its SSH trap before twistd starts (the files under /opt/opencanary stay as
+   PyPI ships them; THIRD_PARTY_NOTICES.md says so).
 """
 import json
 import os
@@ -51,6 +54,31 @@ NONCE = re.compile(r"[0-9a-f]{32}")
 OPS = {"connect", "openat"}
 CHILD_ENV = {"PATH": "/usr/bin:/bin", "HOME": "/tmp/home", "PYTHONPATH": "/opt/opencanary/lib", "PYTHONDONTWRITEBYTECODE": "1",
              "PYTHONUNBUFFERED": "1", "GIT_PYTHON_REFRESH": "quiet", "LANG": "C.UTF-8"}
+
+# OpenCanary 0.9.10's SSH trap overrides Twisted's ssh_KEX_DH_GEX_REQUEST (opencanary/modules/ssh.py) to answer with the smallest group the
+# client accepts, but leaves out Twisted's next step, _startEphemeralDH: a client that negotiates diffie-hellman-group-exchange-* then crashes
+# the connection at its next packet (AttributeError: no dhSecretKey), after the 4000 line and before the login attempt (4002) is logged. Many
+# scanners offer group exchange first. The wrapper runs OpenCanary's method unchanged and then the missing step; it fails at start (KeyError,
+# AttributeError: the container exits) when a new OpenCanary or Twisted no longer has what it wraps, so an upgrade has to look at it again.
+TWISTD = """
+from twisted.scripts.twistd import run
+from twisted.conch.ssh.transport import SSHServerTransport
+from opencanary.modules import ssh
+
+gex_request = ssh.HoneyPotTransport.__dict__["ssh_KEX_DH_GEX_REQUEST"]
+start_dh = SSHServerTransport._startEphemeralDH
+
+
+def ssh_KEX_DH_GEX_REQUEST(self, packet):
+    ignored = self.ignoreNextPacket
+    gex_request(self, packet)
+    if not ignored and not hasattr(self, "dhSecretKey"):
+        start_dh(self)
+
+
+ssh.HoneyPotTransport.ssh_KEX_DH_GEX_REQUEST = ssh_KEX_DH_GEX_REQUEST
+run()
+"""
 
 dropped = 0
 
@@ -181,7 +209,7 @@ def main():
         smbd = spawn(["/usr/sbin/smbd", "--foreground", "--no-process-group", "--debug-stdout", "--configfile=/etc/samba/smb.conf"], stdout=subprocess.PIPE)
         os.set_blocking(smbd.stdout.fileno(), False)
         children.append(smbd)
-    children.append(spawn(["/usr/bin/python3", "-c", "from twisted.scripts.twistd import run; run()", "--nodaemon", "--pidfile=",
+    children.append(spawn(["/usr/bin/python3", "-c", TWISTD, "--nodaemon", "--pidfile=",
                            "--python=/opt/opencanary/lib/bin/opencanary.tac"]))
 
     def on_term(_sig, _frm):

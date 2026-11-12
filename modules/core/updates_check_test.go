@@ -357,6 +357,13 @@ func TestUpdateCheckRefusesWhatDoesNotVerify(t *testing.T) {
 			if g.JSON["last_check"] != nil {
 				t.Errorf("last_check moved after a failed check: %v", g.JSON["last_check"])
 			}
+			// The page shows the failure with the box's own sentence, never the remote details (D-392).
+			if ce, _ := g.JSON["last_check_error"].(map[string]any); ce["code"] != tc.code2 || ce["at"] == nil || ce["message"] != r.JSON["error"].(map[string]any)["message"] {
+				t.Errorf("last_check_error = %v, want code %s and the message of %s", g.JSON["last_check_error"], tc.code2, r.Raw)
+			}
+			if strings.Contains(g.Raw, "evil") || strings.Contains(g.Raw, "HTTP 404") {
+				t.Errorf("the state echoes remote details: %s", g.Raw)
+			}
 			e.wantNothingOffered(t, g)
 			if e.srv.hit("/v1.4.0/release-manifest.json") != 0 && name == "foreign manifest url" {
 				t.Error("a manifest was fetched although the index named another host")

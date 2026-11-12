@@ -18,7 +18,7 @@ has none.
 |---|---|---|---|---|---|
 | 0 | `git tag -s v<v>` on the release commit, `git push origin v<v>` | **kien, by hand** | | tag | git signing key (optional), GitHub push |
 | 1 | `make images IMAGE_TAG=<v> IMAGE_VERSION=<v> RELEASE_PREV_INDEX=<prev>` (or `MIN_SEQUENCE=0` for the very first) | maintainer | tree at the tag, `pins.env` | 4 local podman manifest lists `localhost/vedette-{core,sensor,scan-base,honeypot}:<v>`, amd64 + arm64 | none |
-| 2 | `make host-deb VERSION=<v> ARCH=amd64` and `ARCH=arm64` (same `RELEASE_PREV_INDEX`) | maintainer | tree | `dist/vedette-host_<v>_<arch>.deb` | none |
+| 2 | `make host-deb VERSION=<v> ARCH=amd64` and `ARCH=arm64` (same `RELEASE_PREV_INDEX`), then **[A]** `make release-deb-name VERSION=<v>` (a prerelease: nfpm's `~` name → SemVer; a plain `<v>` needs nothing) | maintainer | tree | `dist/vedette-host_<v>_<arch>.deb` | none |
 | 3 | **[B]** `release-gates`: `make vuln-scan`, `notices-check`, `check-binaries -release`, image version label = `<v>`, `MIN_SEQUENCE` floor | maintainer | lists, `.deb`, `<prev>` | `dist/sbom`, `dist/vuln` (RELEASE=1) | none |
 | 4 | **`make release-push VERSION=<v>`** | maintainer | the 4 local lists | ghcr.io: `vedette-{core,sensor,scan,honeypot}` by digest (+ tag `<v>`); `dist/release/images.json` | **ghcr token** (`podman login ghcr.io`, `write:packages`) |
 | 5 | **`make release-in RELEASE_CHANNEL=stable RELEASE_ROLLBACK_SAFE=false`** (+ `RELEASE_ROLLBACK_MIN`, `RELEASE_MIN_UPGRADE_FROM` when wanted), then write the notes into `release.in.json` | maintainer | `images.json`, the two `.deb`, local lists (sizes) | `release.in.json` | none |
@@ -26,7 +26,7 @@ has none.
 | 7 | run the printed cosign commands | **kien** | | `dist/release/cosign/<service>.{payload.json,sig}`; attestations in ghcr | **cosign key** + `COSIGN_PASSWORD`, ghcr token (attest uploads) |
 | 8 | `make release-manifest RELEASE_PREV_INDEX=<prev>` | maintainer | `release.in.json`, cosign files, git at `v<v>`, `<prev>` | `release-manifest.json`, `index.json` (unsigned) | none |
 | 9 | `make release-container-assets` | maintainer | git at `v<v>`, `release.in.json` | the four container-only files | none |
-| 10 | **[A]** `release-bake-install` | maintainer | `install.sh` at the tag, the `.deb` | `dist/release/install.sh` (3 baked lines), `install.sh.minisig` with the trusted comment `file:install.sh version:<v>` | **minisign active key** |
+| 10 | **[A]** `make release-bake-install MINISIGN_KEY=…` (active; the backup key only for a rescue) | maintainer | `install.sh` at the tag, `release-manifest.json`, the `.deb` | `dist/release/install.sh` (3 baked lines), `install.sh.minisig` with the trusted comment `file:install.sh version:<v>` | **minisign active key** |
 | 11 | `make release-sign MINISIGN_KEY=…` (active), then `RELEASE_SLOT=backup` with the offline key | **kien** | `dist/release` | `.minisig` files; `index.json.backup.minisig` | **minisign active**, then **backup** (USB) |
 | 12 | `make release-verify RELEASE=1 RELEASE_PREV_INDEX=<prev>` | maintainer | `dist/release` | nothing (kept) | none |
 | 13 | **`make release-publish RELEASE_PREV_INDEX=<prev>`** (prints), then the same with **`PUBLISH=1`** (the first release: `FIRST_RELEASE=1` and no `RELEASE_PREV_INDEX`) | **kien** | `dist/release`, `release.in.json`, `<prev>`, the live index, ghcr anonymously | GitHub release `v<v>` and the fixed release `index` | **gh token** (`repo` scope) |
@@ -73,6 +73,19 @@ are only tied to `<v>` by their version label (and B's gates); build them from t
 
 Services in order core, sensor, scan, honeypot; platforms sorted. Part C reads it for `cosign attest` (per-platform SBOMs
 `dist/sbom/<image>-<arch>.cdx.json` attach to the platform digests; the local name `scan-base` maps to service `scan`).
+
+**`release-deb-name`** (`deb-name`, part A): renames `<deb-dir>/vedette-host_<debian version>_<arch>.deb` (nfpm turns the first `-`
+of a SemVer prerelease into `~`) to `vedette-host_<v>_<arch>.deb` for amd64 and arm64. Nothing to do for a version without a prerelease;
+a package already renamed is left; both names present (a rebuild next to a renamed package) or neither is refused.
+
+**`release-bake-install`** (`bake-install`, part A): reads `install.sh` from git at `v<v>` (`RELEASE_REF`), never the working tree, and
+`release-manifest.json` (unsigned at this step); hashes the two `.deb` of `release.in.json` again and refuses when they are not the ones
+the manifest names. Each of the three lines `VEDETTE_VERSION=""`, `VEDETTE_DEB_SHA256_AMD64=""`, `VEDETTE_DEB_SHA256_ARM64=""` must be
+there once, empty, and be the only line that can set its variable (the rule `release-publish` applies, shared code); they become the
+manifest's version and package SHA-256s, nothing else changes. Refused: a `-test.` version, a manifest without both packages, a value
+outside SemVer / 64 lower-case hex. The pinned minisign signs `dist/release/install.sh` (fixed argv, the passphrase on the terminal or
+stdin) with the trusted comment `file:install.sh version:<v>`; the signature is then verified with the release keys (`RELEASE_KEYS`, else
+the compiled-in ones) and its comment read back. On any failure neither `install.sh` nor its `.minisig` is left in `dist/release`.
 
 **`release-in`** (`in`): reads `images.json` strictly (four services, each once, repo `ghcr.io/knt048/vedette-<service>`: a rehearsal's
 file is refused), and writes `release.in.json`: images (`digest` = index digest, `platforms`, `size` = the largest unpacked size among
@@ -183,15 +196,16 @@ that every asset of `v<v>` has the SHA-256 of `dist/release/` (`gh release view 
    and `release-publish` refuses until they are pullable that way.
 4. Leave GitHub **immutable releases off** for this repository: they would also lock the fixed release `index`, which must be replaced
    every week (D-150). The tool keeps version releases unchanged instead (§2).
-5. Tell part A: `install.sh.minisig` carries the trusted comment exactly `file:install.sh version:<v>` and is signed by the key that
-   signs the manifest.
+5. `release-bake-install` (part A) signs `install.sh.minisig` with the trusted comment exactly `file:install.sh version:<v>`: give it
+   the key that signs the manifest in step 11 (`MINISIGN_KEY`, the active key; the backup key only for a rescue).
 
 ## 4. Not done here / open
 
 - `CONTAINER=docker`: `make images` writes OCI archives under `dist/images/` (not run yet, `.ai/deferred/feat-multiarch-images.md`);
   pushing those needs `skopeo copy --all oci-archive:` or `regctl`, a new dependency. `release-push` refuses docker until someone needs it.
 - Prerelease `.deb` names: nfpm writes `~` for a SemVer prerelease (`1.0.0~beta.1`); `release-in` needs the SemVer spelling, so for a
-  prerelease the rename (part A) must happen **before** step 5, not after. A plain `1.0.0` needs no rename.
+  prerelease the rename (part A) must happen **before** step 5, not after. A plain `1.0.0` needs no rename. Done by
+  `make release-deb-name` in step 2; `release-in` still refuses a `~` name.
 - `sbom` of the manifest stays null; the SBOMs travel as cosign attestations (part C). `bundled` (nuclei, OpenCanary versions for the
   Managed packages view) stays empty; filling it from `pins.env` is a follow-up if the GUI should show it for v1.
 - Release notes: written by hand into `release.in.json` after step 5 (they are signed in the manifest and reused as the GitHub notes).

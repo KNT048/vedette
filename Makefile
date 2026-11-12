@@ -65,6 +65,7 @@ help:
 	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f, D-164): print the cosign commands, build release-manifest.json + index.json (refuses rollback.safe=true unless rollback.min_version is set and every migration since that release, read from git, is add-only, D-183); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index), sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
 	@echo "make release-container-assets   after release-manifest: the container-only files (compose.yaml, compose.sensors.yaml, compose.syslog.yaml, vedette.env with the three image digests) read from git at the tag into dist/release; release-sign signs them, release-verify requires them when install_modes lists container (D-451)"
 	@echo "make release-push VERSION=<v> / release-in RELEASE_CHANNEL=stable RELEASE_ROLLBACK_SAFE=false / release-publish [PUBLISH=1]   the release job's network steps (WP-08k, D-457): images by digest to ghcr (images.json), release.in.json, then the gh release assets with the index last; order in docs/plans/2026-11-12-wp08k-release-job.md"
+	@echo "make release-deb-name VERSION=<v> / release-bake-install   part A of the release job (D-457): SemVer names of prerelease .deb before release-in; install.sh with its three lines baked and signed (MINISIGN_KEY) into dist/release"
 	@echo "make release-packs PACKS_VERSION=<n.n.n>   sign the confirmed mitigation packs of content/mitigation/packs with the release minisign key before the core image is built (D-345; MINISIGN_KEY, maintainer machine)"
 	@echo "make release-interop   the builder and the box's verifier against the real pinned minisign (downloads it into ~/.cache/vedette-minisign, checks deploy/tools.env)"
 	@echo "release preflight: release-manifest refuses a -test. version and, with RELEASE_PREV_INDEX, an index sequence not above MIN_SEQUENCE (host-deb takes it from that index); host-deb of a real version needs RELEASE_PREV_INDEX (or MIN_SEQUENCE=0 for the first release), refuses -overlay/-tags in GOFLAGS and a dirty tree, and checks the built vedette-host (go run ./scripts/release check-binaries -release BINARY: no -tags releasetestkeys, the production key bytes inside) and sets file times from SOURCE_DATE_EPOCH (commit time)"
@@ -492,6 +493,19 @@ release-in:
 
 release-publish:
 	$(RELEASE_GO) publish -dir $(RELEASE_OUT) -in $(RELEASE_IN) $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(RELEASE_KEYS_ARG) $(if $(filter 1,$(FIRST_RELEASE)),-first-release) $(if $(filter 1,$(PUBLISH)),-run)
+
+# Part A of the release job (D-457). release-deb-name: after both host-deb runs and before release-in, nfpm's prerelease name
+# vedette-host_1.0.0~beta.1_<arch>.deb becomes the SemVer one (a plain 1.0.0 needs nothing; idempotent). release-bake-install: after
+# release-container-assets, install.sh read from git at the tag (RELEASE_REF) with its three lines baked from release-manifest.json,
+# signed with MINISIGN_KEY (the key that signs the manifest) into install.sh.minisig, "file:install.sh version:<v>", checked with the
+# keys of RELEASE_KEYS or the compiled-in ones.
+.PHONY: release-deb-name release-bake-install
+release-deb-name:
+	$(RELEASE_GO) deb-name -version '$(VERSION)' -dir $(DEB_OUT)
+
+release-bake-install:
+	@test -n "$$MINISIGN_KEY" || { echo "release-bake-install: set MINISIGN_KEY to the path of the minisign secret key (outside the repo)" >&2; exit 1; }
+	$(RELEASE_GO) bake-install -dir $(RELEASE_OUT) -in $(RELEASE_IN) $(if $(RELEASE_REF),-ref $(RELEASE_REF)) -key "$$MINISIGN_KEY" -minisign "$${MINISIGN_BIN:-$$(scripts/release/minisign.sh)}" $(RELEASE_KEYS_ARG) $(if $(PASSPHRASE_STDIN),-passphrase-stdin)
 
 # The confirmed mitigation packs that ship in the core image (D-345): signed before the image is built, on the maintainer's machine.
 # PACKS_VERSION: dotted numbers newer than content/mitigation/packs/VERSION. The result (VERSION, packs.list, packs.minisig) is committed.

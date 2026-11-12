@@ -136,9 +136,9 @@ func TestResponseHostInfraHoldsTheGatewayAndDNS(t *testing.T) {
 	}
 }
 
-// D-384: every IPv6 default gateway, each gateway's MAC (from the neighbour table) and the DNS servers in use (here a DHCP lease's: no
+// D-390: every IPv6 default gateway, each gateway's MAC (from the neighbour table) and the DNS servers in use (here a DHCP lease's: no
 // saved configuration) reach the never-touch list. An answer whose IPv6 route or gateway MAC is missing for a moment keeps the last
-// ones; a family with a route keeps only its own gateway; a host older than D-384 (no such fields) gives what D-325 gave.
+// ones; a family with a route keeps only its own gateway; a host older than D-390 (no such fields) gives what D-325 gave.
 func TestResponseHostInfraHoldsTheIPv6GatewayTheGatewayMACsAndTheLeaseDNS(t *testing.T) {
 	now := time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC)
 	full := api.NetState{
@@ -176,7 +176,7 @@ func TestResponseHostInfraHoldsTheIPv6GatewayTheGatewayMACsAndTheLeaseDNS(t *tes
 	if have := infraText(); !slices.Equal(have, []string{"gateway 192.168.10.1 00:11:22:33:44:55", "gateway fe80::1 00:11:22:33:44:66", "gateway 2001:db8::1 "}) {
 		t.Fatalf("a new gateway: %v", have)
 	}
-	// A host older than D-384 sends none of the new fields; a MAC that is not a 6-byte MAC is not one.
+	// A host older than D-390 sends none of the new fields; a MAC that is not a 6-byte MAC is not one.
 	old, _ := hostInfraOf(api.NetState{DefaultRoute: &api.NetRoute{Iface: "eth0", Gateway: "192.168.10.1", MAC: "00:11:22:33:44:55:66:77"}})
 	if len(old) != 1 || old[0].Addr.String() != "192.168.10.1" || old[0].MAC != "" {
 		t.Fatalf("an older host's answer: %+v", old)
@@ -259,7 +259,7 @@ func gwState(gw, mac string) api.NetState {
 	return api.NetState{DefaultRoute: &api.NetRoute{Iface: "eth0", Gateway: gw, MAC: mac}}
 }
 
-// D-384 review (M1): a host on the LAN that poisons the box's ARP entry for the gateway must not become never-touch. The first MAC seen is
+// D-390 review (M1): a host on the LAN that poisons the box's ARP entry for the gateway must not become never-touch. The first MAC seen is
 // pinned; a different one is reported once (per 10 minutes) and stays off the list until it has been the only MAC for 10 minutes over at
 // least 3 answers in a row; the pinned MAC stays never-touch all along and after.
 func TestGatewayMACIsPinnedAgainstSpoofing(t *testing.T) {

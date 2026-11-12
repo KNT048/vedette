@@ -87,7 +87,7 @@ type Deps struct {
 	// the ARP side of the network commands (default: the real packet socket, Linux only).
 	Interfaces func() ([]HostIface, error)
 	// NeighDump is the kernel's neighbour table as the reply of a netlink RTM_GETNEIGH dump (default: syscall.NetlinkRIB on Linux, an
-	// error elsewhere); state/net reads the default gateways' MACs from it (D-384).
+	// error elsewhere); state/net reads the default gateways' MACs from it (D-390).
 	NeighDump func() ([]byte, error)
 	Probe     Prober
 	// NetPoll and NetWait are how often and how long the effect checks of the network commands look

@@ -39,10 +39,10 @@ func TestD325_TheBoxGatewayAndDNSAreNeverTouch(t *testing.T) {
 	}
 }
 
-// D-384: the gateway's MAC is never-touch without the gateway being an inventory router: an action that names only the device's switch
+// D-390: the gateway's MAC is never-touch without the gateway being an inventory router: an action that names only the device's switch
 // port, aimed at an event whose subject is the gateway's MAC (no gateway address in it), is refused. An IPv6 link-local gateway, which
 // no action can name by address, is protected by its MAC alone.
-func TestD384_TheBoxGatewayMACIsNeverTouch(t *testing.T) {
+func TestD390_TheBoxGatewayMACIsNeverTouch(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, func(c *response.Config) {
 		c.HostInfra = func() ([]response.HostInfra, error) {

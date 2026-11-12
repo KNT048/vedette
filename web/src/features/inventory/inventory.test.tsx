@@ -407,24 +407,26 @@ describe('inventory: CSV (S-INV-2)', () => {
       'dns;192.168.53.3;Dns;;', // line 4: no fuzzy match to D-Link
       'ok;192.168.53.4;FortiGate;;',
     ].join('\n')
-    const r = (await call('POST', '/import', { text })).json
+    const r = (await call('POST', '/import', { text })).json!
     expect(r).toMatchObject({ created: 1, skipped: 3 })
     expect(r.errors.map((e: { line: number }) => e.line)).toEqual([2, 3, 4])
-    expect(r.errors[0].message).toContain('1 column but the header has 5')
+    expect(r.errors[0].message).toContain('one cell but the header has 5')
     expect(r.errors[1].message).toContain('double quote')
     expect(r.errors[2].message).toContain('Product "Dns" not recognised')
     expect(r.errors[2].message).not.toContain('suggestion box')
     expect(assetsStore.get()).toHaveLength(before + 1)
     expect(findCatalog('Dns')).toBeUndefined()
+    // short rows and a trailing separator are fine
+    expect((await call('POST', '/import', { text: 'name,ip,product,version,kind\nshort,192.168.54.1\ntrailing,192.168.54.2,FortiGate,,,\n' })).json).toMatchObject({ created: 2, skipped: 0 })
     // a quote that never closes flags its row, not the whole file
-    expect((await call('POST', '/import', { text: 'name,ip\n"open,192.168.53.9\n' })).json.errors[0].message).toContain('never closed')
+    expect((await call('POST', '/import', { text: 'name,ip\n"open,192.168.53.9\n' })).json!.errors[0].message).toContain('never closed')
     // header only
     expect((await call('POST', '/import', { text: 'name,ip,product\n' })).json?.error.code).toBe('no_rows')
   })
 
   it('a public IP or an IP outside the saved ranges is added with a note', async () => {
     asAdmin()
-    const r = (await call('POST', '/import', { text: 'name,ip\npub,8.8.8.8\nfar,10.99.99.9\n' })).json
+    const r = (await call('POST', '/import', { text: 'name,ip\npub,8.8.8.8\nfar,10.99.99.9\n' })).json!
     expect(r.created).toBe(2)
     expect(r.notes).toHaveLength(2)
     expect(r.notes[0].message).toContain('public address')

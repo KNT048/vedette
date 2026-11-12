@@ -285,12 +285,23 @@ const KIND_LABEL: Record<string, AssetKind> = {
   wi_fi_ap: 'ap', wifi: 'ap', access_point: 'ap', camera_recorder: 'nvr', iot_device: 'iot', website: 'web', laptop: 'pc', computer: 'pc', desktop: 'pc', other: 'unknown',
 }
 const parseKind = (text: string): AssetKind | undefined => { const k = fold(text); return KINDS.find((x) => x === k) ?? KIND_LABEL[k] }
+/** Như rowShapeProblem của Go: nhiều ô có chữ hơn số cột, hoặc một ô duy nhất chứa cả dòng ngăn cách bằng ký tự khác tiêu đề; dòng ngắn thì chấp nhận. */
+function rowShapeProblem(cells: string[], columns: number, delim: string): string {
+  let n = cells.length
+  while (n > 0 && !cells[n - 1]!.trim()) n--
+  if (n > columns) return `This row has ${n} columns but the header has ${columns}. Check that every row uses the same separator (comma, semicolon or tab) as the header row.`
+  if (cells.length === 1 && columns > 1 && [',', ';', '\t'].some((d) => d !== delim && cells[0]!.split(d).length - 1 >= columns - 1)) {
+    return `This row is one cell but the header has ${columns} columns, and the row looks separated by a different character than the header. Use the same separator (comma, semicolon or tab) in every row.`
+  }
+  return ''
+}
 /** Như ipNote của Go: IP công cộng hoặc ngoài các dải đã lưu vẫn được thêm nhưng kèm ghi chú (Vedette không quét nó). */
 function ipNote(ip: string, ranges: string[]): string {
   const [a, b] = ip.split('.').map(Number) as [number, number]
   const priv = a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254) || a === 127
+  if (ranges.some((r) => { const c = cidrRange(r); const n = ip.split('.').reduce((x, y) => x * 256 + Number(y), 0); return n >= c.base && n < c.base + c.size })) return ''
   if (!priv) return `IP ${ip} is a public address. The device was added, but Vedette only scans your own network ranges.`
-  if (ranges.length && !ranges.some((r) => { const c = cidrRange(r); const n = ip.split('.').reduce((x, y) => x * 256 + Number(y), 0); return n >= c.base && n < c.base + c.size })) return `IP ${ip} is outside your saved network ranges. The device was added, but Vedette will not scan it.`
+  if (ranges.length) return `IP ${ip} is outside your saved network ranges. The device was added, but Vedette will not scan it.`
   return ''
 }
 const MAX_IMPORT_BYTES = 200_000
@@ -511,8 +522,11 @@ export const handlers = [
     const b = await body<{ filename: string; size: number; text: string }>(request)
     if (typeof b.text !== 'string' || !b.text.trim()) return fail(400, 'empty_file', 'The file is empty. Download the template, fill in your devices and choose it again.')
     if (b.text.length > MAX_IMPORT_BYTES) return fail(400, 'too_large', `The file is too large (max ${MAX_IMPORT_BYTES / 1000} KB). Split it into smaller files.`)
-    const { rows: table, problems } = parseCsv(b.text.replace(/^\uFEFF/, ''))
+    const csvText = b.text.replace(/^\uFEFF/, '')
+    const delim = detectDelimiter(csvText)
+    const { rows: table, problems } = parseCsv(csvText)
     const hi = table.findIndex((r) => r.some((c) => c.trim())) // bỏ dòng trống đầu file
+    if (problems.has(hi)) return fail(400, 'bad_header', problems.get(hi)!)
     const header = (table[hi] ?? []).map((h) => { const k = fold(h); return HEADER_ALIAS[k] ?? k })
     if (!header.includes('name') && !header.includes('product')) return fail(400, 'bad_header', 'The first row must be column headers with at least a name or product column. Download the template to see the format.')
     const data = table.slice(hi + 1)
@@ -529,7 +543,8 @@ export const handlers = [
       // Excel tắt công thức bằng dấu ' đứng trước (xem csvCell khi xuất): bỏ lại khi nhập.
       const err = (message: string) => { res.errors.push({ line, message }); res.skipped++ }
       if (problems.has(hi + 1 + i)) return err(problems.get(hi + 1 + i)!)
-      if (cells.length !== header.length) return err(`This row has ${cells.length === 1 ? '1 column' : `${cells.length} columns`} but the header has ${header.length}. Check that every row uses the same separator (comma, semicolon or tab) as the header row.`)
+      const shape = rowShapeProblem(cells, header.length, delim)
+      if (shape) return err(shape)
       const get = (k: string) => (cells[header.indexOf(k)] ?? '').trim().replace(/^'(?=[=+\-@])/, '')
       const productText = get('product')
       const entry = productText ? findCatalog(productText) : undefined

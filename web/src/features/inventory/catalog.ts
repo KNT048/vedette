@@ -127,8 +127,9 @@ export function findCatalog(text: string): CatalogEntry | undefined {
   const exact = CATALOG.find((e) => e.id === text.trim() || HAY.get(e.id)!.name === n || fold(`${e.vendor} ${e.product}`) === n)
   if (exact) return exact
   // Nhiều sản phẩm cùng bí danh/tên hãng: lấy cái đầu (phổ biến nhất) chỉ khi cùng một hãng ("synology"); khác hãng ("dns": D-Link, BIND) thì không đoán.
-  const byAlias = CATALOG.filter((e) => HAY.get(e.id)!.al.includes(n))
-  const hits = byAlias.length ? byAlias : CATALOG.filter((e) => e.curated && HAY.get(e.id)!.vendor === n)
+  let hits = CATALOG.filter((e) => HAY.get(e.id)!.al.includes(n))
+  if (!hits.length) hits = CATALOG.filter((e) => HAY.get(e.id)!.product === n)
+  if (!hits.length) { const v = CATALOG.filter((e) => e.curated && HAY.get(e.id)!.vendor === n); if (v.length === 1) hits = v } // tên hãng trần: chỉ khi hãng có một sản phẩm chọn lọc
   return hits.every((e) => HAY.get(e.id)!.vendor === HAY.get(hits[0]!.id)!.vendor) ? hits[0] : undefined
 }
 

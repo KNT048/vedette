@@ -124,7 +124,7 @@ func TestContract_INV13_CSVImportAndExport(t *testing.T) {
 		if r.Created != 1 || r.Skipped != 3 || len(r.Errors) != 3 {
 			t.Fatalf("result = %+v", r)
 		}
-		for i, want := range []string{"1 column but the header has 5", "double quote", `Product "Dns" not recognised`} {
+		for i, want := range []string{"one cell but the header has 5", "double quote", `Product "Dns" not recognised`} {
 			if r.Errors[i].Line != i+2 || !strings.Contains(r.Errors[i].Message, want) {
 				t.Errorf("error %d = %+v, want line %d with %q", i, r.Errors[i], i+2, want)
 			}
@@ -135,6 +135,11 @@ func TestContract_INV13_CSVImportAndExport(t *testing.T) {
 		after, _ := e.svc.Devices(e.ctx())
 		if after.Counts.All != before.Counts.All+1 {
 			t.Fatalf("devices %d -> %d", before.Counts.All, after.Counts.All)
+		}
+		// Excel and people leave empty last columns out, or end a line with a separator
+		r = e.importCSV("name,ip,product,version,kind\r\nshort,192.168.54.1\r\ntrailing,192.168.54.2,FortiGate,,,\r\n")
+		if r.Created != 2 || len(r.Errors) != 0 {
+			t.Fatalf("short row and trailing separator: %+v", r)
 		}
 		r = e.importCSV("name,ip\n\"open,192.168.53.9\nnext,192.168.53.10\n")
 		if r.Created != 0 || len(r.Errors) == 0 || !strings.Contains(r.Errors[0].Message, "never closed") {

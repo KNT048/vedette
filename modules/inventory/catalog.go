@@ -367,7 +367,7 @@ func (c *Catalog) find(text string) *catEntry {
 		return nil
 	}
 	id := strings.TrimSpace(text)
-	var aliasHits, vendorHits []*catEntry
+	var aliasHits, productHits, vendorHits []*catEntry
 	for _, e := range c.entries {
 		if e.id == id || e.hName == n || e.hVendorProduct == n {
 			return e
@@ -375,16 +375,23 @@ func (c *Catalog) find(text string) *catEntry {
 		if indexOf(e.hAlias, n) {
 			aliasHits = append(aliasHits, e)
 		}
+		if e.hProduct == n {
+			productHits = append(productHits, e)
+		}
 		if e.curated && e.hVendor == n {
 			vendorHits = append(vendorHits, e)
 		}
 	}
+	// Several products may share the text ("synology" is two Synology products, "dns" is D-Link and BIND, "php"
+	// belongs to two vendors): the first (most popular) is taken only when they all have the same vendor, so the
+	// make is never a guess. A bare vendor name is taken only when the vendor has one curated product.
 	hits := aliasHits
 	if len(hits) == 0 {
+		hits = productHits
+	}
+	if len(hits) == 0 && len(vendorHits) == 1 {
 		hits = vendorHits
 	}
-	// Several products may share the text ("synology" is two Synology products, "dns" is D-Link and BIND): the
-	// first (most popular) is taken only when they all have the same vendor, so the make is never a guess.
 	for _, e := range hits {
 		if e.hVendor != hits[0].hVendor {
 			return nil

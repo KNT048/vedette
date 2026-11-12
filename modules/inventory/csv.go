@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
@@ -148,13 +149,18 @@ func (s *Service) Import(ctx context.Context, actor, filename, text string) (Imp
 	if len(text) > MaxImportBytes {
 		return ImportResult{}, badRequest("too_large", fmt.Sprintf("The file is too large (max %d KB). Split it into smaller files.", MaxImportBytes/1000))
 	}
-	table, problems := parseCSV(strings.TrimPrefix(text, bom))
+	text = strings.TrimPrefix(text, bom)
+	delim := detectDelimiter(text)
+	table, problems := parseCSV(text)
 	hi := 0
 	for hi < len(table) && !anyText(table[hi]) {
 		hi++
 	}
 	if hi == len(table) {
 		return ImportResult{}, badRequest("bad_header", "The first row must be column headers with at least a name or product column. Download the template to see the format.")
+	}
+	if msg := problems[hi]; msg != "" {
+		return ImportResult{}, badRequest("bad_header", msg)
 	}
 	header := make([]string, len(table[hi]))
 	hasName, hasProduct := false, false
@@ -205,8 +211,8 @@ func (s *Service) Import(ctx context.Context, actor, filename, text string) (Imp
 			rows = append(rows, r)
 			continue
 		}
-		if len(cells) != len(header) {
-			r.err = columnCountMessage(len(cells), len(header))
+		if msg := rowShapeProblem(cells, len(header), delim); msg != "" {
+			r.err = msg
 			rows = append(rows, r)
 			continue
 		}
@@ -316,10 +322,25 @@ func prepareRow(cat *Catalog, get func(string) string) (msg string, a addChecked
 	return "", a, kind
 }
 
-// columnCountMessage explains a row whose cell count differs from the header, the usual sign of a file that
-// mixes delimiters.
-func columnCountMessage(got, want int) string {
-	return fmt.Sprintf("This row has %s but the header has %d. Check that every row uses the same separator (comma, semicolon or tab) as the header row.", plural(got, "column"), want)
+// rowShapeProblem catches a row that does not fit the header: more filled cells than columns, or a single cell
+// holding what looks like a whole row with another separator (a file whose header says ";" and whose rows say
+// ","). Short rows are fine (Excel and people leave empty last columns out) and are read as empty cells.
+func rowShapeProblem(cells []string, columns int, delim byte) string {
+	n := len(cells)
+	for n > 0 && strings.TrimSpace(cells[n-1]) == "" {
+		n--
+	}
+	if n > columns {
+		return fmt.Sprintf("This row has %s but the header has %d. Check that every row uses the same separator (comma, semicolon or tab) as the header row.", plural(n, "column"), columns)
+	}
+	if len(cells) == 1 && columns > 1 {
+		for _, d := range []byte{',', ';', '\t'} {
+			if d != delim && strings.Count(cells[0], string(d)) >= columns-1 {
+				return fmt.Sprintf("This row is one cell but the header has %d columns, and the row looks separated by a different character than the header. Use the same separator (comma, semicolon or tab) in every row.", columns)
+			}
+		}
+	}
+	return ""
 }
 
 func plural(n int, word string) string {
@@ -336,10 +357,15 @@ func ipNote(st Settings, ip string) string {
 	if !ok {
 		return ""
 	}
+	for _, r := range st.LANRanges {
+		if p, err := netip.ParsePrefix(r); err == nil && p.Contains(a) {
+			return ""
+		}
+	}
 	if !a.IsPrivate() && !a.IsLinkLocalUnicast() && !a.IsLoopback() {
 		return fmt.Sprintf("IP %s is a public address. The device was added, but Vedette only scans your own network ranges.", ip)
 	}
-	if len(st.LANRanges) > 0 && !st.InScope(a) {
+	if len(st.LANRanges) > 0 {
 		return fmt.Sprintf("IP %s is outside your saved network ranges. The device was added, but Vedette will not scan it.", ip)
 	}
 	return ""

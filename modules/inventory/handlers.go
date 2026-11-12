@@ -194,12 +194,28 @@ func (h *Handlers) InventoryGetInventoryExportCsv(ctx context.Context) (oas.Inve
 		return oas.InventoryGetInventoryExportCsvOK{}, err
 	}
 	r, err := h.svc.ExportCSV(ctx, who)
-	return oas.InventoryGetInventoryExportCsvOK{Data: r}, err
+	if err != nil {
+		return oas.InventoryGetInventoryExportCsvOK{}, err
+	}
+	csvDownload(ctx, "vedette-devices-"+h.svc.clock().UTC().Format("20060102")+".csv")
+	return oas.InventoryGetInventoryExportCsvOK{Data: r}, nil
 }
 
 // InventoryGetInventoryImportTemplateCsv implements GET /inventory/import-template.csv (viewer).
-func (h *Handlers) InventoryGetInventoryImportTemplateCsv(context.Context) (oas.InventoryGetInventoryImportTemplateCsvOK, error) {
+func (h *Handlers) InventoryGetInventoryImportTemplateCsv(ctx context.Context) (oas.InventoryGetInventoryImportTemplateCsvOK, error) {
+	csvDownload(ctx, "vedette-devices-template.csv")
 	return oas.InventoryGetInventoryImportTemplateCsvOK{Data: ImportTemplate()}, nil
+}
+
+// csvDownload makes the response a CSV file download (API_CONVENTIONS §7, §11): the generated file encoder says octet-stream and
+// names no file. Called only on success.
+func csvDownload(ctx context.Context, name string) {
+	if x, ok := server.ExchangeFrom(ctx); ok {
+		hd := x.W.Header()
+		hd.Set("Content-Disposition", `attachment; filename="`+name+`"`)
+		hd.Set("Cache-Control", "no-store")
+		x.SetContentType("text/csv; charset=utf-8")
+	}
 }
 
 // InventoryPostInventoryImport implements POST /inventory/import (operator).

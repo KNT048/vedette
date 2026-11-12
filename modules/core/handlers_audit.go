@@ -238,6 +238,8 @@ func (h *APIHandlers) CoreGetCoreAuditExport(ctx context.Context, params oas.Cor
 	}
 	if x, ok := server.ExchangeFrom(ctx); ok {
 		x.W.Header().Set("Content-Disposition", `attachment; filename="vedette-audit.csv"`)
+		x.W.Header().Set("Cache-Control", "no-store")
+		x.SetContentType("text/csv; charset=utf-8") // the generated file encoder says octet-stream (API_CONVENTIONS §7)
 	}
 	return oas.CoreGetCoreAuditExportOK{Data: &auditCSV{ctx: ctx, q: coredb.New(h.db.Reader()), f: f, next: top + 1, buf: *bytes.NewBufferString(auditExportBOM + auditExportTitle + "\r\n")}}, nil
 }

@@ -409,6 +409,14 @@ func (s *Service) Resend(ctx context.Context, actor, id string) (HistoryItem, er
 	var rec SendRecord
 	var to []string // a message that went to one person (an approver) goes to that person again, not to the alert list
 	if old.recipient.Valid {
+		// The approver is checked again, as at the first send (approverProblem): a demoted, disabled or removed approver, or an address
+		// that is no longer theirs, gets nothing, and no row is written because nothing was attempted.
+		if why, err := s.resendApproverProblem(ctx, old.ch, old.recipient.String); err != nil {
+			return HistoryItem{}, err
+		} else if why != "" {
+			s.cfg.Log.WarnContext(ctx, "resend refused: the approver no longer qualifies", "channel", string(old.ch), "reason", why)
+			return HistoryItem{}, apierr.New(http.StatusConflict, "approver_not_ready", "This message went to one approver, who can no longer approve ("+why+"). It was not sent again.")
+		}
 		to = []string{old.recipient.String}
 	}
 	var snd channel.Sender
@@ -484,4 +492,18 @@ func (s *Service) AlertTarget(ctx context.Context, id string) (string, error) {
 		return "/findings", nil // a notice that names no finding
 	}
 	return "", notFound("No such alert. It may have been removed from the log.")
+}
+
+// resendApproverProblem finds the approver the saved address belongs to on the channel (the list is the one saved now) and asks
+// approverProblem about them. No longer on the list is a problem too. It returns why not, or "" when the approver is fine.
+func (s *Service) resendApproverProblem(ctx context.Context, ch channel.Type, address string) (string, error) {
+	var userID string
+	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT user_id FROM notify_approver WHERE channel_type = ? AND lower(address) = lower(?)`, string(ch), address).Scan(&userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "the address is no longer on the approver list of this channel", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("notify: find approver of a message: %w", err)
+	}
+	return s.approverProblem(ctx, ch, Approver{UserID: userID, Address: address}), nil
 }

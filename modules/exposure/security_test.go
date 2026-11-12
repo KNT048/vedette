@@ -109,7 +109,7 @@ func TestProbe_SendsNoIdentifyingHeader(t *testing.T) {
 		mu.Unlock()
 		_, _ = w.Write([]byte(ipA))
 	}
-	p := prober(t, 0, newFakeService(t, h), newFakeService(t, h), newFakeService(t, h))
+	p := prober(t, newFakeService(t, h), newFakeService(t, h), newFakeService(t, h))
 	if _, err := round(t, p); err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +142,7 @@ func TestProbe_RoundVotingProperty(t *testing.T) {
 			_, _ = w.Write([]byte(a))
 		}
 	}
-	p := prober(t, 0, newFakeService(t, svc(0)), newFakeService(t, svc(1)), newFakeService(t, svc(2)))
+	p := prober(t, newFakeService(t, svc(0)), newFakeService(t, svc(1)), newFakeService(t, svc(2)))
 	choices := []string{ipA, ipB, ipC, ""}
 	for _, x := range choices {
 		for _, y := range choices {

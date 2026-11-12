@@ -164,12 +164,12 @@ describe('box network: the API (S-CORE-8, D-56)', () => {
     expect((await call('PUT', '/ntp', { mode: 'default' })).json!.ntp).toEqual({ mode: 'default', servers: [] })
   })
 
-  it('privacy flow 10 follows NTP: on for the public pool, off for internal addresses only', async () => {
+  it('privacy flow 10 stays on whatever NTP servers are entered: the operating system keeps its own sources (D-166 (4))', async () => {
     asAdmin()
     const flow10 = async () => (await (await fetch(`${location.origin}/api/v1/core/privacy`)).json()).flows.find((f: { id: number }) => f.id === 10)
     expect(await flow10()).toMatchObject({ state: 'on' })
     await call('PUT', '/ntp', { mode: 'custom', servers: ['192.168.10.1'] })
-    expect(await flow10()).toMatchObject({ state: 'off' })
+    expect(await flow10()).toMatchObject({ state: 'on' })
     await call('PUT', '/ntp', { mode: 'custom', servers: ['192.168.10.1', 'time.google.com'] })
     expect(await flow10()).toMatchObject({ state: 'on' })
   })
@@ -198,7 +198,7 @@ describe('box network: the page', () => {
     const decoys = screen.getByRole('list', { name: 'Decoy addresses' })
     expect(within(decoys).getAllByRole('listitem')).toHaveLength(3)
     expect(screen.getByRole('link', { name: 'Change them in Internal traps' })).toHaveAttribute('href', '/honeypot')
-    expect(screen.getByText(/Asking a public pool for the time is a data flow/)).toBeInTheDocument()
+    expect(screen.getByText(/The operating system keeps its own time sources, so time requests still reach public servers/)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
@@ -396,7 +396,7 @@ describe('box network: the page', () => {
     await waitFor(() => expect(within(document.getElementById('management')!).getByLabelText('IP address')).toHaveValue('192.168.10.250'), T)
   })
 
-  it('NTP form: the default pool hides the server field, your own servers show it; saving internal servers turns flow 10 off', async () => {
+  it('NTP form: the default pool hides the server field, your own servers show it', async () => {
     const u = user()
     await open()
     const sec = within(document.getElementById('ntp')!)

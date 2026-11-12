@@ -3,6 +3,7 @@ package agentintake
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -32,33 +33,44 @@ func (s *Service) Jobs() []jobs.Job {
 
 // Prune deletes the nodes silent for NodeSilentDays and the tokens that expired more than 30 days ago and have no node left. A token with
 // nodes stays, listed as expired, until it is revoked: deleting it would cut machines that expiry must not cut (POST-4, D-169 (4)).
-// Silence counts only while the module is on: the first run after a gap (the module was off, or the process just started) starts the
-// clock again, so nodes are pruned only once the job has run unbroken for the whole period (a restart restarts the count).
-// ponytail: in memory; upgrade path: persist the time the module was last on.
+// Silence counts only while the module is on. The time of the last run is kept in intake_prune_clock: at the first run after a gap of
+// more than pruneGap (the module was off, or the box was down or restarting) the gap is added to every node's last_seen, so the 90 days
+// are 90 days of a running job even across restarts and upgrades. With no clock row yet (the first run after this table exists) the
+// gap is not known: every node's silence starts at this run, as a restart used to do.
 func (s *Service) Prune(ctx context.Context) error {
 	now := s.now()
-	s.pruneMu.Lock()
-	if s.pruneLast.IsZero() || now.Sub(s.pruneLast) > pruneGap {
-		s.onSince = now
-	}
-	s.pruneLast = now
-	observed := s.onSince
-	s.pruneMu.Unlock()
-
 	silent := now.Add(-NodeSilentDays * 24 * time.Hour)
-	pruneNodes := !observed.After(silent) // the job has been watching for the whole period
 	cutoff := store.FormatTS(silent)
 	expired := store.FormatTS(now.Add(-expiredTokenGrace))
 	var nodes, tokens int64
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		if pruneNodes {
-			r, err := tx.ExecContext(ctx, `DELETE FROM intake_osquery_nodes WHERE last_seen < ?`, cutoff)
-			if err != nil {
-				return fmt.Errorf("agentintake: prune nodes: %w", err)
+		var last string
+		err := tx.QueryRowContext(ctx, `SELECT last_run FROM intake_prune_clock WHERE id = 1`).Scan(&last)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			if _, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = ? WHERE last_seen < ?`, store.FormatTS(now), store.FormatTS(now)); err != nil {
+				return fmt.Errorf("agentintake: start the prune clock: %w", err)
 			}
-			nodes, _ = r.RowsAffected()
+		case err != nil:
+			return fmt.Errorf("agentintake: read the prune clock: %w", err)
+		default:
+			if prev, perr := time.Parse(time.RFC3339Nano, last); perr == nil && now.Sub(prev) > pruneGap {
+				// last_seen + gap, but never after now: a node seen a minute before the gap is still "seen a minute before it".
+				if _, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET last_seen = min(strftime('%Y-%m-%dT%H:%M:%fZ', last_seen, ?), ?)`,
+					fmt.Sprintf("+%.3f seconds", now.Sub(prev).Seconds()), store.FormatTS(now)); err != nil {
+					return fmt.Errorf("agentintake: add the gap to last_seen: %w", err)
+				}
+			}
 		}
-		r, err := tx.ExecContext(ctx, `DELETE FROM intake_agent_tokens WHERE expires_at IS NOT NULL AND expires_at < ?
+		if _, err := tx.ExecContext(ctx, `INSERT INTO intake_prune_clock (id, last_run) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET last_run = excluded.last_run`, store.FormatTS(now)); err != nil {
+			return fmt.Errorf("agentintake: write the prune clock: %w", err)
+		}
+		r, err := tx.ExecContext(ctx, `DELETE FROM intake_osquery_nodes WHERE last_seen < ?`, cutoff)
+		if err != nil {
+			return fmt.Errorf("agentintake: prune nodes: %w", err)
+		}
+		nodes, _ = r.RowsAffected()
+		r, err = tx.ExecContext(ctx, `DELETE FROM intake_agent_tokens WHERE expires_at IS NOT NULL AND expires_at < ?
 			AND NOT EXISTS (SELECT 1 FROM intake_osquery_nodes n WHERE n.token_id = intake_agent_tokens.id)`, expired)
 		if err != nil {
 			return fmt.Errorf("agentintake: prune tokens: %w", err)

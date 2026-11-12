@@ -427,3 +427,29 @@ func (h *AIHandlers) AiGetAiAsks(ctx context.Context) (*oas.AiGetAiAsksOK, error
 		Items []AskResult `json:"items"`
 	}{items})
 }
+
+// AiGetAiLogsDigest implements GET /ai/logs/digest (viewer): the stored digest of the level in force, with no AI call; null when none.
+func (h *AIHandlers) AiGetAiLogsDigest(ctx context.Context) (*oas.AiGetAiLogsDigestOK, error) {
+	v, err := h.svc.CachedLogDigest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiGetAiLogsDigestOK](struct {
+		Digest *LogDigestResult `json:"digest"`
+	}{v})
+}
+
+// AiPostAiLogsDigest implements POST /ai/logs/digest (operator): the AI summarises the digest of the logs now.
+func (h *AIHandlers) AiPostAiLogsDigest(ctx context.Context) (*oas.AiPostAiLogsDigestOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.LogDigest(ctx, who)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiPostAiLogsDigestOK](struct {
+		Digest LogDigestResult `json:"digest"`
+	}{v})
+}

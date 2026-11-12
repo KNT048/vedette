@@ -21,6 +21,7 @@ import (
 	"github.com/knt048/vedette/core/pki"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/internal/release"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	"github.com/knt048/vedette/modules/ai"
 	authoidc "github.com/knt048/vedette/modules/auth-oidc"
@@ -77,6 +78,11 @@ type deps struct {
 	// address share it, so they agree and a host that blinks does not make the box vanish from one of them.
 	Hosts   []string
 	HostNet *hostNetCache
+	// TrustAnchor, HostAllowed and OsqueryDir feed agent-intake's install scripts, ca.pem and package mirror (WP-26 slice 3); all may be
+	// nil or empty in tests, and the module then answers 404 for what it lacks.
+	TrustAnchor func() ([]byte, error)
+	HostAllowed func(host string) bool
+	OsqueryDir  string
 	// CertKick asks the TLS certificate watcher to look at the box's addresses now (D-139); never nil in serve.
 	CertKick func()
 	// SyslogPort is -syslog-port: the port of the logs module's syslog listener; 0 = 514, then 5514.
@@ -84,8 +90,6 @@ type deps struct {
 	// SyslogTLS is the certificate side of the syslog-over-TLS listener (6514), built from the HTTPS listener's configuration (syslogTLS);
 	// nil when the box serves no TLS. Set by serve; modules/logs does not read it yet (#266 item 2).
 	SyslogTLS *tls.Config
-	// TrustAnchor is what agent-intake serves at GET /intake/ca.pem (intakeTrustAnchor); nil when the box serves no TLS. Set by serve.
-	TrustAnchor func(context.Context) ([]byte, error)
 	// MCPListen is -mcp-listen: the loopback address of the MCP server (zero = mcpserver.DefaultListen).
 	MCPListen netip.AddrPort
 	// Wake runs a module's job now instead of at its next tick (core/jobs Scheduler.Wake, D-160 (5)); a no-op while the
@@ -99,9 +103,15 @@ type deps struct {
 	Findings           *findings.Service
 	FindingHandlers    *findings.FindingHandlers // also carries mitigation's guidance (SetGuidance) and is mitigation's Details
 	MitigationHandlers *mitigation.ActionHandlers
-	Honeypot           *honeypot.Service      // the run job, the HTTP handler and the inventory subscription share it
-	HoneypotDir        string                 // shared volume with the honeypot container (-honeypot-dir); empty = no container wired
-	SensorPassive      *sensorpassive.Service // the sensor link and the HTTP handler share it: the SPAN measurement lives in its memory
+	Honeypot           *honeypot.Service // the run job, the HTTP handler and the inventory subscription share it
+	HoneypotDir        string            // shared volume with the honeypot container (-honeypot-dir); empty = no container wired
+	// PackDir is the directory of the signed confirmed mitigation packs shipped in the core image (D-345); "" = defaultPackDir.
+	// PackTrust gives the release keys that sign them; nil = release.Embedded (tests pass throwaway keys).
+	PackDir   string
+	PackTrust func() (release.Trust, error)
+	// PackLoader loads them into mitigation (the job load-packs). Set by buildServices.
+	PackLoader    *mitigation.Loader
+	SensorPassive *sensorpassive.Service // the sensor link and the HTTP handler share it: the SPAN measurement lives in its memory
 	// SensorDispatcher is the Prober of sensor-active and the active half of the sensor link's Backend (D-113): one instance, so the
 	// job the service queues is the job the worker polls. Authority and SensorCreds exist only when -sensor-listen is set (D-141).
 	SensorDispatcher *sensoractive.Dispatcher
@@ -136,7 +146,7 @@ func wiredModules() []moduleWiring {
 		{ID: "sensor-active", Migrations: sensoractive.Migrations, Jobs: sensorActiveJobs},
 		{ID: "honeypot", Migrations: honeypot.Migrations, Jobs: honeypotJobs, EnsureOff: honeypotEnsureOff},
 		{ID: "findings", Migrations: findings.Migrations, Jobs: findingsJobs},
-		{ID: "mitigation", Migrations: mitigation.Migrations},
+		{ID: "mitigation", Migrations: mitigation.Migrations, Jobs: mitigationJobs},
 		{ID: "notify", Migrations: notify.Migrations, Jobs: notifyJobs},
 		{ID: "sensor-passive", Migrations: sensorpassive.Migrations},                   // no capture job: packets are read in the sensor container only (D-141)
 		{ID: "response", Migrations: response.Migrations, Jobs: responseJobs},          // after notify and inventory (manifest depends)

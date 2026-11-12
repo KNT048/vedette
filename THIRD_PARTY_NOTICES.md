@@ -85,7 +85,7 @@ Pinned in `go.mod` and `go.sum`; licenses checked from the `LICENSE` files of ea
 | OpenCanary | BSD-3 | runs from the signed `honeypot` container image (D-123, D-146); separate process, not embedded; the image's components are listed in the section "Components of the `honeypot` container image" below (WP-08e, D-162) |
 | Zeek / Suricata (optional) | BSD / GPL-2 | separate processes |
 | Greenbone CE (optional) | GPL-2 / AGPL-3 | separate container, unmodified |
-| osquery (optional, on the user's Linux/Windows servers) | Apache-2.0 / GPL-2.0 (dual) | official release packages mirrored unmodified by the box for one-line install (D-34); license files shipped alongside |
+| osquery 5.12.1 (optional, on the user's Linux/Windows servers) | Apache-2.0 / GPL-2.0 (dual; offered here under Apache-2.0) | the three official release files for the endpoint (`osquery_5.12.1-1.linux_amd64.deb`, `osquery-5.12.1-1.linux.x86_64.rpm`, `osquery-5.12.1.msi`) are shipped **unmodified** in the `core` image under `/usr/share/vedette/osquery/` and served by the box for the one-line install (D-34, D-169 (10)); they run on the customer's servers only and are **not linked into or run by Vedette**. The version and the SHA-256 of each file are pinned in `deploy/osquery/PINS`; the image build downloads them from the official release and fails on any mismatch; nothing is downloaded at run time. Source: https://github.com/osquery/osquery/tree/5.12.1 (licence texts: `LICENSE`, `LICENSE-GPL2` in that tree; the packages carry them too) |
 | NXLog Community Edition (optional, on the user's Windows machines) | NXLog Public License | installed by the user to forward Windows Event Log as syslog; Vedette only shows a config snippet |
 | Podman (with Quadlet) | Apache-2.0 | appliance only: installed from the OS repository by the installer; `vedette-host` runs `podman` (pull by digest, inspect, tag, rmi) with fixed argv and writes Quadlet unit files from constant templates (D-105) |
 | netplan (`netplan.io`) | GPL-3.0 | appliance only: OS package (installed by the installer on Debian 13); `vedette-host` writes its single YAML file and runs `netplan apply` (D-99) |
@@ -170,7 +170,7 @@ Release builder (WP-08f, D-164, maintainer's machine only, never shipped): `scri
 | Tor exit list | — | attribution: torproject |
 | Team Cymru bogons | — | attribution |
 | Cisco Umbrella top-1M, Majestic Million | — / CC-BY 3.0 | allow-lists |
-| Spamhaus DROP | separate terms, **pending confirmation** | name not used in marketing |
+| Spamhaus DROP | not used in v1 (D-367) | name not used in marketing |
 
 Real data in the current build (`web/src/mocks/fixtures/`, `make fixtures`): CISA KEV (CC0), FIRST EPSS (attribution), the CVE list of nuclei-templates (MIT). Sources are shown on every screen.
 

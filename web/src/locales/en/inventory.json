@@ -216,6 +216,7 @@
   },
   "services": {
     "title": "Open services",
+    "description": "A normal scan replaces this list with the ports it found open. A gentle scan only adds ports, and a scan that timed out changes nothing. A port not seen for 90 days is removed.",
     "caption": "Services open on the device",
     "port": "Port",
     "name": "Service",

@@ -308,3 +308,48 @@ describe('feeds: which address answered the CISA list (D-91)', () => {
     expect(await screen.findByText('Answered by CISA GitHub mirror')).toBeInTheDocument()
   })
 })
+
+describe('feeds: a custom vulnerability feed does not drive matching (S-FEED-4, D-218)', () => {
+  const feed = (kind: 'ioc' | 'vulnerabilities') => ({ id: 'cf-x', builtin: false, name: 'Partner list', kind, format: 'json', url: 'https://feeds.partner.example/x.json', default_url: null, enabled: true, interval_hours: 24, auth: { type: 'none' }, parser: null, last_fetch: null, records: null, status: 'never', error: null, license: null, answered_by: null })
+  const note = /does not create findings or alerts: only the CISA list is matched/
+
+  it('says so under Your own feeds when a custom vulnerability feed exists, and not for an IOC list alone', async () => {
+    server.use(http.get('*/api/v1/feeds/sources', () => HttpResponse.json({ items: [feed('vulnerabilities')] })))
+    renderApp('/settings/feeds')
+    expect(await screen.findByText(note)).toBeInTheDocument()
+    cleanup()
+    server.use(http.get('*/api/v1/feeds/sources', () => HttpResponse.json({ items: [feed('ioc')] })))
+    renderApp('/settings/feeds')
+    await screen.findByText('Partner list')
+    expect(screen.queryByText(note)).toBeNull()
+  })
+
+  it('the add dialog says it when the type is Vulnerabilities', async () => {
+    renderApp('/settings/feeds')
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add a feed' }))[0]!)
+    const dlg = await screen.findByRole('dialog', { name: 'Add a feed' })
+    expect(within(dlg).queryByText(/never creates findings or alerts/)).toBeNull()
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Vulnerabilities' }))
+    expect(within(dlg).getByText(/never creates findings or alerts/)).toBeInTheDocument()
+  })
+})
+
+describe('feeds: Settings -> Feeds lists every host the box pulls from (INV-13, PRIVACY flow 1)', () => {
+  it('lists built-in and custom hosts from the API, marks a feed that is off, and links to Privacy', async () => {
+    const list = [
+      { id: 'cisa-kev', builtin: true, name: 'CISA KEV', kind: 'vulnerabilities', format: 'json', url: 'https://www.cisa.gov/x.json', default_url: 'https://www.cisa.gov/x.json', enabled: true, interval_hours: 24, auth: { type: 'none' }, parser: null, last_fetch: null, records: null, status: 'never', error: null, license: null, answered_by: null },
+      { id: 'tor-exit', builtin: true, name: 'Tor exit list', kind: 'ioc', format: 'lines', url: 'https://check.torproject.org/torbulkexitlist', default_url: 'https://check.torproject.org/torbulkexitlist', enabled: false, interval_hours: 6, auth: { type: 'none' }, parser: null, last_fetch: null, records: null, status: 'never', error: null, license: null, answered_by: null },
+      { id: 'cf-1', builtin: false, name: 'Partner list', kind: 'ioc', format: 'json', url: 'https://intel.partner.example:8443/feed.json?token=s3cret', default_url: null, enabled: true, interval_hours: 24, auth: { type: 'none' }, parser: null, last_fetch: null, records: null, status: 'never', error: null, license: null, answered_by: null },
+    ]
+    server.use(http.get('*/api/v1/feeds/sources', () => HttpResponse.json({ items: list })))
+    renderApp('/settings/feeds')
+    const sec = (await screen.findByRole('heading', { name: 'Where this box connects' })).closest('section')!
+    expect(within(sec).getByText('www.cisa.gov')).toBeInTheDocument()
+    expect(within(sec).getByText(/raw\.githubusercontent\.com if www\.cisa\.gov/)).toBeInTheDocument()
+    expect(within(sec).getByText('intel.partner.example')).toBeInTheDocument()
+    expect(within(sec).getByText(/Partner list, your feed/)).toBeInTheDocument()
+    expect(within(sec).getByText(/Tor exit list, off, not pulled/)).toBeInTheDocument()
+    expect(sec.textContent).not.toContain('s3cret')
+    expect(within(sec).getByRole('link', { name: 'See Privacy, flow 1' })).toHaveAttribute('href', '/settings/privacy')
+  })
+})

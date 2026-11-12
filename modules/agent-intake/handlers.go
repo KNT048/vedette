@@ -1,9 +1,7 @@
 package agentintake
 
 import (
-	"bytes"
 	"context"
-	"encoding/pem"
 	"errors"
 	"net/netip"
 
@@ -137,35 +135,4 @@ func (h *IntakeHandlers) InventoryPostIntakeOsqueryStatus(ctx context.Context) (
 		return nil, err
 	}
 	return &oas.InventoryPostIntakeOsqueryStatusOK{Enrolled: enrolled, Hosts: hosts}, nil
-}
-
-// InventoryGetIntakeCaPem implements GET /intake/ca.pem (INV-11, public; application/x-pem-file, from the contract): the certificate
-// osquery pins with --tls_server_certs. Only the
-// CERTIFICATE blocks of the trust anchor are copied, so nothing else a PEM file may hold (a private key next to an owner's
-// certificate) can leave; 404 when the box serves no TLS.
-func (h *IntakeHandlers) InventoryGetIntakeCaPem(ctx context.Context) (oas.InventoryGetIntakeCaPemOK, error) {
-	if h.s == nil {
-		return oas.InventoryGetIntakeCaPemOK{}, apierr.NotImplemented()
-	}
-	if h.s.cfg.TrustAnchor == nil {
-		return oas.InventoryGetIntakeCaPemOK{}, apierr.NotFound()
-	}
-	raw, err := h.s.cfg.TrustAnchor(ctx)
-	if err != nil {
-		return oas.InventoryGetIntakeCaPemOK{}, err
-	}
-	var out []byte
-	for {
-		var blk *pem.Block
-		if blk, raw = pem.Decode(raw); blk == nil {
-			break
-		}
-		if blk.Type == "CERTIFICATE" {
-			out = append(out, pem.EncodeToMemory(&pem.Block{Type: blk.Type, Bytes: blk.Bytes})...) // headers dropped too
-		}
-	}
-	if len(out) == 0 {
-		return oas.InventoryGetIntakeCaPemOK{}, errors.New("agentintake: the trust anchor holds no certificate")
-	}
-	return oas.InventoryGetIntakeCaPemOK{Data: bytes.NewReader(out)}, nil
 }

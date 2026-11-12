@@ -1,2 +1,0 @@
-# Deferred — fix/conn-ssh-leave-on-error (2026-11-12)
-- [ ] 2026-11-12 — (Opus r2 LOWs, D-358) a template line `exit` is not counted as closing a block (`core/conn/write/leave.go`), so after `spanning-tree mst configuration … exit` a later refusal sends `abort` in global config (refused by IOS, harmless, but no `end`); `TestWriterSendsNoLeaveLineAfterTheStop` cancels before the device answers, so it may not reach the context check in `Leave` — vì sao để sau: LOW (D-255), results stay correct — ở đâu: core/conn/write/leave.go, leave_test.go

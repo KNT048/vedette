@@ -1,5 +1,0 @@
-# fix/response-tests-parallel, Opus review round 1 and leftovers
-
-- [ ] modules/response is 118 s under -race on a GitHub runner (#436), target 90 s not met. The rest is SQLite work: every statement is parsed again on each call (prepare ~23 % of the package's CPU) and each new connection parses the schema (~15 %). Next step: a prepared-statement cache in core/store for the hot statements (s.step, loadSettings, loadRules), measured before and after.
-- [ ] A flood of a trigger a rule does watch is still O(N²): each StoreEvent counts the unprocessed events, and evaluateOne reads up to maxEvents events per event and marks each processed in its own transaction. One count per batch, and the processed mark in the rule's transaction, would make it linear (TestEventFloodDoesNotEvictUnprocessedEvents, 3.6 s under -race).
-- [ ] LOW (accepted): an event no enabled rule watches is now marked processed even when reading the trigger's history would have failed; before, the failed read stopped the run. Nothing uses that history for such an event.

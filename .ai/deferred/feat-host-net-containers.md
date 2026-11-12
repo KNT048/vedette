@@ -4,7 +4,7 @@ Kế hoạch: D-99…D-107, `docs/specs/host-api.md` §18. Mỗi dòng nói lát
 
 ## Để sau theo kế hoạch (WP-07b phần 3 §4)
 
-- [ ] 2026-11-10 — Lệnh `host.self_update` (gói `.deb` ký trên GitHub Release, kiểm sức khoẻ, hỏng thì về bản trước) — vì sao để sau: không thuộc phần 3; D-57 (21) đã chốt cách làm — ở đâu: docs/specs/host-api.md §14.2, docs/specs/update-manifest.md §9
+- [x] 2026-11-10 — Lệnh `host.self_update` (gói `.deb` ký trên GitHub Release, kiểm sức khoẻ, hỏng thì về bản trước) — vì sao để sau: không thuộc phần 3; D-57 (21) đã chốt cách làm — ở đâu: docs/specs/host-api.md §14.2, docs/specs/update-manifest.md §9 — Done 2026-11-12: host.self_update built (D-316, modules/host); release keys embedded (internal/release/keys.go); lab VMs exist (scripts/dev/lab-vm.sh, D-369)
 
 - [x] 2026-11-11 DONE (D-256, nhánh feat/release-keys: khoá thật nhúng, `TestProductionBuildEmbedsTheReleaseKeys` kiểm `Embedded()` và `TestOnly=false` trên CI; kiểm binary phát hành không có tag chuyển sang `.ai/deferred/feat-release-keys.md`) — kien tạo ba khoá ngoại tuyến (minisign đang dùng, minisign dự phòng, cosign P-256), giữ nửa riêng ngoài repo và ngoài hộp, rồi dán nửa công khai vào hằng `prodMinisignActive`, `prodMinisignBackup`, `prodCosign` của `internal/release/keys.go`; bản phát hành dựng **không** có tag `releasetestkeys`; thêm kiểm tra phát hành rằng `Embedded()` trả lời được và `TestOnly=false` — vì sao để sau: khoá do kien tạo ngoại tuyến, AI không giữ khoá ký (SYS-4); tới lúc đó mọi bản dựng từ chối mọi cập nhật (đúng thiết kế, fail closed) — ở đâu: internal/release/keys.go, D-103, D-108, docs/specs/update-manifest.md §5.1
 
@@ -41,8 +41,8 @@ Kế hoạch: D-99…D-107, `docs/specs/host-api.md` §18. Mỗi dòng nói lát
 
 ## Điều kiện do kien làm (trước lát cần nó)
 
-- [ ] 2026-11-10 — kien tạo **ngoại tuyến** ba khoá phát hành: khoá minisign đang dùng, khoá minisign dự phòng (cất ngoại tuyến), khoá cosign; phần riêng không bao giờ vào repo hay hộp, lát 3-2 nhúng phần công khai — vì sao để sau: chỉ chủ dự án được giữ khoá ký — ở đâu: D-103 (2), docs/specs/update-manifest.md §15.1
-- [ ] 2026-11-10 — kien cấp hoặc duyệt VM lab Ubuntu 24.04, Ubuntu 26.04, Debian 13 (có card thật hoặc vSwitch cho phép giả MAC) cho mục "Kiểm lab" ở trên — vì sao để sau: cần máy và mạng lab, agent không được dựng — ở đâu: D-107 (6)
+- [x] 2026-11-10 — kien tạo **ngoại tuyến** ba khoá phát hành: khoá minisign đang dùng, khoá minisign dự phòng (cất ngoại tuyến), khoá cosign; phần riêng không bao giờ vào repo hay hộp, lát 3-2 nhúng phần công khai — vì sao để sau: chỉ chủ dự án được giữ khoá ký — ở đâu: D-103 (2), docs/specs/update-manifest.md §15.1 — Done 2026-11-12: host.self_update built (D-316, modules/host); release keys embedded (internal/release/keys.go); lab VMs exist (scripts/dev/lab-vm.sh, D-369)
+- [x] 2026-11-10 — kien cấp hoặc duyệt VM lab Ubuntu 24.04, Ubuntu 26.04, Debian 13 (có card thật hoặc vSwitch cho phép giả MAC) cho mục "Kiểm lab" ở trên — vì sao để sau: cần máy và mạng lab, agent không được dựng — ở đâu: D-107 (6) — Done 2026-11-12: host.self_update built (D-316, modules/host); release keys embedded (internal/release/keys.go); lab VMs exist (scripts/dev/lab-vm.sh, D-369)
 
 
 ## Lát 3-6 (nhánh feat/host-quadlet): Quadlet và vòng đời bản hiện tại

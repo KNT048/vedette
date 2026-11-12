@@ -3,6 +3,9 @@
 ## Modifying: `sensorpassive.Service` — `Status() []Sensor`, `SetInterface(ctx,id,iface,span)`, `SpanStats()`
 - **SPA** (`SensorsSection`, Devices → Scope and sensors), **host** (Box network hiển thị `SpanStats`), **core** (`/core/logs/export` không dùng). Đổi `Sensor` phải sửa `inventory/contract.ts`. Từ SP-4 `Status()`/`SpanStats()` đọc heartbeat của vai `passive` (không còn đọc `Engine`): đổi ngưỡng `online` (90 s) hay cách tính verdict là đổi điều GUI hiện, giữ tiêu chí S-INV-1 ("offline trong 90 s").
 
+## Modifying: card mặc định (`listenOn`, `defaultOfHeartbeat`, `Host.ManagementCard`; D-380)
+- **Cài mới** (S-INV-1): không có nó thì sau trình hướng dẫn sensor không nghe card nào và Devices chỉ có chính hộp (#471). Nó quyết `sensorlink.Config.Interface` khi chưa ai chọn và `Sensor.interface` của GET (SPA `SensorsSection` hiện tên đó). Nguồn là `core.NetworkHandlers.ManagementCard` (`mgmtIface` + `cardsOf` của trang Box network): đổi luật card quản trị hay luật link ảo là đổi card sensor nghe. Lưu mặc định vào `sp_sensor` sẽ làm lựa chọn tay và mặc định không phân biệt được (tắt SPAN không về lại card quản trị): đừng lưu. Luật link ảo `virtualName` có hai bản (`cmd/vedette-sensor/passive.go`, `modules/core/handlers_network.go`), sửa cả hai.
+
 ## Modifying: `Engine` (parser, thang tin cậy, bộ lọc) và `MetaItem`
 - **inventory** (giá trị "đang dùng"), **logs** (trường metadata): thêm trường vào `MetaItem` = lưu thêm về lưu lượng; test `TestContract_INV3` chặn, phải sửa CONTRACT INV-3 trước. Đổi thang `Conf*` đổi thứ tự hiển thị. Thêm parser = thêm `Fuzz*` (test INV-4 kiểm danh sách).
 - **cmd/vedette** (`sensorpassive.go`): `netHost` là chỗ thay bằng module `host`; `sensorBackend` (`sensorwire.go`) và handler dùng chung một `Service`. `Engine` chạy trong `cmd/vedette-sensor passive` (gói `capture`); từ SP-5a (D-141) job `capture` không còn trong `core`, `netHost.Interfaces` chỉ để `SetInterface` kiểm card.

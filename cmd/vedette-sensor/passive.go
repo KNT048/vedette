@@ -108,7 +108,8 @@ func runPassive(ctx context.Context, args []string, stdout io.Writer, logger *sl
 
 // virtualName is the name of a link that is not a card: container and virtual links, bridges, bonds, VLANs. The same rule as the
 // Box network page applies (D-118 (6), modules/core/handlers_network.go): the sensor does not offer these as cards.
-var virtualName = regexp.MustCompile(`^(lo|veth|podman|cni|docker|br|virbr|vdh|bond|tun|tap|wg|dummy|vnet|macvtap|ifb)|[.@]`)
+// vedette is the box's own container bridge vedette0 (install.sh, D-267; #471).
+var virtualName = regexp.MustCompile(`^(lo|veth|podman|cni|docker|br|virbr|vdh|bond|tun|tap|wg|dummy|vnet|macvtap|ifb|vedette)|[.@]`)
 
 // osInterfaces lists the cards of this machine (the container shares the network of the host): name, MAC, link and IPv4 prefixes.
 // Loopback, virtual links and cards without a 6-byte MAC (tunnels) are not part of the LAN.

@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"os"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -264,7 +265,11 @@ func (s *Service) Status(ctx context.Context) ([]Sensor, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := Sensor{ID: SensorID, Name: r.name.String, Interface: nullable(r.iface), Interfaces: names, Span: r.span,
+	var iface *string
+	if n := s.listenOn(ctx, r); n != "" {
+		iface = &n
+	}
+	out := Sensor{ID: SensorID, Name: r.name.String, Interface: iface, Interfaces: names, Span: r.span,
 		SpanStatus: SpanStatus{st.Verdict, st.PPS, st.OtherMACs}, Status: "offline", LastSeen: nullable(r.lastSeen),
 		Version: nullable(r.version), DevicesSeen: r.devices}
 	if s.online(r) {
@@ -380,6 +385,55 @@ func (s *Service) SetInterface(ctx context.Context, actor, id, iface string, spa
 	}
 	s.ConfigChanged()
 	return nil
+}
+
+// listenOn is the card the sensor listens on: the one chosen (the SPAN port of Settings, Box network, or any card set by
+// SetInterface), else the default (D-380). The default is never stored: it follows the management card when that changes,
+// and a later choice wins over it.
+func (s *Service) listenOn(ctx context.Context, r sensorRow) string {
+	if r.iface.String != "" {
+		return r.iface.String
+	}
+	name, ok := s.host.ManagementCard(ctx)
+	if !ok {
+		name = defaultOfHeartbeat(s.lastBeat())
+	}
+	if !sensorlink.ValidIfaceName(name) { // what the host or the sensor says is checked at the boundary (SYS-6)
+		return ""
+	}
+	return name
+}
+
+// defaultOfHeartbeat is the default card without vedette-host (container-only, D-168, D-380): of the cards in the sensor's last
+// heartbeat that are up and have a global IPv4 address, the one wired card, else the one card. Wireless cards (wl*, ww*) are
+// taken only when nothing else is there. Two candidates is not a clear answer: "" and the sensor waits for the admin.
+func defaultOfHeartbeat(hb *heartbeat) string {
+	if hb == nil {
+		return ""
+	}
+	var wired, all []string
+	for _, c := range hb.ifaces {
+		if !c.Link || !slices.ContainsFunc(c.IPv4, globalIPv4) {
+			continue
+		}
+		all = append(all, c.Name)
+		if !strings.HasPrefix(c.Name, "wl") && !strings.HasPrefix(c.Name, "ww") {
+			wired = append(wired, c.Name)
+		}
+	}
+	switch {
+	case len(wired) == 1:
+		return wired[0]
+	case len(wired) == 0 && len(all) == 1:
+		return all[0]
+	}
+	return ""
+}
+
+func globalIPv4(p string) bool {
+	pf, err := netip.ParsePrefix(p)
+	a := pf.Addr()
+	return err == nil && a.Is4() && !a.IsLoopback() && !a.IsLinkLocalUnicast() && !a.IsUnspecified()
 }
 
 // cardsOfHeartbeat turns the cards of a heartbeat (already bounded and validated by sensorlink: at most 32, name, MAC and

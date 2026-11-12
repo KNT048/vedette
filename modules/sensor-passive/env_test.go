@@ -32,6 +32,7 @@ type fakeHost struct {
 	filters []sensorlink.Filter
 	optErr  error // SpanOptions fails: the filters cannot be read
 	noHost  bool  // no vedette-host answers (container-only)
+	mgmt    string
 }
 
 func newHost() *fakeHost {
@@ -60,6 +61,15 @@ func (h *fakeHost) HostCards(ctx context.Context) ([]capture.Interface, bool, er
 }
 
 func (h *fakeHost) setNoHost(v bool) { h.mu.Lock(); h.noHost = v; h.mu.Unlock() }
+
+// ManagementCard answers like HostCards: "no host" with noHost, else the management card set by setMgmt ("" by default).
+func (h *fakeHost) ManagementCard(context.Context) (string, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.mgmt, !h.noHost
+}
+
+func (h *fakeHost) setMgmt(name string) { h.mu.Lock(); h.mgmt = name; h.mu.Unlock() }
 
 func (h *fakeHost) SpanOptions(context.Context) (sensorlink.Extract, []sensorlink.Filter, error) {
 	h.mu.Lock()

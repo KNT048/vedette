@@ -236,7 +236,7 @@ func TestVirtualLinksAreNotCards(t *testing.T) {
 	for name, virtual := range map[string]bool{
 		"eth0": false, "enp2s0": false, "eno1": false, "wlan0": false, "ens18": false,
 		"veth1a2b": true, "br0": true, "virbr0": true, "docker0": true, "podman1": true, "bond0": true, "tun0": true, "wg0": true,
-		"eth0.20": true, "enp2s0@if3": true, "lo": true, "vnet3": true, "dummy0": true,
+		"eth0.20": true, "enp2s0@if3": true, "lo": true, "vnet3": true, "dummy0": true, "vedette0": true, // #471: the box's own bridge
 	} {
 		if got := virtualName.MatchString(name); got != virtual {
 			t.Errorf("%s: virtual = %v, want %v", name, got, virtual)

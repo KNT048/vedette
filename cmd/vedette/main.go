@@ -110,6 +110,9 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if kind, ok := healthCommand(args); ok { // the HealthCmd= of the units: before any flag, no database, no key
 		return runHealthCommand(ctx, kind)
 	}
+	if resetAdminCommand(args) { // D-389: the console's way back in for a locked-out administrator
+		return runResetAdmin(ctx, args[1:], stdout, stderr)
+	}
 	var o options
 	flags, showVersion := newFlags(&o, stdout)
 	if err := flags.Parse(args); err != nil {

@@ -278,6 +278,7 @@
         "enable": "Enable user",
         "password_reset": "Reset password",
         "2fa_reset": "Reset two-step sign-in",
+        "console_reset": "Reset an administrator from the box console",
         "sso_relink": "Move an SSO account to a new identity provider"
       },
       "account": {
@@ -1212,6 +1213,9 @@
       "confirm": "Confirm and turn on",
       "enabled": "Two-step sign-in is on.",
       "disabled": "Two-step sign-in is off.",
+      "lostUser": "Lost your phone or mailbox? Ask an administrator to turn two-step sign-in off for you in Settings → Users.",
+      "lostAdmin": "Lost your phone or mailbox? Another administrator can turn two-step sign-in off for you in Settings → Users. If you are the only one, run this on the machine that runs Vedette (on an appliance: sudo podman instead of docker). It gives a temporary password and turns two-step sign-in off.",
+      "lostAdminCommand": "Reset from the box console",
       "offAsk": {
         "title": "Turn off two-step sign-in?",
         "body": "The account will be protected by the password alone.",
@@ -1229,7 +1233,7 @@
       "end": "End",
       "current": "This session",
       "endBtn": "End",
-      "endOf": "End session {{device}}",
+      "endOf": "End session {{device}} at {{ip}}",
       "endOthers": "End all other sessions",
       "ended": "Session ended.",
       "endedAll": "All other sessions ended."

@@ -15,7 +15,7 @@ import { connectionsHandlers } from './connectionsMock'
 import { connectorsStore } from '@/mocks/connectors'
 import { newSecret, verifyTotp } from './totp'
 import { checkCode, clearCode, issueCode, maskEmail, sentBody } from './emailCode'
-import { CIDR_RE, compareVersion, fromBase64, isPrivateCidr, MIN_PASSWORD, validTimeZone } from './util'
+import { CIDR_RE, compareVersion, fromBase64, GUESSABLE_PASSWORD, guessablePassword, isPrivateCidr, MIN_PASSWORD, validTimeZone } from './util'
 import type { AccountSession, AdminUser, BoxBackup, RestoreRun, Advisory, AuditQuery, AuditRow, ManagedPackage, McpToken, OidcConfig, PrivacyFlow, SetupPayload, UpdateAvailable, UpdateChannel, UpdateComponent, UpdateHistory, UpdateRun, UpdatesState } from './types'
 
 const ROLES: Role[] = ['viewer', 'operator', 'admin']
@@ -54,6 +54,7 @@ const setupHandlers = [
     if (!name || name.length > 80) return fail(400, 'invalid_name', 'Enter the administrator\'s name (at most 80 characters).')
     if (!EMAIL_RE.test(email)) return fail(400, 'invalid_email', 'The email is not valid, for example name@company.com.')
     if (String(a.password ?? '').length < MIN_PASSWORD) return fail(400, 'weak_password', `The password needs at least ${MIN_PASSWORD} characters. A long sentence is easier to remember than random characters.`)
+    if (guessablePassword(String(a.password), email)) return fail(400, 'weak_password', GUESSABLE_PASSWORD)
     const lan = (b.lan ?? []).map((x) => String(x).trim()).filter(Boolean)
     if (lan.length < 1 || lan.length > 16) return fail(400, 'invalid_lan', 'Enter 1 to 16 LAN ranges, for example 192.168.10.0/24.')
     const badLan = lan.find((x) => !CIDR_RE.test(x))
@@ -130,12 +131,13 @@ const totpPending = collection<Record<string, string>>('core_totp_pending', () =
 function sessionsOf(userId: string): AccountSession[] {
   const all = sessionsStore.get()
   if (!all[userId]) {
-    // Cài sạch: chỉ có phiên đang dùng (không phiên "Firefox trên Windows" mẫu).
+    // Cài sạch: chỉ có phiên đang dùng (không phiên "Firefox trên Windows" mẫu). Device is the raw User-Agent, as the box stores it.
+    const firefoxWindows = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0'
     all[userId] = dataMode() === 'clean'
-      ? [{ id: newId('s'), device: 'This browser', ip: '127.0.0.1', started_at: nowIso(), last_seen: nowIso(), current: true }]
+      ? [{ id: newId('s'), device: navigator.userAgent, ip: '127.0.0.1', started_at: nowIso(), last_seen: nowIso(), current: true }]
       : [
-        { id: newId('s'), device: 'This browser', ip: '192.168.10.35', started_at: nowIso(), last_seen: nowIso(), current: true },
-        { id: newId('s'), device: 'Firefox on Windows', ip: '192.168.10.61', started_at: daysAgo(2), last_seen: daysAgo(1, 3), current: false },
+        { id: newId('s'), device: navigator.userAgent, ip: '192.168.10.35', started_at: nowIso(), last_seen: nowIso(), current: true },
+        { id: newId('s'), device: firefoxWindows, ip: '192.168.10.61', started_at: daysAgo(2), last_seen: daysAgo(1, 3), current: false },
       ]
     sessionsStore.set(all)
   }
@@ -170,6 +172,7 @@ const accountHandlers = [
     if (b.current !== u.password) return fail(400, 'wrong_password', 'The current password is wrong.')
     const next = String(b.next ?? '')
     if (next.length < MIN_PASSWORD) return fail(400, 'weak_password', `The new password needs at least ${MIN_PASSWORD} characters.`)
+    if (guessablePassword(next, u.email)) return fail(400, 'weak_password', GUESSABLE_PASSWORD)
     if (next === u.password) return fail(400, 'same_password', 'The new password must differ from the current one.')
     usersStore.update((l) => l.map((x) => (x.id === u.id ? { ...x, password: next, temp_password_expires_at: null } : x)))
     audit('account.password', u.email, u.temp_password_expires_at ? 'temporary password replaced' : undefined)
@@ -181,7 +184,7 @@ const accountHandlers = [
     if (currentUser()!.sso) return ssoOnly()
     const u = currentUser()!
     // D-76: turning two-step on needs the current password, like turning it off.
-    if ((await body<{ password: string }>(request)).password !== u.password) return fail(400, 'wrong_password', 'Wrong password. The password is needed to turn on two-factor authentication.')
+    if ((await body<{ password: string }>(request)).password !== u.password) return fail(400, 'wrong_password', 'Wrong password. The password is needed to turn on two-step sign-in.')
     if (u.twofa) return fail(409, 'already_on', 'Two-step sign-in is already on. Turn it off first to set up the other method.')
     const secret = newSecret()
     totpPending.update((p) => ({ ...p, [u.id]: secret }))
@@ -193,7 +196,7 @@ const accountHandlers = [
     if (denied) return denied
     const u = currentUser()!
     const secret = totpPending.get()[u.id]
-    if (!secret) return fail(409, 'no_pending', 'No key is waiting for confirmation. Click "Turn on two-factor authentication" to create one.')
+    if (!secret) return fail(409, 'no_pending', 'No key is waiting for confirmation. Choose "Set up authenticator app" again to get a new one.')
     const code = String((await body<{ code: string }>(request)).code ?? '').replace(/\s/g, '')
     if (!/^\d{6}$/.test(code)) return fail(400, 'invalid_code', 'The code is 6 digits from your authenticator app.')
     if (!(await verifyTotp(secret, code))) return fail(400, 'wrong_code', 'Wrong code. Check the time on your phone and enter a new code.')
@@ -208,7 +211,7 @@ const accountHandlers = [
     if (denied) return denied
     if (currentUser()!.sso) return ssoOnly()
     const u = currentUser()!
-    if ((await body<{ password: string }>(request)).password !== u.password) return fail(400, 'wrong_password', 'Wrong password. The password is needed to turn on two-factor authentication.')
+    if ((await body<{ password: string }>(request)).password !== u.password) return fail(400, 'wrong_password', 'Wrong password. The password is needed to turn on two-step sign-in.')
     if (u.twofa) return fail(409, 'already_on', 'Two-step sign-in is already on. Turn it off first to set up the other method.')
     if (!emailChannelReady()) return fail(409, 'email_channel_not_ready', 'Email codes need the email alert channel. An administrator has to set it up and turn it on first.')
     const sent = issueCode(u.id)
@@ -233,7 +236,7 @@ const accountHandlers = [
     if (denied) return denied
     const u = currentUser()!
     const b = await body<{ password: string }>(request)
-    if (b.password !== u.password) return fail(400, 'wrong_password', 'Wrong password. The password is needed to turn off two-factor authentication.')
+    if (b.password !== u.password) return fail(400, 'wrong_password', 'Wrong password. The password is needed to turn off two-step sign-in.')
     totpSecrets.update((s) => { const n = { ...s }; delete n[u.id]; return n })
     usersStore.update((l) => l.map((x) => (x.id === u.id ? { ...x, twofa: false, twofa_method: null } : x)))
     clearCode(u.id)

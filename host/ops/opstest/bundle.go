@@ -6,8 +6,10 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 )
 
@@ -47,6 +49,66 @@ func Tar(t testing.TB, entries ...TarEntry) []byte {
 		t.Fatal(err)
 	}
 	return buf.Bytes()
+}
+
+// SparseEntry is the raw tar bytes of one PAX "GNU sparse 1.0" entry named name: a PAX header with GNU.sparse.major/minor/name/realsize,
+// then a plain header for a 513-byte body (a one-entry sparse map and one data byte). Go's archive/tar reads it back as a TypeReg of
+// realsize bytes (mostly zeros) and will not write one, so it is built by hand (review M2). Splice it into a tar with WithRaw.
+func SparseEntry(t testing.TB, name string, realsize int64) []byte {
+	t.Helper()
+	recs := ""
+	for _, kv := range [][2]string{{"GNU.sparse.major", "1"}, {"GNU.sparse.minor", "0"}, {"GNU.sparse.name", name}, {"GNU.sparse.realsize", strconv.FormatInt(realsize, 10)}} {
+		rec := " " + kv[0] + "=" + kv[1] + "\n"
+		n := len(rec) + 1
+		for len(strconv.Itoa(n))+len(rec) != n {
+			n++
+		}
+		recs += strconv.Itoa(n) + rec
+	}
+	body := make([]byte, 513)
+	copy(body, "1\n0\n1\n")
+	body[512] = 'A'
+	var out bytes.Buffer
+	out.Write(rawHeader(t, "PaxHeaders/x", tar.TypeXHeader, int64(len(recs))))
+	out.Write(padBlock([]byte(recs)))
+	out.Write(rawHeader(t, name, tar.TypeReg, int64(len(body))))
+	out.Write(padBlock(body))
+	return out.Bytes()
+}
+
+// WithRaw puts raw entries (as SparseEntry makes) at the end of the tar b, before its two-block trailer.
+func WithRaw(b []byte, raw ...[]byte) []byte {
+	out := bytes.Clone(b[:len(b)-1024])
+	for _, r := range raw {
+		out = append(out, r...)
+	}
+	return append(out, make([]byte, 1024)...)
+}
+
+func padBlock(b []byte) []byte {
+	if r := len(b) % 512; r != 0 {
+		b = append(b, make([]byte, 512-r)...)
+	}
+	return b
+}
+
+// rawHeader is one USTAR header block of the given type (the writer makes a regular one; the type byte and checksum are then set).
+func rawHeader(t testing.TB, name string, typ byte, size int64) []byte {
+	t.Helper()
+	var b bytes.Buffer
+	w := tar.NewWriter(&b)
+	if err := w.WriteHeader(&tar.Header{Name: name, Typeflag: tar.TypeReg, Size: size, Mode: 0o644, Format: tar.FormatUSTAR}); err != nil {
+		t.Fatal(err)
+	}
+	blk := bytes.Clone(b.Bytes()[:512])
+	blk[156] = typ
+	copy(blk[148:156], "        ")
+	sum := 0
+	for _, c := range blk {
+		sum += int(c)
+	}
+	copy(blk[148:156], fmt.Sprintf("%06o\x00 ", sum))
+	return blk
 }
 
 // OCIImage is a small image as an OCI image layout: one layer, a config and a manifest for linux/<arch>, and an image index over that

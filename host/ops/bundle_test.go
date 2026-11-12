@@ -6,8 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,9 +56,18 @@ func TestExtractLayoutWritesOnlyBlobsThatHashToTheirNamesWithinTheArchiveSize(t 
 	if b, err := os.ReadFile(filepath.Join(dir, "blobs", "sha256", sha(blob))); err != nil || string(b) != blob { //nolint:gosec // test: the temp dir it made
 		t.Fatalf("%q %v", b, err)
 	}
-	// The blobs may not add up to more than the archive (a sparse entry expands past what was uploaded).
+	// The entries may not add up to more than the archive.
 	if _, err := extractLayout(bytes.NewReader(good), t.TempDir(), int64(len(blob)-1)); !errors.Is(err, errBundle) {
 		t.Errorf("over the limit: %v", err)
+	}
+	// The sum cannot overflow past the limit (review L1).
+	var total int64 = 10
+	if addWithin(&total, 1<<62, 1<<62) || addWithin(&total, -1, 100) || total != 10 || !addWithin(&total, 90, 100) || total != 100 || addWithin(&total, 1, 100) {
+		t.Errorf("addWithin: total %d", total)
+	}
+	var big int64 = 1<<63 - 10
+	if addWithin(&big, 1<<62, 1<<63-1) {
+		t.Error("addWithin overflowed")
 	}
 	// Another content under the name: errArchiveDigest; a name that is not a sha256 blob: errBundle.
 	if _, err := extractLayout(bytes.NewReader(tarOf(t, [2]string{"blobs/sha256/" + sha("x"), "y"}, [2]string{"index.json", "{}"})), t.TempDir(), 1<<20); !errors.Is(err, errArchiveDigest) {
@@ -87,50 +94,4 @@ func TestBundleMemberCapIsAClosedList(t *testing.T) {
 	}
 }
 
-// FuzzWalkBundle: whatever the bytes, walking them does not panic, and every member it hands on is one of the closed list, a regular
-// file under its cap.
-func FuzzWalkBundle(f *testing.F) {
-	f.Add(tarOf(f, [2]string{"index.json", "{}"}, [2]string{"images/", ""}, [2]string{"images/core.oci.tar", "x"}))
-	f.Add(tarOf(f, [2]string{"../x", "y"}))
-	f.Add([]byte("not a tar"))
-	f.Fuzz(func(t *testing.T, b []byte) {
-		_ = walkBundle(bytes.NewReader(b), func(name string, size int64, _ io.Reader) error {
-			if c := bundleMemberCap(name); c < 0 || size > c {
-				t.Fatalf("handed on %q (%d bytes)", name, size)
-			}
-			return nil
-		})
-	})
-}
-
-// FuzzExtractLayout: whatever the bytes, nothing is written outside dir/blobs/sha256, every file there has a 64-hex name, no more is
-// written than the limit, and when the layout is accepted every file hashes to its name (on an error the run removes the directory).
-func FuzzExtractLayout(f *testing.F) {
-	f.Add(tarOf(f, [2]string{"blobs/sha256/" + sha("a"), "a"}, [2]string{"index.json", "{}"}))
-	f.Add(tarOf(f, [2]string{"../../escaped", "a"}))
-	f.Add([]byte{})
-	f.Fuzz(func(t *testing.T, b []byte) {
-		dir := t.TempDir()
-		_, xerr := extractLayout(bytes.NewReader(b), dir, 4096)
-		var total int64
-		err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() {
-				return err
-			}
-			rel, _ := filepath.Rel(dir, p)
-			raw, rerr := os.ReadFile(p) //nolint:gosec // test: a file the fuzzed reader wrote under its temp dir
-			if rerr != nil {
-				return rerr
-			}
-			total += int64(len(raw))
-			name, ok := strings.CutPrefix(rel, filepath.Join("blobs", "sha256")+string(filepath.Separator))
-			if !ok || !imageIDRE.MatchString(name) || xerr == nil && hashHex(raw) != name {
-				t.Fatalf("wrote %s", rel)
-			}
-			return nil
-		})
-		if err != nil || total > 4096 {
-			t.Fatalf("walk: %v, %d bytes", err, total)
-		}
-	})
-}
+// The fuzz targets of these readers are in bundle_fuzz_test.go (package ops_test), whose seeds include opstest's hand-built sparse entries.

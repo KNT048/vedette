@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 
@@ -476,6 +477,104 @@ func TestContract_Bundle_ArgsCarryNoDocumentsAndLowDiskIsThreeTimesTheArchive(t 
 	free = 3 * size
 	mu.Unlock()
 	e.pull(t, a)
+}
+
+// runHook calls at(call) on every FreeBytes call: the first two are Check's low_disk (images, then the host's state), the next two
+// are the run's, made right before it opens the bundle again; free is what each call answers.
+func runHook(at func(call int) uint64) mut {
+	var mu sync.Mutex
+	n := 0
+	return func(_ *ops.Config, d *ops.Deps) {
+		d.FreeBytes = func(string) (uint64, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			n++
+			return at(n), nil
+		}
+	}
+}
+
+// Review M1: core rewrites its file between Check and Run, with the same signed documents and an image archive padded with
+// well-named blobs nothing references. The run sees an image member of another size than Check measured and refuses it before
+// writing a blob.
+func TestContract_Bundle_ABundleSwappedBetweenCheckAndRunIsRefused(t *testing.T) {
+	t.Parallel()
+	var swap func()
+	e := startPull(t, runHook(func(call int) uint64 {
+		if call == 3 && swap != nil {
+			swap()
+		}
+		return 100 << 30
+	}))
+	im := opstest.NewOCIImage(t, "amd64", "core")
+	a := e.bundleArgs(t, api.ServiceCore, im, nil)
+	padded := opstest.NewOCIImage(t, "amd64", "core")
+	pad := bytes.Repeat([]byte("p"), 64<<10)
+	padded.Extra = []opstest.TarEntry{{Name: "blobs/sha256/" + opstest.Hex(pad), Body: pad}}
+	other := e.bundleArgs(t, api.ServiceCore, padded, nil) // same documents, a larger archive
+	var swapped atomic.Bool
+	swap = func() {
+		swapped.Store(true)
+		tmp := e.m.CoreBundlePath(a.BundleID) + ".new"
+		if err := os.Link(e.m.CoreBundlePath(other.BundleID), tmp); err != nil {
+			t.Error(err)
+			return
+		}
+		if err := os.Remove(e.m.CoreBundlePath(other.BundleID)); err != nil {
+			t.Error(err)
+		}
+		if err := os.Rename(tmp, e.m.CoreBundlePath(a.BundleID)); err != nil {
+			t.Error(err)
+		}
+	}
+	e.failedWithNothing(t, a, api.CodeBundleInvalid)
+	if len(e.m.OCIPulls()) != 0 || !swapped.Load() {
+		t.Fatalf("loaded %v, swapped %v", e.m.OCIPulls(), swapped.Load())
+	}
+	// The swapped file itself is a valid bundle: pulled on its own (a new call, a new Check) it loads.
+	e.pull(t, a)
+}
+
+// Review M1: the run measures the free space again before it copies (the disk may have filled since Check).
+func TestContract_Bundle_TheRunMeasuresTheFreeSpaceAgain(t *testing.T) {
+	t.Parallel()
+	e := startPull(t, runHook(func(call int) uint64 {
+		if call <= 2 {
+			return 100 << 30 // Check: plenty
+		}
+		return 0 // the run: none left
+	}))
+	e.failedWithNothing(t, e.bundleArgs(t, api.ServiceCore, opstest.NewOCIImage(t, "amd64", "core"), nil), api.CodeLowDisk)
+}
+
+// Review L3: the appliance check comes before the bundle is even looked for.
+func TestContract_Bundle_NotApplianceComesBeforeBundleNotFound(t *testing.T) {
+	t.Parallel()
+	e := startPull(t)
+	e.m.OSRelease("ubuntu", "20.04", "Ubuntu 20.04")
+	e.refuse(t, "old ubuntu, no bundle", api.ContainerPullArgs{Service: "core", Version: pullVersion, Source: api.PullSourceBundle, BundleID: strings.Repeat("a", 32)}, api.CodeNotAppliance)
+	e.refuse(t, "old ubuntu, a good bundle", e.bundleArgs(t, api.ServiceCore, opstest.NewOCIImage(t, "amd64", "core"), nil), api.CodeNotAppliance)
+	e.noIndexStored(t)
+}
+
+// Review M2: a PAX GNU sparse entry (a few hundred bytes that Go's reader expands to its realsize) is refused in the bundle (Check)
+// and in the image archive (run), before anything is written.
+func TestContract_Bundle_SparseEntriesAreRefused(t *testing.T) {
+	t.Parallel()
+	e := startPull(t)
+	im := opstest.NewOCIImage(t, "amd64", "core")
+	idx, man := e.rel.IndexDoc(5), e.rel.ManifestDoc(pullVersion, opstest.Img{Service: api.ServiceCore, Digest: im.Digest, Size: 1000})
+	docs := opstest.Tar(t, e.rel.BundleDocs(opstest.JSON(t, idx), opstest.JSON(t, man))...)
+	for _, rs := range []int64{8 << 30, 600} {
+		e.refuse(t, "a sparse image member", e.bundleOf(t, api.ServiceCore, opstest.WithRaw(docs, opstest.SparseEntry(t, "images/core.oci.tar", rs))), api.CodeBundleInvalid)
+		e.refuse(t, "a sparse sbom", e.bundleOf(t, api.ServiceCore, opstest.WithRaw(
+			opstest.Tar(t, append(e.rel.BundleDocs(opstest.JSON(t, idx), opstest.JSON(t, man)), opstest.TarEntry{Name: "images/core.oci.tar", Body: im.Tar(t)})...),
+			opstest.SparseEntry(t, "sbom.json", rs))), api.CodeBundleInvalid)
+	}
+	// In the image archive: a sparse blob whose expanded content hashes to its name (600 zero bytes would be written).
+	e2 := startPull(t)
+	inner := opstest.WithRaw(im.Tar(t), opstest.SparseEntry(t, "blobs/sha256/"+opstest.Hex(make([]byte, 600)), 600))
+	e2.failedWithNothing(t, e2.bundleArgs(t, api.ServiceCore, im, replace("images/core.oci.tar", inner)), api.CodeBundleInvalid)
 }
 
 func TestContract_Bundle_StartRemovesALayoutLeftByARunThatWasCutShort(t *testing.T) {

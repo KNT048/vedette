@@ -121,12 +121,37 @@ func bundleMemberCap(name string) int64 {
 	return -1
 }
 
+// sparseEntry says whether the tar reader made h out of a sparse file. Go's archive/tar expands a sparse entry for the caller: the old
+// GNU form keeps TypeGNUSparse, but a PAX one (GNU.sparse.major/minor/realsize/map records) comes back as a plain TypeReg whose Size is
+// the expanded size, so a few hundred bytes in the tar can read back as GiBs of zeros (review M2). Refused in both tars of a bundle.
+func sparseEntry(h *tar.Header) bool {
+	if h.Typeflag == tar.TypeGNUSparse {
+		return true
+	}
+	for k := range h.PAXRecords {
+		if strings.HasPrefix(k, "GNU.sparse.") {
+			return true
+		}
+	}
+	return false
+}
+
+// addWithin adds size to *total and reports whether the total stays within limit, without overflowing (review L1).
+func addWithin(total *int64, size, limit int64) bool {
+	if size < 0 || size > limit-*total {
+		return false
+	}
+	*total += size
+	return true
+}
+
 // walkBundle reads the bundle tar from r and checks every entry against the contract. visit is called for each regular member with
-// a reader of its bytes; a member it does not read is skipped (by seeking, when r can seek). The error wraps errBundle for anything
-// the contract refuses, or is the error visit returned.
-func walkBundle(r io.Reader, visit func(name string, size int64, body io.Reader) error) error {
+// a reader of its bytes; a member it does not read is skipped (by seeking, when r can seek). The members together may not claim more
+// than limit, the size of the file itself. The error wraps errBundle for anything the contract refuses, or is the error visit returned.
+func walkBundle(r io.Reader, limit int64, visit func(name string, size int64, body io.Reader) error) error {
 	tr := tar.NewReader(r)
 	seen := map[string]bool{}
+	var total int64
 	for n := 0; ; n++ {
 		h, err := tr.Next()
 		if errors.Is(err, io.EOF) {
@@ -146,6 +171,9 @@ func walkBundle(r io.Reader, visit func(name string, size int64, body io.Reader)
 			return fmt.Errorf("%w: a duplicate entry", errBundle)
 		}
 		seen[name] = true
+		if sparseEntry(h) {
+			return fmt.Errorf("%w: a sparse entry", errBundle)
+		}
 		switch h.Typeflag {
 		case tar.TypeDir:
 			if name != "images" && name != "host" {
@@ -156,8 +184,11 @@ func walkBundle(r io.Reader, visit func(name string, size int64, body io.Reader)
 		default:
 			return fmt.Errorf("%w: an entry that is not a plain file (a link, a device, a FIFO or a sparse file)", errBundle)
 		}
-		if limit := bundleMemberCap(h.Name); limit < 0 || h.Size > limit {
+		if c := bundleMemberCap(h.Name); c < 0 || h.Size > c {
 			return fmt.Errorf("%w: a name outside the list, or a member over its size cap", errBundle)
+		}
+		if !addWithin(&total, h.Size, limit) {
+			return fmt.Errorf("%w: the members claim more bytes than the file holds", errBundle)
 		}
 		if err := visit(h.Name, h.Size, tr); err != nil {
 			return err
@@ -171,9 +202,9 @@ type bundleHead struct {
 	imageSize int64
 }
 
-func readBundleHead(r io.Reader, service string) (*bundleHead, error) {
+func readBundleHead(r io.Reader, limit int64, service string) (*bundleHead, error) {
 	head := &bundleHead{docs: map[string][]byte{}, imageSize: -1}
-	err := walkBundle(r, func(name string, size int64, body io.Reader) error {
+	err := walkBundle(r, limit, func(name string, size int64, body io.Reader) error {
 		if slices.Contains(bundleDocNames, name) {
 			b, err := io.ReadAll(body) // at most MaxDocBytes: the header was checked against the cap
 			if err != nil || int64(len(b)) != size || size == 0 {
@@ -231,7 +262,7 @@ func (o *Ops) planPull(a api.ContainerPullArgs) (*pullPlan, error) {
 	if err != nil {
 		return nil, err
 	}
-	head, err := readBundleHead(io.NewSectionReader(f, 0, size), a.Service)
+	head, err := readBundleHead(io.NewSectionReader(f, 0, size), size, a.Service)
 	_ = f.Close()
 	if err != nil {
 		o.log.Warn("a bundle was refused", "error", err.Error())
@@ -285,6 +316,13 @@ func (o *Ops) stageBundleImage(ctx context.Context, logf func(string), plan *pul
 	if err != nil {
 		return "", cleanup, fail(api.CodePullFailed, "The host could not make a private directory for the image.")
 	}
+	// Review M1: core can rewrite its file between Check and Run, so the free space is measured again now, for the size Check saw,
+	// and the walk below refuses an image member of any other size: what is written is bounded by what was measured twice.
+	want := plan.bundle.imageSize
+	if err := o.bundleRoom(want); err != nil {
+		logf("not enough free space any more to copy the image out of the bundle")
+		return "", cleanup, fail(api.CodeLowDisk, "There is no longer enough free space to load the image from the bundle (three times its archive).")
+	}
 	f, size, err := o.openBundle(plan.bundle.id)
 	if err != nil {
 		return "", cleanup, err
@@ -293,13 +331,16 @@ func (o *Ops) stageBundleImage(ctx context.Context, logf func(string), plan *pul
 	logf("copying the image of " + plan.service + " out of the bundle and checking every blob")
 	var index []byte
 	found := false
-	err = walkBundle(io.NewSectionReader(f, 0, size), func(name string, n int64, body io.Reader) error {
+	err = walkBundle(io.NewSectionReader(f, 0, size), size, func(name string, n int64, body io.Reader) error {
 		if name != imageMemberName(plan.service) {
 			return nil
 		}
+		if n != want {
+			return fmt.Errorf("%w: the image archive changed size after the check", errBundle)
+		}
 		found = true
 		var lerr error
-		index, lerr = extractLayout(ctxReader{ctx: ctx, r: body}, dir, n)
+		index, lerr = extractLayout(ctxReader{ctx: ctx, r: body}, dir, min(n, want))
 		return lerr
 	})
 	if err == nil && !found {
@@ -336,8 +377,8 @@ func (o *Ops) bundleFailure(ctx context.Context, logf func(string), err error) e
 // extractLayout reads an OCI image layout as a tar from r into dir: only blobs/sha256/<64 hex> files (each written to a new file
 // and hashed on the way, and it must hash to its name), the folders above them, oci-layout (read past) and index.json (returned,
 // not written). Anything else, a link, a device, a duplicate or a short entry is errBundle; a blob of other content is
-// errArchiveDigest. The blobs together may not be larger than limit, the archive's own size: a sparse entry (PAX or GNU, which
-// the tar reader expands) cannot make the host write more than core uploaded and low_disk measured.
+// errArchiveDigest. Sparse entries are refused, and the entries together may not claim more than limit, the archive's own size, so
+// the host never writes more than core uploaded and low_disk measured.
 func extractLayout(r io.Reader, dir string, limit int64) ([]byte, error) {
 	blobs := filepath.Join(dir, "blobs", "sha256")
 	if err := os.MkdirAll(blobs, 0o700); err != nil {
@@ -360,6 +401,12 @@ func extractLayout(r io.Reader, dir string, limit int64) ([]byte, error) {
 			return nil, fmt.Errorf("%w: a duplicate entry in the image archive", errBundle)
 		}
 		seen[name] = true
+		if sparseEntry(h) {
+			return nil, fmt.Errorf("%w: a sparse entry in the image archive", errBundle)
+		}
+		if h.Typeflag == tar.TypeReg && !addWithin(&written, h.Size, limit) {
+			return nil, fmt.Errorf("%w: the entries of the image archive claim more bytes than it holds", errBundle)
+		}
 		switch {
 		case h.Typeflag == tar.TypeDir && (name == "blobs" || name == "blobs/sha256"):
 		case h.Typeflag != tar.TypeReg:
@@ -382,9 +429,6 @@ func extractLayout(r io.Reader, dir string, limit int64) ([]byte, error) {
 			}
 			if n++; n > maxLayoutBlobs {
 				return nil, fmt.Errorf("%w: more than %d blobs", errBundle, maxLayoutBlobs)
-			}
-			if written += h.Size; h.Size < 0 || written > limit {
-				return nil, fmt.Errorf("%w: the blobs are larger than the archive", errBundle)
 			}
 			if err := copyBlob(tr, filepath.Join(blobs, m[1]), m[1], h.Size); err != nil {
 				return nil, err

@@ -170,6 +170,12 @@ type itemRec struct {
 	// UndoUnclear is set when an undo was sent and its outcome is not known (no answer, or a read-back that could not tell): the next try
 	// reads the device first and sends the rollback again only when the change is still there.
 	UndoUnclear bool `json:"undo_unclear,omitempty"`
+
+	// PresentBefore is whether the read-back text was there when the device was read right before the run (D-356): the check before when it
+	// is the same read, otherwise one read-only step. Only this bool is kept, never what the device printed (INV-22). A read-back that settles
+	// an unclear run counts the change as this step's only when it is false; nil (not read: an older item, or a run cut short by a restart) or
+	// true leaves the change uncounted. Kept in the items JSON, so it needs no migration.
+	PresentBefore *bool `json:"present_before,omitempty"`
 }
 
 // Approval is one person's (or a pre-approved rule's) approval.

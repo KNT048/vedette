@@ -209,7 +209,10 @@ type hangExec struct {
 	calls   int
 }
 
-func (h *hangExec) Execute(_ context.Context, _ response.DeviceStep) (response.DeviceResult, error) {
+func (h *hangExec) Execute(_ context.Context, s response.DeviceStep) (response.DeviceResult, error) {
+	if s.Phase != "run" { // the read before the run answers (D-356); only the write hangs
+		return response.DeviceResult{Status: response.StepOK, Detail: "read"}, nil
+	}
 	h.mu.Lock()
 	h.calls++
 	h.mu.Unlock()

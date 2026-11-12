@@ -629,13 +629,13 @@ func TestContract_INV13_DeviceRollbackNeedsExecution(t *testing.T) {
 	e.must(err)
 	_, err = e.svc.Rollback(e.ctx(), oper, a.ID)
 	wantCode(t, err, 409, "execution_off")
-	if got := e.exec.phases(); strings.Join(got, ",") != "run,verify" {
+	if got := e.exec.phases(); strings.Join(got, ",") != "verify,run,verify" { // the read before the run (D-356), the run, the read-back
 		t.Fatalf("steps = %v", got)
 	}
 	// Removing the change at the end of its undo time is the safe direction: it does not wait for the switch.
 	e.clock.Advance(31 * time.Minute)
 	e.must(e.svc.Sweep(e.ctx()))
-	if got := e.exec.phases(); strings.Join(got, ",") != "run,verify,rollback,verify" || e.only().Status != response.StatusRolledBack {
+	if got := e.exec.phases(); strings.Join(got, ",") != "verify,run,verify,rollback,verify" || e.only().Status != response.StatusRolledBack {
 		t.Fatalf("steps = %v, request %+v", got, e.only())
 	}
 }

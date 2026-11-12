@@ -135,7 +135,8 @@ type fakeConns struct{ list []response.ConnectionInfo }
 func (f *fakeConns) List(context.Context) ([]response.ConnectionInfo, error) { return f.list, nil }
 
 // fakeExecutor records every step it is asked to carry out; it never talks to a network. A check before answers "all clear" (pre), the
-// read-back after a run holds present and after an undo does not; status[phase] and err make a phase fail.
+// read-back after a run holds present and after an undo does not; a read before any run (D-356) does not hold it either (after, when set).
+// status[phase] and err make a phase fail; status["readback"] makes only a verify after a run fail, not the read before the run.
 type fakeExecutor struct {
 	mu      sync.Mutex
 	steps   []response.DeviceStep
@@ -169,6 +170,10 @@ func (f *fakeExecutor) Execute(ctx context.Context, s response.DeviceStep) (resp
 	if s.Phase == "run" || s.Phase == "rollback" {
 		f.last = s.Phase
 	}
+	if st, ok := f.status["readback"]; ok && s.Phase == "verify" && f.last == "run" {
+		r.Status = st
+		return r, nil
+	}
 	if st, ok := f.status[s.Phase]; ok {
 		r.Status = st
 		return r, nil
@@ -194,6 +199,18 @@ func (f *fakeExecutor) Execute(ctx context.Context, s response.DeviceStep) (resp
 	return r, nil
 }
 func (f *fakeExecutor) count() int { f.mu.Lock(); defer f.mu.Unlock(); return len(f.steps) }
+
+// runStep is the first run step sent (the read before it comes first, D-356).
+func (f *fakeExecutor) runStep() response.DeviceStep {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, s := range f.steps {
+		if s.Phase == "run" {
+			return s
+		}
+	}
+	return response.DeviceStep{}
+}
 func (f *fakeExecutor) phases() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()

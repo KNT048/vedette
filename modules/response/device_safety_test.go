@@ -71,7 +71,7 @@ func TestDevice_ExpirySecondsAreShownAsTheNumberThatIsSent(t *testing.T) {
 		t.Fatalf("the request shows the body %q", body)
 	}
 	e.approveOnly()
-	if run := e.exec.steps[0]; run.Body != body {
+	if run := e.exec.runStep(); run.Body != body {
 		t.Fatalf("shown %q, sent %q", body, run.Body)
 	}
 }
@@ -109,6 +109,11 @@ type panicky struct{ inner response.Executor }
 
 func (p panicky) Execute(ctx context.Context, s response.DeviceStep) (response.DeviceResult, error) {
 	if s.Phase == "run" {
+		if f, ok := p.inner.(*fakeExecutor); ok { // the write reached the device before the crash: the fake reads back as after a run
+			f.mu.Lock()
+			f.last = "run"
+			f.mu.Unlock()
+		}
 		panic("writer bug after the request was sent")
 	}
 	return p.inner.Execute(ctx, s)
@@ -123,12 +128,12 @@ func TestDevice_PanicDuringAWriteIsUnknownAndSettledByTheReadBack(t *testing.T) 
 		wantItem response.ItemStatus
 		inForce  bool
 	}{
-		"the read-back cannot tell":   {map[string]response.StepStatus{"verify": response.StepUnknown}, "", response.ItemFailed, true},
+		"the read-back cannot tell":   {map[string]response.StepStatus{"readback": response.StepUnknown}, "", response.ItemFailed, true},
 		"the read-back shows it":      {nil, "198.51.100.7", response.ItemExecuted, true},
 		"the read-back does not show": {nil, "nothing listed", response.ItemFailed, false},
 	} {
 		e := banRequest(t, func(c *response.Config) { c.Executor = panicky{c.Executor} })
-		e.exec.status, e.exec.present, e.exec.last = tc.verify, tc.present, "run" // the panic comes before the fake sees the run
+		e.exec.status, e.exec.present = tc.verify, tc.present
 		got := e.approveOnly()
 		it := got.Items[0]
 		in, err := e.svc.ChangesInForce(e.ctx(), "cn-fw")
@@ -292,7 +297,7 @@ func TestDevice_SwitchOffOrActionDisabledDuringTheCheckBeforeStopsTheWrite(t *te
 		e.fire(e.trap("h1", "192.168.10.157"))
 		e.exec.pre = staticAccess
 		got := e.approveOnly()
-		if e.phaseList() != "precheck" || got.Items[0].Status != response.ItemFailed {
+		if e.phaseList() != "precheck,verify" || got.Items[0].Status != response.ItemFailed { // only reads went out: the check and the read before (D-356)
 			t.Errorf("%s: steps %s, item %+v", name, e.phaseList(), got.Items[0])
 		}
 	}

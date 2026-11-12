@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -241,7 +242,7 @@ func TestContract_INV19_ApproverDisconnectDoesNotStrandTheBundle(t *testing.T) {
 			t.Errorf("item %q is %s, want executed", it.Title, it.Status)
 		}
 	}
-	if got.Status != response.StatusExecuted || len(ce.steps) == 0 || ce.steps[0].Phase != "run" {
+	if got.Status != response.StatusExecuted || !slices.ContainsFunc(ce.steps, func(s response.DeviceStep) bool { return s.Phase == "run" }) {
 		t.Fatalf("request %s, steps %+v", got.Status, ce.steps)
 	}
 	if n := e.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'executed'`); n != 2 {
@@ -281,7 +282,13 @@ func TestContract_INV19_StepIsRecordedBeforeItIsSent(t *testing.T) {
 func TestContract_INV19_StepThatRunsOutOfTimeIsStateUnknown(t *testing.T) {
 	var steps []response.DeviceStep
 	e := newEnv(t, func(c *response.Config) {
-		c.Executor = hookExec{steps: &steps, fn: func(ctx context.Context, _ response.DeviceStep) error { <-ctx.Done(); return ctx.Err() }}
+		c.Executor = hookExec{steps: &steps, fn: func(ctx context.Context, s response.DeviceStep) error {
+			if s.Phase != "run" { // the read before the run answers (D-356); the run never does
+				return nil
+			}
+			<-ctx.Done()
+			return ctx.Err()
+		}}
 	})
 	e.svc.SetStepLimitForTest(50 * time.Millisecond)
 	e.firewall("fgt_ban_ip")
@@ -461,7 +468,10 @@ func TestContract_INV8_EmergencyStopStopsItemsStillToRun(t *testing.T) {
 	var e *env
 	var steps []response.DeviceStep
 	e = newEnv(t, func(c *response.Config) {
-		c.Executor = hookExec{steps: &steps, fn: func(ctx context.Context, _ response.DeviceStep) error {
+		c.Executor = hookExec{steps: &steps, fn: func(ctx context.Context, s response.DeviceStep) error {
+			if s.Phase != "run" { // the stop comes while the write is in flight, not during the read before it (D-356)
+				return nil
+			}
 			_, err := e.svc.EmergencyStop(ctx, oper)
 			return err
 		}}
@@ -840,7 +850,7 @@ func TestContract_INV9_ConnectionChangedAfterTheRequestIsRefused(t *testing.T) {
 	e.conns.list[0].Target = "https://new-fw.lan"
 	_, err = e.svc.Rollback(e.ctx(), oper, l[0].ID)
 	wantCode(t, err, 409, "connection_changed")
-	if got := e.exec.phases(); strings.Join(got, ",") != "run,verify" {
+	if got := e.exec.phases(); strings.Join(got, ",") != "verify,run,verify" {
 		t.Fatalf("steps = %v", got)
 	}
 }
@@ -865,7 +875,7 @@ func TestContract_INV13_RollbackAllowedAfterTheActionWasDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rollback of an executed change refused after the action was disabled: %v", err)
 	}
-	if got.Status != response.StatusRolledBack || strings.Join(e.exec.phases(), ",") != "run,verify,rollback,verify" {
+	if got.Status != response.StatusRolledBack || strings.Join(e.exec.phases(), ",") != "verify,run,verify,rollback,verify" {
 		t.Fatalf("status %s, steps %v", got.Status, e.exec.phases())
 	}
 }
@@ -880,14 +890,14 @@ func TestContract_INV13_ReadsNeverUndoOnlyTheSweepDoes(t *testing.T) {
 	_, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
 	e.must(err)
 	e.clock.Advance(2 * time.Hour)
-	if got := e.only(); got.Items[0].Status != response.ItemExecuted || e.exec.count() != 2 {
+	if got := e.only(); got.Items[0].Status != response.ItemExecuted || e.exec.count() != 3 {
 		t.Fatalf("a read undid a change: %+v, steps %v", got.Items[0], e.exec.phases())
 	}
-	if _, err := e.svc.Metrics(e.ctx()); err != nil || e.exec.count() != 2 {
+	if _, err := e.svc.Metrics(e.ctx()); err != nil || e.exec.count() != 3 {
 		t.Fatalf("metrics: %v, steps %v", err, e.exec.phases())
 	}
 	e.must(e.svc.Sweep(e.ctx()))
-	if got := e.only(); got.Status != response.StatusRolledBack || strings.Join(e.exec.phases(), ",") != "run,verify,rollback,verify" {
+	if got := e.only(); got.Status != response.StatusRolledBack || strings.Join(e.exec.phases(), ",") != "verify,run,verify,rollback,verify" {
 		t.Fatalf("the sweep did not undo: %+v, steps %v", got.Status, e.exec.phases())
 	}
 }

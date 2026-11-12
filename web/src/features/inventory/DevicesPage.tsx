@@ -86,10 +86,13 @@ function DevicesTable({ items, filter }: { items: DeviceRow[]; filter: Filter })
 /** The empty state. When a range is saved it says Vedette is watching it instead of asking for one again (S-INV-1); the settings are read only here, and only by an admin. */
 function NoDevices({ boxOnly, canOp, canAdmin, needRole, onAdd, onImport }: { boxOnly: boolean; canOp: boolean; canAdmin: boolean; needRole: string | undefined; onAdd: () => void; onImport: () => void }) {
   const { t } = useTranslation('inventory')
-  const hasRanges = (useSettings(canAdmin).data?.lan_ranges.length ?? 0) > 0
-  const body = boxOnly ? (hasRanges ? 'empty.bodyBoxOnlyWatching' : 'empty.bodyBoxOnly') : hasRanges ? 'empty.bodyWatching' : 'empty.body'
+  const st = useSettings(canAdmin)
+  // Only an admin can read the settings: everyone else, and an admin while they load or fail, gets a text that claims nothing about ranges.
+  const ranges = canAdmin && st.data ? (st.data.lan_ranges.length > 0 ? 'saved' : 'none') : 'unknown'
+  const kind = ranges === 'saved' ? 'Watching' : ranges === 'none' ? '' : 'Neutral'
+  const body = (boxOnly ? 'empty.bodyBoxOnly' : 'empty.body') + kind
   return (
-    <EmptyState title={t('empty.title')} action={<div className="flex flex-wrap gap-2"><Button variant="primary" disabled={!canOp} title={needRole} onClick={onAdd}>{t('add.open')}</Button><Button disabled={!canOp} title={needRole} onClick={onImport}>{t('import.open')}</Button>{canAdmin && !hasRanges ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}>{t('empty.range')}</Link> : null}</div>}>{t(body)}</EmptyState>
+    <EmptyState title={t('empty.title')} action={<div className="flex flex-wrap gap-2"><Button variant="primary" disabled={!canOp} title={needRole} onClick={onAdd}>{t('add.open')}</Button><Button disabled={!canOp} title={needRole} onClick={onImport}>{t('import.open')}</Button>{ranges === 'none' ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}>{t('empty.range')}</Link> : null}</div>}>{t(body)}</EmptyState>
   )
 }
 

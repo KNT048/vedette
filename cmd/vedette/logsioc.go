@@ -46,8 +46,8 @@ func (f logsFeeds) Lookup(ctx context.Context, kind, value string) (logs.Listing
 func (f logsFeeds) On() bool { return f.d.Reg == nil || f.d.Reg.Enabled("feeds") }
 
 // logsIocEvidence is the adapter for response's Evidence.IocHit (EvidencePorts): the hit with this id, as the digest shows it, in the shape
-// response wants. Logs off answers "not found" (the evidence does not exist while the module is off). NOT WIRED: cfg.Evidence.IocHit in
-// response.go is Kien's wiring (issue owner:kien, see .ai/deferred/feat-logs-l4-ioc.md); until then only the test calls it.
+// response wants. Logs off answers "not found" (the evidence does not exist while the module is off). Wired as cfg.Evidence.IocHit in
+// response.go (#376, D-337); Connection stays empty (a set one would make the hit read as a connection read).
 func logsIocEvidence(svc *logs.Service, on func() bool) func(ctx context.Context, id string) (response.EvidenceRef, bool, error) {
 	return func(ctx context.Context, id string) (response.EvidenceRef, bool, error) {
 		if svc == nil || !on() {

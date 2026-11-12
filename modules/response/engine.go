@@ -406,8 +406,8 @@ func (s *Service) fire(ctx context.Context, tx *sql.Tx, rule Rule, ev Det, sum *
 	switch {
 	case rule.PreApproved && need > 1:
 		held = "; pre-approval not used, this request needs " + itoa(need) + " approvers"
-	case rule.PreApproved && forgeable(ev):
-		held = "; pre-approval not used, " + forgeableMsg
+	case rule.PreApproved && heldForAuto(ev, rule.Actions, recs) != "":
+		held = "; pre-approval not used, " + heldForAuto(ev, rule.Actions, recs)
 	}
 	pre := rule.PreApproved && held == "" && preApprovedProblem(rule.Actions, cats) == ""
 	title := rule.Name + ": " + itoa(len(recs)) + " actions"
@@ -443,11 +443,48 @@ func firstLine(s string) string {
 
 func store2(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05.000Z") }
 
-// forgeable reports whether the source address of the event can be forged: a port scan of a decoy is seen from a SYN alone, with
-// no handshake, so any LAN host can make it name 1.1.1.1. A person approves what such an event asks for (D-286 (4), review of #304).
-func forgeable(ev Det) bool { return ev.Trigger == "honeypot" && ev.Fields["kind"] == "scan" }
+// heldForAuto says why a pre-approved rule must leave this request to a person ("" = it may run it). A port scan of a decoy is seen
+// from a SYN alone, so any LAN host can make it name 1.1.1.1 (D-286 (4), review of #304). A known-bad connection is read from a syslog
+// line, which a LAN host can forge too (D-213): a hit on a domain only (a DNS forwarder or a proxy is "the device" of every client
+// behind it) waits for a person, and so does an action that names the device of the hit, whether the rule puts {{trigger.src_ip}},
+// {{trigger.device}} or {{trigger.switch_port}} into any value (text included) or a fixed value equals one of them (D-336).
+func heldForAuto(ev Det, specs []RuleAction, recs []itemRec) string {
+	switch {
+	case ev.Trigger == "honeypot" && ev.Fields["kind"] == "scan":
+		return "the source address of a port scan can be forged, so a person approves it"
+	case ev.Trigger == "ioc_connection" && ev.Fields["dest_kind"] != "ip":
+		return "the hit names a domain only, so the device it names may be a DNS forwarder or a proxy: a person approves it"
+	case ev.Trigger == "ioc_connection" && (namesSource(specs) || slices.ContainsFunc(recs, func(r itemRec) bool { return touchesSource(r.Values, ev) })):
+		return "the action is on the device of a syslog line, which can be forged: a person approves it"
+	}
+	return ""
+}
 
-const forgeableMsg = "the source address of a port scan can be forged, so a person approves it"
+// namesSource reports whether a rule's actions put a field of the hit's device into any value, alone or inside text.
+func namesSource(specs []RuleAction) bool {
+	for _, a := range specs {
+		for _, spec := range a.Params {
+			if slices.ContainsFunc(refsIn(spec), func(f string) bool { return f == "src_ip" || f == "device" || f == "switch_port" }) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// touchesSource reports whether an action's values name the device of a known-bad connection: its address, its name or its switch port.
+func touchesSource(vals map[ParamType]string, ev Det) bool {
+	for p, v := range vals {
+		switch {
+		case v == "":
+		case p == PIP && v == ev.Fields["src_ip"],
+			(p == PName || p == PText) && ev.Fields["device"] != "" && strings.EqualFold(v, ev.Fields["device"]),
+			p == PInterface && ev.Fields["switch_port"] != "" && v == ev.Fields["switch_port"]:
+			return true
+		}
+	}
+	return false
+}
 
 // ---- evaluating events ----
 
@@ -844,8 +881,12 @@ func (s *Service) Simulate(ctx context.Context, who Actor, in RuleInput, eventID
 			notes = append(notes, bad)
 		} else {
 			notes = append(notes, "Pre-approved: a live run would carry this out without asking a person.")
-			if forgeable(ev) {
-				notes = append(notes, "Pre-approval is not used for this event: "+forgeableMsg+".")
+			var recs []itemRec
+			for _, p := range plan {
+				recs = append(recs, p.rec)
+			}
+			if why := heldForAuto(ev, rule.Actions, recs); why != "" {
+				notes = append(notes, "Pre-approval is not used for this event: "+why+".")
 			}
 		}
 	} else {

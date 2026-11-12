@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/store"
 )
 
 // fakeFeeds is the Feeds port of the tests: a fixed list, a count of the lookups and the failures to answer with.
@@ -24,6 +25,7 @@ type fakeFeeds struct {
 	err    error
 	hook   func(ctx context.Context) // runs inside every lookup
 	noSub  bool                      // no switched-on feed lists subdomains (Subdomains says false)
+	subErr error                     // what Subdomains fails with
 	subs   int                       // calls of Subdomains
 }
 
@@ -58,7 +60,7 @@ func (f *fakeFeeds) Subdomains(context.Context) (bool, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.subs++
-	return !f.noSub, nil
+	return !f.noSub, f.subErr
 }
 
 func (f *fakeFeeds) lookups() []string {
@@ -247,6 +249,56 @@ func TestIOCSubdomainsOfOneListedNameAreOneHit(t *testing.T) {
 	}
 	if p.hits[0].Dest != badDomain || p.hits[0].ListedAs != nil || p.hits[1].Dest != "k2v7.tif-listed.net" || p.hits[1].ListedAs == nil { // a batch's pairs go by name
 		t.Errorf("hits %+v", p.hits)
+	}
+}
+
+// D-425 (review r1): a blocked attempt on one subdomain does not hide a connection that goes through to another one of the same listed
+// name (D-227 still apart); a direct hit surer than a recent subdomain hit (an exact feed at 0.9, hagezi TIF at 0.6) is news; a row
+// stored before 0007 (listed_as empty) is not found by the listed name, so one extra row is accepted (no backfill), then the new row dedupes.
+func TestIOCListedNameDedupeKeepsAttemptsConfidenceAndOldRowsApart(t *testing.T) {
+	t.Parallel()
+	e, src, ff, p := iocEnv(t)
+	ff.listed["domain:tif-listed.net"] = Listing{Feeds: []string{"hagezi TIF", "exact"}, Confidence: 0.9, SubFeeds: []string{"hagezi TIF"}, SubConfidence: 0.6}
+	blocked := func(name string) string {
+		return strings.Replace(dnsLine(lanDevice, name), `action="pass"`, `action="block"`, 1)
+	}
+	e.feedAll(src, []string{blocked("a.tif-listed.net")})
+	e.advance(time.Minute)
+	e.feedAll(src, []string{blocked("b.tif-listed.net"), dnsLine(lanDevice, "c.tif-listed.net")}) // the attempt repeats, the connection is new
+	e.advance(time.Minute)
+	e.feedAll(src, []string{dnsLine(lanDevice, "d.tif-listed.net"), dnsLine(lanDevice, "tif-listed.net")}) // a repeat, then 0.9 > 0.6
+	e.advance(time.Minute)
+	e.feedAll(src, []string{dnsLine(lanDevice, "tif-listed.net")}) // as sure as the last one: a repeat
+	var got []string
+	for _, h := range p.hits {
+		got = append(got, fmt.Sprintf("%s/%v/%.1f", h.Dest, h.Blocked, h.Confidence))
+	}
+	if strings.Join(got, " ") != "a.tif-listed.net/true/0.6 c.tif-listed.net/false/0.6 tif-listed.net/false/0.9" {
+		t.Fatalf("hits %v", got)
+	}
+	// a row of an older binary: its subdomain hit has no listed_as
+	if err := e.vol.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO logs_ioc_hits (id, ts, src_ip, dest, dest_kind, seen_via, feeds, confidence, source_id) VALUES ('ih-old', ?, '192.168.10.106', 'x.tif-listed.net', 'domain', 'syslog:FW-HQ', '["hagezi TIF"]', 0.6, ?)`,
+			store.FormatTS(e.svc.now().Add(-time.Second)), src.ID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e.feedAll(src, []string{dnsLine("192.168.10.106", "x.tif-listed.net"), dnsLine("192.168.10.106", "y.tif-listed.net")})
+	if n := len(p.hits); n != 4 || p.hits[3].Dest != "x.tif-listed.net" || p.hits[3].ListedAs == nil {
+		t.Errorf("after the old row: %d hits %+v", n, p.hits[3:])
+	}
+}
+
+// D-425: a failed question about subdomain feeds walks the parents as before (a hit is never lost to it).
+func TestIOCSubdomainsErrorStillWalks(t *testing.T) {
+	t.Parallel()
+	e, src, ff, p := iocEnv(t)
+	ff.subErr = errors.New("feeds: read sources: disk I/O error")
+	ff.listed["domain:tif-listed.net"] = Listing{Feeds: []string{"hagezi TIF"}, Confidence: 0.8, SubFeeds: []string{"hagezi TIF"}, SubConfidence: 0.8}
+	e.feedAll(src, []string{dnsLine(lanDevice, "a.tif-listed.net")})
+	if h, _ := p.counts(); h != 1 || p.hits[0].ListedAs == nil {
+		t.Fatalf("hits %+v", p.hits)
 	}
 }
 

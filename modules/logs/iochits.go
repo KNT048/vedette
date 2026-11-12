@@ -152,8 +152,22 @@ type lookups struct {
 	sub *bool
 }
 
-// seenPair is what matchIOC has already kept for a (device, listed name) pair of a batch: any hit, and a hit that went through.
-type seenPair struct{ any, passed bool }
+// seenPair is what matchIOC knows of a (device, listed name) pair in a batch, kept or found stored: the highest confidence of any hit
+// and of a hit that went through, plus one (0 = none). A new hit is a repeat when a hit it counts against (recentHitSQL) is as sure.
+type seenPair struct{ any, passed float64 }
+
+// repeats says whether a hit with this confidence is a repeat of what is known; note records that a hit is known.
+func (p seenPair) repeats(blocked bool, conf float64) bool {
+	return p.passed >= conf+1 || (blocked && p.any >= conf+1)
+}
+
+func (p seenPair) note(blocked bool, conf float64) seenPair {
+	p.any = max(p.any, conf+1)
+	if !blocked {
+		p.passed = max(p.passed, conf+1)
+	}
+	return p
+}
 
 // matchIOC looks up the destinations of a batch (each one once: a flood of lines to the same address is one lookup) and returns the hits,
 // oldest line first. It runs before the transaction of the batch (the writer of logs.db is not held while the feeds are read) and never
@@ -173,7 +187,7 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 	defer cancel()
 	cache := &lookups{res: map[[2]string]lookupResult{}}
 	var out []iocRow
-	seen := map[[2]string]seenPair{} // the pairs kept so far: the random subdomains of one listed name are one hit (D-425)
+	seen := map[[2]string]seenPair{} // the pairs kept or found stored so far: the random subdomains of one listed name are one hit (D-425)
 	cutoff := store.FormatTS(s.ts().Add(-IocDedupe))
 	for _, k := range keys {
 		if len(out) >= MaxIocHitsPerBatch {
@@ -187,14 +201,18 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 		// A listed pair that already has a hit in the last 24 hours does not count toward the cap of the batch: a chatty device that keeps
 		// meeting its listed addresses must not use the cap that another device's first hit needs (storeIOC dedupes again inside the
 		// transaction). Only listed pairs are checked, after the cached lookup: nearly every pair of real traffic is unlisted (review r2 N1).
-		o := conns[k]
+		// A stored repeat is remembered for the batch too, so the random subdomains of one listed name read the table once.
+		o, conf := conns[k], clamp01(l.Confidence)
 		pair := [2]string{k.src.String(), cmp.Or(listed, k.dest)}
-		if len(l.Feeds) == 0 || seen[pair].passed || (o.blocked && seen[pair].any) || s.hasRecentHit(ctx, pair[0], pair[1], o.blocked, cutoff) {
+		if len(l.Feeds) == 0 || seen[pair].repeats(o.blocked, conf) {
 			continue
 		}
-		seen[pair] = seenPair{any: true, passed: seen[pair].passed || !o.blocked}
+		seen[pair] = seen[pair].note(o.blocked, conf)
+		if s.hasRecentHit(ctx, pair[0], pair[1], o.blocked, conf, cutoff) {
+			continue
+		}
 		out = append(out, iocRow{id: store.NewID("ih"), src: k.src.String(), dest: k.dest, kind: k.kind, via: "syslog:" + names[o.source], source: o.source, at: o.at,
-			feeds: cleanFeeds(l.Feeds), conf: clamp01(l.Confidence), blocked: o.blocked, listed: listed})
+			feeds: cleanFeeds(l.Feeds), conf: conf, blocked: o.blocked, listed: listed})
 	}
 	return out
 }
@@ -266,15 +284,17 @@ func parentDomains(name string) []string {
 
 // recentHitSQL finds a stored hit of a pair newer than a cutoff that makes a new one a repeat: any hit for a blocked attempt, only a hit
 // that went through for a connection that went through (a blocked attempt must not hide, for 24 hours, the connection that follows it; D-227).
-// The pair is (device, listed name) (D-425): a hit on the listed name itself or on any of its subdomains. The device's rows are found
-// through the index logs_ioc_hits_pair (src_ip first) and are at most MaxIocRows. ponytail: no index on listed_as; add one if it shows.
-const recentHitSQL = `SELECT 1 FROM logs_ioc_hits WHERE src_ip = ?1 AND (dest = ?2 OR listed_as = ?2) AND ts > ?3 AND (?4 OR blocked = 0) LIMIT 1`
+// The pair is (device, listed name) (D-425): a hit on the listed name itself or on any of its subdomains, each found through its index
+// (logs_ioc_hits_pair, logs_ioc_hits_listed). A hit surer than the recent one (an exact feed at 0.9 after a subdomain feed at 0.6) is
+// not a repeat: the higher severity is news.
+const recentHitSQL = `SELECT 1 WHERE EXISTS (SELECT 1 FROM logs_ioc_hits WHERE src_ip = ?1 AND dest = ?2 AND ts > ?3 AND (?4 OR blocked = 0) AND confidence >= ?5)
+OR EXISTS (SELECT 1 FROM logs_ioc_hits WHERE src_ip = ?1 AND listed_as = ?2 AND ts > ?3 AND (?4 OR blocked = 0) AND confidence >= ?5)`
 
 // hasRecentHit says whether the pair (device, listed name) has a stored hit newer than cutoff that makes it a repeat (a read on the
 // reader pool); an error says no.
-func (s *Service) hasRecentHit(ctx context.Context, src, name string, blocked bool, cutoff string) bool {
+func (s *Service) hasRecentHit(ctx context.Context, src, name string, blocked bool, conf float64, cutoff string) bool {
 	var one int
-	return s.cfg.Volume.Reader().QueryRowContext(ctx, recentHitSQL, src, name, cutoff, blocked).Scan(&one) == nil
+	return s.cfg.Volume.Reader().QueryRowContext(ctx, recentHitSQL, src, name, cutoff, blocked, conf).Scan(&one) == nil
 }
 
 // noteLookupFailure logs a failed lookup, once for a run of the same failure; the feeds being off is not a failure (PRE-3).
@@ -332,7 +352,7 @@ func (s *Service) storeIOC(ctx context.Context, tx *sql.Tx, rows []iocRow, fresh
 	cutoff := store.FormatTS(s.ts().Add(-IocDedupe))
 	for _, r := range rows {
 		var one int
-		switch err := tx.QueryRowContext(ctx, recentHitSQL, r.src, cmp.Or(r.listed, r.dest), cutoff, r.blocked).Scan(&one); {
+		switch err := tx.QueryRowContext(ctx, recentHitSQL, r.src, cmp.Or(r.listed, r.dest), cutoff, r.blocked, r.conf).Scan(&one); {
 		case err == nil:
 			continue
 		case !errors.Is(err, sql.ErrNoRows):

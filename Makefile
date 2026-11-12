@@ -43,6 +43,7 @@ help:
 	@echo "make fixtures      kéo dữ liệu KEV/EPSS thật cho bảng nóng"
 	@echo "make dev-sensors   core + sensor (pcap replay) + scan (fake nmap, fake nuclei) with docker compose, profile dev (D-146)"
 	@echo "make dev-sensors-smoke   the same, checks that a device appears via the API within a bound, then tears down"
+	@echo "make container-only-smoke   the container-only install on Docker and Podman (builds images, checks ports/key/uid/caps, tears down); opt-in, slow, not in check or CI"
 	@echo "make webui-dist    build the web release and copy it to internal/webui/dist (embedded by -tags webui; core-image runs it, D-149)"
 	@echo "make sensor-image scan-base-image scan-image core-image  build the container images (CONTAINER=podman|docker); images-check builds and checks them by effect"
 	@echo "make honeypot-image  build the honeypot image (OpenCanary + Samba, D-162); make honeypot-check builds it and checks it by effect (opt-in)"
@@ -353,6 +354,13 @@ dev-sensors-down:
 # Up, a device that only the sensor can have seen appears in the inventory within a bound, down (D-146: not in CI yet).
 dev-sensors-smoke: scan-pack
 	scripts/dev/sensors-smoke.sh
+
+# The container-only install (WP-08m, D-168) the way docs/INSTALL-CONTAINER.md tells a customer, on Docker and on Podman: builds the three images
+# locally, checks by effect (ports, key owner and mode, uid and capabilities), tears down. Slow, opt-in, not in check or CI. Run it as
+# `~/vedette-wt/heavy make container-only-smoke`; SMOKE_RUNTIMES="docker" or "podman" picks one. The scan pack folder is a build output: removed after.
+.PHONY: container-only-smoke
+container-only-smoke:
+	scripts/dev/container-only-smoke.sh; rc=$$?; rm -rf $(PACK_DIR); exit $$rc
 
 # ---- install.sh (WP-08h, D-166) ----------------------------------------------------------------------------------------------
 # install-artifacts: the TEST release for `install.sh --test-artifacts DIR`, signed with throwaway keys made on the spot (the real keys and

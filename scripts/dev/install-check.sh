@@ -249,19 +249,43 @@ EOT
 	   rm -f /root/rmi.log; cd /; rm -rf "$d"' >/dev/null 2>&1 || fail "cannot make the test images of the image case"
 	x 'podman images -a --format "{{.ID}} {{.Repository}}:{{.Tag}}" | grep -q "localhost/vedette-core:0.0.1"' || fail "the image case did not make its images"
 	ok "image case: five test images made (a localhost/vedette-core tag, a ghcr.io/knt048/vedette- tag, an unrelated tag, a dangling image with the scan label, a dangling one without)"
-	# ---- D-267: a Docker-like box (a DOCKER-USER chain and FORWARD DROP): vedette-host puts its two rules in, --uninstall takes them out
+	# ---- D-267, D-396: a Docker-like box (a DOCKER-USER chain and FORWARD DROP): vedette-host puts its rules in, --uninstall takes them out.
+	# Before the chain, the box gets an uplink bridge br-lan (its port a VLAN or, without the 8021q module, a macvlan on a veth: both have
+	# a lower_* link, as the host looks for) and a bridge br-app holding only a veth (a custom-named Docker network): the first must get its
+	# ACCEPT above the RETURNs, the second none. The bridges are read here the way the host reads them (host/ops/dockerfwd.go boxBridges).
 	if x 'command -v iptables >/dev/null 2>&1'; then
 		fwd_subnet=$(x "sed -n 's/^Subnet=//p' /etc/containers/systemd/vedette-int.network")
+		x 'ip link add br-app type bridge && ip link add vic-app type veth peer name vic-app-p && ip link set vic-app master br-app && ip link add br-lan type bridge && ip link add vic-up type veth peer name vic-up-p' ||
+			fail "D-396: cannot make the test bridges br-app and br-lan in the check container"
+		if x 'ip link add link vic-up name vic-up.7 type vlan id 7 2>/dev/null && ip link set vic-up.7 master br-lan || { ip link add link vic-up name vic-upm type macvlan mode bridge && ip link set vic-upm master br-lan; }'; then
+			fwd_uplink=1
+		else
+			fwd_uplink=
+			echo "install-check: note [$name] D-396: neither a VLAN nor a macvlan could be made here (8021q and macvlan modules not loaded on this machine): br-lan has no uplink port, so it must get no ACCEPT" >&2
+		fi
+		# boxBridges in sh: br- + 1-12 of [A-Za-z0-9_.-], not br- + 12 hex (Docker's), with a port that has device, bonding or a lower_* link
+		# (lstat: -e or -L); sorted bytewise like Go's os.ReadDir
+		# shellcheck disable=SC2016 # the $ expand in the container's sh, not here
+		fwd_box=$(x 'export LC_ALL=C; for d in /sys/class/net/br-*; do b=${d##*/}; printf "%s\n" "$b" | grep -Eqx "br-[A-Za-z0-9_.-]{1,12}" || continue; ! printf "%s\n" "$b" | grep -Eqx "br-[0-9a-f]{12}" || continue; for p in "$d"/brif/*; do p=/sys/class/net/${p##*/}; up=; for f in "$p/device" "$p/bonding" "$p"/lower_*; do if [ -e "$f" ] || [ -L "$f" ]; then up=1; fi; done; if [ -n "$up" ]; then echo "$b"; break; fi; done; done | sort' | tr '\n' ' ')
+		case " $fwd_box" in *" br-app "*) fail "D-396: the bridge reader of this check calls br-app (only a veth) an uplink" ;; esac
+		if [ -n "$fwd_uplink" ]; then
+			case " $fwd_box" in *" br-lan "*) ;; *) fail "D-396: the bridge reader of this check does not see br-lan, which holds a VLAN or macvlan port" ;; esac
+		fi
+		fwd_want=
+		for b in $fwd_box; do fwd_want="${fwd_want}ACCEPT:$b "; done
+		fwd_want="${fwd_want}RETURN RETURN ACCEPT ACCEPT DROP "
+		# the whole sequence of our lines in -S: a bridge's ACCEPT as ACCEPT:<bridge>, every other line by its target
+		fwd_seq() { x 'iptables -S DOCKER-USER | grep -- "--comment vedette-int" | sed -e "s/.* -o \(br-[^ +]*\) .* -j ACCEPT\$/ACCEPT:\1/" -e "s/.* -j //" | tr "\n" " "'; }
 		x 'iptables -N DOCKER-USER && iptables -P FORWARD DROP' || fail "D-267: cannot make a fake DOCKER-USER chain in the check container (needs NET_ADMIN)"
 		# the host looks every 30 s
-		x "i=0; while [ \$i -lt 40 ]; do iptables -w 5 -C DOCKER-USER -i vedette0 -o docker0 -m comment --comment vedette-int -j RETURN 2>/dev/null && iptables -w 5 -C DOCKER-USER -i vedette0 -o 'br-+' -m comment --comment vedette-int -j RETURN 2>/dev/null && iptables -w 5 -C DOCKER-USER -o vedette0 -d $fwd_subnet -m conntrack --ctstate DNAT,ESTABLISHED,RELATED -m comment --comment vedette-int -j ACCEPT 2>/dev/null && iptables -w 5 -C DOCKER-USER -i vedette0 -s $fwd_subnet -m comment --comment vedette-int -j ACCEPT 2>/dev/null && exit 0; sleep 2; i=\$((i + 1)); done; exit 1" || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: vedette-host did not put its two rules in DOCKER-USER within 80 s"; }
-		[ "$(x 'iptables -S DOCKER-USER | grep -- "--comment vedette-int" | sed "s/.* -j //" | tr "\n" " "')" = "RETURN RETURN ACCEPT ACCEPT " ] || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: DOCKER-USER does not hold the four rules of Vedette in the order RETURN RETURN ACCEPT ACCEPT"; }
+		x "i=0; while [ \$i -lt 40 ]; do iptables -w 5 -C DOCKER-USER -i vedette0 -o docker0 -m comment --comment vedette-int -j RETURN 2>/dev/null && iptables -w 5 -C DOCKER-USER -i vedette0 -o 'br-+' -m comment --comment vedette-int -j RETURN 2>/dev/null && iptables -w 5 -C DOCKER-USER -o vedette0 -d $fwd_subnet -m conntrack --ctstate DNAT,ESTABLISHED,RELATED -m comment --comment vedette-int -j ACCEPT 2>/dev/null && iptables -w 5 -C DOCKER-USER -i vedette0 -s $fwd_subnet -m comment --comment vedette-int -j ACCEPT 2>/dev/null && iptables -w 5 -C DOCKER-USER ! -i vedette0 -o vedette0 -m comment --comment vedette-int -j DROP 2>/dev/null && exit 0; sleep 2; i=\$((i + 1)); done; exit 1" || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: vedette-host did not put its five fixed rules in DOCKER-USER within 80 s"; }
+		[ "$(fwd_seq)" = "$fwd_want" ] || { x 'iptables -S DOCKER-USER' >&2; fail "D-396: DOCKER-USER holds '$(fwd_seq)', want exactly '$fwd_want'"; }
 		# one more look of the host (30 s): nothing is added, so -C finds the rules as the host writes them
 		sleep 35
-		[ "$(x 'iptables -S DOCKER-USER | grep -c -- "--comment vedette-int"')" = 4 ] || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: DOCKER-USER does not hold exactly four rules of Vedette after another look"; }
+		[ "$(fwd_seq)" = "$fwd_want" ] || { x 'iptables -S DOCKER-USER' >&2; fail "D-396: after another look DOCKER-USER holds '$(fwd_seq)', want exactly '$fwd_want'"; }
 		# an unrelated rule of the administrator in the same chain must survive the uninstall
 		x 'iptables -A DOCKER-USER -s 192.0.2.0/24 -j RETURN'
-		ok "D-267: with a DOCKER-USER chain and FORWARD DROP, vedette-host keeps exactly four vedette-int rules (RETURN RETURN ACCEPT ACCEPT) for vedette0 and $fwd_subnet"
+		ok "D-267, D-396: with a DOCKER-USER chain and FORWARD DROP, vedette-host keeps exactly '${fwd_want% }' for vedette0 and $fwd_subnet (uplink bridges of the box: ${fwd_box:-none})"
 		fwd_checked=1
 	fi
 	x 'DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends ufw >/tmp/ufw.log 2>&1 || { tail -20 /tmp/ufw.log; exit 1; }' >&2 || fail "cannot install ufw (it depends on iptables, which the installer added)"
@@ -277,9 +301,10 @@ EOT
 	if [ -n "${fwd_checked:-}" ]; then
 		[ "$(x 'iptables -S DOCKER-USER | grep -c -- "--comment vedette-int"')" = 0 ] || { x 'iptables -S DOCKER-USER' >&2; fail "D-267: --uninstall left a vedette-int rule in DOCKER-USER"; }
 		x 'iptables -S DOCKER-USER | grep -q -- "-s 192.0.2.0/24 -j RETURN"' || fail "D-267: --uninstall removed a rule that is not Vedette's"
-		ok "D-267: --uninstall removed the four vedette-int rules and left the administrator's own rule"
-		# the fake Docker goes again, so that the checks below see the box as it was
-		x 'iptables -P FORWARD ACCEPT; iptables -F DOCKER-USER; iptables -X DOCKER-USER; true'
+		ok "D-267, D-396: --uninstall removed every vedette-int rule (the five fixed ones, the DROP among them, and the bridge ACCEPTs) and left the administrator's own rule"
+		# the fake Docker and the test bridges go again, so that the checks below see the box as it was (a veth takes its peer and the
+		# VLAN or macvlan on it along)
+		x 'iptables -P FORWARD ACCEPT; iptables -F DOCKER-USER; iptables -X DOCKER-USER; ip link del vic-up; ip link del vic-app; ip link del br-lan; ip link del br-app; true'
 		fwd_checked=
 		# the chain was made by this case, so the uninstall rightly kept the nft table "ip filter" (warning: left the nft table); it goes
 		# once nft is there to remove it (below)

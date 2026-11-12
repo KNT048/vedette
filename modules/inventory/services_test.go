@@ -188,4 +188,51 @@ func TestPruneServicesRemovesOnlyRowsNotSeenFor90Days(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM inv_asset`); n != 2 {
 		t.Fatalf("the prune removed a device: %d left", n)
 	}
+	if got := e.auditActions(); !has(got, "inventory.services_pruned") {
+		t.Fatalf("no audit row of the prune: %v", got)
+	}
+	n := 0
+	for _, a := range e.auditActions() {
+		if a == "inventory.services_pruned" {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("%d prune audit rows, want one (the prune that removed nothing writes none)", n)
+	}
+}
+
+// A partial look (a gentle scan) adds the ports it saw and keeps what a full scan of the same source said: nothing is removed,
+// and a port already listed keeps its name, product, version and confidence; only seen_at moves (INV-23, D-350 (5)).
+func TestContract_INV23_AddServicesKeepsTheFullList(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ctx := e.ctx()
+	hint := observe.AssetHint{IP: ipSvc}
+	full := []observe.Service{
+		{Port: 22, Proto: "tcp", Name: "ssh", Product: "OpenSSH", Version: "8.9p1", Confidence: 0.95},
+		{Port: 8080, Proto: "tcp", Name: "http-proxy", Product: "Squid http proxy", Version: "5.7", Confidence: 0.76},
+	}
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, full); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Hour)
+	gentle := []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.29}, {Port: 9100, Proto: "tcp", Name: "jetdirect", Confidence: 0.29}}
+	if err := e.svc.AddServices(ctx, hint, observe.Nmap, gentle); err != nil {
+		t.Fatal(err)
+	}
+	l, err := e.svc.Devices(ctx)
+	if err != nil || len(l.Items) != 1 {
+		t.Fatalf("devices: %v %v", l.Items, err)
+	}
+	want := []string{"22/tcp ssh OpenSSH 8.9p1 nmap", "8080/tcp http-proxy Squid http proxy 5.7 nmap", "9100/tcp jetdirect   nmap"}
+	if got := servicesOf(e.detail(l.Items[0].ID)); strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("services\n got %q\nwant %q", got, want)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_service WHERE port = 22 AND confidence = 0.95 AND seen_at = ?`, "2026-11-09T11:00:00.000Z"); n != 1 {
+		t.Fatal("port 22 lost its confidence, or its seen_at did not move")
+	}
+	if n := e.count(`SELECT count(*) FROM inv_service WHERE port = 8080 AND seen_at = ?`, "2026-11-09T10:00:00.000Z"); n != 1 {
+		t.Fatal("port 8080, not in the partial look, was touched")
+	}
 }

@@ -17,6 +17,7 @@ const (
 	// (sensor-active nmapargv), so a full list fits. Five sensor sources at most, so a device holds at most 5000 rows.
 	maxServices   = 1000
 	maxSvcName    = 100 // the CHECK of inv_service.name
+	maxSvcProduct = 200 // the CHECK of inv_service.product (= maxObsValue, the cap of cleanText)
 	maxSvcVersion = 100
 	// ServiceRetention is how long a service no source reports again is kept (DATA_MODEL, D-350); PruneServices removes older rows.
 	ServiceRetention = 90 * 24 * time.Hour
@@ -62,8 +63,8 @@ func checkService(i int, it observe.Service) (observe.Service, error) {
 	if it.Name != "" && (!cleanText(it.Name) || utf8.RuneCountInString(it.Name) > maxSvcName) {
 		return it, invalid("service %d: name must be at most %d printable characters", i, maxSvcName)
 	}
-	if it.Product != "" && !cleanText(it.Product) {
-		return it, invalid("service %d: product must be at most %d printable characters", i, maxObsValue)
+	if it.Product != "" && (!cleanText(it.Product) || utf8.RuneCountInString(it.Product) > maxSvcProduct) {
+		return it, invalid("service %d: product must be at most %d printable characters", i, maxSvcProduct)
 	}
 	if it.Version != "" && (!cleanText(it.Version) || utf8.RuneCountInString(it.Version) > maxSvcVersion) {
 		return it, invalid("service %d: version must be at most %d printable characters", i, maxSvcVersion)
@@ -79,6 +80,17 @@ func checkService(i int, it observe.Service) (observe.Service, error) {
 // unapproved, as for ReplaceSoftware; a box-owned address is no device (INV-17). No event and no audit row: nothing listens
 // for a port change yet (D-350).
 func (s *Service) ReplaceServices(ctx context.Context, hint observe.AssetHint, source observe.Source, items []observe.Service) error {
+	return s.services(ctx, hint, source, items, true)
+}
+
+// AddServices implements observe.ServiceSink for a partial look (INV-23, PRE-2b; D-350 (5)): a port not listed yet is added, a
+// port already listed by that source only gets its seen_at moved (its name, product, version and confidence stay: they came
+// from a fuller scan), and no row is removed. Everything else is as ReplaceServices.
+func (s *Service) AddServices(ctx context.Context, hint observe.AssetHint, source observe.Source, items []observe.Service) error {
+	return s.services(ctx, hint, source, items, false)
+}
+
+func (s *Service) services(ctx context.Context, hint observe.AssetHint, source observe.Source, items []observe.Service, replace bool) error {
 	ip, mac, err := checkHint(hint)
 	if err != nil {
 		return err
@@ -100,22 +112,37 @@ func (s *Service) ReplaceServices(ctx context.Context, hint observe.AssetHint, s
 		if err != nil {
 			return err
 		}
-		return replaceServicesTx(ctx, tx, id, clean, string(source), now)
+		return replaceServicesTx(ctx, tx, id, clean, string(source), now, replace)
 	})
 }
 
-func replaceServicesTx(ctx context.Context, tx *sql.Tx, assetID string, items []observe.Service, source, seenAt string) error {
+// upsertService is the write of one item: a full list overwrites the row of the same port, a partial one only moves seen_at.
+const (
+	upsertService = `INSERT INTO inv_service (id, asset_id, port, proto, name, product, version, source, confidence, seen_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asset_id, port, proto, source) DO UPDATE SET `
+	replaceSet = `name = excluded.name, product = excluded.product, version = excluded.version, confidence = excluded.confidence, seen_at = excluded.seen_at`
+	addSet     = `seen_at = excluded.seen_at`
+)
+
+func replaceServicesTx(ctx context.Context, tx *sql.Tx, assetID string, items []observe.Service, source, seenAt string, replace bool) error {
+	q := upsertService + addSet
+	if replace {
+		q = upsertService + replaceSet
+	}
 	keep := map[[2]any]bool{}
 	for _, it := range items {
 		keep[[2]any{it.Port, it.Proto}] = true
-		_, err := tx.ExecContext(ctx, `INSERT INTO inv_service (id, asset_id, port, proto, name, product, version, source, confidence, seen_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-			ON CONFLICT (asset_id, port, proto, source) DO UPDATE SET name = excluded.name, product = excluded.product,
-				version = excluded.version, confidence = excluded.confidence, seen_at = excluded.seen_at`,
-			store.NewID("sv"), assetID, it.Port, it.Proto, it.Name, nullStr(it.Product), nullStr(it.Version), source, it.Confidence, seenAt)
+		_, err := tx.ExecContext(ctx, q, store.NewID("sv"), assetID, it.Port, it.Proto, it.Name, nullStr(it.Product), nullStr(it.Version), source, it.Confidence, seenAt)
 		if err != nil {
 			return fmt.Errorf("inventory: store service: %w", err)
 		}
+	}
+	if !replace {
+		_, err := tx.ExecContext(ctx, `UPDATE inv_asset SET last_seen = max(last_seen, ?) WHERE id = ?`, seenAt, assetID)
+		if err != nil {
+			return fmt.Errorf("inventory: touch device: %w", err)
+		}
+		return nil
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT id, port, proto FROM inv_service WHERE asset_id = ? AND source = ?`, assetID, source)
 	if err != nil {
@@ -151,7 +178,8 @@ func replaceServicesTx(ctx context.Context, tx *sql.Tx, assetID string, items []
 	return nil
 }
 
-// PruneServices removes the services no source has reported for ServiceRetention (INV-23). It is the inventory's housekeeping
+// PruneServices removes the services no source has reported for ServiceRetention (INV-23) and writes one audit row when it removed
+// any (inventory.services_pruned, SYS-5). It is the inventory's housekeeping
 // job (D-160, D-202: the 90 days are stated in this CONTRACT and on the device page), so it runs while the module is off too.
 func (s *Service) PruneServices(ctx context.Context) (int, error) {
 	cut := store.FormatTS(s.clock().Add(-ServiceRetention))
@@ -161,8 +189,10 @@ func (s *Service) PruneServices(ctx context.Context) (int, error) {
 		if err != nil {
 			return fmt.Errorf("inventory: prune services: %w", err)
 		}
-		n, err = r.RowsAffected()
-		return err
+		if n, err = r.RowsAffected(); err != nil || n == 0 {
+			return err
+		}
+		return s.auditTx(ctx, tx, systemActor, "inventory.services_pruned", "-", fmt.Sprintf("%d services not seen for 90 days", n))
 	})
 	return int(n), err
 }

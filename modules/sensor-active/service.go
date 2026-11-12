@@ -890,7 +890,7 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 		if dec.FirstGentle {
 			markErr = s.inv.MarkFirstScan(context.WithoutCancel(ctx), assetID)
 		}
-		err = errors.Join(markErr, s.recordDevice(ctx, asset.IP, hosts))
+		err = errors.Join(markErr, s.recordDevice(ctx, asset.IP, hosts, kind))
 	}
 	switch {
 	case err == nil:
@@ -904,8 +904,10 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 }
 
 // recordDevice stores what a service scan found about ip. A host that did not answer changes nothing. A host that hit the host
-// timeout keeps its software and services: nmap printed no port table for it, so an empty list would wrongly remove them.
-func (s *Service) recordDevice(ctx context.Context, ip netip.Addr, hosts []host) error {
+// timeout keeps its software and services: nmap printed no port table for it, so an empty list would wrongly remove them. Only a
+// normal scan (top 1000 ports, -sV) replaces the device's nmap services; a gentle one (top 100, no -sV) only adds the ports it
+// saw, so it never wipes what a normal scan found (D-350 (5)).
+func (s *Service) recordDevice(ctx context.Context, ip netip.Addr, hosts []host, kind nmapargv.Kind) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
 	i := slices.IndexFunc(hosts, func(h host) bool { return h.addr == ip })
@@ -925,7 +927,11 @@ func (s *Service) recordDevice(ctx context.Context, ip netip.Addr, hosts []host)
 		return fmt.Errorf("sensoractive: recording software: %w", err)
 	}
 	if s.svc != nil {
-		if err := s.svc.ReplaceServices(ctx, observe.AssetHint{IP: ip}, observe.Nmap, servicesOf(h)); err != nil {
+		write := s.svc.AddServices
+		if kind == nmapargv.Normal {
+			write = s.svc.ReplaceServices
+		}
+		if err := write(ctx, observe.AssetHint{IP: ip}, observe.Nmap, servicesOf(h)); err != nil {
 			return fmt.Errorf("sensoractive: recording services: %w", err)
 		}
 	}

@@ -532,6 +532,7 @@
     "checkOff": "Update checks are off in Privacy.",
     "lastCheck": "Last checked {{time}}.",
     "neverChecked": "Never checked.",
+    "checkFailed": "Last check failed {{time}}: {{reason}}",
     "checkedApplied": "Installed {{count}} new items automatically.",
     "checkedNew": "{{count}} new items. Press Update on the matching row.",
     "checkedNone": "Everything is up to date.",

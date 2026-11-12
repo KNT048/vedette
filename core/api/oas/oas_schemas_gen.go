@@ -15973,6 +15973,9 @@ type CoreGetCoreUpdatesOK struct {
 	History []CoreGetCoreUpdatesOKHistoryItem `json:"history"`
 	// Null until the first update check.
 	LastCheck NilDateTime `json:"last_check"`
+	// The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds.
+	// Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392).
+	LastCheckError NilCoreGetCoreUpdatesOKLastCheckError `json:"last_check_error"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CoreGetCoreUpdatesOKManagedItem `json:"managed"`
 	Mode    CoreGetCoreUpdatesOKMode          `json:"mode"`
@@ -16020,6 +16023,11 @@ func (s *CoreGetCoreUpdatesOK) GetHistory() []CoreGetCoreUpdatesOKHistoryItem {
 // GetLastCheck returns the value of LastCheck.
 func (s *CoreGetCoreUpdatesOK) GetLastCheck() NilDateTime {
 	return s.LastCheck
+}
+
+// GetLastCheckError returns the value of LastCheckError.
+func (s *CoreGetCoreUpdatesOK) GetLastCheckError() NilCoreGetCoreUpdatesOKLastCheckError {
+	return s.LastCheckError
 }
 
 // GetManaged returns the value of Managed.
@@ -16080,6 +16088,11 @@ func (s *CoreGetCoreUpdatesOK) SetHistory(val []CoreGetCoreUpdatesOKHistoryItem)
 // SetLastCheck sets the value of LastCheck.
 func (s *CoreGetCoreUpdatesOK) SetLastCheck(val NilDateTime) {
 	s.LastCheck = val
+}
+
+// SetLastCheckError sets the value of LastCheckError.
+func (s *CoreGetCoreUpdatesOK) SetLastCheckError(val NilCoreGetCoreUpdatesOKLastCheckError) {
+	s.LastCheckError = val
 }
 
 // SetManaged sets the value of Managed.
@@ -16771,6 +16784,91 @@ func (s *CoreGetCoreUpdatesOKHistoryItemAction) UnmarshalText(data []byte) error
 		return nil
 	case CoreGetCoreUpdatesOKHistoryItemActionBundle:
 		*s = CoreGetCoreUpdatesOKHistoryItemActionBundle
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CoreGetCoreUpdatesOKLastCheckError struct {
+	At time.Time `json:"at"`
+	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
+	// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
+	// this build cannot check.
+	Code CoreGetCoreUpdatesOKLastCheckErrorCode `json:"code"`
+	// The box's own fixed sentence for this failure (the message of the 503/502 answer); never text
+	// received from the network.
+	Message string `json:"message"`
+}
+
+// GetAt returns the value of At.
+func (s *CoreGetCoreUpdatesOKLastCheckError) GetAt() time.Time {
+	return s.At
+}
+
+// GetCode returns the value of Code.
+func (s *CoreGetCoreUpdatesOKLastCheckError) GetCode() CoreGetCoreUpdatesOKLastCheckErrorCode {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *CoreGetCoreUpdatesOKLastCheckError) GetMessage() string {
+	return s.Message
+}
+
+// SetAt sets the value of At.
+func (s *CoreGetCoreUpdatesOKLastCheckError) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetCode sets the value of Code.
+func (s *CoreGetCoreUpdatesOKLastCheckError) SetCode(val CoreGetCoreUpdatesOKLastCheckErrorCode) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *CoreGetCoreUpdatesOKLastCheckError) SetMessage(val string) {
+	s.Message = val
+}
+
+// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
+// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
+// this build cannot check.
+type CoreGetCoreUpdatesOKLastCheckErrorCode string
+
+const (
+	CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable CoreGetCoreUpdatesOKLastCheckErrorCode = "update_source_unreachable"
+	CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed       CoreGetCoreUpdatesOKLastCheckErrorCode = "update_check_failed"
+)
+
+// AllValues returns all CoreGetCoreUpdatesOKLastCheckErrorCode values.
+func (CoreGetCoreUpdatesOKLastCheckErrorCode) AllValues() []CoreGetCoreUpdatesOKLastCheckErrorCode {
+	return []CoreGetCoreUpdatesOKLastCheckErrorCode{
+		CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable,
+		CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreUpdatesOKLastCheckErrorCode) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreUpdatesOKLastCheckErrorCode) UnmarshalText(data []byte) error {
+	switch CoreGetCoreUpdatesOKLastCheckErrorCode(data) {
+	case CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable:
+		*s = CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable
+		return nil
+	case CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed:
+		*s = CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -19367,6 +19465,9 @@ type CorePatchCoreUpdatesOK struct {
 	History []CorePatchCoreUpdatesOKHistoryItem `json:"history"`
 	// Null until the first update check.
 	LastCheck NilDateTime `json:"last_check"`
+	// The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds.
+	// Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392).
+	LastCheckError NilCorePatchCoreUpdatesOKLastCheckError `json:"last_check_error"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePatchCoreUpdatesOKManagedItem `json:"managed"`
 	Mode    CorePatchCoreUpdatesOKMode          `json:"mode"`
@@ -19414,6 +19515,11 @@ func (s *CorePatchCoreUpdatesOK) GetHistory() []CorePatchCoreUpdatesOKHistoryIte
 // GetLastCheck returns the value of LastCheck.
 func (s *CorePatchCoreUpdatesOK) GetLastCheck() NilDateTime {
 	return s.LastCheck
+}
+
+// GetLastCheckError returns the value of LastCheckError.
+func (s *CorePatchCoreUpdatesOK) GetLastCheckError() NilCorePatchCoreUpdatesOKLastCheckError {
+	return s.LastCheckError
 }
 
 // GetManaged returns the value of Managed.
@@ -19474,6 +19580,11 @@ func (s *CorePatchCoreUpdatesOK) SetHistory(val []CorePatchCoreUpdatesOKHistoryI
 // SetLastCheck sets the value of LastCheck.
 func (s *CorePatchCoreUpdatesOK) SetLastCheck(val NilDateTime) {
 	s.LastCheck = val
+}
+
+// SetLastCheckError sets the value of LastCheckError.
+func (s *CorePatchCoreUpdatesOK) SetLastCheckError(val NilCorePatchCoreUpdatesOKLastCheckError) {
+	s.LastCheckError = val
 }
 
 // SetManaged sets the value of Managed.
@@ -20165,6 +20276,91 @@ func (s *CorePatchCoreUpdatesOKHistoryItemAction) UnmarshalText(data []byte) err
 		return nil
 	case CorePatchCoreUpdatesOKHistoryItemActionBundle:
 		*s = CorePatchCoreUpdatesOKHistoryItemActionBundle
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePatchCoreUpdatesOKLastCheckError struct {
+	At time.Time `json:"at"`
+	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
+	// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
+	// this build cannot check.
+	Code CorePatchCoreUpdatesOKLastCheckErrorCode `json:"code"`
+	// The box's own fixed sentence for this failure (the message of the 503/502 answer); never text
+	// received from the network.
+	Message string `json:"message"`
+}
+
+// GetAt returns the value of At.
+func (s *CorePatchCoreUpdatesOKLastCheckError) GetAt() time.Time {
+	return s.At
+}
+
+// GetCode returns the value of Code.
+func (s *CorePatchCoreUpdatesOKLastCheckError) GetCode() CorePatchCoreUpdatesOKLastCheckErrorCode {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *CorePatchCoreUpdatesOKLastCheckError) GetMessage() string {
+	return s.Message
+}
+
+// SetAt sets the value of At.
+func (s *CorePatchCoreUpdatesOKLastCheckError) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetCode sets the value of Code.
+func (s *CorePatchCoreUpdatesOKLastCheckError) SetCode(val CorePatchCoreUpdatesOKLastCheckErrorCode) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *CorePatchCoreUpdatesOKLastCheckError) SetMessage(val string) {
+	s.Message = val
+}
+
+// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
+// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
+// this build cannot check.
+type CorePatchCoreUpdatesOKLastCheckErrorCode string
+
+const (
+	CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable CorePatchCoreUpdatesOKLastCheckErrorCode = "update_source_unreachable"
+	CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed       CorePatchCoreUpdatesOKLastCheckErrorCode = "update_check_failed"
+)
+
+// AllValues returns all CorePatchCoreUpdatesOKLastCheckErrorCode values.
+func (CorePatchCoreUpdatesOKLastCheckErrorCode) AllValues() []CorePatchCoreUpdatesOKLastCheckErrorCode {
+	return []CorePatchCoreUpdatesOKLastCheckErrorCode{
+		CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable,
+		CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePatchCoreUpdatesOKLastCheckErrorCode) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable:
+		return []byte(s), nil
+	case CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePatchCoreUpdatesOKLastCheckErrorCode) UnmarshalText(data []byte) error {
+	switch CorePatchCoreUpdatesOKLastCheckErrorCode(data) {
+	case CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable:
+		*s = CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable
+		return nil
+	case CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed:
+		*s = CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -26680,6 +26876,9 @@ type CorePostCoreUpdatesApplyOK struct {
 	History []CorePostCoreUpdatesApplyOKHistoryItem `json:"history"`
 	// Null until the first update check.
 	LastCheck NilDateTime `json:"last_check"`
+	// The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds.
+	// Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392).
+	LastCheckError NilCorePostCoreUpdatesApplyOKLastCheckError `json:"last_check_error"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesApplyOKManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesApplyOKMode          `json:"mode"`
@@ -26727,6 +26926,11 @@ func (s *CorePostCoreUpdatesApplyOK) GetHistory() []CorePostCoreUpdatesApplyOKHi
 // GetLastCheck returns the value of LastCheck.
 func (s *CorePostCoreUpdatesApplyOK) GetLastCheck() NilDateTime {
 	return s.LastCheck
+}
+
+// GetLastCheckError returns the value of LastCheckError.
+func (s *CorePostCoreUpdatesApplyOK) GetLastCheckError() NilCorePostCoreUpdatesApplyOKLastCheckError {
+	return s.LastCheckError
 }
 
 // GetManaged returns the value of Managed.
@@ -26787,6 +26991,11 @@ func (s *CorePostCoreUpdatesApplyOK) SetHistory(val []CorePostCoreUpdatesApplyOK
 // SetLastCheck sets the value of LastCheck.
 func (s *CorePostCoreUpdatesApplyOK) SetLastCheck(val NilDateTime) {
 	s.LastCheck = val
+}
+
+// SetLastCheckError sets the value of LastCheckError.
+func (s *CorePostCoreUpdatesApplyOK) SetLastCheckError(val NilCorePostCoreUpdatesApplyOKLastCheckError) {
+	s.LastCheckError = val
 }
 
 // SetManaged sets the value of Managed.
@@ -27484,6 +27693,91 @@ func (s *CorePostCoreUpdatesApplyOKHistoryItemAction) UnmarshalText(data []byte)
 	}
 }
 
+type CorePostCoreUpdatesApplyOKLastCheckError struct {
+	At time.Time `json:"at"`
+	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
+	// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
+	// this build cannot check.
+	Code CorePostCoreUpdatesApplyOKLastCheckErrorCode `json:"code"`
+	// The box's own fixed sentence for this failure (the message of the 503/502 answer); never text
+	// received from the network.
+	Message string `json:"message"`
+}
+
+// GetAt returns the value of At.
+func (s *CorePostCoreUpdatesApplyOKLastCheckError) GetAt() time.Time {
+	return s.At
+}
+
+// GetCode returns the value of Code.
+func (s *CorePostCoreUpdatesApplyOKLastCheckError) GetCode() CorePostCoreUpdatesApplyOKLastCheckErrorCode {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *CorePostCoreUpdatesApplyOKLastCheckError) GetMessage() string {
+	return s.Message
+}
+
+// SetAt sets the value of At.
+func (s *CorePostCoreUpdatesApplyOKLastCheckError) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetCode sets the value of Code.
+func (s *CorePostCoreUpdatesApplyOKLastCheckError) SetCode(val CorePostCoreUpdatesApplyOKLastCheckErrorCode) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *CorePostCoreUpdatesApplyOKLastCheckError) SetMessage(val string) {
+	s.Message = val
+}
+
+// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
+// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
+// this build cannot check.
+type CorePostCoreUpdatesApplyOKLastCheckErrorCode string
+
+const (
+	CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateSourceUnreachable CorePostCoreUpdatesApplyOKLastCheckErrorCode = "update_source_unreachable"
+	CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateCheckFailed       CorePostCoreUpdatesApplyOKLastCheckErrorCode = "update_check_failed"
+)
+
+// AllValues returns all CorePostCoreUpdatesApplyOKLastCheckErrorCode values.
+func (CorePostCoreUpdatesApplyOKLastCheckErrorCode) AllValues() []CorePostCoreUpdatesApplyOKLastCheckErrorCode {
+	return []CorePostCoreUpdatesApplyOKLastCheckErrorCode{
+		CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateSourceUnreachable,
+		CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateCheckFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesApplyOKLastCheckErrorCode) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateSourceUnreachable:
+		return []byte(s), nil
+	case CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateCheckFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesApplyOKLastCheckErrorCode) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesApplyOKLastCheckErrorCode(data) {
+	case CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateSourceUnreachable:
+		*s = CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateSourceUnreachable
+		return nil
+	case CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateCheckFailed:
+		*s = CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateCheckFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CorePostCoreUpdatesApplyOKManagedItem struct {
 	ID      string                                      `json:"id"`
 	Name    string                                      `json:"name"`
@@ -28137,6 +28431,9 @@ type CorePostCoreUpdatesBundleOKState struct {
 	History []CorePostCoreUpdatesBundleOKStateHistoryItem `json:"history"`
 	// Null until the first update check.
 	LastCheck NilDateTime `json:"last_check"`
+	// The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds.
+	// Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392).
+	LastCheckError NilCorePostCoreUpdatesBundleOKStateLastCheckError `json:"last_check_error"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesBundleOKStateManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesBundleOKStateMode          `json:"mode"`
@@ -28184,6 +28481,11 @@ func (s *CorePostCoreUpdatesBundleOKState) GetHistory() []CorePostCoreUpdatesBun
 // GetLastCheck returns the value of LastCheck.
 func (s *CorePostCoreUpdatesBundleOKState) GetLastCheck() NilDateTime {
 	return s.LastCheck
+}
+
+// GetLastCheckError returns the value of LastCheckError.
+func (s *CorePostCoreUpdatesBundleOKState) GetLastCheckError() NilCorePostCoreUpdatesBundleOKStateLastCheckError {
+	return s.LastCheckError
 }
 
 // GetManaged returns the value of Managed.
@@ -28244,6 +28546,11 @@ func (s *CorePostCoreUpdatesBundleOKState) SetHistory(val []CorePostCoreUpdatesB
 // SetLastCheck sets the value of LastCheck.
 func (s *CorePostCoreUpdatesBundleOKState) SetLastCheck(val NilDateTime) {
 	s.LastCheck = val
+}
+
+// SetLastCheckError sets the value of LastCheckError.
+func (s *CorePostCoreUpdatesBundleOKState) SetLastCheckError(val NilCorePostCoreUpdatesBundleOKStateLastCheckError) {
+	s.LastCheckError = val
 }
 
 // SetManaged sets the value of Managed.
@@ -28941,6 +29248,91 @@ func (s *CorePostCoreUpdatesBundleOKStateHistoryItemAction) UnmarshalText(data [
 	}
 }
 
+type CorePostCoreUpdatesBundleOKStateLastCheckError struct {
+	At time.Time `json:"at"`
+	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
+	// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
+	// this build cannot check.
+	Code CorePostCoreUpdatesBundleOKStateLastCheckErrorCode `json:"code"`
+	// The box's own fixed sentence for this failure (the message of the 503/502 answer); never text
+	// received from the network.
+	Message string `json:"message"`
+}
+
+// GetAt returns the value of At.
+func (s *CorePostCoreUpdatesBundleOKStateLastCheckError) GetAt() time.Time {
+	return s.At
+}
+
+// GetCode returns the value of Code.
+func (s *CorePostCoreUpdatesBundleOKStateLastCheckError) GetCode() CorePostCoreUpdatesBundleOKStateLastCheckErrorCode {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *CorePostCoreUpdatesBundleOKStateLastCheckError) GetMessage() string {
+	return s.Message
+}
+
+// SetAt sets the value of At.
+func (s *CorePostCoreUpdatesBundleOKStateLastCheckError) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetCode sets the value of Code.
+func (s *CorePostCoreUpdatesBundleOKStateLastCheckError) SetCode(val CorePostCoreUpdatesBundleOKStateLastCheckErrorCode) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *CorePostCoreUpdatesBundleOKStateLastCheckError) SetMessage(val string) {
+	s.Message = val
+}
+
+// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
+// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
+// this build cannot check.
+type CorePostCoreUpdatesBundleOKStateLastCheckErrorCode string
+
+const (
+	CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateSourceUnreachable CorePostCoreUpdatesBundleOKStateLastCheckErrorCode = "update_source_unreachable"
+	CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateCheckFailed       CorePostCoreUpdatesBundleOKStateLastCheckErrorCode = "update_check_failed"
+)
+
+// AllValues returns all CorePostCoreUpdatesBundleOKStateLastCheckErrorCode values.
+func (CorePostCoreUpdatesBundleOKStateLastCheckErrorCode) AllValues() []CorePostCoreUpdatesBundleOKStateLastCheckErrorCode {
+	return []CorePostCoreUpdatesBundleOKStateLastCheckErrorCode{
+		CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateSourceUnreachable,
+		CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateCheckFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesBundleOKStateLastCheckErrorCode) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateSourceUnreachable:
+		return []byte(s), nil
+	case CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateCheckFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesBundleOKStateLastCheckErrorCode) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesBundleOKStateLastCheckErrorCode(data) {
+	case CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateSourceUnreachable:
+		*s = CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateSourceUnreachable
+		return nil
+	case CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateCheckFailed:
+		*s = CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateCheckFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CorePostCoreUpdatesBundleOKStateManagedItem struct {
 	ID      string                                            `json:"id"`
 	Name    string                                            `json:"name"`
@@ -29605,6 +29997,9 @@ type CorePostCoreUpdatesCheckOK struct {
 	History []CorePostCoreUpdatesCheckOKHistoryItem `json:"history"`
 	// Null until the first update check.
 	LastCheck NilDateTime `json:"last_check"`
+	// The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds.
+	// Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392).
+	LastCheckError NilCorePostCoreUpdatesCheckOKLastCheckError `json:"last_check_error"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesCheckOKManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesCheckOKMode          `json:"mode"`
@@ -29657,6 +30052,11 @@ func (s *CorePostCoreUpdatesCheckOK) GetHistory() []CorePostCoreUpdatesCheckOKHi
 // GetLastCheck returns the value of LastCheck.
 func (s *CorePostCoreUpdatesCheckOK) GetLastCheck() NilDateTime {
 	return s.LastCheck
+}
+
+// GetLastCheckError returns the value of LastCheckError.
+func (s *CorePostCoreUpdatesCheckOK) GetLastCheckError() NilCorePostCoreUpdatesCheckOKLastCheckError {
+	return s.LastCheckError
 }
 
 // GetManaged returns the value of Managed.
@@ -29722,6 +30122,11 @@ func (s *CorePostCoreUpdatesCheckOK) SetHistory(val []CorePostCoreUpdatesCheckOK
 // SetLastCheck sets the value of LastCheck.
 func (s *CorePostCoreUpdatesCheckOK) SetLastCheck(val NilDateTime) {
 	s.LastCheck = val
+}
+
+// SetLastCheckError sets the value of LastCheckError.
+func (s *CorePostCoreUpdatesCheckOK) SetLastCheckError(val NilCorePostCoreUpdatesCheckOKLastCheckError) {
+	s.LastCheckError = val
 }
 
 // SetManaged sets the value of Managed.
@@ -30413,6 +30818,91 @@ func (s *CorePostCoreUpdatesCheckOKHistoryItemAction) UnmarshalText(data []byte)
 		return nil
 	case CorePostCoreUpdatesCheckOKHistoryItemActionBundle:
 		*s = CorePostCoreUpdatesCheckOKHistoryItemActionBundle
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesCheckOKLastCheckError struct {
+	At time.Time `json:"at"`
+	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
+	// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
+	// this build cannot check.
+	Code CorePostCoreUpdatesCheckOKLastCheckErrorCode `json:"code"`
+	// The box's own fixed sentence for this failure (the message of the 503/502 answer); never text
+	// received from the network.
+	Message string `json:"message"`
+}
+
+// GetAt returns the value of At.
+func (s *CorePostCoreUpdatesCheckOKLastCheckError) GetAt() time.Time {
+	return s.At
+}
+
+// GetCode returns the value of Code.
+func (s *CorePostCoreUpdatesCheckOKLastCheckError) GetCode() CorePostCoreUpdatesCheckOKLastCheckErrorCode {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *CorePostCoreUpdatesCheckOKLastCheckError) GetMessage() string {
+	return s.Message
+}
+
+// SetAt sets the value of At.
+func (s *CorePostCoreUpdatesCheckOKLastCheckError) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetCode sets the value of Code.
+func (s *CorePostCoreUpdatesCheckOKLastCheckError) SetCode(val CorePostCoreUpdatesCheckOKLastCheckErrorCode) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *CorePostCoreUpdatesCheckOKLastCheckError) SetMessage(val string) {
+	s.Message = val
+}
+
+// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
+// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
+// this build cannot check.
+type CorePostCoreUpdatesCheckOKLastCheckErrorCode string
+
+const (
+	CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateSourceUnreachable CorePostCoreUpdatesCheckOKLastCheckErrorCode = "update_source_unreachable"
+	CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateCheckFailed       CorePostCoreUpdatesCheckOKLastCheckErrorCode = "update_check_failed"
+)
+
+// AllValues returns all CorePostCoreUpdatesCheckOKLastCheckErrorCode values.
+func (CorePostCoreUpdatesCheckOKLastCheckErrorCode) AllValues() []CorePostCoreUpdatesCheckOKLastCheckErrorCode {
+	return []CorePostCoreUpdatesCheckOKLastCheckErrorCode{
+		CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateSourceUnreachable,
+		CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateCheckFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesCheckOKLastCheckErrorCode) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateSourceUnreachable:
+		return []byte(s), nil
+	case CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateCheckFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesCheckOKLastCheckErrorCode) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesCheckOKLastCheckErrorCode(data) {
+	case CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateSourceUnreachable:
+		*s = CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateSourceUnreachable
+		return nil
+	case CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateCheckFailed:
+		*s = CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateCheckFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -32298,6 +32788,9 @@ type CorePostCoreUpdatesRollbackOK struct {
 	History []CorePostCoreUpdatesRollbackOKHistoryItem `json:"history"`
 	// Null until the first update check.
 	LastCheck NilDateTime `json:"last_check"`
+	// The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds.
+	// Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392).
+	LastCheckError NilCorePostCoreUpdatesRollbackOKLastCheckError `json:"last_check_error"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesRollbackOKManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesRollbackOKMode          `json:"mode"`
@@ -32345,6 +32838,11 @@ func (s *CorePostCoreUpdatesRollbackOK) GetHistory() []CorePostCoreUpdatesRollba
 // GetLastCheck returns the value of LastCheck.
 func (s *CorePostCoreUpdatesRollbackOK) GetLastCheck() NilDateTime {
 	return s.LastCheck
+}
+
+// GetLastCheckError returns the value of LastCheckError.
+func (s *CorePostCoreUpdatesRollbackOK) GetLastCheckError() NilCorePostCoreUpdatesRollbackOKLastCheckError {
+	return s.LastCheckError
 }
 
 // GetManaged returns the value of Managed.
@@ -32405,6 +32903,11 @@ func (s *CorePostCoreUpdatesRollbackOK) SetHistory(val []CorePostCoreUpdatesRoll
 // SetLastCheck sets the value of LastCheck.
 func (s *CorePostCoreUpdatesRollbackOK) SetLastCheck(val NilDateTime) {
 	s.LastCheck = val
+}
+
+// SetLastCheckError sets the value of LastCheckError.
+func (s *CorePostCoreUpdatesRollbackOK) SetLastCheckError(val NilCorePostCoreUpdatesRollbackOKLastCheckError) {
+	s.LastCheckError = val
 }
 
 // SetManaged sets the value of Managed.
@@ -33096,6 +33599,91 @@ func (s *CorePostCoreUpdatesRollbackOKHistoryItemAction) UnmarshalText(data []by
 		return nil
 	case CorePostCoreUpdatesRollbackOKHistoryItemActionBundle:
 		*s = CorePostCoreUpdatesRollbackOKHistoryItemActionBundle
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesRollbackOKLastCheckError struct {
+	At time.Time `json:"at"`
+	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
+	// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
+	// this build cannot check.
+	Code CorePostCoreUpdatesRollbackOKLastCheckErrorCode `json:"code"`
+	// The box's own fixed sentence for this failure (the message of the 503/502 answer); never text
+	// received from the network.
+	Message string `json:"message"`
+}
+
+// GetAt returns the value of At.
+func (s *CorePostCoreUpdatesRollbackOKLastCheckError) GetAt() time.Time {
+	return s.At
+}
+
+// GetCode returns the value of Code.
+func (s *CorePostCoreUpdatesRollbackOKLastCheckError) GetCode() CorePostCoreUpdatesRollbackOKLastCheckErrorCode {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *CorePostCoreUpdatesRollbackOKLastCheckError) GetMessage() string {
+	return s.Message
+}
+
+// SetAt sets the value of At.
+func (s *CorePostCoreUpdatesRollbackOKLastCheckError) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetCode sets the value of Code.
+func (s *CorePostCoreUpdatesRollbackOKLastCheckError) SetCode(val CorePostCoreUpdatesRollbackOKLastCheckErrorCode) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *CorePostCoreUpdatesRollbackOKLastCheckError) SetMessage(val string) {
+	s.Message = val
+}
+
+// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
+// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
+// this build cannot check.
+type CorePostCoreUpdatesRollbackOKLastCheckErrorCode string
+
+const (
+	CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateSourceUnreachable CorePostCoreUpdatesRollbackOKLastCheckErrorCode = "update_source_unreachable"
+	CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateCheckFailed       CorePostCoreUpdatesRollbackOKLastCheckErrorCode = "update_check_failed"
+)
+
+// AllValues returns all CorePostCoreUpdatesRollbackOKLastCheckErrorCode values.
+func (CorePostCoreUpdatesRollbackOKLastCheckErrorCode) AllValues() []CorePostCoreUpdatesRollbackOKLastCheckErrorCode {
+	return []CorePostCoreUpdatesRollbackOKLastCheckErrorCode{
+		CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateSourceUnreachable,
+		CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateCheckFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesRollbackOKLastCheckErrorCode) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateSourceUnreachable:
+		return []byte(s), nil
+	case CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateCheckFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesRollbackOKLastCheckErrorCode) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesRollbackOKLastCheckErrorCode(data) {
+	case CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateSourceUnreachable:
+		*s = CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateSourceUnreachable
+		return nil
+	case CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateCheckFailed:
+		*s = CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateCheckFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -76848,6 +77436,51 @@ func (o NilCoreGetCoreOidcOKDefaultRole) Or(d CoreGetCoreOidcOKDefaultRole) Core
 	return d
 }
 
+// NewNilCoreGetCoreUpdatesOKLastCheckError returns new NilCoreGetCoreUpdatesOKLastCheckError with value set to v.
+func NewNilCoreGetCoreUpdatesOKLastCheckError(v CoreGetCoreUpdatesOKLastCheckError) NilCoreGetCoreUpdatesOKLastCheckError {
+	return NilCoreGetCoreUpdatesOKLastCheckError{
+		Value: v,
+	}
+}
+
+// NilCoreGetCoreUpdatesOKLastCheckError is nullable CoreGetCoreUpdatesOKLastCheckError.
+type NilCoreGetCoreUpdatesOKLastCheckError struct {
+	Value CoreGetCoreUpdatesOKLastCheckError
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCoreGetCoreUpdatesOKLastCheckError) SetTo(v CoreGetCoreUpdatesOKLastCheckError) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCoreGetCoreUpdatesOKLastCheckError) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCoreGetCoreUpdatesOKLastCheckError) SetToNull() {
+	o.Null = true
+	var v CoreGetCoreUpdatesOKLastCheckError
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCoreGetCoreUpdatesOKLastCheckError) Get() (v CoreGetCoreUpdatesOKLastCheckError, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCoreGetCoreUpdatesOKLastCheckError) Or(d CoreGetCoreUpdatesOKLastCheckError) CoreGetCoreUpdatesOKLastCheckError {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCoreGetCoreUpdatesOKRun returns new NilCoreGetCoreUpdatesOKRun with value set to v.
 func NewNilCoreGetCoreUpdatesOKRun(v CoreGetCoreUpdatesOKRun) NilCoreGetCoreUpdatesOKRun {
 	return NilCoreGetCoreUpdatesOKRun{
@@ -77202,6 +77835,51 @@ func (o NilCoreGetMeOKTwofaMethod) Get() (v CoreGetMeOKTwofaMethod, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCoreGetMeOKTwofaMethod) Or(d CoreGetMeOKTwofaMethod) CoreGetMeOKTwofaMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePatchCoreUpdatesOKLastCheckError returns new NilCorePatchCoreUpdatesOKLastCheckError with value set to v.
+func NewNilCorePatchCoreUpdatesOKLastCheckError(v CorePatchCoreUpdatesOKLastCheckError) NilCorePatchCoreUpdatesOKLastCheckError {
+	return NilCorePatchCoreUpdatesOKLastCheckError{
+		Value: v,
+	}
+}
+
+// NilCorePatchCoreUpdatesOKLastCheckError is nullable CorePatchCoreUpdatesOKLastCheckError.
+type NilCorePatchCoreUpdatesOKLastCheckError struct {
+	Value CorePatchCoreUpdatesOKLastCheckError
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePatchCoreUpdatesOKLastCheckError) SetTo(v CorePatchCoreUpdatesOKLastCheckError) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePatchCoreUpdatesOKLastCheckError) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePatchCoreUpdatesOKLastCheckError) SetToNull() {
+	o.Null = true
+	var v CorePatchCoreUpdatesOKLastCheckError
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePatchCoreUpdatesOKLastCheckError) Get() (v CorePatchCoreUpdatesOKLastCheckError, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePatchCoreUpdatesOKLastCheckError) Or(d CorePatchCoreUpdatesOKLastCheckError) CorePatchCoreUpdatesOKLastCheckError {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -77613,6 +78291,51 @@ func (o NilCorePostCoreNetworkManagementRevertOKPending) Or(d CorePostCoreNetwor
 	return d
 }
 
+// NewNilCorePostCoreUpdatesApplyOKLastCheckError returns new NilCorePostCoreUpdatesApplyOKLastCheckError with value set to v.
+func NewNilCorePostCoreUpdatesApplyOKLastCheckError(v CorePostCoreUpdatesApplyOKLastCheckError) NilCorePostCoreUpdatesApplyOKLastCheckError {
+	return NilCorePostCoreUpdatesApplyOKLastCheckError{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesApplyOKLastCheckError is nullable CorePostCoreUpdatesApplyOKLastCheckError.
+type NilCorePostCoreUpdatesApplyOKLastCheckError struct {
+	Value CorePostCoreUpdatesApplyOKLastCheckError
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesApplyOKLastCheckError) SetTo(v CorePostCoreUpdatesApplyOKLastCheckError) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesApplyOKLastCheckError) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesApplyOKLastCheckError) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesApplyOKLastCheckError
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesApplyOKLastCheckError) Get() (v CorePostCoreUpdatesApplyOKLastCheckError, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesApplyOKLastCheckError) Or(d CorePostCoreUpdatesApplyOKLastCheckError) CorePostCoreUpdatesApplyOKLastCheckError {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCorePostCoreUpdatesApplyOKRun returns new NilCorePostCoreUpdatesApplyOKRun with value set to v.
 func NewNilCorePostCoreUpdatesApplyOKRun(v CorePostCoreUpdatesApplyOKRun) NilCorePostCoreUpdatesApplyOKRun {
 	return NilCorePostCoreUpdatesApplyOKRun{
@@ -77748,6 +78471,51 @@ func (o NilCorePostCoreUpdatesApplyOKRunningRevoked) Or(d CorePostCoreUpdatesApp
 	return d
 }
 
+// NewNilCorePostCoreUpdatesBundleOKStateLastCheckError returns new NilCorePostCoreUpdatesBundleOKStateLastCheckError with value set to v.
+func NewNilCorePostCoreUpdatesBundleOKStateLastCheckError(v CorePostCoreUpdatesBundleOKStateLastCheckError) NilCorePostCoreUpdatesBundleOKStateLastCheckError {
+	return NilCorePostCoreUpdatesBundleOKStateLastCheckError{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesBundleOKStateLastCheckError is nullable CorePostCoreUpdatesBundleOKStateLastCheckError.
+type NilCorePostCoreUpdatesBundleOKStateLastCheckError struct {
+	Value CorePostCoreUpdatesBundleOKStateLastCheckError
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesBundleOKStateLastCheckError) SetTo(v CorePostCoreUpdatesBundleOKStateLastCheckError) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesBundleOKStateLastCheckError) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesBundleOKStateLastCheckError) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesBundleOKStateLastCheckError
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesBundleOKStateLastCheckError) Get() (v CorePostCoreUpdatesBundleOKStateLastCheckError, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesBundleOKStateLastCheckError) Or(d CorePostCoreUpdatesBundleOKStateLastCheckError) CorePostCoreUpdatesBundleOKStateLastCheckError {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCorePostCoreUpdatesBundleOKStateRun returns new NilCorePostCoreUpdatesBundleOKStateRun with value set to v.
 func NewNilCorePostCoreUpdatesBundleOKStateRun(v CorePostCoreUpdatesBundleOKStateRun) NilCorePostCoreUpdatesBundleOKStateRun {
 	return NilCorePostCoreUpdatesBundleOKStateRun{
@@ -77877,6 +78645,51 @@ func (o NilCorePostCoreUpdatesBundleOKStateRunningRevoked) Get() (v CorePostCore
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCorePostCoreUpdatesBundleOKStateRunningRevoked) Or(d CorePostCoreUpdatesBundleOKStateRunningRevoked) CorePostCoreUpdatesBundleOKStateRunningRevoked {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreUpdatesCheckOKLastCheckError returns new NilCorePostCoreUpdatesCheckOKLastCheckError with value set to v.
+func NewNilCorePostCoreUpdatesCheckOKLastCheckError(v CorePostCoreUpdatesCheckOKLastCheckError) NilCorePostCoreUpdatesCheckOKLastCheckError {
+	return NilCorePostCoreUpdatesCheckOKLastCheckError{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesCheckOKLastCheckError is nullable CorePostCoreUpdatesCheckOKLastCheckError.
+type NilCorePostCoreUpdatesCheckOKLastCheckError struct {
+	Value CorePostCoreUpdatesCheckOKLastCheckError
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesCheckOKLastCheckError) SetTo(v CorePostCoreUpdatesCheckOKLastCheckError) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesCheckOKLastCheckError) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesCheckOKLastCheckError) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesCheckOKLastCheckError
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesCheckOKLastCheckError) Get() (v CorePostCoreUpdatesCheckOKLastCheckError, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesCheckOKLastCheckError) Or(d CorePostCoreUpdatesCheckOKLastCheckError) CorePostCoreUpdatesCheckOKLastCheckError {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -78147,6 +78960,51 @@ func (o NilCorePostCoreUpdatesOsRebootOKReleaseUpgrade) Get() (v CorePostCoreUpd
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCorePostCoreUpdatesOsRebootOKReleaseUpgrade) Or(d CorePostCoreUpdatesOsRebootOKReleaseUpgrade) CorePostCoreUpdatesOsRebootOKReleaseUpgrade {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreUpdatesRollbackOKLastCheckError returns new NilCorePostCoreUpdatesRollbackOKLastCheckError with value set to v.
+func NewNilCorePostCoreUpdatesRollbackOKLastCheckError(v CorePostCoreUpdatesRollbackOKLastCheckError) NilCorePostCoreUpdatesRollbackOKLastCheckError {
+	return NilCorePostCoreUpdatesRollbackOKLastCheckError{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesRollbackOKLastCheckError is nullable CorePostCoreUpdatesRollbackOKLastCheckError.
+type NilCorePostCoreUpdatesRollbackOKLastCheckError struct {
+	Value CorePostCoreUpdatesRollbackOKLastCheckError
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesRollbackOKLastCheckError) SetTo(v CorePostCoreUpdatesRollbackOKLastCheckError) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesRollbackOKLastCheckError) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesRollbackOKLastCheckError) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesRollbackOKLastCheckError
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesRollbackOKLastCheckError) Get() (v CorePostCoreUpdatesRollbackOKLastCheckError, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesRollbackOKLastCheckError) Or(d CorePostCoreUpdatesRollbackOKLastCheckError) CorePostCoreUpdatesRollbackOKLastCheckError {
 	if v, ok := o.Get(); ok {
 		return v
 	}

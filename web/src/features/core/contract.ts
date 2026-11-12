@@ -111,8 +111,13 @@ export const RunningRevoked = z.object({
   version: z.string().describe('The running release'), reason: z.string().describe('Short English reason signed by the Vedette project'), since: ts,
   action: z.enum(['block_install', 'block_install_and_warn', 'rollback_if_possible']).describe('block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)'),
 })
+export const UpdateCheckError = z.object({
+  at: ts, code: z.enum(['update_source_unreachable', 'update_check_failed']).describe('update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check'),
+  message: z.string().describe("The box's own fixed sentence for this failure (the message of the 503/502 answer); never text received from the network"),
+})
 export const UpdatesState = z.object({
   channel: UpdateChannel, mode: z.enum(['auto', 'manual']), check_enabled: z.boolean(), last_check: ts.nullable().describe('null until the first update check'),
+  last_check_error: UpdateCheckError.nullable().describe('The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds. Kept across restarts; while it is set the automatic mode installs nothing (D-388, D-392)'),
   components: z.array(UpdateComponent), available: z.array(UpdateAvailable), history: z.array(UpdateHistory).describe('Latest 20'), advisories: z.array(Advisory),
   run: UpdateRun.nullable().describe('The software install or rollback running now, or one that ended in the last 24 hours; null otherwise'),
   managed: z.array(ManagedPackage).describe('Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)'),

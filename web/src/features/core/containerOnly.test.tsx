@@ -68,13 +68,22 @@ describe('container-only install (D-381)', () => {
     ['the check is off', { check_enabled: false }, /The update check is off/],
     ['nothing newer', { last_check: '2026-11-12T00:00:00Z' }, /No newer release is offered to this install\./],
   ])('Updates without a newer release says why (%s) and keeps the general pull and up -d block', async (_, over, said) => {
-    const state = { channel: 'stable', mode: 'manual', check_enabled: true, last_check: null, components: [{ id: 'software', kind: 'software', version: '0.9.3', previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }], available: [], history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null, ...over }
+    const state = { channel: 'stable', mode: 'manual', check_enabled: true, last_check: null, components: [{ id: 'software', kind: 'software', version: '0.9.3', previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }], available: [], history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null, last_check_error: null, ...over }
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(state)))
     renderApp('/settings/updates')
     expect(await screen.findByText(said)).toBeInTheDocument()
     expect(screen.getByText(/Running version 0\.9\.3\. (Update information last read|Update information has never been read)/)).toBeInTheDocument()
     expect(screen.getByText(/docker compose --env-file vedette.env pull/)).toBeInTheDocument()
     expect(screen.queryByText(/minisign|cosign verify/)).toBeNull()
+  })
+
+  it('Updates: a failed check says when and why, without guessing the cause (S-CORE-2 D-392)', async () => {
+    const message = "The update information did not pass Vedette's signature checks, so nothing new is offered and nothing was installed. The details are in the box log."
+    const state = { channel: 'stable', mode: 'manual', check_enabled: true, last_check: null, last_check_error: { at: new Date(Date.now() - 3600e3).toISOString(), code: 'update_check_failed', message }, components: [{ id: 'software', kind: 'software', version: '0.9.3', previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }], available: [], history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null }
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(state)))
+    renderApp('/settings/updates')
+    expect(await screen.findByText(`Last check failed 1 hour ago: ${message}`)).toBeInTheDocument()
+    expect(screen.queryByText(/has never been read/)).toBeNull()
   })
 
   it('Updates: when the update state cannot be read, the error has Try again and the general block stays', async () => {

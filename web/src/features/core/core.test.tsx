@@ -12,7 +12,7 @@ import { newSecret, totpAt } from './totp'
 import { collection } from '@/mocks/db'
 import { MOCK_SETUP_CODE } from './mocks'
 import { emailCodes } from './emailCode'
-import { mockSign, MOCK_IDP_USER } from './mocks'
+import { checkScenario, mockSign, MOCK_IDP_USER } from './mocks'
 import { saveSsoFlow, takeSsoFlow } from './ssoFlow'
 import type { Role } from '@/lib/session'
 import { nav, compareVersion, toBase64 } from './util'
@@ -1028,6 +1028,18 @@ describe('core: cập nhật (S-CORE-2)', () => {
     await u.click(await screen.findByRole('button', { name: 'Automatic' }))
     await u.click(screen.getByRole('button', { name: 'Check for Vedette releases' }))
     expect(await screen.findByText(/Installed \d+ new items automatically/)).toBeInTheDocument()
+  })
+
+  it('a failed check says so under the settings with the reason, and a good check clears it (D-392)', async () => {
+    const u = user()
+    checkScenario.set({ code: 'update_source_unreachable' })
+    renderApp('/settings/updates')
+    await u.click(await screen.findByRole('button', { name: 'Check for Vedette releases' }))
+    expect(await screen.findByText(/^Last check failed .+: Vedette could not download the update information from GitHub\./)).toBeInTheDocument()
+    expect(screen.getByText(/^Last checked /)).toBeInTheDocument() // the last good check stays
+    checkScenario.set({ code: null })
+    await u.click(screen.getByRole('button', { name: 'Check for Vedette releases' }))
+    await waitFor(() => expect(screen.queryByText(/^Last check failed/)).toBeNull())
   })
 
   it('bundle offline: chữ ký sai bị từ chối, chữ ký đúng được cài', async () => {

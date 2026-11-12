@@ -255,7 +255,7 @@ func (s *Service) AddDoc(ctx context.Context, who string, in KnowledgeUpload) (K
 		return KnowledgeDoc{}, badInput("invalid_size", "The file arrived damaged or cut short. Pick it again.")
 	}
 	if err := sniffDoc(kind, data); err != nil {
-		return KnowledgeDoc{}, badInput("invalid_content", "%s. Only PDF, MD, TXT and DOCX files can be added.", strings.TrimSuffix(err.Error(), "."))
+		return KnowledgeDoc{}, badInput("invalid_content", "%s %s. Only PDF, MD, TXT and DOCX files can be added.", name, strings.TrimSuffix(err.Error(), "."))
 	}
 	jobs := []string{"explain-finding", "ask-my-data"}
 	if in.Jobs != nil {

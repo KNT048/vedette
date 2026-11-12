@@ -2,6 +2,7 @@
 // assetsStore/findingsStore, nên luôn khớp dữ liệu đang có. Bản thật: skill `ask-my-data` gọi tool chỉ-đọc (AI_ASSISTANT §2); không có tool ghi.
 // Câu ngoài dữ liệu thì nói thẳng là không có câu trả lời, không đoán.
 import { assetsStore, findingsStore } from '@/mocks/stores'
+import { BOX_ID } from '@/features/inventory/mocks'
 import type { Asset } from '@/lib/types'
 import { fmtDate } from '@/lib/format'
 import type { AskTable, ToolCall } from './types'
@@ -19,13 +20,18 @@ const SEV: Record<string, string> = { critical: 'Critical', high: 'High', medium
 // Từ chung không nói gì về dữ liệu: bỏ khỏi tìm kiếm theo từ khoá để "weather today" không khớp bừa.
 const STOP = new Set(['what', 'which', 'who', 'how', 'many', 'the', 'are', 'any', 'have', 'has', 'show', 'list', 'about', 'with', 'for', 'and', 'does', 'did', 'today', 'weather', 'tell', 'me', 'my', 'our', 'there', 'is', 'of', 'in', 'on', 'to', 'do', 'devices', 'device', 'machines', 'machine', 'still', 'now', 'this', 'that', 'whats', 'when', 'where', 'why', 'can', 'you'])
 const DEV = (n: number) => `${plural(n, 'device')}`
+/** Counts devices with the Vedette box named apart, as Devices and Reports do (modules/ai/ask_tools.go boxApart, D-422). */
+export const boxApart = (rows: Asset[]) => {
+  const others = rows.filter((a) => a.id !== BOX_ID).length
+  return others === rows.length ? DEV(others) : others === 0 ? 'only the Vedette box' : `${DEV(others)} and the Vedette box`
+}
 
 export function answerQuestion(question: string): Answer {
   const q = norm(question)
   const assets = assetsStore.get()
   const findings = findingsStore.get()
-  const inv = { title: `Inventory: ${plural(assets.length, 'device')} searched` }
-  const tc = (tool: string, args: string, n: number): ToolCall => ({ tool, args, result: DEV(n) })
+  const inv = { title: `Inventory: ${boxApart(assets)} searched` } // the box itself is named apart (inventoryCite)
+  const tc = (tool: string, args: string, rows: Asset[]): ToolCall => ({ tool, args, result: boxApart(rows) })
 
   function assetTable(rows: Asset[], extra?: { col: string; of: (a: Asset) => string }): AskTable {
     return {
@@ -36,7 +42,7 @@ export function answerQuestion(question: string): Answer {
 
   // Chưa có kiểm kê thì mọi câu trả lời "không có gì" đều sai lệch: nói thẳng và chỉ việc cần làm.
   if (assets.length === 0) {
-    return { answer: ['The inventory has no devices yet, so Vedette has nothing to answer from. Open the Devices page to turn on inventory, import a CSV or add a device by hand, then ask again.'], table: null, tool_calls: [tc('search_assets', '{}', 0)], citations: [inv] }
+    return { answer: ['The inventory has no devices yet, so Vedette has nothing to answer from. Open the Devices page to turn on inventory, import a CSV or add a device by hand, then ask again.'], table: null, tool_calls: [tc('search_assets', '{}', [])], citations: [inv] }
   }
 
   if (has(q, ['rdp', '3389', 'remote desktop'])) {
@@ -45,7 +51,7 @@ export function answerQuestion(question: string): Answer {
       ? [`${plural(rows.length, 'device')} ${rows.length === 1 ? 'has' : 'have'} RDP (port 3389) open on the internal network: ${list(rows.map(name))}.`, 'This port is open on the internal network; nothing shows it is exposed to the Internet. The External exposure page shows which ports are really visible from outside.']
       : ['No device in the inventory has RDP (port 3389) open.']
     if (rows.some((a) => a.id === 'a-srvad')) answer.push('Start with SRV-AD: it is the domain server and should only allow RDP through the VPN.')
-    return { answer, table: rows.length ? assetTable(rows, { col: 'How the port was found', of: (a) => { const s = a.services.find((x) => x.port === 3389)!; return `${s.source}, confidence ${Math.round(s.confidence * 100)}%` } }) : null, tool_calls: [tc('search_assets', '{"port": 3389}', rows.length)], citations: rows.length ? [inv, { title: 'Open services from active and passive sensors' }] : [inv] }
+    return { answer, table: rows.length ? assetTable(rows, { col: 'How the port was found', of: (a) => { const s = a.services.find((x) => x.port === 3389)!; return `${s.source}, confidence ${Math.round(s.confidence * 100)}%` } }) : null, tool_calls: [tc('search_assets', '{"port": 3389}', rows)], citations: rows.length ? [inv, { title: 'Open services from active and passive sensors' }] : [inv] }
   }
 
   if (has(q, ['unapproved', 'not approved', 'new device', 'unknown device', 'pending', 'awaiting approval'])) {
@@ -53,7 +59,7 @@ export function answerQuestion(question: string): Answer {
     return {
       answer: rows.length ? [`${plural(rows.length, 'device')} ${rows.length === 1 ? 'is' : 'are'} not approved yet: ${list(rows.map(name))}.`, 'Open Devices to approve, mark as unknown or delete. A device using a random MAC address is often a phone; still ask its owner.'] : ['No device is waiting for approval.'],
       table: rows.length ? assetTable(rows, { col: 'First seen', of: (a) => fmtDate(a.first_seen) }) : null,
-      tool_calls: [tc('search_assets', '{"approved": false}', rows.length)], citations: [inv],
+      tool_calls: [tc('search_assets', '{"approved": false}', rows)], citations: [inv],
     }
   }
 
@@ -73,21 +79,21 @@ export function answerQuestion(question: string): Answer {
   if (has(q, ['nas', 'qnap', 'synology'])) {
     const rows = assets.filter((a) => a.kind === 'nas')
     const withF = (a: Asset) => findings.filter((f) => f.asset_id === a.id && (f.status === 'confirmed' || f.status === 'suspected')).length
-    if (rows.length === 0) return { answer: ['The inventory has no NAS device.'], table: null, tool_calls: [tc('search_assets', '{"kind": "nas"}', 0)], citations: [inv] }
+    if (rows.length === 0) return { answer: ['The inventory has no NAS device.'], table: null, tool_calls: [tc('search_assets', '{"kind": "nas"}', [])], citations: [inv] }
     return {
       answer: [`There ${rows.length === 1 ? 'is' : 'are'} ${rows.length} NAS: ${list(rows.map((a) => `${name(a)} (${a.os?.value ?? 'version unknown'})`))}.`, ...rows.filter((a) => withF(a) > 0).map((a) => `${name(a)} has ${plural(withF(a), 'unresolved finding')}.`)],
       table: assetTable(rows, { col: 'Unresolved findings', of: (a) => String(withF(a)) }),
-      tool_calls: [tc('search_assets', '{"kind": "nas"}', rows.length), { tool: 'list_findings', args: `{"asset_id": [${rows.map((a) => `"${a.id}"`).join(', ')}]}`, result: plural(rows.reduce((n, a) => n + withF(a), 0), 'finding') }], citations: [inv, { title: 'Findings per device' }],
+      tool_calls: [tc('search_assets', '{"kind": "nas"}', rows), { tool: 'list_findings', args: `{"asset_id": [${rows.map((a) => `"${a.id}"`).join(', ')}]}`, result: plural(rows.reduce((n, a) => n + withF(a), 0), 'finding') }], citations: [inv, { title: 'Findings per device' }],
     }
   }
 
   if (has(q, ['camera', 'hikvision', 'nvr', 'recorder'])) {
     const rows = assets.filter((a) => a.kind === 'camera' || a.kind === 'nvr')
-    if (rows.length === 0) return { answer: ['The inventory has no camera or recorder.'], table: null, tool_calls: [tc('search_assets', '{"kind": ["camera", "nvr"]}', 0)], citations: [inv] }
+    if (rows.length === 0) return { answer: ['The inventory has no camera or recorder.'], table: null, tool_calls: [tc('search_assets', '{"kind": ["camera", "nvr"]}', [])], citations: [inv] }
     return {
       answer: [`There ${rows.length === 1 ? 'is' : 'are'} ${plural(rows.length, 'camera or recorder', 'cameras and recorders')}: ${list(rows.map(name))}.`, 'Cameras are fragile devices, so Vedette only listens passively and never scans them actively. Block cameras from reaching the Internet.'],
       table: assetTable(rows, { col: 'Vendor and model', of: (a) => `${a.vendor?.value ?? '–'} ${a.model?.value ?? ''}`.trim() }),
-      tool_calls: [tc('search_assets', '{"kind": ["camera", "nvr"]}', rows.length)], citations: [inv],
+      tool_calls: [tc('search_assets', '{"kind": ["camera", "nvr"]}', rows)], citations: [inv],
     }
   }
 
@@ -96,7 +102,7 @@ export function answerQuestion(question: string): Answer {
     return {
       answer: rows.length ? [`${plural(rows.length, 'device')} run${rows.length === 1 ? 's' : ''} an operating system that is out of support or about to be: ${list(rows.map(name))}.`, 'Windows 10 free support ended in 10/2025; Windows Server 2016 extended support ends in 01/2027. Plan the upgrade before then.'] : ['No device in the inventory runs an operating system close to end of support.'],
       table: rows.length ? assetTable(rows) : null,
-      tool_calls: [{ tool: 'search_assets', args: '{"os_matches": ["Windows 10", "Server 2016"]}', result: DEV(rows.length) }], citations: [inv, { title: 'Microsoft support lifecycle' }],
+      tool_calls: [{ tool: 'search_assets', args: '{"os_matches": ["Windows 10", "Server 2016"]}', result: boxApart(rows) }], citations: [inv, { title: 'Microsoft support lifecycle' }],
     }
   }
 
@@ -105,6 +111,6 @@ export function answerQuestion(question: string): Answer {
     const hay = norm([a.hostname, a.ip, a.vendor?.value, a.model?.value, a.os?.value, ...a.software.map((s) => s.display)].filter(Boolean).join(' ')).split(/[^a-z0-9.]+/)
     return words.some((w) => hay.some((h) => h === w || (w.length >= 4 && h.startsWith(w))))
   }) : []
-  if (rows.length) return { answer: [`Found ${plural(rows.length, 'device')} matching keywords in the question: ${list(rows.map(name))}.`], table: assetTable(rows), tool_calls: [{ tool: 'search_assets', args: JSON.stringify({ text: words.join(' ') }), result: DEV(rows.length) }], citations: [inv] }
+  if (rows.length) return { answer: [`Found ${plural(rows.length, 'device')} matching keywords in the question: ${list(rows.map(name))}.`], table: assetTable(rows), tool_calls: [{ tool: 'search_assets', args: JSON.stringify({ text: words.join(' ') }), result: boxApart(rows) }], citations: [inv] }
   return { answer: ['Nothing in this box matches the question, so there is no answer. The AI only answers from the inventory and findings on this box. Try a device name, IP, vendor or port, for example "Which machines still expose RDP?".'], table: null, tool_calls: [{ tool: 'search_assets', args: JSON.stringify({ text: words.join(' ') }), result: DEV(0) }], citations: [] }
 }

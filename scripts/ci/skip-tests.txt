@@ -32,4 +32,3 @@ slow	TestReview_M2_RunsViewSaysEngineBusyAfterStop	modules/scan	slow: 4 s wall t
 slow	TestReview_M2_NoNewRunWhileTheEngineIsBusy	modules/scan	slow: 4 s wall time; daily run	2026-11-12
 slow	TestReview4_L4_ARefusedStartKeepsTheSlot	modules/scan	slow: 4 s wall time; daily run	2026-11-12
 slow	TestContract_Bootstrap_CoreAndHoneypotMoveToTheLogVolumeTogether	modules/host	slow: 4 s wall time; daily run	2026-11-12
-flaky	TestMirror_StalledClientFreesItsSlot	modules/agent-intake	https://github.com/KNT048/vedette/issues/492	2026-11-12

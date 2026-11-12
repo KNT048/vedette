@@ -305,11 +305,17 @@ func (s *Service) takeMirrorSlot(key string) (release func(), ok bool) {
 		return nil, false
 	}
 	s.mirrorBy[key] = true
+	if s.mirrorEvent != nil {
+		s.mirrorEvent(key, true)
+	}
 	return func() {
 		s.mirrorMu.Lock()
 		delete(s.mirrorBy, key)
 		s.mirrorMu.Unlock()
 		<-s.mirror
+		if s.mirrorEvent != nil {
+			s.mirrorEvent(key, false)
+		}
 	}, true
 }
 

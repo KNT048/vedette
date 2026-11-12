@@ -249,6 +249,14 @@ On `ubuntu2404` and `debian13` (and Ubuntu 26.04 on Mlee's box, D-198), using te
 8. `postinst try-restart` with the new host's `TimeoutStartSec` (Type=notify): no deadlock, because the new host
    sends READY before it waits for the journal.
 
+**Lab results so far (2026-11-12, `ubuntu2404`: systemd 255.4, Podman 4.9.3, fresh test install from `6dc026d4`):**
+- Check 7 without an update run: a failed transient unit started without `--collect` keeps its name, and a second
+  `systemd-run --unit=<same>` exits 1 with "Unit <name>.service was already loaded or has a fragment file" (the text
+  `opstest` fakes). With `--collect` (what `selfupdateargv.go` passes) the failed unit is collected and the second run starts.
+- `--property=RuntimeMaxSec=` ends a transient unit with `Result=timeout`.
+- Checks 1–6, 6b and 8 need an update to install: they wait for the test update channel (#469: kept test keys, a
+  test release source for core), then run on `ubuntu2404` and `debian13`.
+
 ## 2. Risks
 
 | Risk | What guards it |

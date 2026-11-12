@@ -1,5 +1,6 @@
-// A box with no vedette-host (D-55, core INV-20): a container-only install. The operating system update, Box network and backup screens
-// must say so in plain words (409 not_appliance), never a 5xx and never a script error. This is a second box of the same run (ready.json:
+// A box with no vedette-host (D-55, core INV-20): a container-only install. The API answers its host endpoints with 409 not_appliance, never a
+// 5xx; the pages know the install kind from GET /modules (D-381), show what the customer does instead (compose commands, the volume backup)
+// and never call those endpoints; the honeypot cannot be turned on. This is a second box of the same run (ready.json:
 // bare_url, bare_setup_code), started with `-host-socket ""` by cmd/vedette/e2ehost_test.go. It is set up through the API here, with the
 // setup code it printed, as the only account on it.
 import { expect, request, test, type APIRequestContext, type Page } from '@playwright/test'
@@ -57,67 +58,53 @@ test('the three endpoints answer 409 not_appliance with a sentence, never 5xx', 
   }
 })
 
-for (const [route, says, label] of [
-  ['/settings/updates', SAYS.os, 'Updates (operating system)'],
-  ['/settings/network', SAYS.network, 'Box network'],
+/** The host endpoints of D-381: a page of a container-only install never calls them. */
+const HOST = ['/api/v1/core/updates/os', '/api/v1/core/network', '/api/v1/core/data/backup', '/api/v1/core/data/backups', '/api/v1/core/data/restore/run']
+const hostCalls = (page: Page) => {
+  const calls: string[] = []
+  page.on('request', (r) => { const u = new URL(r.url()); if (r.url().startsWith(bare()) && HOST.some((h) => u.pathname === h || u.pathname.startsWith(`${h}/`))) calls.push(`${r.method()} ${u.pathname}`) })
+  return calls
+}
+
+test('GET /modules says container and the honeypot is not available; turning it on is 409 not_appliance', async () => {
+  const mods = await api<{ install: string; modules: { id: string; enabled: boolean; available: boolean }[] }>(admin, 'GET', '/modules')
+  expect(mods.status).toBe(200)
+  expect(mods.body.install).toBe('container')
+  const hp = mods.body.modules.find((m) => m.id === 'honeypot')
+  expect(hp, 'the smb bundle leaves the honeypot out here').toMatchObject({ enabled: false, available: false })
+  const on = await api<{ error: { code: string } }>(admin, 'PATCH', '/modules/honeypot', { enabled: true })
+  expect(on.status, JSON.stringify(on.body)).toBe(409)
+  expect(on.body.error.code).toBe('not_appliance')
+})
+
+for (const [route, block, label] of [
+  ['/settings/updates', /docker compose --env-file vedette\.env pull/, 'Updates'],
+  ['/settings/network', /Prepare the SPAN card on this machine yourself/, 'Box network'],
+  ['/settings/data', /tar czf \/backup\/vedette-data\.tgz/, 'Data'],
 ] as const) {
-  test(`${route} says "container-only install" in the page, and nothing breaks`, async ({ page }) => {
+  test(`${route} shows what to do on a container-only install, calls no host endpoint, and nothing breaks`, async ({ page }) => {
     const errors = collectErrors(page)
     const server: string[] = []
     page.on('response', (r) => { if (r.url().startsWith(bare()) && r.status() >= 500) server.push(`${r.request().method()} ${new URL(r.url()).pathname} -> ${r.status()}`) })
+    const calls = hostCalls(page)
     await openBare(page, route)
     await expect(h1(page), `${label} has a heading`).toBeVisible()
-    await expect(page.getByRole('alert').filter({ hasText: says }).first(), `${label}: the page tells why`).toBeVisible()
+    await expect(page.getByText(block).first(), `${label}: the container-only text`).toBeVisible()
     await page.waitForLoadState('networkidle')
     await shot(page, 'real', `bare-${route.split('/').pop()}`)
     await noVietnamese(page, route)
+    expect(calls, `${label} called a host endpoint`).toEqual([])
     expect(server, 'the API answered 5xx').toEqual([])
-    noErrors(errors, /status of (4|5)\d\d/)
+    noErrors(errors)
   })
 }
 
-test('/settings/data renders, Download backup saves nothing and says nothing false, and no 5xx', async ({ page }) => {
-  const errors = collectErrors(page)
-  const server: string[] = []
-  page.on('response', (r) => { if (r.url().startsWith(bare()) && r.status() >= 500) server.push(`${r.request().method()} ${new URL(r.url()).pathname} -> ${r.status()}`) })
+test('Settings -> Data has no Download backup and no box backups; Updates has no appliance controls', async ({ page }) => {
   await openBare(page, '/settings/data')
-  await expect(h1(page)).toBeVisible()
-  let downloaded = false
-  page.on('download', () => { downloaded = true })
-  const refused = page.waitForResponse((r) => r.url().endsWith('/api/v1/core/data/backup'))
-  await page.getByRole('button', { name: 'Download backup', exact: true }).click()
-  expect((await refused).status(), 'the box refuses the backup').toBe(409)
-  await expect(page.locator('[data-sonner-toast]').first()).toBeVisible() // a toast says something happened
-  await expect(page.locator('[data-sonner-toast]').filter({ hasText: /Downloaded vedette-backup-/ }), 'no "Downloaded" toast for a backup that was refused').toHaveCount(0)
-  expect(downloaded, 'a file was saved although the backend refused').toBe(false)
-  await shot(page, 'real', 'bare-data')
-  expect(server).toEqual([])
-  noErrors(errors, /status of (4|5)\d\d/)
-})
-
-
-test('Download backup tells the person what the box said (the container-only sentence)', async ({ page }) => {
-  await openBare(page, '/settings/data')
-  await page.getByRole('button', { name: 'Download backup', exact: true }).click()
-  const toasts = page.locator('[data-sonner-toast]')
-  await expect(toasts.filter({ hasText: SAYS.os }).first()).toBeVisible()
-})
-
-test('a container-only install is not reported as an invalid request', async ({ page }) => {
-  const titles: string[] = []
-  for (const [route, says] of [['/settings/updates', SAYS.os], ['/settings/network', SAYS.network]] as const) {
-    await openBare(page, route)
-    const alert = page.getByRole('alert').filter({ hasText: says }).first()
-    await expect(alert).toBeVisible()
-    titles.push(await alert.innerText())
-  }
-  for (const t of titles) expect(t).not.toMatch(/^Invalid request/)
-})
-
-test('Settings -> Updates is numbered from 1 when the operating system part is an error', async ({ page }) => {
+  await expect(page.getByText(/vedette_data/).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Download backup', exact: true })).toHaveCount(0)
+  await expect(page.getByText('Backups on this box')).toHaveCount(0)
   await openBare(page, '/settings/updates')
-  await expect(page.getByRole('alert').filter({ hasText: SAYS.os }).first()).toBeVisible()
-  await expect(page.locator('#managed-band')).toBeVisible()
-  const nums = await page.locator('main span[aria-hidden="true"]').filter({ hasText: /^\d$/ }).allInnerTexts()
-  expect(nums[0]).toBe('1')
+  await expect(page.getByText('Update Vedette').first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /Check for releases/ })).toHaveCount(0)
 })

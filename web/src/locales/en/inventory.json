@@ -35,7 +35,8 @@
     "titleAllApproved_other": "{{count}} devices, all approved",
     "meta": "Every value shows its source and confidence. New values are added; old values are never overwritten.",
     "all": "All devices",
-    "titleEmpty": "No devices yet"
+    "titleEmpty": "No devices yet",
+    "titleBoxOnly": "Only the Vedette box so far"
   },
   "filter": {
     "label": "Filter devices",
@@ -65,6 +66,7 @@
   },
   "empty": {
     "title": "No devices yet",
+    "titleBoxOnly": "No other devices yet",
     "body": "Plug the box into your LAN and Vedette finds devices by itself after about an hour. Or add devices by hand, or import a list from a CSV file.",
     "range": "Set the box's network ranges",
     "bodyNeutral": "Devices appear here as the sensor hears them on the network, usually within an hour. Or add devices by hand, or import a list from a CSV file.",

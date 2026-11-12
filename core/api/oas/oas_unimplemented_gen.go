@@ -629,7 +629,8 @@ func (UnimplementedHandler) CoreGetCorePrivacy(ctx context.Context) (r *CoreGetC
 
 // CoreGetCoreSetupModules implements core_get_core_setup_modules operation.
 //
-// Modules and dependencies for the bundle step (does not reveal what is on).
+// Modules and dependencies for the bundle step (does not reveal what is on), and the install kind for
+// the setup code hint and the modules this install cannot run (D-381).
 //
 // GET /core/setup/modules
 func (UnimplementedHandler) CoreGetCoreSetupModules(ctx context.Context) (r *CoreGetCoreSetupModulesOK, _ error) {
@@ -756,7 +757,8 @@ func (UnimplementedHandler) CorePatchCoreUsersID(ctx context.Context, req *CoreP
 
 // CorePatchModulesID implements core_patch_modules_id operation.
 //
-// Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies.
+// Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies;
+// turning on a module this install cannot run (available false) gives 409 not_appliance (D-381).
 //
 // PATCH /modules/{id}
 func (UnimplementedHandler) CorePatchModulesID(ctx context.Context, req *CorePatchModulesIDReq, params CorePatchModulesIDParams) (r *CorePatchModulesIDOK, _ error) {
@@ -973,7 +975,8 @@ func (UnimplementedHandler) CorePostCoreOidcTest(ctx context.Context) (r *CorePo
 // CorePostCoreSetup implements core_post_core_setup operation.
 //
 // First-run setup: create the organization and administrator, choose a module bundle, or use sample
-// data.
+// data. A bundle leaves out the modules this install cannot run (available false, D-381); naming one
+// under custom gives 409 not_appliance.
 //
 // POST /core/setup
 func (UnimplementedHandler) CorePostCoreSetup(ctx context.Context, req *CorePostCoreSetupReq) (r *CorePostCoreSetupOK, _ error) {

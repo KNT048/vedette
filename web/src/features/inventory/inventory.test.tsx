@@ -304,7 +304,10 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   it('no devices at all: guides the next action', async () => {
     assetsStore.set([])
     renderApp('/devices')
-    expect((await screen.findAllByText('No devices yet', undefined, T)).length).toBeGreaterThan(0)
+    // Only the box is left (it cannot be deleted): the header and the empty state agree (2026-11-12 walk, S-INV-5).
+    expect(await screen.findByRole('heading', { name: 'Only the Vedette box so far' }, T)).toBeInTheDocument()
+    expect(screen.getByText('No other devices yet')).toBeInTheDocument()
+    expect(screen.queryByText('No devices yet')).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Add a device' }).length).toBeGreaterThan(1)
     expect(await screen.findByText(/Vedette is watching the network ranges you saved/, undefined, T)).toBeInTheDocument() // the mock has ranges saved
     expect(screen.queryByRole('link', { name: "Set the box's network ranges" })).not.toBeInTheDocument()

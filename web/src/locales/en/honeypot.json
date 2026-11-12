@@ -288,9 +288,15 @@
       "dns": "Use {{value}} as a server name in a config or script. Forward the vedette.internal zone to the box in your DNS server so lookups reach it."
     }
   },
+  "notHere": {
+    "title": "Traps need the appliance install",
+    "body": "This is a container-only install: there is no vedette-host to run the honeypot container and its decoy address, so no trap can listen here and nothing on this page would be covered. Use the appliance install to run traps.",
+    "modules": "Turn the module off in Settings, Modules"
+  },
   "coverage": {
     "title": "Is this enough?",
     "description": "A guide to which common attacker moves traps and tokens can see. It is not a score.",
+    "notListening": "No trap is listening yet, so the traps and tokens see none of these moves. Turn a trap on and check that its status says Listening.",
     "listLabel": "Coverage by attacker move",
     "level": {
       "covered": "Covered",

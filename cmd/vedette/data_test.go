@@ -237,7 +237,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	}
 
 	addr, lines, done, stop := boot()
-	defer stop()
+	defer func() { stop() }() // the box is started again below
 	cookies := map[string]*http.Cookie{}
 	// call retries a 503 server_busy (nothing was written: the writer or the password-check queue was full) after its Retry-After, as the GUI
 	// does, for at most about 30 s: under a loaded machine the write wait limit (D-246) can fire before this request gets the writer (#320).
@@ -279,6 +279,26 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 		!strings.Contains(string(b), `"scope_confirmed_by":"ann@acme.example"`) {
 		t.Fatalf("inventory settings after setup = %d %s", c, b)
 	}
+	// D-381: -host-socket "" is a container-only install, where setup leaves the honeypot out and it cannot be turned on. The purge keeps
+	// the honeypot's log on a box that has it on (an appliance, or a box upgraded with it on): switch it on in the database and start again.
+	stop()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	hp, err := store.Open(t.Context(), db, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := hp.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE core_module SET enabled = 1, enabled_at = '2026-11-12T00:00:00.000Z' WHERE id = 'honeypot'`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := hp.Close(); err != nil {
+		t.Fatal(err)
+	}
+	addr, _, done, stop = boot()
 	logsDB := filepath.Join(dir, "logs.db") // the real volume of the logs module, open in the process (not a planted file)
 	snap := filepath.Join(dir, "snapshots", "0123456789abcdef0123456789abcdef")
 	for _, p := range []string{filepath.Join(snap, "vedette.db")} {

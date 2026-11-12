@@ -15,6 +15,7 @@ modules/<tên>/
 Quy tắc chung:
 - **Tắt** = không đăng ký route, không chạy job, không mở cổng; dữ liệu giữ nguyên; UI hiển thị "đang tắt" ở chỗ dữ liệu thiếu (S-CORE-1).
 - **Phụ thuộc** khai báo trong MANIFEST; bật module thiếu phụ thuộc → UI hỏi bật kèm, không tự bật ngầm.
+- **Cần `vedette-host`** (D-381): `needs_host: true` trong MANIFEST (honeypot, scan-credentialed). Bản chỉ container (D-168) không bật được module đó: `GET /modules` báo `available: false`, bật → 409 `not_appliance`, gói của setup bỏ nó.
 - **Quyền** (raw socket, cổng <1024, đọc file) khai báo; core cấp đúng quyền đó (capabilities / systemd socket), không chạy root toàn bộ.
 - **Story**: MANIFEST liệt kê story ID module phục vụ; không có story → không có module.
 - Tiers: *lõi* luôn bật; *chuẩn* bật mặc định ở SMB; *tuỳ chọn* tắt mặc định.

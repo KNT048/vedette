@@ -5,7 +5,8 @@ import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { eachOption } from '@/test/formMatrix'
 import { server } from '@/test/server'
-import { assetsStore, modulesStore } from '@/mocks/stores'
+import { api } from '@/lib/api'
+import { assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
 
 describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
   it('shows the answer line and the hot board from real KEV data, a11y clean', async () => {
@@ -58,6 +59,18 @@ describe('feeds: lookup and CVE (S-FEED-3)', () => {
     renderApp('/lookup?q=185.220.101.47')
     expect(await screen.findByText('Block')).toBeInTheDocument()
     expect(screen.getByText(/Tor exit list/)).toBeInTheDocument()
+  })
+
+  it('a feed that is switched off is not named in a lookup, and an indicator only it lists is not found (POST-4)', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    await api.put('/feeds/sources/et-open', { enabled: false })
+    renderApp('/lookup?q=45.148.10.95')
+    expect(await screen.findByText(/IPsum \(5 sources\)/)).toBeInTheDocument()
+    expect(screen.queryByText(/ET Open compromised/)).not.toBeInTheDocument()
+    cleanup()
+    await api.put('/feeds/sources/ipsum', { enabled: false })
+    renderApp('/lookup?q=45.148.10.95')
+    expect(await screen.findByText(/is not on the bad IP\/domain lists/)).toBeInTheDocument()
   })
 
   it('the CVE page shows matching devices', async () => {

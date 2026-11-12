@@ -25,7 +25,7 @@ import (
 // to Vedette's bridge vedette0 (install.sh names it) and its subnet, and only while that chain exists (no
 // Docker, or Docker's nftables backend: nothing is done). In the order they keep:
 //
-//	-s <subnet> -i vedette0 -o br-lan -j ACCEPT   one per bridge of the box named br-… that is not Docker's (D-396)
+//	-s <subnet> -i vedette0 -o br-lan -j ACCEPT   one per uplink bridge of the box named br-… (D-396)
 //	-i vedette0 -o docker0 -j RETURN              Docker keeps protecting its own networks from Vedette's containers:
 //	-i vedette0 -o br-+    -j RETURN              the packet goes on to Docker's own chains, which decide as before
 //	-o vedette0 -d <subnet> -m conntrack --ctstate DNAT,ESTABLISHED,RELATED -j ACCEPT   published ports, replies
@@ -36,9 +36,12 @@ import (
 // of the network ID) from the moment Docker makes one; iptables matches an interface name only exactly or by
 // a "+" prefix, so it also matches a bridge of the box itself such as an uplink br-lan, and the containers
 // lost the internet through it. The host lists /sys/class/net and keeps, above the RETURNs, an ACCEPT for
-// every interface named br-… that is not of Docker's form (D-396). Fail closed: a new uplink bridge has no
-// internet for at most one look (30 s); a new Docker network is never open to Vedette's containers. An
-// ACCEPT of a bridge that is gone stays (it matches nothing; install.sh --uninstall removes it).
+// every bridge named br-… that is not of Docker's form and holds a port that is not a container's veth: a
+// network card, a bond, or a link on top of another (a VLAN) (D-396). Docker's bridges, its custom-named
+// ones too (com.docker.network.bridge.name: br-app), hold only veths, so they stay behind the RETURN. Fail
+// closed: a new uplink bridge has no internet for at most one look (30 s); a new Docker network is never
+// open to Vedette's containers. An ACCEPT of a bridge that is gone stays (it matches nothing; install.sh
+// --uninstall removes it).
 //
 // The DROP mirrors what Docker 28 does for its own networks: a port of a container that is not published
 // is not reachable from outside its network. Without it, Docker's own accept for traffic leaving its
@@ -67,6 +70,8 @@ const (
 	// maxBoxBridges caps the ACCEPTs for bridges of the box named br-… (an appliance has one or two).
 	// ponytail: past it nothing is changed and the log says so; raise it if a real box needs more.
 	maxBoxBridges = 32
+	// maxBridgePorts bounds what one sysfs directory listing reads (ports of a bridge, entries of a link).
+	maxBridgePorts = 1024
 )
 
 // binIptables is iptables (the nft or the legacy flavour, whichever the alternatives point at).
@@ -232,17 +237,19 @@ func (o *Ops) vedetteIntSubnet() (netip.Prefix, error) {
 	return p, nil
 }
 
-// boxBridges are the interfaces of the box (<root>/sys/class/net, names only) that the br-+ RETURN would
-// catch and that are not Docker's, sorted. A directory that cannot be read gives none: fail closed (such
-// a bridge then has no internet for Vedette's containers, as before D-396).
+// boxBridges are the uplink bridges of the box (<root>/sys/class/net) that the br-+ RETURN would catch:
+// named br-…, not of Docker's form, holding a port uplinkPort accepts; sorted. Anything that cannot be
+// read gives none: fail closed (such a bridge then has no internet for Vedette's containers, as before D-396).
 func (o *Ops) boxBridges() ([]string, error) {
 	ents, err := os.ReadDir(o.path("sys/class/net"))
 	if err != nil {
 		return nil, nil // fail closed, see above
 	}
+	s := openSysfs(o.d.Root)
+	defer s.close()
 	var out []string
 	for _, e := range ents {
-		if boxBridge(e.Name()) {
+		if boxBridge(e.Name()) && s.uplinkBridge(e.Name()) {
 			out = append(out, e.Name())
 		}
 	}
@@ -250,6 +257,40 @@ func (o *Ops) boxBridges() ([]string, error) {
 		return nil, errTooManyBridges
 	}
 	return out, nil
+}
+
+// uplinkBridge says whether one port of the bridge br (class/net/<br>/brif/<port>) is a network card
+// (class/net/<port>/device), a bond (…/bonding) or a link on top of another (…/lower_<if>: a VLAN, a
+// macvlan): never a container's veth, which is all a Docker bridge holds.
+func (s *sysfs) uplinkBridge(br string) bool {
+	if s.root == nil {
+		return false
+	}
+	f, err := s.root.Open("class/net/" + br + "/brif")
+	if err != nil {
+		return false
+	}
+	defer func() { _ = f.Close() }()
+	ports, _ := f.ReadDir(maxBridgePorts)
+	for _, p := range ports {
+		port := p.Name()
+		if s.physical(port) {
+			return true
+		}
+		if _, err := s.root.Lstat("class/net/" + port + "/bonding"); err == nil {
+			return true
+		}
+		d, err := s.root.Open("class/net/" + port)
+		if err != nil {
+			continue
+		}
+		links, _ := d.ReadDir(maxBridgePorts)
+		_ = d.Close()
+		if slices.ContainsFunc(links, func(e os.DirEntry) bool { return strings.HasPrefix(e.Name(), "lower_") }) {
+			return true
+		}
+	}
+	return false
 }
 
 // fwdView is what "iptables -S DOCKER-USER" shows of ours: the positions of the first and the last line

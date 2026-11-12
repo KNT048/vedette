@@ -49,6 +49,14 @@ func iface(t *testing.T, m *opstest.Machine, names ...string) {
 	}
 }
 
+// uplink makes br a bridge of the box with a network card as its port.
+func uplink(t *testing.T, m *opstest.Machine, brs ...string) {
+	t.Helper()
+	for _, br := range brs {
+		iface(t, m, br+"/brif/eth9", "eth9/device")
+	}
+}
+
 func rulesAre(t *testing.T, m *opstest.Machine, want ...string) {
 	t.Helper()
 	if got := m.DockerRules(); strings.Join(got, "\n") != strings.Join(want, "\n") {
@@ -67,13 +75,17 @@ func changes(m *opstest.Machine, from int) []string {
 }
 
 // D-396 (a): the br-+ RETURN also matches a bridge of the box itself (an uplink br-lan): such a bridge gets an ACCEPT
-// above the RETURNs, so the containers keep the internet through it; Docker's own bridges (br-<12 hex>) get none.
-func TestDockerFwd_OnlyTheBoxsOwnBridgesGetAnAccept(t *testing.T) {
+// above the RETURNs, so the containers keep the internet through it. A bridge whose ports are only veths (Docker's, by
+// ID or by a custom name such as br-app; review r2 M1), one without ports, or with a name the host never writes, gets none.
+func TestDockerFwd_OnlyTheBoxsUplinkBridgesGetAnAccept(t *testing.T) {
 	m, o, _ := fwdBox(t, "172.30.77.0/24")
 	m.DockerChain(true)
-	iface(t, m, "br-lan", "br-ex", "eth0", "docker0", "vedette0", "br-0123456789ab", "br-abcdefabcdef", "br-l+n", "xbr-lan")
+	iface(t, m, "eth0/device", "bond0/bonding", "eth0.10/lower_eth0", "veth1a2b", "veth3c4d", "docker0", "vedette0", "xbr-lan")
+	iface(t, m, "br-lan/brif/veth3c4d", "br-lan/brif/eth0") // a card beside a veth
+	iface(t, m, "br-ex/brif/bond0", "br-vlan/brif/eth0.10")
+	iface(t, m, "br-app/brif/veth1a2b", "br-empty", "br-0123456789ab/brif/eth0", "br-l+n/brif/eth0")
 	o.DockerFwdTick(context.Background())
-	rulesAre(t, m, accTo("br-ex"), accTo("br-lan"), ret1, ret2, rule1, rule2, drop)
+	rulesAre(t, m, accTo("br-ex"), accTo("br-lan"), accTo("br-vlan"), ret1, ret2, rule1, rule2, drop)
 }
 
 // A bridge of the box made later gets its ACCEPT above the RETURNs, below an administrator's rule; one that is gone keeps
@@ -83,13 +95,13 @@ func TestDockerFwd_ANewBridgeOfTheBoxGoesAboveTheReturns(t *testing.T) {
 	m.DockerChain(true)
 	o.DockerFwdTick(context.Background())
 	m.DockerAdminRuleFirst("-s 192.0.2.0/24 -j DROP")
-	iface(t, m, "br-lan")
+	uplink(t, m, "br-lan")
 	o.DockerFwdTick(context.Background())
 	rulesAre(t, m, "-s 192.0.2.0/24 -j DROP", accTo("br-lan"), ret1, ret2, rule1, rule2, drop)
-	if err := os.Remove(filepath.Join(m.Root, "sys/class/net/br-lan")); err != nil {
+	if err := os.RemoveAll(filepath.Join(m.Root, "sys/class/net/br-lan")); err != nil {
 		t.Fatal(err)
 	}
-	iface(t, m, "br-wan")
+	uplink(t, m, "br-wan")
 	o.DockerFwdTick(context.Background())
 	rulesAre(t, m, "-s 192.0.2.0/24 -j DROP", accTo("br-wan"), accTo("br-lan"), ret1, ret2, rule1, rule2, drop)
 	before := len(calls(m))
@@ -107,7 +119,7 @@ func TestDockerFwd_TheFourRulesOfD267GetTheDropAndTheUplinkAccept(t *testing.T) 
 	for _, r := range []string{ret1, ret2, rule1, rule2, "-j RETURN"} {
 		m.DockerAdminRule(r)
 	}
-	iface(t, m, "br-lan", "br-0123456789ab")
+	uplink(t, m, "br-lan", "br-0123456789ab")
 	o.DockerFwdTick(context.Background())
 	rulesAre(t, m, accTo("br-lan"), ret1, ret2, rule1, rule2, drop, "-j RETURN")
 }
@@ -138,7 +150,7 @@ func TestDockerFwd_ADuplicateBridgeAcceptStopsTheInserts(t *testing.T) {
 	for _, r := range []string{accTo("br-lan"), accTo("br-lan"), ret1, ret2, rule1, rule2} {
 		m.DockerAdminRule(r)
 	}
-	iface(t, m, "br-lan")
+	uplink(t, m, "br-lan")
 	o.DockerFwdTick(context.Background())
 	if c := changes(m, 0); len(c) != 0 {
 		t.Fatalf("inserted %q", c)
@@ -149,7 +161,7 @@ func TestDockerFwd_TooManyBridgesOfTheBoxChangesNothingAndSaysSoOnce(t *testing.
 	m, o, buf := fwdBox(t, "172.30.77.0/24")
 	m.DockerChain(true)
 	for i := range 33 {
-		iface(t, m, fmt.Sprintf("br-%02d", i))
+		uplink(t, m, fmt.Sprintf("br-%02d", i))
 	}
 	for range 3 {
 		o.DockerFwdTick(context.Background())

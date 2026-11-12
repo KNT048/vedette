@@ -25,7 +25,12 @@ import (
 // always deletes once: at boot core starts after vedette-host, and a core that restarted while the host was down is
 // unseen; a correct entry that is deleted is re-created by the next datagram, so the cost is one log line.
 //
-// ponytail: IPv4 only (-f ipv4: netavark publishes through IPv4 DNAT here), one fixed port; the port is the constant
+// "Once per run" is exact for the two paths that hold ctMu while they compare (they do), and not strictly so for a look
+// whose podman inspect ran before a host-driven start and whose result arrives after it: that stale look can make one
+// extra, harmless delete (the entries are re-created by the next datagram).
+//
+// ponytail: IPv4 only (-f ipv4: netavark publishes through IPv4 DNAT here; a box that publishes 514 over IPv6 needs a
+// second fixed argv with -f ipv6, not built until one does), one fixed port; the port is the constant
 // of core's unit (quadlet.go PublishPort=514:5514), not read from it.
 
 const (
@@ -107,7 +112,7 @@ func (o *Ops) clearSyslogFlows(ctx context.Context) {
 		}
 	case err != nil:
 		o.log.ErrorContext(ctx, "conntrack could not clear the stale syslog flows", "error", err.Error())
-	case code > 1, code == 1 && !ctDeletedRE.Match(res.Stderr):
+	case code != 0 && (code != 1 || !ctDeletedRE.Match(res.Stderr)): // exit 1 is "0 entries" only with the line; -1 is a signal kill (core/exec), also a failure
 		o.log.ErrorContext(ctx, "conntrack failed while clearing the stale syslog flows", "exit_code", code)
 	default:
 		n := 0

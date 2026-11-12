@@ -23,6 +23,7 @@ export const LogSource = z.object({
   lines_per_hour: z.number().int().min(0),
   state: SourceState,
   created_at: iso,
+  client_cert_sha256: z.string().nullable().describe('TLS sources only: the SHA-256 of the client certificate the device must present (64 lowercase hex characters); null = the sender is known by its IP address alone'),
 })
 export const SourceInput = z.object({
   kind: SourceKind,
@@ -30,9 +31,19 @@ export const SourceInput = z.object({
   sender_ip: ipv4,
   proto: Proto,
   port: z.number().int().min(1).max(65535),
+  client_cert_sha256: z.string().regex(/^[0-9a-f]{64}$/).nullable().optional().describe('TLS sources only: pin the device\'s client certificate by its SHA-256; absent or null = no pin'),
+})
+export const BoxTls = z.object({
+  kind: z.enum(['box_ca', 'self_signed', 'issued']).describe('Which certificate `pem` holds: box_ca = the box\'s own certificate authority, which signs the box certificate (a device that trusts it keeps trusting the box through every renewal); self_signed = the box certificate itself; issued = the certificates the owner gave the box, because another authority issued it'),
+  issuer: z.string().describe('Issuer of the certificate the box presents on the syslog TLS port'),
+  port: z.number().int().min(1).max(65535).describe('The port a device sends syslog over TLS to'),
+  fingerprint_sha256: z.string().describe('SHA-256 of the first certificate in `pem`, 64 lowercase hex characters'),
+  subject: z.string().describe('Subject of the first certificate in `pem`'),
+  not_after: iso.describe('Expiry of the first certificate in `pem`'),
+  pem: z.string().describe('What a device must import as trusted, as PEM (public data), for the download'),
 })
 export const SourcesResponse = z.object({
-  box: z.object({ ip: z.string().nullable().describe('Box address on the LAN; null when no LAN range is declared, or when the box has no address in it (a container cannot see the host\'s LAN address)'), hostname: z.string(), lan: z.string().nullable(), iface: z.string() }),
+  box: z.object({ ip: z.string().nullable().describe('Box address on the LAN; null when no LAN range is declared, or when the box has no address in it (a container cannot see the host\'s LAN address)'), hostname: z.string(), lan: z.string().nullable(), iface: z.string(), tls: BoxTls.nullable().optional().describe('The certificate of the syslog TLS port; null or absent when this box serves no TLS (plain HTTP)') }),
   sources: z.array(LogSource),
   retention_days: z.number().int(),
 })

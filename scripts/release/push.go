@@ -77,7 +77,7 @@ type PlatformDigest struct {
 const imagesFile = "images.json"
 
 var (
-	registryRE = regexp.MustCompile(`^[a-z0-9.-]+(:[0-9]{1,5})?(/[a-z0-9._-]+)*$`)
+	registryRE = regexp.MustCompile(`^(\[::1\]|[a-z0-9.-]+)(:[0-9]{1,5})?(/[a-z0-9._-]+)*$`)
 	platformRE = regexp.MustCompile(`^linux/(amd64|arm64)$`)
 )
 
@@ -102,6 +102,89 @@ type pushOpts struct {
 	Platforms []string
 	Repo      string // git repository root
 	Out       string // directory images.json is written to
+	// HTTP reads an existing remote list anonymously (registryBase of Registry; a test points it at httptest).
+	HTTP registryHTTP
+}
+
+// versionLabel is the label every Containerfile sets from VERSION (make images IMAGE_VERSION=...).
+const versionLabel = "org.opencontainers.image.version"
+
+// localPlatform is one platform of a local manifest list: its manifest digest, its image ID (the config digest), its size and its
+// version label, from `podman images --all --format json`.
+type localPlatform struct {
+	Platform, Digest, Config, Version string
+	Size                              int64
+}
+
+// localPlatforms reads a local manifest list and the local image of each of its platforms; the platforms must be want.
+func localPlatforms(ctx context.Context, run runFunc, name string, want []string) ([]localPlatform, error) {
+	raw, err := localList(ctx, run, name)
+	if err != nil {
+		return nil, err
+	}
+	plats, err := platformDigests(raw, want, name)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	out, err := run(ctx, "podman", "images", "--all", "--format", "json")
+	if err != nil {
+		return nil, err
+	}
+	type podmanImage struct {
+		ID     string            `json:"Id"`
+		Digest string            `json:"Digest"`
+		Size   int64             `json:"Size"`
+		Labels map[string]string `json:"Labels"`
+	}
+	var all []podmanImage
+	if err := json.Unmarshal(out, &all); err != nil {
+		return nil, fmt.Errorf("podman images: %w", err)
+	}
+	var res []localPlatform
+	for _, p := range plats {
+		i := slices.IndexFunc(all, func(a podmanImage) bool { return a.Digest == p.Digest })
+		if i < 0 || !serviceDigestRE.MatchString("sha256:"+all[i].ID) || all[i].Size <= 0 {
+			return nil, fmt.Errorf("%s: no local image %s for %s", name, p.Digest, p.Platform)
+		}
+		res = append(res, localPlatform{Platform: p.Platform, Digest: p.Digest, Config: "sha256:" + all[i].ID, Version: all[i].Labels[versionLabel], Size: all[i].Size})
+	}
+	return res, nil
+}
+
+// absentRemote says whether a podman read error means the registry has no such manifest (as opposed to a login or network error).
+func absentRemote(err error) bool {
+	s := err.Error()
+	return strings.Contains(s, "manifest unknown") || strings.Contains(s, "name unknown")
+}
+
+// sameRemote compares a list that already exists in the registry under repo:<version> with the local one, platform by platform, by
+// config digest (the image content; the manifest digests differ because layers are compressed on push). It returns the remote
+// index digest when they are the same images, and refuses when they are not: a pushed version is never replaced (D-457).
+func sameRemote(ctx context.Context, h registryHTTP, repoPath, version string, local []localPlatform, want []string) (string, error) {
+	raw, err := h.manifest(ctx, "GET", repoPath, version, acceptList)
+	if err != nil {
+		return "", fmt.Errorf("%s:%s is already in the registry and cannot be compared (%w): make the package public (plan §3) or delete that version, then run again", repoPath, version, err)
+	}
+	plats, err := platformDigests(raw, want, repoPath+":"+version)
+	if err != nil {
+		return "", err
+	}
+	for i, p := range plats {
+		m, err := h.manifest(ctx, "GET", repoPath, p.Digest, acceptImage)
+		if err != nil {
+			return "", err
+		}
+		cfg, err := configDigest(m)
+		if err != nil {
+			return "", fmt.Errorf("%s@%s: %w", repoPath, p.Digest, err)
+		}
+		if cfg != local[i].Config {
+			return "", fmt.Errorf("%s:%s is already in the registry with other images (%s config %s, local %s): a pushed version is never replaced; release the next version", repoPath, version, p.Platform, cfg, local[i].Config)
+		}
+	}
+	return digestBytes(raw), nil
 }
 
 // listIndex is the part of a manifest list (OCI index or Docker list) the push reads, as `podman manifest inspect` prints it.
@@ -213,6 +296,7 @@ func Push(ctx context.Context, run runFunc, o pushOpts, stdout io.Writer) (*Imag
 		}
 	}
 	if rehearsal {
+		// Linux only: podman on macOS runs in a VM (podman machine), whose 127.0.0.1 is not the Mac's.
 		say(stdout, "rehearsal: %s is on this machine; TLS verification, the -test. refusal and the git checks are off", o.Registry)
 	} else {
 		if err := refuseTestVersion(o.Version); err != nil {
@@ -230,43 +314,49 @@ func Push(ctx context.Context, run runFunc, o pushOpts, stdout io.Writer) (*Imag
 		return nil, err
 	}
 	doc := &ImagesDoc{Version: o.Version}
+	_, ns := registryBase(o.Registry)
+	short := func(ctx context.Context, argv ...string) ([]byte, error) {
+		ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+		defer cancel()
+		return run(ctx, argv...)
+	}
 	for _, im := range publishedImages {
 		local := "localhost/vedette-" + im.local + ":" + o.Version
 		repo := o.Registry + "/vedette-" + im.service
-		short := func(ctx context.Context, argv ...string) ([]byte, error) {
-			ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-			defer cancel()
-			return run(ctx, argv...)
-		}
-		raw, err := localList(ctx, run, local)
+		repoPath := strings.TrimPrefix(ns+"/vedette-"+im.service, "/")
+		lp, err := localPlatforms(ctx, run, local, o.Platforms)
 		if err != nil {
 			return nil, err
 		}
-		if _, err := platformDigests(raw, o.Platforms, local); err != nil {
-			return nil, err
+		for _, p := range lp {
+			// what B's gate checks too, here per platform of exactly the list being pushed
+			if p.Version != o.Version {
+				return nil, fmt.Errorf("%s %s has label %s=%q, not %s: build with make images IMAGE_VERSION=%s", local, p.Platform, versionLabel, p.Version, o.Version, o.Version)
+			}
 		}
-		dfile, err := os.CreateTemp(o.Out, ".digest-*")
-		if err != nil {
-			return nil, err
+		// podman resolves a name to local storage first: with a local image of the remote name the read-back below would read it,
+		// not the registry (podman manifest inspect has no docker:// form, measured with 5.7). Refuse instead.
+		if _, err := short(ctx, "podman", "image", "exists", repo+":"+o.Version); err == nil {
+			return nil, fmt.Errorf("a local image is named %s:%s: remove it (podman rmi or podman manifest rm) so the read-back reads the registry", repo, o.Version)
 		}
-		_ = dfile.Close()
-		dpath := dfile.Name()
-		pctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
-		argv := append(append([]string{"podman", "manifest", "push", "--all", "--quiet"}, tls...), "--digestfile", dpath, local, "docker://"+repo+":"+o.Version)
-		_, err = run(pctx, argv...)
-		cancel()
-		dig, rerr := os.ReadFile(dpath) //nolint:gosec // the temporary file made above
-		_ = os.Remove(dpath)
-		if err != nil {
-			return nil, fmt.Errorf("push %s: %w", repo, err)
-		}
-		digest := strings.TrimSpace(string(dig))
-		if rerr != nil || !serviceDigestRE.MatchString(digest) {
-			return nil, fmt.Errorf("push %s: podman wrote no digest (%q)", repo, digest)
+		var digest string
+		switch _, err := short(ctx, append(append([]string{"podman", "manifest", "inspect"}, tls...), repo+":"+o.Version)...); {
+		case err == nil:
+			// a re-run after a failed push, or a version pushed before: the same images are reused, other images are refused
+			if digest, err = sameRemote(ctx, o.HTTP, repoPath, o.Version, lp, o.Platforms); err != nil {
+				return nil, err
+			}
+			say(stdout, "%s:%s is already in the registry with these images: not pushed again", repo, o.Version)
+		case absentRemote(err):
+			if digest, err = pushList(ctx, run, tls, local, repo+":"+o.Version, o.Out); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("does %s:%s exist? %w", repo, o.Version, err)
 		}
 		// Read back by digest: podman refuses a manifest whose bytes do not hash to the digest asked for ("Manifest does not match
 		// provided manifest digest", measured with podman 5.7, D-457), so a list read here is the one the boxes will pull.
-		raw, err = short(ctx, append(append([]string{"podman", "manifest", "inspect"}, tls...), repo+"@"+digest)...)
+		raw, err := short(ctx, append(append([]string{"podman", "manifest", "inspect"}, tls...), repo+"@"+digest)...)
 		if err != nil {
 			return nil, fmt.Errorf("read back %s@%s: %w", repo, digest, err)
 		}
@@ -286,9 +376,33 @@ func Push(ctx context.Context, run runFunc, o pushOpts, stdout io.Writer) (*Imag
 			return nil, fmt.Errorf("%s:%s does not name the list just pushed (%s): another push of this version?", repo, o.Version, digest)
 		}
 		doc.Images = append(doc.Images, PushedImage{Service: im.service, Repo: repo, IndexDigest: digest, Platforms: plats})
-		say(stdout, "pushed %s@%s (%s)", repo, digest, strings.Join(o.Platforms, ", "))
+		say(stdout, "in the registry and read back: %s@%s (%s)", repo, digest, strings.Join(o.Platforms, ", "))
 	}
 	return doc, nil
+}
+
+// pushList pushes a local list to dest (repo:tag) with every image (--all) and gzip layers (what every podman and Docker on a box
+// can pull, whatever the build machine's containers.conf says) and returns the index digest podman writes.
+func pushList(ctx context.Context, run runFunc, tls []string, local, dest, tmpDir string) (string, error) {
+	dfile, err := os.CreateTemp(tmpDir, ".digest-*")
+	if err != nil {
+		return "", err
+	}
+	_ = dfile.Close()
+	dpath := dfile.Name()
+	defer func() { _ = os.Remove(dpath) }()
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+	defer cancel()
+	argv := append(append([]string{"podman", "manifest", "push", "--all", "--quiet", "--compression-format=gzip"}, tls...), "--digestfile", dpath, local, "docker://"+dest)
+	if _, err := run(ctx, argv...); err != nil {
+		return "", fmt.Errorf("push %s: %w", dest, err)
+	}
+	dig, err := os.ReadFile(dpath) //nolint:gosec // the temporary file made above
+	digest := strings.TrimSpace(string(dig))
+	if err != nil || !serviceDigestRE.MatchString(digest) {
+		return "", fmt.Errorf("push %s: podman wrote no digest (%q)", dest, digest)
+	}
+	return digest, nil
 }
 
 func cmdPush(ctx context.Context, args []string, stdout io.Writer) error {
@@ -301,7 +415,8 @@ func cmdPush(ctx context.Context, args []string, stdout io.Writer) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	doc, err := Push(ctx, execRun, pushOpts{Version: *version, Registry: *reg, Platforms: strings.Split(*plats, ","), Repo: *repo, Out: *out}, stdout)
+	base, _ := registryBase(*reg)
+	doc, err := Push(ctx, execRun, pushOpts{Version: *version, Registry: *reg, Platforms: strings.Split(*plats, ","), Repo: *repo, Out: *out, HTTP: newRegistryHTTP(base)}, stdout)
 	if err != nil {
 		return err
 	}
@@ -358,20 +473,6 @@ func readImages(p string) (*ImagesDoc, error) {
 // with what it downloads. The registry digests differ from the local ones (layers are compressed on push), so the size comes from
 // the platforms of the local list, which must be the platforms that were pushed.
 func localImageSizes(ctx context.Context, run runFunc, doc *ImagesDoc) (map[string]int64, error) {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-	defer cancel()
-	raw, err := run(ctx, "podman", "images", "--all", "--format", "json")
-	if err != nil {
-		return nil, err
-	}
-	type localImage struct {
-		Digest string `json:"Digest"`
-		Size   int64  `json:"Size"`
-	}
-	var all []localImage
-	if err := json.Unmarshal(raw, &all); err != nil {
-		return nil, fmt.Errorf("podman images: %w", err)
-	}
 	sizes := map[string]int64{}
 	for _, im := range doc.Images {
 		local := ""
@@ -384,20 +485,12 @@ func localImageSizes(ctx context.Context, run runFunc, doc *ImagesDoc) (map[stri
 		for i, p := range im.Platforms {
 			want[i] = p.Platform
 		}
-		raw, err := localList(ctx, run, local)
+		lp, err := localPlatforms(ctx, run, local, want)
 		if err != nil {
 			return nil, fmt.Errorf("the size of each image is read from the local lists of make images: %w", err)
 		}
-		plats, err := platformDigests(raw, want, local)
-		if err != nil {
-			return nil, err
-		}
-		for _, p := range plats {
-			i := slices.IndexFunc(all, func(a localImage) bool { return a.Digest == p.Digest })
-			if i < 0 || all[i].Size <= 0 {
-				return nil, fmt.Errorf("%s: no local image %s for %s", local, p.Digest, p.Platform)
-			}
-			sizes[im.Service] = max(sizes[im.Service], all[i].Size)
+		for _, p := range lp {
+			sizes[im.Service] = max(sizes[im.Service], p.Size)
 		}
 	}
 	return sizes, nil

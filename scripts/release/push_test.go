@@ -1,4 +1,3 @@
-//nolint:gosec // test code: every path is in a directory the test made
 package main
 
 import (
@@ -6,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
@@ -32,7 +33,7 @@ func (f *fakeRun) joined() []string {
 	return out
 }
 
-// listJSON is a manifest list as `podman manifest inspect` prints it.
+// listJSON is a manifest list as `podman manifest inspect` prints it (and as a registry serves it, in the tests).
 func listJSON(plats map[string]string) []byte {
 	var b strings.Builder
 	b.WriteString(`{"schemaVersion":2,"mediaType":"application/vnd.oci.image.index.v1+json","manifests":[`)
@@ -61,15 +62,56 @@ func both(prefix string) map[string]string {
 	return map[string]string{"linux/amd64": digestOf(prefix + "amd64"), "linux/arm64": digestOf(prefix + "arm64")}
 }
 
-// registryFake is a registry and a podman store in memory, plus git; tweak changes one answer.
-type registryFake struct {
-	head, tag, status string
-	tweak             func(argv []string) ([]byte, error, bool)
+var localNames = []string{"core", "sensor", "scan-base", "honeypot"}
+
+// cfgID is the image ID (config digest, no sha256:) of a local platform image.
+func cfgID(local, arch string) string {
+	return strings.TrimPrefix(digestOf("cfg "+local+arch), "sha256:")
 }
 
-func (r *registryFake) fn(argv []string) ([]byte, error) {
-	if r.tweak != nil {
-		if out, err, ok := r.tweak(argv); ok {
+// localStore answers what podman says about the local lists of make images (version 0.2.0, label label): the lists, and
+// `podman images --all --format json` with the ID, size and labels of each platform image.
+func localStore(label string) func(argv []string) ([]byte, error) {
+	return func(argv []string) ([]byte, error) {
+		a := strings.Join(argv, " ")
+		switch {
+		case a == "podman images --all --format json":
+			var b strings.Builder
+			b.WriteString(`[{"Id":"` + strings.Repeat("e", 64) + `","Digest":"sha256:` + strings.Repeat("1", 64) + `","Size":1040}`)
+			for i, l := range localNames {
+				for j, arch := range []string{"amd64", "arm64"} {
+					fmt.Fprintf(&b, `,{"Id":%q,"Digest":%q,"Size":%d,"Labels":{"org.opencontainers.image.version":%q}}`, cfgID(l, arch), digestOf("local "+l+arch), 1000*(j+1)+i, label)
+				}
+			}
+			b.WriteString("]")
+			return []byte(b.String()), nil
+		case strings.HasPrefix(a, "podman manifest exists localhost/vedette-"):
+			return nil, nil
+		case strings.HasPrefix(a, "podman manifest inspect localhost/vedette-"):
+			l := strings.TrimSuffix(strings.TrimPrefix(argv[3], "localhost/vedette-"), ":0.2.0")
+			return listJSON(both("local " + l)), nil
+		}
+		return nil, fmt.Errorf("unexpected %q", a)
+	}
+}
+
+// registryFake is podman's local store, a registry (remote: repo -> the list it holds) and git; tweak changes one answer.
+type registryFake struct {
+	head, tag, status string
+	label             string
+	remote            map[string][]byte
+	tweak             func(rf *registryFake, argv []string) ([]byte, error, bool)
+}
+
+func (rf *registryFake) fn(argv []string) ([]byte, error) {
+	if rf.remote == nil {
+		rf.remote = map[string][]byte{}
+	}
+	if rf.label == "" {
+		rf.label = "0.2.0"
+	}
+	if rf.tweak != nil {
+		if out, err, ok := rf.tweak(rf, argv); ok {
 			return out, err
 		}
 	}
@@ -77,39 +119,42 @@ func (r *registryFake) fn(argv []string) ([]byte, error) {
 	last := argv[len(argv)-1]
 	switch {
 	case strings.HasPrefix(a, "git -C repo status"):
-		return []byte(r.status), nil
+		return []byte(rf.status), nil
 	case strings.HasPrefix(a, "git -C repo rev-parse --verify HEAD"):
-		return []byte(r.head + "\n"), nil
+		return []byte(rf.head + "\n"), nil
 	case strings.HasPrefix(a, "git -C repo rev-parse --verify --quiet refs/tags/"):
-		if r.tag == "" {
+		if rf.tag == "" {
 			return nil, errors.New("exit status 1")
 		}
-		return []byte(r.tag + "\n"), nil
-	case strings.HasPrefix(a, "podman manifest exists localhost/"):
-		return nil, nil
-	case strings.HasPrefix(a, "podman manifest inspect localhost/"):
-		return listJSON(both("local " + last)), nil
+		return []byte(rf.tag + "\n"), nil
+	case strings.HasPrefix(a, "podman image exists"):
+		return nil, errors.New("exit status 1")
 	case strings.HasPrefix(a, "podman manifest push"):
 		i := slices.Index(argv, "--digestfile")
 		repo, _, _ := strings.Cut(strings.TrimPrefix(last, "docker://"), ":0.2.0")
-		return nil, os.WriteFile(argv[i+1], []byte(digestOf(repo)), 0o600)
-	case strings.HasPrefix(a, "podman manifest inspect"):
-		repo, d, ok := strings.Cut(last, "@")
-		if !ok {
+		rf.remote[repo] = listJSON(both("remote " + repo))
+		return nil, os.WriteFile(argv[i+1], []byte(digestBytes(rf.remote[repo])), 0o600)
+	case strings.HasPrefix(a, "podman manifest inspect") && !strings.Contains(a, "localhost/"):
+		repo, d, byDigest := strings.Cut(last, "@")
+		if !byDigest {
 			repo, _, _ = strings.Cut(last, ":0.2.0")
 		}
-		if ok && d != digestOf(repo) {
+		body, ok := rf.remote[repo]
+		switch {
+		case !ok:
+			return nil, errors.New("reading manifest 0.2.0 in " + repo + ": manifest unknown")
+		case byDigest && digestBytes(body) != d:
 			return nil, errors.New("Manifest does not match provided manifest digest")
 		}
-		return listJSON(both("remote " + repo)), nil
+		return body, nil
 	}
-	return nil, fmt.Errorf("unexpected command %q", a)
+	return localStore(rf.label)(argv)
 }
 
 var allPlatforms = []string{"linux/amd64", "linux/arm64"}
 
 func TestPushWritesImagesJSON(t *testing.T) {
-	for _, reg := range []string{"127.0.0.1:5099", "ghcr.io/knt048"} {
+	for _, reg := range []string{"127.0.0.1:5099", "[::1]:5099", "ghcr.io/knt048"} {
 		t.Run(reg, func(t *testing.T) {
 			rf := &registryFake{head: "abc", tag: "abc"}
 			fr := &fakeRun{fn: rf.fn}
@@ -128,7 +173,7 @@ func TestPushWritesImagesJSON(t *testing.T) {
 				fmt.Fprintf(&want, "    {\n      \"service\": %q,\n      \"repo\": %q,\n      \"index_digest\": %q,\n      \"platforms\": [\n"+
 					"        {\n          \"platform\": \"linux/amd64\",\n          \"digest\": %q\n        },\n"+
 					"        {\n          \"platform\": \"linux/arm64\",\n          \"digest\": %q\n        }\n      ]\n    }",
-					svc, repo, digestOf(repo), digestOf("remote "+repo+"amd64"), digestOf("remote "+repo+"arm64"))
+					svc, repo, digestBytes(listJSON(both("remote "+repo))), digestOf("remote "+repo+"amd64"), digestOf("remote "+repo+"arm64"))
 				if i < 3 {
 					want.WriteString(",")
 				}
@@ -139,9 +184,9 @@ func TestPushWritesImagesJSON(t *testing.T) {
 				t.Errorf("images.json:\n%s\nwant:\n%s", b, want.String())
 			}
 			calls := fr.joined()
-			loop := reg == "127.0.0.1:5099"
+			loop := reg != "ghcr.io/knt048"
 			for _, c := range calls {
-				if strings.HasPrefix(c, "podman manifest push") || strings.HasPrefix(c, "podman manifest inspect "+reg) || strings.HasPrefix(c, "podman manifest inspect --") {
+				if strings.HasPrefix(c, "podman manifest push") || (strings.HasPrefix(c, "podman manifest inspect") && !strings.Contains(c, "localhost/")) {
 					if strings.Contains(c, "--tls-verify=false") != loop {
 						t.Errorf("TLS verification off only for a loopback registry: %s", c)
 					}
@@ -151,9 +196,9 @@ func TestPushWritesImagesJSON(t *testing.T) {
 				t.Errorf("git checks run for the real registry only: %v", calls)
 			}
 			push := fr.calls[slices.IndexFunc(fr.calls, func(c []string) bool { return len(c) > 2 && c[2] == "push" })]
-			wantArgv := []string{"podman", "manifest", "push", "--all", "--quiet", "--digestfile", "?", "localhost/vedette-core:0.2.0", "docker://" + reg + "/vedette-core:0.2.0"}
+			wantArgv := []string{"podman", "manifest", "push", "--all", "--quiet", "--compression-format=gzip", "--digestfile", "?", "localhost/vedette-core:0.2.0", "docker://" + reg + "/vedette-core:0.2.0"}
 			if loop {
-				wantArgv = slices.Insert(wantArgv, 5, "--tls-verify=false")
+				wantArgv = slices.Insert(wantArgv, 6, "--tls-verify=false")
 			}
 			got := slices.Clone(push)
 			if i := slices.Index(got, "--digestfile"); i > 0 {
@@ -167,13 +212,84 @@ func TestPushWritesImagesJSON(t *testing.T) {
 			}) {
 				t.Errorf("scan-base is published as vedette-scan: %v", calls)
 			}
+			// the existence check of the remote name comes before the push, and a local image of that name is looked for first
+			ex := slices.Index(calls, "podman image exists "+reg+"/vedette-core:0.2.0")
+			pu := slices.IndexFunc(calls, func(c string) bool { return strings.HasPrefix(c, "podman manifest push") })
+			if ex < 0 || ex > pu {
+				t.Errorf("order: %v", calls)
+			}
+		})
+	}
+}
+
+// remoteRegistry serves, anonymously, one list (repo vedette-honeypot, tag 0.2.0) whose platforms have config digests cfg[arch].
+func remoteRegistry(t *testing.T, cfg map[string]string, status int) (*httptest.Server, []byte) {
+	plat := map[string]string{}
+	images := map[string][]byte{}
+	for _, arch := range []string{"amd64", "arm64"} {
+		m := []byte(`{"schemaVersion":2,"mediaType":"application/vnd.oci.image.manifest.v1+json","config":{"digest":"` + cfg[arch] + `"},"layers":[]}`)
+		plat["linux/"+arch] = digestBytes(m)
+		images[digestBytes(m)] = m
+	}
+	list := listJSON(plat)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if status != 0 {
+			w.WriteHeader(status)
+			return
+		}
+		ref := strings.TrimPrefix(r.URL.Path, "/v2/vedette-honeypot/manifests/")
+		switch {
+		case ref == "0.2.0":
+			_, _ = w.Write(list)
+		case images[ref] != nil:
+			_, _ = w.Write(images[ref])
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return srv, list
+}
+
+func TestPushReusesTheSameImagesAndRefusesOthers(t *testing.T) {
+	same := map[string]string{"amd64": "sha256:" + cfgID("honeypot", "amd64"), "arm64": "sha256:" + cfgID("honeypot", "arm64")}
+	other := map[string]string{"amd64": same["amd64"], "arm64": digestOf("rebuilt")}
+	cases := map[string]struct {
+		cfg    map[string]string
+		status int
+		want   string
+	}{
+		"same images":     {cfg: same},
+		"other images":    {cfg: other, want: "never replaced"},
+		"not anonymously": {cfg: same, status: http.StatusUnauthorized, want: "cannot be compared"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			srv, list := remoteRegistry(t, c.cfg, c.status)
+			rf := &registryFake{remote: map[string][]byte{"127.0.0.1:5099/vedette-honeypot": list}}
+			fr := &fakeRun{fn: rf.fn}
+			doc, err := Push(context.Background(), fr.run, pushOpts{Version: "0.2.0", Registry: "127.0.0.1:5099", Platforms: allPlatforms, Repo: "repo", Out: t.TempDir(),
+				HTTP: registryHTTP{base: srv.URL, client: srv.Client()}}, &bytes.Buffer{})
+			if c.want != "" {
+				if err == nil || !strings.Contains(err.Error(), c.want) {
+					t.Fatalf("got %v, want %q", err, c.want)
+				}
+				return
+			}
+			must(t, err)
+			if slices.ContainsFunc(fr.joined(), func(c string) bool { return strings.Contains(c, "push") && strings.Contains(c, "vedette-honeypot") }) {
+				t.Errorf("the same images were pushed again: %v", fr.joined())
+			}
+			if doc.Images[3].IndexDigest != digestBytes(list) {
+				t.Errorf("%+v", doc.Images[3])
+			}
 		})
 	}
 }
 
 func TestPushRefusals(t *testing.T) {
-	only := func(prefix string, out []byte, err error) func([]string) ([]byte, error, bool) {
-		return func(argv []string) ([]byte, error, bool) {
+	only := func(prefix string, out []byte, err error) func(*registryFake, []string) ([]byte, error, bool) {
+		return func(_ *registryFake, argv []string) ([]byte, error, bool) {
 			if strings.HasPrefix(strings.Join(argv, " "), prefix) {
 				return out, err, true
 			}
@@ -186,22 +302,35 @@ func TestPushRefusals(t *testing.T) {
 		rf           registryFake
 		want         string
 	}{
-		"another registry":                 {reg: "docker.io/knt048", want: "pushed to ghcr.io/knt048 only"},
-		"malformed registry":               {reg: "ghcr.io/KNT048", want: "malformed"},
-		"v prefix":                         {version: "v0.2.0", want: "not SemVer"},
-		"test version, real":               {version: "0.2.0-test.1", want: "-test."},
-		"dirty tree":                       {rf: registryFake{head: "a", tag: "a", status: " M go.mod\n"}, want: "uncommitted"},
-		"no tag":                           {rf: registryFake{head: "a"}, want: "no tag v0.2.0"},
-		"head is not the tag":              {rf: registryFake{head: "a", tag: "b"}, want: "is not v0.2.0"},
-		"platform not a release":           {plats: []string{"linux/amd64", "linux/386"}, want: "linux/386"},
-		"local list lacks arm64":           {rf: registryFake{head: "a", tag: "a", tweak: only("podman manifest inspect localhost/vedette-sensor", listJSON(map[string]string{"linux/amd64": digestOf("x")}), nil)}, want: "platforms [linux/amd64]"},
-		"no local list":                    {rf: registryFake{head: "a", tag: "a", tweak: only("podman manifest exists localhost/vedette-core", nil, errors.New("exit status 1"))}, want: "no local manifest list"},
-		"a single image, no list":          {rf: registryFake{head: "a", tag: "a", tweak: only("podman manifest inspect localhost/vedette-core", []byte(`{"mediaType":"application/vnd.oci.image.manifest.v1+json"}`), nil)}, want: "not a manifest list"},
-		"push fails":                       {rf: registryFake{head: "a", tag: "a", tweak: only("podman manifest push", nil, errors.New("denied"))}, want: "denied"},
-		"no digest written":                {rf: registryFake{head: "a", tag: "a", tweak: only("podman manifest push", nil, nil)}, want: "wrote no digest"},
-		"registry returns other bytes":     {rf: registryFake{head: "a", tag: "a", tweak: only("podman manifest inspect ghcr.io/knt048/vedette-core@", nil, errors.New("Manifest does not match provided manifest digest"))}, want: "read back"},
-		"pushed list has another platform": {rf: registryFake{head: "a", tag: "a", tweak: only("podman manifest inspect ghcr.io/knt048/vedette-scan@", listJSON(map[string]string{"linux/amd64": digestOf("1"), "linux/arm64": digestOf("2"), "linux/arm64/v8": digestOf("3")}), nil)}, want: "platforms"},
-		"tag names another list":           {rf: registryFake{head: "a", tag: "a", tweak: only("podman manifest inspect ghcr.io/knt048/vedette-honeypot:0.2.0", listJSON(both("other")), nil)}, want: "does not name the list just pushed"},
+		"another registry":        {reg: "docker.io/knt048", want: "pushed to ghcr.io/knt048 only"},
+		"malformed registry":      {reg: "ghcr.io/KNT048", want: "malformed"},
+		"other ipv6":              {reg: "[::2]:5000", want: "malformed"},
+		"v prefix":                {version: "v0.2.0", want: "not SemVer"},
+		"test version, real":      {version: "0.2.0-test.1", want: "-test."},
+		"dirty tree":              {rf: registryFake{head: "a", tag: "a", status: " M go.mod\n"}, want: "uncommitted"},
+		"no tag":                  {rf: registryFake{head: "a"}, want: "no tag v0.2.0"},
+		"head is not the tag":     {rf: registryFake{head: "a", tag: "b"}, want: "is not v0.2.0"},
+		"platform not a release":  {plats: []string{"linux/amd64", "linux/386"}, want: "linux/386"},
+		"version label is not it": {rf: registryFake{label: "0.1.0"}, want: `org.opencontainers.image.version="0.1.0", not 0.2.0`},
+		"local list lacks arm64": {rf: registryFake{tweak: only("podman manifest inspect localhost/vedette-sensor",
+			listJSON(map[string]string{"linux/amd64": digestOf("local sensoramd64")}), nil)}, want: "platforms [linux/amd64]"},
+		"no local list": {rf: registryFake{tweak: only("podman manifest exists localhost/vedette-core", nil, errors.New("exit status 1"))}, want: "no local manifest list"},
+		"a single image, no list": {rf: registryFake{tweak: only("podman manifest inspect localhost/vedette-core",
+			[]byte(`{"mediaType":"application/vnd.oci.image.manifest.v1+json"}`), nil)}, want: "not a manifest list"},
+		"no local platform image":      {rf: registryFake{tweak: only("podman images", []byte(`[]`), nil)}, want: "no local image"},
+		"a local image of the remote":  {rf: registryFake{tweak: only("podman image exists ghcr.io/knt048/vedette-core:0.2.0", nil, nil)}, want: "a local image is named"},
+		"registry login fails":         {rf: registryFake{tweak: only("podman manifest inspect ghcr.io/knt048/vedette-core:0.2.0", nil, errors.New("unauthorized"))}, want: "does ghcr.io/knt048/vedette-core:0.2.0 exist?"},
+		"push fails":                   {rf: registryFake{tweak: only("podman manifest push", nil, errors.New("denied"))}, want: "denied"},
+		"no digest written":            {rf: registryFake{tweak: only("podman manifest push", nil, nil)}, want: "wrote no digest"},
+		"registry returns other bytes": {rf: registryFake{tweak: only("podman manifest inspect ghcr.io/knt048/vedette-core@", nil, errors.New("Manifest does not match provided manifest digest"))}, want: "read back"},
+		"pushed list has another platform": {rf: registryFake{tweak: only("podman manifest inspect ghcr.io/knt048/vedette-scan@",
+			listJSON(map[string]string{"linux/amd64": digestOf("1"), "linux/arm64": digestOf("2"), "linux/arm64/v8": digestOf("3")}), nil)}, want: "platforms"},
+		"tag names another list": {rf: registryFake{tweak: func(rf *registryFake, argv []string) ([]byte, error, bool) {
+			if strings.Join(argv, " ") == "podman manifest inspect ghcr.io/knt048/vedette-honeypot:0.2.0" && rf.remote["ghcr.io/knt048/vedette-honeypot"] != nil {
+				return listJSON(both("other")), nil, true
+			}
+			return nil, nil, false
+		}}, want: "does not name the list just pushed"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -232,11 +361,19 @@ func TestPushRefusals(t *testing.T) {
 
 func TestLoopbackRegistry(t *testing.T) {
 	for reg, want := range map[string]bool{
-		"127.0.0.1:5099": true, "127.0.0.1:5099/x": true, "localhost:5000": true, "[::1]:5000": true, "localhost": true,
+		"127.0.0.1:5099": true, "127.0.0.1:5099/x": true, "localhost:5000": true, "[::1]:5000": true, "[::1]": true, "localhost": true,
 		"ghcr.io/knt048": false, "10.0.0.1:5000": false, "127.0.0.1.nip.io:5000": false, "localhost.example:5000": false,
 	} {
 		if got := loopbackRegistry(reg); got != want {
 			t.Errorf("%s: %v", reg, got)
+		}
+		if !registryRE.MatchString(reg) {
+			t.Errorf("%s does not match registryRE", reg)
+		}
+	}
+	for reg, want := range map[string]string{"ghcr.io/knt048": "https://ghcr.io knt048", "127.0.0.1:5099": "http://127.0.0.1:5099 ", "[::1]:5000/a": "http://[::1]:5000 a"} {
+		if b, ns := registryBase(reg); b+" "+ns != want {
+			t.Errorf("%s: %s %s", reg, b, ns)
 		}
 	}
 }
@@ -251,30 +388,6 @@ func imagesFor(version string) *ImagesDoc {
 	return d
 }
 
-// localStore answers podman images and the local manifest lists with sizes per platform.
-func localStore(argv []string) ([]byte, error) {
-	a := strings.Join(argv, " ")
-	switch {
-	case a == "podman images --all --format json":
-		var b strings.Builder
-		b.WriteString("[")
-		for i, l := range []string{"core", "sensor", "scan-base", "honeypot"} {
-			if i > 0 {
-				b.WriteString(",")
-			}
-			fmt.Fprintf(&b, `{"Id":"x","Digest":%q,"Size":%d},{"Digest":%q,"Size":%d}`, digestOf("local "+l+"amd64"), 1000+i, digestOf("local "+l+"arm64"), 2000+i)
-		}
-		b.WriteString("]")
-		return []byte(b.String()), nil
-	case strings.HasPrefix(a, "podman manifest exists localhost/vedette-"):
-		return nil, nil
-	case strings.HasPrefix(a, "podman manifest inspect localhost/vedette-"):
-		l := strings.TrimSuffix(strings.TrimPrefix(argv[3], "localhost/vedette-"), ":0.2.0")
-		return listJSON(both("local " + l)), nil
-	}
-	return nil, fmt.Errorf("unexpected %q", a)
-}
-
 func debDir(t *testing.T, version string) string {
 	dir := t.TempDir()
 	for _, arch := range []string{"amd64", "arm64"} {
@@ -286,7 +399,7 @@ func debDir(t *testing.T, version string) string {
 func TestBuildInputsIsWhatManifestReads(t *testing.T) {
 	r := newRig(t)
 	cdir, _ := r.cosignDir("0.2.0", "core", "sensor", "scan", "honeypot")
-	fr := &fakeRun{fn: localStore}
+	fr := &fakeRun{fn: localStore("0.2.0")}
 	in, err := BuildInputs(context.Background(), fr.run, imagesFor("0.2.0"), inputsOpts{Channel: "stable", RollbackSafe: "false", DebDir: debDir(t, "0.2.0")})
 	if err != nil {
 		t.Fatal(err)
@@ -338,7 +451,7 @@ func TestBuildInputsRefusals(t *testing.T) {
 			if c.mut != nil {
 				c.mut(&o, d)
 			}
-			_, err := BuildInputs(context.Background(), (&fakeRun{fn: localStore}).run, d, o)
+			_, err := BuildInputs(context.Background(), (&fakeRun{fn: localStore("0.2.0")}).run, d, o)
 			if err == nil || !strings.Contains(err.Error(), c.want) {
 				t.Fatalf("got %v, want %q", err, c.want)
 			}

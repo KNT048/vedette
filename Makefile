@@ -466,12 +466,15 @@ release-verify:
 
 # The release job's network steps (WP-08k, D-457; order and owners in docs/plans/2026-11-12-wp08k-release-job.md). Each refuses rather than guesses.
 #   release-push      the four podman manifest lists of `make images IMAGE_TAG=<VERSION> IMAGE_VERSION=<VERSION>` to REGISTRY by digest (read back
-#                     by digest, the version tag pushed too and checked), then dist/release/images.json. The real registry needs a clean tree
-#                     at kien's tag v<VERSION> and no -test. version; REGISTRY=127.0.0.1:<port> is a rehearsal (no TLS, no git check).
+#                     by digest, the version tag pushed too and checked; a version already there is reused only with the same images), then
+#                     dist/release/images.json. Each platform image must carry the version label VERSION. The real registry needs a clean tree at
+#                     kien's tag v<VERSION> and no -test. version; REGISTRY=127.0.0.1:<port> is a rehearsal (no TLS, no git check; Linux only:
+#                     podman machine on macOS cannot reach the Mac's 127.0.0.1).
 #   release-in        release.in.json from images.json and the two dist/vedette-host_<VERSION>_<arch>.deb; RELEASE_CHANNEL (stable|beta) and
 #                     RELEASE_ROLLBACK_SAFE (true|false) are required, RELEASE_ROLLBACK_MIN / RELEASE_MIN_UPGRADE_FROM optional; add the notes by hand
-#   release-publish   verifies dist/release again and prints the gh release commands; PUBLISH=1 runs them (draft v<version>, every asset,
-#                     read back, publish, then index.json + .minisig to the fixed release "index" LAST) and checks every asset after
+#   release-publish   verifies dist/release again (install.sh too) and prints the gh release commands; PUBLISH=1 runs them (needs RELEASE_PREV_INDEX
+#                     equal to the live index, or FIRST_RELEASE=1 before any index exists; signers must be the compiled-in production keys): draft
+#                     v<version>, every asset, read back, anonymous pull of every image, publish, then index.json + .minisig to the release "index" LAST
 .PHONY: release-push release-in release-publish
 REGISTRY ?= ghcr.io/knt048
 RELEASE_CHANNEL ?=
@@ -479,6 +482,7 @@ RELEASE_ROLLBACK_SAFE ?=
 RELEASE_ROLLBACK_MIN ?=
 RELEASE_MIN_UPGRADE_FROM ?=
 PUBLISH ?=
+FIRST_RELEASE ?=
 release-push:
 	@test "$(CONTAINER)" = podman || { echo "release-push: pushes the podman manifest lists of make images; CONTAINER=$(CONTAINER) is not supported yet (D-457)" >&2; exit 1; }
 	$(RELEASE_GO) push -version '$(VERSION)' -registry '$(REGISTRY)' -platforms '$(PLATFORMS)' -out $(RELEASE_OUT)
@@ -487,7 +491,7 @@ release-in:
 	$(RELEASE_GO) in -images $(RELEASE_OUT)/images.json -out $(RELEASE_IN) -deb-dir $(DEB_OUT) -channel '$(RELEASE_CHANNEL)' -rollback-safe '$(RELEASE_ROLLBACK_SAFE)' -rollback-min-version '$(RELEASE_ROLLBACK_MIN)' -min-upgrade-from '$(RELEASE_MIN_UPGRADE_FROM)'
 
 release-publish:
-	$(RELEASE_GO) publish -dir $(RELEASE_OUT) -in $(RELEASE_IN) $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(RELEASE_KEYS_ARG) $(if $(filter 1,$(PUBLISH)),-run)
+	$(RELEASE_GO) publish -dir $(RELEASE_OUT) -in $(RELEASE_IN) $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(RELEASE_KEYS_ARG) $(if $(filter 1,$(FIRST_RELEASE)),-first-release) $(if $(filter 1,$(PUBLISH)),-run)
 
 # The confirmed mitigation packs that ship in the core image (D-345): signed before the image is built, on the maintainer's machine.
 # PACKS_VERSION: dotted numbers newer than content/mitigation/packs/VERSION. The result (VERSION, packs.list, packs.minisig) is committed.

@@ -132,15 +132,19 @@ function OfferSteps({ offer, running, engine }: { offer: UpdateAvailable; runnin
   )
 }
 
-/** Settings → Data on a container-only install (S-CORE-9 G2): a backup is a copy of the Docker volume vedette_data. */
+/** Settings → Data on a container-only install (S-CORE-9 G2): a backup is a copy of the volume vedette_data, with the Docker / Podman switch of Updates. */
 export function ContainerBackup() {
   const { t } = useTranslation('core')
+  const [engine, setEngine] = useState<Engine>('docker')
   return (
     <Section title={t('container.backup.title')} description={t('container.backup.desc')}>
       <div className="grid max-w-3xl gap-2">
-        <CodeBlock label={t('container.backup.label')} code={BACKUP_CMD} />
+        <Segmented label={t('container.updates.engine')} value={engine} onChange={setEngine} className="justify-self-start"
+          options={[{ value: 'docker', label: 'Docker' }, { value: 'podman', label: 'Podman' }]} />
+        <CodeBlock label={t('container.backup.label')} code={forEngine(BACKUP_CMD, engine)} />
         <p className="text-[13px] text-muted">{t('container.backup.keep')}</p>
-        <CodeBlock label={t('container.backup.restoreLabel')} code={RESTORE_CMD} />
+        <CodeBlock label={t('container.backup.restoreLabel')} code={forEngine(RESTORE_CMD, engine)} />
+        {engine === 'podman' ? <p className="text-[13px] text-muted">{t('container.backup.podmanNote')}</p> : null}
       </div>
     </Section>
   )

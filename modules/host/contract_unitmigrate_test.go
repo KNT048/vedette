@@ -46,14 +46,16 @@ func TestContract_UnitMigration_StartRewritesAnEarlierTemplateBeforeReadyWithout
 	}
 	rec := e.startHost(t)
 
-	if got, want := e.unit(t, api.ServiceCore), e.render(t, api.ServiceCore, digA, true); got != want || !strings.Contains(got, "\nPublishPort=6514:5515/tcp\n") {
-		t.Fatalf("core was not moved to the current template:\n%s", got)
+	// Core's current template publishes host ports its D-318 unit did not (6514, 8765): the migration never adds a port (D-455), so
+	// core stays on its earlier unit until a container.start restarts it.
+	if got := e.unit(t, api.ServiceCore); got != oldCore {
+		t.Fatalf("core was moved although the current template adds host ports:\n%s", got)
 	}
 	if got := e.unit(t, api.ServiceHoneypot); got != e.render(t, api.ServiceHoneypot, digB, false) {
 		t.Fatalf("honeypot was not moved to the current template, [Install] state kept:\n%s", got)
 	}
-	if p, err := e.m.Prev(api.ServiceCore); err != nil || p != oldCore {
-		t.Errorf("core's old bytes are not kept in .prev: %v", err)
+	if _, err := e.m.Prev(api.ServiceCore); err == nil {
+		t.Error("core's unit was rewritten")
 	}
 	if p, err := e.m.Prev(api.ServiceHoneypot); err != nil || p != oldHp {
 		t.Errorf("honeypot's old bytes are not kept in .prev: %v", err)
@@ -61,8 +63,8 @@ func TestContract_UnitMigration_StartRewritesAnEarlierTemplateBeforeReadyWithout
 	if _, err := e.m.Prev(api.ServiceSensor); err == nil {
 		t.Error("a current unit was rewritten")
 	}
-	// The volume units core mounts are written with it (a unit that names a missing .volume would not be generated).
-	for _, name := range []string{"vedette-creds-passive.volume", "vedette-creds-active.volume", "vedette-hp-log.volume"} {
+	// The volume unit the honeypot mounts is written with it (a unit that names a missing .volume would not be generated).
+	for _, name := range []string{"vedette-hp-log.volume"} {
 		if _, err := os.Stat(filepath.Join(e.m.UnitsDir(), name)); err != nil {
 			t.Errorf("%s: %v", name, err)
 		}
@@ -80,15 +82,16 @@ func TestContract_UnitMigration_StartRewritesAnEarlierTemplateBeforeReadyWithout
 		t.Error("core was stopped")
 	}
 	txt := rec.text()
-	for _, svc := range []string{api.ServiceCore, api.ServiceHoneypot} {
-		if !strings.Contains(txt, `container.start unit_migrated {"digest":`) || !strings.Contains(txt, `"service":"`+svc+`"`) {
-			t.Errorf("no unit_migrated line for %s: %s", svc, txt)
-		}
+	if !strings.Contains(txt, `container.start unit_migrated {"digest":"`+digB+`","service":"honeypot"}`) {
+		t.Errorf("no unit_migrated line for the honeypot: %s", txt)
+	}
+	if !strings.Contains(txt, `container.start unit_migration_deferred {"digest":"`+digA+`","ports":["8765/tcp","6514/tcp"],"service":"core"}`) {
+		t.Errorf("no unit_migration_deferred line for core: %s", txt)
 	}
 	if strings.Contains(txt, `"service":"sensor"`) {
 		t.Errorf("a current unit was audited as migrated: %s", txt)
 	}
-	// A second start finds nothing to do.
+	// A second start finds nothing to do (core stays deferred: one line per start, no reload).
 	e.startHost(t)
 	if got := e.ctl(); !slices.Equal(got, []string{"daemon-reload"}) {
 		t.Fatalf("a second start reloaded again: %v", got)
@@ -100,29 +103,26 @@ func TestContract_UnitMigration_StartRewritesAnEarlierTemplateBeforeReadyWithout
 func TestContract_UnitMigration_RunsOncePerStartNotInTheRetriesAfterReady(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)
-	cfg := e.m.Config()
-	old := e.writeLegacy(t, api.ServiceCore, digA, 0, true)
-	vol, err := ops.RenderVolume("passive", cfg.CoreUID+1, cfg.SensorGID) // core's migration fails: a volume made for other ids
-	if err != nil {
+	// The honeypot's migration fails: the log volume unit it writes first is a link (core's earlier units add a host port, so core is
+	// deferred, never migrated at start: D-455).
+	old := e.writeLegacy(t, api.ServiceHoneypot, digA, 0, true)
+	if err := os.Symlink("/etc/passwd", filepath.Join(e.m.UnitsDir(), "vedette-hp-log.volume")); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(e.m.UnitsDir(), "vedette-creds-passive.volume"), vol, 0o644); err != nil { //nolint:gosec // a unit file of the fake root
-		t.Fatal(err)
-	}
-	oldText, newText := e.hpTexts(t)
-	e.seedTransition(t, seed{op: "start", svc: "honeypot", phase: "pending", oldText: oldText, newText: newText, keepPrev: true})
+	oldText, newText := e.render(t, api.ServiceSensor, digA, false), e.render(t, api.ServiceSensor, digA, true)
+	e.seedTransition(t, seed{op: "start", svc: "sensor", phase: "pending", oldText: oldText, newText: newText, keepPrev: true})
 	e.m.Mark("host-starting", true)
 	rec := e.startHost(t)
 	e.m.Mark("host-starting", false)
 	e.o.AfterReady(context.Background(), e.h.Server) // the recovery loop after READY: recoverAndFinish
-	if e.journalExists(api.ServiceHoneypot) {
-		t.Fatal("the honeypot journal was not settled after READY")
+	if e.journalExists(api.ServiceSensor) {
+		t.Fatal("the sensor journal was not settled after READY")
 	}
 	if n := strings.Count(rec.text(), "unit_migration_failed"); n != 1 {
 		t.Fatalf("%d unit_migration_failed lines, want 1: %s", n, rec.text())
 	}
-	if e.unit(t, api.ServiceCore) != old {
-		t.Error("core's unit changed although its migration failed")
+	if e.unit(t, api.ServiceHoneypot) != old {
+		t.Error("the honeypot's unit changed although its migration failed")
 	}
 }
 

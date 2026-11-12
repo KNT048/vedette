@@ -184,7 +184,7 @@ test('add a profile in the page, with the key shown once and never again; the co
     expect(moved.status, JSON.stringify(moved.body)).toBe(200)
     expect(moved.body, 'the key stayed behind with the old address').toMatchObject({ base_url: 'http://127.0.0.1:1/v1', key_last4: null })
     expect((await profiles(c))[0]).toMatchObject({ base_url: 'http://127.0.0.1:1/v1', key_last4: null })
-    await page.reload() // a fresh page: the toast of the save above has a colour-contrast violation of its own (.ai/deferred/feat-e2e-real-exposure-fakes.md:5), this checks the page
+    await page.reload() // a fresh page: the toast of the save above fades in (axe reads it mid-transition), this checks the page
     await expectAccessible(page, 'ai settings, one profile')
     noErrors(errors, /status of (502|400)/)
   } finally { await c.dispose() }
@@ -346,7 +346,7 @@ test('rules: your own rules are added, edited, switched and deleted; the built-i
     await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click()
     await expect(page.getByText('Rule deleted').first()).toBeVisible()
     expect((await rules(c)).custom).toEqual([])
-    await page.reload() // a fresh page: the toast of the save above has a colour-contrast violation of its own (.ai/deferred/feat-e2e-real-exposure-fakes.md:5), this checks the page
+    await page.reload() // a fresh page: the toast of the save above fades in (axe reads it mid-transition), this checks the page
     await expectAccessible(page, 'rules')
     noErrors(errors, /status of 400/)
   } finally { await c.dispose() }
@@ -395,7 +395,7 @@ test('hooks: the built-in ones switch except the locked one; a custom hook block
     }
     expect((await hooks(c)).custom, 'the refusals saved nothing').toHaveLength(1)
     expect((await audit(c, name)).map((a) => a.action)).toEqual(['ai.hook.add'])
-    await page.reload() // a fresh page: the toast of the save above has a colour-contrast violation of its own (.ai/deferred/feat-e2e-real-exposure-fakes.md:5), this checks the page
+    await page.reload() // a fresh page: the toast of the save above fades in (axe reads it mid-transition), this checks the page
     await expectAccessible(page, 'hooks')
     noErrors(errors, /status of 400/)
   } finally { await c.dispose() }

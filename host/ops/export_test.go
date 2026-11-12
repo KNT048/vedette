@@ -10,6 +10,16 @@ import (
 
 // Internals that the external tests (package ops_test) need.
 
+// Bundle readers (D-452): fuzzed and fed hand-built sparse entries from package ops_test (opstest builds them).
+var (
+	WalkBundle       = walkBundle
+	ExtractLayout    = extractLayout
+	CheckLayout      = checkLayout
+	BundleMemberCap  = bundleMemberCap
+	ErrBundle        = errBundle
+	ErrArchiveDigest = errArchiveDigest
+)
+
 var (
 	FilterJournal        = filterJournal
 	SchemaNewer          = schemaNewer

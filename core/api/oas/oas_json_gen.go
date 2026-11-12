@@ -146868,6 +146868,10 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.ID)
 	}
 	{
+		e.FieldStart("listed_as")
+		s.ListedAs.Encode(e)
+	}
+	{
 		e.FieldStart("seen_via")
 		e.Str(s.SeenVia)
 	}
@@ -146881,7 +146885,7 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfLogsGetLogsDigestOKBadConnectionsItem = [11]string{
+var jsonFieldsNameOfLogsGetLogsDigestOKBadConnectionsItem = [12]string{
 	0:  "asset_id",
 	1:  "asset_name",
 	2:  "blocked",
@@ -146890,9 +146894,10 @@ var jsonFieldsNameOfLogsGetLogsDigestOKBadConnectionsItem = [11]string{
 	5:  "dest_kind",
 	6:  "feeds",
 	7:  "id",
-	8:  "seen_via",
-	9:  "src_ip",
-	10: "ts",
+	8:  "listed_as",
+	9:  "seen_via",
+	10: "src_ip",
+	11: "ts",
 }
 
 // Decode decodes LogsGetLogsDigestOKBadConnectionsItem from json.
@@ -147002,8 +147007,18 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "seen_via":
+		case "listed_as":
 			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				if err := s.ListedAs.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"listed_as\"")
+			}
+		case "seen_via":
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.SeenVia = string(v)
@@ -147015,7 +147030,7 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"seen_via\"")
 			}
 		case "src_ip":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.SrcIP = string(v)
@@ -147027,7 +147042,7 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"src_ip\"")
 			}
 		case "ts":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Ts = v
@@ -147049,7 +147064,7 @@ func (s *LogsGetLogsDigestOKBadConnectionsItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

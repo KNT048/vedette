@@ -267,7 +267,8 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       const row = chanRow(page, now)
       await expect(row).toContainText('On')
       await expect(row).toContainText('it@e2e.test, boss@e2e.test')
-      await expect(row.getByTitle(ERR_UNREACHABLE, { exact: true })).toHaveText(testedText(result))
+      await expect(row.getByText(testedText(result), { exact: true })).toBeVisible() // the reason is text under it, not a title (walk 3 G13)
+      await expect(row.getByText(ERR_UNREACHABLE, { exact: true })).toBeVisible()
 
       // edit: saving again is a new configuration, so the last test is cleared (POST-3)
       await row.getByRole('button', { name: 'Edit Email', exact: true }).click()
@@ -283,7 +284,8 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       const [again] = await Promise.all([page.waitForResponse((r) => r.url().endsWith('/api/v1/notify/channels/email/test') && r.request().method() === 'POST', { timeout: 60_000 }), chanRow(page, edited).getByRole('button', { name: 'Send test Email', exact: true }).click()])
       const againBody = (await again.json()) as { at: string; ok: boolean; detail: string }
       expect(againBody).toMatchObject({ ok: false, detail: ERR_UNREACHABLE })
-      await expect(chanRow(page, edited).getByTitle(ERR_UNREACHABLE, { exact: true })).toHaveText(testedText(againBody))
+      await expect(chanRow(page, edited).getByText(testedText(againBody), { exact: true })).toBeVisible()
+      await expect(chanRow(page, edited).getByText(ERR_UNREACHABLE, { exact: true })).toBeVisible()
 
       // remove: nobody signs in with email codes on this box, so the dialog has no warning about them
       await chanRow(page, edited).getByRole('button', { name: 'Remove channel Email', exact: true }).click()
@@ -312,7 +314,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
     const server = watch5xx(page)
     const c = await as('admin')
     const BAD = 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.'
-    const BLOCKED = 'The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.'
+    const BLOCKED = 'The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.'
     try {
       const before = await auditIds(c)
       await page.goto('/settings/channels')
@@ -328,10 +330,19 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       await url.fill('http://hooks.e2e.invalid/vedette')
       await key.fill('abc')
       await formRefused(page, d, 'webhook', { 'Webhook URL': 'Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.', 'Signing key': SHORT })
-      // an address on this machine passes the form's checks: the box refuses it, under the URL field
-      await url.fill('http://127.0.0.1:8444/hook')
+      // an address on this machine or a cloud metadata service is refused by the form already (walk 3 G13), with the box's sentence
       await key.fill('abcdefghijklmnop')
-      await saveRefused(page, d, 'webhook', 'bad_url', BLOCKED, 'Webhook URL')
+      for (const bad of ['http://127.0.0.1:8444/hook', 'http://169.254.169.254/latest', 'https://100.100.100.200/x', 'https://metadata.google.internal/x']) {
+        await url.fill(bad)
+        await formRefused(page, d, 'webhook', { 'Webhook URL': BLOCKED })
+      }
+      // the box refuses them too, whatever the form does (INV-8). This first webhook check of the run also starts the box's read of
+      // its own addresses, which a webhook save waits for (#157; .ai/deferred/fix-notify-metadata-mlee.md)
+      for (const bad of ['http://127.0.0.1:8444/hook', 'http://169.254.169.254/latest', 'https://100.100.100.200/x', 'https://[fd00:ec2::254]/x', 'https://metadata.google.internal/x']) {
+        const r = await api(c, 'PUT', '/notify/channels/webhook', { enabled: false, fields: { url: bad }, secret: 'abcdefghijklmnop', min_severity: 'medium' })
+        expect(r.status, `PUT webhook ${bad}`).toBe(400)
+        expect(r.body, bad).toMatchObject({ error: { code: 'bad_url', message: BLOCKED } })
+      }
       await url.fill('https://hooks.e2e.invalid/vedette')
       await d.getByRole('button', { name: 'Generate random', exact: true }).click()
       const generated = await key.inputValue()
@@ -344,12 +355,12 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       await expect(chanRow(page, saved)).toContainText('https://hooks.e2e.invalid/…ette') // sealed (SYS-4, #426): scheme://host/… and the last 4 characters
       await noEcho(page, generated)
 
-      // an edit to an address on this machine is refused too, and the saved channel stays as it was
+      // an edit to an address on this machine is refused too (by the form, walk 3 G13), and the saved channel stays as it was
       await chanRow(page, saved).getByRole('button', { name: 'Edit Webhook', exact: true }).click()
       const e = dialog(page)
       await expect(e.getByLabel('Signing key', { exact: true }), 'the saved key is not put back in the form').toHaveValue('')
       await e.getByLabel('Webhook URL', { exact: true }).fill('https://localhost/hook')
-      await saveRefused(page, e, 'webhook', 'bad_url', BLOCKED, 'Webhook URL')
+      await formRefused(page, e, 'webhook', { 'Webhook URL': BLOCKED })
       expect(await channel('webhook')).toEqual(saved)
       await page.keyboard.press('Escape')
 
@@ -453,7 +464,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
 
 test.describe('the box refuses what D-86 forbids, and keeps the rest (INV-8)', () => {
   const BAD = 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.'
-  const BLOCKED = 'The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.'
+  const BLOCKED = 'The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.'
   const INSECURE = 'Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.'
   const body = (url: string) => ({ enabled: false, fields: { url }, secret: WEBHOOK_KEY, min_severity: 'medium' })
 

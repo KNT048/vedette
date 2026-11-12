@@ -35989,6 +35989,13 @@
                           "blocked": {
                             "type": "boolean",
                             "description": "The device that sent the log blocked the connection (the line records an attempt, for example a FortiGate deny or a blocked web-filter request); false when the line went through or does not say"
+                          },
+                          "listed_as": {
+                            "description": "The name a feed lists for itself and all of its subdomains when dest is one of them (hagezi TIF, D-228, D-425): look this name up in Feeds. null when a feed lists dest itself",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           }
                         },
                         "required": [
@@ -36002,7 +36009,8 @@
                           "seen_via",
                           "feeds",
                           "confidence",
-                          "blocked"
+                          "blocked",
+                          "listed_as"
                         ],
                         "additionalProperties": false
                       }

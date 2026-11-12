@@ -1,6 +1,6 @@
 # Feeds Contract
 
-> Tier: standard · Story: S-FEED-1…5 · Last verified: 2026-11-12 (D-420 save-time address checks; fix/logs-hagezi-subdomains-mlee: `Source.Subdomains`, `IOCSighting.Subdomains`, D-228) (2026-11-09 WP-20 + nối module: `inventory`, bus sự kiện, đường cơ sở D-78, đọc cho `inventory`/`findings`)
+> Tier: standard · Story: S-FEED-1…5 · Last verified: 2026-11-12 (fix/logs-deferred-v1b-mlee: `Store.IOCSubdomainsOn` for logs, D-425) (D-420 save-time address checks; fix/logs-hagezi-subdomains-mlee: `Source.Subdomains`, `IOCSighting.Subdomains`, D-228) (2026-11-09 WP-20 + nối module: `inventory`, bus sự kiện, đường cơ sở D-78, đọc cho `inventory`/`findings`)
 
 Nguồn hành vi: `web/src/features/feeds/{contract,defaults,parsers,sourcesMock}.ts`. Nguồn dữ liệu: `PRIVACY.md` luồng 1, `docs/DATA_PIPELINE.md` §0, §3.
 

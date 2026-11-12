@@ -10,7 +10,7 @@ set -euo pipefail
 umask 077
 
 prog=lab-vm.sh
-VMS="ubuntu2404 debian13"
+VMS="ubuntu2404 ubuntu2604 debian13"
 MEM_MB=2560
 CPUS=2
 DISK_SIZE=20G
@@ -71,9 +71,9 @@ check_vm() {
 	case " $VMS " in *" ${1:-} "*) ;; *) echo "$prog: unknown vm '${1:-}' (one of: $VMS)" >&2; usage 2 ;; esac
 }
 
-vm_port() { case $1 in ubuntu2404) echo 22404 ;; debian13) echo 22013 ;; esac; }
-vm_nat_mac() { case $1 in ubuntu2404) echo 52:54:00:76:6c:01 ;; debian13) echo 52:54:00:76:6c:02 ;; esac; }
-vm_lan_mac() { case $1 in ubuntu2404) echo 52:54:00:76:6d:01 ;; debian13) echo 52:54:00:76:6d:02 ;; esac; }
+vm_port() { case $1 in ubuntu2404) echo 22404 ;; ubuntu2604) echo 22604 ;; debian13) echo 22013 ;; esac; }
+vm_nat_mac() { case $1 in ubuntu2404) echo 52:54:00:76:6c:01 ;; ubuntu2604) echo 52:54:00:76:6c:03 ;; debian13) echo 52:54:00:76:6c:02 ;; esac; }
+vm_lan_mac() { case $1 in ubuntu2404) echo 52:54:00:76:6d:01 ;; ubuntu2604) echo 52:54:00:76:6d:03 ;; debian13) echo 52:54:00:76:6d:02 ;; esac; }
 
 need() {
 	local b
@@ -170,6 +170,9 @@ image_source() {
 	case $1 in
 	ubuntu2404)
 		IMG_URL=https://cloud-images.ubuntu.com/noble/current IMG_FILE=noble-server-cloudimg-amd64.img
+		IMG_SUMS=SHA256SUMS IMG_SIG=SHA256SUMS.gpg IMG_HASH=sha256sum IMG_HEXLEN=64 ;;
+	ubuntu2604)
+		IMG_URL=https://cloud-images.ubuntu.com/resolute/current IMG_FILE=resolute-server-cloudimg-amd64.img
 		IMG_SUMS=SHA256SUMS IMG_SIG=SHA256SUMS.gpg IMG_HASH=sha256sum IMG_HEXLEN=64 ;;
 	debian13)
 		# Debian publishes no signature for cloud images (latest/ and the dated build directories hold only SHA512SUMS, read

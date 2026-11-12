@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -125,12 +126,22 @@ func TestWiringSensorDefaultCardIsTheDefaultRouteCard(t *testing.T) {
 		t.Errorf("while the host hiccups = %q %v, want the last answer", name, ok)
 	}
 	f.failing.Store(false)
-	bridge := fresh
-	bridge.DefaultRoute = &api.NetRoute{Iface: "vedette0", Gateway: "172.30.7.254"}
-	f.state.Store(bridge)
-	skew.Store(int64(20 * time.Second))
-	if name, ok := nh.ManagementCard(t.Context()); name != "" || !ok {
-		t.Errorf("a default route on the bridge = %q %v, want none", name, ok)
+	noWifiAddr := slices.Clone(fresh.Interfaces)
+	noWifiAddr[2].Addresses = nil
+	for i, c := range []struct {
+		name  string
+		ifs   []api.NetInterface
+		route string
+		want  string
+	}{
+		{"a default route on the bridge, two cards with an address: not clear", fresh.Interfaces, "vedette0", ""},
+		{"a default route on a VPN link, one card with an address", noWifiAddr, "wg0", "enp2s0"},
+	} {
+		f.state.Store(api.NetState{Interfaces: c.ifs, DefaultRoute: &api.NetRoute{Iface: c.route, Gateway: "10.9.0.1"}})
+		skew.Store(int64(time.Duration(20+10*i) * time.Second))
+		if name, ok := nh.ManagementCard(t.Context()); name != c.want || !ok {
+			t.Errorf("%s = %q %v, want %q", c.name, name, ok, c.want)
+		}
 	}
 	if name, ok := (netHost{box: newStackWith(t, func(*deps) {}).d.Network}).ManagementCard(t.Context()); name != "" || ok {
 		t.Errorf("without a host = %q %v", name, ok)

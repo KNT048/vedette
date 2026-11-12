@@ -1443,13 +1443,27 @@ func (h *NetworkHandlers) ManagementCard(ctx context.Context) (name string, ok b
 		if ae, isAPI := apierr.As(err); isAPI && ae.Code == CodeNotAppliance {
 			return "", false
 		}
+		// Unlike Cards, ok stays true before the first answer: ok=false would let the sensor's heartbeat pick the card
+		// on an appliance, which D-118 forbids. "" here means "no default yet"; the next look asks the host again.
 		h.cardsMu.Lock()
 		defer h.cardsMu.Unlock()
 		return h.lastMgmt, true
 	}
 	name = mgmtIface(st)
-	if !slices.ContainsFunc(cardsOf(st), func(c api.NetInterface) bool { return c.Name == name }) {
+	cards := cardsOf(st)
+	if !slices.ContainsFunc(cards, func(c api.NetInterface) bool { return c.Name == name }) {
+		// The management card is a virtual link (default route on wg0, br0...): the one real card with an
+		// IPv4 address, when there is exactly one.
 		name = ""
+		for _, c := range cards {
+			if _, has := ipv4Of(&c); has {
+				if name != "" {
+					name = ""
+					break
+				}
+				name = c.Name
+			}
+		}
 	}
 	h.cardsMu.Lock()
 	h.lastMgmt = name

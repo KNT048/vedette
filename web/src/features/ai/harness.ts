@@ -25,8 +25,8 @@ export const memoryStore = collection<MemoryEntry[]>('ai_memory', () => [
   { id: 'mem-3', text: 'The camera VLAN is 192.168.20.0/24 and must never reach the Internet.', source: 'user', created_at: ago(20), last_used_at: null, enabled: true },
 ], () => [])
 export const suggestionsStore = collection<MemorySuggestion[]>('ai_memory_suggestions', () => [
-  { id: 'sg-1', text: 'The accounting team works from PC-ACCOUNTS-01 to PC-ACCOUNTS-03 and uses the file server over SMB.', created_at: ago(1), evidence: 'log summary of the last 24 hours' },
-  { id: 'sg-2', text: 'Backups of the file server run every night at 01:00 to the NAS.', created_at: ago(0, 5), evidence: 'asked "when does the NAS get busy?"' },
+  { id: 'sg-1', text: 'The accounting team works from PC-ACCOUNTS-01 to PC-ACCOUNTS-03 and uses the file server over SMB.', created_at: ago(1), evidence: 'From the log summary of the last 24 hours' },
+  { id: 'sg-2', text: 'Backups of the file server run every night at 01:00 to the NAS.', created_at: ago(0, 5), evidence: 'From the question "when does the NAS get busy?"; tools read: search_assets' },
 ], () => [])
 export const rejectedTexts = collection<string[]>('ai_memory_rejected', () => [], () => [])
 export const memorySettings = collection<{ suggest_enabled: boolean }>('ai_memory_settings', () => ({ suggest_enabled: true }), () => ({ suggest_enabled: false }))

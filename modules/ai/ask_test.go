@@ -1066,7 +1066,7 @@ func TestAskSuggestsOneMemoryOnlyWhenAllowed(t *testing.T) {
 		t.Fatalf("answer = %v", got)
 	}
 	sg := a.want("GET", "/ai/memory", "admin", "", 200, "")["suggestions"].([]any)
-	if len(sg) != 1 || sg[0].(map[string]any)["text"] != "SRV-AD is the only domain controller." || sg[0].(map[string]any)["evidence"] != `asked "Which machines still expose RDP?" and read search_assets` {
+	if len(sg) != 1 || sg[0].(map[string]any)["text"] != "SRV-AD is the only domain controller." || sg[0].(map[string]any)["evidence"] != `From the question "Which machines still expose RDP?"; tools read: search_assets` {
 		t.Fatalf("suggestions = %v", sg)
 	}
 	if h := list(a.want("GET", "/ai/asks", "operator", "", 200, "")["items"]); len(h) == 0 || h[0].(map[string]any)["memories_suggested"] != float64(0) {

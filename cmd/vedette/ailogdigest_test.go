@@ -69,3 +69,29 @@ func TestAILogDigestReadsKindsAndCountsNotLines(t *testing.T) {
 		t.Fatalf("GET with logs off = %d %v", code, m)
 	}
 }
+
+// The box's own device row reaches ai marked, so Ask and Explain name it apart in their citations (D-422).
+func TestAIReadsMarkTheBoxItself(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	box, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "vedette", IP: "192.168.10.2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.d.Inventory.AddDevice(ctx, "it@acme.example", inventory.AddInput{CatalogID: "fortigate", Name: "fw-hq", IP: "192.168.30.1"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := aiBoxID(s.d.Inventory)(ctx); err != nil || got != box {
+		t.Fatalf("box id = %q %v, want %q", got, err, box)
+	}
+	rows, err := aiAsk{inv: s.d.Inventory}.Assets(ctx)
+	if err != nil || len(rows) != 2 {
+		t.Fatalf("rows = %+v %v", rows, err)
+	}
+	for _, r := range rows {
+		if r.IsBox != (r.ID == box) {
+			t.Fatalf("row %+v", r)
+		}
+	}
+}

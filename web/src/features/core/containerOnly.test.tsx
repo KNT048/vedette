@@ -76,12 +76,13 @@ describe('container-only install (D-381)', () => {
   it.each([
     ['no check has succeeded', { last_check: null }, /No release information yet/],
     ['the check is off', { check_enabled: false }, /The update check is off/],
-    ['nothing newer', { last_check: '2026-11-12T00:00:00Z' }, /No newer release is offered to this install \(it runs 0\.9\.3\)/],
+    ['nothing newer', { last_check: '2026-11-12T00:00:00Z' }, /No newer release is offered to this install\./],
   ])('Updates without a newer release says why (%s) and keeps the general pull and up -d block', async (_, over, said) => {
     const state = { channel: 'stable', mode: 'manual', check_enabled: true, last_check: null, components: [{ id: 'software', kind: 'software', version: '0.9.3', previous: null, installed_at: '2026-11-01T00:00:00Z', signature: 'unsigned', rollback_restores_data: false }], available: [], history: [], advisories: [], run: null, managed: [], running_revoked: null, stale_since: null, ...over }
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json(state)))
     renderApp('/settings/updates')
     expect(await screen.findByText(said)).toBeInTheDocument()
+    expect(screen.getByText(/Running version 0\.9\.3\. (Update information last read|Update information has never been read)/)).toBeInTheDocument()
     expect(screen.getByText(/docker compose --env-file vedette.env pull/)).toBeInTheDocument()
     expect(screen.queryByText(/minisign|cosign verify/)).toBeNull()
   })

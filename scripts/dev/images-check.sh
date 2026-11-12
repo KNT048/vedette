@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # make images-check (D-146): build the sensor and scan images one at a time and check each BY EFFECT, not by exit code of the build:
-# the binary prints the SemVer it was built with, nuclei is the pinned binary and runs offline from an empty tmpfs HOME, the pack is where
+# the binary prints the SemVer it was built with, nuclei is built from the pinned source with the pinned Go and runs offline from an empty tmpfs HOME, the pack is where
 # the worker looks, scan-base holds no nmap, and the on-box image holds the pinned nmap. Removes the images at the end (build-artifacts rule).
 # CONTAINER=podman (default) or docker. Linux or macOS. No scan, no traffic besides the downloads of the builds.
 set -euo pipefail
@@ -10,9 +10,10 @@ ver=${IMAGE_VERSION:-9.8.7}
 tag=check
 # shellcheck disable=SC1091
 set -a; . deploy/containers/pins.env; set +a
-case $(uname -m) in aarch64 | arm64) arch=ARM64 ;; *) arch=AMD64 ;; esac
-want_nuclei=NUCLEI_BIN_SHA256_$arch
-want_nuclei=${!want_nuclei}
+# nuclei is built from source (D-319): the check is what the binary carries, its Go version and the patched module versions in its build info.
+want_go=${GOLANG_IMAGE#*golang:}; want_go=${want_go%%-*}
+want_net=$(awk '$1 == "golang.org/x/net" {print $2; exit}' deploy/containers/scan-base/nuclei/go.mod)
+[ -n "$want_go" ] && [ -n "$want_net" ] || { echo "images-check: FAIL cannot read the Go version of GOLANG_IMAGE or x/net of scan-base/nuclei/go.mod" >&2; exit 1; }
 cleanup() { $c rmi -f "localhost/vedette-sensor:$tag" "localhost/vedette-scan-base:$tag" "localhost/vedette-scan-nmap:$tag" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 fail() { echo "images-check: FAIL $*" >&2; exit 1; }
@@ -32,9 +33,9 @@ mk scan-base-image
 got=$($c run --rm "localhost/vedette-scan-base:$tag" -version)
 [ "$got" = "$ver" ] || fail "scan-base -version printed '$got', want '$ver'"
 ok "scan-base: /vedette-sensor -version prints $got"
-sum=$($c run --rm --entrypoint sha256sum "localhost/vedette-scan-base:$tag" /usr/local/bin/nuclei | cut -d' ' -f1)
-[ "$sum" = "$want_nuclei" ] || fail "nuclei binary sha256 $sum, pinned $want_nuclei"
-ok "scan-base: /usr/local/bin/nuclei sha256 $sum equals the pin"
+$c run --rm --entrypoint grep "localhost/vedette-scan-base:$tag" -aq "go$want_go" /usr/local/bin/nuclei || fail "nuclei was not built with the pinned Go $want_go"
+$c run --rm --entrypoint grep "localhost/vedette-scan-base:$tag" -aq "golang.org/x/net.$want_net" /usr/local/bin/nuclei || fail "nuclei does not carry the patched golang.org/x/net $want_net"
+ok "scan-base: /usr/local/bin/nuclei is built with Go $want_go and the patched golang.org/x/net $want_net"
 out=$($c run --rm --network none --read-only --tmpfs /tmp --env HOME=/tmp/h --entrypoint /usr/local/bin/nuclei "localhost/vedette-scan-base:$tag" -version -duc 2>&1) || fail "nuclei -version -duc exited non-zero offline: $out"
 echo "$out" | grep -q "Nuclei Engine Version: v$NUCLEI_VERSION" || fail "nuclei version line: $out"
 ok "scan-base: nuclei -version -duc exits 0 offline on an empty tmpfs HOME: $(echo "$out" | grep 'Engine Version' | sed 's/\x1b\[[0-9;]*m//g')"

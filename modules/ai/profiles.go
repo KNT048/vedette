@@ -426,9 +426,10 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 		}
 		// The test is a call to the provider like any other: it is in the activity log and so in the day's usage after a restart.
 		e := ActivityEntry{Job: "connection-test", Profile: name, ProfileID: exceptID, Model: p.Model, Trigger: "user:" + who, InputHash: HashContent("ping"), OutputHash: HashContent(""),
-			Summary: "Connection test of " + name, Result: ResultError}
+			Summary: "Connection test of " + name, Result: ResultError, TokensIn: res.TokensIn, TokensOut: res.TokensOut}
+		// the tokens of all three requests, also when the test failed with known usage: the meter is seeded from this row after a restart
 		if probeErr == nil {
-			e.Result, e.OutputHash, e.TokensIn, e.TokensOut = ResultOK, HashContent("pong"), res.TokensIn, res.TokensOut
+			e.Result, e.OutputHash = ResultOK, HashContent("pong")
 		}
 		if _, err := s.appendActivity(actx, tx, e); err != nil {
 			return err

@@ -60,16 +60,17 @@ func docKind(name string) string {
 }
 
 // sniffDoc is the quick check made while the upload is answered: the bytes must look like the type the name claims. It reads
-// nothing deep, so a file that passes can still fail in the indexer (the audit row says why).
+// nothing deep, so a file that passes can still fail in the indexer (the audit row says why). Its errors (and decodeText's) are
+// the rest of a sentence that starts with the file name: "broken.pdf is not a PDF file".
 func sniffDoc(kind string, data []byte) error {
 	switch kind {
 	case "docx":
 		if !bytes.HasPrefix(data, []byte("PK\x03\x04")) {
-			return errors.New("this is not a Word (DOCX) file")
+			return errors.New("is not a Word (DOCX) file")
 		}
 	case "pdf":
 		if !bytes.Contains(data[:min(len(data), 1024)], []byte("%PDF-")) { // the same test as the child's
-			return errors.New("this is not a PDF file")
+			return errors.New("is not a PDF file")
 		}
 	default:
 		if _, err := decodeText(data); err != nil {
@@ -89,7 +90,7 @@ func decodeText(data []byte) (string, error) {
 		le := data[0] == 0xFF
 		body := data[2:]
 		if len(body)%2 != 0 {
-			return "", errors.New("the text file is not valid UTF-16")
+			return "", errors.New("is not valid UTF-16 text")
 		}
 		u := make([]uint16, len(body)/2)
 		for i := range u {
@@ -101,17 +102,17 @@ func decodeText(data []byte) (string, error) {
 		}
 		s = string(utf16.Decode(u))
 		if strings.ContainsRune(s, utf8.RuneError) {
-			return "", errors.New("the text file is not valid UTF-16")
+			return "", errors.New("is not valid UTF-16 text")
 		}
 	default:
 		data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
 		if !utf8.Valid(data) {
-			return "", errors.New("the text file is not UTF-8. Save it as UTF-8 and add it again")
+			return "", errors.New("is not UTF-8 text. Save it as UTF-8 and add it again")
 		}
 		s = string(data)
 	}
 	if strings.ContainsRune(s, 0) {
-		return "", errors.New("this is not a text file")
+		return "", errors.New("is not a text file")
 	}
 	return s, nil
 }

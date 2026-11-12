@@ -3267,7 +3267,7 @@ func (s *AiGetAiMemoryOKItemsItemSource) UnmarshalText(data []byte) error {
 
 type AiGetAiMemoryOKSuggestionsItem struct {
 	CreatedAt time.Time `json:"created_at"`
-	// Where the AI noticed this, for example "log summary of 7 Nov".
+	// Where the AI noticed this, for example "From the log summary of 7 Nov".
 	Evidence string `json:"evidence"`
 	ID       string `json:"id"`
 	Text     string `json:"text"`
@@ -10773,7 +10773,7 @@ func (s *AiPutAiMemorySettingsOKItemsItemSource) UnmarshalText(data []byte) erro
 
 type AiPutAiMemorySettingsOKSuggestionsItem struct {
 	CreatedAt time.Time `json:"created_at"`
-	// Where the AI noticed this, for example "log summary of 7 Nov".
+	// Where the AI noticed this, for example "From the log summary of 7 Nov".
 	Evidence string `json:"evidence"`
 	ID       string `json:"id"`
 	Text     string `json:"text"`

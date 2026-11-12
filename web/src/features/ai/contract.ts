@@ -91,7 +91,7 @@ export const RuleInput = z.object({ text: z.string().min(3).max(300), jobs: z.ar
 export const RulesView = z.object({ builtin: z.array(BuiltinRule), custom: z.array(Rule) })
 
 export const MemoryEntry = z.object({ id: z.string(), text: z.string(), source: z.enum(['ai', 'user']), created_at: iso, last_used_at: iso.nullable(), enabled: z.boolean() })
-export const MemorySuggestion = z.object({ id: z.string(), text: z.string(), created_at: iso, evidence: z.string().describe('Where the AI noticed this, for example "log summary of 7 Nov"') })
+export const MemorySuggestion = z.object({ id: z.string(), text: z.string(), created_at: iso, evidence: z.string().describe('Where the AI noticed this, for example "From the log summary of 7 Nov"') })
 export const MemoryView = z.object({ suggest_enabled: z.boolean(), items: z.array(MemoryEntry), suggestions: z.array(MemorySuggestion) })
 export const MemoryInput = z.object({ text: z.string().min(3).max(300) })
 export const MemoryPatch = z.object({ text: z.string().min(3).max(300).optional(), enabled: z.boolean().optional() })

@@ -54,7 +54,7 @@ export default function KnowledgeTab() {
               <Panel className="grid gap-3 p-4">
                 <Field label={t('harness.knowledge.indexLabel')} htmlFor="kb-index" hint={t('harness.knowledge.indexHint')}>
                   <Select id="kb-index" className="max-w-sm" value={k.index_profile ?? ''} disabled={index.isPending}
-                    onChange={(e) => index.mutate(e.target.value || null, { onSuccess: () => toast.success(t('harness.knowledge.indexSaved')) })}>
+                    onChange={(e) => index.mutate(e.target.value || null, { onSuccess: () => { add.reset(); toast.success(t('harness.knowledge.indexSaved')) } })}>
                     <option value="">{t('harness.knowledge.indexNone')}</option>
                     {list.map((p) => <option key={p.id} value={p.id} disabled={!p.usable}>{p.name} ({t(`profiles.location.${p.location}`)}){!p.usable ? ` - ${t('assign.optNoKey')}` : ''}</option>)}
                   </Select>
@@ -78,7 +78,7 @@ export default function KnowledgeTab() {
                         <Button size="sm" onClick={() => setDel(d)} aria-label={t('harness.deleteNamed', { name: d.name })}>{t('harness.delete')}</Button>
                       </>}>
                         <p className="flex flex-wrap items-center gap-2 font-medium">{d.name} <Chip tone={d.status === 'ready' ? 'ok' : 'warn'}>{t(`harness.knowledge.status.${d.status}`)}</Chip></p>
-                        <p className="text-[13px] text-muted">{size(d.size)} · {d.chunks === null ? t('harness.knowledge.noChunks') : t('harness.knowledge.chunks', { n: fmtNumber(d.chunks) })} · {fmtRelative(d.uploaded_at)}</p>
+                        <p className="text-[13px] text-muted">{size(d.size)} · {d.chunks === null ? t('harness.knowledge.noChunks') : t('harness.knowledge.chunks', { count: d.chunks, n: fmtNumber(d.chunks) })} · {fmtRelative(d.uploaded_at)}</p>
                         <p className="text-[13px] text-muted">{t('harness.knowledge.usedBy', { jobs: jobNames(t, d.jobs) })}</p>
                       </Row>
                     ))}

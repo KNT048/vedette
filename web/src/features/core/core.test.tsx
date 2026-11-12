@@ -381,8 +381,8 @@ describe('core: dữ liệu', () => {
     within(dlg).getByText(/keeps a copy of the data it has now/)
     const confirm = within(dlg).getByRole('button', { name: 'Restore' })
     expect(confirm).toBeDisabled()
-    within(dlg).getByText(/keeps the last 3 automatic copies/)
-    within(dlg).getByText(/so the oldest automatic copy, Before restore from/)
+    within(dlg).getByText(/keeps the last 3 Before restore copies/)
+    within(dlg).getByText(/so the oldest Before restore copy, from/)
     await u.click(within(dlg).getByLabelText(/I understand/))
     expect(confirm).toBeDisabled()
     await u.type(within(dlg).getByLabelText('Your current password'), 'wrong')
@@ -600,6 +600,16 @@ describe('core: người dùng, OIDC, nhật ký (S-CORE-3)', () => {
     await waitFor(() => expect(usersStore.get().find((x) => x.id === 'u-op')!.role).toBe('viewer'))
     await u.click(screen.getAllByRole('button', { name: 'Disable Director' })[0]!)
     await waitFor(() => expect(usersStore.get().find((x) => x.id === 'u-view')!.disabled).toBe(true))
+  })
+
+  it('OIDC: lưu trống báo cả ba ô một lần (QA b8)', async () => {
+    const u = user()
+    renderApp('/settings/users')
+    await u.click(await screen.findByRole('button', { name: 'Turn on SSO sign-in' }))
+    await u.click(await screen.findByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Enter the issuer address.')).toBeInTheDocument()
+    expect(screen.getByText('Enter the Client ID.')).toBeInTheDocument()
+    expect(screen.getByText('Enter the Client secret.')).toBeInTheDocument()
   })
 
   it('OIDC: bật, lưu, thử, và nút SSO hiện ở trang đăng nhập', async () => {
@@ -877,7 +887,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
     await u.click(screen.getByRole('button', { name: 'Update Vedette software' }))
     // D-340: the software update is a run with steps; Apply and Rollback wait for it, the toast comes at its end
     expect(await screen.findByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
-    expect(screen.getByText(/^Step 1 of 3:/)).toBeInTheDocument()
+    expect(screen.getByText(/^Step 1 of 4: update the system helper/)).toBeInTheDocument() // D-316: the release brings a newer helper
     expect(screen.getByRole('button', { name: /^Back to .*Vedette software/i })).toBeDisabled()
     expect(await screen.findByText(/switched to the new build/, undefined, { timeout: 8000 })).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
@@ -888,7 +898,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
-    expect(await screen.findByText(/switched to the new build/, undefined, { timeout: 8000 })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Vedette software updated to 0.9.4' }, { timeout: 8000 })).toBeInTheDocument() // not a toast: one of the test before may still show
     await u.click(await screen.findByRole('button', { name: /^Back to 0\.9\.3/ }))
     const dlg = await screen.findByRole('dialog')
     expect(dlg).toHaveTextContent('Data written since the update is lost.')
@@ -905,7 +915,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
-    expect(await screen.findByText(/switched to the new build/, undefined, { timeout: 8000 })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Vedette software updated to 0.9.4' }, { timeout: 8000 })).toBeInTheDocument() // not a toast: one of the test before may still show
     const r = await fetch(`${location.origin}/api/v1/core/updates/rollback`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ component: 'software' }) })
     expect(r.status).toBe(409)
     expect(((await r.json()) as { error: { code: string } }).error.code).toBe('confirm_required')
@@ -1656,6 +1666,24 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
       expect((await patch({ window: { mode: 'weekly', days: [1], from: '02:00', to: '04:00' } })).status).toBe(400)
       expect((await patch({ window: { mode: 'window', days: [1], from: '25:00', to: '04:00' } })).status).toBe(400)
     })
+  })
+
+  it('saving a window warns first and says so when it cancelled the scheduled reboot (QA b3)', async () => {
+    const u = user()
+    renderApp('/settings/updates')
+    await screen.findByRole('button', { name: 'Check now' }, T)
+    const os = osSection()
+    await u.click(await os.findByRole('button', { name: 'Schedule reboot' }, T))
+    const d = within(await screen.findByRole('dialog', { name: 'Schedule a reboot' }))
+    await u.click(d.getByRole('radio', { name: 'At the start of the next maintenance window' }))
+    await u.click(d.getByRole('button', { name: /^Schedule/ }))
+    await os.findByText(/Reboot scheduled for/)
+    await u.click(os.getByLabelText('Sunday'))
+    await u.click(os.getByLabelText('Monday'))
+    expect(os.getByText(/saving cancels the reboot/)).toBeInTheDocument()
+    await u.click(os.getByRole('button', { name: 'Save window' }))
+    expect(await screen.findByText(/it was cancelled\. Schedule it again/)).toBeInTheDocument()
+    toast.dismiss()
   })
 
   describe('form matrix: schedule a reboot', () => {

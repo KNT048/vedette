@@ -9639,6 +9639,8 @@ func (s CoreGetCoreUpdatesOKRunStatus) Validate() error {
 
 func (s CoreGetCoreUpdatesOKRunStep) Validate() error {
 	switch s {
+	case "host":
+		return nil
 	case "download":
 		return nil
 	case "start":
@@ -9654,6 +9656,8 @@ func (s CoreGetCoreUpdatesOKRunStep) Validate() error {
 
 func (s CoreGetCoreUpdatesOKRunStepsItem) Validate() error {
 	switch s {
+	case "host":
+		return nil
 	case "download":
 		return nil
 	case "start":
@@ -11202,6 +11206,8 @@ func (s CorePatchCoreUpdatesOKRunStatus) Validate() error {
 
 func (s CorePatchCoreUpdatesOKRunStep) Validate() error {
 	switch s {
+	case "host":
+		return nil
 	case "download":
 		return nil
 	case "start":
@@ -11217,6 +11223,8 @@ func (s CorePatchCoreUpdatesOKRunStep) Validate() error {
 
 func (s CorePatchCoreUpdatesOKRunStepsItem) Validate() error {
 	switch s {
+	case "host":
+		return nil
 	case "download":
 		return nil
 	case "start":
@@ -14878,6 +14886,8 @@ func (s CorePostCoreUpdatesApplyOKRunStatus) Validate() error {
 
 func (s CorePostCoreUpdatesApplyOKRunStep) Validate() error {
 	switch s {
+	case "host":
+		return nil
 	case "download":
 		return nil
 	case "start":
@@ -14893,6 +14903,8 @@ func (s CorePostCoreUpdatesApplyOKRunStep) Validate() error {
 
 func (s CorePostCoreUpdatesApplyOKRunStepsItem) Validate() error {
 	switch s {
+	case "host":
+		return nil
 	case "download":
 		return nil
 	case "start":
@@ -15495,6 +15507,8 @@ func (s CorePostCoreUpdatesBundleOKStateRunStatus) Validate() error {
 
 func (s CorePostCoreUpdatesBundleOKStateRunStep) Validate() error {
 	switch s {
+	case "host":
+		return nil
 	case "download":
 		return nil
 	case "start":
@@ -15510,6 +15524,8 @@ func (s CorePostCoreUpdatesBundleOKStateRunStep) Validate() error {
 
 func (s CorePostCoreUpdatesBundleOKStateRunStepsItem) Validate() error {
 	switch s {
+	case "host":
+		return nil
 	case "download":
 		return nil
 	case "start":
@@ -16112,6 +16128,8 @@ func (s CorePostCoreUpdatesCheckOKRunStatus) Validate() error {
 
 func (s CorePostCoreUpdatesCheckOKRunStep) Validate() error {
 	switch s {
+	case "host":
+		return nil
 	case "download":
 		return nil
 	case "start":
@@ -16127,6 +16145,8 @@ func (s CorePostCoreUpdatesCheckOKRunStep) Validate() error {
 
 func (s CorePostCoreUpdatesCheckOKRunStepsItem) Validate() error {
 	switch s {
+	case "host":
+		return nil
 	case "download":
 		return nil
 	case "start":
@@ -17517,6 +17537,8 @@ func (s CorePostCoreUpdatesRollbackOKRunStatus) Validate() error {
 
 func (s CorePostCoreUpdatesRollbackOKRunStep) Validate() error {
 	switch s {
+	case "host":
+		return nil
 	case "download":
 		return nil
 	case "start":
@@ -17532,6 +17554,8 @@ func (s CorePostCoreUpdatesRollbackOKRunStep) Validate() error {
 
 func (s CorePostCoreUpdatesRollbackOKRunStepsItem) Validate() error {
 	switch s {
+	case "host":
+		return nil
 	case "download":
 		return nil
 	case "start":

@@ -19,24 +19,29 @@ import { Band, errMsg, ReadOnlyNote, useGate } from './parts'
 import { MAX_UPLOAD, sha256Hex, toBase64 } from './util'
 import type { ManagedPackage, UpdateAvailable, UpdateComponent, UpdateHistory, UpdateRun, UpdatesState } from './types'
 
-/** The software install or rollback (D-340): its steps while it runs, its end in words, and one toast (with Reload: the page now runs the old code) when a run this page saw running ends. */
-function RunPanel({ run, name, reconnecting }: { run: UpdateRun; name: string; reconnecting: boolean }) {
+/**
+ * The software install or rollback (D-340): its steps while it runs, its end in words, and one toast (with Reload: the page now runs the old code) when a run this page saw running ends.
+ * `after`: the run on screen when this page last pressed Apply on the software; a different run is one Apply started, announced even when it ended at once (D-316 (h), host_too_old).
+ */
+function RunPanel({ run, name, reconnecting, after }: { run: UpdateRun; name: string; reconnecting: boolean; after?: string | null }) {
   const { t } = useTranslation('core')
   const seen = useRef<string | null>(null)
   // The run this page watched while it ran: only its end is announced and offers Reload (an old end is not news).
   const [watched, setWatched] = useState<string | null>(null)
-  if (run.status === 'running' && watched !== run.id) setWatched(run.id)
+  const started = after !== undefined && run.id !== after
+  if ((run.status === 'running' || started) && watched !== run.id) setWatched(run.id)
   const sawEnd = watched === run.id && run.status !== 'running'
   useEffect(() => {
     if (run.status === 'running') { seen.current = `${run.id}:running`; return }
-    if (seen.current === `${run.id}:running`) {
+    if (seen.current === `${run.id}:end`) return
+    if (seen.current === `${run.id}:running` || started) {
       const reload = { action: { label: t('updates.run.reload'), onClick: () => window.location.reload() } }
       if (run.status === 'done') toast.success(t(run.action === 'update' ? 'updates.appliedSoftware' : 'updates.rolledBack', { name }), reload)
       else if (run.status === 'reverted') toast.error(run.error ?? t(`updates.run.revertedToast.${run.action}`, { from: run.from ?? '' }))
       else toast.error(run.error ?? t(`updates.run.failedToast.${run.action}`))
     }
     seen.current = `${run.id}:end`
-  }, [run.id, run.status, run.action, run.error, run.from, name, t])
+  }, [run.id, run.status, run.action, run.error, run.from, name, t, started])
   const at = run.step ? run.steps.indexOf(run.step) : -1
   const tone = run.status === 'running' ? 'accent' : run.status === 'done' ? 'ok' : 'danger'
   const why = run.status === 'failed' || run.status === 'reverted' ? (run.error ?? t(`updates.run.${run.status}Toast.${run.action}`, { from: run.from ?? '' })) : null
@@ -48,15 +53,18 @@ function RunPanel({ run, name, reconnecting }: { run: UpdateRun; name: string; r
         <span className="text-[13px] text-muted">{fmtDateTime(run.started_at)}, {run.user === 'system' ? t('updates.hist.system') : run.user}</span>
       </div>
       {run.status === 'running' ? (
-        <ol className="grid gap-1 text-sm" aria-live="polite">
-          {run.steps.map((st, i) => (
-            <li key={st} className={i === at ? 'font-medium' : 'text-muted'} aria-current={i === at ? 'step' : undefined}>
-              {t('updates.run.stepOf', { n: i + 1, total: run.steps.length })} {t(`updates.run.step.${st}`)}{i < at ? ` ${t('updates.run.stepDone')}` : ''}
-            </li>
-          ))}
-        </ol>
+        <div className="grid gap-3" aria-live="polite">
+          <ol className="grid gap-1 text-sm">
+            {run.steps.map((st, i) => (
+              <li key={st} className={i === at ? 'font-medium' : 'text-muted'} aria-current={i === at ? 'step' : undefined}>
+                {t('updates.run.stepOf', { n: i + 1, total: run.steps.length })} {t(`updates.run.step.${st}`)}{i < at ? ` ${t('updates.run.stepDone')}` : ''}
+              </li>
+            ))}
+          </ol>
+          {run.step === 'restart' ? <p className="text-[13px] text-muted">{t('updates.run.restartNote')}</p> : null}
+          {run.step === 'host' ? <p className="text-[13px] text-muted">{t('updates.run.hostNote')}</p> : null}
+        </div>
       ) : null}
-      {run.status === 'running' && run.step === 'restart' ? <p className="text-[13px] text-muted">{t('updates.run.restartNote')}</p> : null}
       {reconnecting ? <p role="status" className="text-[13px] text-muted">{t('updates.run.reconnecting')}</p> : null}
       {run.status === 'done' && sawEnd ? <div><Button size="sm" onClick={() => window.location.reload()}>{t('updates.run.reload')}</Button> <span className="text-[13px] text-muted">{t('updates.run.reloadWhy')}</span></div> : null}
       {why ? <p role={sawEnd ? 'alert' : undefined} className="text-sm text-danger">{why}</p> : null}
@@ -72,11 +80,15 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
   const m = useUpdateMutations()
   const [rollback, setRollback] = useState<UpdateComponent | null>(null)
   const [dataLossOk, setDataLossOk] = useState(false)
+  const [after, setAfter] = useState<string | null | undefined>(undefined) // see RunPanel; undefined until Apply
   const running = s.run?.status === 'running' // only the software waits for its run; data and packs still update
   const askRollback = (c: UpdateComponent) => { setDataLossOk(false); setRollback(c) }
   const file = useRef<HTMLInputElement>(null)
   const comp = (id: string) => t(`updates.comp.${id}`, { defaultValue: id })
   const availableOf = (id: string): UpdateAvailable | undefined => s.available.find((a) => a.component === id)
+  // The system helper (D-316) has no Apply of its own: the software release brings it, and the software run updates it first.
+  const hostNext = availableOf('software')?.host_version
+  const includesHost = (a: UpdateAvailable) => (a.host_version ? <span className="max-w-xs text-[12px] text-muted">{t('updates.host.includes', { version: a.host_version })}</span> : null)
 
   async function check() {
     try {
@@ -85,10 +97,12 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
     } catch (e) { toast.error(errMsg(e, t)) }
   }
   async function apply(id: string) {
+    if (id === 'software') setAfter(s.run?.id ?? null)
     try {
       await m.apply.mutateAsync(id)
       if (id !== 'software') toast.success(t('updates.applied', { name: comp(id) })) // the software reports at the end of its run (RunPanel)
     } catch (e) { toast.error(errMsg(e, t)) }
+    // not reset: the new run reaches the page after this returns (react-query notifies later); a refused Apply leaves the same run on screen
   }
   async function doRollback(c: UpdateComponent) {
     try {
@@ -115,20 +129,21 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
   }
 
   const columns: ColumnDef<UpdateComponent>[] = [
-    { id: 'name', header: t('updates.col.component'), accessorFn: (c) => comp(c.id), cell: ({ row }) => <div className="grid"><span className="font-medium">{comp(row.original.id)}</span><span className="text-[12px] text-muted">{t(`updates.kind.${row.original.kind}`)}</span></div> },
+    { id: 'name', header: t('updates.col.component'), accessorFn: (c) => comp(c.id), cell: ({ row }) => <div className="grid"><span className="font-medium">{comp(row.original.id)}</span>{row.original.id === 'host' ? <span className="max-w-xs text-[12px] text-muted">{t('updates.host.how')}</span> : <span className="text-[12px] text-muted">{t(`updates.kind.${row.original.kind}`)}</span>}</div> },
     { id: 'version', header: t('updates.col.version'), accessorFn: (c) => c.version, cell: ({ row }) => <div className="grid"><span className="font-mono text-[12.5px]">{row.original.version}</span><span className="text-[12px] text-muted">{fmtDateTime(row.original.installed_at)}</span></div> },
     { id: 'sig', header: t('updates.col.signature'), accessorFn: (c) => c.signature, cell: ({ row }) => (row.original.signature === 'valid' ? <Chip tone="ok">{t('updates.sig.valid')}</Chip> : <Chip tone="danger">{t(`updates.sig.${row.original.signature}`)}</Chip>) },
     { id: 'available', header: t('updates.col.available'), enableSorting: false, accessorFn: (c) => availableOf(c.id)?.version ?? '', cell: ({ row }) => {
+      if (row.original.id === 'host') return hostNext ? <span className="font-mono text-[12.5px]">{hostNext}</span> : <span className="text-muted">{t('updates.latest')}</span>
       const a = availableOf(row.original.id)
       if (!a) return <span className="text-muted">{t('updates.latest')}</span>
       return (
         <div className="flex flex-wrap items-center gap-2">
-          <div className="grid"><span className="font-mono text-[12.5px]">{a.version}</span><span className="max-w-xs text-[12px] text-muted">{a.note}</span></div>
+          <div className="grid"><span className="font-mono text-[12.5px]">{a.version}</span><span className="max-w-xs text-[12px] text-muted">{a.note}</span>{includesHost(a)}</div>
           <Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button>
         </div>
       )
     } },
-    { id: 'rollback', header: t('updates.col.rollback'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => (row.original.previous
+    { id: 'rollback', header: t('updates.col.rollback'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => (row.original.id === 'host' ? <span className="text-muted">–</span> : row.original.previous
       ? <Button size="sm" disabled={admin.disabled || (running && row.original.id === 'software')} title={admin.title} onClick={() => askRollback(row.original)}>{t('updates.rollbackTo', { version: row.original.previous })} <span className="sr-only">{comp(row.original.id)}</span></Button>
       : <span className="text-muted">{t('updates.noPrevious')}</span>) },
   ]
@@ -157,7 +172,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
 
       <section id="vedette" aria-labelledby="vedette-band" className="mt-12">
         <Band id="vedette-band" n="3" title={t('updates.vedette.title')} desc={t('updates.vedette.desc')} />
-      {s.run ? <RunPanel run={s.run} name={comp(s.run.component)} reconnecting={reconnecting} /> : null}
+      {s.run ? <RunPanel run={s.run} name={comp(s.run.component)} reconnecting={reconnecting} after={after} /> : null}
       {affected.length ? (
         <div role="alert" className="mb-6 rounded-md border border-danger/40 bg-danger-soft px-4 py-3 text-sm">
           <p className="font-medium text-danger">{t('updates.advisoryBanner', { count: affected.length })}</p>
@@ -192,8 +207,11 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
             return (
               <div className="grid gap-1.5">
                 <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{comp(c.id)}</span>{c.signature === 'valid' ? <Chip tone="ok">{t('updates.sig.valid')}</Chip> : <Chip tone="danger">{t(`updates.sig.${c.signature}`)}</Chip>}</div>
+                {c.id === 'host' ? <span className="text-[12px] text-muted">{t('updates.host.how')}</span> : null}
                 <span className="font-mono text-[12.5px]">{c.version} <span className="font-sans text-[12px] text-muted">{fmtDateTime(c.installed_at)}</span></span>
-                {a ? <div className="flex flex-wrap items-center gap-2"><span className="text-[13px]">{t('updates.col.available')}: <span className="font-mono">{a.version}</span></span><Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button></div> : <span className="text-[13px] text-muted">{t('updates.latest')}</span>}
+                {c.id === 'host' ? (hostNext ? <span className="text-[13px]">{t('updates.col.available')}: <span className="font-mono">{hostNext}</span></span> : <span className="text-[13px] text-muted">{t('updates.latest')}</span>)
+                : a ? <div className="flex flex-wrap items-center gap-2"><span className="text-[13px]">{t('updates.col.available')}: <span className="font-mono">{a.version}</span></span><Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button></div> : <span className="text-[13px] text-muted">{t('updates.latest')}</span>}
+                {a ? includesHost(a) : null}
                 {c.previous ? <div><Button size="sm" disabled={admin.disabled || (running && c.id === 'software')} title={admin.title} onClick={() => askRollback(c)}>{t('updates.rollbackTo', { version: c.previous })} <span className="sr-only">{comp(c.id)}</span></Button></div> : null}
               </div>
             )

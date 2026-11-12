@@ -32778,6 +32778,12 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.Component)
 	}
 	{
+		if s.HostVersion.Set {
+			e.FieldStart("host_version")
+			s.HostVersion.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("note")
 		e.Str(s.Note)
 	}
@@ -32791,12 +32797,13 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCoreGetCoreUpdatesOKAvailableItem = [5]string{
+var jsonFieldsNameOfCoreGetCoreUpdatesOKAvailableItem = [6]string{
 	0: "channel",
 	1: "component",
-	2: "note",
-	3: "size_kb",
-	4: "version",
+	2: "host_version",
+	3: "note",
+	4: "size_kb",
+	5: "version",
 }
 
 // Decode decodes CoreGetCoreUpdatesOKAvailableItem from json.
@@ -32830,8 +32837,18 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"component\"")
 			}
+		case "host_version":
+			if err := func() error {
+				s.HostVersion.Reset()
+				if err := s.HostVersion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"host_version\"")
+			}
 		case "note":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -32843,7 +32860,7 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "size_kb":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Float64()
 				s.SizeKB = float64(v)
@@ -32855,7 +32872,7 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"size_kb\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -32876,7 +32893,7 @@ func (s *CoreGetCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -34121,6 +34138,8 @@ func (s *CoreGetCoreUpdatesOKRunStep) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch CoreGetCoreUpdatesOKRunStep(v) {
+	case CoreGetCoreUpdatesOKRunStepHost:
+		*s = CoreGetCoreUpdatesOKRunStepHost
 	case CoreGetCoreUpdatesOKRunStepDownload:
 		*s = CoreGetCoreUpdatesOKRunStepDownload
 	case CoreGetCoreUpdatesOKRunStepStart:
@@ -34165,6 +34184,8 @@ func (s *CoreGetCoreUpdatesOKRunStepsItem) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch CoreGetCoreUpdatesOKRunStepsItem(v) {
+	case CoreGetCoreUpdatesOKRunStepsItemHost:
+		*s = CoreGetCoreUpdatesOKRunStepsItemHost
 	case CoreGetCoreUpdatesOKRunStepsItemDownload:
 		*s = CoreGetCoreUpdatesOKRunStepsItemDownload
 	case CoreGetCoreUpdatesOKRunStepsItemStart:
@@ -38587,6 +38608,12 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.Component)
 	}
 	{
+		if s.HostVersion.Set {
+			e.FieldStart("host_version")
+			s.HostVersion.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("note")
 		e.Str(s.Note)
 	}
@@ -38600,12 +38627,13 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePatchCoreUpdatesOKAvailableItem = [5]string{
+var jsonFieldsNameOfCorePatchCoreUpdatesOKAvailableItem = [6]string{
 	0: "channel",
 	1: "component",
-	2: "note",
-	3: "size_kb",
-	4: "version",
+	2: "host_version",
+	3: "note",
+	4: "size_kb",
+	5: "version",
 }
 
 // Decode decodes CorePatchCoreUpdatesOKAvailableItem from json.
@@ -38639,8 +38667,18 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"component\"")
 			}
+		case "host_version":
+			if err := func() error {
+				s.HostVersion.Reset()
+				if err := s.HostVersion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"host_version\"")
+			}
 		case "note":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -38652,7 +38690,7 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "size_kb":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Float64()
 				s.SizeKB = float64(v)
@@ -38664,7 +38702,7 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"size_kb\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -38685,7 +38723,7 @@ func (s *CorePatchCoreUpdatesOKAvailableItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -39930,6 +39968,8 @@ func (s *CorePatchCoreUpdatesOKRunStep) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch CorePatchCoreUpdatesOKRunStep(v) {
+	case CorePatchCoreUpdatesOKRunStepHost:
+		*s = CorePatchCoreUpdatesOKRunStepHost
 	case CorePatchCoreUpdatesOKRunStepDownload:
 		*s = CorePatchCoreUpdatesOKRunStepDownload
 	case CorePatchCoreUpdatesOKRunStepStart:
@@ -39974,6 +40014,8 @@ func (s *CorePatchCoreUpdatesOKRunStepsItem) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch CorePatchCoreUpdatesOKRunStepsItem(v) {
+	case CorePatchCoreUpdatesOKRunStepsItemHost:
+		*s = CorePatchCoreUpdatesOKRunStepsItemHost
 	case CorePatchCoreUpdatesOKRunStepsItemDownload:
 		*s = CorePatchCoreUpdatesOKRunStepsItemDownload
 	case CorePatchCoreUpdatesOKRunStepsItemStart:
@@ -53207,6 +53249,12 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.Component)
 	}
 	{
+		if s.HostVersion.Set {
+			e.FieldStart("host_version")
+			s.HostVersion.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("note")
 		e.Str(s.Note)
 	}
@@ -53220,12 +53268,13 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesApplyOKAvailableItem = [5]string{
+var jsonFieldsNameOfCorePostCoreUpdatesApplyOKAvailableItem = [6]string{
 	0: "channel",
 	1: "component",
-	2: "note",
-	3: "size_kb",
-	4: "version",
+	2: "host_version",
+	3: "note",
+	4: "size_kb",
+	5: "version",
 }
 
 // Decode decodes CorePostCoreUpdatesApplyOKAvailableItem from json.
@@ -53259,8 +53308,18 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"component\"")
 			}
+		case "host_version":
+			if err := func() error {
+				s.HostVersion.Reset()
+				if err := s.HostVersion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"host_version\"")
+			}
 		case "note":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -53272,7 +53331,7 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "size_kb":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Float64()
 				s.SizeKB = float64(v)
@@ -53284,7 +53343,7 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"size_kb\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -53305,7 +53364,7 @@ func (s *CorePostCoreUpdatesApplyOKAvailableItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -54550,6 +54609,8 @@ func (s *CorePostCoreUpdatesApplyOKRunStep) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch CorePostCoreUpdatesApplyOKRunStep(v) {
+	case CorePostCoreUpdatesApplyOKRunStepHost:
+		*s = CorePostCoreUpdatesApplyOKRunStepHost
 	case CorePostCoreUpdatesApplyOKRunStepDownload:
 		*s = CorePostCoreUpdatesApplyOKRunStepDownload
 	case CorePostCoreUpdatesApplyOKRunStepStart:
@@ -54594,6 +54655,8 @@ func (s *CorePostCoreUpdatesApplyOKRunStepsItem) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch CorePostCoreUpdatesApplyOKRunStepsItem(v) {
+	case CorePostCoreUpdatesApplyOKRunStepsItemHost:
+		*s = CorePostCoreUpdatesApplyOKRunStepsItemHost
 	case CorePostCoreUpdatesApplyOKRunStepsItemDownload:
 		*s = CorePostCoreUpdatesApplyOKRunStepsItemDownload
 	case CorePostCoreUpdatesApplyOKRunStepsItemStart:
@@ -55417,6 +55480,12 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) encodeFields(e *jx.Encod
 		e.Str(s.Component)
 	}
 	{
+		if s.HostVersion.Set {
+			e.FieldStart("host_version")
+			s.HostVersion.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("note")
 		e.Str(s.Note)
 	}
@@ -55430,12 +55499,13 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) encodeFields(e *jx.Encod
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesBundleOKStateAvailableItem = [5]string{
+var jsonFieldsNameOfCorePostCoreUpdatesBundleOKStateAvailableItem = [6]string{
 	0: "channel",
 	1: "component",
-	2: "note",
-	3: "size_kb",
-	4: "version",
+	2: "host_version",
+	3: "note",
+	4: "size_kb",
+	5: "version",
 }
 
 // Decode decodes CorePostCoreUpdatesBundleOKStateAvailableItem from json.
@@ -55469,8 +55539,18 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) Decode(d *jx.Decoder) er
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"component\"")
 			}
+		case "host_version":
+			if err := func() error {
+				s.HostVersion.Reset()
+				if err := s.HostVersion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"host_version\"")
+			}
 		case "note":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -55482,7 +55562,7 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "size_kb":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Float64()
 				s.SizeKB = float64(v)
@@ -55494,7 +55574,7 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"size_kb\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -55515,7 +55595,7 @@ func (s *CorePostCoreUpdatesBundleOKStateAvailableItem) Decode(d *jx.Decoder) er
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -56760,6 +56840,8 @@ func (s *CorePostCoreUpdatesBundleOKStateRunStep) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch CorePostCoreUpdatesBundleOKStateRunStep(v) {
+	case CorePostCoreUpdatesBundleOKStateRunStepHost:
+		*s = CorePostCoreUpdatesBundleOKStateRunStepHost
 	case CorePostCoreUpdatesBundleOKStateRunStepDownload:
 		*s = CorePostCoreUpdatesBundleOKStateRunStepDownload
 	case CorePostCoreUpdatesBundleOKStateRunStepStart:
@@ -56804,6 +56886,8 @@ func (s *CorePostCoreUpdatesBundleOKStateRunStepsItem) Decode(d *jx.Decoder) err
 	}
 	// Try to use constant string.
 	switch CorePostCoreUpdatesBundleOKStateRunStepsItem(v) {
+	case CorePostCoreUpdatesBundleOKStateRunStepsItemHost:
+		*s = CorePostCoreUpdatesBundleOKStateRunStepsItemHost
 	case CorePostCoreUpdatesBundleOKStateRunStepsItemDownload:
 		*s = CorePostCoreUpdatesBundleOKStateRunStepsItemDownload
 	case CorePostCoreUpdatesBundleOKStateRunStepsItemStart:
@@ -57584,6 +57668,12 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.Component)
 	}
 	{
+		if s.HostVersion.Set {
+			e.FieldStart("host_version")
+			s.HostVersion.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("note")
 		e.Str(s.Note)
 	}
@@ -57597,12 +57687,13 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesCheckOKAvailableItem = [5]string{
+var jsonFieldsNameOfCorePostCoreUpdatesCheckOKAvailableItem = [6]string{
 	0: "channel",
 	1: "component",
-	2: "note",
-	3: "size_kb",
-	4: "version",
+	2: "host_version",
+	3: "note",
+	4: "size_kb",
+	5: "version",
 }
 
 // Decode decodes CorePostCoreUpdatesCheckOKAvailableItem from json.
@@ -57636,8 +57727,18 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"component\"")
 			}
+		case "host_version":
+			if err := func() error {
+				s.HostVersion.Reset()
+				if err := s.HostVersion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"host_version\"")
+			}
 		case "note":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -57649,7 +57750,7 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "size_kb":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Float64()
 				s.SizeKB = float64(v)
@@ -57661,7 +57762,7 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"size_kb\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -57682,7 +57783,7 @@ func (s *CorePostCoreUpdatesCheckOKAvailableItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -58927,6 +59028,8 @@ func (s *CorePostCoreUpdatesCheckOKRunStep) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch CorePostCoreUpdatesCheckOKRunStep(v) {
+	case CorePostCoreUpdatesCheckOKRunStepHost:
+		*s = CorePostCoreUpdatesCheckOKRunStepHost
 	case CorePostCoreUpdatesCheckOKRunStepDownload:
 		*s = CorePostCoreUpdatesCheckOKRunStepDownload
 	case CorePostCoreUpdatesCheckOKRunStepStart:
@@ -58971,6 +59074,8 @@ func (s *CorePostCoreUpdatesCheckOKRunStepsItem) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch CorePostCoreUpdatesCheckOKRunStepsItem(v) {
+	case CorePostCoreUpdatesCheckOKRunStepsItemHost:
+		*s = CorePostCoreUpdatesCheckOKRunStepsItemHost
 	case CorePostCoreUpdatesCheckOKRunStepsItemDownload:
 		*s = CorePostCoreUpdatesCheckOKRunStepsItemDownload
 	case CorePostCoreUpdatesCheckOKRunStepsItemStart:
@@ -62530,6 +62635,12 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) encodeFields(e *jx.Encoder)
 		e.Str(s.Component)
 	}
 	{
+		if s.HostVersion.Set {
+			e.FieldStart("host_version")
+			s.HostVersion.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("note")
 		e.Str(s.Note)
 	}
@@ -62543,12 +62654,13 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) encodeFields(e *jx.Encoder)
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesRollbackOKAvailableItem = [5]string{
+var jsonFieldsNameOfCorePostCoreUpdatesRollbackOKAvailableItem = [6]string{
 	0: "channel",
 	1: "component",
-	2: "note",
-	3: "size_kb",
-	4: "version",
+	2: "host_version",
+	3: "note",
+	4: "size_kb",
+	5: "version",
 }
 
 // Decode decodes CorePostCoreUpdatesRollbackOKAvailableItem from json.
@@ -62582,8 +62694,18 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"component\"")
 			}
+		case "host_version":
+			if err := func() error {
+				s.HostVersion.Reset()
+				if err := s.HostVersion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"host_version\"")
+			}
 		case "note":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Note = string(v)
@@ -62595,7 +62717,7 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"note\"")
 			}
 		case "size_kb":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Float64()
 				s.SizeKB = float64(v)
@@ -62607,7 +62729,7 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"size_kb\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -62628,7 +62750,7 @@ func (s *CorePostCoreUpdatesRollbackOKAvailableItem) Decode(d *jx.Decoder) error
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -63873,6 +63995,8 @@ func (s *CorePostCoreUpdatesRollbackOKRunStep) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch CorePostCoreUpdatesRollbackOKRunStep(v) {
+	case CorePostCoreUpdatesRollbackOKRunStepHost:
+		*s = CorePostCoreUpdatesRollbackOKRunStepHost
 	case CorePostCoreUpdatesRollbackOKRunStepDownload:
 		*s = CorePostCoreUpdatesRollbackOKRunStepDownload
 	case CorePostCoreUpdatesRollbackOKRunStepStart:
@@ -63917,6 +64041,8 @@ func (s *CorePostCoreUpdatesRollbackOKRunStepsItem) Decode(d *jx.Decoder) error 
 	}
 	// Try to use constant string.
 	switch CorePostCoreUpdatesRollbackOKRunStepsItem(v) {
+	case CorePostCoreUpdatesRollbackOKRunStepsItemHost:
+		*s = CorePostCoreUpdatesRollbackOKRunStepsItemHost
 	case CorePostCoreUpdatesRollbackOKRunStepsItemDownload:
 		*s = CorePostCoreUpdatesRollbackOKRunStepsItemDownload
 	case CorePostCoreUpdatesRollbackOKRunStepsItemStart:

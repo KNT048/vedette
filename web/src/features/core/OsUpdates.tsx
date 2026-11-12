@@ -63,9 +63,10 @@ function WindowForm({ s, disabled, title }: { s: OsState; disabled: boolean; tit
           </div>
         </div>
       ) : null}
+      {s.reboot_scheduled_at && !same ? <p className="max-w-2xl text-[13px] text-warn">{t('updates.os.window.rebootWarn', { time: fmtDateTime(s.reboot_scheduled_at) })}</p> : null}
       <p className="max-w-2xl text-[13px] text-muted">{w.mode === 'always' ? t('updates.os.window.hintAnytime') : t('updates.os.window.hintWindow')}</p>
       {problem ? <p role="alert" className="text-[13px] text-danger">{problem}</p> : null}
-      <div><Button disabled={disabled || same || !!problem || m.settings.isPending} onClick={() => void m.settings.mutateAsync({ window: w }).then(() => toast.success(t('updates.os.window.saved'))).catch((e) => toast.error(errMsg(e, t)))}>{t('updates.os.window.save')}</Button></div>
+      <div><Button disabled={disabled || same || !!problem || m.settings.isPending} onClick={() => void m.settings.mutateAsync({ window: w }).then((r) => (s.reboot_scheduled_at && !r.reboot_scheduled_at ? toast.warning(t('updates.os.window.savedCancelled')) : toast.success(t('updates.os.window.saved')))).catch((e) => toast.error(errMsg(e, t)))}>{t('updates.os.window.save')}</Button></div>
     </fieldset>
   )
 }

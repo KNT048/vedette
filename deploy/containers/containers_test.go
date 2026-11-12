@@ -311,6 +311,22 @@ func TestMinSequenceFlag(t *testing.T) {
 			t.Errorf("MIN_SEQUENCE=%q was refused: %v %s", good, err, out)
 		}
 	}
+	// core links internal/release too (D-347): both image targets hand the floor to its build, the other images get none
+	for _, target := range []string{"core-image", "images"} {
+		out, err := run("-n", target, "MIN_SEQUENCE=7")
+		if err != nil {
+			t.Fatal(target, err, out)
+		}
+		for _, line := range strings.Split(out, "\n") {
+			core := strings.Contains(line, "deploy/containers/core/Containerfile")
+			if has := strings.Contains(line, "--build-arg MIN_SEQUENCE=7"); core != has && (core || strings.Contains(line, "/Containerfile")) {
+				t.Errorf("make %s: MIN_SEQUENCE on a build line: core=%v has=%v: %s", target, core, has, line)
+			}
+		}
+		if !strings.Contains(out, "core/Containerfile") || !strings.Contains(out, "--build-arg MIN_SEQUENCE=7") {
+			t.Errorf("make %s does not pass MIN_SEQUENCE to the core build:\n%s", target, out)
+		}
+	}
 	out, err := run("-n", "host-deb", "VERSION=1.2.3", "MIN_SEQUENCE=7")
 	if err != nil {
 		t.Fatal(err, out)

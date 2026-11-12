@@ -194,10 +194,10 @@ func (l *Loader) Install(ctx context.Context, u Update) (InstallResult, error) {
 	return res, nil
 }
 
-// CheckPack reports whether the box would load this pack document (the release tool runs it before signing, D-345).
-func CheckPack(data []byte) error {
-	_, err := parsePack(data)
-	return err
+// CheckPack reports whether the box would load this pack document, and its CVE (the release tool runs it before signing, D-345).
+func CheckPack(data []byte) (cve string, err error) {
+	p, err := parsePack(data)
+	return p.CVE, err
 }
 
 // parsePack reads and validates one pack document. It is fail-closed: unknown fields, trailing data,

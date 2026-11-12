@@ -55,10 +55,12 @@ func loadPacks(ctx context.Context, l *mitigation.Loader, dir string, log *slog.
 	}
 	res, err := l.Install(ctx, u)
 	if errors.Is(err, mitigation.ErrReplay) {
-		return nil // the packs of this version (or a newer one) are installed already
+		// the packs of this version (or a newer one) are installed already: after an image rollback the newer packs stay
+		log.DebugContext(ctx, "mitigation: the shipped packs are not newer than the installed ones", "version", u.Version)
+		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("load the confirmed packs %s: %w", u.Version, err)
+		return fmt.Errorf("load the confirmed packs %q: %w", u.Version, err) // %q: VERSION is not trusted before the signature
 	}
 	log.InfoContext(ctx, "mitigation: confirmed packs loaded", "version", u.Version, "loaded", res.Loaded, "rejected", len(res.Rejected))
 	return nil

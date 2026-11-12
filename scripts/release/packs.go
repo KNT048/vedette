@@ -34,7 +34,8 @@ var packVersionRE = regexp.MustCompile(`^[0-9]{1,9}(\.[0-9]{1,9}){1,5}$`)
 //
 // It refuses: no pack, a link, a sub-directory or a file that is neither a pack, VERSION, packs.list, packs.minisig nor a README
 // (all of dir ships in the core image), a version the box cannot order, and a version not newer than the VERSION already in dir
-// (the box installs only a newer one). When signing or the check fails, dir is left as it was.
+// (the box installs only a newer one). When signing or the check fails, dir is left as it was; when a write fails half way, VERSION
+// (written last) still names the old set, the box refuses the mix (fail closed) and the same command run again finishes it.
 func SignPacks(ctx context.Context, s Signer, dir, version string, trust release.Trust) (int, error) {
 	if !packVersionRE.MatchString(version) {
 		return 0, fmt.Errorf("-version %q cannot be ordered by the box: use dotted numbers such as 2026.12.2.1", version)
@@ -82,7 +83,7 @@ func SignPacks(ctx context.Context, s Signer, dir, version string, trust release
 	for _, f := range []struct {
 		name string
 		data []byte
-	}{{mitigation.PackVersionFile, []byte(version + "\n")}, {mitigation.PackStatementFile, stmt}, {mitigation.PackSignatureFile, sig}} {
+	}{{mitigation.PackStatementFile, stmt}, {mitigation.PackSignatureFile, sig}, {mitigation.PackVersionFile, []byte(version + "\n")}} { // VERSION last: see below
 		if err := os.WriteFile(filepath.Join(dir, f.name), f.data, 0o644); err != nil { //nolint:gosec // shipped in the image, not secret
 			return 0, err
 		}
@@ -122,8 +123,8 @@ func readPackSources(dir string) ([]mitigation.Doc, error) {
 		case !e.Type().IsRegular():
 			return nil, fmt.Errorf("%s/%s is not a regular file (a link?): only plain files are signed", dir, name)
 		case name == mitigation.PackVersionFile || name == mitigation.PackSignatureFile || name == mitigation.PackStatementFile ||
-			strings.HasPrefix(name, "README"):
-			continue
+			strings.HasPrefix(name, "README") || strings.HasPrefix(name, "."):
+			continue // the image leaves hidden files out and the box skips them
 		case !strings.HasSuffix(name, ".json"):
 			return nil, fmt.Errorf("unexpected file %s/%s: the pack directory holds *.json packs and a README only", dir, name)
 		}
@@ -131,8 +132,12 @@ func readPackSources(dir string) ([]mitigation.Doc, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := mitigation.CheckPack(data); err != nil { // the box's own parser: a pack it would reject is not signed
+		cve, err := mitigation.CheckPack(data) // the box's own parser: a pack it would reject is not signed
+		if err != nil {
 			return nil, fmt.Errorf("%s: %w", name, err)
+		}
+		if name != cve+".json" { // the box loads one pack per CVE: two files for one CVE would lose one, so a file is named after its CVE
+			return nil, fmt.Errorf("%s holds the pack of %s: name it %s.json", name, cve, cve)
 		}
 		if total += len(data); total > maxPackTotal {
 			return nil, fmt.Errorf("the packs are larger than %d bytes together", maxPackTotal)
@@ -164,6 +169,9 @@ func cmdPacks(ctx context.Context, args []string, stdin io.Reader, stdout io.Wri
 	trust, err := LoadTrust(*keys)
 	if err != nil {
 		return err
+	}
+	if *keys != "" {
+		say(stdout, "warning: checked with the keys in %s, not the keys compiled into the box: boxes accept only a signature by the compiled release keys", *keys)
 	}
 	s := MinisignCLI{Bin: *bin, KeyPath: *key, Interactive: true}
 	if root, err := RepoRoot(ctx, "."); err == nil {

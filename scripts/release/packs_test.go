@@ -34,7 +34,7 @@ func packSrc(t *testing.T, files map[string][]byte) string {
 func TestSignPacksMakesWhatTheBoxVerifies(t *testing.T) {
 	r := newRig(t)
 	s := testSigner{t, r.active}
-	dir := packSrc(t, map[string][]byte{"CVE-2026-1001.json": packFile(t, "CVE-2026-1001"), "CVE-2026-1002.json": packFile(t, "CVE-2026-1002"), "README.md": []byte("x")})
+	dir := packSrc(t, map[string][]byte{"CVE-2026-1001.json": packFile(t, "CVE-2026-1001"), "CVE-2026-1002.json": packFile(t, "CVE-2026-1002"), "README.md": []byte("x"), ".DS_Store": []byte("finder")})
 	n, err := SignPacks(t.Context(), s, dir, "2026.12.2.1", r.trust)
 	if err != nil || n != 2 {
 		t.Fatalf("signed %d: %v", n, err)
@@ -80,7 +80,8 @@ func TestSignPacksRefusesAndLeavesTheDirectory(t *testing.T) {
 		"stray file":      {map[string][]byte{"CVE-2026-1001.json": good, "run.sh": []byte("x")}, "1.0", testSigner{t, r.active}, "unexpected file"},
 		"dated version":   {map[string][]byte{"CVE-2026-1001.json": good}, "2026-12-02.1", testSigner{t, r.active}, "cannot be ordered"},
 		"untrusted key":   {map[string][]byte{"CVE-2026-1001.json": good}, "1.0", testSigner{t, newRig(t).active}, "does not verify"},
-		"bad file name":   {map[string][]byte{"a b.json": good}, "1.0", testSigner{t, r.active}, "not a pack file name"},
+		"bad file name":   {map[string][]byte{"a b.json": good}, "1.0", testSigner{t, r.active}, "name it CVE-2026-1001.json"},
+		"other cve name":  {map[string][]byte{"CVE-2026-1002.json": good}, "1.0", testSigner{t, r.active}, "name it CVE-2026-1001.json"},
 		"version newline": {map[string][]byte{"CVE-2026-1001.json": good}, "1\n2", testSigner{t, r.active}, "cannot be ordered"},
 	} {
 		t.Run(name, func(t *testing.T) {

@@ -88,7 +88,7 @@ var ErrNoPackDir = errors.New("no pack directory")
 
 // ReadPackDir reads a pack directory into an Update (fail closed): only regular files are read, never a link or anything below a
 // sub-directory; VERSION and packs.minisig are required; every other *.json file is a document; packs.list and README files are
-// skipped and any other file refuses the directory. Sizes are capped per file, in number and in total.
+// skipped, hidden files too, and any other file refuses the directory. Sizes are capped per file, in number and in total.
 func ReadPackDir(dir string) (Update, error) {
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -114,8 +114,8 @@ func ReadPackDir(dir string) (Update, error) {
 			limit = 64 + 1
 		case name == PackSignatureFile:
 			limit = maxSigBytes
-		case name == PackStatementFile || strings.HasPrefix(name, "README"):
-			continue
+		case name == PackStatementFile || strings.HasPrefix(name, "README") || strings.HasPrefix(name, "."):
+			continue // never signed, never read: a hidden file (.DS_Store) does not stop the packs
 		case docNameRE.MatchString(name):
 			if len(u.Docs) >= maxPackFiles {
 				return Update{}, fmt.Errorf("mitigation: more than %d pack files", maxPackFiles)
@@ -148,8 +148,8 @@ func ReadPackDir(dir string) (Update, error) {
 	return u, nil
 }
 
-// readCapped reads a regular file of at most limit bytes; a link is refused at open (O_NOFOLLOW is not portable, so the mode is
-// checked again on the open file).
+// readCapped reads a regular file of at most limit bytes. Links are refused by the directory listing (ReadPackDir); the mode is
+// checked again on the open file, which follows a link swapped in since, but the bytes are signed, so that gains nothing.
 func readCapped(path string, limit int) ([]byte, error) {
 	f, err := os.Open(path) //nolint:gosec // the path is a directory entry of the box's own content directory
 	if err != nil {

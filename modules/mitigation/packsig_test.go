@@ -76,7 +76,7 @@ func TestReadPackDirIsBoundedAndFailsClosed(t *testing.T) {
 		t.Fatalf("a directory with only a README: %v", err)
 	}
 	dir := t.TempDir()
-	writeFiles(t, dir, map[string]string{"VERSION": "2026.11.1\n", "packs.minisig": "sig", "packs.list": "ignored", "README.md": "x", "CVE-2024-0001.json": "{}"})
+	writeFiles(t, dir, map[string]string{"VERSION": "2026.11.1\n", "packs.minisig": "sig", "packs.list": "ignored", "README.md": "x", ".DS_Store": "finder", "CVE-2024-0001.json": "{}"})
 	if err := os.Mkdir(filepath.Join(dir, "sub"), 0o700); err != nil {
 		t.Fatal(err)
 	}

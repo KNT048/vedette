@@ -183,7 +183,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_auto` | 400 | Automatic security updates are on or off. | `PATCH /core/updates/os/settings` |
 | `invalid_base_url` | 400 | The server address is not valid. Enter it in full, for example https://api.anthropic.com or http://localhost:11434/v1. | module ai (validator dùng chung) |
 | `invalid_body` | 400 | Check the values and try again. | 4 endpoint (/feeds) |
-| `invalid_bundle` | 400 | Choose a module bundle: small, medium or custom. | `POST /core/setup` |
+| `invalid_bundle` | 400 | Choose a module bundle: smb, mid or custom. | `POST /core/setup` |
 | `invalid_cap` | 400 | The profile\ | `PUT /ai/config` |
 | `invalid_categories` | 400 | Unknown or empty log category in the download request. | `GET /core/logs/export` |
 | `invalid_channel` | 400 | The channel is stable or beta. | `PATCH /core/updates` |

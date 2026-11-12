@@ -162,7 +162,7 @@ func (h *APIHandlers) wantedModules(req *oas.CorePostCoreSetupReq) (map[string]b
 			ids = append(ids, id)
 		}
 	default:
-		return nil, apierr.New(400, CodeInvalidBundle, "Choose a module bundle: small, medium or custom.")
+		return nil, apierr.New(400, CodeInvalidBundle, "Choose a module bundle: smb, mid or custom.")
 	}
 	want := make(map[string]bool, len(ids))
 	for _, id := range ids {

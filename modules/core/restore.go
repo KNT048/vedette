@@ -198,7 +198,7 @@ func (h *OSHandlers) CorePostCoreDataRestore(ctx context.Context, req *oas.CoreP
 				return nil
 			}
 			keepSnap = !known // the host may be reading it: the start-up sweep removes it later
-			return hostErr(ctx, h.log, err)
+			return notTaken(ctx, h.log, err, run)
 		}
 		return nil
 	})
@@ -279,7 +279,11 @@ func (h *OSHandlers) restoreLatest(ctx context.Context) (*restoreRec, error) {
 			return nil, err
 		}
 	}
-	i := slices.IndexFunc(runs, func(r api.Run) bool { return r.Command == api.CmdBackupRestore }) // newest first
+	mine := ""
+	if rec != nil {
+		mine = rec.RunID
+	}
+	i := slices.IndexFunc(runs, func(r api.Run) bool { return r.Command == api.CmdBackupRestore && !refusedElsewhere(r, mine) }) // newest first
 	if i < 0 || (rec != nil && rec.RunID != runs[i].RunID && rec.StartedAt.After(runs[i].StartedAt)) {
 		return rec, nil
 	}

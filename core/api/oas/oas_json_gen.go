@@ -32538,7 +32538,7 @@ func (s *CoreGetCoreUpdatesOK) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("last_check")
-		json.EncodeDateTime(e, s.LastCheck)
+		s.LastCheck.Encode(e, json.EncodeDateTime)
 	}
 	{
 		e.FieldStart("managed")
@@ -32677,9 +32677,7 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 		case "last_check":
 			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
-				v, err := json.DecodeDateTime(d)
-				s.LastCheck = v
-				if err != nil {
+				if err := s.LastCheck.Decode(d, json.DecodeDateTime); err != nil {
 					return err
 				}
 				return nil
@@ -38440,7 +38438,7 @@ func (s *CorePatchCoreUpdatesOK) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("last_check")
-		json.EncodeDateTime(e, s.LastCheck)
+		s.LastCheck.Encode(e, json.EncodeDateTime)
 	}
 	{
 		e.FieldStart("managed")
@@ -38579,9 +38577,7 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 		case "last_check":
 			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
-				v, err := json.DecodeDateTime(d)
-				s.LastCheck = v
-				if err != nil {
+				if err := s.LastCheck.Decode(d, json.DecodeDateTime); err != nil {
 					return err
 				}
 				return nil
@@ -53098,7 +53094,7 @@ func (s *CorePostCoreUpdatesApplyOK) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("last_check")
-		json.EncodeDateTime(e, s.LastCheck)
+		s.LastCheck.Encode(e, json.EncodeDateTime)
 	}
 	{
 		e.FieldStart("managed")
@@ -53237,9 +53233,7 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 		case "last_check":
 			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
-				v, err := json.DecodeDateTime(d)
-				s.LastCheck = v
-				if err != nil {
+				if err := s.LastCheck.Decode(d, json.DecodeDateTime); err != nil {
 					return err
 				}
 				return nil
@@ -55329,7 +55323,7 @@ func (s *CorePostCoreUpdatesBundleOKState) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("last_check")
-		json.EncodeDateTime(e, s.LastCheck)
+		s.LastCheck.Encode(e, json.EncodeDateTime)
 	}
 	{
 		e.FieldStart("managed")
@@ -55468,9 +55462,7 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 		case "last_check":
 			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
-				v, err := json.DecodeDateTime(d)
-				s.LastCheck = v
-				if err != nil {
+				if err := s.LastCheck.Decode(d, json.DecodeDateTime); err != nil {
 					return err
 				}
 				return nil
@@ -57504,7 +57496,7 @@ func (s *CorePostCoreUpdatesCheckOK) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("last_check")
-		json.EncodeDateTime(e, s.LastCheck)
+		s.LastCheck.Encode(e, json.EncodeDateTime)
 	}
 	{
 		e.FieldStart("managed")
@@ -57656,9 +57648,7 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 		case "last_check":
 			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
-				v, err := json.DecodeDateTime(d)
-				s.LastCheck = v
-				if err != nil {
+				if err := s.LastCheck.Decode(d, json.DecodeDateTime); err != nil {
 					return err
 				}
 				return nil
@@ -62484,7 +62474,7 @@ func (s *CorePostCoreUpdatesRollbackOK) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("last_check")
-		json.EncodeDateTime(e, s.LastCheck)
+		s.LastCheck.Encode(e, json.EncodeDateTime)
 	}
 	{
 		e.FieldStart("managed")
@@ -62623,9 +62613,7 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 		case "last_check":
 			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
-				v, err := json.DecodeDateTime(d)
-				s.LastCheck = v
-				if err != nil {
+				if err := s.LastCheck.Decode(d, json.DecodeDateTime); err != nil {
 					return err
 				}
 				return nil

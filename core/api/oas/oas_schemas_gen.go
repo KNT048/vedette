@@ -15815,8 +15815,9 @@ type CoreGetCoreUpdatesOK struct {
 	CheckEnabled bool                                 `json:"check_enabled"`
 	Components   []CoreGetCoreUpdatesOKComponentsItem `json:"components"`
 	// Latest 20.
-	History   []CoreGetCoreUpdatesOKHistoryItem `json:"history"`
-	LastCheck time.Time                         `json:"last_check"`
+	History []CoreGetCoreUpdatesOKHistoryItem `json:"history"`
+	// Null until the first update check.
+	LastCheck NilDateTime `json:"last_check"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CoreGetCoreUpdatesOKManagedItem `json:"managed"`
 	Mode    CoreGetCoreUpdatesOKMode          `json:"mode"`
@@ -15855,7 +15856,7 @@ func (s *CoreGetCoreUpdatesOK) GetHistory() []CoreGetCoreUpdatesOKHistoryItem {
 }
 
 // GetLastCheck returns the value of LastCheck.
-func (s *CoreGetCoreUpdatesOK) GetLastCheck() time.Time {
+func (s *CoreGetCoreUpdatesOK) GetLastCheck() NilDateTime {
 	return s.LastCheck
 }
 
@@ -15905,7 +15906,7 @@ func (s *CoreGetCoreUpdatesOK) SetHistory(val []CoreGetCoreUpdatesOKHistoryItem)
 }
 
 // SetLastCheck sets the value of LastCheck.
-func (s *CoreGetCoreUpdatesOK) SetLastCheck(val time.Time) {
+func (s *CoreGetCoreUpdatesOK) SetLastCheck(val NilDateTime) {
 	s.LastCheck = val
 }
 
@@ -19041,8 +19042,9 @@ type CorePatchCoreUpdatesOK struct {
 	CheckEnabled bool                                   `json:"check_enabled"`
 	Components   []CorePatchCoreUpdatesOKComponentsItem `json:"components"`
 	// Latest 20.
-	History   []CorePatchCoreUpdatesOKHistoryItem `json:"history"`
-	LastCheck time.Time                           `json:"last_check"`
+	History []CorePatchCoreUpdatesOKHistoryItem `json:"history"`
+	// Null until the first update check.
+	LastCheck NilDateTime `json:"last_check"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePatchCoreUpdatesOKManagedItem `json:"managed"`
 	Mode    CorePatchCoreUpdatesOKMode          `json:"mode"`
@@ -19081,7 +19083,7 @@ func (s *CorePatchCoreUpdatesOK) GetHistory() []CorePatchCoreUpdatesOKHistoryIte
 }
 
 // GetLastCheck returns the value of LastCheck.
-func (s *CorePatchCoreUpdatesOK) GetLastCheck() time.Time {
+func (s *CorePatchCoreUpdatesOK) GetLastCheck() NilDateTime {
 	return s.LastCheck
 }
 
@@ -19131,7 +19133,7 @@ func (s *CorePatchCoreUpdatesOK) SetHistory(val []CorePatchCoreUpdatesOKHistoryI
 }
 
 // SetLastCheck sets the value of LastCheck.
-func (s *CorePatchCoreUpdatesOK) SetLastCheck(val time.Time) {
+func (s *CorePatchCoreUpdatesOK) SetLastCheck(val NilDateTime) {
 	s.LastCheck = val
 }
 
@@ -26186,8 +26188,9 @@ type CorePostCoreUpdatesApplyOK struct {
 	CheckEnabled bool                                       `json:"check_enabled"`
 	Components   []CorePostCoreUpdatesApplyOKComponentsItem `json:"components"`
 	// Latest 20.
-	History   []CorePostCoreUpdatesApplyOKHistoryItem `json:"history"`
-	LastCheck time.Time                               `json:"last_check"`
+	History []CorePostCoreUpdatesApplyOKHistoryItem `json:"history"`
+	// Null until the first update check.
+	LastCheck NilDateTime `json:"last_check"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesApplyOKManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesApplyOKMode          `json:"mode"`
@@ -26226,7 +26229,7 @@ func (s *CorePostCoreUpdatesApplyOK) GetHistory() []CorePostCoreUpdatesApplyOKHi
 }
 
 // GetLastCheck returns the value of LastCheck.
-func (s *CorePostCoreUpdatesApplyOK) GetLastCheck() time.Time {
+func (s *CorePostCoreUpdatesApplyOK) GetLastCheck() NilDateTime {
 	return s.LastCheck
 }
 
@@ -26276,7 +26279,7 @@ func (s *CorePostCoreUpdatesApplyOK) SetHistory(val []CorePostCoreUpdatesApplyOK
 }
 
 // SetLastCheck sets the value of LastCheck.
-func (s *CorePostCoreUpdatesApplyOK) SetLastCheck(val time.Time) {
+func (s *CorePostCoreUpdatesApplyOK) SetLastCheck(val NilDateTime) {
 	s.LastCheck = val
 }
 
@@ -27475,8 +27478,9 @@ type CorePostCoreUpdatesBundleOKState struct {
 	CheckEnabled bool                                             `json:"check_enabled"`
 	Components   []CorePostCoreUpdatesBundleOKStateComponentsItem `json:"components"`
 	// Latest 20.
-	History   []CorePostCoreUpdatesBundleOKStateHistoryItem `json:"history"`
-	LastCheck time.Time                                     `json:"last_check"`
+	History []CorePostCoreUpdatesBundleOKStateHistoryItem `json:"history"`
+	// Null until the first update check.
+	LastCheck NilDateTime `json:"last_check"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesBundleOKStateManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesBundleOKStateMode          `json:"mode"`
@@ -27515,7 +27519,7 @@ func (s *CorePostCoreUpdatesBundleOKState) GetHistory() []CorePostCoreUpdatesBun
 }
 
 // GetLastCheck returns the value of LastCheck.
-func (s *CorePostCoreUpdatesBundleOKState) GetLastCheck() time.Time {
+func (s *CorePostCoreUpdatesBundleOKState) GetLastCheck() NilDateTime {
 	return s.LastCheck
 }
 
@@ -27565,7 +27569,7 @@ func (s *CorePostCoreUpdatesBundleOKState) SetHistory(val []CorePostCoreUpdatesB
 }
 
 // SetLastCheck sets the value of LastCheck.
-func (s *CorePostCoreUpdatesBundleOKState) SetLastCheck(val time.Time) {
+func (s *CorePostCoreUpdatesBundleOKState) SetLastCheck(val NilDateTime) {
 	s.LastCheck = val
 }
 
@@ -28775,8 +28779,9 @@ type CorePostCoreUpdatesCheckOK struct {
 	CheckEnabled bool                                       `json:"check_enabled"`
 	Components   []CorePostCoreUpdatesCheckOKComponentsItem `json:"components"`
 	// Latest 20.
-	History   []CorePostCoreUpdatesCheckOKHistoryItem `json:"history"`
-	LastCheck time.Time                               `json:"last_check"`
+	History []CorePostCoreUpdatesCheckOKHistoryItem `json:"history"`
+	// Null until the first update check.
+	LastCheck NilDateTime `json:"last_check"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesCheckOKManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesCheckOKMode          `json:"mode"`
@@ -28820,7 +28825,7 @@ func (s *CorePostCoreUpdatesCheckOK) GetHistory() []CorePostCoreUpdatesCheckOKHi
 }
 
 // GetLastCheck returns the value of LastCheck.
-func (s *CorePostCoreUpdatesCheckOK) GetLastCheck() time.Time {
+func (s *CorePostCoreUpdatesCheckOK) GetLastCheck() NilDateTime {
 	return s.LastCheck
 }
 
@@ -28875,7 +28880,7 @@ func (s *CorePostCoreUpdatesCheckOK) SetHistory(val []CorePostCoreUpdatesCheckOK
 }
 
 // SetLastCheck sets the value of LastCheck.
-func (s *CorePostCoreUpdatesCheckOK) SetLastCheck(val time.Time) {
+func (s *CorePostCoreUpdatesCheckOK) SetLastCheck(val NilDateTime) {
 	s.LastCheck = val
 }
 
@@ -31300,8 +31305,9 @@ type CorePostCoreUpdatesRollbackOK struct {
 	CheckEnabled bool                                          `json:"check_enabled"`
 	Components   []CorePostCoreUpdatesRollbackOKComponentsItem `json:"components"`
 	// Latest 20.
-	History   []CorePostCoreUpdatesRollbackOKHistoryItem `json:"history"`
-	LastCheck time.Time                                  `json:"last_check"`
+	History []CorePostCoreUpdatesRollbackOKHistoryItem `json:"history"`
+	// Null until the first update check.
+	LastCheck NilDateTime `json:"last_check"`
 	// Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates).
 	Managed []CorePostCoreUpdatesRollbackOKManagedItem `json:"managed"`
 	Mode    CorePostCoreUpdatesRollbackOKMode          `json:"mode"`
@@ -31340,7 +31346,7 @@ func (s *CorePostCoreUpdatesRollbackOK) GetHistory() []CorePostCoreUpdatesRollba
 }
 
 // GetLastCheck returns the value of LastCheck.
-func (s *CorePostCoreUpdatesRollbackOK) GetLastCheck() time.Time {
+func (s *CorePostCoreUpdatesRollbackOK) GetLastCheck() NilDateTime {
 	return s.LastCheck
 }
 
@@ -31390,7 +31396,7 @@ func (s *CorePostCoreUpdatesRollbackOK) SetHistory(val []CorePostCoreUpdatesRoll
 }
 
 // SetLastCheck sets the value of LastCheck.
-func (s *CorePostCoreUpdatesRollbackOK) SetLastCheck(val time.Time) {
+func (s *CorePostCoreUpdatesRollbackOK) SetLastCheck(val NilDateTime) {
 	s.LastCheck = val
 }
 

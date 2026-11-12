@@ -432,7 +432,7 @@ func TestWazuh_FirstPullRetriesOnceWhenAnAgentHasNoAddressesYet(t *testing.T) {
 // Nothing unbound in the first pull: no early retry, the interval rules from the start.
 func TestWazuh_FirstPullWithEveryAgentBoundWaitsTheInterval(t *testing.T) {
 	r := newWzRig(t)
-	r.fake.agents = append(r.fake.agents[:3:3]) // without the NAT'd agent 003
+	r.fake.agents = r.fake.agents[:3:3] // without the NAT'd agent 003
 	r.save()
 	r.pull()
 	n := len(r.srv.Requests())

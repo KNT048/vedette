@@ -114,11 +114,17 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(await screen.findByText(/No such incident/)).toBeInTheDocument()
   })
 
-  it('no open incidents: the empty state shows what to do', async () => {
-    server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ incidents: [] })))
+  it('no open incidents: the empty state shows what to do, and the channel link only while no channel is on', async () => {
+    const channels = (enabled: boolean) => http.get('*/api/v1/notify/channels', () => HttpResponse.json({ channels: [{ type: 'webhook', configured: enabled, enabled, fields: {} }], quiet: {}, grouping: {}, email_code_users: 0 }))
+    server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ incidents: [] })), channels(false))
+    const view = renderApp('/incidents')
+    expect(await screen.findByRole('heading', { level: 1, name: 'No new incidents' })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Set up alert channels' })).toHaveAttribute('href', '/settings/channels')
+    view.unmount()
+    server.use(channels(true))
     renderApp('/incidents')
     expect(await screen.findByRole('heading', { level: 1, name: 'No new incidents' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Set up alert channels' })).toHaveAttribute('href', '/settings/channels')
+    await waitFor(() => expect(screen.queryByRole('link', { name: 'Set up alert channels' })).toBeNull())
   })
 
   it('an API error shows the message and a retry button', async () => {

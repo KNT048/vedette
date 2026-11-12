@@ -7,7 +7,7 @@ import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/compone
 import { SeverityChip } from '@/components/common/StatusChip'
 import { Segmented } from '@/components/ui/segmented'
 import { fmtDateTime } from '@/lib/format'
-import { useIncidents } from './api'
+import { useChannels, useIncidents } from './api'
 import { DeliveryBadges, IncidentStatusChip } from './shared'
 import { INCIDENT_KINDS, type Incident, type IncidentKind } from './types'
 
@@ -30,6 +30,9 @@ function Content() {
   const { t } = useTranslation('notify')
   const navigate = useNavigate()
   const q = useIncidents()
+  // the link to set up channels only while none is on; the list is the admin's, so others (403) see no link to a page they cannot open
+  const channels = useChannels({ retry: false })
+  const noChannel = channels.data !== undefined && !channels.data.channels.some((c) => c.enabled)
   const [filter, setFilter] = useState<'open' | 'all'>('open')
   const [kind, setKind] = useState<IncidentKind | 'all'>('all')
   const fresh = q.data?.incidents.filter((a) => a.status === 'new').length ?? 0
@@ -61,7 +64,7 @@ function Content() {
                 <Segmented className="max-w-full overflow-x-auto" label={t('incidents.filter')} value={filter} onChange={setFilter} options={[{ value: 'open', label: t('incidents.open') }, { value: 'all', label: t('incidents.all') }]} />
               </div>
               {rows.length === 0 ? (
-                <EmptyState title={filter === 'open' ? t('incidents.emptyOpenTitle') : t('incidents.emptyAllTitle')} action={<Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link>}>{t('incidents.emptyBody')}</EmptyState>
+                <EmptyState title={filter === 'open' ? t('incidents.emptyOpenTitle') : t('incidents.emptyAllTitle')} action={noChannel ? <Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link> : undefined}>{t('incidents.emptyBody')}</EmptyState>
               ) : (
                 <DataTable caption={t('incidents.caption')} data={rows} columns={columns} onRowClick={(r) => navigate(`/incidents/${r.id}`)} rowTone={(r) => (r.status === 'new' ? (r.severity === 'critical' ? 'danger' : 'warn') : undefined)} initialSort={[{ id: 'seen', desc: true }]}
                   mobileRow={(r) => (

@@ -357,11 +357,25 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     expect(await screen.findByText('Connected')).toBeInTheDocument()
     expect(screen.getByText(/Claude Haiku replied in \d+ ms/)).toBeInTheDocument()
     expect(aiRunsStore.get().some((r) => r.skill === 'connection-test' && r.profile === 'Claude Haiku')).toBe(true)
+    expect((await screen.findAllByText(/^Tested .+: success$/)).length).toBeGreaterThan(0)
     const rejected = await api('/ai/profiles/test', { method: 'POST', body: JSON.stringify({ kind: 'openai', api_style: 'openai', base_url: 'https://api.openai.com/v1', model: 'gpt-6-luna', location: 'cloud', api_key: 'bad-key-12345' }) })
     expect(rejected.status).toBe(502) // a provider answer, never the API's own "not signed in"
     expect(((await rejected.json()) as { error: { message: string } }).error.message).toMatch(/rejected the key/)
     const down = await api('/ai/profiles/test', { method: 'POST', body: JSON.stringify({ kind: 'openai', api_style: 'openai', base_url: 'https://unreachable.example.com/v1', model: 'gpt-6-luna', location: 'cloud', api_key: 'sk-test-key-12345' }) })
     expect(down.status).toBe(502)
+  })
+
+  it('each row shows its last test as saved; a failed one says why, and when every profile failed the header says so (S-AI-1)', async () => {
+    aiProfilesStore.set([{ id: 'p-lab', name: 'Lab server', kind: 'openai-compatible', api_style: 'openai', base_url: 'http://unreachable.lan:11434/v1', model: 'qwen3:8b', key_last4: null, location: 'internal', daily_cap: 300000 }])
+    aiConfigStore.update((c) => ({ ...c, configured: true }))
+    const v = renderUi(<AiSettings />)
+    await v.ready
+    expect((await screen.findAllByText('Not tested yet')).length).toBeGreaterThan(0)
+    expect(screen.getByText(/^AI profiles are set up\. Each task/)).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'Test connection for Lab server' }))
+    expect((await screen.findAllByText(/^Tested .+: failed: Could not connect to unreachable\.lan\. Check the address/)).length).toBeGreaterThan(0)
+    expect(await screen.findByText(/but the last connection test of each one failed/)).toBeInTheDocument()
+    expect(screen.queryByText('Not tested yet')).not.toBeInTheDocument()
   })
 
   it('removing asks for confirmation and names the tasks that lose the profile; a fallback moves up', async () => {

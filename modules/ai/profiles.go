@@ -29,17 +29,26 @@ type ProfileInput struct {
 
 // ProfileView is a profile as the API shows it: never the key, only its last four characters (INV-1).
 type ProfileView struct {
-	ID        string  `json:"id"`
-	Name      string  `json:"name"`
-	Kind      string  `json:"kind"`
-	APIStyle  string  `json:"api_style"`
-	BaseURL   string  `json:"base_url"`
-	Model     string  `json:"model"`
-	KeyLast4  *string `json:"key_last4"`
-	Location  string  `json:"location"`
-	DailyCap  int     `json:"daily_cap"`
-	Usable    bool    `json:"usable"`
-	UsedToday int     `json:"used_today"`
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Kind      string    `json:"kind"`
+	APIStyle  string    `json:"api_style"`
+	BaseURL   string    `json:"base_url"`
+	Model     string    `json:"model"`
+	KeyLast4  *string   `json:"key_last4"`
+	Location  string    `json:"location"`
+	DailyCap  int       `json:"daily_cap"`
+	Usable    bool      `json:"usable"`
+	UsedToday int       `json:"used_today"`
+	LastTest  *LastTest `json:"last_test"`
+}
+
+// LastTest is the last connection test of a saved profile as it is saved (S-AI-1): when, whether it worked, and on failure the
+// box's own reason (probeFailure: never the provider's message, the URL or the key). Saved in ai_setting key `profile_tests`.
+type LastTest struct {
+	At     string `json:"at"`
+	OK     bool   `json:"ok"`
+	Detail string `json:"detail"`
 }
 
 // TestResult is what a connection test reports (PRE-3).
@@ -59,7 +68,7 @@ type Capabilities struct {
 
 func (s *Service) view(p stored) ProfileView {
 	v := ProfileView{ID: p.ID, Name: p.Name, Kind: p.Kind, APIStyle: string(p.APIStyle), BaseURL: p.BaseURL, Model: p.Model,
-		Location: string(p.Location), DailyCap: p.DailyCap, Usable: p.Usable(), UsedToday: s.meter.ProfileUsed(p.ID)}
+		Location: string(p.Location), DailyCap: p.DailyCap, Usable: p.Usable(), UsedToday: s.meter.ProfileUsed(p.ID), LastTest: p.lastTest}
 	if p.APIKey.IsSet() {
 		l := p.APIKey.Last4()
 		v.KeyLast4 = &l
@@ -88,6 +97,22 @@ func mapErr(err error) error {
 		return apierr.New(http.StatusBadRequest, ae.Code, ae.Msg)
 	}
 	return err
+}
+
+// sameConnection: a and b reach the same model at the same address with the same key, so a test of one holds for the other.
+func sameConnection(a, b Profile) bool {
+	return a.Kind == b.Kind && a.APIStyle == b.APIStyle && a.BaseURL == b.BaseURL && a.Model == b.Model && a.APIKey.Reveal() == b.APIKey.Reveal()
+}
+
+// saveTests writes the last tests of the profiles of sn (ai_setting `profile_tests`); a removed profile's goes with it.
+func saveTests(ctx context.Context, tx *sql.Tx, sn *snapshot, now time.Time, who string) error {
+	m := map[string]LastTest{}
+	for _, p := range sn.profiles {
+		if p.lastTest != nil {
+			m[p.ID] = *p.lastTest
+		}
+	}
+	return upsertSetting(ctx, tx, "profile_tests", m, now, who)
 }
 
 func profileNotFound() error {
@@ -235,6 +260,9 @@ func (s *Service) EditProfile(ctx context.Context, who, id string, in ProfileInp
 	}
 	keepSecret := key.IsSet() && secretID != ""
 	st := stored{Profile: p, secretID: secretID}
+	if sameConnection(old.Profile, p) {
+		st.lastTest = old.lastTest // a new name, place or cap does not change what the test reached; another address, model or key does
+	}
 	if !key.IsSet() {
 		st.secretID = ""
 	}
@@ -273,6 +301,11 @@ func (s *Service) EditProfile(ctx context.Context, who, id string, in ProfileInp
 		if secretID != "" && !sec.Valid { // the key was dropped (provider type changed on an internal profile)
 			if err := s.cfg.Secrets.Delete(ctx, tx, secretID); err != nil {
 				return fmt.Errorf("ai: delete key: %w", err)
+			}
+		}
+		if old.lastTest != nil && st.lastTest == nil {
+			if err := saveTests(ctx, tx, next, now, who); err != nil {
+				return err
 			}
 		}
 		detail := fmt.Sprintf("%s, %s, model=%s, host=%s", p.Kind, p.Location, p.Model, hostOf(p.BaseURL))
@@ -344,6 +377,11 @@ func (s *Service) DeleteProfile(ctx context.Context, who, id string) ([]Job, err
 		if _, err := tx.ExecContext(ctx, `DELETE FROM ai_profile WHERE id = ?`, id); err != nil {
 			return fmt.Errorf("ai: delete profile: %w", err)
 		}
+		if old.lastTest != nil {
+			if err := saveTests(ctx, tx, next, s.cfg.Clock(), who); err != nil {
+				return err
+			}
+		}
 		if old.secretID != "" {
 			if err := s.cfg.Secrets.Delete(ctx, tx, old.secretID); err != nil {
 				return fmt.Errorf("ai: delete key: %w", err)
@@ -370,15 +408,17 @@ const probeTimeout = 60 * time.Second
 const auditTimeout = 10 * time.Second
 
 // TestProfile tries a saved or draft profile with three tiny requests. A saved profile is tested with its stored key only while the
-// provider type and the origin of the address are the saved ones (M1); another address needs the key entered again. Nothing is
-// saved. The test is checked against the caps before it runs and counted after (L5), and it is audited with the host it went to
-// (never the key), also when the request is cancelled while the key is on its way (M2).
+// provider type and the origin of the address are the saved ones (M1); another address needs the key entered again. Nothing of
+// the profile is saved. The test is checked against the caps before it runs and counted after (L5), and it is audited with the host it went to
+// (never the key), also when the request is cancelled while the key is on its way (M2). A test of a saved profile exactly as saved
+// (same address, model and key) is kept as its last test (S-AI-1), unless the profile changed meanwhile or the request was cancelled.
 func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) (TestResult, error) {
 	cur := s.snap.Load()
 	id, key := "draft", keyOf(in)
 	name := strings.TrimSpace(in.Name)
 	profileCap := MaxDailyCap // a draft is limited by the shared cap only; a saved profile also by its own
 	exceptID := ""
+	var saved *Profile // the saved profile when this test is of its connection as saved
 	if in.ID != "" {
 		old, ok := cur.find(in.ID)
 		if !ok {
@@ -404,6 +444,9 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 	if err := p.Validate(); err != nil {
 		return TestResult{}, mapErr(err)
 	}
+	if old, ok := cur.find(in.ID); ok && sameConnection(old.Profile, p) {
+		saved = &old.Profile
+	}
 	pctx, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
 	res, down, probeErr := s.router.Probe(pctx, p, s.cfg.Clock)
@@ -411,11 +454,18 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 		// nothing was sent: no audit row is needed for a key that did not leave the box
 		return TestResult{}, capError(probeErr, s.snap.Load().cfg.DailyCap)
 	}
-	outcome := "ok"
+	outcome, failure := "ok", error(nil)
 	if probeErr != nil {
-		outcome = "failed"
+		outcome, failure = "failed", probeFailure(probeErr, p.BaseURL)
+	}
+	keep := saved != nil && ctx.Err() == nil // a cancelled request did not find out whether the connection works
+	if keep {
+		// held while the result is written so that no edit of the profile slips between the check and the swap
+		s.mu.Lock()
+		defer s.mu.Unlock()
 	}
 	// The key may already have left the box, so the audit row is written whatever happened to the request.
+	var next *snapshot
 	actx, acancel := context.WithTimeout(context.WithoutCancel(ctx), auditTimeout)
 	defer acancel()
 	if err := s.cfg.DB.Write(actx, func(tx *sql.Tx) error {
@@ -434,18 +484,52 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 		if _, err := s.appendActivity(actx, tx, e); err != nil {
 			return err
 		}
+		if keep {
+			if next = s.withTest(*saved, failure); next != nil {
+				if err := saveTests(actx, tx, next, s.cfg.Clock(), who); err != nil {
+					return err
+				}
+			}
+		}
 		return s.auditTx(actx, tx, who, "ai.test", name, fmt.Sprintf("model=%s, host=%s, result=%s", p.Model, hostOf(p.BaseURL), outcome))
 	}); err != nil {
 		return TestResult{}, err
+	}
+	if next != nil {
+		s.snap.Store(next) // only a last test changed: the router's profiles are the same
 	}
 	if probeErr != nil {
 		if ctx.Err() != nil {
 			return TestResult{}, ctx.Err()
 		}
-		return TestResult{}, probeFailure(probeErr, p.BaseURL)
+		return TestResult{}, failure
 	}
 	return TestResult{OK: true, LatencyMS: float64(res.Latency.Milliseconds()), TokensIn: res.TokensIn, TokensOut: res.TokensOut,
 		Capabilities: Capabilities{Tools: res.Tools, Structured: res.Structured}}, nil
+}
+
+// withTest is the next snapshot with the result of a test of saved recorded on it, or nil when that profile was removed or its
+// connection changed since the test began. The caller holds s.mu.
+func (s *Service) withTest(saved Profile, failure error) *snapshot {
+	cur := s.snap.Load()
+	now, ok := cur.find(saved.ID)
+	if !ok || !sameConnection(now.Profile, saved) {
+		return nil
+	}
+	lt := &LastTest{At: store.FormatTS(s.cfg.Clock()), OK: failure == nil}
+	if failure != nil {
+		lt.Detail = "The test failed."
+		if ae, ok := apierr.As(failure); ok {
+			lt.Detail = clipRunes(ae.Message, 300)
+		}
+	}
+	next := &snapshot{profiles: append([]stored(nil), cur.profiles...), assign: cur.assign, cfg: cur.cfg}
+	for i := range next.profiles {
+		if next.profiles[i].ID == saved.ID {
+			next.profiles[i].lastTest = lt
+		}
+	}
+	return next
 }
 
 func clipRunes(s string, n int) string {

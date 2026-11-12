@@ -490,6 +490,56 @@ func TestAFailedConnectionTestKeepsItsTokens(t *testing.T) {
 	}
 }
 
+// S-AI-1: the row of a profile shows its last connection test as saved, a failure with the box's reason and never the key; a test of
+// other settings (a draft, a new key) is not its test, a change of the connection clears it, and it survives a restart.
+func TestTheLastTestOfASavedProfileIsShown(t *testing.T) {
+	a := newAPI(t)
+	p := a.addProfile(cloudBody("Saved", keyA))
+	id := p["id"].(string)
+	if p["last_test"] != nil {
+		t.Fatalf("a new profile has a last test: %v", p["last_test"])
+	}
+	saved := `{"id":"` + id + `",` + strings.Replace(cloudBody("Saved", ""), `"api_key":"",`, "", 1)[1:]
+	lastTest := func(a *api) map[string]any {
+		t.Helper()
+		lt, _ := a.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any)[0].(map[string]any)["last_test"].(map[string]any)
+		return lt
+	}
+	a.fake.failWith("Saved", &provider.Error{Kind: provider.ErrAuth, Status: 401})
+	a.want("POST", "/ai/profiles/test", "admin", saved, 502, "key_rejected")
+	lt := lastTest(a)
+	if lt == nil || lt["ok"] != false || !strings.Contains(lt["detail"].(string), "rejected the key") || lt["at"] == "" {
+		t.Fatalf("last_test after a rejected key = %v", lt)
+	}
+	if raw := fmt.Sprint(lt); strings.Contains(raw, keyA) || strings.Contains(raw, "AAAA1111") {
+		t.Fatalf("the key is in the last test: %s", raw)
+	}
+	if lt := lastTest(newAPIOver(a.env)); lt == nil || lt["ok"] != false {
+		t.Fatalf("last_test after a restart = %v", lt)
+	}
+	a.fake.failWith("Saved", nil)
+	a.want("POST", "/ai/profiles/test", "admin", cloudBody("Draft", keyB), 200, "")                       // a draft is no saved profile's test
+	a.want("POST", "/ai/profiles/test", "admin", `{"id":"`+id+`",`+cloudBody("Saved", keyB)[1:], 200, "") // nor is a key not saved yet
+	if lt := lastTest(a); lt["ok"] != false {
+		t.Fatalf("another test was taken as the saved profile's: %v", lt)
+	}
+	a.want("POST", "/ai/profiles/test", "admin", saved, 200, "")
+	if lt := lastTest(a); lt["ok"] != true || lt["detail"] != "" {
+		t.Fatalf("last_test after a good test = %v", lt)
+	}
+	a.want("PUT", "/ai/profiles/"+id, "admin", strings.Replace(cloudBody("Renamed", ""), `"daily_cap":60000`, `"daily_cap":50000`, 1), 200, "")
+	if lt := lastTest(a); lt == nil || lt["ok"] != true {
+		t.Fatalf("a new name cleared the last test: %v", lt)
+	}
+	a.want("PUT", "/ai/profiles/"+id, "admin", strings.Replace(cloudBody("Renamed", ""), "claude-haiku-5-5", "claude-sonnet-5-5", 1), 200, "")
+	if lt := lastTest(a); lt != nil {
+		t.Fatalf("another model kept the last test: %v", lt)
+	}
+	if lt := lastTest(newAPIOver(a.env)); lt != nil {
+		t.Fatalf("the cleared last test came back after a restart: %v", lt)
+	}
+}
+
 func TestBriefForTheMitigationDoor(t *testing.T) {
 	a := newAPI(t)
 	a.withProfile()

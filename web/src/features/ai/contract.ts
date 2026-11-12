@@ -16,6 +16,8 @@ export const AiProfile = z.object({
   key_last4: z.string().nullable().describe('Last 4 characters of the key; the full key is never returned (SYS-4). null = no key yet (valid for internal profiles)'),
   location: Location, daily_cap: z.number().int().describe('Daily token cap for this profile alone; when reached, jobs switch to the fallback profile'),
   usable: z.boolean(), used_today: z.number().int(),
+  last_test: z.object({ at: iso, ok: z.boolean(), detail: z.string().describe("On failure the box's reason (never the provider's message, the address or the key); empty on success") }).nullable()
+    .describe('Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model or key changed; a test of a draft or of a key not saved yet does not count'),
 })
 export const ProfileInput = z.object({
   id: z.string().optional().describe('Present when editing or testing a saved profile: leave the key blank to keep the old key, only while the provider type and the server address (scheme, host and port) stay the same; another address needs the key entered again'),

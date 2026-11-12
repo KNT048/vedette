@@ -3338,6 +3338,9 @@ type AiGetAiProfilesOKItemsItem struct {
 	// internal profiles).
 	KeyLast4 NilString                      `json:"key_last4"`
 	Kind     AiGetAiProfilesOKItemsItemKind `json:"kind"`
+	// Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its
+	// address, model or key changed; a test of a draft or of a key not saved yet does not count.
+	LastTest NilAiGetAiProfilesOKItemsItemLastTest `json:"last_test"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
 	Location  AiGetAiProfilesOKItemsItemLocation `json:"location"`
 	Model     string                             `json:"model"`
@@ -3374,6 +3377,11 @@ func (s *AiGetAiProfilesOKItemsItem) GetKeyLast4() NilString {
 // GetKind returns the value of Kind.
 func (s *AiGetAiProfilesOKItemsItem) GetKind() AiGetAiProfilesOKItemsItemKind {
 	return s.Kind
+}
+
+// GetLastTest returns the value of LastTest.
+func (s *AiGetAiProfilesOKItemsItem) GetLastTest() NilAiGetAiProfilesOKItemsItemLastTest {
+	return s.LastTest
 }
 
 // GetLocation returns the value of Location.
@@ -3429,6 +3437,11 @@ func (s *AiGetAiProfilesOKItemsItem) SetKeyLast4(val NilString) {
 // SetKind sets the value of Kind.
 func (s *AiGetAiProfilesOKItemsItem) SetKind(val AiGetAiProfilesOKItemsItemKind) {
 	s.Kind = val
+}
+
+// SetLastTest sets the value of LastTest.
+func (s *AiGetAiProfilesOKItemsItem) SetLastTest(val NilAiGetAiProfilesOKItemsItemLastTest) {
+	s.LastTest = val
 }
 
 // SetLocation sets the value of Location.
@@ -3565,6 +3578,43 @@ func (s *AiGetAiProfilesOKItemsItemKind) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type AiGetAiProfilesOKItemsItemLastTest struct {
+	At time.Time `json:"at"`
+	// On failure the box's reason (never the provider's message, the address or the key); empty on success.
+	Detail string `json:"detail"`
+	Ok     bool   `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *AiGetAiProfilesOKItemsItemLastTest) GetAt() time.Time {
+	return s.At
+}
+
+// GetDetail returns the value of Detail.
+func (s *AiGetAiProfilesOKItemsItemLastTest) GetDetail() string {
+	return s.Detail
+}
+
+// GetOk returns the value of Ok.
+func (s *AiGetAiProfilesOKItemsItemLastTest) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *AiGetAiProfilesOKItemsItemLastTest) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *AiGetAiProfilesOKItemsItemLastTest) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetOk sets the value of Ok.
+func (s *AiGetAiProfilesOKItemsItemLastTest) SetOk(val bool) {
+	s.Ok = val
 }
 
 // Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
@@ -7789,6 +7839,9 @@ type AiPostAiProfilesOK struct {
 	// internal profiles).
 	KeyLast4 NilString              `json:"key_last4"`
 	Kind     AiPostAiProfilesOKKind `json:"kind"`
+	// Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its
+	// address, model or key changed; a test of a draft or of a key not saved yet does not count.
+	LastTest NilAiPostAiProfilesOKLastTest `json:"last_test"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
 	Location  AiPostAiProfilesOKLocation `json:"location"`
 	Model     string                     `json:"model"`
@@ -7825,6 +7878,11 @@ func (s *AiPostAiProfilesOK) GetKeyLast4() NilString {
 // GetKind returns the value of Kind.
 func (s *AiPostAiProfilesOK) GetKind() AiPostAiProfilesOKKind {
 	return s.Kind
+}
+
+// GetLastTest returns the value of LastTest.
+func (s *AiPostAiProfilesOK) GetLastTest() NilAiPostAiProfilesOKLastTest {
+	return s.LastTest
 }
 
 // GetLocation returns the value of Location.
@@ -7880,6 +7938,11 @@ func (s *AiPostAiProfilesOK) SetKeyLast4(val NilString) {
 // SetKind sets the value of Kind.
 func (s *AiPostAiProfilesOK) SetKind(val AiPostAiProfilesOKKind) {
 	s.Kind = val
+}
+
+// SetLastTest sets the value of LastTest.
+func (s *AiPostAiProfilesOK) SetLastTest(val NilAiPostAiProfilesOKLastTest) {
+	s.LastTest = val
 }
 
 // SetLocation sets the value of Location.
@@ -8016,6 +8079,43 @@ func (s *AiPostAiProfilesOKKind) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type AiPostAiProfilesOKLastTest struct {
+	At time.Time `json:"at"`
+	// On failure the box's reason (never the provider's message, the address or the key); empty on success.
+	Detail string `json:"detail"`
+	Ok     bool   `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *AiPostAiProfilesOKLastTest) GetAt() time.Time {
+	return s.At
+}
+
+// GetDetail returns the value of Detail.
+func (s *AiPostAiProfilesOKLastTest) GetDetail() string {
+	return s.Detail
+}
+
+// GetOk returns the value of Ok.
+func (s *AiPostAiProfilesOKLastTest) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *AiPostAiProfilesOKLastTest) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *AiPostAiProfilesOKLastTest) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetOk sets the value of Ok.
+func (s *AiPostAiProfilesOKLastTest) SetOk(val bool) {
+	s.Ok = val
 }
 
 // Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
@@ -10844,6 +10944,9 @@ type AiPutAiProfilesIDOK struct {
 	// internal profiles).
 	KeyLast4 NilString               `json:"key_last4"`
 	Kind     AiPutAiProfilesIDOKKind `json:"kind"`
+	// Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its
+	// address, model or key changed; a test of a draft or of a key not saved yet does not count.
+	LastTest NilAiPutAiProfilesIDOKLastTest `json:"last_test"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
 	Location  AiPutAiProfilesIDOKLocation `json:"location"`
 	Model     string                      `json:"model"`
@@ -10880,6 +10983,11 @@ func (s *AiPutAiProfilesIDOK) GetKeyLast4() NilString {
 // GetKind returns the value of Kind.
 func (s *AiPutAiProfilesIDOK) GetKind() AiPutAiProfilesIDOKKind {
 	return s.Kind
+}
+
+// GetLastTest returns the value of LastTest.
+func (s *AiPutAiProfilesIDOK) GetLastTest() NilAiPutAiProfilesIDOKLastTest {
+	return s.LastTest
 }
 
 // GetLocation returns the value of Location.
@@ -10935,6 +11043,11 @@ func (s *AiPutAiProfilesIDOK) SetKeyLast4(val NilString) {
 // SetKind sets the value of Kind.
 func (s *AiPutAiProfilesIDOK) SetKind(val AiPutAiProfilesIDOKKind) {
 	s.Kind = val
+}
+
+// SetLastTest sets the value of LastTest.
+func (s *AiPutAiProfilesIDOK) SetLastTest(val NilAiPutAiProfilesIDOKLastTest) {
+	s.LastTest = val
 }
 
 // SetLocation sets the value of Location.
@@ -11071,6 +11184,43 @@ func (s *AiPutAiProfilesIDOKKind) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type AiPutAiProfilesIDOKLastTest struct {
+	At time.Time `json:"at"`
+	// On failure the box's reason (never the provider's message, the address or the key); empty on success.
+	Detail string `json:"detail"`
+	Ok     bool   `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *AiPutAiProfilesIDOKLastTest) GetAt() time.Time {
+	return s.At
+}
+
+// GetDetail returns the value of Detail.
+func (s *AiPutAiProfilesIDOKLastTest) GetDetail() string {
+	return s.Detail
+}
+
+// GetOk returns the value of Ok.
+func (s *AiPutAiProfilesIDOKLastTest) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *AiPutAiProfilesIDOKLastTest) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *AiPutAiProfilesIDOKLastTest) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetOk sets the value of Ok.
+func (s *AiPutAiProfilesIDOKLastTest) SetOk(val bool) {
+	s.Ok = val
 }
 
 // Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
@@ -76110,6 +76260,51 @@ func (o NilAiGetAiLogsDigestOKDigest) Or(d AiGetAiLogsDigestOKDigest) AiGetAiLog
 	return d
 }
 
+// NewNilAiGetAiProfilesOKItemsItemLastTest returns new NilAiGetAiProfilesOKItemsItemLastTest with value set to v.
+func NewNilAiGetAiProfilesOKItemsItemLastTest(v AiGetAiProfilesOKItemsItemLastTest) NilAiGetAiProfilesOKItemsItemLastTest {
+	return NilAiGetAiProfilesOKItemsItemLastTest{
+		Value: v,
+	}
+}
+
+// NilAiGetAiProfilesOKItemsItemLastTest is nullable AiGetAiProfilesOKItemsItemLastTest.
+type NilAiGetAiProfilesOKItemsItemLastTest struct {
+	Value AiGetAiProfilesOKItemsItemLastTest
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilAiGetAiProfilesOKItemsItemLastTest) SetTo(v AiGetAiProfilesOKItemsItemLastTest) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilAiGetAiProfilesOKItemsItemLastTest) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilAiGetAiProfilesOKItemsItemLastTest) SetToNull() {
+	o.Null = true
+	var v AiGetAiProfilesOKItemsItemLastTest
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilAiGetAiProfilesOKItemsItemLastTest) Get() (v AiGetAiProfilesOKItemsItemLastTest, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilAiGetAiProfilesOKItemsItemLastTest) Or(d AiGetAiProfilesOKItemsItemLastTest) AiGetAiProfilesOKItemsItemLastTest {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilAiPostAiAskOKDowngraded returns new NilAiPostAiAskOKDowngraded with value set to v.
 func NewNilAiPostAiAskOKDowngraded(v AiPostAiAskOKDowngraded) NilAiPostAiAskOKDowngraded {
 	return NilAiPostAiAskOKDowngraded{
@@ -76194,6 +76389,96 @@ func (o NilAiPostAiAskOKTable) Get() (v AiPostAiAskOKTable, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o NilAiPostAiAskOKTable) Or(d AiPostAiAskOKTable) AiPostAiAskOKTable {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilAiPostAiProfilesOKLastTest returns new NilAiPostAiProfilesOKLastTest with value set to v.
+func NewNilAiPostAiProfilesOKLastTest(v AiPostAiProfilesOKLastTest) NilAiPostAiProfilesOKLastTest {
+	return NilAiPostAiProfilesOKLastTest{
+		Value: v,
+	}
+}
+
+// NilAiPostAiProfilesOKLastTest is nullable AiPostAiProfilesOKLastTest.
+type NilAiPostAiProfilesOKLastTest struct {
+	Value AiPostAiProfilesOKLastTest
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilAiPostAiProfilesOKLastTest) SetTo(v AiPostAiProfilesOKLastTest) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilAiPostAiProfilesOKLastTest) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilAiPostAiProfilesOKLastTest) SetToNull() {
+	o.Null = true
+	var v AiPostAiProfilesOKLastTest
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilAiPostAiProfilesOKLastTest) Get() (v AiPostAiProfilesOKLastTest, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilAiPostAiProfilesOKLastTest) Or(d AiPostAiProfilesOKLastTest) AiPostAiProfilesOKLastTest {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilAiPutAiProfilesIDOKLastTest returns new NilAiPutAiProfilesIDOKLastTest with value set to v.
+func NewNilAiPutAiProfilesIDOKLastTest(v AiPutAiProfilesIDOKLastTest) NilAiPutAiProfilesIDOKLastTest {
+	return NilAiPutAiProfilesIDOKLastTest{
+		Value: v,
+	}
+}
+
+// NilAiPutAiProfilesIDOKLastTest is nullable AiPutAiProfilesIDOKLastTest.
+type NilAiPutAiProfilesIDOKLastTest struct {
+	Value AiPutAiProfilesIDOKLastTest
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilAiPutAiProfilesIDOKLastTest) SetTo(v AiPutAiProfilesIDOKLastTest) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilAiPutAiProfilesIDOKLastTest) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilAiPutAiProfilesIDOKLastTest) SetToNull() {
+	o.Null = true
+	var v AiPutAiProfilesIDOKLastTest
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilAiPutAiProfilesIDOKLastTest) Get() (v AiPutAiProfilesIDOKLastTest, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilAiPutAiProfilesIDOKLastTest) Or(d AiPutAiProfilesIDOKLastTest) AiPutAiProfilesIDOKLastTest {
 	if v, ok := o.Get(); ok {
 		return v
 	}

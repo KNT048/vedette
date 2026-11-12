@@ -5,6 +5,7 @@
 /dist/
 /web/dist/
 /internal/webui/dist/
+/internal/webui/licenses/
 /web/node_modules/
 *.exe
 *.test

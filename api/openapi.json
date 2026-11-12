@@ -35013,7 +35013,7 @@
                             "type": "string"
                           },
                           "interface": {
-                            "description": "The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387)",
+                            "description": "The port the sensor listens on: the card chosen (the SPAN port when SPAN is on), else the default card, the management port (D-380); null: none. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387, D-393)",
                             "type": [
                               "string",
                               "null"
@@ -35028,6 +35028,10 @@
                           },
                           "span": {
                             "type": "boolean"
+                          },
+                          "chosen": {
+                            "type": "boolean",
+                            "description": "true: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen with PATCH on a container-only install); false: interface is the default card (D-380) or null (D-393)"
                           },
                           "span_status": {
                             "type": "object",
@@ -35100,6 +35104,7 @@
                           "interface",
                           "interfaces",
                           "span",
+                          "chosen",
                           "span_status",
                           "status",
                           "last_seen",
@@ -35134,7 +35139,7 @@
     "/inventory/sensors/{id}": {
       "patch": {
         "operationId": "inventory_patch_inventory_sensors_id",
-        "summary": "Container-only install: choose the card the sensor reads and whether it is the SPAN card, among the cards of its last heartbeat (D-387). 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it",
+        "summary": "Container-only install: choose the card the sensor reads (any card of its last heartbeat, with or without an address; null: back to the default card) and whether it is the SPAN card (D-387, D-393). 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it",
         "tags": [
           "inventory"
         ],
@@ -35201,7 +35206,7 @@
                       "type": "string"
                     },
                     "interface": {
-                      "description": "The port the sensor listens on: the SPAN port when SPAN is on, else the management port. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387)",
+                      "description": "The port the sensor listens on: the card chosen (the SPAN port when SPAN is on), else the default card, the management port (D-380); null: none. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387, D-393)",
                       "type": [
                         "string",
                         "null"
@@ -35216,6 +35221,10 @@
                     },
                     "span": {
                       "type": "boolean"
+                    },
+                    "chosen": {
+                      "type": "boolean",
+                      "description": "true: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen with PATCH on a container-only install); false: interface is the default card (D-380) or null (D-393)"
                     },
                     "span_status": {
                       "type": "object",
@@ -35288,6 +35297,7 @@
                     "interface",
                     "interfaces",
                     "span",
+                    "chosen",
                     "span_status",
                     "status",
                     "last_seen",

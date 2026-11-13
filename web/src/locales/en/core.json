@@ -1396,6 +1396,7 @@
       },
       "commitment": "I confirm these ranges belong to my company and I am allowed to scan them.",
       "passiveOnly": "Not ticked: Vedette only listens passively and does not scan yet. You can confirm later under Devices, Scope and sensors.",
+      "firstPass": "Ticked: active scanning is turned on. Vedette makes one first pass over these ranges right away (once, at most an hour), then scans only in the time window under Devices, Scope and sensors (22:00 to 05:00 by default).",
       "license": "Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.",
       "saveFailed": "Setup finished but the scan scope was not saved: {{message}} Open Devices, Scope and sensors to enter it again.",
       "lanNoPrefix": "\"{{value}}\" has no prefix length. Add it so Vedette scans the right size of network, for example {{value}}/24 or {{value}}/25."

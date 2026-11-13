@@ -81,12 +81,12 @@ func debUpstream(v string) string {
 
 // mapPackages turns the package snapshots of one request into the software list of the device. Rows whose name or version does not fit
 // the inventory's limits are dropped, and the count is returned. One list per device: the deb, rpm and programs rows are joined (a
-// host has one of them), the same product and version once.
-func mapPackages(snaps map[string][]row) (items []observe.Software, dropped int) {
+// host has one of them), the same product and version once. At most limit rows are kept; the rows past it are dropped and counted.
+func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, dropped int) {
 	seen := map[string]bool{}
 	add := func(display, vendor, product, version string, mapped bool) {
 		// The key vendor|product must stay within the inventory's 400 bytes, or it refuses the whole list.
-		if !fits(display) || !fits(vendor) || !fits(product) || len(vendor)+len(product)+1 > maxKeyBytes || utf8.RuneCountInString(version) > maxVersion || len(items) >= maxRows {
+		if !fits(display) || !fits(vendor) || !fits(product) || len(vendor)+len(product)+1 > maxKeyBytes || utf8.RuneCountInString(version) > maxVersion || len(items) >= limit {
 			dropped++
 			return
 		}
@@ -136,6 +136,22 @@ func mapPackages(snaps map[string][]row) (items []observe.Software, dropped int)
 		}
 	}
 	return items, dropped
+}
+
+// DebPackage is one installed Debian package: name, full Debian version and source package ("" when it has none).
+type DebPackage struct{ Name, Version, Source string }
+
+// MapDebPackages turns a dpkg list into software the way an osquery deb_packages snapshot is turned (same table, same upstream
+// version, same limits), so the box's own list (vedette-host, D-470) and an osquery agent on the same machine give the same rows.
+// It is a pure function: it reads no table and works with the module off. dropped counts rows whose fields are outside the
+// inventory's limits. Unlike an agent's snapshot the list is never cut at maxRows: the caller stores it whole or not at all
+// (the inventory refuses a list over its 5 000 items, so the box keeps its last list instead of a part of the box).
+func MapDebPackages(pkgs []DebPackage) (items []observe.Software, dropped int) {
+	rows := make([]row, 0, len(pkgs))
+	for _, p := range pkgs {
+		rows = append(rows, row{"name": p.Name, "version": p.Version, "source": p.Source})
+	}
+	return mapPackages(map[string][]row{"deb_packages": rows}, len(rows))
 }
 
 // fits reports whether s is 1..maxName runes (the rows are already clean text).

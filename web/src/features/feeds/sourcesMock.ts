@@ -30,7 +30,7 @@ interface Config { builtin: Record<string, BuiltinState>; custom: Feed[] }
 
 const ago = (h: number) => new Date(Date.now() - h * 36e5).toISOString()
 const seedBuiltin = (clean: boolean): Record<string, BuiltinState> => Object.fromEntries(DEFS.map((d, i) => [d.id, {
-  enabled: true, interval_hours: d.kind === 'ioc' ? 6 : 24, url: d.url,
+  enabled: true, interval_hours: d.kind === 'ioc' ? 6 : d.id === 'cisa-kev' ? 1 : 24, url: d.url,
   last_fetch: clean ? null : ago(1 + i * 0.7), records: clean ? null : d.records, status: clean ? 'never' as const : 'ok' as const, error: null,
 }]))
 

@@ -47,6 +47,9 @@
 - `CheckDest(raw, box)` (D-420 (1)) dùng `refusedAlways` và `destGuard.refused` của bộ quay số: đổi luật quay số là đổi luôn luật lúc lưu (và `blockedFeedHost` của SPA, `web/src/features/feeds/defaults.ts`, phải đổi theo). `Service.boxAddrs` đọc `Fetcher.BoxAddrs`/`Gateway` như lượt kéo. Test và e2e-real không lưu được feed trỏ 127.0.0.1: origin của test gói tên `origin.lan` (`onlyLoopback`), e2e-real dùng `e2e-loopback.lan` (`cmd/vedette/e2ebox_test.go` `e2eOffline`).
 - `checkDuplicateURL` / `sameAddress` (D-420 (2)) đọc `feeds_source.url` của mọi feed khác trong giao dịch ghi; mock dùng `sameFeedAddress`. Mã `blocked_host`, `duplicate_url` là hợp đồng của `FeedDialogs.tsx` (`FIELD_OF` → lỗi dưới ô Address) và `conformance.test.ts`.
 
+## Modifying: `Service.hot` (cửa sổ, cách gom, `you_have`) và `Service.NewlyExploited` (D-485)
+- **reports**: `Counts.kev_new`/`kev_matched` của báo cáo tuần là `NewlyExploited`; đổi cửa sổ hay định nghĩa "products you use" là đổi cả trang chủ và báo cáo (đúng ý: hai trang phải cùng số). Chuyển `kev_matched` sang đơn vị khác phải đổi chữ `doc.weekly.stat.kevValueHome` của `web/features/reports`.
+
 ## Modifying: `GET /feeds/hot` trường `you_have`, `matched_assets`
 - **SPA** `HomePage`, `YouHaveCell`; **notify** không đọc trực tiếp.
 

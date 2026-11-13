@@ -142,7 +142,7 @@ func TestSoftwareAndObservations(t *testing.T) {
 		"openssh":          "openbsd|8.9p1|cpe:/a:openbsd:openssh:8.9p1",
 		"http server":      "apache|2.4.52|cpe:/a:apache:http_server:2.4.52", // underscore -> space: how the CISA list writes it
 		"Squid http proxy": "Squid http proxy|5.7|",                          // no CPE: the product name stands for the vendor
-		"linux kernel":     "linux|5|cpe:/o:linux:linux_kernel:5",
+		"linux kernel":     "linux||cpe:/o:linux:linux_kernel",               // the fingerprint's OS: a guess, without its generation (D-501)
 	} {
 		if byProduct[product] != want {
 			t.Errorf("software %q = %q, want %q (all: %v)", product, byProduct[product], want, byProduct)
@@ -169,7 +169,8 @@ func TestSoftwareAndObservations(t *testing.T) {
 
 func TestKindOf(t *testing.T) {
 	t.Parallel()
-	for in, want := range map[string]string{"router": "router", "WAP": "ap", "printer": "printer", "webcam": "camera", "storage-misc": "nas", "general purpose": "", "": ""} {
+	for in, want := range map[string]string{"router": "router", "WAP": "ap", "printer": "printer", "webcam": "camera", "storage-misc": "nas", "general purpose": "", "": "",
+		"phone": "iot", "VoIP phone": "iot", "broadband router": "router", "print server": "printer"} { // D-501: no phone kind yet, phones are iot as in the catalog
 		if got := kindOf(in); got != want {
 			t.Errorf("kindOf(%q) = %q, want %q", in, got, want)
 		}

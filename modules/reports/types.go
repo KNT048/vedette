@@ -16,14 +16,30 @@ type FindingRow struct {
 	Status   string `json:"status"`
 	Severity string `json:"severity"`
 	Since    string `json:"since"`
+	By       string `json:"by,omitempty"` // who closed it, on the rows of what was done
 }
 
-// ActionItem is one line of "what is left". Kind is fix, verify, review_devices or plan_os.
+// TopRisk is one of the biggest open risks of the week (W1-24, D-485): the open findings of one product, as Findings names it.
+// Device is the device's name, or the first names and how many more; FindingID is its worst finding.
+type TopRisk struct {
+	Product   string `json:"product"`
+	Device    string `json:"device"`
+	Devices   int    `json:"devices"`
+	Open      int    `json:"open"`
+	Confirmed int    `json:"confirmed"`
+	Severity  string `json:"severity"`
+	CVE       string `json:"cve"`
+	FindingID string `json:"finding_id"`
+}
+
+// ActionItem is one line of "what is left". Kind is fix, verify, review_devices or plan_os. Since D-485 fix and verify are about
+// one top risk: Product and Count (its open findings) are set, CVE and FindingID are its worst finding.
 type ActionItem struct {
 	Kind      string `json:"kind"`
 	CVE       string `json:"cve,omitempty"`
 	Device    string `json:"device,omitempty"`
 	FindingID string `json:"finding_id,omitempty"`
+	Product   string `json:"product,omitempty"`
 	Count     int    `json:"count,omitempty"`
 }
 
@@ -57,8 +73,8 @@ type Counts struct {
 	Devices          int `json:"devices"`
 	DevicesUnapprove int `json:"devices_unapproved"`
 	DevicesNew       int `json:"devices_new"`
-	KevNew           int `json:"kev_new"`
-	KevMatched       int `json:"kev_matched"`
+	KevNew           int `json:"kev_new"`     // newly exploited in the last 7 days, as Home counts them (D-485)
+	KevMatched       int `json:"kev_matched"` // their products in use, as Home counts them (D-485; before it, CVEs on a device)
 }
 
 // Source says where a group of figures came from and when (INV-1).
@@ -72,6 +88,7 @@ type WeeklyReport struct {
 	Period      Period       `json:"period"`
 	GeneratedAt string       `json:"generated_at"`
 	Counts      Counts       `json:"counts"`
+	TopRisks    []TopRisk    `json:"top_risks"`
 	NewFindings []FindingRow `json:"new_findings"`
 	Resolved    []FindingRow `json:"resolved"`
 	Open        []FindingRow `json:"open"`

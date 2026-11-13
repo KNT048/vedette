@@ -23241,6 +23241,31 @@ func (s *ExposureGetExposureTargetsIDOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.OpenPorts {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Status.Validate(); err != nil {
 			return err
 		}
@@ -23429,6 +23454,39 @@ func (s ExposureGetExposureTargetsIDOKMethod) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Port)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "port",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s ExposureGetExposureTargetsIDOKStatus) Validate() error {
@@ -24184,6 +24242,31 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.OpenPorts {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Status.Validate(); err != nil {
 			return err
 		}
@@ -24374,6 +24457,39 @@ func (s ExposureGetExposureTargetsOKItemsItemMethod) Validate() error {
 	}
 }
 
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Port)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "port",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s ExposureGetExposureTargetsOKItemsItemStatus) Validate() error {
 	switch s {
 	case "unverified":
@@ -24508,6 +24624,31 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "method",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.OpenPorts {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_ports",
 			Error: err,
 		})
 	}
@@ -24702,6 +24843,39 @@ func (s ExposurePostExposureBoxIPVerifyOKItemsItemMethod) Validate() error {
 	}
 }
 
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Port)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "port",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s ExposurePostExposureBoxIPVerifyOKItemsItemStatus) Validate() error {
 	switch s {
 	case "unverified":
@@ -24796,6 +24970,31 @@ func (s *ExposurePostExposureTargetsCreated) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "method",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.OpenPorts {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_ports",
 			Error: err,
 		})
 	}
@@ -24990,6 +25189,39 @@ func (s ExposurePostExposureTargetsCreatedMethod) Validate() error {
 	}
 }
 
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Port)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "port",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s ExposurePostExposureTargetsCreatedStatus) Validate() error {
 	switch s {
 	case "unverified":
@@ -25084,6 +25316,31 @@ func (s *ExposurePostExposureTargetsIDCommitmentOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "method",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.OpenPorts {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_ports",
 			Error: err,
 		})
 	}
@@ -25276,6 +25533,39 @@ func (s ExposurePostExposureTargetsIDCommitmentOKMethod) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Port)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "port",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s ExposurePostExposureTargetsIDCommitmentOKStatus) Validate() error {
@@ -25728,6 +26018,31 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Validate() error {
 		})
 	}
 	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.OpenPorts {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_ports",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Status.Validate(); err != nil {
 			return err
 		}
@@ -25916,6 +26231,39 @@ func (s ExposurePostExposureTargetsIDVerifyOKTargetMethod) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Port)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "port",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s ExposurePostExposureTargetsIDVerifyOKTargetStatus) Validate() error {
@@ -49169,6 +49517,46 @@ func (s *ReportsGetReportsScheduleOK) Validate() error {
 	return nil
 }
 
+func (s *ReportsGetReportsWeeklyHistoryID1Fix) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Count.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "count",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *ReportsGetReportsWeeklyHistoryID1PlanOs) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -49221,6 +49609,46 @@ func (s *ReportsGetReportsWeeklyHistoryID1ReviewDevices) Validate() error {
 			Pattern:       nil,
 		}).Validate(int64(s.Count)); err != nil {
 			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "count",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ReportsGetReportsWeeklyHistoryID1Verify) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Count.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -49495,6 +49923,42 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if s.TopRisks == nil {
+			return nil // optional
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    3,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.TopRisks)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.TopRisks {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "top_risks",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -49504,9 +49968,15 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) Validate() error {
 func (s ReportsGetReportsWeeklyHistoryIDOKReportActionsItem) Validate() error {
 	switch s.Type {
 	case ReportsGetReportsWeeklyHistoryID1FixReportsGetReportsWeeklyHistoryIDOKReportActionsItem:
-		return nil // no validation needed
+		if err := s.ReportsGetReportsWeeklyHistoryID1Fix.Validate(); err != nil {
+			return err
+		}
+		return nil
 	case ReportsGetReportsWeeklyHistoryID1VerifyReportsGetReportsWeeklyHistoryIDOKReportActionsItem:
-		return nil // no validation needed
+		if err := s.ReportsGetReportsWeeklyHistoryID1Verify.Validate(); err != nil {
+			return err
+		}
+		return nil
 	case ReportsGetReportsWeeklyHistoryID1ReviewDevicesReportsGetReportsWeeklyHistoryIDOKReportActionsItem:
 		if err := s.ReportsGetReportsWeeklyHistoryID1ReviewDevices.Validate(); err != nil {
 			return err
@@ -49947,6 +50417,109 @@ func (s ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) Validate() error 
 	}
 }
 
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Confirmed)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "confirmed",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Devices)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "devices",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Open)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Severity.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "severity",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity) Validate() error {
+	switch s {
+	case "critical":
+		return nil
+	case "high":
+		return nil
+	case "medium":
+		return nil
+	case "low":
+		return nil
+	case "info":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s ReportsGetReportsWeeklyHistoryIDOKStatus) Validate() error {
 	switch s {
 	case "sent":
@@ -50105,6 +50678,46 @@ func (s ReportsGetReportsWeeklyHistoryOKItemsItemTrigger) Validate() error {
 	}
 }
 
+func (s *ReportsGetReportsWeeklyPreview1Fix) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Count.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "count",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *ReportsGetReportsWeeklyPreview1PlanOs) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -50157,6 +50770,46 @@ func (s *ReportsGetReportsWeeklyPreview1ReviewDevices) Validate() error {
 			Pattern:       nil,
 		}).Validate(int64(s.Count)); err != nil {
 			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "count",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ReportsGetReportsWeeklyPreview1Verify) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Count.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -50369,6 +51022,42 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if s.TopRisks == nil {
+			return nil // optional
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    3,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.TopRisks)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.TopRisks {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "top_risks",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -50378,9 +51067,15 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) Validate() error {
 func (s ReportsGetReportsWeeklyPreviewOKReportActionsItem) Validate() error {
 	switch s.Type {
 	case ReportsGetReportsWeeklyPreview1FixReportsGetReportsWeeklyPreviewOKReportActionsItem:
-		return nil // no validation needed
+		if err := s.ReportsGetReportsWeeklyPreview1Fix.Validate(); err != nil {
+			return err
+		}
+		return nil
 	case ReportsGetReportsWeeklyPreview1VerifyReportsGetReportsWeeklyPreviewOKReportActionsItem:
-		return nil // no validation needed
+		if err := s.ReportsGetReportsWeeklyPreview1Verify.Validate(); err != nil {
+			return err
+		}
+		return nil
 	case ReportsGetReportsWeeklyPreview1ReviewDevicesReportsGetReportsWeeklyPreviewOKReportActionsItem:
 		if err := s.ReportsGetReportsWeeklyPreview1ReviewDevices.Validate(); err != nil {
 			return err
@@ -50815,6 +51510,109 @@ func (s ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) Validate() error {
 	case "findings":
 		return nil
 	case "kev":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Confirmed)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "confirmed",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Devices)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "devices",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Open)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Severity.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "severity",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity) Validate() error {
+	switch s {
+	case "critical":
+		return nil
+	case "high":
+		return nil
+	case "medium":
+		return nil
+	case "low":
+		return nil
+	case "info":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -73469,6 +74267,34 @@ func (s *ScanGetScansRunsOKItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.Identification == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Identification {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "identification",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           -9007199254740991,
@@ -73564,6 +74390,100 @@ func (s *ScanGetScansRunsOKItemsItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Found == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Found)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "found",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Reason.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ScanGetScansRunsOKItemsItemIdentificationItemReason) Validate() error {
+	switch s {
+	case "host_down":
+		return nil
+	case "no_open_ports":
+		return nil
+	case "filtered":
+		return nil
+	case "no_version":
+		return nil
+	case "os_unconfirmed":
+		return nil
+	case "os_low_confidence":
+		return nil
+	case "gentle_only":
+		return nil
+	case "timed_out":
+		return nil
+	case "busy":
+		return nil
+	case "unavailable":
+		return nil
+	case "declared_by_hand":
+		return nil
+	case "scanning_off":
+		return nil
+	case "not_approved":
+		return nil
+	case "out_of_scope":
+		return nil
+	case "scope_not_confirmed":
+		return nil
+	case "box":
+		return nil
+	case "regular_scan_never":
+		return nil
+	case "no_ip":
+		return nil
+	case "not_scanned":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ScanGetScansRunsOKItemsItemResultsItem) Validate() error {
@@ -73812,8 +74732,6 @@ func (s ScanGetScansTargetsOKItemsItemReason) Validate() error {
 		return nil
 	case "no_ip":
 		return nil
-	case "box":
-		return nil
 	case "regular_scan_never":
 		return nil
 	case "unverified":
@@ -74000,6 +74918,34 @@ func (s *ScanPostScansRunsCreated) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.Identification == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Identification {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "identification",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           -9007199254740991,
@@ -74095,6 +75041,100 @@ func (s *ScanPostScansRunsCreated) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *ScanPostScansRunsCreatedIdentificationItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Found == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Found)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "found",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Reason.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ScanPostScansRunsCreatedIdentificationItemReason) Validate() error {
+	switch s {
+	case "host_down":
+		return nil
+	case "no_open_ports":
+		return nil
+	case "filtered":
+		return nil
+	case "no_version":
+		return nil
+	case "os_unconfirmed":
+		return nil
+	case "os_low_confidence":
+		return nil
+	case "gentle_only":
+		return nil
+	case "timed_out":
+		return nil
+	case "busy":
+		return nil
+	case "unavailable":
+		return nil
+	case "declared_by_hand":
+		return nil
+	case "scanning_off":
+		return nil
+	case "not_approved":
+		return nil
+	case "out_of_scope":
+		return nil
+	case "scope_not_confirmed":
+		return nil
+	case "box":
+		return nil
+	case "regular_scan_never":
+		return nil
+	case "no_ip":
+		return nil
+	case "not_scanned":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ScanPostScansRunsCreatedResultsItem) Validate() error {
@@ -74197,6 +75237,34 @@ func (s *ScanPostScansRunsIDStopOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.Identification == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Identification {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "identification",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           -9007199254740991,
@@ -74292,6 +75360,100 @@ func (s *ScanPostScansRunsIDStopOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Found == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Found)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "found",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Reason.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ScanPostScansRunsIDStopOKIdentificationItemReason) Validate() error {
+	switch s {
+	case "host_down":
+		return nil
+	case "no_open_ports":
+		return nil
+	case "filtered":
+		return nil
+	case "no_version":
+		return nil
+	case "os_unconfirmed":
+		return nil
+	case "os_low_confidence":
+		return nil
+	case "gentle_only":
+		return nil
+	case "timed_out":
+		return nil
+	case "busy":
+		return nil
+	case "unavailable":
+		return nil
+	case "declared_by_hand":
+		return nil
+	case "scanning_off":
+		return nil
+	case "not_approved":
+		return nil
+	case "out_of_scope":
+		return nil
+	case "scope_not_confirmed":
+		return nil
+	case "box":
+		return nil
+	case "regular_scan_never":
+		return nil
+	case "no_ip":
+		return nil
+	case "not_scanned":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ScanPostScansRunsIDStopOKResultsItem) Validate() error {

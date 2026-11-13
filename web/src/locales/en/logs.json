@@ -203,7 +203,7 @@
     "col": {
       "time": "Time",
       "source": "Source",
-      "line": "Log line"
+      "message": "Message"
     },
     "count": "{{shown}} of {{total}} matching lines.",
     "capped": "Only the newest 200 lines are shown. Narrow the time range or add a keyword.",

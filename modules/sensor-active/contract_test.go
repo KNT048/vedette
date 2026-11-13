@@ -125,6 +125,7 @@ func TestContract_INV3_OnlyInsideTheWindow(t *testing.T) {
 		e.base = local(9, 12, 0) // Monday noon, window is 01:00-05:00
 		e.inv.decision["a-printer"] = sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true}
 	})
+	e.sweptBefore() // not a new box: its first pass is behind it (D-501)
 	if _, err := e.svc.DiscoverRanges(e.ctx()); !errors.Is(err, sa.ErrOutsideWindow) {
 		t.Fatalf("sweep err = %v, want ErrOutsideWindow", err)
 	}
@@ -430,7 +431,7 @@ func TestContract_INV8_ObservationsAndSoftwareFromTheScan(t *testing.T) {
 			t.Errorf("%s confidence %v", s.Product, s.Confidence)
 		}
 	}
-	for _, want := range []string{"cpe:/a:openbsd:openssh:8.9p1", "cpe:/a:apache:http_server:2.4.52", "cpe:/o:linux:linux_kernel:5"} {
+	for _, want := range []string{"cpe:/a:openbsd:openssh:8.9p1", "cpe:/a:apache:http_server:2.4.52", "cpe:/o:linux:linux_kernel"} {
 		if !slices.Contains(cpes, want) {
 			t.Errorf("software has no %s (got %v)", want, cpes)
 		}
@@ -561,6 +562,7 @@ func TestEventPayloads(t *testing.T) {
 func TestQueueSurvivesARestart(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{}, func(e *env) { e.base = local(9, 12, 0) }) // outside the window: it only queues
+	e.sweptBefore()                                                       // not a new box: no first pass (D-501)
 	if err := e.svc.Enqueue(e.ctx(), "a-web", "discovered"); err != nil {
 		t.Fatal(err)
 	}

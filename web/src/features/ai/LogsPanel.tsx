@@ -17,7 +17,7 @@ export default function LogsPanel() {
   const { t } = useTranslation('ai')
   const admin = useCan('admin') // the Memory tab is the administrator's (S-AI-7)
   const gate = useAiGate('operator', 'log-digest')
-  const digest = useDigest()
+  const digest = useDigest(gate.state !== 'off' && gate.state !== 'loading') // the module off: /ai/logs/digest is 404, not asked; an existing digest still shows when AI is unconfigured
   const refresh = useRefreshDigest()
   if (gate.state === 'loading') return null
   if (gate.state === 'off') return <Section title={t('logs.title')}><ModuleOff module="ai" /></Section>

@@ -7,6 +7,7 @@ import { collection, daysAgo, dataMode, newId, nowIso } from '@/mocks/db'
 import { iocListed } from '@/features/feeds/sourcesMock'
 import { CATALOG } from './catalog'
 import { KIND_IDS } from './kinds'
+import { syslogHeader } from './syslog'
 import { SIEM_EVENTS } from './types'
 import type { Digest, IocHit, EventWindow, LogEvent, LogSource, NewItem, Proto, SiemConfig, SiemInput, SourceInput, SourceKind, SpikeItem, UnknownSender } from './types'
 
@@ -54,12 +55,14 @@ const toSource = (s: Stored): LogSource => {
 const nameOf = (id: string) => sources.get().find((s) => s.id === id)?.name ?? id
 
 // Sự kiện mẫu: sinh một lần (giả ngẫu nhiên có hạt giống) rồi lưu, nên tải lại trang vẫn thấy cùng dòng.
-function seedEvents(): LogEvent[] {
+type StoredEvent = Omit<LogEvent, 'host' | 'app' | 'message'>
+
+function seedEvents(): StoredEvent[] {
   let seed = 20261106
   const rnd = () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 }
   const pick = <T,>(l: T[]): T => l[Math.floor(rnd() * l.length)]!
   const pcs = Array.from({ length: 12 }, (_, i) => `192.168.10.${101 + i}`)
-  const out: LogEvent[] = []
+  const out: StoredEvent[] = []
   const add = (source_id: string, minutesAgo: number, line: string) => out.push({ id: newId('le'), ts: new Date(Date.now() - minutesAgo * 60e3).toISOString(), source_id, source_name: nameOf(source_id), line })
   for (let i = 0; i < 90; i++) {
     const m = Math.floor(rnd() * 7 * 24 * 60)
@@ -84,7 +87,9 @@ function seedEvents(): LogEvent[] {
   add('ls-3', 130, '4720: A user account was created. Subject Account Name: admin.it Target Account Name: support_tmp')
   return out.sort((a, b) => b.ts.localeCompare(a.ts))
 }
-const events = collection<LogEvent[]>('logs_events', seedEvents, () => [])
+const events = collection<StoredEvent[]>('logs_events', seedEvents, () => [])
+// The box reads the syslog header of each line it lists (W1-22, D-485).
+const shown = (l: StoredEvent[]): LogEvent[] => l.map((e) => ({ ...e, ...syslogHeader(e.line) }))
 
 function digest(): Digest {
   const lines = sources.get().reduce((n, s) => n + s.lines_per_hour * 24, 0)
@@ -252,9 +257,9 @@ export const handlers = [
       if (cursor && from === 0) return fail(400, 'bad_cursor', 'That search position is not valid. Search again from the start.')
       const page = all.slice(from, from + 200)
       const more = from + 200 < all.length
-      return HttpResponse.json({ events: page, total: page.length, next_cursor: more ? page[page.length - 1]!.id : null, ...(more ? { searched_back_to: page[page.length - 1]!.ts } : {}) })
+      return HttpResponse.json({ events: shown(page), total: page.length, next_cursor: more ? page[page.length - 1]!.id : null, ...(more ? { searched_back_to: page[page.length - 1]!.ts } : {}) })
     }
-    return HttpResponse.json({ events: all.slice(0, 200), total: all.length, next_cursor: null })
+    return HttpResponse.json({ events: shown(all.slice(0, 200)), total: all.length, next_cursor: null })
   }),
 
   http.put(`${API}/logs/retention`, async ({ request }) => {

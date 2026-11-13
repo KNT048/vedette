@@ -25,7 +25,11 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 		if err := CheckInterval(s.IntervalHours); err != nil {
 			t.Errorf("%s: %v", s.ID, err)
 		}
-		if s.Kind == KindVulnerabilities && s.IntervalHours != 24 || s.Kind == KindIOC && s.IntervalHours != 6 {
+		want := map[Kind]int{KindVulnerabilities: 24, KindIOC: 6}[s.Kind]
+		if s.ID == "cisa-kev" { // hourly: Home promises data at most an hour old (S-FEED-1, D-485); a 304 keeps it cheap
+			want = 1
+		}
+		if s.IntervalHours != want {
 			t.Errorf("%s: default interval %d", s.ID, s.IntervalHours)
 		}
 		if seenID[s.ID] || seenName[s.Name] {

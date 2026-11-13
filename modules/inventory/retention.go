@@ -61,8 +61,10 @@ func (s *Service) PruneAgentSoftware(ctx context.Context) error {
 // pruneAgentSoftware deletes, device by device, the agent rows not reported since cut, at most pruneBatch devices a run (the job runs
 // every hour, so a larger backlog is done over a few runs). Each device is one transaction with its audit row
 // and the software-changed event, like a sync that dropped them; rows of other sources (manual, nmap, passive) are not touched.
+// The box itself is never pruned (D-470): its rows are its own dpkg list, which only a successful read replaces; a host that
+// cannot be read for a month must not empty the box and close its findings.
 func (s *Service) pruneAgentSoftware(ctx context.Context, cut string) (int64, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT asset_id FROM inv_software WHERE source = 'agent' AND seen_at < ? LIMIT ?`, cut, pruneBatch)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT asset_id FROM inv_software WHERE source = 'agent' AND seen_at < ? AND asset_id NOT IN (SELECT id FROM inv_asset WHERE is_box = 1) LIMIT ?`, cut, pruneBatch)
 	if err != nil {
 		return 0, fmt.Errorf("inventory: read stale agent software: %w", err)
 	}
@@ -90,7 +92,7 @@ func (s *Service) pruneAgentSoftware(ctx context.Context, cut string) (int64, er
 			if err != nil {
 				return err
 			}
-			r, err := tx.ExecContext(ctx, `DELETE FROM inv_software WHERE asset_id = ? AND source = 'agent' AND seen_at < ?`, id, cut)
+			r, err := tx.ExecContext(ctx, `DELETE FROM inv_software WHERE asset_id = ? AND source = 'agent' AND seen_at < ? AND asset_id NOT IN (SELECT id FROM inv_asset WHERE is_box = 1)`, id, cut)
 			if err != nil {
 				return fmt.Errorf("inventory: prune agent software: %w", err)
 			}

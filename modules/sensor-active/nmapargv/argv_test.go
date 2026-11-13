@@ -88,11 +88,12 @@ func TestBuildRefuses(t *testing.T) {
 	}
 }
 
-// The three shapes written out apart from the code under test (INV-4, SYS-2).
+// The four shapes written out apart from the code under test (INV-4, SYS-2; versions: D-501).
 var (
-	shapeSweep  = []string{"--privileged", "-sn", "-n", "--max-rate", "50", "-oX", "-", "192.168.10.1"}
-	shapeNormal = []string{"--privileged", "-sS", "-sV", "-O", "-n", "--max-rate", "100", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
-	shapeGentle = []string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.30"}
+	shapeSweep    = []string{"--privileged", "-sn", "-n", "--max-rate", "50", "-oX", "-", "192.168.10.1"}
+	shapeNormal   = []string{"--privileged", "-sS", "-sV", "-O", "-n", "--max-rate", "100", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
+	shapeGentle   = []string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.30"}
+	shapeVersions = []string{"--privileged", "-sS", "-sV", "-n", "--max-rate", "25", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.40"}
 )
 
 // INV-4, SYS-2: the validator accepts exactly three command shapes, with only the rate (of sweep and normal)
@@ -156,13 +157,16 @@ func TestValidate(t *testing.T) {
 		"duplicate target":                    with(shapeSweep, "192.168.10.1"),
 		"shell":                               with(shapeSweep[:len(shapeSweep)-1], "192.168.10.1;id"),
 		"empty token":                         with(shapeSweep, ""),
+		"versions without --host-timeout":     drop(shapeVersions, "--host-timeout", "30m"),
+		"versions without --max-rate":         drop(shapeVersions, "--max-rate", "25"),
+		"versions with -O after -sV":          {"--privileged", "-sS", "-sV", "-n", "-O", "--max-rate", "25", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.40"},
 	}
 	for name, argv := range bad {
 		if err := Validate(argv); err == nil {
 			t.Errorf("%s: accepted %q", name, argv)
 		}
 	}
-	for name, argv := range map[string][]string{"sweep": shapeSweep, "normal": shapeNormal, "gentle": shapeGentle, "two targets": with(shapeSweep, "192.168.10.2")} {
+	for name, argv := range map[string][]string{"sweep": shapeSweep, "normal": shapeNormal, "gentle": shapeGentle, "versions": shapeVersions, "two targets": with(shapeSweep, "192.168.10.2")} {
 		if err := Validate(argv); err != nil {
 			t.Errorf("%s: a good argv is rejected: %v", name, err)
 		}
@@ -202,8 +206,8 @@ func TestValidateRefusesNonPrivateTargets(t *testing.T) {
 // private is the oracle's own idea of RFC 1918 and RFC 6598 (100.64-127.x, D-461), not netip's or localnet's.
 var private = regexp.MustCompile(`^(10\.([0-9]{1,3}\.){2}[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3}|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]{1,3}\.[0-9]{1,3})$`)
 
-// shapeOracle knows the three shapes and nothing else: the flags before "-oX" must be one of them, with the
-// rate of sweep and normal written as plain digits between 1 and 1000.
+// shapeOracle knows the four shapes and nothing else: the flags before "-oX" must be one of them, with the
+// rate of sweep, normal and versions written as plain digits between 1 and 1000.
 func shapeOracle(flags []string) bool {
 	rate := regexp.MustCompile(`^([1-9][0-9]{0,2}|1000)$`)
 	withRate := func(shape []string, at int) bool {
@@ -211,12 +215,12 @@ func shapeOracle(flags []string) bool {
 		return len(flags) == len(want) && rate.MatchString(flags[at]) &&
 			slices.Equal(flags[:at], want[:at]) && slices.Equal(flags[at+1:], want[at+1:])
 	}
-	return withRate(shapeSweep, 4) || withRate(shapeNormal, 6) || slices.Equal(flags, shapeGentle[:slices.Index(shapeGentle, "-oX")])
+	return withRate(shapeSweep, 4) || withRate(shapeNormal, 6) || withRate(shapeVersions, 5) || slices.Equal(flags, shapeGentle[:slices.Index(shapeGentle, "-oX")])
 }
 
 func FuzzValidate(f *testing.F) {
 	for _, s := range [][]string{
-		shapeSweep, shapeNormal, shapeGentle,
+		shapeSweep, shapeNormal, shapeGentle, shapeVersions,
 		{"--privileged", "-sn", "-n", "--max-rate", "1000", "-oX", "-", "10.0.0.1", "10.0.0.2"},
 		{"--privileged", "-A", "-oX", "-", "10.0.0.1"},
 		{"--privileged", "-sS", "--script", "vuln", "-oX", "-", "10.0.0.1"},
@@ -230,7 +234,7 @@ func FuzzValidate(f *testing.F) {
 		}
 		i := slices.Index(argv, "-oX")
 		if i < 0 || i+1 >= len(argv) || argv[i+1] != "-" || !shapeOracle(argv[:i]) {
-			t.Fatalf("accepted an argv that is not one of the three shapes: %q", argv)
+			t.Fatalf("accepted an argv that is not one of the four shapes: %q", argv)
 		}
 		targets := argv[i+2:]
 		if len(targets) < 1 || len(targets) > MaxBatch {
@@ -279,7 +283,7 @@ func TestParseInvertsBuild(t *testing.T) {
 // that nothing is lost or invented on the way (L8).
 func FuzzParseBuild(f *testing.F) {
 	for _, s := range [][]string{
-		shapeSweep, shapeNormal, shapeGentle,
+		shapeSweep, shapeNormal, shapeGentle, shapeVersions,
 		{"--privileged", "-sn", "-n", "--max-rate", "1000", "-oX", "-", "10.0.0.1", "10.0.0.2"},
 		{"--privileged", "-sn", "-n", "--max-rate", "1", "-oX", "-", "172.16.0.1"},
 	} {

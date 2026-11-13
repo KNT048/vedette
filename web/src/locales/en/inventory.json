@@ -233,7 +233,7 @@
     "name": "Service",
     "product": "Product and version",
     "empty": "No open port seen yet",
-    "emptyBody": "The active sensor has not scanned this device. Check the scan window in Scope and sensors.",
+    "emptyBody": "The active sensor has not scanned this device. Check the scan window in Scope and sensors, or pick the device under Vulnerability scans, Scan now, to identify it at once.",
     "emptyFragile": "This is a fragile device, so Vedette scanned it gently once and only listens after that. Allow regular scans in the settings above if you want it checked again."
   },
   "software": {
@@ -303,7 +303,7 @@
   },
   "active": {
     "title": "Active scanning",
-    "description": "A light scan to learn open ports and software versions. It runs only inside the time window below and only in the ranges above.",
+    "description": "A light scan to learn open ports and software versions, only in the ranges above. Automatic scans run inside the time window below; the first pass after active scanning is turned on runs at once, and Scan now under Vulnerability scans identifies the devices you pick at once.",
     "off": "Active scanning is off, so Vedette only listens passively. Turn on the Active sensor module to learn open ports and versions.",
     "enabled": "Turn on active scanning",
     "days": "Days it may scan",
@@ -318,7 +318,7 @@
     },
     "from": "From",
     "to": "To",
-    "crossMidnight": "If the end time is earlier than the start (for example 23:00 to 05:00) the window runs past midnight. Pick hours when few people use the network.",
+    "crossMidnight": "If the end time is earlier than the start (for example 22:00 to 05:00) the window runs past midnight. Pick hours when few people use the network.",
     "rate": "Scan speed",
     "rateHint": "Slower is safer for old devices.",
     "rateOption": "{{name}}, {{rate}} packets per second",
@@ -607,7 +607,7 @@
     "badge": "This box",
     "title": "This is the Vedette box itself",
     "lead": "It is always the first device.",
-    "packagesAppliance": "Its packages are read from the box (dpkg), so the version list is exact.",
+    "packagesAppliance": "Its packages are read from the box (dpkg) every hour and right after an OS update, so the version list is exact. No osquery agent is needed on the box.",
     "packagesContainer": "The package list of this machine is not available in a container-only install.",
     "matched": "It is matched against exploited vulnerabilities like any other device.",
     "fix": "Fix by updating the operating system",

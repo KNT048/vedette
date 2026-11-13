@@ -2,19 +2,24 @@ package main
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 	"net/netip"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	hostapi "github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
+	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
 // newInventory builds the inventory service from the shared deps; buildServices calls it once and stores it in
 // deps.Inventory. Its events go to deps.Bus; its KEV data comes from the feeds service (looked up lazily, see
 // feedsKEV, because feeds in turn takes the inventory).
-// ponytail: no box packages (WP-07: Config.Box); the service degrades without them. findings_count comes from findingCounts.
+// The box's own packages come from vedette-host's dpkg list (Config.Box, D-470); a container-only install has no host and so no
+// list (the device page says so). findings_count comes from findingCounts.
 func newInventory(d *deps) *inventory.Service {
 	var pub inventory.Publisher
 	if d.Bus != nil {
@@ -35,6 +40,7 @@ func newInventory(d *deps) *inventory.Service {
 	// The box's own MACs (its cards and the decoys' macvlan links): a foreign MAC on a decoy address is a device (WP-31 M7). Without a
 	// host there is no decoy on the wire, and the MACs stay unknown, so nothing changes.
 	if d.HostSocket != "" {
+		cfg.Box = boxPackages{c: hostclient.New(d.HostSocket), log: d.Log}
 		macs := &hostMACs{r: hostclient.New(d.HostSocket), now: d.Clock}
 		cfg.BoxOwnedMACs = func(ctx context.Context, fresh bool) ([]string, error) {
 			if fresh {
@@ -90,6 +96,53 @@ func inventoryJobs(d deps) []jobs.Job {
 		}
 		return svc.RefreshBoxPackages(ctx)
 	}}, {Module: "inventory", Name: "agent-software-prune", Every: time.Hour, Run: svc.PruneAgentSoftware}} // a normal job (D-327)
+}
+
+// boxPackages is inventory's BoxPackages (D-470, S-INV-5): vedette-host's GET /v1/state/packages, mapped to software exactly like an
+// osquery deb_packages snapshot (agentintake.MapDebPackages), so findings match the box like any server. A host older than D-470
+// (404 unknown_command) or a dpkg in the middle of a change (409 packages_changing) gives no list: nil, and the inventory keeps
+// what it has. The mapped list is never cut: one longer than the inventory stores (5 000 rows) is refused whole by
+// UpsertSoftware, so the stored list stays rather than becoming a part of the box.
+type boxPackages struct {
+	c   *hostclient.Client
+	log *slog.Logger
+}
+
+// boxPackagesTimeout bounds one read: dpkg-query of a few thousand packages takes well under a second.
+const boxPackagesTimeout = 30 * time.Second
+
+func (b boxPackages) Packages(ctx context.Context) ([]inventory.SoftwareItem, error) {
+	ctx, cancel := context.WithTimeout(ctx, boxPackagesTimeout)
+	defer cancel()
+	st, err := b.c.StatePackages(ctx)
+	if hostclient.IsCode(err, hostapi.CodeUnknownCommand) {
+		return nil, nil
+	}
+	if hostclient.IsCode(err, hostapi.CodePackagesChanging) { // dpkg is mid-change: keep the last good list, read again next run
+		if b.log != nil {
+			b.log.InfoContext(ctx, "inventory: dpkg is installing or removing packages on the box; its package list is kept and read again at the next run")
+		}
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	pkgs := make([]agentintake.DebPackage, len(st.Packages))
+	for i, p := range st.Packages {
+		pkgs[i] = agentintake.DebPackage{Name: p.Name, Version: p.Version, Source: p.Source}
+	}
+	sw, dropped := agentintake.MapDebPackages(pkgs)
+	if len(sw) == 0 { // the host never sends an empty list; an empty result must not empty the box's software
+		return nil, errors.New("vedette: the box's package list maps to no software")
+	}
+	if dropped > 0 && b.log != nil {
+		b.log.WarnContext(ctx, "inventory: some packages of the box are outside the inventory's limits and are not listed", "dropped", dropped, "listed", len(sw))
+	}
+	out := make([]inventory.SoftwareItem, len(sw))
+	for i, s := range sw {
+		out[i] = inventory.SoftwareItem{Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, CPE: s.CPE, KevKeys: s.KevKeys}
+	}
+	return out, nil
 }
 
 // findingCounts is inventory's FindingCounter: findings is built after inventory, so its service is looked up when asked. The count

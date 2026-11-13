@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- hand-written fixture shaped after nmap 7.94 output for a host behind its own firewall; no live network was scanned. It
+     answers ARP, so it is up, but every probe is dropped: all 1000 ports filtered, no OS match. -->
+<nmaprun scanner="nmap" args="nmap --privileged -sS -sV -O -n --max-rate 100 --top-ports 1000 --host-timeout 30m -oX - 192.168.10.20" start="1762650000" version="7.94" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1000"/>
+<host starttime="1762650001" endtime="1762650230"><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="192.168.10.20" addrtype="ipv4"/>
+<address addr="AA:BB:CC:00:00:24" addrtype="mac" vendor="Intel Corporate"/>
+<ports>
+<extraports state="filtered" count="1000"><extrareasons reason="no-response" count="1000"/></extraports>
+</ports>
+<os></os>
+</host>
+<runstats><finished time="1762650231" elapsed="230.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

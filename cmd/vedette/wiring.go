@@ -555,6 +555,11 @@ func newOSHandlers(d deps) (*core.OSHandlers, error) {
 				d.Wake("core", "software-update")
 			}
 		},
+		Installed: func() { // the box's packages changed: read them again now (D-470), not at the next hourly box run
+			if d.Wake != nil {
+				d.Wake("inventory", "box")
+			}
+		},
 	})
 }
 

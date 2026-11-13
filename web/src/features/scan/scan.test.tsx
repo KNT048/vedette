@@ -75,7 +75,7 @@ describe('scan: trang chính và chọn mục tiêu (S-SCAN-1)', () => {
     expect(screen.getByRole('checkbox', { name: /SRV-AD/ })).toBeChecked()
     expect(screen.getAllByText('Fragile: pick it to scan at a quarter of the speed').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Added by hand: pick it to scan').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Type unknown: pick it to scan at a quarter of the speed').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Type unknown: pick it to identify its services (no operating system probe) and scan it at a quarter of the speed').length).toBeGreaterThan(0)
     await userEvent.click(screen.getByRole('button', { name: 'Select all' }))
     expect(nas).not.toBeChecked()
     expect(screen.getByRole('checkbox', { name: /WEB01/ })).not.toBeChecked()
@@ -188,7 +188,7 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect((await getRuns()).filter((r) => !r.id.startsWith('run-seed'))).toHaveLength(0)
   })
 
-  it('D-126: chọn tay là đồng ý cho thiết bị khai tay, mong manh, chưa phân loại; hộp và thiết bị "never" thì không bao giờ', async () => {
+  it('D-126, D-470: chọn tay là đồng ý cho thiết bị khai tay, mong manh, chưa phân loại và chính hộp; thiết bị "never" thì không bao giờ', async () => {
     const { ensureBox } = await import('@/features/inventory/mocks')
     ensureBox()
     assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, origin: 'manual' as const } : a.id === 'a-unk01' ? { ...a, approved: true } : a)))
@@ -196,20 +196,21 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect((await fetch(`${base()}/inventory/devices/a-srvad`, json('PATCH', { regular_scan: 'never' }))).status).toBe(200)
     renderApp('/scans')
     expect(await screen.findByRole('checkbox', { name: /WEB01/ })).toBeEnabled()
-    const items = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; fragile: boolean; selectable: boolean; reason: string | null }[]
+    const items = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; label: string; fragile: boolean; selectable: boolean; reason: string | null }[]
     const byId = (id: string) => items.find((x) => x.id === id)!
     expect(byId('a-web01')).toMatchObject({ selectable: true, reason: null }) // added by hand, picked by hand
     expect(byId('a-nas02')).toMatchObject({ selectable: true, fragile: true })
     expect(byId('a-unk01')).toMatchObject({ selectable: true, fragile: true }) // unknown kind counts as fragile: a quarter of the speed
-    expect(byId('a-box')).toMatchObject({ selectable: false, reason: 'box' })
+    expect(byId('a-box')).toMatchObject({ selectable: true, pick_only: true, box: true, reason: null }) // D-470: a person may scan the box
     expect(byId('a-srvad')).toMatchObject({ selectable: false, reason: 'regular_scan_never' }) // "never" set by a person is absolute
-    expect(screen.getAllByText('This is the Vedette box itself, never scanned').length).toBeGreaterThan(0)
+    expect(screen.getByText(/^The Vedette box itself: pick it to scan it from the network/)).toBeInTheDocument()
     expect(screen.getAllByText('Set to never be scanned in the inventory').length).toBeGreaterThan(0)
+    await userEvent.click(screen.getByRole('button', { name: 'Select all' }))
+    expect(screen.getByRole('checkbox', { name: new RegExp(`^${byId('a-box').label} `) })).not.toBeChecked() // Select all never ticks the box
+    expect(screen.getByText(/need your own tick/)).toHaveTextContent(/need your own tick \([^)]*the Vedette box itself[^)]*\)/) // and says why
     as('u-op')
-    const res = await postRun(['a-box'])
-    expect(res.status).toBe(400)
-    expect((await res.json()).error.message).toMatch(/is the Vedette box itself, which is never scanned/)
     expect((await (await postRun(['a-srvad'])).json()).error.message).toMatch(/is set to never be scanned in the inventory; change that setting first/)
+    expect((await postRun(['a-box'])).status).toBe(201)
   })
 
   it('máy quét không sẵn sàng: can_scan=false kèm lý do, nút khoá, POST trả 503 scanner_unavailable', async () => {
@@ -284,6 +285,11 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(within(dlg).getByText('Matches, still vulnerable')).toBeInTheDocument()
     expect(within(dlg).getByText('http/cves/2022/CVE-2022-27593.yaml')).toBeInTheDocument()
     expect(within(dlg).getByRole('link', { name: 'Open finding' })).toHaveAttribute('href', '/findings/f-1')
+    // D-501: Scan now identifies first and says per device what it found or exactly why not (the NAS is fragile: gentle scan only)
+    expect(run.identification).toEqual([expect.objectContaining({ target_id: 'a-nas02', reason: 'gentle_only', found: [] })])
+    expect(within(dlg).getByRole('heading', { name: 'What each device was identified as' })).toBeInTheDocument()
+    expect(within(dlg).getByText('Gentle scan only')).toBeInTheDocument()
+    expect(within(dlg).getByText(/only a gentle port scan ran, without version or operating system detection/)).toBeInTheDocument()
   })
 
   it('đã giảm thiểu rồi quét lại: không có khớp chỉ là "không báo khớp", không đổi gì ở phát hiện (D-133 (5))', async () => {
@@ -413,7 +419,7 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(await screen.findByLabelText('From')).toHaveValue('22:00')
     expect(screen.getByLabelText('Until')).toHaveValue('05:00')
     expect(screen.getByLabelText('Speed')).toHaveValue('5')
-    expect(screen.getByLabelText('One IP or network per line')).toHaveValue('192.168.10.250')
+    expect(screen.getByLabelText('One IP or network per line')).toHaveValue('192.168.10.240')
     expect(screen.getByText('No exploitation, no denial of service')).toBeInTheDocument()
     expect(screen.getByText(/Never guesses passwords/)).toBeInTheDocument()
     expect(screen.getByText(/Next scan: /)).toBeInTheDocument()

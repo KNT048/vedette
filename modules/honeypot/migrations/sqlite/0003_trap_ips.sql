@@ -33,7 +33,11 @@ FROM hp_config c
 WHERE c.key = 'config' AND coalesce(json_extract(c.value, '$.secondary_ip'), '') != '';
 
 -- Each decoy becomes a profile of its personality's preset, with the services of that preset that were switched on. A decoy only ever
--- listened while the secondary IP was set and a trap was on.
+-- listened while the secondary IP was set and a trap was on, and only when the box handed both addresses to the host: when the
+-- secondary IP clashed with a device or the box, or was outside the LAN, the old core handed the decoys nothing either. The migration
+-- cannot see the inventory, so it reads what the old core recorded it handed over (hp_config "applied"): a decoy stays on only when
+-- the secondary IP and its own address are both in it; otherwise it is switched off (B2 review), and the owner turns it on in the GUI,
+-- where the address is checked again.
 WITH pre (personality, preset, service, ord) AS (VALUES
     ('windows_fs', 'file_server', 'smb', 1), ('windows_fs', 'file_server', 'rdp', 2),
     ('nas', 'nas', 'http', 1), ('nas', 'nas', 'smb', 2),
@@ -50,7 +54,10 @@ SELECT d.id, d.name, d.ip,
             ELSE (SELECT json_group_array(service) FROM (SELECT p.service FROM pre p WHERE p.personality = d.personality ORDER BY p.ord)) END,
        d.enabled = 1
            AND EXISTS (SELECT 1 FROM hp_trap_ips WHERE id = 'tip-secondary')
-           AND EXISTS (SELECT 1 FROM pre p JOIN hp_trap t ON t.service = p.service AND t.enabled = 1 WHERE p.personality = d.personality),
+           AND EXISTS (SELECT 1 FROM pre p JOIN hp_trap t ON t.service = p.service AND t.enabled = 1 WHERE p.personality = d.personality)
+           AND EXISTS (SELECT 1 FROM hp_config a, json_each(a.value) j, hp_trap_ips s
+                       WHERE a.key = 'applied' AND json_valid(a.value) AND s.id = 'tip-secondary' AND j.value = s.ip)
+           AND EXISTS (SELECT 1 FROM hp_config a, json_each(a.value) j WHERE a.key = 'applied' AND json_valid(a.value) AND j.value = d.ip),
        d.created_at
 FROM hp_decoys d;
 

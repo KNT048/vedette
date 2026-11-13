@@ -90,11 +90,16 @@ func migrateRows(t *testing.T, db *store.DB, setup ...string) []tipRow {
 
 const oldConfig = `INSERT INTO hp_config (key, value, updated_at, updated_by) VALUES ('config', '{"secondary_ip":"192.168.10.240","hostname":"FILESRV-OLD"}', '2026-11-01T09:00:00.000Z', 'a')`
 
+// oldApplied is the record of what the old core handed to the host.
+func oldApplied(ips string) string {
+	return `INSERT INTO hp_config (key, value, updated_at, updated_by) VALUES ('applied', '` + ips + `', '2026-11-01T09:00:00.000Z', 'system')`
+}
+
 // D-466 (8): the secondary IP becomes the first Trap IP with the traps that were on; each decoy a Trap IP of its preset with
 // the preset's services that were on (none on: the preset's, switched off); no address answers a port it did not answer before.
 func TestMigration0003TurnsTheSecondaryIPAndDecoysIntoTrapIPs(t *testing.T) {
 	t.Parallel()
-	got := migrateRows(t, migratedBefore(t), oldConfig,
+	got := migrateRows(t, migratedBefore(t), oldConfig, oldApplied(`["192.168.10.240","192.168.10.241","192.168.10.242","192.168.10.243"]`),
 		`UPDATE hp_trap SET enabled = 1, since = '2026-11-01T09:00:00.000Z' WHERE service IN ('ssh', 'smb')`,
 		`INSERT INTO hp_decoys (id, personality, name, ip, enabled, created_at) VALUES
 			('dec-nas', 'nas', 'NAS-OLD', '192.168.10.241', 1, '2026-11-01T08:00:00.000Z'),
@@ -135,6 +140,37 @@ func TestMigration0003WithNothingOn(t *testing.T) {
 		`INSERT INTO hp_decoys (id, personality, name, ip, enabled, created_at) VALUES ('dec-lnx', 'linux', 'LNX-OLD', '192.168.10.242', 1, '2026-11-02T08:00:00.000Z')`)
 	if len(got) != 1 || got[0].ID != "dec-lnx" || got[0].Services != `["ssh"]` || got[0].Enabled {
 		t.Fatalf("a decoy without a secondary IP: %+v", got)
+	}
+}
+
+// B2 review: a decoy listened only when the old core handed the secondary IP and its own address to the host. When the secondary
+// IP clashed (a device, the box, outside the LAN) nothing was handed over, so after the upgrade the decoys are off, not newly
+// answering; a decoy whose own address the host never took is off too. The migration reads the "applied" record for this.
+func TestMigration0003LeavesOffWhatNeverListened(t *testing.T) {
+	t.Parallel()
+	decoys := `INSERT INTO hp_decoys (id, personality, name, ip, enabled, created_at) VALUES
+		('dec-nas', 'nas', 'NAS-OLD', '192.168.10.241', 1, '2026-11-01T08:00:00.000Z'),
+		('dec-lnx', 'linux', 'LNX-OLD', '192.168.10.242', 1, '2026-11-02T08:00:00.000Z')`
+	on := `UPDATE hp_trap SET enabled = 1 WHERE service IN ('ssh', 'smb')`
+	enabled := func(rows []tipRow) map[string]bool {
+		m := map[string]bool{}
+		for _, r := range rows {
+			m[r.ID] = r.Enabled
+		}
+		return m
+	}
+	// The secondary IP was in conflict: the old core handed nothing over.
+	if got := enabled(migrateRows(t, migratedBefore(t), oldConfig, oldApplied(`[]`), on, decoys)); got["dec-nas"] || got["dec-lnx"] {
+		t.Fatalf("decoys of a secondary IP in conflict were switched on: %v", got)
+	}
+	// No record at all (an install that never applied): off.
+	if got := enabled(migrateRows(t, migratedBefore(t), oldConfig, on, decoys)); got["dec-nas"] || got["dec-lnx"] {
+		t.Fatalf("decoys without an applied record were switched on: %v", got)
+	}
+	// The secondary IP and one decoy were held; the other decoy the host refused.
+	got := enabled(migrateRows(t, migratedBefore(t), oldConfig, oldApplied(`["192.168.10.240","192.168.10.242"]`), on, decoys))
+	if !got["dec-lnx"] || got["dec-nas"] || !got["tip-secondary"] {
+		t.Fatalf("only what the host held stays on: %v", got)
 	}
 }
 

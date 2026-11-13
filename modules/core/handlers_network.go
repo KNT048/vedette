@@ -116,12 +116,12 @@ type NetworkHandlers struct {
 	lastCards []Card // the last list of cards the host gave (Cards)
 	lastMgmt  string // the last management card the host gave (ManagementCard)
 	// ManagementLAN, for the public setup page: the last answer and when a read for it last began (one per netReadTTL).
-	lanAt time.Time
-	lan   netip.Prefix
-	lanOK bool
-	sensorMu  sync.Mutex
-	sensorOn  string // the SPAN port the sensor was last told to use ("eth1/true", "/false"); "" before the first time
-	after     func(d time.Duration, f func())
+	lanAt    time.Time
+	lan      netip.Prefix
+	lanOK    bool
+	sensorMu sync.Mutex
+	sensorOn string // the SPAN port the sensor was last told to use ("eth1/true", "/false"); "" before the first time
+	after    func(d time.Duration, f func())
 }
 
 type stateFlight struct {

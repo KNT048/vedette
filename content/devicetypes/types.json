@@ -1,5 +1,5 @@
 {
- "_comment": "Device types (D-511): categories for people, types with the kind they act as for behaviour (one of the 13 kinds before D-511: fragile defaults, never-touch gateways, honeypot, SSH candidates, PDPL, response rules). Curated by Vedette; no third-party taxonomy copied. Go: content/devicetypes; web imports this file. no_auto_isolate: a response rule keyed on the kind the type acts as (\"iot\") never covers it; only a rule naming the type itself does (phone systems, OT, medical, power: cutting them off harms more than it helps).",
+ "_comment": "Device types (D-511): categories for people, types with the kind they act as for behaviour (one of the 13 kinds before D-511: fragile defaults, never-touch gateways, honeypot, SSH candidates, PDPL, response rules). Curated by Vedette; no third-party taxonomy copied. Go: content/devicetypes; web imports this file. no_auto_isolate: never auto-isolated by a response device_type rule (rules name only the 13 kinds; the kind the type acts as, \"iot\", does not cover it): phone systems, OT, medical, power: cutting them off harms more than it helps.",
  "categories": [
   {"id": "network", "label": "Network"},
   {"id": "security", "label": "Security"},

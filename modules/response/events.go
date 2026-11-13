@@ -192,7 +192,12 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 		vendor = "Unknown vendor"
 	}
 	if !s.isDeviceKind(kind) {
-		kind = devicetypes.ActsAs(kind) // a type of D-511 as the kind it acts as; anything else unknown
+		// A type of D-511 as the kind it acts as; anything else, and a type marked no_auto_isolate (a PBX, a PLC), unknown, so no
+		// "kind in iot" rule covers what the device_type test leaves out (#714 round 2, L1).
+		kind = devicetypes.ActsAs(kind)
+		if !devicetypes.MatchesKind([]string{kind}, d.Kind) {
+			kind = devicetypes.Unknown
+		}
 	}
 	ts := d.Seen
 	if ts.IsZero() {

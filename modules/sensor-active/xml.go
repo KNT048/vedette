@@ -27,7 +27,7 @@ const (
 	maxText         = 200 // longest stored string, in runes
 	maxCPELen       = 300
 	maxElemLen      = 256      // longest <elem> text of an NTLM script that is read; a longer one is dropped
-	maxScriptOutput = 64 << 10 // longest output attribute of a <script> (ssl-cert prints the whole certificate, D-511)
+	maxScriptOutput = 64 << 10 // longest output attribute of a <script> that is read (ssl-cert prints the whole certificate, D-511); a longer one is ignored
 )
 
 var (
@@ -272,8 +272,8 @@ func parseNmapXML(data []byte) ([]host, error) {
 			}
 			for _, a := range t.Attr {
 				// A script's printed output (a certificate with many names, a long page title) may be longer than any other
-				// attribute; it is bounded apart, so a long one does not refuse the whole run (D-511).
-				if limit := 4096; len(a.Value) > limit && (t.Name.Local != "script" || a.Name.Local != "output" || len(a.Value) > maxScriptOutput) {
+				// attribute; it is bounded apart below, so a long one never refuses the whole run (D-511).
+				if limit := 4096; len(a.Value) > limit && (t.Name.Local != "script" || a.Name.Local != "output") {
 					return nil, fmt.Errorf("%w: attribute too long", errXMLInvalid)
 				}
 			}
@@ -282,6 +282,9 @@ func parseNmapXML(data []byte) ([]host, error) {
 			}
 			path = append(path, t.Name.Local)
 			a := attrs(t)
+			if t.Name.Local == "script" && len(a["output"]) > maxScriptOutput {
+				delete(a, "output") // only that script's output is ignored; its port and the run are kept (#714 round 2, L3)
+			}
 			switch strings.Join(path, "/") {
 			case "nmaprun/host":
 				if len(hosts) >= maxXMLHosts {

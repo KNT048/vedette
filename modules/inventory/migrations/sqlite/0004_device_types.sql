@@ -65,7 +65,8 @@ ALTER TABLE inv_service ADD COLUMN detail TEXT CHECK (detail IS NULL OR length(d
 -- Lead decision on #714: the gentle scan of a device of unknown kind that nobody made fragile now also reads its page titles and
 -- certificates (sensor-active gentle_titles). A device that had its gentle scan before gets that one scan again, so what it states
 -- (a FortiGate's certificate, J-Web's title) shows without a Scan now: one more scan at 1 packet per second, never for a fragile
--- device, a device set to "never", one declared by hand or the box.
+-- device, a device set to "never", one declared by hand or the box. Clearing the column queues nothing by itself (only a new device's
+-- inventory.asset.discovered does): sensor-active's first tick after the start queues these devices (inventory PendingGentleScans).
 UPDATE inv_asset SET first_scan_at = NULL
 WHERE kind = 'unknown' AND fragile = 0 AND origin = 'discovered' AND is_box = 0 AND regular_scan <> 'never' AND first_scan_at IS NOT NULL;
 

@@ -297,3 +297,25 @@ func (s *Service) MarkFirstScan(ctx context.Context, assetID string) error {
 		return s.auditTx(ctx, tx, systemActor, "inventory.first_scan", deviceName(ctx, tx, assetID), assetID)
 	})
 }
+
+// PendingGentleScans lists the devices whose one gentle scan is still to come (D-511, review of #714 round 2): discovered, kind
+// unknown, not fragile, not set to never, not the box, with an IP and no first scan. Migration 0004 cleared the first scan of such
+// devices seen before, so the gentle scan with titles reaches them; sensor-active queues them once per start, since only a new
+// device's inventory.asset.discovered queues one otherwise. Read-only.
+func (s *Service) PendingGentleScans(ctx context.Context) ([]string, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM inv_asset WHERE origin = 'discovered' AND kind = 'unknown' AND fragile = 0
+		AND regular_scan <> 'never' AND is_box = 0 AND ip IS NOT NULL AND first_scan_at IS NULL ORDER BY id`)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read devices waiting for their gentle scan: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("inventory: read devices waiting for their gentle scan: %w", err)
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}

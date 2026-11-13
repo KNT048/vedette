@@ -101,8 +101,9 @@ func ActsAs(id string) string {
 	return Unknown
 }
 
-// MatchesKind reports whether a rule keyed on kinds (response device_type, D-511) covers a device of type id: the id is listed
-// itself, or the kind it acts as is listed and the type is not marked no_auto_isolate. kinds are lower case.
+// MatchesKind reports whether a rule keyed on kinds (response device_type, D-511) covers a device of type id: one of the 13 kinds is
+// the id itself, or the kind it acts as is listed and the type is not marked no_auto_isolate. A type marked no_auto_isolate is never
+// auto-isolated by a device_type rule: rules name only the 13 kinds. kinds are lower case.
 func MatchesKind(kinds []string, id string) bool {
 	if slices.Contains(kinds, id) {
 		return true

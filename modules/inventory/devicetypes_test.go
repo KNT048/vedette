@@ -307,3 +307,34 @@ func TestMigration0004KeepsRowsAndTakesNewTypes(t *testing.T) {
 		t.Fatalf("%d child rows left after deleting the device: the cascade must still point at the new table", left)
 	}
 }
+
+// D-511 (#714 round 2, M1): the devices still waiting for their one gentle scan, which sensor-active queues once per start: unknown,
+// not fragile, not "never", discovered, with an IP and no first scan.
+func TestContract_D511_PendingGentleScans(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ids := loadN100(e)
+	fragile, never := true, "never"
+	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", ids["192.168.18.109"], inventory.Patch{Fragile: &fragile}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", ids["192.168.18.47"], inventory.Patch{RegularScan: &never}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.MarkFirstScan(e.ctx(), ids["192.168.18.251"]); err != nil {
+		t.Fatal(err)
+	}
+	e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.18.250"}) // declared by hand
+	got, err := e.svc.PendingGentleScans(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != len(n100Devices())-3 {
+		t.Fatalf("%d devices wait for their gentle scan, want %d (13 less the fragile, the never and the scanned one)", len(got), len(n100Devices())-3)
+	}
+	for _, ip := range []string{"192.168.18.109", "192.168.18.47", "192.168.18.251"} {
+		if slices.Contains(got, ids[ip]) {
+			t.Errorf("%s listed", ip)
+		}
+	}
+}

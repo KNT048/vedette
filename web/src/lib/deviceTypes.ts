@@ -22,8 +22,9 @@ export const categoryOf = (id: string): string => BY_ID.get(id)?.category ?? 'un
 export const categoryLabel = (id: string): string => CAT_BY_ID.get(id)?.label ?? id
 /** Loại mà hành vi coi id là (D-511). */
 export const actsAs = (id: string): string => BY_ID.get(id)?.acts_as ?? 'unknown'
-/** Luật response theo loại (device_type) phủ thiết bị loại id: id có trong danh sách, hoặc loại nó hành xử như có trong danh sách và
- * loại đó không đánh dấu no_auto_isolate (tổng đài, OT, y tế, nguồn điện; D-511, rà #714 M1). Như devicetypes.MatchesKind của Go. */
+/** Luật response theo loại (device_type, chỉ nêu 13 loại) phủ thiết bị loại id: id là một trong các loại nêu, hoặc loại nó hành xử
+ * như có trong danh sách và loại đó không đánh dấu no_auto_isolate; loại no_auto_isolate (tổng đài, OT, y tế, nguồn điện) không bao
+ * giờ bị luật device_type tự cô lập (D-511, rà #714). Như devicetypes.MatchesKind của Go. */
 export const matchesKind = (kinds: string[], id: string): boolean => {
   if (kinds.includes(id)) return true
   const t = BY_ID.get(id)

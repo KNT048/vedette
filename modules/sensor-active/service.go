@@ -60,17 +60,19 @@ type Config struct {
 
 // Service runs active discovery. Create it with New. It is the only writer of the sa_* tables.
 type Service struct {
-	db     *store.DB
-	inv    Inventory
-	obs    observe.Sink
-	sw     observe.SoftwareSink
-	svc    observe.ServiceSink // may be nil
-	events Publisher
-	path   string
-	prober Prober
-	clock  func() time.Time
-	log    *slog.Logger
-	loc    func() *time.Location
+	db  *store.DB
+	inv Inventory
+	// pendingQueued: queuePendingOnce has queued the devices waiting for their gentle scan in this process
+	pendingQueued atomic.Bool
+	obs           observe.Sink
+	sw            observe.SoftwareSink
+	svc           observe.ServiceSink // may be nil
+	events        Publisher
+	path          string
+	prober        Prober
+	clock         func() time.Time
+	log           *slog.Logger
+	loc           func() *time.Location
 	// budget is core's budget of new devices (60 a minute, 200 an hour; L8): the scan container is a process that can be taken over,
 	// and a sweep over a /16 with random MACs would otherwise mint 65k devices. In memory, like the passive sensor's.
 	budget *capture.FloodBudget
@@ -104,11 +106,12 @@ func (s *Service) windowNow(st Settings) (end time.Time, ok bool) {
 
 type running struct {
 	cancel   context.CancelFunc
-	targets  []netip.Addr // the run in progress, published before it is checked
-	rate     int          // the packets per second of the run
-	deadline time.Time    // when the run in progress stops by itself: the end of the window it was checked against, or maxRun
-	asset    string       // the device a device run is for ("" for a sweep), set before its policy is read
-	gentle   bool         // the run is the one gentle scan
+	targets  []netip.Addr  // the run in progress, published before it is checked
+	rate     int           // the packets per second of the run
+	deadline time.Time     // when the run in progress stops by itself: the end of the window it was checked against, or maxRun
+	asset    string        // the device a device run is for ("" for a sweep), set before its policy is read
+	gentle   bool          // the run is the one gentle scan
+	kind     nmapargv.Kind // the command shape of a device run (D-511: GentleTitles must stop when the device turns fragile)
 	// picked: the identification of a device a person picked in Scan now (IdentifyDevice, D-501). Like the vulnerability scan
 	// it is part of, it runs at once: the window does not apply (its deadline is maxRun). Every other rule does.
 	picked bool
@@ -834,11 +837,12 @@ func (s *Service) recordSweep(ctx context.Context, hosts []host, batch []netip.A
 	return fresh, nil
 }
 
-func (s *Service) setGentle(g bool) {
+// setKind records the command shape of the device run in progress (and whether it is a gentle one).
+func (s *Service) setKind(k nmapargv.Kind) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.cur != nil {
-		s.cur.gentle = g
+		s.cur.kind, s.cur.gentle = k, k.IsGentle()
 	}
 }
 
@@ -926,7 +930,7 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 	if dec.FirstGentle {
 		kind, rate = gentleShape(dec), 1
 	}
-	s.setGentle(kind.IsGentle())
+	s.setKind(kind)
 
 	id, err := s.startJob(ctx, KindDevice, reason, 1)
 	if err != nil {
@@ -1132,7 +1136,7 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 	if slices.Contains(protected, asset.IP) && dec.Reason != reasonFragilePassive && dec.Reason != reasonUnclassifiedPassive {
 		return refuse(reasonBox)
 	}
-	s.setGentle(kind.IsGentle())
+	s.setKind(kind)
 	id, err := s.startJob(ctx, KindDevice, "scan_now", 1)
 	if err != nil {
 		return Identification{}, err
@@ -1178,6 +1182,27 @@ func (s *Service) Enqueue(ctx context.Context, assetID, reason string) error {
 		_, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO sa_queue (asset_id, queued_at, reason) VALUES (?, ?, ?)`, assetID, s.now(), reason)
 		return err
 	})
+}
+
+// queuePendingOnce queues, once per process, every device the inventory says still waits for its one gentle scan (PendingGentle):
+// the devices inventory migration 0004 gave a new gentle scan with titles never get an inventory.asset.discovered event. Queueing is
+// INSERT OR IGNORE, so a device already queued keeps its row; a failed read is tried again at the next tick.
+func (s *Service) queuePendingOnce(ctx context.Context) error {
+	p, ok := s.inv.(PendingGentle)
+	if !ok || s.pendingQueued.Load() {
+		return nil
+	}
+	ids, err := p.PendingGentleScans(ctx)
+	if err != nil {
+		return fmt.Errorf("sensoractive: read the devices waiting for their gentle scan: %w", err)
+	}
+	for _, id := range ids {
+		if err := s.Enqueue(ctx, id, "gentle_titles"); err != nil {
+			return err
+		}
+	}
+	s.pendingQueued.Store(true)
+	return nil
 }
 
 type queued struct {
@@ -1232,6 +1257,9 @@ func (s *Service) leave(ctx context.Context, id string, failed bool) {
 // window, also when the module or scanning is turned on inside an open window) and then scans the queued
 // devices one by one. Outside a window, or with scanning off, it does nothing.
 func (s *Service) Tick(ctx context.Context) error {
+	if err := s.queuePendingOnce(ctx); err != nil {
+		return err
+	}
 	if s.runMu.TryLock() {
 		err := s.failInterrupted(ctx)
 		s.runMu.Unlock()
@@ -1400,9 +1428,10 @@ func (s *Service) AssetChanged(ctx context.Context, assetID string) error {
 	cur := s.cur
 	var gentle, picked bool
 	var rate int
+	var kind nmapargv.Kind
 	match := cur != nil && cur.asset == assetID
 	if match {
-		gentle, rate, picked = cur.gentle, cur.rate, cur.picked
+		gentle, rate, picked, kind = cur.gentle, cur.rate, cur.picked, cur.kind
 	}
 	s.mu.Unlock()
 	if !match {
@@ -1417,7 +1446,9 @@ func (s *Service) AssetChanged(ctx context.Context, assetID string) error {
 		}
 		return serr
 	}
-	if err != nil || !dec.Allowed || (dec.FirstGentle && !gentle) || (dec.Rate > 0 && dec.Rate < rate) {
+	// A gentle scan with titles stops when the device may no longer have them: made fragile, by a person or by a kind (FORBID-6, D-511).
+	titlesGone := kind == nmapargv.GentleTitles && dec.Fragile
+	if err != nil || !dec.Allowed || (dec.FirstGentle && !gentle) || (dec.Rate > 0 && dec.Rate < rate) || titlesGone {
 		cur.cancel() // fail closed
 		if errors.Is(err, ErrNotFound) {
 			return nil

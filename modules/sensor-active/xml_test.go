@@ -275,6 +275,11 @@ func TestServiceDetail(t *testing.T) {
 	if bh, err := parseNmapXML([]byte(bigXML)); err != nil || len(bh) != 1 || !strings.HasPrefix(servicesOf(bh[0])[0].Detail, "certificate: commonName=FGT60FTK2109WXYZ") {
 		t.Errorf("ssl-cert output of %d bytes: %v", len(sans), err)
 	}
+	// An output over 64 KB is ignored alone: the port and the rest of the run stay (#714 round 2, L3).
+	huge := strings.Replace(longXML, "/emailAddress=support@fortinet.com", "/emailAddress=support@fortinet.com&#xa;"+strings.Repeat("x", 70<<10), 1)
+	if hh, err := parseNmapXML([]byte(huge)); err != nil || len(hh) != 1 || len(hh[0].ports) != 1 || strings.HasPrefix(servicesOf(hh[0])[0].Detail, "certificate:") || !strings.Contains(servicesOf(hh[0])[0].Detail, "title: Juniper") {
+		t.Errorf("a 70 KB ssl-cert output: err %v, hosts %d", err, len(hh))
+	}
 	if _, err := parseNmapXML([]byte(strings.Replace(longXML, `extrainfo="`, `extrainfo="`+sans, 1))); err == nil {
 		t.Error("a 9 KB extrainfo was accepted: only a script's output may pass 4 KB")
 	}

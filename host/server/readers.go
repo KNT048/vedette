@@ -15,7 +15,8 @@ import (
 )
 
 // ReadError is what a Readers function returns to answer with a specific status and code
-// (spec section 11): 404 for an id the host does not know, 403 for a file that must not leave the box.
+// (spec section 11): 404 for an id the host does not know, 403 for a file that must not leave the box, 409 for a state
+// that is changing right now (read it again later).
 type ReadError struct {
 	Status  int
 	Code    string
@@ -24,9 +25,9 @@ type ReadError struct {
 
 func (e *ReadError) Error() string { return "read refused: " + e.Code }
 
-// NewReadError builds a ReadError. Programming error (panic) for a status outside 403 and 404 or a bad code.
+// NewReadError builds a ReadError. Programming error (panic) for a status outside 403, 404 and 409 or a bad code.
 func NewReadError(status int, code, message string) *ReadError {
-	if (status != http.StatusNotFound && status != http.StatusForbidden) || !codeRE.MatchString(code) {
+	if (status != http.StatusNotFound && status != http.StatusForbidden && status != http.StatusConflict) || !codeRE.MatchString(code) {
 		panic(fmt.Sprintf("host: bad read error %d %q", status, code))
 	}
 	return &ReadError{Status: status, Code: code, Message: message}

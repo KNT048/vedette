@@ -2,6 +2,7 @@ package inventory_test
 
 import (
 	"context"
+	"fmt"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -538,5 +539,32 @@ func TestContract_INV3_NoListFromTheHostKeepsTheBoxSoftware(t *testing.T) {
 	}
 	if sw := e.detail(id).Asset.Software; len(sw) != 1 || sw[0].Product != "OpenSSH" {
 		t.Fatalf("box software = %+v, want the stored row kept", sw)
+	}
+}
+
+// D-470: a box list longer than the inventory stores (5 000 items) is refused whole, and the stored list stays: never a part
+// of the box.
+func TestContract_INV3_ATooLongBoxListKeepsTheBoxSoftware(t *testing.T) {
+	t.Parallel()
+	items := []inventory.SoftwareItem{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1"}}
+	e := newEnv(t, withBox(swapBox{&items}))
+	id, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "vedette-hq", IP: "192.168.10.2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.RefreshBoxPackages(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	long := make([]inventory.SoftwareItem, 5001)
+	for i := range long {
+		p := fmt.Sprintf("pkg%d", i)
+		long[i] = inventory.SoftwareItem{Display: p, Vendor: p, Product: p, Version: "1.0"}
+	}
+	items = long
+	if err := e.svc.RefreshBoxPackages(e.ctx()); err == nil {
+		t.Fatal("a list of 5 001 items was stored")
+	}
+	if sw := e.detail(id).Asset.Software; len(sw) != 1 || sw[0].Product != "OpenSSH" {
+		t.Fatalf("box software = %d rows, want the stored row kept", len(sw))
 	}
 }

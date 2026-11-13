@@ -14,11 +14,16 @@ type Package struct {
 }
 
 // PackagesState is the body of GET /v1/state/packages: the packages whose files are on the box (dpkg status installed,
-// triggers-awaiting or triggers-pending), sorted by name and architecture. Never empty: a dpkg-query that lists no
+// triggers-awaited or triggers-pending), sorted by name and architecture. Never empty: a dpkg-query that lists no
 // installed package is an error, so core never empties the box's list on a bad read.
 type PackagesState struct {
 	Packages []Package `json:"packages"`
 }
+
+// CodePackagesChanging (409) is GET /v1/state/packages while a package is half-installed, unpacked or half-configured: dpkg
+// is in the middle of a change (or an interrupted one), so the list is no snapshot of the box. Retryable: core keeps the
+// list it has and reads again at its next run.
+const CodePackagesChanging = "packages_changing"
 
 // MaxPackages bounds the list: a longer one is refused (500), not cut, so core never stores half a box.
 const MaxPackages = 20000

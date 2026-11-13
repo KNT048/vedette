@@ -18,6 +18,7 @@ func TestContract_INV9_PackagesAreTheBoxsDpkgList(t *testing.T) {
 		"g++\t4:13.2.0-7ubuntu1\tamd64\tgcc-defaults\tinstalled",
 		"libc6\t2.39-0ubuntu8.4\ti386\tglibc\ttriggers-pending",
 		"libc6\t2.39-0ubuntu8.4\tamd64\tglibc\tinstalled",
+		"man-db\t2.12.0-4build2\tamd64\tman-db\ttriggers-awaited",
 		"oldpkg\t1.0-1\tall\toldpkg\tconfig-files", // removed, configuration left: not on the box
 		"",
 	}, "\n"), 0, "", "")
@@ -29,6 +30,7 @@ func TestContract_INV9_PackagesAreTheBoxsDpkgList(t *testing.T) {
 		{Name: "g++", Version: "4:13.2.0-7ubuntu1", Arch: "amd64", Source: "gcc-defaults"},
 		{Name: "libc6", Version: "2.39-0ubuntu8.4", Arch: "amd64", Source: "glibc"},
 		{Name: "libc6", Version: "2.39-0ubuntu8.4", Arch: "i386", Source: "glibc"},
+		{Name: "man-db", Version: "2.12.0-4build2", Arch: "amd64", Source: "man-db"},
 		{Name: "openssh-server", Version: "1:9.6p1-3ubuntu13.5", Arch: "amd64", Source: "openssh"},
 	}
 	if !slices.Equal(st.Packages, want) {
@@ -81,5 +83,21 @@ func TestContract_INV9_AnOddPackageDoesNotHideTheRest(t *testing.T) {
 	st, err := e.h.Client.StatePackages(t.Context())
 	if err != nil || len(st.Packages) != 1 || st.Packages[0].Name != "bash" {
 		t.Fatalf("packages %+v, %v; want bash only", st.Packages, err)
+	}
+}
+
+// While apt runs (or after an interrupted run) a package is half-installed, unpacked or half-configured: the list is no
+// snapshot of the box, so the read answers 409 packages_changing (no list, no 500) and core keeps the last good one (D-470).
+func TestContract_INV9_PackagesMidChangeAreRetryable(t *testing.T) {
+	t.Parallel()
+	for _, st := range []string{"half-installed", "unpacked", "half-configured"} {
+		t.Run(st, func(t *testing.T) {
+			t.Parallel()
+			e := startSys(t)
+			e.m.RuleText("dpkg-query", "${Package}", "bash\t5.2-1\tamd64\tbash\tinstalled\nzsh\t5.9-6\tamd64\tzsh\t"+st+"\n", 0, "", "")
+			if code, body := rawGet(t, e.h, "/v1/state/packages"); code != 409 || !strings.Contains(string(body), api.CodePackagesChanging) || strings.Contains(string(body), "bash") {
+				t.Fatalf("%d %s", code, body)
+			}
+		})
 	}
 }

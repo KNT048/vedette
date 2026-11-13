@@ -100,7 +100,9 @@ func inventoryJobs(d deps) []jobs.Job {
 
 // boxPackages is inventory's BoxPackages (D-470, S-INV-5): vedette-host's GET /v1/state/packages, mapped to software exactly like an
 // osquery deb_packages snapshot (agentintake.MapDebPackages), so findings match the box like any server. A host older than D-470
-// (404 unknown_command) gives no list: nil, and the inventory keeps what it has.
+// (404 unknown_command) or a dpkg in the middle of a change (409 packages_changing) gives no list: nil, and the inventory keeps
+// what it has. The mapped list is never cut: one longer than the inventory stores (5 000 rows) is refused whole by
+// UpsertSoftware, so the stored list stays rather than becoming a part of the box.
 type boxPackages struct {
 	c   *hostclient.Client
 	log *slog.Logger
@@ -114,6 +116,12 @@ func (b boxPackages) Packages(ctx context.Context) ([]inventory.SoftwareItem, er
 	defer cancel()
 	st, err := b.c.StatePackages(ctx)
 	if hostclient.IsCode(err, hostapi.CodeUnknownCommand) {
+		return nil, nil
+	}
+	if hostclient.IsCode(err, hostapi.CodePackagesChanging) { // dpkg is mid-change: keep the last good list, read again next run
+		if b.log != nil {
+			b.log.InfoContext(ctx, "inventory: dpkg is installing or removing packages on the box; its package list is kept and read again at the next run")
+		}
 		return nil, nil
 	}
 	if err != nil {

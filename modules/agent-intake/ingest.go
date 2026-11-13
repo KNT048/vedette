@@ -140,7 +140,7 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 			return err
 		}
 	}
-	items, dropped := mapPackages(in.snaps)
+	items, dropped := mapPackages(in.snaps, maxRows)
 	if dropped > 0 || len(in.truncated) > 0 || in.dropped > 0 {
 		s.cfg.Log.InfoContext(ctx, "agent-intake: rows dropped", "node", node, "rows_not_fitting", dropped, "events_or_rows_refused", in.dropped, "truncated", len(in.truncated))
 	}

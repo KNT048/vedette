@@ -6,16 +6,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"slices"
 
 	"github.com/knt048/vedette/host/api"
+	"github.com/knt048/vedette/host/server"
 )
 
 // GET /v1/state/packages (D-470, INV-9): the box's own package list for the inventory. One fixed dpkg-query, no shell, no
 // argument from the request; the structure is parsed fail-closed: a line without exactly 5 fields, a status dpkg does not
 // have, too many lines, no installed package, a cut output or a failed exit and the whole read fails (core keeps what it
-// had). An installed package whose own fields break dpkg's rules is left out, counted and logged (parsePackages).
+// had). An installed package whose own fields break dpkg's rules is left out, counted and logged (parsePackages). A
+// package half-way through an install or removal (apt running, or an interrupted run) makes the list no snapshot of the
+// box: 409 packages_changing, which core reads as "keep the list, read again next time".
 
 // argsDpkgQueryList is the one dpkg-query of the package list: tab-separated name, version, architecture, source
 // package and status, one package per line (dpkg-query reads the \t and \n escapes of the format itself).
@@ -33,11 +37,18 @@ var (
 	debArchRE    = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
 )
 
-// dpkgStatuses are the values of ${db:Status-Status}; onDisk are the ones whose files are installed.
+// dpkgStatuses are the values of ${db:Status-Status} (dpkg-query(1), dpkg's lib/dpkg/pkg-namevalue.c); onDisk are the
+// ones whose files are installed (a package waiting on triggers is fully unpacked and configured); changing are the
+// states dpkg leaves a package in while it unpacks, configures or removes it.
 var (
-	dpkgStatuses = []string{"not-installed", "config-files", "half-installed", "unpacked", "half-configured", "triggers-awaiting", "triggers-pending", "installed"}
-	onDisk       = []string{"installed", "triggers-awaiting", "triggers-pending"}
+	dpkgStatuses = []string{"not-installed", "config-files", "half-installed", "unpacked", "half-configured", "triggers-awaited", "triggers-pending", "installed"}
+	onDisk       = []string{"installed", "triggers-awaited", "triggers-pending"}
+	changing     = []string{"half-installed", "unpacked", "half-configured"}
 )
+
+// errPackagesChanging is parsePackages' answer when a package is half-way through dpkg: the list is no reliable picture of
+// the box, so it is not sent at all (core keeps the last good one).
+var errPackagesChanging = errors.New("dpkg is installing or removing packages")
 
 func (o *Ops) readPackages(ctx context.Context) (any, error) {
 	res, code, err := o.exec(ctx, binDpkgQuery, argsDpkgQueryList...)
@@ -50,6 +61,9 @@ func (o *Ops) readPackages(ctx context.Context) (any, error) {
 		return nil, errors.New("dpkg-query printed more than the bound")
 	}
 	list, dropped, err := parsePackages(res.Stdout)
+	if errors.Is(err, errPackagesChanging) {
+		return nil, server.NewReadError(http.StatusConflict, api.CodePackagesChanging, "dpkg is installing or removing packages; read the list again later.")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -60,11 +74,13 @@ func (o *Ops) readPackages(ctx context.Context) (any, error) {
 }
 
 // parsePackages reads argsDpkgQueryList's output. The structure fails closed (a line without exactly 5 fields, an unknown
-// status, no installed package, too many): then it returns no list at all. One installed package whose name, version,
+// status, no installed package, too many): then it returns no list at all. A package in a changing state gives
+// errPackagesChanging (after the structure of every line has been checked). One installed package whose name, version,
 // architecture or source does not pass dpkg's rules (an old third-party package, a very long version) is left out and
 // counted in dropped, so it cannot hide the rest of the box; its text is never used.
 func parsePackages(out []byte) (list []api.Package, dropped int, err error) {
 	list = []api.Package{}
+	inFlux := false
 	lines := bytes.Split(out, []byte("\n"))
 	if n := len(lines); n > 0 && len(lines[n-1]) == 0 {
 		lines = lines[:n-1]
@@ -81,6 +97,9 @@ func parsePackages(out []byte) (list []api.Package, dropped int, err error) {
 		if !slices.Contains(dpkgStatuses, status) {
 			return nil, 0, fmt.Errorf("dpkg-query line %d has an unknown status", i+1)
 		}
+		if slices.Contains(changing, status) {
+			inFlux = true
+		}
 		if !slices.Contains(onDisk, status) {
 			continue
 		}
@@ -92,6 +111,8 @@ func parsePackages(out []byte) (list []api.Package, dropped int, err error) {
 		list = append(list, api.Package{Name: name, Version: version, Arch: arch, Source: source})
 	}
 	switch {
+	case inFlux:
+		return nil, 0, errPackagesChanging
 	case len(list) == 0:
 		return nil, 0, errors.New("dpkg-query listed no installed package")
 	case len(list) > api.MaxPackages:

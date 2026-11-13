@@ -205,19 +205,25 @@ func TestSocketsAreOpenWithoutSourcesAndAnUndeclaredSenderIsNamed(t *testing.T) 
 	if _, err := e.svc.UpdateSource(t.Context(), "admin@acme.example", s.ID, Input{Kind: "fortigate", Name: "FW", SenderIP: "127.0.0.1", Proto: "tcp", Port: 514}); err != nil {
 		t.Fatal(err)
 	}
-	// Datagrams sent before the listener has learned of the change are still the udp source's and are kept, so probe until one is
-	// named, then send the line that must not be kept until it is counted as unknown (dropped, not stored).
-	waitUntil(t, "a datagram of the tcp source to be named", func() bool { send("udp4", "<34>probe"); return named("udp") })
-	v, err := e.svc.UnknownSenders(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
-	before := v.Items[0].Count
-	waitUntil(t, "the datagram to be counted as unknown", func() bool {
-		send("udp4", "<34>not over tcp")
+	// The entry of the "before any source" datagram is still in the listener's table and shows again as soon as the source is tcp in
+	// the database, before the listener has learned of the change; until it has, datagrams are the udp source's and are kept. So probe
+	// until that entry's count grows (the listener now drops them), then send the line that must not be kept until it is counted too.
+	udpCount := func() int64 {
 		v, err := e.svc.UnknownSenders(t.Context())
-		return err == nil && len(v.Items) == 1 && v.Items[0].Count > before
-	})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, u := range v.Items {
+			if u.Proto == "udp" {
+				return u.Count
+			}
+		}
+		return 0
+	}
+	stale := udpCount()
+	waitUntil(t, "a datagram of the tcp source to be counted as unknown", func() bool { send("udp4", "<34>probe"); return udpCount() > stale })
+	dropped := udpCount()
+	waitUntil(t, "the line to be counted as unknown", func() bool { send("udp4", "<34>not over tcp"); return udpCount() > dropped })
 	if err := e.svc.DeleteSource(t.Context(), "admin@acme.example", s.ID); err != nil {
 		t.Fatal(err)
 	}

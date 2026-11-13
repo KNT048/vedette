@@ -115,6 +115,7 @@
     "notes": "Good to know",
     "parsed": "Read and analysed",
     "stored": "Stored only",
+    "logins": "Stored, logins read",
     "noIp": "The box address is not known yet. Add your LAN range first (Devices, Scope and sensors). Until then the settings below show {{placeholder}} where the box address goes.",
     "noIpLan": "The box cannot see its own address in your LAN range {{lan}}, as when it runs in a container. Use the address of the machine that runs Vedette, the one you open this page on: the settings below show {{placeholder}} where it goes.",
     "tlsTrust": "Over TLS the device must trust the box certificate shown under the log sources (download it there and import it on the device). The box accepts logs from this device by its IP address.",

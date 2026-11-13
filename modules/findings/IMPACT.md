@@ -12,6 +12,14 @@
 ## Modifying: `findings.Service.UpsertFromMatch(ctx, Asset, []Vuln)` và `OnMatchChanged(ctx, assetID)`
 - **inventory** (sự kiện `inventory.match.changed`; phải cài `findings.Inventory{Assets, MatchInput}`), **feeds** (phải cài `findings.Feeds{KevInfo, Vulns}`; `cmd/vedette/wiring.go` cài từ `feeds.Store.KevVulns/KevVulnsByCVE`, chỉ hàng `cisa-kev`, chưa có khoảng bị ảnh hưởng nên chỉ `basis=product`; `findings.Inventory` từ `inventory.DeviceRefs/MatchInput`), **core/jobs** (khớp lại sau `feeds.vuln.new_kev`). Interface do `findings` định nghĩa, `cmd/vedette` nối cài đặt thật. Đổi quy tắc khớp/tạo/độ nghiêm trọng đổi số finding và tin `notify`.
 
+## Modifying: khoảng phiên bản và mục "add the version" (D-500)
+- **feeds** (feed `nvd-kev`, `Store.KevAffected`) → `cmd/vedette` `findingsFeeds.Vulns` điền `Vuln.Affected`; sự kiện `feeds.ranges.updated` → `Inventory.RematchAll` (lần đầu trong ngữ cảnh baseline của notify, D-78).
+- **inventory**: `MatchDevice.OS` → `findings.Asset.OS` (loại trừ CVE chỉ nêu bản phát hành OS). Đổi cách gấp OS (`inv_asset.os`) làm lệch `osIdentity` (Ubuntu/Debian).
+- **content/catalog/nvd-cpe.json**: khoá là vendor|product của danh mục và của `agent-intake/pkgmap.json`; đổi tên sản phẩm ở hai nơi đó phải đổi khoá ở đây (`TestAliases_DataIsValid`, `TestGolden_*`).
+- **GUI/contract**: `FindingList.version_needed` (`contract.ts`, mock `web/src/mocks/match.ts` `versionNeeded`, `FindingsPage` khối "Add the version"); mock không có khoảng nên phần mềm có phiên bản → `medium` theo sản phẩm.
+- **notify**: finding theo sản phẩm nay `medium` (trước `high/critical`); quy tắc báo theo mức nghiêm trọng nhận ít tin hơn cho khớp không so được phiên bản.
+- **core export** (`export_policy.go`): `fnd_version_needed` được xuất.
+
 ## Modifying: `findings.Service.Reconcile(ctx)` và `findings.Jobs(svc)` (job `reconcile`, mỗi giờ)
 - **inventory**: phải cài `findings.Inventory.AssetIDs` (mọi id thiết bị, không giới hạn dòng, lỗi đọc là lỗi, không bao giờ trả danh sách ngắn: reconcile coi finding của thiết bị vắng là mồ côi và xoá sau khi hỏi lại `Assets`). Sửa `DevicesOfKind` hay `Kinds` (loại thiết bị mới) thì sửa adapter ở `cmd/vedette/wiring.go`, nếu không thiết bị loại mới không được khớp lại và finding của nó bị coi là mồ côi chỉ khi `Assets` cũng không thấy.
 - **cmd/vedette**: `wiredModules` có `Jobs: findingsJobs` cho `findings`; job chạy khi module bật rồi mỗi `ReconcileEvery`. Tắt module = job dừng, dữ liệu giữ.

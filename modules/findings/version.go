@@ -293,6 +293,15 @@ func compareBound(a, b string) (int, bool) {
 	return compareTail(va.tail, vb.tail)
 }
 
+// buildOfRelease reports whether v is a build of exactly the release named by bound: the same release and
+// qualifier, v with a build tail and bound with none ("13.1-49.13" and "13.1", "7.0.0 build 1234" and "7.0.0").
+// Only a lower inclusive bound may use it: whether such a build is before an upper bound "13.1" is unclear.
+func buildOfRelease(v, bound string) bool {
+	vv, okV := parseVersion(v)
+	vb, okB := parseVersion(bound)
+	return okV && okB && vv.compare(vb) == 0 && vb.tail == "" && vv.tail != ""
+}
+
 // isPlaceholder reports whether s is an all-zero version ("0", "0.0.0"): agents
 // and appliances use it for "unknown", so it is never evidence of a real version.
 func isPlaceholder(s string) bool {
@@ -349,6 +358,9 @@ func (r VersionRange) Contains(v string) Tri {
 			return true
 		}
 		return ok(c)
+	}
+	if r.StartIncl != "" && buildOfRelease(v, r.StartIncl) {
+		r.StartIncl = "" // "13.1-49.13" is a build of the 13.1 release, so it is "13.1 or later" (D-500)
 	}
 	if !check(r.StartIncl, func(c int) bool { return c >= 0 }) ||
 		!check(r.StartExcl, func(c int) bool { return c > 0 }) ||

@@ -128,17 +128,22 @@ func TestContract_INV4_KeyAndRanges(t *testing.T) {
 	if r := MatchAsset(nas("6.1.2"), []Vuln{qnapVuln(af)}, nil, t0); len(r.New)+len(r.Existing) != 0 {
 		t.Errorf("outside: %+v", r)
 	}
-	// not comparable: falls back to product
-	if r := MatchAsset(nas("nightly"), []Vuln{qnapVuln(af)}, nil, t0); len(r.New) != 1 || r.New[0].Basis != BasisProduct {
+	// a usable version that cannot be compared: product, medium (D-500)
+	if r := MatchAsset(nas("6.1.1"), []Vuln{qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "next"}})}, nil, t0); len(r.New) != 1 || r.New[0].Basis != BasisProduct || r.New[0].Severity != SeverityMedium {
 		t.Errorf("not comparable: %+v", r)
+	}
+	// no usable version: no finding, one "add the version" item (D-500)
+	if r := MatchAsset(nas("nightly"), []Vuln{qnapVuln(af)}, nil, t0); len(r.New) != 0 || len(r.NeedVersion) != 1 {
+		t.Errorf("no usable version: %+v", r)
 	}
 }
 
 func TestContract_INV5_Severity(t *testing.T) {
 	t.Parallel()
-	hi, rw, ep := qnapVuln(), qnapVuln(), qnapVuln()
-	rw.Ransomware, ep.EPSS = true, 0.5
-	for v, want := range map[*Vuln]Severity{&hi: SeverityHigh, &rw: SeverityCritical, &ep: SeverityCritical} {
+	in := Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "2"}}
+	hi, rw, ep, unchecked := qnapVuln(in), qnapVuln(in), qnapVuln(in), qnapVuln()
+	rw.Ransomware, ep.EPSS, unchecked.Ransomware = true, 0.5, true
+	for v, want := range map[*Vuln]Severity{&hi: SeverityHigh, &rw: SeverityCritical, &ep: SeverityCritical, &unchecked: SeverityMedium} {
 		if got := MatchAsset(nas("1"), []Vuln{*v}, nil, t0).New[0].Severity; got != want {
 			t.Errorf("ransomware=%v epss=%v: %s want %s", v.Ransomware, v.EPSS, got, want)
 		}
@@ -235,8 +240,8 @@ func TestContract_FORBID4_NoGuessWhenNotComparable(t *testing.T) {
 		t.Fatalf("Contains = %v, want unknown", got)
 	}
 	af := Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}}
-	r := MatchAsset(nas("latest"), []Vuln{qnapVuln(af)}, nil, t0)
-	if len(r.New) != 1 || r.New[0].Basis != BasisProduct {
+	r := MatchAsset(nas("latest"), []Vuln{qnapVuln(af)}, nil, t0) // no claim either way: the add-the-version item
+	if len(r.New) != 0 || len(r.NeedVersion) != 1 || r.NeedVersion[0].CVEs[0] != "CVE-2022-27593" {
 		t.Fatalf("result = %+v", r)
 	}
 }

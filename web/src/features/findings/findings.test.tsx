@@ -45,6 +45,19 @@ describe('findings: danh sách (S-MIT-1)', () => {
     expect(screen.getAllByRole('link', { name: 'Open Devices' })[0]).toHaveAttribute('href', '/devices')
   })
 
+  it('D-500: phần mềm không có phiên bản là MỘT dòng "add the version", không phải một finding mỗi CVE', async () => {
+    server.use(http.get('*/api/v1/findings', () => HttpResponse.json({ items: [], version_needed: [
+      { asset: { id: 'a-pc', hostname: 'PC-KE-TOAN', ip: '192.168.10.40', kind: 'pc', display: 'Microsoft Office' }, asset_id: 'a-pc', software_id: 's-1', software: 'Microsoft Office', version: null, cves: 32 },
+      { asset: null, asset_id: 'a-fw', software_id: 's-2', software: 'FortiGate', version: 'latest', cves: 21 },
+    ] })))
+    renderApp('/findings')
+    const box = await screen.findByRole('region', { name: 'Add the version of 2 software to check them' })
+    expect(within(box).getByText(/Microsoft Office has no version: adding it checks 32 exploited CVEs/)).toBeInTheDocument()
+    expect(within(box).getByText(/FortiGate version "latest" cannot be compared/)).toBeInTheDocument()
+    expect(within(box).getByRole('link', { name: 'PC-KE-TOAN' })).toHaveAttribute('href', '/devices/a-pc')
+    await expectNoA11yViolations()
+  })
+
   it('lỗi API hiện thông báo và nút thử lại', async () => {
     server.use(http.get('*/api/v1/findings', () => HttpResponse.json({ error: { code: 'x', message: 'The findings store is busy.' } }, { status: 503 })))
     renderApp('/findings')

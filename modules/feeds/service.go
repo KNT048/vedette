@@ -32,12 +32,21 @@ type Publisher interface {
 
 // Event names and payloads (CONTRACT "Events"). Consumers: inventory, scan, notify.
 const (
-	EventNewKEV       = "feeds.vuln.new_kev"
-	EventVulnUpdated  = "feeds.vuln.updated"
-	EventIOCUpdated   = "feeds.ioc.updated"
-	EventFetchFailed  = "feeds.fetch.failed"
-	EventSyncBaseline = "feeds.sync.baseline"
+	EventNewKEV        = "feeds.vuln.new_kev"
+	EventVulnUpdated   = "feeds.vuln.updated"
+	EventIOCUpdated    = "feeds.ioc.updated"
+	EventFetchFailed   = "feeds.fetch.failed"
+	EventSyncBaseline  = "feeds.sync.baseline"
+	EventRangesUpdated = "feeds.ranges.updated"
 )
+
+// RangesUpdatedEvent is published after a pull of the NVD affected versions (nvd-kev, D-500) changed the entries of
+// some CVEs: findings must match the devices again. First is true when the table was empty before (the first fill:
+// like the baseline of D-78, nothing it causes is news).
+type RangesUpdatedEvent struct {
+	CVEs  []string `json:"cves"`
+	First bool     `json:"first"`
+}
 
 // SyncBaselineEvent is published once, instead of one NewKEVEvent per CVE, when the first pull of the CISA list
 // fills an empty database (D-78). Subscribers recompute everything once; notify sends nothing for it.

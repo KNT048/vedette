@@ -11,7 +11,7 @@ import { Segmented } from '@/components/ui/segmented'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useFindings } from './api'
 import { basisKey, isOpen } from './basis'
-import type { FindingRow } from './types'
+import type { FindingRow, VersionNeeded } from './types'
 
 type Filter = 'open' | 'confirmed' | 'suspected' | 'resolved' | 'all'
 const match: Record<Filter, (f: FindingRow) => boolean> = {
@@ -65,6 +65,7 @@ function List() {
           <Button size="sm" onClick={() => { params.delete('cve'); setParams(params) }}><X />{t('clearCve', { cve })}</Button>
         ) : null}
       </div>
+      {q.data?.version_needed.length ? <VersionNeededList items={q.data.version_needed} /> : null}
       <QueryState query={q}>
         {() => (
           <DataTable
@@ -101,6 +102,28 @@ function List() {
         )}
       </QueryState>
     </>
+  )
+}
+
+/** D-500 (S-INV-2): a software on the exploited list without a usable version is ONE line here, not one finding per CVE. */
+function VersionNeededList({ items }: { items: VersionNeeded[] }) {
+  const { t } = useTranslation('findings')
+  return (
+    <section aria-labelledby="version-needed-title" className="mb-3 rounded-md border border-warn/50 bg-warn-soft/60 px-3 py-2 text-[13px]">
+      <h2 id="version-needed-title" className="font-medium">{t('versionNeeded.title', { count: items.length })}</h2>
+      <p className="text-muted">{t('versionNeeded.help')}</p>
+      <ul className="mt-1 grid gap-0.5">
+        {items.map((n) => (
+          <li key={`${n.asset_id}/${n.software_id}`}>
+            <Link to={`/devices/${n.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{n.asset?.hostname ?? n.asset?.ip ?? n.asset_id}</Link>
+            {': '}
+            {n.version === null
+              ? t('versionNeeded.missing', { software: n.software, count: n.cves })
+              : t('versionNeeded.unreadable', { software: n.software, version: n.version, count: n.cves })}
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

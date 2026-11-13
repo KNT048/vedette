@@ -207,7 +207,10 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 			}
 			res.Touched++
 		}
-		return s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, now)
+		if err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, now); err != nil {
+			return err
+		}
+		return replaceVersionNeeded(ctx, tx, a.ID, m.NeedVersion, now)
 	})
 	if err != nil {
 		return UpsertResult{}, err
@@ -251,6 +254,12 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 	for _, x := range m.Existing {
 		matched[x.CVE] = true
 	}
+	awaiting := map[string]string{} // CVE -> software that needs a version to decide it (D-500)
+	for _, n := range m.NeedVersion {
+		for _, c := range n.CVEs {
+			awaiting[c] = n.Software
+		}
+	}
 	for _, cve := range open {
 		if !listed[cve] || matched[cve] {
 			continue
@@ -263,7 +272,10 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 			continue // said already
 		}
 		h := HistoryEntry{TS: now, User: SystemUser, Action: "no_longer_matches",
-			Note: "The device no longer matches this entry (its software changed, or CISA changed the entry's vendor or product). Close it yourself if it does not apply."}
+			Note: "The device no longer matches this entry: its software or version changed, the version is outside the affected versions, or CISA changed the entry. Close it yourself if it does not apply."}
+		if sw, ok := awaiting[cve]; ok {
+			h.Note = clean(sw) + " on this device has no version Vedette can read, so this CVE is no longer listed on its own: it is counted in \"Add the version\". Add the version to check it, or close this yourself."
+		}
 		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
 			return err
 		}
@@ -405,6 +417,9 @@ func (s *Service) deleteAsset(ctx context.Context, assetID string) (int, error) 
 		}
 		if n, err = res.RowsAffected(); err != nil {
 			return fmt.Errorf("findings: deleting findings of device: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_version_needed WHERE asset_id = ?`, assetID); err != nil {
+			return fmt.Errorf("findings: deleting version-needed items of device: %w", err)
 		}
 		if n == 0 {
 			return nil

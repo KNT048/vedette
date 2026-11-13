@@ -4,6 +4,7 @@ import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, nowIso } from '@/mocks/db'
 import { aiAvailable, aiCandidates, assetsStore, findingsStore, recordAiRun, type AiJob } from '@/mocks/stores'
+import { versionNeeded } from '@/mocks/match'
 import type { Asset, Finding } from '@/lib/types'
 import { compromise, packs } from './packs'
 import type { AiResult, ApplyItem, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, MitigationPack, StatusAction } from './types'
@@ -143,7 +144,10 @@ export const handlers = [
     const denied = guard('viewer'); if (denied) return denied
     const asset = new URL(request.url).searchParams.get('asset')
     const list = findingsStore.get().filter((f) => !asset || f.asset_id === asset)
-    return HttpResponse.json({ items: list.map(row) })
+    const version_needed = versionNeeded(asset).map(({ asset: a, software: s, cves }) => ({
+      asset: assetView(a), asset_id: a.id, software_id: s.id, software: s.display, version: s.version || null, cves,
+    }))
+    return HttpResponse.json({ items: list.map(row), version_needed })
   }),
 
   http.get(`${API}/findings/:id`, ({ params }) => {

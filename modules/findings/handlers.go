@@ -142,9 +142,51 @@ func (h *FindingHandlers) FindingsGetFindings(ctx context.Context, params oas.Fi
 	if err != nil {
 		return nil, err
 	}
+	need, err := h.versionNeeded(ctx, params.Asset.Or(""))
+	if err != nil {
+		return nil, err
+	}
 	return Into[oas.FindingsGetFindingsOK](struct {
-		Items []Row `json:"items"`
-	}{rows})
+		Items         []Row             `json:"items"`
+		VersionNeeded []versionNeededJS `json:"version_needed"`
+	}{rows, need})
+}
+
+// versionNeededJS is contract.ts VersionNeeded (D-500).
+type versionNeededJS struct {
+	Asset      *AssetView `json:"asset"`
+	AssetID    string     `json:"asset_id"`
+	SoftwareID string     `json:"software_id"`
+	Software   string     `json:"software"`
+	Version    *string    `json:"version"` // nil: missing; else the version Vedette could not read
+	CVEs       int        `json:"cves"`
+}
+
+func (h *FindingHandlers) versionNeeded(ctx context.Context, assetID string) ([]versionNeededJS, error) {
+	items, err := h.svc.ListVersionNeeded(ctx, assetID)
+	if err != nil || len(items) == 0 {
+		return []versionNeededJS{}, err
+	}
+	ids := make([]string, 0, len(items))
+	for _, n := range items {
+		ids = append(ids, n.AssetID)
+	}
+	assets, err := h.inv.Assets(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("findings: reading devices: %w", err)
+	}
+	out := make([]versionNeededJS, 0, len(items))
+	for _, n := range items {
+		j := versionNeededJS{AssetID: n.AssetID, SoftwareID: n.SoftwareID, Software: n.Software, CVEs: n.CVEs}
+		if a, ok := assets[n.AssetID]; ok {
+			j.Asset = &a
+		}
+		if n.Version != "" {
+			j.Version = &n.Version
+		}
+		out = append(out, j)
+	}
+	return out, nil
 }
 
 // FindingsGetFindingsID implements findings_get_findings_id.

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
@@ -99,6 +100,10 @@ type pullPlan struct {
 
 	epssLatest, epssAgo map[string]float64
 	hasEPSS             bool
+
+	affected     map[string][]AffectedRow // nvd-kev (D-500)
+	affectedFull bool                     // a full pull: CVEs not in affected are dropped
+	hasAffected  bool
 
 	iocs    []iocInput
 	hasIOCs bool
@@ -228,8 +233,11 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		}
 		dec, builtin = b.Decoder, b
 	}
-	if dec == DecoderEPSS {
+	switch dec {
+	case DecoderEPSS:
 		return s.buildEPSS(ctx, src, p)
+	case DecoderNVD:
+		return s.buildNVD(ctx, src, p)
 	}
 	auth, err := s.authFor(ctx, src)
 	if err != nil {
@@ -419,6 +427,66 @@ func (s *Service) buildEPSS(ctx context.Context, src sourceRow, p pullPlan) (pul
 	return p, nil
 }
 
+// buildNVD asks the NVD CVE API 2.0 for the affected versions of the CVEs CISA lists (?hasKev, D-500), NVDPageSize
+// per request with nvdPause between requests. After a good pull less than nvdIncrementalDays old, only the CVEs NVD
+// changed since one day before that pull are asked for; otherwise everything, and CVEs NVD no longer lists go. Any
+// failed page fails the whole pull: entries are never half updated.
+func (s *Service) buildNVD(ctx context.Context, src sourceRow, p pullPlan) (pullPlan, error) {
+	now := s.now()
+	have, err := s.st.affectedCount(ctx)
+	if err != nil {
+		return p, err
+	}
+	var from, to time.Time
+	if have > 0 && src.Status == "ok" && src.LastSuccess != nil && now.Sub(*src.LastSuccess) < nvdIncrementalDays*24*time.Hour {
+		from, to = src.LastSuccess.Add(-24*time.Hour), now
+	}
+	p.out = outcome{OK: true}
+	p.hasAffected, p.affectedFull, p.affected = true, from.IsZero(), map[string][]AffectedRow{}
+	var st Stats
+	for page, start := 0, 0; ; page++ {
+		if page == nvdMaxPages {
+			return p, fail(ErrBadSample, "NVD answered more than %d pages; Vedette stopped and kept the versions it had.", nvdMaxPages)
+		}
+		if page > 0 {
+			select {
+			case <-ctx.Done():
+				return p, ctx.Err()
+			case <-time.After(nvdPause):
+			}
+		}
+		u, err := NVDPageURL(src.URL, start, from, to)
+		if err != nil {
+			return p, err
+		}
+		resp, err := s.get(ctx, Request{URL: u})
+		if err != nil {
+			return p, err
+		}
+		d, err := ParseNVD(resp.Body)
+		if err != nil {
+			return p, err
+		}
+		p.out.Bytes += len(resp.Body)
+		st.Accepted += d.Accepted
+		st.Rejected += d.Rejected
+		st.Reasons = append(st.Reasons, d.Reasons...)
+		maps.Copy(p.affected, d.Affected)
+		start += d.Returned
+		if d.Returned == 0 || start >= d.Total {
+			break
+		}
+	}
+	if len(st.Reasons) > 3 {
+		st.Reasons = st.Reasons[:3]
+	}
+	if p.affectedFull && len(p.affected) == 0 {
+		return p, accepted(st) // a full pull with nothing never empties the table
+	}
+	p.out.fill(st, len(p.affected))
+	return p, nil
+}
+
 // errStoreFailed is the sentence stored on a feed when its result could not be written (a database problem).
 const errStoreFailed = "The result could not be stored. Check the disk space and the box logs."
 
@@ -469,6 +537,8 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		added, removed int
 		stale          bool
 		baseline       bool // the CISA list filled an empty table: one baseline event, not one per CVE (D-78)
+		rangesChanged  []string
+		rangesFirst    bool
 	)
 	finish := func(tx *sql.Tx, out outcome) error { // the outcome row and the audit entry, in the pull's last transaction
 		if err := recordOutcome(ctx, tx, src.ID, out); err != nil {
@@ -484,7 +554,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		return s.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: "feeds.fetch", Target: src.Name, Detail: detail})
 	}
 	write := func(p pullPlan) error {
-		fresh, changed, added, removed, stale, baseline = nil, nil, 0, 0, false, false
+		fresh, changed, added, removed, stale, baseline, rangesChanged, rangesFirst = nil, nil, 0, 0, false, false, nil, false
 		if p.hasIOCs { // a long list: chunks, not one transaction that holds the writer (applyIOCs)
 			var err error
 			added, removed, stale, err = applyIOCs(ctx, s.DB, p.out.Finished, src, p.iocs, s.afterChunk, func(tx *sql.Tx, _, _ int) error { return finish(tx, p.out) })
@@ -527,6 +597,17 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if _, err = applyEPSS(ctx, tx, p.epssLatest, p.epssAgo); err != nil {
 					return err
 				}
+			case p.hasAffected:
+				var before int
+				if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_affected_cve`).Scan(&before); err != nil {
+					return fmt.Errorf("feeds: count affected: %w", err)
+				}
+				rangesFirst = before == 0
+				var total int
+				if rangesChanged, total, err = applyAffected(ctx, tx, p.affected, p.affectedFull, p.out.Finished); err != nil {
+					return err
+				}
+				p.out.Records = total // the CVEs the box has versions for, not only those this (incremental) pull got
 			}
 			return finish(tx, p.out)
 		})
@@ -570,6 +651,10 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	if added > 0 || removed > 0 {
 		s.publish(ctx, EventIOCUpdated, IOCUpdatedEvent{FeedID: src.ID, Added: added, Removed: removed})
 	}
+	if len(rangesChanged) > 0 {
+		slices.Sort(rangesChanged)
+		s.publish(ctx, EventRangesUpdated, RangesUpdatedEvent{CVEs: rangesChanged, First: rangesFirst})
+	}
 	if !p.out.OK {
 		s.publish(ctx, EventFetchFailed, FetchFailedEvent{FeedID: src.ID, Error: p.out.Err})
 	}
@@ -584,9 +669,11 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error)
 	if err != nil || id != "cisa-kev" || row.Status != "ok" {
 		return row, err
 	}
-	if e, err := s.st.source(ctx, "first-epss"); err == nil && e.Enabled && (fresh > 0 || e.Records == nil || *e.Records == 0) {
-		if _, _, err := s.pullOne(ctx, "first-epss", ""); err != nil && ctx.Err() != nil {
-			return row, ctx.Err()
+	for _, id := range []string{"first-epss", "nvd-kev"} { // D-500: new CVEs get their affected versions now too
+		if e, err := s.st.source(ctx, id); err == nil && e.Enabled && (fresh > 0 || e.Records == nil || *e.Records == 0) {
+			if _, _, err := s.pullOne(ctx, id, ""); err != nil && ctx.Err() != nil {
+				return row, ctx.Err()
+			}
 		}
 	}
 	return row, nil

@@ -1,6 +1,6 @@
 # Feeds Contract
 
-> Tier: standard · Story: S-FEED-1…5 · Last verified: 2026-11-13 (fix/ownaddr-walk4-mlee: one rule for Vedette itself, D-446) (2026-11-12 fix/logs-deferred-v1b-mlee: `Store.IOCSubdomainsOn` for logs, D-425) (D-420 save-time address checks; fix/logs-hagezi-subdomains-mlee: `Source.Subdomains`, `IOCSighting.Subdomains`, D-228) (2026-11-09 WP-20 + nối module: `inventory`, bus sự kiện, đường cơ sở D-78, đọc cho `inventory`/`findings`)
+> Tier: standard · Story: S-FEED-1…5 · Last verified: 2026-11-13 (fix/cve-version-ranges: feed `nvd-kev`, INV-19, D-500) (fix/ownaddr-walk4-mlee: one rule for Vedette itself, D-446) (2026-11-12 fix/logs-deferred-v1b-mlee: `Store.IOCSubdomainsOn` for logs, D-425) (D-420 save-time address checks; fix/logs-hagezi-subdomains-mlee: `Source.Subdomains`, `IOCSighting.Subdomains`, D-228) (2026-11-09 WP-20 + nối module: `inventory`, bus sự kiện, đường cơ sở D-78, đọc cho `inventory`/`findings`)
 
 Nguồn hành vi: `web/src/features/feeds/{contract,defaults,parsers,sourcesMock}.ts`. Nguồn dữ liệu: `PRIVACY.md` luồng 1, `docs/DATA_PIPELINE.md` §0, §3.
 
@@ -47,8 +47,10 @@ Nguồn hành vi: `web/src/features/feeds/{contract,defaults,parsers,sourcesMock
 | `POST /feeds/weekly/{id}` | operator |
 | `PUT /feeds/sources/{id}`, `POST /feeds/sources/{id}/fetch`, `POST /feeds/custom`, `PUT,DELETE /feeds/custom/{id}`, `POST /feeds/parse-test` | admin |
 
+- **INV-19** (D-500): feed có sẵn `nvd-kev` ("NVD affected versions", `services.nvd.nist.gov` CVE API 2.0, `?hasKev`) chỉ hỏi CVE có trong KEV, `NVDPageSize` (100) mỗi request, cách nhau `nvdPause` (6 s, giới hạn không key của NVD); lần đầu (bảng rỗng, hoặc lần tốt cuối cũ hơn 100 ngày) kéo đủ và bỏ CVE NVD không còn trả; sau đó chỉ CVE đổi từ một ngày trước lần tốt cuối (`lastModStartDate/EndDate`). Một trang lỗi ⇒ cả lượt lỗi, dữ liệu cũ giữ nguyên (INV-3). `ParseNVD` đóng kín: chỉ mục `vulnerable` của nút không `negate`; CVE có một mục hỏng (criteria không phải CPE 2.3, phiên bản > 100 ký tự hoặc không in được) bị bỏ cả CVE. Lượt đổi dữ liệu phát `feeds.ranges.updated {cves, first}`. Kéo danh sách CISA có CVE mới thì kéo `nvd-kev` ngay sau EPSS. Dòng giấy phép mang câu NVD yêu cầu. `TestContract_NVDRangesPull`, `TestParseNVD_*`.
+
 ## Tables owned (`feeds_`)
-`feeds_vuln.kev_announced_at` (migration `0004_feeds_kev_announced.sql`, chỉ mục riêng trên `(kev_announced_at, cve)`). `feeds_source` (cấu hình feed có sẵn + feed riêng, parser JSON, `secret_id` + `secret_last4`, trạng thái kéo: `last_fetch`, `last_success`, `failures`, `records`, `status`, `error`, `etag`, `last_modified`, `catalog_version`), `feeds_vuln`, `feeds_template` (CVE có mẫu nuclei), `feeds_ioc`, `feeds_ioc_source` (feed nào đang liệt kê chỉ báo nào, kèm `confidence`), `feeds_fetch_log`, `feeds_weekly_answer`.
+`feeds_affected_cve` (CVE NVD đã trả, `updated_at`) và `feeds_affected` (mục CPE + khoảng của từng CVE; migration `0005_feeds_affected.sql`, D-500; đọc qua `Store.KevAffected`). `feeds_vuln.kev_announced_at` (migration `0004_feeds_kev_announced.sql`, chỉ mục riêng trên `(kev_announced_at, cve)`). `feeds_source` (cấu hình feed có sẵn + feed riêng, parser JSON, `secret_id` + `secret_last4`, trạng thái kéo: `last_fetch`, `last_success`, `failures`, `records`, `status`, `error`, `etag`, `last_modified`, `catalog_version`), `feeds_vuln`, `feeds_template` (CVE có mẫu nuclei), `feeds_ioc`, `feeds_ioc_source` (feed nào đang liệt kê chỉ báo nào, kèm `confidence`), `feeds_fetch_log`, `feeds_weekly_answer`.
 
 ## Triển khai (WP-20)
 - **Một chủ cho mỗi CVE**: `feeds_vuln.cve` là PK; `cisa-kev` thắng feed riêng (feed riêng không đè hàng của feed khác); CVE rời KEV vẫn giữ. Feed riêng loại `vulnerabilities` thay hàng của mình ở mỗi lần kéo (CVE không còn trong danh sách thì xoá); thiếu hãng/sản phẩm thì ghi `Unknown`, thiếu ngày thì lấy ngày thấy lần đầu.
@@ -66,7 +68,7 @@ Nguồn hành vi: `web/src/features/feeds/{contract,defaults,parsers,sourcesMock
 - **Giới hạn**: thân yêu cầu mặc định tối đa 1 MiB (`core/server`) nhưng `parse-test` được nâng lên 8 MiB qua `feeds.BodyLimits` (nối ở `cmd/vedette/modules.go`) để nhận mẫu 5 MB của contract; mẫu quá 5 000 000 ký tự bị máy chủ sinh từ OpenAPI chặn (400 `invalid`), thân quá 8 MiB là 413 `too_large`. `Vuln.links` là chuỗi khớp `^https?://` (không dùng `format: uri`: ogen giải mã `url.URL` bằng `ParseRequestURI` làm `#neo` thành `%23neo`); SPA chỉ vẽ href http(s). `GET /feeds/cve/{id}` chữ thường là 400 `invalid` (GUI viết hoa trước khi gọi). Danh sách `GET /feeds/sources` và `/feeds/status` trả nguyên `url` cho vai viewer: feed riêng không nên đặt token trong chuỗi truy vấn (dùng `auth`).
 
 ## Events
-- **Phát**: `feeds.sync.baseline {source, count}` (một lần, lần kéo đầu vào bảng rỗng, D-78; thay cho từng `new_kev` của lần đó), `feeds.vuln.new_kev {cve, vendor, product, has_template, date_added}`, `feeds.vuln.updated {cves[]}`, `feeds.ioc.updated {feed_id, added, removed}`, `feeds.fetch.failed {feed_id, error}`.
+- **Phát**: `feeds.ranges.updated {cves, first}` (D-500: lượt `nvd-kev` đổi mục của các CVE này; `first` khi bảng rỗng trước đó; `cmd/vedette` cho inventory khớp lại mọi thiết bị, lần đầu như đường cơ sở D-78), `feeds.sync.baseline {source, count}` (một lần, lần kéo đầu vào bảng rỗng, D-78; thay cho từng `new_kev` của lần đó), `feeds.vuln.new_kev {cve, vendor, product, has_template, date_added}`, `feeds.vuln.updated {cves[]}`, `feeds.ioc.updated {feed_id, added, removed}`, `feeds.fetch.failed {feed_id, error}`.
 - **Nhận**: không (chạy theo `core/jobs`).
 
 ## Behaviour khi tắt (SYS-5)

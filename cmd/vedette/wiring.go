@@ -145,7 +145,7 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 	if err != nil || !ok {
 		return findings.Asset{}, false, err
 	}
-	out := findings.Asset{ID: d.ID, Name: d.Name, Software: make([]findings.Software, len(d.Software))}
+	out := findings.Asset{ID: d.ID, Name: d.Name, OS: d.OS, Software: make([]findings.Software, len(d.Software))}
 	for i, s := range d.Software {
 		out.Software[i] = findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE}
 	}
@@ -171,16 +171,24 @@ func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]f
 	return out, nil
 }
 
-// Vulns returns the CISA list for matching. The list has no NVD affected ranges yet, so findings can only
-// match by product (basis "product").
+// Vulns returns the CISA list for matching, each CVE with the NVD affected versions feeds pulled (nvd-kev, D-500).
+// A CVE NVD has not answered for has none, and findings then cannot decide by version.
 func (a findingsFeeds) Vulns(ctx context.Context) ([]findings.Vuln, error) {
 	rows, err := a.st.KevVulns(ctx)
+	if err != nil {
+		return nil, err
+	}
+	affected, err := a.st.KevAffected(ctx)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]findings.Vuln, len(rows))
 	for i, v := range rows {
 		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Ransomware: v.Ransomware}
+		for _, r := range affected[v.CVE] {
+			out[i].Affected = append(out[i].Affected, findings.Affected{CPE: r.CPE,
+				Range: findings.VersionRange{StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}})
+		}
 		if t, err := time.Parse(time.DateOnly, v.DateAdded); err == nil { // an unreadable date stays zero: backlog, never news
 			out[i].DateAdded = t
 		}
@@ -360,6 +368,17 @@ func subscribe(d deps) {
 	}))
 	d.Bus.Subscribe(feeds.EventNewKEV, on("scan", onNewKEVForScan(d)))          // after inventory's: the findings of the new entry exist when the job looks
 	d.Bus.Subscribe(feeds.EventVulnUpdated, on("inventory", rematchUpdated(d))) // D-328: a CVE whose vendor or product changed
+	// D-500: new NVD affected versions decide findings again for every device; the first fill is backlog, like D-78.
+	d.Bus.Subscribe(feeds.EventRangesUpdated, on("inventory", func(ctx context.Context, data any) error {
+		ev, _ := data.(feeds.RangesUpdatedEvent)
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
+		defer cancel()
+		if ev.First {
+			ctx = notify.WithBaseline(ctx)
+		}
+		_, err := d.Inventory.RematchAll(ctx)
+		return err
+	}))
 	d.Bus.Subscribe(feeds.EventSyncBaseline, on("inventory", func(ctx context.Context, _ any) error {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
 		defer cancel()

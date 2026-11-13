@@ -16,6 +16,7 @@ import (
 // every SQLite row costs milliseconds. The chunking logic does not depend on the size.
 func TestMain(m *testing.M) {
 	iocChunkRows = 200
+	nvdPause = 0
 	os.Exit(m.Run())
 }
 

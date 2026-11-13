@@ -57,6 +57,10 @@ var (
 	versionTokenRE = regexp.MustCompile(`^[0-9A-Za-z.+_-]{1,32}$`)
 	// errStoredInvalid: the index stored earlier no longer verifies.
 	errStoredInvalid = errors.New("core: the stored release index does not verify")
+	// errNotPublished: the source answered 404 for the index (or its signature): no release is published there yet
+	// (D-407, walk 4: a -test.N build with no GitHub release). A 404 on a release's manifest is not this: the index names
+	// that release, so its missing file stays update_source_unreachable.
+	errNotPublished = errors.New("core: no update information is published at the source")
 )
 
 // updCheck is the check side's part of OSHandlers.
@@ -531,10 +535,9 @@ func (h *OSHandlers) checkFailure(ctx context.Context, err error) error {
 	switch {
 	case errors.Is(err, context.Canceled):
 		return err
-	case errors.As(err, &src) && src.status == http.StatusNotFound:
-		// The source answered: it has no update information for this build (D-407, walk 4: a test build with no release).
-		h.log.WarnContext(ctx, "core: the update source has no release information for this build", "error", err)
-		return apierr.New(502, CodeUpdateNotPublished, "No release found for this version yet: the release source answered, but has no update information for this build. Nothing needs fixing on the box; Vedette checks again every 6 hours.")
+	case errors.Is(err, errNotPublished):
+		h.log.WarnContext(ctx, "core: the update source has no release information", "error", err)
+		return apierr.New(502, CodeUpdateNotPublished, "No release found yet: the release source answered, but no update information is published there. This is not a network problem and nothing needs fixing on the box.")
 	case errors.As(err, &src) || errors.Is(err, context.DeadlineExceeded):
 		h.log.WarnContext(ctx, "core: the update source could not be reached", "error", err)
 		return apierr.New(503, CodeUpdateSourceUnreachable, "Vedette could not download the update information from GitHub. Check that the box can reach github.com over HTTPS, then try again.")
@@ -636,6 +639,10 @@ func (h *OSHandlers) runCheck(ctx context.Context, by string) (string, error) {
 		return "", err
 	}
 	raw, sig, err := h.fetchPair(ctx, h.upd.base+"/index/index.json")
+	var src errSource
+	if errors.As(err, &src) && src.status == http.StatusNotFound {
+		return "", fmt.Errorf("%w: %w", errNotPublished, err)
+	}
 	if err != nil {
 		return "", err
 	}

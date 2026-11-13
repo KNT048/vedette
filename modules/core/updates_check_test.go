@@ -347,10 +347,16 @@ func TestUpdateCheckRefusesWhatDoesNotVerify(t *testing.T) {
 			e.srv.down = true
 			e.srv.mu.Unlock()
 		}},
-		// D-407 (walk 4): the source answers 404, as GitHub does for a build with no release: not a network problem.
+		// D-407 (walk 4): the source answers 404 for the index, as GitHub does while no release exists: not a network problem.
 		"not published": {502, core.CodeUpdateNotPublished, func(_ *testing.T, e *updEnv) {
 			e.srv.mu.Lock()
 			delete(e.srv.files, "/index/index.json")
+			e.srv.mu.Unlock()
+		}},
+		// A release the signed index names whose manifest is missing is a broken source, not "nothing published".
+		"manifest 404": {503, core.CodeUpdateSourceUnreachable, func(_ *testing.T, e *updEnv) {
+			e.srv.mu.Lock()
+			delete(e.srv.files, "/v1.4.0/release-manifest.json")
 			e.srv.mu.Unlock()
 		}},
 	} {

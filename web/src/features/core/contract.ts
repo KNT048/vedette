@@ -112,7 +112,7 @@ export const RunningRevoked = z.object({
   action: z.enum(['block_install', 'block_install_and_warn', 'rollback_if_possible']).describe('block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)'),
 })
 export const UpdateCheckError = z.object({
-  at: ts, code: z.enum(['update_source_unreachable', 'update_not_published', 'update_check_failed']).describe('update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404: no release information is published for this build yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check'),
+  at: ts, code: z.enum(['update_source_unreachable', 'update_not_published', 'update_check_failed']).describe('update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check'),
   message: z.string().describe("The box's own fixed sentence for this failure (the message of the 503/502 answer); never text received from the network"),
 })
 export const UpdatesState = z.object({

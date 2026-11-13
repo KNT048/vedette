@@ -206,7 +206,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
           </div>
         </fieldset>
         {/* One status line (D-407): a failed check says why, then the last good one if any; never "Never checked." above a failure. */}
-        <p className={`mt-3 text-[13px] ${s.last_check_error ? 'text-warn' : 'text-muted'}`}>
+        <p className={`mt-3 text-[13px] ${s.last_check_error && s.last_check_error.code !== 'update_not_published' ? 'text-warn' : 'text-muted'}`}>
           {s.last_check_error ? t('updates.checkFailed', { time: fmtRelative(s.last_check_error.at), reason: s.last_check_error.message }) : isNever(s.last_check) ? t('updates.neverChecked') : t('updates.lastCheck', { time: fmtRelative(s.last_check) })}
           {s.last_check_error && !isNever(s.last_check) ? ` ${t('updates.lastGood', { time: fmtRelative(s.last_check) })}` : ''} {s.check_enabled ? '' : t('updates.checkOff')}
         </p>

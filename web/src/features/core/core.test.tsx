@@ -1049,8 +1049,9 @@ describe('core: cập nhật (S-CORE-2)', () => {
     const e = { at: new Date(Date.now() - 6 * 60_000).toISOString(), code: 'update_not_published', message: CHECK_FAILURES.update_not_published.message }
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ ...s, last_check: null, last_check_error: e, managed: [], advisories: [] })))
     renderApp('/settings/updates')
-    expect(await screen.findByText(/^Last check failed 6 minutes ago: No release found for this version yet/)).toBeInTheDocument()
-    expect(screen.queryByText(/Never checked|reach github\.com/)).toBeNull()
+    const line = await screen.findByText(/^Last check failed 6 minutes ago: No release found yet/)
+    expect(line).not.toHaveTextContent(/github\.com|Never checked/)
+    expect(screen.queryByText(/^Never checked/)).toBeNull()
     expect(screen.queryByText('No rows.')).toBeNull()
     expect(screen.getByText(/^None listed\. This list comes from the signed release information/)).toBeInTheDocument()
     expect(screen.getByText(/^None known yet\. Advisories arrive with the signed update information/)).toBeInTheDocument()

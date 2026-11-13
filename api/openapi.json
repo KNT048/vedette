@@ -13811,7 +13811,7 @@
                                 "update_not_published",
                                 "update_check_failed"
                               ],
-                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404: no release information is published for this build yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                             },
                             "message": {
                               "type": "string",
@@ -14381,7 +14381,7 @@
                                 "update_not_published",
                                 "update_check_failed"
                               ],
-                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404: no release information is published for this build yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                             },
                             "message": {
                               "type": "string",
@@ -14945,7 +14945,7 @@
                                 "update_not_published",
                                 "update_check_failed"
                               ],
-                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404: no release information is published for this build yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                             },
                             "message": {
                               "type": "string",
@@ -15562,7 +15562,7 @@
                                     "update_not_published",
                                     "update_check_failed"
                                   ],
-                                  "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404: no release information is published for this build yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                                  "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                                 },
                                 "message": {
                                   "type": "string",
@@ -16114,7 +16114,7 @@
                                 "update_not_published",
                                 "update_check_failed"
                               ],
-                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404: no release information is published for this build yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                             },
                             "message": {
                               "type": "string",
@@ -18358,7 +18358,7 @@
                                 "update_not_published",
                                 "update_check_failed"
                               ],
-                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404: no release information is published for this build yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                             },
                             "message": {
                               "type": "string",

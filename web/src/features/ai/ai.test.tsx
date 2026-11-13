@@ -184,8 +184,15 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
 
   it('AI module off: says why and where to turn it on (S-CORE-1)', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'ai' ? { ...m, enabled: false } : m)))
+    const asked: string[] = []
+    server.events.on('request:start', ({ request }) => { if (new URL(request.url).pathname.includes('/ai/')) asked.push(new URL(request.url).pathname) })
     renderApp('/assistant')
     expect(await screen.findByRole('heading', { level: 1, name: /AI assistant is off/ })).toBeInTheDocument()
+    // Walk 5: only the module-off card; no calls to routes that are 404 and no "Not found" cards for the meter and the logs.
+    expect(screen.queryByText(/Not found/)).toBeNull()
+    expect(screen.queryByRole('heading', { name: /Activity log/i })).toBeNull()
+    expect(asked).toEqual([])
+    server.events.removeAllListeners()
   })
 })
 

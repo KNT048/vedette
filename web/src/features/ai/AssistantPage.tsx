@@ -22,9 +22,10 @@ const SUGGESTED = ['rdp', 'unapproved', 'confirmed', 'nas', 'camera', 'oldOs'] a
 
 export default function AssistantPage() {
   const { t } = useTranslation('ai')
-  const usage = useUsage()
   const gate = useAiGate('operator', 'ask-my-data')
-  const cfg = useAiConfig()
+  const on = gate.state !== 'off' && gate.state !== 'loading' // the module off: its routes are 404, nothing below is asked
+  const usage = useUsage(on)
+  const cfg = useAiConfig(on)
   const u = usage.data
   const title = gate.state === 'off' ? t('page.titleOff')
     : gate.state === 'unconfigured' ? t('page.titleUnconfigured')
@@ -34,7 +35,7 @@ export default function AssistantPage() {
       <PageHeader title={title} meta={cfg.data?.configured ? t('page.meta', { tier: t(`settings.tier.${cfg.data.tier}.name`) }) : undefined} stories={['S-AI-4', 'S-AI-5', 'S-AI-6', 'S-AI-8']} />
       <Ask />
       {/* Chưa nối AI và chưa từng chạy: đồng hồ 0/trần và nhật ký trống chỉ gây nhiễu; màn trống ở trên đã nói việc cần làm. */}
-      {gate.state === 'unconfigured' && u && u.month.total === 0 ? null : <><Meter query={usage} /><RunLog /><ActivityPanel /></>}
+      {!on || (gate.state === 'unconfigured' && u && u.month.total === 0) ? null : <><Meter query={usage} /><RunLog /><ActivityPanel /></>}
     </>
   )
 }
@@ -43,7 +44,7 @@ function Ask() {
   const { t } = useTranslation('ai')
   const gate = useAiGate('operator', 'ask-my-data')
   const ask = useAsk()
-  const asks = useAsks()
+  const asks = useAsks(gate.state !== 'off' && gate.state !== 'loading')
   const [q, setQ] = useState('')
   const [shown, setShown] = useState<AskResult | null>(null)
   const result = shown ?? ask.data ?? asks.data?.items[0] ?? null

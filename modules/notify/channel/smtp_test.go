@@ -378,7 +378,7 @@ func TestD446_SMTPOnTheMachine(t *testing.T) {
 	for _, c := range []struct {
 		host string
 		port int
-	}{{"10.123.45.67", 6514}, {"127.0.0.1", 587}, {"mail.localhost", 25}} {
+	}{{"10.123.45.67", 6514}, {"127.0.0.1", 587}, {"mail.localhost", 25}, {"localhost", 25}, {"LOCALHOST", 587}} {
 		cfg := base
 		cfg.Host, cfg.Port, cfg.Security = c.host, c.port, SecuritySSL
 		_, err := NewEmail(cfg)

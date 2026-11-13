@@ -31,6 +31,8 @@ The reference layout doc kien pointed to is from another project. It is git-igno
 | 13 | /scans with 500 devices | TRUE | The picker has no search, filter, grouping or paging.<br>"Select all → 1" is D-126 working as designed: it skips unapproved, unknown-type, fragile and hand-added devices. The button doesn't say so. |
 | 14 | /findings bulk | TRUE | No bulk actions, no way to edit a version, no "accept risk" status.<br>One Office entry with no version gives about 29 Critical/Suspected findings: every KEV entry with ransomware use counts as Critical, even on a product-only match. |
 | 15 | Exposure confirm step | TRUE (as D-26 says) | The separate admin confirmation is the D-26 record (legal, D-5). kien has now OKed replacing it (§3, D-473). |
+| 16 | /incidents (added later) | TRUE (Not sent: PARTLY) | **Auto-close:** approving or deleting a device never closes its "new unknown device" incident. Notify changes status only on a person's PATCH, and inventory sends no "approved" event (`manual.go:342`). None of the 4 kinds (unknown_device, trap, bad_address, log_anomaly) closes when its cause is gone.<br>**First sweep:** raises one Medium incident per device. Logs (24 h) and CISA (first pull) already have baselines; inventory has none.<br>**Bulk:** no bulk API; no row selection in the shared table.<br>**"Not sent":** an empty `sends` list can mean no channel, below the channel's minimum severity, or queued. Evidence: `beta-verify/v4-incidents.md`. |
+| 17 | AI profile / OpenCode (added later) | TRUE / PARTLY | **OpenCode:** no preset. The hosted gateway is OpenCode Console at `https://opencode.ai/inference` (Chat Completions for open models; Responses / Anthropic / Gemini styles for others; `GET /inference/v1/models`; `oc_sk_` keys). Free models refuse non-OpenCode clients. OpenCode Go is for coding agents.<br>**http:// already works:** for "On your own network". Custom opens as cloud, and that choice comes last, so kien hit the https rule.<br>**The dialog:** no model-list call. The name is a required blank for Custom. Test exists but isn't required.<br>**Side bug:** the Gemini preset address ends in `/v1beta` and the client adds `/v1beta` again. Evidence: `beta-verify/v5-ai-profile.md`. |
 
 Also found while verifying (no item number):
 - Scan detection never fires on a real box: portscan is off, so only "Test scan" makes a hit.
@@ -41,7 +43,7 @@ Also found while verifying (no item number):
 
 ## 2. Groups, decisions, owners, order
 
-D numbers come from the lead's range (D-450..D-479); D-464..D-473 are reserved here. Each PR writes its own `docs/decisions/D-nnn.md` (one table row, with sources) and adds its story criteria first.
+D numbers come from the lead's range (D-450..D-479); D-464..D-475 are reserved here. Each PR writes its own `docs/decisions/D-nnn.md` (one table row, with sources) and adds its story criteria first.
 
 | Group | Items | D | Story (criterion added) | Owner | Review |
 |---|---|---|---|---|---|
@@ -56,12 +58,15 @@ D numbers come from the lead's range (D-450..D-479); D-464..D-473 are reserved h
 | **B8 Scan target picker** | 13 | D-472 | S-SCAN-4 | Trưởng agent (scan, web), after B0 | Opus |
 | **M1 Findings at scale** | 14 | Mlee's range | S-FND story Mlee picks | **Mlee** (findings). Needs B7's "edit version" call. | Mlee's rule |
 | **M2 Exposure: Scan now is the confirmation** | 15 | D-473 | S-EXP-1 | **Mlee** (exposure) | Opus (legal record) |
+| **B9 Device learning window + approval event** | 16 (Kiên side) | D-474 | S-INV-3 | Trưởng agent (inventory, response's new-device reaction) | Opus |
+| **M3 Incidents close themselves** | 16 (notify side) | Mlee's range | S-ALERT story Mlee picks | **Mlee** (notify). Needs B9's `inventory.asset.approved` event. | Mlee's rule |
+| **M4 Add AI profile + OpenCode preset** | 17 | D-475 | the ai settings story | **Mlee** (ai) | Opus (egress/SSRF) |
 
 **Order:**
 - **Wave 1:** B0, B1 and B5 in parallel (independent).
 - **Wave 2:** B2, B6 and B8. B8 needs B0's tab frame.
 - **Wave 3:** B3 (after B2: same honeypot files) and B7 (after B0).
-- **Wave 4:** B4 (after B3).
+- **Wave 4:** B4 (after B3). B9 joins wave 2: inventory only, and M3 needs its event.
 
 **Limits:**
 - At most 3–4 agents at a time and 2 heavy jobs.
@@ -119,6 +124,19 @@ D numbers come from the lead's range (D-450..D-479); D-464..D-473 are reserved h
   - **The trigger:** the first **Scan now** on a target by an **admin with two-step sign-in** records the D-26 confirmation: who, when, which target, and the exact legal sentence shown next to the button.
   - **What goes away:** the separate confirm step. Operators still cannot scan an unconfirmed target.
   - **Basis:** amends D-26 and keeps D-5's record. **Sources:** Detectify, Qualys and Tenable authorize through ownership and permissions, not a scan-time step. Implemented by Mlee.
+- **D-474 Devices found while learning raise no alert.**
+  - **Learning window:** the first 24 h after setup, or until the first full sweep ends, whichever is later.
+    - Devices found in it stay unapproved but raise no "new unknown device" incident, and response does not react to them.
+    - Home then offers "review N devices found while learning", with bulk approve.
+  - **Approve and delete events:** approving publishes `inventory.asset.approved {asset_id, actor}`, and deleting publishes the existing delete event with the actor. Notify (M3) resolves the matching open incidents from these.
+  - **Kien's box:** a one-off pass resolves the incidents already open for approved devices.
+  - **Sources:** Firewalla (devices already discovered are known), Fing ("new since your last scan"), ntopng learning period. The repo's own baselines: logs 24 h (`anomaly.go:27`) and CISA first pull (D-78).
+- **D-475 OpenCode is the first AI preset; the dialog asks in the order a person thinks** (Mlee builds it).
+  - **The preset:** OpenCode Console pay-as-you-go over Chat Completions, base `https://opencode.ai/inference/openai/v1`, cloud only, a cheap paid model as the suggestion. Built as a dialog preset on `custom`, so no migration. Claude, Gemini and GPT through OpenCode only after a live test confirms the auth header per family.
+  - **Dialog order:** provider → where it runs → key → model (listed from the provider's model endpoint, free text as fallback, small vs strong per job) → name (auto-filled, editable) → Test → Save. Presets fill and hide the address and style under "Advanced".
+  - **http://** stays allowed only for "On your own network", now with a visible "not encrypted" warning. The INV-3 address rules and D-446 are unchanged.
+  - The model-list request goes through the same connection guard and is added to PRIVACY.md row 3.
+  - Fix the Gemini `/v1beta` double path.
 
 ## 4. Per-group acceptance (each PR adds these to its story)
 
@@ -152,6 +170,10 @@ D numbers come from the lead's range (D-450..D-479); D-464..D-473 are reserved h
 - **B8:**
   - **500 devices (mock):** search and subnet grouping work, and paging keeps the selection.
   - **Select all:** states how many need their own tick.
+- **B9:**
+  - **Fresh setup:** a 30-device sweep in the learning window raises 0 "new unknown device" incidents, and Home shows "review 30 devices found while learning".
+  - **After the window:** a new device raises one.
+  - **Approving:** publishes `inventory.asset.approved`; with M3 merged, the device's open incident shows resolved by the approver.
 
 ## 5. Not in this plan
 

@@ -60,3 +60,15 @@
 
 ## Modifying: `HitDetail(ctx, id)`, `SourceConnected(ctx, src, at, window)` (D-509) — người gọi: `cmd/vedette` `responseIncidents`
 - Respond trên sự cố bẫy (`response`) đọc nguồn từ `HitDetail` (`SrcIP`, `SrcAssetID`, `IsTest`, `Kind`) và, với hit `scan`, hỏi `SourceConnected`: có hit `service` thật (không thử) của cùng `src_ip` trong `at ± window` không. Chỉ đọc. Đổi `kind`/`src_ip`/`ts` của hit `service` hay để luồng tạo `scan` cũng tạo hit `service` từ lần thử chưa bắt tay ⇒ response coi nguồn giả được là đã xác nhận (rủi ro chặn nhầm máy vô tội); trả lỗi ⇒ response trả lỗi (không đưa gì).
+
+## Modifying: the services (`types.go` `serviceDefs`, `Services`; D-467, B3)
+- **API / GUI**: `HpService` in `web/src/features/honeypot/contract.ts` is the enum of `api/openapi.json` and `core/api/oas`; `presets.ts` (`SERVICE_PORT`, `UDP_SERVICES`, `LOGIN_SERVICES`) and `locales/en/honeypot.json` (`service.*`, `serviceHint.*`) name each one. A new service is a row in `serviceDefs`, the enum, those maps, the `hp_hits.service` CHECK (a migration like 0004) and a real log line in `testdata/opencanary-0.9.10-lines.jsonl`.
+- **host**: the allow-list of each Trap IP carries the service's protocol (`ports()`); UDP needs host-api 6.6's `udp` (it has it). The attempt record (`touched`) already counts UDP.
+- **cmd/vedette `firstTrapPort`** (the image health check) skips UDP services and reads the banner's port from `tcpbanner_1.port`: renaming a port key in `RenderConfig` breaks it (`TestFirstTrapPortReadsWhatRenderConfigWrites`).
+- **deploy/containers + `make honeypot-check`**: `TestHoneypotWriteFixture` writes `https.crt`/`https.key` next to `opencanary.conf` (all services on); without them OpenCanary cannot start the HTTPS trap (it tries to write a certificate into the read-only image). The check probes every service and wants its log type.
+- **notify / response / logs**: read `service`, `port`, `label` as text (no enum): the new values flow through unchanged. A new `label` ("HTTP proxy", "SMTP") appears in incident titles.
+
+## Modifying: `https.go` (the HTTPS trap's certificate, D-467)
+- **core_secret** (purpose `hp_https.key`): never exported (D-154), purge deletes it with everything (a new pair is made at the next Apply). Signing it with the box CA (`cmd/vedette/boxca.go`) would put a certificate browsers trust inside a container an attacker talks to: do not.
+- **config/**: `https.key` is readable by the container on purpose (it serves TLS); it is the decoy's own key.
+

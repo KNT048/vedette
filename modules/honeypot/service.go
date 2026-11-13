@@ -22,7 +22,7 @@ import (
 type Config struct {
 	DB        *store.DB
 	Audit     *audit.Log
-	Secrets   *secrets.Store // the bait password of a credential token (core_secret)
+	Secrets   *secrets.Store // the bait password of a credential token, the key of the HTTPS trap (core_secret)
 	Inventory Inventory
 	Host      Host
 	Logs      Logs      // optional: other sources' lines around a hit (the logs module)
@@ -72,6 +72,8 @@ type Service struct {
 	// applyMu). Memory only (INV-15: nothing in config/ is read back), so the first Apply after core starts asks for one
 	// restart. ponytail: one restart per core start, an upgrade is a hash of the file the container last read.
 	restartDue bool
+	// https is the certificate of the HTTPS trap in use (https.go; guarded by applyMu), nil until it is first needed.
+	https *httpsCert
 	// refusals is what the host refused per address, for the back-off (guarded by applyMu); sig is the wanted set it belongs to.
 	refusals map[netip.Addr]*refusal
 	sig      string
@@ -180,17 +182,15 @@ func loadJSON(ctx context.Context, q querier, key string, out any) error {
 	return nil
 }
 
-func (s *Service) saveJSON(ctx context.Context, tx *sql.Tx, key string, v any, actor string) error {
+// saveJSON writes one hp_config row; every one is the system's own (none comes from a person).
+func (s *Service) saveJSON(ctx context.Context, tx *sql.Tx, key string, v any) error {
 	raw, err := jsonMarshal(v)
 	if err != nil {
 		return err
 	}
-	if actor == "" {
-		actor = "system"
-	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO hp_config (key, value, updated_at, updated_by) VALUES (?, ?, ?, ?)
 		ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`,
-		key, raw, store.FormatTS(s.now()), actor)
+		key, raw, store.FormatTS(s.now()), "system")
 	if err != nil {
 		return fmt.Errorf("honeypot: write %s: %w", key, err)
 	}
@@ -499,6 +499,29 @@ func (w *world) boxWide() (smb, http *trapIPRow) {
 		}
 	}
 	return smb, http
+}
+
+// looks are the Trap IPs that decide how each service presents itself (D-467): of those handed to the host, in creation
+// order, the first that has it.
+func (w *world) looks() map[ServiceName]Look {
+	ips, _, _ := w.desired()
+	out := map[ServiceName]Look{}
+	for i := range w.trapIPs {
+		d := &w.trapIPs[i]
+		if !slices.Contains(ips, d.ip) {
+			continue
+		}
+		for _, svc := range d.Services {
+			if _, ok := out[svc]; !ok {
+				l := Look{Name: d.Name, Preset: d.Preset}
+				if d.Vendor != nil {
+					l.Vendor = *d.Vendor
+				}
+				out[svc] = l
+			}
+		}
+	}
+	return out
 }
 
 // httpPage is the login page the box shows: "nas" when the Trap IP that decides it looks like a NAS.

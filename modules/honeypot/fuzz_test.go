@@ -1,6 +1,9 @@
 package honeypot_test
 
 import (
+	"bufio"
+	"os"
+	"path/filepath"
 	"testing"
 	"unicode/utf8"
 
@@ -16,6 +19,14 @@ func FuzzParseLine(f *testing.F) {
 	} {
 		f.Add([]byte(s))
 	}
+	// the real lines of every service B3 adds (D-467), as the pinned OpenCanary writes them
+	if lines, err := os.Open(filepath.Join("testdata", "opencanary-0.9.10-lines.jsonl")); err == nil {
+		sc := bufio.NewScanner(lines)
+		for sc.Scan() {
+			f.Add([]byte(sc.Text()))
+		}
+		_ = lines.Close()
+	}
 	f.Fuzz(func(t *testing.T, b []byte) {
 		r, err := honeypot.ParseLine(b)
 		if err != nil {
@@ -30,7 +41,8 @@ func FuzzParseLine(f *testing.F) {
 		if r.SrcPort < 0 || r.SrcPort > 65535 || r.DstPort < 0 || r.DstPort > 65535 {
 			t.Fatalf("ports %+v", r)
 		}
-		for name, s := range map[string]string{"user": r.User, "host": r.Hostname, "path": r.Path, "file": r.Filename, "agent": r.UserAgent, "version": r.RemoteVersion} {
+		for name, s := range map[string]string{"user": r.User, "host": r.Hostname, "path": r.Path, "file": r.Filename, "agent": r.UserAgent, "version": r.RemoteVersion,
+			"cmd": r.Cmd, "repo": r.Repo, "opcode": r.Opcode, "action": r.Action, "error": r.Error} {
 			if !utf8.ValidString(s) || utf8.RuneCountInString(s) > 200 {
 				t.Fatalf("%s: %q", name, s)
 			}

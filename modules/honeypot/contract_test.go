@@ -2,6 +2,7 @@ package honeypot_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -78,16 +79,28 @@ func TestContract_INV1_NoDialer(t *testing.T) {
 	}
 }
 
-// INV-2: five services, fixed ports; the generated configuration enables nothing else and opens no other port.
-func TestContract_INV2_FivePorts(t *testing.T) {
+// INV-2: the services and their fixed ports and protocols (D-467); the generated configuration enables nothing else, never one of
+// the modules that are not offered (snmp, llmnr: scapy and raw sockets; portscan: iptables), and gives no two services one port
+// (OpenCanary refuses to start then).
+func TestContract_INV2_FixedPorts(t *testing.T) {
 	t.Parallel()
-	want := map[honeypot.ServiceName]int{honeypot.SMB: 445, honeypot.RDP: 3389, honeypot.SSH: 22, honeypot.MSSQL: 1433, honeypot.HTTP: 80}
-	if len(honeypot.Services) != 5 {
+	want := map[honeypot.ServiceName]string{
+		honeypot.SMB: "tcp/445", honeypot.RDP: "tcp/3389", honeypot.SSH: "tcp/22", honeypot.MSSQL: "tcp/1433", honeypot.HTTP: "tcp/80",
+		honeypot.HTTPS: "tcp/443", honeypot.FTP: "tcp/21", honeypot.Telnet: "tcp/23", honeypot.MySQL: "tcp/3306", honeypot.MongoDB: "tcp/27017",
+		honeypot.Redis: "tcp/6379", honeypot.VNC: "tcp/5900", honeypot.Git: "tcp/9418", honeypot.HTTPProxy: "tcp/8080", honeypot.TCPBanner: "tcp/25",
+		honeypot.TFTP: "udp/69", honeypot.NTP: "udp/123", honeypot.SIP: "udp/5060",
+	}
+	if len(honeypot.Services) != len(want) {
 		t.Fatalf("%d services", len(honeypot.Services))
 	}
 	for s, p := range want {
-		if s.Port() != p {
-			t.Errorf("%s port %d", s, s.Port())
+		if got := fmt.Sprintf("%s/%d", s.Proto(), s.Port()); got != p {
+			t.Errorf("%s is %s, want %s", s, got, p)
+		}
+	}
+	for _, off := range []honeypot.ServiceName{"snmp", "llmnr", "portscan", "telnetx"} {
+		if off.Valid() {
+			t.Errorf("%s must not be a service", off)
 		}
 	}
 	raw, err := honeypot.RenderConfig(honeypot.ConfigInput{Enabled: honeypot.Services, LogPath: "/v/x.jsonl"})
@@ -99,20 +112,39 @@ func TestContract_INV2_FivePorts(t *testing.T) {
 		t.Fatal(err)
 	}
 	var on []string
+	ports := map[int]string{}
 	for k, v := range c {
-		if b, ok := v.(bool); ok && b && strings.HasSuffix(k, ".enabled") {
+		if b, ok := v.(bool); ok && b && strings.HasSuffix(k, ".enabled") && !strings.Contains(k, "_") {
 			on = append(on, strings.TrimSuffix(k, ".enabled"))
 		}
 		if strings.HasSuffix(k, ".port") {
 			svc := honeypot.ServiceName(strings.TrimSuffix(k, ".port"))
-			if int(v.(float64)) != svc.Port() {
+			if svc == "tcpbanner_1" {
+				svc = honeypot.TCPBanner
+			}
+			p := int(v.(float64))
+			if p != svc.Port() {
 				t.Errorf("%s = %v", k, v)
 			}
+			if other, dup := ports[p]; dup {
+				t.Errorf("%s and %s have port %d", k, other, p)
+			}
+			ports[p] = k
 		}
 	}
 	slices.Sort(on)
-	if !slices.Equal(on, []string{"http", "mssql", "rdp", "smb", "ssh"}) {
+	var all []string
+	for _, s := range honeypot.Services {
+		all = append(all, string(s))
+	}
+	slices.Sort(all)
+	if !slices.Equal(on, all) {
 		t.Fatalf("enabled = %v", on)
+	}
+	for _, off := range []string{"snmp", "llmnr", "portscan"} {
+		if c[off+".enabled"] != false {
+			t.Errorf("%s.enabled = %v", off, c[off+".enabled"])
+		}
 	}
 	none, _ := honeypot.RenderConfig(honeypot.ConfigInput{LogPath: "/v/x.jsonl"})
 	if strings.Contains(string(none), `": true`) {
@@ -361,7 +393,7 @@ func TestContract_INV5_IPValidation(t *testing.T) {
 	if _, err := e.svc.AddTrapIP(e.ctx(), "a", honeypot.TrapIPInput{Name: "X1", IP: "192.168.10.243", Preset: honeypot.Custom, Vendor: ptr("acme"), Services: []honeypot.ServiceName{honeypot.SSH}}); apiCode(t, err) != "bad_vendor" {
 		t.Fatal(err)
 	}
-	for _, svcs := range [][]honeypot.ServiceName{nil, {"telnet"}, {honeypot.SSH, honeypot.SSH}} {
+	for _, svcs := range [][]honeypot.ServiceName{nil, {"snmp"}, {"portscan"}, {honeypot.SSH, honeypot.SSH}} {
 		if _, err := e.tryAddTrapIP("X1", "192.168.10.243", honeypot.Custom, svcs...); apiCode(t, err) != "bad_services" {
 			t.Errorf("services %v: %v", svcs, err)
 		}
@@ -948,7 +980,7 @@ func TestOverviewFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if o.TrapIPs.Total != 0 || o.SMBName != nil || o.HTTPPage != nil || o.LAN == nil || *o.LAN != "192.168.10.0/24" || o.Box.Name != "vedette-hq" || *o.Box.IP != "192.168.10.2" || len(o.Traps) != 5 || o.UpdatedAt == "" {
+	if o.TrapIPs.Total != 0 || o.SMBName != nil || o.HTTPPage != nil || o.LAN == nil || *o.LAN != "192.168.10.0/24" || o.Box.Name != "vedette-hq" || *o.Box.IP != "192.168.10.2" || len(o.Traps) != len(honeypot.Services) || o.UpdatedAt == "" {
 		t.Fatalf("%+v", o)
 	}
 	if o.Traps[0].Service != "smb" || o.Traps[0].Port != 445 || o.Traps[4].Service != "http" {

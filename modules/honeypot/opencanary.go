@@ -9,16 +9,22 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strings"
 )
 
 // Names of the files: the first two are written by core into Config.ConfigDir (mounted read-only into the honeypot
-// container), the log is written by the container into Config.LogDir and only read by core (D-89). Nothing here holds a
-// secret: the files are readable by the container.
+// container), the log is written by the container into Config.LogDir and only read by core (D-89). Nothing here is a secret of
+// the box: the files are readable by the container. The one private key among them (CertKeyFile) is the HTTPS trap's own, which
+// core made for it alone and which nothing trusts (https.go, D-467): the container has to read it to serve TLS.
 const (
 	ConfFile       = "opencanary.conf"
 	TokensFile     = "honeytokens.json"
+	CertFile       = "https.crt"
+	CertKeyFile    = "https.key"
 	defaultLogFile = "opencanary.jsonl"
 	sambaAuditFile = "/var/log/samba-audit.log"
+	// imageConfDir is where the honeypot image finds config/ (a symlink to the mount point, deploy/containers/honeypot/Containerfile).
+	imageConfDir = "/etc/opencanaryd/"
 )
 
 // The size bound of the trap log written by the container: logMaxBytes per file, logBackups rotated copies kept.
@@ -27,25 +33,75 @@ const (
 	logBackups  = 3
 )
 
+// Look is the Trap IP that decides how one service presents itself (its banner, its page): the first Trap IP handed to the host
+// that has the service. OpenCanary is one process, so each service has one banner for the whole box (D-466 (4), D-467).
+type Look struct {
+	Name   string // host name of the Trap IP
+	Preset Preset
+	Vendor string // vendor id, "" for none
+}
+
 // ConfigInput is the state the OpenCanary configuration is made from.
 type ConfigInput struct {
 	Enabled   []ServiceName // services whose trap is on and may listen (INV-6, INV-7)
 	LogPath   string        // JSON-lines file the container writes (inside its writable log folder)
 	NASDecoy  bool          // the Trap IP that picks the box's one login page is a NAS (D-466 (4)): the web trap shows a NAS login page
 	FileNames []string      // names of the file tokens, for the container to plant in the share
+	// Looks are the Trap IPs that decide each service's banner (D-467); a service without one gets the generic banner.
+	Looks map[ServiceName]Look
 }
 
-// unusedServices are the OpenCanary modules that must stay off: INV-2 allows five services and FORBID-2 no other port.
-var unusedServices = []string{"ftp", "git", "httpproxy", "llmnr", "mysql", "ntp", "portscan", "redis", "sip", "snmp", "tcpbanner", "telnet", "tftp", "vnc"}
+// unusedServices are the OpenCanary modules that must stay off (D-467, FORBID-2): snmp and llmnr need scapy (GPL-2, legal.md) and
+// raw sockets, portscan needs iptables in the container (the host records the attempts instead, INV-24).
+var unusedServices = []string{"llmnr", "portscan", "snmp"}
+
+// windowsLike says whether a preset is a Windows machine (its banners are Microsoft's).
+func windowsLike(p Preset) bool { return p == FileServer || p == Database }
+
+// banners are what the services that show one say, picked by the Trap IP that decides each (Looks). Fixed generic strings of
+// common products, never the box's own (FORBID-2); none has a "$", which OpenCanary would expand as an environment variable.
+func banners(looks map[ServiceName]Look) map[string]any {
+	ftp := "(vsFTPd 3.0.5)" // Twisted writes "220 " before it
+	switch l := looks[FTP]; {
+	case l.Preset == NAS:
+		ftp = l.Name + " FTP server ready."
+	case l.Preset == Printer:
+		ftp = "JD FTP Server Ready"
+	case windowsLike(l.Preset):
+		ftp = "Microsoft FTP Service"
+	}
+	mysql := "5.7.42-0ubuntu0.18.04.1" // OpenCanary refuses a version that does not start with 3 to 6
+	switch looks[MySQL].Preset {
+	case NAS:
+		mysql = "5.5.5-10.3.39-MariaDB"
+	case FileServer, Database:
+		mysql = "5.7.44-log"
+	}
+	mail := looks[TCPBanner]
+	host := strings.ToLower(mail.Name)
+	if host == "" {
+		host = "mail"
+	}
+	greet, refuse := "220 "+host+" ESMTP Postfix (Ubuntu)\r\n", "502 5.5.2 Error: command not recognized\r\n"
+	if windowsLike(mail.Preset) {
+		greet, refuse = "220 "+mail.Name+" Microsoft ESMTP MAIL Service ready\r\n", "500 5.3.3 Unrecognized command\r\n"
+	}
+	https := "basicLogin"
+	if looks[HTTPS].Preset == NAS {
+		https = "nasLogin"
+	}
+	return map[string]any{"ftp.banner": ftp, "mysql.banner": mysql, "mongodb.version": "4.4.29", "tcpbanner_1.initbanner": greet,
+		"tcpbanner_1.datareceivedbanner": refuse, "https.skin": https}
+}
 
 // RenderConfig turns the state into opencanary.conf: a pure function, same input same bytes (golden test).
 //
-// OpenCanary has no per-service bind address (device.listen_addr is only read by git, rdp, redis and vnc), so the
+// OpenCanary has no per-service bind address (device.listen_addr is one address for every module that reads it), so the
 // services listen on every address of the container; the container has only the macvlan addresses of the enabled Trap
 // IPs, which the host assigns (D-90 (1)), and the host closes on each address the ports of the services that Trap IP does
-// not have (D-466). Enabled is the union of their services. The banners are fixed generic strings, never the box's own
-// (FORBID-2). Credential tokens are not written: the five services accept any login and log the user name, and core
-// recognises the bait name when it reads the log, so no password sits on the shared volume (D-90 (3)).
+// not have (D-466). Enabled is the union of their services. Every service has its port key, on or off: OpenCanary refuses
+// to start when two keys name one port. Credential tokens are not written: the services accept any login and log the user
+// name, and core recognises the bait name when it reads the log, so no password sits on the shared volume (D-90 (3)).
 func RenderConfig(in ConfigInput) ([]byte, error) {
 	if in.LogPath == "" {
 		return nil, errors.New("honeypot: render: no log path")
@@ -55,17 +111,25 @@ func RenderConfig(in ConfigInput) ([]byte, error) {
 	if in.NASDecoy {
 		skin = "nasLogin"
 	}
+	web := on(HTTP) || on(HTTPS) // the HTTPS trap reads the http.* switches
 	c := map[string]any{
 		"device.node_id":     "vedette-honeypot",
 		"device.listen_addr": "",
 		"ip.ignorelist":      []string{},
-		"ssh.enabled":        on(SSH), "ssh.port": SSH.Port(), "ssh.version": "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.10",
-		"smb.enabled": on(SMB), "smb.auditfile": sambaAuditFile,
-		"rdp.enabled": on(RDP), "rdp.port": RDP.Port(),
-		"mssql.enabled": on(MSSQL), "mssql.port": MSSQL.Port(), "mssql.version": "2012",
-		"http.enabled": on(HTTP), "http.port": HTTP.Port(), "http.banner": "Apache/2.4.52 (Ubuntu)", "http.skin": skin,
+		"ssh.version":        "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.10",
+		"smb.auditfile":      sambaAuditFile,
+		"mssql.version":      "2012",
+		"http.banner":        "Apache/2.4.52 (Ubuntu)", "http.skin": skin,
 		// OpenCanary logs GET / (its redirect to the login page) and refused methods only when asked; without these the first request of any scanner is invisible.
-		"http.log_redirect_request": on(HTTP), "http.log_unimplemented_method_requests": on(HTTP),
+		"http.log_redirect_request": web, "http.log_unimplemented_method_requests": web,
+		// core's own certificate for the trap (https.go): OpenCanary would otherwise try to write one into the read-only image
+		"https.certificate": imageConfDir + CertFile, "https.key": imageConfDir + CertKeyFile,
+		// a bare connection is a hit for these two too, as for SSH; FTP logs only a login (OpenCanary has no switch for its connect)
+		"telnet.log_tcp_connection": on(Telnet), "mysql.log_connection_made": on(MySQL),
+		"httpproxy.skin": "squid",
+		// the SMTP greeting: one banner, logged on every connection (no alert string, no keep-alive)
+		"tcpbanner.maxnum": 1, "tcpbanner_1.enabled": on(TCPBanner), "tcpbanner_1.port": TCPBanner.Port(),
+		"tcpbanner_1.alertstring.enabled": false, "tcpbanner_1.keep_alive.enabled": false,
 		"logger": map[string]any{
 			"class": "PyLogger",
 			"kwargs": map[string]any{
@@ -78,6 +142,15 @@ func RenderConfig(in ConfigInput) ([]byte, error) {
 				}},
 			},
 		},
+	}
+	for _, s := range Services {
+		c[string(s)+".enabled"] = on(s)
+		if s != SMB && s != TCPBanner { // Samba owns 445; the banner's port is tcpbanner_1.port
+			c[string(s)+".port"] = s.Port()
+		}
+	}
+	for k, v := range banners(in.Looks) {
+		c[k] = v
 	}
 	for _, u := range unusedServices {
 		c[u+".enabled"] = false

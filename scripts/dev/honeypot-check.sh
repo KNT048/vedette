@@ -4,7 +4,9 @@
 #     each trap writes a JSON line into the mounted log/ that modules/honeypot's parser accepts (a Go test runs ParseLine on the log);
 #   * every enabled trap is proven: OpenCanary reports it started (its start_mod only logs a module that fails to start), and a client gets the
 #     trap's own log type: an SSH password login is 4002 with the default key exchange AND with diffie-hellman-group-exchange only (the start-up fix
-#     in init.py, without which the trap crashed before logging the login), RDP 14001, MSSQL 9001, HTTP 3000, SMB 5000; no Twisted traceback;
+#     in init.py, without which the trap crashed before logging the login), RDP 14001, MSSQL 9001, HTTP 3000, SMB 5000; and every service D-467
+#     added: HTTPS 3000 on 443 with core's certificate, FTP 2000, Telnet 6002/6001, MySQL 9003/8001, MongoDB 20001, Redis 17001, VNC 12001,
+#     Git 16001, HTTP proxy 7001, SMTP banner 18001, TFTP 10001, NTP 11001, SIP 15001; no Twisted traceback;
 #   * Samba serves the planted file token, and opening it reaches OpenCanary as a log type 5000 line whose file name is the token and whose source is
 #     the real client (a client user name with `|` in it cannot forge another source);
 #   * `/vedette honeypot healthcheck` (the unit's HealthCmd) passes;
@@ -133,11 +135,75 @@ hl = 94
 ib = [hl, 0, hl, len(user) // 2, hl + len(user), len(pw) // 2] + [hl + len(user) + len(pw), 0] * 6
 body = struct.pack("<6I4BlI18H6s6HI", hl + len(user) + len(pw), 0x74000004, 4096, 7, 1, 0, 0, 0, 0, 0, 0, 0x409, *ib, b"\0" * 6, 0, 0, 0, 0, 0, 0, 0) + user + pw
 s = socket.create_connection((ip, 1433), 5); s.sendall(struct.pack(">BBHHBB", 0x10, 1, 8 + len(body), 0, 1, 0) + body); print("mssql: reply type", s.recv(100)[:1].hex()); s.close()
+# D-467: every service added in B3, once each, the way a scanner or a script tries it
+import ssl, time
+def tcp(port):
+    s = socket.create_connection((ip, port), 5); s.settimeout(5); return s
+def rd(s):
+    try:
+        return s.recv(4096)
+    except OSError:
+        return b""
+c = ssl.create_default_context(); c.check_hostname = False; c.verify_mode = ssl.CERT_NONE
+t = c.wrap_socket(tcp(443)); der = t.getpeercert(binary_form=True)
+t.sendall(b"GET /index.html HTTP/1.1\r\nHost: x\r\n\r\n"); print("https:", t.recv(100).decode().splitlines()[0], "cert", "nas-archive" in der.decode("latin1")); t.close()
+s = tcp(21); print("ftp:", rd(s).decode().strip()); s.sendall(b"USER vedette-check-ftp\r\n"); rd(s); s.sendall(b"PASS x\r\n"); print("ftp: reply", rd(s).decode().strip()); s.close()
+def telnet_talk(s, send=None):  # answers the option negotiation as a real client does: WILL x -> DO x, DO x -> WONT x, WONT x -> DONT x
+    if send:
+        s.sendall(send)
+    s.settimeout(0.7)
+    got = b""
+    while True:
+        try:
+            d = s.recv(4096)
+        except OSError:
+            break
+        if not d:
+            break
+        got += d
+        i = d.find(b"\xff")
+        while 0 <= i and i + 2 < len(d):
+            reply = {251: b"\xfd", 253: b"\xfc", 252: b"\xfe"}.get(d[i + 1])
+            if reply:
+                s.sendall(b"\xff" + reply + d[i + 2:i + 3])
+            i = d.find(b"\xff", i + 3)
+    return got
+s = tcp(23); print("telnet:", b"Username:" in telnet_talk(s)); telnet_talk(s, b"vedette-check-telnet\r\n"); print("telnet: reply", telnet_talk(s, b"x\r\n").strip()[-30:]); s.close()
+s = tcp(3306); print("mysql:", rd(s)[5:28]); b = struct.pack("<IIB", 0x000fa685, 1 << 24, 33) + b"\x00" * 23 + b"vedette-check-mysql\x00\x00"
+s.sendall(struct.pack("<I", len(b))[:3] + b"\x01" + b); print("mysql: reply", rd(s)[4:5].hex()); s.close()
+def bson(fields):
+    out = b""
+    for k, v in fields:
+        kb = k.encode() + b"\x00"
+        if isinstance(v, int):
+            out += b"\x10" + kb + struct.pack("<i", v)
+        elif isinstance(v, str):
+            vb = v.encode() + b"\x00"; out += b"\x02" + kb + struct.pack("<i", len(vb)) + vb
+        else:
+            out += b"\x05" + kb + struct.pack("<i", len(v)) + b"\x00" + v
+    return struct.pack("<i", len(out) + 5) + out + b"\x00"
+q = bson([("saslStart", 1), ("mechanism", "SCRAM-SHA-1"), ("payload", b"n,,n=vedette-check-mongodb,r=abc")])
+m = struct.pack("<i", 0) + b"admin.$cmd\x00" + struct.pack("<ii", 0, -1) + q
+s = tcp(27017); s.sendall(struct.pack("<iiii", 16 + len(m), 1, 0, 2004) + m); print("mongodb: reply", b"AuthenticationFailed" in rd(s)); s.close()
+s = tcp(6379); s.sendall(b"CONFIG GET *\r\n"); print("redis:", rd(s).decode().strip()); s.close()
+s = tcp(5900); print("vnc:", rd(s).decode().strip()); s.sendall(b"RFB 003.008\n"); rd(s); s.sendall(b"\x02"); rd(s); s.sendall(b"\x00" * 16); print("vnc: reply", rd(s)[8:]); s.close()
+g = b"git-upload-pack /vedette-check.git\x00host=x\x00"
+s = tcp(9418); s.sendall(b"%04x" % (len(g) + 4) + g); print("git:", rd(s).decode(errors="replace").strip()); s.close()
+s = tcp(8080); s.sendall(b"GET http://example.com/ HTTP/1.1\r\nHost: example.com\r\nProxy-Authorization: Basic dmVkZXR0ZS1jaGVjay1wcm94eTp4\r\n\r\n"); print("httpproxy:", rd(s).decode(errors="replace").splitlines()[0]); s.close()
+s = tcp(25); print("smtp:", rd(s).decode().strip()); s.close()
+u = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+u.sendto(b"\x00\x01vedette-check.cfg\x00octet\x00", (ip, 69)); u.sendto(b"\x17\x00\x03\x2a" + b"\x00" * 4, (ip, 123))
+u.sendto(b"OPTIONS sip:100@" + ip.encode() + b" SIP/2.0\r\nVia: SIP/2.0/UDP 10.0.0.1:5060;branch=z9hG4bK1\r\nFrom: <sip:check@x>;tag=1\r\nTo: <sip:100@x>\r\nCall-ID: 1@x\r\nCSeq: 1 OPTIONS\r\nContent-Length: 0\r\n\r\n", (ip, 5060))
+print("udp: sent tftp, ntp monlist, sip")
 ' "$ip" > "$work/client.out"
 grep -q 'http / HTTP/1.1 302' "$work/client.out" || fail "GET / on the web trap: $(cat "$work/client.out")"
 grep -q 'http /index.html HTTP/1.1 200' "$work/client.out" || fail "GET /index.html on the web trap: $(cat "$work/client.out")"
 grep -q '^rdp: reply 0300' "$work/client.out" || fail "the RDP trap did not answer the connection request: $(cat "$work/client.out")"
 grep -q '^mssql: reply type 04$' "$work/client.out" || fail "the MSSQL trap did not answer LOGIN7: $(cat "$work/client.out")"
+for want_line in '^https: HTTP/1.1 200 OK cert True$' '^ftp: 220 ' '^ftp: reply 530' '^telnet: True$' '^mysql: ' '^mongodb: reply True$' '^redis: -NOAUTH' '^vnc: RFB 003.008$' \
+	'^git: .*ERR no such repository' '^httpproxy: HTTP/1.1 407' '^smtp: 220 '; do
+	grep -q "$want_line" "$work/client.out" || fail "a D-467 trap did not answer ($want_line): $(cat "$work/client.out")"
+done
 sed 's/^/    /' "$work/client.out"
 # SSH: a real OpenSSH client logs in with a password (SSH_ASKPASS, no terminal), once with its default key exchange and once offering only
 # diffie-hellman-group-exchange-sha256 (OpenCanary 0.9.10 crashed there before the login was logged; init.py's start-up fix). The login fails by
@@ -153,12 +219,12 @@ for kex in default gex; do
 done
 out=$($c exec "$client" smbclient -N "//$ip/Shared" -c 'ls; get passwords.txt /dev/null' 2>&1) || fail "smbclient: $out"
 echo "$out" | grep -q 'passwords.txt' || fail "the share does not list the planted token: $out"
-ok "SMB share lists the planted token; SSH, HTTP, RDP and MSSQL traps answered"
+ok "SMB share lists the planted token; SSH, HTTP, RDP, MSSQL and every D-467 TCP trap answered (HTTPS with core's certificate)"
 # a client user name carrying `|` and a fake address reaches no field of the audit line
 $c exec "$client" smbclient -U 'x|6.6.6.6|7.7.7.7%y' "//$ip/Shared" -c 'get "Q4 payroll.xlsx" /dev/null' >/dev/null 2>&1 || true
 
 # 5. the lines in the mounted log/
-want=4000,4002,3000,5000,14001,9001
+want=4000,4002,3000,5000,14001,9001,2000,6001,6002,7001,8001,9003,10001,11001,12001,15001,16001,17001,18001,20001
 # what each trap enabled in opencanary.conf must leave in the log: OpenCanary's own start line for its module (start_mod logs a failure and
 # goes on, so a trap that did not start is otherwise silent) and the hit of the client above. Prints what is missing, nothing when all is there.
 missing() {
@@ -171,13 +237,26 @@ except OSError:
     pass
 started = " ".join(str(d.get("logdata")) for d in log if d.get("logtype", 0) < 2000)
 def hit(t, user=None):
-    return any(d["logtype"] == t and (user is None or user in (d["logdata"].get("USERNAME"), d["logdata"].get("UserName"))) for d in log)
+    return any(d["logtype"] == t and (user is None or user in (d["logdata"].get("USERNAME"), d["logdata"].get("UserName"), d["logdata"].get("username"))) for d in log)
 need = {
     "ssh": ["Added service from class CanarySSH ", (4000, None), (4002, "vedette-check-ssh-default"), (4002, "vedette-check-ssh-gex")],
     "http": ["Added service from class CanaryHTTP ", (3000, None)],
     "rdp": ["Added service from class CanaryRDP ", (14001, "vedette-check-rdp")],
     "mssql": ["Added service from class MSSQL ", (9001, "vedette-check-mssql")],
     "smb": ["Ran startYourEngines on class CanarySamba ", (5000, None)],
+    "https": ["Added service from class CanaryHTTPS ", (3000, None)],
+    "ftp": ["Added service from class CanaryFTP ", (2000, "vedette-check-ftp")],
+    "telnet": ["Added service from class Telnet ", (6002, None), (6001, "vedette-check-telnet")],
+    "mysql": ["Added service from class CanaryMySQL ", (9003, None), (8001, "vedette-check-mysql")],
+    "mongodb": ["Added service from class CanaryMongoDB ", (20001, "vedette-check-mongodb")],
+    "redis": ["Added service from class CanaryRedis ", (17001, None)],
+    "vnc": ["Added service from class CanaryVNC ", (12001, None)],
+    "git": ["Added service from class CanaryGit ", (16001, None)],
+    "httpproxy": ["Added service from class HTTPProxy ", (7001, "vedette-check-proxy")],
+    "tcpbanner": ["Added service from class CanaryTCPBanner ", (18001, None)],
+    "tftp": ["Added service from class CanaryTftp ", (10001, None)],
+    "ntp": ["Added service from class CanaryNtp ", (11001, None)],
+    "sip": ["Added service from class CanarySIP ", (15001, None)],
 }
 for svc, items in need.items():
     if conf.get(svc + ".enabled") is not True:
@@ -203,7 +282,7 @@ gone=$(missing)
 # OpenCanary's start_mod swallows a module that fails to start; Twisted logs a crash inside a protocol (the group-exchange bug) and goes on
 bad=$({ $c logs "$name" 2>&1; cat "$work/log/opencanary.jsonl"; } | grep -E 'Failed to (add service|instantiate|run startYourEngines|load class)|does not have any required starting method|Unhandled Error|Traceback' | cut -c1-300 || true)
 [ -z "$bad" ] || fail "OpenCanary reported a failure: $bad"
-ok "every enabled trap started and logged its client: SSH 4002 with the default key exchange and with group exchange only, RDP 14001, MSSQL 9001, HTTP 3000, SMB 5000; no start failure, no traceback"
+ok "every enabled trap started and logged its client: SSH 4002 with the default key exchange and with group exchange only, RDP 14001, MSSQL 9001, HTTP 3000, SMB 5000, and each D-467 service; no start failure, no traceback"
 python3 -I -c '
 import json, sys
 for l in open(sys.argv[1]):

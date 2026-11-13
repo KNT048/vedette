@@ -118,6 +118,11 @@ func (s *Service) HitDetail(ctx context.Context, id string) (HitDetail, error) {
 	if err != nil {
 		return HitDetail{}, fmt.Errorf("honeypot: read hit: %w", err)
 	}
+	// INV-9: exactly one line is the hit, its first; the later connections folded into it are not (M5-189). Rows stored before
+	// that rule marked every folded line, so the rule is applied when read too.
+	for i := range h.events {
+		h.events[i].Mark = i == 0
+	}
 	out := HitDetail{Hit: w.view(h), Events: h.events, WindowMinutes: WindowMinutes}
 	if !h.IsTest {
 		if d := w.byIP(h.SrcIP); d != nil {
@@ -214,7 +219,7 @@ func (s *Service) testHit(box Box, kind HitKind, svc *ServiceName, port *int, la
 // TestHit is POST /honeypot/test-hit (PRE-1, INV-4).
 func (s *Service) TestHit(ctx context.Context, actor string, svc ServiceName) (Hit, error) {
 	if !svc.Valid() {
-		return Hit{}, bad("bad_service", "Choose a service: SMB, RDP, SSH, MSSQL or HTTP.")
+		return Hit{}, bad("bad_service", "Choose a service from the list.")
 	}
 	w, err := s.load(ctx)
 	if err != nil {

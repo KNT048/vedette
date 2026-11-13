@@ -4,7 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
+	"math/big"
 	"os"
 	"os/exec" //nolint:depguard // the tests run go and python3 with fixed argv, no shell; SYS-1 is about the product
 	"path/filepath"
@@ -596,7 +603,24 @@ func TestHoneypotWriteFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for name, data := range map[string][]byte{honeypot.ConfFile: conf, honeypot.TokensFile: tokens} {
+	// the HTTPS trap reads the certificate and key core makes (modules/honeypot https.go); any self-signed pair proves the trap starts
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "nas-archive"}, DNSNames: []string{"nas-archive"},
+		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(24 * time.Hour), ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := map[string][]byte{honeypot.ConfFile: conf, honeypot.TokensFile: tokens,
+		honeypot.CertFile: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), honeypot.CertKeyFile: pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})}
+	for name, data := range files {
 		if err := os.WriteFile(filepath.Join(out, name), data, 0o644); err != nil { //nolint:gosec // a fixture the container reads
 			t.Fatal(err)
 		}

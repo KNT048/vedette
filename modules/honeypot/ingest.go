@@ -161,7 +161,7 @@ func (s *Service) Poll(ctx context.Context) error {
 		}
 	}
 	if changed && saved != final {
-		if err := s.db.Write(ctx, func(tx *sql.Tx) error { return s.saveJSON(ctx, tx, "tail", final, "system") }); err != nil {
+		if err := s.db.Write(ctx, func(tx *sql.Tx) error { return s.saveJSON(ctx, tx, "tail", final) }); err != nil {
 			return err
 		}
 	}
@@ -245,7 +245,7 @@ func (s *Service) ingestBatch(ctx context.Context, env *ingestEnv, batch []tailI
 				return fmt.Errorf("honeypot: count ignored: %w", err)
 			}
 		}
-		return s.saveJSON(ctx, tx, "tail", pos, "system")
+		return s.saveJSON(ctx, tx, "tail", pos)
 	})
 	if err != nil {
 		return err
@@ -285,9 +285,10 @@ func (s *Service) afterBatch(ctx context.Context, env *ingestEnv) {
 	}
 }
 
-// classify maps an OpenCanary logtype to the service (or scan) it belongs to.
-func classify(lt int) (svc ServiceName, scan, ok bool) {
-	switch {
+// classify maps an OpenCanary line to the service (or scan) it belongs to: by logtype, and for the web lines by port (the HTTPS
+// trap logs the HTTP logtypes).
+func classify(r Record) (svc ServiceName, scan, ok bool) {
+	switch lt := r.LogType; {
 	case lt >= ltSSHNew && lt <= ltSSHLogin:
 		return SSH, false, true
 	case lt == ltRDP:
@@ -295,29 +296,83 @@ func classify(lt int) (svc ServiceName, scan, ok bool) {
 	case lt == ltMSSQLSQL || lt == ltMSSQLWin:
 		return MSSQL, false, true
 	case lt >= ltHTTPGet && lt <= ltHTTPRedirect:
+		if r.DstPort == HTTPS.Port() {
+			return HTTPS, false, true
+		}
 		return HTTP, false, true
 	case lt == ltSMBFile:
 		return SMB, false, true
 	case lt >= ltPortSYN && lt <= ltPortNmapEnd:
 		return "", true, true
+	case lt == ltFTPLogin || lt == ltFTPAuthStart:
+		return FTP, false, true
+	case lt == ltTelnetLogin || lt == ltTelnetNew:
+		return Telnet, false, true
+	case lt == ltProxyLogin:
+		return HTTPProxy, false, true
+	case lt == ltMySQLLogin || lt == ltMySQLNew:
+		return MySQL, false, true
+	case lt == ltTFTP:
+		return TFTP, false, true
+	case lt == ltNTPMonlist:
+		return NTP, false, true
+	case lt == ltVNC:
+		return VNC, false, true
+	case lt == ltSIP:
+		return SIP, false, true
+	case lt == ltGit:
+		return Git, false, true
+	case lt == ltRedis:
+		return Redis, false, true
+	case lt >= ltBannerNew && lt <= ltBannerEnd:
+		return TCPBanner, false, true
+	case lt == ltMongoDB:
+		return MongoDB, false, true
 	}
 	return "", false, false
 }
 
-// detail is the line shown for what this log line did; it holds no password (a typed password may be a real one).
+// loginLine says whether a line is a login attempt that names an account: a bait account used on it fires its token (POST-2).
+func loginLine(r Record) bool {
+	switch r.LogType {
+	case ltSSHLogin, ltHTTPLogin, ltMSSQLSQL, ltMSSQLWin, ltRDP, ltFTPLogin, ltTelnetLogin, ltProxyLogin, ltMySQLLogin:
+		return true
+	case ltMongoDB:
+		return r.Action == "mongodb.auth_attempt"
+	}
+	return false
+}
+
+// ntlmToken is how OpenCanary's proxy trap logs an NTLM Proxy-Authorization: the raw token, base64 of "NTLMSSP". It can carry the
+// answer to the challenge, which is password material: never stored.
+const ntlmSSPBase64 = "TlRMTVNT"
+
+// detail is the line shown for what this log line did. It holds no password and nothing derived from one (a typed password may be
+// a real one): OpenCanary's PASSWORD, the VNC answer and its guess, Redis's arguments (AUTH carries the password), MongoDB's
+// auth_data and an NTLM token are never read into it.
 func detail(r Record, svc ServiceName) string {
 	q := func(s string) string { return `"` + s + `"` }
-	switch r.LogType {
-	case ltSSHNew:
-		return "new connection"
-	case ltSSHVersion:
-		return "client version " + q(r.RemoteVersion)
-	case ltSSHLogin, ltMSSQLSQL, ltMSSQLWin, ltRDP:
+	login := func() string {
 		s := "login attempt, account " + q(r.User)
-		if r.Hostname != "" {
+		if r.Hostname != "" && r.LogType != ltHTTPLogin {
 			s += ", from host name " + q(r.Hostname)
 		}
 		return s
+	}
+	switch r.LogType {
+	case ltSSHNew, ltTelnetNew, ltMySQLNew, ltBannerNew:
+		return "new connection"
+	case ltSSHVersion:
+		return "client version " + q(r.RemoteVersion)
+	case ltSSHLogin, ltMSSQLSQL, ltMSSQLWin, ltRDP, ltFTPLogin, ltTelnetLogin, ltMySQLLogin:
+		return login()
+	case ltFTPAuthStart:
+		return "login started"
+	case ltProxyLogin:
+		if strings.HasPrefix(r.User, ntlmSSPBase64) {
+			return "proxy login attempt (NTLM)"
+		}
+		return "proxy login attempt, account " + q(r.User)
 	case ltHTTPGet:
 		return "request GET " + r.Path + userAgent(r)
 	case ltHTTPRedirect:
@@ -331,6 +386,43 @@ func detail(r Record, svc ServiceName) string {
 			return "share opened"
 		}
 		return "file opened " + q(r.Filename)
+	case ltTFTP:
+		op := "request"
+		switch r.Opcode {
+		case "READ":
+			op = "read request"
+		case "WRITE":
+			op = "write request"
+		}
+		return op + " for file " + q(r.Filename)
+	case ltNTPMonlist:
+		return "monlist request (a list of the server's recent clients, used for reconnaissance and amplification)"
+	case ltVNC:
+		return "login attempt (answered the VNC password challenge)"
+	case ltSIP:
+		return "SIP request"
+	case ltGit:
+		return "clone request for repository " + q(r.Repo)
+	case ltRedis:
+		if r.Error != "" {
+			return "malformed request: " + r.Error
+		}
+		return "command " + q(r.Cmd)
+	case ltMongoDB:
+		switch r.Action {
+		case "mongodb.connection":
+			return "new connection"
+		case "mongodb.auth_attempt":
+			return login()
+		case "mongodb.command":
+			return "command " + q(r.Cmd)
+		case "mongodb.disconnect":
+			return "connection closed"
+		}
+		return "malformed request"
+	}
+	if r.LogType > ltBannerNew && r.LogType <= ltBannerEnd {
+		return "data received"
 	}
 	return string(svc) + " activity"
 }
@@ -409,7 +501,7 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 		env.st.Skipped++
 		return nil
 	}
-	svc, scan, ok := classify(r.LogType)
+	svc, scan, ok := classify(r)
 	if !ok {
 		env.st.Skipped++
 		return nil
@@ -473,16 +565,20 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 	}, more, det); err != nil {
 		return err
 	}
-	if err := s.sweep(ctx, tx, env, r.Src, trapIP, ts); err != nil {
-		return err
+	// A UDP line has no target address (OpenCanary's UDP listeners report 0.0.0.0): the Trap IP named above is a guess, so it is
+	// not fed to the sweep, which counts Trap IPs; the host's record of the attempts (PollTouches) has the real target.
+	if r.Dst.IsValid() || svc.Proto() != "udp" {
+		if err := s.sweep(ctx, tx, env, r.Src, trapIP, ts); err != nil {
+			return err
+		}
 	}
 	// POST-2: a bait account or file touched. Only a token that still exists counts (INV-10).
 	var tok Token
 	var found bool
-	switch r.LogType {
-	case ltSSHLogin, ltHTTPLogin, ltMSSQLSQL, ltMSSQLWin, ltRDP:
+	switch {
+	case loginLine(r):
 		tok, found = env.creds[strings.ToLower(r.User)]
-	case ltSMBFile:
+	case r.LogType == ltSMBFile:
 		name := strings.ReplaceAll(r.Filename, `\`, "/")
 		tok, found = env.files[strings.ToLower(path.Base(name))]
 	}
@@ -629,9 +725,12 @@ func isBroadcast(lan netip.Prefix, a netip.Addr) bool {
 	return lan.IsValid() && lan.Bits() < 31 && a == lastAddr(lan)
 }
 
-func hasEvent(evs []HitEvent, text string) bool {
+// hasEvent says whether evs has a line of this time and text: the same log line read twice. A later connection that logs the same
+// text (a second SMB visit within the hit window: no source port, the same "share opened") is a new line (M5-188). ts "" compares
+// the text only: a scan hit has one line per Trap IP touched, not one per connection.
+func hasEvent(evs []HitEvent, ts, text string) bool {
 	for _, e := range evs {
-		if e.Text == text {
+		if (ts == "" || e.TS == ts) && e.Text == text {
 			return true
 		}
 	}
@@ -658,8 +757,8 @@ func (s *Service) upsert(ctx context.Context, tx *sql.Tx, env *ingestEnv, h stor
 		for i := range h.events {
 			h.events[i].Text = clean(h.events[i].Text, 300)
 		}
-		if l := clean(line, 300); l != "" && !hasEvent(h.events, l) {
-			h.events = append(h.events, HitEvent{TS: h.TS, Source: "honeypot", Text: l, Mark: true})
+		if l := clean(line, 300); l != "" && !hasEvent(h.events, h.TS, l) {
+			h.events = append(h.events, HitEvent{TS: h.TS, Source: "honeypot", Text: l}) // INV-9: only the hit's own line is marked
 		}
 		if err := s.insertHit(ctx, tx, h); err != nil {
 			return err
@@ -687,11 +786,15 @@ func (s *Service) upsert(ctx context.Context, tx *sql.Tx, env *ingestEnv, h stor
 		evs = nil
 	}
 	line = clean(line, 300)
-	if hasEvent(evs, line) {
+	at := h.TS
+	if h.Kind == KindScan {
+		at = ""
+	}
+	if hasEvent(evs, at, line) { // the same log line read again (a batch that failed): nothing new
 		return nil
 	}
 	if len(evs) < maxEvents {
-		evs = append(evs, HitEvent{TS: h.TS, Source: "honeypot", Text: line, Mark: true})
+		evs = append(evs, HitEvent{TS: h.TS, Source: "honeypot", Text: line}) // INV-9: a later connection is not the hit's line
 	}
 	if excerptAdd = clean(excerptAdd, maxExcerpt); excerptAdd != "" && !strings.Contains(excerpt, excerptAdd) {
 		excerpt = clean(excerpt+"; "+excerptAdd, maxExcerpt)

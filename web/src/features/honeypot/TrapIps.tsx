@@ -13,7 +13,7 @@ import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useAddTrapIp, useDeleteTrapIp, useEditTrapIp, useTestScan, useToggleTrapIp, useTrapIps } from './api'
-import { PRESETS, presetDef, SERVICE_PORT, VENDORS } from './presets'
+import { PRESETS, presetDef, portLabel, VENDORS } from './presets'
 import { TrapStateChip } from './TrapStateChip'
 import { HP_SERVICES, type Hit, type HpService, type TrapIP, type TrapIPsResponse, type TrapPreset, type TrapVendor } from './types'
 
@@ -206,7 +206,7 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
             {HP_SERVICES.map((s) => (
               <div key={s} className="flex items-center gap-2">
                 <Checkbox id={`tip-svc-${s}`} checked={services.includes(s)} onCheckedChange={(c) => flip(s, c === true)} />
-                <Label htmlFor={`tip-svc-${s}`} className="font-normal">{t(`service.${s}`)} <span className="text-muted tabular-nums">{SERVICE_PORT[s]}</span></Label>
+                <Label htmlFor={`tip-svc-${s}`} className="font-normal">{t(`service.${s}`)} <span className="text-muted tabular-nums">{portLabel(s)}</span></Label>
               </div>
             ))}
           </div>
@@ -225,7 +225,7 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
 /** Where a Trap IP lives and what it shows the network (B2): looks, MAC and the vendor a scanner reads from it, open services, link, last touch, device. */
 function TrapIpDetails({ d }: { d: TrapIP }) {
   const { t } = useTranslation('honeypot')
-  const svc = (l: HpService[]) => l.map((s) => `${t(`service.${s}`)} ${SERVICE_PORT[s]}`).join(', ')
+  const svc = (l: HpService[]) => l.map((s) => `${t(`service.${s}`)} ${portLabel(s)}`).join(', ')
   const listening = d.state === 'listening'
   const allOpen = listening && d.open_services.some((s) => !d.services.includes(s))
   const mac = !d.mac ? <span className="text-muted">{t('trapIp.where.macNone')}</span>

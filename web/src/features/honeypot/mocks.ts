@@ -1,6 +1,7 @@
 // Mock API of module honeypot (S-HP-1, S-HP-2, D-466). Tables: hp_config, hp_trap_ips, hp_hits, hp_tokens. The response module reads hp_hits with peek; core's
 // network mock reads hp_trap_ips with peek. Traps only listen, they never hit back (LEGAL §3).
-// Services/ports follow OpenCanary: SMB 445 (Samba-based), RDP 3389, SSH 22, MSSQL 1433, HTTP 80. Each Trap IP answers only its own services (D-466).
+// Services/ports follow OpenCanary (presets.ts SERVICE_PORT; SMB is Samba-based; D-467 added the other modules that work in the image). Each Trap IP answers
+// only its own services (D-466).
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
 import { assetsStore, boxInfo } from '@/mocks/stores'
@@ -9,7 +10,11 @@ import { collection, daysAgo, newId, nowIso } from '@/mocks/db'
 import { PRESETS, SERVICE_PORT, VENDORS } from './presets'
 import { HP_SERVICES, type Hit, type HitDetail, type HitEvent, type HitKind, type HpOverview, type HpService, type Token, type TokenType, type Trap, type TrapIP, type TrapIPInput, type TrapPreset, type TrapState, type TrapSuggestion, type TrapVendor } from './types'
 
-const LABEL: Record<HpService, string> = { smb: 'SMB', rdp: 'RDP', ssh: 'SSH', mssql: 'MSSQL', http: 'HTTP' }
+// as modules/honeypot ServiceName.Label
+const LABEL: Record<HpService, string> = {
+  smb: 'SMB', rdp: 'RDP', ssh: 'SSH', mssql: 'MSSQL', http: 'HTTP', https: 'HTTPS', ftp: 'FTP', telnet: 'Telnet', mysql: 'MySQL', mongodb: 'MongoDB',
+  redis: 'Redis', vnc: 'VNC', git: 'Git', httpproxy: 'HTTP proxy', tcpbanner: 'SMTP', tftp: 'TFTP', ntp: 'NTP', sip: 'SIP',
+}
 const WINDOW_MINUTES = 60
 const MAX_TRAP_IPS = 32
 
@@ -20,7 +25,7 @@ interface Stored { id: string; ts: string; kind?: HitKind; service: HpService | 
 interface StoredTrapIP { id: string; name: string; ip: string; preset: TrapPreset; vendor: TrapVendor | null; services: HpService[]; enabled: boolean; created_at: string; fail?: string }
 type StoredToken = Omit<Token, 'last_triggered_at' | 'triggers'>
 
-const SESSION: Record<HpService, { first: string; excerpt: string }> = {
+const SESSION: Partial<Record<HpService, { first: string; excerpt: string }>> = {
   smb: { first: 'request to list shares (IPC$, ADMIN$)', excerpt: 'NTLM negotiate, account "administrator" tried a password 3 times, listed shares IPC$ and ADMIN$' },
   rdp: { first: 'remote login started, user name "admin"', excerpt: 'X.224 connection request, cookie "mstshash=admin", login failed' },
   ssh: { first: 'SSH login attempt, account "root"', excerpt: 'SSH-2.0-OpenSSH_9.6, tried a password for "root" 2 times' },
@@ -39,9 +44,10 @@ function makeEvents(ts: string, src_ip: string, srcName: string, service: HpServ
     { ts: at(-14), source: 'ad', text: `AD: successful logon on ${srcName}`, mark: false },
     { ts: at(-4), source: 'firewall', text: fw(lanTargets[0]), mark: false },
     { ts: at(0), source: 'honeypot', text: `${LABEL[service]} trap: ${src_ip} connected to ${trapIp}:${p}`, mark: true },
-    { ts: at(1), source: 'honeypot', text: `${LABEL[service]} trap: ${SESSION[service].first}`, mark: true },
+    // INV-9: only the hit's own line is marked, not the later lines folded into it
+    { ts: at(1), source: 'honeypot', text: `${LABEL[service]} trap: ${SESSION[service]?.first ?? 'new connection'}`, mark: false },
     { ts: at(8), source: 'firewall', text: fw(lanTargets[1]), mark: false },
-    { ts: at(21), source: 'honeypot', text: `${LABEL[service]} trap: session closed, no more traffic from ${src_ip}`, mark: true },
+    { ts: at(21), source: 'honeypot', text: `${LABEL[service]} trap: session closed, no more traffic from ${src_ip}`, mark: false },
   ]
 }
 
@@ -189,7 +195,7 @@ function hitView(h: Stored): Hit {
   const kind = h.kind ?? 'service'
   return {
     id: h.id, ts: h.ts, kind, service: h.service, label: h.label ?? (h.service ? LABEL[h.service] : ''), port: h.port, src_ip: h.src_ip, src_asset_id: a ? a.id : null, src_name: a ? assetName(a) : null, is_test: h.is_test,
-    excerpt: h.seed && h.service ? SESSION[h.service].excerpt : h.excerpt, trap_ip: h.trap_ip, trap_hostname: h.trap_hostname,
+    excerpt: h.seed && h.service ? (SESSION[h.service]?.excerpt ?? h.excerpt) : h.excerpt, trap_ip: h.trap_ip, trap_hostname: h.trap_hostname,
   }
 }
 
@@ -294,7 +300,7 @@ export const handlers = [
     const denied = guard('operator'); if (denied) return denied
     const b = await body<{ service: HpService }>(request)
     const service = b.service as HpService
-    if (!HP_SERVICES.includes(service)) return fail(400, 'bad_service', 'Choose a service: SMB, RDP, SSH, MSSQL or HTTP.')
+    if (!HP_SERVICES.includes(service)) return fail(400, 'bad_service', 'Choose a service from the list.')
     const on = byAge(trapIps.get()).filter((t) => t.enabled && t.services.includes(service))
     if (!on.length) return fail(409, 'trap_off', `No Trap IP that is on has ${LABEL[service]}. Add ${LABEL[service]} to a Trap IP, or turn one on, before testing.`)
     const t = on.find((x) => !deviceAt(x.ip))

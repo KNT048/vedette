@@ -4,52 +4,69 @@ import (
 	"context"
 	"errors"
 	"net/netip"
-	"strings"
 	"time"
 )
 
-// ServiceName is one of the five trap services of INV-2.
+// ServiceName is one of the trap services of INV-2.
 type ServiceName string
 
-// The five services, with the fixed ports of INV-2.
+// The services, with the fixed ports of INV-2. The first five are the services of before B3; the others are the OpenCanary
+// modules that work in the honeypot image without anything more (D-467): snmp and llmnr need scapy (GPL-2) and raw sockets,
+// portscan needs iptables in the container, and none of them is offered.
 const (
-	SMB   ServiceName = "smb"
-	RDP   ServiceName = "rdp"
-	SSH   ServiceName = "ssh"
-	MSSQL ServiceName = "mssql"
-	HTTP  ServiceName = "http"
+	SMB       ServiceName = "smb"
+	RDP       ServiceName = "rdp"
+	SSH       ServiceName = "ssh"
+	MSSQL     ServiceName = "mssql"
+	HTTP      ServiceName = "http"
+	HTTPS     ServiceName = "https"
+	FTP       ServiceName = "ftp"
+	Telnet    ServiceName = "telnet"
+	MySQL     ServiceName = "mysql"
+	MongoDB   ServiceName = "mongodb"
+	Redis     ServiceName = "redis"
+	VNC       ServiceName = "vnc"
+	Git       ServiceName = "git"
+	HTTPProxy ServiceName = "httpproxy"
+	TCPBanner ServiceName = "tcpbanner" // a mail server greeting on port 25 (OpenCanary's tcpbanner module)
+	TFTP      ServiceName = "tftp"
+	NTP       ServiceName = "ntp"
+	SIP       ServiceName = "sip"
 )
 
+// serviceDef is the fixed port, protocol and display name of a service (INV-2).
+type serviceDef struct {
+	port  int
+	proto string // "tcp" or "udp"
+	label string
+}
+
+var serviceDefs = map[ServiceName]serviceDef{
+	SMB: {445, "tcp", "SMB"}, RDP: {3389, "tcp", "RDP"}, SSH: {22, "tcp", "SSH"}, MSSQL: {1433, "tcp", "MSSQL"}, HTTP: {80, "tcp", "HTTP"},
+	HTTPS: {443, "tcp", "HTTPS"}, FTP: {21, "tcp", "FTP"}, Telnet: {23, "tcp", "Telnet"}, MySQL: {3306, "tcp", "MySQL"},
+	MongoDB: {27017, "tcp", "MongoDB"}, Redis: {6379, "tcp", "Redis"}, VNC: {5900, "tcp", "VNC"}, Git: {9418, "tcp", "Git"},
+	HTTPProxy: {8080, "tcp", "HTTP proxy"}, TCPBanner: {25, "tcp", "SMTP"},
+	TFTP: {69, "udp", "TFTP"}, NTP: {123, "udp", "NTP"}, SIP: {5060, "udp", "SIP"},
+}
+
 // Services lists the traps in the order the API shows them.
-var Services = []ServiceName{SMB, RDP, SSH, MSSQL, HTTP}
+var Services = []ServiceName{SMB, RDP, SSH, MSSQL, HTTP, HTTPS, FTP, Telnet, MySQL, MongoDB, Redis, VNC, Git, HTTPProxy, TCPBanner, TFTP, NTP, SIP}
 
 // Port is the fixed port of a service (INV-2); 0 for an unknown name.
-func (s ServiceName) Port() int {
-	switch s {
-	case SMB:
-		return 445
-	case RDP:
-		return 3389
-	case SSH:
-		return 22
-	case MSSQL:
-		return 1433
-	case HTTP:
-		return 80
-	}
-	return 0
-}
+func (s ServiceName) Port() int { return serviceDefs[s].port }
+
+// Proto is "tcp" or "udp" (INV-2); "" for an unknown name.
+func (s ServiceName) Proto() string { return serviceDefs[s].proto }
 
 // Label is the name shown for the service ("SMB").
 func (s ServiceName) Label() string {
-	switch s {
-	case SMB, RDP, SSH, MSSQL, HTTP:
-		return strings.ToUpper(string(s))
+	if d, ok := serviceDefs[s]; ok {
+		return d.label
 	}
 	return string(s)
 }
 
-// Valid reports whether s is one of the five services.
+// Valid reports whether s is one of the services.
 func (s ServiceName) Valid() bool { return s.Port() != 0 }
 
 // HitKind says what a hit is (contract.ts HitKind).

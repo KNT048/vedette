@@ -65390,7 +65390,7 @@ type HoneypotGetHoneypotHitsIDOK struct {
 	// What was touched, e.g. "SMB", "Credential token svc-backup-old", "Port scan across 5 decoy IPs".
 	Label string `json:"label"`
 	Port  NilInt `json:"port"`
-	// Set for kind=service on the classic ports; null otherwise.
+	// Set for kind=service; null otherwise.
 	Service    NilHoneypotGetHoneypotHitsIDOKService `json:"service"`
 	SrcAssetID NilString                             `json:"src_asset_id"`
 	SrcIP      string                                `json:"src_ip"`
@@ -65772,14 +65772,29 @@ func (s *HoneypotGetHoneypotHitsIDOKKind) UnmarshalText(data []byte) error {
 	}
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotGetHoneypotHitsIDOKService string
 
 const (
-	HoneypotGetHoneypotHitsIDOKServiceSmb   HoneypotGetHoneypotHitsIDOKService = "smb"
-	HoneypotGetHoneypotHitsIDOKServiceRdp   HoneypotGetHoneypotHitsIDOKService = "rdp"
-	HoneypotGetHoneypotHitsIDOKServiceSSH   HoneypotGetHoneypotHitsIDOKService = "ssh"
-	HoneypotGetHoneypotHitsIDOKServiceMssql HoneypotGetHoneypotHitsIDOKService = "mssql"
-	HoneypotGetHoneypotHitsIDOKServiceHTTP  HoneypotGetHoneypotHitsIDOKService = "http"
+	HoneypotGetHoneypotHitsIDOKServiceSmb       HoneypotGetHoneypotHitsIDOKService = "smb"
+	HoneypotGetHoneypotHitsIDOKServiceRdp       HoneypotGetHoneypotHitsIDOKService = "rdp"
+	HoneypotGetHoneypotHitsIDOKServiceSSH       HoneypotGetHoneypotHitsIDOKService = "ssh"
+	HoneypotGetHoneypotHitsIDOKServiceMssql     HoneypotGetHoneypotHitsIDOKService = "mssql"
+	HoneypotGetHoneypotHitsIDOKServiceHTTP      HoneypotGetHoneypotHitsIDOKService = "http"
+	HoneypotGetHoneypotHitsIDOKServiceHTTPS     HoneypotGetHoneypotHitsIDOKService = "https"
+	HoneypotGetHoneypotHitsIDOKServiceFtp       HoneypotGetHoneypotHitsIDOKService = "ftp"
+	HoneypotGetHoneypotHitsIDOKServiceTelnet    HoneypotGetHoneypotHitsIDOKService = "telnet"
+	HoneypotGetHoneypotHitsIDOKServiceMysql     HoneypotGetHoneypotHitsIDOKService = "mysql"
+	HoneypotGetHoneypotHitsIDOKServiceMongodb   HoneypotGetHoneypotHitsIDOKService = "mongodb"
+	HoneypotGetHoneypotHitsIDOKServiceRedis     HoneypotGetHoneypotHitsIDOKService = "redis"
+	HoneypotGetHoneypotHitsIDOKServiceVnc       HoneypotGetHoneypotHitsIDOKService = "vnc"
+	HoneypotGetHoneypotHitsIDOKServiceGit       HoneypotGetHoneypotHitsIDOKService = "git"
+	HoneypotGetHoneypotHitsIDOKServiceHttpproxy HoneypotGetHoneypotHitsIDOKService = "httpproxy"
+	HoneypotGetHoneypotHitsIDOKServiceTcpbanner HoneypotGetHoneypotHitsIDOKService = "tcpbanner"
+	HoneypotGetHoneypotHitsIDOKServiceTftp      HoneypotGetHoneypotHitsIDOKService = "tftp"
+	HoneypotGetHoneypotHitsIDOKServiceNtp       HoneypotGetHoneypotHitsIDOKService = "ntp"
+	HoneypotGetHoneypotHitsIDOKServiceSip       HoneypotGetHoneypotHitsIDOKService = "sip"
 )
 
 // AllValues returns all HoneypotGetHoneypotHitsIDOKService values.
@@ -65790,6 +65805,19 @@ func (HoneypotGetHoneypotHitsIDOKService) AllValues() []HoneypotGetHoneypotHitsI
 		HoneypotGetHoneypotHitsIDOKServiceSSH,
 		HoneypotGetHoneypotHitsIDOKServiceMssql,
 		HoneypotGetHoneypotHitsIDOKServiceHTTP,
+		HoneypotGetHoneypotHitsIDOKServiceHTTPS,
+		HoneypotGetHoneypotHitsIDOKServiceFtp,
+		HoneypotGetHoneypotHitsIDOKServiceTelnet,
+		HoneypotGetHoneypotHitsIDOKServiceMysql,
+		HoneypotGetHoneypotHitsIDOKServiceMongodb,
+		HoneypotGetHoneypotHitsIDOKServiceRedis,
+		HoneypotGetHoneypotHitsIDOKServiceVnc,
+		HoneypotGetHoneypotHitsIDOKServiceGit,
+		HoneypotGetHoneypotHitsIDOKServiceHttpproxy,
+		HoneypotGetHoneypotHitsIDOKServiceTcpbanner,
+		HoneypotGetHoneypotHitsIDOKServiceTftp,
+		HoneypotGetHoneypotHitsIDOKServiceNtp,
+		HoneypotGetHoneypotHitsIDOKServiceSip,
 	}
 }
 
@@ -65805,6 +65833,32 @@ func (s HoneypotGetHoneypotHitsIDOKService) MarshalText() ([]byte, error) {
 	case HoneypotGetHoneypotHitsIDOKServiceMssql:
 		return []byte(s), nil
 	case HoneypotGetHoneypotHitsIDOKServiceHTTP:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsIDOKServiceHTTPS:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsIDOKServiceFtp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsIDOKServiceTelnet:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsIDOKServiceMysql:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsIDOKServiceMongodb:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsIDOKServiceRedis:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsIDOKServiceVnc:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsIDOKServiceGit:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsIDOKServiceHttpproxy:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsIDOKServiceTcpbanner:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsIDOKServiceTftp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsIDOKServiceNtp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsIDOKServiceSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -65828,6 +65882,45 @@ func (s *HoneypotGetHoneypotHitsIDOKService) UnmarshalText(data []byte) error {
 		return nil
 	case HoneypotGetHoneypotHitsIDOKServiceHTTP:
 		*s = HoneypotGetHoneypotHitsIDOKServiceHTTP
+		return nil
+	case HoneypotGetHoneypotHitsIDOKServiceHTTPS:
+		*s = HoneypotGetHoneypotHitsIDOKServiceHTTPS
+		return nil
+	case HoneypotGetHoneypotHitsIDOKServiceFtp:
+		*s = HoneypotGetHoneypotHitsIDOKServiceFtp
+		return nil
+	case HoneypotGetHoneypotHitsIDOKServiceTelnet:
+		*s = HoneypotGetHoneypotHitsIDOKServiceTelnet
+		return nil
+	case HoneypotGetHoneypotHitsIDOKServiceMysql:
+		*s = HoneypotGetHoneypotHitsIDOKServiceMysql
+		return nil
+	case HoneypotGetHoneypotHitsIDOKServiceMongodb:
+		*s = HoneypotGetHoneypotHitsIDOKServiceMongodb
+		return nil
+	case HoneypotGetHoneypotHitsIDOKServiceRedis:
+		*s = HoneypotGetHoneypotHitsIDOKServiceRedis
+		return nil
+	case HoneypotGetHoneypotHitsIDOKServiceVnc:
+		*s = HoneypotGetHoneypotHitsIDOKServiceVnc
+		return nil
+	case HoneypotGetHoneypotHitsIDOKServiceGit:
+		*s = HoneypotGetHoneypotHitsIDOKServiceGit
+		return nil
+	case HoneypotGetHoneypotHitsIDOKServiceHttpproxy:
+		*s = HoneypotGetHoneypotHitsIDOKServiceHttpproxy
+		return nil
+	case HoneypotGetHoneypotHitsIDOKServiceTcpbanner:
+		*s = HoneypotGetHoneypotHitsIDOKServiceTcpbanner
+		return nil
+	case HoneypotGetHoneypotHitsIDOKServiceTftp:
+		*s = HoneypotGetHoneypotHitsIDOKServiceTftp
+		return nil
+	case HoneypotGetHoneypotHitsIDOKServiceNtp:
+		*s = HoneypotGetHoneypotHitsIDOKServiceNtp
+		return nil
+	case HoneypotGetHoneypotHitsIDOKServiceSip:
+		*s = HoneypotGetHoneypotHitsIDOKServiceSip
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -65858,7 +65951,7 @@ type HoneypotGetHoneypotHitsOKItemsItem struct {
 	// What was touched, e.g. "SMB", "Credential token svc-backup-old", "Port scan across 5 decoy IPs".
 	Label string `json:"label"`
 	Port  NilInt `json:"port"`
-	// Set for kind=service on the classic ports; null otherwise.
+	// Set for kind=service; null otherwise.
 	Service    NilHoneypotGetHoneypotHitsOKItemsItemService `json:"service"`
 	SrcAssetID NilString                                    `json:"src_asset_id"`
 	SrcIP      string                                       `json:"src_ip"`
@@ -66053,14 +66146,29 @@ func (s *HoneypotGetHoneypotHitsOKItemsItemKind) UnmarshalText(data []byte) erro
 	}
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotGetHoneypotHitsOKItemsItemService string
 
 const (
-	HoneypotGetHoneypotHitsOKItemsItemServiceSmb   HoneypotGetHoneypotHitsOKItemsItemService = "smb"
-	HoneypotGetHoneypotHitsOKItemsItemServiceRdp   HoneypotGetHoneypotHitsOKItemsItemService = "rdp"
-	HoneypotGetHoneypotHitsOKItemsItemServiceSSH   HoneypotGetHoneypotHitsOKItemsItemService = "ssh"
-	HoneypotGetHoneypotHitsOKItemsItemServiceMssql HoneypotGetHoneypotHitsOKItemsItemService = "mssql"
-	HoneypotGetHoneypotHitsOKItemsItemServiceHTTP  HoneypotGetHoneypotHitsOKItemsItemService = "http"
+	HoneypotGetHoneypotHitsOKItemsItemServiceSmb       HoneypotGetHoneypotHitsOKItemsItemService = "smb"
+	HoneypotGetHoneypotHitsOKItemsItemServiceRdp       HoneypotGetHoneypotHitsOKItemsItemService = "rdp"
+	HoneypotGetHoneypotHitsOKItemsItemServiceSSH       HoneypotGetHoneypotHitsOKItemsItemService = "ssh"
+	HoneypotGetHoneypotHitsOKItemsItemServiceMssql     HoneypotGetHoneypotHitsOKItemsItemService = "mssql"
+	HoneypotGetHoneypotHitsOKItemsItemServiceHTTP      HoneypotGetHoneypotHitsOKItemsItemService = "http"
+	HoneypotGetHoneypotHitsOKItemsItemServiceHTTPS     HoneypotGetHoneypotHitsOKItemsItemService = "https"
+	HoneypotGetHoneypotHitsOKItemsItemServiceFtp       HoneypotGetHoneypotHitsOKItemsItemService = "ftp"
+	HoneypotGetHoneypotHitsOKItemsItemServiceTelnet    HoneypotGetHoneypotHitsOKItemsItemService = "telnet"
+	HoneypotGetHoneypotHitsOKItemsItemServiceMysql     HoneypotGetHoneypotHitsOKItemsItemService = "mysql"
+	HoneypotGetHoneypotHitsOKItemsItemServiceMongodb   HoneypotGetHoneypotHitsOKItemsItemService = "mongodb"
+	HoneypotGetHoneypotHitsOKItemsItemServiceRedis     HoneypotGetHoneypotHitsOKItemsItemService = "redis"
+	HoneypotGetHoneypotHitsOKItemsItemServiceVnc       HoneypotGetHoneypotHitsOKItemsItemService = "vnc"
+	HoneypotGetHoneypotHitsOKItemsItemServiceGit       HoneypotGetHoneypotHitsOKItemsItemService = "git"
+	HoneypotGetHoneypotHitsOKItemsItemServiceHttpproxy HoneypotGetHoneypotHitsOKItemsItemService = "httpproxy"
+	HoneypotGetHoneypotHitsOKItemsItemServiceTcpbanner HoneypotGetHoneypotHitsOKItemsItemService = "tcpbanner"
+	HoneypotGetHoneypotHitsOKItemsItemServiceTftp      HoneypotGetHoneypotHitsOKItemsItemService = "tftp"
+	HoneypotGetHoneypotHitsOKItemsItemServiceNtp       HoneypotGetHoneypotHitsOKItemsItemService = "ntp"
+	HoneypotGetHoneypotHitsOKItemsItemServiceSip       HoneypotGetHoneypotHitsOKItemsItemService = "sip"
 )
 
 // AllValues returns all HoneypotGetHoneypotHitsOKItemsItemService values.
@@ -66071,6 +66179,19 @@ func (HoneypotGetHoneypotHitsOKItemsItemService) AllValues() []HoneypotGetHoneyp
 		HoneypotGetHoneypotHitsOKItemsItemServiceSSH,
 		HoneypotGetHoneypotHitsOKItemsItemServiceMssql,
 		HoneypotGetHoneypotHitsOKItemsItemServiceHTTP,
+		HoneypotGetHoneypotHitsOKItemsItemServiceHTTPS,
+		HoneypotGetHoneypotHitsOKItemsItemServiceFtp,
+		HoneypotGetHoneypotHitsOKItemsItemServiceTelnet,
+		HoneypotGetHoneypotHitsOKItemsItemServiceMysql,
+		HoneypotGetHoneypotHitsOKItemsItemServiceMongodb,
+		HoneypotGetHoneypotHitsOKItemsItemServiceRedis,
+		HoneypotGetHoneypotHitsOKItemsItemServiceVnc,
+		HoneypotGetHoneypotHitsOKItemsItemServiceGit,
+		HoneypotGetHoneypotHitsOKItemsItemServiceHttpproxy,
+		HoneypotGetHoneypotHitsOKItemsItemServiceTcpbanner,
+		HoneypotGetHoneypotHitsOKItemsItemServiceTftp,
+		HoneypotGetHoneypotHitsOKItemsItemServiceNtp,
+		HoneypotGetHoneypotHitsOKItemsItemServiceSip,
 	}
 }
 
@@ -66086,6 +66207,32 @@ func (s HoneypotGetHoneypotHitsOKItemsItemService) MarshalText() ([]byte, error)
 	case HoneypotGetHoneypotHitsOKItemsItemServiceMssql:
 		return []byte(s), nil
 	case HoneypotGetHoneypotHitsOKItemsItemServiceHTTP:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceHTTPS:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceFtp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceTelnet:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceMysql:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceMongodb:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceRedis:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceVnc:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceGit:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceHttpproxy:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceTcpbanner:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceTftp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceNtp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -66109,6 +66256,45 @@ func (s *HoneypotGetHoneypotHitsOKItemsItemService) UnmarshalText(data []byte) e
 		return nil
 	case HoneypotGetHoneypotHitsOKItemsItemServiceHTTP:
 		*s = HoneypotGetHoneypotHitsOKItemsItemServiceHTTP
+		return nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceHTTPS:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceHTTPS
+		return nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceFtp:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceFtp
+		return nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceTelnet:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceTelnet
+		return nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceMysql:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceMysql
+		return nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceMongodb:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceMongodb
+		return nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceRedis:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceRedis
+		return nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceVnc:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceVnc
+		return nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceGit:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceGit
+		return nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceHttpproxy:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceHttpproxy
+		return nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceTcpbanner:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceTcpbanner
+		return nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceTftp:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceTftp
+		return nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceNtp:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceNtp
+		return nil
+	case HoneypotGetHoneypotHitsOKItemsItemServiceSip:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceSip
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -66399,11 +66585,13 @@ func (s *HoneypotGetHoneypotOKTrapIps) SetTotal(val int) {
 
 type HoneypotGetHoneypotOKTrapsItem struct {
 	// At least one enabled Trap IP has this service.
-	Enabled   bool                                  `json:"enabled"`
-	Hits7d    int                                   `json:"hits_7d"`
-	LastHitAt NilDateTime                           `json:"last_hit_at"`
-	Port      int                                   `json:"port"`
-	Service   HoneypotGetHoneypotOKTrapsItemService `json:"service"`
+	Enabled   bool        `json:"enabled"`
+	Hits7d    int         `json:"hits_7d"`
+	LastHitAt NilDateTime `json:"last_hit_at"`
+	Port      int         `json:"port"`
+	// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+	// never answer, they only log.
+	Service HoneypotGetHoneypotOKTrapsItemService `json:"service"`
 	// The best state of the enabled Trap IPs that have this service: listening when one of them listens.
 	State HoneypotGetHoneypotOKTrapsItemState `json:"state"`
 	// Names of the enabled Trap IPs that have this service.
@@ -66480,14 +66668,29 @@ func (s *HoneypotGetHoneypotOKTrapsItem) SetTrapIps(val []string) {
 	s.TrapIps = val
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotGetHoneypotOKTrapsItemService string
 
 const (
-	HoneypotGetHoneypotOKTrapsItemServiceSmb   HoneypotGetHoneypotOKTrapsItemService = "smb"
-	HoneypotGetHoneypotOKTrapsItemServiceRdp   HoneypotGetHoneypotOKTrapsItemService = "rdp"
-	HoneypotGetHoneypotOKTrapsItemServiceSSH   HoneypotGetHoneypotOKTrapsItemService = "ssh"
-	HoneypotGetHoneypotOKTrapsItemServiceMssql HoneypotGetHoneypotOKTrapsItemService = "mssql"
-	HoneypotGetHoneypotOKTrapsItemServiceHTTP  HoneypotGetHoneypotOKTrapsItemService = "http"
+	HoneypotGetHoneypotOKTrapsItemServiceSmb       HoneypotGetHoneypotOKTrapsItemService = "smb"
+	HoneypotGetHoneypotOKTrapsItemServiceRdp       HoneypotGetHoneypotOKTrapsItemService = "rdp"
+	HoneypotGetHoneypotOKTrapsItemServiceSSH       HoneypotGetHoneypotOKTrapsItemService = "ssh"
+	HoneypotGetHoneypotOKTrapsItemServiceMssql     HoneypotGetHoneypotOKTrapsItemService = "mssql"
+	HoneypotGetHoneypotOKTrapsItemServiceHTTP      HoneypotGetHoneypotOKTrapsItemService = "http"
+	HoneypotGetHoneypotOKTrapsItemServiceHTTPS     HoneypotGetHoneypotOKTrapsItemService = "https"
+	HoneypotGetHoneypotOKTrapsItemServiceFtp       HoneypotGetHoneypotOKTrapsItemService = "ftp"
+	HoneypotGetHoneypotOKTrapsItemServiceTelnet    HoneypotGetHoneypotOKTrapsItemService = "telnet"
+	HoneypotGetHoneypotOKTrapsItemServiceMysql     HoneypotGetHoneypotOKTrapsItemService = "mysql"
+	HoneypotGetHoneypotOKTrapsItemServiceMongodb   HoneypotGetHoneypotOKTrapsItemService = "mongodb"
+	HoneypotGetHoneypotOKTrapsItemServiceRedis     HoneypotGetHoneypotOKTrapsItemService = "redis"
+	HoneypotGetHoneypotOKTrapsItemServiceVnc       HoneypotGetHoneypotOKTrapsItemService = "vnc"
+	HoneypotGetHoneypotOKTrapsItemServiceGit       HoneypotGetHoneypotOKTrapsItemService = "git"
+	HoneypotGetHoneypotOKTrapsItemServiceHttpproxy HoneypotGetHoneypotOKTrapsItemService = "httpproxy"
+	HoneypotGetHoneypotOKTrapsItemServiceTcpbanner HoneypotGetHoneypotOKTrapsItemService = "tcpbanner"
+	HoneypotGetHoneypotOKTrapsItemServiceTftp      HoneypotGetHoneypotOKTrapsItemService = "tftp"
+	HoneypotGetHoneypotOKTrapsItemServiceNtp       HoneypotGetHoneypotOKTrapsItemService = "ntp"
+	HoneypotGetHoneypotOKTrapsItemServiceSip       HoneypotGetHoneypotOKTrapsItemService = "sip"
 )
 
 // AllValues returns all HoneypotGetHoneypotOKTrapsItemService values.
@@ -66498,6 +66701,19 @@ func (HoneypotGetHoneypotOKTrapsItemService) AllValues() []HoneypotGetHoneypotOK
 		HoneypotGetHoneypotOKTrapsItemServiceSSH,
 		HoneypotGetHoneypotOKTrapsItemServiceMssql,
 		HoneypotGetHoneypotOKTrapsItemServiceHTTP,
+		HoneypotGetHoneypotOKTrapsItemServiceHTTPS,
+		HoneypotGetHoneypotOKTrapsItemServiceFtp,
+		HoneypotGetHoneypotOKTrapsItemServiceTelnet,
+		HoneypotGetHoneypotOKTrapsItemServiceMysql,
+		HoneypotGetHoneypotOKTrapsItemServiceMongodb,
+		HoneypotGetHoneypotOKTrapsItemServiceRedis,
+		HoneypotGetHoneypotOKTrapsItemServiceVnc,
+		HoneypotGetHoneypotOKTrapsItemServiceGit,
+		HoneypotGetHoneypotOKTrapsItemServiceHttpproxy,
+		HoneypotGetHoneypotOKTrapsItemServiceTcpbanner,
+		HoneypotGetHoneypotOKTrapsItemServiceTftp,
+		HoneypotGetHoneypotOKTrapsItemServiceNtp,
+		HoneypotGetHoneypotOKTrapsItemServiceSip,
 	}
 }
 
@@ -66513,6 +66729,32 @@ func (s HoneypotGetHoneypotOKTrapsItemService) MarshalText() ([]byte, error) {
 	case HoneypotGetHoneypotOKTrapsItemServiceMssql:
 		return []byte(s), nil
 	case HoneypotGetHoneypotOKTrapsItemServiceHTTP:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemServiceHTTPS:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemServiceFtp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemServiceTelnet:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemServiceMysql:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemServiceMongodb:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemServiceRedis:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemServiceVnc:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemServiceGit:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemServiceHttpproxy:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemServiceTcpbanner:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemServiceTftp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemServiceNtp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotOKTrapsItemServiceSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -66536,6 +66778,45 @@ func (s *HoneypotGetHoneypotOKTrapsItemService) UnmarshalText(data []byte) error
 		return nil
 	case HoneypotGetHoneypotOKTrapsItemServiceHTTP:
 		*s = HoneypotGetHoneypotOKTrapsItemServiceHTTP
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemServiceHTTPS:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceHTTPS
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemServiceFtp:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceFtp
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemServiceTelnet:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceTelnet
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemServiceMysql:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceMysql
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemServiceMongodb:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceMongodb
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemServiceRedis:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceRedis
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemServiceVnc:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceVnc
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemServiceGit:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceGit
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemServiceHttpproxy:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceHttpproxy
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemServiceTcpbanner:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceTcpbanner
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemServiceTftp:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceTftp
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemServiceNtp:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceNtp
+		return nil
+	case HoneypotGetHoneypotOKTrapsItemServiceSip:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceSip
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -67117,14 +67398,29 @@ func (s *HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKind) UnmarshalText(data
 	}
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem string
 
 const (
-	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSmb   HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "smb"
-	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemRdp   HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "rdp"
-	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSSH   HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "ssh"
-	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMssql HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "mssql"
-	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTP  HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "http"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSmb       HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "smb"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemRdp       HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "rdp"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSSH       HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "ssh"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMssql     HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "mssql"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTP      HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "http"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTPS     HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "https"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemFtp       HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "ftp"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTelnet    HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "telnet"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMysql     HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "mysql"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMongodb   HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "mongodb"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemRedis     HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "redis"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemVnc       HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "vnc"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemGit       HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "git"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHttpproxy HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "httpproxy"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTcpbanner HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "tcpbanner"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTftp      HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "tftp"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemNtp       HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "ntp"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSip       HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "sip"
 )
 
 // AllValues returns all HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem values.
@@ -67135,6 +67431,19 @@ func (HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem) AllValues() []Honey
 		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSSH,
 		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMssql,
 		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTP,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTPS,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemFtp,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTelnet,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMysql,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMongodb,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemRedis,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemVnc,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemGit,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHttpproxy,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTcpbanner,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTftp,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemNtp,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSip,
 	}
 }
 
@@ -67150,6 +67459,32 @@ func (s HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem) MarshalText() ([]
 	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMssql:
 		return []byte(s), nil
 	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTP:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTPS:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemFtp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTelnet:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMysql:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMongodb:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemRedis:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemVnc:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemGit:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHttpproxy:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTcpbanner:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTftp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemNtp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -67173,6 +67508,45 @@ func (s *HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem) UnmarshalText(da
 		return nil
 	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTP:
 		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTP
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTPS:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTPS
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemFtp:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemFtp
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTelnet:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTelnet
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMysql:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMysql
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMongodb:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMongodb
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemRedis:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemRedis
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemVnc:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemVnc
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemGit:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemGit
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHttpproxy:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHttpproxy
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTcpbanner:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTcpbanner
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTftp:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTftp
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemNtp:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemNtp
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSip:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSip
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -67257,14 +67631,29 @@ func (s *HoneypotGetHoneypotTrapIpsOKItemsItemPreset) UnmarshalText(data []byte)
 	}
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem string
 
 const (
-	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemSmb   HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "smb"
-	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemRdp   HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "rdp"
-	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemSSH   HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "ssh"
-	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMssql HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "mssql"
-	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHTTP  HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "http"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemSmb       HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "smb"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemRdp       HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "rdp"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemSSH       HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "ssh"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMssql     HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "mssql"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHTTP      HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "http"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHTTPS     HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "https"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemFtp       HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "ftp"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTelnet    HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "telnet"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMysql     HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "mysql"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMongodb   HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "mongodb"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemRedis     HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "redis"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemVnc       HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "vnc"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemGit       HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "git"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHttpproxy HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "httpproxy"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTcpbanner HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "tcpbanner"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTftp      HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "tftp"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemNtp       HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "ntp"
+	HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemSip       HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem = "sip"
 )
 
 // AllValues returns all HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem values.
@@ -67275,6 +67664,19 @@ func (HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem) AllValues() []HoneypotG
 		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemSSH,
 		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMssql,
 		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHTTP,
+		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHTTPS,
+		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemFtp,
+		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTelnet,
+		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMysql,
+		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMongodb,
+		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemRedis,
+		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemVnc,
+		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemGit,
+		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHttpproxy,
+		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTcpbanner,
+		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTftp,
+		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemNtp,
+		HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemSip,
 	}
 }
 
@@ -67290,6 +67692,32 @@ func (s HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem) MarshalText() ([]byte
 	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMssql:
 		return []byte(s), nil
 	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHTTP:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHTTPS:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemFtp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTelnet:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMysql:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMongodb:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemRedis:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemVnc:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemGit:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHttpproxy:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTcpbanner:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTftp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemNtp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -67313,6 +67741,45 @@ func (s *HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem) UnmarshalText(data [
 		return nil
 	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHTTP:
 		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHTTP
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHTTPS:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHTTPS
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemFtp:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemFtp
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTelnet:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTelnet
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMysql:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMysql
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMongodb:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMongodb
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemRedis:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemRedis
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemVnc:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemVnc
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemGit:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemGit
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHttpproxy:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHttpproxy
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTcpbanner:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTcpbanner
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTftp:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTftp
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemNtp:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemNtp
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemSip:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemSip
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -67902,14 +68369,29 @@ func (s *HoneypotPatchHoneypotTrapIpsIDOKAttachmentKind) UnmarshalText(data []by
 	}
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem string
 
 const (
-	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSmb   HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "smb"
-	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemRdp   HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "rdp"
-	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSSH   HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "ssh"
-	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMssql HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "mssql"
-	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTP  HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "http"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSmb       HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "smb"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemRdp       HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "rdp"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSSH       HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "ssh"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMssql     HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "mssql"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTP      HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "http"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTPS     HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "https"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemFtp       HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "ftp"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTelnet    HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "telnet"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMysql     HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "mysql"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMongodb   HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "mongodb"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemRedis     HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "redis"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemVnc       HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "vnc"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemGit       HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "git"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHttpproxy HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "httpproxy"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTcpbanner HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "tcpbanner"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTftp      HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "tftp"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemNtp       HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "ntp"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSip       HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "sip"
 )
 
 // AllValues returns all HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem values.
@@ -67920,6 +68402,19 @@ func (HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem) AllValues() []HoneypotPa
 		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSSH,
 		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMssql,
 		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTP,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTPS,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemFtp,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTelnet,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMysql,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMongodb,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemRedis,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemVnc,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemGit,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHttpproxy,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTcpbanner,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTftp,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemNtp,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSip,
 	}
 }
 
@@ -67935,6 +68430,32 @@ func (s HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem) MarshalText() ([]byte,
 	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMssql:
 		return []byte(s), nil
 	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTP:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTPS:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemFtp:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTelnet:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMysql:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMongodb:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemRedis:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemVnc:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemGit:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHttpproxy:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTcpbanner:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTftp:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemNtp:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -67958,6 +68479,45 @@ func (s *HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem) UnmarshalText(data []
 		return nil
 	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTP:
 		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTP
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTPS:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTPS
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemFtp:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemFtp
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTelnet:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTelnet
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMysql:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMysql
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMongodb:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMongodb
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemRedis:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemRedis
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemVnc:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemVnc
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemGit:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemGit
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHttpproxy:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHttpproxy
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTcpbanner:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTcpbanner
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTftp:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTftp
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemNtp:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemNtp
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSip:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSip
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -68042,14 +68602,29 @@ func (s *HoneypotPatchHoneypotTrapIpsIDOKPreset) UnmarshalText(data []byte) erro
 	}
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotPatchHoneypotTrapIpsIDOKServicesItem string
 
 const (
-	HoneypotPatchHoneypotTrapIpsIDOKServicesItemSmb   HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "smb"
-	HoneypotPatchHoneypotTrapIpsIDOKServicesItemRdp   HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "rdp"
-	HoneypotPatchHoneypotTrapIpsIDOKServicesItemSSH   HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "ssh"
-	HoneypotPatchHoneypotTrapIpsIDOKServicesItemMssql HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "mssql"
-	HoneypotPatchHoneypotTrapIpsIDOKServicesItemHTTP  HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "http"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemSmb       HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "smb"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemRdp       HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "rdp"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemSSH       HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "ssh"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemMssql     HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "mssql"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemHTTP      HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "http"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemHTTPS     HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "https"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemFtp       HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "ftp"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemTelnet    HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "telnet"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemMysql     HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "mysql"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemMongodb   HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "mongodb"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemRedis     HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "redis"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemVnc       HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "vnc"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemGit       HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "git"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemHttpproxy HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "httpproxy"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemTcpbanner HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "tcpbanner"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemTftp      HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "tftp"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemNtp       HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "ntp"
+	HoneypotPatchHoneypotTrapIpsIDOKServicesItemSip       HoneypotPatchHoneypotTrapIpsIDOKServicesItem = "sip"
 )
 
 // AllValues returns all HoneypotPatchHoneypotTrapIpsIDOKServicesItem values.
@@ -68060,6 +68635,19 @@ func (HoneypotPatchHoneypotTrapIpsIDOKServicesItem) AllValues() []HoneypotPatchH
 		HoneypotPatchHoneypotTrapIpsIDOKServicesItemSSH,
 		HoneypotPatchHoneypotTrapIpsIDOKServicesItemMssql,
 		HoneypotPatchHoneypotTrapIpsIDOKServicesItemHTTP,
+		HoneypotPatchHoneypotTrapIpsIDOKServicesItemHTTPS,
+		HoneypotPatchHoneypotTrapIpsIDOKServicesItemFtp,
+		HoneypotPatchHoneypotTrapIpsIDOKServicesItemTelnet,
+		HoneypotPatchHoneypotTrapIpsIDOKServicesItemMysql,
+		HoneypotPatchHoneypotTrapIpsIDOKServicesItemMongodb,
+		HoneypotPatchHoneypotTrapIpsIDOKServicesItemRedis,
+		HoneypotPatchHoneypotTrapIpsIDOKServicesItemVnc,
+		HoneypotPatchHoneypotTrapIpsIDOKServicesItemGit,
+		HoneypotPatchHoneypotTrapIpsIDOKServicesItemHttpproxy,
+		HoneypotPatchHoneypotTrapIpsIDOKServicesItemTcpbanner,
+		HoneypotPatchHoneypotTrapIpsIDOKServicesItemTftp,
+		HoneypotPatchHoneypotTrapIpsIDOKServicesItemNtp,
+		HoneypotPatchHoneypotTrapIpsIDOKServicesItemSip,
 	}
 }
 
@@ -68075,6 +68663,32 @@ func (s HoneypotPatchHoneypotTrapIpsIDOKServicesItem) MarshalText() ([]byte, err
 	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemMssql:
 		return []byte(s), nil
 	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemHTTP:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemHTTPS:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemFtp:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemTelnet:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemMysql:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemMongodb:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemRedis:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemVnc:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemGit:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemHttpproxy:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemTcpbanner:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemTftp:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemNtp:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -68098,6 +68712,45 @@ func (s *HoneypotPatchHoneypotTrapIpsIDOKServicesItem) UnmarshalText(data []byte
 		return nil
 	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemHTTP:
 		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemHTTP
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemHTTPS:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemHTTPS
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemFtp:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemFtp
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemTelnet:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemTelnet
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemMysql:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemMysql
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemMongodb:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemMongodb
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemRedis:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemRedis
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemVnc:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemVnc
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemGit:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemGit
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemHttpproxy:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemHttpproxy
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemTcpbanner:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemTcpbanner
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemTftp:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemTftp
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemNtp:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemNtp
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemSip:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemSip
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -68312,7 +68965,7 @@ type HoneypotPostHoneypotTestHitOK struct {
 	// What was touched, e.g. "SMB", "Credential token svc-backup-old", "Port scan across 5 decoy IPs".
 	Label string `json:"label"`
 	Port  NilInt `json:"port"`
-	// Set for kind=service on the classic ports; null otherwise.
+	// Set for kind=service; null otherwise.
 	Service    NilHoneypotPostHoneypotTestHitOKService `json:"service"`
 	SrcAssetID NilString                               `json:"src_asset_id"`
 	SrcIP      string                                  `json:"src_ip"`
@@ -68507,14 +69160,29 @@ func (s *HoneypotPostHoneypotTestHitOKKind) UnmarshalText(data []byte) error {
 	}
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotPostHoneypotTestHitOKService string
 
 const (
-	HoneypotPostHoneypotTestHitOKServiceSmb   HoneypotPostHoneypotTestHitOKService = "smb"
-	HoneypotPostHoneypotTestHitOKServiceRdp   HoneypotPostHoneypotTestHitOKService = "rdp"
-	HoneypotPostHoneypotTestHitOKServiceSSH   HoneypotPostHoneypotTestHitOKService = "ssh"
-	HoneypotPostHoneypotTestHitOKServiceMssql HoneypotPostHoneypotTestHitOKService = "mssql"
-	HoneypotPostHoneypotTestHitOKServiceHTTP  HoneypotPostHoneypotTestHitOKService = "http"
+	HoneypotPostHoneypotTestHitOKServiceSmb       HoneypotPostHoneypotTestHitOKService = "smb"
+	HoneypotPostHoneypotTestHitOKServiceRdp       HoneypotPostHoneypotTestHitOKService = "rdp"
+	HoneypotPostHoneypotTestHitOKServiceSSH       HoneypotPostHoneypotTestHitOKService = "ssh"
+	HoneypotPostHoneypotTestHitOKServiceMssql     HoneypotPostHoneypotTestHitOKService = "mssql"
+	HoneypotPostHoneypotTestHitOKServiceHTTP      HoneypotPostHoneypotTestHitOKService = "http"
+	HoneypotPostHoneypotTestHitOKServiceHTTPS     HoneypotPostHoneypotTestHitOKService = "https"
+	HoneypotPostHoneypotTestHitOKServiceFtp       HoneypotPostHoneypotTestHitOKService = "ftp"
+	HoneypotPostHoneypotTestHitOKServiceTelnet    HoneypotPostHoneypotTestHitOKService = "telnet"
+	HoneypotPostHoneypotTestHitOKServiceMysql     HoneypotPostHoneypotTestHitOKService = "mysql"
+	HoneypotPostHoneypotTestHitOKServiceMongodb   HoneypotPostHoneypotTestHitOKService = "mongodb"
+	HoneypotPostHoneypotTestHitOKServiceRedis     HoneypotPostHoneypotTestHitOKService = "redis"
+	HoneypotPostHoneypotTestHitOKServiceVnc       HoneypotPostHoneypotTestHitOKService = "vnc"
+	HoneypotPostHoneypotTestHitOKServiceGit       HoneypotPostHoneypotTestHitOKService = "git"
+	HoneypotPostHoneypotTestHitOKServiceHttpproxy HoneypotPostHoneypotTestHitOKService = "httpproxy"
+	HoneypotPostHoneypotTestHitOKServiceTcpbanner HoneypotPostHoneypotTestHitOKService = "tcpbanner"
+	HoneypotPostHoneypotTestHitOKServiceTftp      HoneypotPostHoneypotTestHitOKService = "tftp"
+	HoneypotPostHoneypotTestHitOKServiceNtp       HoneypotPostHoneypotTestHitOKService = "ntp"
+	HoneypotPostHoneypotTestHitOKServiceSip       HoneypotPostHoneypotTestHitOKService = "sip"
 )
 
 // AllValues returns all HoneypotPostHoneypotTestHitOKService values.
@@ -68525,6 +69193,19 @@ func (HoneypotPostHoneypotTestHitOKService) AllValues() []HoneypotPostHoneypotTe
 		HoneypotPostHoneypotTestHitOKServiceSSH,
 		HoneypotPostHoneypotTestHitOKServiceMssql,
 		HoneypotPostHoneypotTestHitOKServiceHTTP,
+		HoneypotPostHoneypotTestHitOKServiceHTTPS,
+		HoneypotPostHoneypotTestHitOKServiceFtp,
+		HoneypotPostHoneypotTestHitOKServiceTelnet,
+		HoneypotPostHoneypotTestHitOKServiceMysql,
+		HoneypotPostHoneypotTestHitOKServiceMongodb,
+		HoneypotPostHoneypotTestHitOKServiceRedis,
+		HoneypotPostHoneypotTestHitOKServiceVnc,
+		HoneypotPostHoneypotTestHitOKServiceGit,
+		HoneypotPostHoneypotTestHitOKServiceHttpproxy,
+		HoneypotPostHoneypotTestHitOKServiceTcpbanner,
+		HoneypotPostHoneypotTestHitOKServiceTftp,
+		HoneypotPostHoneypotTestHitOKServiceNtp,
+		HoneypotPostHoneypotTestHitOKServiceSip,
 	}
 }
 
@@ -68540,6 +69221,32 @@ func (s HoneypotPostHoneypotTestHitOKService) MarshalText() ([]byte, error) {
 	case HoneypotPostHoneypotTestHitOKServiceMssql:
 		return []byte(s), nil
 	case HoneypotPostHoneypotTestHitOKServiceHTTP:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitOKServiceHTTPS:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitOKServiceFtp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitOKServiceTelnet:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitOKServiceMysql:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitOKServiceMongodb:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitOKServiceRedis:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitOKServiceVnc:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitOKServiceGit:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitOKServiceHttpproxy:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitOKServiceTcpbanner:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitOKServiceTftp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitOKServiceNtp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitOKServiceSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -68564,12 +69271,53 @@ func (s *HoneypotPostHoneypotTestHitOKService) UnmarshalText(data []byte) error 
 	case HoneypotPostHoneypotTestHitOKServiceHTTP:
 		*s = HoneypotPostHoneypotTestHitOKServiceHTTP
 		return nil
+	case HoneypotPostHoneypotTestHitOKServiceHTTPS:
+		*s = HoneypotPostHoneypotTestHitOKServiceHTTPS
+		return nil
+	case HoneypotPostHoneypotTestHitOKServiceFtp:
+		*s = HoneypotPostHoneypotTestHitOKServiceFtp
+		return nil
+	case HoneypotPostHoneypotTestHitOKServiceTelnet:
+		*s = HoneypotPostHoneypotTestHitOKServiceTelnet
+		return nil
+	case HoneypotPostHoneypotTestHitOKServiceMysql:
+		*s = HoneypotPostHoneypotTestHitOKServiceMysql
+		return nil
+	case HoneypotPostHoneypotTestHitOKServiceMongodb:
+		*s = HoneypotPostHoneypotTestHitOKServiceMongodb
+		return nil
+	case HoneypotPostHoneypotTestHitOKServiceRedis:
+		*s = HoneypotPostHoneypotTestHitOKServiceRedis
+		return nil
+	case HoneypotPostHoneypotTestHitOKServiceVnc:
+		*s = HoneypotPostHoneypotTestHitOKServiceVnc
+		return nil
+	case HoneypotPostHoneypotTestHitOKServiceGit:
+		*s = HoneypotPostHoneypotTestHitOKServiceGit
+		return nil
+	case HoneypotPostHoneypotTestHitOKServiceHttpproxy:
+		*s = HoneypotPostHoneypotTestHitOKServiceHttpproxy
+		return nil
+	case HoneypotPostHoneypotTestHitOKServiceTcpbanner:
+		*s = HoneypotPostHoneypotTestHitOKServiceTcpbanner
+		return nil
+	case HoneypotPostHoneypotTestHitOKServiceTftp:
+		*s = HoneypotPostHoneypotTestHitOKServiceTftp
+		return nil
+	case HoneypotPostHoneypotTestHitOKServiceNtp:
+		*s = HoneypotPostHoneypotTestHitOKServiceNtp
+		return nil
+	case HoneypotPostHoneypotTestHitOKServiceSip:
+		*s = HoneypotPostHoneypotTestHitOKServiceSip
+		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
 type HoneypotPostHoneypotTestHitReq struct {
+	// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+	// never answer, they only log.
 	Service HoneypotPostHoneypotTestHitReqService `json:"service"`
 }
 
@@ -68583,14 +69331,29 @@ func (s *HoneypotPostHoneypotTestHitReq) SetService(val HoneypotPostHoneypotTest
 	s.Service = val
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotPostHoneypotTestHitReqService string
 
 const (
-	HoneypotPostHoneypotTestHitReqServiceSmb   HoneypotPostHoneypotTestHitReqService = "smb"
-	HoneypotPostHoneypotTestHitReqServiceRdp   HoneypotPostHoneypotTestHitReqService = "rdp"
-	HoneypotPostHoneypotTestHitReqServiceSSH   HoneypotPostHoneypotTestHitReqService = "ssh"
-	HoneypotPostHoneypotTestHitReqServiceMssql HoneypotPostHoneypotTestHitReqService = "mssql"
-	HoneypotPostHoneypotTestHitReqServiceHTTP  HoneypotPostHoneypotTestHitReqService = "http"
+	HoneypotPostHoneypotTestHitReqServiceSmb       HoneypotPostHoneypotTestHitReqService = "smb"
+	HoneypotPostHoneypotTestHitReqServiceRdp       HoneypotPostHoneypotTestHitReqService = "rdp"
+	HoneypotPostHoneypotTestHitReqServiceSSH       HoneypotPostHoneypotTestHitReqService = "ssh"
+	HoneypotPostHoneypotTestHitReqServiceMssql     HoneypotPostHoneypotTestHitReqService = "mssql"
+	HoneypotPostHoneypotTestHitReqServiceHTTP      HoneypotPostHoneypotTestHitReqService = "http"
+	HoneypotPostHoneypotTestHitReqServiceHTTPS     HoneypotPostHoneypotTestHitReqService = "https"
+	HoneypotPostHoneypotTestHitReqServiceFtp       HoneypotPostHoneypotTestHitReqService = "ftp"
+	HoneypotPostHoneypotTestHitReqServiceTelnet    HoneypotPostHoneypotTestHitReqService = "telnet"
+	HoneypotPostHoneypotTestHitReqServiceMysql     HoneypotPostHoneypotTestHitReqService = "mysql"
+	HoneypotPostHoneypotTestHitReqServiceMongodb   HoneypotPostHoneypotTestHitReqService = "mongodb"
+	HoneypotPostHoneypotTestHitReqServiceRedis     HoneypotPostHoneypotTestHitReqService = "redis"
+	HoneypotPostHoneypotTestHitReqServiceVnc       HoneypotPostHoneypotTestHitReqService = "vnc"
+	HoneypotPostHoneypotTestHitReqServiceGit       HoneypotPostHoneypotTestHitReqService = "git"
+	HoneypotPostHoneypotTestHitReqServiceHttpproxy HoneypotPostHoneypotTestHitReqService = "httpproxy"
+	HoneypotPostHoneypotTestHitReqServiceTcpbanner HoneypotPostHoneypotTestHitReqService = "tcpbanner"
+	HoneypotPostHoneypotTestHitReqServiceTftp      HoneypotPostHoneypotTestHitReqService = "tftp"
+	HoneypotPostHoneypotTestHitReqServiceNtp       HoneypotPostHoneypotTestHitReqService = "ntp"
+	HoneypotPostHoneypotTestHitReqServiceSip       HoneypotPostHoneypotTestHitReqService = "sip"
 )
 
 // AllValues returns all HoneypotPostHoneypotTestHitReqService values.
@@ -68601,6 +69364,19 @@ func (HoneypotPostHoneypotTestHitReqService) AllValues() []HoneypotPostHoneypotT
 		HoneypotPostHoneypotTestHitReqServiceSSH,
 		HoneypotPostHoneypotTestHitReqServiceMssql,
 		HoneypotPostHoneypotTestHitReqServiceHTTP,
+		HoneypotPostHoneypotTestHitReqServiceHTTPS,
+		HoneypotPostHoneypotTestHitReqServiceFtp,
+		HoneypotPostHoneypotTestHitReqServiceTelnet,
+		HoneypotPostHoneypotTestHitReqServiceMysql,
+		HoneypotPostHoneypotTestHitReqServiceMongodb,
+		HoneypotPostHoneypotTestHitReqServiceRedis,
+		HoneypotPostHoneypotTestHitReqServiceVnc,
+		HoneypotPostHoneypotTestHitReqServiceGit,
+		HoneypotPostHoneypotTestHitReqServiceHttpproxy,
+		HoneypotPostHoneypotTestHitReqServiceTcpbanner,
+		HoneypotPostHoneypotTestHitReqServiceTftp,
+		HoneypotPostHoneypotTestHitReqServiceNtp,
+		HoneypotPostHoneypotTestHitReqServiceSip,
 	}
 }
 
@@ -68616,6 +69392,32 @@ func (s HoneypotPostHoneypotTestHitReqService) MarshalText() ([]byte, error) {
 	case HoneypotPostHoneypotTestHitReqServiceMssql:
 		return []byte(s), nil
 	case HoneypotPostHoneypotTestHitReqServiceHTTP:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitReqServiceHTTPS:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitReqServiceFtp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitReqServiceTelnet:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitReqServiceMysql:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitReqServiceMongodb:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitReqServiceRedis:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitReqServiceVnc:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitReqServiceGit:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitReqServiceHttpproxy:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitReqServiceTcpbanner:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitReqServiceTftp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitReqServiceNtp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestHitReqServiceSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -68640,6 +69442,45 @@ func (s *HoneypotPostHoneypotTestHitReqService) UnmarshalText(data []byte) error
 	case HoneypotPostHoneypotTestHitReqServiceHTTP:
 		*s = HoneypotPostHoneypotTestHitReqServiceHTTP
 		return nil
+	case HoneypotPostHoneypotTestHitReqServiceHTTPS:
+		*s = HoneypotPostHoneypotTestHitReqServiceHTTPS
+		return nil
+	case HoneypotPostHoneypotTestHitReqServiceFtp:
+		*s = HoneypotPostHoneypotTestHitReqServiceFtp
+		return nil
+	case HoneypotPostHoneypotTestHitReqServiceTelnet:
+		*s = HoneypotPostHoneypotTestHitReqServiceTelnet
+		return nil
+	case HoneypotPostHoneypotTestHitReqServiceMysql:
+		*s = HoneypotPostHoneypotTestHitReqServiceMysql
+		return nil
+	case HoneypotPostHoneypotTestHitReqServiceMongodb:
+		*s = HoneypotPostHoneypotTestHitReqServiceMongodb
+		return nil
+	case HoneypotPostHoneypotTestHitReqServiceRedis:
+		*s = HoneypotPostHoneypotTestHitReqServiceRedis
+		return nil
+	case HoneypotPostHoneypotTestHitReqServiceVnc:
+		*s = HoneypotPostHoneypotTestHitReqServiceVnc
+		return nil
+	case HoneypotPostHoneypotTestHitReqServiceGit:
+		*s = HoneypotPostHoneypotTestHitReqServiceGit
+		return nil
+	case HoneypotPostHoneypotTestHitReqServiceHttpproxy:
+		*s = HoneypotPostHoneypotTestHitReqServiceHttpproxy
+		return nil
+	case HoneypotPostHoneypotTestHitReqServiceTcpbanner:
+		*s = HoneypotPostHoneypotTestHitReqServiceTcpbanner
+		return nil
+	case HoneypotPostHoneypotTestHitReqServiceTftp:
+		*s = HoneypotPostHoneypotTestHitReqServiceTftp
+		return nil
+	case HoneypotPostHoneypotTestHitReqServiceNtp:
+		*s = HoneypotPostHoneypotTestHitReqServiceNtp
+		return nil
+	case HoneypotPostHoneypotTestHitReqServiceSip:
+		*s = HoneypotPostHoneypotTestHitReqServiceSip
+		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
@@ -68655,7 +69496,7 @@ type HoneypotPostHoneypotTestScanOK struct {
 	// What was touched, e.g. "SMB", "Credential token svc-backup-old", "Port scan across 5 decoy IPs".
 	Label string `json:"label"`
 	Port  NilInt `json:"port"`
-	// Set for kind=service on the classic ports; null otherwise.
+	// Set for kind=service; null otherwise.
 	Service    NilHoneypotPostHoneypotTestScanOKService `json:"service"`
 	SrcAssetID NilString                                `json:"src_asset_id"`
 	SrcIP      string                                   `json:"src_ip"`
@@ -68850,14 +69691,29 @@ func (s *HoneypotPostHoneypotTestScanOKKind) UnmarshalText(data []byte) error {
 	}
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotPostHoneypotTestScanOKService string
 
 const (
-	HoneypotPostHoneypotTestScanOKServiceSmb   HoneypotPostHoneypotTestScanOKService = "smb"
-	HoneypotPostHoneypotTestScanOKServiceRdp   HoneypotPostHoneypotTestScanOKService = "rdp"
-	HoneypotPostHoneypotTestScanOKServiceSSH   HoneypotPostHoneypotTestScanOKService = "ssh"
-	HoneypotPostHoneypotTestScanOKServiceMssql HoneypotPostHoneypotTestScanOKService = "mssql"
-	HoneypotPostHoneypotTestScanOKServiceHTTP  HoneypotPostHoneypotTestScanOKService = "http"
+	HoneypotPostHoneypotTestScanOKServiceSmb       HoneypotPostHoneypotTestScanOKService = "smb"
+	HoneypotPostHoneypotTestScanOKServiceRdp       HoneypotPostHoneypotTestScanOKService = "rdp"
+	HoneypotPostHoneypotTestScanOKServiceSSH       HoneypotPostHoneypotTestScanOKService = "ssh"
+	HoneypotPostHoneypotTestScanOKServiceMssql     HoneypotPostHoneypotTestScanOKService = "mssql"
+	HoneypotPostHoneypotTestScanOKServiceHTTP      HoneypotPostHoneypotTestScanOKService = "http"
+	HoneypotPostHoneypotTestScanOKServiceHTTPS     HoneypotPostHoneypotTestScanOKService = "https"
+	HoneypotPostHoneypotTestScanOKServiceFtp       HoneypotPostHoneypotTestScanOKService = "ftp"
+	HoneypotPostHoneypotTestScanOKServiceTelnet    HoneypotPostHoneypotTestScanOKService = "telnet"
+	HoneypotPostHoneypotTestScanOKServiceMysql     HoneypotPostHoneypotTestScanOKService = "mysql"
+	HoneypotPostHoneypotTestScanOKServiceMongodb   HoneypotPostHoneypotTestScanOKService = "mongodb"
+	HoneypotPostHoneypotTestScanOKServiceRedis     HoneypotPostHoneypotTestScanOKService = "redis"
+	HoneypotPostHoneypotTestScanOKServiceVnc       HoneypotPostHoneypotTestScanOKService = "vnc"
+	HoneypotPostHoneypotTestScanOKServiceGit       HoneypotPostHoneypotTestScanOKService = "git"
+	HoneypotPostHoneypotTestScanOKServiceHttpproxy HoneypotPostHoneypotTestScanOKService = "httpproxy"
+	HoneypotPostHoneypotTestScanOKServiceTcpbanner HoneypotPostHoneypotTestScanOKService = "tcpbanner"
+	HoneypotPostHoneypotTestScanOKServiceTftp      HoneypotPostHoneypotTestScanOKService = "tftp"
+	HoneypotPostHoneypotTestScanOKServiceNtp       HoneypotPostHoneypotTestScanOKService = "ntp"
+	HoneypotPostHoneypotTestScanOKServiceSip       HoneypotPostHoneypotTestScanOKService = "sip"
 )
 
 // AllValues returns all HoneypotPostHoneypotTestScanOKService values.
@@ -68868,6 +69724,19 @@ func (HoneypotPostHoneypotTestScanOKService) AllValues() []HoneypotPostHoneypotT
 		HoneypotPostHoneypotTestScanOKServiceSSH,
 		HoneypotPostHoneypotTestScanOKServiceMssql,
 		HoneypotPostHoneypotTestScanOKServiceHTTP,
+		HoneypotPostHoneypotTestScanOKServiceHTTPS,
+		HoneypotPostHoneypotTestScanOKServiceFtp,
+		HoneypotPostHoneypotTestScanOKServiceTelnet,
+		HoneypotPostHoneypotTestScanOKServiceMysql,
+		HoneypotPostHoneypotTestScanOKServiceMongodb,
+		HoneypotPostHoneypotTestScanOKServiceRedis,
+		HoneypotPostHoneypotTestScanOKServiceVnc,
+		HoneypotPostHoneypotTestScanOKServiceGit,
+		HoneypotPostHoneypotTestScanOKServiceHttpproxy,
+		HoneypotPostHoneypotTestScanOKServiceTcpbanner,
+		HoneypotPostHoneypotTestScanOKServiceTftp,
+		HoneypotPostHoneypotTestScanOKServiceNtp,
+		HoneypotPostHoneypotTestScanOKServiceSip,
 	}
 }
 
@@ -68883,6 +69752,32 @@ func (s HoneypotPostHoneypotTestScanOKService) MarshalText() ([]byte, error) {
 	case HoneypotPostHoneypotTestScanOKServiceMssql:
 		return []byte(s), nil
 	case HoneypotPostHoneypotTestScanOKServiceHTTP:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestScanOKServiceHTTPS:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestScanOKServiceFtp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestScanOKServiceTelnet:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestScanOKServiceMysql:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestScanOKServiceMongodb:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestScanOKServiceRedis:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestScanOKServiceVnc:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestScanOKServiceGit:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestScanOKServiceHttpproxy:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestScanOKServiceTcpbanner:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestScanOKServiceTftp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestScanOKServiceNtp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTestScanOKServiceSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -68906,6 +69801,45 @@ func (s *HoneypotPostHoneypotTestScanOKService) UnmarshalText(data []byte) error
 		return nil
 	case HoneypotPostHoneypotTestScanOKServiceHTTP:
 		*s = HoneypotPostHoneypotTestScanOKServiceHTTP
+		return nil
+	case HoneypotPostHoneypotTestScanOKServiceHTTPS:
+		*s = HoneypotPostHoneypotTestScanOKServiceHTTPS
+		return nil
+	case HoneypotPostHoneypotTestScanOKServiceFtp:
+		*s = HoneypotPostHoneypotTestScanOKServiceFtp
+		return nil
+	case HoneypotPostHoneypotTestScanOKServiceTelnet:
+		*s = HoneypotPostHoneypotTestScanOKServiceTelnet
+		return nil
+	case HoneypotPostHoneypotTestScanOKServiceMysql:
+		*s = HoneypotPostHoneypotTestScanOKServiceMysql
+		return nil
+	case HoneypotPostHoneypotTestScanOKServiceMongodb:
+		*s = HoneypotPostHoneypotTestScanOKServiceMongodb
+		return nil
+	case HoneypotPostHoneypotTestScanOKServiceRedis:
+		*s = HoneypotPostHoneypotTestScanOKServiceRedis
+		return nil
+	case HoneypotPostHoneypotTestScanOKServiceVnc:
+		*s = HoneypotPostHoneypotTestScanOKServiceVnc
+		return nil
+	case HoneypotPostHoneypotTestScanOKServiceGit:
+		*s = HoneypotPostHoneypotTestScanOKServiceGit
+		return nil
+	case HoneypotPostHoneypotTestScanOKServiceHttpproxy:
+		*s = HoneypotPostHoneypotTestScanOKServiceHttpproxy
+		return nil
+	case HoneypotPostHoneypotTestScanOKServiceTcpbanner:
+		*s = HoneypotPostHoneypotTestScanOKServiceTcpbanner
+		return nil
+	case HoneypotPostHoneypotTestScanOKServiceTftp:
+		*s = HoneypotPostHoneypotTestScanOKServiceTftp
+		return nil
+	case HoneypotPostHoneypotTestScanOKServiceNtp:
+		*s = HoneypotPostHoneypotTestScanOKServiceNtp
+		return nil
+	case HoneypotPostHoneypotTestScanOKServiceSip:
+		*s = HoneypotPostHoneypotTestScanOKServiceSip
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -69082,7 +70016,7 @@ type HoneypotPostHoneypotTokensIDTestOK struct {
 	// What was touched, e.g. "SMB", "Credential token svc-backup-old", "Port scan across 5 decoy IPs".
 	Label string `json:"label"`
 	Port  NilInt `json:"port"`
-	// Set for kind=service on the classic ports; null otherwise.
+	// Set for kind=service; null otherwise.
 	Service    NilHoneypotPostHoneypotTokensIDTestOKService `json:"service"`
 	SrcAssetID NilString                                    `json:"src_asset_id"`
 	SrcIP      string                                       `json:"src_ip"`
@@ -69277,14 +70211,29 @@ func (s *HoneypotPostHoneypotTokensIDTestOKKind) UnmarshalText(data []byte) erro
 	}
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotPostHoneypotTokensIDTestOKService string
 
 const (
-	HoneypotPostHoneypotTokensIDTestOKServiceSmb   HoneypotPostHoneypotTokensIDTestOKService = "smb"
-	HoneypotPostHoneypotTokensIDTestOKServiceRdp   HoneypotPostHoneypotTokensIDTestOKService = "rdp"
-	HoneypotPostHoneypotTokensIDTestOKServiceSSH   HoneypotPostHoneypotTokensIDTestOKService = "ssh"
-	HoneypotPostHoneypotTokensIDTestOKServiceMssql HoneypotPostHoneypotTokensIDTestOKService = "mssql"
-	HoneypotPostHoneypotTokensIDTestOKServiceHTTP  HoneypotPostHoneypotTokensIDTestOKService = "http"
+	HoneypotPostHoneypotTokensIDTestOKServiceSmb       HoneypotPostHoneypotTokensIDTestOKService = "smb"
+	HoneypotPostHoneypotTokensIDTestOKServiceRdp       HoneypotPostHoneypotTokensIDTestOKService = "rdp"
+	HoneypotPostHoneypotTokensIDTestOKServiceSSH       HoneypotPostHoneypotTokensIDTestOKService = "ssh"
+	HoneypotPostHoneypotTokensIDTestOKServiceMssql     HoneypotPostHoneypotTokensIDTestOKService = "mssql"
+	HoneypotPostHoneypotTokensIDTestOKServiceHTTP      HoneypotPostHoneypotTokensIDTestOKService = "http"
+	HoneypotPostHoneypotTokensIDTestOKServiceHTTPS     HoneypotPostHoneypotTokensIDTestOKService = "https"
+	HoneypotPostHoneypotTokensIDTestOKServiceFtp       HoneypotPostHoneypotTokensIDTestOKService = "ftp"
+	HoneypotPostHoneypotTokensIDTestOKServiceTelnet    HoneypotPostHoneypotTokensIDTestOKService = "telnet"
+	HoneypotPostHoneypotTokensIDTestOKServiceMysql     HoneypotPostHoneypotTokensIDTestOKService = "mysql"
+	HoneypotPostHoneypotTokensIDTestOKServiceMongodb   HoneypotPostHoneypotTokensIDTestOKService = "mongodb"
+	HoneypotPostHoneypotTokensIDTestOKServiceRedis     HoneypotPostHoneypotTokensIDTestOKService = "redis"
+	HoneypotPostHoneypotTokensIDTestOKServiceVnc       HoneypotPostHoneypotTokensIDTestOKService = "vnc"
+	HoneypotPostHoneypotTokensIDTestOKServiceGit       HoneypotPostHoneypotTokensIDTestOKService = "git"
+	HoneypotPostHoneypotTokensIDTestOKServiceHttpproxy HoneypotPostHoneypotTokensIDTestOKService = "httpproxy"
+	HoneypotPostHoneypotTokensIDTestOKServiceTcpbanner HoneypotPostHoneypotTokensIDTestOKService = "tcpbanner"
+	HoneypotPostHoneypotTokensIDTestOKServiceTftp      HoneypotPostHoneypotTokensIDTestOKService = "tftp"
+	HoneypotPostHoneypotTokensIDTestOKServiceNtp       HoneypotPostHoneypotTokensIDTestOKService = "ntp"
+	HoneypotPostHoneypotTokensIDTestOKServiceSip       HoneypotPostHoneypotTokensIDTestOKService = "sip"
 )
 
 // AllValues returns all HoneypotPostHoneypotTokensIDTestOKService values.
@@ -69295,6 +70244,19 @@ func (HoneypotPostHoneypotTokensIDTestOKService) AllValues() []HoneypotPostHoney
 		HoneypotPostHoneypotTokensIDTestOKServiceSSH,
 		HoneypotPostHoneypotTokensIDTestOKServiceMssql,
 		HoneypotPostHoneypotTokensIDTestOKServiceHTTP,
+		HoneypotPostHoneypotTokensIDTestOKServiceHTTPS,
+		HoneypotPostHoneypotTokensIDTestOKServiceFtp,
+		HoneypotPostHoneypotTokensIDTestOKServiceTelnet,
+		HoneypotPostHoneypotTokensIDTestOKServiceMysql,
+		HoneypotPostHoneypotTokensIDTestOKServiceMongodb,
+		HoneypotPostHoneypotTokensIDTestOKServiceRedis,
+		HoneypotPostHoneypotTokensIDTestOKServiceVnc,
+		HoneypotPostHoneypotTokensIDTestOKServiceGit,
+		HoneypotPostHoneypotTokensIDTestOKServiceHttpproxy,
+		HoneypotPostHoneypotTokensIDTestOKServiceTcpbanner,
+		HoneypotPostHoneypotTokensIDTestOKServiceTftp,
+		HoneypotPostHoneypotTokensIDTestOKServiceNtp,
+		HoneypotPostHoneypotTokensIDTestOKServiceSip,
 	}
 }
 
@@ -69310,6 +70272,32 @@ func (s HoneypotPostHoneypotTokensIDTestOKService) MarshalText() ([]byte, error)
 	case HoneypotPostHoneypotTokensIDTestOKServiceMssql:
 		return []byte(s), nil
 	case HoneypotPostHoneypotTokensIDTestOKServiceHTTP:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceHTTPS:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceFtp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceTelnet:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceMysql:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceMongodb:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceRedis:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceVnc:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceGit:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceHttpproxy:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceTcpbanner:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceTftp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceNtp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -69333,6 +70321,45 @@ func (s *HoneypotPostHoneypotTokensIDTestOKService) UnmarshalText(data []byte) e
 		return nil
 	case HoneypotPostHoneypotTokensIDTestOKServiceHTTP:
 		*s = HoneypotPostHoneypotTokensIDTestOKServiceHTTP
+		return nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceHTTPS:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceHTTPS
+		return nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceFtp:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceFtp
+		return nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceTelnet:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceTelnet
+		return nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceMysql:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceMysql
+		return nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceMongodb:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceMongodb
+		return nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceRedis:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceRedis
+		return nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceVnc:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceVnc
+		return nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceGit:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceGit
+		return nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceHttpproxy:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceHttpproxy
+		return nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceTcpbanner:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceTcpbanner
+		return nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceTftp:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceTftp
+		return nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceNtp:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceNtp
+		return nil
+	case HoneypotPostHoneypotTokensIDTestOKServiceSip:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceSip
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -69764,14 +70791,29 @@ func (s *HoneypotPostHoneypotTrapIpsCreatedAttachmentKind) UnmarshalText(data []
 	}
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem string
 
 const (
-	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSmb   HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "smb"
-	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemRdp   HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "rdp"
-	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSSH   HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "ssh"
-	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMssql HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "mssql"
-	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTP  HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "http"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSmb       HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "smb"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemRdp       HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "rdp"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSSH       HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "ssh"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMssql     HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "mssql"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTP      HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "http"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTPS     HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "https"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemFtp       HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "ftp"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTelnet    HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "telnet"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMysql     HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "mysql"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMongodb   HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "mongodb"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemRedis     HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "redis"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemVnc       HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "vnc"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemGit       HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "git"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHttpproxy HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "httpproxy"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTcpbanner HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "tcpbanner"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTftp      HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "tftp"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemNtp       HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "ntp"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSip       HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "sip"
 )
 
 // AllValues returns all HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem values.
@@ -69782,6 +70824,19 @@ func (HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem) AllValues() []Honeypot
 		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSSH,
 		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMssql,
 		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTP,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTPS,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemFtp,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTelnet,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMysql,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMongodb,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemRedis,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemVnc,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemGit,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHttpproxy,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTcpbanner,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTftp,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemNtp,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSip,
 	}
 }
 
@@ -69797,6 +70852,32 @@ func (s HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem) MarshalText() ([]byt
 	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMssql:
 		return []byte(s), nil
 	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTP:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTPS:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemFtp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTelnet:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMysql:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMongodb:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemRedis:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemVnc:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemGit:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHttpproxy:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTcpbanner:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTftp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemNtp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -69820,6 +70901,45 @@ func (s *HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem) UnmarshalText(data 
 		return nil
 	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTP:
 		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTP
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTPS:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTPS
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemFtp:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemFtp
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTelnet:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTelnet
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMysql:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMysql
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMongodb:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMongodb
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemRedis:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemRedis
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemVnc:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemVnc
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemGit:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemGit
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHttpproxy:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHttpproxy
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTcpbanner:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTcpbanner
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTftp:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTftp
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemNtp:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemNtp
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSip:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSip
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -69904,14 +71024,29 @@ func (s *HoneypotPostHoneypotTrapIpsCreatedPreset) UnmarshalText(data []byte) er
 	}
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotPostHoneypotTrapIpsCreatedServicesItem string
 
 const (
-	HoneypotPostHoneypotTrapIpsCreatedServicesItemSmb   HoneypotPostHoneypotTrapIpsCreatedServicesItem = "smb"
-	HoneypotPostHoneypotTrapIpsCreatedServicesItemRdp   HoneypotPostHoneypotTrapIpsCreatedServicesItem = "rdp"
-	HoneypotPostHoneypotTrapIpsCreatedServicesItemSSH   HoneypotPostHoneypotTrapIpsCreatedServicesItem = "ssh"
-	HoneypotPostHoneypotTrapIpsCreatedServicesItemMssql HoneypotPostHoneypotTrapIpsCreatedServicesItem = "mssql"
-	HoneypotPostHoneypotTrapIpsCreatedServicesItemHTTP  HoneypotPostHoneypotTrapIpsCreatedServicesItem = "http"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemSmb       HoneypotPostHoneypotTrapIpsCreatedServicesItem = "smb"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemRdp       HoneypotPostHoneypotTrapIpsCreatedServicesItem = "rdp"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemSSH       HoneypotPostHoneypotTrapIpsCreatedServicesItem = "ssh"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemMssql     HoneypotPostHoneypotTrapIpsCreatedServicesItem = "mssql"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemHTTP      HoneypotPostHoneypotTrapIpsCreatedServicesItem = "http"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemHTTPS     HoneypotPostHoneypotTrapIpsCreatedServicesItem = "https"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemFtp       HoneypotPostHoneypotTrapIpsCreatedServicesItem = "ftp"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemTelnet    HoneypotPostHoneypotTrapIpsCreatedServicesItem = "telnet"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemMysql     HoneypotPostHoneypotTrapIpsCreatedServicesItem = "mysql"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemMongodb   HoneypotPostHoneypotTrapIpsCreatedServicesItem = "mongodb"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemRedis     HoneypotPostHoneypotTrapIpsCreatedServicesItem = "redis"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemVnc       HoneypotPostHoneypotTrapIpsCreatedServicesItem = "vnc"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemGit       HoneypotPostHoneypotTrapIpsCreatedServicesItem = "git"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemHttpproxy HoneypotPostHoneypotTrapIpsCreatedServicesItem = "httpproxy"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemTcpbanner HoneypotPostHoneypotTrapIpsCreatedServicesItem = "tcpbanner"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemTftp      HoneypotPostHoneypotTrapIpsCreatedServicesItem = "tftp"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemNtp       HoneypotPostHoneypotTrapIpsCreatedServicesItem = "ntp"
+	HoneypotPostHoneypotTrapIpsCreatedServicesItemSip       HoneypotPostHoneypotTrapIpsCreatedServicesItem = "sip"
 )
 
 // AllValues returns all HoneypotPostHoneypotTrapIpsCreatedServicesItem values.
@@ -69922,6 +71057,19 @@ func (HoneypotPostHoneypotTrapIpsCreatedServicesItem) AllValues() []HoneypotPost
 		HoneypotPostHoneypotTrapIpsCreatedServicesItemSSH,
 		HoneypotPostHoneypotTrapIpsCreatedServicesItemMssql,
 		HoneypotPostHoneypotTrapIpsCreatedServicesItemHTTP,
+		HoneypotPostHoneypotTrapIpsCreatedServicesItemHTTPS,
+		HoneypotPostHoneypotTrapIpsCreatedServicesItemFtp,
+		HoneypotPostHoneypotTrapIpsCreatedServicesItemTelnet,
+		HoneypotPostHoneypotTrapIpsCreatedServicesItemMysql,
+		HoneypotPostHoneypotTrapIpsCreatedServicesItemMongodb,
+		HoneypotPostHoneypotTrapIpsCreatedServicesItemRedis,
+		HoneypotPostHoneypotTrapIpsCreatedServicesItemVnc,
+		HoneypotPostHoneypotTrapIpsCreatedServicesItemGit,
+		HoneypotPostHoneypotTrapIpsCreatedServicesItemHttpproxy,
+		HoneypotPostHoneypotTrapIpsCreatedServicesItemTcpbanner,
+		HoneypotPostHoneypotTrapIpsCreatedServicesItemTftp,
+		HoneypotPostHoneypotTrapIpsCreatedServicesItemNtp,
+		HoneypotPostHoneypotTrapIpsCreatedServicesItemSip,
 	}
 }
 
@@ -69937,6 +71085,32 @@ func (s HoneypotPostHoneypotTrapIpsCreatedServicesItem) MarshalText() ([]byte, e
 	case HoneypotPostHoneypotTrapIpsCreatedServicesItemMssql:
 		return []byte(s), nil
 	case HoneypotPostHoneypotTrapIpsCreatedServicesItemHTTP:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemHTTPS:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemFtp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemTelnet:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemMysql:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemMongodb:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemRedis:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemVnc:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemGit:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemHttpproxy:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemTcpbanner:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemTftp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemNtp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -69960,6 +71134,45 @@ func (s *HoneypotPostHoneypotTrapIpsCreatedServicesItem) UnmarshalText(data []by
 		return nil
 	case HoneypotPostHoneypotTrapIpsCreatedServicesItemHTTP:
 		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemHTTP
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemHTTPS:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemHTTPS
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemFtp:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemFtp
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemTelnet:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemTelnet
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemMysql:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemMysql
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemMongodb:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemMongodb
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemRedis:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemRedis
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemVnc:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemVnc
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemGit:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemGit
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemHttpproxy:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemHttpproxy
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemTcpbanner:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemTcpbanner
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemTftp:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemTftp
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemNtp:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemNtp
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemSip:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemSip
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -70288,14 +71501,29 @@ func (s *HoneypotPostHoneypotTrapIpsReqPreset) UnmarshalText(data []byte) error 
 	}
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotPostHoneypotTrapIpsReqServicesItem string
 
 const (
-	HoneypotPostHoneypotTrapIpsReqServicesItemSmb   HoneypotPostHoneypotTrapIpsReqServicesItem = "smb"
-	HoneypotPostHoneypotTrapIpsReqServicesItemRdp   HoneypotPostHoneypotTrapIpsReqServicesItem = "rdp"
-	HoneypotPostHoneypotTrapIpsReqServicesItemSSH   HoneypotPostHoneypotTrapIpsReqServicesItem = "ssh"
-	HoneypotPostHoneypotTrapIpsReqServicesItemMssql HoneypotPostHoneypotTrapIpsReqServicesItem = "mssql"
-	HoneypotPostHoneypotTrapIpsReqServicesItemHTTP  HoneypotPostHoneypotTrapIpsReqServicesItem = "http"
+	HoneypotPostHoneypotTrapIpsReqServicesItemSmb       HoneypotPostHoneypotTrapIpsReqServicesItem = "smb"
+	HoneypotPostHoneypotTrapIpsReqServicesItemRdp       HoneypotPostHoneypotTrapIpsReqServicesItem = "rdp"
+	HoneypotPostHoneypotTrapIpsReqServicesItemSSH       HoneypotPostHoneypotTrapIpsReqServicesItem = "ssh"
+	HoneypotPostHoneypotTrapIpsReqServicesItemMssql     HoneypotPostHoneypotTrapIpsReqServicesItem = "mssql"
+	HoneypotPostHoneypotTrapIpsReqServicesItemHTTP      HoneypotPostHoneypotTrapIpsReqServicesItem = "http"
+	HoneypotPostHoneypotTrapIpsReqServicesItemHTTPS     HoneypotPostHoneypotTrapIpsReqServicesItem = "https"
+	HoneypotPostHoneypotTrapIpsReqServicesItemFtp       HoneypotPostHoneypotTrapIpsReqServicesItem = "ftp"
+	HoneypotPostHoneypotTrapIpsReqServicesItemTelnet    HoneypotPostHoneypotTrapIpsReqServicesItem = "telnet"
+	HoneypotPostHoneypotTrapIpsReqServicesItemMysql     HoneypotPostHoneypotTrapIpsReqServicesItem = "mysql"
+	HoneypotPostHoneypotTrapIpsReqServicesItemMongodb   HoneypotPostHoneypotTrapIpsReqServicesItem = "mongodb"
+	HoneypotPostHoneypotTrapIpsReqServicesItemRedis     HoneypotPostHoneypotTrapIpsReqServicesItem = "redis"
+	HoneypotPostHoneypotTrapIpsReqServicesItemVnc       HoneypotPostHoneypotTrapIpsReqServicesItem = "vnc"
+	HoneypotPostHoneypotTrapIpsReqServicesItemGit       HoneypotPostHoneypotTrapIpsReqServicesItem = "git"
+	HoneypotPostHoneypotTrapIpsReqServicesItemHttpproxy HoneypotPostHoneypotTrapIpsReqServicesItem = "httpproxy"
+	HoneypotPostHoneypotTrapIpsReqServicesItemTcpbanner HoneypotPostHoneypotTrapIpsReqServicesItem = "tcpbanner"
+	HoneypotPostHoneypotTrapIpsReqServicesItemTftp      HoneypotPostHoneypotTrapIpsReqServicesItem = "tftp"
+	HoneypotPostHoneypotTrapIpsReqServicesItemNtp       HoneypotPostHoneypotTrapIpsReqServicesItem = "ntp"
+	HoneypotPostHoneypotTrapIpsReqServicesItemSip       HoneypotPostHoneypotTrapIpsReqServicesItem = "sip"
 )
 
 // AllValues returns all HoneypotPostHoneypotTrapIpsReqServicesItem values.
@@ -70306,6 +71534,19 @@ func (HoneypotPostHoneypotTrapIpsReqServicesItem) AllValues() []HoneypotPostHone
 		HoneypotPostHoneypotTrapIpsReqServicesItemSSH,
 		HoneypotPostHoneypotTrapIpsReqServicesItemMssql,
 		HoneypotPostHoneypotTrapIpsReqServicesItemHTTP,
+		HoneypotPostHoneypotTrapIpsReqServicesItemHTTPS,
+		HoneypotPostHoneypotTrapIpsReqServicesItemFtp,
+		HoneypotPostHoneypotTrapIpsReqServicesItemTelnet,
+		HoneypotPostHoneypotTrapIpsReqServicesItemMysql,
+		HoneypotPostHoneypotTrapIpsReqServicesItemMongodb,
+		HoneypotPostHoneypotTrapIpsReqServicesItemRedis,
+		HoneypotPostHoneypotTrapIpsReqServicesItemVnc,
+		HoneypotPostHoneypotTrapIpsReqServicesItemGit,
+		HoneypotPostHoneypotTrapIpsReqServicesItemHttpproxy,
+		HoneypotPostHoneypotTrapIpsReqServicesItemTcpbanner,
+		HoneypotPostHoneypotTrapIpsReqServicesItemTftp,
+		HoneypotPostHoneypotTrapIpsReqServicesItemNtp,
+		HoneypotPostHoneypotTrapIpsReqServicesItemSip,
 	}
 }
 
@@ -70321,6 +71562,32 @@ func (s HoneypotPostHoneypotTrapIpsReqServicesItem) MarshalText() ([]byte, error
 	case HoneypotPostHoneypotTrapIpsReqServicesItemMssql:
 		return []byte(s), nil
 	case HoneypotPostHoneypotTrapIpsReqServicesItemHTTP:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemHTTPS:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemFtp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemTelnet:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemMysql:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemMongodb:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemRedis:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemVnc:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemGit:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemHttpproxy:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemTcpbanner:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemTftp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemNtp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -70344,6 +71611,45 @@ func (s *HoneypotPostHoneypotTrapIpsReqServicesItem) UnmarshalText(data []byte) 
 		return nil
 	case HoneypotPostHoneypotTrapIpsReqServicesItemHTTP:
 		*s = HoneypotPostHoneypotTrapIpsReqServicesItemHTTP
+		return nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemHTTPS:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemHTTPS
+		return nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemFtp:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemFtp
+		return nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemTelnet:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemTelnet
+		return nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemMysql:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemMysql
+		return nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemMongodb:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemMongodb
+		return nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemRedis:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemRedis
+		return nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemVnc:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemVnc
+		return nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemGit:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemGit
+		return nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemHttpproxy:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemHttpproxy
+		return nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemTcpbanner:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemTcpbanner
+		return nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemTftp:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemTftp
+		return nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemNtp:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemNtp
+		return nil
+	case HoneypotPostHoneypotTrapIpsReqServicesItemSip:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemSip
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -70745,14 +72051,29 @@ func (s *HoneypotPutHoneypotTrapIpsIDOKAttachmentKind) UnmarshalText(data []byte
 	}
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem string
 
 const (
-	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSmb   HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "smb"
-	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemRdp   HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "rdp"
-	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSSH   HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "ssh"
-	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMssql HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "mssql"
-	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTP  HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "http"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSmb       HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "smb"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemRdp       HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "rdp"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSSH       HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "ssh"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMssql     HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "mssql"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTP      HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "http"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTPS     HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "https"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemFtp       HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "ftp"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTelnet    HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "telnet"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMysql     HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "mysql"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMongodb   HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "mongodb"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemRedis     HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "redis"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemVnc       HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "vnc"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemGit       HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "git"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHttpproxy HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "httpproxy"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTcpbanner HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "tcpbanner"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTftp      HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "tftp"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemNtp       HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "ntp"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSip       HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "sip"
 )
 
 // AllValues returns all HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem values.
@@ -70763,6 +72084,19 @@ func (HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem) AllValues() []HoneypotPutH
 		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSSH,
 		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMssql,
 		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTP,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTPS,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemFtp,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTelnet,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMysql,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMongodb,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemRedis,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemVnc,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemGit,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHttpproxy,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTcpbanner,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTftp,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemNtp,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSip,
 	}
 }
 
@@ -70778,6 +72112,32 @@ func (s HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem) MarshalText() ([]byte, e
 	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMssql:
 		return []byte(s), nil
 	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTP:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTPS:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemFtp:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTelnet:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMysql:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMongodb:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemRedis:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemVnc:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemGit:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHttpproxy:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTcpbanner:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTftp:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemNtp:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -70801,6 +72161,45 @@ func (s *HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem) UnmarshalText(data []by
 		return nil
 	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTP:
 		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTP
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTPS:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTPS
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemFtp:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemFtp
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTelnet:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTelnet
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMysql:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMysql
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMongodb:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMongodb
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemRedis:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemRedis
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemVnc:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemVnc
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemGit:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemGit
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHttpproxy:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHttpproxy
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTcpbanner:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTcpbanner
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTftp:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTftp
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemNtp:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemNtp
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSip:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSip
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -70885,14 +72284,29 @@ func (s *HoneypotPutHoneypotTrapIpsIDOKPreset) UnmarshalText(data []byte) error 
 	}
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotPutHoneypotTrapIpsIDOKServicesItem string
 
 const (
-	HoneypotPutHoneypotTrapIpsIDOKServicesItemSmb   HoneypotPutHoneypotTrapIpsIDOKServicesItem = "smb"
-	HoneypotPutHoneypotTrapIpsIDOKServicesItemRdp   HoneypotPutHoneypotTrapIpsIDOKServicesItem = "rdp"
-	HoneypotPutHoneypotTrapIpsIDOKServicesItemSSH   HoneypotPutHoneypotTrapIpsIDOKServicesItem = "ssh"
-	HoneypotPutHoneypotTrapIpsIDOKServicesItemMssql HoneypotPutHoneypotTrapIpsIDOKServicesItem = "mssql"
-	HoneypotPutHoneypotTrapIpsIDOKServicesItemHTTP  HoneypotPutHoneypotTrapIpsIDOKServicesItem = "http"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemSmb       HoneypotPutHoneypotTrapIpsIDOKServicesItem = "smb"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemRdp       HoneypotPutHoneypotTrapIpsIDOKServicesItem = "rdp"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemSSH       HoneypotPutHoneypotTrapIpsIDOKServicesItem = "ssh"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemMssql     HoneypotPutHoneypotTrapIpsIDOKServicesItem = "mssql"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemHTTP      HoneypotPutHoneypotTrapIpsIDOKServicesItem = "http"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemHTTPS     HoneypotPutHoneypotTrapIpsIDOKServicesItem = "https"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemFtp       HoneypotPutHoneypotTrapIpsIDOKServicesItem = "ftp"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemTelnet    HoneypotPutHoneypotTrapIpsIDOKServicesItem = "telnet"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemMysql     HoneypotPutHoneypotTrapIpsIDOKServicesItem = "mysql"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemMongodb   HoneypotPutHoneypotTrapIpsIDOKServicesItem = "mongodb"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemRedis     HoneypotPutHoneypotTrapIpsIDOKServicesItem = "redis"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemVnc       HoneypotPutHoneypotTrapIpsIDOKServicesItem = "vnc"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemGit       HoneypotPutHoneypotTrapIpsIDOKServicesItem = "git"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemHttpproxy HoneypotPutHoneypotTrapIpsIDOKServicesItem = "httpproxy"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemTcpbanner HoneypotPutHoneypotTrapIpsIDOKServicesItem = "tcpbanner"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemTftp      HoneypotPutHoneypotTrapIpsIDOKServicesItem = "tftp"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemNtp       HoneypotPutHoneypotTrapIpsIDOKServicesItem = "ntp"
+	HoneypotPutHoneypotTrapIpsIDOKServicesItemSip       HoneypotPutHoneypotTrapIpsIDOKServicesItem = "sip"
 )
 
 // AllValues returns all HoneypotPutHoneypotTrapIpsIDOKServicesItem values.
@@ -70903,6 +72317,19 @@ func (HoneypotPutHoneypotTrapIpsIDOKServicesItem) AllValues() []HoneypotPutHoney
 		HoneypotPutHoneypotTrapIpsIDOKServicesItemSSH,
 		HoneypotPutHoneypotTrapIpsIDOKServicesItemMssql,
 		HoneypotPutHoneypotTrapIpsIDOKServicesItemHTTP,
+		HoneypotPutHoneypotTrapIpsIDOKServicesItemHTTPS,
+		HoneypotPutHoneypotTrapIpsIDOKServicesItemFtp,
+		HoneypotPutHoneypotTrapIpsIDOKServicesItemTelnet,
+		HoneypotPutHoneypotTrapIpsIDOKServicesItemMysql,
+		HoneypotPutHoneypotTrapIpsIDOKServicesItemMongodb,
+		HoneypotPutHoneypotTrapIpsIDOKServicesItemRedis,
+		HoneypotPutHoneypotTrapIpsIDOKServicesItemVnc,
+		HoneypotPutHoneypotTrapIpsIDOKServicesItemGit,
+		HoneypotPutHoneypotTrapIpsIDOKServicesItemHttpproxy,
+		HoneypotPutHoneypotTrapIpsIDOKServicesItemTcpbanner,
+		HoneypotPutHoneypotTrapIpsIDOKServicesItemTftp,
+		HoneypotPutHoneypotTrapIpsIDOKServicesItemNtp,
+		HoneypotPutHoneypotTrapIpsIDOKServicesItemSip,
 	}
 }
 
@@ -70918,6 +72345,32 @@ func (s HoneypotPutHoneypotTrapIpsIDOKServicesItem) MarshalText() ([]byte, error
 	case HoneypotPutHoneypotTrapIpsIDOKServicesItemMssql:
 		return []byte(s), nil
 	case HoneypotPutHoneypotTrapIpsIDOKServicesItemHTTP:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemHTTPS:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemFtp:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemTelnet:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemMysql:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemMongodb:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemRedis:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemVnc:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemGit:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemHttpproxy:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemTcpbanner:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemTftp:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemNtp:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -70941,6 +72394,45 @@ func (s *HoneypotPutHoneypotTrapIpsIDOKServicesItem) UnmarshalText(data []byte) 
 		return nil
 	case HoneypotPutHoneypotTrapIpsIDOKServicesItemHTTP:
 		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemHTTP
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemHTTPS:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemHTTPS
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemFtp:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemFtp
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemTelnet:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemTelnet
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemMysql:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemMysql
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemMongodb:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemMongodb
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemRedis:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemRedis
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemVnc:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemVnc
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemGit:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemGit
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemHttpproxy:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemHttpproxy
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemTcpbanner:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemTcpbanner
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemTftp:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemTftp
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemNtp:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemNtp
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemSip:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemSip
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -71269,14 +72761,29 @@ func (s *HoneypotPutHoneypotTrapIpsIDReqPreset) UnmarshalText(data []byte) error
 	}
 }
 
+// A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and
+// never answer, they only log.
 type HoneypotPutHoneypotTrapIpsIDReqServicesItem string
 
 const (
-	HoneypotPutHoneypotTrapIpsIDReqServicesItemSmb   HoneypotPutHoneypotTrapIpsIDReqServicesItem = "smb"
-	HoneypotPutHoneypotTrapIpsIDReqServicesItemRdp   HoneypotPutHoneypotTrapIpsIDReqServicesItem = "rdp"
-	HoneypotPutHoneypotTrapIpsIDReqServicesItemSSH   HoneypotPutHoneypotTrapIpsIDReqServicesItem = "ssh"
-	HoneypotPutHoneypotTrapIpsIDReqServicesItemMssql HoneypotPutHoneypotTrapIpsIDReqServicesItem = "mssql"
-	HoneypotPutHoneypotTrapIpsIDReqServicesItemHTTP  HoneypotPutHoneypotTrapIpsIDReqServicesItem = "http"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemSmb       HoneypotPutHoneypotTrapIpsIDReqServicesItem = "smb"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemRdp       HoneypotPutHoneypotTrapIpsIDReqServicesItem = "rdp"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemSSH       HoneypotPutHoneypotTrapIpsIDReqServicesItem = "ssh"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemMssql     HoneypotPutHoneypotTrapIpsIDReqServicesItem = "mssql"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemHTTP      HoneypotPutHoneypotTrapIpsIDReqServicesItem = "http"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemHTTPS     HoneypotPutHoneypotTrapIpsIDReqServicesItem = "https"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemFtp       HoneypotPutHoneypotTrapIpsIDReqServicesItem = "ftp"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemTelnet    HoneypotPutHoneypotTrapIpsIDReqServicesItem = "telnet"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemMysql     HoneypotPutHoneypotTrapIpsIDReqServicesItem = "mysql"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemMongodb   HoneypotPutHoneypotTrapIpsIDReqServicesItem = "mongodb"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemRedis     HoneypotPutHoneypotTrapIpsIDReqServicesItem = "redis"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemVnc       HoneypotPutHoneypotTrapIpsIDReqServicesItem = "vnc"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemGit       HoneypotPutHoneypotTrapIpsIDReqServicesItem = "git"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemHttpproxy HoneypotPutHoneypotTrapIpsIDReqServicesItem = "httpproxy"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemTcpbanner HoneypotPutHoneypotTrapIpsIDReqServicesItem = "tcpbanner"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemTftp      HoneypotPutHoneypotTrapIpsIDReqServicesItem = "tftp"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemNtp       HoneypotPutHoneypotTrapIpsIDReqServicesItem = "ntp"
+	HoneypotPutHoneypotTrapIpsIDReqServicesItemSip       HoneypotPutHoneypotTrapIpsIDReqServicesItem = "sip"
 )
 
 // AllValues returns all HoneypotPutHoneypotTrapIpsIDReqServicesItem values.
@@ -71287,6 +72794,19 @@ func (HoneypotPutHoneypotTrapIpsIDReqServicesItem) AllValues() []HoneypotPutHone
 		HoneypotPutHoneypotTrapIpsIDReqServicesItemSSH,
 		HoneypotPutHoneypotTrapIpsIDReqServicesItemMssql,
 		HoneypotPutHoneypotTrapIpsIDReqServicesItemHTTP,
+		HoneypotPutHoneypotTrapIpsIDReqServicesItemHTTPS,
+		HoneypotPutHoneypotTrapIpsIDReqServicesItemFtp,
+		HoneypotPutHoneypotTrapIpsIDReqServicesItemTelnet,
+		HoneypotPutHoneypotTrapIpsIDReqServicesItemMysql,
+		HoneypotPutHoneypotTrapIpsIDReqServicesItemMongodb,
+		HoneypotPutHoneypotTrapIpsIDReqServicesItemRedis,
+		HoneypotPutHoneypotTrapIpsIDReqServicesItemVnc,
+		HoneypotPutHoneypotTrapIpsIDReqServicesItemGit,
+		HoneypotPutHoneypotTrapIpsIDReqServicesItemHttpproxy,
+		HoneypotPutHoneypotTrapIpsIDReqServicesItemTcpbanner,
+		HoneypotPutHoneypotTrapIpsIDReqServicesItemTftp,
+		HoneypotPutHoneypotTrapIpsIDReqServicesItemNtp,
+		HoneypotPutHoneypotTrapIpsIDReqServicesItemSip,
 	}
 }
 
@@ -71302,6 +72822,32 @@ func (s HoneypotPutHoneypotTrapIpsIDReqServicesItem) MarshalText() ([]byte, erro
 	case HoneypotPutHoneypotTrapIpsIDReqServicesItemMssql:
 		return []byte(s), nil
 	case HoneypotPutHoneypotTrapIpsIDReqServicesItemHTTP:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemHTTPS:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemFtp:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemTelnet:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemMysql:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemMongodb:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemRedis:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemVnc:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemGit:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemHttpproxy:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemTcpbanner:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemTftp:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemNtp:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemSip:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -71325,6 +72871,45 @@ func (s *HoneypotPutHoneypotTrapIpsIDReqServicesItem) UnmarshalText(data []byte)
 		return nil
 	case HoneypotPutHoneypotTrapIpsIDReqServicesItemHTTP:
 		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemHTTP
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemHTTPS:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemHTTPS
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemFtp:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemFtp
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemTelnet:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemTelnet
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemMysql:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemMysql
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemMongodb:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemMongodb
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemRedis:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemRedis
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemVnc:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemVnc
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemGit:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemGit
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemHttpproxy:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemHttpproxy
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemTcpbanner:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemTcpbanner
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemTftp:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemTftp
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemNtp:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemNtp
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemSip:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemSip
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

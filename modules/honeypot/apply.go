@@ -279,9 +279,9 @@ func (w *world) trapIPAt(ip netip.Addr) *trapIPRow {
 	return nil
 }
 
-// writeFiles renders opencanary.conf and honeytokens.json and writes the ones that differ from what this process wrote
-// last. Nothing in ConfigDir is ever read: the container could have left anything there (it mounts the folder read-only
-// in the real setup, this is the second line of defence).
+// writeFiles renders opencanary.conf and honeytokens.json (and, while a Trap IP has HTTPS, the trap's certificate and key) and
+// writes the ones that differ from what this process wrote last. Nothing in ConfigDir is ever read: the container could have left
+// anything there (it mounts the folder read-only in the real setup, this is the second line of defence).
 func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceName) error {
 	toks, err := s.loadTokens(ctx, s.db.Reader())
 	if err != nil {
@@ -293,9 +293,11 @@ func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceNa
 			files = append(files, t.Value)
 		}
 	}
-	// One login page and one share name for the whole box (D-466 (4)): the oldest Trap IP handed to the host decides each.
+	// One login page and one share name for the whole box (D-466 (4)): the oldest Trap IP handed to the host decides each; so
+	// for every service's banner (D-467).
 	smb, http := w.boxWide()
-	conf, err := RenderConfig(ConfigInput{Enabled: services, LogPath: filepath.Join(s.cfg.LogDir, defaultLogFile), NASDecoy: http != nil && http.Preset == NAS})
+	looks := w.looks()
+	conf, err := RenderConfig(ConfigInput{Enabled: services, LogPath: filepath.Join(s.cfg.LogDir, defaultLogFile), NASDecoy: http != nil && http.Preset == NAS, Looks: looks})
 	if err != nil {
 		return err
 	}
@@ -307,10 +309,19 @@ func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceNa
 	if err != nil {
 		return err
 	}
-	for _, f := range []struct {
+	type file struct {
 		name string
 		data []byte
-	}{{ConfFile, conf}, {TokensFile, tok}} {
+	}
+	out := []file{{ConfFile, conf}, {TokensFile, tok}}
+	if slices.Contains(services, HTTPS) { // the key is written first: the certificate names it, and the container needs both
+		cert, key, err := s.httpsFiles(ctx, looks[HTTPS])
+		if err != nil {
+			return err
+		}
+		out = []file{{CertKeyFile, key}, {CertFile, cert}, {ConfFile, conf}, {TokensFile, tok}}
+	}
+	for _, f := range out {
 		sum := sha256.Sum256(f.data)
 		if old, ok := s.written[f.name]; ok && old == sum {
 			continue
@@ -613,7 +624,7 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, specs map[neti
 			return
 		}
 		wctx := context.WithoutCancel(ctx)
-		if err := s.db.Write(wctx, func(tx *sql.Tx) error { return s.saveJSON(wctx, tx, "applied", now, "system") }); err != nil {
+		if err := s.db.Write(wctx, func(tx *sql.Tx) error { return s.saveJSON(wctx, tx, "applied", now) }); err != nil {
 			errs = append(errs, err)
 			return
 		}

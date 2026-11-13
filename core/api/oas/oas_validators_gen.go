@@ -36236,6 +36236,32 @@ func (s HoneypotGetHoneypotHitsIDOKService) Validate() error {
 		return nil
 	case "http":
 		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -36374,6 +36400,32 @@ func (s HoneypotGetHoneypotHitsOKItemsItemService) Validate() error {
 	case "mssql":
 		return nil
 	case "http":
+		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -36740,6 +36792,32 @@ func (s HoneypotGetHoneypotOKTrapsItemService) Validate() error {
 	case "mssql":
 		return nil
 	case "http":
+		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -37113,6 +37191,32 @@ func (s HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem) Validate() error 
 		return nil
 	case "http":
 		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -37150,6 +37254,32 @@ func (s HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem) Validate() error {
 	case "mssql":
 		return nil
 	case "http":
+		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -37452,6 +37582,32 @@ func (s HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem) Validate() error {
 		return nil
 	case "http":
 		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -37489,6 +37645,32 @@ func (s HoneypotPatchHoneypotTrapIpsIDOKServicesItem) Validate() error {
 	case "mssql":
 		return nil
 	case "http":
+		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -37639,6 +37821,32 @@ func (s HoneypotPostHoneypotTestHitOKService) Validate() error {
 		return nil
 	case "http":
 		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -37678,6 +37886,32 @@ func (s HoneypotPostHoneypotTestHitReqService) Validate() error {
 	case "mssql":
 		return nil
 	case "http":
+		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -37777,6 +38011,32 @@ func (s HoneypotPostHoneypotTestScanOKService) Validate() error {
 	case "mssql":
 		return nil
 	case "http":
+		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -37935,6 +38195,32 @@ func (s HoneypotPostHoneypotTokensIDTestOKService) Validate() error {
 	case "mssql":
 		return nil
 	case "http":
+		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -38178,6 +38464,32 @@ func (s HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem) Validate() error {
 		return nil
 	case "http":
 		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -38215,6 +38527,32 @@ func (s HoneypotPostHoneypotTrapIpsCreatedServicesItem) Validate() error {
 	case "mssql":
 		return nil
 	case "http":
+		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -38372,6 +38710,32 @@ func (s HoneypotPostHoneypotTrapIpsReqServicesItem) Validate() error {
 	case "mssql":
 		return nil
 	case "http":
+		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -38579,6 +38943,32 @@ func (s HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem) Validate() error {
 		return nil
 	case "http":
 		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -38616,6 +39006,32 @@ func (s HoneypotPutHoneypotTrapIpsIDOKServicesItem) Validate() error {
 	case "mssql":
 		return nil
 	case "http":
+		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -38773,6 +39189,32 @@ func (s HoneypotPutHoneypotTrapIpsIDReqServicesItem) Validate() error {
 	case "mssql":
 		return nil
 	case "http":
+		return nil
+	case "https":
+		return nil
+	case "ftp":
+		return nil
+	case "telnet":
+		return nil
+	case "mysql":
+		return nil
+	case "mongodb":
+		return nil
+	case "redis":
+		return nil
+	case "vnc":
+		return nil
+	case "git":
+		return nil
+	case "httpproxy":
+		return nil
+	case "tcpbanner":
+		return nil
+	case "tftp":
+		return nil
+	case "ntp":
+		return nil
+	case "sip":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

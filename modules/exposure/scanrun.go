@@ -118,7 +118,11 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 		}
 	}()
 	s.setPhase(run, PhaseProbing)
-	content, err := r.Scan(ctx, ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user})
+	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user}
+	content, err := r.Scan(ctx, st)
+	if err == nil {
+		content, err = s.identify(ctx, st, content) // INV-19: service identification of the box's own IP, and what was checked
+	}
 	if err == nil && ctx.Err() != nil { // stopped just as it finished: nothing is stored
 		err = context.Cause(ctx)
 	}
@@ -139,7 +143,8 @@ func (s *Service) saveScan(ctx context.Context, user string, t Target, content C
 	if t.Kind == KindIP {
 		extra = t.Value
 	}
-	snap := Snapshot{ID: store.NewID("sn"), Date: at.In(s.cfg.Location).Format(dayFormat), ScannedAt: store.FormatTS(at), Content: content, Counts: countsOf(content, extra, at)}
+	snap := Snapshot{ID: store.NewID("sn"), Date: at.In(s.cfg.Location).Format(dayFormat), ScannedAt: store.FormatTS(at), Content: content, Counts: countsOf(content, extra, at),
+		Vulns: []VulnRow{}, VersionGaps: []GapRow{}} // computed when read (INV-20); never null in an answer
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
 	defer cancel()
 	err := s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {

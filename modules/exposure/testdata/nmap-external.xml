@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- hand-written fixture shaped after nmap 7.94 -sV output for the external shape of the exposure plan (§1.3) on a documentation
+     address (RFC 5737); no live network was scanned. 18443 is a router forward to httpd:2.4.49 on the LAN (the N100 acceptance), 443
+     is nginx that hides its version (server_tokens off), 8443 accepted the connection and closed it (tcpwrapped). -->
+<nmaprun scanner="nmap" args="nmap --privileged -sS -sV -Pn -n --max-rate 100 --max-retries 2 -p 443,8443,18443 --host-timeout 10m -oX - 203.0.113.10" start="1794600000" version="7.94" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="3" services="443,8443,18443"/>
+<host starttime="1794600001" endtime="1794600042"><status state="up" reason="user-set" reason_ttl="0"/>
+<address addr="203.0.113.10" addrtype="ipv4"/>
+<ports>
+<port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="http" product="nginx" tunnel="ssl" method="probed" conf="10"><cpe>cpe:/a:igor_sysoev:nginx</cpe></service></port>
+<port protocol="tcp" portid="8443"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="tcpwrapped" method="probed" conf="8"/></port>
+<port protocol="tcp" portid="18443"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="http" product="Apache httpd" version="2.4.49" extrainfo="(Unix)" method="probed" conf="10"><cpe>cpe:/a:apache:http_server:2.4.49</cpe></service></port>
+</ports>
+</host>
+<runstats><finished time="1794600043" elapsed="42.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

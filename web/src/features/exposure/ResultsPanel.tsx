@@ -9,6 +9,8 @@ import { Field, Select } from '@/components/ui/input'
 import { dateText } from './dates'
 import { riskOf } from './services'
 import { useDiff, useSnapshot, useSnapshots } from './api'
+import { ChecksSection, VulnSection } from './ServicesPanel'
+import { VERSION_NOT_READ } from './contract'
 import { CERT_WARN_DAYS, type AdminRow, type CertRow, type DiffItem, type DiffChange, type HostRow, type PortRow, type Snapshot, type Target } from './types'
 
 const daysLeft = (iso: string) => Math.ceil((new Date(iso).getTime() - Date.now()) / 864e5)
@@ -99,6 +101,8 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
       <Section title={t('cert.title')} description={t('cert.description', { days: CERT_WARN_DAYS })}>
         <DataTable caption={t('cert.caption')} data={s.certs} columns={certCols} pageSize={20} initialSort={[{ id: 'expires', desc: false }]} empty={t('cert.empty')} />
       </Section>
+      {target.kind === 'ip' ? <VulnSection s={s} /> : null}
+      <ChecksSection s={s} />
     </div>
   )
 }
@@ -119,7 +123,12 @@ function Compare({ target, dates, label }: { target: Target; dates: string[]; la
     { id: 'change', header: t('diff.col.change'), accessorFn: (r) => r.change, cell: ({ row }) => <Chip tone={row.original.change === 'added' ? 'warn' : 'off'}>{t(`diff.change.${row.original.change}`)}</Chip> },
     { id: 'kind', header: t('diff.col.kind'), accessorFn: (r) => t(`diff.kind.${r.item.kind}`) },
     { id: 'label', header: t('diff.col.item'), accessorFn: (r) => r.item.label },
-    { id: 'detail', header: t('diff.col.detail'), accessorFn: (r) => r.item.detail, cell: ({ row }) => row.original.change === 'changed' ? t('diff.certChanged', { from: dateText(row.original.from), to: dateText(row.original.to) }) : row.original.item.detail },
+    { id: 'detail', header: t('diff.col.detail'), accessorFn: (r) => r.item.detail, cell: ({ row }) => {
+      const r = row.original
+      if (r.change !== 'changed') return r.item.detail
+      if (r.item.kind === 'service') return r.to === VERSION_NOT_READ ? t('diff.versionNotRead', { from: r.from }) : t('diff.serviceChanged', { from: r.from, to: r.to })
+      return t('diff.certChanged', { from: dateText(r.from), to: dateText(r.to) })
+    } },
   ]
   const rows: Row[] = diff.data ? [
     ...diff.data.added.map((item): Row => ({ change: 'added', item })),
@@ -139,7 +148,7 @@ function Compare({ target, dates, label }: { target: Target; dates: string[]; la
             : diff.isPending ? <Loading /> : diff.error ? <ErrorState error={diff.error} onRetry={() => void diff.refetch()} /> : diff.data ? (
               <>
                 <p role="status" className="text-sm font-medium">{t('diff.summary', { added: diff.data.added.length, removed: diff.data.removed.length, changed: diff.data.changed.length, from: label[diff.data.from] ?? diff.data.from, to: label[diff.data.to] ?? diff.data.to })}</p>
-                <DataTable caption={t('diff.caption')} data={rows} columns={columns} pageSize={30} rowTone={(r) => (r.change === 'added' && (r.item.kind === 'admin' || r.item.kind === 'port') ? 'warn' : undefined)} empty={t('diff.none')} />
+                <DataTable caption={t('diff.caption')} data={rows} columns={columns} pageSize={30} rowTone={(r) => (r.change === 'added' && (r.item.kind === 'admin' || r.item.kind === 'port' || r.item.kind === 'vuln') ? 'warn' : undefined)} empty={t('diff.none')} />
               </>
             ) : null}
         </div>

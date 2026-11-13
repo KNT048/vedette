@@ -234,14 +234,17 @@ func setCommitment(ctx context.Context, tx *sql.Tx, id, by string, at time.Time,
 
 // ---- snapshots ----
 
-func snapshotDocs(c Content, counts Counts) (hosts, ports, admin, certs, cnt string, err error) {
-	var docs [5][]byte
-	for i, v := range []any{nz(c.Hosts), nz(c.Ports), nz(c.AdminPanels), nz(c.Certs), counts} {
-		if docs[i], err = json.Marshal(v); err != nil {
-			return "", "", "", "", "", fmt.Errorf("encoding snapshot: %w", err)
+// snapshotDocs encodes the JSON columns of a snapshot, in the order of the INSERT of upsertSnapshot.
+func snapshotDocs(c Content, counts Counts) ([8]string, error) {
+	var docs [8]string
+	for i, v := range []any{nz(c.Hosts), nz(c.Ports), nz(c.AdminPanels), nz(c.Certs), counts, nz(c.Services), nz(c.Checks), nz(c.NotChecked)} {
+		b, err := json.Marshal(v)
+		if err != nil {
+			return docs, fmt.Errorf("encoding snapshot: %w", err)
 		}
+		docs[i] = string(b)
 	}
-	return string(docs[0]), string(docs[1]), string(docs[2]), string(docs[3]), string(docs[4]), nil
+	return docs, nil
 }
 
 // nz makes a nil slice encode as [] and not as null.
@@ -254,15 +257,16 @@ func nz[T any](s []T) []T {
 
 // upsertSnapshot stores the result of a scan; a second scan on the same day replaces the first (INV-8).
 func upsertSnapshot(ctx context.Context, tx *sql.Tx, targetID string, snap Snapshot) error {
-	hosts, ports, admin, certs, counts, err := snapshotDocs(snap.Content, snap.Counts)
+	d, err := snapshotDocs(snap.Content, snap.Counts)
 	if err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM exp_snapshot WHERE target_id = ? AND date = ?`, targetID, snap.Date); err != nil {
 		return fmt.Errorf("replacing snapshot: %w", err)
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO exp_snapshot (id, target_id, date, scanned_at, hosts, ports, admin_panels, certs, counts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		snap.ID, targetID, snap.Date, snap.ScannedAt, hosts, ports, admin, certs, counts)
+	_, err = tx.ExecContext(ctx, `INSERT INTO exp_snapshot (id, target_id, date, scanned_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		snap.ID, targetID, snap.Date, snap.ScannedAt, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7])
 	if err != nil {
 		return fmt.Errorf("inserting snapshot: %w", err)
 	}
@@ -296,9 +300,9 @@ func listSnapshotMetas(ctx context.Context, q querier, targetID string) ([]Snaps
 // loadSnapshot returns the snapshot of one day, or ok=false when there is none.
 func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapshot, bool, error) {
 	var s Snapshot
-	var hosts, ports, admin, certs, counts string
-	err := q.QueryRowContext(ctx, `SELECT id, date, scanned_at, hosts, ports, admin_panels, certs, counts FROM exp_snapshot WHERE target_id = ? AND date = ?`, targetID, date).
-		Scan(&s.ID, &s.Date, &s.ScannedAt, &hosts, &ports, &admin, &certs, &counts)
+	var hosts, ports, admin, certs, counts, services, checks, notChecked string
+	err := q.QueryRowContext(ctx, `SELECT id, date, scanned_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked FROM exp_snapshot WHERE target_id = ? AND date = ?`, targetID, date).
+		Scan(&s.ID, &s.Date, &s.ScannedAt, &hosts, &ports, &admin, &certs, &counts, &services, &checks, &notChecked)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Snapshot{}, false, nil
 	}
@@ -308,12 +312,14 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 	for _, d := range []struct {
 		doc string
 		to  any
-	}{{hosts, &s.Hosts}, {ports, &s.Ports}, {admin, &s.AdminPanels}, {certs, &s.Certs}, {counts, &s.Counts}} {
+	}{{hosts, &s.Hosts}, {ports, &s.Ports}, {admin, &s.AdminPanels}, {certs, &s.Certs}, {counts, &s.Counts},
+		{services, &s.Services}, {checks, &s.Checks}, {notChecked, &s.NotChecked}} {
 		if err := json.Unmarshal([]byte(d.doc), d.to); err != nil {
 			return Snapshot{}, false, fmt.Errorf("snapshot %s: %w", s.ID, err)
 		}
 	}
-	s.Content = Content{Hosts: nz(s.Hosts), Ports: nz(s.Ports), AdminPanels: nz(s.AdminPanels), Certs: nz(s.Certs)}
+	s.Content = Content{Hosts: nz(s.Hosts), Ports: nz(s.Ports), AdminPanels: nz(s.AdminPanels), Certs: nz(s.Certs),
+		Services: nz(s.Services), Checks: nz(s.Checks), NotChecked: nz(s.NotChecked)}
 	return s, true, nil
 }
 

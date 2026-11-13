@@ -8,7 +8,7 @@ import { assetsStore, findingsStore, isOn } from '@/mocks/stores'
 import type { Asset, Finding } from '@/lib/types'
 import { BOX_ID, inventorySettingsStore } from '@/features/inventory/mocks'
 import { exposureSnapshotsStore, exposureTargetsStore } from '@/features/exposure/mocks'
-import type { CredTarget, ProbeEntry, RescanEvent, RunResultRow, ScanConfig, ScanConfigResponse, ScanRun, ScanScope, ScanTarget } from './types'
+import type { CredTarget, IdentReason, ProbeEntry, RescanEvent, RunIdentRow, RunResultRow, ScanConfig, ScanConfigResponse, ScanRun, ScanScope, ScanTarget } from './types'
 
 
 /** Tests đặt nhỏ lại; trình duyệt dùng giá trị thật. */
@@ -91,7 +91,8 @@ function seedRuns(): StoredRun[] {
   const rowsOf = (list: ScanTarget[]) => list.flatMap((x) => scanOne(x, false).rows)
   const mk = (id: string, trigger: ScanRun['trigger'], note: string | null, started: string, mins: number, list: ScanTarget[], done: number, status: ScanRun['status'], reason: string | null): StoredRun => {
     const rows = [...rowsOf(list.slice(0, done)), ...list.slice(done).map((x) => row(x, null, 'skipped', null, SKIPPED))]
-    return { id, trigger, trigger_note: note, started_at: started, started_by: trigger === 'manual' ? 'it@acme.example' : 'system', ended_at: new Date(Date.parse(started) + mins * 60_000).toISOString(), status, total: list.length, done, current: null, results: rows, matched: rows.filter((x) => x.result === 'matched').length, stop_reason: reason, target_ids: list.map((x) => x.id), stop_requested_at: null }
+    const identification = trigger === 'manual' ? list.map((x, i) => (i < done ? identOne(x) : identRow(x, [], 'not_scanned', SKIPPED))) : []
+    return { id, trigger, trigger_note: note, started_at: started, started_by: trigger === 'manual' ? 'it@acme.example' : 'system', ended_at: new Date(Date.parse(started) + mins * 60_000).toISOString(), status, total: list.length, done, current: null, results: rows, matched: rows.filter((x) => x.result === 'matched').length, stop_reason: reason, target_ids: list.map((x) => x.id), stop_requested_at: null, identification }
   }
   // A scheduled run and a KEV rescan never touch a device that needs a hand pick (D-126 (2)); a manual run may, it was picked.
   const auto = t.filter((x) => !x.pick_only)
@@ -204,6 +205,38 @@ const REASON: Record<NonNullable<ScanTarget['reason']>, string> = {
 }
 const reasonOf = (r: ScanTarget['reason']) => REASON[r ?? 'out_of_scope']
 
+// D-501: Scan now identifies each device first (nmap in the backend). The notes are the backend's words (modules/scan/identify.go identNote).
+const IDENT_NOTE: Record<IdentReason | 'identified', string> = {
+  identified: 'Recorded on the device page and compared with the CISA list of exploited flaws.',
+  host_down: 'Did not answer: it may be switched off, asleep (phones often are) or off the network. Scan it again while it is in use.',
+  no_open_ports: 'Answered, but every port tried was closed, so no service could be identified. Add its software on the device page, or install the osquery agent on it.',
+  filtered: 'Answered, but a firewall dropped the probes (every port tried was filtered), so nothing could be identified. Add its software on the device page, or install the osquery agent on it.',
+  no_version: 'Has open ports, but no service gave its product or version and the operating system could not be told, so there is nothing to compare. Add its software and version on the device page.',
+  os_low_confidence: 'No service gave its product or version, and the operating system guess was less than 85% sure, so it was not recorded. Add the operating system and its version on the device page.',
+  gentle_only: 'Fragile device: only a gentle port scan ran, without version or operating system detection, so no software was recorded. Add its software on the device page, or allow regular scans for it there.',
+  timed_out: 'The identification scan ran out of time before it finished, so nothing new was recorded. Scan it again later.',
+  busy: 'Device discovery was scanning at that moment, so this device was not identified in this scan. Scan it again in a few minutes.',
+  unavailable: "The network scanner (nmap in the scan container, Active discovery) is not available, so this device was not identified. Check the box's services and that Active discovery is on, then scan again.",
+  declared_by_hand: 'Added by hand: Vedette does not port-scan it. The software you entered is what was checked.',
+  scanning_off: 'Active scanning is off under Devices, Scope and sensors, so this device was not identified. Only what was already known was checked.',
+  not_approved: 'Not approved in the inventory: not scanned, so not identified.',
+  out_of_scope: 'Outside the confirmed scope now: not scanned, so not identified.',
+  no_ip: 'No IP address is known for this device, so it could not be scanned or identified.',
+  not_scanned: 'Not scanned in this run, so not identified.',
+}
+const identRow = (t: ScanTarget, found: string[], reason: IdentReason | null, note?: string): RunIdentRow =>
+  ({ target_id: t.id, label: t.label, ip: t.ip, found, reason, note: note ?? IDENT_NOTE[reason ?? 'identified'] })
+/** What the identification of a picked device says in the mock: the device's known OS and software, else the likeliest reason. */
+function identOne(t: ScanTarget): RunIdentRow {
+  const a = assetsStore.get().find((x: Asset) => x.id === t.id)
+  if (!a) return identRow(t, [], 'not_scanned')
+  if (a.origin === 'manual') return identRow(t, [], 'declared_by_hand')
+  if (a.fragile && a.kind !== 'unknown') return identRow(t, [], 'gentle_only')
+  const found = [...(a.os ? [`Operating system: ${a.os.value}`] : []), ...(a.kind !== 'unknown' ? [`Type: ${a.kind}`] : []), ...a.software.slice(0, 18).map((s) => `Software: ${s.display}`)]
+  if (a.software.length) return identRow(t, found, null)
+  return identRow(t, found, a.services.length ? 'no_version' : 'no_open_ports')
+}
+
 // ---- chạy quét ----
 const who = () => currentUser()?.email ?? 'system'
 const strip = (r: StoredRun): ScanRun => { const { target_ids: _t, stop_requested_at: _s, ...rest } = r; return rest }
@@ -245,10 +278,12 @@ function applyToFindings(rows: StoredRow[]) {
 function finalize(r: StoredRun, status: ScanRun['status'], reason: string | null) {
   const all = targets()
   const rows: StoredRow[] = []
+  const idents: RunIdentRow[] = []
   const newProbes: ProbeEntry[] = []
   r.target_ids.forEach((id, i) => {
     const t = all.find((x) => x.id === id)
     if (!t) return
+    if (r.trigger === 'manual') idents.push(i > r.done ? identRow(t, [], 'not_scanned', SKIPPED) : identOne(t)) // the device a stop came on was identified first
     if (status === 'auto_stopped' && i === r.done) { rows.push(row(t, null, 'no_response', null, NO_RESP)); return }
     // Stop now while a device was being scanned: its requests on the way are logged as stopped, it has no result.
     if (status === 'stopped' && i === r.done) {
@@ -265,7 +300,7 @@ function finalize(r: StoredRun, status: ScanRun['status'], reason: string | null
   applyToFindings(rows)
   probes.update((l) => [...newProbes.reverse(), ...l])
   if (status === 'stopped') engineStore.set({ busyUntil: Date.now() + timing.engineMs }) // the worker is still finishing the request on its way
-  const done: StoredRun = { ...r, status, ended_at: nowIso(), current: null, results: rows, matched: rows.filter((x) => x.result === 'matched').length, stop_reason: reason }
+  const done: StoredRun = { ...r, status, ended_at: nowIso(), current: null, results: rows, matched: rows.filter((x) => x.result === 'matched').length, stop_reason: reason, identification: idents }
   saveRun(done)
   return done
 }
@@ -296,7 +331,7 @@ function advance(r: StoredRun): StoredRun {
 
 function startRun(ids: string[], trigger: ScanRun['trigger'], note: string | null, user: string): StoredRun {
   const all = targets()
-  const r: StoredRun = { id: newId('run'), trigger, trigger_note: note, started_at: nowIso(), started_by: user, ended_at: null, status: 'running', total: ids.length, done: 0, current: null, results: [], matched: 0, stop_reason: null, target_ids: ids, stop_requested_at: null }
+  const r: StoredRun = { id: newId('run'), trigger, trigger_note: note, started_at: nowIso(), started_by: user, ended_at: null, status: 'running', total: ids.length, done: 0, current: null, results: [], matched: 0, stop_reason: null, target_ids: ids, stop_requested_at: null, identification: [] }
   const t0 = all.find((x) => x.id === ids[0])
   r.current = t0 ? { label: t0.label, ip: t0.ip } : null
   runs.update((l) => [r, ...l].slice(0, 100))

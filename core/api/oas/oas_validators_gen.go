@@ -73171,6 +73171,34 @@ func (s *ScanGetScansRunsOKItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.Identification == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Identification {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "identification",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           -9007199254740991,
@@ -73266,6 +73294,92 @@ func (s *ScanGetScansRunsOKItemsItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Found == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Found)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "found",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Reason.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ScanGetScansRunsOKItemsItemIdentificationItemReason) Validate() error {
+	switch s {
+	case "host_down":
+		return nil
+	case "no_open_ports":
+		return nil
+	case "filtered":
+		return nil
+	case "no_version":
+		return nil
+	case "os_low_confidence":
+		return nil
+	case "gentle_only":
+		return nil
+	case "timed_out":
+		return nil
+	case "busy":
+		return nil
+	case "unavailable":
+		return nil
+	case "declared_by_hand":
+		return nil
+	case "scanning_off":
+		return nil
+	case "not_approved":
+		return nil
+	case "out_of_scope":
+		return nil
+	case "no_ip":
+		return nil
+	case "not_scanned":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ScanGetScansRunsOKItemsItemResultsItem) Validate() error {
@@ -73700,6 +73814,34 @@ func (s *ScanPostScansRunsCreated) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.Identification == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Identification {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "identification",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           -9007199254740991,
@@ -73795,6 +73937,92 @@ func (s *ScanPostScansRunsCreated) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *ScanPostScansRunsCreatedIdentificationItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Found == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Found)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "found",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Reason.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ScanPostScansRunsCreatedIdentificationItemReason) Validate() error {
+	switch s {
+	case "host_down":
+		return nil
+	case "no_open_ports":
+		return nil
+	case "filtered":
+		return nil
+	case "no_version":
+		return nil
+	case "os_low_confidence":
+		return nil
+	case "gentle_only":
+		return nil
+	case "timed_out":
+		return nil
+	case "busy":
+		return nil
+	case "unavailable":
+		return nil
+	case "declared_by_hand":
+		return nil
+	case "scanning_off":
+		return nil
+	case "not_approved":
+		return nil
+	case "out_of_scope":
+		return nil
+	case "no_ip":
+		return nil
+	case "not_scanned":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ScanPostScansRunsCreatedResultsItem) Validate() error {
@@ -73897,6 +74125,34 @@ func (s *ScanPostScansRunsIDStopOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.Identification == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Identification {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "identification",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
 			Min:           -9007199254740991,
@@ -73992,6 +74248,92 @@ func (s *ScanPostScansRunsIDStopOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Found == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    20,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Found)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "found",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Reason.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ScanPostScansRunsIDStopOKIdentificationItemReason) Validate() error {
+	switch s {
+	case "host_down":
+		return nil
+	case "no_open_ports":
+		return nil
+	case "filtered":
+		return nil
+	case "no_version":
+		return nil
+	case "os_low_confidence":
+		return nil
+	case "gentle_only":
+		return nil
+	case "timed_out":
+		return nil
+	case "busy":
+		return nil
+	case "unavailable":
+		return nil
+	case "declared_by_hand":
+		return nil
+	case "scanning_off":
+		return nil
+	case "not_approved":
+		return nil
+	case "out_of_scope":
+		return nil
+	case "no_ip":
+		return nil
+	case "not_scanned":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ScanPostScansRunsIDStopOKResultsItem) Validate() error {

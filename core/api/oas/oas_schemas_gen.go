@@ -91274,6 +91274,51 @@ func (o NilScanGetScansRunsOKItemsItemCurrent) Or(d ScanGetScansRunsOKItemsItemC
 	return d
 }
 
+// NewNilScanGetScansRunsOKItemsItemIdentificationItemReason returns new NilScanGetScansRunsOKItemsItemIdentificationItemReason with value set to v.
+func NewNilScanGetScansRunsOKItemsItemIdentificationItemReason(v ScanGetScansRunsOKItemsItemIdentificationItemReason) NilScanGetScansRunsOKItemsItemIdentificationItemReason {
+	return NilScanGetScansRunsOKItemsItemIdentificationItemReason{
+		Value: v,
+	}
+}
+
+// NilScanGetScansRunsOKItemsItemIdentificationItemReason is nullable ScanGetScansRunsOKItemsItemIdentificationItemReason.
+type NilScanGetScansRunsOKItemsItemIdentificationItemReason struct {
+	Value ScanGetScansRunsOKItemsItemIdentificationItemReason
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanGetScansRunsOKItemsItemIdentificationItemReason) SetTo(v ScanGetScansRunsOKItemsItemIdentificationItemReason) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanGetScansRunsOKItemsItemIdentificationItemReason) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanGetScansRunsOKItemsItemIdentificationItemReason) SetToNull() {
+	o.Null = true
+	var v ScanGetScansRunsOKItemsItemIdentificationItemReason
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanGetScansRunsOKItemsItemIdentificationItemReason) Get() (v ScanGetScansRunsOKItemsItemIdentificationItemReason, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanGetScansRunsOKItemsItemIdentificationItemReason) Or(d ScanGetScansRunsOKItemsItemIdentificationItemReason) ScanGetScansRunsOKItemsItemIdentificationItemReason {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilScanGetScansTargetsOKItemsItemDeviceKind returns new NilScanGetScansTargetsOKItemsItemDeviceKind with value set to v.
 func NewNilScanGetScansTargetsOKItemsItemDeviceKind(v ScanGetScansTargetsOKItemsItemDeviceKind) NilScanGetScansTargetsOKItemsItemDeviceKind {
 	return NilScanGetScansTargetsOKItemsItemDeviceKind{
@@ -91499,6 +91544,51 @@ func (o NilScanPostScansRunsCreatedCurrent) Or(d ScanPostScansRunsCreatedCurrent
 	return d
 }
 
+// NewNilScanPostScansRunsCreatedIdentificationItemReason returns new NilScanPostScansRunsCreatedIdentificationItemReason with value set to v.
+func NewNilScanPostScansRunsCreatedIdentificationItemReason(v ScanPostScansRunsCreatedIdentificationItemReason) NilScanPostScansRunsCreatedIdentificationItemReason {
+	return NilScanPostScansRunsCreatedIdentificationItemReason{
+		Value: v,
+	}
+}
+
+// NilScanPostScansRunsCreatedIdentificationItemReason is nullable ScanPostScansRunsCreatedIdentificationItemReason.
+type NilScanPostScansRunsCreatedIdentificationItemReason struct {
+	Value ScanPostScansRunsCreatedIdentificationItemReason
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanPostScansRunsCreatedIdentificationItemReason) SetTo(v ScanPostScansRunsCreatedIdentificationItemReason) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanPostScansRunsCreatedIdentificationItemReason) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanPostScansRunsCreatedIdentificationItemReason) SetToNull() {
+	o.Null = true
+	var v ScanPostScansRunsCreatedIdentificationItemReason
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanPostScansRunsCreatedIdentificationItemReason) Get() (v ScanPostScansRunsCreatedIdentificationItemReason, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanPostScansRunsCreatedIdentificationItemReason) Or(d ScanPostScansRunsCreatedIdentificationItemReason) ScanPostScansRunsCreatedIdentificationItemReason {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilScanPostScansRunsIDStopOKCurrent returns new NilScanPostScansRunsIDStopOKCurrent with value set to v.
 func NewNilScanPostScansRunsIDStopOKCurrent(v ScanPostScansRunsIDStopOKCurrent) NilScanPostScansRunsIDStopOKCurrent {
 	return NilScanPostScansRunsIDStopOKCurrent{
@@ -91538,6 +91628,51 @@ func (o NilScanPostScansRunsIDStopOKCurrent) Get() (v ScanPostScansRunsIDStopOKC
 
 // Or returns value if set, or given parameter if does not.
 func (o NilScanPostScansRunsIDStopOKCurrent) Or(d ScanPostScansRunsIDStopOKCurrent) ScanPostScansRunsIDStopOKCurrent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanPostScansRunsIDStopOKIdentificationItemReason returns new NilScanPostScansRunsIDStopOKIdentificationItemReason with value set to v.
+func NewNilScanPostScansRunsIDStopOKIdentificationItemReason(v ScanPostScansRunsIDStopOKIdentificationItemReason) NilScanPostScansRunsIDStopOKIdentificationItemReason {
+	return NilScanPostScansRunsIDStopOKIdentificationItemReason{
+		Value: v,
+	}
+}
+
+// NilScanPostScansRunsIDStopOKIdentificationItemReason is nullable ScanPostScansRunsIDStopOKIdentificationItemReason.
+type NilScanPostScansRunsIDStopOKIdentificationItemReason struct {
+	Value ScanPostScansRunsIDStopOKIdentificationItemReason
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanPostScansRunsIDStopOKIdentificationItemReason) SetTo(v ScanPostScansRunsIDStopOKIdentificationItemReason) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanPostScansRunsIDStopOKIdentificationItemReason) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanPostScansRunsIDStopOKIdentificationItemReason) SetToNull() {
+	o.Null = true
+	var v ScanPostScansRunsIDStopOKIdentificationItemReason
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanPostScansRunsIDStopOKIdentificationItemReason) Get() (v ScanPostScansRunsIDStopOKIdentificationItemReason, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanPostScansRunsIDStopOKIdentificationItemReason) Or(d ScanPostScansRunsIDStopOKIdentificationItemReason) ScanPostScansRunsIDStopOKIdentificationItemReason {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -138361,19 +138496,22 @@ func (s *ScanGetScansRunsOK) SetItems(val []ScanGetScansRunsOKItemsItem) {
 }
 
 type ScanGetScansRunsOKItemsItem struct {
-	Current     NilScanGetScansRunsOKItemsItemCurrent    `json:"current"`
-	Done        int                                      `json:"done"`
-	EndedAt     NilDateTime                              `json:"ended_at"`
-	ID          string                                   `json:"id"`
-	Matched     int                                      `json:"matched"`
-	Results     []ScanGetScansRunsOKItemsItemResultsItem `json:"results"`
-	StartedAt   time.Time                                `json:"started_at"`
-	StartedBy   string                                   `json:"started_by"`
-	Status      ScanGetScansRunsOKItemsItemStatus        `json:"status"`
-	StopReason  NilString                                `json:"stop_reason"`
-	Total       int                                      `json:"total"`
-	Trigger     ScanGetScansRunsOKItemsItemTrigger       `json:"trigger"`
-	TriggerNote NilString                                `json:"trigger_note"`
+	Current NilScanGetScansRunsOKItemsItemCurrent `json:"current"`
+	Done    int                                   `json:"done"`
+	EndedAt NilDateTime                           `json:"ended_at"`
+	ID      string                                `json:"id"`
+	// One row per device of a Scan now run: what nmap identified first, or exactly why nothing was
+	// (D-501). Empty for scheduled scans and KEV rescans, and while the run is going.
+	Identification []ScanGetScansRunsOKItemsItemIdentificationItem `json:"identification"`
+	Matched        int                                             `json:"matched"`
+	Results        []ScanGetScansRunsOKItemsItemResultsItem        `json:"results"`
+	StartedAt      time.Time                                       `json:"started_at"`
+	StartedBy      string                                          `json:"started_by"`
+	Status         ScanGetScansRunsOKItemsItemStatus               `json:"status"`
+	StopReason     NilString                                       `json:"stop_reason"`
+	Total          int                                             `json:"total"`
+	Trigger        ScanGetScansRunsOKItemsItemTrigger              `json:"trigger"`
+	TriggerNote    NilString                                       `json:"trigger_note"`
 }
 
 // GetCurrent returns the value of Current.
@@ -138394,6 +138532,11 @@ func (s *ScanGetScansRunsOKItemsItem) GetEndedAt() NilDateTime {
 // GetID returns the value of ID.
 func (s *ScanGetScansRunsOKItemsItem) GetID() string {
 	return s.ID
+}
+
+// GetIdentification returns the value of Identification.
+func (s *ScanGetScansRunsOKItemsItem) GetIdentification() []ScanGetScansRunsOKItemsItemIdentificationItem {
+	return s.Identification
 }
 
 // GetMatched returns the value of Matched.
@@ -138459,6 +138602,11 @@ func (s *ScanGetScansRunsOKItemsItem) SetEndedAt(val NilDateTime) {
 // SetID sets the value of ID.
 func (s *ScanGetScansRunsOKItemsItem) SetID(val string) {
 	s.ID = val
+}
+
+// SetIdentification sets the value of Identification.
+func (s *ScanGetScansRunsOKItemsItem) SetIdentification(val []ScanGetScansRunsOKItemsItemIdentificationItem) {
+	s.Identification = val
 }
 
 // SetMatched sets the value of Matched.
@@ -138529,6 +138677,214 @@ func (s *ScanGetScansRunsOKItemsItemCurrent) SetIP(val string) {
 // SetLabel sets the value of Label.
 func (s *ScanGetScansRunsOKItemsItemCurrent) SetLabel(val string) {
 	s.Label = val
+}
+
+type ScanGetScansRunsOKItemsItemIdentificationItem struct {
+	// What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …".
+	Found []string `json:"found"`
+	IP    string   `json:"ip"`
+	Label string   `json:"label"`
+	// The box's sentence for the reason, shown as is.
+	Note string `json:"note"`
+	// Null: software was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no
+	// answer), no_open_ports (all closed), filtered (probes dropped), no_version (services gave no product
+	// or version), os_low_confidence (OS guess under 85%), gentle_only (fragile: gentle scan only),
+	// timed_out, busy (discovery was running nmap), unavailable (nmap not available or Active discovery
+	// off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
+	Reason   NilScanGetScansRunsOKItemsItemIdentificationItemReason `json:"reason"`
+	TargetID string                                                 `json:"target_id"`
+}
+
+// GetFound returns the value of Found.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) GetFound() []string {
+	return s.Found
+}
+
+// GetIP returns the value of IP.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) GetIP() string {
+	return s.IP
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) GetLabel() string {
+	return s.Label
+}
+
+// GetNote returns the value of Note.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) GetNote() string {
+	return s.Note
+}
+
+// GetReason returns the value of Reason.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) GetReason() NilScanGetScansRunsOKItemsItemIdentificationItemReason {
+	return s.Reason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// SetFound sets the value of Found.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) SetFound(val []string) {
+	s.Found = val
+}
+
+// SetIP sets the value of IP.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetNote sets the value of Note.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) SetReason(val NilScanGetScansRunsOKItemsItemIdentificationItemReason) {
+	s.Reason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+type ScanGetScansRunsOKItemsItemIdentificationItemReason string
+
+const (
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonHostDown        ScanGetScansRunsOKItemsItemIdentificationItemReason = "host_down"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonNoOpenPorts     ScanGetScansRunsOKItemsItemIdentificationItemReason = "no_open_ports"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered        ScanGetScansRunsOKItemsItemIdentificationItemReason = "filtered"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion       ScanGetScansRunsOKItemsItemIdentificationItemReason = "no_version"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence ScanGetScansRunsOKItemsItemIdentificationItemReason = "os_low_confidence"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly      ScanGetScansRunsOKItemsItemIdentificationItemReason = "gentle_only"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut        ScanGetScansRunsOKItemsItemIdentificationItemReason = "timed_out"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonBusy            ScanGetScansRunsOKItemsItemIdentificationItemReason = "busy"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonUnavailable     ScanGetScansRunsOKItemsItemIdentificationItemReason = "unavailable"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonDeclaredByHand  ScanGetScansRunsOKItemsItemIdentificationItemReason = "declared_by_hand"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonScanningOff     ScanGetScansRunsOKItemsItemIdentificationItemReason = "scanning_off"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved     ScanGetScansRunsOKItemsItemIdentificationItemReason = "not_approved"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope      ScanGetScansRunsOKItemsItemIdentificationItemReason = "out_of_scope"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP            ScanGetScansRunsOKItemsItemIdentificationItemReason = "no_ip"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned      ScanGetScansRunsOKItemsItemIdentificationItemReason = "not_scanned"
+)
+
+// AllValues returns all ScanGetScansRunsOKItemsItemIdentificationItemReason values.
+func (ScanGetScansRunsOKItemsItemIdentificationItemReason) AllValues() []ScanGetScansRunsOKItemsItemIdentificationItemReason {
+	return []ScanGetScansRunsOKItemsItemIdentificationItemReason{
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonHostDown,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonNoOpenPorts,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonBusy,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonUnavailable,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonDeclaredByHand,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonScanningOff,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanGetScansRunsOKItemsItemIdentificationItemReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonHostDown:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoOpenPorts:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonBusy:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonUnavailable:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonDeclaredByHand:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonScanningOff:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItemReason) UnmarshalText(data []byte) error {
+	switch ScanGetScansRunsOKItemsItemIdentificationItemReason(data) {
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonHostDown:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonHostDown
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoOpenPorts:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNoOpenPorts
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonBusy:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonBusy
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonUnavailable:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonUnavailable
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonDeclaredByHand:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonDeclaredByHand
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonScanningOff:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonScanningOff
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ScanGetScansRunsOKItemsItemResultsItem struct {
@@ -139496,19 +139852,22 @@ func (s *ScanPostScansCredentialedReq) SetUsername(val string) {
 }
 
 type ScanPostScansRunsCreated struct {
-	Current     NilScanPostScansRunsCreatedCurrent    `json:"current"`
-	Done        int                                   `json:"done"`
-	EndedAt     NilDateTime                           `json:"ended_at"`
-	ID          string                                `json:"id"`
-	Matched     int                                   `json:"matched"`
-	Results     []ScanPostScansRunsCreatedResultsItem `json:"results"`
-	StartedAt   time.Time                             `json:"started_at"`
-	StartedBy   string                                `json:"started_by"`
-	Status      ScanPostScansRunsCreatedStatus        `json:"status"`
-	StopReason  NilString                             `json:"stop_reason"`
-	Total       int                                   `json:"total"`
-	Trigger     ScanPostScansRunsCreatedTrigger       `json:"trigger"`
-	TriggerNote NilString                             `json:"trigger_note"`
+	Current NilScanPostScansRunsCreatedCurrent `json:"current"`
+	Done    int                                `json:"done"`
+	EndedAt NilDateTime                        `json:"ended_at"`
+	ID      string                             `json:"id"`
+	// One row per device of a Scan now run: what nmap identified first, or exactly why nothing was
+	// (D-501). Empty for scheduled scans and KEV rescans, and while the run is going.
+	Identification []ScanPostScansRunsCreatedIdentificationItem `json:"identification"`
+	Matched        int                                          `json:"matched"`
+	Results        []ScanPostScansRunsCreatedResultsItem        `json:"results"`
+	StartedAt      time.Time                                    `json:"started_at"`
+	StartedBy      string                                       `json:"started_by"`
+	Status         ScanPostScansRunsCreatedStatus               `json:"status"`
+	StopReason     NilString                                    `json:"stop_reason"`
+	Total          int                                          `json:"total"`
+	Trigger        ScanPostScansRunsCreatedTrigger              `json:"trigger"`
+	TriggerNote    NilString                                    `json:"trigger_note"`
 }
 
 // GetCurrent returns the value of Current.
@@ -139529,6 +139888,11 @@ func (s *ScanPostScansRunsCreated) GetEndedAt() NilDateTime {
 // GetID returns the value of ID.
 func (s *ScanPostScansRunsCreated) GetID() string {
 	return s.ID
+}
+
+// GetIdentification returns the value of Identification.
+func (s *ScanPostScansRunsCreated) GetIdentification() []ScanPostScansRunsCreatedIdentificationItem {
+	return s.Identification
 }
 
 // GetMatched returns the value of Matched.
@@ -139594,6 +139958,11 @@ func (s *ScanPostScansRunsCreated) SetEndedAt(val NilDateTime) {
 // SetID sets the value of ID.
 func (s *ScanPostScansRunsCreated) SetID(val string) {
 	s.ID = val
+}
+
+// SetIdentification sets the value of Identification.
+func (s *ScanPostScansRunsCreated) SetIdentification(val []ScanPostScansRunsCreatedIdentificationItem) {
+	s.Identification = val
 }
 
 // SetMatched sets the value of Matched.
@@ -139664,6 +140033,214 @@ func (s *ScanPostScansRunsCreatedCurrent) SetIP(val string) {
 // SetLabel sets the value of Label.
 func (s *ScanPostScansRunsCreatedCurrent) SetLabel(val string) {
 	s.Label = val
+}
+
+type ScanPostScansRunsCreatedIdentificationItem struct {
+	// What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …".
+	Found []string `json:"found"`
+	IP    string   `json:"ip"`
+	Label string   `json:"label"`
+	// The box's sentence for the reason, shown as is.
+	Note string `json:"note"`
+	// Null: software was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no
+	// answer), no_open_ports (all closed), filtered (probes dropped), no_version (services gave no product
+	// or version), os_low_confidence (OS guess under 85%), gentle_only (fragile: gentle scan only),
+	// timed_out, busy (discovery was running nmap), unavailable (nmap not available or Active discovery
+	// off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
+	Reason   NilScanPostScansRunsCreatedIdentificationItemReason `json:"reason"`
+	TargetID string                                              `json:"target_id"`
+}
+
+// GetFound returns the value of Found.
+func (s *ScanPostScansRunsCreatedIdentificationItem) GetFound() []string {
+	return s.Found
+}
+
+// GetIP returns the value of IP.
+func (s *ScanPostScansRunsCreatedIdentificationItem) GetIP() string {
+	return s.IP
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanPostScansRunsCreatedIdentificationItem) GetLabel() string {
+	return s.Label
+}
+
+// GetNote returns the value of Note.
+func (s *ScanPostScansRunsCreatedIdentificationItem) GetNote() string {
+	return s.Note
+}
+
+// GetReason returns the value of Reason.
+func (s *ScanPostScansRunsCreatedIdentificationItem) GetReason() NilScanPostScansRunsCreatedIdentificationItemReason {
+	return s.Reason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ScanPostScansRunsCreatedIdentificationItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// SetFound sets the value of Found.
+func (s *ScanPostScansRunsCreatedIdentificationItem) SetFound(val []string) {
+	s.Found = val
+}
+
+// SetIP sets the value of IP.
+func (s *ScanPostScansRunsCreatedIdentificationItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanPostScansRunsCreatedIdentificationItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetNote sets the value of Note.
+func (s *ScanPostScansRunsCreatedIdentificationItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ScanPostScansRunsCreatedIdentificationItem) SetReason(val NilScanPostScansRunsCreatedIdentificationItemReason) {
+	s.Reason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ScanPostScansRunsCreatedIdentificationItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+type ScanPostScansRunsCreatedIdentificationItemReason string
+
+const (
+	ScanPostScansRunsCreatedIdentificationItemReasonHostDown        ScanPostScansRunsCreatedIdentificationItemReason = "host_down"
+	ScanPostScansRunsCreatedIdentificationItemReasonNoOpenPorts     ScanPostScansRunsCreatedIdentificationItemReason = "no_open_ports"
+	ScanPostScansRunsCreatedIdentificationItemReasonFiltered        ScanPostScansRunsCreatedIdentificationItemReason = "filtered"
+	ScanPostScansRunsCreatedIdentificationItemReasonNoVersion       ScanPostScansRunsCreatedIdentificationItemReason = "no_version"
+	ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence ScanPostScansRunsCreatedIdentificationItemReason = "os_low_confidence"
+	ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly      ScanPostScansRunsCreatedIdentificationItemReason = "gentle_only"
+	ScanPostScansRunsCreatedIdentificationItemReasonTimedOut        ScanPostScansRunsCreatedIdentificationItemReason = "timed_out"
+	ScanPostScansRunsCreatedIdentificationItemReasonBusy            ScanPostScansRunsCreatedIdentificationItemReason = "busy"
+	ScanPostScansRunsCreatedIdentificationItemReasonUnavailable     ScanPostScansRunsCreatedIdentificationItemReason = "unavailable"
+	ScanPostScansRunsCreatedIdentificationItemReasonDeclaredByHand  ScanPostScansRunsCreatedIdentificationItemReason = "declared_by_hand"
+	ScanPostScansRunsCreatedIdentificationItemReasonScanningOff     ScanPostScansRunsCreatedIdentificationItemReason = "scanning_off"
+	ScanPostScansRunsCreatedIdentificationItemReasonNotApproved     ScanPostScansRunsCreatedIdentificationItemReason = "not_approved"
+	ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope      ScanPostScansRunsCreatedIdentificationItemReason = "out_of_scope"
+	ScanPostScansRunsCreatedIdentificationItemReasonNoIP            ScanPostScansRunsCreatedIdentificationItemReason = "no_ip"
+	ScanPostScansRunsCreatedIdentificationItemReasonNotScanned      ScanPostScansRunsCreatedIdentificationItemReason = "not_scanned"
+)
+
+// AllValues returns all ScanPostScansRunsCreatedIdentificationItemReason values.
+func (ScanPostScansRunsCreatedIdentificationItemReason) AllValues() []ScanPostScansRunsCreatedIdentificationItemReason {
+	return []ScanPostScansRunsCreatedIdentificationItemReason{
+		ScanPostScansRunsCreatedIdentificationItemReasonHostDown,
+		ScanPostScansRunsCreatedIdentificationItemReasonNoOpenPorts,
+		ScanPostScansRunsCreatedIdentificationItemReasonFiltered,
+		ScanPostScansRunsCreatedIdentificationItemReasonNoVersion,
+		ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence,
+		ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly,
+		ScanPostScansRunsCreatedIdentificationItemReasonTimedOut,
+		ScanPostScansRunsCreatedIdentificationItemReasonBusy,
+		ScanPostScansRunsCreatedIdentificationItemReasonUnavailable,
+		ScanPostScansRunsCreatedIdentificationItemReasonDeclaredByHand,
+		ScanPostScansRunsCreatedIdentificationItemReasonScanningOff,
+		ScanPostScansRunsCreatedIdentificationItemReasonNotApproved,
+		ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope,
+		ScanPostScansRunsCreatedIdentificationItemReasonNoIP,
+		ScanPostScansRunsCreatedIdentificationItemReasonNotScanned,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanPostScansRunsCreatedIdentificationItemReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanPostScansRunsCreatedIdentificationItemReasonHostDown:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNoOpenPorts:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonFiltered:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNoVersion:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonTimedOut:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonBusy:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonUnavailable:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonDeclaredByHand:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonScanningOff:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNotApproved:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNoIP:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNotScanned:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanPostScansRunsCreatedIdentificationItemReason) UnmarshalText(data []byte) error {
+	switch ScanPostScansRunsCreatedIdentificationItemReason(data) {
+	case ScanPostScansRunsCreatedIdentificationItemReasonHostDown:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonHostDown
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNoOpenPorts:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonNoOpenPorts
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonFiltered:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonFiltered
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNoVersion:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonNoVersion
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonTimedOut:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonTimedOut
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonBusy:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonBusy
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonUnavailable:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonUnavailable
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonDeclaredByHand:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonDeclaredByHand
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonScanningOff:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonScanningOff
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNotApproved:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonNotApproved
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNoIP:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonNoIP
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNotScanned:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonNotScanned
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ScanPostScansRunsCreatedResultsItem struct {
@@ -139926,19 +140503,22 @@ func (s *ScanPostScansRunsCreatedTrigger) UnmarshalText(data []byte) error {
 }
 
 type ScanPostScansRunsIDStopOK struct {
-	Current     NilScanPostScansRunsIDStopOKCurrent    `json:"current"`
-	Done        int                                    `json:"done"`
-	EndedAt     NilDateTime                            `json:"ended_at"`
-	ID          string                                 `json:"id"`
-	Matched     int                                    `json:"matched"`
-	Results     []ScanPostScansRunsIDStopOKResultsItem `json:"results"`
-	StartedAt   time.Time                              `json:"started_at"`
-	StartedBy   string                                 `json:"started_by"`
-	Status      ScanPostScansRunsIDStopOKStatus        `json:"status"`
-	StopReason  NilString                              `json:"stop_reason"`
-	Total       int                                    `json:"total"`
-	Trigger     ScanPostScansRunsIDStopOKTrigger       `json:"trigger"`
-	TriggerNote NilString                              `json:"trigger_note"`
+	Current NilScanPostScansRunsIDStopOKCurrent `json:"current"`
+	Done    int                                 `json:"done"`
+	EndedAt NilDateTime                         `json:"ended_at"`
+	ID      string                              `json:"id"`
+	// One row per device of a Scan now run: what nmap identified first, or exactly why nothing was
+	// (D-501). Empty for scheduled scans and KEV rescans, and while the run is going.
+	Identification []ScanPostScansRunsIDStopOKIdentificationItem `json:"identification"`
+	Matched        int                                           `json:"matched"`
+	Results        []ScanPostScansRunsIDStopOKResultsItem        `json:"results"`
+	StartedAt      time.Time                                     `json:"started_at"`
+	StartedBy      string                                        `json:"started_by"`
+	Status         ScanPostScansRunsIDStopOKStatus               `json:"status"`
+	StopReason     NilString                                     `json:"stop_reason"`
+	Total          int                                           `json:"total"`
+	Trigger        ScanPostScansRunsIDStopOKTrigger              `json:"trigger"`
+	TriggerNote    NilString                                     `json:"trigger_note"`
 }
 
 // GetCurrent returns the value of Current.
@@ -139959,6 +140539,11 @@ func (s *ScanPostScansRunsIDStopOK) GetEndedAt() NilDateTime {
 // GetID returns the value of ID.
 func (s *ScanPostScansRunsIDStopOK) GetID() string {
 	return s.ID
+}
+
+// GetIdentification returns the value of Identification.
+func (s *ScanPostScansRunsIDStopOK) GetIdentification() []ScanPostScansRunsIDStopOKIdentificationItem {
+	return s.Identification
 }
 
 // GetMatched returns the value of Matched.
@@ -140024,6 +140609,11 @@ func (s *ScanPostScansRunsIDStopOK) SetEndedAt(val NilDateTime) {
 // SetID sets the value of ID.
 func (s *ScanPostScansRunsIDStopOK) SetID(val string) {
 	s.ID = val
+}
+
+// SetIdentification sets the value of Identification.
+func (s *ScanPostScansRunsIDStopOK) SetIdentification(val []ScanPostScansRunsIDStopOKIdentificationItem) {
+	s.Identification = val
 }
 
 // SetMatched sets the value of Matched.
@@ -140094,6 +140684,214 @@ func (s *ScanPostScansRunsIDStopOKCurrent) SetIP(val string) {
 // SetLabel sets the value of Label.
 func (s *ScanPostScansRunsIDStopOKCurrent) SetLabel(val string) {
 	s.Label = val
+}
+
+type ScanPostScansRunsIDStopOKIdentificationItem struct {
+	// What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …".
+	Found []string `json:"found"`
+	IP    string   `json:"ip"`
+	Label string   `json:"label"`
+	// The box's sentence for the reason, shown as is.
+	Note string `json:"note"`
+	// Null: software was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no
+	// answer), no_open_ports (all closed), filtered (probes dropped), no_version (services gave no product
+	// or version), os_low_confidence (OS guess under 85%), gentle_only (fragile: gentle scan only),
+	// timed_out, busy (discovery was running nmap), unavailable (nmap not available or Active discovery
+	// off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
+	Reason   NilScanPostScansRunsIDStopOKIdentificationItemReason `json:"reason"`
+	TargetID string                                               `json:"target_id"`
+}
+
+// GetFound returns the value of Found.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) GetFound() []string {
+	return s.Found
+}
+
+// GetIP returns the value of IP.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) GetIP() string {
+	return s.IP
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) GetLabel() string {
+	return s.Label
+}
+
+// GetNote returns the value of Note.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) GetNote() string {
+	return s.Note
+}
+
+// GetReason returns the value of Reason.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) GetReason() NilScanPostScansRunsIDStopOKIdentificationItemReason {
+	return s.Reason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// SetFound sets the value of Found.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) SetFound(val []string) {
+	s.Found = val
+}
+
+// SetIP sets the value of IP.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetNote sets the value of Note.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) SetReason(val NilScanPostScansRunsIDStopOKIdentificationItemReason) {
+	s.Reason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+type ScanPostScansRunsIDStopOKIdentificationItemReason string
+
+const (
+	ScanPostScansRunsIDStopOKIdentificationItemReasonHostDown        ScanPostScansRunsIDStopOKIdentificationItemReason = "host_down"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonNoOpenPorts     ScanPostScansRunsIDStopOKIdentificationItemReason = "no_open_ports"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered        ScanPostScansRunsIDStopOKIdentificationItemReason = "filtered"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion       ScanPostScansRunsIDStopOKIdentificationItemReason = "no_version"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence ScanPostScansRunsIDStopOKIdentificationItemReason = "os_low_confidence"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly      ScanPostScansRunsIDStopOKIdentificationItemReason = "gentle_only"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut        ScanPostScansRunsIDStopOKIdentificationItemReason = "timed_out"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonBusy            ScanPostScansRunsIDStopOKIdentificationItemReason = "busy"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonUnavailable     ScanPostScansRunsIDStopOKIdentificationItemReason = "unavailable"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonDeclaredByHand  ScanPostScansRunsIDStopOKIdentificationItemReason = "declared_by_hand"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonScanningOff     ScanPostScansRunsIDStopOKIdentificationItemReason = "scanning_off"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved     ScanPostScansRunsIDStopOKIdentificationItemReason = "not_approved"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope      ScanPostScansRunsIDStopOKIdentificationItemReason = "out_of_scope"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP            ScanPostScansRunsIDStopOKIdentificationItemReason = "no_ip"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned      ScanPostScansRunsIDStopOKIdentificationItemReason = "not_scanned"
+)
+
+// AllValues returns all ScanPostScansRunsIDStopOKIdentificationItemReason values.
+func (ScanPostScansRunsIDStopOKIdentificationItemReason) AllValues() []ScanPostScansRunsIDStopOKIdentificationItemReason {
+	return []ScanPostScansRunsIDStopOKIdentificationItemReason{
+		ScanPostScansRunsIDStopOKIdentificationItemReasonHostDown,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonNoOpenPorts,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonBusy,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonUnavailable,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonDeclaredByHand,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonScanningOff,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanPostScansRunsIDStopOKIdentificationItemReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonHostDown:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoOpenPorts:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonBusy:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonUnavailable:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonDeclaredByHand:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonScanningOff:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanPostScansRunsIDStopOKIdentificationItemReason) UnmarshalText(data []byte) error {
+	switch ScanPostScansRunsIDStopOKIdentificationItemReason(data) {
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonHostDown:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonHostDown
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoOpenPorts:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNoOpenPorts
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonBusy:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonBusy
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonUnavailable:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonUnavailable
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonDeclaredByHand:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonDeclaredByHand
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonScanningOff:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonScanningOff
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ScanPostScansRunsIDStopOKResultsItem struct {

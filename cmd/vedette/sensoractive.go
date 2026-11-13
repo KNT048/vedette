@@ -180,7 +180,8 @@ func (a sensorInventory) ScanPolicy(ctx context.Context, assetID string) (sensor
 	if err != nil {
 		return sensoractive.Decision{}, err
 	}
-	return sensoractive.Decision{Allowed: dec.Allowed, Rate: dec.Rate, Reason: dec.Reason, FirstGentle: dec.Reason == inventory.ReasonFirstGentleScan}, nil
+	return sensoractive.Decision{Allowed: dec.Allowed, Rate: dec.Rate, Reason: dec.Reason, FirstGentle: dec.Reason == inventory.ReasonFirstGentleScan,
+		Fragile: dec.Fragile, Unclassified: dec.Unclassified}, nil
 }
 
 func (a sensorInventory) MarkFirstScan(ctx context.Context, assetID string) error {

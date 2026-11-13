@@ -41,11 +41,19 @@ export const RunResultKind = z.enum(['matched', 'not_matched', 'not_applicable',
 export const RunResultRow = z.object({
   target_id: z.string(), label: z.string(), ip: z.string(), template: z.string().nullable(), result: RunResultKind, finding_id: z.string().nullable(), note: z.string(),
 })
+export const IdentReason = z.enum(['host_down', 'no_open_ports', 'filtered', 'no_version', 'os_low_confidence', 'gentle_only', 'timed_out', 'busy', 'unavailable', 'declared_by_hand', 'scanning_off', 'not_approved', 'out_of_scope', 'no_ip', 'not_scanned'])
+export const RunIdentRow = z.object({
+  target_id: z.string(), label: z.string(), ip: z.string(),
+  found: z.array(z.string()).max(20).describe('What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …"'),
+  reason: IdentReason.nullable().describe('null: software was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version (services gave no product or version), os_low_confidence (OS guess under 85%), gentle_only (fragile: gentle scan only), timed_out, busy (discovery was running nmap), unavailable (nmap not available or Active discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501)'),
+  note: z.string().describe("The box's sentence for the reason, shown as is"),
+})
 export const ScanRun = z.object({
   id: z.string(), trigger: z.enum(['manual', 'schedule', 'new_kev']), trigger_note: z.string().nullable(),
   started_at: iso, started_by: z.string(), ended_at: iso.nullable(), status: RunStatus,
   total: z.number().int(), done: z.number().int(), current: z.object({ label: z.string(), ip: z.string() }).nullable(),
   results: z.array(RunResultRow), matched: z.number().int(), stop_reason: z.string().nullable(),
+  identification: z.array(RunIdentRow).describe('One row per device of a Scan now run: what nmap identified first, or exactly why nothing was (D-501). Empty for scheduled scans and KEV rescans, and while the run is going'),
 })
 export const ProbeEntry = z.object({
   id: z.string(), ts: iso, run_id: z.string().nullable(), ip: z.string(), label: z.string(), template: z.string(), request: z.string(),

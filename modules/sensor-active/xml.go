@@ -43,6 +43,9 @@ type host struct {
 	ports    []portInfo // open ports only
 	matches  []osMatch
 	timedOut bool // nmap gave up on the host (--host-timeout): it printed no port table, so ports says nothing
+	// closed and filtered count the ports nmap found in those states (listed ports and <extraports>): with no open port they
+	// say whether the device refused the probes (closed) or something dropped them (filtered), D-501.
+	closed, filtered int
 }
 
 type portInfo struct {
@@ -93,6 +96,17 @@ func cpeText(s string) string {
 		}
 	}
 	return s
+}
+
+// countState adds n ports of a state nmap printed: "closed", or any state with "filtered" in it (filtered, open|filtered,
+// closed|filtered). Open ports are in ports; the counts are capped so a forged count cannot overflow.
+func (h *host) countState(state string, n int) {
+	switch {
+	case state == "closed":
+		h.closed = min(h.closed+n, 1<<20)
+	case strings.Contains(state, "filtered"):
+		h.filtered = min(h.filtered+n, 1<<20)
+	}
 }
 
 func attrs(el xml.StartElement) map[string]string {
@@ -204,8 +218,15 @@ func parseNmapXML(data []byte) ([]host, error) {
 					return nil, fmt.Errorf("%w: too many ports", errXMLInvalid)
 				}
 				port, portOK = &portInfo{number: num(a["portid"], 65535), proto: text(a["protocol"])}, false
+			case "nmaprun/host/ports/extraports":
+				if cur != nil {
+					cur.countState(a["state"], num(a["count"], 65535))
+				}
 			case "nmaprun/host/ports/port/state":
 				portOK = port != nil && a["state"] == "open"
+				if cur != nil && port != nil {
+					cur.countState(a["state"], 1)
+				}
 			case "nmaprun/host/ports/port/service":
 				if port != nil {
 					port.name, port.product, port.version, port.info = text(a["name"]), text(a["product"]), text(a["version"]), text(a["extrainfo"])

@@ -402,6 +402,18 @@ func (e *env) str(query string) string {
 
 type dbTx = *sql.Tx
 
+// sweptBefore records a sweep that finished a week ago: the box is not new, so no first pass runs outside the window (D-501).
+func (e *env) sweptBefore() {
+	e.t.Helper()
+	err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_job (id, kind, started_at, finished_at, status) VALUES ('saj_old', 'sweep', '2026-11-02T02:00:00.000Z', '2026-11-02T02:01:00.000Z', 'done')`)
+		return err
+	})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+}
+
 // waitFor polls cond until it holds or 30 s pass (a busy machine under -race).
 func waitFor(t *testing.T, what string, cond func() bool) {
 	t.Helper()

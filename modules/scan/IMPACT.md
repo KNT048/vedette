@@ -3,6 +3,9 @@
 ## Modifying: `scan.Service.StartRun(ctx, targets, trigger)` và bộ chọn `Targets()`
 - **SPA** (`/scans`, `RunsTab`, Devices → "Scan"), **core/jobs** (lịch), `OnNewKEV`. Đổi điều kiện chọn mục tiêu đổi số gói/request rời hộp: sửa CONTRACT + test INV-1…3.
 
+## Modifying: `scan.Identifier`, `IdentRow`, `ScanRun.identification` (D-501, INV-13)
+- **sensor-active** (`IdentifyDevice`, mã `Why`), adapter `scanIdentify` ở `cmd/vedette/scan.go`; **SPA** `RunsTab` (`Identification` trong hộp thoại kết quả), `contract.ts` `IdentReason`/`RunIdentRow`, mock `IDENT_NOTE`/`identOne` (cùng câu với `identNote`), `api/openapi.json` + ogen. Đổi một lý do hay câu: sửa cả bốn chỗ cùng commit.
+
 ## Modifying: gọi `inventory.InScope/ScanPolicy` và `exposure.CheckScannable`
 - **inventory**, **exposure**: đây là hai rào SYS-7. Nới ở một phía mà không sửa phía kia ⇒ lỗ hổng phạm vi.
 

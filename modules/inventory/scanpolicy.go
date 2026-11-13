@@ -20,6 +20,9 @@ type ScanDecision struct {
 	// side). IP: the address the decision was made for, from the same read; zero when the decision is a refusal.
 	Careful bool
 	IP      netip.Addr
+	// Fragile and Unclassified are set by ScanPolicy only, for every device that passed origin, address and scope: the device is
+	// fragile, or its kind is still unknown. sensor-active's identification for Scan now picks its scan shape from them (D-501).
+	Fragile, Unclassified bool
 }
 
 // Reasons of a ScanDecision.
@@ -67,7 +70,9 @@ func (s *Service) ScanPolicy(ctx context.Context, assetID string) (ScanDecision,
 	case !st.InScope(f.addr):
 		return deny(ReasonOutOfScope), nil
 	}
-	return afterScope(st, f.kind, f.fragile, f.regular, f.firstScan), nil
+	d := afterScope(st, f.kind, f.fragile, f.regular, f.firstScan)
+	d.Fragile, d.Unclassified = f.fragile, f.kind == "unknown"
+	return d, nil
 }
 
 // VulnScanPolicy decides whether the vulnerability scanner (module scan) may probe a device (D-126). It is

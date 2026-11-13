@@ -60862,6 +60862,73 @@
                               "string",
                               "null"
                             ]
+                          },
+                          "identification": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "target_id": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "ip": {
+                                  "type": "string"
+                                },
+                                "found": {
+                                  "maxItems": 20,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "What the identification recorded, in words: \"Operating system: …\", \"Type: …\", \"Software: …\""
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "host_down",
+                                        "no_open_ports",
+                                        "filtered",
+                                        "no_version",
+                                        "os_low_confidence",
+                                        "gentle_only",
+                                        "timed_out",
+                                        "busy",
+                                        "unavailable",
+                                        "declared_by_hand",
+                                        "scanning_off",
+                                        "not_approved",
+                                        "out_of_scope",
+                                        "no_ip",
+                                        "not_scanned"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "description": "null: software was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version (services gave no product or version), os_low_confidence (OS guess under 85%), gentle_only (fragile: gentle scan only), timed_out, busy (discovery was running nmap), unavailable (nmap not available or Active discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501)"
+                                },
+                                "note": {
+                                  "type": "string",
+                                  "description": "The box's sentence for the reason, shown as is"
+                                }
+                              },
+                              "required": [
+                                "target_id",
+                                "label",
+                                "ip",
+                                "found",
+                                "reason",
+                                "note"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "One row per device of a Scan now run: what nmap identified first, or exactly why nothing was (D-501). Empty for scheduled scans and KEV rescans, and while the run is going"
                           }
                         },
                         "required": [
@@ -60877,7 +60944,8 @@
                           "current",
                           "results",
                           "matched",
-                          "stop_reason"
+                          "stop_reason",
+                          "identification"
                         ],
                         "additionalProperties": false
                       }
@@ -61093,6 +61161,73 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "identification": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "target_id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "ip": {
+                            "type": "string"
+                          },
+                          "found": {
+                            "maxItems": 20,
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "What the identification recorded, in words: \"Operating system: …\", \"Type: …\", \"Software: …\""
+                          },
+                          "reason": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "host_down",
+                                  "no_open_ports",
+                                  "filtered",
+                                  "no_version",
+                                  "os_low_confidence",
+                                  "gentle_only",
+                                  "timed_out",
+                                  "busy",
+                                  "unavailable",
+                                  "declared_by_hand",
+                                  "scanning_off",
+                                  "not_approved",
+                                  "out_of_scope",
+                                  "no_ip",
+                                  "not_scanned"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "null: software was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version (services gave no product or version), os_low_confidence (OS guess under 85%), gentle_only (fragile: gentle scan only), timed_out, busy (discovery was running nmap), unavailable (nmap not available or Active discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501)"
+                          },
+                          "note": {
+                            "type": "string",
+                            "description": "The box's sentence for the reason, shown as is"
+                          }
+                        },
+                        "required": [
+                          "target_id",
+                          "label",
+                          "ip",
+                          "found",
+                          "reason",
+                          "note"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "One row per device of a Scan now run: what nmap identified first, or exactly why nothing was (D-501). Empty for scheduled scans and KEV rescans, and while the run is going"
                     }
                   },
                   "required": [
@@ -61108,7 +61243,8 @@
                     "current",
                     "results",
                     "matched",
-                    "stop_reason"
+                    "stop_reason",
+                    "identification"
                   ],
                   "additionalProperties": false
                 }
@@ -61300,6 +61436,73 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "identification": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "target_id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "ip": {
+                            "type": "string"
+                          },
+                          "found": {
+                            "maxItems": 20,
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "What the identification recorded, in words: \"Operating system: …\", \"Type: …\", \"Software: …\""
+                          },
+                          "reason": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "host_down",
+                                  "no_open_ports",
+                                  "filtered",
+                                  "no_version",
+                                  "os_low_confidence",
+                                  "gentle_only",
+                                  "timed_out",
+                                  "busy",
+                                  "unavailable",
+                                  "declared_by_hand",
+                                  "scanning_off",
+                                  "not_approved",
+                                  "out_of_scope",
+                                  "no_ip",
+                                  "not_scanned"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "null: software was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version (services gave no product or version), os_low_confidence (OS guess under 85%), gentle_only (fragile: gentle scan only), timed_out, busy (discovery was running nmap), unavailable (nmap not available or Active discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501)"
+                          },
+                          "note": {
+                            "type": "string",
+                            "description": "The box's sentence for the reason, shown as is"
+                          }
+                        },
+                        "required": [
+                          "target_id",
+                          "label",
+                          "ip",
+                          "found",
+                          "reason",
+                          "note"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "One row per device of a Scan now run: what nmap identified first, or exactly why nothing was (D-501). Empty for scheduled scans and KEV rescans, and while the run is going"
                     }
                   },
                   "required": [
@@ -61315,7 +61518,8 @@
                     "current",
                     "results",
                     "matched",
-                    "stop_reason"
+                    "stop_reason",
+                    "identification"
                   ],
                   "additionalProperties": false
                 }

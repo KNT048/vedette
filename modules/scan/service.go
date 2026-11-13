@@ -39,6 +39,7 @@ type Config struct {
 	Engine    Engine                                   // nil: the scanner is unavailable (INV-2), nothing is ever sent
 	Pack      *pack.Index                              // the safe template pack of the scan image (D-125 (4)); nil: the scanner is unavailable
 	Findings  Findings                                 // nil: results stay in the run, nothing is confirmed
+	Identify  Identifier                               // nil: Scan now does not identify devices first; each says why (D-501)
 	External  External                                 // nil: the list has no external targets
 	Publisher Publisher                                // nil: no events
 	KEV       KEVFeed                                  // nil: no catch-up of missed new_kev (D-144)

@@ -18,13 +18,13 @@ const RetentionDays = 90
 // maxProbeList caps GET /scans/probes; the CSV has every row.
 const maxProbeList = 5000
 
-const runColumns = `id, trigger, trigger_note, started_at, started_by, ended_at, status, total, done, current, results, matched, stop_reason`
+const runColumns = `id, trigger, trigger_note, started_at, started_by, ended_at, status, total, done, current, results, matched, stop_reason, identification`
 
 func scanRun(row interface{ Scan(...any) error }) (RunView, error) {
 	var v RunView
 	var cur sql.NullString
-	var results string
-	err := row.Scan(&v.ID, &v.Trigger, &v.TriggerNote, &v.StartedAt, &v.StartedBy, &v.EndedAt, &v.Status, &v.Total, &v.Done, &cur, &results, &v.Matched, &v.StopReason)
+	var results, idents string
+	err := row.Scan(&v.ID, &v.Trigger, &v.TriggerNote, &v.StartedAt, &v.StartedBy, &v.EndedAt, &v.Status, &v.Total, &v.Done, &cur, &results, &v.Matched, &v.StopReason, &idents)
 	if err != nil {
 		return RunView{}, err
 	}
@@ -39,6 +39,12 @@ func scanRun(row interface{ Scan(...any) error }) (RunView, error) {
 	}
 	if v.Results == nil {
 		v.Results = []RunRow{}
+	}
+	if err := json.Unmarshal([]byte(idents), &v.Identification); err != nil {
+		return RunView{}, fmt.Errorf("scan: reading the identification: %w", err)
+	}
+	if v.Identification == nil {
+		v.Identification = []IdentRow{}
 	}
 	return v, nil
 }

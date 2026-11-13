@@ -56,6 +56,7 @@ func scanService(d deps) *scan.Service {
 			panic("vedette: the embedded nuclei pack index: " + err.Error())
 		}
 		cfg.Engine, cfg.Pack = scanEngine{d.SensorDispatcher}, ix
+		cfg.Identify = scanIdentify{d} // D-501: Scan now identifies each device with sensor-active's nmap scan first
 	}
 	svc, err := scan.NewService(cfg)
 	if err != nil { // only a missing dependency: a programming error in serve
@@ -157,6 +158,31 @@ func (f scanFindings) List(ctx context.Context, assetID string) ([]scan.FindingR
 func (f scanFindings) ConfirmFromScan(ctx context.Context, assetID, cve string, ev scan.Evidence) (string, error) {
 	r, err := f.svc.ConfirmFromScan(ctx, assetID, cve, findings.Evidence{Summary: ev.Summary, Template: ev.Template, Request: ev.Request, Response: ev.Response, CheckedAt: ev.CheckedAt})
 	return r.ID, err
+}
+
+// scanIdentify is sensor-active's identification as scan sees it (scan.Identifier, D-501): an nmap device scan of a device a person
+// picked in Scan now, recorded in the inventory. It runs only while sensor-active is on (SYS-5); off, every device says unavailable.
+// The service is looked up at each call: scanService and sensorActiveService are built in either order.
+type scanIdentify struct{ d deps }
+
+func (i scanIdentify) Identify(ctx context.Context, assetID string) (scan.Identification, error) {
+	if i.d.Reg != nil && !i.d.Reg.Enabled("sensor-active") {
+		return scan.Identification{Why: sensoractive.WhyUnavailable}, nil
+	}
+	svc, err := sensorActiveService(i.d) //nolint:contextcheck // built once per database; its zone lookup has its own short budget
+	if err != nil {
+		return scan.Identification{}, err
+	}
+	got, err := svc.IdentifyDevice(ctx, assetID)
+	switch {
+	case errors.Is(err, sensoractive.ErrStopped):
+		return scan.Identification{}, scan.ErrIdentifyStopped
+	case errors.Is(err, sensoractive.ErrNotFound):
+		return scan.Identification{Why: scan.ReasonGone}, nil
+	case err != nil:
+		return scan.Identification{}, err
+	}
+	return scan.Identification{Found: got.Found, Why: got.Why}, nil
 }
 
 // scanExternal lists the exposure targets for the scan list (listed, not scanned yet: D-126 (4)).

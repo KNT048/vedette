@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- hand-written fixture shaped after nmap 7.94 output for an office laser printer; no live network was scanned. Its print
+     ports answer without a product, and the OS fingerprint is only a guess below 85% (nmap's "Aggressive OS guesses"). -->
+<nmaprun scanner="nmap" args="nmap --privileged -sS -sV -O -n --max-rate 100 --top-ports 1000 --host-timeout 30m -oX - 192.168.10.20" start="1762650000" version="7.94" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1000"/>
+<host starttime="1762650001" endtime="1762650090"><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="192.168.10.20" addrtype="ipv4"/>
+<address addr="AA:BB:CC:00:00:23" addrtype="mac" vendor="Hewlett Packard"/>
+<ports>
+<extraports state="closed" count="997"><extrareasons reason="reset" count="997"/></extraports>
+<port protocol="tcp" portid="515"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="printer" method="table" conf="3"/></port>
+<port protocol="tcp" portid="631"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="ipp" method="table" conf="3"/></port>
+<port protocol="tcp" portid="9100"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="jetdirect" method="table" conf="3"/></port>
+</ports>
+<os><portused state="open" proto="tcp" portid="515"/>
+<osmatch name="HP LaserJet 4250 printer" accuracy="84" line="31254">
+<osclass type="printer" vendor="HP" osfamily="embedded" accuracy="84"><cpe>cpe:/h:hp:laserjet_4250</cpe></osclass>
+</osmatch>
+<osmatch name="Lexmark X644e printer" accuracy="82" line="41200">
+<osclass type="printer" vendor="Lexmark" osfamily="embedded" accuracy="82"><cpe>cpe:/h:lexmark:x644e</cpe></osclass>
+</osmatch>
+</os>
+</host>
+<runstats><finished time="1762650091" elapsed="90.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

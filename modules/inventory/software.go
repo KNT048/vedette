@@ -274,8 +274,12 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 		return invalid("software source %q is not allowed", source)
 	}
 	conv := make([]SoftwareItem, len(items))
+	cat := s.cpeCatalog(ctx, items)
 	for i, it := range items {
 		conv[i] = SoftwareItem{Display: it.Display, Vendor: it.Vendor, Product: it.Product, Version: it.Version, CPE: it.CPE, KevKeys: it.KevKeys, Confidence: it.Confidence}
+		if len(it.KevKeys) == 0 && it.CPE != "" && cat != nil {
+			conv[i].KevKeys = cat.keysForCPE(it.CPE) // nmap's "apple:iphone_os" is CISA's "Apple|iOS" (D-501); nil keeps the vendor|product key
+		}
 	}
 	clean, err := s.checkItems(ctx, conv)
 	if err != nil {
@@ -293,6 +297,20 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 		}
 		return s.replaceSoftwareTx(ctx, tx, o, id, clean, string(source), now)
 	})
+}
+
+// cpeCatalog is the catalog when an item of the list has a CPE, for its KEV keys (keysForCPE); nil otherwise, or when it cannot
+// be read: the items then keep their vendor|product key, as before D-501, and the failure is logged.
+func (s *Service) cpeCatalog(ctx context.Context, items []observe.Software) *Catalog {
+	if !slices.ContainsFunc(items, func(it observe.Software) bool { return it.CPE != "" && len(it.KevKeys) == 0 }) {
+		return nil
+	}
+	cat, err := s.Catalog(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "inventory: the catalog could not be read; software from a CPE keeps its vendor and product key", "error", err)
+		return nil
+	}
+	return cat
 }
 
 // deviceFor finds the device of a sensor's list (software, services) by its MAC or IP, or creates it unapproved and announces it.

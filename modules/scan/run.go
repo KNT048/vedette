@@ -102,6 +102,9 @@ type RunView struct {
 	Results     []RunRow `json:"results"`
 	Matched     int      `json:"matched"`
 	StopReason  *string  `json:"stop_reason"`
+	// Identification is one row per device of a Scan now run: what it was identified as, or why it was not (D-501). Empty for
+	// schedules and KEV rescans, which do not identify, and while the run is going.
+	Identification []IdentRow `json:"identification"`
 }
 
 // live is the run this process is executing.
@@ -350,6 +353,7 @@ func (s *Service) StopRun(ctx context.Context, user, id string) (RunView, error)
 func (s *Service) execute(ctx context.Context, runID string, sp runSpec) {
 	ids := sp.ids
 	var rows []RunRow
+	idents := []IdentRow{}
 	status, reason := "done", ""
 	done, next := 0, len(ids) // devices finished; first device not touched
 	for i, id := range ids {
@@ -357,8 +361,11 @@ func (s *Service) execute(ctx context.Context, runID string, sp runSpec) {
 			status, reason, next = "stopped", s.stopReason(ctx), i
 			break
 		}
-		got, end := s.scanTarget(ctx, runID, id, i, sp)
+		got, ident, end := s.scanTarget(ctx, runID, id, i, sp)
 		rows = append(rows, got...)
+		if ident != nil {
+			idents = append(idents, *ident)
+		}
 		if end == "stopped" {
 			status, reason, next = "stopped", s.stopReason(ctx), i+1
 			break
@@ -375,9 +382,19 @@ func (s *Service) execute(ctx context.Context, runID string, sp runSpec) {
 	for _, id := range ids[next:] {
 		d := devs[id]
 		rows = append(rows, RunRow{TargetID: id, Label: orDash(d.Label), IP: orDash(d.IP), Result: "skipped", Note: noteSkipped})
+		if identifies(sp) {
+			d.ID = id
+			r := identRow(d, nil, "not_scanned")
+			r.Note = noteSkipped
+			idents = append(idents, r)
+		}
 	}
-	s.finish(fctx, runID, status, reason, rows, done)
+	s.finish(fctx, runID, status, reason, rows, idents, done)
 }
+
+// identifies says a run identifies its devices before checking them (D-501): Scan now only. A schedule and a KEV rescan check
+// what is known; discovery identifies devices in its own window.
+func identifies(sp runSpec) bool { return sp.trigger == "manual" }
 
 func orDash(s string) string {
 	if s == "" {
@@ -396,37 +413,63 @@ func (s *Service) devicesByID(ctx context.Context) (map[string]Device, error) {
 }
 
 // scanTarget scans one device. end is "" to go on, "stopped" after Stop now, or the stop reason of an
-// unresponsive device when stop_on_unresponsive is set.
-func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, sp runSpec) (rows []RunRow, end string) {
+// unresponsive device when stop_on_unresponsive is set. ident is the device's identification row in a Scan now run (D-501), nil
+// in other runs.
+func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, sp runSpec) (rows []RunRow, ident *IdentRow, end string) {
 	explicit := slices.Contains(sp.picked, id) // M1: the pick is per device
+	skipped := func(d Device, why string) *IdentRow {
+		if !identifies(sp) {
+			return nil
+		}
+		r := skippedRow(d, why)
+		return &r
+	}
+	failed := func(err error) ([]RunRow, *IdentRow, string) {
+		r := s.failed(ctx, id, err)
+		return r, skipped(Device{ID: id}, "not_scanned"), ""
+	}
 	st, err := loadSettings(ctx, s.cfg.DB.Reader())
 	if err != nil {
-		return s.failed(ctx, id, err), ""
+		return failed(err)
 	}
 	devs, err := s.devicesByID(ctx)
 	if err != nil {
-		return s.failed(ctx, id, err), ""
+		return failed(err)
 	}
 	d, ok := devs[id]
 	if !ok {
-		return []RunRow{{TargetID: id, Label: "—", IP: "—", Result: "skipped", Note: skipNote["gone"]}}, ""
+		return []RunRow{{TargetID: id, Label: "—", IP: "—", Result: "skipped", Note: skipNote["gone"]}}, skipped(Device{ID: id}, ReasonGone), ""
 	}
 	if err := s.setCurrent(ctx, runID, index, d); err != nil {
-		return s.failed(ctx, id, err), ""
+		return failed(err)
 	}
 	sc, err := s.cfg.Inventory.Scope(ctx)
 	if err != nil {
-		return s.failed(ctx, id, err), ""
+		return failed(err)
 	}
 	if sc.ConfirmedAt == "" {
-		return []RunRow{s.skip(d, reasonNoScope)}, ""
+		return []RunRow{s.skip(d, reasonNoScope)}, skipped(d, reasonNoScope), ""
 	}
 	why, careful, err := s.consent(ctx, st, d, explicit)
 	if err != nil {
-		return s.failed(ctx, id, err), ""
+		return failed(err)
 	}
 	if why != "" {
-		return []RunRow{s.skip(d, why)}, ""
+		return []RunRow{s.skip(d, why)}, skipped(d, why), ""
+	}
+	if identifies(sp) {
+		row, stopped := s.identify(ctx, d)
+		ident = &row
+		if stopped {
+			return []RunRow{{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "skipped", Note: noteIdentStopped}}, ident, "stopped"
+		}
+		// What the identification recorded changed the device: its open ports (where nuclei goes) and, through the findings
+		// module, its findings (what plan reads). The address it was checked for stays the one consent decided on.
+		if devs, err := s.devicesByID(ctx); err == nil {
+			if now, ok := devs[id]; ok && now.IP == d.IP {
+				d = now
+			}
+		}
 	}
 	rate := st.Rate
 	if careful {
@@ -436,7 +479,8 @@ func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, s
 	if sp.onlyCVEs != nil {
 		only = append([]string{}, sp.onlyCVEs[d.ID]...)
 	}
-	return s.scanDevice(ctx, runID, d, st, rate, only)
+	rows, end = s.scanDevice(ctx, runID, d, st, rate, only)
+	return rows, ident, end
 }
 
 func (s *Service) skip(d Device, why string) RunRow {
@@ -823,7 +867,7 @@ func (s *Service) closeProbes(ctx context.Context, rows []probeRow, result func(
 }
 
 // finish writes the end of a run and announces it.
-func (s *Service) finish(ctx context.Context, runID, status, reason string, rows []RunRow, done int) {
+func (s *Service) finish(ctx context.Context, runID, status, reason string, rows []RunRow, idents []IdentRow, done int) {
 	matched := 0
 	for _, r := range rows {
 		if r.Result == "matched" {
@@ -833,15 +877,22 @@ func (s *Service) finish(ctx context.Context, runID, status, reason string, rows
 	if rows == nil {
 		rows = []RunRow{}
 	}
+	if idents == nil {
+		idents = []IdentRow{}
+	}
 	b, err := json.Marshal(rows)
+	var ib []byte
+	if err == nil {
+		ib, err = json.Marshal(idents)
+	}
 	if err == nil {
 		var stop *string
 		if reason != "" {
 			stop = &reason
 		}
 		err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-			if _, err := tx.ExecContext(ctx, `UPDATE scan_run SET status = ?, ended_at = ?, current = NULL, results = ?, matched = ?, stop_reason = ?, done = ? WHERE id = ?`,
-				status, store.FormatTS(s.now()), string(b), matched, stop, done, runID); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE scan_run SET status = ?, ended_at = ?, current = NULL, results = ?, identification = ?, matched = ?, stop_reason = ?, done = ? WHERE id = ?`,
+				status, store.FormatTS(s.now()), string(b), string(ib), matched, stop, done, runID); err != nil {
 				return err
 			}
 			// Review L4: a probe row closeProbes could not close does not stay open for good (INV-7).

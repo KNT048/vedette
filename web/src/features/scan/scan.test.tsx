@@ -282,6 +282,11 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(within(dlg).getByText('Matches, still vulnerable')).toBeInTheDocument()
     expect(within(dlg).getByText('http/cves/2022/CVE-2022-27593.yaml')).toBeInTheDocument()
     expect(within(dlg).getByRole('link', { name: 'Open finding' })).toHaveAttribute('href', '/findings/f-1')
+    // D-501: Scan now identifies first and says per device what it found or exactly why not (the NAS is fragile: gentle scan only)
+    expect(run.identification).toEqual([expect.objectContaining({ target_id: 'a-nas02', reason: 'gentle_only', found: [] })])
+    expect(within(dlg).getByRole('heading', { name: 'What each device was identified as' })).toBeInTheDocument()
+    expect(within(dlg).getByText('Gentle scan only')).toBeInTheDocument()
+    expect(within(dlg).getByText(/only a gentle port scan ran, without version or operating system detection/)).toBeInTheDocument()
   })
 
   it('đã giảm thiểu rồi quét lại: không có khớp chỉ là "không báo khớp", không đổi gì ở phát hiện (D-133 (5))', async () => {

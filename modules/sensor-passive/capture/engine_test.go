@@ -74,6 +74,7 @@ func TestLANDiscoveryFixture(t *testing.T) {
 		pc + " hostname=PC-ACCOUNTING-01 @ 0.6",
 		pc + " mac=" + pc + " @ 0.9",
 		pc + " mac=" + pc + " @192.168.10.21 0.9",
+		pc + " os=Microsoft Windows @ 0.4", // its DHCP vendor class is MSFT 5.0 (D-501)
 		router + " mac=" + router + " @192.168.10.1 0.9",
 		printer + " hostname=hp-laser-3f @192.168.10.22 0.6",
 		printer + " kind=printer @192.168.10.22 0.5",

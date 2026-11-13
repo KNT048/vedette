@@ -35,13 +35,13 @@ const obsStore = collection<Record<string, StoredObs[]>>('inv_obs', () => ({}))
 const notifyStore = collection<{ enabled: boolean }>('inv_notify', () => ({ enabled: true }))
 const settingsStore = collection<InventorySettings>('inv_settings', () => ({
   lan_ranges: ['192.168.10.0/24', '192.168.20.0/24'],
-  active: { enabled: true, days: [1, 2, 3, 4, 5, 6, 7], from: '23:00', to: '05:00', rate: 50, exclusions: [] },
+  active: { enabled: true, days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00', rate: 50, exclusions: [] },
   fragile_kinds: ['printer', 'camera', 'nvr', 'nas', 'ap', 'iot'], regular_scan_kinds: [],
   scope_confirmed_at: daysAgo(36), scope_confirmed_by: 'admin@acme.example',
 }), () => ({
   // Cài sạch: chưa có dải mạng nào, chưa xác nhận phạm vi nên chưa quét chủ động. Người quản trị khai ở trang Phạm vi quét.
   lan_ranges: [],
-  active: { enabled: false, days: [1, 2, 3, 4, 5, 6, 7], from: '23:00', to: '05:00', rate: 50, exclusions: [] },
+  active: { enabled: false, days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00', rate: 50, exclusions: [] },
   fragile_kinds: ['printer', 'camera', 'nvr', 'nas', 'ap', 'iot'], regular_scan_kinds: [],
   scope_confirmed_at: null, scope_confirmed_by: null,
 }))

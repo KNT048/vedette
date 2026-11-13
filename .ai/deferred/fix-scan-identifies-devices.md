@@ -1,0 +1,7 @@
+# Deferred from fix/scan-identifies-devices (P0-A, D-501)
+
+- [ ] 2026-11-13 inventory/sensor-active: there is no `phone` kind; nmap phone/VoIP/PDA/media device and the LLDP Telephone bit map to `iot`, which is fragile by default, so a later Scan now of an identified iPhone runs the gentle scan only (its OS row from the first scan stays: a gentle scan no longer replaces software). The two-level type list (beta item 25) should add phone/tablet and re-map these.
+- [ ] 2026-11-13 agent-intake: osquery still never sets a kind, so an enrolled PC or server stays `unknown` (v8 §3). Not in the P0-A list; one line in mapper.go from `os_version.platform` + "Server" in the name.
+- [ ] 2026-11-13 scan: schedules and KEV rescans do not identify (D-501 (1)); devices discovery leaves unknown after their gentle scan get identified only by a Scan now pick. Revisit if the walks show scheduled runs matching nothing.
+- [ ] 2026-11-13 sensor-active: first pass (INV-12) is skipped on a box that ever finished a sweep; a box upgraded from before D-501 with active scanning just turned on gets no first pass if it swept once long ago. Consider keying it on "first sweep since active scanning was turned on".
+- [ ] 2026-11-13 checks: not run on this branch: `go test -race`, Playwright, the full Go suite and full vitest (PR CI is the gate per the coordinator). Run on the N100: Scan now of an iPhone, a Windows PC, a printer, a FortiGate.

@@ -169,7 +169,8 @@ func TestContract_INV5_FirstScanIsMarkedWhenNmapFinishedEvenIfRecordingFails(t *
 		return sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true}, true
 	}
 	sw := &failingSoftware{sink: e.sink, fail: errors.New("database is locked")}
-	svc, err := sa.New(sa.Config{DB: e.db, Inventory: h, Observe: e.sink, Software: sw, Events: e.ev, NmapPath: e.nm.path, Prober: e.prober(), Clock: e.clock})
+	// the gentle scan records only its ports (it leaves the software alone, D-501), so that is the write that fails
+	svc, err := sa.New(sa.Config{DB: e.db, Inventory: h, Observe: e.sink, Software: sw, Services: sw, Events: e.ev, NmapPath: e.nm.path, Prober: e.prober(), Clock: e.clock})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,6 +199,14 @@ func (f *failingSoftware) ReplaceSoftware(ctx context.Context, h observe.AssetHi
 		return f.fail
 	}
 	return f.sink.ReplaceSoftware(ctx, h, src, items)
+}
+
+// AddServices fails too while fail is set: a gentle scan's only list write.
+func (f *failingSoftware) AddServices(ctx context.Context, h observe.AssetHint, src observe.Source, items []observe.Service) error {
+	if f.fail != nil {
+		return f.fail
+	}
+	return f.sink.AddServices(ctx, h, src, items)
 }
 
 // M6 / INV-3: the window is read in the organization's time zone, not the clock's or the box's.

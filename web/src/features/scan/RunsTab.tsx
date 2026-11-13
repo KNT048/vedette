@@ -15,7 +15,7 @@ import { useCan } from '@/lib/session'
 import { isLive, useRuns, useScanConfig, useStartRun, useStopRun, useTargets } from './api'
 import { errMsg } from './errors'
 import { ResultChip, RunStatusChip } from './shared'
-import type { RunResultRow, ScanConfigResponse, ScanRun, ScanTarget } from './types'
+import type { RunIdentRow, RunResultRow, ScanConfigResponse, ScanRun, ScanTarget } from './types'
 
 function Progress({ run }: { run: ScanRun }) {
   const { t } = useTranslation('scan')
@@ -159,6 +159,30 @@ function StartPanel({ targets, cfg, live, engineBusy }: { targets: ScanTarget[];
   )
 }
 
+/** D-501: what Scan now identified on each device before checking it, or exactly why it could not (the box's own sentence). */
+function Identification({ rows }: { rows: RunIdentRow[] }) {
+  const { t } = useTranslation('scan')
+  if (!rows.length) return null
+  return (
+    <section aria-labelledby="ident-title" className="grid gap-2">
+      <h3 id="ident-title" className="text-sm font-semibold">{t('res.identTitle')}</h3>
+      <ul className="divide-y divide-rule rounded-md border border-rule">
+        {rows.map((r) => (
+          <li key={r.target_id} className="grid gap-1 px-3 py-2 text-[13px]">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Link to={`/devices/${r.target_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.label}</Link>
+              <span className="text-muted">{r.ip}</span>
+              {r.reason ? <Chip tone={r.reason === 'not_scanned' ? 'off' : 'warn'}>{t(`ident.${r.reason}`)}</Chip> : <Chip tone="ok">{t('ident.identified')}</Chip>}
+            </div>
+            {r.found.length ? <span>{r.found.join(' · ')}</span> : null}
+            <span className="text-muted">{r.note}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 function ResultDialog({ run, onClose, opener }: { run: ScanRun | null; onClose: () => void; opener: React.RefObject<HTMLElement | null> }) {
   const { t } = useTranslation('scan')
   const columns: ColumnDef<RunResultRow>[] = [
@@ -178,6 +202,7 @@ function ResultDialog({ run, onClose, opener }: { run: ScanRun | null; onClose: 
       {shown ? (
         <DialogContent wide title={t('res.title', { time: fmtDateTime(shown.started_at) })} description={t('res.description', { done: shown.done, total: shown.total })} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
           {shown.stop_reason ? <p role="note" className="rounded-md border border-dashed border-warn bg-warn-soft/60 px-3 py-2 text-sm">{shown.stop_reason}</p> : null}
+          <Identification rows={shown.identification} />
           <DataTable caption={t('res.caption')} data={shown.results} columns={columns} pageSize={20} empty={t('res.empty')} />
         </DialogContent>
       ) : null}

@@ -169,7 +169,8 @@ func TestSoftwareAndObservations(t *testing.T) {
 
 func TestKindOf(t *testing.T) {
 	t.Parallel()
-	for in, want := range map[string]string{"router": "router", "WAP": "ap", "printer": "printer", "webcam": "camera", "storage-misc": "nas", "general purpose": "", "": ""} {
+	for in, want := range map[string]string{"router": "router", "WAP": "ap", "printer": "printer", "webcam": "camera", "storage-misc": "nas", "general purpose": "", "": "",
+		"phone": "iot", "VoIP phone": "iot", "broadband router": "router", "print server": "printer"} { // D-501: no phone kind yet, phones are iot as in the catalog
 		if got := kindOf(in); got != want {
 			t.Errorf("kindOf(%q) = %q, want %q", in, got, want)
 		}

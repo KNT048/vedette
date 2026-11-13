@@ -64,7 +64,7 @@
     "scope": "Confirmed scope: {{networks}}. Vedette never scans any address outside it.",
     "commitment": "Scan scope commitment ticked on {{date}}, confirmed by {{by}}.",
     "noCommitment": "The scan scope commitment is not ticked yet.",
-    "manualNote": "Scan now runs immediately, without waiting for the time window ({{from}} to {{to}}), but still follows {{rate}} requests per second and the exclusion list.",
+    "manualNote": "Scan now runs immediately, without waiting for the time window ({{from}} to {{to}}): it first identifies each device you picked (open ports, operating system and software versions, with nmap), then checks it at {{rate}} requests per second, following the exclusion list.",
     "asIs": "Vedette is provided as-is. Its author is not responsible for how you use it.",
     "safeNote": "Fragile devices (printers, cameras, old NAS) and devices of unknown type are scanned only when you pick them, at a quarter of the speed. Scheduled scans and automatic rescans skip them, and also skip devices you added by hand.",
     "selectAll": "Select all",
@@ -150,7 +150,26 @@
     "result": "Result",
     "note": "Note",
     "openFinding": "Open finding",
-    "empty": "This scan has no results yet."
+    "empty": "This scan has no results yet.",
+    "identTitle": "What each device was identified as"
+  },
+  "ident": {
+    "identified": "Identified",
+    "host_down": "No answer",
+    "no_open_ports": "All ports closed",
+    "filtered": "Probes dropped",
+    "no_version": "No version given",
+    "os_low_confidence": "OS guess too unsure",
+    "gentle_only": "Gentle scan only",
+    "timed_out": "Timed out",
+    "busy": "Discovery was busy",
+    "unavailable": "Scanner not available",
+    "declared_by_hand": "Added by hand",
+    "scanning_off": "Active scanning off",
+    "not_approved": "Not approved",
+    "out_of_scope": "Outside the scope",
+    "no_ip": "No IP address",
+    "not_scanned": "Not scanned"
   },
   "days": {
     "1": "Mon",

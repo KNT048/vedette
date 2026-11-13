@@ -169622,6 +169622,50 @@ func (s *NilScanGetScansRunsOKItemsItemCurrent) UnmarshalJSON(data []byte) error
 	return s.Decode(d)
 }
 
+// Encode encodes ScanGetScansRunsOKItemsItemIdentificationItemReason as json.
+func (o NilScanGetScansRunsOKItemsItemIdentificationItemReason) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes ScanGetScansRunsOKItemsItemIdentificationItemReason from json.
+func (o *NilScanGetScansRunsOKItemsItemIdentificationItemReason) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilScanGetScansRunsOKItemsItemIdentificationItemReason to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v ScanGetScansRunsOKItemsItemIdentificationItemReason
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilScanGetScansRunsOKItemsItemIdentificationItemReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilScanGetScansRunsOKItemsItemIdentificationItemReason) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ScanGetScansTargetsOKItemsItemDeviceKind as json.
 func (o NilScanGetScansTargetsOKItemsItemDeviceKind) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -169842,6 +169886,50 @@ func (s *NilScanPostScansRunsCreatedCurrent) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes ScanPostScansRunsCreatedIdentificationItemReason as json.
+func (o NilScanPostScansRunsCreatedIdentificationItemReason) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes ScanPostScansRunsCreatedIdentificationItemReason from json.
+func (o *NilScanPostScansRunsCreatedIdentificationItemReason) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilScanPostScansRunsCreatedIdentificationItemReason to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v ScanPostScansRunsCreatedIdentificationItemReason
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilScanPostScansRunsCreatedIdentificationItemReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilScanPostScansRunsCreatedIdentificationItemReason) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ScanPostScansRunsIDStopOKCurrent as json.
 func (o NilScanPostScansRunsIDStopOKCurrent) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -169882,6 +169970,50 @@ func (s NilScanPostScansRunsIDStopOKCurrent) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilScanPostScansRunsIDStopOKCurrent) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ScanPostScansRunsIDStopOKIdentificationItemReason as json.
+func (o NilScanPostScansRunsIDStopOKIdentificationItemReason) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes ScanPostScansRunsIDStopOKIdentificationItemReason from json.
+func (o *NilScanPostScansRunsIDStopOKIdentificationItemReason) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilScanPostScansRunsIDStopOKIdentificationItemReason to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v ScanPostScansRunsIDStopOKIdentificationItemReason
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilScanPostScansRunsIDStopOKIdentificationItemReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilScanPostScansRunsIDStopOKIdentificationItemReason) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -256019,6 +256151,14 @@ func (s *ScanGetScansRunsOKItemsItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.ID)
 	}
 	{
+		e.FieldStart("identification")
+		e.ArrStart()
+		for _, elem := range s.Identification {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("matched")
 		e.Int(s.Matched)
 	}
@@ -256060,20 +256200,21 @@ func (s *ScanGetScansRunsOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanGetScansRunsOKItemsItem = [13]string{
+var jsonFieldsNameOfScanGetScansRunsOKItemsItem = [14]string{
 	0:  "current",
 	1:  "done",
 	2:  "ended_at",
 	3:  "id",
-	4:  "matched",
-	5:  "results",
-	6:  "started_at",
-	7:  "started_by",
-	8:  "status",
-	9:  "stop_reason",
-	10: "total",
-	11: "trigger",
-	12: "trigger_note",
+	4:  "identification",
+	5:  "matched",
+	6:  "results",
+	7:  "started_at",
+	8:  "started_by",
+	9:  "status",
+	10: "stop_reason",
+	11: "total",
+	12: "trigger",
+	13: "trigger_note",
 }
 
 // Decode decodes ScanGetScansRunsOKItemsItem from json.
@@ -256129,8 +256270,26 @@ func (s *ScanGetScansRunsOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "matched":
+		case "identification":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				s.Identification = make([]ScanGetScansRunsOKItemsItemIdentificationItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ScanGetScansRunsOKItemsItemIdentificationItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Identification = append(s.Identification, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"identification\"")
+			}
+		case "matched":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Matched = int(v)
@@ -256142,7 +256301,7 @@ func (s *ScanGetScansRunsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"matched\"")
 			}
 		case "results":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.Results = make([]ScanGetScansRunsOKItemsItemResultsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -256160,7 +256319,7 @@ func (s *ScanGetScansRunsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"results\"")
 			}
 		case "started_at":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -256172,7 +256331,7 @@ func (s *ScanGetScansRunsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "started_by":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.StartedBy = string(v)
@@ -256184,7 +256343,7 @@ func (s *ScanGetScansRunsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_by\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -256194,7 +256353,7 @@ func (s *ScanGetScansRunsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "stop_reason":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.StopReason.Decode(d); err != nil {
 					return err
@@ -256204,7 +256363,7 @@ func (s *ScanGetScansRunsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"stop_reason\"")
 			}
 		case "total":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Total = int(v)
@@ -256216,7 +256375,7 @@ func (s *ScanGetScansRunsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "trigger":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Trigger.Decode(d); err != nil {
 					return err
@@ -256226,7 +256385,7 @@ func (s *ScanGetScansRunsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"trigger\"")
 			}
 		case "trigger_note":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.TriggerNote.Decode(d); err != nil {
 					return err
@@ -256246,7 +256405,7 @@ func (s *ScanGetScansRunsOKItemsItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -256401,6 +256560,263 @@ func (s *ScanGetScansRunsOKItemsItemCurrent) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ScanGetScansRunsOKItemsItemCurrent) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("found")
+		e.ArrStart()
+		for _, elem := range s.Found {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("ip")
+		e.Str(s.IP)
+	}
+	{
+		e.FieldStart("label")
+		e.Str(s.Label)
+	}
+	{
+		e.FieldStart("note")
+		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("reason")
+		s.Reason.Encode(e)
+	}
+	{
+		e.FieldStart("target_id")
+		e.Str(s.TargetID)
+	}
+}
+
+var jsonFieldsNameOfScanGetScansRunsOKItemsItemIdentificationItem = [6]string{
+	0: "found",
+	1: "ip",
+	2: "label",
+	3: "note",
+	4: "reason",
+	5: "target_id",
+}
+
+// Decode decodes ScanGetScansRunsOKItemsItemIdentificationItem from json.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ScanGetScansRunsOKItemsItemIdentificationItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "found":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Found = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Found = append(s.Found, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"found\"")
+			}
+		case "ip":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.IP = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip\"")
+			}
+		case "label":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Label = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"label\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Note = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Reason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "target_id":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.TargetID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"target_id\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ScanGetScansRunsOKItemsItemIdentificationItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfScanGetScansRunsOKItemsItemIdentificationItem) {
+					name = jsonFieldsNameOfScanGetScansRunsOKItemsItemIdentificationItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ScanGetScansRunsOKItemsItemIdentificationItemReason as json.
+func (s ScanGetScansRunsOKItemsItemIdentificationItemReason) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ScanGetScansRunsOKItemsItemIdentificationItemReason from json.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItemReason) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ScanGetScansRunsOKItemsItemIdentificationItemReason to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ScanGetScansRunsOKItemsItemIdentificationItemReason(v) {
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonHostDown:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonHostDown
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoOpenPorts:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNoOpenPorts
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonBusy:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonBusy
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonUnavailable:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonUnavailable
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonDeclaredByHand:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonDeclaredByHand
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonScanningOff:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonScanningOff
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned
+	default:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReason(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ScanGetScansRunsOKItemsItemIdentificationItemReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItemReason) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -258132,6 +258548,14 @@ func (s *ScanPostScansRunsCreated) encodeFields(e *jx.Encoder) {
 		e.Str(s.ID)
 	}
 	{
+		e.FieldStart("identification")
+		e.ArrStart()
+		for _, elem := range s.Identification {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("matched")
 		e.Int(s.Matched)
 	}
@@ -258173,20 +258597,21 @@ func (s *ScanPostScansRunsCreated) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanPostScansRunsCreated = [13]string{
+var jsonFieldsNameOfScanPostScansRunsCreated = [14]string{
 	0:  "current",
 	1:  "done",
 	2:  "ended_at",
 	3:  "id",
-	4:  "matched",
-	5:  "results",
-	6:  "started_at",
-	7:  "started_by",
-	8:  "status",
-	9:  "stop_reason",
-	10: "total",
-	11: "trigger",
-	12: "trigger_note",
+	4:  "identification",
+	5:  "matched",
+	6:  "results",
+	7:  "started_at",
+	8:  "started_by",
+	9:  "status",
+	10: "stop_reason",
+	11: "total",
+	12: "trigger",
+	13: "trigger_note",
 }
 
 // Decode decodes ScanPostScansRunsCreated from json.
@@ -258242,8 +258667,26 @@ func (s *ScanPostScansRunsCreated) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "matched":
+		case "identification":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				s.Identification = make([]ScanPostScansRunsCreatedIdentificationItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ScanPostScansRunsCreatedIdentificationItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Identification = append(s.Identification, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"identification\"")
+			}
+		case "matched":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Matched = int(v)
@@ -258255,7 +258698,7 @@ func (s *ScanPostScansRunsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"matched\"")
 			}
 		case "results":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.Results = make([]ScanPostScansRunsCreatedResultsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -258273,7 +258716,7 @@ func (s *ScanPostScansRunsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"results\"")
 			}
 		case "started_at":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -258285,7 +258728,7 @@ func (s *ScanPostScansRunsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "started_by":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.StartedBy = string(v)
@@ -258297,7 +258740,7 @@ func (s *ScanPostScansRunsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_by\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -258307,7 +258750,7 @@ func (s *ScanPostScansRunsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "stop_reason":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.StopReason.Decode(d); err != nil {
 					return err
@@ -258317,7 +258760,7 @@ func (s *ScanPostScansRunsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"stop_reason\"")
 			}
 		case "total":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Total = int(v)
@@ -258329,7 +258772,7 @@ func (s *ScanPostScansRunsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "trigger":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Trigger.Decode(d); err != nil {
 					return err
@@ -258339,7 +258782,7 @@ func (s *ScanPostScansRunsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"trigger\"")
 			}
 		case "trigger_note":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.TriggerNote.Decode(d); err != nil {
 					return err
@@ -258359,7 +258802,7 @@ func (s *ScanPostScansRunsCreated) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -258514,6 +258957,263 @@ func (s *ScanPostScansRunsCreatedCurrent) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ScanPostScansRunsCreatedCurrent) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ScanPostScansRunsCreatedIdentificationItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ScanPostScansRunsCreatedIdentificationItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("found")
+		e.ArrStart()
+		for _, elem := range s.Found {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("ip")
+		e.Str(s.IP)
+	}
+	{
+		e.FieldStart("label")
+		e.Str(s.Label)
+	}
+	{
+		e.FieldStart("note")
+		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("reason")
+		s.Reason.Encode(e)
+	}
+	{
+		e.FieldStart("target_id")
+		e.Str(s.TargetID)
+	}
+}
+
+var jsonFieldsNameOfScanPostScansRunsCreatedIdentificationItem = [6]string{
+	0: "found",
+	1: "ip",
+	2: "label",
+	3: "note",
+	4: "reason",
+	5: "target_id",
+}
+
+// Decode decodes ScanPostScansRunsCreatedIdentificationItem from json.
+func (s *ScanPostScansRunsCreatedIdentificationItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ScanPostScansRunsCreatedIdentificationItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "found":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Found = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Found = append(s.Found, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"found\"")
+			}
+		case "ip":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.IP = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip\"")
+			}
+		case "label":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Label = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"label\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Note = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Reason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "target_id":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.TargetID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"target_id\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ScanPostScansRunsCreatedIdentificationItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfScanPostScansRunsCreatedIdentificationItem) {
+					name = jsonFieldsNameOfScanPostScansRunsCreatedIdentificationItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ScanPostScansRunsCreatedIdentificationItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ScanPostScansRunsCreatedIdentificationItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ScanPostScansRunsCreatedIdentificationItemReason as json.
+func (s ScanPostScansRunsCreatedIdentificationItemReason) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ScanPostScansRunsCreatedIdentificationItemReason from json.
+func (s *ScanPostScansRunsCreatedIdentificationItemReason) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ScanPostScansRunsCreatedIdentificationItemReason to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ScanPostScansRunsCreatedIdentificationItemReason(v) {
+	case ScanPostScansRunsCreatedIdentificationItemReasonHostDown:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonHostDown
+	case ScanPostScansRunsCreatedIdentificationItemReasonNoOpenPorts:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonNoOpenPorts
+	case ScanPostScansRunsCreatedIdentificationItemReasonFiltered:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonFiltered
+	case ScanPostScansRunsCreatedIdentificationItemReasonNoVersion:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonNoVersion
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence
+	case ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly
+	case ScanPostScansRunsCreatedIdentificationItemReasonTimedOut:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonTimedOut
+	case ScanPostScansRunsCreatedIdentificationItemReasonBusy:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonBusy
+	case ScanPostScansRunsCreatedIdentificationItemReasonUnavailable:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonUnavailable
+	case ScanPostScansRunsCreatedIdentificationItemReasonDeclaredByHand:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonDeclaredByHand
+	case ScanPostScansRunsCreatedIdentificationItemReasonScanningOff:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonScanningOff
+	case ScanPostScansRunsCreatedIdentificationItemReasonNotApproved:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonNotApproved
+	case ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope
+	case ScanPostScansRunsCreatedIdentificationItemReasonNoIP:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonNoIP
+	case ScanPostScansRunsCreatedIdentificationItemReasonNotScanned:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonNotScanned
+	default:
+		*s = ScanPostScansRunsCreatedIdentificationItemReason(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ScanPostScansRunsCreatedIdentificationItemReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ScanPostScansRunsCreatedIdentificationItemReason) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -258872,6 +259572,14 @@ func (s *ScanPostScansRunsIDStopOK) encodeFields(e *jx.Encoder) {
 		e.Str(s.ID)
 	}
 	{
+		e.FieldStart("identification")
+		e.ArrStart()
+		for _, elem := range s.Identification {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("matched")
 		e.Int(s.Matched)
 	}
@@ -258913,20 +259621,21 @@ func (s *ScanPostScansRunsIDStopOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanPostScansRunsIDStopOK = [13]string{
+var jsonFieldsNameOfScanPostScansRunsIDStopOK = [14]string{
 	0:  "current",
 	1:  "done",
 	2:  "ended_at",
 	3:  "id",
-	4:  "matched",
-	5:  "results",
-	6:  "started_at",
-	7:  "started_by",
-	8:  "status",
-	9:  "stop_reason",
-	10: "total",
-	11: "trigger",
-	12: "trigger_note",
+	4:  "identification",
+	5:  "matched",
+	6:  "results",
+	7:  "started_at",
+	8:  "started_by",
+	9:  "status",
+	10: "stop_reason",
+	11: "total",
+	12: "trigger",
+	13: "trigger_note",
 }
 
 // Decode decodes ScanPostScansRunsIDStopOK from json.
@@ -258982,8 +259691,26 @@ func (s *ScanPostScansRunsIDStopOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "matched":
+		case "identification":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				s.Identification = make([]ScanPostScansRunsIDStopOKIdentificationItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ScanPostScansRunsIDStopOKIdentificationItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Identification = append(s.Identification, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"identification\"")
+			}
+		case "matched":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Matched = int(v)
@@ -258995,7 +259722,7 @@ func (s *ScanPostScansRunsIDStopOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"matched\"")
 			}
 		case "results":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.Results = make([]ScanPostScansRunsIDStopOKResultsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -259013,7 +259740,7 @@ func (s *ScanPostScansRunsIDStopOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"results\"")
 			}
 		case "started_at":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.StartedAt = v
@@ -259025,7 +259752,7 @@ func (s *ScanPostScansRunsIDStopOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_at\"")
 			}
 		case "started_by":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.StartedBy = string(v)
@@ -259037,7 +259764,7 @@ func (s *ScanPostScansRunsIDStopOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"started_by\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -259047,7 +259774,7 @@ func (s *ScanPostScansRunsIDStopOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "stop_reason":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.StopReason.Decode(d); err != nil {
 					return err
@@ -259057,7 +259784,7 @@ func (s *ScanPostScansRunsIDStopOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"stop_reason\"")
 			}
 		case "total":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Total = int(v)
@@ -259069,7 +259796,7 @@ func (s *ScanPostScansRunsIDStopOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "trigger":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Trigger.Decode(d); err != nil {
 					return err
@@ -259079,7 +259806,7 @@ func (s *ScanPostScansRunsIDStopOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"trigger\"")
 			}
 		case "trigger_note":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.TriggerNote.Decode(d); err != nil {
 					return err
@@ -259099,7 +259826,7 @@ func (s *ScanPostScansRunsIDStopOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -259254,6 +259981,263 @@ func (s *ScanPostScansRunsIDStopOKCurrent) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ScanPostScansRunsIDStopOKCurrent) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("found")
+		e.ArrStart()
+		for _, elem := range s.Found {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("ip")
+		e.Str(s.IP)
+	}
+	{
+		e.FieldStart("label")
+		e.Str(s.Label)
+	}
+	{
+		e.FieldStart("note")
+		e.Str(s.Note)
+	}
+	{
+		e.FieldStart("reason")
+		s.Reason.Encode(e)
+	}
+	{
+		e.FieldStart("target_id")
+		e.Str(s.TargetID)
+	}
+}
+
+var jsonFieldsNameOfScanPostScansRunsIDStopOKIdentificationItem = [6]string{
+	0: "found",
+	1: "ip",
+	2: "label",
+	3: "note",
+	4: "reason",
+	5: "target_id",
+}
+
+// Decode decodes ScanPostScansRunsIDStopOKIdentificationItem from json.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ScanPostScansRunsIDStopOKIdentificationItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "found":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Found = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Found = append(s.Found, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"found\"")
+			}
+		case "ip":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.IP = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip\"")
+			}
+		case "label":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Label = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"label\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Note = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Reason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "target_id":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.TargetID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"target_id\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ScanPostScansRunsIDStopOKIdentificationItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfScanPostScansRunsIDStopOKIdentificationItem) {
+					name = jsonFieldsNameOfScanPostScansRunsIDStopOKIdentificationItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ScanPostScansRunsIDStopOKIdentificationItemReason as json.
+func (s ScanPostScansRunsIDStopOKIdentificationItemReason) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ScanPostScansRunsIDStopOKIdentificationItemReason from json.
+func (s *ScanPostScansRunsIDStopOKIdentificationItemReason) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ScanPostScansRunsIDStopOKIdentificationItemReason to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ScanPostScansRunsIDStopOKIdentificationItemReason(v) {
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonHostDown:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonHostDown
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoOpenPorts:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNoOpenPorts
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonBusy:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonBusy
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonUnavailable:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonUnavailable
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonDeclaredByHand:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonDeclaredByHand
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonScanningOff:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonScanningOff
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned
+	default:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReason(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ScanPostScansRunsIDStopOKIdentificationItemReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ScanPostScansRunsIDStopOKIdentificationItemReason) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

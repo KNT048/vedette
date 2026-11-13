@@ -42,6 +42,7 @@ var emailProviders = map[string]string{
 	"sendgrid": AuthPassword, "mailgun": AuthPassword, "ses": AuthPassword, "brevo": AuthPassword,
 	"postmark":     AuthTokenAsUser,
 	"microsoft365": AuthMicrosoft, "google-workspace": AuthGoogle,
+	"microsoft365-user": AuthMicrosoftUser, "outlook": AuthMicrosoftUser, "gmail-oauth": AuthGoogleUser, // D-480
 }
 
 // EmailAuth returns how the email preset p signs in; ok is false for a preset the box does not know.
@@ -246,7 +247,11 @@ func (c *TokenCache) drop(k [32]byte) {
 
 func (e *emailSender) tokenKey() [32]byte {
 	h := sha256.New()
-	for _, p := range []string{e.auth, e.cfg.TenantID, e.cfg.ClientID, e.cfg.Username, e.cfg.Password.Reveal()} {
+	sec := e.cfg.Password.Reveal()
+	if e.user() { // the refresh token rotates; the token belongs to the client and the mailbox (SaveChannel clears the cache)
+		sec = e.currentGrant().ClientSecret
+	}
+	for _, p := range []string{e.auth, e.cfg.TenantID, e.cfg.ClientID, e.cfg.Username, sec} {
 		_, _ = io.WriteString(h, strconv.Itoa(len(p))+":"+p)
 	}
 	var k [32]byte
@@ -262,68 +267,135 @@ func (e *emailSender) token(ctx context.Context) (secrets.Value, [32]byte, error
 	return t, k, err
 }
 
-// fetchToken asks the token service for a new token and caches it.
+// fetchToken asks the token service for a new token and caches it. A user sign-in (D-480) refreshes its grant; a rotated refresh
+// token is kept (rotate).
 func (e *emailSender) fetchToken(ctx context.Context, k [32]byte, now time.Time) (secrets.Value, error) {
 	var form url.Values
 	var endpoint, who string
-	if e.auth == AuthMicrosoft {
+	switch e.auth {
+	case AuthMicrosoft:
 		endpoint, who = fmt.Sprintf(microsoftTokenURL, url.PathEscape(e.cfg.TenantID)), "Microsoft"
 		form = url.Values{"grant_type": {"client_credentials"}, "client_id": {e.cfg.ClientID}, "client_secret": {e.cfg.Password.Reveal()}, "scope": {microsoftScope}}
-	} else {
+	case AuthGoogle:
 		endpoint, who = googleTokenURL, "Google"
 		jwt, err := googleAssertion(e.gkey, e.cfg.Username, now)
 		if err != nil {
 			return secrets.Value{}, fmt.Errorf("notify: email: sign the token request: %w", err)
 		}
 		form = url.Values{"grant_type": {"urn:ietf:params:oauth:grant-type:jwt-bearer"}, "assertion": {jwt}}
+	case AuthMicrosoftUser:
+		endpoint, who = fmt.Sprintf(microsoftTokenURL, url.PathEscape(e.cfg.TenantID)), "Microsoft"
+		form = url.Values{"grant_type": {"refresh_token"}, "client_id": {e.cfg.ClientID}, "refresh_token": {e.currentGrant().RefreshToken}, "scope": {microsoftUserScope}}
+	default: // AuthGoogleUser
+		g := e.currentGrant()
+		endpoint, who = googleTokenURL, "Google"
+		form = url.Values{"grant_type": {"refresh_token"}, "client_id": {e.cfg.ClientID}, "client_secret": {g.ClientSecret}, "refresh_token": {g.RefreshToken}}
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
+	ans, err := postToken(ctx, e.client, endpoint, form, who)
+	var tr *tokenRefused
+	if errors.As(err, &tr) {
+		return secrets.Value{}, &SignInError{Msg: e.tokenRefusal(tr.code, tr.status)}
+	}
 	if err != nil {
-		return secrets.Value{}, fmt.Errorf("notify: email: token request: %w", err)
+		return secrets.Value{}, err
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
-	resp, err := e.client.Do(req)
-	if err != nil {
-		if ctx.Err() != nil {
-			return secrets.Value{}, fmt.Errorf("notify: email: token: %s", transportReason(ctx.Err(), nil))
-		}
-		host := req.URL.Host
-		return secrets.Value{}, &SignInError{Msg: "Vedette could not reach " + who + "'s sign-in service (" + host + "). Check the box's internet access and DNS."}
-	}
-	defer func() { _ = resp.Body.Close() }()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxTokenBody+1))
-	if err != nil || len(body) > maxTokenBody {
+	if ans.AccessToken == "" {
 		return secrets.Value{}, &SignInError{Msg: who + "'s sign-in service sent an answer Vedette cannot read."}
 	}
-	var tr struct {
-		AccessToken string          `json:"access_token"`
-		TokenType   string          `json:"token_type"`
-		ExpiresIn   json.RawMessage `json:"expires_in"` // a number; some services send it as a string
-		Error       string          `json:"error"`
+	if ans.RefreshToken != "" && e.user() {
+		e.rotate(ctx, ans.RefreshToken)
 	}
-	jerr := json.Unmarshal(body, &tr)
-	if resp.StatusCode != http.StatusOK {
-		code := ""
-		if jerr == nil && oauthCodeRE.MatchString(tr.Error) {
-			code = tr.Error
-		}
-		return secrets.Value{}, &SignInError{Msg: e.tokenRefusal(code, resp.StatusCode)}
-	}
-	if jerr != nil || len(tr.AccessToken) > maxAccess || !accessRE.MatchString(tr.AccessToken) || (tr.TokenType != "" && !strings.EqualFold(tr.TokenType, "bearer")) {
-		return secrets.Value{}, &SignInError{Msg: who + "'s sign-in service sent an answer Vedette cannot read."}
-	}
-	tok := secrets.NewValue(tr.AccessToken)
-	life, _ := strconv.Atoi(strings.Trim(string(tr.ExpiresIn), `"`))
-	if d := time.Duration(min(max(life, 0), int(maxTokenLife/time.Second))) * time.Second; d > tokenSkew {
+	tok := secrets.NewValue(ans.AccessToken)
+	if d := ans.life(); d > tokenSkew {
 		e.tokens.put(k, tok, now.Add(d-tokenSkew), now) // a token that lives less than the skew is used once and not kept
 	}
 	return tok, nil
 }
 
+// tokenAnswer is what Vedette reads of a token or device-code answer (RFC 6749 5.1 and 5.2, RFC 8628 3.2); everything is checked
+// before use (postToken).
+type tokenAnswer struct {
+	AccessToken     string          `json:"access_token"`
+	RefreshToken    string          `json:"refresh_token"`
+	IDToken         string          `json:"id_token"`
+	TokenType       string          `json:"token_type"`
+	ExpiresIn       json.RawMessage `json:"expires_in"` // a number; some services send it as a string
+	Error           string          `json:"error"`
+	DeviceCode      string          `json:"device_code"`
+	UserCode        string          `json:"user_code"`
+	VerificationURI string          `json:"verification_uri"`
+	Interval        json.RawMessage `json:"interval"`
+}
+
+func seconds(raw json.RawMessage, most time.Duration) time.Duration {
+	n, _ := strconv.Atoi(strings.Trim(string(raw), `"`))
+	return time.Duration(min(max(n, 0), int(most/time.Second))) * time.Second
+}
+
+func (a tokenAnswer) life() time.Duration { return seconds(a.ExpiresIn, maxTokenLife) }
+
+// tokenRefused is a non-200 answer of a token service; code is its OAuth2 error code when it looks like one, else "".
+type tokenRefused struct {
+	status int
+	code   string
+}
+
+func (e *tokenRefused) Error() string {
+	return fmt.Sprintf("notify: email: the sign-in service refused (HTTP %d%s)", e.status, codeSuffix(e.code))
+}
+
+// postToken posts form to a token endpoint and reads the bounded answer: a *tokenRefused for a refusal, a *SignInError when the
+// service cannot be reached or answers what Vedette cannot read. Tokens are printable ASCII without spaces, bounded.
+func postToken(ctx context.Context, client *http.Client, endpoint string, form url.Values, who string) (tokenAnswer, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
+	if err != nil {
+		return tokenAnswer{}, fmt.Errorf("notify: email: token request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		if ctx.Err() != nil {
+			return tokenAnswer{}, fmt.Errorf("notify: email: token: %s", transportReason(ctx.Err(), nil))
+		}
+		return tokenAnswer{}, &SignInError{Msg: "Vedette could not reach " + who + "'s sign-in service (" + req.URL.Host + "). Check the box's internet access and DNS."}
+	}
+	defer func() { _ = resp.Body.Close() }()
+	unreadable := &SignInError{Msg: who + "'s sign-in service sent an answer Vedette cannot read."}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxTokenBody+1))
+	if err != nil || len(body) > maxTokenBody {
+		return tokenAnswer{}, unreadable
+	}
+	var a tokenAnswer
+	jerr := json.Unmarshal(body, &a)
+	if resp.StatusCode != http.StatusOK {
+		r := &tokenRefused{status: resp.StatusCode}
+		if jerr == nil && oauthCodeRE.MatchString(a.Error) {
+			r.code = a.Error
+		}
+		return tokenAnswer{}, r
+	}
+	ok := func(s string, most int) bool { return s == "" || (len(s) <= most && accessRE.MatchString(s)) }
+	if jerr != nil || !ok(a.AccessToken, maxAccess) || !ok(a.RefreshToken, maxAccess) || !ok(a.IDToken, maxAccess) || !ok(a.DeviceCode, maxAccess) ||
+		(a.TokenType != "" && !strings.EqualFold(a.TokenType, "bearer")) {
+		return tokenAnswer{}, unreadable
+	}
+	return a, nil
+}
+
 // tokenRefusal is the sentence for a refusal of the token service. code is the OAuth2 error code (RFC 6749 5.2) when it looks like
 // one, else ""; the error_description is never shown (it is the provider's text).
 func (e *emailSender) tokenRefusal(code string, status int) string {
+	switch {
+	case e.auth == AuthMicrosoftUser && code == "invalid_grant":
+		return "Microsoft no longer accepts the saved sign-in: it expired, the password changed or it was revoked. Open the Email channel and sign in with Microsoft again."
+	case e.auth == AuthMicrosoftUser:
+		return deviceRefusal(code, status)
+	case e.auth == AuthGoogleUser && code == "invalid_grant":
+		return "Google no longer accepts the saved sign-in: it was revoked or expired (an OAuth client left in Testing loses its sign-ins after 7 days). Open the Email channel and sign in with Google again."
+	case e.auth == AuthGoogleUser:
+		return fmt.Sprintf("Google refused the OAuth client (HTTP %d%s). Check the client ID and the client secret of the Desktop client.", status, codeSuffix(code))
+	}
 	if e.auth == AuthMicrosoft {
 		switch code {
 		case "invalid_client":
@@ -454,6 +526,11 @@ func (e *emailSender) signIn(c *smtp.Client, tok *oauthToken) error {
 		under.Reason = reasonFrom([]byte(te.Msg), e.cfg.Password)
 	}
 	switch e.auth {
+	case AuthMicrosoftUser:
+		return &SignInError{Err: under, Msg: fmt.Sprintf("Microsoft refused the sign-in (SMTP code %d). Check that SMTP AUTH is on for the mailbox and that the app "+
+			"registration has the delegated permission SMTP.Send.", code)}
+	case AuthGoogleUser:
+		return &SignInError{Err: under, Msg: fmt.Sprintf("Google refused the sign-in (SMTP code %d). Sign in with Google again with the mailbox that sends.", code)}
 	case AuthMicrosoft:
 		return &SignInError{Err: under, Msg: fmt.Sprintf("Microsoft 365 refused the sign-in (SMTP code %d). Check that SMTP AUTH is on for the mailbox, and that "+
 			"the admin registered the app's service principal in Exchange Online and gave it access to the mailbox.", code)}
@@ -464,7 +541,9 @@ func (e *emailSender) signIn(c *smtp.Client, tok *oauthToken) error {
 	return &SignInError{Err: under, Msg: fmt.Sprintf("The mail server refused the sign-in (SMTP code %d). Check the username and the password, app password or API key.", code)}
 }
 
-func (e *emailSender) oauth() bool { return e.auth == AuthMicrosoft || e.auth == AuthGoogle }
+func (e *emailSender) oauth() bool {
+	return e.auth == AuthMicrosoft || e.auth == AuthGoogle || e.user()
+}
 
 // tokenClient is the client of the token requests: the configured one without redirects (the request carries the secret, and a
 // 307 would resend it elsewhere), or a plain one with a timeout.

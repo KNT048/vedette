@@ -261,6 +261,8 @@ var contractRoutes = map[string][]string{
 		"GET /notify/incidents/{id}",
 		"PATCH /notify/incidents/{id}",
 		"POST /notify/channels/{type}/test",
+		"POST /notify/email-signin",
+		"POST /notify/email-signin/{id}",
 		"POST /notify/history/{id}/resend",
 		"PUT /notify/channels/{type}",
 		"PUT /notify/rules",

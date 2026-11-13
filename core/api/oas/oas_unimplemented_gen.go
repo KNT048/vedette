@@ -2096,6 +2096,26 @@ func (UnimplementedHandler) NotifyPostNotifyChannelsTypeTest(ctx context.Context
 	return r, ht.ErrNotImplemented
 }
 
+// NotifyPostNotifyEmailSignin implements notify_post_notify_email_signin operation.
+//
+// Start a user sign-in for the email channel (D-480): a Microsoft device code, or a Google consent
+// address to open and paste back.
+//
+// POST /notify/email-signin
+func (UnimplementedHandler) NotifyPostNotifyEmailSignin(ctx context.Context, req *NotifyPostNotifyEmailSigninReq) (r *NotifyPostNotifyEmailSigninOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// NotifyPostNotifyEmailSigninID implements notify_post_notify_email_signin_id operation.
+//
+// Check a user sign-in: ask Microsoft once when the interval has passed, or finish a Google sign-in
+// with the pasted address.
+//
+// POST /notify/email-signin/{id}
+func (UnimplementedHandler) NotifyPostNotifyEmailSigninID(ctx context.Context, req *NotifyPostNotifyEmailSigninIDReq, params NotifyPostNotifyEmailSigninIDParams) (r *NotifyPostNotifyEmailSigninIDOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // NotifyPostNotifyHistoryIDResend implements notify_post_notify_history_id_resend operation.
 //
 // Send a message again through the same channel.

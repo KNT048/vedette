@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
@@ -34,6 +35,25 @@ type ZaloInboxForTest = zaloInbox
 // SetZaloListenForTest replaces how the Zalo listener opens its connection (channel.ZaloListen in production).
 func (s *Service) SetZaloListenForTest(f func(context.Context, channel.Sender) (ZaloInboxForTest, error)) {
 	s.zaloListen = f
+}
+
+// RotateEmailSecretForTest saves a rotated email secret as a send would, and waits for the save.
+func (s *Service) RotateEmailSecretForTest(old, next string) {
+	_ = s.rotateEmailSecret(context.Background(), secrets.NewValue(old), secrets.NewValue(next))
+	s.rotations.Wait()
+}
+
+// EmailSecretForTest opens the saved secret of the email channel.
+func (s *Service) EmailSecretForTest(ctx context.Context) string {
+	c, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.Email)
+	if err != nil {
+		return err.Error()
+	}
+	v, err := s.openSecret(ctx, s.cfg.DB.Reader(), c.SecretID)
+	if err != nil {
+		return err.Error()
+	}
+	return v
 }
 
 // ListenZaloForTest runs the job "zalo-listen" once.

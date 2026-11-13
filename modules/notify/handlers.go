@@ -140,6 +140,7 @@ type channelBody struct {
 	Approvers   []Approver        `json:"approvers"`
 	AppToken    string            `json:"app_token"`
 	BotToken    string            `json:"bot_token"`
+	Signin      string            `json:"signin"`
 }
 
 // NotifyPutNotifyChannelsType implements PUT /notify/channels/{type} (admin).
@@ -153,11 +154,45 @@ func (h *NotifyHandlers) NotifyPutNotifyChannelsType(ctx context.Context, req *o
 		return nil, err
 	}
 	c, err := h.svc.SaveChannel(ctx, who, channel.Type(params.Type), ChannelInput{Enabled: b.Enabled, Fields: b.Fields, Secret: b.Secret, MinSeverity: b.MinSeverity,
-		Approvals: b.Approvals, Approvers: b.Approvers, AppToken: b.AppToken, BotToken: b.BotToken})
+		Approvals: b.Approvals, Approvers: b.Approvers, AppToken: b.AppToken, BotToken: b.BotToken, Signin: b.Signin})
 	if err != nil {
 		return nil, err
 	}
 	return convert[oas.NotifyPutNotifyChannelsTypeOK](c)
+}
+
+// NotifyPostNotifyEmailSignin implements POST /notify/email-signin (admin).
+func (h *NotifyHandlers) NotifyPostNotifyEmailSignin(ctx context.Context, req *oas.NotifyPostNotifyEmailSigninReq) (*oas.NotifyPostNotifyEmailSigninOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	in, err := convert[EmailSigninStart](req)
+	if err != nil {
+		return nil, err
+	}
+	out, err := h.svc.StartEmailSignin(ctx, who, *in)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.NotifyPostNotifyEmailSigninOK](out)
+}
+
+// NotifyPostNotifyEmailSigninID implements POST /notify/email-signin/{id} (admin).
+func (h *NotifyHandlers) NotifyPostNotifyEmailSigninID(ctx context.Context, req *oas.NotifyPostNotifyEmailSigninIDReq, params oas.NotifyPostNotifyEmailSigninIDParams) (*oas.NotifyPostNotifyEmailSigninIDOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	pasted := ""
+	if req != nil {
+		pasted = req.URL.Or("")
+	}
+	out, err := h.svc.CheckEmailSignin(ctx, who, params.ID, pasted)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.NotifyPostNotifyEmailSigninIDOK](out)
 }
 
 // NotifyDeleteNotifyChannelsType implements DELETE /notify/channels/{type} (admin).

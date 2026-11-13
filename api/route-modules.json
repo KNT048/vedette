@@ -222,6 +222,8 @@
   "POST /logs/siem/test": "logs",
   "POST /logs/sources": "logs",
   "POST /notify/channels/{type}/test": "notify",
+  "POST /notify/email-signin": "notify",
+  "POST /notify/email-signin/{id}": "notify",
   "POST /notify/history/{id}/resend": "notify",
   "POST /reports/pdpl/ai-summary": "reports",
   "POST /reports/pdpl/generate": "reports",

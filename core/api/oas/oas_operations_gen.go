@@ -226,6 +226,8 @@ const (
 	NotifyGetNotifyIncidentsIDOperation                     OperationName = "NotifyGetNotifyIncidentsID"
 	NotifyPatchNotifyIncidentsIDOperation                   OperationName = "NotifyPatchNotifyIncidentsID"
 	NotifyPostNotifyChannelsTypeTestOperation               OperationName = "NotifyPostNotifyChannelsTypeTest"
+	NotifyPostNotifyEmailSigninOperation                    OperationName = "NotifyPostNotifyEmailSignin"
+	NotifyPostNotifyEmailSigninIDOperation                  OperationName = "NotifyPostNotifyEmailSigninID"
 	NotifyPostNotifyHistoryIDResendOperation                OperationName = "NotifyPostNotifyHistoryIDResend"
 	NotifyPutNotifyChannelsTypeOperation                    OperationName = "NotifyPutNotifyChannelsType"
 	NotifyPutNotifyRulesOperation                           OperationName = "NotifyPutNotifyRules"

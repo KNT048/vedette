@@ -35,6 +35,11 @@ Người gọi duy nhất ở mọi mục là `response` (qua adapter ở `cmd/v
 - **PRIVACY** luồng 5 + Settings → Privacy (`core.json` `privacy.flow.5`): đổi điểm cuối token hay thứ gửi đi = sửa cả hai cùng commit (`privacyFlows.test.ts` đòi mọi host của cột "Where to" có trong UI).
 - Kênh lưu trước D-449 (hay client không gửi `provider`) là custom: không cần migration.
 
+## Modifying: đăng nhập người dùng email (`StartEmailSignin`, `CheckEmailSignin`, `ChannelInput.Signin`; `channel.StartMicrosoftDevice`, `channel.StartGoogleConsent`, `EmailConfig.SaveSecret`; D-480)
+- **SPA** `EmailSignin.tsx` (mã thiết bị, tự hỏi theo `interval`, dán địa chỉ Google) và mock (`mocks.ts`: thiết bị xong ở lần kiểm thứ hai; `pastedCode` theo đúng quy tắc của hộp). Đổi trạng thái hay mã lỗi = sửa cả hai.
+- **PRIVACY** luồng 5 + `core.json` `privacy.flow.5`: device code, token, refresh token xoay vòng.
+- Bí mật của preset người dùng là JSON (`refresh_token`, `client_secret` của Google); xoay vòng ghi lại qua `rotateEmailSecret` (goroutine, `Service.rotations`).
+
 ## Modifying: `GET /notify/channels` `approvals`, `approvers`
 - **SPA** `ChannelsSettings`; module khác đọc cấu hình duyệt qua interface `ApprovalChannels()`, không đọc bảng `notify_*`.
 

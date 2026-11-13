@@ -55,6 +55,7 @@ type ChannelInput struct {
 	Approvers   []Approver
 	AppToken    string
 	BotToken    string
+	Signin      string // email: a finished user sign-in whose refresh token becomes the secret (D-480)
 }
 
 // Rules is the quiet-hours and grouping rule pair.

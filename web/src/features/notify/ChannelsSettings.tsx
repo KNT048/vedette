@@ -17,7 +17,8 @@ import { useCan } from '@/lib/session'
 import { useUsers } from '@/features/core/api'
 import { checkFeedUrl } from '@/features/feeds/defaults'
 import History from './History'
-import { EMAIL_PROVIDERS, OAUTH_HOST, emailBinding, emailProvider, isOAuth, savedFor, type EmailProvider } from './emailProviders'
+import { EMAIL_PROVIDERS, OAUTH_HOST, emailBinding, emailProvider, isOAuth, isUserSignin, savedFor, type EmailProvider } from './emailProviders'
+import { EmailSignin } from './EmailSignin'
 import { useChannels, useRemoveChannel, useSaveChannel, useSaveRules, useTestChannel } from './api'
 import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
 import type { Approver, Channel, Grouping, Quiet, RouteSeverity } from './types'
@@ -47,7 +48,7 @@ function keyAccount(text: string): string | null {
 /** Translation keys of an email field's label or hint, most specific first: the preset, its sign-in, its kind, then the plain one (D-449). */
 function emailKeys(p: EmailProvider, k: string, part: 'label' | 'hint') {
   const mailbox = p.group === 'password' && p.id !== 'custom'
-  const variants = k === 'username' ? [p.id, isOAuth(p.auth) ? 'oauth' : mailbox ? 'mailbox' : '']
+  const variants = k === 'username' ? [p.id, isUserSignin(p.auth) ? 'user' : isOAuth(p.auth) ? 'oauth' : mailbox ? 'mailbox' : '']
     : k === 'secret' ? [p.id, p.auth, mailbox && p.id !== 'zoho' ? 'app' : '', p.id !== 'custom' ? 'service' : ''] : [p.id, k === 'host' && isOAuth(p.auth) ? 'oauth' : '']
   return [...variants.filter(Boolean).map((v) => `channels.f.email.${k}.${part}_${v}`), `channels.f.email.${k}.${part}`]
 }
@@ -67,6 +68,7 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
   const [fields, setFields] = useState<Record<string, string>>(() => ({ ...(type === 'email' ? { port: '587', security: 'starttls', provider: 'custom' } : {}), ...(type === 'webhook' ? {} : channel.fields) })) // the webhook URL is a secret: only its masked form comes back, so the field starts empty (empty = keep)
   const [secret, setSecret] = useState('')
   const [keyOf, setKeyOf] = useState<string | null>(null) // the service account of a chosen Google key file
+  const [signin, setSignin] = useState<string | null>(null) // a finished user sign-in (D-480): its id goes with the save
   // Email presets (D-449): the preset decides which fields show and what the secret is; a saved secret counts only for the same sign-in.
   const prov = emailProvider(fields.provider) ?? EMAIL_PROVIDERS[0]!
   // the box sends a saved secret only to the method, server and port it was saved for (D-449 review): say so before saving
@@ -94,7 +96,7 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
     const canApprove = APPROVAL_CHANNELS.includes(type)
     // Slack's channel ID and app tokens only belong to approvals: with approvals off they are not sent.
     const sent = type === 'slack' && !approvals ? Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'channel_id')) : fields
-    save.mutate({ type, enabled, fields: sent, secret: secret || undefined, min_severity: min, ...(canApprove ? { approvals, approvers: approvals ? approvers : [] } : {}), ...(type === 'slack' && approvals ? { app_token: appToken || undefined, bot_token: botToken || undefined } : {}) }, {
+    save.mutate({ type, enabled, fields: sent, secret: secret || undefined, ...(type === 'email' && signin ? { signin } : {}), min_severity: min, ...(canApprove ? { approvals, approvers: approvals ? approvers : [] } : {}), ...(type === 'slack' && approvals ? { app_token: appToken || undefined, bot_token: botToken || undefined } : {}) }, {
       onSuccess: () => {
         toast.success(t('channels.saved', { name }))
         onSaved(thenTest)
@@ -133,11 +135,13 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
     if (u) { setApprovers((l) => [...l, { user_id: u.id, address: type === 'email' ? u.email : '' }]); setPick('') }
   }
   const secretHint = type === 'email' && keyOf ? t('channels.f.email.secret.loaded', { email: keyOf }) : keepsSecret ? t('channels.secretSaved', { last4: channel.secret_last4 }) : type === 'email' ? t(emailKeys(prov, 'secret', 'hint')) : t(`channels.f.${type}.secret.hint`)
-  const shown = (k: string) => type !== 'email' || ((k !== 'tenant_id' && k !== 'client_id') || prov.auth === 'microsoft_oauth') && (k !== 'username' || prov.auth !== 'token_as_user')
+  const shown = (k: string) => type !== 'email' || (k !== 'username' || prov.auth !== 'token_as_user') &&
+    (k !== 'tenant_id' || prov.auth === 'microsoft_oauth' || prov.id === 'microsoft365-user') && (k !== 'client_id' || ['microsoft_oauth', 'microsoft_user', 'google_user'].includes(prov.auth))
   const pickProvider = (id: string) => {
     const p = emailProvider(id) ?? EMAIL_PROVIDERS[0]!
     if (p.auth !== prov.auth) { setSecret(''); setKeyOf(null) } // a password is not a client secret, nor a key file
-    setFields((f) => ({ ...f, provider: p.id, ...(p.host ? { host: p.host, port: p.port, security: p.security } : {}), ...(p.username ? { username: p.username } : prov.username && f.username === prov.username ? { username: '' } : {}) }))
+    setSignin(null)
+    setFields((f) => ({ ...f, provider: p.id, ...(p.host ? { host: p.host, port: p.port, security: p.security } : {}), ...(p.id === 'microsoft365-user' && !f.tenant_id ? { tenant_id: 'organizations' } : {}), ...(p.username ? { username: p.username } : prov.username && f.username === prov.username ? { username: '' } : {}) }))
     setFieldErr({})
   }
   async function chooseKey(file: File | undefined) {
@@ -197,7 +201,7 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
             const hint = type === 'webhook' && k === 'url' && channel.fields.url ? t('channels.urlSaved', { url: channel.fields.url }) : type === 'email' ? t(emailKeys(prov, k, 'hint')) : t(`channels.f.${type}.${k}.hint`)
             return (
               <Field key={k} label={label} hint={hint} htmlFor={id} error={fieldErr[k]}>
-                <Input id={id} value={fields[k] ?? ''} type={k === 'port' ? 'number' : 'text'} readOnly={type === 'email' && k === 'host' && !!OAUTH_HOST[prov.auth]} onChange={(e) => set(k, e.target.value)} autoComplete="off" {...aria(id, k)} />
+                <Input id={id} value={fields[k] ?? ''} type={k === 'port' ? 'number' : 'text'} readOnly={type === 'email' && ((k === 'host' && !!OAUTH_HOST[prov.id]) || (k === 'username' && isUserSignin(prov.auth)))} onChange={(e) => set(k, e.target.value)} autoComplete="off" {...aria(id, k)} />
               </Field>
             )
           })}
@@ -216,6 +220,10 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
                 ) : <div><Button onClick={() => setQr(true)}><QrCode />{channel.secret_last4 || secret ? t('zp.relogin') : t('zp.show')}</Button></div>}
               </div>
             </div>
+          ) : type === 'email' && isUserSignin(prov.auth) ? (
+            <EmailSignin key={prov.id} prov={prov} fields={fields} saved={keepsSecret ? channel.fields.username ?? null : null} error={fieldErr.secret}
+              onSignedIn={(id, mailbox) => { setSignin(id); if (id) { setFields((f) => ({ ...f, username: mailbox })); fixed('secret'); fixed('username') } }}
+              onFieldError={(f, m) => showErrors({ [f]: m })} />
           ) : type === 'email' && prov.auth === 'google_oauth' ? (
             <Field label={t(emailKeys(prov, 'secret', 'label'))} hint={secretHint} htmlFor="ch-email-secret" error={fieldErr.secret}>
               <Input id="ch-email-secret" type="file" accept=".json,application/json" onChange={(e) => void chooseKey(e.target.files?.[0])} {...aria('ch-email-secret', 'secret')} />

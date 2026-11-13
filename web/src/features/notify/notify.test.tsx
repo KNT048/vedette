@@ -877,3 +877,92 @@ describe('notify: email providers (S-NOT-1, D-449)', () => {
     expect((await emailOf()).fields.username).toBeUndefined()
   })
 })
+
+describe('notify: email user sign-in (S-NOT-1, D-480)', () => {
+  const emailOf = async () => ((await getJson('/notify/channels')).channels as { type: string; fields: Record<string, string> }[]).find((c) => c.type === 'email')!
+  const openEmail = async (provider: string) => {
+    renderChannels()
+    await press('Edit Email')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Email' })
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), provider)
+    return dlg
+  }
+
+  it('each sign-in preset shows its own fields and guide (form matrix)', async () => {
+    renderChannels()
+    await press('Edit Email')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Email' })
+    const pick = async (id: string) => { await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), id) }
+    await eachOption([
+      { option: 'microsoft365-user', shown: ['Tenant ID', 'Client ID', 'Mailbox', 'Sign in with Microsoft', /Allow public client flows to Yes/, /SMTP\.Send/], hidden: ['Client secret', 'SMTP password', 'Client secret of the Desktop client', 'Username'] },
+      { option: 'outlook', shown: ['Client ID', 'Mailbox', 'Sign in with Microsoft', /personal Microsoft accounts/], hidden: ['Tenant ID', 'Client secret of the Desktop client'] },
+      { option: 'gmail-oauth', shown: ['Client ID', 'Client secret of the Desktop client', 'Mailbox', 'Sign in with Google', /Desktop app/, /7 days/], hidden: ['Tenant ID', 'App password', 'Service account key (JSON file)'] },
+      { option: 'gmail', shown: ['Username', 'App password'], hidden: ['Client ID', 'Mailbox', 'Sign in with Google'] },
+    ], pick, dlg)
+    await pick('outlook')
+    expect(within(dlg).getByLabelText('SMTP server')).toHaveValue('smtp-mail.outlook.com')
+    expect(within(dlg).getByLabelText('SMTP server')).toHaveAttribute('readonly')
+  })
+
+  it('Microsoft: the device code and the address show; the box is asked until the user signed in; the save keeps the mailbox that signed in', async () => {
+    const dlg = await openEmail('microsoft365-user')
+    expect(within(dlg).getByLabelText('Tenant ID')).toHaveValue('organizations')
+    const client = within(dlg).getByLabelText('Client ID')
+    await userEvent.type(client, 'my-app')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Sign in with Microsoft' }))
+    await waitFor(() => expect(client).toHaveAccessibleDescription(/^The client ID is the Application \(client\) ID/))
+    await userEvent.clear(client)
+    await userEvent.type(client, '0a1b2c3d-4e5f-6789-abcd-ef0123456789')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Sign in with Microsoft' }))
+    expect(await within(dlg).findByLabelText('Sign-in code')).toHaveTextContent('WDJB-MJHT')
+    expect(within(dlg).getByRole('link', { name: 'https://microsoft.com/devicelogin' })).toHaveAttribute('href', 'https://microsoft.com/devicelogin')
+    expect(within(dlg).getByText('Waiting for you to finish the sign-in with Microsoft.')).toBeInTheDocument()
+    await userEvent.click(within(dlg).getByRole('button', { name: 'I have signed in, check now' }))
+    await userEvent.click(await within(dlg).findByRole('button', { name: 'I have signed in, check now' }))
+    expect(await within(dlg).findByText('Signed in as alerts@acme.example. Save to keep this sign-in.')).toBeInTheDocument()
+    expect(within(dlg).getByLabelText('Mailbox')).toHaveValue('alerts@acme.example')
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect((await emailOf()).fields).toMatchObject({ provider: 'microsoft365-user', username: 'alerts@acme.example', tenant_id: 'organizations', client_id: '0a1b2c3d-4e5f-6789-abcd-ef0123456789' })
+  })
+
+  it('Google: only the loopback address of this sign-in is taken; a declined consent says so; a fitting address signs in and saves', async () => {
+    const dlg = await openEmail('gmail-oauth')
+    await userEvent.type(within(dlg).getByLabelText('Client ID'), '123456789012-abcdefghijklmnop0123456789abcdef.apps.googleusercontent.com')
+    await userEvent.type(within(dlg).getByLabelText('Client secret of the Desktop client'), 'GOCSPX-test')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Sign in with Google' }))
+    const consent = await within(dlg).findByRole('link', { name: "Open Google's consent page and approve" })
+    expect(new URL(consent.getAttribute('href')!).host).toBe('accounts.google.com')
+    const paste = within(dlg).getByLabelText('Address from the browser')
+    const finish = async (url: string) => {
+      await userEvent.clear(paste)
+      await userEvent.type(paste, url)
+      await userEvent.click(within(dlg).getByRole('button', { name: 'Finish sign-in' }))
+    }
+    const S = 'S'.repeat(43)
+    await finish(`http://evil.example:53121/?state=${S}&code=4/abc`)
+    expect(await within(dlg).findByRole('alert')).toHaveTextContent(/^Paste the whole address/)
+    await finish(`http://127.0.0.1:53121/?state=${'T'.repeat(43)}&code=4/abc`)
+    await waitFor(() => expect(within(dlg).getByRole('alert')).toHaveTextContent(/belongs to another sign-in/))
+    await finish(`http://127.0.0.1:53121/?state=${S}`)
+    await waitFor(() => expect(within(dlg).getByRole('alert')).toHaveTextContent(/has no sign-in code/))
+    await finish(`http://127.0.0.1:53121/?state=${S}&code=4/0AeanS0Zabc`)
+    expect(await within(dlg).findByText('Signed in as alerts@acme.example. Save to keep this sign-in.')).toBeInTheDocument()
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect((await emailOf()).fields).toMatchObject({ provider: 'gmail-oauth', username: 'alerts@acme.example' })
+  })
+
+  it('Google: a declined consent ends the sign-in; saving without a sign-in asks for one', async () => {
+    const dlg = await openEmail('gmail-oauth')
+    await userEvent.type(within(dlg).getByLabelText('Client ID'), '123456789012-abcdefghijklmnop0123456789abcdef.apps.googleusercontent.com')
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    // the saved password is not a Google sign-in: the box asks for the sign-in, under the sign-in
+    await waitFor(() => expect(within(dlg).getByRole('alert')).toHaveTextContent(/^Sign in with Google again: the sign-in method, the server or the port changed/))
+    await userEvent.type(within(dlg).getByLabelText('Client secret of the Desktop client'), 'GOCSPX-test')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Sign in with Google' }))
+    await userEvent.type(await within(dlg).findByLabelText('Address from the browser'), `http://127.0.0.1:53121/?state=${'S'.repeat(43)}&error=access_denied`)
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Finish sign-in' }))
+    expect(await within(dlg).findByText('The sign-in was declined. Sign in again and approve.')).toBeInTheDocument()
+  })
+})

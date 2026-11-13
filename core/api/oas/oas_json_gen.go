@@ -170112,6 +170112,996 @@ func (s *NotifyPostNotifyChannelsTypeTestOK) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *NotifyPostNotifyEmailSigninIDOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *NotifyPostNotifyEmailSigninIDOK) encodeFields(e *jx.Encoder) {
+	{
+		if s.ConsentURL.Set {
+			e.FieldStart("consent_url")
+			s.ConsentURL.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("expires_at")
+		json.EncodeDateTime(e, s.ExpiresAt)
+	}
+	{
+		e.FieldStart("flow")
+		s.Flow.Encode(e)
+	}
+	{
+		e.FieldStart("id")
+		e.Str(s.ID)
+	}
+	{
+		if s.Interval.Set {
+			e.FieldStart("interval")
+			s.Interval.Encode(e)
+		}
+	}
+	{
+		if s.Mailbox.Set {
+			e.FieldStart("mailbox")
+			s.Mailbox.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("provider")
+		s.Provider.Encode(e)
+	}
+	{
+		e.FieldStart("status")
+		s.Status.Encode(e)
+	}
+	{
+		if s.UserCode.Set {
+			e.FieldStart("user_code")
+			s.UserCode.Encode(e)
+		}
+	}
+	{
+		if s.VerificationURI.Set {
+			e.FieldStart("verification_uri")
+			s.VerificationURI.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfNotifyPostNotifyEmailSigninIDOK = [10]string{
+	0: "consent_url",
+	1: "expires_at",
+	2: "flow",
+	3: "id",
+	4: "interval",
+	5: "mailbox",
+	6: "provider",
+	7: "status",
+	8: "user_code",
+	9: "verification_uri",
+}
+
+// Decode decodes NotifyPostNotifyEmailSigninIDOK from json.
+func (s *NotifyPostNotifyEmailSigninIDOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyEmailSigninIDOK to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "consent_url":
+			if err := func() error {
+				s.ConsentURL.Reset()
+				if err := s.ConsentURL.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"consent_url\"")
+			}
+		case "expires_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.ExpiresAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expires_at\"")
+			}
+		case "flow":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Flow.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"flow\"")
+			}
+		case "id":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "interval":
+			if err := func() error {
+				s.Interval.Reset()
+				if err := s.Interval.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"interval\"")
+			}
+		case "mailbox":
+			if err := func() error {
+				s.Mailbox.Reset()
+				if err := s.Mailbox.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mailbox\"")
+			}
+		case "provider":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.Provider.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"provider\"")
+			}
+		case "status":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Status.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"status\"")
+			}
+		case "user_code":
+			if err := func() error {
+				s.UserCode.Reset()
+				if err := s.UserCode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"user_code\"")
+			}
+		case "verification_uri":
+			if err := func() error {
+				s.VerificationURI.Reset()
+				if err := s.VerificationURI.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"verification_uri\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NotifyPostNotifyEmailSigninIDOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11001110,
+		0b00000000,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfNotifyPostNotifyEmailSigninIDOK) {
+					name = jsonFieldsNameOfNotifyPostNotifyEmailSigninIDOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *NotifyPostNotifyEmailSigninIDOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyEmailSigninIDOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NotifyPostNotifyEmailSigninIDOKFlow as json.
+func (s NotifyPostNotifyEmailSigninIDOKFlow) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes NotifyPostNotifyEmailSigninIDOKFlow from json.
+func (s *NotifyPostNotifyEmailSigninIDOKFlow) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyEmailSigninIDOKFlow to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch NotifyPostNotifyEmailSigninIDOKFlow(v) {
+	case NotifyPostNotifyEmailSigninIDOKFlowDevice:
+		*s = NotifyPostNotifyEmailSigninIDOKFlowDevice
+	case NotifyPostNotifyEmailSigninIDOKFlowPaste:
+		*s = NotifyPostNotifyEmailSigninIDOKFlowPaste
+	default:
+		*s = NotifyPostNotifyEmailSigninIDOKFlow(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NotifyPostNotifyEmailSigninIDOKFlow) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyEmailSigninIDOKFlow) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NotifyPostNotifyEmailSigninIDOKProvider as json.
+func (s NotifyPostNotifyEmailSigninIDOKProvider) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes NotifyPostNotifyEmailSigninIDOKProvider from json.
+func (s *NotifyPostNotifyEmailSigninIDOKProvider) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyEmailSigninIDOKProvider to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch NotifyPostNotifyEmailSigninIDOKProvider(v) {
+	case NotifyPostNotifyEmailSigninIDOKProviderMicrosoft365User:
+		*s = NotifyPostNotifyEmailSigninIDOKProviderMicrosoft365User
+	case NotifyPostNotifyEmailSigninIDOKProviderOutlook:
+		*s = NotifyPostNotifyEmailSigninIDOKProviderOutlook
+	case NotifyPostNotifyEmailSigninIDOKProviderGmailOAuth:
+		*s = NotifyPostNotifyEmailSigninIDOKProviderGmailOAuth
+	default:
+		*s = NotifyPostNotifyEmailSigninIDOKProvider(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NotifyPostNotifyEmailSigninIDOKProvider) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyEmailSigninIDOKProvider) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NotifyPostNotifyEmailSigninIDOKStatus as json.
+func (s NotifyPostNotifyEmailSigninIDOKStatus) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes NotifyPostNotifyEmailSigninIDOKStatus from json.
+func (s *NotifyPostNotifyEmailSigninIDOKStatus) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyEmailSigninIDOKStatus to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch NotifyPostNotifyEmailSigninIDOKStatus(v) {
+	case NotifyPostNotifyEmailSigninIDOKStatusWaiting:
+		*s = NotifyPostNotifyEmailSigninIDOKStatusWaiting
+	case NotifyPostNotifyEmailSigninIDOKStatusSignedIn:
+		*s = NotifyPostNotifyEmailSigninIDOKStatusSignedIn
+	case NotifyPostNotifyEmailSigninIDOKStatusExpired:
+		*s = NotifyPostNotifyEmailSigninIDOKStatusExpired
+	case NotifyPostNotifyEmailSigninIDOKStatusDeclined:
+		*s = NotifyPostNotifyEmailSigninIDOKStatusDeclined
+	default:
+		*s = NotifyPostNotifyEmailSigninIDOKStatus(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NotifyPostNotifyEmailSigninIDOKStatus) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyEmailSigninIDOKStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *NotifyPostNotifyEmailSigninIDReq) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *NotifyPostNotifyEmailSigninIDReq) encodeFields(e *jx.Encoder) {
+	{
+		if s.URL.Set {
+			e.FieldStart("url")
+			s.URL.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfNotifyPostNotifyEmailSigninIDReq = [1]string{
+	0: "url",
+}
+
+// Decode decodes NotifyPostNotifyEmailSigninIDReq from json.
+func (s *NotifyPostNotifyEmailSigninIDReq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyEmailSigninIDReq to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "url":
+			if err := func() error {
+				s.URL.Reset()
+				if err := s.URL.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"url\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NotifyPostNotifyEmailSigninIDReq")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *NotifyPostNotifyEmailSigninIDReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyEmailSigninIDReq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *NotifyPostNotifyEmailSigninOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *NotifyPostNotifyEmailSigninOK) encodeFields(e *jx.Encoder) {
+	{
+		if s.ConsentURL.Set {
+			e.FieldStart("consent_url")
+			s.ConsentURL.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("expires_at")
+		json.EncodeDateTime(e, s.ExpiresAt)
+	}
+	{
+		e.FieldStart("flow")
+		s.Flow.Encode(e)
+	}
+	{
+		e.FieldStart("id")
+		e.Str(s.ID)
+	}
+	{
+		if s.Interval.Set {
+			e.FieldStart("interval")
+			s.Interval.Encode(e)
+		}
+	}
+	{
+		if s.Mailbox.Set {
+			e.FieldStart("mailbox")
+			s.Mailbox.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("provider")
+		s.Provider.Encode(e)
+	}
+	{
+		e.FieldStart("status")
+		s.Status.Encode(e)
+	}
+	{
+		if s.UserCode.Set {
+			e.FieldStart("user_code")
+			s.UserCode.Encode(e)
+		}
+	}
+	{
+		if s.VerificationURI.Set {
+			e.FieldStart("verification_uri")
+			s.VerificationURI.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfNotifyPostNotifyEmailSigninOK = [10]string{
+	0: "consent_url",
+	1: "expires_at",
+	2: "flow",
+	3: "id",
+	4: "interval",
+	5: "mailbox",
+	6: "provider",
+	7: "status",
+	8: "user_code",
+	9: "verification_uri",
+}
+
+// Decode decodes NotifyPostNotifyEmailSigninOK from json.
+func (s *NotifyPostNotifyEmailSigninOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyEmailSigninOK to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "consent_url":
+			if err := func() error {
+				s.ConsentURL.Reset()
+				if err := s.ConsentURL.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"consent_url\"")
+			}
+		case "expires_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.ExpiresAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expires_at\"")
+			}
+		case "flow":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Flow.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"flow\"")
+			}
+		case "id":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "interval":
+			if err := func() error {
+				s.Interval.Reset()
+				if err := s.Interval.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"interval\"")
+			}
+		case "mailbox":
+			if err := func() error {
+				s.Mailbox.Reset()
+				if err := s.Mailbox.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mailbox\"")
+			}
+		case "provider":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.Provider.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"provider\"")
+			}
+		case "status":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Status.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"status\"")
+			}
+		case "user_code":
+			if err := func() error {
+				s.UserCode.Reset()
+				if err := s.UserCode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"user_code\"")
+			}
+		case "verification_uri":
+			if err := func() error {
+				s.VerificationURI.Reset()
+				if err := s.VerificationURI.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"verification_uri\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NotifyPostNotifyEmailSigninOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11001110,
+		0b00000000,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfNotifyPostNotifyEmailSigninOK) {
+					name = jsonFieldsNameOfNotifyPostNotifyEmailSigninOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *NotifyPostNotifyEmailSigninOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyEmailSigninOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NotifyPostNotifyEmailSigninOKFlow as json.
+func (s NotifyPostNotifyEmailSigninOKFlow) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes NotifyPostNotifyEmailSigninOKFlow from json.
+func (s *NotifyPostNotifyEmailSigninOKFlow) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyEmailSigninOKFlow to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch NotifyPostNotifyEmailSigninOKFlow(v) {
+	case NotifyPostNotifyEmailSigninOKFlowDevice:
+		*s = NotifyPostNotifyEmailSigninOKFlowDevice
+	case NotifyPostNotifyEmailSigninOKFlowPaste:
+		*s = NotifyPostNotifyEmailSigninOKFlowPaste
+	default:
+		*s = NotifyPostNotifyEmailSigninOKFlow(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NotifyPostNotifyEmailSigninOKFlow) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyEmailSigninOKFlow) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NotifyPostNotifyEmailSigninOKProvider as json.
+func (s NotifyPostNotifyEmailSigninOKProvider) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes NotifyPostNotifyEmailSigninOKProvider from json.
+func (s *NotifyPostNotifyEmailSigninOKProvider) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyEmailSigninOKProvider to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch NotifyPostNotifyEmailSigninOKProvider(v) {
+	case NotifyPostNotifyEmailSigninOKProviderMicrosoft365User:
+		*s = NotifyPostNotifyEmailSigninOKProviderMicrosoft365User
+	case NotifyPostNotifyEmailSigninOKProviderOutlook:
+		*s = NotifyPostNotifyEmailSigninOKProviderOutlook
+	case NotifyPostNotifyEmailSigninOKProviderGmailOAuth:
+		*s = NotifyPostNotifyEmailSigninOKProviderGmailOAuth
+	default:
+		*s = NotifyPostNotifyEmailSigninOKProvider(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NotifyPostNotifyEmailSigninOKProvider) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyEmailSigninOKProvider) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NotifyPostNotifyEmailSigninOKStatus as json.
+func (s NotifyPostNotifyEmailSigninOKStatus) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes NotifyPostNotifyEmailSigninOKStatus from json.
+func (s *NotifyPostNotifyEmailSigninOKStatus) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyEmailSigninOKStatus to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch NotifyPostNotifyEmailSigninOKStatus(v) {
+	case NotifyPostNotifyEmailSigninOKStatusWaiting:
+		*s = NotifyPostNotifyEmailSigninOKStatusWaiting
+	case NotifyPostNotifyEmailSigninOKStatusSignedIn:
+		*s = NotifyPostNotifyEmailSigninOKStatusSignedIn
+	case NotifyPostNotifyEmailSigninOKStatusExpired:
+		*s = NotifyPostNotifyEmailSigninOKStatusExpired
+	case NotifyPostNotifyEmailSigninOKStatusDeclined:
+		*s = NotifyPostNotifyEmailSigninOKStatusDeclined
+	default:
+		*s = NotifyPostNotifyEmailSigninOKStatus(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NotifyPostNotifyEmailSigninOKStatus) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyEmailSigninOKStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *NotifyPostNotifyEmailSigninReq) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *NotifyPostNotifyEmailSigninReq) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("client_id")
+		e.Str(s.ClientID)
+	}
+	{
+		if s.ClientSecret.Set {
+			e.FieldStart("client_secret")
+			s.ClientSecret.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("provider")
+		s.Provider.Encode(e)
+	}
+	{
+		if s.TenantID.Set {
+			e.FieldStart("tenant_id")
+			s.TenantID.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfNotifyPostNotifyEmailSigninReq = [4]string{
+	0: "client_id",
+	1: "client_secret",
+	2: "provider",
+	3: "tenant_id",
+}
+
+// Decode decodes NotifyPostNotifyEmailSigninReq from json.
+func (s *NotifyPostNotifyEmailSigninReq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyEmailSigninReq to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "client_id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.ClientID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"client_id\"")
+			}
+		case "client_secret":
+			if err := func() error {
+				s.ClientSecret.Reset()
+				if err := s.ClientSecret.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"client_secret\"")
+			}
+		case "provider":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Provider.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"provider\"")
+			}
+		case "tenant_id":
+			if err := func() error {
+				s.TenantID.Reset()
+				if err := s.TenantID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tenant_id\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NotifyPostNotifyEmailSigninReq")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000101,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfNotifyPostNotifyEmailSigninReq) {
+					name = jsonFieldsNameOfNotifyPostNotifyEmailSigninReq[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *NotifyPostNotifyEmailSigninReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyEmailSigninReq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NotifyPostNotifyEmailSigninReqProvider as json.
+func (s NotifyPostNotifyEmailSigninReqProvider) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes NotifyPostNotifyEmailSigninReqProvider from json.
+func (s *NotifyPostNotifyEmailSigninReqProvider) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyEmailSigninReqProvider to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch NotifyPostNotifyEmailSigninReqProvider(v) {
+	case NotifyPostNotifyEmailSigninReqProviderMicrosoft365User:
+		*s = NotifyPostNotifyEmailSigninReqProviderMicrosoft365User
+	case NotifyPostNotifyEmailSigninReqProviderOutlook:
+		*s = NotifyPostNotifyEmailSigninReqProviderOutlook
+	case NotifyPostNotifyEmailSigninReqProviderGmailOAuth:
+		*s = NotifyPostNotifyEmailSigninReqProviderGmailOAuth
+	default:
+		*s = NotifyPostNotifyEmailSigninReqProvider(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NotifyPostNotifyEmailSigninReqProvider) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyEmailSigninReqProvider) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *NotifyPostNotifyHistoryIDResendOK) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -171233,9 +172223,15 @@ func (s *NotifyPutNotifyChannelsTypeReq) encodeFields(e *jx.Encoder) {
 			s.Secret.Encode(e)
 		}
 	}
+	{
+		if s.Signin.Set {
+			e.FieldStart("signin")
+			s.Signin.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfNotifyPutNotifyChannelsTypeReq = [8]string{
+var jsonFieldsNameOfNotifyPutNotifyChannelsTypeReq = [9]string{
 	0: "app_token",
 	1: "approvals",
 	2: "approvers",
@@ -171244,6 +172240,7 @@ var jsonFieldsNameOfNotifyPutNotifyChannelsTypeReq = [8]string{
 	5: "fields",
 	6: "min_severity",
 	7: "secret",
+	8: "signin",
 }
 
 // Decode decodes NotifyPutNotifyChannelsTypeReq from json.
@@ -171251,7 +172248,7 @@ func (s *NotifyPutNotifyChannelsTypeReq) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode NotifyPutNotifyChannelsTypeReq to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -171344,6 +172341,16 @@ func (s *NotifyPutNotifyChannelsTypeReq) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"secret\"")
 			}
+		case "signin":
+			if err := func() error {
+				s.Signin.Reset()
+				if err := s.Signin.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"signin\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -171353,8 +172360,9 @@ func (s *NotifyPutNotifyChannelsTypeReq) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b01110000,
+		0b00000000,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

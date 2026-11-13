@@ -17,6 +17,7 @@ import (
 	"net/textproto"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -47,11 +48,13 @@ type EmailConfig struct {
 	// nil = a plain client with a timeout.
 	HTTPClient *http.Client
 	// Tokens is the OAuth2 token cache shared by the senders of one service; nil = this sender's own.
-	Tokens  *TokenCache
-	From    string         // sender address
-	To      []string       // recipients, at least one; see ParseRecipients
-	RootCAs *x509.CertPool // nil = system roots; tests add their own CA
-	Now     func() time.Time
+	Tokens *TokenCache
+	// SaveSecret keeps a rotated refresh token of a user sign-in (D-480): old and next are the whole channel secret. nil = memory only.
+	SaveSecret func(ctx context.Context, old, next secrets.Value) error
+	From       string         // sender address
+	To         []string       // recipients, at least one; see ParseRecipients
+	RootCAs    *x509.CertPool // nil = system roots; tests add their own CA
+	Now        func() time.Time
 	// BoxAddrsFunc lists the machine's addresses, asked at save and at every connection: the server is never on Vedette's own ports
 	// there (D-446), as for a webhook. known=false refuses Vedette's own ports on every address and nothing more (loopback, link-local,
 	// multicast and unspecified are refused all the same): the email channel also carries the two-step sign-in codes, which must not
@@ -80,6 +83,8 @@ type emailSender struct {
 	tls    *tls.Config
 	box    func() ([]netip.Addr, bool) // EmailConfig.BoxAddrsFunc; unknown refuses only Vedette's ports (ownAddr), never the whole channel
 	auth   string                      // EmailAuth of the provider
+	mu     sync.Mutex                  // guards grant
+	grant  userGrant                   // a user sign-in's refresh token, rotated in place (D-480)
 	gkey   googleKey                   // the parsed Google key (AuthGoogle)
 	client *http.Client                // token requests
 	tokens *TokenCache
@@ -157,6 +162,7 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 		return nil, cfgErr("bad_provider", "Choose an email provider from the list, or Custom SMTP.")
 	}
 	var gkey googleKey
+	var grant userGrant
 	switch {
 	case cfg.Security == SecurityNone && auth != AuthPassword:
 		return nil, cfgErr("bad_security", "This provider signs in, so the connection must be encrypted. Choose STARTTLS or SSL/TLS.")
@@ -164,10 +170,34 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 		if !internalHost(cfg.Host) {
 			return nil, cfgErr("insecure_smtp", "Unencrypted SMTP is only allowed for a server on your internal network. Choose STARTTLS or SSL/TLS.")
 		}
+	case auth == AuthMicrosoftUser || auth == AuthGoogleUser:
+		if want := oauthHost[cfg.Provider]; host != want {
+			return nil, cfgErr("bad_host", "This sign-in sends its token only to "+want+". Enter "+want+" as the SMTP server.")
+		}
+		if !validEmail(cfg.Username) {
+			return nil, cfgErr("bad_username", "Sign in first: the mailbox is the account that signs in.")
+		}
+		if auth == AuthMicrosoftUser && !validTenant(cfg.TenantID) {
+			return nil, cfgErr("bad_tenant_id", "The tenant ID is the Directory (tenant) ID of the app registration, a domain such as company.onmicrosoft.com, organizations, or consumers for Outlook.com.")
+		}
+		if auth == AuthMicrosoftUser && !guidRE.MatchString(cfg.ClientID) {
+			return nil, cfgErr("bad_client_id", "The client ID is the Application (client) ID of the app registration, for example 0a1b2c3d-4e5f-6789-abcd-ef0123456789.")
+		}
+		if auth == AuthGoogleUser && !googleClientRE.MatchString(cfg.ClientID) {
+			return nil, cfgErr("bad_client_id", "The client ID of a Google OAuth client ends with .apps.googleusercontent.com. Copy it from Google Auth Platform, Clients.")
+		}
+		if !isSet(cfg.Password) {
+			return nil, cfgErr("secret_required", map[string]string{AuthMicrosoftUser: "Sign in with Microsoft first.", AuthGoogleUser: "Sign in with Google first."}[auth])
+		}
+		g, ok := parseGrant(cfg.Password.Reveal(), auth == AuthGoogleUser)
+		if !ok {
+			return nil, cfgErr("bad_secret", "The saved sign-in cannot be read. Sign in again.")
+		}
+		grant = g
 	case auth == AuthMicrosoft || auth == AuthGoogle:
 		// The token goes only to the provider's own server: .default carries every permission of the app, so a token sent to a server
 		// the admin typed by mistake (or on purpose) is a live credential there (D-449 review).
-		if want := oauthHost[auth]; host != want {
+		if want := oauthHost[cfg.Provider]; host != want {
 			return nil, cfgErr("bad_host", "This sign-in sends its token only to "+want+". Enter "+want+" as the SMTP server.")
 		}
 		if !validEmail(cfg.Username) {
@@ -241,13 +271,15 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 		box:    box,
 		auth:   auth,
 		gkey:   gkey,
+		grant:  grant,
 		client: tokenClient(cfg.HTTPClient),
 		tokens: tokens,
 	}, nil
 }
 
-// oauthHost is the only SMTP server each OAuth2 sign-in sends its token to.
-var oauthHost = map[string]string{AuthMicrosoft: "smtp.office365.com", AuthGoogle: "smtp.gmail.com"}
+// oauthHost is the only SMTP server each OAuth2 preset sends its token to (D-449 review, D-480).
+var oauthHost = map[string]string{"microsoft365": "smtp.office365.com", "google-workspace": "smtp.gmail.com",
+	"microsoft365-user": "smtp.office365.com", "outlook": "smtp-mail.outlook.com", "gmail-oauth": "smtp.gmail.com"}
 
 // validHeaderText reports whether s is non-empty printable text with no control characters (SMTP username).
 func validHeaderText(s string) bool {

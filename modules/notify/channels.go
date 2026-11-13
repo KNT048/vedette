@@ -272,7 +272,7 @@ func (s *Service) newSender(t channel.Type, f map[string]string, secret string, 
 			}
 		}
 		ec := channel.EmailConfig{Host: f["host"], Port: port, Security: f["security"], Provider: f["provider"], Username: f["username"],
-			TenantID: f["tenant_id"], ClientID: f["client_id"], Password: sv, From: f["from"], To: to, Now: s.now, HTTPClient: hc, Tokens: s.tokens,
+			TenantID: f["tenant_id"], ClientID: f["client_id"], Password: sv, From: f["from"], To: to, Now: s.now, HTTPClient: hc, Tokens: s.tokens, SaveSecret: s.rotateEmailSecret,
 			BoxAddrsFunc: s.boxAddrs, SelfAddrsFunc: s.cfg.SelfAddrs, AllowLoopback: s.cfg.SMTPLoopback}
 		if s.cfg.SMTPLoopback {
 			ec.BoxAddrsFunc = nil // the interface list holds 127.0.0.1
@@ -466,8 +466,10 @@ func emailFields(fields map[string]string) error {
 	if !ok {
 		return badRequest("bad_provider", "Choose an email provider from the list, or Custom SMTP.")
 	}
-	if auth != channel.AuthMicrosoft {
+	if auth != channel.AuthMicrosoft && auth != channel.AuthMicrosoftUser {
 		delete(fields, "tenant_id")
+	}
+	if auth != channel.AuthMicrosoft && auth != channel.AuthMicrosoftUser && auth != channel.AuthGoogleUser {
 		delete(fields, "client_id")
 	}
 	if auth == channel.AuthTokenAsUser {
@@ -499,8 +501,10 @@ func (c channelRow) savedFor() string {
 	return emailBinding(c.Fields)
 }
 
-var emailSecretName = map[string]string{channel.AuthPassword: "password or API key", channel.AuthTokenAsUser: "server API token",
-	channel.AuthMicrosoft: "client secret", channel.AuthGoogle: "service account key"}
+// emailSecretName starts the sentence that asks for the secret again.
+var emailSecretName = map[string]string{channel.AuthPassword: "Enter the password or API key", channel.AuthTokenAsUser: "Enter the server API token",
+	channel.AuthMicrosoft: "Enter the client secret", channel.AuthGoogle: "Choose the service account key",
+	channel.AuthMicrosoftUser: "Sign in with Microsoft", channel.AuthGoogleUser: "Sign in with Google"}
 
 // SaveChannel stores the configuration of one channel (PUT /notify/channels/{type}, PRE-3, INV-1, INV-7, INV-8).
 // An empty Secret, AppToken or BotToken keeps the saved one. Errors are *apierr.Error.
@@ -534,6 +538,11 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			if err := emailFields(fields); err != nil {
 				return err
 			}
+			if in.Signin != "" { // D-480: the refresh token of a finished sign-in, never seen by the browser
+				if secret, err = s.takeSignin(actor, in.Signin, fields); err != nil {
+					return err
+				}
+			}
 			rebind = secret == "" && cur.SecretID != "" && cur.savedFor() != emailBinding(fields)
 		}
 		effective := secret
@@ -558,7 +567,7 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		if _, err := s.newSender(t, fields, effective, nil); err != nil {
 			if ce := (*channel.ConfigError)(nil); rebind && errors.As(err, &ce) && ce.Code == "secret_required" {
 				auth, _ := channel.EmailAuth(fields["provider"])
-				return badRequest("secret_required", "Enter the "+emailSecretName[auth]+" again: the sign-in method, the server or the port changed, and a saved secret is only sent where it was saved for.")
+				return badRequest("secret_required", emailSecretName[auth]+" again: the sign-in method, the server or the port changed, and a saved secret is only sent where it was saved for.")
 			}
 			return configAPIError(err)
 		}
@@ -674,6 +683,9 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 	s.forget(t)
 	if t == channel.Email {
 		s.tokens.Clear()
+		if in.Signin != "" {
+			s.forgetSignin(in.Signin)
+		}
 	}
 	s.flush(ctx, ob)
 	return out, nil

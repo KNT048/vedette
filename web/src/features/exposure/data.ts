@@ -98,7 +98,7 @@ export function scanContent(t: { kind: TargetKind; value: string }): Content {
   }
 }
 
-const S = (ip: string, port: number, name: string, product = '', version = '', cpe = ''): ServiceRow => ({ ip, port, name, product, version, cpe })
+const S = (ip: string, port: number, name: string, product = '', version = '', cpe = '', extra = ''): ServiceRow => ({ ip, port, name, product, version, cpe, extra })
 
 /** The box's own IP (203.0.113.10): a FortiGate SSL VPN that hides its version, an old Apache forwarded to a LAN server, and a port
  * that closes every connection. The sample of S-EXP-2: two exploited CVEs by version and one service that needs its version. */
@@ -107,7 +107,7 @@ function boxIpNow(): Content {
   return {
     hosts: [], admin_panels: [], certs: [{ host: ip, issuer: 'Fortinet (self-signed)', expires_at: inDays(120) }],
     ports: [P(ip, 443, 'https', 'FortiGate SSL-VPN'), P(ip, 8443, 'https'), P(ip, 18443, 'http', 'Apache/2.4.49 (Unix)')],
-    services: [S(ip, 443, 'https', 'Fortinet FortiGate SSL VPN', '', 'cpe:/o:fortinet:fortios'), S(ip, 8443, 'tcpwrapped'), S(ip, 18443, 'http', 'Apache httpd', '2.4.49', 'cpe:/a:apache:http_server:2.4.49')],
+    services: [S(ip, 443, 'https', 'Fortinet FortiGate SSL VPN', '', 'cpe:/o:fortinet:fortios'), S(ip, 8443, 'tcpwrapped'), S(ip, 18443, 'http', 'Apache httpd', '2.4.49', 'cpe:/a:apache:http_server:2.4.49', '(Unix)')],
   }
 }
 
@@ -117,7 +117,7 @@ const FORTIOS_KEV = ['CVE-2018-13379', 'CVE-2022-42475', 'CVE-2023-27997', 'CVE-
 function matchServices(services: ServiceRow[]): { vulns: VulnRow[]; version_gaps: GapRow[]; compared: number } {
   const vulns: VulnRow[] = [], version_gaps: GapRow[] = []
   const apache = (s: ServiceRow, cve: string, range: string): VulnRow => ({
-    ip: s.ip, port: s.port, cve, name: APACHE_TRAVERSAL, basis: 'version', date_added: '2021-11-03', ransomware: false,
+    ip: s.ip, port: s.port, cve, name: APACHE_TRAVERSAL, basis: 'version', date_added: '2021-11-03', ransomware: false, backport: '',
     summary: `${s.ip} runs ${s.product} ${s.version}. Its version is inside the range affected by ${cve} (${range}); no scan has confirmed it yet, so this is only suspected.`,
   })
   for (const s of services) {

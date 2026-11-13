@@ -422,7 +422,13 @@ func (s *Service) Diff(ctx context.Context, id, from, to string) (Diff, error) {
 type diffEntry struct {
 	DiffItem
 	exp string
+	// service and vuln entries: where ("ip:port"); service entries: product and version
+	at, product, version string
 }
+
+// VersionNotRead is the "to" of a service whose version the newer scan did not read, where the older one did (INV-20): not a
+// change of version, and its exploited CVEs are not "gone".
+const VersionNotRead = "version not read this time"
 
 // entries lists what a snapshot shows, keyed so two days can be compared (the keys are those of the mock).
 func entries(s Snapshot) (map[string]diffEntry, []string) {
@@ -453,11 +459,11 @@ func entries(s Snapshot) (map[string]diffEntry, []string) {
 	}
 	for _, x := range s.Services {
 		label := fmt.Sprintf("%s:%d", x.IP, x.Port)
-		add(diffEntry{DiffItem: DiffItem{Kind: "service", Key: "s:" + label, Label: label, Detail: serviceText(x)}})
+		add(diffEntry{DiffItem: DiffItem{Kind: "service", Key: "s:" + label, Label: label, Detail: serviceText(x)}, at: label, product: x.Product, version: x.Version})
 	}
 	for _, v := range s.Vulns {
 		label := fmt.Sprintf("%s:%d", v.IP, v.Port)
-		add(diffEntry{DiffItem: DiffItem{Kind: "vuln", Key: "v:" + label + ":" + v.CVE, Label: v.CVE + " on " + label, Detail: v.Name}})
+		add(diffEntry{DiffItem: DiffItem{Kind: "vuln", Key: "v:" + label + ":" + v.CVE, Label: v.CVE + " on " + label, Detail: v.Name}, at: label})
 	}
 	return m, order
 }
@@ -474,14 +480,27 @@ func diff(a, b Snapshot) Diff {
 			d.Added = append(d.Added, v.DiffItem)
 		case v.Kind == "cert" && o.exp != v.exp:
 			d.Changed = append(d.Changed, DiffChange{DiffItem: v.DiffItem, From: o.exp, To: v.exp})
+		case v.Kind == "service" && versionUnread(o, v):
+			d.Changed = append(d.Changed, DiffChange{DiffItem: v.DiffItem, From: o.Detail, To: VersionNotRead})
+		case v.Kind == "service" && o.product == v.product && o.version == "": // a version read now that was not before: no change
 		case v.Kind == "service" && o.Detail != v.Detail:
 			d.Changed = append(d.Changed, DiffChange{DiffItem: v.DiffItem, From: o.Detail, To: v.Detail})
 		}
 	}
 	for _, k := range orderA {
-		if _, ok := B[k]; !ok {
-			d.Removed = append(d.Removed, A[k].DiffItem)
+		o := A[k]
+		if _, ok := B[k]; ok {
+			continue
 		}
+		if s, ok := B["s:"+o.at]; o.Kind == "vuln" && ok && versionUnread(A["s:"+o.at], s) {
+			continue // its service's version was not read this time: the CVE is not known to be gone
+		}
+		d.Removed = append(d.Removed, o.DiffItem)
 	}
 	return d
+}
+
+// versionUnread: the same product on the same port, with a version before and none now.
+func versionUnread(o, v diffEntry) bool {
+	return o.product != "" && o.product == v.product && o.version != "" && v.version == ""
 }

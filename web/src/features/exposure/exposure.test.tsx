@@ -1090,6 +1090,28 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(screen.getByRole('list', { name: 'Not checked' })).getByText('Service identification (nmap -sV) is not set up on this box yet.')).toBeInTheDocument()
   })
 
+  it('a match on a distribution package says the fix may be backported and weighs less (Exim 4.89 on Debian)', async () => {
+    const at = new Date(Date.now() - 864e5).toISOString()
+    const date = at.slice(0, 10)
+    const snap = { id: 'sn-x', date, scanned_at: at, hosts: [], ports: [{ ip: '203.0.113.10', port: 25, service: 'smtp' }], admin_panels: [], certs: [], counts: { subdomains: 0, ips: 1, ports: 1, admin_panels: 0, certs_expiring: 0 },
+      services: [{ ip: '203.0.113.10', port: 25, name: 'smtp', product: 'Exim smtpd', version: '4.89', cpe: 'cpe:/a:exim:exim:4.89', extra: 'Debian' }],
+      vulns: [{ ip: '203.0.113.10', port: 25, cve: 'CVE-2019-10149', name: 'Exim Mail Transfer Agent (MTA) Improper Input Validation', basis: 'version', date_added: '2021-11-03', ransomware: false, backport: 'Debian',
+        summary: '203.0.113.10 runs Exim smtpd 4.89. Its version is inside the range affected by CVE-2019-10149 (>= 4.87, <= 4.91); no scan has confirmed it yet, so this is only suspected. Debian may have backported the fix without changing the version: check the installed package version against Debian\'s security tracker.' }],
+      version_gaps: [], checks: [], not_checked: [] }
+    server.use(
+      http.get('*/api/v1/exposure/targets/xt-2/snapshots', () => HttpResponse.json({ items: [{ id: snap.id, date, scanned_at: at, counts: snap.counts }] })),
+      http.get('*/api/v1/exposure/targets/xt-2/snapshots/:date', () => HttpResponse.json(snap)),
+    )
+    renderApp('/exposure/xt-2')
+    const row = within(await screen.findByRole('table', { name: 'Exploited vulnerabilities that match the services on this IP' })).getByRole('row', { name: /CVE-2019-10149/ })
+    expect(within(row).getByText('Version in range, but Debian may have backported the fix')).toBeInTheDocument()
+    expect(within(row).queryByText('Version in range')).toBeNull()
+    expect(within(row).getByText(/check the installed package version against Debian's security tracker/)).toBeInTheDocument()
+    const services = screen.getByRole('table', { name: 'Services identified on the open ports (nmap -sV)' })
+    expect(within(services).getByText('1 maybe patched')).toBeInTheDocument()
+    expect(within(services).queryByText('1 exploited')).toBeNull()
+  })
+
   it('a domain has no vulnerability section and says where service identification runs', async () => {
     renderApp('/exposure/xt-1')
     expect(await screen.findByRole('list', { name: 'Not checked' })).toBeInTheDocument()

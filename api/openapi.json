@@ -23486,6 +23486,10 @@
                           "cpe": {
                             "type": "string",
                             "description": "The CPE 2.2 URI nmap printed; \"\" when none"
+                          },
+                          "extra": {
+                            "type": "string",
+                            "description": "nmap's extrainfo, e.g. (Debian); \"\" when none"
                           }
                         },
                         "required": [
@@ -23494,7 +23498,8 @@
                           "name",
                           "product",
                           "version",
-                          "cpe"
+                          "cpe",
+                          "extra"
                         ],
                         "additionalProperties": false
                       }
@@ -23589,6 +23594,10 @@
                           },
                           "ransomware": {
                             "type": "boolean"
+                          },
+                          "backport": {
+                            "type": "string",
+                            "description": "The distribution the service names (Debian, Ubuntu…), which may have backported the fix without changing the version; \"\" when none"
                           }
                         },
                         "required": [
@@ -23599,7 +23608,8 @@
                           "basis",
                           "summary",
                           "date_added",
-                          "ransomware"
+                          "ransomware",
+                          "backport"
                         ],
                         "additionalProperties": false
                       },

@@ -270,7 +270,8 @@
       "detail": "Detail"
     },
     "certChanged": "Expiry changed from {{from}} to {{to}}",
-    "serviceChanged": "Changed from {{from}} to {{to}}"
+    "serviceChanged": "Changed from {{from}} to {{to}}",
+    "versionNotRead": "Version not read this time (was {{from}}); its exploited CVEs are not known to be gone"
   },
   "delete": {
     "button": "Delete target",
@@ -420,8 +421,11 @@
     "ransomware": "Used by ransomware",
     "basis": {
       "version": "Version in range",
-      "product": "Product only"
-    }
+      "product": "Product only",
+      "backport": "Version in range, but {{distro}} may have backported the fix"
+    },
+    "countBackport_one": "{{count}} maybe patched",
+    "countBackport_other": "{{count}} maybe patched"
   },
   "checked": {
     "title": "What was checked",

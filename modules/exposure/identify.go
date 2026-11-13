@@ -29,6 +29,7 @@ type (
 		Product string `json:"product"` // "Apache httpd"; "" when nmap named none
 		Version string `json:"version"` // "2.4.49"; "" when the service sent none
 		CPE     string `json:"cpe"`     // the application CPE 2.2 URI nmap printed ("cpe:/a:apache:http_server:2.4.49"); "" when none
+		Extra   string `json:"extra"`   // nmap's extrainfo ("(Debian)", "Ubuntu Linux; protocol 2.0"); "" when none
 	}
 	// CheckRow is one kind of probe a scan sent, or one comparison it made, with what it found and when (RFC 3339, UTC).
 	CheckRow struct {
@@ -42,7 +43,9 @@ type (
 		Text string `json:"text"`
 	}
 	// VulnRow is an exploited CVE (CISA KEV) that matches an identified service. Basis is "version" (the version is inside an NVD
-	// range) or "product" (only the product matches: no version range could decide). DateAdded is the day CISA listed it.
+	// range) or "product" (only the product matches: no version range could decide). DateAdded is the day CISA listed it. Backport
+	// names the distribution the service says it is packaged by ("Debian"), "" when none: a distribution backports fixes without
+	// changing the upstream version, so a version in range is weaker evidence there (INV-20).
 	VulnRow struct {
 		IP         string  `json:"ip"`
 		Port       int     `json:"port"`
@@ -52,6 +55,7 @@ type (
 		Summary    string  `json:"summary"`
 		DateAdded  *string `json:"date_added"`
 		Ransomware bool    `json:"ransomware"`
+		Backport   string  `json:"backport"`
 	}
 	// GapRow is a service whose product has exploited CVEs that only a version would decide, and nmap read no version.
 	GapRow struct {
@@ -84,12 +88,14 @@ type Matcher interface {
 	Match(ctx context.Context, services []ServiceRow) (Matches, error)
 }
 
-// Matches is the result of a Matcher: the matched CVEs, the services that need a version, how many services had a product the
-// list could be searched by (Compared), and how many exploited CVEs the list held (Listed).
+// Matches is the result of a Matcher: the matched CVEs, the services that need a version, how many services were compared with
+// entries of the list (Compared: the list has exploited CVEs under the product name nmap reports), the services whose product
+// name the list has no entry under (Unlisted: "nginx (igor_sysoev:nginx)"), and how many exploited CVEs the list held (Listed).
 type Matches struct {
 	Vulns    []VulnRow
 	Gaps     []GapRow
 	Compared int
+	Unlisted []string
 	Listed   int
 }
 
@@ -109,6 +115,7 @@ const (
 	// NotSetUpServices is the line of every scan while no ServiceScanner is wired (the scan container's nmap -sV is not set up).
 	NotSetUpServices = "Service identification (nmap -sV) is not set up on this box yet."
 	notServicesFail  = "Service identification (nmap -sV) failed, so no service versions were read. The box log has the error."
+	notServicesSlow  = "Service identification (nmap -sV) did not finish within 5 minutes, so no service versions were read."
 	notMatcher       = "Comparison with exploited vulnerabilities is not set up on this box yet."
 	notMatchFail     = "The list of exploited vulnerabilities could not be read, so the identified services were not compared. Try again later."
 )
@@ -123,7 +130,12 @@ const (
 	maxCPE         = 200
 	maxLines       = 50
 	maxLineText    = 300
+	maxUnlisted    = 20
 )
+
+// ServicesTimeout bounds service identification, like the 5-minute cap of the surface runner: a scanner that hangs ends as a
+// "Not checked" line and the rest of the scan is kept.
+const ServicesTimeout = 5 * time.Minute
 
 // identify is the service step of a scan (INV-19), after the runner and before the snapshot is stored: the line of what the
 // runner checked, the lines of what a scan never checks, then service identification of the box's own IP. Without a
@@ -148,11 +160,18 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 	if err != nil { // an IP target's value is a canonical public IPv4 (INV-2, INV-3): never reached
 		return c, fmt.Errorf("exposure: identifying services on %q: %w", st.Value, err)
 	}
-	res, err := s.cfg.Services.ScanServices(ctx, st, ip)
+	sctx, cancel := context.WithTimeout(ctx, ServicesTimeout)
+	defer cancel()
+	res, err := s.cfg.Services.ScanServices(sctx, st, ip)
 	var un *Unavailable
 	switch {
 	case err == nil:
-		got := sanitizeServices(res.Services)
+		got := []ServiceRow{}
+		for _, r := range sanitizeServices(res.Services) {
+			if r.IP == ip.String() { // a row of another address is never the target's: dropped (the scanner was asked about ip only)
+				got = append(got, r)
+			}
+		}
 		c.Services = append(c.Services, got...)
 		text := fmt.Sprintf("Service identification (nmap -sV): %s identified.", plural(len(got), "service"))
 		if res.Ports > 0 {
@@ -163,6 +182,8 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 		return c, err
 	case errors.As(err, &un):
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: "Service identification (nmap -sV) did not run: " + clipText(un.Reason, 200)})
+	case sctx.Err() != nil:
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notServicesSlow})
 	default:
 		s.cfg.Log.ErrorContext(ctx, "exposure: service identification failed", "target", st.Value, "error", err)
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notServicesFail})
@@ -211,15 +232,55 @@ func (s *Service) withVulns(ctx context.Context, snap *Snapshot) {
 		return
 	}
 	snap.Vulns, snap.VersionGaps = nz(m.Vulns), nz(m.Gaps)
+	backported := markBackports(snap.Vulns, snap.Services)
 	text := fmt.Sprintf("%s of %d compared with today's CISA list of exploited vulnerabilities (%d entries) and its NVD version ranges: %s.",
 		plural(m.Compared, "identified service"), len(snap.Services), m.Listed, plural(len(m.Vulns), "exploited CVE")+" matched")
+	if backported > 0 {
+		text = strings.TrimSuffix(text, ".") + fmt.Sprintf(", %d of them on a distribution package that may carry a backported fix.", backported)
+	}
 	if len(m.Gaps) > 0 {
 		text += fmt.Sprintf(" %s could not be checked: no version was read.", plural(len(m.Gaps), "service"))
 	}
-	if n := len(snap.Services) - m.Compared; n > 0 {
+	if n := len(snap.Services) - m.Compared - len(m.Unlisted); n > 0 {
 		text += fmt.Sprintf(" %s gave no product to look up, so not compared.", plural(n, "service"))
 	}
 	snap.Checks = append(snap.Checks, CheckRow{Kind: "cve", Text: text, At: store.FormatTS(s.clock())})
+	for i, p := range m.Unlisted {
+		if i == maxUnlisted {
+			break
+		}
+		snap.NotChecked = append(snap.NotChecked, NotCheckedRow{Kind: "cve", Text: fmt.Sprintf(
+			"%s: not compared. The list of exploited vulnerabilities has no entry under the product name nmap reports for it, so Vedette cannot tell.", clipText(p, 160))})
+	}
+}
+
+// The distributions whose packages keep the upstream version and backport security fixes, as nmap prints them in a version or its
+// extrainfo ("2.4.25 (Debian)", "7.4p1 Debian 10+deb9u7", "Ubuntu Linux; protocol 2.0").
+var distros = []string{"Debian", "Ubuntu", "Raspbian", "Red Hat", "CentOS", "Rocky", "AlmaLinux", "Oracle Linux", "Fedora", "SUSE", "Amazon Linux", "Alpine"}
+
+// markBackports marks each match by version on a service that names its distribution (INV-20): its basis stays "version" but the
+// row says the distribution may have backported the fix, and the summary says how to check. It returns how many it marked.
+func markBackports(vulns []VulnRow, services []ServiceRow) int {
+	hint := map[string]string{}
+	for _, s := range services {
+		for _, d := range distros {
+			if strings.Contains(strings.ToLower(s.Extra+" "+s.Version), strings.ToLower(d)) {
+				hint[fmt.Sprintf("%s:%d", s.IP, s.Port)] = d
+				break
+			}
+		}
+	}
+	n := 0
+	for i, v := range vulns {
+		d := hint[fmt.Sprintf("%s:%d", v.IP, v.Port)]
+		if d == "" || v.Basis != "version" {
+			continue
+		}
+		vulns[i].Backport = d
+		vulns[i].Summary = strings.TrimSpace(v.Summary + " " + d + " may have backported the fix without changing the version: check the installed package version against " + d + "'s security tracker.")
+		n++
+	}
+	return n
 }
 
 // ---- limits (INV-19) ----
@@ -267,7 +328,7 @@ func sanitizeServices(in []ServiceRow) []ServiceRow {
 		}
 		seen[key] = true
 		out = append(out, ServiceRow{IP: ip.String(), Port: r.Port, Name: field(r.Name, maxServiceName), Product: field(r.Product, maxProduct),
-			Version: field(r.Version, maxVersion), CPE: cpeURI(r.CPE)})
+			Version: field(r.Version, maxVersion), CPE: cpeURI(r.CPE), Extra: field(r.Extra, maxProduct)})
 	}
 	return out
 }

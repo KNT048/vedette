@@ -13,7 +13,9 @@ import (
 
 // exposureMatcher is exposure's Matcher (S-EXP-2, exposure INV-20, D-553): the services nmap -sV identified on the box's own public
 // IP, matched by findings.MatchAsset against the CISA KEV list with the NVD version ranges the feeds keep, so exploited CVEs only.
-// Nothing is stored: exposure calls it each time a snapshot is read, so a new KEV entry shows without a rescan.
+// Nothing is stored: exposure calls it each time a snapshot is read, so a new KEV entry shows without a rescan. A service counts as
+// compared only when the list has exploited CVEs under its CPE's vendor and product; otherwise it is Unlisted (nginx is
+// "igor_sysoev:nginx" to nmap and "f5:nginx" to NVD today).
 //
 // A service is looked up by the CPE nmap printed. Its KEV keys come from the NVD configurations of the KEV entries themselves (a
 // KEV entry whose NVD data names cpe:2.3:a:apache:http_server gives that CPE the key "apache|http server"), plus catalog when it
@@ -60,6 +62,14 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 		if m.catalog != nil {
 			keys = slices.Concat(keys, m.catalog(s.CPE)) // a new slice: byCPE's lists are shared
 		}
+		display := s.Product
+		if display == "" {
+			display = s.Name
+		}
+		if len(keys) == 0 { // no exploited CVE is listed under this name: nothing was compared, and the page says so
+			out.Unlisted = append(out.Unlisted, fmt.Sprintf("%s (%s)", display, strings.SplitN(base, ":", 2)[1]))
+			continue
+		}
 		out.Compared++
 		a := assets[s.IP]
 		if a == nil {
@@ -69,10 +79,6 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 		}
 		id := fmt.Sprintf("%s:%d", s.IP, s.Port)
 		where[id] = s
-		display := s.Product
-		if display == "" {
-			display = s.Name
-		}
 		a.Software = append(a.Software, findings.Software{ID: id, Display: display, Version: s.Version, CPE: cpe, KevKeys: keys})
 	}
 	if len(order) == 0 {

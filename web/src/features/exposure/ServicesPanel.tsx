@@ -9,18 +9,24 @@ import type { ServiceRow, Snapshot, VulnRow } from './types'
 /** S-EXP-2 (INV-19, INV-20): the services nmap -sV identified on the box's own public IP and their exploited CVEs (CISA KEV). */
 export function VulnSection({ s }: { s: Snapshot }) {
   const { t } = useTranslation('exposure')
-  const count = (r: ServiceRow) => s.vulns.filter((v) => v.ip === r.ip && v.port === r.port).length
+  // A match on a distribution package (backport) weighs less: it is counted apart and shown in the neutral tone.
+  const on = (r: ServiceRow) => s.vulns.filter((v) => v.ip === r.ip && v.port === r.port)
+  const count = (r: ServiceRow) => on(r).filter((v) => !v.backport).length
+  const maybe = (r: ServiceRow) => on(r).filter((v) => v.backport).length
   const serviceCols: ColumnDef<ServiceRow>[] = [
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="tabular-nums">{row.original.port}</span> },
     { id: 'service', header: t('col.service'), accessorFn: (r) => r.name, cell: ({ row }) => row.original.name === 'tcpwrapped' ? <span title={t('vulns.tcpwrapped')}>{t('vulns.tcpwrappedShort')}</span> : row.original.name },
     { id: 'product', header: t('col.product'), accessorFn: (r) => r.product, cell: ({ row }) => row.original.product || <span className="text-muted">{t('vulns.noProduct')}</span> },
     { id: 'version', header: t('col.version'), accessorFn: (r) => r.version, cell: ({ row }) => row.original.version || <span className="text-muted">{t('vulns.noVersion')}</span> },
-    { id: 'cves', header: t('col.exploited'), accessorFn: count, cell: ({ row }) => { const n = count(row.original); return n > 0 ? <Chip tone="warn">{t('vulns.count', { count: n })}</Chip> : null } },
+    { id: 'cves', header: t('col.exploited'), accessorFn: count, cell: ({ row }) => {
+      const n = count(row.original), m = maybe(row.original)
+      return n + m > 0 ? <span className="flex flex-wrap gap-1">{n > 0 ? <Chip tone="warn">{t('vulns.count', { count: n })}</Chip> : null}{m > 0 ? <Chip tone="off">{t('vulns.countBackport', { count: m })}</Chip> : null}</span> : null
+    } },
   ]
   const vulnCols: ColumnDef<VulnRow>[] = [
     { id: 'cve', header: t('col.cve'), accessorFn: (r) => r.cve, cell: ({ row }) => <span className="grid gap-0.5"><span className="font-medium">{row.original.cve}</span><span className="text-[12px] text-muted">{row.original.name}</span></span> },
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="tabular-nums">{row.original.port}</span> },
-    { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row }) => <Chip tone="warn">{t(`vulns.basis.${row.original.basis}`)}</Chip> },
+    { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row }) => row.original.backport ? <Chip tone="off">{t('vulns.basis.backport', { distro: row.original.backport })}</Chip> : <Chip tone="warn">{t(`vulns.basis.${row.original.basis}`)}</Chip> },
     { id: 'listed', header: t('col.listed'), accessorFn: (r) => r.date_added ?? '', cell: ({ row }) => (
       <span className="grid gap-1">{row.original.date_added ? dateText(row.original.date_added) : t('common:unknown')}{row.original.ransomware ? <Chip tone="danger">{t('vulns.ransomware')}</Chip> : null}</span>
     ) },
@@ -34,7 +40,7 @@ export function VulnSection({ s }: { s: Snapshot }) {
       ) : (
         <div className="grid gap-4">
           {s.vulns.length > 0 ? (
-            <DataTable caption={t('vulns.caption')} data={s.vulns} columns={vulnCols} pageSize={20} rowTone={() => 'warn'} />
+            <DataTable caption={t('vulns.caption')} data={s.vulns} columns={vulnCols} pageSize={20} rowTone={(r) => (r.backport ? undefined : 'warn')} />
           ) : s.not_checked.some((n) => n.kind === 'cve') ? (
             <p role="status" className="text-sm text-warn">{s.not_checked.find((n) => n.kind === 'cve')!.text}</p>
           ) : (

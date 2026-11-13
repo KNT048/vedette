@@ -10,6 +10,7 @@ import { dateText } from './dates'
 import { riskOf } from './services'
 import { useDiff, useSnapshot, useSnapshots } from './api'
 import { ChecksSection, VulnSection } from './ServicesPanel'
+import { VERSION_NOT_READ } from './contract'
 import { CERT_WARN_DAYS, type AdminRow, type CertRow, type DiffItem, type DiffChange, type HostRow, type PortRow, type Snapshot, type Target } from './types'
 
 const daysLeft = (iso: string) => Math.ceil((new Date(iso).getTime() - Date.now()) / 864e5)
@@ -125,7 +126,8 @@ function Compare({ target, dates, label }: { target: Target; dates: string[]; la
     { id: 'detail', header: t('diff.col.detail'), accessorFn: (r) => r.item.detail, cell: ({ row }) => {
       const r = row.original
       if (r.change !== 'changed') return r.item.detail
-      return r.item.kind === 'service' ? t('diff.serviceChanged', { from: r.from, to: r.to }) : t('diff.certChanged', { from: dateText(r.from), to: dateText(r.to) })
+      if (r.item.kind === 'service') return r.to === VERSION_NOT_READ ? t('diff.versionNotRead', { from: r.from }) : t('diff.serviceChanged', { from: r.from, to: r.to })
+      return t('diff.certChanged', { from: dateText(r.from), to: dateText(r.to) })
     } },
   ]
   const rows: Row[] = diff.data ? [

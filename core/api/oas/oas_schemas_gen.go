@@ -44232,7 +44232,9 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetService(val st
 type ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem struct {
 	// The CPE 2.2 URI nmap printed; "" when none.
 	Cpe string `json:"cpe"`
-	IP  string `json:"ip"`
+	// Nmap's extrainfo, e.g. (Debian); "" when none.
+	Extra string `json:"extra"`
+	IP    string `json:"ip"`
 	// Nmap's service name: http, ssh, tcpwrapped.
 	Name string `json:"name"`
 	Port int    `json:"port"`
@@ -44245,6 +44247,11 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem struct {
 // GetCpe returns the value of Cpe.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) GetCpe() string {
 	return s.Cpe
+}
+
+// GetExtra returns the value of Extra.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) GetExtra() string {
+	return s.Extra
 }
 
 // GetIP returns the value of IP.
@@ -44275,6 +44282,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) GetVersion() s
 // SetCpe sets the value of Cpe.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetCpe(val string) {
 	s.Cpe = val
+}
+
+// SetExtra sets the value of Extra.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetExtra(val string) {
+	s.Extra = val
 }
 
 // SetIP sets the value of IP.
@@ -44351,6 +44363,9 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem) SetSoftware
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem struct {
+	// The distribution the service names (Debian, Ubuntu…), which may have backported the fix without
+	// changing the version; "" when none.
+	Backport string `json:"backport"`
 	// Version: the version is inside an NVD range; product: only the product matches.
 	Basis ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis `json:"basis"`
 	Cve   string                                                    `json:"cve"`
@@ -44361,6 +44376,11 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem struct {
 	Port       int       `json:"port"`
 	Ransomware bool      `json:"ransomware"`
 	Summary    string    `json:"summary"`
+}
+
+// GetBackport returns the value of Backport.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetBackport() string {
+	return s.Backport
 }
 
 // GetBasis returns the value of Basis.
@@ -44401,6 +44421,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetRansomware() b
 // GetSummary returns the value of Summary.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetSummary() string {
 	return s.Summary
+}
+
+// SetBackport sets the value of Backport.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetBackport(val string) {
+	s.Backport = val
 }
 
 // SetBasis sets the value of Basis.

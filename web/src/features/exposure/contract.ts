@@ -58,6 +58,7 @@ export const ServiceRow = z.object({
   ip: z.string(), port: z.number().int(),
   name: z.string().describe('nmap\'s service name: http, ssh, tcpwrapped'), product: z.string().describe('"" when nmap named none'),
   version: z.string().describe('"" when the service sent none'), cpe: z.string().describe('The CPE 2.2 URI nmap printed; "" when none'),
+  extra: z.string().describe('nmap\'s extrainfo, e.g. (Debian); "" when none'),
 })
 export const CheckRow = z.object({ kind: z.string().describe('ports, names, services or cve'), text: z.string(), at: z.iso.datetime() })
 export const NotCheckedRow = z.object({ kind: z.string().describe('udp, ports, non_exploited, services or cve'), text: z.string() })
@@ -66,6 +67,7 @@ export const VulnRow = z.object({
   ip: z.string(), port: z.number().int(), cve: z.string(), name: z.string(),
   basis: VulnBasis.describe('version: the version is inside an NVD range; product: only the product matches'),
   summary: z.string(), date_added: isoDate.nullable().describe('When CISA listed it as exploited'), ransomware: z.boolean(),
+  backport: z.string().describe('The distribution the service names (Debian, Ubuntu…), which may have backported the fix without changing the version; "" when none'),
 })
 export const GapRow = z.object({ ip: z.string(), port: z.number().int(), software: z.string(), cves: z.array(z.string()).describe('Exploited CVEs of the product that only a version would decide') })
 
@@ -77,6 +79,8 @@ export const Snapshot = z.object({
 })
 export const SnapshotMeta = Snapshot.pick({ id: true, date: true, scanned_at: true, counts: true })
 
+/** The "to" of a service whose version the newer scan did not read (INV-20): not a change of version, and its CVEs are not gone. */
+export const VERSION_NOT_READ = 'version not read this time'
 export const DiffKind = z.enum(['subdomain', 'port', 'admin', 'cert', 'service', 'vuln'])
 export const DiffItem = z.object({ kind: DiffKind, key: z.string(), label: z.string(), detail: z.string() })
 export const DiffChange = DiffItem.extend({ from: z.string(), to: z.string() })

@@ -14,8 +14,8 @@ import (
 
 // exposureGolden is the real KEV + NVD golden set of findings (D-500) with the two Apache path-traversal entries added as CISA and NVD
 // publish them (KEV dateAdded 2021-11-03; NVD: CVE-2021-41773 affects http_server 2.4.49, CVE-2021-42013 affects 2.4.49 and 2.4.50;
-// the Fedora, NetApp and Oracle entries of those CVEs are left out), and one made-up entry for nginx: no KEV entry names nginx, and
-// the "needs a version" path needs one.
+// the Fedora, NetApp and Oracle entries of those CVEs are left out), Exim CVE-2019-10149 (KEV 2021-11-03, NVD exim 4.87 to 4.91),
+// and one made-up entry for nginx under NVD's current name f5:nginx (no KEV entry names nginx).
 func exposureGolden(t *testing.T) []findings.Vuln {
 	t.Helper()
 	b, err := os.ReadFile("../../modules/findings/testdata/kev-nvd-golden.json")
@@ -57,8 +57,10 @@ func exposureGolden(t *testing.T) []findings.Vuln {
 		return v
 	}
 	return append(out, apache("CVE-2021-41773", "2.4.49"), apache("CVE-2021-42013", "2.4.49", "2.4.50"),
+		findings.Vuln{CVE: "CVE-2019-10149", Vendor: "Exim", Product: "Mail Transfer Agent (MTA)", Name: "Exim Mail Transfer Agent (MTA) Improper Input Validation", DateAdded: added,
+			Affected: []findings.Affected{{CPE: "cpe:2.3:a:exim:exim:*:*:*:*:*:*:*:*", Range: findings.VersionRange{StartIncl: "4.87", EndIncl: "4.91"}}}},
 		findings.Vuln{CVE: "CVE-2099-0001", Vendor: "F5", Product: "nginx", Name: "made up for this test",
-			Affected: []findings.Affected{{CPE: "cpe:2.3:a:igor_sysoev:nginx:*:*:*:*:*:*:*:*", Range: findings.VersionRange{EndExcl: "1.21.0"}}}})
+			Affected: []findings.Affected{{CPE: "cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*", Range: findings.VersionRange{EndExcl: "1.21.0"}}}})
 }
 
 // The services of modules/exposure/testdata/nmap-external.xml as the scan container hands them over.
@@ -78,8 +80,9 @@ func TestExposureMatcher_NmapServicesAgainstKEV(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Compared != 2 || got.Listed != len(vulns) {
-		t.Fatalf("compared %d, listed %d", got.Compared, got.Listed)
+	// nginx is igor_sysoev:nginx to nmap and f5:nginx to NVD: not compared, and said so (review MED-2).
+	if got.Compared != 1 || got.Listed != len(vulns) || !slices.Equal(got.Unlisted, []string{"nginx (igor_sysoev:nginx)"}) {
+		t.Fatalf("compared %d, listed %d, unlisted %v", got.Compared, got.Listed, got.Unlisted)
 	}
 	var cves []string
 	for _, v := range got.Vulns {
@@ -92,8 +95,21 @@ func TestExposureMatcher_NmapServicesAgainstKEV(t *testing.T) {
 	if !slices.Equal(cves, []string{"CVE-2021-41773", "CVE-2021-42013"}) {
 		t.Fatalf("cves = %v", cves)
 	}
-	if len(got.Gaps) != 1 || got.Gaps[0].Port != 443 || got.Gaps[0].Software != "nginx" || !slices.Equal(got.Gaps[0].CVEs, []string{"CVE-2099-0001"}) {
+	if len(got.Gaps) != 0 {
 		t.Fatalf("gaps = %+v", got.Gaps)
+	}
+
+	// Apache without a version: the "needs a version" line; Exim 4.89 (Debian 9's package): inside the range by version.
+	more := []exposure.ServiceRow{
+		{IP: "203.0.113.10", Port: 8080, Name: "http", Product: "Apache httpd", CPE: "cpe:/a:apache:http_server"},
+		{IP: "203.0.113.10", Port: 25, Name: "smtp", Product: "Exim smtpd", Version: "4.89", Extra: "Debian", CPE: "cpe:/a:exim:exim:4.89"},
+	}
+	got, err = m.Match(t.Context(), more)
+	if err != nil || got.Compared != 2 || len(got.Gaps) != 1 || got.Gaps[0].Port != 8080 || !slices.Equal(got.Gaps[0].CVEs, []string{"CVE-2021-41773", "CVE-2021-42013"}) {
+		t.Fatalf("gaps: %+v %v", got, err)
+	}
+	if len(got.Vulns) != 1 || got.Vulns[0].CVE != "CVE-2019-10149" || got.Vulns[0].Port != 25 || got.Vulns[0].Basis != "version" {
+		t.Fatalf("exim: %+v", got.Vulns)
 	}
 
 	later := []exposure.ServiceRow{{IP: "203.0.113.10", Port: 18443, Name: "http", Product: "Apache httpd", Version: "2.4.51", CPE: "cpe:/a:apache:http_server:2.4.51"}}

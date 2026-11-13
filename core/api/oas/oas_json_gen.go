@@ -89157,6 +89157,10 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) encodeFields(e
 		e.Str(s.Cpe)
 	}
 	{
+		e.FieldStart("extra")
+		e.Str(s.Extra)
+	}
+	{
 		e.FieldStart("ip")
 		e.Str(s.IP)
 	}
@@ -89178,13 +89182,14 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) encodeFields(e
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKServicesItem = [6]string{
+var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKServicesItem = [7]string{
 	0: "cpe",
-	1: "ip",
-	2: "name",
-	3: "port",
-	4: "product",
-	5: "version",
+	1: "extra",
+	2: "ip",
+	3: "name",
+	4: "port",
+	5: "product",
+	6: "version",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem from json.
@@ -89208,8 +89213,20 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) Decode(d *jx.D
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cpe\"")
 			}
-		case "ip":
+		case "extra":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Extra = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"extra\"")
+			}
+		case "ip":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.IP = string(v)
@@ -89221,7 +89238,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -89233,7 +89250,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "port":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -89245,7 +89262,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"port\"")
 			}
 		case "product":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -89257,7 +89274,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -89278,7 +89295,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) Decode(d *jx.D
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -89493,6 +89510,10 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) Encode(e *jx.Enco
 // encodeFields encodes fields.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("backport")
+		e.Str(s.Backport)
+	}
+	{
 		e.FieldStart("basis")
 		s.Basis.Encode(e)
 	}
@@ -89526,15 +89547,16 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) encodeFields(e *j
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem = [8]string{
-	0: "basis",
-	1: "cve",
-	2: "date_added",
-	3: "ip",
-	4: "name",
-	5: "port",
-	6: "ransomware",
-	7: "summary",
+var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem = [9]string{
+	0: "backport",
+	1: "basis",
+	2: "cve",
+	3: "date_added",
+	4: "ip",
+	5: "name",
+	6: "port",
+	7: "ransomware",
+	8: "summary",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem from json.
@@ -89542,12 +89564,24 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) Decode(d *jx.Deco
 	if s == nil {
 		return errors.New("invalid: unable to decode ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "basis":
+		case "backport":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Backport = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backport\"")
+			}
+		case "basis":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.Basis.Decode(d); err != nil {
 					return err
@@ -89557,7 +89591,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"basis\"")
 			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Cve = string(v)
@@ -89569,7 +89603,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"cve\"")
 			}
 		case "date_added":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.DateAdded.Decode(d); err != nil {
 					return err
@@ -89579,7 +89613,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"date_added\"")
 			}
 		case "ip":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.IP = string(v)
@@ -89591,7 +89625,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -89603,7 +89637,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "port":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -89615,7 +89649,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"port\"")
 			}
 		case "ransomware":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Ransomware = bool(v)
@@ -89627,7 +89661,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"ransomware\"")
 			}
 		case "summary":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Summary = string(v)
@@ -89647,8 +89681,9 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) Decode(d *jx.Deco
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

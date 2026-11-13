@@ -30,6 +30,7 @@ func nmapServices(t *testing.T, file string) []ServiceRow {
 					Name    string   `xml:"name,attr"`
 					Product string   `xml:"product,attr"`
 					Version string   `xml:"version,attr"`
+					Extra   string   `xml:"extrainfo,attr"`
 					CPE     []string `xml:"cpe"`
 				} `xml:"service"`
 			} `xml:"ports>port"`
@@ -41,7 +42,7 @@ func nmapServices(t *testing.T, file string) []ServiceRow {
 	var out []ServiceRow
 	for _, h := range run.Hosts {
 		for _, p := range h.Ports {
-			r := ServiceRow{IP: h.Addr[0].Addr, Port: p.Port, Name: p.Service.Name, Product: p.Service.Product, Version: p.Service.Version}
+			r := ServiceRow{IP: h.Addr[0].Addr, Port: p.Port, Name: p.Service.Name, Product: p.Service.Product, Version: p.Service.Version, Extra: p.Service.Extra}
 			if len(p.Service.CPE) > 0 {
 				r.CPE = p.Service.CPE[0]
 			}
@@ -156,6 +157,7 @@ func TestContract_INV19_ServicesThroughTheSeamAndComparedOnRead(t *testing.T) {
 	for i := range sv.scan.Services {
 		sv.scan.Services[i].IP = ipA
 	}
+	sv.scan.Services = append(sv.scan.Services, ServiceRow{IP: ipB, Port: 22, Name: "ssh"}) // another address: never the target's
 	s := e.scanIP(Content{})
 	if len(sv.calls) != 1 || sv.calls[0].Kind != KindIP || sv.calls[0].User != "admin@acme.example" {
 		t.Fatalf("scanner calls = %+v", sv.calls)
@@ -163,7 +165,7 @@ func TestContract_INV19_ServicesThroughTheSeamAndComparedOnRead(t *testing.T) {
 	want := []ServiceRow{
 		{IP: ipA, Port: 443, Name: "http", Product: "nginx", CPE: "cpe:/a:igor_sysoev:nginx"},
 		{IP: ipA, Port: 8443, Name: "tcpwrapped"},
-		{IP: ipA, Port: 18443, Name: "http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49"},
+		{IP: ipA, Port: 18443, Name: "http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49", Extra: "(Unix)"},
 	}
 	if !slices.Equal(s.Services, want) {
 		t.Fatalf("services = %+v", s.Services)
@@ -286,5 +288,48 @@ func TestContract_INV20_DiffServiceAndVuln(t *testing.T) {
 	}
 	if len(d.Removed) != 1 || d.Removed[0].Kind != "vuln" || d.Removed[0].Label != "CVE-2021-41773 on "+ipA+":18443" {
 		t.Fatalf("removed = %+v", d.Removed)
+	}
+}
+
+// INV-20 (review MED-1): a match by version on a service that names its distribution says the fix may be backported; the basis
+// stays "version", the row carries the distribution and the compare line counts it apart. Exim 4.89 as Debian 9 packaged it.
+// (review MED-2) A service whose product name the list has no entry under is a "Not checked" line, not "compared".
+func TestContract_INV20_BackportsAndUnlistedNames(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Services: []ServiceRow{
+		{IP: ipA, Port: 25, Name: "smtp", Product: "Exim smtpd", Version: "4.89", Extra: "Debian", CPE: "cpe:/a:exim:exim:4.89"},
+		{IP: ipA, Port: 443, Name: "http", Product: "nginx", Version: "1.10.3", Extra: "(Ubuntu)", CPE: "cpe:/a:igor_sysoev:nginx:1.10.3"},
+	}}}
+	sum := "8.8.8.8 runs Exim smtpd 4.89. Its version is inside the range affected by CVE-2019-10149 (>= 4.87, <= 4.91); no scan has confirmed it yet, so this is only suspected."
+	e.svc.cfg.Matcher = &fakeMatcher{m: Matches{Compared: 1, Listed: 1500, Unlisted: []string{"nginx (igor_sysoev:nginx)"},
+		Vulns: []VulnRow{{IP: ipA, Port: 25, CVE: "CVE-2019-10149", Basis: "version", Summary: sum}}}}
+	s := e.scanIP(Content{})
+	if len(s.Vulns) != 1 || s.Vulns[0].Backport != "Debian" || s.Vulns[0].Basis != "version" ||
+		s.Vulns[0].Summary != sum+" Debian may have backported the fix without changing the version: check the installed package version against Debian's security tracker." {
+		t.Fatalf("vuln = %+v", s.Vulns)
+	}
+	if got := s.Checks[len(s.Checks)-1].Text; got != "1 identified service of 2 compared with today's CISA list of exploited vulnerabilities (1500 entries) and its NVD version ranges: 1 exploited CVE matched, 1 of them on a distribution package that may carry a backported fix." {
+		t.Fatalf("compare line = %q", got)
+	}
+	if !slices.Contains(notChecked(s), "nginx (igor_sysoev:nginx): not compared. The list of exploited vulnerabilities has no entry under the product name nmap reports for it, so Vedette cannot tell.") {
+		t.Fatalf("not checked = %q", notChecked(s))
+	}
+}
+
+// INV-20 (review LOW-5): a version not read this time is not a change of version, and the CVEs it matched are not "gone".
+func TestContract_INV20_DiffVersionNotRead(t *testing.T) {
+	t.Parallel()
+	apache := ServiceRow{IP: ipA, Port: 18443, Name: "http", Product: "Apache httpd", Version: "2.4.49"}
+	a := Snapshot{Date: "2026-11-12", Content: Content{Services: []ServiceRow{apache}}, Vulns: []VulnRow{{IP: ipA, Port: 18443, CVE: "CVE-2021-41773"}}}
+	unread := apache
+	unread.Version = ""
+	b := Snapshot{Date: "2026-11-13", Content: Content{Services: []ServiceRow{unread}}}
+	d := diff(a, b)
+	if len(d.Removed) != 0 || len(d.Added) != 0 || len(d.Changed) != 1 || d.Changed[0].From != "Apache httpd 2.4.49" || d.Changed[0].To != VersionNotRead {
+		t.Fatalf("diff = %+v", d)
+	}
+	if d := diff(b, a); len(d.Changed) != 0 || len(d.Removed) != 0 || len(d.Added) != 1 || d.Added[0].Kind != "vuln" { // read again: the CVE is new knowledge
+		t.Fatalf("version read again: %+v", d)
 	}
 }

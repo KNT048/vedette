@@ -112,7 +112,7 @@ export const RunningRevoked = z.object({
   action: z.enum(['block_install', 'block_install_and_warn', 'rollback_if_possible']).describe('block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)'),
 })
 export const UpdateCheckError = z.object({
-  at: ts, code: z.enum(['update_source_unreachable', 'update_check_failed']).describe('update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check'),
+  at: ts, code: z.enum(['update_source_unreachable', 'update_not_published', 'update_check_failed']).describe('update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check'),
   message: z.string().describe("The box's own fixed sentence for this failure (the message of the 503/502 answer); never text received from the network"),
 })
 export const UpdatesState = z.object({
@@ -140,7 +140,7 @@ export const OsInfo = z.object({
 })
 export const ReleaseUpgrade = z.object({ to: z.string(), steps: z.array(z.string()) }).describe('Guidance only; Vedette never runs a release upgrade')
 export const OsState = z.object({
-  os: OsInfo, pending: z.array(OsPackage),
+  os: OsInfo.nullable().describe('null until the box first looks for operating system updates (Check now): pending and reboot_reasons are then empty and the rest is core\'s own settings (D-407; before it, GET answered 409 no_check_yet)'), pending: z.array(OsPackage),
   reboot_required: z.boolean(), reboot_reasons: z.array(z.string()).describe('Packages that need a reboot to take effect'), reboot_scheduled_at: ts.nullable(),
   auto_security: z.boolean().describe('unattended-upgrades installs security updates by itself'), window: MaintenanceWindow,
   release_upgrade: ReleaseUpgrade.nullable(), busy: z.boolean().describe('An install run is in progress; only one at a time'),

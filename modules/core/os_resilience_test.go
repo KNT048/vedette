@@ -373,7 +373,11 @@ func TestOSSettingsAndRebootOnABoxThatNeverCheckedAnswerOnce(t *testing.T) {
 		t.Errorf("reboot rows: %v", e.actions())
 	}
 	wantOK(t, e.admin.request("DELETE", "/core/updates/os/reboot", nil), 200)
-	wantStatus(t, e.viewer.get("/core/updates/os"), 409, "no_check_yet") // reading still needs the check
+	g := e.viewer.get("/core/updates/os") // reading still has no host part before the check (D-407: os null, not 409)
+	wantOK(t, g, 200)
+	if v, ok := g.JSON["os"]; !ok || v != nil {
+		t.Errorf("GET = %s", g.Raw)
+	}
 }
 
 // ---- settings and the scheduled reboot ----

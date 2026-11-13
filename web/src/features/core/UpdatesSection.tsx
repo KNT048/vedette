@@ -15,7 +15,7 @@ import { ApiError, download } from '@/lib/api'
 import { fmtDate, fmtDateTime, fmtRelative, isNever } from '@/lib/format'
 import { useOsState, useUpdateMutations, useUpdates } from './api'
 import { OsBlock } from './OsUpdates'
-import { CheckFailed, ContainerUpdates, InstallPending } from './ContainerOnly'
+import { ContainerUpdates, InstallPending } from './ContainerOnly'
 import { UpdateNotices } from './UpdateSignals'
 import { useInstallKind } from '@/lib/modules'
 import { Band, errMsg, ReadOnlyNote, useGate } from './parts'
@@ -174,8 +174,11 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
     <>
       <section id="managed" aria-labelledby="managed-band" className="mt-12">
         <Band id="managed-band" n="2" title={t('updates.managed.title')} desc={t('updates.managed.desc')} />
-        <DataTable data={s.managed} columns={managedCols} caption={t('updates.managed.title')} pageSize={20}
-          mobileRow={(p) => <div className="flex flex-wrap items-center justify-between gap-2"><div className="grid"><span className="font-medium">{p.name}</span><span className="font-mono text-[12px] text-muted">{p.version}</span></div>{p.status === 'ok' ? <Chip tone="ok">{t('updates.managed.pinned')}</Chip> : <Chip tone="warn">{t('updates.managed.pending')}</Chip>}</div>} />
+        {/* No empty table (D-407): the list comes from the running release's signed manifest, which a build without a release never gets. */}
+        {s.managed.length ? (
+          <DataTable data={s.managed} columns={managedCols} caption={t('updates.managed.title')} pageSize={20}
+            mobileRow={(p) => <div className="flex flex-wrap items-center justify-between gap-2"><div className="grid"><span className="font-medium">{p.name}</span><span className="font-mono text-[12px] text-muted">{p.version}</span></div>{p.status === 'ok' ? <Chip tone="ok">{t('updates.managed.pinned')}</Chip> : <Chip tone="warn">{t('updates.managed.pending')}</Chip>}</div>} />
+        ) : <p className="max-w-3xl text-sm text-muted">{t('updates.managed.none')}</p>}
       </section>
 
       <section id="vedette" aria-labelledby="vedette-band" className="mt-12">
@@ -202,8 +205,11 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
             <p className="text-[13px] text-muted">{t(`updates.modeHint.${s.mode}`)}</p>
           </div>
         </fieldset>
-        <p className="mt-3 text-[13px] text-muted">{(isNever(s.last_check) ? t('updates.neverChecked') : t('updates.lastCheck', { time: fmtRelative(s.last_check) }))} {s.check_enabled ? '' : t('updates.checkOff')}</p>
-        {s.last_check_error ? <CheckFailed e={s.last_check_error} /> : null}
+        {/* One status line (D-407): a failed check says why, then the last good one if any; never "Never checked." above a failure. */}
+        <p className={`mt-3 text-[13px] ${s.last_check_error && s.last_check_error.code !== 'update_not_published' ? 'text-warn' : 'text-muted'}`}>
+          {s.last_check_error ? t('updates.checkFailed', { time: fmtRelative(s.last_check_error.at), reason: s.last_check_error.message }) : isNever(s.last_check) ? t('updates.neverChecked') : t('updates.lastCheck', { time: fmtRelative(s.last_check) })}
+          {s.last_check_error && !isNever(s.last_check) ? ` ${t('updates.lastGood', { time: fmtRelative(s.last_check) })}` : ''} {s.check_enabled ? '' : t('updates.checkOff')}
+        </p>
       </Section>
 
       <Section title={t('updates.sources.title')}>
@@ -229,6 +235,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
       </Section>
 
       <Section title={t('updates.advisories')} description={t('updates.advisoriesDesc')}>
+        {s.advisories.length ? (
         <ul className="grid gap-2">
           {s.advisories.map((a) => (
             <li key={a.id} className="rounded-md border border-rule bg-surface px-4 py-3 text-sm">
@@ -241,6 +248,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
             </li>
           ))}
         </ul>
+        ) : <p className="max-w-3xl text-sm text-muted">{t(isNever(s.last_check) ? 'updates.advisoriesNotYet' : 'updates.advisoriesNone')}</p>}
       </Section>
 
       <Section title={t('updates.bundle.title')} description={t('updates.bundle.desc')}>
@@ -299,7 +307,8 @@ function ApplianceUpdates() {
   const q = useUpdates()
   const os = useOsState()
   const sec = os.data?.pending.filter((p) => p.security).length ?? 0
-  const title = !os.data ? t('settings.updates') : sec ? t('updates.titleOs', { name: os.data.os.name, count: sec }) : t('updates.titleOsClean', { name: os.data.os.name })
+  const name = os.data?.os?.name // null before the box first looked for updates (D-407)
+  const title = !name ? t('settings.updates') : sec ? t('updates.titleOs', { name, count: sec }) : t('updates.titleOsClean', { name })
   return (
     <>
       <PageHeader title={title} meta={t('updates.meta')} stories={['S-CORE-2', 'S-CORE-7']} />

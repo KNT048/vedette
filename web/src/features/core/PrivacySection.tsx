@@ -30,6 +30,11 @@ function Body({ d }: { d: PrivacyState }) {
   // read as the container-only rows of PRIVACY.md (D-381). undefined while GET /modules loads: the appliance text.
   const container = useInstallKind() === 'container'
   const txt = (id: number, part: 'what' | 'to' | 'control') => t(container && (id === 6 || id === 10) ? `privacy.flow.${id}.container.${part}` : `privacy.flow.${id}.${part}`)
+  // A flow with an "items" list (flow 3, one item per AI job, D-407) shows its lead sentence and then the list, as PRIVACY.md does.
+  const whatCell = (f: PrivacyFlow) => {
+    const items = t(`privacy.flow.${f.id}.items`, { returnObjects: true, defaultValue: null }) as unknown
+    return <>{txt(f.id, 'what')}{Array.isArray(items) ? <ul className="mt-1 grid list-disc gap-1 pl-4">{items.map((i: string) => <li key={i}>{i}</li>)}</ul> : null}</>
+  }
   const toCell = (f: PrivacyFlow) => <>{txt(f.id, 'to')}{f.id === 1 && feedsOn ? <CustomFeedHosts /> : null}</>
   const save = useSavePrivacy()
   async function set(v: { update_check?: boolean }) {
@@ -60,7 +65,7 @@ function Body({ d }: { d: PrivacyState }) {
   }
   const columns: ColumnDef<PrivacyFlow>[] = [
     { id: 'flow', header: t('privacy.col.flow'), accessorFn: (f) => f.id, cell: ({ row }) => <span className="font-medium">{row.original.id}. {t(`privacy.flow.${row.original.id}.name`)}</span> },
-    { id: 'what', header: t('privacy.col.what'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => <span className="block max-w-sm text-[13px]">{txt(row.original.id, 'what')}</span> },
+    { id: 'what', header: t('privacy.col.what'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => <div className="max-w-sm text-[13px]">{whatCell(row.original)}</div> },
     { id: 'to', header: t('privacy.col.to'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => <span className="block max-w-[200px] text-[13px]">{toCell(row.original)}</span> },
     { id: 'state', header: t('privacy.col.state'), accessorFn: (f) => f.state, cell: ({ row }) => stateChip(row.original) },
     { id: 'control', header: t('privacy.col.control'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => control(row.original) },
@@ -72,7 +77,7 @@ function Body({ d }: { d: PrivacyState }) {
         <DataTable data={d.flows} columns={columns} caption={t('privacy.flows')} pageSize={15} mobileRow={(f) => (
           <div className="grid gap-1.5">
             <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{f.id}. {t(`privacy.flow.${f.id}.name`)}</span>{stateChip(f)}</div>
-            <p className="text-[13px]">{txt(f.id, 'what')}</p>
+            <div className="text-[13px]">{whatCell(f)}</div>
             <p className="text-[13px] text-muted"><span className="font-medium text-ink">{t('privacy.col.to')}: </span>{toCell(f)}</p>
             <div className="text-[13px] text-muted"><span className="font-medium text-ink">{t('privacy.col.control')}: </span>{control(f)}</div>
           </div>

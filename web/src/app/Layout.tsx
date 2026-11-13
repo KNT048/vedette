@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { Bug, LogOut, Menu, Settings, UserCog, UserRound } from 'lucide-react'
 import { BugReportDialog } from '@/features/core/BugReportDialog'
-import { RevokedBanner } from '@/features/core/UpdateSignals'
+import { RevokedBanner, RunningVersion } from '@/features/core/UpdateSignals'
 import { navItems, type NavGroup } from './feature'
 import { useModules } from '@/lib/modules'
 import { useMe } from '@/lib/session'
@@ -127,7 +127,10 @@ export function Layout() {
       <div className="sticky top-0 hidden h-dvh flex-col gap-6 overflow-y-auto border-r border-rule bg-surface px-3 py-5 lg:flex">
         <Brand />
         <div className="flex-1"><Nav /></div>
-        <UserMenu />
+        <div className="grid gap-1">
+          <UserMenu />
+          <RunningVersion />
+        </div>
       </div>
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-rule bg-surface px-4 lg:hidden">
         <Button variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label={t('layout.openMenu')}><Menu /></Button>
@@ -138,6 +141,7 @@ export function Layout() {
         <DialogContent title={t('layout.nav')} className="left-0 top-0 h-dvh max-h-dvh w-72 max-w-72 translate-x-0 translate-y-0 rounded-none">
           <Nav onNavigate={() => setOpen(false)} />
           <UserMenu />
+          <RunningVersion onNavigate={() => setOpen(false)} />
         </DialogContent>
       </Dialog>
       <div className="min-w-0">

@@ -657,17 +657,18 @@ func TestKnowledgePrivacyTextsSayWhatIsSent(t *testing.T) {
 	var doc struct {
 		Privacy struct {
 			Flow map[string]struct {
-				What string `json:"what"`
+				What  string   `json:"what"`
+				Items []string `json:"items"` // one per AI job (D-407)
 			} `json:"flow"`
 		} `json:"privacy"`
 	}
 	if err := json.Unmarshal(core, &doc); err != nil {
 		t.Fatal(err)
 	}
-	what := doc.Privacy.Flow["3"].What
-	for _, want := range []string{"knowledge base", "nothing is sent when one is added", "passages"} {
+	what := doc.Privacy.Flow["3"].What + " " + strings.Join(doc.Privacy.Flow["3"].Items, " ")
+	for _, want := range []string{"knowledge base", "adding or indexing a document sends nothing anywhere", "passages"} {
 		if !strings.Contains(what, want) {
-			t.Errorf("privacy.flow.3.what lacks %q", want)
+			t.Errorf("privacy.flow.3 (what and items) lacks %q", want)
 		}
 	}
 }

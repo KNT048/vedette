@@ -867,3 +867,62 @@ func TestHoneypotTrapIPAddressesAndDevices(t *testing.T) {
 		t.Fatalf("a laptop at a Trap IP the host does not hold is hidden (%d new devices)", n-before)
 	}
 }
+
+// B2 lab, last run: the first Trap IP became a device six seconds after it was created. The host still held its address from an
+// earlier run with another MAC, the inventory's cached host answer said so, and the decoy re-made with the vendor's MAC answered
+// ARP before any cache refresh. Its frames, before and after the Apply that re-makes it, are the box: no device, no conflict.
+func TestHoneypotARemadeDecoyIsNoDeviceBeforeTheCacheCatchesUp(t *testing.T) {
+	t.Parallel()
+	e := startHPHost(t, false)
+	s := newStackWith(t, func(d *deps) {
+		d.HoneypotDir, d.HostSocket = t.TempDir(), e.h.Socket
+		d.DataDir, d.KeyPath = t.TempDir(), filepath.Join(t.TempDir(), "vedette.key")
+	})
+	s.saveScope(t)
+	ip := netip.MustParseAddr("192.168.10.240")
+	// An earlier run left the address on the host with a locally administered MAC.
+	if err := e.adapter().AddDecoyIP(t.Context(), ip, honeypot.DecoySpec{Ports: []honeypot.Port{{Proto: "tcp", Port: 22}}}); err != nil {
+		t.Fatal(err)
+	}
+	old, _ := e.heldDecoy(t, ip.String())
+	frame := func(mac string) {
+		t.Helper()
+		o := observe.Observation{AssetHint: observe.AssetHint{IP: ip, MAC: mac}, Field: observe.MAC, Value: mac, Source: observe.Passive, Confidence: 0.9}
+		if mac == "" {
+			o.Field, o.Value = observe.Kind, "unknown"
+		}
+		if err := s.d.Inventory.Record(t.Context(), []observe.Observation{o}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	devices := func() int {
+		l, err := s.d.Inventory.AllDevices(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(l)
+	}
+	before := devices()
+	s.setModule("honeypot", true)
+	s.addTrapIP(t, `{"name":"FILESRV-OLD","ip":"192.168.10.240","preset":"file_server","vendor":"dell","services":["smb","rdp"]}`)
+	frame("")      // created, before any Apply: the address is the box
+	frame(old.MAC) // the old link still answers; the inventory caches the host answer that lists it
+	if err := s.d.Honeypot.Apply(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	now, _ := e.heldDecoy(t, ip.String())
+	if now.MAC == old.MAC || !strings.HasPrefix(now.MAC, "f8:bc:12:") {
+		t.Fatalf("the decoy was not re-made with the vendor's MAC: %s (was %s)", now.MAC, old.MAC)
+	}
+	frame(now.MAC) // the new link answers ARP before the inventory's cached host answer is refreshed
+	if n := devices(); n != before {
+		t.Fatalf("the Trap IP's own frames made %d device(s)", n-before)
+	}
+	if err := s.d.Honeypot.Apply(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	_, b := s.do("GET", "/honeypot/trap-ips", "viewer", "")
+	if m := field(t, b, "items").([]any)[0].(map[string]any); m["state"] != "listening" || m["device_id"] != nil {
+		t.Fatalf("the Trap IP: %v", m)
+	}
+}

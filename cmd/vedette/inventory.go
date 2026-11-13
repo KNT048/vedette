@@ -59,9 +59,9 @@ func newInventory(d *deps) *inventory.Service {
 				if m == nil {
 					m = map[netip.Addr]string{}
 				}
-				if _, ok := m[ip]; !ok {
-					m[ip] = mac
-				}
+				// The honeypot's view wins: it is what the host said at the last Apply (or "": it is handing the address over right now,
+				// its MAC may be new), while the host answer here may be a cache older than a decoy re-made with another MAC (B2 lab).
+				m[ip] = mac
 			}
 			return m, nil
 		}

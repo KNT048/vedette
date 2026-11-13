@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"maps"
@@ -167,12 +168,12 @@ func (s *Service) ExpectedMACs(ctx context.Context) map[netip.Addr]string {
 			continue
 		}
 		switch at, being := adding[d.ip]; {
+		case being && now.Sub(at) < addingFor: // being handed over: its MAC may be new, whatever was known before
+			out[d.ip] = ""
 		case hv.links[d.ip].MAC != "":
 			out[d.ip] = strings.ToLower(hv.links[d.ip].MAC)
 		case d.mac != "":
 			out[d.ip] = d.mac
-		case being && now.Sub(at) < addingFor:
-			out[d.ip] = ""
 		}
 	}
 	return out
@@ -543,20 +544,19 @@ func (s *Service) rememberMACs(ctx context.Context, w *world, links map[netip.Ad
 	})
 }
 
-// markAdding notes that ip is being handed to the host and its MAC may not be known yet (ExpectedMACs): only while the last
-// Apply did not learn a MAC for it.
-func (s *Service) markAdding(ip netip.Addr) {
+// markAdding notes that ip is being handed to the host and its MAC may change or not be known yet (ExpectedMACs): unless the
+// last Apply confirmed the host holds it with a MAC of the wanted vendor (then the adapter writes nothing). A MAC of another
+// vendor means the adapter removes and adds it again, with a new MAC (B2 lab, last run: a stale MAC made the new one a device).
+func (s *Service) markAdding(ip netip.Addr, spec DecoySpec) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.host.links[ip].MAC != "" {
+	if l := s.host.links[ip]; s.host.placed[ip] && l.MAC != "" && macFits(l.MAC, spec.OUI) {
 		return
 	}
 	if s.adding == nil {
 		s.adding = map[netip.Addr]time.Time{}
 	}
-	if _, seen := s.adding[ip]; !seen {
-		s.adding[ip] = s.now()
-	}
+	s.adding[ip] = s.now()
 	now := s.now()
 	for a, at := range s.adding {
 		if now.Sub(at) >= addingFor {
@@ -567,8 +567,8 @@ func (s *Service) markAdding(ip netip.Addr) {
 
 func (s *Service) setHost(h hostCache) {
 	s.mu.Lock()
-	for ip := range s.adding { // its MAC is known now
-		if h.links[ip].MAC != "" {
+	for ip := range s.adding { // the host confirmed it holds it, with the MAC it reports now
+		if h.placed[ip] && h.links[ip].MAC != "" {
 			delete(s.adding, ip)
 		}
 	}
@@ -628,7 +628,7 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, specs map[neti
 			have[ip] = true
 			save()
 		}
-		s.markAdding(ip)
+		s.markAdding(ip, specs[ip])
 		if err := s.cfg.Host.AddDecoyIP(ctx, ip, specs[ip]); err != nil {
 			if ctx.Err() != nil || !errors.Is(err, ErrRefused) {
 				// Unknown whether the host took it (cancelled, out of time, busy, an answer lost): keep it on record so
@@ -640,6 +640,9 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, specs map[neti
 				break
 			}
 			refused[ip] = err
+			s.mu.Lock()
+			delete(s.adding, ip) // the host did not take it (a refused address may well be another machine's: H1)
+			s.mu.Unlock()
 			if !wasHeld { // the host said no: it does not hold it
 				delete(have, ip)
 				save()
@@ -842,4 +845,17 @@ func (s *Service) Run(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+// macFits says whether mac carries the vendor prefix ouiHex (six hex digits), or with no vendor is locally administered.
+func macFits(mac, ouiHex string) bool {
+	h := strings.ReplaceAll(strings.ToLower(mac), ":", "")
+	if len(h) != 12 {
+		return false
+	}
+	if ouiHex != "" {
+		return h[:6] == strings.ToLower(ouiHex)
+	}
+	b, err := hex.DecodeString(h[:2])
+	return err == nil && b[0]&0x02 != 0
 }

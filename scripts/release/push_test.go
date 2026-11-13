@@ -153,13 +153,45 @@ func (rf *registryFake) fn(argv []string) ([]byte, error) {
 
 var allPlatforms = []string{"linux/amd64", "linux/arm64"}
 
+// gatesDoc is the record `release gates` writes for the local lists of localStore (config cfgID) and two packages (sums of the
+// files in debDir, or placeholders when debDir is "").
+func gatesDoc(t *testing.T, version, debDir string) *GatesDoc {
+	t.Helper()
+	g := &GatesDoc{Version: version, MinSequence: "1"}
+	for _, arch := range debArchs {
+		d := GatedDeb{Arch: arch, File: "vedette-host_" + version + "_" + arch + ".deb", SHA256: strings.Repeat("a", 64), Size: 1}
+		if debDir != "" {
+			var err error
+			d.SHA256, d.Size, err = hashFile(filepath.Join(debDir, d.File))
+			must(t, err)
+		}
+		g.Debs = append(g.Debs, d)
+	}
+	for _, im := range publishedImages {
+		gi := GatedImage{Service: im.service, Local: im.local}
+		for _, arch := range []string{"amd64", "arm64"} {
+			gi.Platforms = append(gi.Platforms, GatedPlatform{Platform: "linux/" + arch, Config: "sha256:" + cfgID(im.local, arch)})
+		}
+		g.Images = append(g.Images, gi)
+	}
+	return g
+}
+
+// gatesPath writes g as release gates does (in a directory of its own) and returns the path.
+func gatesPath(t *testing.T, g *GatesDoc) string {
+	t.Helper()
+	p, err := writeGates(t.TempDir(), g)
+	must(t, err)
+	return p
+}
+
 func TestPushWritesImagesJSON(t *testing.T) {
 	for _, reg := range []string{"127.0.0.1:5099", "[::1]:5099", "ghcr.io/knt048"} {
 		t.Run(reg, func(t *testing.T) {
 			rf := &registryFake{head: "abc", tag: "abc"}
 			fr := &fakeRun{fn: rf.fn}
 			var out bytes.Buffer
-			doc, err := Push(context.Background(), fr.run, pushOpts{Version: "0.2.0", Registry: reg, Platforms: allPlatforms, Repo: "repo", Out: t.TempDir()}, &out)
+			doc, err := Push(context.Background(), fr.run, pushOpts{Version: "0.2.0", Registry: reg, Platforms: allPlatforms, Repo: "repo", Out: t.TempDir(), Gates: gatesPath(t, gatesDoc(t, "0.2.0", ""))}, &out)
 			if err != nil {
 				t.Fatal(err, fr.joined())
 			}
@@ -270,7 +302,7 @@ func TestPushReusesTheSameImagesAndRefusesOthers(t *testing.T) {
 			rf := &registryFake{remote: map[string][]byte{"127.0.0.1:5099/vedette-honeypot": list}}
 			fr := &fakeRun{fn: rf.fn}
 			doc, err := Push(context.Background(), fr.run, pushOpts{Version: "0.2.0", Registry: "127.0.0.1:5099", Platforms: allPlatforms, Repo: "repo", Out: t.TempDir(),
-				HTTP: registryHTTP{base: srv.URL, client: srv.Client()}}, &bytes.Buffer{})
+				Gates: gatesPath(t, gatesDoc(t, "0.2.0", "")), HTTP: registryHTTP{base: srv.URL, client: srv.Client()}}, &bytes.Buffer{})
 			if c.want != "" {
 				if err == nil || !strings.Contains(err.Error(), c.want) {
 					t.Fatalf("got %v, want %q", err, c.want)
@@ -301,13 +333,22 @@ func TestPushRefusals(t *testing.T) {
 		version, reg string
 		plats        []string
 		rf           registryFake
+		gates        func(g *GatesDoc) // changes the record of the local lists
+		noGates      bool              // no record at all
 		want         string
 	}{
+		"no gates record":          {noGates: true, want: "no gates record"},
+		"gates of another version": {gates: func(g *GatesDoc) { g.Version = "0.1.0" }, want: "the gates record is of version 0.1.0, not 0.2.0"},
+		"a list rebuilt after the gates": {gates: func(g *GatesDoc) { g.Images[3].Platforms[1].Config = digestOf("before") },
+			want: "localhost/vedette-honeypot:0.2.0 linux/arm64 is sha256:" + cfgID("honeypot", "arm64") + " now, the gates checked " + digestOf("before") + ": the images changed after the gates; run make release-gates VERSION=0.2.0 again"},
+		"a platform the gates did not see": {gates: func(g *GatesDoc) { g.Images[1].Platforms = g.Images[1].Platforms[:1] },
+			want: "localhost/vedette-sensor:0.2.0 linux/arm64 is sha256:" + cfgID("sensor", "arm64") + " now, the gates checked absent"},
 		"another registry":        {reg: "docker.io/knt048", want: "pushed to ghcr.io/knt048 only"},
 		"malformed registry":      {reg: "ghcr.io/KNT048", want: "malformed"},
 		"other ipv6":              {reg: "[::2]:5000", want: "malformed"},
 		"v prefix":                {version: "v0.2.0", want: "not SemVer"},
-		"test version, real":      {version: "0.2.0-test.1", want: "-test."},
+		"test version":            {version: "0.2.0-test.1", want: "has a -test. prerelease"},
+		"test version, rehearsal": {version: "0.2.0-test.1", reg: "127.0.0.1:5099", want: "has a -test. prerelease"},
 		"dirty tree":              {rf: registryFake{head: "a", tag: "a", status: " M go.mod\n"}, want: "uncommitted"},
 		"no tag":                  {rf: registryFake{head: "a"}, want: "no tag v0.2.0"},
 		"head is not the tag":     {rf: registryFake{head: "a", tag: "b"}, want: "is not v0.2.0"},
@@ -326,6 +367,14 @@ func TestPushRefusals(t *testing.T) {
 		"registry returns other bytes": {rf: registryFake{tweak: only("podman manifest inspect ghcr.io/knt048/vedette-core@", nil, errors.New("Manifest does not match provided manifest digest"))}, want: "read back"},
 		"pushed list has another platform": {rf: registryFake{tweak: only("podman manifest inspect ghcr.io/knt048/vedette-scan@",
 			listJSON(map[string]string{"linux/amd64": digestOf("1"), "linux/arm64": digestOf("2"), "linux/arm64/v8": digestOf("3")}), nil)}, want: "platforms"},
+		// make images rebuilt honeypot while the earlier lists were pushed: podman pushes the new images under the name
+		"a list rebuilt during the push": {rf: registryFake{tweak: func(rf *registryFake, argv []string) ([]byte, error, bool) {
+			if strings.Join(argv, " ") == "podman images --all --format json" && rf.remote["ghcr.io/knt048/vedette-honeypot"] != nil {
+				out, err := localStore("0.2.0")(argv)
+				return []byte(strings.Replace(string(out), cfgID("honeypot", "arm64"), strings.Repeat("9", 64), 1)), err, true
+			}
+			return nil, nil, false
+		}}, want: "localhost/vedette-honeypot:0.2.0: the local list changed during the push (localhost/vedette-honeypot:0.2.0 linux/arm64 is sha256:" + strings.Repeat("9", 64) + " now"},
 		"tag names another list": {rf: registryFake{tweak: func(rf *registryFake, argv []string) ([]byte, error, bool) {
 			if strings.Join(argv, " ") == "podman manifest inspect ghcr.io/knt048/vedette-honeypot:0.2.0" && rf.remote["ghcr.io/knt048/vedette-honeypot"] != nil {
 				return listJSON(both("other")), nil, true
@@ -349,12 +398,31 @@ func TestPushRefusals(t *testing.T) {
 			}
 			fr := &fakeRun{fn: c.rf.fn}
 			out := t.TempDir()
-			_, err := Push(context.Background(), fr.run, pushOpts{Version: c.version, Registry: c.reg, Platforms: c.plats, Repo: "repo", Out: out}, &bytes.Buffer{})
+			g := gatesDoc(t, "0.2.0", "")
+			if c.gates != nil {
+				c.gates(g)
+			}
+			gp := gatesPath(t, g)
+			if c.noGates {
+				must(t, os.Remove(gp))
+			}
+			_, err := Push(context.Background(), fr.run, pushOpts{Version: c.version, Registry: c.reg, Platforms: c.plats, Repo: "repo", Out: out, Gates: gp}, &bytes.Buffer{})
 			if err == nil || !strings.Contains(err.Error(), c.want) {
 				t.Fatalf("got %v, want %q", err, c.want)
 			}
 			if left, _ := filepath.Glob(filepath.Join(out, "*")); len(left) > 0 {
 				t.Errorf("left %v", left)
+			}
+			if c.gates != nil || c.noGates {
+				// refused before anything is pushed or asked of the registry, for every list, not after the first ones
+				if slices.ContainsFunc(fr.joined(), func(a string) bool {
+					return strings.HasPrefix(a, "podman manifest push") || strings.HasPrefix(a, "podman image exists") || strings.HasPrefix(a, "podman manifest inspect ghcr.io")
+				}) {
+					t.Errorf("registry touched before the gates check: %v", fr.joined())
+				}
+				if c.noGates && len(fr.calls) > 0 {
+					t.Errorf("no record: nothing should run: %v", fr.joined())
+				}
 			}
 		})
 	}
@@ -402,7 +470,8 @@ func TestBuildInputsIsWhatManifestReads(t *testing.T) {
 	r := newRig(t)
 	cdir, _ := r.cosignDir("0.2.0", "core", "sensor", "scan", "honeypot")
 	fr := &fakeRun{fn: localStore("0.2.0")}
-	in, err := BuildInputs(context.Background(), fr.run, imagesFor("0.2.0"), inputsOpts{Channel: "stable", RollbackSafe: "false", DebDir: debDir(t, "0.2.0")})
+	dd := debDir(t, "0.2.0")
+	in, err := BuildInputs(context.Background(), fr.run, imagesFor("0.2.0"), inputsOpts{Channel: "stable", RollbackSafe: "false", DebDir: dd, Gates: gatesPath(t, gatesDoc(t, "0.2.0", dd))})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -428,9 +497,20 @@ func TestBuildInputsRefusals(t *testing.T) {
 	ok := inputsOpts{Channel: "beta", RollbackSafe: "false"}
 	cases := map[string]struct {
 		mut     func(*inputsOpts, *ImagesDoc)
+		gates   func(*GatesDoc) // changes the record of what debDir and localStore hold
 		version string
 		want    string
 	}{
+		"no gates record":          {mut: func(o *inputsOpts, _ *ImagesDoc) { must(t, os.Remove(o.Gates)) }, want: "no gates record"},
+		"gates of another version": {gates: func(g *GatesDoc) { g.Version = "0.2.1" }, want: "the gates record is of version 0.2.1, not 0.2.0"},
+		"deb built again after the gates": {mut: func(o *inputsOpts, _ *ImagesDoc) {
+			must(t, os.WriteFile(filepath.Join(o.DebDir, "vedette-host_0.2.0_arm64.deb"), []byte("deb arm64, rebuilt"), 0o600))
+		}, want: "vedette-host_0.2.0_arm64.deb has sha256 "},
+		"images.json is not what the gates saw": {mut: func(_ *inputsOpts, d *ImagesDoc) { d.Images[2].Platforms[0].Config = digestOf("x") },
+			want: "images.json scan linux/amd64 is " + digestOf("x") + " now, the gates checked sha256:" + cfgID("scan-base", "amd64")},
+		"local list rebuilt after the push": {mut: func(_ *inputsOpts, d *ImagesDoc) { d.Images[1].Platforms[1].Config = digestOf("pushed") },
+			gates: func(g *GatesDoc) { g.Images[1].Platforms[1].Config = digestOf("pushed") },
+			want:  "localhost/vedette-sensor:0.2.0 linux/arm64 is sha256:" + cfgID("sensor", "arm64") + " now, the gates checked " + digestOf("pushed")},
 		"no channel":        {mut: func(o *inputsOpts, _ *ImagesDoc) { o.Channel = "" }, want: "channel"},
 		"rollback not said": {mut: func(o *inputsOpts, _ *ImagesDoc) { o.RollbackSafe = "" }, want: "RELEASE_ROLLBACK_SAFE"},
 		"rollback yes":      {mut: func(o *inputsOpts, _ *ImagesDoc) { o.RollbackSafe = "yes" }, want: "RELEASE_ROLLBACK_SAFE"},
@@ -440,7 +520,7 @@ func TestBuildInputsRefusals(t *testing.T) {
 		"no arm64 package": {mut: func(o *inputsOpts, _ *ImagesDoc) {
 			must(t, os.Remove(filepath.Join(o.DebDir, "vedette-host_0.2.0_arm64.deb")))
 		}, want: "host file"},
-		"local list is another": {mut: func(_ *inputsOpts, d *ImagesDoc) { d.Images[0].Platforms = d.Images[0].Platforms[:1] }, want: "platforms"},
+		"images.json lacks a platform": {mut: func(_ *inputsOpts, d *ImagesDoc) { d.Images[0].Platforms = d.Images[0].Platforms[:1] }, want: "images.json core linux/arm64 is absent now"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -450,6 +530,11 @@ func TestBuildInputsRefusals(t *testing.T) {
 			}
 			o, d := ok, imagesFor(v)
 			o.DebDir = debDir(t, v)
+			g := gatesDoc(t, v, o.DebDir)
+			if c.gates != nil {
+				c.gates(g)
+			}
+			o.Gates = gatesPath(t, g)
 			if c.mut != nil {
 				c.mut(&o, d)
 			}

@@ -180,6 +180,8 @@ func siemTitle(name string) string {
 	switch name {
 	case "finding.created":
 		return "Exploited vulnerability matches a device"
+	case "finding.severity_raised":
+		return "Finding severity raised"
 	case "finding.status_changed":
 		return "Finding status changed"
 	case "incident.created":

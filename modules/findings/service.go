@@ -242,7 +242,7 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, need []Vers
 					Detail: fmt.Sprintf("%s: %s to %s, %s", r.CVE, before.Basis, r.Basis, r.Severity)}); err != nil {
 					return err
 				}
-				if sevRank(r.Severity) > sevRank(before.Severity) { // review H2, M-a: its own event; the status did not change
+				if !reopened && sevRank(r.Severity) > sevRank(before.Severity) { // review H2, M-a: its own event; the status did not change. A reopening is one story (MED1 of #698): its event carries the severity
 					emit(EventSeverityRaised, SeverityRaisedEvent{FindingID: r.ID, AssetID: r.AssetID, CVE: r.CVE,
 						FromSeverity: before.Severity, ToSeverity: r.Severity, Basis: r.Basis})
 				}

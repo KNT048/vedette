@@ -18,6 +18,7 @@ import (
 const (
 	siemEventFindingCreated = "findings.finding.created"
 	siemEventFindingStatus  = "findings.finding.status_changed"
+	siemEventFindingRaised  = "findings.finding.severity_raised"
 	siemEventIncident       = "notify.incident.created"
 	siemEventHoneypot       = "honeypot.hit.created"
 	siemEventBadAddress     = "logs.bad_address.detected"
@@ -175,7 +176,14 @@ func (s *Service) Subscribe(bus SiemBus) (unsubscribe func()) {
 	})
 	on(siemEventFindingStatus, "findings", func(m map[string]any) siemRecord {
 		return newSiemRecord("finding.status_changed", "info", now(),
-			siemField{Key: "id", CEF: "externalId", Val: str(m, "finding_id")}, siemField{Key: "from", Val: str(m, "from")}, siemField{Key: "to", Val: str(m, "to")})
+			siemField{Key: "id", CEF: "externalId", Val: str(m, "finding_id")}, siemField{Key: "from", Val: str(m, "from")}, siemField{Key: "to", Val: str(m, "to")},
+			siemField{Key: "reason", Val: str(m, "reason")}) // D-530/D-495: "matches_again" or "not_affected_version" when Vedette changed it itself, else ""
+	})
+	on(siemEventFindingRaised, "findings", func(m map[string]any) siemRecord { // D-495: the event severity is the new one, so a SIEM rule on severity sees it
+		return newSiemRecord("finding.severity_raised", sevOr(str(m, "to_severity"), "medium"), now(),
+			siemField{Key: "id", CEF: "externalId", Val: str(m, "finding_id")}, siemField{Key: "asset_id", Val: str(m, "asset_id")},
+			siemField{Key: "cve", Val: str(m, "cve")}, siemField{Key: "basis", Val: str(m, "basis")},
+			siemField{Key: "from_severity", Val: str(m, "from_severity")}, siemField{Key: "to_severity", Val: str(m, "to_severity")})
 	})
 	on(siemEventIncident, "alerts", func(m map[string]any) siemRecord {
 		return newSiemRecord("incident.created", sevOr(str(m, "severity"), "medium"), now(),

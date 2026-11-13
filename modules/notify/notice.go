@@ -30,6 +30,7 @@ type Notice struct {
 	Title      string   // one plain sentence
 	What       string   // what happened and how urgent
 	Action     string   // what to do first
+	Change     string   // vulnerability changed since it was first told ("now critical (was medium)"): added to its line of a digest
 	Link       string   // absolute URL of the finding or incident in Vedette
 	At         time.Time
 
@@ -261,14 +262,18 @@ func (b Batch) Message() (channel.Message, error) {
 	listed := b.Listed()
 	for _, n := range listed {
 		line := strings.Join(dedupe(n.CVEs), ", ")
+		change := n.Change
 		if line == "" {
-			line = n.Title
+			line, change = n.Title, "" // the title already says what changed
 		}
 		if mixed && strings.TrimSpace(n.Product) != "" {
 			line = strings.TrimSpace(n.Product) + ": " + line
 		}
 		if d := joinDevices(n.Devices); d != "" {
 			line += " on " + d
+		}
+		if change != "" {
+			line += ": " + change
 		}
 		items = append(items, line)
 	}

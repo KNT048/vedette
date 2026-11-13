@@ -42763,6 +42763,8 @@ const (
 	ExposureGetExposureTargetsIDDiffOKAddedItemKindPort      ExposureGetExposureTargetsIDDiffOKAddedItemKind = "port"
 	ExposureGetExposureTargetsIDDiffOKAddedItemKindAdmin     ExposureGetExposureTargetsIDDiffOKAddedItemKind = "admin"
 	ExposureGetExposureTargetsIDDiffOKAddedItemKindCert      ExposureGetExposureTargetsIDDiffOKAddedItemKind = "cert"
+	ExposureGetExposureTargetsIDDiffOKAddedItemKindService   ExposureGetExposureTargetsIDDiffOKAddedItemKind = "service"
+	ExposureGetExposureTargetsIDDiffOKAddedItemKindVuln      ExposureGetExposureTargetsIDDiffOKAddedItemKind = "vuln"
 )
 
 // AllValues returns all ExposureGetExposureTargetsIDDiffOKAddedItemKind values.
@@ -42772,6 +42774,8 @@ func (ExposureGetExposureTargetsIDDiffOKAddedItemKind) AllValues() []ExposureGet
 		ExposureGetExposureTargetsIDDiffOKAddedItemKindPort,
 		ExposureGetExposureTargetsIDDiffOKAddedItemKindAdmin,
 		ExposureGetExposureTargetsIDDiffOKAddedItemKindCert,
+		ExposureGetExposureTargetsIDDiffOKAddedItemKindService,
+		ExposureGetExposureTargetsIDDiffOKAddedItemKindVuln,
 	}
 }
 
@@ -42785,6 +42789,10 @@ func (s ExposureGetExposureTargetsIDDiffOKAddedItemKind) MarshalText() ([]byte, 
 	case ExposureGetExposureTargetsIDDiffOKAddedItemKindAdmin:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDDiffOKAddedItemKindCert:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDDiffOKAddedItemKindService:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDDiffOKAddedItemKindVuln:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -42805,6 +42813,12 @@ func (s *ExposureGetExposureTargetsIDDiffOKAddedItemKind) UnmarshalText(data []b
 		return nil
 	case ExposureGetExposureTargetsIDDiffOKAddedItemKindCert:
 		*s = ExposureGetExposureTargetsIDDiffOKAddedItemKindCert
+		return nil
+	case ExposureGetExposureTargetsIDDiffOKAddedItemKindService:
+		*s = ExposureGetExposureTargetsIDDiffOKAddedItemKindService
+		return nil
+	case ExposureGetExposureTargetsIDDiffOKAddedItemKindVuln:
+		*s = ExposureGetExposureTargetsIDDiffOKAddedItemKindVuln
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -42887,6 +42901,8 @@ const (
 	ExposureGetExposureTargetsIDDiffOKChangedItemKindPort      ExposureGetExposureTargetsIDDiffOKChangedItemKind = "port"
 	ExposureGetExposureTargetsIDDiffOKChangedItemKindAdmin     ExposureGetExposureTargetsIDDiffOKChangedItemKind = "admin"
 	ExposureGetExposureTargetsIDDiffOKChangedItemKindCert      ExposureGetExposureTargetsIDDiffOKChangedItemKind = "cert"
+	ExposureGetExposureTargetsIDDiffOKChangedItemKindService   ExposureGetExposureTargetsIDDiffOKChangedItemKind = "service"
+	ExposureGetExposureTargetsIDDiffOKChangedItemKindVuln      ExposureGetExposureTargetsIDDiffOKChangedItemKind = "vuln"
 )
 
 // AllValues returns all ExposureGetExposureTargetsIDDiffOKChangedItemKind values.
@@ -42896,6 +42912,8 @@ func (ExposureGetExposureTargetsIDDiffOKChangedItemKind) AllValues() []ExposureG
 		ExposureGetExposureTargetsIDDiffOKChangedItemKindPort,
 		ExposureGetExposureTargetsIDDiffOKChangedItemKindAdmin,
 		ExposureGetExposureTargetsIDDiffOKChangedItemKindCert,
+		ExposureGetExposureTargetsIDDiffOKChangedItemKindService,
+		ExposureGetExposureTargetsIDDiffOKChangedItemKindVuln,
 	}
 }
 
@@ -42909,6 +42927,10 @@ func (s ExposureGetExposureTargetsIDDiffOKChangedItemKind) MarshalText() ([]byte
 	case ExposureGetExposureTargetsIDDiffOKChangedItemKindAdmin:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDDiffOKChangedItemKindCert:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDDiffOKChangedItemKindService:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDDiffOKChangedItemKindVuln:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -42929,6 +42951,12 @@ func (s *ExposureGetExposureTargetsIDDiffOKChangedItemKind) UnmarshalText(data [
 		return nil
 	case ExposureGetExposureTargetsIDDiffOKChangedItemKindCert:
 		*s = ExposureGetExposureTargetsIDDiffOKChangedItemKindCert
+		return nil
+	case ExposureGetExposureTargetsIDDiffOKChangedItemKindService:
+		*s = ExposureGetExposureTargetsIDDiffOKChangedItemKindService
+		return nil
+	case ExposureGetExposureTargetsIDDiffOKChangedItemKindVuln:
+		*s = ExposureGetExposureTargetsIDDiffOKChangedItemKindVuln
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -42989,6 +43017,8 @@ const (
 	ExposureGetExposureTargetsIDDiffOKRemovedItemKindPort      ExposureGetExposureTargetsIDDiffOKRemovedItemKind = "port"
 	ExposureGetExposureTargetsIDDiffOKRemovedItemKindAdmin     ExposureGetExposureTargetsIDDiffOKRemovedItemKind = "admin"
 	ExposureGetExposureTargetsIDDiffOKRemovedItemKindCert      ExposureGetExposureTargetsIDDiffOKRemovedItemKind = "cert"
+	ExposureGetExposureTargetsIDDiffOKRemovedItemKindService   ExposureGetExposureTargetsIDDiffOKRemovedItemKind = "service"
+	ExposureGetExposureTargetsIDDiffOKRemovedItemKindVuln      ExposureGetExposureTargetsIDDiffOKRemovedItemKind = "vuln"
 )
 
 // AllValues returns all ExposureGetExposureTargetsIDDiffOKRemovedItemKind values.
@@ -42998,6 +43028,8 @@ func (ExposureGetExposureTargetsIDDiffOKRemovedItemKind) AllValues() []ExposureG
 		ExposureGetExposureTargetsIDDiffOKRemovedItemKindPort,
 		ExposureGetExposureTargetsIDDiffOKRemovedItemKindAdmin,
 		ExposureGetExposureTargetsIDDiffOKRemovedItemKindCert,
+		ExposureGetExposureTargetsIDDiffOKRemovedItemKindService,
+		ExposureGetExposureTargetsIDDiffOKRemovedItemKindVuln,
 	}
 }
 
@@ -43011,6 +43043,10 @@ func (s ExposureGetExposureTargetsIDDiffOKRemovedItemKind) MarshalText() ([]byte
 	case ExposureGetExposureTargetsIDDiffOKRemovedItemKindAdmin:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDDiffOKRemovedItemKindCert:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDDiffOKRemovedItemKindService:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDDiffOKRemovedItemKindVuln:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -43031,6 +43067,12 @@ func (s *ExposureGetExposureTargetsIDDiffOKRemovedItemKind) UnmarshalText(data [
 		return nil
 	case ExposureGetExposureTargetsIDDiffOKRemovedItemKindCert:
 		*s = ExposureGetExposureTargetsIDDiffOKRemovedItemKindCert
+		return nil
+	case ExposureGetExposureTargetsIDDiffOKRemovedItemKindService:
+		*s = ExposureGetExposureTargetsIDDiffOKRemovedItemKindService
+		return nil
+	case ExposureGetExposureTargetsIDDiffOKRemovedItemKindVuln:
+		*s = ExposureGetExposureTargetsIDDiffOKRemovedItemKindVuln
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -43715,12 +43757,18 @@ func (s *ExposureGetExposureTargetsIDOKValidity) UnmarshalText(data []byte) erro
 type ExposureGetExposureTargetsIDSnapshotsDateOK struct {
 	AdminPanels []ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItem `json:"admin_panels"`
 	Certs       []ExposureGetExposureTargetsIDSnapshotsDateOKCertsItem       `json:"certs"`
+	Checks      []ExposureGetExposureTargetsIDSnapshotsDateOKChecksItem      `json:"checks"`
 	Counts      ExposureGetExposureTargetsIDSnapshotsDateOKCounts            `json:"counts"`
 	Date        string                                                       `json:"date"`
 	Hosts       []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem       `json:"hosts"`
 	ID          string                                                       `json:"id"`
+	NotChecked  []ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem  `json:"not_checked"`
 	Ports       []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem       `json:"ports"`
 	ScannedAt   time.Time                                                    `json:"scanned_at"`
+	Services    []ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem    `json:"services"`
+	VersionGaps []ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem `json:"version_gaps"`
+	// Computed on read against today's CISA list, not stored.
+	Vulns []ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem `json:"vulns"`
 }
 
 // GetAdminPanels returns the value of AdminPanels.
@@ -43731,6 +43779,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetAdminPanels() []Exposur
 // GetCerts returns the value of Certs.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetCerts() []ExposureGetExposureTargetsIDSnapshotsDateOKCertsItem {
 	return s.Certs
+}
+
+// GetChecks returns the value of Checks.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetChecks() []ExposureGetExposureTargetsIDSnapshotsDateOKChecksItem {
+	return s.Checks
 }
 
 // GetCounts returns the value of Counts.
@@ -43753,6 +43806,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetID() string {
 	return s.ID
 }
 
+// GetNotChecked returns the value of NotChecked.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetNotChecked() []ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem {
+	return s.NotChecked
+}
+
 // GetPorts returns the value of Ports.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetPorts() []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem {
 	return s.Ports
@@ -43763,6 +43821,21 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetScannedAt() time.Time {
 	return s.ScannedAt
 }
 
+// GetServices returns the value of Services.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetServices() []ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem {
+	return s.Services
+}
+
+// GetVersionGaps returns the value of VersionGaps.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetVersionGaps() []ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem {
+	return s.VersionGaps
+}
+
+// GetVulns returns the value of Vulns.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetVulns() []ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem {
+	return s.Vulns
+}
+
 // SetAdminPanels sets the value of AdminPanels.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetAdminPanels(val []ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItem) {
 	s.AdminPanels = val
@@ -43771,6 +43844,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetAdminPanels(val []Expos
 // SetCerts sets the value of Certs.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetCerts(val []ExposureGetExposureTargetsIDSnapshotsDateOKCertsItem) {
 	s.Certs = val
+}
+
+// SetChecks sets the value of Checks.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetChecks(val []ExposureGetExposureTargetsIDSnapshotsDateOKChecksItem) {
+	s.Checks = val
 }
 
 // SetCounts sets the value of Counts.
@@ -43793,6 +43871,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetID(val string) {
 	s.ID = val
 }
 
+// SetNotChecked sets the value of NotChecked.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetNotChecked(val []ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem) {
+	s.NotChecked = val
+}
+
 // SetPorts sets the value of Ports.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetPorts(val []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) {
 	s.Ports = val
@@ -43801,6 +43884,21 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetPorts(val []ExposureGet
 // SetScannedAt sets the value of ScannedAt.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetScannedAt(val time.Time) {
 	s.ScannedAt = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetServices(val []ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) {
+	s.Services = val
+}
+
+// SetVersionGaps sets the value of VersionGaps.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetVersionGaps(val []ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem) {
+	s.VersionGaps = val
+}
+
+// SetVulns sets the value of Vulns.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetVulns(val []ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) {
+	s.Vulns = val
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItem struct {
@@ -43938,6 +44036,43 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKCertsItem) SetIssuer(val str
 	s.Issuer = val
 }
 
+type ExposureGetExposureTargetsIDSnapshotsDateOKChecksItem struct {
+	At time.Time `json:"at"`
+	// Ports, names, services or cve.
+	Kind string `json:"kind"`
+	Text string `json:"text"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKChecksItem) GetAt() time.Time {
+	return s.At
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKChecksItem) GetKind() string {
+	return s.Kind
+}
+
+// GetText returns the value of Text.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKChecksItem) GetText() string {
+	return s.Text
+}
+
+// SetAt sets the value of At.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKChecksItem) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKChecksItem) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKChecksItem) SetText(val string) {
+	s.Text = val
+}
+
 type ExposureGetExposureTargetsIDSnapshotsDateOKCounts struct {
 	AdminPanels   int `json:"admin_panels"`
 	CertsExpiring int `json:"certs_expiring"`
@@ -44021,6 +44156,32 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) SetName(val strin
 	s.Name = val
 }
 
+type ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem struct {
+	// Udp, ports, non_exploited, services or cve.
+	Kind string `json:"kind"`
+	Text string `json:"text"`
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem) GetKind() string {
+	return s.Kind
+}
+
+// GetText returns the value of Text.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem) GetText() string {
+	return s.Text
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem) SetText(val string) {
+	s.Text = val
+}
+
 type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem struct {
 	IP      string    `json:"ip"`
 	Port    int       `json:"port"`
@@ -44066,6 +44227,262 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetProduct(val Op
 // SetService sets the value of Service.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+type ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem struct {
+	// The CPE 2.2 URI nmap printed; "" when none.
+	Cpe string `json:"cpe"`
+	IP  string `json:"ip"`
+	// Nmap's service name: http, ssh, tcpwrapped.
+	Name string `json:"name"`
+	Port int    `json:"port"`
+	// "" when nmap named none.
+	Product string `json:"product"`
+	// "" when the service sent none.
+	Version string `json:"version"`
+}
+
+// GetCpe returns the value of Cpe.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) GetCpe() string {
+	return s.Cpe
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) GetIP() string {
+	return s.IP
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) GetName() string {
+	return s.Name
+}
+
+// GetPort returns the value of Port.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) GetProduct() string {
+	return s.Product
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) GetVersion() string {
+	return s.Version
+}
+
+// SetCpe sets the value of Cpe.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetCpe(val string) {
+	s.Cpe = val
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem struct {
+	// Exploited CVEs of the product that only a version would decide.
+	Cves     []string `json:"cves"`
+	IP       string   `json:"ip"`
+	Port     int      `json:"port"`
+	Software string   `json:"software"`
+}
+
+// GetCves returns the value of Cves.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem) GetCves() []string {
+	return s.Cves
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem) GetIP() string {
+	return s.IP
+}
+
+// GetPort returns the value of Port.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem) GetPort() int {
+	return s.Port
+}
+
+// GetSoftware returns the value of Software.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem) GetSoftware() string {
+	return s.Software
+}
+
+// SetCves sets the value of Cves.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem) SetCves(val []string) {
+	s.Cves = val
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem) SetSoftware(val string) {
+	s.Software = val
+}
+
+type ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem struct {
+	// Version: the version is inside an NVD range; product: only the product matches.
+	Basis ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis `json:"basis"`
+	Cve   string                                                    `json:"cve"`
+	// When CISA listed it as exploited.
+	DateAdded  NilString `json:"date_added"`
+	IP         string    `json:"ip"`
+	Name       string    `json:"name"`
+	Port       int       `json:"port"`
+	Ransomware bool      `json:"ransomware"`
+	Summary    string    `json:"summary"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetBasis() ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis {
+	return s.Basis
+}
+
+// GetCve returns the value of Cve.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDateAdded returns the value of DateAdded.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetDateAdded() NilString {
+	return s.DateAdded
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetIP() string {
+	return s.IP
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetName() string {
+	return s.Name
+}
+
+// GetPort returns the value of Port.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetPort() int {
+	return s.Port
+}
+
+// GetRansomware returns the value of Ransomware.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetRansomware() bool {
+	return s.Ransomware
+}
+
+// GetSummary returns the value of Summary.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetSummary() string {
+	return s.Summary
+}
+
+// SetBasis sets the value of Basis.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetBasis(val ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) {
+	s.Basis = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDateAdded sets the value of DateAdded.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetDateAdded(val NilString) {
+	s.DateAdded = val
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetRansomware sets the value of Ransomware.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetRansomware(val bool) {
+	s.Ransomware = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetSummary(val string) {
+	s.Summary = val
+}
+
+// Version: the version is inside an NVD range; product: only the product matches.
+type ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisVersion ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "version"
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "product"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis{
+		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisVersion,
+		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisVersion:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisVersion:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisVersion
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ExposureGetExposureTargetsIDSnapshotsOK struct {

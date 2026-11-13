@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/jobs"
@@ -49,6 +50,13 @@ func exposureService(d deps) *exposure.Service {
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		cfg.Publisher = d.Bus
 	}
+	// S-EXP-2 (INV-19, INV-20, D-553): identified services are compared with exploited CVEs when a snapshot is read. cfg.Services, the
+	// scan container's nmap -sV on the box's own IP (sensor-active ScanExternal), is not wired yet: every scan of an IP says so.
+	clock := d.Clock
+	if clock == nil {
+		clock = time.Now
+	}
+	cfg.Matcher = exposureMatcher{vulns: exposureVulns(d), now: clock}
 	if exposureTestConfig != nil {
 		exposureTestConfig(&cfg)
 	}

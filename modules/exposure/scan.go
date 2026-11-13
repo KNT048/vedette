@@ -328,7 +328,7 @@ func countsOf(c Content, extraIP string, now time.Time) Counts {
 	return Counts{Subdomains: len(c.Hosts), IPs: len(ips), Ports: len(c.Ports), AdminPanels: len(c.AdminPanels), CertsExpiring: expiring}
 }
 
-// sanitize limits what a scan hands over before it is stored (INV-10, SYS-6): text only, bounded in
+// sanitize limits what a scan hands over before it is stored (INV-10, INV-19, SYS-6): text only, bounded in
 // length and in rows, ports and dates that make sense; a row that does not is dropped.
 func sanitize(c Content) Content {
 	txt := func(s string) string {
@@ -365,7 +365,8 @@ func sanitize(c Content) Content {
 		}
 		out.Certs = append(out.Certs, CertRow{Host: txt(x.Host), Issuer: txt(x.Issuer), ExpiresAt: store.FormatTS(t)})
 	}
-	return Content{Hosts: nz(out.Hosts), Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs)}
+	return Content{Hosts: nz(out.Hosts), Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs),
+		Services: sanitizeServices(c.Services), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked)}
 }
 
 // ---- reading results (INV-8) ----
@@ -388,11 +389,12 @@ func (s *Service) SnapshotOf(ctx context.Context, id, date string) (Snapshot, er
 	if !ok {
 		return Snapshot{}, fmt.Errorf("exposure: reading snapshot: %w", ErrNoSnapshot)
 	}
+	s.withVulns(ctx, &snap)
 	return snap, nil
 }
 
 // Diff compares two scan days of a target: what appeared, what is gone, what changed (the expiry of a
-// certificate). The earlier day is always the "from" side. Both days must exist and differ.
+// certificate, the product or version of a service). The earlier day is always the "from" side. Both days must exist and differ.
 func (s *Service) Diff(ctx context.Context, id, from, to string) (Diff, error) {
 	db := s.cfg.DB.Reader()
 	a, okA, err := loadSnapshot(ctx, db, id, from)
@@ -412,6 +414,8 @@ func (s *Service) Diff(ctx context.Context, id, from, to string) (Diff, error) {
 	if a.Date > b.Date {
 		a, b = b, a
 	}
+	s.withVulns(ctx, &a) // INV-20: both days against today's list, so a vuln comes or goes with its service
+	s.withVulns(ctx, &b)
 	return diff(a, b), nil
 }
 
@@ -447,6 +451,14 @@ func entries(s Snapshot) (map[string]diffEntry, []string) {
 	for _, c := range s.Certs {
 		add(diffEntry{DiffItem: DiffItem{Kind: "cert", Key: "c:" + c.Host, Label: c.Host, Detail: c.Issuer}, exp: c.ExpiresAt})
 	}
+	for _, x := range s.Services {
+		label := fmt.Sprintf("%s:%d", x.IP, x.Port)
+		add(diffEntry{DiffItem: DiffItem{Kind: "service", Key: "s:" + label, Label: label, Detail: serviceText(x)}})
+	}
+	for _, v := range s.Vulns {
+		label := fmt.Sprintf("%s:%d", v.IP, v.Port)
+		add(diffEntry{DiffItem: DiffItem{Kind: "vuln", Key: "v:" + label + ":" + v.CVE, Label: v.CVE + " on " + label, Detail: v.Name}})
+	}
 	return m, order
 }
 
@@ -462,6 +474,8 @@ func diff(a, b Snapshot) Diff {
 			d.Added = append(d.Added, v.DiffItem)
 		case v.Kind == "cert" && o.exp != v.exp:
 			d.Changed = append(d.Changed, DiffChange{DiffItem: v.DiffItem, From: o.exp, To: v.exp})
+		case v.Kind == "service" && o.Detail != v.Detail:
+			d.Changed = append(d.Changed, DiffChange{DiffItem: v.DiffItem, From: o.Detail, To: v.Detail})
 		}
 	}
 	for _, k := range orderA {

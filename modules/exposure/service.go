@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Config is what NewService needs. Publisher, Runner, Location and Clock may be nil.
+// Config is what NewService needs. Publisher, Runner, TwoStep, Gateway, Services, Matcher, Location and Clock may be nil.
 type Config struct {
 	DB        *store.DB
 	Audit     *audit.Log
@@ -27,6 +27,8 @@ type Config struct {
 	Runner    Runner           // nil: scanning answers 501 until the scan module registers one
 	TwoStep   TwoStep          // nil: nobody has two-step sign-in, so no first scan can record the commitment (D-473)
 	Gateway   Gateway          // nil: the page makes no claim about which device answers the open ports (D-492)
+	Services  ServiceScanner   // nil: every scan of an IP says service identification is not set up (INV-19)
+	Matcher   Matcher          // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
 	Location  *time.Location   // the day of a snapshot (nil: time.Local)
 	Log       *slog.Logger     //
 	Clock     func() time.Time // nil: time.Now

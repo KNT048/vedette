@@ -22800,7 +22800,8 @@
           "exposure"
         ],
         "x-stories": [
-          "S-EXP-1"
+          "S-EXP-1",
+          "S-EXP-2"
         ],
         "x-min-role": "viewer",
         "parameters": [
@@ -22858,7 +22859,9 @@
                               "subdomain",
                               "port",
                               "admin",
-                              "cert"
+                              "cert",
+                              "service",
+                              "vuln"
                             ]
                           },
                           "key": {
@@ -22891,7 +22894,9 @@
                               "subdomain",
                               "port",
                               "admin",
-                              "cert"
+                              "cert",
+                              "service",
+                              "vuln"
                             ]
                           },
                           "key": {
@@ -22924,7 +22929,9 @@
                               "subdomain",
                               "port",
                               "admin",
-                              "cert"
+                              "cert",
+                              "service",
+                              "vuln"
                             ]
                           },
                           "key": {
@@ -23261,7 +23268,8 @@
           "exposure"
         ],
         "x-stories": [
-          "S-EXP-1"
+          "S-EXP-1",
+          "S-EXP-2"
         ],
         "x-min-role": "viewer",
         "parameters": [
@@ -23449,6 +23457,186 @@
                         "certs_expiring"
                       ],
                       "additionalProperties": false
+                    },
+                    "services": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ip": {
+                            "type": "string"
+                          },
+                          "port": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "nmap's service name: http, ssh, tcpwrapped"
+                          },
+                          "product": {
+                            "type": "string",
+                            "description": "\"\" when nmap named none"
+                          },
+                          "version": {
+                            "type": "string",
+                            "description": "\"\" when the service sent none"
+                          },
+                          "cpe": {
+                            "type": "string",
+                            "description": "The CPE 2.2 URI nmap printed; \"\" when none"
+                          }
+                        },
+                        "required": [
+                          "ip",
+                          "port",
+                          "name",
+                          "product",
+                          "version",
+                          "cpe"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "checks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "description": "ports, names, services or cve"
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "text",
+                          "at"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "not_checked": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "description": "udp, ports, non_exploited, services or cve"
+                          },
+                          "text": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "text"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "vulns": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ip": {
+                            "type": "string"
+                          },
+                          "port": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "cve": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "basis": {
+                            "type": "string",
+                            "enum": [
+                              "version",
+                              "product"
+                            ],
+                            "description": "version: the version is inside an NVD range; product: only the product matches"
+                          },
+                          "summary": {
+                            "type": "string"
+                          },
+                          "date_added": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "When CISA listed it as exploited"
+                          },
+                          "ransomware": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "ip",
+                          "port",
+                          "cve",
+                          "name",
+                          "basis",
+                          "summary",
+                          "date_added",
+                          "ransomware"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Computed on read against today's CISA list, not stored"
+                    },
+                    "version_gaps": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ip": {
+                            "type": "string"
+                          },
+                          "port": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "software": {
+                            "type": "string"
+                          },
+                          "cves": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Exploited CVEs of the product that only a version would decide"
+                          }
+                        },
+                        "required": [
+                          "ip",
+                          "port",
+                          "software",
+                          "cves"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -23459,7 +23647,12 @@
                     "ports",
                     "admin_panels",
                     "certs",
-                    "counts"
+                    "counts",
+                    "services",
+                    "checks",
+                    "not_checked",
+                    "vulns",
+                    "version_gaps"
                   ],
                   "additionalProperties": false
                 }

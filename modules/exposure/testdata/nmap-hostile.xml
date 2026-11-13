@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- hand-written fixture: what a hostile service could make nmap print (INV-19). The product carries a right-to-left override, the version
+     is longer than any real one, the CPE has a space, one port is out of range and one is repeated. No live network was scanned. -->
+<nmaprun scanner="nmap" version="7.94" xmloutputversion="1.05">
+<host><status state="up"/>
+<address addr="203.0.113.10" addrtype="ipv4"/>
+<ports>
+<port protocol="tcp" portid="80"><state state="open"/><service name="http" product="Evil httpd&#x202E;txt.exe" version="1.0" method="probed" conf="10"><cpe>cpe:/a:evil:httpd 1.0</cpe></service></port>
+<port protocol="tcp" portid="80"><state state="open"/><service name="http" product="Second row of port 80" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="70000"><state state="open"/><service name="http" product="Out of range" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="81"><state state="open"/><service name="http" product="Long version" version="1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0" method="probed" conf="10"><cpe>cpe:/a:long:version</cpe></service></port>
+</ports>
+</host>
+</nmaprun>

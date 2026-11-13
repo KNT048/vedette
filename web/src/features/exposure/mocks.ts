@@ -154,6 +154,8 @@ function items(s: Snapshot): Map<string, DiffItem & { exp?: string }> {
   for (const p of s.ports) m.set(`p:${p.ip}:${p.port}`, { kind: 'port', key: `p:${p.ip}:${p.port}`, label: `${p.ip}:${p.port}`, detail: [p.service, p.product].filter(Boolean).join(', ') })
   for (const a of s.admin_panels) m.set(`a:${a.url}`, { kind: 'admin', key: `a:${a.url}`, label: a.url, detail: a.product })
   for (const c of s.certs) m.set(`c:${c.host}`, { kind: 'cert', key: `c:${c.host}`, label: c.host, detail: c.issuer, exp: c.expires_at })
+  for (const x of s.services) m.set(`s:${x.ip}:${x.port}`, { kind: 'service', key: `s:${x.ip}:${x.port}`, label: `${x.ip}:${x.port}`, detail: x.product ? `${x.product} ${x.version}`.trim() : x.name })
+  for (const v of s.vulns) m.set(`v:${v.ip}:${v.port}:${v.cve}`, { kind: 'vuln', key: `v:${v.ip}:${v.port}:${v.cve}`, label: `${v.cve} on ${v.ip}:${v.port}`, detail: v.name })
   return m
 }
 function diff(a: Snapshot, b: Snapshot): Diff {
@@ -163,6 +165,7 @@ function diff(a: Snapshot, b: Snapshot): Diff {
     const o = A.get(k)
     if (!o) added.push({ kind: v.kind, key: k, label: v.label, detail: v.detail })
     else if (v.kind === 'cert' && o.exp !== v.exp) changed.push({ kind: 'cert', key: k, label: v.label, detail: v.detail, from: o.exp!, to: v.exp! })
+    else if (v.kind === 'service' && o.detail !== v.detail) changed.push({ kind: 'service', key: k, label: v.label, detail: v.detail, from: o.detail, to: v.detail })
   }
   for (const [k, v] of A) if (!B.has(k)) removed.push({ kind: v.kind, key: k, label: v.label, detail: v.detail })
   return { from: a.date, to: b.date, added, removed, changed }

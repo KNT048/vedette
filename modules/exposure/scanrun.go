@@ -118,7 +118,11 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 		}
 	}()
 	s.setPhase(run, PhaseProbing)
-	content, err := r.Scan(ctx, ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user})
+	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user}
+	content, err := r.Scan(ctx, st)
+	if err == nil {
+		content, err = s.identify(ctx, st, content) // INV-19: service identification of the box's own IP, and what was checked
+	}
 	if err == nil && ctx.Err() != nil { // stopped just as it finished: nothing is stored
 		err = context.Cause(ctx)
 	}

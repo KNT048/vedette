@@ -9,9 +9,10 @@ const maxLLDPTLVs = 64
 
 // LLDP capability bits (IEEE 802.1AB, system capabilities TLV).
 const (
-	lldpCapBridge = 1 << 2
-	lldpCapAP     = 1 << 3
-	lldpCapRouter = 1 << 4
+	lldpCapBridge    = 1 << 2
+	lldpCapAP        = 1 << 3
+	lldpCapRouter    = 1 << 4
+	lldpCapTelephone = 1 << 5
 )
 
 type lldpFrame struct {

@@ -74,6 +74,13 @@ func newSensorActive(d deps, prober sensoractive.Prober) (*sensoractive.Service,
 	if h := svc.Health(context.Background()); !remote && h.Status != "ok" && d.Log != nil {
 		d.Log.Warn("sensor-active is unavailable", "reason", h.Message)
 	}
+	if d.Reg != nil { // turning the module off stops the nmap run in progress, also an identification for Scan now (D-501)
+		d.Reg.OnChange(func(id string, enabled bool) {
+			if id == "sensor-active" && !enabled {
+				svc.Stop()
+			}
+		})
+	}
 	if d.Bus == nil {
 		return svc, nil
 	}
@@ -180,7 +187,8 @@ func (a sensorInventory) ScanPolicy(ctx context.Context, assetID string) (sensor
 	if err != nil {
 		return sensoractive.Decision{}, err
 	}
-	return sensoractive.Decision{Allowed: dec.Allowed, Rate: dec.Rate, Reason: dec.Reason, FirstGentle: dec.Reason == inventory.ReasonFirstGentleScan}, nil
+	return sensoractive.Decision{Allowed: dec.Allowed, Rate: dec.Rate, Reason: dec.Reason, FirstGentle: dec.Reason == inventory.ReasonFirstGentleScan,
+		Fragile: dec.Fragile, Unclassified: dec.Unclassified, Never: dec.Never}, nil
 }
 
 func (a sensorInventory) MarkFirstScan(ctx context.Context, assetID string) error {

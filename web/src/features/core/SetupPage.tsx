@@ -208,7 +208,7 @@ export default function SetupPage() {
                 <Checkbox id="s-commit" checked={s.commitment} onCheckedChange={(v) => set({ commitment: v === true })} className="mt-0.5" />
                 <label htmlFor="s-commit" className="text-sm">{t('setup.network.commitment')}</label>
               </div>
-              {s.commitment ? null : <p className="text-[13px] text-muted">{t('setup.network.passiveOnly')}</p>}
+              <p className="text-[13px] text-muted">{t(s.commitment ? 'setup.network.firstPass' : 'setup.network.passiveOnly')}</p>{/* D-501 */}
               <p className="text-[13px] text-muted">{t('setup.network.license')}</p>
             </div>
           </div>

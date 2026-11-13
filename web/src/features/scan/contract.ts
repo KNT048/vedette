@@ -11,8 +11,9 @@ export const ScanTarget = z.object({
   kind: z.enum(['internal', 'external']), device_kind: z.enum(['firewall', 'router', 'switch', 'ap', 'nas', 'server', 'pc', 'printer', 'camera', 'nvr', 'iot', 'web', 'unknown']).nullable().describe('Device type in the inventory; null for external targets'), label: z.string(), ip: z.string(),
   fragile: z.boolean().describe('Fragile, or not yet classified (kind unknown): only scanned when picked by hand, at a quarter of the speed (D-126)'), findings: z.number().int(),
   pick_only: z.boolean().describe('Fragile, unclassified or added by hand: scanned only when a person ticks it in Scan now (D-126 (2)). The page never ticks it for you: not by default, not with Select all, not from a link'),
-  selectable: z.boolean(), reason: z.enum(['unapproved', 'excluded', 'out_of_scope', 'no_ip', 'box', 'regular_scan_never', 'unverified', 'expired', 'not_supported']).nullable()
-    .describe('null when the target can be scanned by picking it. box: the Vedette box itself is never scanned. regular_scan_never: a person set "never scan" on the device (D-126). not_supported: external targets are not scanned by this version yet'),
+  selectable: z.boolean(), reason: z.enum(['unapproved', 'excluded', 'out_of_scope', 'no_ip', 'regular_scan_never', 'unverified', 'expired', 'not_supported']).nullable()
+    .describe('null when the target can be scanned by picking it. no_ip: the device has no IP address in the inventory (D-484). regular_scan_never: a person set "never scan" on the device (D-126). not_supported: external targets are not scanned by this version yet'),
+  box: z.boolean().describe('The Vedette box itself (D-470): pick_only, so it is scanned only when a person ticks it; sweeps, schedules, KEV rescans and Select all never include it'),
   mac: z.string().nullable().describe('For the picker search (D-472); null when unknown and for external targets'),
   vendor: z.string().nullable().describe('For the picker search (D-472); null when unknown and for external targets'),
   approved: z.boolean().describe('Approved in the inventory (picker filter, D-472); false for external targets'),
@@ -45,11 +46,19 @@ export const RunResultKind = z.enum(['matched', 'not_matched', 'not_applicable',
 export const RunResultRow = z.object({
   target_id: z.string(), label: z.string(), ip: z.string(), template: z.string().nullable(), result: RunResultKind, finding_id: z.string().nullable(), note: z.string(),
 })
+export const IdentReason = z.enum(['host_down', 'no_open_ports', 'filtered', 'no_version', 'os_unconfirmed', 'os_low_confidence', 'gentle_only', 'timed_out', 'busy', 'unavailable', 'declared_by_hand', 'scanning_off', 'not_approved', 'out_of_scope', 'scope_not_confirmed', 'box', 'regular_scan_never', 'no_ip', 'not_scanned'])
+export const RunIdentRow = z.object({
+  target_id: z.string(), label: z.string(), ip: z.string(),
+  found: z.array(z.string()).max(20).describe('What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …"'),
+  reason: IdentReason.nullable().describe('null: software with a version was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until a person adds the OS with its version), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out, busy (discovery was running nmap), unavailable (nmap not available or Active discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501)'),
+  note: z.string().describe("The box's sentence for the reason, shown as is"),
+})
 export const ScanRun = z.object({
   id: z.string(), trigger: z.enum(['manual', 'schedule', 'new_kev']), trigger_note: z.string().nullable(),
   started_at: iso, started_by: z.string(), ended_at: iso.nullable(), status: RunStatus,
   total: z.number().int(), done: z.number().int(), current: z.object({ label: z.string(), ip: z.string() }).nullable(),
   results: z.array(RunResultRow), matched: z.number().int(), stop_reason: z.string().nullable(),
+  identification: z.array(RunIdentRow).describe('One row per device of a Scan now run: what nmap identified first, or exactly why nothing was (D-501). Empty for scheduled scans and KEV rescans, and while the run is going'),
 })
 export const ProbeEntry = z.object({
   id: z.string(), ts: iso, run_id: z.string().nullable(), ip: z.string(), label: z.string(), template: z.string(), request: z.string(),

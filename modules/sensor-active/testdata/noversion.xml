@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- hand-written fixture shaped after nmap 7.94 output for an embedded device (a smart TV box); no live network was scanned. Two
+     ports are open but neither service names a product (the name comes from nmap's port table), and no OS fingerprint matched. -->
+<nmaprun scanner="nmap" args="nmap --privileged -sS -sV -O -n --max-rate 25 --top-ports 1000 --host-timeout 30m -oX - 192.168.10.20" start="1762650000" version="7.94" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1000"/>
+<host starttime="1762650001" endtime="1762650160"><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="192.168.10.20" addrtype="ipv4"/>
+<address addr="AA:BB:CC:00:00:26" addrtype="mac" vendor="Xiaomi Communications"/>
+<ports>
+<extraports state="closed" count="998"><extrareasons reason="reset" count="998"/></extraports>
+<port protocol="tcp" portid="8008"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="http" method="table" conf="3"/></port>
+<port protocol="tcp" portid="8009"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="ajp13" method="table" conf="3"/></port>
+</ports>
+</host>
+<runstats><finished time="1762650161" elapsed="160.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

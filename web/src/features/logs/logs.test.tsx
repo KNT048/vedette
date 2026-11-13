@@ -167,6 +167,9 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     const sources = await screen.findByRole('table', { name: 'Log sources currently received' })
     expect(within(sources).getAllByRole('row')).toHaveLength(5)
     expect(within(sources).getAllByText('Receiving')).toHaveLength(3)
+    // Walk 5: a UDP source's TCP lines are kept too, so the column says both; the mock's sources are UDP
+    expect(within(sources).getAllByText(/^UDP and TCP \d+$/).length).toBeGreaterThan(0)
+    expect(within(sources).queryByText(/^UDP \d+$/)).toBeNull()
     expect(within(sources).getByText('Silent')).toBeInTheDocument()
     expect(screen.getByText(/No new line for over 1 hour/)).toBeInTheDocument()
     expect(await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })).toBeInTheDocument()
@@ -250,6 +253,12 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(within(form).getByText(/Stored and searchable\./)).toBeInTheDocument()
     await userEvent.click(within(form).getByRole('button', { name: 'Change device type' }))
     expect(within(form).getByLabelText('Find your device or software')).toBeInTheDocument()
+  })
+
+  it('walk 5: the generic syslog form offers UDP, TCP and TLS, as its port hint says', async () => {
+    renderApp('/logs')
+    const form = await openAdd(/Other device \(standard syslog/)
+    expect(within(within(form).getByLabelText('Protocol')).getAllByRole('option').map((o) => o.textContent)).toEqual(['UDP', 'TCP', 'TLS'])
   })
 
   it('protocol options follow the device: MikroTik UDP only, FortiGate UDP/TCP/TLS, each saying what the box keeps; a duplicate IP is refused at the boundary', async () => {

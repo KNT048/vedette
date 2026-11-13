@@ -18,6 +18,7 @@ const (
 	ConfMACBinding  = 0.9 // ARP sender, DHCP ACK: the address pair is what the frame itself says
 	ConfLLDPName    = 0.7 // LLDP system name: set by the device's admin
 	ConfDHCPName    = 0.6 // DHCP option 12
+	ConfDHCPOS      = 0.4 // DHCP option 60 of a known DHCP client (dhcpOS): names the client's OS family, not its version
 	ConfMDNSName    = 0.6 // mDNS A record whose address is the sender's own
 	ConfLLDPKind    = 0.6 // LLDP capability bits
 	ConfSSDPModel   = 0.5 // SSDP SERVER header
@@ -440,6 +441,8 @@ func (e *Engine) handleLLDP(f frame, now time.Time) {
 		}
 	}
 	switch {
+	case l.caps&lldpCapTelephone != 0: // an IP phone also bridges its PC port, so Telephone is read before Bridge (D-501)
+		e.add(now, who, netip.Addr{}, observe.Kind, "iot", ConfLLDPKind)
 	case l.caps&lldpCapAP != 0:
 		e.add(now, who, netip.Addr{}, observe.Kind, "ap", ConfLLDPKind)
 	case l.caps&lldpCapBridge != 0:
@@ -552,6 +555,9 @@ func (e *Engine) handleDHCP(f frame, b []byte, now time.Time) {
 		e.add(now, m.clientMAC, m.clientIP, observe.MAC, m.clientMAC.String(), ConfMACBinding)
 		if m.hostname != "" {
 			e.add(now, m.clientMAC, m.clientIP, observe.Hostname, m.hostname, ConfDHCPName)
+		}
+		if os := dhcpOS(m.vendorClass); os != "" {
+			e.add(now, m.clientMAC, m.clientIP, observe.OS, os, ConfDHCPOS)
 		}
 	case 2: // a server answers: the ACK binds an address to a MAC, and goes to that MAC (or to everybody)
 		if m.clientMAC != f.dst && f.dst != (mac{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}) {

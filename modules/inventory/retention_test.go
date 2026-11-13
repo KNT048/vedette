@@ -113,3 +113,32 @@ func TestD327_ReportedSoftwareStays(t *testing.T) {
 		t.Fatal("software an agent keeps reporting was pruned")
 	}
 }
+
+// D-470: the box's own dpkg rows are never pruned, even when the host cannot be read for more than 30 days: only a successful read
+// replaces them. Another device's stale agent rows still go.
+func TestD470_TheBoxSoftwareIsNeverPruned(t *testing.T) {
+	g := &gate{on: map[string]bool{"agent-intake": true}}
+	items := []inventory.SoftwareItem{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1"}}
+	e := newEnv(t, func(c *inventory.Config) { c.Modules = g }, withBox(swapBox{&items}))
+	if _, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "vedette-hq", IP: "192.168.10.2"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.RefreshBoxPackages(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.33")}
+	if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Agent, []observe.Software{{Display: "htop", Vendor: "htop", Product: "htop", Version: "3.3.0", Confidence: 0.95}}); err != nil {
+		t.Fatal(err)
+	}
+	for end := e.now.Add(31 * 24 * time.Hour); e.now.Before(end); e.tick(time.Hour) { // the host never answers again
+		if err := e.svc.PruneAgentSoftware(e.ctx()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := e.count(`SELECT count(*) FROM inv_software s JOIN inv_asset a ON a.id = s.asset_id WHERE a.is_box = 1`); n != 1 {
+		t.Fatalf("the box has %d software rows after 31 days without a read, want its 1 row kept", n)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_software WHERE product = 'htop'`); n != 0 {
+		t.Fatal("another device's stale agent software was kept")
+	}
+}

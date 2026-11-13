@@ -25,8 +25,9 @@ const (
 func Printable(s string) bool { return printable(s) }
 
 // kindCap is the kinds a parser of this package emits and the highest confidence any of them gives to each (INV-5): LLDP says
-// ap, switch and router at 0.6, mDNS says printer at 0.5 and iot at 0.3, SSDP says router at 0.5. Nothing else is a passive kind.
-var kindCap = map[string]float64{"ap": ConfLLDPKind, "switch": ConfLLDPKind, "router": ConfLLDPKind, "printer": ConfMDNSKind, "iot": ConfMDNSIotKind}
+// ap, switch and router at 0.6, and iot for its Telephone bit at 0.6 (D-501), mDNS says printer at 0.5 and iot at 0.3, SSDP says
+// router at 0.5. Nothing else is a passive kind.
+var kindCap = map[string]float64{"ap": ConfLLDPKind, "switch": ConfLLDPKind, "router": ConfLLDPKind, "printer": ConfMDNSKind, "iot": ConfLLDPKind}
 
 // MaxConfidence is the highest confidence a passive observation of field with value may have (INV-5, "Thang tin cậy" of the
 // CONTRACT): the highest of the Conf constants any parser of this package gives to that field (for a kind, to that kind). Core

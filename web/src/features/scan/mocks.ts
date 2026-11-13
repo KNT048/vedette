@@ -8,7 +8,7 @@ import { assetsStore, findingsStore, isOn } from '@/mocks/stores'
 import type { Asset, Finding } from '@/lib/types'
 import { BOX_ID, inventorySettingsStore } from '@/features/inventory/mocks'
 import { exposureSnapshotsStore, exposureTargetsStore } from '@/features/exposure/mocks'
-import type { CredTarget, ProbeEntry, RescanEvent, RunResultRow, ScanConfig, ScanConfigResponse, ScanRun, ScanScope, ScanTarget } from './types'
+import type { CredTarget, IdentReason, ProbeEntry, RescanEvent, RunIdentRow, RunResultRow, ScanConfig, ScanConfigResponse, ScanRun, ScanScope, ScanTarget } from './types'
 
 
 /** Tests đặt nhỏ lại; trình duyệt dùng giá trị thật. */
@@ -54,7 +54,8 @@ const external = {
 }
 const config = collection<ScanConfig>('scan_config', () => ({
   window: { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00' },
-  rate: 5, exclusions: ['192.168.10.250'], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true,
+  // The sample excludes a spare address, not the box: since D-470 the box is pick-only, so it needs no exclusion line.
+  rate: 5, exclusions: ['192.168.10.240'], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true,
   schedule: { enabled: true, frequency: 'weekly', weekday: 7, at: '23:00' },
 }), () => ({
   // Cài sạch: cùng mặc định nhưng chưa loại trừ IP nào (IP hộp mẫu 192.168.10.250 không phải của khách). Chưa có phạm vi/đồng ý thì không quét được.
@@ -91,7 +92,8 @@ function seedRuns(): StoredRun[] {
   const rowsOf = (list: ScanTarget[]) => list.flatMap((x) => scanOne(x, false).rows)
   const mk = (id: string, trigger: ScanRun['trigger'], note: string | null, started: string, mins: number, list: ScanTarget[], done: number, status: ScanRun['status'], reason: string | null): StoredRun => {
     const rows = [...rowsOf(list.slice(0, done)), ...list.slice(done).map((x) => row(x, null, 'skipped', null, SKIPPED))]
-    return { id, trigger, trigger_note: note, started_at: started, started_by: trigger === 'manual' ? 'it@acme.example' : 'system', ended_at: new Date(Date.parse(started) + mins * 60_000).toISOString(), status, total: list.length, done, current: null, results: rows, matched: rows.filter((x) => x.result === 'matched').length, stop_reason: reason, target_ids: list.map((x) => x.id), stop_requested_at: null }
+    const identification = trigger === 'manual' ? list.map((x, i) => (i < done ? identOne(x) : identRow(x, [], 'not_scanned', SKIPPED))) : []
+    return { id, trigger, trigger_note: note, started_at: started, started_by: trigger === 'manual' ? 'it@acme.example' : 'system', ended_at: new Date(Date.parse(started) + mins * 60_000).toISOString(), status, total: list.length, done, current: null, results: rows, matched: rows.filter((x) => x.result === 'matched').length, stop_reason: reason, target_ids: list.map((x) => x.id), stop_requested_at: null, identification }
   }
   // A scheduled run and a KEV rescan never touch a device that needs a hand pick (D-126 (2)); a manual run may, it was picked.
   const auto = t.filter((x) => !x.pick_only)
@@ -169,18 +171,20 @@ function targets(): ScanTarget[] {
   const c = config.get()
   const sc = scope.get()
   const findings = findingsStore.get()
-  // D-126 (inventory VulnScanPolicy): the box and a device set to "never scan" are never scanned. Picking a device by hand is the consent for it,
-  // so fragile, unclassified and hand-declared devices can be picked (fragile and unclassified at a quarter of the speed); schedule and KEV rescans skip them.
+  // D-126 (inventory VulnScanPolicy): a device set to "never scan" is never scanned. Picking a device by hand is the consent for it,
+  // so fragile, unclassified and hand-declared devices, and the box itself (D-470), can be picked (fragile and unclassified at a quarter
+  // of the speed); schedule and KEV rescans skip them.
   const meta = peek<Record<string, { regular_scan?: string }>>('inv_meta') ?? {}
   const open = new Map<string, number>()
   for (const f of findings) if (f.status === 'confirmed' || f.status === 'suspected') open.set(f.asset_id, (open.get(f.asset_id) ?? 0) + 1)
   const internal = assetsStore.get().map((a: Asset): ScanTarget => {
-    const reason = a.id === BOX_ID ? 'box' : meta[a.id]?.regular_scan === 'never' ? 'regular_scan_never' : !a.approved ? 'unapproved' : !a.ip || a.ip === '—' ? 'no_ip' : c.exclusions.some((e) => inCidr(a.ip, e)) ? 'excluded' : !sc.networks.some((n) => inCidr(a.ip, n)) ? 'out_of_scope' : null
-    return { id: a.id, kind: 'internal', device_kind: a.kind, label: a.hostname ?? ([a.vendor?.value, a.model?.value].filter(Boolean).join(' ') || a.ip), ip: a.ip, fragile: a.fragile || a.kind === 'unknown', findings: open.get(a.id) ?? 0, selectable: reason === null, pick_only: reason === null && (a.fragile || a.kind === 'unknown' || a.origin === 'manual'), reason,
+    const reason = meta[a.id]?.regular_scan === 'never' ? 'regular_scan_never' : !a.approved ? 'unapproved' : !a.ip || a.ip === '—' ? 'no_ip' : c.exclusions.some((e) => inCidr(a.ip, e)) ? 'excluded' : !sc.networks.some((n) => inCidr(a.ip, n)) ? 'out_of_scope' : null
+    const box = a.id === BOX_ID
+    return { id: a.id, kind: 'internal', device_kind: a.kind, label: a.hostname ?? ([a.vendor?.value, a.model?.value].filter(Boolean).join(' ') || a.ip), ip: a.ip, fragile: a.fragile || a.kind === 'unknown', findings: open.get(a.id) ?? 0, selectable: reason === null, pick_only: reason === null && (box || a.fragile || a.kind === 'unknown' || a.origin === 'manual'), box, reason,
       mac: a.mac, vendor: a.vendor?.value ?? null, approved: a.approved, last_seen: a.last_seen }
   })
   // External targets are listed but not scanned by this version yet (the GUI says so); ownership problems are named first, since they are what the user can fix.
-  const ext = external.get().map((e): ScanTarget => ({ id: e.id, kind: 'external', device_kind: null, label: e.value, ip: e.ip, fragile: false, findings: 0, selectable: false, pick_only: false, reason: !e.verified ? 'unverified' : e.expired ? 'expired' : 'not_supported', mac: null, vendor: null, approved: false, last_seen: null }))
+  const ext = external.get().map((e): ScanTarget => ({ id: e.id, kind: 'external', device_kind: null, label: e.value, ip: e.ip, fragile: false, findings: 0, selectable: false, pick_only: false, box: false, reason: !e.verified ? 'unverified' : e.expired ? 'expired' : 'not_supported', mac: null, vendor: null, approved: false, last_seen: null }))
   return [...internal, ...ext]
 }
 
@@ -200,13 +204,48 @@ const REASON: Record<NonNullable<ScanTarget['reason']>, string> = {
   excluded: 'is on the exclusion list',
   out_of_scope: 'is outside the confirmed network range',
   no_ip: 'has no IP address in the inventory; add its IP on the device page to scan it',
-  box: 'is the Vedette box itself, which is never scanned',
   regular_scan_never: 'is set to never be scanned in the inventory; change that setting first',
   unverified: 'has no verified ownership (do it on the External exposure page)',
   expired: 'verification expired, verify again (on the External exposure page)',
   not_supported: 'is an external target, and this version does not scan external targets yet',
 }
 const reasonOf = (r: ScanTarget['reason']) => REASON[r ?? 'out_of_scope']
+
+// D-501: Scan now identifies each device first (nmap in the backend). The notes are the backend's words (modules/scan/identify.go identNote).
+const IDENT_NOTE: Record<IdentReason | 'identified', string> = {
+  identified: 'Recorded on the device page. Software with a version is compared with the CISA list of exploited flaws; an operating system nmap only guessed is not, until you add it with its version there.',
+  os_unconfirmed: 'nmap only guessed the operating system and no service gave a version, so nothing is compared with the CISA list yet: a guess would flag every flaw of that system. Add the operating system and its version on the device page to check it.',
+  host_down: 'Did not answer: it may be switched off, asleep (phones often are) or off the network. Scan it again while it is in use.',
+  no_open_ports: 'Answered, but every port tried was closed, so no service could be identified. Add its software on the device page, or install the osquery agent on it.',
+  filtered: 'Answered, but a firewall dropped the probes (every port tried was filtered), so nothing could be identified. Add its software on the device page, or install the osquery agent on it.',
+  no_version: 'Has open ports, but no service gave its product or version and the operating system could not be told, so there is nothing to compare. Add its software and version on the device page.',
+  os_low_confidence: 'No service gave its product or version, and the operating system guess was less than 85% sure, so it was not recorded. Add the operating system and its version on the device page.',
+  gentle_only: 'Fragile device: only a gentle port scan ran, without version or operating system detection, so no software was recorded. Add its software on the device page, or allow regular scans for it there.',
+  timed_out: 'The identification scan ran out of time before it finished, so nothing new was recorded. Scan it again later.',
+  busy: 'Device discovery was scanning at that moment, so this device was not identified in this scan. Scan it again in a few minutes.',
+  unavailable: "The network scanner (nmap in the scan container, Active discovery) is not available, so this device was not identified. Check the box's services and that Active discovery is on, then scan again.",
+  declared_by_hand: 'Added by hand: Vedette does not port-scan it. The software you entered is what was checked.',
+  scanning_off: 'Active scanning is off under Devices, Scope and sensors, so this device was not identified. Only what was already known was checked.',
+  not_approved: 'Not approved in the inventory: not scanned, so not identified.',
+  out_of_scope: 'Outside the confirmed scope now: not scanned, so not identified.',
+  scope_not_confirmed: 'The scan scope commitment is not ticked under Devices, Scope and sensors: not scanned, so not identified.',
+  box: 'This address is the Vedette box itself or one of its decoys: it is never scanned.',
+  regular_scan_never: 'Set to never be scanned on its device page: not identified. Change that setting to identify it.',
+  no_ip: 'No IP address is known for this device, so it could not be scanned or identified.',
+  not_scanned: 'Not scanned in this run, so not identified.',
+}
+const identRow = (t: ScanTarget, found: string[], reason: IdentReason | null, note?: string): RunIdentRow =>
+  ({ target_id: t.id, label: t.label, ip: t.ip, found, reason, note: note ?? IDENT_NOTE[reason ?? 'identified'] })
+/** What the identification of a picked device says in the mock: the device's known OS and software, else the likeliest reason. */
+function identOne(t: ScanTarget): RunIdentRow {
+  const a = assetsStore.get().find((x: Asset) => x.id === t.id)
+  if (!a) return identRow(t, [], 'not_scanned')
+  if (a.origin === 'manual') return identRow(t, [], 'declared_by_hand')
+  if (a.fragile && a.kind !== 'unknown') return identRow(t, [], 'gentle_only')
+  const found = [...(a.os ? [`Operating system: ${a.os.value}`] : []), ...(a.kind !== 'unknown' ? [`Type: ${a.kind}`] : []), ...a.software.slice(0, 18).map((s) => `Software: ${s.display}`)]
+  if (a.software.some((s) => s.version)) return identRow(t, found, null)
+  return identRow(t, found, !a.services.length ? 'no_open_ports' : a.os ? 'os_unconfirmed' : 'no_version')
+}
 
 // ---- chạy quét ----
 const who = () => currentUser()?.email ?? 'system'
@@ -249,10 +288,12 @@ function applyToFindings(rows: StoredRow[]) {
 function finalize(r: StoredRun, status: ScanRun['status'], reason: string | null) {
   const all = targets()
   const rows: StoredRow[] = []
+  const idents: RunIdentRow[] = []
   const newProbes: ProbeEntry[] = []
   r.target_ids.forEach((id, i) => {
     const t = all.find((x) => x.id === id)
     if (!t) return
+    if (r.trigger === 'manual') idents.push(i > r.done ? identRow(t, [], 'not_scanned', SKIPPED) : identOne(t)) // the device a stop came on was identified first
     if (status === 'auto_stopped' && i === r.done) { rows.push(row(t, null, 'no_response', null, NO_RESP)); return }
     // Stop now while a device was being scanned: its requests on the way are logged as stopped, it has no result.
     if (status === 'stopped' && i === r.done) {
@@ -269,7 +310,7 @@ function finalize(r: StoredRun, status: ScanRun['status'], reason: string | null
   applyToFindings(rows)
   probes.update((l) => [...newProbes.reverse(), ...l])
   if (status === 'stopped') engineStore.set({ busyUntil: Date.now() + timing.engineMs }) // the worker is still finishing the request on its way
-  const done: StoredRun = { ...r, status, ended_at: nowIso(), current: null, results: rows, matched: rows.filter((x) => x.result === 'matched').length, stop_reason: reason }
+  const done: StoredRun = { ...r, status, ended_at: nowIso(), current: null, results: rows, matched: rows.filter((x) => x.result === 'matched').length, stop_reason: reason, identification: idents }
   saveRun(done)
   return done
 }
@@ -300,7 +341,7 @@ function advance(r: StoredRun): StoredRun {
 
 function startRun(ids: string[], trigger: ScanRun['trigger'], note: string | null, user: string): StoredRun {
   const all = targets()
-  const r: StoredRun = { id: newId('run'), trigger, trigger_note: note, started_at: nowIso(), started_by: user, ended_at: null, status: 'running', total: ids.length, done: 0, current: null, results: [], matched: 0, stop_reason: null, target_ids: ids, stop_requested_at: null }
+  const r: StoredRun = { id: newId('run'), trigger, trigger_note: note, started_at: nowIso(), started_by: user, ended_at: null, status: 'running', total: ids.length, done: 0, current: null, results: [], matched: 0, stop_reason: null, target_ids: ids, stop_requested_at: null, identification: [] }
   const t0 = all.find((x) => x.id === ids[0])
   r.current = t0 ? { label: t0.label, ip: t0.ip } : null
   runs.update((l) => [r, ...l].slice(0, 100))

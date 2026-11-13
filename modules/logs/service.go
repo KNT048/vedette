@@ -136,7 +136,13 @@ type Service struct {
 	iocTimeout   time.Duration // iocLookupTimeout; a field so that a test can lower it
 	iocSent      int
 	iocCapLogged int64
-	siemSendFn   func(ctx context.Context, cfg siemRow, recs []siemRecord) (string, error) // tests only
+	// Failed-login incidents (authfail.go): the pairs followed and the hourly budget; authMu guards all of it.
+	authMu        sync.Mutex
+	auth          map[authKey]*authState
+	authHour      int64
+	authSent      int
+	authCapLogged int64
+	siemSendFn    func(ctx context.Context, cfg siemRow, recs []siemRecord) (string, error) // tests only
 }
 
 // NewService returns the service. Config, Volume, Audit and Log are required, and Config and Volume must differ.

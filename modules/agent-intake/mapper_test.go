@@ -99,7 +99,7 @@ func TestMapPackagesGolden(t *testing.T) {
 			{"name": "Mystery Tool", "version": "1.0"},
 		},
 	}
-	items, dropped := mapPackages(snaps)
+	items, dropped := mapPackages(snaps, maxRows)
 	if dropped != 0 {
 		t.Fatalf("dropped %d", dropped)
 	}
@@ -158,7 +158,7 @@ func TestDebUpstream(t *testing.T) {
 
 func TestMapPackagesBoundsAndKeyLength(t *testing.T) {
 	long := strings.Repeat("x", 200)
-	items, dropped := mapPackages(map[string][]row{"deb_packages": {{"name": long, "version": "1"}, {"name": "ok", "version": strings.Repeat("9", 101)}, {"name": "", "version": "1"}}})
+	items, dropped := mapPackages(map[string][]row{"deb_packages": {{"name": long, "version": "1"}, {"name": "ok", "version": strings.Repeat("9", 101)}, {"name": "", "version": "1"}}}, maxRows)
 	if len(items) != 0 || dropped != 3 { // a 200+200+1 byte key is over the inventory's 400, so the row is dropped, not the list
 		t.Fatalf("%d items, %d dropped", len(items), dropped)
 	}
@@ -166,7 +166,7 @@ func TestMapPackagesBoundsAndKeyLength(t *testing.T) {
 	for i := range many {
 		many[i] = row{"name": "p" + strings.Repeat("a", i%50) + string(rune('a'+i%26)) + strings.Repeat("b", i/50), "version": "1"}
 	}
-	items, _ = mapPackages(map[string][]row{"deb_packages": many})
+	items, _ = mapPackages(map[string][]row{"deb_packages": many}, maxRows)
 	if len(items) > maxRows {
 		t.Fatalf("%d items over the cap", len(items))
 	}

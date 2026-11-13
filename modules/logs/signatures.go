@@ -71,6 +71,7 @@ type sigBatch struct {
 	addrs  map[bucketKey]addrGroup // the remote addresses of the lines, by the same key as bucket (D-210)
 	commit *pendingUpdate          // what storeAddrs leaves in memory once the batch is stored
 	conns  map[connKey]connObs     // the connections the lines are about (D-213), the first line of each
+	auth   []authObs               // the login lines that name a remote address (authfail.go), in receive order
 }
 
 // tally turns a batch of sanitized lines (in receive order) into counter increments. kinds maps a declared source id to its device
@@ -113,6 +114,9 @@ func (s *Service) tally(kinds map[string]string, senders map[string]netip.Addr, 
 				b.addrs[bk] = g
 			}
 			g[r.Remote]++
+			if class, user, ok := authLine(r.Signature, r.Bounded, l.Text); ok && len(b.auth) < MaxBatch {
+				b.auth = append(b.auth, authObs{l.SourceID, r.Remote, l.At, class, user})
+			}
 		}
 		if c := r.Conn; c.Local.IsValid() && !never(c.Local) { // the box, its gateway and a decoy are not a device that made a connection
 			for _, d := range c.Dests {

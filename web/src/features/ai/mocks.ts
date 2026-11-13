@@ -31,6 +31,17 @@ const isoDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padS
 const renewDay = () => renewsOn().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 const budgetStop = () => `this month's AI budget of ${num(aiConfigStore.get().monthly_budget)} tokens is used up, so AI jobs are stopped until it renews on ${renewDay()}. An administrator can raise the budget in Settings, AI assistant.`
 
+/** The backend's pause of scheduled AI jobs (response plans, Actor "system"): from 80 % of the month's shared budget spent, and when it is
+ *  used up, the job gets 429 budget_reached before anything is done (no run, no activity row). Null while it may go on. */
+export function scheduledPause(): Response | null {
+  const budget = aiConfigStore.get().monthly_budget
+  const used = monthTokens()
+  if (used < budget * 0.8) return null
+  const text = used >= budget ? budgetStop().replace(/^t/, 'T')
+    : `Scheduled AI jobs such as response plans pause at 80 % of this month's AI budget, so questions and explanations keep the rest. They start again when the budget renews on ${renewDay()} or an administrator raises it in Settings, AI assistant.`
+  return fail(429, 'budget_reached', text, { retry_after: Math.max(Math.ceil((renewsOn().getTime() - Date.now()) / 1000), 1) })
+}
+
 // Lịch sử mẫu để đồng hồ và nhật ký có số liệu ngay (dữ liệu mẫu, không phải lần gọi thật). Cài sạch: rỗng.
 const sampleRuns = collection<AiRun[]>('ai_sample_runs', () => {
   const at = (back: number, min: number) => new Date(Math.min(Date.now() - 60_000 * (back + 1), startOfToday() - back * DAY + min * 6e4)).toISOString()

@@ -12,6 +12,7 @@ import { eachOption } from '@/test/formMatrix'
 import { aiAssignStore, aiAvailable, aiConfigStore, aiProfilesStore, aiRunsStore, assetsStore, installStore, modulesStore, sessionStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
 import AiSettings from './AiSettings'
+import { scheduledPause } from './mocks'
 import LogsPanel from './LogsPanel'
 import type { AiProfile } from './types'
 
@@ -219,6 +220,23 @@ describe('ai: token meter, monthly budget, fallback (S-AI-4, D-531)', () => {
     renderApp('/assistant')
     expect(await screen.findByText(/This month's budget is used up: every AI job is stopped until it renews on/)).toBeInTheDocument()
     expect(screen.getByText(/lowered from Medium to Minimum/)).toBeInTheDocument()
+  })
+
+  it('scheduled jobs pause from 80 % of the month\'s budget and when it is used up, as on the box (D-531a)', async () => {
+    aiConfigStore.update((c) => ({ ...c, monthly_budget: 10_000_000 }))
+    aiRunsStore.set([])
+    expect(scheduledPause()).toBeNull()
+    spend(8_500_000)
+    let res = scheduledPause()
+    expect(res?.status).toBe(429)
+    let err = (await res!.json()).error
+    expect(err.code).toBe('budget_reached')
+    expect(err.message).toMatch(/^Scheduled AI jobs such as response plans pause at 80 % of this month's AI budget/)
+    expect(err.retry_after).toBeGreaterThan(0)
+    spend(2_000_000)
+    res = scheduledPause()
+    err = (await res!.json()).error
+    expect(err.message).toMatch(/^This month's AI budget of 10,000,000 tokens is used up/)
   })
 
   it('Home warns at 80 % and says when the budget is used up; a profile near its own budget is named (D-531)', async () => {

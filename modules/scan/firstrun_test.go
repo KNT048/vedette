@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -84,5 +85,50 @@ func TestSchedule_FirstRunWaitsForASlotAfterTheSetup(t *testing.T) {
 	r2.schedAt(hm(fri13, 23, 45))
 	if n := r2.scheduled(); n != 0 {
 		t.Fatalf("scope confirmed at 23:30: %d scheduled runs on the 23:00 slot, want 0", n)
+	}
+}
+
+// W3-9: the N100's own row. The weekly Sunday 8 Nov 23:00 (+07) slot was recorded (missed or nothing to scan) before any scheduled
+// run, the box kept the defaults (updated_at NULL) and only manual scans ran. The first-run period ends with the first scheduled run
+// that starts, not with the first recorded slot: on Friday 13 Nov 18:39 in the office, next run is tonight 23:00 and that slot runs.
+func TestSchedule_FirstRunAfterARecordedSlotWithoutARun(t *testing.T) {
+	t.Parallel()
+	r := newRunEnv(t)
+	ict := time.FixedZone("ICT", 7*3600)
+	cfg := r.svc.cfg
+	cfg.Location = func(context.Context) *time.Location { return ict }
+	svc, err := NewService(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.svc = svc
+	r.exec(`UPDATE scan_setting SET days = '[1,2,3,4,5,6,7]', win_from = '22:00', win_to = '05:00', sched_enabled = 1, sched_frequency = 'weekly',
+sched_weekday = 7, sched_at = '23:00', updated_at = NULL, updated_by = NULL, sched_last = '2026-11-08T16:00:00.000Z' WHERE id = 1`)
+	r.setNow(time.Date(2026, 11, 12, 3, 0, 0, 0, time.UTC)) // a manual scan on Thursday morning does not end the first-run period
+	r.start("a-web01")
+	r.wait()
+	r.setNow(time.Date(2026, 11, 13, 11, 39, 0, 0, time.UTC))
+	if got := r.nextRun(); got != "2026-11-13T16:00:00.000Z" {
+		t.Fatalf("next run on Friday 18:39 (+07): %s, want tonight 23:00 (+07)", got)
+	}
+	r.schedAt(time.Date(2026, 11, 13, 11, 39, 0, 0, time.UTC)) // no slot open yet: nothing starts, nothing recorded
+	if n := r.scheduled(); n != 0 {
+		t.Fatalf("18:39: %d scheduled runs, want 0", n)
+	}
+	r.schedAt(time.Date(2026, 11, 13, 16, 0, 30, 0, time.UTC))
+	if n := r.scheduled(); n != 1 {
+		t.Fatalf("Friday 23:00 (+07): %d scheduled runs, want the first one", n)
+	}
+	r.schedAt(time.Date(2026, 11, 13, 16, 30, 0, 0, time.UTC)) // the same slot later in its window: no second run
+	if n := r.scheduled(); n != 1 {
+		t.Fatalf("Friday 23:30 (+07): %d scheduled runs, want still 1", n)
+	}
+	r.setNow(time.Date(2026, 11, 13, 17, 0, 0, 0, time.UTC))
+	if got := r.nextRun(); got != "2026-11-15T16:00:00.000Z" {
+		t.Fatalf("next run after the first one: %s, want the weekly Sunday 23:00 (+07)", got)
+	}
+	r.schedAt(time.Date(2026, 11, 14, 16, 0, 30, 0, time.UTC)) // Saturday: the weekday counts again
+	if n := r.scheduled(); n != 1 {
+		t.Fatalf("Saturday 23:00 (+07): %d scheduled runs, want still 1", n)
 	}
 }

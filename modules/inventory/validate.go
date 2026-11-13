@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/localnet"
 	"github.com/knt048/vedette/core/observe"
 )
 
@@ -82,12 +83,6 @@ func normMAC(s string) (string, bool) {
 	return hw.String(), true
 }
 
-var privateBlocks = []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8"), netip.MustParsePrefix("172.16.0.0/12"), netip.MustParsePrefix("192.168.0.0/16")}
-
-func privatePrefix(p netip.Prefix) bool {
-	return slices.ContainsFunc(privateBlocks, func(b netip.Prefix) bool { return b.Contains(p.Addr()) && p.Bits() >= b.Bits() })
-}
-
 // Adjustment says a range was written with host bits and was reduced to its network ("192.168.18.5/24" to
 // "192.168.18.0/24"); the response of PUT /inventory/settings lists them (SettingsSaved.adjusted, as the mock does).
 type Adjustment struct {
@@ -97,7 +92,8 @@ type Adjustment struct {
 
 // checkRanges validates the LAN ranges the way PUT /inventory/settings needs (INV-6, D-32), in the mock's order:
 // a range with host bits is first reduced to its network and reported; then duplicates collapse, and at most 16
-// remain, each with a prefix (never guessed), a valid IPv4 CIDR, RFC 1918 only, no overlap. The prefix length the
+// remain, each with a prefix (never guessed), a valid IPv4 CIDR, inside a local network only (RFC 1918 or the RFC 6598 shared space 100.64/10,
+// localnet.Prefix, D-461), no overlap. The prefix length the
 // person typed is kept: only host bits go.
 func checkRanges(in []string) ([]string, []Adjustment, *apierr.Error) {
 	adjusted := []Adjustment{}
@@ -131,8 +127,8 @@ func checkRanges(in []string) ([]string, []Adjustment, *apierr.Error) {
 		if !p.IsValid() {
 			return nil, nil, badRequest("bad_cidr", `"`+clip(r, 30)+`" is not a valid network range. Enter something like 192.168.10.0/24.`)
 		}
-		if !privatePrefix(p) {
-			return nil, nil, badRequest("public_range", r+" is not an internal range (10.x, 172.16-31.x, 192.168.x). To scan public addresses, add them under External exposure after verifying ownership.")
+		if !localnet.Prefix(p) {
+			return nil, nil, badRequest("public_range", r+" is not an internal range ("+localnet.Names+"). To scan public addresses, add them under External exposure after verifying ownership.")
 		}
 		for j, q := range parsed {
 			if j != i && q.IsValid() && q.Overlaps(p) {

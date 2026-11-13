@@ -40,8 +40,7 @@ async function cleanInstall(page: Page, lan = '192.168.10.0/24') {
   await page.getByRole('textbox', { name: 'Range 1' }).fill(lan)
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('radio', { name: /Mid-size business/ }).click()
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByRole('button', { name: 'Skip and finish' }).click()
+  await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(page).not.toHaveURL(/\/setup/)
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
 }

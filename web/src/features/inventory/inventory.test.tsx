@@ -434,6 +434,12 @@ describe('inventory: CSV (S-INV-2)', () => {
     expect(r.notes).toHaveLength(2)
     expect(r.notes[0].message).toContain('public address')
     expect(r.notes[1].message).toContain('outside your saved network ranges')
+    // D-461, like import_test.go: a 100.64/10 device is on a local network (outside the saved ranges here), a 100.128 one is public
+    const c = (await call('POST', '/import', { text: 'name,ip\ncgnat,100.65.254.7\npub100,100.128.0.7\n' })).json!
+    expect(c.created).toBe(2)
+    expect(c.notes).toHaveLength(2)
+    expect(c.notes[0].message).toContain('outside your saved network ranges')
+    expect(c.notes[1].message).toContain('public address')
   })
 
   it('an oversized file is blocked in the browser and never sent', async () => {
@@ -711,6 +717,11 @@ describe('inventory: range validation helpers', () => {
     expect(rangeProblem('192.168.10.0/25', ['192.168.10.0/24', '192.168.10.0/25'])).toBe('overlap')
     expect(rangeProblem('192.168.10.0/24', ['192.168.10.0/24'])).toBeNull()
     expect(rangeProblem('172.16.0.0/12', [])).toBeNull()
+    // D-461: the RFC 6598 shared address space is internal, the rest of 100/8 is not.
+    expect(rangeProblem('100.65.254.0/24', [])).toBeNull()
+    expect(rangeProblem('100.64.0.0/10', [])).toBeNull()
+    expect(rangeProblem('100.128.0.0/24', [])).toBe('notPrivate')
+    expect(rangeProblem('100.0.0.0/8', [])).toBe('notPrivate')
   })
 })
 
@@ -935,6 +946,9 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     const put = async (patch: Record<string, unknown>) => (await call('PUT', '/settings', { ...base, scope_confirmed: true, ...patch })).json?.error?.code
     expect(await put({ lan_ranges: ['8.8.8.0/24'] })).toBe('public_range')
     expect(await put({ lan_ranges: ['10.0.0.0/7'] })).toBe('public_range')
+    expect(await put({ lan_ranges: ['100.128.0.0/24'] })).toBe('public_range') // only 100.64/10 of 100/8 is internal (D-461)
+    expect((await call('PUT', '/settings', { ...base, scope_confirmed: true, lan_ranges: ['100.63.0.0/16'] })).json?.error?.message).toBe('100.63.0.0/16 is not an internal range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). To scan public addresses, add them under External exposure after verifying ownership.')
+    expect((await call('PUT', '/settings', { ...base, scope_confirmed: true, lan_ranges: ['100.65.254.0/24'] })).json?.error).toBeUndefined()
     expect(await put({ lan_ranges: ['8.8.8.8'] })).toBe('no_prefix') // a bare address is never guessed
     expect(await put({ lan_ranges: ['abc'] })).toBe('bad_cidr')
     expect(await put({ lan_ranges: ['10.0.0.0/24', '10.0.0.0/25'] })).toBe('overlap_range')

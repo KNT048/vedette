@@ -40,6 +40,8 @@ func TestValidatorCannotBeBypassed(t *testing.T) {
 		"172.16/12 low":   with(sweep("5"), "172.16.0.0"),
 		"172.16/12 high":  with(sweep("5"), "172.31.255.255"),
 		"192.168/16 high": with(sweep("5"), "192.168.255.255"),
+		"100.64/10 low":   with(sweep("5"), "100.64.0.0"), // RFC 6598 (D-461)
+		"100.64/10 high":  with(sweep("5"), "100.127.255.255"),
 	}
 	for name, argv := range ok {
 		if err := sa.ValidateNmapArgs(argv); err != nil {
@@ -76,7 +78,8 @@ func TestValidatorCannotBeBypassed(t *testing.T) {
 		"public":                    with(sweep("5"), "8.8.8.8"),
 		"loopback":                  with(sweep("5"), "127.0.0.1"),
 		"link local":                with(sweep("5"), "169.254.1.1"),
-		"cgnat":                     with(sweep("5"), "100.64.0.1"),
+		"below RFC 6598 (D-461)":    with(sweep("5"), "100.63.255.255"),
+		"above RFC 6598 (D-461)":    with(sweep("5"), "100.128.0.0"),
 		"multicast":                 with(sweep("5"), "224.0.0.1"),
 		"broadcast":                 with(sweep("5"), "255.255.255.255"),
 		"v4-mapped v6":              with(sweep("5"), "::ffff:10.0.0.1"),

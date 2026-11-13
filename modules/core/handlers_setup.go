@@ -16,6 +16,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
+	"github.com/knt048/vedette/core/localnet"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/coredb"
@@ -81,7 +82,7 @@ func (h *APIHandlers) CoreGetCoreSetupModules(ctx context.Context) (*oas.CoreGet
 	out.Lan = oas.NilString{Null: true}
 	if h.boxLAN != nil {
 		if done, err := h.setupDone(ctx); err == nil && !done {
-			if p, ok := h.boxLAN(ctx); ok && isPrivateLAN(p) && p.Bits() >= 16 { // a flat /8 or /12 is not offered as a whole scan scope
+			if p, ok := h.boxLAN(ctx); ok && localnet.Prefix(p) && p.Bits() >= 16 { // a flat /8, /10 or /12 is not offered as a whole scan scope
 				out.Lan = oas.NewNilString(p.Masked().String())
 			}
 		}
@@ -89,17 +90,10 @@ func (h *APIHandlers) CoreGetCoreSetupModules(ctx context.Context) (*oas.CoreGet
 	return out, nil
 }
 
-// privateNets are the ranges a LAN range may lie in: 10/8, 172.16/12, 192.168/16 (the rule of the inventory
-// module). A prefix shorter than these (10.0.0.0/0) covers the Internet and is refused.
-var privateNets = []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8"), netip.MustParsePrefix("172.16.0.0/12"), netip.MustParsePrefix("192.168.0.0/16")}
-
-// isPrivateLAN is the rule of parseLan for one IPv4 prefix: inside a private network, not wider than it.
-func isPrivateLAN(p netip.Prefix) bool {
-	return p.IsValid() && p.Addr().Is4() && slices.ContainsFunc(privateNets, func(n netip.Prefix) bool { return n.Bits() <= p.Bits() && n.Contains(p.Addr()) })
-}
-
-// parseLan checks the LAN ranges of the setup form (1 to 16 IPv4 ranges inside the private networks) and
-// returns them in canonical form (host bits cleared).
+// parseLan checks the LAN ranges of the setup form (1 to 16 IPv4 ranges inside the local networks of localnet.Prefix:
+// 10/8, 172.16/12, 192.168/16 and the RFC 6598 shared space 100.64/10, D-461, the rule of the inventory module; a prefix
+// wider than these, like 10.0.0.0/0 or 100.0.0.0/8, covers the Internet and is refused) and returns them in canonical form
+// (host bits cleared).
 func parseLan(in []string) ([]string, *apierr.Error) {
 	var raw []string
 	for _, s := range in {
@@ -116,8 +110,8 @@ func parseLan(in []string) ([]string, *apierr.Error) {
 		if err != nil || !p.Addr().Is4() || p.Addr().Zone() != "" || strings.Contains(s, "%") {
 			return nil, apierr.New(400, CodeInvalidLan, fmt.Sprintf("The range %q is not valid. Write it like 192.168.10.0/24.", clip(s)))
 		}
-		if !isPrivateLAN(p) {
-			return nil, apierr.New(400, CodePublicRange, fmt.Sprintf("%s is not a private range (10.x, 172.16-31.x, 192.168.x). Add public addresses later under External exposure.", clip(s)))
+		if !localnet.Prefix(p) {
+			return nil, apierr.New(400, CodePublicRange, fmt.Sprintf("%s is not a private range (%s). Add public addresses later under External exposure.", clip(s), localnet.Names))
 		}
 		if m := p.Masked().String(); !slices.Contains(out, m) {
 			out = append(out, m)

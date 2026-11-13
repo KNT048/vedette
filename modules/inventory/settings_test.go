@@ -50,6 +50,9 @@ func TestContract_INV6_NetworkRanges(t *testing.T) {
 		{"no prefix is never guessed (D-32)", []string{"192.168.18.0"}, "no_prefix"},
 		{"public range", []string{"8.8.8.0/24"}, "public_range"},
 		{"a range that straddles the private block", []string{"172.0.0.0/8"}, "public_range"},
+		{"100/8 outside the shared address space (D-461)", []string{"100.128.0.0/24"}, "public_range"},
+		{"just below the shared address space", []string{"100.63.0.0/16"}, "public_range"},
+		{"wider than the shared address space", []string{"100.0.0.0/8"}, "public_range"},
 		{"overlap, same start", []string{"192.168.10.0/24", "192.168.10.0/25"}, "overlap_range"},
 		{"overlap, nested", []string{"10.0.0.0/8", "10.1.2.0/24"}, "overlap_range"},
 		{"not a CIDR", []string{"banana"}, "bad_cidr"},
@@ -80,6 +83,7 @@ func TestContract_INV6_NetworkRanges(t *testing.T) {
 			{"no host bits, nothing adjusted", []string{"192.168.18.0/24"}, []string{"192.168.18.0/24"}, []inventory.Adjustment{}, ""},
 			{"no prefix is still refused", []string{"192.168.18.5"}, nil, nil, "no_prefix"},
 			{"a public range is refused after masking", []string{"8.8.8.9/24"}, nil, nil, "public_range"},
+			{"a shared address space range is local (RFC 6598, D-461)", []string{"100.65.254.0/24", "100.64.0.0/16"}, []string{"100.65.254.0/24", "100.64.0.0/16"}, []inventory.Adjustment{}, ""},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				e := newEnv(t)

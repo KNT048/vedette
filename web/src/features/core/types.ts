@@ -9,7 +9,6 @@ export type GeneralSettings = z.infer<typeof C.GeneralSettings>
 export type SetupStatus = z.infer<typeof C.SetupStatus>
 export type SetupModule = z.infer<typeof C.SetupModule>
 export type BundleId = z.infer<typeof C.BundleId>
-export type ChannelType = 'telegram' | 'zalo' | 'email'
 export type SetupPayload = z.infer<typeof C.SetupPayload>
 
 export type AuthOptions = z.infer<typeof C.AuthOptions>

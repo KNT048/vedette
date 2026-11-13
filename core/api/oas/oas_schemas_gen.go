@@ -92243,6 +92243,96 @@ func (o NilNotifyGetNotifyChannelsOKChannelsItemLastTest) Or(d NotifyGetNotifyCh
 	return d
 }
 
+// NewNilNotifyGetNotifyIncidentsIDOKIncidentNotSent returns new NilNotifyGetNotifyIncidentsIDOKIncidentNotSent with value set to v.
+func NewNilNotifyGetNotifyIncidentsIDOKIncidentNotSent(v NotifyGetNotifyIncidentsIDOKIncidentNotSent) NilNotifyGetNotifyIncidentsIDOKIncidentNotSent {
+	return NilNotifyGetNotifyIncidentsIDOKIncidentNotSent{
+		Value: v,
+	}
+}
+
+// NilNotifyGetNotifyIncidentsIDOKIncidentNotSent is nullable NotifyGetNotifyIncidentsIDOKIncidentNotSent.
+type NilNotifyGetNotifyIncidentsIDOKIncidentNotSent struct {
+	Value NotifyGetNotifyIncidentsIDOKIncidentNotSent
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilNotifyGetNotifyIncidentsIDOKIncidentNotSent) SetTo(v NotifyGetNotifyIncidentsIDOKIncidentNotSent) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilNotifyGetNotifyIncidentsIDOKIncidentNotSent) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilNotifyGetNotifyIncidentsIDOKIncidentNotSent) SetToNull() {
+	o.Null = true
+	var v NotifyGetNotifyIncidentsIDOKIncidentNotSent
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilNotifyGetNotifyIncidentsIDOKIncidentNotSent) Get() (v NotifyGetNotifyIncidentsIDOKIncidentNotSent, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilNotifyGetNotifyIncidentsIDOKIncidentNotSent) Or(d NotifyGetNotifyIncidentsIDOKIncidentNotSent) NotifyGetNotifyIncidentsIDOKIncidentNotSent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilNotifyGetNotifyIncidentsOKIncidentsItemNotSent returns new NilNotifyGetNotifyIncidentsOKIncidentsItemNotSent with value set to v.
+func NewNilNotifyGetNotifyIncidentsOKIncidentsItemNotSent(v NotifyGetNotifyIncidentsOKIncidentsItemNotSent) NilNotifyGetNotifyIncidentsOKIncidentsItemNotSent {
+	return NilNotifyGetNotifyIncidentsOKIncidentsItemNotSent{
+		Value: v,
+	}
+}
+
+// NilNotifyGetNotifyIncidentsOKIncidentsItemNotSent is nullable NotifyGetNotifyIncidentsOKIncidentsItemNotSent.
+type NilNotifyGetNotifyIncidentsOKIncidentsItemNotSent struct {
+	Value NotifyGetNotifyIncidentsOKIncidentsItemNotSent
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilNotifyGetNotifyIncidentsOKIncidentsItemNotSent) SetTo(v NotifyGetNotifyIncidentsOKIncidentsItemNotSent) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilNotifyGetNotifyIncidentsOKIncidentsItemNotSent) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilNotifyGetNotifyIncidentsOKIncidentsItemNotSent) SetToNull() {
+	o.Null = true
+	var v NotifyGetNotifyIncidentsOKIncidentsItemNotSent
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilNotifyGetNotifyIncidentsOKIncidentsItemNotSent) Get() (v NotifyGetNotifyIncidentsOKIncidentsItemNotSent, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilNotifyGetNotifyIncidentsOKIncidentsItemNotSent) Or(d NotifyGetNotifyIncidentsOKIncidentsItemNotSent) NotifyGetNotifyIncidentsOKIncidentsItemNotSent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilNotifyGetNotifyZaloLoginOKQr returns new NilNotifyGetNotifyZaloLoginOKQr with value set to v.
 func NewNilNotifyGetNotifyZaloLoginOKQr(v NotifyGetNotifyZaloLoginOKQr) NilNotifyGetNotifyZaloLoginOKQr {
 	return NilNotifyGetNotifyZaloLoginOKQr{
@@ -92282,6 +92372,51 @@ func (o NilNotifyGetNotifyZaloLoginOKQr) Get() (v NotifyGetNotifyZaloLoginOKQr, 
 
 // Or returns value if set, or given parameter if does not.
 func (o NilNotifyGetNotifyZaloLoginOKQr) Or(d NotifyGetNotifyZaloLoginOKQr) NotifyGetNotifyZaloLoginOKQr {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilNotifyPatchNotifyIncidentsIDOKIncidentNotSent returns new NilNotifyPatchNotifyIncidentsIDOKIncidentNotSent with value set to v.
+func NewNilNotifyPatchNotifyIncidentsIDOKIncidentNotSent(v NotifyPatchNotifyIncidentsIDOKIncidentNotSent) NilNotifyPatchNotifyIncidentsIDOKIncidentNotSent {
+	return NilNotifyPatchNotifyIncidentsIDOKIncidentNotSent{
+		Value: v,
+	}
+}
+
+// NilNotifyPatchNotifyIncidentsIDOKIncidentNotSent is nullable NotifyPatchNotifyIncidentsIDOKIncidentNotSent.
+type NilNotifyPatchNotifyIncidentsIDOKIncidentNotSent struct {
+	Value NotifyPatchNotifyIncidentsIDOKIncidentNotSent
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilNotifyPatchNotifyIncidentsIDOKIncidentNotSent) SetTo(v NotifyPatchNotifyIncidentsIDOKIncidentNotSent) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilNotifyPatchNotifyIncidentsIDOKIncidentNotSent) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilNotifyPatchNotifyIncidentsIDOKIncidentNotSent) SetToNull() {
+	o.Null = true
+	var v NotifyPatchNotifyIncidentsIDOKIncidentNotSent
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilNotifyPatchNotifyIncidentsIDOKIncidentNotSent) Get() (v NotifyPatchNotifyIncidentsIDOKIncidentNotSent, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilNotifyPatchNotifyIncidentsIDOKIncidentNotSent) Or(d NotifyPatchNotifyIncidentsIDOKIncidentNotSent) NotifyPatchNotifyIncidentsIDOKIncidentNotSent {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -97604,7 +97739,10 @@ type NotifyGetNotifyIncidentsIDOKIncident struct {
 	LastSeen  time.Time                                `json:"last_seen"`
 	// Where to view the source: /honeypot/hits/ (trap), /logs (bad address, log anomaly), /devices/
 	// (unknown device).
-	Link     string                                          `json:"link"`
+	Link string `json:"link"`
+	// Why no channel received it; null when any attempt delivered it (a later failed Resend does not undo
+	// that).
+	NotSent  NilNotifyGetNotifyIncidentsIDOKIncidentNotSent  `json:"not_sent"`
 	Note     NilString                                       `json:"note"`
 	Sends    []NotifyGetNotifyIncidentsIDOKIncidentSendsItem `json:"sends"`
 	Severity NotifyGetNotifyIncidentsIDOKIncidentSeverity    `json:"severity"`
@@ -97667,6 +97805,11 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) GetLastSeen() time.Time {
 // GetLink returns the value of Link.
 func (s *NotifyGetNotifyIncidentsIDOKIncident) GetLink() string {
 	return s.Link
+}
+
+// GetNotSent returns the value of NotSent.
+func (s *NotifyGetNotifyIncidentsIDOKIncident) GetNotSent() NilNotifyGetNotifyIncidentsIDOKIncidentNotSent {
+	return s.NotSent
 }
 
 // GetNote returns the value of Note.
@@ -97752,6 +97895,11 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) SetLastSeen(val time.Time) {
 // SetLink sets the value of Link.
 func (s *NotifyGetNotifyIncidentsIDOKIncident) SetLink(val string) {
 	s.Link = val
+}
+
+// SetNotSent sets the value of NotSent.
+func (s *NotifyGetNotifyIncidentsIDOKIncident) SetNotSent(val NilNotifyGetNotifyIncidentsIDOKIncidentNotSent) {
+	s.NotSent = val
 }
 
 // SetNote sets the value of Note.
@@ -97858,6 +98006,241 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentKind) UnmarshalText(data []byte) er
 		return nil
 	case NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentKindUnknownDevice
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyGetNotifyIncidentsIDOKIncidentNotSent struct {
+	// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
+	// (below_min_severity).
+	Channel OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel `json:"channel"`
+	// Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours
+	// still go out by themselves; unknown = opened before the reason was kept and today's channels would
+	// take it.
+	Reason NotifyGetNotifyIncidentsIDOKIncidentNotSentReason `json:"reason"`
+	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
+	// send high and above.".
+	Text string `json:"text"`
+	// Quiet_hours: when the held message goes out.
+	Until OptDateTime `json:"until"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSent) GetChannel() OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel {
+	return s.Channel
+}
+
+// GetReason returns the value of Reason.
+func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSent) GetReason() NotifyGetNotifyIncidentsIDOKIncidentNotSentReason {
+	return s.Reason
+}
+
+// GetText returns the value of Text.
+func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSent) GetText() string {
+	return s.Text
+}
+
+// GetUntil returns the value of Until.
+func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSent) GetUntil() OptDateTime {
+	return s.Until
+}
+
+// SetChannel sets the value of Channel.
+func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSent) SetChannel(val OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) {
+	s.Channel = val
+}
+
+// SetReason sets the value of Reason.
+func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSent) SetReason(val NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) {
+	s.Reason = val
+}
+
+// SetText sets the value of Text.
+func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSent) SetText(val string) {
+	s.Text = val
+}
+
+// SetUntil sets the value of Until.
+func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSent) SetUntil(val OptDateTime) {
+	s.Until = val
+}
+
+// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+// the message waited (channel_off, channel_removed), or the one with the lowest minimum
+// (below_min_severity).
+type NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel string
+
+const (
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelTelegram     NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel = "telegram"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelSlack        NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel = "slack"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelZalo         NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel = "zalo"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelZaloPersonal NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel = "zalo-personal"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelEmail        NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel = "email"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelWebhook      NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel = "webhook"
+)
+
+// AllValues returns all NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel values.
+func (NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) AllValues() []NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel {
+	return []NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel{
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelTelegram,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelSlack,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelZalo,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelZaloPersonal,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelEmail,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelWebhook,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelTelegram:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelSlack:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelZalo:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelZaloPersonal:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelEmail:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelWebhook:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) UnmarshalText(data []byte) error {
+	switch NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel(data) {
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelTelegram:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelTelegram
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelSlack:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelSlack
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelZalo:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelZalo
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelZaloPersonal:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelZaloPersonal
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelEmail:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelEmail
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelWebhook:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentChannelWebhook
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours
+// still go out by themselves; unknown = opened before the reason was kept and today's channels would
+// take it.
+type NotifyGetNotifyIncidentsIDOKIncidentNotSentReason string
+
+const (
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQueued           NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "queued"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours       NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "quiet_hours"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel        NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "no_channel"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff      NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "channels_off"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff       NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "channel_off"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved   NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "channel_removed"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "below_min_severity"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFailed           NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "failed"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale     NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "dropped_stale"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary  NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "first_run_summary"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown          NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "unknown"
+)
+
+// AllValues returns all NotifyGetNotifyIncidentsIDOKIncidentNotSentReason values.
+func (NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyGetNotifyIncidentsIDOKIncidentNotSentReason {
+	return []NotifyGetNotifyIncidentsIDOKIncidentNotSentReason{
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQueued,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFailed,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQueued:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFailed:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data []byte) error {
+	switch NotifyGetNotifyIncidentsIDOKIncidentNotSentReason(data) {
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQueued:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQueued
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFailed:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFailed
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -98261,7 +98644,10 @@ type NotifyGetNotifyIncidentsOKIncidentsItem struct {
 	LastSeen  time.Time                                   `json:"last_seen"`
 	// Where to view the source: /honeypot/hits/ (trap), /logs (bad address, log anomaly), /devices/
 	// (unknown device).
-	Link     string                                             `json:"link"`
+	Link string `json:"link"`
+	// Why no channel received it; null when any attempt delivered it (a later failed Resend does not undo
+	// that).
+	NotSent  NilNotifyGetNotifyIncidentsOKIncidentsItemNotSent  `json:"not_sent"`
 	Note     NilString                                          `json:"note"`
 	Sends    []NotifyGetNotifyIncidentsOKIncidentsItemSendsItem `json:"sends"`
 	Severity NotifyGetNotifyIncidentsOKIncidentsItemSeverity    `json:"severity"`
@@ -98324,6 +98710,11 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) GetLastSeen() time.Time {
 // GetLink returns the value of Link.
 func (s *NotifyGetNotifyIncidentsOKIncidentsItem) GetLink() string {
 	return s.Link
+}
+
+// GetNotSent returns the value of NotSent.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItem) GetNotSent() NilNotifyGetNotifyIncidentsOKIncidentsItemNotSent {
+	return s.NotSent
 }
 
 // GetNote returns the value of Note.
@@ -98409,6 +98800,11 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) SetLastSeen(val time.Time) {
 // SetLink sets the value of Link.
 func (s *NotifyGetNotifyIncidentsOKIncidentsItem) SetLink(val string) {
 	s.Link = val
+}
+
+// SetNotSent sets the value of NotSent.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItem) SetNotSent(val NilNotifyGetNotifyIncidentsOKIncidentsItemNotSent) {
+	s.NotSent = val
 }
 
 // SetNote sets the value of Note.
@@ -98515,6 +98911,241 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemKind) UnmarshalText(data []byte)
 		return nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemKindUnknownDevice
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyGetNotifyIncidentsOKIncidentsItemNotSent struct {
+	// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
+	// (below_min_severity).
+	Channel OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel `json:"channel"`
+	// Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours
+	// still go out by themselves; unknown = opened before the reason was kept and today's channels would
+	// take it.
+	Reason NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason `json:"reason"`
+	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
+	// send high and above.".
+	Text string `json:"text"`
+	// Quiet_hours: when the held message goes out.
+	Until OptDateTime `json:"until"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSent) GetChannel() OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel {
+	return s.Channel
+}
+
+// GetReason returns the value of Reason.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSent) GetReason() NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason {
+	return s.Reason
+}
+
+// GetText returns the value of Text.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSent) GetText() string {
+	return s.Text
+}
+
+// GetUntil returns the value of Until.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSent) GetUntil() OptDateTime {
+	return s.Until
+}
+
+// SetChannel sets the value of Channel.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSent) SetChannel(val OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) {
+	s.Channel = val
+}
+
+// SetReason sets the value of Reason.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSent) SetReason(val NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) {
+	s.Reason = val
+}
+
+// SetText sets the value of Text.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSent) SetText(val string) {
+	s.Text = val
+}
+
+// SetUntil sets the value of Until.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSent) SetUntil(val OptDateTime) {
+	s.Until = val
+}
+
+// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+// the message waited (channel_off, channel_removed), or the one with the lowest minimum
+// (below_min_severity).
+type NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel string
+
+const (
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelTelegram     NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel = "telegram"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelSlack        NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel = "slack"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelZalo         NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel = "zalo"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelZaloPersonal NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel = "zalo-personal"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelEmail        NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel = "email"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelWebhook      NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel = "webhook"
+)
+
+// AllValues returns all NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel values.
+func (NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) AllValues() []NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel {
+	return []NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel{
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelTelegram,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelSlack,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelZalo,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelZaloPersonal,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelEmail,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelWebhook,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelTelegram:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelSlack:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelZalo:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelZaloPersonal:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelEmail:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelWebhook:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) UnmarshalText(data []byte) error {
+	switch NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel(data) {
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelTelegram:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelTelegram
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelSlack:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelSlack
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelZalo:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelZalo
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelZaloPersonal:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelZaloPersonal
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelEmail:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelEmail
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelWebhook:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannelWebhook
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours
+// still go out by themselves; unknown = opened before the reason was kept and today's channels would
+// take it.
+type NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason string
+
+const (
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQueued           NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "queued"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours       NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "quiet_hours"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel        NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "no_channel"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff      NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "channels_off"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff       NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "channel_off"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelRemoved   NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "channel_removed"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonBelowMinSeverity NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "below_min_severity"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFailed           NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "failed"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonDroppedStale     NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "dropped_stale"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFirstRunSummary  NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "first_run_summary"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown          NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "unknown"
+)
+
+// AllValues returns all NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason values.
+func (NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) AllValues() []NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason {
+	return []NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason{
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQueued,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelRemoved,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonBelowMinSeverity,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFailed,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonDroppedStale,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFirstRunSummary,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQueued:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelRemoved:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonBelowMinSeverity:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFailed:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonDroppedStale:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFirstRunSummary:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) UnmarshalText(data []byte) error {
+	switch NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason(data) {
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQueued:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQueued
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelRemoved:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelRemoved
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonBelowMinSeverity:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonBelowMinSeverity
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFailed:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFailed
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonDroppedStale:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonDroppedStale
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFirstRunSummary:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFirstRunSummary
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -99465,7 +100096,10 @@ type NotifyPatchNotifyIncidentsIDOKIncident struct {
 	LastSeen  time.Time                                  `json:"last_seen"`
 	// Where to view the source: /honeypot/hits/ (trap), /logs (bad address, log anomaly), /devices/
 	// (unknown device).
-	Link     string                                            `json:"link"`
+	Link string `json:"link"`
+	// Why no channel received it; null when any attempt delivered it (a later failed Resend does not undo
+	// that).
+	NotSent  NilNotifyPatchNotifyIncidentsIDOKIncidentNotSent  `json:"not_sent"`
 	Note     NilString                                         `json:"note"`
 	Sends    []NotifyPatchNotifyIncidentsIDOKIncidentSendsItem `json:"sends"`
 	Severity NotifyPatchNotifyIncidentsIDOKIncidentSeverity    `json:"severity"`
@@ -99528,6 +100162,11 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) GetLastSeen() time.Time {
 // GetLink returns the value of Link.
 func (s *NotifyPatchNotifyIncidentsIDOKIncident) GetLink() string {
 	return s.Link
+}
+
+// GetNotSent returns the value of NotSent.
+func (s *NotifyPatchNotifyIncidentsIDOKIncident) GetNotSent() NilNotifyPatchNotifyIncidentsIDOKIncidentNotSent {
+	return s.NotSent
 }
 
 // GetNote returns the value of Note.
@@ -99613,6 +100252,11 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) SetLastSeen(val time.Time) {
 // SetLink sets the value of Link.
 func (s *NotifyPatchNotifyIncidentsIDOKIncident) SetLink(val string) {
 	s.Link = val
+}
+
+// SetNotSent sets the value of NotSent.
+func (s *NotifyPatchNotifyIncidentsIDOKIncident) SetNotSent(val NilNotifyPatchNotifyIncidentsIDOKIncidentNotSent) {
+	s.NotSent = val
 }
 
 // SetNote sets the value of Note.
@@ -99719,6 +100363,241 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentKind) UnmarshalText(data []byte) 
 		return nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentKindUnknownDevice
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPatchNotifyIncidentsIDOKIncidentNotSent struct {
+	// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
+	// (below_min_severity).
+	Channel OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel `json:"channel"`
+	// Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours
+	// still go out by themselves; unknown = opened before the reason was kept and today's channels would
+	// take it.
+	Reason NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason `json:"reason"`
+	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
+	// send high and above.".
+	Text string `json:"text"`
+	// Quiet_hours: when the held message goes out.
+	Until OptDateTime `json:"until"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSent) GetChannel() OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel {
+	return s.Channel
+}
+
+// GetReason returns the value of Reason.
+func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSent) GetReason() NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason {
+	return s.Reason
+}
+
+// GetText returns the value of Text.
+func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSent) GetText() string {
+	return s.Text
+}
+
+// GetUntil returns the value of Until.
+func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSent) GetUntil() OptDateTime {
+	return s.Until
+}
+
+// SetChannel sets the value of Channel.
+func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSent) SetChannel(val OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) {
+	s.Channel = val
+}
+
+// SetReason sets the value of Reason.
+func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSent) SetReason(val NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) {
+	s.Reason = val
+}
+
+// SetText sets the value of Text.
+func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSent) SetText(val string) {
+	s.Text = val
+}
+
+// SetUntil sets the value of Until.
+func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSent) SetUntil(val OptDateTime) {
+	s.Until = val
+}
+
+// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+// the message waited (channel_off, channel_removed), or the one with the lowest minimum
+// (below_min_severity).
+type NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel string
+
+const (
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelTelegram     NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel = "telegram"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelSlack        NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel = "slack"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelZalo         NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel = "zalo"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelZaloPersonal NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel = "zalo-personal"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelEmail        NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel = "email"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelWebhook      NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel = "webhook"
+)
+
+// AllValues returns all NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel values.
+func (NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) AllValues() []NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel {
+	return []NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel{
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelTelegram,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelSlack,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelZalo,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelZaloPersonal,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelEmail,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelWebhook,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelTelegram:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelSlack:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelZalo:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelZaloPersonal:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelEmail:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelWebhook:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) UnmarshalText(data []byte) error {
+	switch NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel(data) {
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelTelegram:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelTelegram
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelSlack:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelSlack
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelZalo:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelZalo
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelZaloPersonal:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelZaloPersonal
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelEmail:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelEmail
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelWebhook:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannelWebhook
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours
+// still go out by themselves; unknown = opened before the reason was kept and today's channels would
+// take it.
+type NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason string
+
+const (
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQueued           NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "queued"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours       NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "quiet_hours"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel        NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "no_channel"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff      NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "channels_off"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff       NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "channel_off"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved   NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "channel_removed"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "below_min_severity"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFailed           NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "failed"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale     NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "dropped_stale"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary  NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "first_run_summary"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown          NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "unknown"
+)
+
+// AllValues returns all NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason values.
+func (NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason {
+	return []NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason{
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQueued,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFailed,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQueued:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFailed:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data []byte) error {
+	switch NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason(data) {
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQueued:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQueued
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFailed:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFailed
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -101135,6 +102014,122 @@ func (s *NotifyPostNotifyHistoryIDResendOKKind) UnmarshalText(data []byte) error
 		return nil
 	case NotifyPostNotifyHistoryIDResendOKKindApproval:
 		*s = NotifyPostNotifyHistoryIDResendOKKindApproval
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyIncidentsStatusOK struct {
+	// Acknowledge only: incidents already acknowledged, left as they were.
+	AlreadyAcknowledged int `json:"already_acknowledged"`
+	// Resolved incidents, left as they were.
+	AlreadyResolved int `json:"already_resolved"`
+	// Incidents changed.
+	Updated int `json:"updated"`
+}
+
+// GetAlreadyAcknowledged returns the value of AlreadyAcknowledged.
+func (s *NotifyPostNotifyIncidentsStatusOK) GetAlreadyAcknowledged() int {
+	return s.AlreadyAcknowledged
+}
+
+// GetAlreadyResolved returns the value of AlreadyResolved.
+func (s *NotifyPostNotifyIncidentsStatusOK) GetAlreadyResolved() int {
+	return s.AlreadyResolved
+}
+
+// GetUpdated returns the value of Updated.
+func (s *NotifyPostNotifyIncidentsStatusOK) GetUpdated() int {
+	return s.Updated
+}
+
+// SetAlreadyAcknowledged sets the value of AlreadyAcknowledged.
+func (s *NotifyPostNotifyIncidentsStatusOK) SetAlreadyAcknowledged(val int) {
+	s.AlreadyAcknowledged = val
+}
+
+// SetAlreadyResolved sets the value of AlreadyResolved.
+func (s *NotifyPostNotifyIncidentsStatusOK) SetAlreadyResolved(val int) {
+	s.AlreadyResolved = val
+}
+
+// SetUpdated sets the value of Updated.
+func (s *NotifyPostNotifyIncidentsStatusOK) SetUpdated(val int) {
+	s.Updated = val
+}
+
+type NotifyPostNotifyIncidentsStatusReq struct {
+	Ids    []string                                 `json:"ids"`
+	Note   OptString                                `json:"note"`
+	Status NotifyPostNotifyIncidentsStatusReqStatus `json:"status"`
+}
+
+// GetIds returns the value of Ids.
+func (s *NotifyPostNotifyIncidentsStatusReq) GetIds() []string {
+	return s.Ids
+}
+
+// GetNote returns the value of Note.
+func (s *NotifyPostNotifyIncidentsStatusReq) GetNote() OptString {
+	return s.Note
+}
+
+// GetStatus returns the value of Status.
+func (s *NotifyPostNotifyIncidentsStatusReq) GetStatus() NotifyPostNotifyIncidentsStatusReqStatus {
+	return s.Status
+}
+
+// SetIds sets the value of Ids.
+func (s *NotifyPostNotifyIncidentsStatusReq) SetIds(val []string) {
+	s.Ids = val
+}
+
+// SetNote sets the value of Note.
+func (s *NotifyPostNotifyIncidentsStatusReq) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetStatus sets the value of Status.
+func (s *NotifyPostNotifyIncidentsStatusReq) SetStatus(val NotifyPostNotifyIncidentsStatusReqStatus) {
+	s.Status = val
+}
+
+type NotifyPostNotifyIncidentsStatusReqStatus string
+
+const (
+	NotifyPostNotifyIncidentsStatusReqStatusAcknowledged NotifyPostNotifyIncidentsStatusReqStatus = "acknowledged"
+	NotifyPostNotifyIncidentsStatusReqStatusResolved     NotifyPostNotifyIncidentsStatusReqStatus = "resolved"
+)
+
+// AllValues returns all NotifyPostNotifyIncidentsStatusReqStatus values.
+func (NotifyPostNotifyIncidentsStatusReqStatus) AllValues() []NotifyPostNotifyIncidentsStatusReqStatus {
+	return []NotifyPostNotifyIncidentsStatusReqStatus{
+		NotifyPostNotifyIncidentsStatusReqStatusAcknowledged,
+		NotifyPostNotifyIncidentsStatusReqStatusResolved,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyIncidentsStatusReqStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyIncidentsStatusReqStatusAcknowledged:
+		return []byte(s), nil
+	case NotifyPostNotifyIncidentsStatusReqStatusResolved:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyIncidentsStatusReqStatus) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyIncidentsStatusReqStatus(data) {
+	case NotifyPostNotifyIncidentsStatusReqStatusAcknowledged:
+		*s = NotifyPostNotifyIncidentsStatusReqStatusAcknowledged
+		return nil
+	case NotifyPostNotifyIncidentsStatusReqStatusResolved:
+		*s = NotifyPostNotifyIncidentsStatusReqStatusResolved
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -104434,6 +105429,144 @@ func (o OptNilString) Get() (v string, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilString) Or(d string) string {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel returns new OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel with value set to v.
+func NewOptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel(v NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel {
+	return OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel is optional NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel.
+type OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel struct {
+	Value NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel
+	Set   bool
+}
+
+// IsSet returns true if OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel was set.
+func (o OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) Reset() {
+	var v NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) SetTo(v NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) Get() (v NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) Or(d NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel returns new OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel with value set to v.
+func NewOptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel(v NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel {
+	return OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel is optional NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel.
+type OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel struct {
+	Value NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel
+	Set   bool
+}
+
+// IsSet returns true if OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel was set.
+func (o OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) Reset() {
+	var v NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) SetTo(v NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) Get() (v NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) Or(d NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel returns new OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel with value set to v.
+func NewOptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel(v NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel {
+	return OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel is optional NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel.
+type OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel struct {
+	Value NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel
+	Set   bool
+}
+
+// IsSet returns true if OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel was set.
+func (o OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) Reset() {
+	var v NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) SetTo(v NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) Get() (v NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) Or(d NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel {
 	if v, ok := o.Get(); ok {
 		return v
 	}

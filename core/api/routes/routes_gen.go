@@ -257,6 +257,7 @@ var Operations = map[string]Operation{
 	"notify_post_notify_email_signin":                       {Method: "POST", Path: "/notify/email-signin", MinRole: Admin, Tag: "notify"},
 	"notify_post_notify_email_signin_id":                    {Method: "POST", Path: "/notify/email-signin/{id}", MinRole: Admin, Tag: "notify"},
 	"notify_post_notify_history_id_resend":                  {Method: "POST", Path: "/notify/history/{id}/resend", MinRole: Operator, Tag: "notify"},
+	"notify_post_notify_incidents_status":                   {Method: "POST", Path: "/notify/incidents/status", MinRole: Operator, Tag: "notify"},
 	"notify_post_notify_telegram_approvers_user_id_code":    {Method: "POST", Path: "/notify/telegram/approvers/{user_id}/code", MinRole: Admin, Tag: "notify"},
 	"notify_post_notify_telegram_chats":                     {Method: "POST", Path: "/notify/telegram/chats", MinRole: Admin, Tag: "notify"},
 	"notify_post_notify_zalo_approvers_user_id_code":        {Method: "POST", Path: "/notify/zalo/approvers/{user_id}/code", MinRole: Admin, Tag: "notify"},

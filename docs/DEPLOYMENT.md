@@ -601,7 +601,7 @@ Thay A/B slot của binary bằng **image ký** (D-55). Tổng quan kênh: `UPDA
 | 3. Pre-flight | đủ đĩa, không việc khác đang chạy, trong cửa sổ bảo trì (nếu tự động), Podman đủ phiên bản |
 | 4. Kéo | `container.pull` từng service: host kiểm minisign, thu hồi và chữ ký cosign trong manifest **trước**, rồi `podman pull ghcr.io/knt048/vedette-<service>@sha256:…`; sai ký hoặc thiếu ký thì dừng, không đổi gì (D-103, D-104) |
 | 5. Sao lưu | `core` tạo bản chụp DB nhất quán (D-87) và truyền `snapshot` cho `container.start` của `core`; host tạo bản `pre_update` trong run đó (D-104) |
-| 6. Thay | `container.start`: host dựng lại unit (digest mới), `daemon-reload`, restart theo thứ tự `sensor`/`scan`/`honeypot` → `greenbone` → **`core` sau cùng** (`host-api.md` §6.8). Migration chạy khi `core` khởi động, **chỉ expand**: bản mới chỉ thêm, bản liền trước vẫn chạy được trên schema mới (đề xuất; test hợp đồng ở CI) |
+| 6. Thay | `container.start`: host dựng lại unit (digest mới), `daemon-reload`, restart theo thứ tự **`core` trước** → `sensor`/`scan`/`honeypot` → `greenbone` (`host-api.md` §6.8, D-459: sensor không bao giờ mới hơn `core`; rollback ngược lại). Migration chạy khi `core` khởi động, **chỉ expand**: bản mới chỉ thêm, bản liền trước vẫn chạy được trên schema mới (đề xuất; test hợp đồng ở CI) |
 | 7. Health gate | `core` healthy ≤ 120 s, các container khác ≤ 60 s, cộng smoke: đăng nhập trả 200, scheduler tick, sensor heartbeat. Cửa sổ và ngưỡng (đề xuất) |
 | 8. Kết thúc | ghi `core_audit` (ai/lịch, từ/đến phiên bản, digest, kết quả); giữ image trước 1 đời, xoá đời cũ hơn |
 

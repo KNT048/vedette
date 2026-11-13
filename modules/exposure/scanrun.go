@@ -256,13 +256,20 @@ func (s *Service) ModuleSwitched(enabled bool) {
 	}
 }
 
-// Close ends the shutdown of the box: no new run starts, the run that runs is cancelled and Close waits for it, so its exposure.scan
-// audit row is written before the database closes (LEGAL §3).
+// closeWait bounds Close: a runner that ignores its context must not hold the shutdown until its own 5-minute cap.
+const closeWait = 30 * time.Second
+
+// Close ends the shutdown of the box: no new run starts, the run that runs is cancelled and Close waits for it, at most closeWait,
+// so its exposure.scan audit row is written before the database closes (LEGAL §3).
 func (s *Service) Close() {
 	s.runMu.Lock()
 	s.closed = true
 	s.runMu.Unlock()
 	if run := s.cancelRun("the box (shutting down)"); run != nil {
-		<-run.done
+		select {
+		case <-run.done:
+		case <-time.After(closeWait):
+			s.cfg.Log.Error("exposure: the running scan did not stop at shutdown; its audit row may be missing")
+		}
 	}
 }

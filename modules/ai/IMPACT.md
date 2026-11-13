@@ -137,3 +137,9 @@
 - **D-223** `Config.LogAround` (`events_around` của `log-investigate`): adapter `aiLogAround` chép từng trường của `logs.Around`; thêm trường vào `LogAroundData` = thêm dữ liệu log rời hộp (PRIVACY luồng 3); không bao giờ dòng gốc. Đổi `productTool`/`Jobs` của `search_assets`, `lookup_ioc`, `lookup_cve` đổi công cụ của cả Ask lẫn Log investigation. Bỏ `Schema` trong `converse` áp dụng mọi việc có công cụ (hiện chỉ Ask, không có lược đồ, và log-investigate). `remember` trong lược đồ digest gọi `SuggestMemory` (INV-8): đổi luật đề xuất ảnh hưởng hàng chờ Memory.
 - D-446 review: `provider.Config.Own` is a `provider.OwnSources{Machine, Self}` (`OwnSources.Own(ip, port)`); `ai.Config.SelfAddrs` (the honeypot's decoys) joins `Config.BoxAddrs`.
 - D-486: `provider.HostAliasNames` and `provider.OwnHostAlias(host, port)`: `host.docker.internal` / `host.containers.internal` on a port of 8443/8444/8765/514/6514 is refused at save, update and Test (`Profile.checkOwn`, `invalid_base_url`, the shared `OwnText`); at call time the dialer refuses the resolved address; other ports stay allowed. cmd/vedette's alias resolver uses the same list.
+
+## Modifying: `provider.ListModels`, `POST /ai/profiles/models` (D-475, POST-8)
+- **Add/Edit AI profile dialog** (`web/src/features/ai/AiSettings.tsx`): đổi hình dạng `{models}` hoặc mã lỗi → nút "List models" hiển thị sai.
+- **PRIVACY.md dòng 3 + Settings → Privacy (`core.json` `privacy.rows.3`)**: đổi nội dung gửi đi → cập nhật cả hai cùng commit.
+- **`provider.New` (Gemini)**: cắt đuôi `/v1beta` của base; đổi → hồ sơ Gemini cũ gọi sai đường dẫn.
+- **audit**: nhãn `ai.models` trong `core.json`.

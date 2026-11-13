@@ -375,6 +375,17 @@ export const handlers = [
     return HttpResponse.json({ ok: true, latency_ms: b.location === 'internal' ? 180 : 420, tokens_in: 42, tokens_out: 9, capabilities: { tools: true, structured: true } })
   }),
 
+  http.post(`${API}/ai/profiles/models`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<ProfileInput>(request)
+    const cur = b.id ? aiProfilesStore.get().find((p) => p.id === b.id) : undefined
+    const ok = checkProfile({ ...b, name: 'Models', model: 'list', daily_cap: 1000 }, cur); if (ok instanceof Response) return ok
+    if (ok.url.hostname.includes('unreachable')) return fail(502, 'unreachable', `Could not connect to ${ok.url.hostname}. Check the address, the box's network and the firewall.`)
+    if (ok.key?.startsWith('bad')) return fail(502, 'key_rejected', 'The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider.')
+    const models = ok.url.hostname === 'opencode.ai' ? ['claude-haiku-5-5', 'glm-5.3-flash', 'gpt-6-luna', 'kimi-k3', 'qwen3.8-flash'] : b.kind === 'anthropic' ? ['claude-haiku-5-5', 'claude-sonnet-5-5'] : ['qwen3:8b', 'llama4:latest']
+    return HttpResponse.json({ models })
+  }),
+
   http.get(`${API}/ai/assignments`, () => guard('viewer') ?? HttpResponse.json(aiAssignStore.get())),
   http.put(`${API}/ai/assignments`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied

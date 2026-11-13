@@ -405,6 +405,19 @@ func encodeAiPostAiProfilesResponse(response *AiPostAiProfilesOK, w http.Respons
 	return nil
 }
 
+func encodeAiPostAiProfilesModelsResponse(response *AiPostAiProfilesModelsOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeAiPostAiProfilesTestResponse(response *AiPostAiProfilesTestOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)

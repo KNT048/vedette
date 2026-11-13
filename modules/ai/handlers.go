@@ -141,6 +141,25 @@ func (h *AIHandlers) AiPostAiProfilesTest(ctx context.Context, req *oas.AiPostAi
 	return convert[oas.AiPostAiProfilesTestOK](res)
 }
 
+// AiPostAiProfilesModels implements POST /ai/profiles/models (admin).
+func (h *AIHandlers) AiPostAiProfilesModels(ctx context.Context, req *oas.AiPostAiProfilesModelsReq) (*oas.AiPostAiProfilesModelsOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	in, err := convert[ProfileInput](req)
+	if err != nil {
+		return nil, err
+	}
+	ids, err := h.svc.ListModels(ctx, who, *in)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiPostAiProfilesModelsOK](struct {
+		Models []string `json:"models"`
+	}{ids})
+}
+
 // AiGetAiAssignments implements GET /ai/assignments (viewer).
 func (h *AIHandlers) AiGetAiAssignments(context.Context) (*oas.AiGetAiAssignmentsOK, error) {
 	return convert[oas.AiGetAiAssignmentsOK](h.svc.Assignments())

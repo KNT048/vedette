@@ -17224,6 +17224,417 @@ func (s *AiPostAiMemorySuggestionsIDAcceptOKSource) UnmarshalJSON(data []byte) e
 }
 
 // Encode implements json.Marshaler.
+func (s *AiPostAiProfilesModelsOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AiPostAiProfilesModelsOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("models")
+		e.ArrStart()
+		for _, elem := range s.Models {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfAiPostAiProfilesModelsOK = [1]string{
+	0: "models",
+}
+
+// Decode decodes AiPostAiProfilesModelsOK from json.
+func (s *AiPostAiProfilesModelsOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AiPostAiProfilesModelsOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "models":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Models = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Models = append(s.Models, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"models\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AiPostAiProfilesModelsOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAiPostAiProfilesModelsOK) {
+					name = jsonFieldsNameOfAiPostAiProfilesModelsOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AiPostAiProfilesModelsOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AiPostAiProfilesModelsOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AiPostAiProfilesModelsReq) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AiPostAiProfilesModelsReq) encodeFields(e *jx.Encoder) {
+	{
+		if s.APIKey.Set {
+			e.FieldStart("api_key")
+			s.APIKey.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("api_style")
+		s.APIStyle.Encode(e)
+	}
+	{
+		e.FieldStart("base_url")
+		e.Str(s.BaseURL)
+	}
+	{
+		if s.ID.Set {
+			e.FieldStart("id")
+			s.ID.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("kind")
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("location")
+		s.Location.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfAiPostAiProfilesModelsReq = [6]string{
+	0: "api_key",
+	1: "api_style",
+	2: "base_url",
+	3: "id",
+	4: "kind",
+	5: "location",
+}
+
+// Decode decodes AiPostAiProfilesModelsReq from json.
+func (s *AiPostAiProfilesModelsReq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AiPostAiProfilesModelsReq to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "api_key":
+			if err := func() error {
+				s.APIKey.Reset()
+				if err := s.APIKey.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"api_key\"")
+			}
+		case "api_style":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.APIStyle.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"api_style\"")
+			}
+		case "base_url":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.BaseURL = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"base_url\"")
+			}
+		case "id":
+			if err := func() error {
+				s.ID.Reset()
+				if err := s.ID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "location":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.Location.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"location\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AiPostAiProfilesModelsReq")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00110110,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAiPostAiProfilesModelsReq) {
+					name = jsonFieldsNameOfAiPostAiProfilesModelsReq[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AiPostAiProfilesModelsReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AiPostAiProfilesModelsReq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes AiPostAiProfilesModelsReqAPIStyle as json.
+func (s AiPostAiProfilesModelsReqAPIStyle) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes AiPostAiProfilesModelsReqAPIStyle from json.
+func (s *AiPostAiProfilesModelsReqAPIStyle) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AiPostAiProfilesModelsReqAPIStyle to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch AiPostAiProfilesModelsReqAPIStyle(v) {
+	case AiPostAiProfilesModelsReqAPIStyleOpenai:
+		*s = AiPostAiProfilesModelsReqAPIStyleOpenai
+	case AiPostAiProfilesModelsReqAPIStyleAnthropic:
+		*s = AiPostAiProfilesModelsReqAPIStyleAnthropic
+	case AiPostAiProfilesModelsReqAPIStyleGemini:
+		*s = AiPostAiProfilesModelsReqAPIStyleGemini
+	default:
+		*s = AiPostAiProfilesModelsReqAPIStyle(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s AiPostAiProfilesModelsReqAPIStyle) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AiPostAiProfilesModelsReqAPIStyle) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes AiPostAiProfilesModelsReqKind as json.
+func (s AiPostAiProfilesModelsReqKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes AiPostAiProfilesModelsReqKind from json.
+func (s *AiPostAiProfilesModelsReqKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AiPostAiProfilesModelsReqKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch AiPostAiProfilesModelsReqKind(v) {
+	case AiPostAiProfilesModelsReqKindAnthropic:
+		*s = AiPostAiProfilesModelsReqKindAnthropic
+	case AiPostAiProfilesModelsReqKindOpenai:
+		*s = AiPostAiProfilesModelsReqKindOpenai
+	case AiPostAiProfilesModelsReqKindGemini:
+		*s = AiPostAiProfilesModelsReqKindGemini
+	case AiPostAiProfilesModelsReqKindOpenaiCompatible:
+		*s = AiPostAiProfilesModelsReqKindOpenaiCompatible
+	case AiPostAiProfilesModelsReqKindCustom:
+		*s = AiPostAiProfilesModelsReqKindCustom
+	default:
+		*s = AiPostAiProfilesModelsReqKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s AiPostAiProfilesModelsReqKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AiPostAiProfilesModelsReqKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes AiPostAiProfilesModelsReqLocation as json.
+func (s AiPostAiProfilesModelsReqLocation) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes AiPostAiProfilesModelsReqLocation from json.
+func (s *AiPostAiProfilesModelsReqLocation) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AiPostAiProfilesModelsReqLocation to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch AiPostAiProfilesModelsReqLocation(v) {
+	case AiPostAiProfilesModelsReqLocationInternal:
+		*s = AiPostAiProfilesModelsReqLocationInternal
+	case AiPostAiProfilesModelsReqLocationCloud:
+		*s = AiPostAiProfilesModelsReqLocationCloud
+	default:
+		*s = AiPostAiProfilesModelsReqLocation(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s AiPostAiProfilesModelsReqLocation) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AiPostAiProfilesModelsReqLocation) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *AiPostAiProfilesOK) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)

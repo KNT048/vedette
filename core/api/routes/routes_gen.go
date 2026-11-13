@@ -57,6 +57,7 @@ var Operations = map[string]Operation{
 	"ai_post_ai_memory_suggestions_id_accept":               {Method: "POST", Path: "/ai/memory/suggestions/{id}/accept", MinRole: Admin, Tag: "ai"},
 	"ai_post_ai_memory_suggestions_id_reject":               {Method: "POST", Path: "/ai/memory/suggestions/{id}/reject", MinRole: Admin, Tag: "ai"},
 	"ai_post_ai_profiles":                                   {Method: "POST", Path: "/ai/profiles", MinRole: Admin, Tag: "ai"},
+	"ai_post_ai_profiles_models":                            {Method: "POST", Path: "/ai/profiles/models", MinRole: Admin, Tag: "ai"},
 	"ai_post_ai_profiles_test":                              {Method: "POST", Path: "/ai/profiles/test", MinRole: Admin, Tag: "ai"},
 	"ai_post_ai_rules":                                      {Method: "POST", Path: "/ai/rules", MinRole: Admin, Tag: "ai"},
 	"ai_put_ai_activity_settings":                           {Method: "PUT", Path: "/ai/activity/settings", MinRole: Admin, Tag: "ai"},

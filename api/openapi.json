@@ -5471,6 +5471,110 @@
         }
       }
     },
+    "/ai/profiles/models": {
+      "post": {
+        "operationId": "ai_post_ai_profiles_models",
+        "summary": "List the models a provider offers (asked by the box through the same guarded connection as AI calls; nothing is saved)",
+        "tags": [
+          "ai"
+        ],
+        "x-stories": [
+          "S-AI-1"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "description": "Present when editing or testing a saved profile: leave the key blank to keep the old key, only while the provider type and the server address (scheme, host and port) stay the same; another address needs the key entered again",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "anthropic",
+                      "openai",
+                      "gemini",
+                      "openai-compatible",
+                      "custom"
+                    ]
+                  },
+                  "api_style": {
+                    "type": "string",
+                    "enum": [
+                      "openai",
+                      "anthropic",
+                      "gemini"
+                    ],
+                    "description": "openai = Chat Completions, anthropic = Messages, gemini = generateContent"
+                  },
+                  "base_url": {
+                    "type": "string"
+                  },
+                  "api_key": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string",
+                    "enum": [
+                      "internal",
+                      "cloud"
+                    ],
+                    "description": "internal = runs inside the company network, data never leaves it; cloud = cloud provider"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "api_style",
+                  "base_url",
+                  "location"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "models": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Model ids the provider lists, clean, sorted, at most 300; the box asked the provider and kept only ids"
+                    }
+                  },
+                  "required": [
+                    "models"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/profiles/test": {
       "post": {
         "operationId": "ai_post_ai_profiles_test",

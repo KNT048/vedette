@@ -312,6 +312,16 @@ func (UnimplementedHandler) AiPostAiProfiles(ctx context.Context, req *AiPostAiP
 	return r, ht.ErrNotImplemented
 }
 
+// AiPostAiProfilesModels implements ai_post_ai_profiles_models operation.
+//
+// List the models a provider offers (asked by the box through the same guarded connection as AI calls;
+// nothing is saved).
+//
+// POST /ai/profiles/models
+func (UnimplementedHandler) AiPostAiProfilesModels(ctx context.Context, req *AiPostAiProfilesModelsReq) (r *AiPostAiProfilesModelsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // AiPostAiProfilesTest implements ai_post_ai_profiles_test operation.
 //
 // Test the connection of a profile (saved or in draft) with a tiny request.

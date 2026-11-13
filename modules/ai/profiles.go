@@ -578,6 +578,63 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 		Capabilities: Capabilities{Tools: res.Tools, Structured: res.Structured}}, nil
 }
 
+// ListModels asks the provider's model endpoint which models it offers, so the dialog can offer a list instead of a blank (D-475). It
+// is checked like a test: the same validation and own-address rule at save-time, the same stored-key rule for a saved profile (M1), and
+// the same dialer at connect time (provider.ListModels). The call is audited with the host (never the key). Nothing is saved and no
+// tokens are spent; the answer is ids only.
+func (s *Service) ListModels(ctx context.Context, who string, in ProfileInput) ([]string, error) {
+	cur := s.snap.Load()
+	key := keyOf(in)
+	if in.ID != "" {
+		old, ok := cur.find(in.ID)
+		if !ok {
+			return nil, profileNotFound()
+		}
+		var kerr error
+		if key, kerr = keyFor(old, in, in.BaseURL); kerr != nil {
+			return nil, kerr
+		}
+	}
+	in.Name, in.DailyCap = "Models", MaxDailyCap
+	if in.Model == "" {
+		in.Model = "list"
+	}
+	p := buildProfile(in, "draft", key)
+	if err := p.Validate(); err != nil {
+		return nil, mapErr(err)
+	}
+	if err := p.checkOwn(s.own()); err != nil {
+		return nil, mapErr(err)
+	}
+	style, err := provider.StyleForKind(p.Kind, p.APIStyle)
+	if err != nil {
+		return nil, mapErr(perr("invalid_style", "Pick a provider type."))
+	}
+	pctx, cancel := context.WithTimeout(ctx, probeTimeout)
+	defer cancel()
+	ids, lerr := provider.ListModels(pctx, provider.ModelsConfig{Style: style, BaseURL: p.BaseURL, APIKey: p.APIKey,
+		InternalOnly: p.Location == LocationInternal, Own: s.own(), AnthropicVersion: p.AnthropicVersion})
+	outcome := "ok"
+	if lerr != nil {
+		outcome = "failed"
+	}
+	// The key may already have left the box, so the audit row is written whatever happened to the request.
+	actx, acancel := context.WithTimeout(context.WithoutCancel(ctx), auditTimeout)
+	defer acancel()
+	if err := s.cfg.DB.Write(actx, func(tx *sql.Tx) error {
+		return s.auditTx(actx, tx, who, "ai.models", hostOf(p.BaseURL), "result="+outcome)
+	}); err != nil {
+		return nil, err
+	}
+	if lerr != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, probeFailure(lerr, p.BaseURL)
+	}
+	return ids, nil
+}
+
 // withTest is the next snapshot with the result of a test of saved recorded on it, or nil when that profile was removed or its
 // connection changed since the test began. The caller holds s.mu.
 func (s *Service) withTest(saved Profile, failure error) *snapshot {

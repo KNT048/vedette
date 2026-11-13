@@ -278,6 +278,8 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     await v.ready
     await userEvent.click((await screen.findAllByRole('button', { name: 'Add AI profile' }))[0]!)
     const dlg = await screen.findByRole('dialog', { name: 'Add AI profile' })
+    expect(within(dlg).getByLabelText('Profile name')).toHaveValue('Claude') // filled from the provider, editable (D-475)
+    await userEvent.clear(within(dlg).getByLabelText('Profile name'))
     await userEvent.type(within(dlg).getByLabelText('Profile name'), 'Claude Haiku')
     expect(within(dlg).getByRole('button', { name: 'Add profile' })).toBeDisabled() // chưa xác nhận luồng dữ liệu
     await userEvent.click(within(dlg).getByRole('checkbox', { name: /I understand/ }))
@@ -365,7 +367,7 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     expect(within(dlg).getByLabelText('Server address')).toHaveValue('https://api.openai.com/v1')
     expect(within(dlg).getByLabelText('Model')).toHaveValue('gpt-6-luna')
     await userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), 'Google Gemini')
-    expect(within(dlg).getByLabelText('Server address')).toHaveValue('https://generativelanguage.googleapis.com/v1beta')
+    expect(within(dlg).getByLabelText('Server address')).toHaveValue('https://generativelanguage.googleapis.com') // no /v1beta: the client adds it (D-475)
     expect(within(dlg).getByLabelText('Model')).toHaveValue('gemini-3.6-flash')
     await userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), 'OpenAI-compatible (Ollama, vLLM, LM Studio)')
     expect(within(dlg).getByLabelText('Server address')).toHaveValue('http://host.containers.internal:11434/v1')
@@ -821,6 +823,72 @@ describe('ai: Add AI profile form matrix (docs/QA.md §2)', () => {
     expect(p).toMatchObject({ location: 'internal', model: 'qwen3:8b' })
     const sel = await screen.findByLabelText('Primary profile for Log summaries')
     expect(within(sel).getByRole('option', { name: 'Local model' })).toBeEnabled()
+  })
+})
+
+describe('ai: Add AI profile order and the OpenCode preset (D-475)', () => {
+  async function open() {
+    clearProfiles()
+    const v = renderUi(<AiSettings />)
+    await v.ready
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add AI profile' }))[0]!)
+    return screen.findByRole('dialog', { name: 'Add AI profile' })
+  }
+  const before = (a: HTMLElement, b: HTMLElement) => expect(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+  it('asks provider, where it runs, key, model, name, in that order, with the address under Advanced', async () => {
+    const dlg = await open()
+    const f = (l: string | RegExp) => within(dlg).getByLabelText(l)
+    before(f('Provider type'), f(/Inside your network/))
+    before(f(/Inside your network/), f('API key'))
+    before(f('API key'), f('Model'))
+    before(f('Model'), f('Profile name'))
+    before(f('Profile name'), f('Server address'))
+    expect(f('Server address').closest('details')).not.toHaveAttribute('open') // a preset hides the address
+    expect(within(dlg).getByText('Advanced')).toBeInTheDocument()
+  })
+
+  it('OpenCode fills a cloud-only Custom profile over Chat Completions with a cheap model, and saves it', async () => {
+    const dlg = await open()
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), 'opencode')
+    expect(within(dlg).getByLabelText('Server address')).toHaveValue('https://opencode.ai/inference/openai/v1')
+    expect(within(dlg).getByLabelText('Model')).toHaveValue('glm-5.3-flash')
+    expect(within(dlg).getByLabelText('Profile name')).toHaveValue('OpenCode')
+    expect(within(dlg).getByRole('radio', { name: /Inside your network/ })).toBeDisabled()
+    expect(within(dlg).queryByLabelText('API style')).toBeNull() // hidden for a preset
+    await userEvent.type(within(dlg).getByLabelText('API key'), 'oc_sk_demo_key_1234')
+    await userEvent.click(within(dlg).getByRole('checkbox', { name: /opencode\.ai/ }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add profile' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(aiProfilesStore.get().find((x) => x.name === 'OpenCode')).toMatchObject({ kind: 'custom', api_style: 'openai', location: 'cloud', model: 'glm-5.3-flash' })
+  })
+
+  it('List models fills the model suggestions through the box; a rejected key is explained and free text still works', async () => {
+    const dlg = await open()
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), 'opencode')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'List models' }))
+    expect(await within(dlg).findByText('Enter the provider\'s API key. It stays on this box and is encrypted.')).toBeInTheDocument() // nothing sent without a key
+    await userEvent.type(within(dlg).getByLabelText('API key'), 'bad-key-0000')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'List models' }))
+    expect(await within(dlg).findByText(/rejected the key/)).toBeInTheDocument()
+    await userEvent.clear(within(dlg).getByLabelText('API key'))
+    await userEvent.type(within(dlg).getByLabelText('API key'), 'oc_sk_demo_key_1234')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'List models' }))
+    expect(await within(dlg).findByText(/5 models listed/)).toBeInTheDocument()
+    const opts = Array.from(dlg.querySelectorAll('#pf-models option')).map((o) => o.getAttribute('value'))
+    expect(opts).toContain('glm-5.3-flash')
+    await userEvent.clear(within(dlg).getByLabelText('Model'))
+    await userEvent.type(within(dlg).getByLabelText('Model'), 'my-own-model')
+    expect(within(dlg).getByLabelText('Model')).toHaveValue('my-own-model')
+  })
+
+  it('http:// on your own network shows a "not encrypted" warning; cloud providers cannot reach it', async () => {
+    const dlg = await open()
+    expect(within(dlg).queryByText(/Not encrypted/)).toBeNull()
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), 'openai-compatible')
+    expect(await within(dlg).findByText(/Not encrypted/)).toBeInTheDocument()
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), 'opencode')
+    expect(within(dlg).queryByText(/Not encrypted/)).toBeNull()
   })
 })
 

@@ -430,8 +430,14 @@ func (e *Engine) handleLLDP(f frame, now time.Time) {
 	if l.sysName != "" {
 		e.add(now, who, netip.Addr{}, observe.Hostname, l.sysName, ConfLLDPName)
 	}
-	if l.sysDesc != "" {
-		e.add(now, who, netip.Addr{}, observe.Model, truncate(l.sysDesc, 200), ConfLLDPDesc)
+	// Only a model and an OS read from a known layout, never the description itself (walk 4, sysdesc.go).
+	if model, os := parseSysDesc(l.sysDesc); model != "" || os != "" {
+		if model != "" {
+			e.add(now, who, netip.Addr{}, observe.Model, model, ConfLLDPDesc)
+		}
+		if os != "" {
+			e.add(now, who, netip.Addr{}, observe.OS, os, ConfLLDPDesc)
+		}
 	}
 	switch {
 	case l.caps&lldpCapAP != 0:

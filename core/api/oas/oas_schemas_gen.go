@@ -11992,8 +11992,10 @@ type CoreDeleteCoreUpdatesOsRebootOK struct {
 	// Unattended-upgrades installs security updates by itself.
 	AutoSecurity bool `json:"auto_security"`
 	// An install run is in progress; only one at a time.
-	Busy    bool                                         `json:"busy"`
-	Os      CoreDeleteCoreUpdatesOsRebootOKOs            `json:"os"`
+	Busy bool `json:"busy"`
+	// Null until the box first looks for operating system updates (Check now): pending and reboot_reasons
+	// are then empty and the rest is core's own settings (D-407; before it, GET answered 409 no_check_yet).
+	Os      NilCoreDeleteCoreUpdatesOsRebootOKOs         `json:"os"`
 	Pending []CoreDeleteCoreUpdatesOsRebootOKPendingItem `json:"pending"`
 	// Packages that need a reboot to take effect.
 	RebootReasons     []string                                         `json:"reboot_reasons"`
@@ -12014,7 +12016,7 @@ func (s *CoreDeleteCoreUpdatesOsRebootOK) GetBusy() bool {
 }
 
 // GetOs returns the value of Os.
-func (s *CoreDeleteCoreUpdatesOsRebootOK) GetOs() CoreDeleteCoreUpdatesOsRebootOKOs {
+func (s *CoreDeleteCoreUpdatesOsRebootOK) GetOs() NilCoreDeleteCoreUpdatesOsRebootOKOs {
 	return s.Os
 }
 
@@ -12059,7 +12061,7 @@ func (s *CoreDeleteCoreUpdatesOsRebootOK) SetBusy(val bool) {
 }
 
 // SetOs sets the value of Os.
-func (s *CoreDeleteCoreUpdatesOsRebootOK) SetOs(val CoreDeleteCoreUpdatesOsRebootOKOs) {
+func (s *CoreDeleteCoreUpdatesOsRebootOK) SetOs(val NilCoreDeleteCoreUpdatesOsRebootOKOs) {
 	s.Os = val
 }
 
@@ -16796,8 +16798,9 @@ func (s *CoreGetCoreUpdatesOKHistoryItemAction) UnmarshalText(data []byte) error
 type CoreGetCoreUpdatesOKLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-	// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
-	// this build cannot check.
+	// other than 200 or 404); update_not_published = the source answered 404 for the index: no release
+	// information is published there yet (D-407); update_check_failed = what arrived did not pass the
+	// signature or shape checks, or this build cannot check.
 	Code CoreGetCoreUpdatesOKLastCheckErrorCode `json:"code"`
 	// The box's own fixed sentence for this failure (the message of the 503/502 answer); never text
 	// received from the network.
@@ -16835,12 +16838,14 @@ func (s *CoreGetCoreUpdatesOKLastCheckError) SetMessage(val string) {
 }
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
-// this build cannot check.
+// other than 200 or 404); update_not_published = the source answered 404 for the index: no release
+// information is published there yet (D-407); update_check_failed = what arrived did not pass the
+// signature or shape checks, or this build cannot check.
 type CoreGetCoreUpdatesOKLastCheckErrorCode string
 
 const (
 	CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable CoreGetCoreUpdatesOKLastCheckErrorCode = "update_source_unreachable"
+	CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateNotPublished      CoreGetCoreUpdatesOKLastCheckErrorCode = "update_not_published"
 	CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed       CoreGetCoreUpdatesOKLastCheckErrorCode = "update_check_failed"
 )
 
@@ -16848,6 +16853,7 @@ const (
 func (CoreGetCoreUpdatesOKLastCheckErrorCode) AllValues() []CoreGetCoreUpdatesOKLastCheckErrorCode {
 	return []CoreGetCoreUpdatesOKLastCheckErrorCode{
 		CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable,
+		CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateNotPublished,
 		CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed,
 	}
 }
@@ -16856,6 +16862,8 @@ func (CoreGetCoreUpdatesOKLastCheckErrorCode) AllValues() []CoreGetCoreUpdatesOK
 func (s CoreGetCoreUpdatesOKLastCheckErrorCode) MarshalText() ([]byte, error) {
 	switch s {
 	case CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable:
+		return []byte(s), nil
+	case CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateNotPublished:
 		return []byte(s), nil
 	case CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed:
 		return []byte(s), nil
@@ -16869,6 +16877,9 @@ func (s *CoreGetCoreUpdatesOKLastCheckErrorCode) UnmarshalText(data []byte) erro
 	switch CoreGetCoreUpdatesOKLastCheckErrorCode(data) {
 	case CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable:
 		*s = CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable
+		return nil
+	case CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateNotPublished:
+		*s = CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateNotPublished
 		return nil
 	case CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed:
 		*s = CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed
@@ -17489,8 +17500,10 @@ type CoreGetCoreUpdatesOsOK struct {
 	// Unattended-upgrades installs security updates by itself.
 	AutoSecurity bool `json:"auto_security"`
 	// An install run is in progress; only one at a time.
-	Busy    bool                                `json:"busy"`
-	Os      CoreGetCoreUpdatesOsOKOs            `json:"os"`
+	Busy bool `json:"busy"`
+	// Null until the box first looks for operating system updates (Check now): pending and reboot_reasons
+	// are then empty and the rest is core's own settings (D-407; before it, GET answered 409 no_check_yet).
+	Os      NilCoreGetCoreUpdatesOsOKOs         `json:"os"`
 	Pending []CoreGetCoreUpdatesOsOKPendingItem `json:"pending"`
 	// Packages that need a reboot to take effect.
 	RebootReasons     []string                                `json:"reboot_reasons"`
@@ -17511,7 +17524,7 @@ func (s *CoreGetCoreUpdatesOsOK) GetBusy() bool {
 }
 
 // GetOs returns the value of Os.
-func (s *CoreGetCoreUpdatesOsOK) GetOs() CoreGetCoreUpdatesOsOKOs {
+func (s *CoreGetCoreUpdatesOsOK) GetOs() NilCoreGetCoreUpdatesOsOKOs {
 	return s.Os
 }
 
@@ -17556,7 +17569,7 @@ func (s *CoreGetCoreUpdatesOsOK) SetBusy(val bool) {
 }
 
 // SetOs sets the value of Os.
-func (s *CoreGetCoreUpdatesOsOK) SetOs(val CoreGetCoreUpdatesOsOKOs) {
+func (s *CoreGetCoreUpdatesOsOK) SetOs(val NilCoreGetCoreUpdatesOsOKOs) {
 	s.Os = val
 }
 
@@ -20291,8 +20304,9 @@ func (s *CorePatchCoreUpdatesOKHistoryItemAction) UnmarshalText(data []byte) err
 type CorePatchCoreUpdatesOKLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-	// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
-	// this build cannot check.
+	// other than 200 or 404); update_not_published = the source answered 404 for the index: no release
+	// information is published there yet (D-407); update_check_failed = what arrived did not pass the
+	// signature or shape checks, or this build cannot check.
 	Code CorePatchCoreUpdatesOKLastCheckErrorCode `json:"code"`
 	// The box's own fixed sentence for this failure (the message of the 503/502 answer); never text
 	// received from the network.
@@ -20330,12 +20344,14 @@ func (s *CorePatchCoreUpdatesOKLastCheckError) SetMessage(val string) {
 }
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
-// this build cannot check.
+// other than 200 or 404); update_not_published = the source answered 404 for the index: no release
+// information is published there yet (D-407); update_check_failed = what arrived did not pass the
+// signature or shape checks, or this build cannot check.
 type CorePatchCoreUpdatesOKLastCheckErrorCode string
 
 const (
 	CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable CorePatchCoreUpdatesOKLastCheckErrorCode = "update_source_unreachable"
+	CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateNotPublished      CorePatchCoreUpdatesOKLastCheckErrorCode = "update_not_published"
 	CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed       CorePatchCoreUpdatesOKLastCheckErrorCode = "update_check_failed"
 )
 
@@ -20343,6 +20359,7 @@ const (
 func (CorePatchCoreUpdatesOKLastCheckErrorCode) AllValues() []CorePatchCoreUpdatesOKLastCheckErrorCode {
 	return []CorePatchCoreUpdatesOKLastCheckErrorCode{
 		CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable,
+		CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateNotPublished,
 		CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed,
 	}
 }
@@ -20351,6 +20368,8 @@ func (CorePatchCoreUpdatesOKLastCheckErrorCode) AllValues() []CorePatchCoreUpdat
 func (s CorePatchCoreUpdatesOKLastCheckErrorCode) MarshalText() ([]byte, error) {
 	switch s {
 	case CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable:
+		return []byte(s), nil
+	case CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateNotPublished:
 		return []byte(s), nil
 	case CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed:
 		return []byte(s), nil
@@ -20364,6 +20383,9 @@ func (s *CorePatchCoreUpdatesOKLastCheckErrorCode) UnmarshalText(data []byte) er
 	switch CorePatchCoreUpdatesOKLastCheckErrorCode(data) {
 	case CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable:
 		*s = CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable
+		return nil
+	case CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateNotPublished:
+		*s = CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateNotPublished
 		return nil
 	case CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed:
 		*s = CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed
@@ -20984,8 +21006,10 @@ type CorePatchCoreUpdatesOsSettingsOK struct {
 	// Unattended-upgrades installs security updates by itself.
 	AutoSecurity bool `json:"auto_security"`
 	// An install run is in progress; only one at a time.
-	Busy    bool                                          `json:"busy"`
-	Os      CorePatchCoreUpdatesOsSettingsOKOs            `json:"os"`
+	Busy bool `json:"busy"`
+	// Null until the box first looks for operating system updates (Check now): pending and reboot_reasons
+	// are then empty and the rest is core's own settings (D-407; before it, GET answered 409 no_check_yet).
+	Os      NilCorePatchCoreUpdatesOsSettingsOKOs         `json:"os"`
 	Pending []CorePatchCoreUpdatesOsSettingsOKPendingItem `json:"pending"`
 	// Packages that need a reboot to take effect.
 	RebootReasons     []string                                          `json:"reboot_reasons"`
@@ -21006,7 +21030,7 @@ func (s *CorePatchCoreUpdatesOsSettingsOK) GetBusy() bool {
 }
 
 // GetOs returns the value of Os.
-func (s *CorePatchCoreUpdatesOsSettingsOK) GetOs() CorePatchCoreUpdatesOsSettingsOKOs {
+func (s *CorePatchCoreUpdatesOsSettingsOK) GetOs() NilCorePatchCoreUpdatesOsSettingsOKOs {
 	return s.Os
 }
 
@@ -21051,7 +21075,7 @@ func (s *CorePatchCoreUpdatesOsSettingsOK) SetBusy(val bool) {
 }
 
 // SetOs sets the value of Os.
-func (s *CorePatchCoreUpdatesOsSettingsOK) SetOs(val CorePatchCoreUpdatesOsSettingsOKOs) {
+func (s *CorePatchCoreUpdatesOsSettingsOK) SetOs(val NilCorePatchCoreUpdatesOsSettingsOKOs) {
 	s.Os = val
 }
 
@@ -27705,8 +27729,9 @@ func (s *CorePostCoreUpdatesApplyOKHistoryItemAction) UnmarshalText(data []byte)
 type CorePostCoreUpdatesApplyOKLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-	// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
-	// this build cannot check.
+	// other than 200 or 404); update_not_published = the source answered 404 for the index: no release
+	// information is published there yet (D-407); update_check_failed = what arrived did not pass the
+	// signature or shape checks, or this build cannot check.
 	Code CorePostCoreUpdatesApplyOKLastCheckErrorCode `json:"code"`
 	// The box's own fixed sentence for this failure (the message of the 503/502 answer); never text
 	// received from the network.
@@ -27744,12 +27769,14 @@ func (s *CorePostCoreUpdatesApplyOKLastCheckError) SetMessage(val string) {
 }
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
-// this build cannot check.
+// other than 200 or 404); update_not_published = the source answered 404 for the index: no release
+// information is published there yet (D-407); update_check_failed = what arrived did not pass the
+// signature or shape checks, or this build cannot check.
 type CorePostCoreUpdatesApplyOKLastCheckErrorCode string
 
 const (
 	CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateSourceUnreachable CorePostCoreUpdatesApplyOKLastCheckErrorCode = "update_source_unreachable"
+	CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateNotPublished      CorePostCoreUpdatesApplyOKLastCheckErrorCode = "update_not_published"
 	CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateCheckFailed       CorePostCoreUpdatesApplyOKLastCheckErrorCode = "update_check_failed"
 )
 
@@ -27757,6 +27784,7 @@ const (
 func (CorePostCoreUpdatesApplyOKLastCheckErrorCode) AllValues() []CorePostCoreUpdatesApplyOKLastCheckErrorCode {
 	return []CorePostCoreUpdatesApplyOKLastCheckErrorCode{
 		CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateSourceUnreachable,
+		CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateNotPublished,
 		CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateCheckFailed,
 	}
 }
@@ -27765,6 +27793,8 @@ func (CorePostCoreUpdatesApplyOKLastCheckErrorCode) AllValues() []CorePostCoreUp
 func (s CorePostCoreUpdatesApplyOKLastCheckErrorCode) MarshalText() ([]byte, error) {
 	switch s {
 	case CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateSourceUnreachable:
+		return []byte(s), nil
+	case CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateNotPublished:
 		return []byte(s), nil
 	case CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateCheckFailed:
 		return []byte(s), nil
@@ -27778,6 +27808,9 @@ func (s *CorePostCoreUpdatesApplyOKLastCheckErrorCode) UnmarshalText(data []byte
 	switch CorePostCoreUpdatesApplyOKLastCheckErrorCode(data) {
 	case CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateSourceUnreachable:
 		*s = CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateSourceUnreachable
+		return nil
+	case CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateNotPublished:
+		*s = CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateNotPublished
 		return nil
 	case CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateCheckFailed:
 		*s = CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateCheckFailed
@@ -29263,8 +29296,9 @@ func (s *CorePostCoreUpdatesBundleOKStateHistoryItemAction) UnmarshalText(data [
 type CorePostCoreUpdatesBundleOKStateLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-	// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
-	// this build cannot check.
+	// other than 200 or 404); update_not_published = the source answered 404 for the index: no release
+	// information is published there yet (D-407); update_check_failed = what arrived did not pass the
+	// signature or shape checks, or this build cannot check.
 	Code CorePostCoreUpdatesBundleOKStateLastCheckErrorCode `json:"code"`
 	// The box's own fixed sentence for this failure (the message of the 503/502 answer); never text
 	// received from the network.
@@ -29302,12 +29336,14 @@ func (s *CorePostCoreUpdatesBundleOKStateLastCheckError) SetMessage(val string) 
 }
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
-// this build cannot check.
+// other than 200 or 404); update_not_published = the source answered 404 for the index: no release
+// information is published there yet (D-407); update_check_failed = what arrived did not pass the
+// signature or shape checks, or this build cannot check.
 type CorePostCoreUpdatesBundleOKStateLastCheckErrorCode string
 
 const (
 	CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateSourceUnreachable CorePostCoreUpdatesBundleOKStateLastCheckErrorCode = "update_source_unreachable"
+	CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateNotPublished      CorePostCoreUpdatesBundleOKStateLastCheckErrorCode = "update_not_published"
 	CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateCheckFailed       CorePostCoreUpdatesBundleOKStateLastCheckErrorCode = "update_check_failed"
 )
 
@@ -29315,6 +29351,7 @@ const (
 func (CorePostCoreUpdatesBundleOKStateLastCheckErrorCode) AllValues() []CorePostCoreUpdatesBundleOKStateLastCheckErrorCode {
 	return []CorePostCoreUpdatesBundleOKStateLastCheckErrorCode{
 		CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateSourceUnreachable,
+		CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateNotPublished,
 		CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateCheckFailed,
 	}
 }
@@ -29323,6 +29360,8 @@ func (CorePostCoreUpdatesBundleOKStateLastCheckErrorCode) AllValues() []CorePost
 func (s CorePostCoreUpdatesBundleOKStateLastCheckErrorCode) MarshalText() ([]byte, error) {
 	switch s {
 	case CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateSourceUnreachable:
+		return []byte(s), nil
+	case CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateNotPublished:
 		return []byte(s), nil
 	case CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateCheckFailed:
 		return []byte(s), nil
@@ -29336,6 +29375,9 @@ func (s *CorePostCoreUpdatesBundleOKStateLastCheckErrorCode) UnmarshalText(data 
 	switch CorePostCoreUpdatesBundleOKStateLastCheckErrorCode(data) {
 	case CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateSourceUnreachable:
 		*s = CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateSourceUnreachable
+		return nil
+	case CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateNotPublished:
+		*s = CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateNotPublished
 		return nil
 	case CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateCheckFailed:
 		*s = CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateCheckFailed
@@ -30842,8 +30884,9 @@ func (s *CorePostCoreUpdatesCheckOKHistoryItemAction) UnmarshalText(data []byte)
 type CorePostCoreUpdatesCheckOKLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-	// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
-	// this build cannot check.
+	// other than 200 or 404); update_not_published = the source answered 404 for the index: no release
+	// information is published there yet (D-407); update_check_failed = what arrived did not pass the
+	// signature or shape checks, or this build cannot check.
 	Code CorePostCoreUpdatesCheckOKLastCheckErrorCode `json:"code"`
 	// The box's own fixed sentence for this failure (the message of the 503/502 answer); never text
 	// received from the network.
@@ -30881,12 +30924,14 @@ func (s *CorePostCoreUpdatesCheckOKLastCheckError) SetMessage(val string) {
 }
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
-// this build cannot check.
+// other than 200 or 404); update_not_published = the source answered 404 for the index: no release
+// information is published there yet (D-407); update_check_failed = what arrived did not pass the
+// signature or shape checks, or this build cannot check.
 type CorePostCoreUpdatesCheckOKLastCheckErrorCode string
 
 const (
 	CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateSourceUnreachable CorePostCoreUpdatesCheckOKLastCheckErrorCode = "update_source_unreachable"
+	CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateNotPublished      CorePostCoreUpdatesCheckOKLastCheckErrorCode = "update_not_published"
 	CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateCheckFailed       CorePostCoreUpdatesCheckOKLastCheckErrorCode = "update_check_failed"
 )
 
@@ -30894,6 +30939,7 @@ const (
 func (CorePostCoreUpdatesCheckOKLastCheckErrorCode) AllValues() []CorePostCoreUpdatesCheckOKLastCheckErrorCode {
 	return []CorePostCoreUpdatesCheckOKLastCheckErrorCode{
 		CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateSourceUnreachable,
+		CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateNotPublished,
 		CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateCheckFailed,
 	}
 }
@@ -30902,6 +30948,8 @@ func (CorePostCoreUpdatesCheckOKLastCheckErrorCode) AllValues() []CorePostCoreUp
 func (s CorePostCoreUpdatesCheckOKLastCheckErrorCode) MarshalText() ([]byte, error) {
 	switch s {
 	case CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateSourceUnreachable:
+		return []byte(s), nil
+	case CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateNotPublished:
 		return []byte(s), nil
 	case CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateCheckFailed:
 		return []byte(s), nil
@@ -30915,6 +30963,9 @@ func (s *CorePostCoreUpdatesCheckOKLastCheckErrorCode) UnmarshalText(data []byte
 	switch CorePostCoreUpdatesCheckOKLastCheckErrorCode(data) {
 	case CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateSourceUnreachable:
 		*s = CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateSourceUnreachable
+		return nil
+	case CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateNotPublished:
+		*s = CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateNotPublished
 		return nil
 	case CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateCheckFailed:
 		*s = CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateCheckFailed
@@ -31535,8 +31586,10 @@ type CorePostCoreUpdatesOsCheckOK struct {
 	// Unattended-upgrades installs security updates by itself.
 	AutoSecurity bool `json:"auto_security"`
 	// An install run is in progress; only one at a time.
-	Busy    bool                                      `json:"busy"`
-	Os      CorePostCoreUpdatesOsCheckOKOs            `json:"os"`
+	Busy bool `json:"busy"`
+	// Null until the box first looks for operating system updates (Check now): pending and reboot_reasons
+	// are then empty and the rest is core's own settings (D-407; before it, GET answered 409 no_check_yet).
+	Os      NilCorePostCoreUpdatesOsCheckOKOs         `json:"os"`
 	Pending []CorePostCoreUpdatesOsCheckOKPendingItem `json:"pending"`
 	// Packages that need a reboot to take effect.
 	RebootReasons     []string                                      `json:"reboot_reasons"`
@@ -31557,7 +31610,7 @@ func (s *CorePostCoreUpdatesOsCheckOK) GetBusy() bool {
 }
 
 // GetOs returns the value of Os.
-func (s *CorePostCoreUpdatesOsCheckOK) GetOs() CorePostCoreUpdatesOsCheckOKOs {
+func (s *CorePostCoreUpdatesOsCheckOK) GetOs() NilCorePostCoreUpdatesOsCheckOKOs {
 	return s.Os
 }
 
@@ -31602,7 +31655,7 @@ func (s *CorePostCoreUpdatesOsCheckOK) SetBusy(val bool) {
 }
 
 // SetOs sets the value of Os.
-func (s *CorePostCoreUpdatesOsCheckOK) SetOs(val CorePostCoreUpdatesOsCheckOKOs) {
+func (s *CorePostCoreUpdatesOsCheckOK) SetOs(val NilCorePostCoreUpdatesOsCheckOKOs) {
 	s.Os = val
 }
 
@@ -32297,8 +32350,10 @@ type CorePostCoreUpdatesOsRebootOK struct {
 	// Unattended-upgrades installs security updates by itself.
 	AutoSecurity bool `json:"auto_security"`
 	// An install run is in progress; only one at a time.
-	Busy    bool                                       `json:"busy"`
-	Os      CorePostCoreUpdatesOsRebootOKOs            `json:"os"`
+	Busy bool `json:"busy"`
+	// Null until the box first looks for operating system updates (Check now): pending and reboot_reasons
+	// are then empty and the rest is core's own settings (D-407; before it, GET answered 409 no_check_yet).
+	Os      NilCorePostCoreUpdatesOsRebootOKOs         `json:"os"`
 	Pending []CorePostCoreUpdatesOsRebootOKPendingItem `json:"pending"`
 	// Packages that need a reboot to take effect.
 	RebootReasons     []string                                       `json:"reboot_reasons"`
@@ -32319,7 +32374,7 @@ func (s *CorePostCoreUpdatesOsRebootOK) GetBusy() bool {
 }
 
 // GetOs returns the value of Os.
-func (s *CorePostCoreUpdatesOsRebootOK) GetOs() CorePostCoreUpdatesOsRebootOKOs {
+func (s *CorePostCoreUpdatesOsRebootOK) GetOs() NilCorePostCoreUpdatesOsRebootOKOs {
 	return s.Os
 }
 
@@ -32364,7 +32419,7 @@ func (s *CorePostCoreUpdatesOsRebootOK) SetBusy(val bool) {
 }
 
 // SetOs sets the value of Os.
-func (s *CorePostCoreUpdatesOsRebootOK) SetOs(val CorePostCoreUpdatesOsRebootOKOs) {
+func (s *CorePostCoreUpdatesOsRebootOK) SetOs(val NilCorePostCoreUpdatesOsRebootOKOs) {
 	s.Os = val
 }
 
@@ -33626,8 +33681,9 @@ func (s *CorePostCoreUpdatesRollbackOKHistoryItemAction) UnmarshalText(data []by
 type CorePostCoreUpdatesRollbackOKLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-	// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
-	// this build cannot check.
+	// other than 200 or 404); update_not_published = the source answered 404 for the index: no release
+	// information is published there yet (D-407); update_check_failed = what arrived did not pass the
+	// signature or shape checks, or this build cannot check.
 	Code CorePostCoreUpdatesRollbackOKLastCheckErrorCode `json:"code"`
 	// The box's own fixed sentence for this failure (the message of the 503/502 answer); never text
 	// received from the network.
@@ -33665,12 +33721,14 @@ func (s *CorePostCoreUpdatesRollbackOKLastCheckError) SetMessage(val string) {
 }
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-// other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or
-// this build cannot check.
+// other than 200 or 404); update_not_published = the source answered 404 for the index: no release
+// information is published there yet (D-407); update_check_failed = what arrived did not pass the
+// signature or shape checks, or this build cannot check.
 type CorePostCoreUpdatesRollbackOKLastCheckErrorCode string
 
 const (
 	CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateSourceUnreachable CorePostCoreUpdatesRollbackOKLastCheckErrorCode = "update_source_unreachable"
+	CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateNotPublished      CorePostCoreUpdatesRollbackOKLastCheckErrorCode = "update_not_published"
 	CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateCheckFailed       CorePostCoreUpdatesRollbackOKLastCheckErrorCode = "update_check_failed"
 )
 
@@ -33678,6 +33736,7 @@ const (
 func (CorePostCoreUpdatesRollbackOKLastCheckErrorCode) AllValues() []CorePostCoreUpdatesRollbackOKLastCheckErrorCode {
 	return []CorePostCoreUpdatesRollbackOKLastCheckErrorCode{
 		CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateSourceUnreachable,
+		CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateNotPublished,
 		CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateCheckFailed,
 	}
 }
@@ -33686,6 +33745,8 @@ func (CorePostCoreUpdatesRollbackOKLastCheckErrorCode) AllValues() []CorePostCor
 func (s CorePostCoreUpdatesRollbackOKLastCheckErrorCode) MarshalText() ([]byte, error) {
 	switch s {
 	case CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateSourceUnreachable:
+		return []byte(s), nil
+	case CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateNotPublished:
 		return []byte(s), nil
 	case CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateCheckFailed:
 		return []byte(s), nil
@@ -33699,6 +33760,9 @@ func (s *CorePostCoreUpdatesRollbackOKLastCheckErrorCode) UnmarshalText(data []b
 	switch CorePostCoreUpdatesRollbackOKLastCheckErrorCode(data) {
 	case CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateSourceUnreachable:
 		*s = CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateSourceUnreachable
+		return nil
+	case CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateNotPublished:
+		*s = CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateNotPublished
 		return nil
 	case CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateCheckFailed:
 		*s = CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateCheckFailed
@@ -77815,6 +77879,51 @@ func (o NilBool) Or(d bool) bool {
 	return d
 }
 
+// NewNilCoreDeleteCoreUpdatesOsRebootOKOs returns new NilCoreDeleteCoreUpdatesOsRebootOKOs with value set to v.
+func NewNilCoreDeleteCoreUpdatesOsRebootOKOs(v CoreDeleteCoreUpdatesOsRebootOKOs) NilCoreDeleteCoreUpdatesOsRebootOKOs {
+	return NilCoreDeleteCoreUpdatesOsRebootOKOs{
+		Value: v,
+	}
+}
+
+// NilCoreDeleteCoreUpdatesOsRebootOKOs is nullable CoreDeleteCoreUpdatesOsRebootOKOs.
+type NilCoreDeleteCoreUpdatesOsRebootOKOs struct {
+	Value CoreDeleteCoreUpdatesOsRebootOKOs
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCoreDeleteCoreUpdatesOsRebootOKOs) SetTo(v CoreDeleteCoreUpdatesOsRebootOKOs) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCoreDeleteCoreUpdatesOsRebootOKOs) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCoreDeleteCoreUpdatesOsRebootOKOs) SetToNull() {
+	o.Null = true
+	var v CoreDeleteCoreUpdatesOsRebootOKOs
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCoreDeleteCoreUpdatesOsRebootOKOs) Get() (v CoreDeleteCoreUpdatesOsRebootOKOs, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCoreDeleteCoreUpdatesOsRebootOKOs) Or(d CoreDeleteCoreUpdatesOsRebootOKOs) CoreDeleteCoreUpdatesOsRebootOKOs {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCoreDeleteCoreUpdatesOsRebootOKReleaseUpgrade returns new NilCoreDeleteCoreUpdatesOsRebootOKReleaseUpgrade with value set to v.
 func NewNilCoreDeleteCoreUpdatesOsRebootOKReleaseUpgrade(v CoreDeleteCoreUpdatesOsRebootOKReleaseUpgrade) NilCoreDeleteCoreUpdatesOsRebootOKReleaseUpgrade {
 	return NilCoreDeleteCoreUpdatesOsRebootOKReleaseUpgrade{
@@ -78310,6 +78419,51 @@ func (o NilCoreGetCoreUpdatesOKRunningRevoked) Or(d CoreGetCoreUpdatesOKRunningR
 	return d
 }
 
+// NewNilCoreGetCoreUpdatesOsOKOs returns new NilCoreGetCoreUpdatesOsOKOs with value set to v.
+func NewNilCoreGetCoreUpdatesOsOKOs(v CoreGetCoreUpdatesOsOKOs) NilCoreGetCoreUpdatesOsOKOs {
+	return NilCoreGetCoreUpdatesOsOKOs{
+		Value: v,
+	}
+}
+
+// NilCoreGetCoreUpdatesOsOKOs is nullable CoreGetCoreUpdatesOsOKOs.
+type NilCoreGetCoreUpdatesOsOKOs struct {
+	Value CoreGetCoreUpdatesOsOKOs
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCoreGetCoreUpdatesOsOKOs) SetTo(v CoreGetCoreUpdatesOsOKOs) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCoreGetCoreUpdatesOsOKOs) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCoreGetCoreUpdatesOsOKOs) SetToNull() {
+	o.Null = true
+	var v CoreGetCoreUpdatesOsOKOs
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCoreGetCoreUpdatesOsOKOs) Get() (v CoreGetCoreUpdatesOsOKOs, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCoreGetCoreUpdatesOsOKOs) Or(d CoreGetCoreUpdatesOsOKOs) CoreGetCoreUpdatesOsOKOs {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCoreGetCoreUpdatesOsOKReleaseUpgrade returns new NilCoreGetCoreUpdatesOsOKReleaseUpgrade with value set to v.
 func NewNilCoreGetCoreUpdatesOsOKReleaseUpgrade(v CoreGetCoreUpdatesOsOKReleaseUpgrade) NilCoreGetCoreUpdatesOsOKReleaseUpgrade {
 	return NilCoreGetCoreUpdatesOsOKReleaseUpgrade{
@@ -78709,6 +78863,51 @@ func (o NilCorePatchCoreUpdatesOKRunningRevoked) Get() (v CorePatchCoreUpdatesOK
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCorePatchCoreUpdatesOKRunningRevoked) Or(d CorePatchCoreUpdatesOKRunningRevoked) CorePatchCoreUpdatesOKRunningRevoked {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePatchCoreUpdatesOsSettingsOKOs returns new NilCorePatchCoreUpdatesOsSettingsOKOs with value set to v.
+func NewNilCorePatchCoreUpdatesOsSettingsOKOs(v CorePatchCoreUpdatesOsSettingsOKOs) NilCorePatchCoreUpdatesOsSettingsOKOs {
+	return NilCorePatchCoreUpdatesOsSettingsOKOs{
+		Value: v,
+	}
+}
+
+// NilCorePatchCoreUpdatesOsSettingsOKOs is nullable CorePatchCoreUpdatesOsSettingsOKOs.
+type NilCorePatchCoreUpdatesOsSettingsOKOs struct {
+	Value CorePatchCoreUpdatesOsSettingsOKOs
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePatchCoreUpdatesOsSettingsOKOs) SetTo(v CorePatchCoreUpdatesOsSettingsOKOs) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePatchCoreUpdatesOsSettingsOKOs) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePatchCoreUpdatesOsSettingsOKOs) SetToNull() {
+	o.Null = true
+	var v CorePatchCoreUpdatesOsSettingsOKOs
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePatchCoreUpdatesOsSettingsOKOs) Get() (v CorePatchCoreUpdatesOsSettingsOKOs, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePatchCoreUpdatesOsSettingsOKOs) Or(d CorePatchCoreUpdatesOsSettingsOKOs) CorePatchCoreUpdatesOsSettingsOKOs {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -79525,6 +79724,51 @@ func (o NilCorePostCoreUpdatesCheckOKRunningRevoked) Or(d CorePostCoreUpdatesChe
 	return d
 }
 
+// NewNilCorePostCoreUpdatesOsCheckOKOs returns new NilCorePostCoreUpdatesOsCheckOKOs with value set to v.
+func NewNilCorePostCoreUpdatesOsCheckOKOs(v CorePostCoreUpdatesOsCheckOKOs) NilCorePostCoreUpdatesOsCheckOKOs {
+	return NilCorePostCoreUpdatesOsCheckOKOs{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesOsCheckOKOs is nullable CorePostCoreUpdatesOsCheckOKOs.
+type NilCorePostCoreUpdatesOsCheckOKOs struct {
+	Value CorePostCoreUpdatesOsCheckOKOs
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesOsCheckOKOs) SetTo(v CorePostCoreUpdatesOsCheckOKOs) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesOsCheckOKOs) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesOsCheckOKOs) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesOsCheckOKOs
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesOsCheckOKOs) Get() (v CorePostCoreUpdatesOsCheckOKOs, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesOsCheckOKOs) Or(d CorePostCoreUpdatesOsCheckOKOs) CorePostCoreUpdatesOsCheckOKOs {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCorePostCoreUpdatesOsCheckOKReleaseUpgrade returns new NilCorePostCoreUpdatesOsCheckOKReleaseUpgrade with value set to v.
 func NewNilCorePostCoreUpdatesOsCheckOKReleaseUpgrade(v CorePostCoreUpdatesOsCheckOKReleaseUpgrade) NilCorePostCoreUpdatesOsCheckOKReleaseUpgrade {
 	return NilCorePostCoreUpdatesOsCheckOKReleaseUpgrade{
@@ -79609,6 +79853,51 @@ func (o NilCorePostCoreUpdatesOsInstallAcceptedResult) Get() (v CorePostCoreUpda
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCorePostCoreUpdatesOsInstallAcceptedResult) Or(d CorePostCoreUpdatesOsInstallAcceptedResult) CorePostCoreUpdatesOsInstallAcceptedResult {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreUpdatesOsRebootOKOs returns new NilCorePostCoreUpdatesOsRebootOKOs with value set to v.
+func NewNilCorePostCoreUpdatesOsRebootOKOs(v CorePostCoreUpdatesOsRebootOKOs) NilCorePostCoreUpdatesOsRebootOKOs {
+	return NilCorePostCoreUpdatesOsRebootOKOs{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesOsRebootOKOs is nullable CorePostCoreUpdatesOsRebootOKOs.
+type NilCorePostCoreUpdatesOsRebootOKOs struct {
+	Value CorePostCoreUpdatesOsRebootOKOs
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesOsRebootOKOs) SetTo(v CorePostCoreUpdatesOsRebootOKOs) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesOsRebootOKOs) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesOsRebootOKOs) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesOsRebootOKOs
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesOsRebootOKOs) Get() (v CorePostCoreUpdatesOsRebootOKOs, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesOsRebootOKOs) Or(d CorePostCoreUpdatesOsRebootOKOs) CorePostCoreUpdatesOsRebootOKOs {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -484,3 +484,31 @@ func TestMigrationsUsePrefix(t *testing.T) {
 	t.Parallel()
 	storetest.AssertMigrationsUsePrefix(t, "inventory", inventory.Migrations, "inv_", storetest.Migration{Module: "core", FS: core.Migrations})
 }
+
+// Walk 4: a device seen only by ARP (a MAC and an IP, no vendor, model or OS) listed source "–". Its summary is the
+// source of its MAC; once a vendor is known, the summary is the vendor's again.
+func TestSummaryOfADeviceSeenOnlyByARP(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.record(obs(netip.MustParseAddr("192.168.18.1"), macB, observe.MAC, macB, observe.Passive, 0.9))
+	summary := func() *inventory.Summary {
+		l, err := e.svc.Devices(e.ctx())
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range l.Items {
+			if d.MAC != nil && *d.MAC == macB {
+				return d.Summary
+			}
+		}
+		t.Fatal("device not listed")
+		return nil
+	}
+	if s := summary(); s == nil || s.Source != "passive" || s.Confidence != 0.9 {
+		t.Fatalf("summary = %+v, want passive 0.9", s)
+	}
+	e.record(obsv(macB, observe.Vendor, "Acme", observe.Passive, 0.4))
+	if s := summary(); s == nil || s.Source != "passive" || s.Confidence != 0.4 {
+		t.Fatalf("summary with a vendor = %+v, want the vendor's 0.4", s)
+	}
+}

@@ -216,8 +216,10 @@ export function markCurrent(list: StoredObs[]): Observation[] {
   return list.map((o) => ({ ...o, current: best.get(o.field)?.id === o.id }))
 }
 
+/** A device with no vendor, model or OS (seen only by ARP) takes its current hostname and MAC instead (walk 4: source "–"). */
 function summaryOf(a: Asset): DeviceRow['summary'] {
-  const f = [a.vendor, a.model, a.os].filter((x): x is NonNullable<typeof x> => x !== null)
+  let f: { source: ObsSource; confidence: number }[] = [a.vendor, a.model, a.os].filter((x): x is NonNullable<typeof x> => x !== null)
+  if (!f.length) f = markCurrent(obsOf(a)).filter((o) => o.current && (o.field === 'hostname' || o.field === 'mac'))
   if (!f.length) return null
   const top = f.reduce((m, x) => (x.confidence > m.confidence ? x : m))
   return { source: top.source, confidence: Math.min(...f.map((x) => x.confidence)) }

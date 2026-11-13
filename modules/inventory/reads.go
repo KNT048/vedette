@@ -12,12 +12,15 @@ import (
 const noIP = "—" // what the API says for a device whose IP is unknown (contract.ts Asset.ip)
 
 const assetColumns = `a.id, a.ip, a.mac, a.hostname, a.kind, a.origin, a.approved, a.fragile, a.regular_scan, a.first_scan_at, a.suspicious, a.is_box, a.notes, a.first_seen, a.last_seen,
-	v.value, v.source, v.confidence, v.seen_at, m.value, m.source, m.confidence, m.seen_at, o.value, o.source, o.confidence, o.seen_at`
+	v.value, v.source, v.confidence, v.seen_at, m.value, m.source, m.confidence, m.seen_at, o.value, o.source, o.confidence, o.seen_at,
+	h.value, h.source, h.confidence, h.seen_at, x.value, x.source, x.confidence, x.seen_at`
 
 const assetFrom = ` FROM inv_asset a
 	LEFT JOIN inv_observation v ON v.id = a.vendor_obs_id
 	LEFT JOIN inv_observation m ON m.id = a.model_obs_id
-	LEFT JOIN inv_observation o ON o.id = a.os_obs_id`
+	LEFT JOIN inv_observation o ON o.id = a.os_obs_id
+	LEFT JOIN inv_observation h ON h.id = a.hostname_obs_id
+	LEFT JOIN inv_observation x ON x.id = a.mac_obs_id`
 
 type obsCols struct {
 	value, source, seen sql.NullString
@@ -47,10 +50,11 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 	for rows.Next() {
 		var d Device
 		var ip, mac, host, scan, notes sql.NullString
-		var v, m, o obsCols
+		var v, m, o, h, x obsCols
 		var approved, fragile, suspicious, box bool
 		if err := rows.Scan(&d.ID, &ip, &mac, &host, &d.Kind, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen,
-			&v.value, &v.source, &v.conf, &v.seen, &m.value, &m.source, &m.conf, &m.seen, &o.value, &o.source, &o.conf, &o.seen); err != nil {
+			&v.value, &v.source, &v.conf, &v.seen, &m.value, &m.source, &m.conf, &m.seen, &o.value, &o.source, &o.conf, &o.seen,
+			&h.value, &h.source, &h.conf, &h.seen, &x.value, &x.source, &x.conf, &x.seen); err != nil {
 			return nil, fmt.Errorf("inventory: read devices: %w", err)
 		}
 		d.Site = "hq" // one site (D-24)
@@ -60,6 +64,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		}
 		d.MAC, d.Hostname, d.FirstScanAt, d.Notes = ptr(mac), ptr(host), ptr(scan), ptr(notes)
 		d.Vendor, d.Model, d.OS = v.observed(), m.observed(), o.observed()
+		d.ident = []*Observed{h.observed(), x.observed()}
 		d.Approved, d.Fragile, d.Suspicious, d.IsBox = approved, fragile, suspicious, box
 		d.Software, d.Services = []Software{}, []ServiceRow{}
 		out = append(out, d)
@@ -139,11 +144,20 @@ func loadServices(ctx context.Context, q querier, sub string, idx map[string]int
 	return rows.Err()
 }
 
-// summaryOf is the source of the most trusted of vendor, model, os and the confidence of the weakest.
+// summaryOf is the source of the most trusted of vendor, model, os and the confidence of the weakest. A device with
+// none of them (a router seen only by ARP) takes its hostname and MAC instead, so the list still says which sensor saw
+// it (walk 4: "Unknown 192.168.18.1" with source "–").
 func summaryOf(d *Device) *Summary {
+	if d.Vendor == nil && d.Model == nil && d.OS == nil {
+		return summaryOver(d.ident)
+	}
+	return summaryOver([]*Observed{d.Vendor, d.Model, d.OS})
+}
+
+func summaryOver(obs []*Observed) *Summary {
 	var top *Observed
 	weakest := 2.0
-	for _, o := range []*Observed{d.Vendor, d.Model, d.OS} {
+	for _, o := range obs {
 		if o == nil {
 			continue
 		}

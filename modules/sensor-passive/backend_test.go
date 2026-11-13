@@ -266,7 +266,7 @@ func TestConfidenceIsClampedPerField(t *testing.T) {
 	if c := codes(rep); len(c) != 3 || c[7] != "invalid_item" || c[8] != "invalid_item" || c[9] != "invalid_item" {
 		t.Fatalf("rejected %+v: only the three outside 0..1 are no good", rep.Rejected)
 	}
-	want := map[string]float64{"hostname": 0.7, "mac": 0.9, "vendor": 0.4, "model": 0.5, "kind": 0.5, "os": 0.3} // kind printer: only mDNS says it, at 0.5
+	want := map[string]float64{"hostname": 0.7, "mac": 0.9, "vendor": 0.4, "model": 0.5, "kind": 0.5, "os": 0.5} // kind printer: only mDNS says it, at 0.5; os: from a known LLDP description layout
 	got := map[string]float64{}
 	for _, o := range e.observations() {
 		if o.Source != "passive" { // the inventory has rows of its own for a new device

@@ -349,9 +349,13 @@ func isNoCheck(err error) bool {
 	return ok && ae.Code == CodeNoCheckYet
 }
 
-// stateNow reads the host's view and adds what core owns.
+// stateNow reads the host's view and adds what core owns. A box that has never checked answers like stateAfter:
+// core's settings with an empty host part (os null), not 409 no_check_yet (D-407: every open of the page logged it).
 func (h *OSHandlers) stateNow(ctx context.Context) (osStateView, error) {
 	hs, err := h.hostState(ctx)
+	if isNoCheck(err) {
+		hs, err = api.OSState{}, nil
+	}
 	if err != nil {
 		return osStateView{}, err
 	}
@@ -360,7 +364,7 @@ func (h *OSHandlers) stateNow(ctx context.Context) (osStateView, error) {
 
 // stateAfter is the answer of an operation that changed something: a fresh read of the host. On a box that has
 // never checked, the host has no state to give: the answer is core's own settings with an empty host part
-// (no OS details, no packages, last_check at the zero time), not an error after the change was made.
+// (os null, no packages), not an error after the change was made.
 func (h *OSHandlers) stateAfter(ctx context.Context) (osStateView, error) {
 	h.invalidateState()
 	hs, err := h.hostState(ctx)

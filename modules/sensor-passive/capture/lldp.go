@@ -1,6 +1,9 @@
 package capture
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"strings"
+)
 
 const maxLLDPTLVs = 64
 
@@ -56,7 +59,9 @@ func parseLLDP(b []byte) (lldpFrame, error) {
 				f.sysName = s
 			}
 		case 6:
-			if s, ok := cleanText(string(v), 255); ok {
+			// Cisco and others write the description on several lines: the line breaks become spaces, any other
+			// control character still refuses the value.
+			if s, ok := cleanText(strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ").Replace(string(v)), 255); ok {
 				f.sysDesc = s
 			}
 		case 7:

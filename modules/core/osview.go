@@ -38,7 +38,7 @@ type releaseUpgradeView struct {
 }
 
 type osStateView struct {
-	OS                osInfoView          `json:"os"`
+	OS                *osInfoView         `json:"os"` // nil until the host has checked once (D-407)
 	Pending           []osPackageView     `json:"pending"`
 	RebootRequired    bool                `json:"reboot_required"`
 	RebootReasons     []string            `json:"reboot_reasons"`
@@ -95,22 +95,26 @@ func nonNil[T any](s []T) []T {
 }
 
 // stateView puts what the host knows (hs) together with what core owns: the maintenance window, the guidance
-// for a release upgrade and whether an install run is going.
+// for a release upgrade and whether an install run is going. A host part with no last check (the empty one of a box
+// that never checked) has os null and no release upgrade (D-407).
 func stateView(hs api.OSState, win maintWindow, busy bool) osStateView {
 	pending := make([]osPackageView, len(hs.Pending))
 	for i, p := range hs.Pending {
 		pending[i] = osPackageView{Name: p.Name, Current: p.Current, New: p.New, Security: p.Security, CVEs: nonNil(p.CVEs)}
 	}
 	win.Days = nonNil(win.Days)
-	return osStateView{
-		OS: osInfoView{
+	v := osStateView{
+		Pending: pending, RebootRequired: hs.RebootRequired, RebootReasons: nonNil(hs.RebootReasons),
+		RebootScheduledAt: hs.RebootScheduledAt, AutoSecurity: hs.AutoSecurity, Window: win, Busy: busy,
+	}
+	if !hs.OS.LastCheck.IsZero() {
+		v.OS = &osInfoView{
 			Distro: hs.OS.Distro, Name: hs.OS.Name, Release: hs.OS.Release, Kernel: hs.OS.Kernel, SupportEnd: hs.OS.SupportEnd,
 			ExtendedEnd: hs.OS.ExtendedEnd, BootedAt: hs.OS.BootedAt, LastCheck: hs.OS.LastCheck, Mirrors: nonNil(hs.OS.Mirrors),
-		},
-		Pending: pending, RebootRequired: hs.RebootRequired, RebootReasons: nonNil(hs.RebootReasons),
-		RebootScheduledAt: hs.RebootScheduledAt, AutoSecurity: hs.AutoSecurity, Window: win,
-		ReleaseUpgrade: releaseUpgrade(hs.OS.Distro, hs.OS.Release), Busy: busy,
+		}
+		v.ReleaseUpgrade = releaseUpgrade(hs.OS.Distro, hs.OS.Release)
 	}
+	return v
 }
 
 // releaseUpgrade is guidance only: Vedette never runs a release upgrade (D-53). The host supports Ubuntu 24.04

@@ -33,7 +33,7 @@ interface Incident { id: string; kind: string; title: string; link: string; seve
 const as = (role: 'admin' | 'operator' | 'viewer') => request.newContext({ baseURL: box().base_url, storageState: authFile(role) })
 const get = async <T>(c: APIRequestContext, path: string) => { const r = await api<T>(c, 'GET', path); expect(r.status, `GET ${path}: ${JSON.stringify(r.body)}`).toBe(200); return r.body }
 const toast = (page: Page, re: RegExp) => expect(page.locator('[data-sonner-toast]').filter({ hasText: re }).first()).toBeVisible()
-const sw = (page: Page, service: string) => page.getByRole('switch', { name: `Turn on ${service} trap` })
+const sw = (page: Page, service: string) => page.getByRole('switch', { name: `${service} trap` })
 /** 5xx answers of the API that the page saw: a test ends with `expect(server).toEqual([])`. */
 function watch5xx(page: Page): string[] {
   const seen: string[] = []

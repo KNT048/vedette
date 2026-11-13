@@ -44,8 +44,10 @@ func MaxConfidence(f observe.Field, value string) (limit float64, ok bool) {
 		return ConfSSDPModel, true
 	case observe.Vendor:
 		return ConfOUIVendor, true
+	case observe.OS:
+		return ConfLLDPDesc, true // the OS read from a known layout of an LLDP description (sysdesc.go)
 	}
-	return ConfMDNSIotKind, true // os: no passive source reports it, so the lowest rung
+	return ConfMDNSIotKind, true
 }
 
 // Claim is one observation as the budget sees it: whose it is (a MAC, or an IPv4 address for an observation without one),

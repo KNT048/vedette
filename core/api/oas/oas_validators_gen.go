@@ -46443,6 +46443,84 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemStatus) Validate() error {
 	}
 }
 
+func (s *NotifyGetNotifyTelegramApproversOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Items == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Items {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "items",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s NotifyGetNotifyTelegramApproversOKItemsItemState) Validate() error {
+	switch s {
+	case "linked":
+		return nil
+	case "sending":
+		return nil
+	case "waiting":
+		return nil
+	case "not_sent":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *NotifyGetNotifyZaloApproversOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -47482,6 +47560,44 @@ func (s NotifyPostNotifyHistoryIDResendOKKind) Validate() error {
 	case "vuln":
 		return nil
 	case "approval":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s NotifyPostNotifyTelegramApproversUserIDCodeOKState) Validate() error {
+	switch s {
+	case "linked":
+		return nil
+	case "sending":
+		return nil
+	case "waiting":
+		return nil
+	case "not_sent":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -55672,8 +55788,6 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItem) Validate() error {
 func (s ResponseGetResponseMeIdentitiesOKItemsItemMethod) Validate() error {
 	switch s {
 	case "email_code":
-		return nil
-	case "chat_code":
 		return nil
 	case "send_code":
 		return nil
@@ -66412,8 +66526,6 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) Validate() error {
 func (s ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) Validate() error {
 	switch s {
 	case "email_code":
-		return nil
-	case "chat_code":
 		return nil
 	case "send_code":
 		return nil

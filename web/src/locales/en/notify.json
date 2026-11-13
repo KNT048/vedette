@@ -322,7 +322,7 @@
     },
     "hint": {
       "slack": "Approval requests show Approve and Reject buttons in Slack. This uses Slack Socket Mode: the box opens the connection outward to Slack, so you open no inbound port and need no public address.",
-      "telegram": "Approval requests show inline Approve and Reject buttons in the chat. This uses the bot above with long polling: the box asks Telegram for new button presses, so you open no inbound port.",
+      "telegram": "Approval requests show inline Approve and Reject buttons in the chat. This uses the bot above with long polling: the box asks Telegram for new button presses, so you open no inbound port. When you save, the bot sends each approver a confirm link; their presses count once they open it and confirm while signed in to Vedette as themselves.",
       "email": "Each approver receives an email with an Approve button that opens a confirmation page on Vedette.",
       "zalo-personal": "Add each approver with their Zalo account: pick a friend of this account or find them by phone number. When you save, this account sends each of them a confirm link; they are linked once they open it and confirm while signed in to Vedette as themselves (your own Zalo you confirm here). Then each approval request reaches them privately with two codes of their own, one to approve and one to reject. High-risk actions are approved only in Vedette."
     },
@@ -557,18 +557,7 @@
     "clientSecret": "Client secret of the Desktop client",
     "clientSecretHint": "Used to sign in and kept on this box, encrypted. Enter it again when you sign in again."
   },
-  "zl": {
-    "title": "Link your Zalo account",
-    "account": "Zalo ID {{id}}",
-    "thisAccount": "This Zalo account",
-    "noToken": "This link is not complete. Open it again from the Zalo message.",
-    "question": "Link this Zalo account to your account, {{who}}?",
-    "explain": "An administrator listed this Zalo account as yours for approving actions, and Vedette sent you this link. Confirm only if this Zalo account is yours: approval replies from it will then count as you.",
-    "confirm": "Confirm",
-    "linked": "Linked. {{zalo}} now counts as you when you reply to approval messages.",
-    "already": "{{zalo}} is already linked to your account.",
-    "toAccount": "Open My account",
-    "idLabel": "Zalo ID",
-    "namedBy": "Named \"{{name}}\" by your administrator."
+  "tg": {
+    "unsaved": "Save to send this person a confirm link on Telegram, privately. The bot can write to them only after they press Start once in a private chat with the bot; otherwise a note in this chat asks them to. They confirm the link while signed in to Vedette as themselves."
   }
 }

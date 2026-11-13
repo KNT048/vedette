@@ -1,9 +1,9 @@
 // Approver identities (S-RESP-2, D-191), mock side. An administrator types each approver's address or ID on a notify channel;
-// it counts for buttons and links only after that person proved it: a code mailed to the address (email), a code Vedette
-// answers privately to a button press from that ID (chat), or a confirm link the box sends to that ID which the person confirms signed in as
-// themself (Zalo personal, D-447). The code is entered in My account, the link confirmed on /link/zalo, by the signed-in person.
-// Rules (same as the real box): 6 digits, 10 minutes, single use, 5 wrong codes cancel it, a new code replaces the old one;
-// email: a new code after 60 seconds and 5 an hour per person; chat: 5 codes an hour per person and channel.
+// it counts for buttons and links only after that person proved it: a code mailed to the address (email), or a confirm link the box sends
+// to that chat ID which the person confirms signed in as themself (Zalo personal D-447, Telegram D-414). The code is entered in My account,
+// the link confirmed on /link/<telegram|zalo>, by the signed-in person.
+// Rules (same as the real box): 10 minutes, single use, 5 wrong tries cancel it, a new one replaces the old one, a new one after 60 seconds
+// and 5 an hour per person and channel.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, nowIso } from '@/mocks/db'
@@ -16,9 +16,11 @@ const MAX_TRIES = 5
 const RESEND_S = 60
 const PER_HOUR = 5
 const CHAT_NAME: Record<string, string> = { slack: 'Slack', telegram: 'Telegram', 'zalo-personal': 'Zalo' }
-/** Chat channels whose answer only the presser sees (Telegram show_alert); only these get a code in the answer. */
-const PRIVATE_ANSWER = ['telegram']
-const SEND_LINK = ['zalo-personal'] // a confirm link goes TO the ID and is confirmed by the person signed in (D-447)
+const SEND_LINK = ['zalo-personal', 'telegram'] // a confirm link goes TO the ID and is confirmed by the person signed in (D-447, D-414)
+type Refusal = { status: number; code: string; message: string }
+/** How the notify mock sends a new confirm link to a listed person's own chat ID (My account, Send again; D-414). link: the page to open when
+ * nothing was sent (your own row with the box's own Zalo account). notify registers these; response never imports notify. */
+export const chatLinkSenders: Partial<Record<string, (userId: string) => { link?: string } | Refusal>> = {}
 
 interface Pending { address: string; code: string; expires: number; tries: number; sent_at: number }
 interface Codes { pending: Record<string, Pending>; sends: Record<string, number[]> }
@@ -53,7 +55,7 @@ function mine(userId: string): Identity[] {
       const row = identityStore.get().find((x) => x.user_id === userId && x.channel === type && x.address === a.address)
       const linked = isLinked(userId, type, a.address)
       const p = waiting[key(userId, type)]
-      return { channel: type, label: chanLabel(ch), address: a.address, ...((a as { name?: string }).name ? { name: (a as { name?: string }).name } : {}), linked, linked_at: linked ? row!.linked_at : null, method: type === 'email' ? 'email_code' as const : PRIVATE_ANSWER.includes(type) ? 'chat_code' as const : SEND_LINK.includes(type) ? 'send_code' as const : 'unavailable' as const,
+      return { channel: type, label: chanLabel(ch), address: a.address, ...((a as { name?: string }).name ? { name: (a as { name?: string }).name } : {}), linked, linked_at: linked ? row!.linked_at : null, method: type === 'email' ? 'email_code' as const : SEND_LINK.includes(type) ? 'send_code' as const : 'unavailable' as const,
         code_waiting: !linked && !!p && sameAddress(type, p.address, a.address) && Date.now() < p.expires }
     })
   })
@@ -61,30 +63,23 @@ function mine(userId: string): Identity[] {
 
 /**
  * The refusal for a button press from a listed approver who has not linked this ID yet: nothing is decided, and the answer, which only the
- * person who pressed sees, holds a link code. The log line never holds the code.
+ * person who pressed sees, says how to link (D-414: no code any more; a confirm link is sent to the ID).
  */
-export function chatNotLinked(userId: string, channel: string, address: string, target: string) {
+export function chatNotLinked(channel: string, address: string, target: string) {
   const name = CHAT_NAME[channel] ?? channel
   if (SEND_LINK.includes(channel)) {
     step('response.refused', target, 'refused', `approver_not_linked: ${name} ${address} is not linked to a Vedette account yet`)
     return fail(403, 'approver_not_linked', `Your ${name} account is not linked to Vedette yet. Open the link Vedette sent to this account and confirm it while signed in to Vedette, or ask your administrator to send it again.`)
   }
-  if (!PRIVATE_ANSWER.includes(channel)) {
-    step('response.refused', target, 'refused', `approver_not_linked: ${name} ${address} is not linked to a Vedette account yet; no code is shown on this channel`)
-    return fail(403, 'approver_not_linked', `Your ${name} account is not linked to Vedette yet. Approve in Vedette for now.`)
-  }
-  const p = newCode(userId, channel, address)
-  step('response.refused', target, 'refused', `approver_not_linked: ${name} ${address} is not linked to a Vedette account yet${p ? '; a link code was shown to the person who pressed' : '; too many link codes this hour'}`)
-  return fail(403, 'approver_not_linked', p
-    ? `Your ${name} account is not linked to Vedette yet. Sign in to Vedette, open My account and enter code ${p.code} within 10 minutes, then press again.`
-    : `Your ${name} account is not linked to Vedette yet, and too many link codes were made this hour. Approve in Vedette, or try again later.`)
+  step('response.refused', target, 'refused', `approver_not_linked: ${name} ${address} is not linked to a Vedette account yet; this channel cannot be linked`)
+  return fail(403, 'approver_not_linked', `Your ${name} account is not linked to Vedette yet. Approve in Vedette for now.`)
 }
 
 /**
  * The token of a confirm link for a listed approver's chat ID (the notify mock sends it to that ID when an administrator saves them,
  * D-447): one a minute, five an hour, a new one replaces the old. Only that person, signed in, confirms it (POST …/confirm).
  */
-export function newLinkToken(userId: string, channel: string, address: string): { token: string } | { status: number; code: string; message: string } {
+export function newLinkToken(userId: string, channel: string, address: string): { token: string } | Refusal {
   const row = mine(userId).find((r) => r.channel === channel && r.address === address)
   if (!SEND_LINK.includes(channel)) return { status: 400, code: 'chat_channel', message: 'This channel is not linked by a confirm link.' }
   if (!row) return { status: 404, code: 'not_listed', message: 'This person is not listed with this address on the channel. Save the channel first.' }
@@ -106,8 +101,15 @@ export const identityHandlers = [
     const u = currentUser()!, channel = String(params.channel)
     const row = mine(u.id).find((r) => r.channel === channel)
     if (!row) return fail(404, 'not_listed', 'You are not on the approver list of this channel.')
-    if (row.method === 'send_code') return fail(400, 'chat_channel', `An administrator sends a link to your ${CHAT_NAME[channel]} account when they list you; open it and confirm while signed in to Vedette.`)
-    if (row.method !== 'email_code') return fail(400, 'chat_channel', 'Press Approve or Reject on the next approval message in this channel; Vedette answers you privately with a code.')
+    if (row.method === 'send_code') { // D-414: Send again sends my own listed ID a new confirm link through notify
+      if (row.linked) return fail(409, 'already_linked', 'This address is already linked.')
+      const sender = chatLinkSenders[channel]
+      if (!sender) return fail(400, 'chat_channel', `An administrator sends a link to your ${CHAT_NAME[channel]} account when they list you; open it and confirm while signed in to Vedette.`)
+      const r = sender(u.id)
+      if ('status' in r) return fail(r.status, r.code, r.message)
+      return HttpResponse.json({ sent_to: `${CHAT_NAME[channel]} ${row.address}`, resend_after: RESEND_S, ...(r.link ? { link: r.link } : {}) })
+    }
+    if (row.method !== 'email_code') return fail(400, 'chat_channel', 'This channel cannot be linked yet. Approve in Vedette.')
     if (row.linked) return fail(409, 'already_linked', 'This address is already linked.')
     if (row.address.toLowerCase() !== u.email.toLowerCase()) return fail(409, 'address_mismatch', 'The address on the email approval list is not your sign-in email. Ask an administrator to correct the list.')
     const email = rawChans().find((c) => c.type === 'email')
@@ -130,12 +132,15 @@ export const identityHandlers = [
     const given = typeof b.code === 'string' ? b.code.trim() : ''
     if (link && !TOKEN_RE.test(given)) return fail(400, 'invalid_link', `This link is not complete. Open it again from the ${CHAT_NAME[channel]} message.`)
     // another signed-in person: refused before anything is read, so the link stays good for its person
-    if (link && given.slice(0, 8) !== hintOf(u.id)) return fail(403, 'other_account', `This link is for another Vedette account. Sign out, then sign in as the person the ${CHAT_NAME[channel]} message names.`)
+    if (link && given.slice(0, 8) !== hintOf(u.id)) {
+      audit('response.identity_link_refused', channel, `${u.email} opened a ${CHAT_NAME[channel]} confirm link made for another Vedette account; nothing was linked`)
+      return fail(403, 'other_account', `This link is for another Vedette account. Sign out, then sign in as the person the ${CHAT_NAME[channel]} message names.`)
+    }
     const p = codesStore.get().pending[k]
     // The code must be for an address that is still on the list for me now: a list changed after the code was made does not link.
     const row = p ? mine(u.id).find((r) => r.channel === channel && sameAddress(channel, r.address, p.address)) : undefined
     if (!p || !row) return fail(400, 'no_code', link ? 'This link was already used or was replaced by a newer one.' : 'No code is waiting for this channel. Ask for a new code.')
-    if (Date.now() > p.expires) { dropCode(k); return fail(400, 'code_expired', link ? 'This link has expired. Ask your administrator to press Send again.' : 'This code has expired. Ask for a new code.') }
+    if (Date.now() > p.expires) { dropCode(k); return fail(400, 'code_expired', link ? 'This link has expired. Press Send again in My account, or ask your administrator to press Send again.' : 'This code has expired. Ask for a new code.') }
     const code = given
     if (!link && !/^\d{6}$/.test(code)) return fail(400, 'invalid_code', 'The code is 6 digits.')
     if (code !== p.code) {

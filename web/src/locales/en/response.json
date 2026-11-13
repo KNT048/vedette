@@ -153,7 +153,7 @@
     "approverCount_one": "{{count}} approver",
     "approverCount_other": "{{count}} approvers",
     "byLink": "approves through a one-time link",
-    "approversRule": "A decision counts only if the sender is on that channel's approver list, is an operator or admin in Vedette, and proved that address themselves: in My account, or for Zalo by confirming, signed in to Vedette, the link sent to that Zalo account. No administrator can link an address for someone else. Several approvers are allowed; the first valid decision wins.",
+    "approversRule": "A decision counts only if the sender is on that channel's approver list, is an operator or admin in Vedette, and proved that address themselves: email by a code in My account, Telegram and Zalo by confirming, signed in to Vedette, the link sent to that account. No administrator can link an address for someone else. Several approvers are allowed; the first valid decision wins.",
     "linkedCount": "{{linked}} of {{count}} linked",
     "notLinkedYet": "Not linked yet: {{names}}. Their buttons and links do not count until they link in My account."
   },
@@ -725,17 +725,51 @@
     "linkedAt": "Linked {{at}}. Buttons and links from this address count as you.",
     "unlink": "Unlink",
     "howEmail": "Send a code to this address and enter it here. It is your sign-in email; if it is wrong, ask an administrator to correct it.",
-    "howSend": "Your administrator listed this {{channel}} account as yours. When they save it, the Vedette {{channel}} account sends it a confirm link: open it and confirm while signed in to Vedette as yourself. Ask your administrator to press Send again if the link expired.",
-    "howChat": "Press Approve or Reject on the next approval message in {{channel}}. Nothing is decided: Vedette answers only you with a 6-digit code. Enter it here, then press the button again. Only enter a code that Vedette showed you after you pressed a button yourself; never one someone sent you.",
+    "howSend": "Your administrator listed this {{channel}} account as yours. Vedette sends it a confirm link when they save it: open it and confirm while signed in to Vedette as yourself. Link expired or lost? Press Send again.",
     "sent": "Code sent to {{to}}. It expires in 10 minutes.",
     "send": "Send code",
     "resend": "Send a new code",
     "resendIn": "New code in {{s}} s",
     "code": "Code",
-    "codeShape": "The code is 6 digits.",
     "confirm": "Link",
     "linkedToast": "{{channel}} linked.",
     "unlinkedToast": "{{channel}} unlinked. Its buttons and links no longer count as you.",
-    "unavailable": "{{channel}} cannot yet answer only you, so it cannot be linked. Its buttons do not count for you; approve in Vedette."
+    "unavailable": "{{channel}} cannot yet answer only you, so it cannot be linked. Its buttons do not count for you; approve in Vedette.",
+    "waiting": "Waiting",
+    "waitingNote": "A confirm link was sent to this {{channel}} account. Open it there and confirm while signed in to Vedette.",
+    "sendAgain": "Send again",
+    "sentLink": "A new confirm link was sent to {{to}}. The old one no longer works.",
+    "sendAgainIn": "Send again in {{s}} s"
+  },
+  "chatLink": {
+    "title": "Link your {{name}} account",
+    "name": {
+      "telegram": "Telegram",
+      "zalo": "Zalo"
+    },
+    "account": {
+      "telegram": "Telegram user ID {{id}}",
+      "zalo": "Zalo ID {{id}}"
+    },
+    "idLabel": {
+      "telegram": "Telegram user ID",
+      "zalo": "Zalo ID"
+    },
+    "thisAccount": "This {{name}} account",
+    "noToken": "This link is not complete. Open it again from the {{name}} message.",
+    "question": "Link {{name}} account {{id}} to your Vedette user {{who}}?",
+    "questionNoId": "Link this {{name}} account to your Vedette user {{who}}?",
+    "explain": {
+      "telegram": "An administrator listed this Telegram account as yours for approving actions, and Vedette sent you this link. Confirm only if this Telegram account is yours: its Approve and Reject presses will then count as you.",
+      "zalo": "An administrator listed this Zalo account as yours for approving actions, and Vedette sent you this link. Confirm only if this Zalo account is yours: approval replies from it will then count as you."
+    },
+    "confirm": "Confirm",
+    "linked": {
+      "telegram": "Linked. {{account}} now counts as you when you press Approve or Reject in Telegram.",
+      "zalo": "Linked. {{account}} now counts as you when you reply to approval messages."
+    },
+    "already": "{{account}} is already linked to your account.",
+    "toAccount": "Open My account",
+    "namedBy": "Named \"{{name}}\" by your administrator."
   }
 }

@@ -44,6 +44,7 @@ type fakeProviders struct {
 	probeIn, probeOut int      // tokens of every probe call; 0 = the default 14 in and 3 out
 	answer            string   // the text of every answer that is not a probe
 	usageIn, usageOut int      // tokens of every answer that is not a probe; 0 = the default 14 in and 3 out
+	sizedUsage        bool     // a played answer reports the size of its request as its input tokens (requestTokens), as a provider would
 	noClient          string   // the profile whose client cannot be built ("" = none)
 	reqs              []provider.Request
 	cut               int // the next answers with a schema that stop at the output limit: half the text, stop reason max_tokens

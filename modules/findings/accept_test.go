@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"database/sql"
 	"errors"
 	"strings"
 	"testing"
@@ -145,5 +146,50 @@ func TestService_AcceptRiskThenExpiresInReconcile(t *testing.T) {
 	}
 	if p, _ := e.svc.Get(t.Context(), res.Created[1]); p.Status != StatusPatched {
 		t.Fatalf("the patched one became %s", p.Status)
+	}
+}
+
+// Opus r2 LOW-2 of D-498: a risk_accepted row that cannot be read whole still reopens on its day, once, with its history,
+// audit row and event, instead of being skipped every hour while it stays accepted.
+func TestService_ExpireAcceptanceOfAnUnreadableRow(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.seed()
+	until := dayOf(t0).AddDate(0, 0, 3)
+	if _, _, err := e.svc.setStatusMany(t.Context(), []string{id}, ActionAcceptRisk, "March window", "it@acme.example", until); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error { // valid JSON for the table's CHECK, but not evidence Vedette can read
+		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET evidence = '{"checked_at": "not a time"}' WHERE id = ?`, id)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Get(t.Context(), id); err == nil {
+		t.Fatal("the row should not be readable")
+	}
+	e.pub.take()
+	e.advance(AcceptanceEnds(until).Sub(*e.clock) - time.Minute) // its day has not ended everywhere yet
+	if n, err := e.svc.expireAcceptances(t.Context()); err != nil || n != 0 {
+		t.Fatalf("before its day ends = %d %v", n, err)
+	}
+	e.advance(time.Minute)
+	for i, want := range []int{1, 0} {
+		if n, err := e.svc.expireAcceptances(t.Context()); err != nil || n != want {
+			t.Fatalf("pass %d = %d %v, want %d", i, n, err, want)
+		}
+	}
+	if e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'suspected' AND accepted_until IS NULL AND resolved_by IS NULL`) != 1 {
+		t.Fatal("the unreadable row is still accepted")
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding_history WHERE user = 'system' AND note LIKE 'Risk acceptance expired (accepted by it@acme.example%'`); n != 1 {
+		t.Fatalf("expiry history rows = %d, want 1", n)
+	}
+	if e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.status' AND detail LIKE '%risk acceptance expired%could not be read'`) != 1 {
+		t.Fatal("no audit row for the expiry")
+	}
+	if ev := e.pub.take(); len(ev) != 1 || ev[0].Payload != (StatusChangedEvent{FindingID: id, From: StatusRiskAccepted, To: StatusSuspected, Reason: ReasonRiskExpired,
+		AcceptedBy: "it@acme.example", AcceptedUntil: until.Format(time.DateOnly)}) {
+		t.Fatalf("events = %+v", ev)
 	}
 }

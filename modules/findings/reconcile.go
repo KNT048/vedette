@@ -139,8 +139,9 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 
 // expireAcceptances reopens, in one write, every risk_accepted finding whose acceptance has ended (AcceptanceEnds, D-498,
 // INV-13): Finding.ExpireAcceptance, its history row by the system user, an audit row findings.status and the
-// status_changed event with reason ReasonRiskExpired. A row that cannot be read or reopened is logged with its id and
-// skipped; the others still reopen. It returns how many it reopened.
+// status_changed event with reason ReasonRiskExpired. A row that cannot be read or reopened whole is reopened on its
+// status alone (expireRaw); one that cannot be even so is logged with its id and skipped; the others still reopen. It
+// returns how many it reopened.
 func (s *Service) expireAcceptances(ctx context.Context) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, eventWriteTimeout)
 	defer cancel()
@@ -169,26 +170,39 @@ func (s *Service) expireAcceptances(ctx context.Context) (int, error) {
 				return err
 			}
 			r, err := loadByID(ctx, tx, id)
-			if err != nil {
-				s.cfg.Log.WarnContext(ctx, "findings: a risk acceptance could not be read; skipped", "finding", id, "error", err)
-				continue
-			}
-			by, until := r.ResolvedBy, r.AcceptedUntil
-			f, h, ok := r.ExpireAcceptance(now)
-			if !ok {
-				continue
-			}
-			before := r.Finding
-			r.Finding = f
-			if err := s.expireOne(ctx, tx, r, h, until); err != nil {
-				if ctx.Err() != nil {
-					return ctx.Err()
+			if err == nil {
+				by, until := r.ResolvedBy, r.AcceptedUntil
+				f, h, ok := r.ExpireAcceptance(now)
+				if !ok {
+					continue
 				}
-				s.cfg.Log.WarnContext(ctx, "findings: a risk acceptance could not be reopened; skipped", "finding", id, "error", err)
+				before := r.Finding
+				r.Finding = f
+				if err = s.expireOne(ctx, tx, r, h, until); err == nil {
+					emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status, Reason: ReasonRiskExpired,
+						AcceptedBy: by, AcceptedUntil: until.Format(time.DateOnly)})
+					n++
+					continue
+				}
+			}
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			// The row cannot be read or written back whole: end the acceptance on the columns it needs, or it stays
+			// accepted past its day and is skipped every hour (Opus r2 LOW-2 of D-498).
+			ev, ok, rawErr := s.expireRaw(ctx, tx, id, now)
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if rawErr != nil {
+				s.cfg.Log.WarnContext(ctx, "findings: a risk acceptance could not be ended; skipped", "finding", id, "error", errors.Join(err, rawErr))
 				continue
 			}
-			emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status, Reason: ReasonRiskExpired,
-				AcceptedBy: by, AcceptedUntil: until.Format(time.DateOnly)})
+			if !ok { // its day has not ended everywhere yet
+				continue
+			}
+			s.cfg.Log.WarnContext(ctx, "findings: a risk acceptance ended on its status alone; the rest of the finding could not be read", "finding", id, "error", err)
+			emit(EventStatusChanged, ev)
 			n++
 		}
 		return nil
@@ -221,6 +235,54 @@ func (s *Service) expireOne(ctx context.Context, tx *sql.Tx, r Record, h History
 	}
 	return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.status", Target: r.ID,
 		Detail: r.CVE + ": risk acceptance expired (until " + until.Format(time.DateOnly) + "), reopened as " + string(r.Status)})
+}
+
+// expireRaw ends the acceptance of a finding that cannot be read whole (loadByID) or written back through Record
+// (expireOne) (Opus r2 LOW-2 of D-498). It reads only id, cve, basis, resolved_by and accepted_until, decides with
+// AcceptanceEnds like ExpireAcceptance, and writes only status (confirmed for basis scan, else suspected), the closing
+// fields and accepted_until, plus the same history, audit and event; the broken column stays as it was, no worse. The
+// table's CHECKs refuse a write that would make the row invalid (confirmed without evidence): that, or a day that is not
+// a date, is an error and the row is only logged. ok is false when the day has not ended yet.
+func (s *Service) expireRaw(ctx context.Context, tx *sql.Tx, id string, now time.Time) (ev StatusChangedEvent, ok bool, err error) {
+	var cve, basis, day string
+	var by sql.NullString
+	if err := tx.QueryRowContext(ctx, `SELECT cve, basis, resolved_by, accepted_until FROM fnd_finding WHERE id = ? AND status = 'risk_accepted'`, id).
+		Scan(&cve, &basis, &by, &day); err != nil {
+		return ev, false, err
+	}
+	until, err := time.Parse(time.DateOnly, day)
+	if err != nil {
+		return ev, false, fmt.Errorf("accepted_until: %w", err)
+	}
+	if now.Before(AcceptanceEnds(until)) {
+		return ev, false, nil
+	}
+	to := StatusSuspected
+	if Basis(basis) == BasisScan {
+		to = StatusConfirmed
+	}
+	if _, err := tx.ExecContext(ctx, `SAVEPOINT fnd_expire_raw`); err != nil {
+		return ev, false, err
+	}
+	defer func() {
+		if err != nil {
+			_, _ = tx.ExecContext(context.WithoutCancel(ctx), `ROLLBACK TO fnd_expire_raw`)
+		}
+		_, _ = tx.ExecContext(context.WithoutCancel(ctx), `RELEASE fnd_expire_raw`)
+	}()
+	if _, err = tx.ExecContext(ctx, `UPDATE fnd_finding SET status = ?, resolved_by = NULL, resolved_at = NULL, resolution_note = NULL,
+		resolution_reason = NULL, accepted_until = NULL WHERE id = ? AND status = 'risk_accepted'`, string(to), id); err != nil {
+		return ev, false, err
+	}
+	note := "Risk acceptance expired (accepted by " + by.String + " until " + FmtDay(until) + ")."
+	if err = insertHistory(ctx, tx, id, HistoryEntry{TS: now, User: SystemUser, Action: "reopened", Note: note}); err != nil {
+		return ev, false, err
+	}
+	if err = s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.status", Target: id,
+		Detail: cve + ": risk acceptance expired (until " + day + "), reopened as " + string(to) + "; the rest of this finding could not be read"}); err != nil {
+		return ev, false, err
+	}
+	return StatusChangedEvent{FindingID: id, From: StatusRiskAccepted, To: to, Reason: ReasonRiskExpired, AcceptedBy: by.String, AcceptedUntil: day}, true, nil
 }
 
 // splitByNews separates the entries whose findings are announced (added to KEV within RecentKEV) from the backlog.

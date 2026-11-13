@@ -124,7 +124,7 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 			return nil
 		}
 		return s.findingChange(ctx, e.FindingID, e.CVE, "", func(f FindingInfo, cve string, n *Notice) {
-			n.ID += "-reopened-" + n.At.UTC().Format("20060102")
+			n.ID += "-expired-" + n.At.UTC().Format("20060102") // its own id: a matches_again reopen the same day is a different notice (D-498)
 			n.Change = "risk acceptance ended, open again"
 			n.Title = "Risk acceptance ended: " + about(cve, f) + " is open again"
 			n.What = acceptedText(e.AcceptedBy, e.AcceptedUntil) + "; that date has passed. " + f.What

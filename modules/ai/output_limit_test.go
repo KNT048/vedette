@@ -236,3 +236,27 @@ func TestARetryTheProviderFailsSaysWhatTheProviderSaid(t *testing.T) {
 		t.Fatalf("row = %+v", last.ActivityEntry)
 	}
 }
+
+// Ask's own deadline runs out while a cut turn is asked again: the person reads that the question ran out of time, not that the
+// provider did.
+func TestAskDeadlineDuringARetrySaysTheQuestionRanOut(t *testing.T) {
+	a := newAskAPI(t)
+	a.askTimeout = 150 * time.Millisecond
+	b := newAPIOver(a.env)
+	b.fake.mu.Lock()
+	b.fake.script = func(ctx context.Context, _ ai.Profile, req provider.Request) (provider.Response, error) {
+		if req.MaxTokens == 6000 { // the first request is cut at the limit
+			return provider.Response{Text: "half", Stop: provider.StopMaxTokens, Usage: provider.Usage{InputTokens: 14, OutputTokens: 6000}}, nil
+		}
+		<-ctx.Done() // the retry never answers
+		return provider.Response{}, &provider.Error{Kind: provider.ErrTimeout}
+	}
+	b.fake.mu.Unlock()
+	m := b.ask("Which machines still expose RDP?", 504, "ai_timeout")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "Ask a narrower question") || strings.Contains(msg, "provider") {
+		t.Fatalf("message = %q", msg)
+	}
+	if rows := b.activity(); len(rows) != 1 || !strings.Contains(rows[0].Summary, "used up its time") {
+		t.Fatalf("rows = %+v", rows)
+	}
+}

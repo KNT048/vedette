@@ -479,7 +479,8 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		}
 		return err
 	}
-	if a, ok := failedRetry(res); ok {
+	// the question's own deadline is what ran out, even when it ran out during the retry of a cut answer
+	if a, ok := failedRetry(res); ok && !errors.Is(err, errAskDeadline) {
 		return s.retryFailed(ctx, spec, entry, res, a)
 	}
 	var ue *UnavailableError

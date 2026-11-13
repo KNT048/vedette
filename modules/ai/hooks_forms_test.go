@@ -32,7 +32,7 @@ func (formsFacts) CVE(context.Context, string) (CVEFacts, bool, error) {
 	return CVEFacts{CVE: "CVE-2023-36844", Vendor: "Juniper", Product: "Junos OS", Name: "Juniper Junos OS EX Series PHP External Variable Modification Vulnerability",
 		Description:    "Juniper Junos OS on EX Series contains a PHP external variable modification vulnerability (chained with CVE-2023-36845 and CVE-2023-36846) that allows an attacker to control an important environment variable.",
 		RequiredAction: "Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.", DateAdded: "2023-11-13",
-		Links: []string{"https://supportportal.juniper.net/s/article/000087042", "https://nvd.nist.gov/vuln/detail/CVE-2023-36844", "https://kb.example.com/s/article/000087042?language=en_US#steps"}}, true, nil
+		Links: []string{"https://supportportal.juniper.net/s/article/2023-08-Out-of-Cycle-Security-Bulletin-Junos-OS", "https://nvd.nist.gov/vuln/detail/CVE-2023-36844", "https://kb.example.com/s/article/KB0087042?language=en_US#steps"}}, true, nil
 }
 
 func (formsFacts) AffectedAssets(context.Context, string) ([]AssetFact, error) {
@@ -95,7 +95,8 @@ func TestIDNumbersAndTheFormsTheyAreNot(t *testing.T) {
 		"22/tcp ssh, 443/tcp https, 3389/tcp rdp", "ports 443 3389 22 open",
 		"AS401234567", "ASN401234567", "AS13335",
 		"sha256 9f3a123456789e0b44c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3", "md5 123456789abcdef0123456789abcdef0",
-		"https://supportportal.juniper.net/s/article/000087042", "https://supportportal.juniper.net/s/article/000087042?language=en_US#top",
+		"https://supportportal.juniper.net/s/article/0000870421", "https://kb.example.com/s/article/KB0087042?language=en_US#top",
+		`{"id":"12345678-9abc-4def-8123-456789abcdef"}`, "Request ID 12345678-9abc-4def-8123-456789abcdef", "build id 10.0.19045.3693", `"id":"dev-aaaabbbb222233334444555566"`,
 		"Cisco ISR4321/K9", "model C1234567 in stock", // a passport shape without a passport label is a part number
 	}
 	for _, s := range notID {
@@ -113,6 +114,9 @@ func TestIDNumbersAndTheFormsTheyAreNot(t *testing.T) {
 		"referer https://x.vn/a,CCCD:079201234567", "passport https://x.vn/?so=123456789", "https://kb.example.com/view?id=123456789012",
 		"2023-36844", "AS 201234567", "cccd079201234567abcdef", "căn cước công dân số 079201234567", "can cuoc: 079201234567", "số định danh 079201234567",
 		"hộ chiếu C1234567", "passport no. B7654321", "ho chieu: N1234567", `{"id":"079201234567"}`, "ID:079201234567abc",
+		// round 2 of the review: an ID in a link's path or userinfo, after a label in a path, or glued to letters after a label
+		"https://x.vn/tra-cuu/cccd/079201234567", "https://x.vn/u/079201234567", "CCCD https://x.vn/079201234567", "http://u:079201234567@h/",
+		"CMND AS201234567", "CMND:AS201234567", "CCCD:abcd079201234567", "CCCD deadbeef079201234567", "https://x.vn/a/079201234567/b",
 	}
 	for _, s := range isID {
 		if got := findIDNumbers(s); len(got) == 0 {

@@ -169,6 +169,9 @@ func decoyArgs(a api.DecoyAddArgs) (netip.Addr, *[3]byte, error) {
 	if err != nil {
 		return netip.Addr{}, nil, server.Invalid("oui", err.Error())
 	}
+	if _, err := portsArg(a.Ports); err != nil {
+		return netip.Addr{}, nil, err
+	}
 	if !has {
 		return ip, nil, nil
 	}
@@ -299,24 +302,42 @@ func (o *Ops) runDecoyAdd(ctx context.Context, rc *server.RunContext, a api.Deco
 	if !ok {
 		return nil, refuse412(api.CodeLimitReached, "No routing table is free.")
 	}
-	d := decoyEntry{IP: ip.String(), MAC: mac, Table: table, Iface: m.Iface}
+	ports, err := portsArg(a.Ports)
+	if err != nil {
+		return nil, err
+	}
+	d := decoyEntry{IP: ip.String(), MAC: mac, Table: table, Iface: m.Iface, Ports: ports}
+	next := append(slices.Clone(list), d)
 	rc.Log("Creating the link " + name + " in the honeypot namespace.")
 	if err := o.buildDecoy(ctx, d, m); err != nil {
 		o.log.ErrorContext(ctx, "could not build the decoy", fieldIP, d.IP, "error", err.Error())
 		return nil, fail(api.CodeDecoyFailed, "The decoy could not be created; nothing was kept.")
 	}
-	if err := o.saveDecoys(append(slices.Clone(list), d)); err != nil {
+	if err := o.saveDecoys(next); err != nil {
 		o.log.ErrorContext(ctx, "could not write hp/decoys.json", "error", err.Error())
 		o.removeDecoyNS(ctx, d)
 		return nil, fail(api.CodeDecoyFailed, "The decoy could not be recorded; it was removed again.")
 	}
-	if err := o.verifyDecoy(ctx, d, m); err != nil {
-		o.log.ErrorContext(ctx, "the decoy is not in the namespace as it should be", fieldIP, d.IP, "error", err.Error())
+	undo := func() {
 		o.removeDecoyNS(ctx, d)
 		if serr := o.saveDecoys(list); serr != nil {
 			o.log.ErrorContext(ctx, "could not take the decoy out of hp/decoys.json", "error", serr.Error())
 		}
+	}
+	if err := o.verifyDecoy(ctx, d, m); err != nil {
+		o.log.ErrorContext(ctx, "the decoy is not in the namespace as it should be", fieldIP, d.IP, "error", err.Error())
+		undo()
 		return nil, fail(api.CodeDecoyFailed, "The decoy was created but the link in the namespace does not have the right MAC and address; it was removed again.")
+	}
+	// The address answers only once the ruleset that lets it (its allow-list, or the open set) is in
+	// force and proven (D-466); until then the input chain refuses every port of it.
+	if err := o.applyRuleset(ctx, next); err != nil {
+		o.log.ErrorContext(ctx, "the ruleset with the new decoy could not be proven", fieldIP, d.IP, "error", err.Error())
+		undo()
+		if rerr := o.applyRuleset(ctx, list); rerr != nil {
+			o.closeUnproven(ctx, rerr)
+		}
+		return nil, fail(api.CodeDecoyFailed, "The ports of the decoy could not be put in force; it was removed again.")
 	}
 	return api.DecoyAddResult{IP: d.IP, MAC: d.MAC}, nil
 }
@@ -347,7 +368,8 @@ func (o *Ops) runDecoyRemove(ctx context.Context, rc *server.RunContext, a api.D
 	}
 	// The state first: a crash after it leaves a link no entry owns, which the next reconcile
 	// removes; the other order would bring a removed decoy back.
-	if err := o.saveDecoys(slices.Delete(slices.Clone(list), i, i+1)); err != nil {
+	rest := slices.Delete(slices.Clone(list), i, i+1)
+	if err := o.saveDecoys(rest); err != nil {
 		o.log.ErrorContext(ctx, "could not write hp/decoys.json", "error", err.Error())
 		return nil, fail(api.CodeDecoyFailed, "The decoy list could not be written; nothing was removed.")
 	}
@@ -357,6 +379,11 @@ func (o *Ops) runDecoyRemove(ctx context.Context, rc *server.RunContext, a api.D
 		links, err := o.listNS(ctx)
 		if err != nil || slices.ContainsFunc(links, func(l nsLink) bool { return l.Name == linkName(ip) }) {
 			return nil, fail(api.CodeDecoyFailed, "The decoy is out of the list but its link is still in the namespace; the next start removes it.")
+		}
+		// Its ports leave the ruleset too (D-466): the sets hold exactly the decoys of the state.
+		if err := o.applyRuleset(ctx, rest); err != nil {
+			o.closeUnproven(ctx, err)
+			return nil, fail(api.CodeDecoyFailed, "The decoy is removed but the ruleset of the honeypot namespace could not be proven; the decoys are off until the host proves it again.")
 		}
 	}
 	return api.DecoyRemoveResult{Removed: true}, nil
@@ -679,9 +706,15 @@ func (o *Ops) reconcile(ctx context.Context, hint *NetplanConfig, ensured bool) 
 	if cancelled() {
 		return nil
 	}
-	if len(dropped) > 0 || !slices.Equal(keep, list) {
+	if len(dropped) > 0 || !slices.EqualFunc(keep, list, sameEntry) {
 		if err := o.saveDecoys(keep); err != nil {
 			return err
+		}
+		// A dropped decoy leaves the sets of the ruleset as well (D-466).
+		if !sameSets(keep, list) {
+			if err := o.applyRuleset(ctx, keep); err != nil {
+				o.closeUnproven(ctx, err)
+			}
 		}
 	}
 	for _, x := range dropped {
@@ -780,7 +813,7 @@ func (o *Ops) readDecoyState() []api.NetDecoy {
 	}
 	slices.SortFunc(list, func(a, b decoyEntry) int { return a.addr().Compare(b.addr()) })
 	for _, e := range list {
-		out = append(out, api.NetDecoy{IP: e.IP, MAC: e.MAC})
+		out = append(out, api.NetDecoy{IP: e.IP, MAC: e.MAC, Ports: portsOf(e)})
 	}
 	return out
 }

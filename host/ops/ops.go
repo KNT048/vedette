@@ -334,7 +334,7 @@ func (o *Ops) Commands() []server.Command {
 		o.cmdOSCheck(), o.cmdOSInstall(), o.cmdAutoSecurity(), o.cmdReboot(), o.cmdRebootCancel(),
 		o.cmdBackupCreate(), o.cmdBackupRestore(), o.cmdBackupPurge(), o.cmdLogsExport(),
 		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
-		o.cmdDecoyAdd(), o.cmdDecoyRemove(),
+		o.cmdDecoyAdd(), o.cmdDecoyRemove(), o.cmdDecoySetPorts(),
 		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(), o.cmdContainerRollback(),
 		o.cmdHostSelfUpdate(),
 	}

@@ -224,11 +224,12 @@ func FuzzDecoyBuilders(f *testing.F) {
 func TestTheRulesetTextIsTheOneTheEffectCheckAccepts(t *testing.T) {
 	t.Parallel()
 	// The text sent to nft, as nft prints it back (quoted interface, priority name), must pass the check.
-	printed := strings.NewReplacer("priority 0", "priority filter", "oif lo", `oif "lo"`, "flush ruleset\n", "").Replace(hpRulesetText)
-	if !hasEgressDrop([]byte(printed)) {
+	text := renderRuleset(nil)
+	printed := strings.NewReplacer("priority 0", "priority filter", "oif lo", `oif "lo"`, "iif lo", `iif "lo"`, "flush ruleset\n", "").Replace(text)
+	if !hasEgressDrop([]byte(printed)) || !rulesetIs([]byte(printed), nil) {
 		t.Fatalf("the ruleset the host loads is not what its own check accepts:\n%s", printed)
 	}
-	lines := strings.Split(hpRulesetText, "\n")
+	lines := strings.Split(text, "\n")
 	acc, lo, drop := -1, -1, -1
 	for i, l := range lines {
 		switch strings.TrimSpace(l) {
@@ -243,7 +244,7 @@ func TestTheRulesetTextIsTheOneTheEffectCheckAccepts(t *testing.T) {
 	if acc < 0 || acc >= lo || lo >= drop {
 		t.Fatalf("order: established %d, lo %d, drop %d", acc, lo, drop)
 	}
-	if !strings.HasPrefix(hpRulesetText, "flush ruleset\n") || !strings.Contains(hpRulesetText, "hook forward priority 0; policy drop;") {
+	if !strings.HasPrefix(text, "flush ruleset\n") || !strings.Contains(text, "hook forward priority 0; policy drop;") {
 		t.Fatal("the load must replace what was there and drop forwarding")
 	}
 }

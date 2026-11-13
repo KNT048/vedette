@@ -24,20 +24,7 @@ const (
 	linkNamePre  = "vdh"
 	maxMgmtBits  = 30
 	minMgmtBits  = 1
-	// The ruleset (D-102 (4), D-121): replies and loopback go out, every new connection is dropped,
-	// and nothing is forwarded.
-	hpRulesetText = "flush ruleset\n" +
-		"table inet vedette_hp {\n" +
-		"\tchain output {\n" +
-		"\t\ttype filter hook output priority 0; policy accept;\n" +
-		"\t\tct state established,related accept\n" +
-		"\t\toif lo accept\n" +
-		"\t\tct state new drop\n" +
-		"\t}\n" +
-		"\tchain forward {\n" +
-		"\t\ttype filter hook forward priority 0; policy drop;\n" +
-		"\t}\n" +
-		"}\n"
+	// The ruleset (D-102 (4), D-121, D-466) is rendered from hp/decoys.json: renderRuleset in decoyports.go.
 )
 
 // hpSysctls are the settings of the namespace: the four of D-102 (3) and the hygiene of D-121

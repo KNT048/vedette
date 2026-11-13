@@ -4,8 +4,8 @@ uid 1000 gid 0, from the first instruction: no root, no capability (the unit add
 
 1. log/ (a volume the container writes and core reads, D-89): podman's `:U` gives it to this user; the mode is made 0755 so core, which
    reads through the "other" bits, can list it.
-2. plant the file tokens of config/honeytokens.json in the SMB share (a tmpfs folder), start Samba (only when smb is enabled in
-   opencanary.conf) and OpenCanary (twistd, the config found through /etc/opencanaryd -> config/).
+2. plant the file tokens of config/honeytokens.json in the SMB share (a tmpfs folder), give the share the NetBIOS name of honeytokens.json
+   (D-466: the name of the first Trap IP with SMB), start Samba (only when smb is enabled in opencanary.conf) and OpenCanary (twistd, the config found through /etc/opencanaryd -> config/).
 3. read smbd's standard output. Samba's audit module is told not to use syslog (`full_audit:syslog = false`), so its audit lines are
    printed on stdout, among Samba's own few log lines. init.py writes smb.conf's include file at start with a fresh random token as the
    first field of the audit prefix: only a line that begins with that token is an audit line, so nothing a client can make Samba print
@@ -53,7 +53,8 @@ MAX_LINE = 8192  # a longer line of smbd's output is dropped
 PATH_MAX = 200  # modules/honeypot keeps 200 characters of a file name
 STOP_WAIT = 5  # seconds the children get after SIGTERM; podman's stop timeout (10 s) is the outer bound
 
-TOKEN_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$")  # tokenNameRE of modules/honeypot/personality.go
+TOKEN_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$")  # tokenNameRE of modules/honeypot/presets.go
+NETBIOS = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,13}[A-Za-z0-9])?")  # netbiosRE of modules/honeypot/presets.go (all digits refused too)
 TOKEN_BODY = b"CONFIDENTIAL - internal use only\r\n"
 IPV4 = re.compile(r"(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}")
 WORD = re.compile(r"[A-Za-z0-9_.-]{1,40}")
@@ -139,6 +140,14 @@ def audit_line(line, nonce):
     return "smbd_audit: |%s|%s|%s|%s|%s|%s|%s|||%s|%s|%s\n" % (src, dst, src, share, local, ver, arch, op, status, clean_path(path))
 
 
+def netbios_conf(name):
+    """The smb.conf line that gives the share the NetBIOS name core chose (D-466: the name of the first Trap IP with SMB), or "" to keep
+    the image's default. Pure: the tests drive it. Anything but a plain NetBIOS name (a newline would add a Samba parameter) is refused."""
+    if not isinstance(name, str) or not NETBIOS.fullmatch(name) or name.isdigit():
+        return ""
+    return "netbios name = %s\n" % name
+
+
 def write_audit(line):
     try:
         if os.stat(AUDIT).st_size > AUDIT_MAX:
@@ -202,9 +211,13 @@ def main():
     if os.geteuid() == 0:
         die("must not run as root: the image's user is %d:0" % UID)
     conf = read_json(CONF)
-    tokens = read_json(TOKENS).get("files", [])
+    tokjson = read_json(TOKENS)
+    tokens = tokjson.get("files", [])
     if not isinstance(tokens, list):
         die(TOKENS + ": files is not a list")
+    netbios = tokjson.get("netbios_name", "")
+    if netbios and not netbios_conf(netbios):
+        say("the NetBIOS name was refused; the share keeps the default name")
     smb_on = conf.get("smb.enabled") is True
 
     try:
@@ -219,6 +232,7 @@ def main():
     nonce = secrets.token_hex(16)
     with open(AUDIT_CONF, "w", encoding="ascii") as f:
         f.write("full_audit:prefix = %s|%s\n" % (nonce, AUDIT_FIELDS))  # parameters only: smb.conf includes it inside [global]
+        f.write(netbios_conf(netbios))  # after smb.conf's own `netbios name`, so it wins
     os.chmod(AUDIT_CONF, 0o600)
     open(AUDIT, "ab").close()  # must exist before OpenCanary starts watching it
     plant_tokens(tokens)

@@ -4625,12 +4625,12 @@ func decodeFindingsPostFindingsIDStatusParams(args [1]string, argsEscaped bool, 
 	return params, nil
 }
 
-// HoneypotDeleteHoneypotDecoysIDParams is parameters of honeypot_delete_honeypot_decoys_id operation.
-type HoneypotDeleteHoneypotDecoysIDParams struct {
+// HoneypotDeleteHoneypotTokensIDParams is parameters of honeypot_delete_honeypot_tokens_id operation.
+type HoneypotDeleteHoneypotTokensIDParams struct {
 	ID string
 }
 
-func unpackHoneypotDeleteHoneypotDecoysIDParams(packed middleware.Parameters) (params HoneypotDeleteHoneypotDecoysIDParams) {
+func unpackHoneypotDeleteHoneypotTokensIDParams(packed middleware.Parameters) (params HoneypotDeleteHoneypotTokensIDParams) {
 	{
 		key := middleware.ParameterKey{
 			Name: "id",
@@ -4641,7 +4641,7 @@ func unpackHoneypotDeleteHoneypotDecoysIDParams(packed middleware.Parameters) (p
 	return params
 }
 
-func decodeHoneypotDeleteHoneypotDecoysIDParams(args [1]string, argsEscaped bool, r *http.Request) (params HoneypotDeleteHoneypotDecoysIDParams, _ error) {
+func decodeHoneypotDeleteHoneypotTokensIDParams(args [1]string, argsEscaped bool, r *http.Request) (params HoneypotDeleteHoneypotTokensIDParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]
@@ -4690,12 +4690,12 @@ func decodeHoneypotDeleteHoneypotDecoysIDParams(args [1]string, argsEscaped bool
 	return params, nil
 }
 
-// HoneypotDeleteHoneypotTokensIDParams is parameters of honeypot_delete_honeypot_tokens_id operation.
-type HoneypotDeleteHoneypotTokensIDParams struct {
+// HoneypotDeleteHoneypotTrapIpsIDParams is parameters of honeypot_delete_honeypot_trap_ips_id operation.
+type HoneypotDeleteHoneypotTrapIpsIDParams struct {
 	ID string
 }
 
-func unpackHoneypotDeleteHoneypotTokensIDParams(packed middleware.Parameters) (params HoneypotDeleteHoneypotTokensIDParams) {
+func unpackHoneypotDeleteHoneypotTrapIpsIDParams(packed middleware.Parameters) (params HoneypotDeleteHoneypotTrapIpsIDParams) {
 	{
 		key := middleware.ParameterKey{
 			Name: "id",
@@ -4706,7 +4706,7 @@ func unpackHoneypotDeleteHoneypotTokensIDParams(packed middleware.Parameters) (p
 	return params
 }
 
-func decodeHoneypotDeleteHoneypotTokensIDParams(args [1]string, argsEscaped bool, r *http.Request) (params HoneypotDeleteHoneypotTokensIDParams, _ error) {
+func decodeHoneypotDeleteHoneypotTrapIpsIDParams(args [1]string, argsEscaped bool, r *http.Request) (params HoneypotDeleteHoneypotTrapIpsIDParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]
@@ -4884,12 +4884,12 @@ func decodeHoneypotGetHoneypotHitsIDParams(args [1]string, argsEscaped bool, r *
 	return params, nil
 }
 
-// HoneypotPatchHoneypotDecoysIDParams is parameters of honeypot_patch_honeypot_decoys_id operation.
-type HoneypotPatchHoneypotDecoysIDParams struct {
+// HoneypotPatchHoneypotTrapIpsIDParams is parameters of honeypot_patch_honeypot_trap_ips_id operation.
+type HoneypotPatchHoneypotTrapIpsIDParams struct {
 	ID string
 }
 
-func unpackHoneypotPatchHoneypotDecoysIDParams(packed middleware.Parameters) (params HoneypotPatchHoneypotDecoysIDParams) {
+func unpackHoneypotPatchHoneypotTrapIpsIDParams(packed middleware.Parameters) (params HoneypotPatchHoneypotTrapIpsIDParams) {
 	{
 		key := middleware.ParameterKey{
 			Name: "id",
@@ -4900,7 +4900,7 @@ func unpackHoneypotPatchHoneypotDecoysIDParams(packed middleware.Parameters) (pa
 	return params
 }
 
-func decodeHoneypotPatchHoneypotDecoysIDParams(args [1]string, argsEscaped bool, r *http.Request) (params HoneypotPatchHoneypotDecoysIDParams, _ error) {
+func decodeHoneypotPatchHoneypotTrapIpsIDParams(args [1]string, argsEscaped bool, r *http.Request) (params HoneypotPatchHoneypotTrapIpsIDParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]
@@ -4949,79 +4949,6 @@ func decodeHoneypotPatchHoneypotDecoysIDParams(args [1]string, argsEscaped bool,
 	return params, nil
 }
 
-// HoneypotPatchHoneypotTrapsServiceParams is parameters of honeypot_patch_honeypot_traps_service operation.
-type HoneypotPatchHoneypotTrapsServiceParams struct {
-	Service HoneypotPatchHoneypotTrapsServiceService
-}
-
-func unpackHoneypotPatchHoneypotTrapsServiceParams(packed middleware.Parameters) (params HoneypotPatchHoneypotTrapsServiceParams) {
-	{
-		key := middleware.ParameterKey{
-			Name: "service",
-			In:   "path",
-		}
-		params.Service = packed[key].(HoneypotPatchHoneypotTrapsServiceService)
-	}
-	return params
-}
-
-func decodeHoneypotPatchHoneypotTrapsServiceParams(args [1]string, argsEscaped bool, r *http.Request) (params HoneypotPatchHoneypotTrapsServiceParams, _ error) {
-	// Decode path: service.
-	if err := func() error {
-		param := args[0]
-		if argsEscaped {
-			unescaped, err := url.PathUnescape(args[0])
-			if err != nil {
-				return errors.Wrap(err, "unescape path")
-			}
-			param = unescaped
-		}
-		if len(param) > 0 {
-			d := uri.NewPathDecoder(uri.PathDecoderConfig{
-				Param:   "service",
-				Value:   param,
-				Style:   uri.PathStyleSimple,
-				Explode: false,
-			})
-
-			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
-					return err
-				}
-
-				c, err := conv.ToString(val)
-				if err != nil {
-					return err
-				}
-
-				params.Service = HoneypotPatchHoneypotTrapsServiceService(c)
-				return nil
-			}(); err != nil {
-				return err
-			}
-			if err := func() error {
-				if err := params.Service.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		} else {
-			return validate.ErrFieldRequired
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "service",
-			In:   "path",
-			Err:  err,
-		}
-	}
-	return params, nil
-}
-
 // HoneypotPostHoneypotTokensIDTestParams is parameters of honeypot_post_honeypot_tokens_id_test operation.
 type HoneypotPostHoneypotTokensIDTestParams struct {
 	ID string
@@ -5039,6 +4966,71 @@ func unpackHoneypotPostHoneypotTokensIDTestParams(packed middleware.Parameters) 
 }
 
 func decodeHoneypotPostHoneypotTokensIDTestParams(args [1]string, argsEscaped bool, r *http.Request) (params HoneypotPostHoneypotTokensIDTestParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// HoneypotPutHoneypotTrapIpsIDParams is parameters of honeypot_put_honeypot_trap_ips_id operation.
+type HoneypotPutHoneypotTrapIpsIDParams struct {
+	ID string
+}
+
+func unpackHoneypotPutHoneypotTrapIpsIDParams(packed middleware.Parameters) (params HoneypotPutHoneypotTrapIpsIDParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeHoneypotPutHoneypotTrapIpsIDParams(args [1]string, argsEscaped bool, r *http.Request) (params HoneypotPutHoneypotTrapIpsIDParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]

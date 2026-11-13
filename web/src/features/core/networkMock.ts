@@ -8,14 +8,11 @@ import { filterProblem, normaliseFilter, ntpProblem, staticProblem, type FilterT
 
 const ROLES: IfaceRole[] = ['management', 'span', 'unused']
 
-/** Honeypot addresses, read across modules without seeding (same pattern as emailChannelReady). Unseeded sample data has the seeded ones. */
+/** Honeypot addresses (the enabled Trap IPs, D-466), read across modules without seeding (same pattern as emailChannelReady). Unseeded sample data has the seeded ones. */
 function decoyIps(): string[] {
-  const sample = dataMode() === 'sample'
-  const cfg = peek<{ secondary_ip: string | null }>('hp_config')
-  const list = peek<{ ip: string }[]>('hp_decoys')
-  const main = cfg ? cfg.secondary_ip : sample ? '192.168.10.240' : null
-  const more = list ? list.map((d) => d.ip) : sample ? ['192.168.10.241', '192.168.10.242'] : []
-  return [main, ...more].filter((x): x is string => !!x)
+  const list = peek<{ ip: string; enabled: boolean }[]>('hp_trap_ips')
+  if (list) return list.filter((x) => x.enabled).map((x) => x.ip)
+  return dataMode() === 'sample' ? ['192.168.10.240', '192.168.10.241', '192.168.10.242'] : []
 }
 
 export function networkView() {

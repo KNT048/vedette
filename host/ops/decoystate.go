@@ -29,6 +29,17 @@ type decoyEntry struct {
 	MAC   string `json:"mac"`
 	Table int    `json:"table"` // the per-IP routing table, 100 to 131, kept for the life of the decoy
 	Iface string `json:"iface"` // the card the macvlan sits on when it was made
+	// Ports is the allow-list of the address in the namespace's input chain (D-466), sorted; nil =
+	// no allow-list (the address answers every port: a decoy an older core added).
+	Ports *[]api.DecoyPort `json:"ports,omitempty"`
+}
+
+// sameEntry compares two entries, the allow-list by value.
+func sameEntry(a, b decoyEntry) bool {
+	if a.IP != b.IP || a.MAC != b.MAC || a.Table != b.Table || a.Iface != b.Iface || (a.Ports == nil) != (b.Ports == nil) {
+		return false
+	}
+	return a.Ports == nil || slices.Equal(*a.Ports, *b.Ports)
 }
 
 type decoyFile struct {
@@ -66,6 +77,12 @@ func parseDecoys(b []byte) ([]decoyEntry, error) {
 			!tableOK(e.Table), !validIfaceName(e.Iface),
 			ips[e.IP], macs[e.MAC], tables[e.Table]:
 			return nil, errDecoysInvalid
+		}
+		if e.Ports != nil { // written sorted by the host: anything else is not its file
+			c, err := canonicalPorts(*e.Ports)
+			if err != nil || !slices.Equal(c, *e.Ports) {
+				return nil, errDecoysInvalid
+			}
 		}
 		ips[e.IP], macs[e.MAC], tables[e.Table] = true, true, true
 	}

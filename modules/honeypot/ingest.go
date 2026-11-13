@@ -176,7 +176,12 @@ type ingestEnv struct {
 	files   map[string]Token // lower-case bait file name → token
 	now     time.Time
 	trapIPs map[netip.Addr]bool // the addresses the traps listen on now
-	perSrc  map[netip.Addr]int
+	// at is the Trap IP at each of those addresses and order the addresses in creation order (D-466: a hit carries the name
+	// of the Trap IP that was hit); openPorts says the host cannot keep an address to its own services (every address answers them all).
+	at        map[netip.Addr]*trapIPRow
+	order     []netip.Addr
+	openPorts bool
+	perSrc    map[netip.Addr]int
 	pollNew int // new hits stored by this poll's earlier batches
 	hourNew int // new hits stored in this clock hour before this batch
 	// of the batch in progress
@@ -194,7 +199,8 @@ func (s *Service) newIngest(ctx context.Context) (*ingestEnv, error) {
 	if err != nil {
 		return nil, err
 	}
-	env := &ingestEnv{w: w, creds: map[string]Token{}, files: map[string]Token{}, now: s.now(), trapIPs: map[netip.Addr]bool{}, perSrc: map[netip.Addr]int{}}
+	env := &ingestEnv{w: w, creds: map[string]Token{}, files: map[string]Token{}, now: s.now(), trapIPs: map[netip.Addr]bool{}, at: map[netip.Addr]*trapIPRow{},
+		perSrc: map[netip.Addr]int{}, openPorts: s.hostView().openPorts}
 	for _, t := range toks {
 		switch t.Type {
 		case TokenCredential:
@@ -206,7 +212,9 @@ func (s *Service) newIngest(ctx context.Context) (*ingestEnv, error) {
 	ips, _, _ := w.desired()
 	for _, ip := range ips {
 		env.trapIPs[ip] = true
+		env.at[ip] = w.trapIPAt(ip)
 	}
+	env.order = ips
 	hour := env.now.Truncate(time.Hour)
 	s.mu.Lock()
 	if !s.hourStart.Equal(hour) {
@@ -337,12 +345,43 @@ func (env *ingestEnv) plausible(r Record, svc ServiceName, scan bool) bool {
 		return false
 	case r.Dst.IsValid() && !env.trapIPs[r.Dst]:
 		return false
-	case !scan && !w.traps[svc].enabled, scan && len(env.trapIPs) == 0:
+	case !scan && !env.serves(r.Dst, svc), scan && len(env.trapIPs) == 0:
 		return false
 	case !r.TS.IsZero() && (r.TS.Before(env.now.Add(-maxLineAge)) || r.TS.After(env.now.Add(maxLineFuture))):
 		return false
 	}
 	return true
+}
+
+// serves says whether a connection to svc on dst can be real: the Trap IP at dst has the service (the host closes the other
+// ports, D-466). A line without a target address needs some Trap IP with the service; a host that cannot close ports
+// (openPorts) lets every address answer every service that runs.
+func (env *ingestEnv) serves(dst netip.Addr, svc ServiceName) bool {
+	if dst.IsValid() && !env.openPorts {
+		d := env.at[dst]
+		return d != nil && d.has(svc)
+	}
+	return env.first(svc) != nil
+}
+
+// first is the oldest Trap IP handed to the host that has svc, nil when none has.
+func (env *ingestEnv) first(svc ServiceName) *trapIPRow {
+	for _, ip := range env.order {
+		if d := env.at[ip]; d != nil && d.has(svc) {
+			return d
+		}
+	}
+	return nil
+}
+
+// nameAt is the name of the Trap IP at the address of a hit ("" when none).
+func (env *ingestEnv) nameAt(ip string) string {
+	if a, err := netip.ParseAddr(ip); err == nil {
+		if d := env.at[a]; d != nil {
+			return d.Name
+		}
+	}
+	return ""
 }
 
 func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r Record) error {
@@ -386,8 +425,10 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 		from += ":" + strconv.Itoa(r.SrcPort)
 	}
 	trapIP := dst
-	if trapIP == "" {
-		trapIP = w.cfg.SecondaryIP
+	if trapIP == "" && !scan { // a line without the target address: the oldest Trap IP with that service
+		if d := env.first(svc); d != nil {
+			trapIP = d.IP
+		}
 	}
 	if scan {
 		label := "Port scan on decoy " + dst
@@ -415,7 +456,7 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 	svcCopy := svc
 	if err := s.upsert(ctx, tx, env, storedHit{
 		Hit:    Hit{TS: tsText, Kind: KindService, Service: &svcCopy, Label: svc.Label(), Port: &port, SrcIP: src, Excerpt: det},
-		trapIP: trapIP, trapHostname: w.cfg.Hostname, connKey: connKey("service", string(svc), src, dst, strconv.Itoa(port), window),
+		trapIP: trapIP, trapHostname: env.nameAt(trapIP), connKey: connKey("service", string(svc), src, dst, strconv.Itoa(port), window),
 		events: []HitEvent{{TS: tsText, Source: "honeypot", Text: first, Mark: true}},
 	}, more, det); err != nil {
 		return err

@@ -1452,15 +1452,6 @@ func (UnimplementedHandler) FindingsPostFindingsIDStatus(ctx context.Context, re
 	return r, ht.ErrNotImplemented
 }
 
-// HoneypotDeleteHoneypotDecoysID implements honeypot_delete_honeypot_decoys_id operation.
-//
-// Delete a decoy.
-//
-// DELETE /honeypot/decoys/{id}
-func (UnimplementedHandler) HoneypotDeleteHoneypotDecoysID(ctx context.Context, params HoneypotDeleteHoneypotDecoysIDParams) error {
-	return ht.ErrNotImplemented
-}
-
 // HoneypotDeleteHoneypotTokensID implements honeypot_delete_honeypot_tokens_id operation.
 //
 // Delete a honey token; the planted copy stops alerting.
@@ -1470,21 +1461,22 @@ func (UnimplementedHandler) HoneypotDeleteHoneypotTokensID(ctx context.Context, 
 	return ht.ErrNotImplemented
 }
 
+// HoneypotDeleteHoneypotTrapIpsID implements honeypot_delete_honeypot_trap_ips_id operation.
+//
+// Delete a Trap IP; the address stops answering, its hits stay.
+//
+// DELETE /honeypot/trap-ips/{id}
+func (UnimplementedHandler) HoneypotDeleteHoneypotTrapIpsID(ctx context.Context, params HoneypotDeleteHoneypotTrapIpsIDParams) error {
+	return ht.ErrNotImplemented
+}
+
 // HoneypotGetHoneypot implements honeypot_get_honeypot operation.
 //
-// The decoy machine, traps by service, hit summary and the excluded scanner.
+// Trap IP counts, services across the Trap IPs, the box-wide SMB name and HTTP page, hit summary and
+// the excluded scanner.
 //
 // GET /honeypot
 func (UnimplementedHandler) HoneypotGetHoneypot(ctx context.Context) (r *HoneypotGetHoneypotOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// HoneypotGetHoneypotDecoys implements honeypot_get_honeypot_decoys operation.
-//
-// Decoy personalities in use, suggestions from the inventory and spare IPs.
-//
-// GET /honeypot/decoys
-func (UnimplementedHandler) HoneypotGetHoneypotDecoys(ctx context.Context) (r *HoneypotGetHoneypotDecoysOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1515,37 +1507,28 @@ func (UnimplementedHandler) HoneypotGetHoneypotTokens(ctx context.Context) (r *H
 	return r, ht.ErrNotImplemented
 }
 
-// HoneypotPatchHoneypotDecoysID implements honeypot_patch_honeypot_decoys_id operation.
+// HoneypotGetHoneypotTrapIps implements honeypot_get_honeypot_trap_ips operation.
 //
-// Turn a decoy on or off.
+// Trap IPs with their state, suggestions from the inventory and addresses not seen yet.
 //
-// PATCH /honeypot/decoys/{id}
-func (UnimplementedHandler) HoneypotPatchHoneypotDecoysID(ctx context.Context, req *HoneypotPatchHoneypotDecoysIDReq, params HoneypotPatchHoneypotDecoysIDParams) (r *HoneypotPatchHoneypotDecoysIDOK, _ error) {
+// GET /honeypot/trap-ips
+func (UnimplementedHandler) HoneypotGetHoneypotTrapIps(ctx context.Context) (r *HoneypotGetHoneypotTrapIpsOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
-// HoneypotPatchHoneypotTrapsService implements honeypot_patch_honeypot_traps_service operation.
+// HoneypotPatchHoneypotTrapIpsID implements honeypot_patch_honeypot_trap_ips_id operation.
 //
-// Turn the trap of one service on or off.
+// Turn a Trap IP on or off.
 //
-// PATCH /honeypot/traps/{service}
-func (UnimplementedHandler) HoneypotPatchHoneypotTrapsService(ctx context.Context, req *HoneypotPatchHoneypotTrapsServiceReq, params HoneypotPatchHoneypotTrapsServiceParams) (r *HoneypotPatchHoneypotTrapsServiceOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// HoneypotPostHoneypotDecoys implements honeypot_post_honeypot_decoys operation.
-//
-// Add a decoy with a personality on a spare IP.
-//
-// POST /honeypot/decoys
-func (UnimplementedHandler) HoneypotPostHoneypotDecoys(ctx context.Context, req *HoneypotPostHoneypotDecoysReq) (r *HoneypotPostHoneypotDecoysCreated, _ error) {
+// PATCH /honeypot/trap-ips/{id}
+func (UnimplementedHandler) HoneypotPatchHoneypotTrapIpsID(ctx context.Context, req *HoneypotPatchHoneypotTrapIpsIDReq, params HoneypotPatchHoneypotTrapIpsIDParams) (r *HoneypotPatchHoneypotTrapIpsIDOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
 // HoneypotPostHoneypotTestHit implements honeypot_post_honeypot_test_hit operation.
 //
-// "Test trap": creates a hit labelled as a test from the box itself, not counted in statistics, no
-// alert sent.
+// "Test trap": creates a hit labelled as a test from the box itself, on the first enabled Trap IP with
+// that service; not counted in statistics, no alert sent.
 //
 // POST /honeypot/test-hit
 func (UnimplementedHandler) HoneypotPostHoneypotTestHit(ctx context.Context, req *HoneypotPostHoneypotTestHitReq) (r *HoneypotPostHoneypotTestHitOK, _ error) {
@@ -1554,8 +1537,7 @@ func (UnimplementedHandler) HoneypotPostHoneypotTestHit(ctx context.Context, req
 
 // HoneypotPostHoneypotTestScan implements honeypot_post_honeypot_test_scan operation.
 //
-// "Test scan": a labelled test scan alert from the box across the decoy IPs, not counted, no alert
-// sent.
+// "Test scan": a labelled test scan alert from the box across the Trap IPs, not counted, no alert sent.
 //
 // POST /honeypot/test-scan
 func (UnimplementedHandler) HoneypotPostHoneypotTestScan(ctx context.Context) (r *HoneypotPostHoneypotTestScanOK, _ error) {
@@ -1580,14 +1562,22 @@ func (UnimplementedHandler) HoneypotPostHoneypotTokensIDTest(ctx context.Context
 	return r, ht.ErrNotImplemented
 }
 
-// HoneypotPutHoneypotConfig implements honeypot_put_honeypot_config operation.
+// HoneypotPostHoneypotTrapIps implements honeypot_post_honeypot_trap_ips operation.
 //
-// Set the secondary IP and decoy hostname; an empty secondary_ip removes the decoy IP, only while
-// every trap is off (409 traps_on). Rejects an IP that matches a device, the IP of the box itself, or
-// an IP outside the network of the box.
+// Add a Trap IP: name, address, preset, vendor and services. Rejects an address of a device, of the
+// box or outside the box network, and a name in use.
 //
-// PUT /honeypot/config
-func (UnimplementedHandler) HoneypotPutHoneypotConfig(ctx context.Context, req *HoneypotPutHoneypotConfigReq) (r *HoneypotPutHoneypotConfigOK, _ error) {
+// POST /honeypot/trap-ips
+func (UnimplementedHandler) HoneypotPostHoneypotTrapIps(ctx context.Context, req *HoneypotPostHoneypotTrapIpsReq) (r *HoneypotPostHoneypotTrapIpsCreated, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// HoneypotPutHoneypotTrapIpsID implements honeypot_put_honeypot_trap_ips_id operation.
+//
+// Change a Trap IP: name, address, preset, vendor and services, with the same checks as adding one.
+//
+// PUT /honeypot/trap-ips/{id}
+func (UnimplementedHandler) HoneypotPutHoneypotTrapIpsID(ctx context.Context, req *HoneypotPutHoneypotTrapIpsIDReq, params HoneypotPutHoneypotTrapIpsIDParams) (r *HoneypotPutHoneypotTrapIpsIDOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

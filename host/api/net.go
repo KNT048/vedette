@@ -94,6 +94,9 @@ type NetPending struct {
 type NetDecoy struct {
 	IP  string `json:"ip"`
 	MAC string `json:"mac"`
+	// Ports is the allow-list of the address (D-466); nil (absent) = no allow-list, the address
+	// answers every port the honeypot listens on. An older host never sends it.
+	Ports *[]DecoyPort `json:"ports,omitempty"`
 }
 
 // NetState is the body of GET /v1/state/net.

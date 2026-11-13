@@ -1900,32 +1900,19 @@ func encodeFindingsPostFindingsIDStatusResponse(response *FindingsPostFindingsID
 	return nil
 }
 
-func encodeHoneypotDeleteHoneypotDecoysIDResponse(response *HoneypotDeleteHoneypotDecoysIDNoContent, w http.ResponseWriter) error {
-	w.WriteHeader(204)
-
-	return nil
-}
-
 func encodeHoneypotDeleteHoneypotTokensIDResponse(response *HoneypotDeleteHoneypotTokensIDNoContent, w http.ResponseWriter) error {
 	w.WriteHeader(204)
 
 	return nil
 }
 
-func encodeHoneypotGetHoneypotResponse(response *HoneypotGetHoneypotOK, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
+func encodeHoneypotDeleteHoneypotTrapIpsIDResponse(response *HoneypotDeleteHoneypotTrapIpsIDNoContent, w http.ResponseWriter) error {
+	w.WriteHeader(204)
 
 	return nil
 }
 
-func encodeHoneypotGetHoneypotDecoysResponse(response *HoneypotGetHoneypotDecoysOK, w http.ResponseWriter) error {
+func encodeHoneypotGetHoneypotResponse(response *HoneypotGetHoneypotOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 
@@ -1977,7 +1964,7 @@ func encodeHoneypotGetHoneypotTokensResponse(response *HoneypotGetHoneypotTokens
 	return nil
 }
 
-func encodeHoneypotPatchHoneypotDecoysIDResponse(response *HoneypotPatchHoneypotDecoysIDOK, w http.ResponseWriter) error {
+func encodeHoneypotGetHoneypotTrapIpsResponse(response *HoneypotGetHoneypotTrapIpsOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 
@@ -1990,22 +1977,9 @@ func encodeHoneypotPatchHoneypotDecoysIDResponse(response *HoneypotPatchHoneypot
 	return nil
 }
 
-func encodeHoneypotPatchHoneypotTrapsServiceResponse(response *HoneypotPatchHoneypotTrapsServiceOK, w http.ResponseWriter) error {
+func encodeHoneypotPatchHoneypotTrapIpsIDResponse(response *HoneypotPatchHoneypotTrapIpsIDOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
-func encodeHoneypotPostHoneypotDecoysResponse(response *HoneypotPostHoneypotDecoysCreated, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(201)
 
 	e := new(jx.Encoder)
 	response.Encode(e)
@@ -2068,7 +2042,20 @@ func encodeHoneypotPostHoneypotTokensIDTestResponse(response *HoneypotPostHoneyp
 	return nil
 }
 
-func encodeHoneypotPutHoneypotConfigResponse(response *HoneypotPutHoneypotConfigOK, w http.ResponseWriter) error {
+func encodeHoneypotPostHoneypotTrapIpsResponse(response *HoneypotPostHoneypotTrapIpsCreated, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(201)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeHoneypotPutHoneypotTrapIpsIDResponse(response *HoneypotPutHoneypotTrapIpsIDOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

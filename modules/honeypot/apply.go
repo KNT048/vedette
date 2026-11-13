@@ -34,7 +34,19 @@ type hostCache struct {
 	// MACs read. macs the MACs it gave them (when the host says).
 	placed map[netip.Addr]bool
 	macs   map[netip.Addr]string
+	// openPorts: the host cannot keep each address to its own ports (an older vedette-host without decoy_ip.set_ports,
+	// host-api §13): every address answers every service that runs, and the Trap IPs say so.
+	openPorts bool
 }
+
+// portKeeper is the optional part of a Host that says whether it keeps each address to its own ports (D-466); a Host
+// without it is taken to keep them.
+type portKeeper interface {
+	KeepsPorts(ctx context.Context) bool
+}
+
+// openPortsNote is the note on a listening Trap IP when the host cannot keep its services apart.
+const openPortsNote = "the host program on this box is older and cannot limit each Trap IP to its own services yet: this address answers every service a Trap IP uses until vedette-host is updated"
 
 // refusal is the back-off of one address the host refused: the first refusals are retried at the next Apply, from the
 // third on only every refuseBackoff (a host that refuses is not asked, audited and logged each minute; the host takes
@@ -78,10 +90,10 @@ func (s *Service) hostView() hostView {
 	return hostView{hostCache: s.host, pending: s.kickGen > s.doneGen}
 }
 
-// TrapConflicts lists the secondary or decoy addresses the last Apply left out of the host and why (a device or the box
-// has the address, it is outside the LAN now, the host refused it or is full, or could not set it up). The API shows
-// one reason each: the traps show state "conflict" when the secondary IP is among them ("failed" when the host could not
-// set it up) with Overview.Problem, an extra decoy its own Decoy.Reason; the full list is here and in the log.
+// TrapConflicts lists the Trap IP addresses the last Apply left out of the host and why (a device or the box has the
+// address, it is outside the LAN now, the host refused it or is full, or could not set it up). The API shows each as the
+// state and reason of its Trap IP ("conflict", or "failed" when the host could not set it up); the full list is here and
+// in the log.
 func (s *Service) TrapConflicts() map[netip.Addr]string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -96,8 +108,8 @@ func (s *Service) HostStatus() (listening bool, reason string) {
 	return s.host.available && s.host.running, s.host.reason
 }
 
-// DecoyIPs are the addresses the traps own: the ones handed to the host at the last Apply (the secondary IP and the enabled
-// decoys the host accepted). The inventory must not make a device of them (CONTRACT, open question 2: the answers to ARP
+// DecoyIPs are the addresses the traps own: the ones handed to the host at the last Apply (the enabled Trap IPs the host
+// accepted). The inventory must not make a device of them (CONTRACT, open question 2: the answers to ARP
 // that the trap itself gives are no device) and the active sensor must not probe them. The set is read from the stored
 // "applied" record, so it is right right after a restart too.
 func (s *Service) DecoyIPs(ctx context.Context) []netip.Addr {
@@ -126,41 +138,50 @@ func (s *Service) DecoyIPsRead(ctx context.Context) ([]netip.Addr, error) {
 }
 
 // desired is what the host should look like, from the database and the inventory (D-55: configuration comes from the
-// database, never edited by hand). An address that is the box's own, outside the LAN now, or a device's is left out and
-// listed in conflicts (INV-5, INV-6, FORBID-1); so is whatever passes the host's 32 addresses, the secondary IP first.
+// database, never edited by hand): the enabled Trap IPs with at least one service, in creation order, and the services of
+// all of them (one OpenCanary process runs their union, D-90 (1); the host keeps each address to its own ports, D-466). An
+// address that is the box's own, outside the LAN now, or a device's is left out and listed in conflicts (INV-5, INV-6,
+// FORBID-1); so is whatever passes the host's 32 addresses, the oldest Trap IPs first.
 func (w *world) desired() (ips []netip.Addr, services []ServiceName, conflicts map[netip.Addr]string) {
 	conflicts = map[netip.Addr]string{}
-	if w.secIP.IsValid() {
-		if why := w.ipProblem(w.secIP); why != "" {
-			conflicts[w.secIP] = why
-		} else {
-			for _, svc := range Services {
-				if w.traps[svc].enabled {
-					services = append(services, svc)
-				}
-			}
-			if len(services) > 0 {
-				ips = append(ips, w.secIP)
-			}
+	var all []ServiceName
+	for _, d := range w.trapIPs {
+		if !d.Enabled || !d.ip.IsValid() || len(d.Services) == 0 || slices.Contains(ips, d.ip) {
+			continue
+		}
+		if why := w.ipProblem(d.ip); why != "" {
+			conflicts[d.ip] = why
+			continue
+		}
+		if len(ips) >= maxHostIPs {
+			conflicts[d.ip] = fmt.Sprintf("the host holds at most %d addresses", maxHostIPs)
+			continue
+		}
+		ips = append(ips, d.ip)
+		all = append(all, d.Services...)
+	}
+	return ips, inOrder(all), conflicts
+}
+
+// specs is how the host builds each wanted address (D-466).
+func (w *world) specs(ips []netip.Addr) map[netip.Addr]DecoySpec {
+	out := make(map[netip.Addr]DecoySpec, len(ips))
+	for _, d := range w.trapIPs {
+		if slices.Contains(ips, d.ip) {
+			out[d.ip] = d.spec()
 		}
 	}
-	if len(services) > 0 {
-		for _, d := range w.decoys {
-			if !d.Enabled || !d.ip.IsValid() || slices.Contains(ips, d.ip) {
-				continue
-			}
-			if why := w.ipProblem(d.ip); why != "" {
-				conflicts[d.ip] = why
-				continue
-			}
-			if len(ips) >= maxHostIPs {
-				conflicts[d.ip] = fmt.Sprintf("the host holds at most %d addresses", maxHostIPs)
-				continue
-			}
-			ips = append(ips, d.ip)
+	return out
+}
+
+// trapIPAt is the Trap IP handed to the host at ip, nil when none is.
+func (w *world) trapIPAt(ip netip.Addr) *trapIPRow {
+	for i := range w.trapIPs {
+		if d := &w.trapIPs[i]; d.ip == ip && d.Enabled {
+			return d
 		}
 	}
-	return ips, services, conflicts
+	return nil
 }
 
 // writeFiles renders opencanary.conf and honeytokens.json and writes the ones that differ from what this process wrote
@@ -177,15 +198,17 @@ func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceNa
 			files = append(files, t.Value)
 		}
 	}
-	nas := false
-	for _, d := range w.decoys {
-		nas = nas || d.Enabled && d.Personality == NAS
-	}
-	conf, err := RenderConfig(ConfigInput{Enabled: services, LogPath: filepath.Join(s.cfg.LogDir, defaultLogFile), NASDecoy: nas})
+	// One login page and one share name for the whole box (D-466 (4)): the oldest Trap IP handed to the host decides each.
+	smb, http := w.boxWide()
+	conf, err := RenderConfig(ConfigInput{Enabled: services, LogPath: filepath.Join(s.cfg.LogDir, defaultLogFile), NASDecoy: http != nil && http.Preset == NAS})
 	if err != nil {
 		return err
 	}
-	tok, err := RenderTokens(files)
+	netbios := ""
+	if smb != nil {
+		netbios = smb.Name
+	}
+	tok, err := RenderTokens(files, netbios)
 	if err != nil {
 		return err
 	}
@@ -265,9 +288,10 @@ func (s *Service) Apply(ctx context.Context) error {
 		s.cfg.Log.InfoContext(ctx, "honeypot: traps cannot listen", "reason", reason)
 		return errors.Join(errs...)
 	}
-	ask, backedOff := s.backOff(ips, services)
+	specs := w.specs(ips)
+	ask, backedOff := s.backOff(ips, services, specs)
 	keep := slices.Collect(maps.Keys(backedOff))
-	placed, confirmed, refused, err := s.syncIPs(ctx, ask, keep, filesOK)
+	placed, confirmed, refused, err := s.syncIPs(ctx, ask, specs, keep, filesOK)
 	if parent.Err() != nil { // core is stopping: what the host did not answer is not a refusal; change nothing more
 		return errors.Join(append(errs, err, parent.Err())...)
 	}
@@ -295,8 +319,12 @@ func (s *Service) Apply(ctx context.Context) error {
 	}
 	// What the host confirmed and its MACs go into the same cache write as the rest, so a reader never sees the new state with the old addresses.
 	placedSet, macs := s.placedAndMACs(ctx, confirmed)
+	open := false
+	if k, ok := s.cfg.Host.(portKeeper); ok && len(placed) > 0 {
+		open = !k.KeepsPorts(ctx)
+	}
 	set := func(h hostCache) {
-		h.placed, h.macs = placedSet, macs
+		h.placed, h.macs, h.openPorts = placedSet, macs, open
 		s.setHost(h)
 	}
 	switch {
@@ -304,12 +332,12 @@ func (s *Service) Apply(ctx context.Context) error {
 		if err := s.cfg.Host.StopContainer(ctx); err != nil {
 			errs = append(errs, fmt.Errorf("honeypot: stop container: %w", err))
 		}
-		set(hostCache{available: true, reason: "no trap is on", conflicts: conflicts, hostFailed: hostFailed})
+		set(hostCache{available: true, reason: "no Trap IP is on", conflicts: conflicts, hostFailed: hostFailed})
 	case len(placed) == 0:
 		if err := s.cfg.Host.StopContainer(ctx); err != nil {
 			errs = append(errs, fmt.Errorf("honeypot: stop container: %w", err))
 		}
-		reason := "the host did not take any decoy address"
+		reason := "the host did not take any Trap IP address"
 		switch {
 		case !filesOK: // nothing was asked
 			reason = "the trap configuration could not be written"
@@ -338,8 +366,8 @@ func (s *Service) Apply(ctx context.Context) error {
 
 // backOff splits the wanted addresses into the ones to ask the host for now and the ones in back-off (refused before,
 // not due yet). A change of what is wanted starts over; an address no longer wanted is forgotten.
-func (s *Service) backOff(ips []netip.Addr, services []ServiceName) (ask []netip.Addr, backedOff map[netip.Addr]*refusal) {
-	sig := fmt.Sprint(ips, services)
+func (s *Service) backOff(ips []netip.Addr, services []ServiceName, specs map[netip.Addr]DecoySpec) (ask []netip.Addr, backedOff map[netip.Addr]*refusal) {
+	sig := fmt.Sprint(ips, services, specs) // fmt prints maps sorted by key: the same wanted state gives the same text
 	if sig != s.sig {
 		clear(s.refusals)
 		s.sig = sig
@@ -399,7 +427,7 @@ func (s *Service) setHost(h hostCache) {
 // placed is what the host may hold of the wanted ones (it decides whether the container runs: one slow answer must not
 // stop the traps); confirmed is what it said it holds (it took it now, or confirmed it at the last Apply and has not
 // refused it since): only that is "listening" (S-HP-1, #475). err carries what went wrong besides refusals (a removal, the database).
-func (s *Service) syncIPs(ctx context.Context, want, keep []netip.Addr, add bool) (placed, confirmed []netip.Addr, refused map[netip.Addr]error, err error) {
+func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, specs map[netip.Addr]DecoySpec, keep []netip.Addr, add bool) (placed, confirmed []netip.Addr, refused map[netip.Addr]error, err error) {
 	var prev []string
 	if err := loadJSON(ctx, s.db.Reader(), "applied", &prev); err != nil {
 		return nil, nil, nil, err
@@ -445,7 +473,7 @@ func (s *Service) syncIPs(ctx context.Context, want, keep []netip.Addr, add bool
 			have[ip] = true
 			save()
 		}
-		if err := s.cfg.Host.AddDecoyIP(ctx, ip); err != nil {
+		if err := s.cfg.Host.AddDecoyIP(ctx, ip, specs[ip]); err != nil {
 			if ctx.Err() != nil || !errors.Is(err, ErrRefused) {
 				// Unknown whether the host took it (cancelled, out of time, busy, an answer lost): keep it on record so
 				// the teardown removes it, show no conflict, do not call it placed, and stop asking this Apply (the next
@@ -524,7 +552,7 @@ func (s *Service) disable(ctx context.Context) error {
 			// every one is gone and the container is not running.
 			var rerr error
 			if len(applied) > 0 {
-				_, _, _, rerr = s.syncIPs(ctx, nil, nil, false)
+				_, _, _, rerr = s.syncIPs(ctx, nil, nil, nil, false)
 			}
 			if rerr != nil || st.Running {
 				s.setHost(hostCache{reason: turningOff})
@@ -538,7 +566,7 @@ func (s *Service) disable(ctx context.Context) error {
 	if err := s.cfg.Host.StopContainer(ctx); err != nil {
 		errs = append(errs, err)
 	}
-	_, _, _, err = s.syncIPs(ctx, nil, nil, false)
+	_, _, _, err = s.syncIPs(ctx, nil, nil, nil, false)
 	errs = append(errs, err)
 	if err := errors.Join(errs...); err != nil {
 		s.setHost(hostCache{available: true, reason: turningOff})
@@ -548,7 +576,7 @@ func (s *Service) disable(ctx context.Context) error {
 	return nil
 }
 
-const turningOff = "the module is turning off: the host has not confirmed yet that the container stopped and the decoy addresses are gone"
+const turningOff = "the module is turning off: the host has not confirmed yet that the container stopped and the Trap IP addresses are gone"
 
 // EnsureOff is the Teardown core's OffGuard runs while the module is off, at start and after every switch-off, with
 // backoff until it returns nil (D-189, SYS-5): a failed teardown or a restart never leaves traps listening. It does
@@ -567,7 +595,7 @@ type Bus interface {
 	Subscribe(name string, fn events.Handler) (unsubscribe func())
 }
 
-// Subscribe registers the reactions: a device that appears or changes may now sit on a secondary or decoy IP, so the
+// Subscribe registers the reactions: a device that appears or changes may now sit on a Trap IP, so the
 // state is applied again (INV-6: the trap becomes conflict and stops listening). Events are hints; the run loop also
 // applies every minute.
 func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {

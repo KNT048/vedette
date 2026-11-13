@@ -1,20 +1,22 @@
-// Mock API of module honeypot (S-HP-1, S-HP-2). Tables: hp_config, hp_hits, hp_decoys, hp_tokens. The response module reads hp_hits with peek. Traps only listen, they never hit back (LEGAL §3).
-// Services/ports follow OpenCanary: SMB 445 (Samba-based), RDP 3389, SSH 22, MSSQL 1433, HTTP 80.
+// Mock API of module honeypot (S-HP-1, S-HP-2, D-466). Tables: hp_config, hp_trap_ips, hp_hits, hp_tokens. The response module reads hp_hits with peek; core's
+// network mock reads hp_trap_ips with peek. Traps only listen, they never hit back (LEGAL §3).
+// Services/ports follow OpenCanary: SMB 445 (Samba-based), RDP 3389, SSH 22, MSSQL 1433, HTTP 80. Each Trap IP answers only its own services (D-466).
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
 import { assetsStore, boxInfo } from '@/mocks/stores'
 import { collection, daysAgo, newId, nowIso } from '@/mocks/db'
-import { personalityDef, PERSONALITIES } from './personalities'
-import { HP_SERVICES, type Decoy, type DecoySuggestion, type Hit, type HitDetail, type HitEvent, type HitKind, type HpOverview, type HpService, type Personality, type Token, type TokenType, type Trap } from './types'
+import { PRESETS, SERVICE_PORT, VENDORS } from './presets'
+import { HP_SERVICES, type Hit, type HitDetail, type HitEvent, type HitKind, type HpOverview, type HpService, type Token, type TokenType, type Trap, type TrapIP, type TrapIPInput, type TrapPreset, type TrapState, type TrapSuggestion, type TrapVendor } from './types'
 
-const PORTS: Record<HpService, number> = { smb: 445, rdp: 3389, ssh: 22, mssql: 1433, http: 80 }
 const LABEL: Record<HpService, string> = { smb: 'SMB', rdp: 'RDP', ssh: 'SSH', mssql: 'MSSQL', http: 'HTTP' }
 const WINDOW_MINUTES = 60
+const MAX_TRAP_IPS = 32
 
-interface Config { secondary_ip: string | null; hostname: string; traps: Record<HpService, { enabled: boolean; since: string | null }>; ignored_7d: number; settle?: Partial<Record<HpService, { kind: 'starting' | 'stopping'; left: number }>> }
+// settle: per Trap IP, the reads left until a change shows its final state (see settleOneRead).
+interface Config { ignored_7d: number; settle?: Record<string, { kind: 'starting' | 'stopping'; left: number }> }
 // kind, source_ip, label, token_id: S-HP-2. Rows written before S-HP-2 lack them, so every read falls back (kind = service).
 interface Stored { id: string; ts: string; kind?: HitKind; service: HpService | null; label?: string; token_id?: string; port: number | null; src_ip: string; source_ip?: string; src_asset_id: string | null; is_test: boolean; excerpt: string; events: HitEvent[]; trap_ip: string; trap_hostname: string; seed?: { srcName: string | null; lan: [string, string] } }
-interface StoredDecoy { id: string; personality: Personality; name: string; ip: string; enabled: boolean; created_at: string; fail?: string }
+interface StoredTrapIP { id: string; name: string; ip: string; preset: TrapPreset; vendor: TrapVendor | null; services: HpService[]; enabled: boolean; created_at: string; fail?: string }
 type StoredToken = Omit<Token, 'last_triggered_at' | 'triggers'>
 
 const SESSION: Record<HpService, { first: string; excerpt: string }> = {
@@ -29,7 +31,7 @@ const SESSION: Record<HpService, { first: string; excerpt: string }> = {
 function makeEvents(ts: string, src_ip: string, srcName: string, service: HpService, trapIp: string, lanTargets: [string, string]): HitEvent[] {
   const t = new Date(ts).getTime()
   const at = (min: number) => new Date(t + min * 60_000).toISOString()
-  const p = PORTS[service]
+  const p = SERVICE_PORT[service]
   const fw = (dst: string) => `Firewall: ${src_ip} to ${dst} port ${p} allowed`
   return [
     { ts: at(-27), source: 'dhcp', text: `DHCP: ${srcName} (${src_ip}) renewed its lease`, mark: false },
@@ -42,28 +44,25 @@ function makeEvents(ts: string, src_ip: string, srcName: string, service: HpServ
   ]
 }
 
-const config = collection<Config>('hp_config', () => ({
-  secondary_ip: '192.168.10.240',
-  hostname: 'FILESRV-OLD',
-  traps: {
-    smb: { enabled: true, since: daysAgo(20) }, rdp: { enabled: true, since: daysAgo(20) }, ssh: { enabled: true, since: daysAgo(12) },
-    mssql: { enabled: false, since: null }, http: { enabled: false, since: null },
-  },
-  ignored_7d: 14,
-}), () => ({
-  // Cài sạch: chưa có máy giả, mọi bẫy tắt; người dùng đặt IP phụ rồi mới bật.
-  secondary_ip: null, hostname: '',
-  traps: { smb: { enabled: false, since: null }, rdp: { enabled: false, since: null }, ssh: { enabled: false, since: null }, mssql: { enabled: false, since: null }, http: { enabled: false, since: null } },
-  ignored_7d: 0,
-}))
+const config = collection<Config>('hp_config', () => ({ ignored_7d: 14 }), () => ({ ignored_7d: 0 }))
+
+const trapIps = collection<StoredTrapIP[]>('hp_trap_ips', () => [
+  { id: 'tip-1', name: 'FILESRV-OLD', ip: '192.168.10.240', preset: 'file_server', vendor: 'dell', services: ['smb', 'rdp'], enabled: true, created_at: daysAgo(20) },
+  { id: 'tip-2', name: 'NAS-ARCHIVE', ip: '192.168.10.241', preset: 'nas', vendor: 'synology', services: ['http', 'smb'], enabled: true, created_at: daysAgo(9) },
+  { id: 'tip-3', name: 'PRN-FLOOR2', ip: '192.168.10.242', preset: 'printer', vendor: 'hp', services: ['http'], enabled: true, created_at: daysAgo(9) },
+  // One Trap IP the host could not set up, so the failed state can be walked on `make dev`; one switched off.
+  { id: 'tip-4', name: 'CAM-DOCK', ip: '192.168.10.243', preset: 'camera', vendor: 'hikvision', services: ['http'], enabled: true, created_at: daysAgo(2), fail: 'the host could not do it' },
+  { id: 'tip-5', name: 'BUILD-SRV-02', ip: '192.168.10.244', preset: 'linux', vendor: 'vmware', services: ['ssh'], enabled: false, created_at: daysAgo(1) },
+], () => [])
 
 const hitsStore = collection<Stored[]>('hp_hits', () => {
-  const ip = '192.168.10.240', host = 'FILESRV-OLD'
   const t1 = daysAgo(1, 1), t2 = daysAgo(4)
   return [
-    { id: 'hit-seed-1', ts: t1, kind: 'service', source_ip: '192.168.10.107', service: 'smb', port: 445, src_ip: '192.168.10.107', src_asset_id: 'a-pc07', is_test: false, excerpt: '', trap_ip: ip, trap_hostname: host, events: [], seed: { srcName: 'PC-HR-01', lan: ['192.168.10.11', '192.168.10.10'] } },
-    { id: 'hit-seed-2', ts: t2, kind: 'service', source_ip: '192.168.10.157', service: 'rdp', port: 3389, src_ip: '192.168.10.157', src_asset_id: 'a-unk01', is_test: false, excerpt: '', trap_ip: ip, trap_hostname: host, events: [], seed: { srcName: null, lan: ['192.168.10.13', '192.168.10.10'] } },
-    // The same unknown device, later: used a planted credential, then swept the decoys.
+    { id: 'hit-seed-1', ts: t1, kind: 'service', source_ip: '192.168.10.107', service: 'smb', port: 445, src_ip: '192.168.10.107', src_asset_id: 'a-pc07', is_test: false, excerpt: '', trap_ip: '192.168.10.240', trap_hostname: 'FILESRV-OLD', events: [], seed: { srcName: 'PC-HR-01', lan: ['192.168.10.11', '192.168.10.10'] } },
+    { id: 'hit-seed-2', ts: t2, kind: 'service', source_ip: '192.168.10.157', service: 'rdp', port: 3389, src_ip: '192.168.10.157', src_asset_id: 'a-unk01', is_test: false, excerpt: '', trap_ip: '192.168.10.240', trap_hostname: 'FILESRV-OLD', events: [], seed: { srcName: null, lan: ['192.168.10.13', '192.168.10.10'] } },
+    // A hit on another Trap IP carries that Trap IP's name (D-466).
+    { id: 'hit-seed-5', ts: daysAgo(5), kind: 'service', source_ip: '192.168.10.157', service: 'http', port: 80, src_ip: '192.168.10.157', src_asset_id: 'a-unk01', is_test: false, excerpt: '', trap_ip: '192.168.10.241', trap_hostname: 'NAS-ARCHIVE', events: [], seed: { srcName: null, lan: ['192.168.10.13', '192.168.10.10'] } },
+    // The same unknown device, later: used a planted credential, then swept the Trap IPs.
     { id: 'hit-seed-3', ts: daysAgo(3), kind: 'token', source_ip: '192.168.10.157', service: null, label: 'Credential token svc-backup-old', token_id: 'tok-2', port: null, src_ip: '192.168.10.157', src_asset_id: 'a-unk01', is_test: false,
       excerpt: 'SMB logon attempt for "svc-backup-old" on SRV-FILE. This account exists only as bait.', trap_ip: 'svc-backup-old', trap_hostname: 'Credential token svc-backup-old',
       events: [
@@ -72,21 +71,14 @@ const hitsStore = collection<Stored[]>('hp_hits', () => {
         { ts: daysAgo(3, -0.1), source: 'firewall', text: 'Firewall: 192.168.10.157 to 192.168.10.10 port 445 allowed', mark: false },
       ] },
     { id: 'hit-seed-4', ts: daysAgo(2), kind: 'scan', source_ip: '192.168.10.157', service: null, label: 'Port scan across 3 decoy IPs', port: null, src_ip: '192.168.10.157', src_asset_id: 'a-unk01', is_test: false,
-      excerpt: 'Touched 3 decoy IPs (.240, .241, .242) and 14 distinct ports in 38 seconds. Pattern: TCP SYN sweep.', trap_ip: '192.168.10.240-242', trap_hostname: 'Decoy sweep',
+      excerpt: 'Touched 3 Trap IPs (.240, .241, .242) and 14 distinct ports in 38 seconds. Pattern: TCP SYN sweep.', trap_ip: '192.168.10.240-242', trap_hostname: 'Decoy sweep',
       events: [
-        { ts: daysAgo(2, 0.02), source: 'honeypot', text: 'First probe: 192.168.10.157 to decoy 192.168.10.240 port 445', mark: true },
-        { ts: daysAgo(2), source: 'honeypot', text: 'Scan detected: 3 decoy IPs, 14 ports in 38 seconds', mark: true },
+        { ts: daysAgo(2, 0.02), source: 'honeypot', text: 'First probe: 192.168.10.157 to Trap IP 192.168.10.240 port 445', mark: true },
+        { ts: daysAgo(2), source: 'honeypot', text: 'Scan detected: 3 Trap IPs, 14 ports in 38 seconds', mark: true },
         { ts: daysAgo(2, -0.1), source: 'firewall', text: 'Firewall: 192.168.10.157 to 192.168.10.13 port 3389 allowed', mark: false },
       ] },
   ]
 }, () => [])
-
-const decoys = collection<StoredDecoy[]>('hp_decoys', () => [
-  { id: 'dec-1', personality: 'nas', name: 'NAS-ARCHIVE', ip: '192.168.10.241', enabled: true, created_at: daysAgo(9) },
-  { id: 'dec-2', personality: 'printer', name: 'PRN-FLOOR2', ip: '192.168.10.242', enabled: true, created_at: daysAgo(9) },
-  // One decoy the host could not set up, so the failed state can be walked on `make dev`.
-  { id: 'dec-3', personality: 'camera', name: 'CAM-DOCK', ip: '192.168.10.243', enabled: true, created_at: daysAgo(2), fail: 'the host could not do it' },
-], () => [])
 
 const tokens = collection<StoredToken[]>('hp_tokens', () => [
   { id: 'tok-1', type: 'file', name: 'Payroll-2026-Q4', value: 'Payroll-2026-Q4.xlsx', password: null, plant_at: '\\\\SRV-FILE\\HR', created_at: daysAgo(9) },
@@ -109,55 +101,69 @@ function inLan(ip: string) {
   return toInt(ip) >= toInt(base) && toInt(ip) < toInt(base) + size
 }
 const assetName = (a: { hostname: string | null; ip: string }) => a.hostname ?? a.ip
-const conflictAsset = (ip: string | null) => (ip ? assetsStore.get().find((a) => a.ip === ip) : undefined)
+const deviceAt = (ip: string) => assetsStore.get().find((a) => a.ip === ip)
+const byAge = (l: StoredTrapIP[]) => [...l].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
 
-// The mock host always succeeds at once: a decoy listens when it is on and a trap is on, and has a stable locally administered MAC.
-const macOf = (ip: string) => `06:b7:36:${ip.split('.').slice(1).map((n) => Number(n).toString(16).padStart(2, '0')).join(':')}`
-function decoyView(d: StoredDecoy): Decoy {
-  const anyTrap = Object.values(config.get().traps).some((t) => t.enabled)
-  const starting = HP_SERVICES.some((k) => settlingNow(k) === 'starting')
-  const state: Decoy['state'] = !d.enabled || !anyTrap ? 'off' : conflictAsset(d.ip) ? 'conflict' : d.fail ? 'failed' : starting ? 'starting' : 'listening'
-  const { fail, ...rest } = d
-  return { ...rest, state, reason: d.enabled && !anyTrap ? 'No trap is on, so nothing listens on this address.' : state === 'conflict' ? 'A device of the inventory has this address' : state === 'failed' ? fail ?? null : null, mac: state === 'listening' ? macOf(d.ip) : null, services: personalityDef(d.personality).services }
-}
-
-// The real box takes minutes to bring a trap up or down; the mock shows the same states for the answer to the switch and the read right
+// The real box takes minutes to bring an address up or down; the mock shows the same states for the answer to a change and the read right
 // after it, and the read after that has settled (S-HP-1). Counted in reads, not in time. Kept in the config row, so it resets with the store.
-const settlingNow = (service: HpService) => { const x = config.get().settle?.[service]; return x && x.left > 0 ? x.kind : undefined }
-/** A GET of the overview has been answered: whatever was settling is one read closer to done. */
+const settlingNow = (id: string) => { const x = config.get().settle?.[id]; return x && x.left > 0 ? x.kind : undefined }
+const settle = (id: string, kind: 'starting' | 'stopping') => config.update((c) => ({ ...c, settle: { ...c.settle, [id]: { kind, left: 1 } } }))
+/** A read of the overview or the list has been answered: whatever was settling is one read closer to done. */
 function settleOneRead() {
-  const settle = config.get().settle
-  if (!settle || !Object.values(settle).some((x) => x && x.left > 0)) return
+  const s = config.get().settle
+  if (!s || !Object.values(s).some((x) => x.left > 0)) return
   config.update((c) => ({ ...c, settle: Object.fromEntries(Object.entries(c.settle ?? {}).map(([k, x]) => [k, { ...x, left: Math.max(0, x.left - 1) }])) }))
 }
 
-const maskPassword = (pw: string) => '\u2022'.repeat(8) + (pw.length >= 8 ? pw.slice(-4) : '')
+// The mock host always succeeds at once (except a seeded failure); the MAC carries the vendor's OUI, else a stable locally administered one.
+const hex2 = (n: number) => n.toString(16).padStart(2, '0')
+function macOf(t: StoredTrapIP) {
+  const tail = t.ip.split('.').slice(1).map((n) => hex2(Number(n))).join(':')
+  const oui = VENDORS.find((v) => v.id === t.vendor)?.oui.toLowerCase()
+  return oui ? `${oui}:${tail}` : `06:b7:36:${tail}`
+}
+
+function stateOf(t: StoredTrapIP): { state: TrapState; reason: string | null } {
+  const s = settlingNow(t.id)
+  if (!t.enabled) return { state: s === 'stopping' ? 'stopping' : 'off', reason: null }
+  if (deviceAt(t.ip)) return { state: 'conflict', reason: 'a device of the inventory has this address' }
+  if (t.fail) return { state: 'failed', reason: t.fail }
+  if (s === 'starting') return { state: 'starting', reason: null }
+  return { state: 'listening', reason: null }
+}
+function trapIpView(t: StoredTrapIP): TrapIP {
+  const { fail: _f, ...rest } = t
+  const st = stateOf(t)
+  return { ...rest, services: HP_SERVICES.filter((s) => t.services.includes(s)), ...st, mac: st.state === 'listening' ? macOf(t) : null }
+}
+
+const maskPassword = (pw: string) => '•'.repeat(8) + (pw.length >= 8 ? pw.slice(-4) : '')
 
 function tokenView(t: StoredToken): Token {
   const own = hitsStore.get().filter((h) => h.token_id === t.id).sort((a, b) => b.ts.localeCompare(a.ts))
   return { ...t, last_triggered_at: own[0]?.ts ?? null, triggers: own.filter((h) => !h.is_test).length }
 }
 
-/** Device types that really exist in the inventory, so a decoy of that type blends in. */
-function suggestions(): DecoySuggestion[] {
+/** Device types that really exist in the inventory, so a Trap IP of that type blends in. */
+function suggestions(): TrapSuggestion[] {
   const assets = assetsStore.get()
-  const label = (a: { hostname: string | null; ip: string }) => a.hostname ?? a.ip
-  const out: DecoySuggestion[] = []
-  for (const p of PERSONALITIES) {
-    const m = assets.filter((a) => (p.id === 'windows_fs' ? a.kind === 'server' && /windows/i.test(a.os?.value ?? '') || a.services.some((s) => s.port === 445 && a.kind === 'server')
+  const out: TrapSuggestion[] = []
+  for (const p of PRESETS) {
+    const m = assets.filter((a) => (p.id === 'file_server' ? a.kind === 'server' && /windows/i.test(a.os?.value ?? '') || a.services.some((s) => s.port === 445 && a.kind === 'server')
       : p.id === 'linux' ? a.kind === 'server' && /linux|ubuntu|debian/i.test(a.os?.value ?? '')
+      : p.id === 'database' ? a.kind === 'server' && a.services.some((s) => s.port === 1433)
       : p.kinds.includes(a.kind)))
-    if (m.length) out.push({ personality: p.id, count: m.length, examples: m.slice(0, 3).map(label) })
+    if (m.length) out.push({ preset: p.id, count: m.length, examples: m.slice(0, 3).map(assetName) })
   }
   return out
 }
 
-/** Unused addresses near the top of the /24 of the box. ponytail: assumes a /24, ranges wider than that still get .230-.249 of the first block. */
+/** Addresses near the top of the /24 of the box that nothing uses yet. ponytail: assumes a /24, ranges wider than that still get .230-.249 of the first block. */
 function spareIps(): string[] {
   const lan = boxInfo().lan
   if (!lan) return []
   const prefix = (lan.split('/')[0] ?? '').split('.').slice(0, 3).join('.')
-  const used = new Set([...assetsStore.get().map((a) => a.ip), ...decoys.get().map((d) => d.ip), config.get().secondary_ip, boxInfo().ip])
+  const used = new Set([...assetsStore.get().map((a) => a.ip), ...trapIps.get().map((d) => d.ip), boxInfo().ip])
   return Array.from({ length: 20 }, (_, i) => `${prefix}.${230 + i}`).filter((ip) => !used.has(ip) && inLan(ip)).slice(0, 5)
 }
 
@@ -170,85 +176,71 @@ function hitView(h: Stored): Hit {
   }
 }
 
+const RANK: Record<TrapState, number> = { listening: 5, starting: 4, stopping: 3, failed: 2, conflict: 1, off: 0 }
+
 function overview(): HpOverview {
-  const c = config.get()
   const real = hitsStore.get().filter((h) => !h.is_test).sort((x, y) => y.ts.localeCompare(x.ts))
   const weekAgo = Date.now() - 7 * 864e5
-  const conflict = conflictAsset(c.secondary_ip)
+  const all = byAge(trapIps.get())
+  const on = all.filter((t) => t.enabled)
+  const views = new Map(all.map((t) => [t.id, trapIpView(t)]))
   const traps: Trap[] = HP_SERVICES.map((service) => {
     const own = real.filter((h) => (h.kind ?? 'service') === 'service' && h.service === service)
-    const tr = c.traps[service]
+    const serving = on.filter((t) => t.services.includes(service))
+    const stopping = all.some((t) => !t.enabled && t.services.includes(service) && views.get(t.id)?.state === 'stopping')
+    const state = serving.length ? serving.map((t) => views.get(t.id)!.state).reduce((a, b) => (RANK[b] > RANK[a] ? b : a)) : stopping ? 'stopping' : 'off'
     return {
-      service, port: PORTS[service], enabled: tr.enabled, since: tr.since,
-      state: !tr.enabled ? (settlingNow(service) === 'stopping' ? 'stopping' : 'off') : conflict ? 'conflict' : settlingNow(service) === 'starting' ? 'starting' : 'listening',
+      service, port: SERVICE_PORT[service], enabled: serving.length > 0, state, trap_ips: serving.map((t) => t.name),
       hits_7d: own.filter((h) => new Date(h.ts).getTime() >= weekAgo).length,
       last_hit_at: own[0]?.ts ?? null,
     }
   })
+  const firstSmb = on.find((t) => t.services.includes('smb'))
+  const firstHttp = on.find((t) => t.services.includes('http'))
   const today = new Date().toDateString()
   const last = real[0]
   return {
-    secondary_ip: c.secondary_ip, secondary_mac: c.secondary_ip && traps.some((t) => t.state === 'listening') ? macOf(c.secondary_ip) : null, problem: null, hostname: c.hostname, lan: boxInfo().lan, box: { ip: boxInfo().ip, name: boxInfo().hostname }, ignored_7d: c.ignored_7d,
-    conflict_asset: conflict ? { id: conflict.id, name: assetName(conflict) } : null, traps,
+    problem: null, lan: boxInfo().lan, box: { ip: boxInfo().ip, name: boxInfo().hostname }, ignored_7d: config.get().ignored_7d,
+    trap_ips: { total: all.length, enabled: on.length, listening: [...views.values()].filter((v) => v.state === 'listening').length, failing: [...views.values()].filter((v) => v.enabled && (v.state === 'failed' || v.state === 'conflict')).length },
+    smb_name: firstSmb?.name ?? null, http_page: firstHttp ? (firstHttp.preset === 'nas' ? 'nas' : 'login') : null, traps,
     summary: { today: real.filter((h) => new Date(h.ts).toDateString() === today).length, week: real.filter((h) => new Date(h.ts).getTime() >= weekAgo).length, last_hit_at: last?.ts ?? null, last_src: last ? (hitView(last).src_name ?? last.src_ip) : null },
     updated_at: nowIso(),
   }
 }
 
+/** The checks of POST and PUT /honeypot/trap-ips, in the backend's order (mutate.go checkTrapIP). self = the id being changed. */
+function checkInput(b: Partial<TrapIPInput>, self?: string): Response | { name: string; ip: string; preset: TrapPreset; vendor: TrapVendor | null; services: HpService[] } {
+  const preset = b.preset as TrapPreset
+  if (!PRESETS.some((p) => p.id === preset)) return fail(400, 'bad_preset', 'Choose what the Trap IP looks like.')
+  const vendor = (b.vendor ?? null) as TrapVendor | null
+  if (vendor !== null && !VENDORS.some((v) => v.id === vendor)) return fail(400, 'bad_vendor', 'Choose a vendor from the list, or none.')
+  const example = PRESETS.find((p) => p.id === preset)!.example
+  const name = String(b.name ?? '').trim()
+  if (!name) return fail(400, 'bad_name', `Enter a name for the Trap IP, for example ${example}.`)
+  if (!NETBIOS_RE.test(name) || /^\d+$/.test(name)) return fail(400, 'bad_name', `The name may only contain letters, digits and hyphens, up to 15 characters, not all digits, and must not start or end with a hyphen. Example ${example}.`)
+  const others = trapIps.get().filter((x) => x.id !== self)
+  if (assetsStore.get().some((a) => a.hostname?.toLowerCase() === name.toLowerCase()) || others.some((x) => x.name.toLowerCase() === name.toLowerCase())) return fail(409, 'name_in_use', `The name ${name} is already used by a device or another Trap IP. Pick another name.`)
+  const ip = String(b.ip ?? '').trim()
+  if (!ip) return fail(400, 'bad_ip', 'Enter an address for the Trap IP, for example 192.168.10.240. Pick an address no device uses.')
+  if (!IPV4_RE.test(ip) || /(^|\.)0\d/.test(ip)) return fail(400, 'bad_ip', 'The address is not valid. Use the form 192.168.10.240, each number 0 to 255, no leading zeros.')
+  if (!boxInfo().lan) return fail(400, 'no_lan', 'Add your LAN range first (Devices, Scope and sensors), so Vedette knows which network the Trap IPs go on.')
+  if (!inLan(ip) || ip.endsWith('.0') || ip.endsWith('.255')) return fail(400, 'ip_outside_lan', `The Trap IP must be inside the box's network (${boxInfo().lan}), not the network or broadcast address.`)
+  if (ip === boxInfo().ip) return fail(400, 'ip_is_box', 'This is the Vedette box\'s own IP. Pick an unused IP.')
+  const clash = deviceAt(ip)
+  if (clash) return fail(409, 'ip_in_use', `IP ${ip} belongs to device ${assetName(clash)} in the inventory. Pick an unused IP.`)
+  if (others.some((x) => x.ip === ip)) return fail(409, 'ip_in_use', `IP ${ip} is already another Trap IP.`)
+  const raw = Array.isArray(b.services) ? b.services : null
+  if (!raw || raw.length === 0) return fail(400, 'bad_services', 'Pick at least one service for the Trap IP to answer on.')
+  if (raw.some((s) => !HP_SERVICES.includes(s)) || new Set(raw).size !== raw.length) return fail(400, 'bad_services', 'Pick services from the list, each once.')
+  return { name, ip, preset, vendor, services: HP_SERVICES.filter((s) => raw.includes(s)) }
+}
+
 export const handlers = [
   http.get(`${API}/honeypot`, () => {
     const denied = guard('viewer'); if (denied) return denied
-    const body = overview()
+    const b = overview()
     settleOneRead()
-    return HttpResponse.json(body)
-  }),
-
-  // Cấu hình bẫy = phạm vi hệ thống → admin.
-  http.put(`${API}/honeypot/config`, async ({ request }) => {
-    const denied = guard('admin'); if (denied) return denied
-    const b = await body<{ secondary_ip: string; hostname: string }>(request)
-    const ip = String(b.secondary_ip ?? '').trim()
-    const hostname = String(b.hostname ?? '').trim()
-    // An empty IP removes the decoy IP, only while every trap is off (a resource in use cannot be released).
-    if (!ip && config.get().secondary_ip) {
-      if (Object.values(config.get().traps).some((t) => t.enabled)) return fail(409, 'traps_on', 'Turn all traps off before removing the decoy IP.')
-      if (!hostname) return fail(400, 'bad_hostname', 'Enter a fake hostname, for example FILESRV-OLD. Pick a name that looks like an old file server in your company.')
-      audit('honeypot.config', config.get().secondary_ip!, `decoy IP removed, hostname ${hostname}`)
-      config.update((c) => ({ ...c, secondary_ip: null, hostname }))
-      return HttpResponse.json(overview())
-    }
-    if (!ip) return fail(400, 'bad_ip', 'Enter a secondary IP for the decoy, for example 192.168.10.240. Pick an address no device uses.')
-    if (!IPV4_RE.test(ip) || /(^|\.)0\d/.test(ip)) return fail(400, 'bad_ip', 'The secondary IP is not valid. Use the form 192.168.10.240, each number 0 to 255, no leading zeros.')
-    if (!boxInfo().lan) return fail(400, 'no_lan', 'Add your LAN range first (Devices, Scope and sensors), so Vedette knows which network the box is on.')
-    if (!inLan(ip) || ip.endsWith('.0') || ip.endsWith('.255')) return fail(400, 'ip_outside_lan', `The secondary IP must be inside the box's network (${boxInfo().lan}), not the network or broadcast address.`)
-    if (ip === boxInfo().ip) return fail(400, 'ip_is_box', 'This is the Vedette box\'s own IP. Pick an unused IP.')
-    const clash = conflictAsset(ip)
-    if (clash) return fail(409, 'ip_in_use', `IP ${ip} belongs to device ${assetName(clash)} in the inventory. Pick an unused IP.`)
-    if (!hostname) return fail(400, 'bad_hostname', 'Enter a fake hostname, for example FILESRV-OLD. Pick a name that looks like an old file server in your company.')
-    // NetBIOS: chữ, số, dấu gạch ngang; không dấu chấm, không gạch dưới, không bắt đầu hoặc kết thúc bằng gạch ngang; tối đa 15 ký tự.
-    if (!/^[A-Za-z0-9]([A-Za-z0-9-]{0,13}[A-Za-z0-9])?$/.test(hostname) || /^\d+$/.test(hostname)) return fail(400, 'bad_hostname', 'The fake hostname may only contain letters, digits and hyphens, up to 15 characters (NetBIOS limit), not all digits, and must not start or end with a hyphen. Example FILESRV-OLD.')
-    const hostClash = assetsStore.get().find((a) => a.hostname?.toLowerCase() === hostname.toLowerCase())
-    if (hostClash) return fail(409, 'hostname_in_use', `The name ${hostname} belongs to device ${hostClash.ip} in the inventory. Pick another name.`)
-    config.update((c) => ({ ...c, secondary_ip: ip, hostname }))
-    audit('honeypot.config', ip, `decoy hostname ${hostname}`)
-    return HttpResponse.json(overview())
-  }),
-
-  http.patch(`${API}/honeypot/traps/:service`, async ({ params, request }) => {
-    const denied = guard('admin'); if (denied) return denied
-    const service = String(params.service) as HpService
-    if (!HP_SERVICES.includes(service)) return fail(404, 'not_found', 'No trap for this service.')
-    const b = await body<{ enabled: boolean }>(request)
-    if (typeof b.enabled !== 'boolean') return fail(400, 'bad_body', 'enabled must be true or false.')
-    const c = config.get()
-    if (b.enabled) {
-      if (!c.secondary_ip) return fail(409, 'no_secondary_ip', 'Set a secondary IP for the traps before turning one on.')
-      const clash = conflictAsset(c.secondary_ip)
-      if (clash) return fail(409, 'ip_in_use', `The secondary IP ${c.secondary_ip} clashes with device ${assetName(clash)}. Change the secondary IP before turning a trap on.`)
-    }
-    config.update((x) => ({ ...x, settle: { ...x.settle, [service]: { kind: b.enabled ? 'starting' : 'stopping', left: 1 } }, traps: { ...x.traps, [service]: { enabled: b.enabled!, since: b.enabled ? nowIso() : null } } }))
-    audit(b.enabled ? 'honeypot.trap_enable' : 'honeypot.trap_disable', LABEL[service])
-    return HttpResponse.json(overview())
+    return HttpResponse.json(b)
   }),
 
   http.get(`${API}/honeypot/hits`, ({ request }) => {
@@ -268,20 +260,20 @@ export const handlers = [
     return HttpResponse.json(detail)
   }),
 
-  // "Thử chạm bẫy": lần chạm có nhãn thử, đi từ chính hộp (bình thường bị loại trừ), không tính vào số liệu, không gửi cảnh báo.
+  // "Thử chạm bẫy": lần chạm có nhãn thử trên Trap IP đầu tiên đang bật có dịch vụ đó, đi từ chính hộp (bình thường bị loại trừ), không tính vào số liệu, không gửi cảnh báo.
   http.post(`${API}/honeypot/test-hit`, async ({ request }) => {
     const denied = guard('operator'); if (denied) return denied
     const b = await body<{ service: HpService }>(request)
     const service = b.service as HpService
     if (!HP_SERVICES.includes(service)) return fail(400, 'bad_service', 'Choose a service: SMB, RDP, SSH, MSSQL or HTTP.')
-    const c = config.get()
-    if (!c.traps[service].enabled || !c.secondary_ip) return fail(409, 'trap_off', `The ${LABEL[service]} trap is off. Turn it on before testing.`)
-    const clash = conflictAsset(c.secondary_ip)
-    if (clash) return fail(409, 'ip_in_use', `The secondary IP ${c.secondary_ip} clashes with device ${assetName(clash)}, so the trap cannot listen. Change the secondary IP before testing.`)
+    const on = byAge(trapIps.get()).filter((t) => t.enabled && t.services.includes(service))
+    if (!on.length) return fail(409, 'trap_off', `No Trap IP that is on has ${LABEL[service]}. Add ${LABEL[service]} to a Trap IP, or turn one on, before testing.`)
+    const t = on.find((x) => !deviceAt(x.ip))
+    if (!t) return fail(409, 'ip_in_use', `Every Trap IP with ${LABEL[service]} clashes with a device, so the trap cannot listen. Change the address before testing.`)
     const ts = nowIso()
     const h: Stored = {
-      id: newId('hit'), ts, kind: 'service', source_ip: boxInfo().ip ?? '0.0.0.0', service, port: PORTS[service], src_ip: boxInfo().ip ?? '0.0.0.0', src_asset_id: null, is_test: true,
-      excerpt: `[test] The Vedette box connected to ${LABEL[service]} port ${PORTS[service]} itself to check the trap`, trap_ip: c.secondary_ip, trap_hostname: c.hostname,
+      id: newId('hit'), ts, kind: 'service', source_ip: boxInfo().ip ?? '0.0.0.0', service, port: SERVICE_PORT[service], src_ip: boxInfo().ip ?? '0.0.0.0', src_asset_id: null, is_test: true,
+      excerpt: `[test] The Vedette box connected to ${LABEL[service]} port ${SERVICE_PORT[service]} on ${t.name} itself to check the trap`, trap_ip: t.ip, trap_hostname: t.name,
       events: [{ ts, source: 'vedette', text: `Test started by a user selecting "Test trap" for ${LABEL[service]}. Not an attacker.`, mark: true }],
     }
     hitsStore.update((l) => [h, ...l])
@@ -289,63 +281,71 @@ export const handlers = [
     return HttpResponse.json(hitView(h))
   }),
 
-  // --- S-HP-2: decoy personalities ---
-  http.get(`${API}/honeypot/decoys`, () => {
+  // --- D-466: Trap IPs ---
+  http.get(`${API}/honeypot/trap-ips`, () => {
     const denied = guard('viewer'); if (denied) return denied
-    return HttpResponse.json({ items: decoys.get().map(decoyView), suggestions: suggestions(), spare_ips: spareIps(), spare_checked: assetsStore.get().some((a) => a.ip !== boxInfo().ip && inLan(a.ip)) })
+    const items = byAge(trapIps.get()).map(trapIpView)
+    settleOneRead()
+    return HttpResponse.json({ items, suggestions: suggestions(), spare_ips: spareIps(), spare_checked: assetsStore.get().some((a) => a.ip !== boxInfo().ip && inLan(a.ip)) })
   }),
 
-  http.post(`${API}/honeypot/decoys`, async ({ request }) => {
+  // Trap IPs = system scope → admin.
+  http.post(`${API}/honeypot/trap-ips`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
-    const b = await body<{ personality: Personality; name: string; ip: string }>(request)
-    if (!PERSONALITIES.some((p) => p.id === b.personality)) return fail(400, 'bad_personality', 'Choose what the decoy should look like.')
-    const ip = String(b.ip ?? '').trim()
-    const name = String(b.name ?? '').trim()
-    if (!IPV4_RE.test(ip) || /(^|\.)0\d/.test(ip)) return fail(400, 'bad_ip', 'The decoy IP is not valid. Pick a spare address such as 192.168.10.243.')
-    if (!boxInfo().lan) return fail(400, 'no_lan', 'Add your LAN range first (Devices, Scope and sensors), so Vedette knows which network the decoys go on.')
-    if (!inLan(ip) || ip.endsWith('.0') || ip.endsWith('.255')) return fail(400, 'ip_outside_lan', `The decoy IP must be inside the box's network (${boxInfo().lan}), not the network or broadcast address.`)
-    if (ip === boxInfo().ip) return fail(400, 'ip_is_box', 'This is the Vedette box\'s own IP. Pick an unused IP.')
-    const clash = conflictAsset(ip)
-    if (clash) return fail(409, 'ip_in_use', `IP ${ip} belongs to device ${assetName(clash)} in the inventory. Pick an unused IP.`)
-    if (ip === config.get().secondary_ip || decoys.get().some((d) => d.ip === ip)) return fail(409, 'ip_in_use', `IP ${ip} is already used by another decoy.`)
-    if (!NETBIOS_RE.test(name) || /^\d+$/.test(name)) return fail(400, 'bad_hostname', 'The decoy name may only contain letters, digits and hyphens, up to 15 characters, not all digits, and must not start or end with a hyphen. Example PRN-FLOOR2.')
-    if (assetsStore.get().some((a) => a.hostname?.toLowerCase() === name.toLowerCase()) || decoys.get().some((d) => d.name.toLowerCase() === name.toLowerCase())) return fail(409, 'hostname_in_use', `The name ${name} is already used by a device or another decoy.`)
-    const d: StoredDecoy = { id: newId('dec'), personality: b.personality!, name, ip, enabled: true, created_at: nowIso() }
-    decoys.update((l) => [...l, d])
-    audit('honeypot.decoy_add', ip, `${b.personality} ${name}`)
-    return HttpResponse.json(decoyView(d), { status: 201 })
+    const v = checkInput(await body<Partial<TrapIPInput>>(request))
+    if (v instanceof Response) return v
+    if (trapIps.get().length >= MAX_TRAP_IPS) return fail(409, 'limit_reached', `The box can hold ${MAX_TRAP_IPS} Trap IPs. Delete one before adding another.`)
+    const t: StoredTrapIP = { id: newId('tip'), ...v, enabled: true, created_at: nowIso() }
+    trapIps.update((l) => [...l, t])
+    settle(t.id, 'starting')
+    audit('honeypot.trap_ip_add', t.ip, `${t.preset} ${t.name}: ${t.services.join(', ')}`)
+    return HttpResponse.json(trapIpView(t), { status: 201 })
   }),
 
-  http.patch(`${API}/honeypot/decoys/:id`, async ({ params, request }) => {
+  http.put(`${API}/honeypot/trap-ips/:id`, async ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const cur = trapIps.get().find((x) => x.id === params.id)
+    if (!cur) return fail(404, 'not_found', 'No such Trap IP.')
+    const v = checkInput(await body<Partial<TrapIPInput>>(request), cur.id)
+    if (v instanceof Response) return v
+    const next: StoredTrapIP = { ...cur, ...v }
+    trapIps.update((l) => l.map((x) => (x.id === cur.id ? next : x)))
+    if (next.enabled) settle(next.id, 'starting')
+    audit('honeypot.trap_ip_edit', next.ip, `${next.preset} ${next.name}: ${next.services.join(', ')}`)
+    return HttpResponse.json(trapIpView(next))
+  }),
+
+  http.patch(`${API}/honeypot/trap-ips/:id`, async ({ params, request }) => {
     const denied = guard('admin'); if (denied) return denied
     const b = await body<{ enabled: boolean }>(request)
     if (typeof b.enabled !== 'boolean') return fail(400, 'bad_body', 'enabled must be true or false.')
-    let out: StoredDecoy | undefined
-    decoys.update((l) => l.map((d) => (d.id === params.id ? (out = { ...d, enabled: b.enabled! }) : d)))
-    if (!out) return fail(404, 'not_found', 'No such decoy.')
-    audit(b.enabled ? 'honeypot.decoy_enable' : 'honeypot.decoy_disable', out.ip)
-    return HttpResponse.json(decoyView(out))
+    let out: StoredTrapIP | undefined
+    trapIps.update((l) => l.map((d) => (d.id === params.id ? (out = { ...d, enabled: b.enabled! }) : d)))
+    if (!out) return fail(404, 'not_found', 'No such Trap IP.')
+    settle(out.id, b.enabled ? 'starting' : 'stopping')
+    audit(b.enabled ? 'honeypot.trap_ip_enable' : 'honeypot.trap_ip_disable', out.ip, out.name)
+    return HttpResponse.json(trapIpView(out))
   }),
 
-  http.delete(`${API}/honeypot/decoys/:id`, ({ params }) => {
+  http.delete(`${API}/honeypot/trap-ips/:id`, ({ params }) => {
     const denied = guard('admin'); if (denied) return denied
-    const d = decoys.get().find((x) => x.id === params.id)
-    if (!d) return fail(404, 'not_found', 'No such decoy.')
-    decoys.update((l) => l.filter((x) => x.id !== d.id))
-    audit('honeypot.decoy_delete', d.ip, d.name)
+    const d = trapIps.get().find((x) => x.id === params.id)
+    if (!d) return fail(404, 'not_found', 'No such Trap IP.')
+    trapIps.update((l) => l.filter((x) => x.id !== d.id))
+    audit('honeypot.trap_ip_delete', d.ip, d.name)
     return new HttpResponse(null, { status: 204 })
   }),
 
-  // "Test scan": one labelled test alert as if a sweep touched the decoy IPs; from the box itself, not counted, no alert.
+  // "Test scan": one labelled test alert as if a sweep touched the Trap IPs; from the box itself, not counted, no alert.
   http.post(`${API}/honeypot/test-scan`, () => {
     const denied = guard('operator'); if (denied) return denied
-    const ips = [config.get().secondary_ip, ...decoys.get().filter((d) => d.enabled).map((d) => d.ip)].filter((x): x is string => !!x)
-    if (ips.length < 2) return fail(409, 'need_decoys', 'Scan detection needs at least two decoy IPs. Add a decoy first.')
+    const ips = byAge(trapIps.get()).filter((d) => d.enabled).map((d) => d.ip)
+    if (ips.length < 2) return fail(409, 'need_decoys', 'Scan detection needs at least two Trap IPs that are on. Add a Trap IP first.')
     const ts = nowIso()
     const src = boxInfo().ip ?? '0.0.0.0'
     const h: Stored = {
       id: newId('hit'), ts, kind: 'scan', source_ip: src, service: null, label: `Port scan across ${ips.length} decoy IPs`, port: null, src_ip: src, src_asset_id: null, is_test: true,
-      excerpt: `[test] The Vedette box simulated a sweep across ${ips.length} decoy IPs`, trap_ip: ips.join(', '), trap_hostname: 'Decoy sweep',
+      excerpt: `[test] The Vedette box simulated a sweep across ${ips.length} Trap IPs`, trap_ip: ips.join(', '), trap_hostname: 'Decoy sweep',
       events: [{ ts, source: 'vedette', text: 'Test started by a user selecting "Test scan". Not an attacker.', mark: true }],
     }
     hitsStore.update((l) => [h, ...l])

@@ -29487,7 +29487,7 @@
     "/honeypot": {
       "get": {
         "operationId": "honeypot_get_honeypot",
-        "summary": "The decoy machine, traps by service, hit summary and the excluded scanner",
+        "summary": "Trap IP counts, services across the Trap IPs, the box-wide SMB name and HTTP page, hit summary and the excluded scanner",
         "tags": [
           "honeypot"
         ],
@@ -29503,28 +29503,12 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "secondary_ip": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "secondary_mac": {
-                      "description": "MAC address the box gave the secondary IP, as the host reports it; null until known",
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
                     "problem": {
-                      "description": "Why a switched-on trap is not listening (state failed, or conflict with no inventory device in conflict_asset), with the host reason when it gave one; null otherwise",
+                      "description": "Why switched-on Trap IPs do not listen at all (the host or the container failed), with the host reason when it gave one; null otherwise. Per-address reasons are on each Trap IP",
                       "type": [
                         "string",
                         "null"
                       ]
-                    },
-                    "hostname": {
-                      "type": "string"
                     },
                     "lan": {
                       "description": "Box network range; null on a fresh install with no LAN range declared",
@@ -29558,28 +29542,60 @@
                       "maximum": 9007199254740991,
                       "description": "Hits from the Vedette scanner itself that were ignored in the last 7 days"
                     },
-                    "conflict_asset": {
+                    "trap_ips": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "enabled": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "listening": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "failing": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Enabled Trap IPs in state failed or conflict: they need the user"
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "enabled",
+                        "listening",
+                        "failing"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "smb_name": {
+                      "description": "The one NetBIOS name of the box's SMB share: the name of the first enabled Trap IP (creation order) that has SMB; null when none has it",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "http_page": {
                       "anyOf": [
                         {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "name": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "name"
-                          ],
-                          "additionalProperties": false
+                          "type": "string",
+                          "enum": [
+                            "login",
+                            "nas"
+                          ]
                         },
                         {
                           "type": "null"
                         }
-                      ]
+                      ],
+                      "description": "The one HTTP login page of the box: nas when the first enabled Trap IP that has HTTP is a NAS, else login; null when none has HTTP"
                     },
                     "traps": {
                       "type": "array",
@@ -29602,7 +29618,8 @@
                             "maximum": 9007199254740991
                           },
                           "enabled": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "description": "At least one enabled Trap IP has this service"
                           },
                           "state": {
                             "type": "string",
@@ -29614,19 +29631,14 @@
                               "stopping",
                               "failed"
                             ],
-                            "description": "What the box reports, not the switch. conflict = on, but the IP clashes with a device in the inventory or the host refused it. starting = switched on, the box is bringing it up (container start and health check take minutes). stopping = switched off, the host has not confirmed yet. failed = switched on, but the box could not set it up (see problem / reason)"
+                            "description": "The best state of the enabled Trap IPs that have this service: listening when one of them listens"
                           },
-                          "since": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "format": "date-time",
-                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
+                          "trap_ips": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Names of the enabled Trap IPs that have this service"
                           },
                           "hits_7d": {
                             "type": "integer",
@@ -29651,7 +29663,7 @@
                           "port",
                           "enabled",
                           "state",
-                          "since",
+                          "trap_ips",
                           "hits_7d",
                           "last_hit_at"
                         ],
@@ -29705,821 +29717,16 @@
                     }
                   },
                   "required": [
-                    "secondary_ip",
-                    "secondary_mac",
                     "problem",
-                    "hostname",
                     "lan",
                     "box",
                     "ignored_7d",
-                    "conflict_asset",
+                    "trap_ips",
+                    "smb_name",
+                    "http_page",
                     "traps",
                     "summary",
                     "updated_at"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/honeypot/config": {
-      "put": {
-        "operationId": "honeypot_put_honeypot_config",
-        "summary": "Set the secondary IP and decoy hostname; an empty secondary_ip removes the decoy IP, only while every trap is off (409 traps_on). Rejects an IP that matches a device, the IP of the box itself, or an IP outside the network of the box",
-        "tags": [
-          "honeypot"
-        ],
-        "x-stories": [
-          "S-HP-1"
-        ],
-        "x-min-role": "admin",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "secondary_ip": {
-                    "type": "string"
-                  },
-                  "hostname": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "secondary_ip",
-                  "hostname"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "secondary_ip": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "secondary_mac": {
-                      "description": "MAC address the box gave the secondary IP, as the host reports it; null until known",
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "problem": {
-                      "description": "Why a switched-on trap is not listening (state failed, or conflict with no inventory device in conflict_asset), with the host reason when it gave one; null otherwise",
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "hostname": {
-                      "type": "string"
-                    },
-                    "lan": {
-                      "description": "Box network range; null on a fresh install with no LAN range declared",
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "box": {
-                      "type": "object",
-                      "properties": {
-                        "ip": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "name": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "ip",
-                        "name"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "ignored_7d": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991,
-                      "description": "Hits from the Vedette scanner itself that were ignored in the last 7 days"
-                    },
-                    "conflict_asset": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "name": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "name"
-                          ],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "traps": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "service": {
-                            "type": "string",
-                            "enum": [
-                              "smb",
-                              "rdp",
-                              "ssh",
-                              "mssql",
-                              "http"
-                            ]
-                          },
-                          "port": {
-                            "type": "integer",
-                            "minimum": -9007199254740991,
-                            "maximum": 9007199254740991
-                          },
-                          "enabled": {
-                            "type": "boolean"
-                          },
-                          "state": {
-                            "type": "string",
-                            "enum": [
-                              "off",
-                              "listening",
-                              "conflict",
-                              "starting",
-                              "stopping",
-                              "failed"
-                            ],
-                            "description": "What the box reports, not the switch. conflict = on, but the IP clashes with a device in the inventory or the host refused it. starting = switched on, the box is bringing it up (container start and health check take minutes). stopping = switched off, the host has not confirmed yet. failed = switched on, but the box could not set it up (see problem / reason)"
-                          },
-                          "since": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "format": "date-time",
-                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "hits_7d": {
-                            "type": "integer",
-                            "minimum": -9007199254740991,
-                            "maximum": 9007199254740991
-                          },
-                          "last_hit_at": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "format": "date-time",
-                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          }
-                        },
-                        "required": [
-                          "service",
-                          "port",
-                          "enabled",
-                          "state",
-                          "since",
-                          "hits_7d",
-                          "last_hit_at"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "summary": {
-                      "type": "object",
-                      "properties": {
-                        "today": {
-                          "type": "integer",
-                          "minimum": -9007199254740991,
-                          "maximum": 9007199254740991
-                        },
-                        "week": {
-                          "type": "integer",
-                          "minimum": -9007199254740991,
-                          "maximum": 9007199254740991
-                        },
-                        "last_hit_at": {
-                          "anyOf": [
-                            {
-                              "type": "string",
-                              "format": "date-time",
-                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "last_src": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        }
-                      },
-                      "required": [
-                        "today",
-                        "week",
-                        "last_hit_at",
-                        "last_src"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "updated_at": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    }
-                  },
-                  "required": [
-                    "secondary_ip",
-                    "secondary_mac",
-                    "problem",
-                    "hostname",
-                    "lan",
-                    "box",
-                    "ignored_7d",
-                    "conflict_asset",
-                    "traps",
-                    "summary",
-                    "updated_at"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/honeypot/decoys": {
-      "get": {
-        "operationId": "honeypot_get_honeypot_decoys",
-        "summary": "Decoy personalities in use, suggestions from the inventory and spare IPs",
-        "tags": [
-          "honeypot"
-        ],
-        "x-stories": [
-          "S-HP-2"
-        ],
-        "x-min-role": "viewer",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "personality": {
-                            "type": "string",
-                            "enum": [
-                              "windows_fs",
-                              "nas",
-                              "printer",
-                              "camera",
-                              "linux"
-                            ]
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "ip": {
-                            "type": "string"
-                          },
-                          "enabled": {
-                            "type": "boolean"
-                          },
-                          "state": {
-                            "type": "string",
-                            "enum": [
-                              "off",
-                              "listening",
-                              "conflict",
-                              "starting",
-                              "stopping",
-                              "failed"
-                            ],
-                            "description": "From the host, not the switch: listening only when the container runs with a trap on and the host holds the address"
-                          },
-                          "reason": {
-                            "description": "Why state is failed or conflict, or why an enabled decoy is off (no trap is on); null otherwise",
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "mac": {
-                            "description": "MAC address the box gave this IP, as the host reports it; null until known",
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "created_at": {
-                            "type": "string",
-                            "format": "date-time",
-                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                          },
-                          "services": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "name": {
-                                  "type": "string"
-                                },
-                                "port": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                }
-                              },
-                              "required": [
-                                "name",
-                                "port"
-                              ],
-                              "additionalProperties": false
-                            }
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "personality",
-                          "name",
-                          "ip",
-                          "enabled",
-                          "state",
-                          "reason",
-                          "mac",
-                          "created_at",
-                          "services"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "suggestions": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "personality": {
-                            "type": "string",
-                            "enum": [
-                              "windows_fs",
-                              "nas",
-                              "printer",
-                              "camera",
-                              "linux"
-                            ]
-                          },
-                          "count": {
-                            "type": "integer",
-                            "minimum": -9007199254740991,
-                            "maximum": 9007199254740991
-                          },
-                          "examples": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
-                          }
-                        },
-                        "required": [
-                          "personality",
-                          "count",
-                          "examples"
-                        ],
-                        "additionalProperties": false,
-                        "description": "A device type that really exists in the inventory, so a decoy of that type blends in"
-                      }
-                    },
-                    "spare_ips": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "spare_checked": {
-                      "type": "boolean",
-                      "description": "false while the inventory has no device in the box network: nothing was compared, so spare_ips are only addresses not seen yet"
-                    }
-                  },
-                  "required": [
-                    "items",
-                    "suggestions",
-                    "spare_ips",
-                    "spare_checked"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "operationId": "honeypot_post_honeypot_decoys",
-        "summary": "Add a decoy with a personality on a spare IP",
-        "tags": [
-          "honeypot"
-        ],
-        "x-stories": [
-          "S-HP-2"
-        ],
-        "x-min-role": "admin",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "personality": {
-                    "type": "string",
-                    "enum": [
-                      "windows_fs",
-                      "nas",
-                      "printer",
-                      "camera",
-                      "linux"
-                    ]
-                  },
-                  "name": {
-                    "type": "string"
-                  },
-                  "ip": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "personality",
-                  "name",
-                  "ip"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "personality": {
-                      "type": "string",
-                      "enum": [
-                        "windows_fs",
-                        "nas",
-                        "printer",
-                        "camera",
-                        "linux"
-                      ]
-                    },
-                    "name": {
-                      "type": "string"
-                    },
-                    "ip": {
-                      "type": "string"
-                    },
-                    "enabled": {
-                      "type": "boolean"
-                    },
-                    "state": {
-                      "type": "string",
-                      "enum": [
-                        "off",
-                        "listening",
-                        "conflict",
-                        "starting",
-                        "stopping",
-                        "failed"
-                      ],
-                      "description": "From the host, not the switch: listening only when the container runs with a trap on and the host holds the address"
-                    },
-                    "reason": {
-                      "description": "Why state is failed or conflict, or why an enabled decoy is off (no trap is on); null otherwise",
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "mac": {
-                      "description": "MAC address the box gave this IP, as the host reports it; null until known",
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "created_at": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "services": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "name": {
-                            "type": "string"
-                          },
-                          "port": {
-                            "type": "integer",
-                            "minimum": -9007199254740991,
-                            "maximum": 9007199254740991
-                          }
-                        },
-                        "required": [
-                          "name",
-                          "port"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "personality",
-                    "name",
-                    "ip",
-                    "enabled",
-                    "state",
-                    "reason",
-                    "mac",
-                    "created_at",
-                    "services"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/honeypot/decoys/{id}": {
-      "delete": {
-        "operationId": "honeypot_delete_honeypot_decoys_id",
-        "summary": "Delete a decoy",
-        "tags": [
-          "honeypot"
-        ],
-        "x-stories": [
-          "S-HP-2"
-        ],
-        "x-min-role": "admin",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Done, no content"
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
-        "operationId": "honeypot_patch_honeypot_decoys_id",
-        "summary": "Turn a decoy on or off",
-        "tags": [
-          "honeypot"
-        ],
-        "x-stories": [
-          "S-HP-2"
-        ],
-        "x-min-role": "admin",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "enabled": {
-                    "type": "boolean"
-                  }
-                },
-                "required": [
-                  "enabled"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "personality": {
-                      "type": "string",
-                      "enum": [
-                        "windows_fs",
-                        "nas",
-                        "printer",
-                        "camera",
-                        "linux"
-                      ]
-                    },
-                    "name": {
-                      "type": "string"
-                    },
-                    "ip": {
-                      "type": "string"
-                    },
-                    "enabled": {
-                      "type": "boolean"
-                    },
-                    "state": {
-                      "type": "string",
-                      "enum": [
-                        "off",
-                        "listening",
-                        "conflict",
-                        "starting",
-                        "stopping",
-                        "failed"
-                      ],
-                      "description": "From the host, not the switch: listening only when the container runs with a trap on and the host holds the address"
-                    },
-                    "reason": {
-                      "description": "Why state is failed or conflict, or why an enabled decoy is off (no trap is on); null otherwise",
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "mac": {
-                      "description": "MAC address the box gave this IP, as the host reports it; null until known",
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "created_at": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "services": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "name": {
-                            "type": "string"
-                          },
-                          "port": {
-                            "type": "integer",
-                            "minimum": -9007199254740991,
-                            "maximum": 9007199254740991
-                          }
-                        },
-                        "required": [
-                          "name",
-                          "port"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "personality",
-                    "name",
-                    "ip",
-                    "enabled",
-                    "state",
-                    "reason",
-                    "mac",
-                    "created_at",
-                    "services"
                   ],
                   "additionalProperties": false
                 }
@@ -30588,7 +29795,7 @@
                               "token",
                               "scan"
                             ],
-                            "description": "service = a connection to a decoy port; token = a honey token was used; scan = a sweep or port scan touched the decoy IPs"
+                            "description": "service = a connection to a trap port; token = a honey token was used; scan = a sweep or port scan touched the Trap IPs"
                           },
                           "service": {
                             "anyOf": [
@@ -30729,7 +29936,7 @@
                         "token",
                         "scan"
                       ],
-                      "description": "service = a connection to a decoy port; token = a honey token was used; scan = a sweep or port scan touched the decoy IPs"
+                      "description": "service = a connection to a trap port; token = a honey token was used; scan = a sweep or port scan touched the Trap IPs"
                     },
                     "service": {
                       "anyOf": [
@@ -30791,7 +29998,8 @@
                       "type": "string"
                     },
                     "trap_hostname": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "Name of the Trap IP that was hit (D-466), or of the token / \"Decoy sweep\""
                     },
                     "asset": {
                       "anyOf": [
@@ -30905,7 +30113,7 @@
     "/honeypot/test-hit": {
       "post": {
         "operationId": "honeypot_post_honeypot_test_hit",
-        "summary": "\"Test trap\": creates a hit labelled as a test from the box itself, not counted in statistics, no alert sent",
+        "summary": "\"Test trap\": creates a hit labelled as a test from the box itself, on the first enabled Trap IP with that service; not counted in statistics, no alert sent",
         "tags": [
           "honeypot"
         ],
@@ -30962,7 +30170,7 @@
                         "token",
                         "scan"
                       ],
-                      "description": "service = a connection to a decoy port; token = a honey token was used; scan = a sweep or port scan touched the decoy IPs"
+                      "description": "service = a connection to a trap port; token = a honey token was used; scan = a sweep or port scan touched the Trap IPs"
                     },
                     "service": {
                       "anyOf": [
@@ -31055,7 +30263,7 @@
     "/honeypot/test-scan": {
       "post": {
         "operationId": "honeypot_post_honeypot_test_scan",
-        "summary": "\"Test scan\": a labelled test scan alert from the box across the decoy IPs, not counted, no alert sent",
+        "summary": "\"Test scan\": a labelled test scan alert from the box across the Trap IPs, not counted, no alert sent",
         "tags": [
           "honeypot"
         ],
@@ -31086,7 +30294,7 @@
                         "token",
                         "scan"
                       ],
-                      "description": "service = a connection to a decoy port; token = a honey token was used; scan = a sweep or port scan touched the decoy IPs"
+                      "description": "service = a connection to a trap port; token = a honey token was used; scan = a sweep or port scan touched the Trap IPs"
                     },
                     "service": {
                       "anyOf": [
@@ -31510,7 +30718,7 @@
                         "token",
                         "scan"
                       ],
-                      "description": "service = a connection to a decoy port; token = a honey token was used; scan = a sweep or port scan touched the decoy IPs"
+                      "description": "service = a connection to a trap port; token = a honey token was used; scan = a sweep or port scan touched the Trap IPs"
                     },
                     "service": {
                       "anyOf": [
@@ -31600,31 +30808,497 @@
         }
       }
     },
-    "/honeypot/traps/{service}": {
-      "patch": {
-        "operationId": "honeypot_patch_honeypot_traps_service",
-        "summary": "Turn the trap of one service on or off",
+    "/honeypot/trap-ips": {
+      "get": {
+        "operationId": "honeypot_get_honeypot_trap_ips",
+        "summary": "Trap IPs with their state, suggestions from the inventory and addresses not seen yet",
         "tags": [
           "honeypot"
         ],
         "x-stories": [
-          "S-HP-1"
+          "S-HP-1",
+          "S-HP-2"
+        ],
+        "x-min-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "Host name of the Trap IP (NetBIOS form, up to 15 characters); the label of its hits"
+                          },
+                          "ip": {
+                            "type": "string"
+                          },
+                          "preset": {
+                            "type": "string",
+                            "enum": [
+                              "file_server",
+                              "nas",
+                              "printer",
+                              "camera",
+                              "linux",
+                              "database",
+                              "custom"
+                            ],
+                            "description": "What the Trap IP looks like; a preset fills services and vendor, which stay editable. custom = services picked by hand"
+                          },
+                          "vendor": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "dell",
+                                  "hp",
+                                  "vmware",
+                                  "hyperv",
+                                  "supermicro",
+                                  "synology",
+                                  "qnap",
+                                  "brother",
+                                  "canon",
+                                  "hikvision",
+                                  "dahua",
+                                  "axis"
+                                ],
+                                "description": "Vendor whose MAC prefix (OUI) the address gets; null = a locally administered MAC derived by the host"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "services": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "smb",
+                                "rdp",
+                                "ssh",
+                                "mssql",
+                                "http"
+                              ]
+                            },
+                            "description": "The services this address answers on; every other port is closed on it"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "off",
+                              "listening",
+                              "conflict",
+                              "starting",
+                              "stopping",
+                              "failed"
+                            ],
+                            "description": "From the host, not the switch: listening only when the container runs and the host holds the address with its ports"
+                          },
+                          "reason": {
+                            "description": "Why state is failed or conflict, or why an enabled Trap IP is off; also a note when it listens but the host cannot keep its services apart; null otherwise",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "mac": {
+                            "description": "MAC address the box gave this IP, as the host reports it; null until known",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "ip",
+                          "preset",
+                          "vendor",
+                          "services",
+                          "enabled",
+                          "state",
+                          "reason",
+                          "mac",
+                          "created_at"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "suggestions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "preset": {
+                            "type": "string",
+                            "enum": [
+                              "file_server",
+                              "nas",
+                              "printer",
+                              "camera",
+                              "linux",
+                              "database",
+                              "custom"
+                            ],
+                            "description": "What the Trap IP looks like; a preset fills services and vendor, which stay editable. custom = services picked by hand"
+                          },
+                          "count": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "examples": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "preset",
+                          "count",
+                          "examples"
+                        ],
+                        "additionalProperties": false,
+                        "description": "A device type that really exists in the inventory, so a Trap IP of that type blends in"
+                      }
+                    },
+                    "spare_ips": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "spare_checked": {
+                      "type": "boolean",
+                      "description": "false while the inventory has no device in the box network: nothing was compared, so spare_ips are only addresses not seen yet"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "suggestions",
+                    "spare_ips",
+                    "spare_checked"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "honeypot_post_honeypot_trap_ips",
+        "summary": "Add a Trap IP: name, address, preset, vendor and services. Rejects an address of a device, of the box or outside the box network, and a name in use",
+        "tags": [
+          "honeypot"
+        ],
+        "x-stories": [
+          "S-HP-1",
+          "S-HP-2"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "ip": {
+                    "type": "string"
+                  },
+                  "preset": {
+                    "type": "string",
+                    "enum": [
+                      "file_server",
+                      "nas",
+                      "printer",
+                      "camera",
+                      "linux",
+                      "database",
+                      "custom"
+                    ],
+                    "description": "What the Trap IP looks like; a preset fills services and vendor, which stay editable. custom = services picked by hand"
+                  },
+                  "vendor": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "dell",
+                          "hp",
+                          "vmware",
+                          "hyperv",
+                          "supermicro",
+                          "synology",
+                          "qnap",
+                          "brother",
+                          "canon",
+                          "hikvision",
+                          "dahua",
+                          "axis"
+                        ],
+                        "description": "Vendor whose MAC prefix (OUI) the address gets; null = a locally administered MAC derived by the host"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "services": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "smb",
+                        "rdp",
+                        "ssh",
+                        "mssql",
+                        "http"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "ip",
+                  "preset",
+                  "vendor",
+                  "services"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Host name of the Trap IP (NetBIOS form, up to 15 characters); the label of its hits"
+                    },
+                    "ip": {
+                      "type": "string"
+                    },
+                    "preset": {
+                      "type": "string",
+                      "enum": [
+                        "file_server",
+                        "nas",
+                        "printer",
+                        "camera",
+                        "linux",
+                        "database",
+                        "custom"
+                      ],
+                      "description": "What the Trap IP looks like; a preset fills services and vendor, which stay editable. custom = services picked by hand"
+                    },
+                    "vendor": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "dell",
+                            "hp",
+                            "vmware",
+                            "hyperv",
+                            "supermicro",
+                            "synology",
+                            "qnap",
+                            "brother",
+                            "canon",
+                            "hikvision",
+                            "dahua",
+                            "axis"
+                          ],
+                          "description": "Vendor whose MAC prefix (OUI) the address gets; null = a locally administered MAC derived by the host"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "services": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "smb",
+                          "rdp",
+                          "ssh",
+                          "mssql",
+                          "http"
+                        ]
+                      },
+                      "description": "The services this address answers on; every other port is closed on it"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "off",
+                        "listening",
+                        "conflict",
+                        "starting",
+                        "stopping",
+                        "failed"
+                      ],
+                      "description": "From the host, not the switch: listening only when the container runs and the host holds the address with its ports"
+                    },
+                    "reason": {
+                      "description": "Why state is failed or conflict, or why an enabled Trap IP is off; also a note when it listens but the host cannot keep its services apart; null otherwise",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "mac": {
+                      "description": "MAC address the box gave this IP, as the host reports it; null until known",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "ip",
+                    "preset",
+                    "vendor",
+                    "services",
+                    "enabled",
+                    "state",
+                    "reason",
+                    "mac",
+                    "created_at"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/honeypot/trap-ips/{id}": {
+      "delete": {
+        "operationId": "honeypot_delete_honeypot_trap_ips_id",
+        "summary": "Delete a Trap IP; the address stops answering, its hits stay",
+        "tags": [
+          "honeypot"
+        ],
+        "x-stories": [
+          "S-HP-1",
+          "S-HP-2"
         ],
         "x-min-role": "admin",
         "parameters": [
           {
-            "name": "service",
+            "name": "id",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "enum": [
-                "smb",
-                "rdp",
-                "ssh",
-                "mssql",
-                "http"
-              ]
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done, no content"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "honeypot_patch_honeypot_trap_ips_id",
+        "summary": "Turn a Trap IP on or off",
+        "tags": [
+          "honeypot"
+        ],
+        "x-stories": [
+          "S-HP-1",
+          "S-HP-2"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -31655,219 +31329,348 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "secondary_ip": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "secondary_mac": {
-                      "description": "MAC address the box gave the secondary IP, as the host reports it; null until known",
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "problem": {
-                      "description": "Why a switched-on trap is not listening (state failed, or conflict with no inventory device in conflict_asset), with the host reason when it gave one; null otherwise",
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "hostname": {
+                    "id": {
                       "type": "string"
                     },
-                    "lan": {
-                      "description": "Box network range; null on a fresh install with no LAN range declared",
-                      "type": [
-                        "string",
-                        "null"
-                      ]
+                    "name": {
+                      "type": "string",
+                      "description": "Host name of the Trap IP (NetBIOS form, up to 15 characters); the label of its hits"
                     },
-                    "box": {
-                      "type": "object",
-                      "properties": {
-                        "ip": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "name": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "ip",
-                        "name"
+                    "ip": {
+                      "type": "string"
+                    },
+                    "preset": {
+                      "type": "string",
+                      "enum": [
+                        "file_server",
+                        "nas",
+                        "printer",
+                        "camera",
+                        "linux",
+                        "database",
+                        "custom"
                       ],
-                      "additionalProperties": false
+                      "description": "What the Trap IP looks like; a preset fills services and vendor, which stay editable. custom = services picked by hand"
                     },
-                    "ignored_7d": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991,
-                      "description": "Hits from the Vedette scanner itself that were ignored in the last 7 days"
-                    },
-                    "conflict_asset": {
+                    "vendor": {
                       "anyOf": [
                         {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "name": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "name"
+                          "type": "string",
+                          "enum": [
+                            "dell",
+                            "hp",
+                            "vmware",
+                            "hyperv",
+                            "supermicro",
+                            "synology",
+                            "qnap",
+                            "brother",
+                            "canon",
+                            "hikvision",
+                            "dahua",
+                            "axis"
                           ],
-                          "additionalProperties": false
+                          "description": "Vendor whose MAC prefix (OUI) the address gets; null = a locally administered MAC derived by the host"
                         },
                         {
                           "type": "null"
                         }
                       ]
                     },
-                    "traps": {
+                    "services": {
                       "type": "array",
                       "items": {
-                        "type": "object",
-                        "properties": {
-                          "service": {
-                            "type": "string",
-                            "enum": [
-                              "smb",
-                              "rdp",
-                              "ssh",
-                              "mssql",
-                              "http"
-                            ]
-                          },
-                          "port": {
-                            "type": "integer",
-                            "minimum": -9007199254740991,
-                            "maximum": 9007199254740991
-                          },
-                          "enabled": {
-                            "type": "boolean"
-                          },
-                          "state": {
-                            "type": "string",
-                            "enum": [
-                              "off",
-                              "listening",
-                              "conflict",
-                              "starting",
-                              "stopping",
-                              "failed"
-                            ],
-                            "description": "What the box reports, not the switch. conflict = on, but the IP clashes with a device in the inventory or the host refused it. starting = switched on, the box is bringing it up (container start and health check take minutes). stopping = switched off, the host has not confirmed yet. failed = switched on, but the box could not set it up (see problem / reason)"
-                          },
-                          "since": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "format": "date-time",
-                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "hits_7d": {
-                            "type": "integer",
-                            "minimum": -9007199254740991,
-                            "maximum": 9007199254740991
-                          },
-                          "last_hit_at": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "format": "date-time",
-                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          }
-                        },
-                        "required": [
-                          "service",
-                          "port",
-                          "enabled",
-                          "state",
-                          "since",
-                          "hits_7d",
-                          "last_hit_at"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "summary": {
-                      "type": "object",
-                      "properties": {
-                        "today": {
-                          "type": "integer",
-                          "minimum": -9007199254740991,
-                          "maximum": 9007199254740991
-                        },
-                        "week": {
-                          "type": "integer",
-                          "minimum": -9007199254740991,
-                          "maximum": 9007199254740991
-                        },
-                        "last_hit_at": {
-                          "anyOf": [
-                            {
-                              "type": "string",
-                              "format": "date-time",
-                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "last_src": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        }
+                        "type": "string",
+                        "enum": [
+                          "smb",
+                          "rdp",
+                          "ssh",
+                          "mssql",
+                          "http"
+                        ]
                       },
-                      "required": [
-                        "today",
-                        "week",
-                        "last_hit_at",
-                        "last_src"
-                      ],
-                      "additionalProperties": false
+                      "description": "The services this address answers on; every other port is closed on it"
                     },
-                    "updated_at": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "off",
+                        "listening",
+                        "conflict",
+                        "starting",
+                        "stopping",
+                        "failed"
+                      ],
+                      "description": "From the host, not the switch: listening only when the container runs and the host holds the address with its ports"
+                    },
+                    "reason": {
+                      "description": "Why state is failed or conflict, or why an enabled Trap IP is off; also a note when it listens but the host cannot keep its services apart; null otherwise",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "mac": {
+                      "description": "MAC address the box gave this IP, as the host reports it; null until known",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "created_at": {
                       "type": "string",
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     }
                   },
                   "required": [
-                    "secondary_ip",
-                    "secondary_mac",
-                    "problem",
-                    "hostname",
-                    "lan",
-                    "box",
-                    "ignored_7d",
-                    "conflict_asset",
-                    "traps",
-                    "summary",
-                    "updated_at"
+                    "id",
+                    "name",
+                    "ip",
+                    "preset",
+                    "vendor",
+                    "services",
+                    "enabled",
+                    "state",
+                    "reason",
+                    "mac",
+                    "created_at"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "honeypot_put_honeypot_trap_ips_id",
+        "summary": "Change a Trap IP: name, address, preset, vendor and services, with the same checks as adding one",
+        "tags": [
+          "honeypot"
+        ],
+        "x-stories": [
+          "S-HP-1",
+          "S-HP-2"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "ip": {
+                    "type": "string"
+                  },
+                  "preset": {
+                    "type": "string",
+                    "enum": [
+                      "file_server",
+                      "nas",
+                      "printer",
+                      "camera",
+                      "linux",
+                      "database",
+                      "custom"
+                    ],
+                    "description": "What the Trap IP looks like; a preset fills services and vendor, which stay editable. custom = services picked by hand"
+                  },
+                  "vendor": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "dell",
+                          "hp",
+                          "vmware",
+                          "hyperv",
+                          "supermicro",
+                          "synology",
+                          "qnap",
+                          "brother",
+                          "canon",
+                          "hikvision",
+                          "dahua",
+                          "axis"
+                        ],
+                        "description": "Vendor whose MAC prefix (OUI) the address gets; null = a locally administered MAC derived by the host"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "services": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "smb",
+                        "rdp",
+                        "ssh",
+                        "mssql",
+                        "http"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "ip",
+                  "preset",
+                  "vendor",
+                  "services"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Host name of the Trap IP (NetBIOS form, up to 15 characters); the label of its hits"
+                    },
+                    "ip": {
+                      "type": "string"
+                    },
+                    "preset": {
+                      "type": "string",
+                      "enum": [
+                        "file_server",
+                        "nas",
+                        "printer",
+                        "camera",
+                        "linux",
+                        "database",
+                        "custom"
+                      ],
+                      "description": "What the Trap IP looks like; a preset fills services and vendor, which stay editable. custom = services picked by hand"
+                    },
+                    "vendor": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "dell",
+                            "hp",
+                            "vmware",
+                            "hyperv",
+                            "supermicro",
+                            "synology",
+                            "qnap",
+                            "brother",
+                            "canon",
+                            "hikvision",
+                            "dahua",
+                            "axis"
+                          ],
+                          "description": "Vendor whose MAC prefix (OUI) the address gets; null = a locally administered MAC derived by the host"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "services": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "smb",
+                          "rdp",
+                          "ssh",
+                          "mssql",
+                          "http"
+                        ]
+                      },
+                      "description": "The services this address answers on; every other port is closed on it"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "off",
+                        "listening",
+                        "conflict",
+                        "starting",
+                        "stopping",
+                        "failed"
+                      ],
+                      "description": "From the host, not the switch: listening only when the container runs and the host holds the address with its ports"
+                    },
+                    "reason": {
+                      "description": "Why state is failed or conflict, or why an enabled Trap IP is off; also a note when it listens but the host cannot keep its services apart; null otherwise",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "mac": {
+                      "description": "MAC address the box gave this IP, as the host reports it; null until known",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "ip",
+                    "preset",
+                    "vendor",
+                    "services",
+                    "enabled",
+                    "state",
+                    "reason",
+                    "mac",
+                    "created_at"
                   ],
                   "additionalProperties": false
                 }

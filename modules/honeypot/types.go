@@ -75,27 +75,29 @@ const (
 	StateFailed = "failed"
 )
 
-// Trap is one service trap (contract.ts Trap).
+// Trap is one service across the Trap IPs (contract.ts Trap): on when at least one enabled Trap IP has it (D-466).
 type Trap struct {
 	Service   ServiceName `json:"service"`
 	Port      int         `json:"port"`
 	Enabled   bool        `json:"enabled"`
 	State     string      `json:"state"`
-	Since     *string     `json:"since"`
+	TrapIPs   []string    `json:"trap_ips"` // names of the enabled Trap IPs that have it
 	Hits7d    int         `json:"hits_7d"`
 	LastHitAt *string     `json:"last_hit_at"`
+}
+
+// TrapIPCounts counts the Trap IPs for the overview: Failing are the enabled ones in state failed or conflict.
+type TrapIPCounts struct {
+	Total     int `json:"total"`
+	Enabled   int `json:"enabled"`
+	Listening int `json:"listening"`
+	Failing   int `json:"failing"`
 }
 
 // BoxRef is the box as the overview names it.
 type BoxRef struct {
 	IP   *string `json:"ip"`
 	Name string  `json:"name"`
-}
-
-// AssetRef is a device named by id.
-type AssetRef struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
 }
 
 // Summary counts the real hits (INV-4: never test hits).
@@ -108,17 +110,18 @@ type Summary struct {
 
 // Overview is GET /honeypot (contract.ts HpOverview).
 type Overview struct {
-	SecondaryIP   *string   `json:"secondary_ip"`
-	SecondaryMAC  *string   `json:"secondary_mac"` // the MAC the host gave the secondary IP, nil while unknown
-	Problem       *string   `json:"problem"`       // why a switched-on trap is not listening (state failed), nil when none is
-	Hostname      string    `json:"hostname"`
-	LAN           *string   `json:"lan"`
-	Box           BoxRef    `json:"box"`
-	Ignored7d     int       `json:"ignored_7d"`
-	ConflictAsset *AssetRef `json:"conflict_asset"`
-	Traps         []Trap    `json:"traps"`
-	Summary       Summary   `json:"summary"`
-	UpdatedAt     string    `json:"updated_at"`
+	Problem   *string      `json:"problem"` // why switched-on Trap IPs do not listen at all (host, container), nil otherwise
+	LAN       *string      `json:"lan"`
+	Box       BoxRef       `json:"box"`
+	Ignored7d int          `json:"ignored_7d"`
+	TrapIPs   TrapIPCounts `json:"trap_ips"`
+	// SMBName is the one NetBIOS name of the share: the name of the first Trap IP handed to the host that has SMB (D-466 (4)).
+	SMBName *string `json:"smb_name"`
+	// HTTPPage is the one HTTP login page: "nas" when the first Trap IP handed to the host that has HTTP is a NAS, else "login".
+	HTTPPage  *string `json:"http_page"`
+	Traps     []Trap  `json:"traps"`
+	Summary   Summary `json:"summary"`
+	UpdatedAt string  `json:"updated_at"`
 }
 
 // Hit is a row of the hit list (contract.ts Hit). SourceIP repeats SrcIP for the response module (INV-8) and is not
@@ -169,60 +172,59 @@ type HitDetail struct {
 // WindowMinutes is the hour of log lines around a hit (INV-9).
 const WindowMinutes = 60
 
-// Personality is what a decoy looks like (contract.ts Personality).
-type Personality string
+// Preset is what a Trap IP looks like (contract.ts TrapPreset): it fills the services and the vendor, which stay editable.
+type Preset string
 
-// The personalities of INV-11.
+// The presets of D-466 (presets.go has their services and vendors).
 const (
-	WindowsFS Personality = "windows_fs"
-	NAS       Personality = "nas"
-	Printer   Personality = "printer"
-	Camera    Personality = "camera"
-	Linux     Personality = "linux"
+	FileServer Preset = "file_server"
+	NAS        Preset = "nas"
+	Printer    Preset = "printer"
+	Camera     Preset = "camera"
+	Linux      Preset = "linux"
+	Database   Preset = "database"
+	Custom     Preset = "custom"
 )
 
-// DecoyService is a service a personality shows.
-type DecoyService struct {
-	Name string `json:"name"`
-	Port int    `json:"port"`
+// TrapIP is one Trap IP, a profile (contract.ts TrapIP, D-466).
+type TrapIP struct {
+	ID        string        `json:"id"`
+	Name      string        `json:"name"`
+	IP        string        `json:"ip"`
+	Preset    Preset        `json:"preset"`
+	Vendor    *string       `json:"vendor"`
+	Services  []ServiceName `json:"services"`
+	Enabled   bool          `json:"enabled"`
+	State     string        `json:"state"`  // what the host reports (Trap states), not the switch
+	Reason    *string       `json:"reason"` // why state is failed, conflict, or a note while it listens
+	MAC       *string       `json:"mac"`    // the MAC the host gave the address, nil while unknown
+	CreatedAt string        `json:"created_at"`
 }
 
-// Decoy is a decoy device (contract.ts Decoy).
-type Decoy struct {
-	ID          string         `json:"id"`
-	Personality Personality    `json:"personality"`
-	Name        string         `json:"name"`
-	IP          string         `json:"ip"`
-	Enabled     bool           `json:"enabled"`
-	State       string         `json:"state"`  // what the host reports (Trap states), not the switch
-	Reason      *string        `json:"reason"` // why state is failed, conflict, or off while enabled
-	MAC         *string        `json:"mac"`    // the MAC the host gave the address, nil while unknown
-	CreatedAt   string         `json:"created_at"`
-	Services    []DecoyService `json:"services"`
+// TrapSuggestion is a device type that exists in the inventory (INV-11).
+type TrapSuggestion struct {
+	Preset   Preset   `json:"preset"`
+	Count    int      `json:"count"`
+	Examples []string `json:"examples"`
 }
 
-// DecoySuggestion is a device type that exists in the inventory (INV-11).
-type DecoySuggestion struct {
-	Personality Personality `json:"personality"`
-	Count       int         `json:"count"`
-	Examples    []string    `json:"examples"`
-}
-
-// DecoysResponse is GET /honeypot/decoys.
-type DecoysResponse struct {
-	Items       []Decoy           `json:"items"`
-	Suggestions []DecoySuggestion `json:"suggestions"`
-	SpareIPs    []string          `json:"spare_ips"`
+// TrapIPsResponse is GET /honeypot/trap-ips.
+type TrapIPsResponse struct {
+	Items       []TrapIP         `json:"items"`
+	Suggestions []TrapSuggestion `json:"suggestions"`
+	SpareIPs    []string         `json:"spare_ips"`
 	// SpareChecked is false while the inventory has no device in the box's network: nothing was compared, so SpareIPs
 	// are only "not seen yet", not "unused".
 	SpareChecked bool `json:"spare_checked"`
 }
 
-// DecoyInput is POST /honeypot/decoys.
-type DecoyInput struct {
-	Personality Personality `json:"personality"`
-	Name        string      `json:"name"`
-	IP          string      `json:"ip"`
+// TrapIPInput is the body of POST and PUT /honeypot/trap-ips. Vendor nil (or "") is no vendor.
+type TrapIPInput struct {
+	Name     string        `json:"name"`
+	IP       string        `json:"ip"`
+	Preset   Preset        `json:"preset"`
+	Vendor   *string       `json:"vendor"`
+	Services []ServiceName `json:"services"`
 }
 
 // TokenType is the kind of a honey token.
@@ -307,11 +309,26 @@ var ErrRefused = errors.New("the host refused")
 // (INV-7), never "IP clashes with a device" (#475).
 var ErrHostFailed = errors.New("the host could not set up the address")
 
+// Port is one port a Trap IP answers on (host-api 6.6 `ports`).
+type Port struct {
+	Proto string // "tcp" or "udp"
+	Port  int
+}
+
+// DecoySpec is how the host builds one Trap IP address (D-466): OUI is the six hex digits of the vendor's MAC prefix ("" = the
+// host's locally administered MAC), Ports the only ports the address answers on (the services of its profile).
+type DecoySpec struct {
+	OUI   string
+	Ports []Port
+}
+
 // Host is the module's only way to the OS (FORBID-3, SYS-1): decoy IPs (host-api 6.6) and the `honeypot` container
 // (6.8, 6.9). Every call is idempotent.
 type Host interface {
 	Status(ctx context.Context) (HostStatus, error)
-	AddDecoyIP(ctx context.Context, ip netip.Addr) error
+	// AddDecoyIP makes the host hold ip as spec says: added when it is not there, its ports or its MAC prefix changed when
+	// they differ, nothing when it already matches.
+	AddDecoyIP(ctx context.Context, ip netip.Addr, spec DecoySpec) error
 	RemoveDecoyIP(ctx context.Context, ip netip.Addr) error
 	// StartContainer starts the container; restart is true when core wrote opencanary.conf or honeytokens.json since the
 	// last start the host acknowledged, so a container that already runs must read them again (host-api 6.8 restart).

@@ -994,30 +994,25 @@ type Handler interface {
 	//
 	// POST /findings/{id}/status
 	FindingsPostFindingsIDStatus(ctx context.Context, req *FindingsPostFindingsIDStatusReq, params FindingsPostFindingsIDStatusParams) (*FindingsPostFindingsIDStatusOK, error)
-	// HoneypotDeleteHoneypotDecoysID implements honeypot_delete_honeypot_decoys_id operation.
-	//
-	// Delete a decoy.
-	//
-	// DELETE /honeypot/decoys/{id}
-	HoneypotDeleteHoneypotDecoysID(ctx context.Context, params HoneypotDeleteHoneypotDecoysIDParams) error
 	// HoneypotDeleteHoneypotTokensID implements honeypot_delete_honeypot_tokens_id operation.
 	//
 	// Delete a honey token; the planted copy stops alerting.
 	//
 	// DELETE /honeypot/tokens/{id}
 	HoneypotDeleteHoneypotTokensID(ctx context.Context, params HoneypotDeleteHoneypotTokensIDParams) error
+	// HoneypotDeleteHoneypotTrapIpsID implements honeypot_delete_honeypot_trap_ips_id operation.
+	//
+	// Delete a Trap IP; the address stops answering, its hits stay.
+	//
+	// DELETE /honeypot/trap-ips/{id}
+	HoneypotDeleteHoneypotTrapIpsID(ctx context.Context, params HoneypotDeleteHoneypotTrapIpsIDParams) error
 	// HoneypotGetHoneypot implements honeypot_get_honeypot operation.
 	//
-	// The decoy machine, traps by service, hit summary and the excluded scanner.
+	// Trap IP counts, services across the Trap IPs, the box-wide SMB name and HTTP page, hit summary and
+	// the excluded scanner.
 	//
 	// GET /honeypot
 	HoneypotGetHoneypot(ctx context.Context) (*HoneypotGetHoneypotOK, error)
-	// HoneypotGetHoneypotDecoys implements honeypot_get_honeypot_decoys operation.
-	//
-	// Decoy personalities in use, suggestions from the inventory and spare IPs.
-	//
-	// GET /honeypot/decoys
-	HoneypotGetHoneypotDecoys(ctx context.Context) (*HoneypotGetHoneypotDecoysOK, error)
 	// HoneypotGetHoneypotHits implements honeypot_get_honeypot_hits operation.
 	//
 	// Trap hits, newest first; filtered by source device when asset is given.
@@ -1036,35 +1031,28 @@ type Handler interface {
 	//
 	// GET /honeypot/tokens
 	HoneypotGetHoneypotTokens(ctx context.Context) (*HoneypotGetHoneypotTokensOK, error)
-	// HoneypotPatchHoneypotDecoysID implements honeypot_patch_honeypot_decoys_id operation.
+	// HoneypotGetHoneypotTrapIps implements honeypot_get_honeypot_trap_ips operation.
 	//
-	// Turn a decoy on or off.
+	// Trap IPs with their state, suggestions from the inventory and addresses not seen yet.
 	//
-	// PATCH /honeypot/decoys/{id}
-	HoneypotPatchHoneypotDecoysID(ctx context.Context, req *HoneypotPatchHoneypotDecoysIDReq, params HoneypotPatchHoneypotDecoysIDParams) (*HoneypotPatchHoneypotDecoysIDOK, error)
-	// HoneypotPatchHoneypotTrapsService implements honeypot_patch_honeypot_traps_service operation.
+	// GET /honeypot/trap-ips
+	HoneypotGetHoneypotTrapIps(ctx context.Context) (*HoneypotGetHoneypotTrapIpsOK, error)
+	// HoneypotPatchHoneypotTrapIpsID implements honeypot_patch_honeypot_trap_ips_id operation.
 	//
-	// Turn the trap of one service on or off.
+	// Turn a Trap IP on or off.
 	//
-	// PATCH /honeypot/traps/{service}
-	HoneypotPatchHoneypotTrapsService(ctx context.Context, req *HoneypotPatchHoneypotTrapsServiceReq, params HoneypotPatchHoneypotTrapsServiceParams) (*HoneypotPatchHoneypotTrapsServiceOK, error)
-	// HoneypotPostHoneypotDecoys implements honeypot_post_honeypot_decoys operation.
-	//
-	// Add a decoy with a personality on a spare IP.
-	//
-	// POST /honeypot/decoys
-	HoneypotPostHoneypotDecoys(ctx context.Context, req *HoneypotPostHoneypotDecoysReq) (*HoneypotPostHoneypotDecoysCreated, error)
+	// PATCH /honeypot/trap-ips/{id}
+	HoneypotPatchHoneypotTrapIpsID(ctx context.Context, req *HoneypotPatchHoneypotTrapIpsIDReq, params HoneypotPatchHoneypotTrapIpsIDParams) (*HoneypotPatchHoneypotTrapIpsIDOK, error)
 	// HoneypotPostHoneypotTestHit implements honeypot_post_honeypot_test_hit operation.
 	//
-	// "Test trap": creates a hit labelled as a test from the box itself, not counted in statistics, no
-	// alert sent.
+	// "Test trap": creates a hit labelled as a test from the box itself, on the first enabled Trap IP with
+	// that service; not counted in statistics, no alert sent.
 	//
 	// POST /honeypot/test-hit
 	HoneypotPostHoneypotTestHit(ctx context.Context, req *HoneypotPostHoneypotTestHitReq) (*HoneypotPostHoneypotTestHitOK, error)
 	// HoneypotPostHoneypotTestScan implements honeypot_post_honeypot_test_scan operation.
 	//
-	// "Test scan": a labelled test scan alert from the box across the decoy IPs, not counted, no alert
-	// sent.
+	// "Test scan": a labelled test scan alert from the box across the Trap IPs, not counted, no alert sent.
 	//
 	// POST /honeypot/test-scan
 	HoneypotPostHoneypotTestScan(ctx context.Context) (*HoneypotPostHoneypotTestScanOK, error)
@@ -1080,14 +1068,19 @@ type Handler interface {
 	//
 	// POST /honeypot/tokens/{id}/test
 	HoneypotPostHoneypotTokensIDTest(ctx context.Context, params HoneypotPostHoneypotTokensIDTestParams) (*HoneypotPostHoneypotTokensIDTestOK, error)
-	// HoneypotPutHoneypotConfig implements honeypot_put_honeypot_config operation.
+	// HoneypotPostHoneypotTrapIps implements honeypot_post_honeypot_trap_ips operation.
 	//
-	// Set the secondary IP and decoy hostname; an empty secondary_ip removes the decoy IP, only while
-	// every trap is off (409 traps_on). Rejects an IP that matches a device, the IP of the box itself, or
-	// an IP outside the network of the box.
+	// Add a Trap IP: name, address, preset, vendor and services. Rejects an address of a device, of the
+	// box or outside the box network, and a name in use.
 	//
-	// PUT /honeypot/config
-	HoneypotPutHoneypotConfig(ctx context.Context, req *HoneypotPutHoneypotConfigReq) (*HoneypotPutHoneypotConfigOK, error)
+	// POST /honeypot/trap-ips
+	HoneypotPostHoneypotTrapIps(ctx context.Context, req *HoneypotPostHoneypotTrapIpsReq) (*HoneypotPostHoneypotTrapIpsCreated, error)
+	// HoneypotPutHoneypotTrapIpsID implements honeypot_put_honeypot_trap_ips_id operation.
+	//
+	// Change a Trap IP: name, address, preset, vendor and services, with the same checks as adding one.
+	//
+	// PUT /honeypot/trap-ips/{id}
+	HoneypotPutHoneypotTrapIpsID(ctx context.Context, req *HoneypotPutHoneypotTrapIpsIDReq, params HoneypotPutHoneypotTrapIpsIDParams) (*HoneypotPutHoneypotTrapIpsIDOK, error)
 	// InventoryDeleteInventoryAgentsTokensID implements inventory_delete_inventory_agents_tokens_id operation.
 	//
 	// Revoke an osquery token.

@@ -50,7 +50,7 @@ func (f *fakePlanner) Plan(_ context.Context, a response.PlanAsk) (response.Plan
 
 func goodSteps(response.PlanTarget) []response.DraftStep {
 	return []response.DraftStep{
-		{Kind: "contain", Title: "Block the address", Detail: "Add it to the block list.", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}}},
+		{Kind: "contain", Title: "Block the address", Detail: "Add it to the block list.", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "198.51.100.21"}}},
 		{Kind: "check", Title: "Check", Detail: "Look for signs of compromise."},
 		{Kind: "patch", Title: "Patch", Detail: "Install the vendor fix."},
 	}
@@ -65,10 +65,10 @@ func aiPlanEnv(t *testing.T) (*env, *fakePlanner, *[]response.PlanTarget) {
 		c.Planner = fp
 		c.Critical = func(context.Context) ([]response.PlanTarget, error) { return *targets, nil }
 	})
-	e.dir.devices["a1"] = response.DeviceInfo{ID: "a1", Name: "NAS", IP: "192.168.10.21", Approved: true}
+	e.dir.devices["a1"] = response.DeviceInfo{ID: "a1", Name: "NAS", IP: "198.51.100.21", Approved: true}
 	for _, id := range []string{"f1", "f2", "f3"} {
 		e.dir.findings[id] = response.FindingInfo{ID: id, AssetID: "a1", CVE: "CVE-2024-000" + id[1:], Severity: "critical", Status: "confirmed"}
-		*targets = append(*targets, response.PlanTarget{FindingID: id, CVE: "CVE-2024-000" + id[1:], AssetID: "a1", AssetName: "NAS", AssetIP: "192.168.10.21", AssetKind: "nas"})
+		*targets = append(*targets, response.PlanTarget{FindingID: id, CVE: "CVE-2024-000" + id[1:], AssetID: "a1", AssetName: "NAS", AssetIP: "198.51.100.21", AssetKind: "nas"})
 	}
 	e.exec1(`INSERT INTO resp_plans (id, finding_id, cve, asset_id, asset_name, generated_at, model, profile, path, reads, steps) VALUES ('plan-f1','f1','CVE-2024-0001','a1','NAS','2026-11-09T09:00:00.000Z','m','p','path','[]','[]')`)
 	return e, fp, targets
@@ -107,7 +107,7 @@ func TestPlanJobAtMostThreePerRun(t *testing.T) {
 	t.Parallel()
 	e, fp, targets := aiPlanEnv(t)
 	for _, id := range []string{"f4", "f5", "f6", "f7"} {
-		*targets = append(*targets, response.PlanTarget{FindingID: id, CVE: "CVE-2024-0009", AssetID: "a1", AssetName: "NAS", AssetIP: "192.168.10.21"})
+		*targets = append(*targets, response.PlanTarget{FindingID: id, CVE: "CVE-2024-0009", AssetID: "a1", AssetName: "NAS", AssetIP: "198.51.100.21"})
 	}
 	n, err := e.svc.PlanOpen(e.ctx())
 	e.must(err)
@@ -120,7 +120,7 @@ func TestPlanStoresActionIDAndCheckedValuesOnly(t *testing.T) {
 	t.Parallel()
 	e, fp, _ := aiPlanEnv(t)
 	fp.steps = func(response.PlanTarget) []response.DraftStep {
-		return []response.DraftStep{{Kind: "contain", Title: "Block", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: " 192.168.10.21 "}}}}
+		return []response.DraftStep{{Kind: "contain", Title: "Block", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: " 198.51.100.21 "}}}}
 	}
 	_, err := e.svc.PlanOpen(e.ctx())
 	e.must(err)
@@ -140,7 +140,7 @@ func TestPlanStoresActionIDAndCheckedValuesOnly(t *testing.T) {
 			t.Fatalf("a proposal holds the field %q", k)
 		}
 	}
-	if p["action_id"] != "blocklist_add" || p["params"].(map[string]any)["ip"] != "192.168.10.21" {
+	if p["action_id"] != "blocklist_add" || p["params"].(map[string]any)["ip"] != "198.51.100.21" {
 		t.Fatalf("proposal: %v", p)
 	}
 }
@@ -159,11 +159,11 @@ func TestPlanRefusedAndAudited(t *testing.T) {
 		"bad kind":               {{Kind: "wipe", Title: "t", Detail: "d"}},
 		"never touch":            {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "192.168.10.1"}}}},
 		// D-313: the confidence and the reads a proposal cites are checked before anything is stored
-		"confidence above 1":     {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}}, Confidence: 1.5}},
-		"confidence below 0":     {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}}, Confidence: -0.1}},
-		"confidence NaN":         {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}}, Confidence: math.NaN()}},
-		"four reads":             {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}}, Evidence: []string{"rd-1", "rd-2", "rd-3", "rd-4"}}},
-		"read id not plain":      {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}}, Evidence: []string{"rd-1 OR 1=1"}}},
+		"confidence above 1":     {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "198.51.100.21"}}, Confidence: 1.5}},
+		"confidence below 0":     {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "198.51.100.21"}}, Confidence: -0.1}},
+		"confidence NaN":         {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "198.51.100.21"}}, Confidence: math.NaN()}},
+		"four reads":             {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "198.51.100.21"}}, Evidence: []string{"rd-1", "rd-2", "rd-3", "rd-4"}}},
+		"read id not plain":      {{Kind: "contain", Title: "t", Detail: "d", ActionID: "blocklist_add", Params: []response.DraftParam{{Name: "ip", Value: "198.51.100.21"}}, Evidence: []string{"rd-1 OR 1=1"}}},
 		"read without an action": {{Kind: "check", Title: "t", Detail: "d", Evidence: []string{"rd-1"}}},
 	}
 	for name, steps := range cases {
@@ -287,9 +287,9 @@ func TestPlanTargetMustBeTheDeviceOfTheFinding(t *testing.T) {
 		param  response.DraftParam
 		ip     string
 	}{
-		"another address":                 {action: "blocklist_add", param: response.DraftParam{Name: "ip", Value: "203.0.113.50"}, ip: "192.168.10.21"},
-		"another domain":                  {action: "pihole_block", param: response.DraftParam{Name: "domain", Value: "login.example.org"}, ip: "192.168.10.21"},
-		"the uplink port":                 {action: "cisco_port_shut", param: response.DraftParam{Name: "interface", Value: "Gi1/0/48"}, ip: "192.168.10.21"},
+		"another address":                 {action: "blocklist_add", param: response.DraftParam{Name: "ip", Value: "203.0.113.50"}, ip: "198.51.100.21"},
+		"another domain":                  {action: "pihole_block", param: response.DraftParam{Name: "domain", Value: "login.example.org"}, ip: "198.51.100.21"},
+		"the uplink port":                 {action: "cisco_port_shut", param: response.DraftParam{Name: "interface", Value: "Gi1/0/48"}, ip: "198.51.100.21"},
 		"no address known for the device": {action: "cisco_port_shut", param: response.DraftParam{Name: "interface", Value: "Gi1/0/1"}, ip: ""},
 	}
 	for name, c := range cases {
@@ -328,7 +328,7 @@ func TestRequestProposalRefusesAnotherTarget(t *testing.T) {
 	e := newEnv(t)
 	e.turnOn()
 	e.dir.findings["f1"] = response.FindingInfo{ID: "f1", AssetID: "a1", CVE: "CVE-2024-0001", Severity: "critical", Status: "confirmed"}
-	e.dir.devices["a1"] = response.DeviceInfo{ID: "a1", Name: "NAS", IP: "192.168.10.21", Approved: true}
+	e.dir.devices["a1"] = response.DeviceInfo{ID: "a1", Name: "NAS", IP: "198.51.100.21", Approved: true}
 	steps := `[{"kind":"contain","title":"t","detail":"d","proposal":{"id":"pr-x","action_id":"blocklist_add","params":{"ip":"203.0.113.50"},"asset_id":"a1","asset_name":"NAS"}}]`
 	e.exec1(`INSERT INTO resp_plans (id, finding_id, cve, asset_id, asset_name, generated_at, model, profile, path, reads, steps) VALUES ('plan-f1','f1','CVE-2024-0001','a1','NAS','2026-11-09T09:00:00.000Z','m','p','path','[]',?)`, steps)
 	_, err := e.svc.RequestProposal(e.ctx(), oper, "pr-x")
@@ -348,13 +348,13 @@ func TestPlanRefusedWhenTheActionIsNotAllowedOrTooBig(t *testing.T) {
 		arm   func(e *env)
 		steps []response.DraftStep
 	}{
-		"ai_may_propose off": {arm: func(e *env) { e.aiMayPropose("blocklist_add", false) }, steps: []response.DraftStep{block("192.168.10.21")}},
+		"ai_may_propose off": {arm: func(e *env) { e.aiMayPropose("blocklist_add", false) }, steps: []response.DraftStep{block("198.51.100.21")}},
 		"action disabled": {arm: func(e *env) {
 			off := false
 			_, err := e.svc.ChangeAction(e.ctx(), admin, "blocklist_add", response.CatalogUpdate{Enabled: &off, Present: map[string]bool{"enabled": true}})
 			e.must(err)
-		}, steps: []response.DraftStep{block("192.168.10.21")}},
-		"more than 3 actions": {steps: []response.DraftStep{block("192.168.10.21"), block("192.168.10.21"), block("192.168.10.21"), block("192.168.10.21")}},
+		}, steps: []response.DraftStep{block("198.51.100.21")}},
+		"more than 3 actions": {steps: []response.DraftStep{block("198.51.100.21"), block("198.51.100.21"), block("198.51.100.21"), block("198.51.100.21")}},
 		"more than 6 steps":   {steps: []response.DraftStep{advice, advice, advice, advice, advice, advice, advice}},
 	}
 	for name, c := range cases {
@@ -402,7 +402,7 @@ func TestPlanBackoffAndDailyBudget(t *testing.T) {
 	e2, fp2, targets2 := aiPlanEnv(t)
 	fp2.err = errors.New("format")
 	for i := 0; i < 40; i++ {
-		*targets2 = append(*targets2, response.PlanTarget{FindingID: "g" + string(rune('A'+i%26)) + string(rune('a'+i/26)), CVE: "CVE-2024-0100", AssetID: "a1", AssetName: "NAS", AssetIP: "192.168.10.21"})
+		*targets2 = append(*targets2, response.PlanTarget{FindingID: "g" + string(rune('A'+i%26)) + string(rune('a'+i/26)), CVE: "CVE-2024-0100", AssetID: "a1", AssetName: "NAS", AssetIP: "198.51.100.21"})
 	}
 	for i := 0; i < 15; i++ {
 		_, err := e2.svc.PlanOpen(e2.ctx())
@@ -457,8 +457,8 @@ func TestPlanEveryValueMustBeTheDeviceAddress(t *testing.T) {
 		params []response.DraftParam
 		pre    bool
 	}{
-		"ip and interface": {cli: "block {ip} on {interface}", pre: true, params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}, {Name: "interface", Value: "Gi1/0/48"}}},
-		"ip and cidr":      {cli: "deny {ip} {cidr}", params: []response.DraftParam{{Name: "ip", Value: "192.168.10.21"}, {Name: "cidr", Value: "192.168.10.0/24"}}},
+		"ip and interface": {cli: "block {ip} on {interface}", pre: true, params: []response.DraftParam{{Name: "ip", Value: "198.51.100.21"}, {Name: "interface", Value: "Gi1/0/48"}}},
+		"ip and cidr":      {cli: "deny {ip} {cidr}", params: []response.DraftParam{{Name: "ip", Value: "198.51.100.21"}, {Name: "cidr", Value: "192.168.10.0/24"}}},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {

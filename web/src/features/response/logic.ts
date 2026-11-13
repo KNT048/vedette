@@ -40,6 +40,12 @@ const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/
 const DOMAIN = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i
 export const isIpv4 = (v: string) => IPV4.test(v)
 export const isDomain = (v: string) => DOMAIN.test(v)
+/** IPv4 rows of the box's `notPublishable` (modules/response/blocklist.go, INV-17): never on the published block list. The IPv4 documentation blocks are left out on purpose, like the box (the sample data uses them). */
+const NOT_PUBLISHABLE: [string, number][] = [['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], ['169.254.0.0', 16], ['172.16.0.0', 12], ['192.0.0.0', 24], ['192.88.99.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15], ['224.0.0.0', 4], ['240.0.0.0', 4]]
+const ip4Num = (v: string) => v.split('.').reduce((n, o) => n * 256 + Number(o), 0)
+export const isPublishable = (ip: string) => isIpv4(ip) && !NOT_PUBLISHABLE.some(([net, bits]) => Math.floor(ip4Num(ip) / 2 ** (32 - bits)) === Math.floor(ip4Num(net) / 2 ** (32 - bits)))
+/** The refusal of a block list action on an address the list never publishes (D-469, code not_public); the box's notPublicMsg. */
+export const notPublicMsg = (ip: string) => `${ip} is not a public address (private, loopback, link-local, carrier-grade NAT 100.64.0.0/10, multicast or reserved). The block list only carries public addresses, so your firewall never blocks your own network. To stop a device on your LAN, use a device action (for example, shut its switch port). Nothing was changed.`
 export const isCidr = (v: string) => /^\d{1,3}(\.\d{1,3}){3}\/\d{1,2}$/.test(v) && IPV4.test(v.split('/')[0]!) && Number(v.split('/')[1]) <= 32
 /** Safe text: letters, numbers, space and . , : @ # / _ - only. No quotes, no shell characters, no newlines. */
 const TEXT = /^[A-Za-z0-9][A-Za-z0-9 _.,:@#/-]{0,79}$/

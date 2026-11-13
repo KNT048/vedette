@@ -89,8 +89,14 @@ func TestIocPreApprovalOnlyBlocksAListedAddress(t *testing.T) {
 	e := newEnv(t)
 	e.svc.Subscribe(e.bus)
 	e.rule("Block destination", "ioc_connection", blockAction(60), func(in *response.RuleInput) { in.PreApproved = true })
+	// D-469: putting the LAN device of the hit on the block list is refused when it is planned (not_public), pre-approved or not
 	e.rule("Block the device", "ioc_connection", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.src_ip}}"}, TTLMin: intp(60)}},
 		func(in *response.RuleInput) { in.PreApproved = true })
+	e.rule("Block a fixed address on a domain hit", "ioc_connection", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "203.0.113.200"}, TTLMin: intp(60)}},
+		func(in *response.RuleInput) {
+			in.PreApproved = true
+			in.Conditions = []response.Condition{{Field: "dest_kind", Op: "eq", Value: "domain"}}
+		})
 	pubIoc(e, iocHit("h1", "192.168.10.105", "185.220.101.47", "ip"))
 	pubIoc(e, iocHit("h2", "192.168.10.106", "badhost.example", "domain"))
 	_, err := e.svc.Evaluate(e.ctx())
@@ -108,7 +114,10 @@ func TestIocPreApprovalOnlyBlocksAListedAddress(t *testing.T) {
 	if len(got) < 2 {
 		t.Fatalf("requests: %+v", got)
 	}
-	for _, why := range []string{"names a domain only", "device of a syslog line"} {
+	if !e.logHas("refused", "not_public: Block the device: 192.168.10.105 is not a public address") {
+		t.Error("blocking the LAN device of the hit was not refused with not_public")
+	}
+	for _, why := range []string{"names a domain only"} {
 		if !e.logHas("request", why) && !e.logHas("proposal", why) && e.count(`SELECT COUNT(*) FROM resp_log WHERE detail LIKE '%' || ? || '%'`, why) == 0 {
 			t.Errorf("no log line says %q", why)
 		}

@@ -125,6 +125,17 @@ func publishable(a netip.Addr) bool {
 	return !slices.ContainsFunc(notPublishable, func(p netip.Prefix) bool { return p.Contains(a) })
 }
 
+// notPublicMsg is the reason a block on ip is refused with not_public (D-469), "" when ip is publishable. The list is pulled by
+// the customer's firewall and blocks traffic to what it holds: a private or reserved address would never be published, and a
+// device inside the LAN is isolated with a device action, not through this list (blocklist-format section 1).
+func notPublicMsg(ip string) string {
+	if a, err := netip.ParseAddr(ip); err == nil && publishable(a) {
+		return ""
+	}
+	return oneLine(ip, 64) + " is not a public address (private, loopback, link-local, carrier-grade NAT 100.64.0.0/10, multicast or reserved). " +
+		"The block list only carries public addresses, so your firewall never blocks your own network. To stop a device on your LAN, use a device action (for example, shut its switch port). Nothing was changed."
+}
+
 // blockListFull is true when value would be a new entry and the list already holds maxBlockEntries entries in force.
 func (s *Service) blockListFull(ctx context.Context, value string) (bool, error) {
 	var n, same int

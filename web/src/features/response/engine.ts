@@ -6,7 +6,7 @@ import type { Finding } from '@/lib/types'
 import { KINDS, TRIGGERS } from './data'
 import { SEED_RULES, TEMPLATES } from './templates'
 import { exposingVip } from './templates/sample-firewall'
-import { checkValues, condProblem, condText, evalCondition, goTrim, isIpv4, logSignature, oneLine, PARAM_CHECK, refsIn, resolveParam, touches, type ParamType } from './logic'
+import { checkValues, condProblem, condText, evalCondition, goTrim, isIpv4, isPublishable, logSignature, notPublicMsg, oneLine, PARAM_CHECK, refsIn, resolveParam, touches, type ParamType } from './logic'
 import {
   actionsStore, allowStore, approve, breakerOpen, BREAKER_MSG, buildChange, catById, checkBreaker, connById, doneStore, HOUR, isObj, maintenanceNow, newRequest, paramsOf, refuse, requiredApprovals,
   reversible, str, step, targetCount, TEXT_RE, unavailable, isOpen,
@@ -186,6 +186,8 @@ export function planAction(a: RuleAction, ev: Det, why: string): Plan1 {
   const acted = [...Object.entries(values).filter(([k]) => ['ip', 'cidr', 'domain'].includes(k)).map(([, v]) => v!), ...(ev.trigger === 'finding' && ev.fields.ip ? [ev.fields.ip] : [])]
   const spared = allowStore.get().find((e) => acted.some((v) => touches(e.value, v)))
   if (spared) return { ok: false, code: 'never_touch', error: `${acted.join(' / ')} matches the never-touch list (${spared.label}, ${spared.value}). Nothing was changed.`, title }
+  // D-469: the block list publishes public addresses only, so a block on any other address is refused when it is planned (every path: rule, AI); after never-touch, like the box
+  if (cat.id === 'blocklist_add' && !isPublishable(values.ip ?? '')) return { ok: false, code: 'not_public', error: notPublicMsg(values.ip ?? ''), title }
   const conn = connById(cat.connection_id)
   const why2 = unavailable(cat)
   if (why2 && cat.kind === 'device') return { ok: false, code: 'tool_unavailable', error: why2, title }

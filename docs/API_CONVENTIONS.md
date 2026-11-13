@@ -370,7 +370,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (91 mã)
+#### HTTP 409 (92 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -414,6 +414,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `not_email_method` | 409 | This account does not use email codes. | `POST /auth/login/resend-code` |
 | `maintenance` | 409 | Held: maintenance window "…" is active. Nothing was changed. | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/proposals/{id}/request`; rule runs (resp_log) |
 | `never_touch` | 409 | … matches the never-touch list (…). Nothing was changed. Also: The never-touch list could not be read in full (the box's own addresses or the inventory are not available), so nothing was changed. | rule runs and `POST /response/proposals/{id}/request` (planning); `POST /response/actions/{id}/approve` (item refused right before it runs) |
+| `not_public` | 409 | 192.168.1.5 is not a public address (private, loopback, link-local, carrier-grade NAT 100.64.0.0/10, multicast or reserved). The block list only carries public addresses, so your firewall never blocks your own network. … Nothing was changed. (D-469) | rule runs and manual runs (resp_log); `POST /response/proposals/{id}/request`; AI proposals; `POST /response/actions/{id}/approve` (a `blocklist_add` item made before the check is refused right before it runs) |
 | `not_executed` | 409 | Only an executed action can be rolled back. | module response (validator dùng chung) |
 | `not_on` | 409 | Two-step sign-in is already off for this user. | `POST /core/users/{id}/2fa/reset` |
 | `not_pending` | 409 | This request is already ${a.status.replace('_', ' ')}. One approval covers one request. | module response (validator dùng chung) |

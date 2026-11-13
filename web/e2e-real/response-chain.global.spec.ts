@@ -273,13 +273,9 @@ test('an address that no firewall should ever be told to block is not published:
       }
       const run = await api<{ requests: number; refused: number }>(op, 'POST', `/response/rules/${rule.id}/manual`, { asset_id: device.id })
       expect(run.status, JSON.stringify(run.body)).toBe(200)
-      if (run.body.requests > 0) { // the request was made: approving it must still not put the address on the feed
-        const req = await requestOf(admin, name)
-        const a = await api(op, 'POST', `/response/actions/${req.id}/approve`, {})
-        expect(a.status, `approve: ${JSON.stringify(a.body)}`).toBe(200)
-        await expect.poll(async () => (await requests(admin)).find((r) => r.id === req.id)?.items[0]?.status, { message: `the item of ${ip} left pending`, timeout: 20_000 }).not.toBe('pending')
-      }
-      outcomes.push(`${ip}: ${run.body.requests > 0 ? 'requested' : 'refused'}`)
+      // D-469: refused when it is planned (not_public), so there is nothing to approve and nothing says "Added"
+      expect([run.body.requests, run.body.refused], `${ip} is refused when the run plans it`).toEqual([0, 1])
+      outcomes.push(`${ip}: refused`)
       expect(feedIPs(await feed(admin)), `${ip} never reaches the firewall`).not.toContain(ip)
     }
     test.info().annotations.push({ type: 'outcomes', description: outcomes.join('; ') })

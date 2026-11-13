@@ -100,6 +100,14 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 	if e, hit := firstTouched(never, acted); hit {
 		return planned{}, &planFail{"never_touch", cleanLine(strings.Join(acted, " / ")+" matches the never-touch list ("+e.Label+", "+e.Value+").") + " Nothing was changed.", title}
 	}
+	// D-469: the block list publishes public addresses only (INV-17), so a block on any other address is refused here, when the
+	// plan is made, on every path (rule, manual run, AI proposal, AI plan): it would be accepted, reported added and never published.
+	// After the never-touch check, which names the device (the gateway, the box) and stays the answer for those.
+	if cat.ID == "blocklist_add" {
+		if why := notPublicMsg(vals[PIP]); why != "" {
+			return planned{}, &planFail{"not_public", why, title}
+		}
+	}
 	if why2 := unavailable(cat, cs); why2 != "" {
 		return planned{}, &planFail{"tool_unavailable", why2, title}
 	}

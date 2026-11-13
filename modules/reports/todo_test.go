@@ -9,71 +9,73 @@ func fixRow(id, asset, device, product, status string) FindingRow {
 	return FindingRow{ID: id, CVE: "CVE-2026-" + id, AssetID: asset, Device: device, Product: product, Status: status, Severity: "critical"}
 }
 
-// One upgrade that closes three findings is one line, naming the fixed release (the highest of the three) and the device.
+// One upgrade that closes three findings is one line, naming the release the box chose (it is outside every range) and the device.
 func TestTopRisksOneUpgradeIsOneLineWithTheFixedVersion(t *testing.T) {
 	t.Parallel()
 	open := []FindingRow{fixRow("1", "a1", "FortiGate-HQ", "FortiGate (FortiOS)", "confirmed"), fixRow("2", "a1", "FortiGate-HQ", "FortiGate (FortiOS)", "confirmed"),
 		fixRow("3", "a1", "FortiGate-HQ", "FortiGate (FortiOS)", "confirmed")}
-	fx := map[string]Fix{"1": {Kind: "fixed", Version: "7.4.1", Fixed: "7.4.2"}, "2": {Kind: "fixed", Version: "7.4.1", Fixed: "7.4.10"}, "3": {Kind: "fixed", Version: "7.4.1", Fixed: "7.4.3"}}
+	fx := map[string]Fix{}
+	for _, id := range []string{"1", "2", "3"} {
+		fx[id] = Fix{Kind: "fixed", Version: "7.4.1", Fixed: "7.4.3", Closed: true}
+	}
 	got, kinds := topRisks(open, fx)
-	want := "Upgrade FortiGate (FortiOS) on FortiGate-HQ from 7.4.1 to 7.4.10 or later — fixes 3 exploited vulnerabilities"
+	want := "Upgrade FortiGate (FortiOS) on FortiGate-HQ from 7.4.1 to 7.4.3 or later — fixes 3 exploited vulnerabilities"
 	if len(got) != 1 || got[0].Action != want || kinds[0] != "fix" {
 		t.Fatalf("got %+v %v, want action %q", got, kinds, want)
 	}
+	fx["3"] = Fix{Kind: "fixed", Version: "7.4.1", Fixed: "7.4.3"} // not closed by it: the line says so
+	if got, _ := topRisks(open, fx); !strings.HasSuffix(got[0].Action, "— fixes 2 of 3 exploited vulnerabilities") {
+		t.Fatalf("action = %q", got[0].Action)
+	}
 }
 
-// The same release on several devices is one line; a device with no fixed release is its own line with the honest fallback.
-func TestTopRisksMergeDevicesAndFallBackHonestly(t *testing.T) {
+// A distribution caveat travels with the release (review M1); no single release in the ranges is "install the latest of your line".
+func TestTopRisksCarryTheDistroCaveatAndTheLineFallback(t *testing.T) {
 	t.Parallel()
-	open := []FindingRow{fixRow("1", "a1", "fw-1", "Apache", "confirmed"), fixRow("2", "a2", "fw-2", "Apache", "confirmed"), fixRow("3", "a3", "fw-3", "Apache", "confirmed"),
-		fixRow("4", "a4", "old-box", "Apache", "confirmed"), fixRow("5", "a5", "mystery", "Apache", "suspected")}
-	fx := map[string]Fix{"1": {Kind: "fixed", Version: "2.4.50", Fixed: "2.4.52"}, "2": {Kind: "fixed", Version: "2.4.49", Fixed: "2.4.52"}, "3": {Kind: "fixed", Version: "2.4.1", Fixed: "2.4.52"}}
+	open := []FindingRow{fixRow("1", "a1", "web", "OpenSSH", "confirmed"), fixRow("2", "a2", "gw", "FortiGate", "confirmed")}
+	fx := map[string]Fix{"1": {Kind: "fixed", Version: "8.9p1", Fixed: "9.3p2", Distro: "Ubuntu", Closed: true}, "2": {Kind: "line", Version: "7.4.1", Line: "7.4", Closed: true}}
 	got, _ := topRisks(open, fx)
-	if len(got) != 3 {
+	if want := "Upgrade OpenSSH on web from 8.9p1 to 9.3p2 or later — fixes 1 exploited vulnerability (if you installed it from Ubuntu's packages, install its security updates instead)"; got[1].Action != want {
+		t.Fatalf("action = %q", got[1].Action)
+	}
+	if !strings.HasPrefix(got[0].Action, "Install the latest release on your line (7.4) of FortiGate on gw") || !strings.Contains(got[0].Action, "check the vendor advisory") {
+		t.Fatalf("action = %q", got[0].Action)
+	}
+}
+
+// Ranking is by product, as D-485: a product with the most exploited CVEs across devices takes one slot even when its devices need
+// different steps (review M3); the sentence is the biggest step and says how many more devices need another.
+func TestTopRisksRankByProductAcrossDevices(t *testing.T) {
+	t.Parallel()
+	var open []FindingRow
+	fx := map[string]Fix{}
+	for i, dev := range []string{"d1", "d2", "d3", "d4"} {
+		for k := range 2 { // 8 findings on Apache over four devices
+			id := dev + string(rune('a'+k))
+			open = append(open, fixRow(id, dev, dev, "Apache", "confirmed"))
+			if i < 3 {
+				fx[id] = Fix{Kind: "fixed", Version: "2.4." + dev[1:], Fixed: "2.4.52", Closed: true}
+			}
+		}
+	}
+	open = append(open, fixRow("z1", "z", "zz", "Zebra", "confirmed"), fixRow("z2", "z", "zz", "Zebra", "confirmed"), fixRow("z3", "z", "zz", "Zebra", "suspected"))
+	got, _ := topRisks(open, fx)
+	if len(got) != 2 || got[0].Product != "Apache" || got[0].Open != 8 || got[0].Devices != 4 {
 		t.Fatalf("risks = %+v", got)
 	}
-	var texts []string
-	for _, r := range got {
-		texts = append(texts, r.Action)
-	}
-	all := strings.Join(texts, "\n")
-	for _, w := range []string{"Upgrade Apache to 2.4.52 or later on fw-1 and 2 more — fixes 3 exploited vulnerabilities",
-		"Update Apache on old-box, or apply the vendor's temporary fix: a scan confirmed it", "Check the version of Apache on mystery"} {
-		if !strings.Contains(all, w) {
-			t.Errorf("missing %q in\n%s", w, all)
-		}
-	}
-	if got[0].Devices != 3 {
-		t.Errorf("merged line names %d devices", got[0].Devices)
+	if want := "Upgrade Apache to 2.4.52 or later on d1 and 2 more — fixes 6 exploited vulnerabilities; 1 more device needs another step"; got[0].Action != want {
+		t.Fatalf("action = %q, want %q", got[0].Action, want)
 	}
 }
 
-func TestVerLessComparesNumbers(t *testing.T) {
+func TestHappenedNamesWhatMatters(t *testing.T) {
 	t.Parallel()
-	for _, c := range []struct{ a, b string }{{"7.4.2", "7.4.10"}, {"2.4.9", "2.4.52"}, {"1.0", "1.0.1"}} {
-		if !verLess(c.a, c.b) || verLess(c.b, c.a) {
-			t.Errorf("%s should be older than %s", c.a, c.b)
-		}
-	}
-}
-
-func TestHappenedCountsAndNamesWhatMatters(t *testing.T) {
-	t.Parallel()
-	in := []Incident{
-		{Kind: "bad_connection", Severity: "medium", Title: "pc-1 reached a known-bad address", LastSeen: day0(1)},
-		{Kind: "failed_logins", Severity: "medium", Title: "5 failed logins from 45.1.2.3 on web in 10 minutes", LastSeen: day0(2)},
-		{Kind: "login_accepted", Severity: "high", Title: "A login from 45.1.2.3 was ACCEPTED after failed attempts on web", LastSeen: day0(1)},
-		{Kind: "trap", Severity: "high", Title: "Someone touched the SSH trap", LastSeen: day0(3)},
-		{Kind: "trap", Severity: "high", Title: "old", LastSeen: day0(30)}, // not this week
-	}
-	h := buildHappened(in, t0.Add(-7*day), t0)
-	if h.Traps != 1 || h.FailedLogins != 1 || h.AcceptedLogins != 1 || h.BadConnections != 1 || len(h.Top) != 3 || h.Top[0].Kind != "login_accepted" || h.Top[1].Kind != "trap" {
+	h := buildHappened(IncidentWeek{Traps: 1, FailedLogins: 1, AcceptedLogins: 1, BadConnections: 600,
+		Top: []Incident{{Kind: "login_accepted", Severity: "high", Title: "A login from 45.1.2.3 was ACCEPTED after 6 failed attempts on web", LastSeen: day0(1)}}})
+	if want := "This week: 1 login ACCEPTED after failed attempts, 1 honeypot touch, 1 failed-login attack, 600 connections to known-bad addresses."; h.Summary != want || len(h.Top) != 1 {
 		t.Fatalf("happened = %+v", h)
 	}
-	if want := "This week: 1 login ACCEPTED after failed attempts, 1 honeypot touch, 1 failed-login attack, 1 connection to a known-bad address."; h.Summary != want {
-		t.Fatalf("summary = %q", h.Summary)
-	}
-	if e := buildHappened(nil, t0.Add(-7*day), t0); e.Summary != "No incidents this week." || e.Top == nil {
+	if e := buildHappened(IncidentWeek{}); e.Summary != "No incidents this week." || e.Top == nil {
 		t.Fatalf("empty = %+v", e)
 	}
 }
@@ -82,9 +84,9 @@ func TestHappenedCountsAndNamesWhatMatters(t *testing.T) {
 func TestDigestLeadsWithActionsAndIncidents(t *testing.T) {
 	t.Parallel()
 	in := sampleInput()
-	in.fixes = map[string]Fix{"f1": {Kind: "fixed", Version: "10.0.1", Fixed: "10.0.4"}}
+	in.fixes = map[string]Fix{"f1": {Kind: "fixed", Version: "10.0.1", Fixed: "10.0.4", Closed: true}}
 	in.incidentsOn = true
-	in.incidents = []Incident{{Kind: "trap", Severity: "high", Title: "Someone touched the SSH trap", Count: 2, LastSeen: day0(1)}}
+	in.week = IncidentWeek{Traps: 1, Top: []Incident{{Kind: "trap", Severity: "high", Title: "Someone touched the SSH trap", LastSeen: day0(1)}}}
 	r := buildWeekly(in)
 	m := digest(r)
 	if m.Action != r.Actions[0].Text || !strings.HasPrefix(m.Action, "Upgrade Microsoft Windows on pc-old from 10.0.1 to 10.0.4 or later — fixes 1 exploited vulnerability") {

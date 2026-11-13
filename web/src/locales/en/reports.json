@@ -245,7 +245,6 @@
       },
       "risks": "Top 3 risks",
       "happened": "What happened this week",
-      "times": "(seen {{count}} times)",
       "risk_one": "{{device}}: {{count}} open finding, {{confirmed}} confirmed by a scan (first: {{cve}})",
       "risk_other": "{{device}}: {{count}} open findings, {{confirmed}} confirmed by a scan (first: {{cve}})",
       "new": "What is new",

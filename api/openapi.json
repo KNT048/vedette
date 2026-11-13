@@ -45738,12 +45738,6 @@
                                           "info"
                                         ]
                                       },
-                                      "count": {
-                                        "type": "integer",
-                                        "minimum": -9007199254740991,
-                                        "maximum": 9007199254740991,
-                                        "description": "How many times it repeated"
-                                      },
                                       "at": {
                                         "type": "string",
                                         "format": "date-time",
@@ -45755,7 +45749,6 @@
                                       "kind",
                                       "title",
                                       "severity",
-                                      "count",
                                       "at"
                                     ],
                                     "additionalProperties": false
@@ -46437,12 +46430,6 @@
                                           "info"
                                         ]
                                       },
-                                      "count": {
-                                        "type": "integer",
-                                        "minimum": -9007199254740991,
-                                        "maximum": 9007199254740991,
-                                        "description": "How many times it repeated"
-                                      },
                                       "at": {
                                         "type": "string",
                                         "format": "date-time",
@@ -46454,7 +46441,6 @@
                                       "kind",
                                       "title",
                                       "severity",
-                                      "count",
                                       "at"
                                     ],
                                     "additionalProperties": false

@@ -43,27 +43,38 @@ type Findings interface {
 	All(ctx context.Context) ([]Finding, error)
 }
 
-// Fix is what NVD's ranges say about the release that closes a finding on its device (findings.FixedIn, D-488). Kind is "fixed"
-// (Fixed is the release; Version the device's), "up_to" (Fixed is the last affected release, no fix named), "distro" (the
-// distribution's security updates carry it; Distro names it) or "branches" (the version is not known).
-type Fix struct{ Kind, Version, Fixed, Distro string }
+// Fix is what NVD's ranges say about the one release that closes a product on a device (findings.FixedInForAll, D-490): the same for
+// every finding of the device and product, with Closed telling whether it closes this finding. Kind is "fixed" (Fixed is a release
+// outside the affected range of every finding of the product; Version is the device's), "line" (no such release: install the latest of
+// the device's release line, Line), "up_to" (NVD names no fixed release, Fixed is the last affected one) or "distro" (the
+// distribution's security updates carry it). Distro names the distribution the device runs ("" = none we know).
+type Fix struct {
+	Kind, Version, Fixed, Line, Distro string
+	Closed                             bool
+}
 
 // Remedies says the Fix of open findings, by finding id; a finding it cannot say anything about is not in the map.
 type Remedies interface {
 	Fixes(ctx context.Context, fs []Finding) (map[string]Fix, error)
 }
 
-// Incident is an incident of notify as the report needs it. Kind is login_accepted, trap, failed_logins, bad_connection or
-// anomaly (the adapter reads it from notify's kind and title; a new-device incident is not here: Devices counts those).
+// Incident is an incident of notify as the report names it. Kind is login_accepted, trap, failed_logins, bad_connection or anomaly
+// (notify reads it; a new-device incident is not here: Devices counts those).
 type Incident struct {
 	Kind, Severity, Title string
-	Count                 int
 	LastSeen              time.Time
 }
 
-// Incidents lists the incidents last seen since the given time. ok is false when notify is off: the report then has no section.
+// IncidentWeek is the incidents last seen in the window: how many of each kind (all of them, however many) and the few that matter most.
+type IncidentWeek struct {
+	Traps, FailedLogins, AcceptedLogins, BadConnections, Other int
+	Top                                                        []Incident
+}
+
+// Incidents reads the incidents last seen since the given time (notify.IncidentsSince). ok is false when notify is off: the report
+// then has no section.
 type Incidents interface {
-	Since(ctx context.Context, since time.Time) (list []Incident, ok bool, err error)
+	Week(ctx context.Context, since time.Time, top int) (week IncidentWeek, ok bool, err error)
 }
 
 // KEVEntry is one entry of the exploited-vulnerability list.

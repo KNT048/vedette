@@ -104485,9 +104485,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) SetTraps(val int) {
 
 type ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem struct {
 	// Last seen.
-	At time.Time `json:"at"`
-	// How many times it repeated.
-	Count    int                                                             `json:"count"`
+	At       time.Time                                                       `json:"at"`
 	Kind     ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind     `json:"kind"`
 	Severity ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity `json:"severity"`
 	Title    string                                                          `json:"title"`
@@ -104496,11 +104494,6 @@ type ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem struct {
 // GetAt returns the value of At.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) GetAt() time.Time {
 	return s.At
-}
-
-// GetCount returns the value of Count.
-func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) GetCount() int {
-	return s.Count
 }
 
 // GetKind returns the value of Kind.
@@ -104521,11 +104514,6 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) GetTitle() str
 // SetAt sets the value of At.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) SetAt(val time.Time) {
 	s.At = val
-}
-
-// SetCount sets the value of Count.
-func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) SetCount(val int) {
-	s.Count = val
 }
 
 // SetKind sets the value of Kind.
@@ -106660,9 +106648,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) SetTraps(val int) {
 
 type ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem struct {
 	// Last seen.
-	At time.Time `json:"at"`
-	// How many times it repeated.
-	Count    int                                                           `json:"count"`
+	At       time.Time                                                     `json:"at"`
 	Kind     ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind     `json:"kind"`
 	Severity ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity `json:"severity"`
 	Title    string                                                        `json:"title"`
@@ -106671,11 +106657,6 @@ type ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem struct {
 // GetAt returns the value of At.
 func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) GetAt() time.Time {
 	return s.At
-}
-
-// GetCount returns the value of Count.
-func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) GetCount() int {
-	return s.Count
 }
 
 // GetKind returns the value of Kind.
@@ -106696,11 +106677,6 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) GetTitle() strin
 // SetAt sets the value of At.
 func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) SetAt(val time.Time) {
 	s.At = val
-}
-
-// SetCount sets the value of Count.
-func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) SetCount(val int) {
-	s.Count = val
 }
 
 // SetKind sets the value of Kind.

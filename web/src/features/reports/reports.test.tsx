@@ -55,7 +55,7 @@ describe('reports: weekly report (S-REP-1)', () => {
       top_risks: [{ ...base.top_risks![0]!, action }],
       actions: [{ kind: 'fix' as const, cve: 'CVE-2024-1', device: 'FortiGate-HQ', finding_id: 'f-1', product: 'FortiGate (FortiOS)', count: 3, text: action }],
       happened: { traps: 1, failed_logins: 0, accepted_logins: 1, bad_connections: 0, other: 0, summary: 'This week: 1 login ACCEPTED after failed attempts, 1 honeypot touch.',
-        top: [{ kind: 'login_accepted' as const, title: 'A login from 45.1.2.3 was ACCEPTED after failed attempts on web', severity: 'high' as const, count: 2, at: base.generated_at }] },
+        top: [{ kind: 'login_accepted' as const, title: 'A login from 45.1.2.3 was ACCEPTED after failed attempts on web', severity: 'high' as const, at: base.generated_at }] },
       sources: [...base.sources, { id: 'incidents' as const, at: base.generated_at }],
     }
     server.use(http.get('*/api/v1/reports/weekly/preview', () => HttpResponse.json({ report: rep, ai_available: false })))
@@ -64,7 +64,7 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(within(doc).getAllByText(action)).toHaveLength(2) // under the top risk and in the to-do list
     const hap = within(doc).getByRole('region', { name: 'What happened this week' })
     expect(within(hap).getByText('This week: 1 login ACCEPTED after failed attempts, 1 honeypot touch.')).toBeInTheDocument()
-    expect(within(hap).getByText(/was ACCEPTED after failed attempts on web \(seen 2 times\)/)).toBeInTheDocument()
+    expect(within(hap).getByText(/was ACCEPTED after failed attempts on web/)).toBeInTheDocument()
     expect(within(doc).getByRole('region', { name: 'To do this week' })).toBeInTheDocument()
     expect(within(doc).queryByText(/are not part of this report yet/)).toBeNull()
     expect(within(doc).getByText(/Data sources:.*Incidents/)).toBeInTheDocument()

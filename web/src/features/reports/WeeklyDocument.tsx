@@ -89,7 +89,7 @@ export function WeeklyDocument({ report: r, org }: { report: WeeklyReport; org: 
                 <p>{r.happened.summary}</p>
                 {r.happened.top.length ? (
                   <ul className="ml-5 mt-1 list-disc">
-                    {r.happened.top.map((h, i) => <li key={i}>{h.title}{h.count > 1 ? ` ${t('doc.weekly.times', { count: h.count })}` : ''} <SeverityChip severity={h.severity} /></li>)}
+                    {r.happened.top.map((h, i) => <li key={i}>{h.title} <SeverityChip severity={h.severity} /></li>)}
                   </ul>
                 ) : null}
               </section>

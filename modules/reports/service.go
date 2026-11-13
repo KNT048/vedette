@@ -102,28 +102,24 @@ func (s *Service) weeklyInput(ctx context.Context, now time.Time) (weeklyInput, 
 	return weeklyInput{devices: devs, findings: fs, kev: kev, kevAt: at, kevNew: kevNew, kevInUse: kevInUse, now: now}, nil
 }
 
-// fill adds what the weekly report reads beyond the figures: the fixed releases of open findings and the week's incidents. Both only
+// fill adds what the weekly report reads beyond the figures: the way to read the fixed releases and the week's incidents. Both only
 // inform the text, so a failed read is logged and the report goes on without it (an honest "check the vendor advisory").
 func (s *Service) fill(ctx context.Context, in *weeklyInput) {
 	if s.cfg.Remedies != nil {
-		var open []Finding
-		for _, f := range in.findings {
-			if f.Status == "confirmed" || f.Status == "suspected" {
-				open = append(open, f)
+		in.fixesFor = func(fs []Finding) map[string]Fix {
+			fx, err := s.cfg.Remedies.Fixes(ctx, fs)
+			if err != nil {
+				s.cfg.Log.WarnContext(ctx, "reports: the fixed releases could not be read", "error", err)
 			}
+			return fx
 		}
-		fx, err := s.cfg.Remedies.Fixes(ctx, open)
-		if err != nil {
-			s.cfg.Log.WarnContext(ctx, "reports: the fixed releases could not be read", "error", err)
-		}
-		in.fixes = fx
 	}
 	if s.cfg.Incidents != nil {
-		list, ok, err := s.cfg.Incidents.Since(ctx, in.now.Add(-7*day))
+		w, ok, err := s.cfg.Incidents.Week(ctx, in.now.Add(-7*day), maxHappened)
 		if err != nil {
 			s.cfg.Log.WarnContext(ctx, "reports: the incidents could not be read", "error", err)
 		}
-		in.incidents, in.incidentsOn = list, ok && err == nil
+		in.week, in.incidentsOn = w, ok && err == nil
 	}
 }
 

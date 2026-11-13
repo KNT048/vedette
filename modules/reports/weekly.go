@@ -49,8 +49,9 @@ type weeklyInput struct {
 	kevInUse int
 	now      time.Time
 
-	fixes       map[string]Fix // by finding id (Service.fill); nil = none known
-	incidents   []Incident
+	fixes       map[string]Fix                    // by finding id; nil = none known
+	fixesFor    func(fs []Finding) map[string]Fix // reads the fixes of the findings it is given (Service.fill); asked only for the top products
+	week        IncidentWeek
 	incidentsOn bool // notify answered: the report has a "what happened" section even when it is empty
 }
 
@@ -133,7 +134,26 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 		}
 	}
 
-	risks, kinds := topRisks(openRows, in.fixes)
+	fixes := in.fixes
+	if fixes == nil && in.fixesFor != nil { // the release is read only for the products the page names, never for a whole large estate
+		top, _ := topRisks(openRows, nil)
+		named := map[string]bool{}
+		for _, r := range top {
+			named[r.Product] = true
+		}
+		byID := make(map[string]Finding, len(in.findings))
+		for _, f := range in.findings {
+			byID[f.ID] = f
+		}
+		var ask []Finding
+		for _, r := range openRows {
+			if named[r.Product] {
+				ask = append(ask, byID[r.ID])
+			}
+		}
+		fixes = in.fixesFor(ask)
+	}
+	risks, kinds := topRisks(openRows, fixes)
 	var actions []ActionItem
 	for i, r := range risks {
 		actions = append(actions, ActionItem{Kind: kinds[i], CVE: r.CVE, Device: r.Device, FindingID: r.FindingID, Product: r.Product, Count: r.Open, Text: r.Action})
@@ -153,7 +173,7 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 	sources := []Source{{ID: "inventory", At: ts(now)}, {ID: "findings", At: ts(now)}, {ID: "kev", At: ts(kevAt)}}
 	var happened *Happened
 	if in.incidentsOn {
-		happened = buildHappened(in.incidents, from, now)
+		happened = buildHappened(in.week)
 		sources = append(sources, Source{ID: "incidents", At: ts(now)})
 	}
 	return WeeklyReport{

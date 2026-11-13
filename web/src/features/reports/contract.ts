@@ -27,7 +27,7 @@ export const Happened = z.object({
   summary: z.string().describe('The one sentence the page and the email say'),
   top: z.array(z.object({
     kind: z.enum(['login_accepted', 'trap', 'failed_logins', 'bad_connection', 'anomaly']), title: z.string(), severity: z.enum(['critical', 'high', 'medium', 'low', 'info']),
-    count: z.number().int().describe('How many times it repeated'), at: iso.describe('Last seen'),
+    at: iso.describe('Last seen'),
   })).max(3),
 }).describe('Incidents of the week from notify (D-490): counts per kind and the few that matter')
 export const AiSummary = z.object({ paragraphs: z.array(z.string()), model: z.string(), profile: z.string().optional().describe('AI profile that answered'), tokens: z.object({ input: z.number(), output: z.number() }), generated_at: iso })

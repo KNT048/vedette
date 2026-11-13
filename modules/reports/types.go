@@ -52,8 +52,7 @@ type HappenedLine struct {
 	Kind     string `json:"kind"` // login_accepted, trap, failed_logins, bad_connection or anomaly
 	Title    string `json:"title"`
 	Severity string `json:"severity"`
-	Count    int    `json:"count"` // how many times it repeated
-	At       string `json:"at"`    // last seen
+	At       string `json:"at"` // last seen
 }
 
 // Happened is "what happened this week" from the incidents of notify (D-490): counts of incidents seen in the week, per kind,

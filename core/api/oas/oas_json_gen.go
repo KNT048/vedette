@@ -192592,10 +192592,6 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) encodeFields(e
 		json.EncodeDateTime(e, s.At)
 	}
 	{
-		e.FieldStart("count")
-		e.Int(s.Count)
-	}
-	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -192609,12 +192605,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) encodeFields(e
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem = [5]string{
+var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem = [4]string{
 	0: "at",
-	1: "count",
-	2: "kind",
-	3: "severity",
-	4: "title",
+	1: "kind",
+	2: "severity",
+	3: "title",
 }
 
 // Decode decodes ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem from json.
@@ -192638,20 +192633,8 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) Decode(d *jx.D
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"at\"")
 			}
-		case "count":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Int()
-				s.Count = int(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"count\"")
-			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -192661,7 +192644,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -192671,7 +192654,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -192692,7 +192675,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) Decode(d *jx.D
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -196784,10 +196767,6 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) encodeFields(e *
 		json.EncodeDateTime(e, s.At)
 	}
 	{
-		e.FieldStart("count")
-		e.Int(s.Count)
-	}
-	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -196801,12 +196780,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) encodeFields(e *
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportHappenedTopItem = [5]string{
+var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportHappenedTopItem = [4]string{
 	0: "at",
-	1: "count",
-	2: "kind",
-	3: "severity",
-	4: "title",
+	1: "kind",
+	2: "severity",
+	3: "title",
 }
 
 // Decode decodes ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem from json.
@@ -196830,20 +196808,8 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) Decode(d *jx.Dec
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"at\"")
 			}
-		case "count":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Int()
-				s.Count = int(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"count\"")
-			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -196853,7 +196819,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -196863,7 +196829,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -196884,7 +196850,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) Decode(d *jx.Dec
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

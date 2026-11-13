@@ -145,12 +145,9 @@ func (a reportsKEV) NewlyExploited(ctx context.Context) (int, int, error) {
 
 // ---- findings + inventory -> reports ----
 
-// maxFixes bounds how many findings one report asks a fixed release for (a box with more open findings names the fixes of the
-// first ones, which are the worst: Findings.All is newest first and the report only names three risks).
-const maxFixes = 2000
-
-// reportsRemedies says the release that closes each open finding on its device, with findings.FixedInFor, the function behind
-// the "What to do" part of a finding page (D-488, D-490). It informs the text only: a device it cannot read is skipped.
+// reportsRemedies says the one release that closes each product on each device, with findings.FixedInForAll, the sibling of the
+// function behind the "What to do" part of a finding page (D-488, D-490). It informs the text only: a device it cannot read is skipped.
+// The report asks only for the findings of the products its page names.
 type reportsRemedies struct {
 	d    *deps
 	feed findingsFeeds // st is set at first use (feeds is built after reports on some paths)
@@ -174,29 +171,41 @@ func (a reportsRemedies) Fixes(ctx context.Context, fs []reports.Finding) (map[s
 	for _, v := range vulns {
 		byCVE[v.CVE] = v
 	}
-	inv := findingsInventory{a.d.Inventory}
-	assets := map[string]*findings.Asset{} // nil: the device cannot be read
-	out := map[string]reports.Fix{}
-	for i, f := range fs {
-		if i == maxFixes {
-			break
-		}
+	type group struct {
+		asset string
+		vulns []findings.Vuln
+		ids   map[string]string // finding id -> CVE
+	}
+	groups := map[string]*group{} // by device and the product as the report names it
+	var order []*group
+	for _, f := range fs {
 		v, ok := byCVE[f.CVE]
 		if !ok {
 			continue
 		}
-		as, seen := assets[f.AssetID]
-		if !seen {
-			if m, ok, err := inv.MatchInput(ctx, f.AssetID); err == nil && ok {
-				as = &m
-			}
-			assets[f.AssetID] = as
+		k := f.AssetID + "\x00" + feeds.DisplayOf(v.Vendor, v.Product)
+		g := groups[k]
+		if g == nil {
+			g = &group{asset: f.AssetID, ids: map[string]string{}}
+			groups[k] = g
+			order = append(order, g)
 		}
-		if as == nil {
+		g.vulns = append(g.vulns, v)
+		g.ids[f.ID] = f.CVE
+	}
+	inv := findingsInventory{a.d.Inventory}
+	out := map[string]reports.Fix{}
+	for _, g := range order {
+		as, ok, err := inv.MatchInput(ctx, g.asset)
+		if err != nil || !ok {
 			continue
 		}
-		if fx := findings.FixedInFor(*as, v); fx != nil {
-			out[f.ID] = reports.Fix{Kind: fx.Kind, Version: fx.Version, Fixed: fx.Fixed, Distro: fx.Distro}
+		gf := findings.FixedInForAll(as, g.vulns)
+		if gf == nil {
+			continue
+		}
+		for id, cve := range g.ids {
+			out[id] = reports.Fix{Kind: gf.Kind, Version: gf.Version, Fixed: gf.Fixed, Line: gf.Line, Distro: gf.Distro, Closed: gf.Closed[cve]}
 		}
 	}
 	return out, nil
@@ -206,50 +215,22 @@ func (a reportsRemedies) Fixes(ctx context.Context, fs []reports.Finding) (map[s
 
 type reportsIncidents struct{ d *deps }
 
-// Since lists the incidents of notify last seen since the time. The kind a person cares about is read from notify's kind and, for
-// the two log anomalies the failed-login rule raises, from the title it writes (modules/logs/authfail.go; notify keeps no target on
-// the API row): "N failed logins from <address> on <source> in M minutes" and "A login from <address> was ACCEPTED after failed
-// attempts on <source>". New-device incidents are left out: the Devices count says them.
-func (a reportsIncidents) Since(ctx context.Context, since time.Time) ([]reports.Incident, bool, error) {
+// Week counts the incidents of notify last seen since the time, all of them, and names the first few (notify.IncidentsSince reads
+// the class of each, so a busy week is not cut at the list size).
+func (a reportsIncidents) Week(ctx context.Context, since time.Time, top int) (reports.IncidentWeek, bool, error) {
 	if a.d.Reg != nil && !a.d.Reg.Enabled("notify") {
-		return nil, false, nil
+		return reports.IncidentWeek{}, false, nil
 	}
-	list, err := newNotify(a.d).Incidents(ctx)
+	w, err := newNotify(a.d).IncidentsSince(ctx, since, top)
 	if err != nil {
-		return nil, false, err
+		return reports.IncidentWeek{}, false, err
 	}
-	var out []reports.Incident
-	for _, in := range list {
-		at, err := time.Parse(time.RFC3339, in.LastSeen)
-		if err != nil || !at.After(since) {
-			continue
-		}
-		kind := incidentKind(in.Kind, in.Title)
-		if kind == "" {
-			continue
-		}
-		out = append(out, reports.Incident{Kind: kind, Severity: string(in.Severity), Title: in.Title, Count: in.Count, LastSeen: at})
+	out := reports.IncidentWeek{Traps: w.Counts["trap"], FailedLogins: w.Counts["failed_logins"], AcceptedLogins: w.Counts["login_accepted"],
+		BadConnections: w.Counts["bad_connection"], Other: w.Counts["anomaly"]}
+	for _, b := range w.Top {
+		out.Top = append(out.Top, reports.Incident{Kind: b.Class, Severity: string(b.Severity), Title: b.Title, LastSeen: b.LastSeen})
 	}
 	return out, true, nil
-}
-
-// incidentKind is the kind reports names an incident by ("" = not in the report).
-func incidentKind(k notify.IncidentKind, title string) string {
-	switch k {
-	case notify.IncidentTrap:
-		return "trap"
-	case notify.IncidentBadAddress:
-		return "bad_connection"
-	case notify.IncidentLogAnomaly:
-		switch {
-		case strings.Contains(title, "was ACCEPTED after failed attempts"):
-			return "login_accepted"
-		case strings.Contains(title, " failed logins from "):
-			return "failed_logins"
-		}
-		return "anomaly"
-	}
-	return ""
 }
 
 type reportsMailer struct{ svc *notify.Service }

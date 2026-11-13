@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"net/netip"
@@ -700,5 +701,39 @@ func TestIncidentsListIsCappedAndEachHasItsOwnChildren(t *testing.T) {
 	})
 	if l, err = e.svc.Incidents(e.ctx()); err != nil || len(l) != 500 {
 		t.Fatalf("incidents = %d, %v", len(l), err)
+	}
+}
+
+// The weekly report counts a busy week whole (D-490 review M2: the incident list is capped at 500) and tells the failed-login
+// incidents apart; a "failed logins" incident of severity high had a login accepted in it.
+func TestIncidentsSinceCountsEveryClassBeyondTheListCap(t *testing.T) {
+	e := newEnv(t)
+	now := e.clock.Now()
+	add := func(id, kind, title, sev string, at time.Time) {
+		e.write(func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(e.ctx(), `INSERT INTO notify_incident (id, kind, title, link, severity, what, action, first_seen, last_seen, dedupe_key) VALUES (?, ?, ?, '/logs', ?, '', '', ?, ?, ?)`,
+				id, kind, title, sev, store.FormatTS(at), store.FormatTS(at), fmt.Sprintf("%064s", id))
+			return err
+		})
+	}
+	for i := range 600 {
+		add(fmt.Sprintf("bad-%d", i), "bad_address", "pc reached a known-bad address", "low", now.Add(-time.Hour))
+	}
+	add("t1", "trap", "Someone touched the SSH trap", "high", now.Add(-48*time.Hour))
+	add("f1", "log_anomaly", "5 failed logins from 45.1.1.1 on web in 10 minutes", "medium", now.Add(-2*time.Hour))
+	add("f2", "log_anomaly", "6 failed logins from 45.1.1.2 on web in 10 minutes", "high", now.Add(-3*time.Hour)) // a login got in
+	add("a1", "log_anomaly", "A login from 45.1.1.3 was ACCEPTED after 6 failed attempts on web", "high", now.Add(-4*time.Hour))
+	add("u1", "unknown_device", "A new unknown device appeared: cam", "medium", now.Add(-time.Hour))
+	add("old", "trap", "last month", "high", now.Add(-30*24*time.Hour))
+	w, err := e.svc.IncidentsSince(e.ctx(), now.Add(-7*24*time.Hour), 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]int{"bad_connection": 600, "trap": 1, "failed_logins": 1, "login_accepted": 2}
+	if !maps.Equal(w.Counts, want) {
+		t.Fatalf("counts = %v, want %v", w.Counts, want)
+	}
+	if len(w.Top) != 3 || w.Top[0].Class != "login_accepted" || w.Top[1].Class != "login_accepted" || w.Top[2].Class != "trap" {
+		t.Fatalf("top = %+v", w.Top)
 	}
 }

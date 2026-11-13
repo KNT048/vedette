@@ -403,7 +403,7 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 	}
 	out.HTTPPage = httpPage(http)
 	// The traps cannot listen at all (the host, the container): one reason for the page. A Trap IP's own trouble is its reason.
-	if ips, _, _ := w.desired(); len(ips) > 0 && !hv.pending && !(hv.available && hv.running) {
+	if ips, _, _ := w.desired(); len(ips) > 0 && !hv.pending && (!hv.available || !hv.running) {
 		out.Problem = ptr(reasonOrDefault(hv.reason))
 	}
 	for _, svc := range Services {

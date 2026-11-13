@@ -200,14 +200,10 @@ func TestIngestSkipsLogtypesItDoesNotMap(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setup()
-	for _, svc := range []honeypot.ServiceName{honeypot.RDP, honeypot.MSSQL, honeypot.HTTP} {
-		if _, err := e.svc.SetTrap(e.ctx(), "a", svc, true); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if _, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.NAS, Name: "NAS-OLD", IP: "192.168.10.241"}); err != nil {
+	if err := e.setServices(e.main, honeypot.Services...); err != nil {
 		t.Fatal(err)
 	}
+	e.addTrapIP("NAS-OLD", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
 	e.appendLog(
 		`{"logtype":1001,"src_host":"","dst_host":"","logdata":{"msg":"boot"}}`,
 		ln{LogType: 1004, Src: "192.168.10.157", At: t0}.json(),
@@ -241,7 +237,7 @@ func TestIngestSkipsLogtypesItDoesNotMap(t *testing.T) {
 	}
 	d, _ := e.svc.HitDetail(e.ctx(), smb.ID)
 	if d.TrapIP != "192.168.10.240" {
-		t.Fatalf("trap ip %q: a line without a destination falls back to the secondary IP", d.TrapIP)
+		t.Fatalf("trap ip %q: a line without a destination falls back to the first Trap IP with the service", d.TrapIP)
 	}
 }
 
@@ -259,7 +255,7 @@ func TestRunAppliesPollsAndSwitchesOff(t *testing.T) {
 	waitFor(t, "container started", func() bool { return e.host.isRunning() })
 	e.appendLog(sshNew("192.168.10.157", 1, t0).json())
 	waitFor(t, "hit", func() bool { return e.hitCount() == 1 })
-	if _, err := e.svc.SetTrap(e.ctx(), "a", honeypot.RDP, true); err != nil {
+	if err := e.setServices(e.main, honeypot.SSH, honeypot.SMB, honeypot.RDP); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, "kick applied", func() bool {

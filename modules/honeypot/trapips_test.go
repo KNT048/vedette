@@ -1,0 +1,338 @@
+package honeypot_test
+
+// D-466 Trap IPs: the upgrade from the secondary IP and decoys, what the host is asked to build, what the list shows about
+// where each Trap IP lives, which Trap IP a hit names, and W1-13: a source touching two Trap IPs within a minute is a scan.
+
+import (
+	"context"
+	"io/fs"
+	"net/netip"
+	"slices"
+	"strings"
+	"testing"
+	"testing/fstest"
+	"time"
+
+	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/storetest"
+	"github.com/knt048/vedette/modules/core"
+	"github.com/knt048/vedette/modules/honeypot"
+)
+
+// migratedBefore is a database at the honeypot migrations before 0003 (a box before D-466).
+func migratedBefore(t *testing.T) *store.DB {
+	t.Helper()
+	before := fstest.MapFS{}
+	entries, err := fs.ReadDir(honeypot.Migrations, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Name() >= "0003" {
+			continue
+		}
+		b, err := fs.ReadFile(honeypot.Migrations, e.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		before[e.Name()] = &fstest.MapFile{Data: b}
+	}
+	return storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "honeypot", FS: before})
+}
+
+type tipRow struct {
+	ID, Name, IP, Preset, Services, Created string
+	Vendor                                  *string
+	Enabled                                 bool
+}
+
+func migrateRows(t *testing.T, db *store.DB, setup ...string) []tipRow {
+	t.Helper()
+	ctx := t.Context()
+	if err := db.Write(ctx, func(tx *sqlTx) error {
+		for _, q := range setup {
+			if _, err := tx.ExecContext(ctx, q); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Migrate(ctx, db, "honeypot", honeypot.Migrations); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := db.Reader().QueryContext(ctx, `SELECT id, name, ip, preset, vendor, services, enabled, created_at FROM hp_trap_ips ORDER BY created_at, id`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []tipRow
+	for rows.Next() {
+		var r tipRow
+		if err := rows.Scan(&r.ID, &r.Name, &r.IP, &r.Preset, &r.Vendor, &r.Services, &r.Enabled, &r.Created); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err := db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE name IN ('hp_trap', 'hp_decoys')`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("old tables left: %d %v", n, err)
+	}
+	if err := db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM hp_config WHERE key = 'config'`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("the old config row is left: %d %v", n, err)
+	}
+	return out
+}
+
+const oldConfig = `INSERT INTO hp_config (key, value, updated_at, updated_by) VALUES ('config', '{"secondary_ip":"192.168.10.240","hostname":"FILESRV-OLD"}', '2026-11-01T09:00:00.000Z', 'a')`
+
+// D-466 (8): the secondary IP becomes the first Trap IP with the traps that were on; each decoy a Trap IP of its preset with
+// the preset's services that were on (none on: the preset's, switched off); no address answers a port it did not answer before.
+func TestMigration0003TurnsTheSecondaryIPAndDecoysIntoTrapIPs(t *testing.T) {
+	t.Parallel()
+	got := migrateRows(t, migratedBefore(t), oldConfig,
+		`UPDATE hp_trap SET enabled = 1, since = '2026-11-01T09:00:00.000Z' WHERE service IN ('ssh', 'smb')`,
+		`INSERT INTO hp_decoys (id, personality, name, ip, enabled, created_at) VALUES
+			('dec-nas', 'nas', 'NAS-OLD', '192.168.10.241', 1, '2026-11-01T08:00:00.000Z'),
+			('dec-lnx', 'linux', 'LNX-OLD', '192.168.10.242', 1, '2026-11-02T08:00:00.000Z'),
+			('dec-prn', 'printer', 'PRN-OLD', '192.168.10.243', 1, '2026-11-03T08:00:00.000Z'),
+			('dec-off', 'windows_fs', 'FS-OFF', '192.168.10.244', 0, '2026-11-04T08:00:00.000Z')`)
+	want := []tipRow{
+		{ID: "tip-secondary", Name: "FILESRV-OLD", IP: "192.168.10.240", Preset: "custom", Services: `["smb","ssh"]`, Enabled: true},
+		{ID: "dec-nas", Name: "NAS-OLD", IP: "192.168.10.241", Preset: "nas", Services: `["smb"]`, Enabled: true},
+		{ID: "dec-lnx", Name: "LNX-OLD", IP: "192.168.10.242", Preset: "linux", Services: `["ssh"]`, Enabled: true},
+		{ID: "dec-prn", Name: "PRN-OLD", IP: "192.168.10.243", Preset: "printer", Services: `["http"]`, Enabled: false},
+		{ID: "dec-off", Name: "FS-OFF", IP: "192.168.10.244", Preset: "file_server", Services: `["smb"]`, Enabled: false},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("%d rows: %+v", len(got), got)
+	}
+	for i, w := range want {
+		g := got[i]
+		if g.ID != w.ID || g.Name != w.Name || g.IP != w.IP || g.Preset != w.Preset || g.Services != w.Services || g.Enabled != w.Enabled || g.Vendor != nil {
+			t.Errorf("row %d: %+v, want %+v", i, g, w)
+		}
+	}
+	if got[0].Created >= got[1].Created {
+		t.Fatalf("the secondary IP is not the first Trap IP: %s vs %s", got[0].Created, got[1].Created)
+	}
+}
+
+// With every trap off the secondary IP becomes a File server that is off; a decoy without a secondary IP never listened and is off.
+func TestMigration0003WithNothingOn(t *testing.T) {
+	t.Parallel()
+	got := migrateRows(t, migratedBefore(t), oldConfig,
+		`INSERT INTO hp_decoys (id, personality, name, ip, enabled, created_at) VALUES ('dec-lnx', 'linux', 'LNX-OLD', '192.168.10.242', 1, '2026-11-02T08:00:00.000Z')`)
+	if len(got) != 2 || got[0].Preset != "file_server" || got[0].Services != `["smb","rdp"]` || got[0].Enabled || got[1].Services != `["ssh"]` || got[1].Enabled {
+		t.Fatalf("%+v", got)
+	}
+	got = migrateRows(t, migratedBefore(t),
+		`UPDATE hp_trap SET enabled = 1 WHERE service = 'ssh'`,
+		`INSERT INTO hp_decoys (id, personality, name, ip, enabled, created_at) VALUES ('dec-lnx', 'linux', 'LNX-OLD', '192.168.10.242', 1, '2026-11-02T08:00:00.000Z')`)
+	if len(got) != 1 || got[0].ID != "dec-lnx" || got[0].Services != `["ssh"]` || got[0].Enabled {
+		t.Fatalf("a decoy without a secondary IP: %+v", got)
+	}
+}
+
+// W1-14: the host is asked to build a File server with the vendor's MAC prefix and only its own ports.
+func TestTheHostGetsTheVendorPrefixAndOnlyTheTrapIPsPorts(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	if _, err := e.svc.AddTrapIP(e.ctx(), "a", honeypot.TrapIPInput{Name: "FILESRV-OLD", IP: "192.168.10.240", Preset: honeypot.FileServer, Vendor: ptr("dell"),
+		Services: []honeypot.ServiceName{honeypot.RDP, honeypot.SMB}}); err != nil {
+		t.Fatal(err)
+	}
+	e.addTrapIP("BUILD-01", "192.168.10.241", honeypot.Linux, honeypot.SSH)
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	fs := e.host.specs[addr("192.168.10.240")]
+	if fs.OUI != "f8bc12" || !slices.Equal(fs.Ports, []honeypot.Port{{Proto: "tcp", Port: 445}, {Proto: "tcp", Port: 3389}}) {
+		t.Fatalf("file server spec %+v", fs)
+	}
+	if l := e.host.specs[addr("192.168.10.241")]; l.OUI != "" || !slices.Equal(l.Ports, []honeypot.Port{{Proto: "tcp", Port: 22}}) {
+		t.Fatalf("linux spec %+v", l)
+	}
+}
+
+// viewHost says how it holds the addresses and whether it keeps each to its own ports.
+type viewHost struct {
+	*fakeHost
+	keeps bool
+}
+
+func (h viewHost) DecoyLinks(context.Context) map[netip.Addr]honeypot.DecoyLink {
+	return map[netip.Addr]honeypot.DecoyLink{addr("192.168.10.240"): {MAC: "f8:bc:12:4f:54:67", Link: "vdhc0a80af0", Parent: "eno1"}}
+}
+func (h viewHost) KeepsPorts(context.Context) bool { return h.keeps }
+
+// The Trap IPs tab shows where each Trap IP lives: MAC and the vendor its prefix shows, the link and card, the services
+// that answer now, the last hit.
+func TestTrapIPShowsWhereItLives(t *testing.T) {
+	t.Parallel()
+	for _, keeps := range []bool{true, false} {
+		e := newEnv(t)
+		e.cfg.Host = viewHost{fakeHost: e.host, keeps: keeps}
+		svc, err := honeypot.New(e.cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		e.svc = svc
+		fsrv, err := e.svc.AddTrapIP(e.ctx(), "a", honeypot.TrapIPInput{Name: "FILESRV-OLD", IP: "192.168.10.240", Preset: honeypot.FileServer, Vendor: ptr("dell"),
+			Services: []honeypot.ServiceName{honeypot.SMB, honeypot.RDP}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		e.addTrapIP("BUILD-01", "192.168.10.241", honeypot.Linux, honeypot.SSH)
+		if d := e.trapIP(fsrv.ID); d.MAC != nil || d.Attachment != nil || len(d.OpenServices) != 0 || d.LastHitAt != nil {
+			t.Fatalf("before the host holds it: %+v", d)
+		}
+		if err := e.svc.Apply(e.ctx()); err != nil {
+			t.Fatal(err)
+		}
+		d := e.trapIP(fsrv.ID)
+		if d.MAC == nil || *d.MAC != "f8:bc:12:4f:54:67" || d.MACVendor == nil || !strings.Contains(strings.ToLower(*d.MACVendor), "dell") {
+			t.Fatalf("keeps=%v: mac %v vendor %v", keeps, d.MAC, d.MACVendor)
+		}
+		if d.Attachment == nil || *d.Attachment != (honeypot.Attachment{Kind: "macvlan", Link: "vdhc0a80af0", Parent: "eno1"}) {
+			t.Fatalf("attachment %+v", d.Attachment)
+		}
+		want := []honeypot.ServiceName{honeypot.SMB, honeypot.RDP}
+		if !keeps { // an older host: the address answers every service the container runs
+			want = []honeypot.ServiceName{honeypot.SMB, honeypot.RDP, honeypot.SSH}
+			if d.Reason == nil || !strings.Contains(*d.Reason, "older") {
+				t.Fatalf("no note on an older host: %v", d.Reason)
+			}
+		}
+		if !slices.Equal(d.OpenServices, want) || d.DeviceID != nil {
+			t.Fatalf("keeps=%v: open %v, device %v", keeps, d.OpenServices, d.DeviceID)
+		}
+		e.appendLog(ln{LogType: 14001, Src: "192.168.10.157", SrcPort: 7, Dst: "192.168.10.240", DstPort: 3389, At: t0, Data: map[string]any{"USERNAME": "admin"}}.json())
+		e.poll()
+		if d := e.trapIP(fsrv.ID); d.LastHitAt == nil || *d.LastHitAt != "2026-11-09T10:00:00.000Z" {
+			t.Fatalf("last hit %v", d.LastHitAt)
+		}
+	}
+}
+
+func httpGet(src string, sport int, dst string, at time.Time) ln {
+	return ln{LogType: 3000, Src: src, SrcPort: sport, Dst: dst, DstPort: 80, At: at, Data: map[string]any{"PATH": "/", "USERAGENT": "curl/8"}}
+}
+
+// sweepEnv has three Trap IPs: FILESRV-OLD .240 (SSH, SMB), NAS-ARCHIVE .241 and PRN-FLOOR2 .242 (HTTP), applied.
+func sweepEnv(t *testing.T) *env {
+	t.Helper()
+	e := newEnv(t)
+	e.setup()
+	e.addTrapIP("NAS-ARCHIVE", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
+	e.addTrapIP("PRN-FLOOR2", "192.168.10.242", honeypot.Printer, honeypot.HTTP)
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	return e
+}
+
+func hitsOfKind(t *testing.T, e *env, k honeypot.HitKind) []honeypot.Hit {
+	t.Helper()
+	l, err := e.svc.Hits(e.ctx(), honeypot.HitFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []honeypot.Hit
+	for _, h := range l {
+		if h.Kind == k {
+			out = append(out, h)
+		}
+	}
+	return out
+}
+
+// D-466 (5), W1-13: each hit names the Trap IP that was hit, in the list, the detail and the event.
+func TestHitNamesTheTrapIPThatWasHit(t *testing.T) {
+	t.Parallel()
+	e := sweepEnv(t)
+	e.appendLog(httpGet("192.168.10.157", 1, "192.168.10.241", t0).json(), sshNew("192.168.10.158", 2, t0).json())
+	e.poll()
+	got := map[string]string{}
+	for _, h := range hitsOfKind(t, e, honeypot.KindService) {
+		got[h.TrapIP] = h.TrapHostname
+		d, err := e.svc.HitDetail(e.ctx(), h.ID)
+		if err != nil || d.TrapIP != h.TrapIP || d.TrapHostname != h.TrapHostname {
+			t.Fatalf("detail %+v %v", d, err)
+		}
+	}
+	if len(got) != 2 || got["192.168.10.241"] != "NAS-ARCHIVE" || got["192.168.10.240"] != "FILESRV-OLD" {
+		t.Fatalf("trap IPs of the hits: %v", got)
+	}
+	decoys := map[string]bool{}
+	for _, ev := range e.pub.all() {
+		decoys[ev.Data.(honeypot.HitEventData).Decoy] = true
+	}
+	if len(decoys) != 2 || !decoys["NAS-ARCHIVE"] || !decoys["FILESRV-OLD"] {
+		t.Fatalf("event decoys %v", decoys)
+	}
+}
+
+// W1-13: one source touching two Trap IPs within a minute raises one scan hit (one event); a third Trap IP in the same
+// window joins it.
+func TestTouchingTwoTrapIPsWithinAMinuteIsOneScan(t *testing.T) {
+	t.Parallel()
+	e := sweepEnv(t)
+	src := "192.168.10.107"
+	e.appendLog(httpGet(src, 1, "192.168.10.241", t0).json(), sshNew(src, 2, t0.Add(20*time.Second)).json())
+	e.poll()
+	scans := hitsOfKind(t, e, honeypot.KindScan)
+	if len(scans) != 1 || len(hitsOfKind(t, e, honeypot.KindService)) != 2 {
+		t.Fatalf("scans %+v", scans)
+	}
+	sc := scans[0]
+	if sc.Label != "Scan across the Trap IPs" || sc.SrcIP != src || sc.IsTest || sc.TrapHostname != "FILESRV-OLD, NAS-ARCHIVE" ||
+		!strings.Contains(sc.Excerpt, "FILESRV-OLD (192.168.10.240)") || !strings.Contains(sc.Excerpt, "NAS-ARCHIVE (192.168.10.241)") {
+		t.Fatalf("%+v", sc)
+	}
+	var scanEvents []honeypot.HitEventData
+	for _, ev := range e.pub.all() {
+		if d := ev.Data.(honeypot.HitEventData); d.Kind == honeypot.KindScan {
+			scanEvents = append(scanEvents, d)
+		}
+	}
+	if len(scanEvents) != 1 || scanEvents[0].SrcAssetID != "a-pc07" || scanEvents[0].SrcName != "PC-HR-01" || scanEvents[0].Decoy != "FILESRV-OLD, NAS-ARCHIVE" {
+		t.Fatalf("scan events %+v", scanEvents)
+	}
+	// a third Trap IP in the same window: the same scan hit, no new event
+	e.appendLog(httpGet(src, 3, "192.168.10.242", t0.Add(40*time.Second)).json())
+	e.poll()
+	if scans = hitsOfKind(t, e, honeypot.KindScan); len(scans) != 1 || !strings.Contains(scans[0].Excerpt, "PRN-FLOOR2 (192.168.10.242)") {
+		t.Fatalf("after a third Trap IP: %+v", scans)
+	}
+	n := 0
+	for _, ev := range e.pub.all() {
+		if ev.Data.(honeypot.HitEventData).Kind == honeypot.KindScan {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("%d scan events", n)
+	}
+}
+
+// Touches two minutes apart, the same Trap IP twice, or a test hit and a touch are no scan.
+func TestNoScanWithoutTwoTrapIPsInAMinute(t *testing.T) {
+	t.Parallel()
+	e := sweepEnv(t)
+	e.appendLog(httpGet("192.168.10.157", 1, "192.168.10.241", t0).json(), sshNew("192.168.10.157", 2, t0.Add(2*time.Minute)).json())
+	e.appendLog(httpGet("192.168.10.158", 1, "192.168.10.241", t0).json(), httpGet("192.168.10.158", 2, "192.168.10.241", t0.Add(10*time.Second)).json())
+	e.poll()
+	if _, err := e.svc.TestHit(e.ctx(), "op", honeypot.HTTP); err != nil {
+		t.Fatal(err)
+	}
+	e.appendLog(sshNew("192.168.10.2", 9, t0.Add(3*time.Minute)).json()) // the box itself (INV-3)
+	e.poll()
+	if scans := hitsOfKind(t, e, honeypot.KindScan); len(scans) != 0 {
+		t.Fatalf("scans %+v", scans)
+	}
+}

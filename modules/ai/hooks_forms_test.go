@@ -24,15 +24,15 @@ func (formsData) IOC(context.Context, string, string) (IOCFact, bool, error) {
 
 var formsFinding = FindingRow{ID: store.NewID("fnd"), AssetID: store.NewID("dev"), Asset: "FW-HQ", AssetIP: "192.168.1.1", CVE: "CVE-2023-36844", Status: "confirmed",
 	Severity: "critical", Basis: "scan", Confidence: 0.95, FirstSeen: "2026-11-02T08:15:42.120Z", LastSeen: "2026-11-13T05:23:29.123Z",
-	Evidence: "nuclei template juniper-j-web-rce (also 2023-36845, 2023-36846) matched at 2026-11-13 05:23:29; certificate sha256 9f3a123456789e0b44c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3; announced by AS401234567; agent e2b0c1d4-5f6a-4b7c-8d9e-000123456789"}
+	Evidence: "nuclei template juniper-j-web-rce (also CVE-2023-36845, CVE-2023-36846) matched at 2026-11-13 05:23:29; certificate sha256 9f3a123456789e0b44c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3; announced by AS401234567; agent e2b0c1d4-5f6a-4b7c-8d9e-000123456789"}
 
 type formsFacts struct{}
 
 func (formsFacts) CVE(context.Context, string) (CVEFacts, bool, error) {
 	return CVEFacts{CVE: "CVE-2023-36844", Vendor: "Juniper", Product: "Junos OS", Name: "Juniper Junos OS EX Series PHP External Variable Modification Vulnerability",
-		Description:    "Juniper Junos OS on EX Series contains a PHP external variable modification vulnerability (chained with 2023-36845 and 2023-36846) that allows an attacker to control an important environment variable.",
+		Description:    "Juniper Junos OS on EX Series contains a PHP external variable modification vulnerability (chained with CVE-2023-36845 and CVE-2023-36846) that allows an attacker to control an important environment variable.",
 		RequiredAction: "Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.", DateAdded: "2023-11-13",
-		Links: []string{"https://supportportal.juniper.net/s/article/000087042", "https://nvd.nist.gov/vuln/detail/CVE-2023-36844", "https://kb.example.com/view?id=123456789012"}}, true, nil
+		Links: []string{"https://supportportal.juniper.net/s/article/000087042", "https://nvd.nist.gov/vuln/detail/CVE-2023-36844", "https://kb.example.com/s/article/000087042?language=en_US#steps"}}, true, nil
 }
 
 func (formsFacts) AffectedAssets(context.Context, string) ([]AssetFact, error) {
@@ -86,16 +86,17 @@ func TestToolOutputsAreNotIDNumbers(t *testing.T) {
 func TestIDNumbersAndTheFormsTheyAreNot(t *testing.T) {
 	t.Parallel()
 	notID := []string{
-		"CVE-2023-36844", "2023-36844", "cve 2023-36844", "see 2023-36845 and 2024-123456",
+		"CVE-2023-36844", "cve-2023-36844", "see CVE-2023-36845 and CVE-2024-123456",
 		"550e8400-e29b-41d4-a716-446655440000", "E2B0C1D4-5F6A-4B7C-8D9E-000123456789",
 		"dev-" + "aaaabbbb22223333444455556667"[:26], "fnd-2345672345672345672345672a",
 		"192.168.100.200", "fe80::1c2b:3a4d:5e6f:7081", "2001:db8::1234:5678", "00:1a:2b:3c:4d:5e", "00-1A-2B-3C-4D-5E", "001a.2b3c.4d5e",
 		"version 10.0.19045.3693", "Chrome 131.0.6778.86", "Junos 21.4R3-S5", "openssl 3.0.2-0ubuntu1.18",
 		"2026-11-13", "2026-11-13T05:23:29.123456789Z", "2026-11-13 05:23:29", "13/11/2026", "2026-11-13T05:23:29+07:00",
 		"22/tcp ssh, 443/tcp https, 3389/tcp rdp", "ports 443 3389 22 open",
-		"AS401234567", "ASN 401234567", "AS13335",
+		"AS401234567", "ASN401234567", "AS13335",
 		"sha256 9f3a123456789e0b44c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3", "md5 123456789abcdef0123456789abcdef0",
-		"https://supportportal.juniper.net/s/article/000087042", "https://kb.example.com/view?id=123456789012",
+		"https://supportportal.juniper.net/s/article/000087042", "https://supportportal.juniper.net/s/article/000087042?language=en_US#top",
+		"Cisco ISR4321/K9", "model C1234567 in stock", // a passport shape without a passport label is a part number
 	}
 	for _, s := range notID {
 		if got := findIDNumbers(s); len(got) > 0 {
@@ -107,6 +108,11 @@ func TestIDNumbersAndTheFormsTheyAreNot(t *testing.T) {
 		`{"note":"CCCD 079012345678"}`, `"079012345678"`, "CVE-2023-36844 belongs to citizen 079012345678",
 		"0790.1234.5678", "device 192.168.1.20 owner 123456789", "2026-11-13 CMND 123456789",
 		"https://kb.example.com/a 079012345678",
+		// the Opus review of D-481: each was blocked before the forms were blanked, and must still be
+		"CCCD079201234567", "CMND 123456789abcdef0", "CMND 2012-34567", "CMND 1912-34567", "CCCD 0792-2012-3456", "CMND AS 201234567",
+		"referer https://x.vn/a,CCCD:079201234567", "passport https://x.vn/?so=123456789", "https://kb.example.com/view?id=123456789012",
+		"2023-36844", "AS 201234567", "cccd079201234567abcdef", "căn cước công dân số 079201234567", "can cuoc: 079201234567", "số định danh 079201234567",
+		"hộ chiếu C1234567", "passport no. B7654321", "ho chieu: N1234567", `{"id":"079201234567"}`, "ID:079201234567abc",
 	}
 	for _, s := range isID {
 		if got := findIDNumbers(s); len(got) == 0 {

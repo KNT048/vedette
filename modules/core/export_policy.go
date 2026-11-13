@@ -36,7 +36,7 @@ const tblCoreConnection = "core_" + "connection"
 
 // exportPolicy is keyed by table name.
 var exportPolicy = map[string]tablePolicy{
-	"ai_activity":            {export: "seq id ts job profile profile_id model trigger input_hash output_hash summary tokens_in tokens_out result outcome stop prev_hash hash", json: "hooks tools links"},
+	"ai_activity":            {export: "seq id ts job profile profile_id model trigger input_hash output_hash summary tokens_in tokens_out result outcome stop retried prev_hash hash", json: "hooks tools links"},
 	"ai_downgrade":           {export: "id ts from_tier to_tier reason"},
 	"ai_hook":                {export: "id name name_key when match_type pattern action message enabled created_at updated_at"},
 	"ai_hook_state":          {export: "builtin_id enabled"},

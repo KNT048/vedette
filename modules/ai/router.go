@@ -40,6 +40,9 @@ type Attempt struct {
 	Model              string // the model of the profile when the attempt was made (an edit during the call does not change it)
 	Err                error  // nil on success; a provider error (safe to show) or a skip reason
 	Skipped            bool   // true when no request was sent (cap, privacy, build error, changed settings)
+	// Retry marks the second request of an answer cut at the output limit (Router.retryCut): Err nil = it was answered; Skipped with
+	// Err = the caps left no room for it; Err alone = the provider failed it.
+	Retry bool
 }
 
 // Refused reports whether the attempt ended in a model refusal (provider.ErrRefused).
@@ -55,7 +58,7 @@ type CallResult struct {
 	Downgrade *Downgrade
 	Attempts  []Attempt // filled on failure too
 	// Retried is set when the first answer was cut at the output limit and the call was sent once more with a higher limit
-	// (retryLimit); Response is then the second answer, Usage the tokens of both.
+	// (retryLimit) and answered; Response is then the second answer, Usage the tokens of both.
 	Retried bool
 }
 
@@ -288,7 +291,9 @@ func (r *Router) Call(ctx context.Context, job Job, req provider.Request) (CallR
 		res.Response, res.ProfileID, res.Profile, res.Model, res.Fallback = resp, p.ID, p.Name, p.Model, c.fallback
 		res.Downgrade = firstDowngrade(res.Downgrade, hold.Settle(resp.Usage.InputTokens, resp.Usage.OutputTokens))
 		if resp.Stop == provider.StopMaxTokens {
-			r.retryCut(ctx, &res, cl, p, req, carries)
+			if err := r.retryCut(ctx, &res, cl, p, req, carries); err != nil {
+				return res, err
+			}
 		}
 		return res, nil
 	}
@@ -297,19 +302,29 @@ func (r *Router) Call(ctx context.Context, job Job, req provider.Request) (CallR
 
 // retryCut sends a request whose answer was cut at the output limit once more to the same profile, with retryLimit (a model that
 // thinks before it answers can spend the first limit on thinking). It is held against the caps and checked against the privacy rule
-// like any request. The second answer replaces the first, whether or not it is cut too (RunJob refuses a cut answer); the tokens of both
-// are counted. When it cannot be sent, or fails, the first (cut) answer stays.
-func (r *Router) retryCut(ctx context.Context, res *CallResult, cl provider.Provider, p Profile, req provider.Request, carries bool) {
+// like any request, and it gets twice the call timeout: it may write twice as much, and a slow or local model must not be cut by the
+// clock instead (the caller's context still bounds it). The second answer replaces the first, whether or not it is cut too (RunJob
+// refuses a cut answer); the tokens of both are counted and the retry is an Attempt. It returns why a retry could not be made or
+// failed (ErrCapped, ErrProfileCapped, the provider's error), with res still holding the cut answer: the caller says that, not "cut
+// off". Nothing is returned when the limit is already the ceiling, the caller has gone, or the privacy rule now refuses the profile:
+// the cut answer stands.
+func (r *Router) retryCut(ctx context.Context, res *CallResult, cl provider.Provider, p Profile, req provider.Request, carries bool) error {
 	more := req
 	more.MaxTokens = retryLimit(req.MaxTokens)
 	if more.MaxTokens == req.MaxTokens || ctx.Err() != nil || !r.st.Load().assign.AllowedFor(carries, p) {
-		return
+		return nil
 	}
+	attempt := Attempt{ProfileID: p.ID, Profile: p.Name, Model: p.Model, Retry: true}
 	hold, err := r.meter.Reserve(p.ID, p.DailyCap, estimateTokens(more))
 	if err != nil {
-		return
+		if errors.Is(err, ErrCapped) {
+			err = fmt.Errorf("%w: raise the cap in Settings, AI assistant, or wait until tomorrow", ErrCapped)
+		}
+		attempt.Err, attempt.Skipped = err, true
+		res.Attempts = append(res.Attempts, attempt)
+		return err
 	}
-	actx, cancel := context.WithTimeout(ctx, r.timeout)
+	actx, cancel := context.WithTimeout(ctx, 2*r.timeout)
 	resp, err := cl.Complete(actx, more)
 	cancel()
 	first := res.Response.Usage
@@ -321,11 +336,15 @@ func (r *Router) retryCut(ctx context.Context, res *CallResult, cl provider.Prov
 		} else {
 			hold.Cancel()
 		}
-		return
+		attempt.Err = err
+		res.Attempts = append(res.Attempts, attempt)
+		return err
 	}
 	res.Downgrade = firstDowngrade(res.Downgrade, hold.Settle(resp.Usage.InputTokens, resp.Usage.OutputTokens))
 	resp.Usage = provider.Usage{InputTokens: first.InputTokens + resp.Usage.InputTokens, OutputTokens: first.OutputTokens + resp.Usage.OutputTokens}
 	res.Response, res.Retried = resp, true
+	res.Attempts = append(res.Attempts, attempt)
+	return nil
 }
 
 // firstDowngrade keeps the earliest record when several attempts of one call each lowered the level.

@@ -339,6 +339,9 @@ func (s *Service) converse(ctx context.Context, spec JobSpec, hooks *HookRunner,
 		res, err := s.router.Call(lctx, spec.Job, req)
 		attempts, down = append(attempts, res.Attempts...), firstDowngrade(down, res.Downgrade)
 		if err != nil {
+			// a turn cut at the limit whose retry could not be made still spent its tokens
+			usage.InputTokens += res.Response.Usage.InputTokens
+			usage.OutputTokens += res.Response.Usage.OutputTokens
 			if lctx.Err() != nil && ctx.Err() == nil {
 				err = errAskDeadline
 			}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/modules/ai"
 	"github.com/knt048/vedette/modules/ai/provider"
@@ -132,5 +133,106 @@ func TestAProviderErrorSaysWhatTheProviderSaid(t *testing.T) {
 	msg := m["error"].(map[string]any)["message"].(string)
 	if !strings.Contains(msg, "Claude: provider refused the request (HTTP 400): max_tokens: 64000 > 32000") || strings.Contains(msg, "sk-ant") {
 		t.Fatalf("message = %q", msg)
+	}
+}
+
+// retried reads the retried column of ai_activity, oldest first.
+func (a *api) retried() []bool {
+	a.t.Helper()
+	rows, err := a.db.Reader().QueryContext(a.ctx(), `SELECT retried FROM ai_activity ORDER BY seq`)
+	if err != nil {
+		a.t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []bool
+	for rows.Next() {
+		var r bool
+		if err := rows.Scan(&r); err != nil {
+			a.t.Fatal(err)
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
+func lastOf[T any](s []T) T { return s[len(s)-1] }
+
+// The row of a call whose cut answer was asked again says so, answered or cut twice; one that was whole the first time does not.
+func TestTheRowSaysTheAnswerWasAskedAgain(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.explain("CVE-2022-27593", 200, "")
+	if lastOf(a.retried()) {
+		t.Fatal("a whole answer reads as retried")
+	}
+	a.clock.Add(time.Minute)
+	a.facts.mu.Lock()
+	a.facts.assets["CVE-2022-27593"][0].Name = "NAS-2" // a new input: not the stored explanation
+	a.facts.mu.Unlock()
+	a.fake.cutNext(1)
+	a.explain("CVE-2022-27593", 200, "")
+	if !lastOf(a.retried()) {
+		t.Fatal("the retry is not on the row")
+	}
+}
+
+// The shared daily cap leaves no room for the second request of a cut answer: the person reads the cap, not "cut off", and the row
+// keeps the tokens of the first request.
+func TestARetryTheSharedCapStopsSaysTheCap(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.want("PUT", "/ai/config", "admin", `{"tier":"min","daily_cap":1000,"redact_pii":true}`, 200, "")
+	a.fake.cutNext(1) // the cut answer reports 6,000 tokens out: the cap is used up when the retry asks for its share
+	m := a.explain("CVE-2022-27593", 429, "daily_cap")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "cut off at the output limit (6,000 tokens), and today's 1,000 token cap is used up") {
+		t.Fatalf("message = %q", msg)
+	}
+	if l := a.jobLimits(); len(l) != 1 {
+		t.Fatalf("limits sent = %v: the retry must not be sent", l)
+	}
+	last := lastOf(a.activity())
+	if last.TokensOut != 6000 || !strings.Contains(last.Summary, "token cap left no room") || lastOf(a.stops()) != "max_tokens" || lastOf(a.retried()) {
+		t.Fatalf("row = %+v", last.ActivityEntry)
+	}
+}
+
+// The profile's own cap leaves no room for the retry: the same, with the profile named.
+func TestARetryTheProfileCapStopsSaysTheProfileCap(t *testing.T) {
+	a := newAPI(t)
+	a.addProfile(strings.Replace(cloudBody("Claude", keyA), `"daily_cap":60000`, `"daily_cap":1000`, 1))
+	a.fake.setAnswer(goodExplain)
+	a.fake.cutNext(1)
+	m := a.explain("CVE-2022-27593", 429, "daily_cap")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "the daily token cap of the profile Claude is used up") {
+		t.Fatalf("message = %q", msg)
+	}
+	if l := a.jobLimits(); len(l) != 1 {
+		t.Fatalf("limits sent = %v", l)
+	}
+}
+
+// The provider fails the retry: its own code and words, the row marked retried with the tokens of both requests.
+func TestARetryTheProviderFailsSaysWhatTheProviderSaid(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.cutNext(1)
+	a.fake.setOnCall(func() { // runs under the fake's lock: the second job request fails
+		n := 0
+		for _, r := range a.fake.reqs {
+			if r.Schema != nil && r.Schema.Name != "probe" {
+				n++
+			}
+		}
+		if n == 2 {
+			a.fake.fail["Claude"] = &provider.Error{Kind: provider.ErrServer, Status: 529, Message: "Overloaded"}
+		}
+	})
+	m := a.explain("CVE-2022-27593", 502, "provider_error")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "Claude: provider server error (HTTP 529): Overloaded") || strings.Contains(msg, "cut off") {
+		t.Fatalf("message = %q", msg)
+	}
+	last := lastOf(a.activity())
+	if !strings.Contains(last.Summary, "asking again with a higher limit failed") || !lastOf(a.retried()) || lastOf(a.stops()) != "max_tokens" || last.TokensOut != 6000 {
+		t.Fatalf("row = %+v", last.ActivityEntry)
 	}
 }

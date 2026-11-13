@@ -64,7 +64,10 @@ type ActivityEntry struct {
 	Outcome string `json:"-"`
 	// Stop is the stop reason of the provider's last answer (provider.StopReason: end, max_tokens, tool_use, other; "" when no answer
 	// came), stored beside the row like Outcome and not hashed (migration 0008).
-	Stop       string         `json:"-"`
+	Stop string `json:"-"`
+	// Retried is set when the answer was cut at the output limit and a second request with a higher limit was sent (Router.retryCut),
+	// so a limit that is too small shows in the log; stored beside the row, not hashed (migration 0008).
+	Retried    bool           `json:"-"`
 	Model      string         `json:"model"`
 	Trigger    string         `json:"trigger"` // user:<email> or system:<what>
 	Hooks      []string       `json:"hooks"`   // names of hooks that acted

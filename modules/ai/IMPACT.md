@@ -14,7 +14,7 @@
 - **response** (`planError` ở `cmd/vedette/ai_plan.go`): chỉ `daily_cap` và "chưa dùng được" dừng vòng kế hoạch; mã mới khác chỉ lùi finding đó.
 - **reports** (`reportsAI.Summarize`): lỗi đi thẳng tới `POST /reports/*/ai-summary`.
 - **GUI**: trang chỉ hiện `message`; `docs/API_CONVENTIONS.md` §3.3 giữ các mã (`TestConnections_ErrorCodesAreCatalogued` đếm hàng mỗi mục). Trần mỗi việc nằm ở người gọi `RunJob` (`brief.go`, `explain.go`, `news.go`, `ask.go`, `logdigest.go`, `cmd/vedette/reports.go`, `cmd/vedette/ai_plan.go`); `MaxAnswerTokens` chặn lần hỏi lại. `estimateTokens` (giữ trần khi đang gọi) cộng trần này, nên trần lớn chỉ giữ chỗ lâu hơn, không tính tiền.
-- `ai_activity.stop` không vào hash: đổi nó không làm chuỗi cũ sai; bản xuất dữ liệu mang nó như `outcome` (`modules/core/export_policy.go`).
+- `ai_activity.stop` và `retried` không vào hash: đổi nó không làm chuỗi cũ sai; bản xuất dữ liệu mang nó như `outcome` (`modules/core/export_policy.go`).
 
 ## Modifying: `AskHook.step` / `notIDForms` (D-481, POST-7, INV-12a)
 - **GUI** `AssistantPage.tsx` đọc `hooks[].step`: chỉ `question` là "The AI was not asked", `answer` là "the answer was held back"; đổi giá trị = đổi `contract.ts` (`AskHookHit`), `api/openapi.json`, `core/api/oas`, mock.

@@ -154,9 +154,9 @@ func (s *Service) appendActivity(ctx context.Context, tx *sql.Tx, e ActivityEntr
 		b, _ := json.Marshal(sealed.Links)
 		links = string(b)
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO ai_activity (id, ts, job, profile, profile_id, outcome, stop, model, trigger, hooks, tools, input_hash, output_hash, summary, tokens_in, tokens_out, result, links, prev_hash, hash)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		sealed.ID, sealed.TS, sealed.Job, sealed.Profile, nullable(e.ProfileID), nullable(e.Outcome), nullable(e.Stop), sealed.Model, sealed.Trigger, string(hooks), string(tools), sealed.InputHash, sealed.OutputHash, sealed.Summary,
+	if _, err := tx.ExecContext(ctx, `INSERT INTO ai_activity (id, ts, job, profile, profile_id, outcome, stop, retried, model, trigger, hooks, tools, input_hash, output_hash, summary, tokens_in, tokens_out, result, links, prev_hash, hash)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		sealed.ID, sealed.TS, sealed.Job, sealed.Profile, nullable(e.ProfileID), nullable(e.Outcome), nullable(e.Stop), e.Retried, sealed.Model, sealed.Trigger, string(hooks), string(tools), sealed.InputHash, sealed.OutputHash, sealed.Summary,
 		sealed.TokensIn, sealed.TokensOut, string(sealed.Result), links, sealed.PrevHash, sealed.Hash); err != nil {
 		return ActivityEntry{}, fmt.Errorf("ai: write activity: %w", err)
 	}
@@ -323,7 +323,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		res.Response.Text = unfence(res.Response.Text)
 	}
 	entry.Profile, entry.ProfileID, entry.Model, entry.TokensIn, entry.TokensOut = res.Profile, res.ProfileID, res.Model, res.Response.Usage.InputTokens, res.Response.Usage.OutputTokens
-	entry.Stop = string(res.Response.Stop)
+	entry.Stop, entry.Retried = string(res.Response.Stop), retrySent(res)
 	entry.OutputHash = HashContent(res.Response.Text)
 	entry.Result = ResultOK
 	if res.Fallback {
@@ -479,6 +479,9 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		}
 		return err
 	}
+	if a, ok := failedRetry(res); ok {
+		return s.retryFailed(ctx, spec, entry, res, a)
+	}
 	var ue *UnavailableError
 	switch {
 	case errors.Is(err, errAskDeadline), errors.Is(err, ErrBadOutput) && spec.tools != nil:
@@ -537,6 +540,59 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		return s.unavailable(spec.Job, reasons)
 	}
 	return err
+}
+
+// retrySent reports whether a second request of a cut answer reached the provider (ai_activity.retried).
+func retrySent(res CallResult) bool {
+	for _, a := range res.Attempts {
+		if a.Retry && !a.Skipped {
+			return true
+		}
+	}
+	return false
+}
+
+// failedRetry returns the retry of a cut answer when it is the attempt that ended the call with an error.
+func failedRetry(res CallResult) (Attempt, bool) {
+	if n := len(res.Attempts); n > 0 && res.Attempts[n-1].Retry && res.Attempts[n-1].Err != nil {
+		return res.Attempts[n-1], true
+	}
+	return Attempt{}, false
+}
+
+// retryFailed records a call whose answer was cut at the output limit and whose second request, with a higher limit, could not be
+// made (a cap) or failed (the provider), and says that, with the cap's or the provider's own code rather than "cut off".
+func (s *Service) retryFailed(ctx context.Context, spec JobSpec, entry ActivityEntry, res CallResult, a Attempt) error {
+	entry.Profile, entry.ProfileID, entry.Model = a.Profile, a.ProfileID, a.Model
+	entry.TokensIn, entry.TokensOut = res.Response.Usage.InputTokens, res.Response.Usage.OutputTokens
+	entry.Stop, entry.Retried = string(provider.StopMaxTokens), !a.Skipped
+	cut := fmt.Sprintf("The AI's answer was cut off at the output limit (%s tokens)", number(spec.MaxTokens))
+	var out error
+	switch {
+	case errors.Is(a.Err, ErrCapped):
+		entry.Summary = "The answer was cut off at the output limit; today's token cap left no room to ask again."
+		out = apierr.New(http.StatusTooManyRequests, "daily_cap", fmt.Sprintf("%s, and today's %s token cap is used up, so it was not asked again. Raise the cap in Settings, AI assistant, or wait until tomorrow.", cut, number(s.snap.Load().cfg.DailyCap)))
+	case errors.Is(a.Err, ErrProfileCapped):
+		entry.Summary = "The answer was cut off at the output limit; the profile's own daily cap left no room to ask again."
+		out = apierr.New(http.StatusTooManyRequests, "daily_cap", fmt.Sprintf("%s, and the daily token cap of the profile %s is used up, so it was not asked again. Raise the profile's cap in Settings, AI assistant, or wait until tomorrow.", cut, a.Profile))
+	default:
+		entry.Summary = "The answer was cut off at the output limit, and asking again with a higher limit failed."
+		out = providerFailure(spec.Job, CallResult{Attempts: []Attempt{a}})
+	}
+	wctx, cancel := detached(ctx) // the first request was answered: its tokens are spent and the row is written
+	defer cancel()
+	if rerr := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
+		if _, err := s.appendActivity(wctx, tx, entry); err != nil {
+			return err
+		}
+		if res.Downgrade != nil {
+			return s.writeDowngrade(wctx, tx, spec.Actor, res.Downgrade)
+		}
+		return nil
+	}); rerr != nil {
+		return rerr
+	}
+	return out
 }
 
 // providerFailure is the error of a call whose requests reached a provider and got an error back, instead of "no profile could

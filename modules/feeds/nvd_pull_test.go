@@ -1,6 +1,8 @@
 package feeds
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"runtime"
@@ -297,4 +299,100 @@ func (e *env) fetchList(t *testing.T, id string) (status, line string) {
 	}
 	t.Fatalf("%s not listed", id)
 	return "", ""
+}
+
+// Review LOWs of #663 (W3-1, D-500).
+func TestNVDPull_ReviewLows(t *testing.T) {
+	t.Parallel()
+	t.Run("turning the feed off forgets the paused pull", func(t *testing.T) {
+		t.Parallel()
+		e, n := nvdEnv(t)
+		n.set(100, 503)
+		if err := e.svc.Fetch(t.Context(), "nvd-kev"); err != nil || e.svc.nvdState() == nil {
+			t.Fatalf("not paused: %v", err)
+		}
+		if c, b := e.put("nvd-kev", `{"enabled":false}`); c != 200 {
+			t.Fatalf("%d %v", c, b)
+		}
+		if e.svc.nvdState() != nil {
+			t.Fatal("the paused pull is kept on a feed that is off")
+		}
+		if _, line := e.fetchList(t, "nvd-kev"); strings.Contains(line, "version ranges from NVD") {
+			t.Fatalf("the row of a feed that is off still shows progress: %q", line)
+		}
+	})
+	t.Run("a panic in the pull does not leave it running", func(t *testing.T) {
+		t.Parallel()
+		e, _ := nvdEnv(t)
+		e.svc.wait = func(context.Context, time.Duration) error { panic("boom") } // after the first page
+		func() {
+			defer func() { _ = recover() }()
+			_ = e.svc.Fetch(t.Context(), "nvd-kev")
+		}()
+		if r := e.svc.nvdState(); r != nil && r.running {
+			t.Fatal("the run still says it is running")
+		}
+	})
+	t.Run("the CISA list does not make a paused NVD pull ask sooner", func(t *testing.T) {
+		t.Parallel()
+		e, n := nvdEnv(t)
+		o := newOrigin(t)
+		e.only("cisa-kev", "nvd-kev")
+		e.mirror("cisa-kev", o.url("/kev.json"))
+		o.body("/kev.json", `"v1"`, testFile(t, "kev.json"))
+		n.set(100, 503)
+		if err := e.svc.Fetch(t.Context(), "nvd-kev"); err != nil {
+			t.Fatal(err)
+		}
+		asked := n.count(100)
+		if err := e.svc.Fetch(t.Context(), "cisa-kev"); err != nil {
+			t.Fatal(err)
+		}
+		if n.count(100) != asked {
+			t.Fatalf("NVD asked again %d times before its wait ended", n.count(100)-asked)
+		}
+	})
+	t.Run("CVEs a full pull deletes are changed", func(t *testing.T) {
+		t.Parallel()
+		e := newEnv(t)
+		row := []AffectedRow{{CPE: "cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*", EndExcl: "2.0"}}
+		var changed []string
+		for _, got := range []map[string][]AffectedRow{{"CVE-2024-0001": row, "CVE-2024-0002": row}, {"CVE-2024-0001": row}} {
+			if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+				var err error
+				changed, _, err = applyAffected(t.Context(), tx, got, true, e.clock())
+				return err
+			}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if !slices.Equal(changed, []string{"CVE-2024-0002"}) {
+			t.Fatalf("changed = %v, want the deleted CVE", changed)
+		}
+	})
+}
+
+// Review LOW of #663: an update resumed long after its window ended starts again with a new window, so the next
+// update's one-day overlap leaves no gap.
+func TestNVDPull_StaleUpdateStartsAgain(t *testing.T) {
+	t.Parallel()
+	e, n := nvdEnv(t)
+	if err := e.svc.Fetch(t.Context(), "nvd-kev"); err != nil { // a full fill
+		t.Fatal(err)
+	}
+	e.setNow(e.clock().Add(25 * time.Hour))
+	n.set(100, 503)
+	if err := e.svc.Fetch(t.Context(), "nvd-kev"); err != nil {
+		t.Fatal(err)
+	}
+	r := e.svc.nvdState()
+	if r == nil || r.full {
+		t.Fatalf("no paused update: %+v", r)
+	}
+	to := r.to
+	e.setNow(e.clock().Add(13 * time.Hour))
+	_ = e.svc.Fetch(t.Context(), "nvd-kev")
+	if r := e.svc.nvdState(); r != nil && r.to.Equal(to) {
+		t.Fatal("the update went on with a window that ended 13 h ago")
+	}
 }

@@ -160,9 +160,11 @@ func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertRes
 
 // UpsertFromMatch matches the device's software against vulns and writes the result (INV-6, POST-1):
 // a new pair becomes a suspected finding with its "created" history row and a
-// findings.finding.created event; a pair that already exists, open or closed, is never created again
-// or reopened: it only gets last_seen refreshed and, if open, a stronger basis (product to version).
-// The matcher only adds, never removes.
+// findings.finding.created event; a pair that already exists is never created again: it gets last_seen
+// refreshed and, if open, a stronger basis (product to version, findings.finding.severity_raised when the
+// severity goes up). Nothing is deleted. Only Vedette's own D-530 decisions change a status: a suspected
+// finding the matcher proves not affected is closed, and one Vedette closed that matches again is reopened;
+// a person's closing is never reopened, and a person's reopen is never closed again.
 func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (UpsertResult, error) {
 	var since map[string]Have
 	if s.cfg.HaveSince != nil {
@@ -316,7 +318,7 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 		}
 		return out
 	}
-	out := MatchResult{New: keep(m.New), Existing: keep(m.Existing), NeedVersion: m.NeedVersion}
+	out := MatchResult{New: keep(m.New), Existing: keep(m.Existing), NeedVersion: m.NeedVersion, NotAffected: m.NotAffected}
 	taken := map[string]bool{}
 	for _, x := range append(append([]Match{}, out.New...), out.Existing...) {
 		taken[x.CVE] = true

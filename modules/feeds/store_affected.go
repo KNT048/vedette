@@ -3,6 +3,7 @@ package feeds
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -24,6 +25,22 @@ func applyAffected(ctx context.Context, tx *sql.Tx, got map[string][]AffectedRow
 			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_affected_keep (cve) VALUES (?)`, cve); err != nil {
 				return nil, 0, fmt.Errorf("feeds: affected: %w", err)
 			}
+		}
+		// the CVEs NVD no longer lists are news too: a device closed on their old ranges is matched again (review LOW of #663)
+		rows, err := tx.QueryContext(ctx, `SELECT cve FROM feeds_affected_cve WHERE cve NOT IN (SELECT cve FROM feeds_affected_keep)`)
+		if err != nil {
+			return nil, 0, fmt.Errorf("feeds: affected: %w", err)
+		}
+		for rows.Next() {
+			var cve string
+			if err := rows.Scan(&cve); err != nil {
+				_ = rows.Close()
+				return nil, 0, fmt.Errorf("feeds: affected: %w", err)
+			}
+			changed = append(changed, cve)
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return nil, 0, fmt.Errorf("feeds: affected: %w", err)
 		}
 		for _, q := range []string{
 			`DELETE FROM feeds_affected WHERE cve NOT IN (SELECT cve FROM feeds_affected_keep)`,

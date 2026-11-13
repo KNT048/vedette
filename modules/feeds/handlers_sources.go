@@ -93,6 +93,9 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 	if err != nil {
 		return nil, err
 	}
+	if row.ID == nvdFeedID && !row.Enabled {
+		h.s.dropNVDRun()
+	}
 	return convert[oas.FeedsPutFeedsSourcesIDOK](toFeedDTO(row))
 }
 

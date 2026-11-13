@@ -125,3 +125,15 @@ func TestRow_DeviceWithoutIPIsNamedNotByItsID(t *testing.T) {
 		t.Fatalf("asset = %+v, evidence = %q", row.Asset, row.Evidence.Summary)
 	}
 }
+
+// Review LOW of #663: the "I have this" scope keeps the matcher's proofs (D-530): a second row of the declared
+// device with a readable version outside the range still closes its finding.
+func TestHaveScope_KeepsNotAffected(t *testing.T) {
+	t.Parallel()
+	a := Asset{ID: "a-declared", Name: "QNAP", Software: nas("").Software}
+	proof := Match{CVE: "CVE-2022-27593", SoftwareID: "s-2"}
+	got := haveScope(a, nil, MatchResult{NotAffected: []Match{proof}}, map[string]Have{a.ID: {Key: "qnap|photo station", Since: t0}}, nil, t0)
+	if len(got.NotAffected) != 1 || got.NotAffected[0] != proof {
+		t.Fatalf("NotAffected = %+v", got.NotAffected)
+	}
+}

@@ -17,10 +17,14 @@ const (
 	// nvdPageTimeout bounds one request; nvdHeaderTimeout is how long NVD may take before it starts to answer.
 	nvdPageTimeout   = 3 * time.Minute
 	nvdHeaderTimeout = 2 * time.Minute
-	// nvdMaxRetryAfter caps a Retry-After NVD sends: a longer one ends the pull, which goes on at the next tick.
+	// nvdMaxRetryAfter caps a Retry-After NVD sends: a longer one is waited only this long before the page is tried
+	// again (or, when the pull's budget ends first, the pull pauses and goes on after that wait).
 	nvdMaxRetryAfter = 15 * time.Minute
 	// nvdResumeKeep: pages kept longer than this without a new page are dropped, and the next pull starts again.
 	nvdResumeKeep = 24 * time.Hour
+	// nvdIncrementalStale: an update (lastMod window) resumed later than this after its window ended starts again with
+	// a new window, so the next update, which asks from one day before this one finished, leaves no gap (review LOW).
+	nvdIncrementalStale = 12 * time.Hour
 )
 
 // nvdFeedID is the built-in feed of the NVD affected versions.
@@ -56,6 +60,15 @@ func (s *Service) nvdState() *nvdRun {
 	s.nvdMu.Lock()
 	defer s.nvdMu.Unlock()
 	return s.nvd
+}
+
+// dropNVDRun forgets the pages of an unfinished NVD pull: the feed was turned off, so its row stops saying how far
+// the pull got and when it goes on, and turning it on again starts a new pull (review LOW). A pull still running
+// finishes on its own; what it found is not written, since the feed is off (stale in pullOne).
+func (s *Service) dropNVDRun() {
+	s.nvdMu.Lock()
+	defer s.nvdMu.Unlock()
+	s.nvd = nil
 }
 
 // nvdResumeAt says when a paused pull of nvd-kev goes on (ok false: none is paused). RunPull uses it instead of the
@@ -224,8 +237,10 @@ func (s *Service) nvdPage(ctx context.Context, run *nvdRun, u string) (*Response
 func (s *Service) buildNVD(ctx context.Context, src sourceRow, p pullPlan) (pullPlan, error) {
 	now := s.now()
 	run := s.nvdState()
-	if run != nil && (run.url != src.URL || now.Sub(run.updated) > nvdResumeKeep) {
-		run = nil // the address changed, or the pages are too old to finish with
+	if run != nil && (run.url != src.URL || now.Sub(run.updated) > nvdResumeKeep || !run.full && now.Sub(run.to) > nvdIncrementalStale) {
+		// the address changed, the pages are too old to finish with, or an update asked up to a time so long ago that
+		// the next update's one-day overlap would leave a gap: start again
+		run = nil
 	}
 	if run == nil {
 		have, err := s.st.affectedCount(ctx)
@@ -242,11 +257,18 @@ func (s *Service) buildNVD(ctx context.Context, src sourceRow, p pullPlan) (pull
 	run.running, run.busy, s.nvd = true, "", run
 	s.nvdMu.Unlock()
 	pagesBefore := run.pages
+	locked := false
+	defer func() { // also after a panic: the row must not say "page N" until the next pull (review LOW)
+		if !locked {
+			s.nvdMu.Lock()
+		}
+		run.running = false
+		s.nvdMu.Unlock()
+	}()
 
 	err := s.nvdPages(ctx, run)
 	s.nvdMu.Lock()
-	defer s.nvdMu.Unlock()
-	run.running = false
+	locked = true
 	switch {
 	case err == nil:
 		s.nvd = nil

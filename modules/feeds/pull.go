@@ -642,6 +642,10 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error)
 			if dep == "first-epss" && e.Failures > 0 && !e.state().Due(s.now(), e.IntervalHours) {
 				continue
 			}
+			// a paused NVD pull keeps the wait NVD asked for (busy, Retry-After): the list does not make it ask sooner (review LOW)
+			if at, paused := s.nvdResumeAt(); dep == nvdFeedID && paused && s.now().Before(at) {
+				continue
+			}
 			_, _, more, err := s.pullOne(ctx, dep, "")
 			evs = append(evs, more...)
 			if err != nil && ctx.Err() != nil {

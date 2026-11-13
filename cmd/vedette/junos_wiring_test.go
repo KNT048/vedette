@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"slices"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // W1-32, D-510: the Juniper EX4200-48T of customer walk 1 is known only from LLDP (no IP, no software row). Its stated OS
@@ -38,26 +41,78 @@ func TestWiringLLDPJunosSwitchGetsItsFindings(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	var updates []inventory.AssetEvent // asset.updated as findings receives it
+	s.d.Bus.Subscribe(inventory.EventAssetUpdated, func(_ context.Context, e events.Event) error {
+		ev, _ := e.Data.(inventory.AssetEvent)
+		updates = append(updates, ev)
+		return nil
+	})
 	mac := "3c:8a:b0:9c:85:80"
-	var batch []observe.Observation
-	for f, v := range map[observe.Field]string{observe.MAC: mac, observe.Kind: "switch", observe.Model: "EX4200-48T", observe.OS: "JUNOS 15.1R7.9", observe.Vendor: "Juniper Networks"} {
-		batch = append(batch, observe.Observation{AssetHint: observe.AssetHint{MAC: mac}, Field: f, Value: v, Source: observe.Passive, Confidence: 0.5, SeenAt: now})
-	}
-	if err := s.d.Inventory.Record(ctx, batch); err != nil {
-		t.Fatal(err)
-	}
-	recs, err := s.d.Findings.List(ctx, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var cves []string
-	for _, r := range recs {
-		cves = append(cves, r.CVE)
-		if r.Basis != "version" {
-			t.Errorf("%s: basis %s", r.CVE, r.Basis)
+	record := func(src observe.Source, conf float64, fields map[observe.Field]string) {
+		t.Helper()
+		var batch []observe.Observation
+		for f, v := range fields {
+			batch = append(batch, observe.Observation{AssetHint: observe.AssetHint{MAC: mac}, Field: f, Value: v, Source: src, Confidence: conf, SeenAt: time.Now().UTC()})
+		}
+		if err := s.d.Inventory.Record(ctx, batch); err != nil {
+			t.Fatal(err)
 		}
 	}
-	if !slices.Equal(cves, []string{"CVE-2023-36845"}) {
-		t.Fatalf("findings of the LLDP switch: %v", cves)
+	cves := func() []string {
+		t.Helper()
+		recs, err := s.d.Findings.List(ctx, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, r := range recs {
+			out = append(out, r.CVE)
+			if r.Basis != "version" {
+				t.Errorf("%s: basis %s", r.CVE, r.Basis)
+			}
+		}
+		return out
+	}
+	// The usual LLDP order (review L5 of #703): the MAC and vendor first, the system description (model, OS) later.
+	record(observe.Passive, 0.6, map[observe.Field]string{observe.MAC: mac, observe.Vendor: "Juniper Networks", observe.Kind: "switch"})
+	if got := cves(); len(got) != 0 {
+		t.Fatalf("before the OS: %v", got)
+	}
+	record(observe.Passive, 0.5, map[observe.Field]string{observe.Model: "EX4200-48T", observe.OS: "JUNOS 15.1R7.9"})
+	if got := cves(); !slices.Equal(got, []string{"CVE-2023-36845"}) {
+		t.Fatalf("findings of the LLDP switch: %v", got)
+	}
+	if n := len(updates); n == 0 || !updates[n-1].Match {
+		t.Fatalf("the OS change is announced for matching: %+v", updates)
+	}
+	// nmap's guess wins the OS field (review M2): the switch's own statement still decides, nothing "no longer matches".
+	record(observe.Nmap, 0.9, map[observe.Field]string{observe.OS: "Juniper JUNOS 10.4R1.9 (EX4200 switch)"})
+	if got, n := cves(), s.count(`SELECT count(*) FROM fnd_finding_history WHERE action = 'no_longer_matches'`); !slices.Equal(got, []string{"CVE-2023-36845"}) || n != 0 {
+		t.Fatalf("after nmap: %v, %d no-longer-matches rows", got, n)
+	}
+	// A hostname is not what the matcher reads: no rematch (review L3).
+	updates = nil
+	record(observe.Passive, 0.5, map[observe.Field]string{observe.Hostname: "sw-core-01"})
+	if len(updates) != 1 || updates[0].Match {
+		t.Fatalf("hostname change: %+v", updates)
+	}
+}
+
+// Review L5 of #703: with findings off, an LLDP Junos switch gets no finding (the subscription honours the module switch).
+func TestWiringLLDPJunosSwitchFindingsOff(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	s.setModule("findings", false)
+	mac := "3c:8a:b0:9c:85:81"
+	var batch []observe.Observation
+	for f, v := range map[observe.Field]string{observe.MAC: mac, observe.Model: "EX4200-48T", observe.OS: "JUNOS 15.1R7.9"} {
+		batch = append(batch, observe.Observation{AssetHint: observe.AssetHint{MAC: mac}, Field: f, Value: v, Source: observe.Passive, Confidence: 0.5})
+	}
+	s.kev("CVE-2023-36845", "Juniper", "Junos OS")
+	if err := s.d.Inventory.Record(t.Context(), batch); err != nil {
+		t.Fatal(err)
+	}
+	if n := s.count(`SELECT count(*) FROM fnd_finding`); n != 0 {
+		t.Fatalf("findings off: %d findings", n)
 	}
 }

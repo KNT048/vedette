@@ -52,10 +52,13 @@ type Software struct {
 
 // Asset is what the matcher needs to know about a device.
 type Asset struct {
-	ID       string
-	Name     string // hostname, or the IP when there is none
-	OS       string // current operating system as inventory folds it ("Ubuntu 26.04.1 LTS", LLDP "JUNOS 15.1R7.9"); "" when unknown
-	Model    string // the model the device states ("EX4200-48T"); "" when unknown (D-510: Juniper series)
+	ID    string
+	Name  string // hostname, or the IP when there is none
+	OS    string // current operating system as inventory folds it ("Ubuntu 26.04.1 LTS", LLDP "JUNOS 15.1R7.9"); "" when unknown
+	Model string // the model the device states ("EX4200-48T"); "" when unknown (D-510: Juniper series)
+	// StatedOS is the OS the device states itself (LLDP or SNMP system description, "JUNOS 15.1R7.9"), even when another
+	// source's value won OS; "" when none (D-510: deviceSoftware reads it, never nmap's guess).
+	StatedOS string
 	Software []Software
 }
 
@@ -465,6 +468,9 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 	result := No
 	applicable, undecidable := false, false
 	var yes *VersionRange // the widest range the version is inside: the one that explains the finding and names its fix (D-488)
+	jv, isJ := junosParse(in.ver)
+	junosSeen := false // a Junos NVD row decided (junosEval): its exact rows say what a missing update means (D-510)
+	var jrows []junosVer
 	for _, af := range v.Affected {
 		c, err := ParseCPE(af.CPE)
 		if err != nil || c.Part.Kind == NA {
@@ -478,6 +484,12 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 			continue
 		}
 		applicable = true
+		if isJ && isJunos(c) {
+			junosSeen = true
+			if row, ok := junosRow(c, af.Range); ok {
+				jrows = append(jrows, row)
+			}
+		}
 		t, r := evalAffected(c, af.Range, in.ver, in.cpe, in.hasCPE)
 		if t != No && af.Range.IsZero() && everyVersion(c) {
 			every = true
@@ -524,8 +536,15 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 	if !applicable || undecidable && result == No {
 		return Unknown, VersionRange{}, every, proofNone
 	}
-	if _, jok := junosParse(in.ver); result == No && jok {
-		return No, VersionRange{}, every, proofRange // a Junos version the scheme reads (D-510)
+	if junosSeen && result == No { // NVD's Junos lists have gaps: a missing update is not a proof (review H1 of #703)
+		t, w, proved := junosListed(jv, jrows)
+		switch {
+		case t != No:
+			return t, w, every, proofNone
+		case proved:
+			return No, VersionRange{}, every, proofRange
+		}
+		return No, VersionRange{}, every, proofNone
 	}
 	if pv, ok := parseVersion(in.ver); result == No && ok && !isPlaceholder(in.ver) && pv.q.class >= 0 {
 		return No, VersionRange{}, every, proofRange // a pre-release ("2.0.0-rc1") near a bound proves nothing (review L5)

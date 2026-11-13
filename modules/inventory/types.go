@@ -61,6 +61,9 @@ const (
 type AssetEvent struct {
 	AssetID string `json:"asset_id"`
 	Notify  bool   `json:"notify,omitempty"`
+	// Match is set when what the findings matcher reads of the device besides its software changed (D-510): the folded OS,
+	// the model, or the OS the device states itself (MatchDevice.StatedOS). Only observations set it.
+	Match bool `json:"match,omitempty"`
 }
 
 // MatchEvent is the data of inventory.match.changed: the asset now matches an exploited CVE by product.

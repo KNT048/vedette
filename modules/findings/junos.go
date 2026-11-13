@@ -151,10 +151,10 @@ func junosEval(c CPE, r VersionRange, ver string) (t Tri, within VersionRange, o
 		return Unknown, r, true
 	}
 	rel, okR := c.Version.Literal()
-	if !okR {
-		return Unknown, r, true
+	if rel = strings.ToLower(rel); !okR || !junosRelRe.MatchString(rel) {
+		return Unknown, r, true // "15.1r7" is not how NVD writes a release: unreadable, not a No (review L1 of #703)
 	}
-	if !strings.EqualFold(rel, v.release()) {
+	if rel != v.release() {
 		return No, r, true // another release or train: "15.1x49" is not 15.1R7
 	}
 	exact := VersionRange{StartIncl: v.String(), EndIncl: v.String()}
@@ -165,20 +165,104 @@ func junosEval(c CPE, r VersionRange, ver string) (t Tri, within VersionRange, o
 		return No, r, true // "15.1:-" is the release with no update; a Junos version always has one
 	}
 	u, okU := c.Update.Literal()
+	u = strings.ToLower(u)
+	m := junosUpdRe.FindStringSubmatch(u)
 	switch {
-	case !okU:
+	case !okU || u == "":
 		return Unknown, r, true
-	case strings.EqualFold(u, v.update()):
+	case u[0] >= 'a' && u[0] <= 'z' && u[0] != v.updateLetter():
+		return No, r, true // another release type: "15.1:f", "15.1:a1" are not 15.1R7
+	case m == nil:
+		return Unknown, r, true // "r7.9", "r7-s1.2": unreadable
+	case m[2] == "" || m[1] == "d" && m[3] != "":
+		return Unknown, r, true // "f" with no number
+	case u == v.update():
 		return Yes, exact, true
 	}
-	return No, r, true // "r7-s5" is not "r7"
+	return No, r, true // "r7-s5" is not "r7"; junosListed decides what a missing update means
 }
 
-// deviceOSes turn the operating system a network device states about itself (the LLDP or SNMP system description the
-// sensors fold into the device's OS field: "JUNOS 15.1R7.9", "Junos OS 21.4R3-S5") into the product the exploited
-// list names, with its version (W1-32, D-510). Only a full Junos version is taken: nmap's OS guess ("Juniper Junos OS
-// 12.1 - 15.1") names a generation, not a release, and stays a guess (D-501). Junos OS Evolved ("22.4R3-EVO") is another
-// product and is left out.
+// junosRelRe and junosUpdRe are how NVD writes a Junos release ("15.1", "12.3x48") and update ("r7", "r7-s5", "f6",
+// "d105"); any other text in a Junos row is unreadable (review L1 of #703).
+var (
+	junosRelRe = regexp.MustCompile(`^\d{1,2}\.\d{1,2}(?:x\d{1,3})?$`)
+	junosUpdRe = regexp.MustCompile(`^([rfd])(\d{1,4})?(?:-s(\d{1,3}))?$`)
+)
+
+// updateLetter is the letter NVD's update of v starts with: r, f, or d for an X train.
+func (v junosVer) updateLetter() byte {
+	if v.train == 'x' {
+		return 'd'
+	}
+	return v.train
+}
+
+// junosRow is the Junos version an exact NVD row names ("junos:15.1:r7-s5" is 15.1R7-S5), when it is readable.
+func junosRow(c CPE, r VersionRange) (junosVer, bool) {
+	rel, okR := c.Version.Literal()
+	u, okU := c.Update.Literal()
+	if !r.IsZero() || !okR || !okU || !junosRelRe.MatchString(strings.ToLower(rel)) || !junosUpdRe.MatchString(strings.ToLower(u)) {
+		return junosVer{}, false
+	}
+	sep := ""
+	if strings.HasPrefix(strings.ToLower(u), "d") {
+		sep = "-"
+	}
+	return junosParse(rel + sep + u)
+}
+
+// junosCmp orders two versions of the same release and train.
+func junosCmp(a, b junosVer) int { return cmp.Or(cmp.Compare(a.n1, b.n1), cmp.Compare(a.n2, b.n2)) }
+
+// junosListed decides a Junos version that every applicable NVD row ruled out, from the exact rows NVD lists (review H1
+// of #703). NVD enumerates Junos updates one by one and leaves gaps: CVE-2020-1631 lists 15.1R7 to 15.1R7-S5 but not
+// 15.1R7-S6 (Juniper's fix is 15.1R7-S7), 12.3R12-S8 and -S11 but not -S9 and -S10, 17.3R1-S1 but not 17.3R1. So, for
+// the device's own release and train: between the first and the last listed update it is affected (Yes, the listed span
+// is the range); before the first it is Unknown; after the last it is no finding but no proof either (the list may stop
+// short of the fix). A release NVD does not list at all, between listed ones (21.3 among 21.2 and 21.4), is Unknown;
+// before every listed release (or with another train of its release listed) no finding, no proof. Only a version after
+// every release NVD lists is proved outside (proof true: D-530 may close a finding).
+func junosListed(v junosVer, rows []junosVer) (t Tri, within VersionRange, proof bool) {
+	var lo, hi *junosVer
+	earlier, later, otherTrain := false, false, false
+	for i := range rows {
+		r := &rows[i]
+		switch c := cmp.Or(cmp.Compare(v.major, r.major), cmp.Compare(v.minor, r.minor)); {
+		case c > 0:
+			earlier = true
+		case c < 0:
+			later = true
+		case r.train != v.train || r.xnum != v.xnum:
+			otherTrain = true
+		default:
+			if lo == nil || junosCmp(*r, *lo) < 0 {
+				lo = r
+			}
+			if hi == nil || junosCmp(*r, *hi) > 0 {
+				hi = r
+			}
+		}
+	}
+	switch {
+	case lo != nil && junosCmp(v, *lo) < 0:
+		return Unknown, VersionRange{}, false
+	case lo != nil && junosCmp(v, *hi) > 0:
+		return No, VersionRange{}, false
+	case lo != nil:
+		return Yes, VersionRange{StartIncl: lo.String(), EndIncl: hi.String()}, false
+	case earlier && later:
+		return Unknown, VersionRange{}, false
+	case later || otherTrain:
+		return No, VersionRange{}, false
+	}
+	return No, VersionRange{}, true
+}
+
+// deviceOSes turn the operating system a network device states about itself (Asset.StatedOS: the OS the LLDP or SNMP
+// system description gave, "JUNOS 15.1R7.9", "Junos OS 21.4R3-S5"; never nmap's) into the product the exploited list
+// names, with its version (W1-32, D-510). Only the whole value, a full Junos version: nmap's OS guess ("Juniper Junos OS
+// 12.1 - 15.1", "Juniper JUNOS 10.4R1.9 (EX4200 switch)") is a guess (D-501) and is not read even when it won the device's
+// OS field (review M2 of #703). Junos OS Evolved ("22.4R3-EVO") is another product and is left out.
 //
 // ponytail: Junos only; Cisco IOS ("15.2(4)M3" cannot be ordered: a flood of medium findings) and RouterOS are a row
 // each here with their real feed data.
@@ -187,7 +271,7 @@ var deviceOSes = []struct {
 	sw Software
 }{
 	{
-		regexp.MustCompile(`(?i)(?:^|[\s,(])junos(?:\s+os)?\s+(\d{1,2}\.\d{1,2}(?:[rf]\d{1,3}(?:-s\d{1,3})?|x\d{1,3}-d\d{1,4})(?:\.\d{1,4})?)(?:$|[\s,;)\]])`),
+		regexp.MustCompile(`(?i)^\s*junos(?:\s+os)?\s+(\d{1,2}\.\d{1,2}(?:[rf]\d{1,3}(?:-s\d{1,3})?|x\d{1,3}-d\d{1,4})(?:\.\d{1,4})?)\s*$`),
 		Software{Display: "Juniper Junos OS", Vendor: "Juniper", Product: "Junos OS", KevKeys: []string{"juniper|junos os"}},
 	},
 }
@@ -196,24 +280,35 @@ var deviceOSes = []struct {
 func osSoftwareID(assetID string) string { return "os:" + assetID }
 
 // deviceSoftware is the software the matcher reads for a device: its inventory rows and, when the device states a
-// network OS with its version (deviceOSes) and no row of it already carries that product's KEV key, one row for that OS.
-// A row a person, an agent or a scan recorded for the product wins over the device's own statement.
+// network OS with its version (deviceOSes), one row for that OS. A row a person, an agent or a scan recorded for that
+// product with a readable version wins over the device's statement (no OS row). A recorded row of the product without a
+// readable version, all of whose KEV keys are the OS row's, gives way to it: the device's own version decides instead of
+// "add the version" (review M3 of #703).
 func deviceSoftware(a Asset) []Software {
 	for _, d := range deviceOSes {
-		m := d.re.FindStringSubmatch(a.OS)
+		m := d.re.FindStringSubmatch(a.StatedOS)
 		if m == nil {
 			continue
 		}
+		out := make([]Software, 0, len(a.Software)+1)
 		for _, s := range a.Software {
+			keyed, covered := false, len(s.KevKeys) > 0
 			for _, k := range s.KevKeys {
-				if slices.Contains(d.sw.KevKeys, NormalizeKevKey(k)) {
-					return a.Software
-				}
+				in := slices.Contains(d.sw.KevKeys, NormalizeKevKey(k))
+				keyed, covered = keyed || in, covered && in
 			}
+			_, junos := junosParse(s.Version)
+			switch {
+			case keyed && (junos || versionKnown(s.Version)):
+				return a.Software
+			case covered:
+				continue
+			}
+			out = append(out, s)
 		}
 		sw := d.sw
 		sw.ID, sw.Version, sw.KevKeys = osSoftwareID(a.ID), m[1], slices.Clone(d.sw.KevKeys)
-		return append(slices.Clip(a.Software), sw)
+		return append(out, sw)
 	}
 	return a.Software
 }
@@ -222,15 +317,16 @@ func deviceSoftware(a Asset) []Software {
 // EX Series and SRX Series PHP External Variable Modification Vulnerability"). The model a device states ("EX4200-48T")
 // gives its series (D-510).
 var (
-	kevSeriesRe   = regexp.MustCompile(`\b(EX|SRX|MX|QFX|ACX|PTX|NFX) Series\b`)
+	kevSeriesRe   = regexp.MustCompile(`\b(vSRX|SRX|EX|MX|QFX|ACX|PTX|NFX)(\d*)\b`)
 	modelSeriesRe = regexp.MustCompile(`(?i)^(?:juniper\s+(?:networks\s+)?)?(v?srx|ex|mx|qfx|acx|ptx|nfx)(?:\d|-|\s|$)`)
 )
 
-// otherSeries reports whether a Juniper entry names only platform series (named) the device's model is not one of: an
-// SRX-only flaw on an EX4200 (D-510). An unknown model, an entry that names no series, or another vendor's entry never
-// rules anything out.
+// otherSeries reports whether a Juniper entry names platform series (named) and the device's model is none of them: an
+// SRX-only flaw on an EX4200 (D-510). Every series token of the name counts, in any list form ("SRX and EX Series", "MX
+// Series and EX9200 Series", review M1 of #703): the device is ruled out only when its own series appears nowhere in the
+// name. An unknown model, a name without "Series", or another vendor's entry never rules anything out.
 func otherSeries(model string, v Vuln) (named []string, out bool) {
-	if norm(v.Vendor) != "juniper" {
+	if norm(v.Vendor) != "juniper" || !strings.Contains(v.Name, "Series") {
 		return nil, false
 	}
 	m := modelSeriesRe.FindStringSubmatch(strings.TrimSpace(model))
@@ -239,10 +335,12 @@ func otherSeries(model string, v Vuln) (named []string, out bool) {
 	}
 	own := strings.TrimPrefix(strings.ToUpper(m[1]), "V") // vSRX is an SRX
 	for _, x := range kevSeriesRe.FindAllStringSubmatch(v.Name, -1) {
-		if x[1] == own {
+		if strings.TrimPrefix(x[1], "v") == own {
 			return nil, false
 		}
-		named = append(named, x[1]+" Series")
+		if n := x[0] + " Series"; !slices.Contains(named, n) {
+			named = append(named, n)
+		}
 	}
 	return named, len(named) > 0
 }

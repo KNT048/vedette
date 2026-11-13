@@ -15,7 +15,7 @@ import (
 //   - CVE-2023-36846: before 20.4, but CISA names "SRX Series" only: not on an EX.
 //   - CVE-2023-36851: rows from 21.2 on only, SRX: outside. CVE-2015-7755: ScreenOS, another product.
 func walk1EX4200() Asset {
-	return Asset{ID: "a-bjehktolua77qnpyk2vc6lbune", Name: "Juniper Networks EX4200-48T", OS: "JUNOS 15.1R7.9", Model: "EX4200-48T"}
+	return Asset{ID: "a-bjehktolua77qnpyk2vc6lbune", Name: "Juniper Networks EX4200-48T", OS: "JUNOS 15.1R7.9", StatedOS: "JUNOS 15.1R7.9", Model: "EX4200-48T"}
 }
 
 func matchedCVEs(ms []Match) []string {
@@ -74,7 +74,7 @@ func TestJunos_SeriesNamedByCISAFollowsTheModel(t *testing.T) {
 		{"ex2300-24t", "JUNOS 18.2R3.4", []string{"CVE-2020-1631", "CVE-2023-36844", "CVE-2023-36845", "CVE-2023-36847", "CVE-2025-21590"}},
 	} {
 		a := walk1EX4200()
-		a.Model, a.OS = tc.model, tc.os
+		a.Model, a.OS, a.StatedOS = tc.model, tc.os, tc.os
 		if got := matchedCVEs(MatchAsset(a, vulns, nil, t0).New); !slices.Equal(got, tc.want) {
 			t.Errorf("%q on %q: got %v, want %v", tc.model, tc.os, got, tc.want)
 		}
@@ -93,35 +93,46 @@ func TestJunos_VersionForms(t *testing.T) {
 	for _, tc := range []struct {
 		ver, cve string
 		want     Tri
+		proof    proofKind
 	}{
-		{"15.1R7.9", "CVE-2020-1631", Yes},     // build 9 of 15.1R7
-		{"15.1R7-S5", "CVE-2020-1631", Yes},    // listed
-		{"15.1R7-S7", "CVE-2020-1631", No},     // the fix
-		{"12.3X48-D100", "CVE-2020-1631", Yes}, // X train, listed as 12.3x48:d100
-		{"12.3X48-D105", "CVE-2020-1631", No},  // not listed
-		{"15.1X49-D90", "CVE-2020-1631", Yes},
-		{"15.1R7", "CVE-2020-1631", Yes},
-		{"21.4R3-S5", "CVE-2020-1631", No}, // a release NVD does not list
-		{"20.4R3-S9", "CVE-2020-1631", No},
-		{"15.1R7.9", "CVE-2023-36845", Yes},     // before 20.4
-		{"12.3X48-D105", "CVE-2023-36845", Yes}, // 12.3 is before 20.4
-		{"20.4R3-S9", "CVE-2023-36845", No},     // 20.4R3-S9 is the fix
-		{"20.4R3-S8", "CVE-2023-36845", Yes},
-		{"21.4R3-S5", "CVE-2023-36845", No}, // the fix of 21.4
-		{"21.4R3-S4.18", "CVE-2023-36845", Yes},
-		{"22.4R2-S1", "CVE-2023-36845", No},
-		{"23.4R1", "CVE-2023-36845", No},
-		{"20.4R3-EVO", "CVE-2023-36845", Unknown}, // Junos OS Evolved is not read the Junos way
+		{"15.1R7.9", "CVE-2020-1631", Yes, proofNone},  // build 9 of 15.1R7
+		{"15.1R7-S5", "CVE-2020-1631", Yes, proofNone}, // listed
+		{"15.1R7", "CVE-2020-1631", Yes, proofNone},
+		// Review H1 of #703: NVD's gaps. Updates between listed ones of the release are affected; before the first listed
+		// one, not known; after the last (15.1R7-S6, S7: Juniper's fix is S7), no finding but never "proved not affected".
+		{"12.3R12-S10", "CVE-2020-1631", Yes, proofNone},   // between S8 and S11
+		{"15.1R4-S3", "CVE-2020-1631", Yes, proofNone},     // between R4 and R4-S7
+		{"17.3R3-S5", "CVE-2020-1631", Yes, proofNone},     // between R3-S4 and R3-S7
+		{"17.3R1.10", "CVE-2020-1631", Unknown, proofNone}, // 17.3R1-S1 is the first listed 17.3
+		{"15.1R7-S6", "CVE-2020-1631", No, proofNone},
+		{"15.1R7-S7", "CVE-2020-1631", No, proofNone},
+		{"21.3R1", "CVE-2025-21590", Unknown, proofNone}, // a release NVD skips, between 21.2 and 21.4
+		{"22.1R3-S2", "CVE-2025-21590", Unknown, proofNone},
+		{"21.4R3-S5", "CVE-2020-1631", No, proofRange}, // after every release NVD lists (up to 20.1): proved
+		{"20.4R3-S9", "CVE-2020-1631", No, proofRange},
+		{"23.4R1", "CVE-2023-36845", No, proofRange},
+		{"15.1R7.9", "CVE-2023-36851", No, proofNone},     // before every listed release (21.2 on): no proof
+		{"12.3X48-D100", "CVE-2020-1631", Yes, proofNone}, // X train, listed as 12.3x48:d100
+		{"12.3X48-D105", "CVE-2020-1631", No, proofNone},  // after the last listed D100
+		{"15.1X49-D90", "CVE-2020-1631", Yes, proofNone},
+		{"15.1R7.9", "CVE-2023-36845", Yes, proofNone},     // before 20.4
+		{"12.3X48-D105", "CVE-2023-36845", Yes, proofNone}, // 12.3 is before 20.4
+		{"20.4R3-S8", "CVE-2023-36845", Yes, proofNone},
+		{"20.4R3-S9", "CVE-2023-36845", No, proofNone}, // the fix, after the last listed 20.4R3-S8
+		{"21.4R3-S4.18", "CVE-2023-36845", Yes, proofNone},
+		{"21.4R3-S5", "CVE-2023-36845", No, proofNone}, // the fix of 21.4
+		{"22.4R2-S1", "CVE-2023-36845", No, proofNone},
+		{"20.4R3-EVO", "CVE-2023-36845", Unknown, proofNone}, // Junos OS Evolved is not read the Junos way
 	} {
 		in := newSWInfo(Software{Vendor: "Juniper", Product: "Junos OS", Version: tc.ver}, "")
-		got, _, _, _ := decide(in, byCVE[tc.cve], false)
-		if got != tc.want {
-			t.Errorf("%s %s: %v, want %v", tc.ver, tc.cve, got, tc.want)
+		got, _, _, proof := decide(in, byCVE[tc.cve], false)
+		if got != tc.want || proof != tc.proof {
+			t.Errorf("%s %s: %v proof %d, want %v proof %d", tc.ver, tc.cve, got, proof, tc.want, tc.proof)
 		}
 	}
 }
 
-// The OS strings that give a Junos row, and those that do not (nmap's guess names a generation, D-501).
+// The stated OS strings that give a Junos row, and those that do not (nmap's names are guesses, D-501).
 func TestJunos_DeviceOSForms(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct{ os, ver string }{
@@ -129,14 +140,15 @@ func TestJunos_DeviceOSForms(t *testing.T) {
 		{"Junos OS 21.4R3-S5", "21.4R3-S5"},
 		{"JUNOS 12.3R12.4", "12.3R12.4"},
 		{"junos 12.3X48-D105", "12.3X48-D105"},
-		{"Juniper Networks, Inc. ex4200-48t Ethernet Switch, kernel JUNOS 15.1R7.9, Build date: 2019-08-30", "15.1R7.9"},
 		{"Juniper Junos OS 12.1 - 15.1", ""},
+		{"Juniper JUNOS 10.4R1.9 (EX4200 switch)", ""}, // review M2 of #703
+		{"Juniper Junos 12.1X44-D10.4", ""},
 		{"Junos OS Evolved 22.4R3-EVO", ""},
 		{"JUNOS 22.4R3-EVO", ""},
 		{"Cisco IOS 15.2(4)M3", ""},
 		{"", ""},
 	} {
-		sws := deviceSoftware(Asset{ID: "a", OS: tc.os})
+		sws := deviceSoftware(Asset{ID: "a", StatedOS: tc.os})
 		got := ""
 		if len(sws) == 1 {
 			got = sws[0].Version
@@ -145,8 +157,15 @@ func TestJunos_DeviceOSForms(t *testing.T) {
 			t.Errorf("%q: version %q, want %q", tc.os, got, tc.ver)
 		}
 	}
-	// A row a person (or a scan) recorded for Junos wins: the OS gives no second row.
-	a := Asset{ID: "a", OS: "JUNOS 15.1R7.9", Software: []Software{{ID: "s", Display: "Juniper Junos OS", Vendor: "Juniper", Product: "Junos OS", Version: "15.1R7", KevKeys: []string{"Juniper|Junos OS"}}}}
+	// nmap's guess won the OS field: the OS the device itself stated still decides; the folded OS alone gives nothing.
+	if sws := deviceSoftware(Asset{ID: "a", OS: "Juniper JUNOS 10.4R1.9 (EX4200 switch)", StatedOS: "JUNOS 15.1R7.9"}); len(sws) != 1 || sws[0].Version != "15.1R7.9" {
+		t.Fatalf("%+v", sws)
+	}
+	if sws := deviceSoftware(Asset{ID: "a", OS: "JUNOS 15.1R7.9"}); len(sws) != 0 {
+		t.Fatalf("only the device's own statement gives a row: %+v", sws)
+	}
+	// A row a person (or a scan) recorded for Junos with a version wins: the OS gives no second row.
+	a := Asset{ID: "a", StatedOS: "JUNOS 15.1R7.9", Software: []Software{{ID: "s", Display: "Juniper Junos OS", Vendor: "Juniper", Product: "Junos OS", Version: "15.1R7", KevKeys: []string{"Juniper|Junos OS"}}}}
 	if sws := deviceSoftware(a); len(sws) != 1 || sws[0].ID != "s" {
 		t.Fatalf("%+v", sws)
 	}
@@ -185,5 +204,86 @@ func TestJunos_OpenSRXOnlyFindingOnAnEXStaysOpenWithTheReason(t *testing.T) {
 	}
 	if f.Status != StatusSuspected || !slices.Equal(notes, []string{want}) {
 		t.Fatalf("status %s, notes %q", f.Status, notes)
+	}
+}
+
+// Review M3 of #703: a person picked "Juniper Junos OS" in the catalog and left the version empty. The version the switch
+// states decides (the five findings), not "add the version"; a row with other keys stays.
+func TestJunos_RecordedRowWithoutVersionGivesWayToTheStatedOne(t *testing.T) {
+	t.Parallel()
+	vulns := loadGolden(t, "testdata/kev-nvd-junos-n23.json")
+	a := walk1EX4200()
+	a.Software = []Software{
+		{ID: "s-manual", Display: "Juniper Junos OS", Vendor: "Juniper", Product: "Junos OS", KevKeys: []string{"juniper|junos os"}},
+		{ID: "s-other", Display: "Juniper ScreenOS", Vendor: "Juniper", Product: "ScreenOS", Version: "6.3.0r17", KevKeys: []string{"juniper|screenos"}},
+	}
+	r := MatchAsset(a, vulns, nil, t0)
+	if got := matchedCVEs(r.New); !slices.Equal(got, []string{"CVE-2015-7755", "CVE-2020-1631", "CVE-2023-36844", "CVE-2023-36845", "CVE-2023-36847", "CVE-2025-21590"}) || len(r.NeedVersion) != 0 {
+		t.Fatalf("new %v, need %+v", got, r.NeedVersion)
+	}
+}
+
+// Review M1 of #703: CISA's names list series in several forms; a device is ruled out only when its own series is in
+// none of them.
+func TestJunos_SeriesListForms(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, model string
+		out         bool
+	}{
+		{"Juniper Junos OS SRX and EX Series PHP External Variable Modification Vulnerability", "SRX300", false},
+		{"Juniper Junos OS SRX and EX Series PHP External Variable Modification Vulnerability", "SRX4600", false},
+		{"Juniper Junos OS SRX and EX Series PHP External Variable Modification Vulnerability", "vSRX", false},
+		{"Juniper Junos OS EX and SRX Series Missing Authentication", "EX4200-48T", false},
+		{"Juniper Junos OS EX and SRX Series Missing Authentication", "EX-4300", false},
+		{"Juniper Junos OS EX and SRX Series Missing Authentication", "EX9208", false},
+		{"Juniper Junos OS MX Series and EX9200 Series Denial of Service", "EX9208", false},
+		{"Juniper Junos OS MX Series and EX9200 Series Denial of Service", "SRX345", true},
+		{"Juniper Junos OS SRX Series Missing Authentication for Critical Function Vulnerability", "EX4200-48T", true},
+		{"Juniper Junos OS SRX Series Missing Authentication for Critical Function Vulnerability", "", false},
+		{"Juniper Junos OS Path Traversal Vulnerability", "EX4200-48T", false},
+	} {
+		if _, out := otherSeries(tc.model, Vuln{Vendor: "Juniper", Product: "Junos OS", Name: tc.name}); out != tc.out {
+			t.Errorf("%q on %q: out %v, want %v", tc.name, tc.model, out, tc.out)
+		}
+	}
+}
+
+// Review L1 of #703: a Junos row NVD writes in a form the scheme cannot read is Unknown, never a No; a row of another
+// release type ("15.1:f", "15.1:a1") is not 15.1R7.
+func TestJunos_UnreadableRows(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		cpe  string
+		want Tri
+	}{
+		{"cpe:2.3:o:juniper:junos:15.1r7:*:*:*:*:*:*:*", Unknown},
+		{"cpe:2.3:o:juniper:junos:15.1:r7.9:*:*:*:*:*:*", Unknown},
+		{"cpe:2.3:o:juniper:junos:15.1:r7-s1.2:*:*:*:*:*:*", Unknown},
+		{"cpe:2.3:o:juniper:junos:15.1:r:*:*:*:*:*:*", Unknown},
+		{"cpe:2.3:o:juniper:junos:15.1:f:*:*:*:*:*:*", No},
+		{"cpe:2.3:o:juniper:junos:15.1:a1:*:*:*:*:*:*", No},
+		{"cpe:2.3:o:juniper:junos:15.1:r7:*:*:*:*:*:*", Yes},
+	} {
+		c, err := ParseCPE(tc.cpe)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, _, ok := junosEval(c, VersionRange{}, "15.1R7.9"); !ok || got != tc.want {
+			t.Errorf("%s: %v, want %v", tc.cpe, got, tc.want)
+		}
+	}
+}
+
+// Review L2 of #703: the Junos proof rule is for Junos rows only. Another product's version that only reads like Junos
+// ("15.1F6") and is ruled out by a row pinned to another platform is no proof: the generic rule cannot read the version.
+func TestJunos_ProofRuleIsForJunosRowsOnly(t *testing.T) {
+	t.Parallel()
+	v := Vuln{CVE: "CVE-2026-0001", Vendor: "Acme", Product: "Router OS", Affected: []Affected{
+		{CPE: "cpe:2.3:o:acme:router_os:*:*:*:*:*:*:arm64:*", Range: VersionRange{EndExcl: "20.1"}},
+	}}
+	in := newSWInfo(Software{Vendor: "Acme", Product: "Router OS", Version: "15.1F6", CPE: "cpe:2.3:o:acme:router_os:15.1f6:*:*:*:*:*:x86:*"}, "")
+	if got, _, _, proof := decide(in, v, false); got != No || proof != proofNone {
+		t.Errorf("Acme 15.1F6 on x86: %v proof %d", got, proof)
 	}
 }

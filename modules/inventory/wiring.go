@@ -71,10 +71,13 @@ type MatchSoftware struct {
 
 // MatchDevice is a device with its software, for the matcher of findings.
 type MatchDevice struct {
-	ID       string
-	Name     string // DisplayName (D-471), else the id
-	OS       string // the current operating system ("Ubuntu 26.04.1 LTS", LLDP "JUNOS 15.1R7.9"), "" when unknown (D-500, D-510)
-	Model    string // the current model ("EX4200-48T"), "" when unknown (D-510: the Juniper series of a Junos flaw)
+	ID    string
+	Name  string // DisplayName (D-471), else the id
+	OS    string // the current operating system ("Ubuntu 26.04.1 LTS", LLDP "JUNOS 15.1R7.9"), "" when unknown (D-500, D-510)
+	Model string // the current model ("EX4200-48T"), "" when unknown (D-510: the Juniper series of a Junos flaw)
+	// StatedOS is the newest OS the device states itself (an LLDP or SNMP system description, source passive or snmp),
+	// even when nmap's guess won OS; "" when none (D-510, review M2 of #703).
+	StatedOS string
 	Software []MatchSoftware
 }
 
@@ -91,6 +94,9 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 		return MatchDevice{}, false, fmt.Errorf("inventory: read device OS: %w", err)
 	}
 	d.OS, d.Model = osName.String, model.String
+	if d.StatedOS, err = statedOS(ctx, q, id); err != nil {
+		return MatchDevice{}, false, err
+	}
 	rows, err := q.QueryContext(ctx, `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.version, ''), ifnull(s.cpe, ''), k.kev_key
 		FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id WHERE s.asset_id = ? ORDER BY s.display, s.id, k.kev_key`, id)
 	if err != nil {
@@ -117,6 +123,27 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 		return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
 	}
 	return d, true, nil
+}
+
+// statedOS is the newest OS observation of the device from its own statement (LLDP, SNMP: sources passive and snmp).
+func statedOS(ctx context.Context, q querier, id string) (string, error) {
+	var v string
+	err := q.QueryRowContext(ctx, `SELECT value FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source IN ('passive', 'snmp')
+		ORDER BY seen_at DESC, id DESC LIMIT 1`, id).Scan(&v)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("inventory: read the stated OS: %w", err)
+	}
+	return v, nil
+}
+
+// matchView is what the findings matcher reads of a device besides its software (D-510): folded OS, model, stated OS.
+func matchView(ctx context.Context, q querier, id string) (string, error) {
+	var osName, model sql.NullString
+	if err := q.QueryRowContext(ctx, `SELECT os, model FROM inv_asset WHERE id = ?`, id).Scan(&osName, &model); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("inventory: read device OS: %w", err)
+	}
+	stated, err := statedOS(ctx, q, id)
+	return osName.String + "\x00" + model.String + "\x00" + stated, err
 }
 
 // HasDevice reports whether the inventory has a device of one of these kinds whose vendor (the device's own

@@ -159,6 +159,7 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 		}
 		created := map[string]bool{}
 		touched := []string{}
+		before := map[string]string{} // what the findings matcher reads of each device (matchView), before the batch
 		for _, c := range clean {
 			if c.source != string(observe.Agent) {
 				about, err := aboutBox(ctx, tx, c)
@@ -181,6 +182,9 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 			}
 			if !slices.Contains(touched, id) {
 				touched = append(touched, id)
+				if before[id], err = matchView(ctx, tx, id); err != nil {
+					return err
+				}
 			}
 			if err := insertPruned(ctx, tx, id, c.field, c.value, c.source, c.conf, c.seenAt); err != nil {
 				return err
@@ -199,11 +203,16 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 			if err != nil {
 				return err
 			}
+			after, err := matchView(ctx, tx, id)
+			if err != nil {
+				return err
+			}
+			match := after != before[id] // D-510: findings matches the device again only when its OS or model changed
 			switch {
 			case created[id]:
-				o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify})
-			case changed:
-				o.add(EventAssetUpdated, AssetEvent{AssetID: id})
+				o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify, Match: match})
+			case changed || match:
+				o.add(EventAssetUpdated, AssetEvent{AssetID: id, Match: match})
 			}
 		}
 		return nil

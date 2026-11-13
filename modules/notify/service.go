@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -56,11 +55,14 @@ type Config struct {
 	// carry no link and say to open Vedette, and approval requests are refused (ErrApprovalUnavailable): a link that
 	// approves an action is a credential and must point at the real box.
 	BaseURL string
-	// BoxAddrs adds to the addresses of the network interfaces, which are always read: none of them is a valid webhook target.
-	// known=false means the box does not know its own addresses yet (vedette-host has not answered since the start): saving a
+	// BoxAddrs is the machine's addresses (vedette-host, the container's gateway): no webhook or SMTP server on Vedette's own ports
+	// there (D-446; the container's own interfaces are read by the channel package, never a target). known=false means the box does not know its own addresses yet (vedette-host has not answered since the start): saving a
 	// webhook is then 503 host_unreachable and no webhook connection is made (fail closed, #157). nil = only the interfaces,
 	// known (tests, a box without vedette-host).
 	BoxAddrs func() (addrs []netip.Addr, known bool)
+	// SelfAddrs lists more addresses that are Vedette itself (the honeypot's decoys): no webhook or SMTP server there on any port
+	// (D-446). nil: none.
+	SelfAddrs func() []netip.Addr
 	// HTTPClient is given to the Slack, Telegram and Zalo adapters (not to webhooks: their client always checks the
 	// address at connect time). nil = their own clients (no redirects, timeouts). Tests pass a fake. Its Timeout should be 0: the
 	// Telegram listener long-polls longer than any usual total timeout, so it clears Timeout on its own copy and gives every call a
@@ -167,27 +169,14 @@ func (s *Service) loc(ctx context.Context) *time.Location {
 	return time.FixedZone("ICT", 7*3600) // no tz database on the machine; Vietnam has no daylight saving
 }
 
-// boxAddrs lists the addresses of this box: its network interfaces (read at every call, so an address it gets later
-// counts) and Config.BoxAddrs. A webhook or an SMTP server may never be one of them. known is false while Config.BoxAddrs says so.
+// boxAddrs lists the machine's addresses (Config.BoxAddrs): a webhook or an SMTP server is never on Vedette's own ports there
+// (D-446). Loopback and core's own interfaces, Vedette itself on every port, are read by the channel package at every check.
+// known is false while Config.BoxAddrs says so.
 func (s *Service) boxAddrs() (out []netip.Addr, known bool) {
-	known = true
-	if s.cfg.BoxAddrs != nil {
-		var more []netip.Addr
-		more, known = s.cfg.BoxAddrs()
-		out = append(out, more...)
+	if s.cfg.BoxAddrs == nil {
+		return nil, true
 	}
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return out, known
-	}
-	for _, a := range addrs {
-		if p, ok := a.(*net.IPNet); ok {
-			if ip, ok := netip.AddrFromSlice(p.IP); ok {
-				out = append(out, ip.Unmap())
-			}
-		}
-	}
-	return out, known
+	return s.cfg.BoxAddrs()
 }
 
 // flush publishes the events of a committed transaction.

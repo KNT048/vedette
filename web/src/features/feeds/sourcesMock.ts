@@ -6,7 +6,7 @@ import { API, audit, body, fail, guard } from '@/mocks/http'
 import { collection, newId, nowIso } from '@/mocks/db'
 import { fmtNumber } from '@/lib/format'
 import { FeedInput as FeedInputSchema, FeedPatch as FeedPatchSchema, ParseTestInput } from './contract'
-import { BLOCKED_TEXT, blockedFeedHost, checkFeedUrl, defaultParser, FORMATS, PREVIEW_ROWS, sameFeedAddress } from './defaults'
+import { BLOCKED_TEXT, blockedFeedHost, OWN_TEXT, checkFeedUrl, defaultParser, FORMATS, PREVIEW_ROWS, sameFeedAddress } from './defaults'
 import { checkParser, ParserConfigError, parseFeed } from './parsers'
 import { sampleFor } from './samples'
 import type { Feed, FeedFormat, FeedStatus, FeedKind, ParseResult } from './types'
@@ -75,7 +75,7 @@ function checkInput(i: ReturnType<typeof FeedInputSchema.parse>, c: Config, self
   if (DEFS.some((d) => d.name.toLowerCase() === name.toLowerCase()) || c.custom.some((x) => x.id !== selfId && x.name.toLowerCase() === name.toLowerCase())) return fail(400, 'duplicate_name', 'A feed with this name already exists.')
   const u = checkFeedUrl(i.url)
   if (u !== 'ok') return fail(400, 'invalid_url', u === 'https' ? 'Use an https:// address (http:// is only allowed for internal addresses).' : 'Enter a full address such as https://example.com/feed.json.')
-  if (blockedFeedHost(i.url)) return fail(400, 'blocked_host', BLOCKED_TEXT) // D-420 (1): refused at save, as the pull would
+  if (blockedFeedHost(i.url)) return fail(400, 'blocked_host', blockedFeedHost(i.url) === 'own' ? OWN_TEXT : BLOCKED_TEXT) // D-420 (1), D-446: refused at save, as the pull would
   if (!FORMATS[i.kind].includes(i.parser.format)) return fail(400, 'invalid_format', `This format does not fit a ${i.kind === 'ioc' ? 'IOC' : 'vulnerability'} feed.`)
   const a = i.auth
   if (a.type === 'header' && !/^[A-Za-z0-9-]{1,80}$/.test(a.header_name ?? '')) return fail(400, 'invalid_auth', 'Enter a valid header name, for example X-Api-Key.')
@@ -116,7 +116,7 @@ export const sourceHandlers = [
     if (p.data.url !== undefined) {
       url = p.data.url.trim() === '' && def ? def.url : p.data.url.trim()
       if (checkFeedUrl(url) !== 'ok') return fail(400, 'invalid_url', 'Use an https:// address (http:// is only allowed for internal addresses).')
-      if (blockedFeedHost(url)) return fail(400, 'blocked_host', BLOCKED_TEXT)
+      if (blockedFeedHost(url)) return fail(400, 'blocked_host', blockedFeedHost(url) === 'own' ? OWN_TEXT : BLOCKED_TEXT)
     }
     const name = def?.name ?? cust!.name
     if (def) config.update((x) => ({ ...x, builtin: { ...x.builtin, [id]: { ...x.builtin[id]!, ...(p.data.enabled !== undefined && { enabled: p.data.enabled }), ...(p.data.interval_hours !== undefined && { interval_hours: p.data.interval_hours }), ...(url !== undefined && { url }) } } }))

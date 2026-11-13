@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -229,7 +230,8 @@ func TestSiemSaveValidation(t *testing.T) {
 		{"url empty", func(i *SiemInput) { i.Format, i.URL = "json", "" }, "bad_url"},
 		{"url loopback", func(i *SiemInput) { i.Format, i.URL, i.Secret = "json", "https://127.0.0.1/x", siemKey }, "blocked_host"},
 		{"url mapped loopback", func(i *SiemInput) { i.Format, i.URL, i.Secret = "json", "https://[::ffff:127.0.0.1]/x", siemKey }, "blocked_host"},
-		{"url nat64 of the box", func(i *SiemInput) { i.Format, i.URL, i.Secret = "json", "https://[64:ff9b::c0a8:a02]/x", siemKey }, "blocked_host"},
+		{"url nat64 of the box", func(i *SiemInput) { i.Format, i.URL, i.Secret = "json", "https://[64:ff9b::c0a8:a02]:8443/x", siemKey }, "blocked_host"},
+		{"the box, TLS syslog", func(i *SiemInput) { i.Host, i.Port, i.Proto = "192.168.10.2", 6514, "tls" }, "blocked_host"},
 		{"url 6to4 loopback", func(i *SiemInput) { i.Format, i.URL, i.Secret = "json", "https://[2002:7f00:1::]/x", siemKey }, "blocked_host"},
 		{"url localhost", func(i *SiemInput) { i.Format, i.URL, i.Secret = "json", "https://localhost/x", siemKey }, "blocked_host"},
 		{"url port", func(i *SiemInput) { i.Format, i.URL, i.Secret = "json", "https://siem.example.com:99999/x", siemKey }, "bad_url"},
@@ -244,10 +246,13 @@ func TestSiemSaveValidation(t *testing.T) {
 	if n := count(t, e.cfg, `SELECT count(*) FROM core_audit WHERE action = 'logs.siem_save'`); n != 0 {
 		t.Errorf("%d audit rows for refused saves", n)
 	}
-	// an internal address and a name are fine
-	for _, h := range []string{"192.168.10.50", "siem.example.com", "10.0.0.7"} {
+	// an internal address and a name are fine, and so is a SIEM on the machine at a port that is not Vedette's (D-446)
+	for _, h := range []string{"192.168.10.50", "siem.example.com", "10.0.0.7", "192.168.10.2"} {
 		in := ok
 		in.Host = h
+		if h == "192.168.10.2" {
+			in.Port = 1514
+		}
 		if _, err := e.svc.SetSiem(t.Context(), "a@x", in); err != nil {
 			t.Errorf("%s: %v", h, err)
 		}
@@ -262,18 +267,30 @@ func TestSiemForbiddenTable(t *testing.T) {
 		ip     string
 		denied bool
 	}{
-		{"127.0.0.1", true}, {"::1", true}, {"::ffff:127.0.0.1", true}, {"0.0.0.0", true}, {"::", true}, {"169.254.169.254", true}, {"fe80::1", true},
+		{"0.0.0.0", true}, {"::", true}, {"169.254.169.254", true}, {"fe80::1", true},
 		{"224.0.0.251", true}, {"ff02::1", true}, {"255.255.255.255", true}, {"100.100.100.200", true}, {"fd00:ec2::254", true}, {"fd20:ce::254", true}, {"192.0.0.192", true},
-		{"192.168.10.2", true}, {"::ffff:192.168.10.2", true}, {"fd00::2", true}, {"64:ff9b::c0a8:a02", true}, {"64:ff9b::7f00:1", true}, {"2002:c0a8:a02::1", true},
-		{"::7f00:1", true},
-		{"192.168.10.50", false}, {"10.1.2.3", false}, {"8.8.8.8", false}, {"2001:4860:4860::8888", false}, {"fd00::50", false},
+		{"192.168.10.50", false}, {"10.1.2.3", false}, {"8.8.8.8", false}, {"2001:4860:4860::8888", false}, {"fd00::50", false}, {"192.168.10.2", false},
 	} {
-		if got := siemForbidden(netip.MustParseAddr(c.ip), box, false); got != c.denied {
+		if got := siemForbidden(netip.MustParseAddr(c.ip)); got != c.denied {
 			t.Errorf("%s: forbidden=%v, want %v", c.ip, got, c.denied)
 		}
 	}
+	// D-446: Vedette itself: loopback on every port, the machine's addresses on Vedette's own ports, in every transition form
+	for _, c := range []struct {
+		ip   string
+		port uint16
+		own  bool
+	}{
+		{"127.0.0.1", 1514, true}, {"::1", 514, true}, {"::ffff:127.0.0.1", 80, true}, {"64:ff9b::7f00:1", 443, true}, {"::7f00:1", 9000, true},
+		{"192.168.10.2", 514, true}, {"::ffff:192.168.10.2", 6514, true}, {"fd00::2", 8443, true}, {"64:ff9b::c0a8:a02", 8444, true}, {"2002:c0a8:a02::1", 8765, true},
+		{"192.168.10.2", 1514, false}, {"fd00::2", 443, false}, {"192.168.10.50", 514, false},
+	} {
+		if got := siemOwn(netip.MustParseAddr(c.ip), c.port, box, nil, false); got != c.own {
+			t.Errorf("%s:%d: own=%v, want %v", c.ip, c.port, got, c.own)
+		}
+	}
 	// RFC 6052 /48: 64:ff9b:1:c0a8:a:200:: carries 192.168.10.2 (bytes 6,7,9,10 = c0 a8 0a 02)
-	if !siemForbidden(netip.MustParseAddr("64:ff9b:1:c0a8:0a:0200::"), box, false) {
+	if !siemOwn(netip.MustParseAddr("64:ff9b:1:c0a8:0a:0200::"), 514, box, nil, false) {
 		t.Error("the /48 NAT64 form of the box address is not refused")
 	}
 }
@@ -291,12 +308,12 @@ func TestSiemSendRefusesForbiddenAddressesOnTheSocket(t *testing.T) {
 	rec := []siemRecord{goldenRecord()}
 	for _, proto := range []string{"udp", "tcp", "tls"} {
 		_, err := e.svc.siemSend(t.Context(), siemRow{SiemView: SiemView{Format: "syslog", Host: "127.0.0.1", Port: udp.LocalAddr().(*net.UDPAddr).Port, Proto: proto}}, rec)
-		if !errors.Is(err, errSiemForbidden) {
+		if !errors.Is(err, errSiemOwn) {
 			t.Errorf("%s to loopback: %v", proto, err)
 		}
 	}
 	_, err := e.svc.siemSend(t.Context(), siemRow{SiemView: SiemView{Format: "json", URL: srv.URL}, key: secrets.NewValue(siemKey)}, rec)
-	if !errors.Is(err, errSiemForbidden) || hits != 0 {
+	if !errors.Is(err, errSiemOwn) || hits != 0 {
 		t.Errorf("webhook to loopback: %v, %d hits", err, hits)
 	}
 	// the box's addresses are not known: nothing is sent, not even to a public address
@@ -874,6 +891,24 @@ func TestSiemSaveInvalidatesInFlightRecords(t *testing.T) {
 		in.Secret = k
 		if _, err := e.svc.SetSiem(t.Context(), "a@x", in); code(err) != "bad_secret" {
 			t.Errorf("secret %q: %v", k[:16], err)
+		}
+	}
+}
+
+// D-446 review: an address of core's own container (here given as Config.SelfAddrs, as the decoys are) is refused on every port,
+// at save and on the socket, on a Vedette port and on another one alike.
+func TestD446_SiemSelfOnEveryPort(t *testing.T) {
+	e := newSiemEnv(t)
+	e.svc.allowLoopback = false
+	e.svc.cfg.BoxAddrs = func() ([]netip.Addr, bool) { return nil, true }
+	e.svc.cfg.SelfAddrs = func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("10.89.0.5")} }
+	for _, port := range []int{514, 1514} {
+		in := SiemInput{Enabled: true, Format: "syslog", Host: "10.89.0.5", Port: port, Proto: "udp", Events: []string{"findings"}}
+		if _, err := e.svc.SetSiem(t.Context(), "a@x", in); code(err) != "blocked_host" || !strings.Contains(err.Error(), "Vedette itself") {
+			t.Errorf("save on port %d: %v", port, err)
+		}
+		if err := e.svc.siemControl(false)("udp", net.JoinHostPort("10.89.0.5", strconv.Itoa(port)), nil); !errors.Is(err, errSiemOwn) {
+			t.Errorf("socket on port %d: %v", port, err)
 		}
 	}
 }

@@ -857,7 +857,7 @@ func TestBuiltinFeedsAreSeededOnFirstUse(t *testing.T) {
 	}
 }
 
-// D-420 (1), (2): an address the pull would refuse is refused when the feed is saved (create, edit, built-in mirror),
+// D-420 (1), (2), D-446: an address the pull would refuse is refused when the feed is saved (create, edit, built-in mirror),
 // with the pull's sentence; a name is not resolved (a public-looking name passes, the dialer judges it at pull); an
 // address another feed already pulls is refused and the message names that feed.
 func TestG10_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
@@ -868,29 +868,28 @@ func TestG10_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
 	withURL := func(name, u string) string {
 		return strings.Replace(strings.Replace(customBody, "https://threat-share.example.net/c2.csv", u, 1), "Partner C2 list", name, 1)
 	}
-	for _, u := range []string{
-		"https://localhost:8443/x", "http://LOCALHOST/x", "https://feeds.localhost/x", "https://127.0.0.1/list.txt", "http://127.5.5.5/x",
-		"https://[::1]:8443/x", "https://169.254.169.254/latest/meta-data", "https://[fe80::1]/x", "https://0.0.0.0/x",
-		"https://[::ffff:127.0.0.1]/x", "https://[64:ff9b::a9fe:a9fe]/x", "https://100.100.100.200/x",
-	} {
+	for _, u := range []string{"https://169.254.169.254/latest/meta-data", "https://[fe80::1]/x", "https://0.0.0.0/x", "https://[64:ff9b::a9fe:a9fe]/x", "https://100.100.100.200/x"} {
 		got, b, _ := e.do("POST", "/feeds/custom", "admin", withURL("Blocked", u))
-		if got != 400 || code(b) != "blocked_host" || !strings.HasPrefix(fmt.Sprint(b["error"].(map[string]any)["message"]), "Vedette does not pull feeds from itself") {
+		if got != 400 || code(b) != "blocked_host" || fmt.Sprint(b["error"].(map[string]any)["message"]) != blockedText {
 			t.Errorf("POST %s: %d %v, want 400 blocked_host", u, got, b)
 		}
 	}
-	// D-420 (7): an address of the box that is not loopback (what vedette-host reports, or the container's gateway: on a
-	// container-only install the machine Docker runs on, walk 3) says so in plain words
-	for _, u := range []string{"https://192.168.77.10:8443/x", "http://172.18.0.1:18070/ioc.json"} {
+	// D-446: Vedette itself (loopback on any port; Vedette's own ports on the machine's addresses: what vedette-host reports, the
+	// container's gateway) has one sentence
+	for _, u := range []string{
+		"https://localhost:8443/x", "http://LOCALHOST/x", "https://feeds.localhost/x", "https://127.0.0.1/list.txt", "http://127.5.5.5/x",
+		"https://[::1]:8443/x", "https://[::ffff:127.0.0.1]/x", "https://192.168.77.10:8443/x", "http://172.18.0.1:514/ioc.json",
+	} {
 		got, b, _ := e.do("POST", "/feeds/custom", "admin", withURL("Own", u))
-		if got != 400 || code(b) != "blocked_host" || !strings.HasPrefix(fmt.Sprint(b["error"].(map[string]any)["message"]), "This address is the machine Vedette runs on") {
-			t.Errorf("POST %s: %d %v, want 400 blocked_host naming the machine", u, got, b)
+		if got != 400 || code(b) != "blocked_host" || fmt.Sprint(b["error"].(map[string]any)["message"]) != ownText {
+			t.Errorf("POST %s: %d %v, want 400 blocked_host naming Vedette itself", u, got, b)
 		}
 	}
 	if got, b, _ := e.do("PUT", "/feeds/sources/ipsum", "admin", `{"url":"https://169.254.169.254/ipsum.txt"}`); got != 400 || code(b) != "blocked_host" {
 		t.Errorf("mirror at metadata: %d %v", got, b)
 	}
 	// a public https address, a LAN feed that is not the box, and a name (not resolved) are accepted
-	for i, u := range []string{"https://203.0.114.9/c2.csv", "http://192.168.77.20/misp.txt", "https://misp.corp.example.org/x"} {
+	for i, u := range []string{"https://203.0.114.9/c2.csv", "http://192.168.77.20/misp.txt", "https://misp.corp.example.org/x", "http://172.18.0.1:18070/ioc.json", "http://192.168.77.10:18070/ioc.txt"} {
 		if got, b, _ := e.do("POST", "/feeds/custom", "admin", withURL(fmt.Sprintf("Fine %d", i), u)); got != 201 {
 			t.Errorf("POST %s: %d %v, want 201", u, got, b)
 		}
@@ -920,7 +919,7 @@ func TestG10_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
 	if got, b, _ := e.do("PUT", "/feeds/custom/"+id, "admin", withURL("Fine 1", "https://203.0.114.9/c2.csv")); got != 400 || code(b) != "duplicate_url" {
 		t.Errorf("edit onto Fine 0: %d %v", got, b)
 	}
-	if got, b, _ := e.do("PUT", "/feeds/custom/"+id, "admin", withURL("Fine 1", "http://192.168.77.10/x")); got != 400 || code(b) != "blocked_host" {
+	if got, b, _ := e.do("PUT", "/feeds/custom/"+id, "admin", withURL("Fine 1", "http://192.168.77.10:8444/x")); got != 400 || code(b) != "blocked_host" {
 		t.Errorf("edit onto the box: %d %v", got, b)
 	}
 }

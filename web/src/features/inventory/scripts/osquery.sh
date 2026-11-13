@@ -7,7 +7,7 @@
 #      checks the SHA-256 of the package, installs it with dpkg or rpm
 #   3. writes the enroll secret (mode 600) and /etc/osquery/osquery.flags; with a token this machine does not hold yet, it first removes
 #      osquery's database (/var/osquery/osquery.db: the old node key and unsent results) so that the machine enrols under the new token
-#   4. enables and starts the osqueryd service, then waits until this machine has enrolled (not for its first report, due within about an hour) and exits 0
+#   4. enables and starts the osqueryd service, then waits until this machine has enrolled (not for its first report, due within a few minutes) and exits 0
 set -eu
 BOX='@@BOX@@'
 OSQ_VERSION='@@VERSION@@'
@@ -95,6 +95,7 @@ cat > "$DIR/osquery.flags" <<FLAGS
 --tls_hostname=$HOSTPORT
 --enroll_tls_endpoint=/api/v1/intake/osquery/enroll
 --config_tls_endpoint=/api/v1/intake/osquery/config
+--config_refresh=300
 --logger_tls_endpoint=/api/v1/intake/osquery/log
 FLAGS
 # status answers for THIS machine: sent its name (the host_identifier set above), it returns host_last_seen, when
@@ -111,7 +112,7 @@ i=0
 while [ $i -lt 24 ]; do
   NOW=$(vstatus | seen_of)
   if [ -n "$HOSTID" ] && [ -n "$NOW" ] && [ "$NOW" != "$BASE" ] && systemctl is-active --quiet osqueryd; then
-    echo "Installed and enrolled; the first report arrives within about an hour."; exit 0
+    echo "Installed and enrolled; this machine's operating system and packages appear in Vedette within a few minutes."; exit 0
   fi
   i=$((i+1)); sleep 5
 done

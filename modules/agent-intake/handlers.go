@@ -82,8 +82,9 @@ func (h *IntakeHandlers) InventoryPostIntakeOsqueryConfig(ctx context.Context, r
 		return nil, err
 	}
 	key, ok := parseConfig(req)
+	var out *oas.InventoryPostIntakeOsqueryConfigOK
 	if ok {
-		err = h.s.Config(ctx, src, key)
+		out, err = h.s.Config(ctx, src, key)
 	} else {
 		err = h.s.reject(ctx, "config", src)
 	}
@@ -93,7 +94,7 @@ func (h *IntakeHandlers) InventoryPostIntakeOsqueryConfig(ctx context.Context, r
 	case err != nil:
 		return nil, err
 	}
-	return configResponse(), nil
+	return out, nil
 }
 
 // InventoryPostIntakeOsqueryLog implements POST /intake/osquery/log.

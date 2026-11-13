@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/conn"
@@ -38,13 +39,14 @@ const (
 	systemActor       = "system"
 )
 
-// Config is what New needs. DB, Audit, Sink and Software are required. Secrets and Conn are the Wazuh pull's (slice 4): without both,
-// its routes answer 501 and its job does nothing.
+// Config is what New needs. DB, Audit, Sink, Software and Approver are required. Secrets and Conn are the Wazuh pull's (slice 4):
+// without both, its routes answer 501 and its job does nothing.
 type Config struct {
 	DB       *store.DB
 	Audit    *audit.Log
 	Sink     observe.Sink         // the inventory: device observations (core/observe)
 	Software observe.SoftwareSink // the inventory: the software list of a device
+	Approver observe.Approver     // the inventory: the enrolment approves the device a node reports on (D-503)
 	Secrets  *secrets.Store       // the Wazuh password (purpose intake_wazuh.password)
 	Conn     *conn.Service        // the HTTPS client and address policy of D-94 for the Wazuh server (D-305)
 	Clock    func() time.Time
@@ -85,8 +87,8 @@ type Service struct {
 
 // New returns the service.
 func New(cfg Config) (*Service, error) {
-	if cfg.DB == nil || cfg.Audit == nil || cfg.Sink == nil || cfg.Software == nil {
-		return nil, errors.New("agentintake: New needs DB, Audit, Sink and Software")
+	if cfg.DB == nil || cfg.Audit == nil || cfg.Sink == nil || cfg.Software == nil || cfg.Approver == nil {
+		return nil, errors.New("agentintake: New needs DB, Audit, Sink, Software and Approver")
 	}
 	if cfg.Clock == nil {
 		cfg.Clock = time.Now
@@ -302,17 +304,21 @@ func (s *Service) logReject(ctx context.Context, op string, src netip.Addr, reas
 type nodeRow struct {
 	id, tokenID string
 	lastSeen    time.Time
+	enrolledAt  time.Time
 	boundIP     netip.Addr
 	boundMAC    string
+	reported    string // the answers of the first report the inventory took (schedule.go firstReport), comma-separated
+	approved    bool   // the enrolment's approval was done (D-503)
 }
 
 // nodeByKey finds the node whose key hashes to the hash of key; errNodeInvalid when there is none.
 func (s *Service) nodeByKey(ctx context.Context, key string) (nodeRow, error) {
 	want := hashHex(key)
 	var n nodeRow
-	var got, seen string
+	var got, seen, enrolled string
 	var ip, mac sql.NullString
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT id, token_id, node_key_hash, last_seen, bound_ip, bound_mac FROM intake_osquery_nodes WHERE node_key_hash = ?`, want).Scan(&n.id, &n.tokenID, &got, &seen, &ip, &mac)
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT id, token_id, node_key_hash, last_seen, enrolled_at, bound_ip, bound_mac, reported, approved_at IS NOT NULL
+		FROM intake_osquery_nodes WHERE node_key_hash = ?`, want).Scan(&n.id, &n.tokenID, &got, &seen, &enrolled, &ip, &mac, &n.reported, &n.approved)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nodeRow{}, errNodeInvalid
 	}
@@ -323,6 +329,7 @@ func (s *Service) nodeByKey(ctx context.Context, key string) (nodeRow, error) {
 		return nodeRow{}, errNodeInvalid
 	}
 	n.lastSeen, _ = time.Parse(time.RFC3339Nano, seen)
+	n.enrolledAt, _ = time.Parse(time.RFC3339Nano, enrolled)
 	if ip.Valid {
 		n.boundIP, _ = netip.ParseAddr(ip.String)
 		n.boundMAC = mac.String
@@ -351,15 +358,19 @@ func (s *Service) authNode(ctx context.Context, op string, src netip.Addr, key s
 	return n, nil
 }
 
-// Config answers a config request: errNodeInvalid for an unknown key, nil for a node that may have its schedule.
-func (s *Service) Config(ctx context.Context, src netip.Addr, nodeKey string) error {
+// Config answers a config request: errNodeInvalid for an unknown key, else the schedule of this node (schedule.go nodeSchedule: a node
+// in its first hour asks every minute for the answers of its first report the inventory has not taken yet, D-503).
+func (s *Service) Config(ctx context.Context, src netip.Addr, nodeKey string) (*oas.InventoryPostIntakeOsqueryConfigOK, error) {
 	n, err := s.authNode(ctx, "config", src, nodeKey, "config", configPerMin)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	// osquery fetches its config about once per start: write last_seen at most every configTouch so that a restart (the installer's) is seen
-	// within the installer's wait, not up to a minute later (the log path keeps touchEvery).
-	return s.touch(ctx, n, configTouch)
+	// osquery fetches its config at start and every config_refresh (the installer sets 300 s): write last_seen at most every configTouch so
+	// that a restart (the installer's) is seen within the installer's wait, not up to a minute later (the log path keeps touchEvery).
+	if err := s.touch(ctx, n, configTouch); err != nil {
+		return nil, err
+	}
+	return configResponse(nodeSchedule(n, s.now())), nil
 }
 
 // touch records that the node called, at most once per every.

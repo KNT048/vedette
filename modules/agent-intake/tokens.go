@@ -76,8 +76,9 @@ func (s *Service) IssueToken(ctx context.Context, actor, name string, ttlDays in
 		if !t.ExpiresAt.IsZero() {
 			exp = store.FormatTS(t.ExpiresAt)
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO intake_agent_tokens (id, name, kind, token_hash, last4, created_at, expires_at) VALUES (?, ?, 'osquery', ?, ?, ?, ?)`,
-			t.ID, t.Name, hashHex(secret), t.Last4, store.FormatTS(now), exp); err != nil {
+		// created_by: the enrolment approves its machines in this person's name (D-503).
+		if _, err := tx.ExecContext(ctx, `INSERT INTO intake_agent_tokens (id, name, kind, token_hash, last4, created_at, expires_at, created_by) VALUES (?, ?, 'osquery', ?, ?, ?, ?, NULLIF(substr(?, 1, 256), ''))`,
+			t.ID, t.Name, hashHex(secret), t.Last4, store.FormatTS(now), exp, actor); err != nil {
 			return fmt.Errorf("agentintake: insert token: %w", err)
 		}
 		return s.auditTx(ctx, tx, actor, "inventory.agent_token_create", t.Name, "last4 "+t.Last4) // the name and the last four only, never the secret

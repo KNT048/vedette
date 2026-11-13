@@ -5,32 +5,34 @@ import { Check, Plus, Trash2 } from 'lucide-react'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
-import { Field, Input, Select } from '@/components/ui/input'
+import { Field, Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { Segmented } from '@/components/ui/segmented'
 import type { ModuleId } from '@/lib/modules'
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import { saveInventoryScope, saveNotifyChannel, useSetupModules, useSetupStatus, useSubmitSetup } from './api'
+import { saveInventoryScope, useSetupModules, useSetupStatus, useSubmitSetup } from './api'
 import { BUNDLES, closure, without } from './bundles'
 import { errMsg } from './parts'
 import { EMAIL_RE, isBareIp, isPrivateCidr, MIN_PASSWORD, normaliseCidr } from './util'
-import type { BundleId, ChannelType, SetupPayload } from './types'
+import type { BundleId, SetupPayload } from './types'
 
-const STEPS = ['account', 'network', 'modules', 'channel'] as const
+// D-462: three steps. Alert channels need credentials the admin often lacks at install time: Settings → Alert channels, and Home reminds until one is on.
+const STEPS = ['account', 'network', 'modules'] as const
 type Step = (typeof STEPS)[number]
 
 interface State {
   org: string; name: string; email: string; password: string; again: string; code: string
   lan: string[]; commitment: boolean; notes: { to: string; text: string }[]
   bundle: BundleId; picked: Set<ModuleId>
-  chType: ChannelType; ch: Record<string, string>; chSecret: string
 }
+/** Server codes about the ranges (POST /core/setup): shown on the Network step. */
+const LAN_ERRORS = new Set(['invalid_lan', 'public_range', 'overlap_range'])
+const noRepeat = (e: React.MouseEvent) => { if (e.detail > 1) e.preventDefault() }
+
 const INIT: State = {
   org: '', name: '', email: '', password: '', again: '', code: '', lan: [''], commitment: false, notes: [],
-  bundle: 'smb', picked: new Set<ModuleId>(['core']), chType: 'telegram', ch: { port: '587', security: 'starttls' }, chSecret: '',
+  bundle: 'smb', picked: new Set<ModuleId>(['core']),
 }
-const CH_FIELDS: Record<ChannelType, string[]> = { telegram: ['chat_id'], zalo: ['oa_id', 'user_id'], email: ['host', 'port', 'username', 'from', 'to'] }
 
 export default function SetupPage() {
   const { t } = useTranslation('core')
@@ -46,7 +48,6 @@ export default function SetupPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [finished, setFinished] = useState(false)
-  const [setupDone, setSetupDone] = useState(false)
   const heading = useRef<HTMLHeadingElement>(null)
   const idx = STEPS.indexOf(step)
   useEffect(() => { heading.current?.focus() }, [step])
@@ -83,16 +84,6 @@ export default function SetupPage() {
       })
     }
     if (which === 'modules' && s.bundle === 'custom' && s.picked.size < 2) e.modules = t('setup.modules.customEmpty')
-    if (which === 'channel') {
-      const f = s.ch
-      if (s.chType === 'email') {
-        if (!EMAIL_RE.test((f.from ?? '').trim())) e.from = t('setup.channel.emailError')
-        const to = (f.to ?? '').split(',').map((x) => x.trim()).filter(Boolean)
-        if (!to.length || !to.every((x) => EMAIL_RE.test(x))) e.to = t('setup.channel.toError')
-      }
-      for (const k of CH_FIELDS[s.chType]) if (!(f[k] ?? '').trim() && !e[k]) e[k] = t('setup.channel.required')
-      if (!s.chSecret) e.secret = t('setup.channel.required')
-    }
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -111,42 +102,33 @@ export default function SetupPage() {
     setStep(STEPS[idx + 1] ?? step)
   }
 
-  async function finish(withChannel: boolean) {
-    if (withChannel && !validate('channel')) return
+  async function finish() {
+    if (!validate('modules')) return
     setFormError(null)
     setFinished(true)
-    if (!setupDone) {
-      const p: SetupPayload = {
-        org: s.org.trim(),
-        admin: { name: s.name.trim(), email: s.email.trim(), password: s.password },
-        lan: s.lan.map((x) => x.trim()).filter(Boolean),
-        commitment: s.commitment,
-        bundle: s.bundle,
-        modules: s.bundle === 'custom' ? [...s.picked] : undefined,
-        setup_code: s.code.trim(),
-      }
-      try { await submit.mutateAsync(p) } catch (err) {
-        setFinished(false)
-        // A wrong setup code belongs on the first step, next to its field.
-        if (err instanceof ApiError && err.code === 'invalid_setup_code') { setErrors({ code: errMsg(err, t) }); setStep('account'); return }
-        // So does a password the box refuses (D-389: too easy to guess), next to the password field.
-        if (err instanceof ApiError && err.code === 'weak_password') { setErrors({ password: errMsg(err, t) }); setStep('account'); return }
-        setFormError(errMsg(err, t)); return
-      }
-      setSetupDone(true)
-      // Đã đăng nhập bằng tài khoản quản trị: ghi phạm vi quét vào module kiểm kê (nơi lưu xác nhận phạm vi và người xác nhận).
-      try {
-        await saveInventoryScope(s.lan.map((x) => x.trim()).filter(Boolean), s.commitment)
-      } catch (err) { toast.error(t('setup.network.saveFailed', { message: errMsg(err, t) })) }
+    const p: SetupPayload = {
+      org: s.org.trim(),
+      admin: { name: s.name.trim(), email: s.email.trim(), password: s.password },
+      lan: s.lan.map((x) => x.trim()).filter(Boolean),
+      commitment: s.commitment,
+      bundle: s.bundle,
+      modules: s.bundle === 'custom' ? [...s.picked] : undefined,
+      setup_code: s.code.trim(),
     }
-    if (withChannel) {
-      const fields = Object.fromEntries(CH_FIELDS[s.chType].map((k) => [k, (s.ch[k] ?? '').trim()]))
-      if (s.chType === 'email') fields.security = s.ch.security ?? 'starttls'
-      try { await saveNotifyChannel(s.chType, fields, s.chSecret) } catch (err) {
-        setFormError(t('setup.channel.saveFailed', { message: errMsg(err, t) }))
-        return
-      }
+    try { await submit.mutateAsync(p) } catch (err) {
+      setFinished(false)
+      // A wrong setup code belongs on the first step, next to its field.
+      if (err instanceof ApiError && err.code === 'invalid_setup_code') { setErrors({ code: errMsg(err, t) }); setStep('account'); return }
+      // So does a password the box refuses (D-389: too easy to guess), next to the password field.
+      if (err instanceof ApiError && err.code === 'weak_password') { setErrors({ password: errMsg(err, t) }); setStep('account'); return }
+      // Ranges the box refuses belong on the Network step, under the list.
+      if (err instanceof ApiError && LAN_ERRORS.has(err.code)) { setErrors({ lanAll: errMsg(err, t) }); setStep('network'); return }
+      setFormError(errMsg(err, t)); return
     }
+    // Đã đăng nhập bằng tài khoản quản trị: ghi phạm vi quét vào module kiểm kê (nơi lưu xác nhận phạm vi và người xác nhận).
+    try {
+      await saveInventoryScope(s.lan.map((x) => x.trim()).filter(Boolean), s.commitment)
+    } catch (err) { toast.error(t('setup.network.saveFailed', { message: errMsg(err, t) })) }
     navigate('/', { replace: true })
   }
 
@@ -180,7 +162,7 @@ export default function SetupPage() {
         </section>
       ) : null}
       <section className="mt-6 rounded-md border border-rule bg-surface p-5" aria-labelledby="step-title">
-        <form noValidate onSubmit={(e) => { e.preventDefault(); if (step === 'channel') void finish(true); else next() }}>
+        <form noValidate onSubmit={(e) => { e.preventDefault(); if (step === 'modules') void finish(); else next() }}>
         <h2 id="step-title" ref={heading} tabIndex={-1} className="text-lg font-semibold outline-none">{t(`setup.${step}.title`)}</h2>
         <p className="mt-1 text-sm text-muted">{t(`setup.${step}.desc`)}</p>
 
@@ -233,18 +215,16 @@ export default function SetupPage() {
 
         {step === 'modules' ? <ModulesStep s={s} set={set} error={errors.modules} /> : null}
 
-        {step === 'channel' ? <ChannelStep s={s} set={set} errors={errors} /> : null}
-
         {formError ? <p role="alert" className="mt-4 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{formError}</p> : null}
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
-          <Button onClick={() => { setErrors({}); setStep(STEPS[idx - 1] ?? step) }} disabled={idx === 0 || submit.isPending}>{t('setup.back')}</Button>
-          {step === 'channel' ? (
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => void finish(false)} disabled={submit.isPending}>{setupDone ? t('setup.channel.skipDone') : t('setup.channel.skip')}</Button>
-              <Button type="submit" variant="primary" disabled={submit.isPending}>{t('setup.finish')}</Button>
-            </div>
-          ) : <Button type="submit" variant="primary">{t('setup.next')}</Button>}
+          <Button onClick={() => { setErrors({}); setStep(STEPS[idx - 1] ?? step) }} disabled={idx === 0 || finished}>{t('setup.back')}</Button>
+          {/* Different keys: Continue and Finish are separate buttons. A click that is the 2nd or 3rd of a double/triple click
+              (detail > 1, counted by the browser whichever button is under the pointer) never submits, so a double-click on
+              Continue cannot skip a step or finish setup with the default bundle. Keyboard submits have detail 0. */}
+          {step === 'modules'
+            ? <Button key="finish" type="submit" variant="primary" disabled={finished} onClick={noRepeat}>{t('setup.finish')}</Button>
+            : <Button key="next" type="submit" variant="primary" onClick={noRepeat}>{t('setup.next')}</Button>}
         </div>
         </form>
       </section>
@@ -294,30 +274,6 @@ function ModulesStep({ s, set, error }: { s: State; set: (p: Partial<State>) => 
         </fieldset>
       ) : null}
       {error ? <p role="alert" className="text-[13px] text-danger">{error}</p> : null}
-    </div>
-  )
-}
-
-function ChannelStep({ s, set, errors }: { s: State; set: (p: Partial<State>) => void; errors: Record<string, string> }) {
-  const { t } = useTranslation('core')
-  const f = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => set({ ch: { ...s.ch, [k]: e.target.value } })
-  return (
-    <div className="mt-4 grid gap-4">
-      <Segmented<ChannelType> label={t('setup.channel.type')} value={s.chType} onChange={(v) => set({ chType: v, chSecret: '' })} options={[{ value: 'telegram', label: 'Telegram' }, { value: 'zalo', label: 'Zalo OA' }, { value: 'email', label: 'Email' }]} />
-      {CH_FIELDS[s.chType].map((k) => (
-        <Field key={k} label={t(`setup.channel.field.${k}`)} htmlFor={`ch-${k}`} error={errors[k]}>
-          <Input id={`ch-${k}`} type={k === 'port' ? 'number' : 'text'} value={s.ch[k] ?? ''} aria-invalid={!!errors[k]} onChange={f(k)} />
-        </Field>
-      ))}
-      {s.chType === 'email' ? (
-        <Field label={t('setup.channel.field.security')} htmlFor="ch-security">
-          <Select id="ch-security" value={s.ch.security ?? 'starttls'} onChange={f('security')}><option value="starttls">STARTTLS</option><option value="ssl">SSL/TLS</option><option value="none">{t('setup.channel.noEncryption')}</option></Select>
-        </Field>
-      ) : null}
-      <Field label={t(`setup.channel.secret.${s.chType}`)} hint={t('setup.channel.secretHint')} htmlFor="ch-secret" error={errors.secret}>
-        <Input id="ch-secret" type="password" autoComplete="off" value={s.chSecret} aria-invalid={!!errors.secret} onChange={(e) => set({ chSecret: e.target.value })} />
-      </Field>
-      <p className="text-[13px] text-muted">{t('setup.channel.later')}</p>
     </div>
   )
 }

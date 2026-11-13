@@ -131,17 +131,16 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   await next(page)
   await page.getByRole('radio', { name: /Mid-size business/ }).click()
   await shot(page, 'real', 'setup-3')
-  await next(page)
-
-  // step 4: incomplete -> errors; skip
-  await expect(page.getByRole('heading', { level: 2, name: 'Where alerts go' })).toBeVisible()
+  // D-462: three steps; Modules is the last one and finishes setup, there is no Alerts step
+  await expect(page.getByRole('list', { name: 'Setup steps' }).getByRole('listitem')).toHaveCount(3)
   await page.getByRole('button', { name: 'Finish setup' }).click()
-  await expect(page.getByText('Fill this in.').first()).toBeVisible()
-  await shot(page, 'real', 'setup-4')
-  await page.getByRole('button', { name: 'Skip and finish' }).click()
   await expect(h1(page)).toBeVisible()
   await expect(page).toHaveURL(/\/$/) // finishing lands on Home, signed in as the new administrator
   await expect(h1(page)).toContainText('Today')
+  // a new box has no alert channel: Home says so and links to Settings, Alert channels (read from the real notify module)
+  await expect(page.getByText('No alert channel yet')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Set up an alert channel' })).toHaveAttribute('href', '/settings/channels')
+  await shot(page, 'real', 'setup-home-no-channel')
 
   // the scope reached the inventory module (the real one)
   const inv = await api<{ lan_ranges: string[]; active: { enabled: boolean } }>(page.request, 'GET', '/inventory/settings')

@@ -31,8 +31,7 @@ async function clean(page: Page, commit = false) {
   if (commit) await page.getByRole('checkbox', { name: /I confirm these ranges belong to my company/ }).check()
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('radio', { name: /Mid-size business/ }).click() // gói nhỏ không có module quét
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByRole('button', { name: /Skip and finish/ }).click()
+  await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(page).not.toHaveURL(/\/setup/)
 }
 async function patchDb(page: Page, patch: Record<string, unknown>) {

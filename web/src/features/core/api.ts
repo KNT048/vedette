@@ -186,9 +186,6 @@ export async function saveInventoryScope(lan: string[], scopeConfirmed: boolean)
   const cur = await api.get<Record<string, unknown>>('/inventory/settings')
   return api.put<{ scope_confirmed_at: string | null }>('/inventory/settings', { ...cur, lan_ranges: lan, active: { ...(cur.active as object), enabled: scopeConfirmed }, scope_confirmed: scopeConfirmed })
 }
-/** Module thông báo: PUT /notify/channels/:type, bật kênh với mức tối thiểu Trung bình. */
-export const saveNotifyChannel = (type: string, fields: Record<string, string>, secret: string) =>
-  api.put(`/notify/channels/${type}`, { enabled: true, fields, secret: secret || undefined, min_severity: 'medium' })
 
 // ---- khôi phục sao lưu trên hộp (S-CORE-1, D-377) ----
 export const useBoxBackups = () => useQuery({ queryKey: ['core', 'backups'], queryFn: () => api.get<BoxBackups>('/core/data/backups'), retry: false })

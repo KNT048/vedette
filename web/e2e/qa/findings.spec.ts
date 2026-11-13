@@ -30,8 +30,7 @@ async function clean(page: Page) {
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByLabel(/^Range 1/).fill('10.20.0.0/24')
   await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByRole('button', { name: /Skip and finish/ }).click()
+  await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(page).not.toHaveURL(/\/setup/)
 }
 /** Sửa thẳng kho mock trong trình duyệt (giả lập trạng thái hệ thống) rồi tải lại. */

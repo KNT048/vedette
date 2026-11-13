@@ -376,7 +376,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (92 mã)
+#### HTTP 409 (93 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|

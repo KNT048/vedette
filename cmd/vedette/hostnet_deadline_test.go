@@ -114,7 +114,7 @@ func TestNotifyBoxAddrsWaitsOnlyForTheFirstAnswer(t *testing.T) {
 				<-ctx.Done()
 				return nil, ctx.Err()
 			}
-			time.Sleep(50 * time.Millisecond) // the host's answer takes a moment
+			<-time.After(50 * time.Millisecond) // synctest time: the host's answer takes a moment
 			return []netip.Prefix{box}, nil
 		}, nil)
 		start := time.Now()
@@ -122,12 +122,12 @@ func TestNotifyBoxAddrsWaitsOnlyForTheFirstAnswer(t *testing.T) {
 			t.Fatalf("first BoxAddrs = %v known %v after %v: it must wait for the host's first answer", got, known, time.Since(start))
 		}
 		hang.Store(true)
-		time.Sleep(hostNetTTL + time.Second) // stale, and the host now hangs
+		<-time.After(hostNetTTL + time.Second) // stale, and the host now hangs
 		start = time.Now()
 		if got, known := notifyBoxAddrs(c)(); !known || len(got) != 1 || time.Since(start) != 0 {
 			t.Fatalf("known set: BoxAddrs = %v known %v after %v, it must not wait", got, known, time.Since(start))
 		}
-		time.Sleep(hostNetTimeout) // the background lookup on the hung host ends
+		<-time.After(hostNetTimeout) // the background lookup on the hung host ends
 	})
 	synctest.Test(t, func(t *testing.T) {
 		c := newHostNetCache(func(ctx context.Context) ([]netip.Prefix, error) { <-ctx.Done(); return nil, ctx.Err() }, nil)
@@ -135,7 +135,7 @@ func TestNotifyBoxAddrsWaitsOnlyForTheFirstAnswer(t *testing.T) {
 		if got, known := notifyBoxAddrs(c)(); len(got) != 0 || known || time.Since(start) != firstAnswerWait {
 			t.Fatalf("BoxAddrs = %v known %v after %v with a host that never answers: unknown after %v", got, known, time.Since(start), firstAnswerWait)
 		}
-		time.Sleep(hostNetTimeout)
+		<-time.After(hostNetTimeout)
 	})
 }
 

@@ -46,6 +46,7 @@ type updHost struct {
 	calls  []string
 	hold   map[string]bool         // "start core": the run stays running until release
 	refuse map[string]string       // "pull scan": the 412 code of the refusal
+	refMsg map[string]string       // "start core": the message of that refusal (default "refused by the fake")
 	once   map[string]string       // "start core": refused once with this code, then taken
 	args   map[string]string       // request id -> the arguments it was taken with (another set: 422, as the host)
 	pulled map[string][]string     // service -> the index of every container.pull sent for it
@@ -140,7 +141,11 @@ func (f *updHost) end(r *updRun, key string) {
 		if e.Code == api.CodeUnitFailed || e.Code == api.CodeSelfUpdateUnhealthy || e.Code == api.CodeInstallFailed {
 			r.run.Status = api.StatusReverted
 		}
-		r.run.Error = &api.RunError{Code: e.Code, Message: "fake"}
+		msg := e.Message
+		if msg == "" {
+			msg = "fake"
+		}
+		r.run.Error = &api.RunError{Code: e.Code, Message: msg}
 		return
 	}
 	r.run.Status = api.StatusSucceeded
@@ -166,9 +171,13 @@ func (f *updHost) take(cmd, short, svc, version, extra, args, rid, actor string)
 	if code := f.refuse[key]; code != "" { // like the host, a refusal is also a run in the list, under the call's key
 		f.seq++
 		now := f.now()
+		msg := f.refMsg[key]
+		if msg == "" {
+			msg = "refused by the fake"
+		}
 		f.runs = append([]*updRun{{run: api.Run{RunID: fmt.Sprintf("rn_%016x", f.seq), Command: cmd, Status: api.StatusRefused, StartedAt: now, FinishedAt: &now,
-			Actor: actor, RequestID: rid, Error: &api.RunError{Code: code, Message: "refused by the fake"}}, svc: svc, ver: version}}, f.runs...)
-		return api.Run{}, &hostclient.Error{Status: 412, Code: code, Message: "refused by the fake"}
+			Actor: actor, RequestID: rid, Error: &api.RunError{Code: code, Message: msg}}, svc: svc, ver: version}}, f.runs...)
+		return api.Run{}, &hostclient.Error{Status: 412, Code: code, Message: msg}
 	}
 	if code := f.once[key]; code != "" {
 		delete(f.once, key)
@@ -574,6 +583,34 @@ func TestUpdatePullRefusedEndsTheRunBeforeAnythingSwitches(t *testing.T) {
 	}
 	if hist := e.admin.get("/core/updates").JSON["history"].([]any); len(hist) != 0 {
 		t.Errorf("history of a failed run = %v", hist)
+	}
+}
+
+// A port the new unit publishes is taken (D-455): the run says which port and which program, from the host's message (D-412);
+// a message of another shape still gives a sentence that says what to do.
+func TestUpdatePortInUseNamesTheProgram(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ msg, want string }{
+		{"Port 8765/tcp (python3, pid 4242) is in use by another program on this machine. The new core unit publishes it, so core would not start. Stop that program or move it to another port, then try again. Nothing was changed.",
+			"Vedette could not switch to 1.4.0: port 8765/tcp (python3, pid 4242) is used by another program on the box. Stop that program or move it to another port, then try again."},
+		{"Ports 8765/tcp (python3, pid 4242), 6514/tcp are in use by another program on this machine. The new core unit publishes it, so core would not start.",
+			"Vedette could not switch to 1.4.0: ports 8765/tcp (python3, pid 4242), 6514/tcp are used by another program on the box. Stop that program"},
+		{"Port 8765/tcp (py\x1bthon, pid 1) is in use by another program on this machine.",
+			"Vedette could not switch to 1.4.0: a port it needs is used by another program on the box (the box log names it). Stop that program"},
+	} {
+		e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+		fh.ends["start core"] = api.RunError{Code: api.CodePortInUse, Message: tc.msg} // found by Run, right before the switch
+		wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+		if run := endedRun(t, e); run["status"] != "failed" || !strings.HasPrefix(run["error"].(string), tc.want) {
+			t.Errorf("%q: run = %v", tc.msg, run)
+		}
+		// the same words when Check refuses the call at once (412, no run)
+		e, fh = newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+		fh.refuse["start core"], fh.refMsg = api.CodePortInUse, map[string]string{"start core": tc.msg}
+		wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+		if run := endedRun(t, e); run["status"] != "failed" || !strings.HasPrefix(run["error"].(string), tc.want) {
+			t.Errorf("412 %q: run = %v", tc.msg, run)
+		}
 	}
 }
 

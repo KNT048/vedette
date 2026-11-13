@@ -95,7 +95,7 @@ These checks run on the **default passt network** (no cable):
 - WP-31 L7: Telegram, Zalo and email (Internet only).
 - WP-08: `install.sh` clean install, upgrade and rollback; `vedette-host -bootstrap`; Podman 4.9 Quadlet on noble (`feat-host-net-containers.md` 3-8a, a release blocker); cosign pulls from ghcr.io; health checks.
 - `os.install`/apt output, `os.OpenRoot` and the systemd unit checks (`feat-host-os-commands.md`, `feat-host-framework.md`).
-- `UserNS=auto` for the honeypot and the `/var/lib/vedette-honeypot/log` owner (`feat-host-deb.md`).
+- `UserNS=auto` for the honeypot and the owner of the `vedette-hp-log` volume (`feat-host-deb.md`; the old `/var/lib/vedette-honeypot/log` folder is no longer made, D-412).
 - Live nuclei recordings against a target inside the VM (`feat-sensor-nuclei.md`).
 
 Not covered here: arm64 needs a real arm64 box (`feat-multiarch-images.md`), and Ubuntu 26.04 runs on Mlee's box (D-198).

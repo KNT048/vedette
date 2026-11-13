@@ -207,10 +207,15 @@ func TestPostinst_LoadsTheAppArmorProfile(t *testing.T) {
 	if r := run(t, "0", "", "0", "ok"); r.ok {
 		t.Error("AppArmor on without apparmor_parser must stop the postinst")
 	}
-	// a deleted conffile (dpkg never restores it on upgrade): refused before the parser, with the command that brings it back
+	// a deleted conffile (dpkg never restores it on upgrade): refused before the parser, with the command that brings it back. No apt
+	// source has vedette-host, so the command reinstalls the package install.sh keeps (D-412); the RUNBOOK gives the same one.
+	restore := "dpkg -i --force-confmiss --force-confdef --force-confold /var/lib/vedette-host/selfupdate/packages/vedette-host_$(/usr/lib/vedette/vedette-host -version)_$(dpkg --print-architecture).deb"
 	if r := run(t, "0", "0", "0", "missing"); r.ok || strings.Contains(r.calls, "apparmor_parser") ||
-		!strings.Contains(r.out, "is missing") || !strings.Contains(r.out, "apt-get install --reinstall -o Dpkg::Options::=--force-confmiss vedette-host") {
+		!strings.Contains(r.out, "is missing") || !strings.Contains(r.out, restore) {
 		t.Errorf("a missing profile file: %+v", r)
+	}
+	if !strings.Contains(string(repoFile(t, "docs/RUNBOOK.md")), "`"+restore+"`") {
+		t.Error("docs/RUNBOOK.md 8.5 must give the same restore command as the postinst")
 	}
 	// an administrator's disable link (aa-disable), even a broken one: refused, never loaded anyway
 	for _, f := range []string{"disabled", "dangling"} {

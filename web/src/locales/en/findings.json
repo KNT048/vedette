@@ -163,7 +163,8 @@
     "step1": "Find which version of {{product}} {{device}} runs, and add it to the device on the Devices page so Vedette can compare it.",
     "step2Due": "If it is older than the fixed version in the advisory, update it by {{date}}.",
     "step2": "If it is older than the fixed version in the advisory, update it.",
-    "step3": "Then mark this finding as Patched. If the version is already fixed, mark it as False positive and write the version in the note.",
+    "step3": "Then press \"I updated\" at the top of this page and type the new version: Vedette checks it and closes every finding on {{device}} that version fixes. For software a scan reads, run a scan of {{device}} instead.",
+    "step3Mark": "Then mark this finding as Patched. If the version is already fixed, mark it as False positive and write the version in the note.",
     "theSoftware": "the software",
     "noKev": "This CVE is not on the CISA list this box holds, so there is no source information to show."
   },
@@ -264,5 +265,31 @@
     "chipUntil": "Until {{date}}",
     "rowUntil": "until {{date}}",
     "line": "Risk accepted until {{date}} by {{who}}."
+  },
+  "updated": {
+    "button": "I updated {{software}}",
+    "buttonScan": "I updated it",
+    "title": "I updated {{software}}",
+    "description": "Type the version {{device}} runs now. Vedette checks every finding of {{software}} against it: the ones this version fixes close by themselves, the others stay open.",
+    "version": "New version",
+    "current": "Vedette has {{version}}.",
+    "noCurrent": "Vedette has no version for it yet.",
+    "submit": "Save and check",
+    "checking": "Checking…",
+    "required": "Type the version it runs now, for example 7.4.5.",
+    "same": "Vedette already has {{version}}. Type the version it runs after the update.",
+    "bad_version": "\"{{version}}\" is not a version Vedette can store: use letters, digits, dots, hyphens and brackets, up to 40 characters, for example 7.4.5.",
+    "duplicate_software": "{{software}} {{version}} is already on {{device}}. Remove the older {{software}} on the device page instead.",
+    "not_manual": "Vedette reads this version from the device. Run a scan of {{device}} to check.",
+    "saved": "Version {{version}} saved.",
+    "closed_one": "1 finding on {{device}} no longer applies and was closed.",
+    "closed_other": "{{count}} findings on {{device}} no longer apply and were closed.",
+    "closedNone": "No finding on {{device}} closed.",
+    "still_one": "1 still matches this version.",
+    "still_other": "{{count}} still match this version.",
+    "stillNone": "None still match this version.",
+    "pending": "Vedette is checking the new version; this list updates in a moment.",
+    "scanned": "Vedette reads this version from the device. Run a scan of {{device}} to check.",
+    "scan": "Scan {{device}}"
   }
 }

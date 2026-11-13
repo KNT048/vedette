@@ -13,6 +13,8 @@ import { fmtDate, fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useApplied, useAskAi } from './api'
 import type { AiResult, ApplyItem, CodeStep, FindingDetail, FirewallGuide, FirewallVendor, KevInfo } from './types'
+import { isOpen } from './basis'
+import { softwareFor, useDeviceSoftware } from './rematch'
 
 function SideEffect({ text }: { text: string }) {
   const { t } = useTranslation('findings')
@@ -234,6 +236,9 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
   const other = k?.links.filter((u) => linkKind(u) !== 'vendor') ?? []
   const device = finding.asset?.name || t('removedDevice')
   const product = k?.display || t('rec.theSoftware')
+  // D-499: step 3 points to "I updated" when the page shows it (the software the CVE was matched to is known).
+  const sw = useDeviceSoftware(finding.asset?.id)
+  const updatable = isOpen(finding.status) && softwareFor(sw.data?.asset.software, finding.cve).length > 0
   return (
     <div className="grid gap-5">
       <div className="rounded-md border border-dashed border-warn bg-warn-soft/60 px-4 py-3">
@@ -268,7 +273,7 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
             <ol className="grid max-w-3xl list-decimal gap-1 pl-5 text-sm">
               <li>{t('rec.step1', { device, product })}</li>
               <li>{k.due_date ? t('rec.step2Due', { date: fmtDate(k.due_date) }) : t('rec.step2')}</li>
-              <li>{t('rec.step3')}</li>
+              <li>{updatable ? t('rec.step3', { device }) : t('rec.step3Mark')}</li>
             </ol>
           </div>
         </>

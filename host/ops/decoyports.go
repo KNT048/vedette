@@ -443,7 +443,9 @@ func (o *Ops) rulesetLoaded(ctx context.Context, list []decoyEntry) (bool, error
 
 // applyRuleset loads the ruleset for list and proves it (the effect check). It changes nothing else:
 // the caller decides what a failure means.
-func (o *Ops) applyRuleset(ctx context.Context, list []decoyEntry) error { return o.loadProven(ctx, list) }
+func (o *Ops) applyRuleset(ctx context.Context, list []decoyEntry) error {
+	return o.loadProven(ctx, list)
+}
 
 // loadProven loads the ruleset for list and proves it. When the ruleset with the set touched cannot be proven but the same
 // ruleset without it can, the touch part is what nft printed in a form the check does not know (B2 review H1): the host keeps

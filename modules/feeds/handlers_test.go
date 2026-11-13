@@ -302,6 +302,10 @@ func TestContract_POST2_HotBoardOrderAndInventory(t *testing.T) {
 	if at(b, "latest", "cve") != "CVE-2026-10001" || at(b, "latest", "display") != "Synology NAS (DSM)" {
 		t.Errorf("latest: %v", at(b, "latest"))
 	}
+	// the weekly report reads the same board (W1-24, D-485): Home's three CVEs, one product in use ("maybe" is not in use)
+	if cves, inUse, err := e.svc.NewlyExploited(t.Context()); err != nil || cves != 3 || inUse != 1 {
+		t.Errorf("NewlyExploited = %d, %d, %v; want 3, 1", cves, inUse, err)
+	}
 	// the 24 h window, counted from the clock
 	e.setNow(time.Date(2026, 11, 4, 0, 0, 0, 0, time.UTC))
 	_, b = e.get("/feeds/hot?window=24h")
@@ -525,7 +529,7 @@ func TestStatusAndSourcesListing(t *testing.T) {
 	}
 	f := at(b, "items", 0)
 	if at(f, "id") != "cisa-kev" || at(f, "builtin") != true || at(f, "status") != "never" || at(f, "last_fetch") != nil || at(f, "records") != nil || at(f, "parser") != nil ||
-		at(f, "default_url") != at(f, "url") || at(f, "interval_hours") != 24.0 || at(f, "auth", "type") != "none" || at(f, "license") != "CC0" || at(b, "items", 3, "interval_hours") != 6.0 {
+		at(f, "default_url") != at(f, "url") || at(f, "interval_hours") != 1.0 || at(f, "auth", "type") != "none" || at(f, "license") != "CC0" || at(b, "items", 3, "interval_hours") != 6.0 {
 		t.Errorf("feed: %v", f)
 	}
 	_, s := e.get("/feeds/status")

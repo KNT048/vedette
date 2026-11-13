@@ -1658,3 +1658,20 @@ func TestEventsFullPageOnTheLastStepStillHasACursor(t *testing.T) {
 		t.Fatalf("a search that fits the page has no cursor: %+v %v", v, err)
 	}
 }
+
+// W1-22: a listed line is read through its syslog header (D-485): no "<38>Nov 13 …" in the message; a line without a header
+// is all message.
+func TestEventHeaderIsReadForDisplay(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ line, host, app, msg string }{
+		{"<38>Nov 13 14:15:02 laptop-it sshd[2211]: Failed password for invalid user admin from 45.155.205.233 port 51122 ssh2", "laptop-it", "sshd", "Failed password for invalid user admin from 45.155.205.233 port 51122 ssh2"},
+		{"<165>1 2026-11-13T07:15:02.000Z fw01 app 77 ID47 - hello", "fw01", "app", "hello"},
+		{`type="traffic" srcip=10.0.0.5 action="deny"`, "", "", `type="traffic" srcip=10.0.0.5 action="deny"`},
+	} {
+		e := Event{Line: c.line}
+		e.withHeader()
+		if e.Message != c.msg || (e.Host == nil) != (c.host == "") || (e.Host != nil && *e.Host != c.host) || (e.App == nil) != (c.app == "") || (e.App != nil && *e.App != c.app) {
+			t.Errorf("%q: host %v app %v message %q", c.line, e.Host, e.App, e.Message)
+		}
+	}
+}

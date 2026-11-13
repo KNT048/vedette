@@ -61,10 +61,8 @@ func (a reportsInventory) Devices(ctx context.Context) ([]reports.Device, error)
 	}
 	out := make([]reports.Device, 0, len(devs))
 	for _, d := range devs {
-		if d.IsBox {
-			continue // the box itself is not a device of the customer's network
-		}
-		r := reports.Device{ID: d.ID, Name: d.IP, IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile}
+		// The box is listed: the weekly report counts what the Devices page counts (D-485); the PDPL report leaves it out.
+		r := reports.Device{ID: d.ID, Name: d.IP, IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, Box: d.IsBox}
 		if d.Hostname != nil && *d.Hostname != "" {
 			r.Name = *d.Hostname
 		}
@@ -101,7 +99,7 @@ func (a reportsFindings) All(ctx context.Context) ([]reports.Finding, error) {
 	}
 	out := make([]reports.Finding, len(recs))
 	for i, r := range recs {
-		out[i] = reports.Finding{ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), FirstSeen: r.FirstSeen, ResolvedAt: r.ResolvedAt}
+		out[i] = reports.Finding{ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), FirstSeen: r.FirstSeen, ResolvedAt: r.ResolvedAt, ResolvedBy: r.ResolvedBy}
 	}
 	return out, nil
 }
@@ -129,10 +127,22 @@ func (a reportsKEV) Entries(ctx context.Context) ([]reports.KEVEntry, time.Time,
 		if err != nil {
 			continue // a row with an odd date is not counted in any week
 		}
-		out = append(out, reports.KEVEntry{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Key: feeds.ProductKey(v.Vendor, v.Product), DateAdded: day})
+		out = append(out, reports.KEVEntry{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Display: feeds.DisplayOf(v.Vendor, v.Product), Key: feeds.ProductKey(v.Vendor, v.Product), DateAdded: day})
 	}
 	at, err := st.KevPulledAt(ctx)
 	return out, at, err
+}
+
+// NewlyExploited is the Home headline (feeds.Service.NewlyExploited), so the report and Home agree (D-485).
+func (a reportsKEV) NewlyExploited(ctx context.Context) (int, int, error) {
+	if a.d.Reg != nil && !a.d.Reg.Enabled("feeds") {
+		return 0, 0, nil
+	}
+	fs, err := feedsService(*a.d)
+	if err != nil {
+		return 0, 0, err
+	}
+	return fs.NewlyExploited(ctx)
 }
 
 // ---- notify -> reports ----

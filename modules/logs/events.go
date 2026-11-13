@@ -263,6 +263,7 @@ func (s *Service) readMatches(ctx context.Context, vol *sql.DB, where string, ar
 		if e.SourceName == "" {
 			e.SourceName = e.SourceID // the source was deleted: its lines stay (INV-4), named by id as in the mock
 		}
+		e.withHeader()
 		evs = append(evs, e)
 	}
 	return evs, list.Err()

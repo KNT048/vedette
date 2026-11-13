@@ -19,6 +19,9 @@
 - **scan** sở hữu runner (`cmd/vedette` `scanRunner`, `modules/scan/surface`, D-229): đổi `ScanTarget`/`Content` phải sửa adapter `contentOf` và `TestExposureRunnerResult`. Ba lỗi là câu người dùng đọc (toast của Scan now); mock `exposure` trả đúng `module_off` khi module `scan` tắt.
 - **response** (`new_port`) và **reports** đọc ảnh chụp do runner tạo; runner không lưu gì khi lỗi.
 
+## Modifying: `TargetView.open_ports`, `MaxOpenPorts`, `latestResults` (D-485)
+- **web/features/exposure**: câu đầu và mục "N ports open to the Internet" của `ExposurePage.tsx` đọc `open_ports`; nhãn "Commonly attacked" theo `PortRow.service` (`services.ts`), nên đổi tên dịch vụ trong `modules/scan/surface/ports.go` là đổi nhãn đó. Mock `mocks.ts` cắt 20 như hộp.
+
 ## Modifying: trường `Snapshot`/`Diff`
 - **SPA** `ResultsPanel`, `TargetPage`; **reports**. `contract.ts` là nguồn OpenAPI.
 

@@ -40209,7 +40209,10 @@ type ExposureGetExposureTargetsIDOK struct {
 	LastScanAt NilDateTime                                `json:"last_scan_at"`
 	Latest     NilExposureGetExposureTargetsIDOKLatest    `json:"latest"`
 	Method     NilExposureGetExposureTargetsIDOKMethod    `json:"method"`
-	Scannable  bool                                       `json:"scannable"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposureGetExposureTargetsIDOKOpenPortsItem `json:"open_ports"`
+	Scannable bool                                          `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsIDOKStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
@@ -40271,6 +40274,11 @@ func (s *ExposureGetExposureTargetsIDOK) GetLatest() NilExposureGetExposureTarge
 // GetMethod returns the value of Method.
 func (s *ExposureGetExposureTargetsIDOK) GetMethod() NilExposureGetExposureTargetsIDOKMethod {
 	return s.Method
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposureGetExposureTargetsIDOK) GetOpenPorts() []ExposureGetExposureTargetsIDOKOpenPortsItem {
+	return s.OpenPorts
 }
 
 // GetScannable returns the value of Scannable.
@@ -40351,6 +40359,11 @@ func (s *ExposureGetExposureTargetsIDOK) SetLatest(val NilExposureGetExposureTar
 // SetMethod sets the value of Method.
 func (s *ExposureGetExposureTargetsIDOK) SetMethod(val NilExposureGetExposureTargetsIDOKMethod) {
 	s.Method = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposureGetExposureTargetsIDOK) SetOpenPorts(val []ExposureGetExposureTargetsIDOKOpenPortsItem) {
+	s.OpenPorts = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -40644,6 +40657,53 @@ func (s *ExposureGetExposureTargetsIDOKMethod) UnmarshalText(data []byte) error 
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposureGetExposureTargetsIDOKOpenPortsItem struct {
+	IP      string    `json:"ip"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetPort returns the value of Port.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetService returns the value of Service.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetService(val string) {
+	s.Service = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -41398,7 +41458,10 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	LastScanAt NilDateTime                                       `json:"last_scan_at"`
 	Latest     NilExposureGetExposureTargetsOKItemsItemLatest    `json:"latest"`
 	Method     NilExposureGetExposureTargetsOKItemsItemMethod    `json:"method"`
-	Scannable  bool                                              `json:"scannable"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposureGetExposureTargetsOKItemsItemOpenPortsItem `json:"open_ports"`
+	Scannable bool                                                 `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsOKItemsItemStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
@@ -41460,6 +41523,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) GetLatest() NilExposureGetExposu
 // GetMethod returns the value of Method.
 func (s *ExposureGetExposureTargetsOKItemsItem) GetMethod() NilExposureGetExposureTargetsOKItemsItemMethod {
 	return s.Method
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetOpenPorts() []ExposureGetExposureTargetsOKItemsItemOpenPortsItem {
+	return s.OpenPorts
 }
 
 // GetScannable returns the value of Scannable.
@@ -41540,6 +41608,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) SetLatest(val NilExposureGetExpo
 // SetMethod sets the value of Method.
 func (s *ExposureGetExposureTargetsOKItemsItem) SetMethod(val NilExposureGetExposureTargetsOKItemsItemMethod) {
 	s.Method = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetOpenPorts(val []ExposureGetExposureTargetsOKItemsItemOpenPortsItem) {
+	s.OpenPorts = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -41835,6 +41908,53 @@ func (s *ExposureGetExposureTargetsOKItemsItemMethod) UnmarshalText(data []byte)
 	}
 }
 
+type ExposureGetExposureTargetsOKItemsItemOpenPortsItem struct {
+	IP      string    `json:"ip"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetPort returns the value of Port.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetService returns the value of Service.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetService(val string) {
+	s.Service = val
+}
+
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 type ExposureGetExposureTargetsOKItemsItemStatus string
 
@@ -41974,7 +42094,10 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	LastScanAt NilDateTime                                            `json:"last_scan_at"`
 	Latest     NilExposurePostExposureBoxIPVerifyOKItemsItemLatest    `json:"latest"`
 	Method     NilExposurePostExposureBoxIPVerifyOKItemsItemMethod    `json:"method"`
-	Scannable  bool                                                   `json:"scannable"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem `json:"open_ports"`
+	Scannable bool                                                      `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureBoxIPVerifyOKItemsItemStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
@@ -42036,6 +42159,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetLatest() NilExposurePost
 // GetMethod returns the value of Method.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetMethod() NilExposurePostExposureBoxIPVerifyOKItemsItemMethod {
 	return s.Method
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetOpenPorts() []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem {
+	return s.OpenPorts
 }
 
 // GetScannable returns the value of Scannable.
@@ -42116,6 +42244,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetLatest(val NilExposurePo
 // SetMethod sets the value of Method.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetMethod(val NilExposurePostExposureBoxIPVerifyOKItemsItemMethod) {
 	s.Method = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetOpenPorts(val []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) {
+	s.OpenPorts = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -42411,6 +42544,53 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemMethod) UnmarshalText(data []
 	}
 }
 
+type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem struct {
+	IP      string    `json:"ip"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
+}
+
+// GetIP returns the value of IP.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetPort returns the value of Port.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetService returns the value of Service.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// SetIP sets the value of IP.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetService(val string) {
+	s.Service = val
+}
+
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 type ExposurePostExposureBoxIPVerifyOKItemsItemStatus string
 
@@ -42524,7 +42704,10 @@ type ExposurePostExposureTargetsCreated struct {
 	LastScanAt NilDateTime                                    `json:"last_scan_at"`
 	Latest     NilExposurePostExposureTargetsCreatedLatest    `json:"latest"`
 	Method     NilExposurePostExposureTargetsCreatedMethod    `json:"method"`
-	Scannable  bool                                           `json:"scannable"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposurePostExposureTargetsCreatedOpenPortsItem `json:"open_ports"`
+	Scannable bool                                              `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsCreatedStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
@@ -42586,6 +42769,11 @@ func (s *ExposurePostExposureTargetsCreated) GetLatest() NilExposurePostExposure
 // GetMethod returns the value of Method.
 func (s *ExposurePostExposureTargetsCreated) GetMethod() NilExposurePostExposureTargetsCreatedMethod {
 	return s.Method
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposurePostExposureTargetsCreated) GetOpenPorts() []ExposurePostExposureTargetsCreatedOpenPortsItem {
+	return s.OpenPorts
 }
 
 // GetScannable returns the value of Scannable.
@@ -42666,6 +42854,11 @@ func (s *ExposurePostExposureTargetsCreated) SetLatest(val NilExposurePostExposu
 // SetMethod sets the value of Method.
 func (s *ExposurePostExposureTargetsCreated) SetMethod(val NilExposurePostExposureTargetsCreatedMethod) {
 	s.Method = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposurePostExposureTargetsCreated) SetOpenPorts(val []ExposurePostExposureTargetsCreatedOpenPortsItem) {
+	s.OpenPorts = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -42961,6 +43154,53 @@ func (s *ExposurePostExposureTargetsCreatedMethod) UnmarshalText(data []byte) er
 	}
 }
 
+type ExposurePostExposureTargetsCreatedOpenPortsItem struct {
+	IP      string    `json:"ip"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
+}
+
+// GetIP returns the value of IP.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetPort returns the value of Port.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetService returns the value of Service.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// SetIP sets the value of IP.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetService(val string) {
+	s.Service = val
+}
+
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 type ExposurePostExposureTargetsCreatedStatus string
 
@@ -43074,7 +43314,10 @@ type ExposurePostExposureTargetsIDCommitmentOK struct {
 	LastScanAt NilDateTime                                           `json:"last_scan_at"`
 	Latest     NilExposurePostExposureTargetsIDCommitmentOKLatest    `json:"latest"`
 	Method     NilExposurePostExposureTargetsIDCommitmentOKMethod    `json:"method"`
-	Scannable  bool                                                  `json:"scannable"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem `json:"open_ports"`
+	Scannable bool                                                     `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsIDCommitmentOKStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
@@ -43136,6 +43379,11 @@ func (s *ExposurePostExposureTargetsIDCommitmentOK) GetLatest() NilExposurePostE
 // GetMethod returns the value of Method.
 func (s *ExposurePostExposureTargetsIDCommitmentOK) GetMethod() NilExposurePostExposureTargetsIDCommitmentOKMethod {
 	return s.Method
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposurePostExposureTargetsIDCommitmentOK) GetOpenPorts() []ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem {
+	return s.OpenPorts
 }
 
 // GetScannable returns the value of Scannable.
@@ -43216,6 +43464,11 @@ func (s *ExposurePostExposureTargetsIDCommitmentOK) SetLatest(val NilExposurePos
 // SetMethod sets the value of Method.
 func (s *ExposurePostExposureTargetsIDCommitmentOK) SetMethod(val NilExposurePostExposureTargetsIDCommitmentOKMethod) {
 	s.Method = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposurePostExposureTargetsIDCommitmentOK) SetOpenPorts(val []ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) {
+	s.OpenPorts = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -43509,6 +43762,53 @@ func (s *ExposurePostExposureTargetsIDCommitmentOKMethod) UnmarshalText(data []b
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem struct {
+	IP      string    `json:"ip"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
+}
+
+// GetIP returns the value of IP.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetPort returns the value of Port.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetService returns the value of Service.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// SetIP sets the value of IP.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) SetService(val string) {
+	s.Service = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -44030,7 +44330,10 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	LastScanAt NilDateTime                                             `json:"last_scan_at"`
 	Latest     NilExposurePostExposureTargetsIDVerifyOKTargetLatest    `json:"latest"`
 	Method     NilExposurePostExposureTargetsIDVerifyOKTargetMethod    `json:"method"`
-	Scannable  bool                                                    `json:"scannable"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem `json:"open_ports"`
+	Scannable bool                                                       `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsIDVerifyOKTargetStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
@@ -44092,6 +44395,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetLatest() NilExposurePos
 // GetMethod returns the value of Method.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetMethod() NilExposurePostExposureTargetsIDVerifyOKTargetMethod {
 	return s.Method
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetOpenPorts() []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem {
+	return s.OpenPorts
 }
 
 // GetScannable returns the value of Scannable.
@@ -44172,6 +44480,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetLatest(val NilExposureP
 // SetMethod sets the value of Method.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetMethod(val NilExposurePostExposureTargetsIDVerifyOKTargetMethod) {
 	s.Method = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetOpenPorts(val []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) {
+	s.OpenPorts = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -44465,6 +44778,53 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetMethod) UnmarshalText(data [
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem struct {
+	IP      string    `json:"ip"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
+}
+
+// GetIP returns the value of IP.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetPort returns the value of Port.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetService returns the value of Service.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// SetIP sets the value of IP.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetService(val string) {
+	s.Service = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -73249,11 +73609,29 @@ func (s *LogsGetLogsEventsOK) SetTotal(val int) {
 }
 
 type LogsGetLogsEventsOKEventsItem struct {
-	ID         string    `json:"id"`
-	Line       string    `json:"line"`
+	// The program the header names (sshd, CRON, …); null when it does not say.
+	App NilString `json:"app"`
+	// The sending host the syslog header names (RFC 5424 or 3164); null when it does not say (W1-22,
+	// D-485).
+	Host NilString `json:"host"`
+	ID   string    `json:"id"`
+	// The line as stored: what search and evidence use.
+	Line string `json:"line"`
+	// The line without its syslog header (no "<38>Nov 13 …"); the whole line when it has none.
+	Message    string    `json:"message"`
 	SourceID   string    `json:"source_id"`
 	SourceName string    `json:"source_name"`
 	Ts         time.Time `json:"ts"`
+}
+
+// GetApp returns the value of App.
+func (s *LogsGetLogsEventsOKEventsItem) GetApp() NilString {
+	return s.App
+}
+
+// GetHost returns the value of Host.
+func (s *LogsGetLogsEventsOKEventsItem) GetHost() NilString {
+	return s.Host
 }
 
 // GetID returns the value of ID.
@@ -73264,6 +73642,11 @@ func (s *LogsGetLogsEventsOKEventsItem) GetID() string {
 // GetLine returns the value of Line.
 func (s *LogsGetLogsEventsOKEventsItem) GetLine() string {
 	return s.Line
+}
+
+// GetMessage returns the value of Message.
+func (s *LogsGetLogsEventsOKEventsItem) GetMessage() string {
+	return s.Message
 }
 
 // GetSourceID returns the value of SourceID.
@@ -73281,6 +73664,16 @@ func (s *LogsGetLogsEventsOKEventsItem) GetTs() time.Time {
 	return s.Ts
 }
 
+// SetApp sets the value of App.
+func (s *LogsGetLogsEventsOKEventsItem) SetApp(val NilString) {
+	s.App = val
+}
+
+// SetHost sets the value of Host.
+func (s *LogsGetLogsEventsOKEventsItem) SetHost(val NilString) {
+	s.Host = val
+}
+
 // SetID sets the value of ID.
 func (s *LogsGetLogsEventsOKEventsItem) SetID(val string) {
 	s.ID = val
@@ -73289,6 +73682,11 @@ func (s *LogsGetLogsEventsOKEventsItem) SetID(val string) {
 // SetLine sets the value of Line.
 func (s *LogsGetLogsEventsOKEventsItem) SetLine(val string) {
 	s.Line = val
+}
+
+// SetMessage sets the value of Message.
+func (s *LogsGetLogsEventsOKEventsItem) SetMessage(val string) {
+	s.Message = val
 }
 
 // SetSourceID sets the value of SourceID.
@@ -98017,7 +98415,9 @@ func (s *ReportsGetReportsPdplOKReportOrgSize) UnmarshalText(data []byte) error 
 }
 
 type ReportsGetReportsPdplOKReportRisksItem struct {
-	AssetID  string                                         `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                      `json:"by"`
 	Cve      string                                         `json:"cve"`
 	Device   string                                         `json:"device"`
 	ID       string                                         `json:"id"`
@@ -98030,6 +98430,11 @@ type ReportsGetReportsPdplOKReportRisksItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsGetReportsPdplOKReportRisksItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsPdplOKReportRisksItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -98070,6 +98475,11 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) GetStatus() ReportsGetReportsPd
 // SetAssetID sets the value of AssetID.
 func (s *ReportsGetReportsPdplOKReportRisksItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsPdplOKReportRisksItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.
@@ -98297,12 +98707,21 @@ func (s *ReportsGetReportsScheduleOK) SetRecipients(val []string) {
 	s.Recipients = val
 }
 
+// Since D-485 one top risk: product and count (its open findings) are set; cve and finding_id are its
+// worst finding.
 // Ref: #/components/schemas/reports_get_reports_weekly_history_id_1_fix
 type ReportsGetReportsWeeklyHistoryID1Fix struct {
-	Cve       string `json:"cve"`
-	Device    string `json:"device"`
-	FindingID string `json:"finding_id"`
-	Kind      string `json:"kind"`
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID1Fix) GetCount() OptInt {
+	return s.Count
 }
 
 // GetCve returns the value of Cve.
@@ -98325,6 +98744,16 @@ func (s *ReportsGetReportsWeeklyHistoryID1Fix) GetKind() string {
 	return s.Kind
 }
 
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID1Fix) GetProduct() OptString {
+	return s.Product
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID1Fix) SetCount(val OptInt) {
+	s.Count = val
+}
+
 // SetCve sets the value of Cve.
 func (s *ReportsGetReportsWeeklyHistoryID1Fix) SetCve(val string) {
 	s.Cve = val
@@ -98343,6 +98772,11 @@ func (s *ReportsGetReportsWeeklyHistoryID1Fix) SetFindingID(val string) {
 // SetKind sets the value of Kind.
 func (s *ReportsGetReportsWeeklyHistoryID1Fix) SetKind(val string) {
 	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID1Fix) SetProduct(val OptString) {
+	s.Product = val
 }
 
 // Ref: #/components/schemas/reports_get_reports_weekly_history_id_1_plan_os
@@ -98399,10 +98833,17 @@ func (s *ReportsGetReportsWeeklyHistoryID1ReviewDevices) SetKind(val string) {
 
 // Ref: #/components/schemas/reports_get_reports_weekly_history_id_1_verify
 type ReportsGetReportsWeeklyHistoryID1Verify struct {
-	Cve       string `json:"cve"`
-	Device    string `json:"device"`
-	FindingID string `json:"finding_id"`
-	Kind      string `json:"kind"`
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID1Verify) GetCount() OptInt {
+	return s.Count
 }
 
 // GetCve returns the value of Cve.
@@ -98425,6 +98866,16 @@ func (s *ReportsGetReportsWeeklyHistoryID1Verify) GetKind() string {
 	return s.Kind
 }
 
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID1Verify) GetProduct() OptString {
+	return s.Product
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetCount(val OptInt) {
+	s.Count = val
+}
+
 // SetCve sets the value of Cve.
 func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetCve(val string) {
 	s.Cve = val
@@ -98443,6 +98894,11 @@ func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetFindingID(val string) {
 // SetKind sets the value of Kind.
 func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetKind(val string) {
 	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetProduct(val OptString) {
+	s.Product = val
 }
 
 type ReportsGetReportsWeeklyHistoryIDOK struct {
@@ -98537,6 +98993,8 @@ type ReportsGetReportsWeeklyHistoryIDOKReport struct {
 	// Sources of the figures in the report; honeypot hits and anomalous logs are not included because the
 	// honeypot/logs modules do not share data yet.
 	Sources []ReportsGetReportsWeeklyHistoryIDOKReportSourcesItem `json:"sources"`
+	// The three biggest open risks, by product (D-485); absent in reports sent before it.
+	TopRisks []ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem `json:"top_risks"`
 }
 
 // GetActions returns the value of Actions.
@@ -98584,6 +99042,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetSources() []ReportsGetRepo
 	return s.Sources
 }
 
+// GetTopRisks returns the value of TopRisks.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetTopRisks() []ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem {
+	return s.TopRisks
+}
+
 // SetActions sets the value of Actions.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetActions(val []ReportsGetReportsWeeklyHistoryIDOKReportActionsItem) {
 	s.Actions = val
@@ -98627,6 +99090,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetResolved(val []ReportsGetR
 // SetSources sets the value of Sources.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetSources(val []ReportsGetReportsWeeklyHistoryIDOKReportSourcesItem) {
 	s.Sources = val
+}
+
+// SetTopRisks sets the value of TopRisks.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetTopRisks(val []ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) {
+	s.TopRisks = val
 }
 
 // ReportsGetReportsWeeklyHistoryIDOKReportActionsItem represents sum type.
@@ -98839,15 +99307,18 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportAiSummaryTokens) SetOutput(val 
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportCounts struct {
+	// Devices as the Devices page counts them, this box included.
 	Devices           float64 `json:"devices"`
 	DevicesNew        float64 `json:"devices_new"`
 	DevicesUnapproved float64 `json:"devices_unapproved"`
-	KevMatched        float64 `json:"kev_matched"`
-	KevNew            float64 `json:"kev_new"`
-	NewFindings       float64 `json:"new_findings"`
-	OpenConfirmed     float64 `json:"open_confirmed"`
-	OpenSuspected     float64 `json:"open_suspected"`
-	Resolved          float64 `json:"resolved"`
+	// Products you use among them, as Home counts them (D-485; earlier reports: their CVEs on a device).
+	KevMatched float64 `json:"kev_matched"`
+	// Vulnerabilities newly exploited in the last 7 days, as Home counts them (D-485).
+	KevNew        float64 `json:"kev_new"`
+	NewFindings   float64 `json:"new_findings"`
+	OpenConfirmed float64 `json:"open_confirmed"`
+	OpenSuspected float64 `json:"open_suspected"`
+	Resolved      float64 `json:"resolved"`
 }
 
 // GetDevices returns the value of Devices.
@@ -98941,7 +99412,9 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetResolved(val float64
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem struct {
-	AssetID  string                                                          `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                                       `json:"by"`
 	Cve      string                                                          `json:"cve"`
 	Device   string                                                          `json:"device"`
 	ID       string                                                          `json:"id"`
@@ -98954,6 +99427,11 @@ type ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -98994,6 +99472,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) GetStatus() Re
 // SetAssetID sets the value of AssetID.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.
@@ -99163,7 +99646,9 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus) Unmarsha
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportOpenItem struct {
-	AssetID  string                                                   `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                                `json:"by"`
 	Cve      string                                                   `json:"cve"`
 	Device   string                                                   `json:"device"`
 	ID       string                                                   `json:"id"`
@@ -99176,6 +99661,11 @@ type ReportsGetReportsWeeklyHistoryIDOKReportOpenItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -99216,6 +99706,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) GetStatus() ReportsGe
 // SetAssetID sets the value of AssetID.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.
@@ -99410,7 +99905,9 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportPeriod) SetTo(val time.Time) {
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem struct {
-	AssetID  string                                                       `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                                    `json:"by"`
 	Cve      string                                                       `json:"cve"`
 	Device   string                                                       `json:"device"`
 	ID       string                                                       `json:"id"`
@@ -99423,6 +99920,11 @@ type ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -99463,6 +99965,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) GetStatus() Repor
 // SetAssetID sets the value of AssetID.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.
@@ -99698,6 +100205,165 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) UnmarshalText(da
 		return nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem struct {
+	// Open findings a scan confirmed.
+	Confirmed int    `json:"confirmed"`
+	Cve       string `json:"cve"`
+	// The device, or the first names and how many more.
+	Device  string `json:"device"`
+	Devices int    `json:"devices"`
+	// Its worst finding.
+	FindingID string `json:"finding_id"`
+	Open      int    `json:"open"`
+	// The product as Findings names it.
+	Product string `json:"product"`
+	// The worst severity.
+	Severity ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity `json:"severity"`
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetConfirmed() int {
+	return s.Confirmed
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetDevice() string {
+	return s.Device
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetDevices() int {
+	return s.Devices
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetOpen() int {
+	return s.Open
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetSeverity() ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity {
+	return s.Severity
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetConfirmed(val int) {
+	s.Confirmed = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetOpen(val int) {
+	s.Open = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetSeverity(val ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity) {
+	s.Severity = val
+}
+
+// The worst severity.
+type ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity string
+
+const (
+	ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityCritical ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity = "critical"
+	ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityHigh     ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity = "high"
+	ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityMedium   ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity = "medium"
+	ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityLow      ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity = "low"
+	ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityInfo     ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity values.
+func (ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity) AllValues() []ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity {
+	return []ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity{
+		ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityCritical,
+		ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityHigh,
+		ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityMedium,
+		ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityLow,
+		ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity(data) {
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityCritical:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityCritical
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityHigh:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityHigh
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityMedium:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityMedium
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityLow:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityLow
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityInfo:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityInfo
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -99951,12 +100617,21 @@ func (s *ReportsGetReportsWeeklyHistoryOKItemsItemTrigger) UnmarshalText(data []
 	}
 }
 
+// Since D-485 one top risk: product and count (its open findings) are set; cve and finding_id are its
+// worst finding.
 // Ref: #/components/schemas/reports_get_reports_weekly_preview_1_fix
 type ReportsGetReportsWeeklyPreview1Fix struct {
-	Cve       string `json:"cve"`
-	Device    string `json:"device"`
-	FindingID string `json:"finding_id"`
-	Kind      string `json:"kind"`
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyPreview1Fix) GetCount() OptInt {
+	return s.Count
 }
 
 // GetCve returns the value of Cve.
@@ -99979,6 +100654,16 @@ func (s *ReportsGetReportsWeeklyPreview1Fix) GetKind() string {
 	return s.Kind
 }
 
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyPreview1Fix) GetProduct() OptString {
+	return s.Product
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyPreview1Fix) SetCount(val OptInt) {
+	s.Count = val
+}
+
 // SetCve sets the value of Cve.
 func (s *ReportsGetReportsWeeklyPreview1Fix) SetCve(val string) {
 	s.Cve = val
@@ -99997,6 +100682,11 @@ func (s *ReportsGetReportsWeeklyPreview1Fix) SetFindingID(val string) {
 // SetKind sets the value of Kind.
 func (s *ReportsGetReportsWeeklyPreview1Fix) SetKind(val string) {
 	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyPreview1Fix) SetProduct(val OptString) {
+	s.Product = val
 }
 
 // Ref: #/components/schemas/reports_get_reports_weekly_preview_1_plan_os
@@ -100053,10 +100743,17 @@ func (s *ReportsGetReportsWeeklyPreview1ReviewDevices) SetKind(val string) {
 
 // Ref: #/components/schemas/reports_get_reports_weekly_preview_1_verify
 type ReportsGetReportsWeeklyPreview1Verify struct {
-	Cve       string `json:"cve"`
-	Device    string `json:"device"`
-	FindingID string `json:"finding_id"`
-	Kind      string `json:"kind"`
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyPreview1Verify) GetCount() OptInt {
+	return s.Count
 }
 
 // GetCve returns the value of Cve.
@@ -100079,6 +100776,16 @@ func (s *ReportsGetReportsWeeklyPreview1Verify) GetKind() string {
 	return s.Kind
 }
 
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyPreview1Verify) GetProduct() OptString {
+	return s.Product
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyPreview1Verify) SetCount(val OptInt) {
+	s.Count = val
+}
+
 // SetCve sets the value of Cve.
 func (s *ReportsGetReportsWeeklyPreview1Verify) SetCve(val string) {
 	s.Cve = val
@@ -100097,6 +100804,11 @@ func (s *ReportsGetReportsWeeklyPreview1Verify) SetFindingID(val string) {
 // SetKind sets the value of Kind.
 func (s *ReportsGetReportsWeeklyPreview1Verify) SetKind(val string) {
 	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyPreview1Verify) SetProduct(val OptString) {
+	s.Product = val
 }
 
 type ReportsGetReportsWeeklyPreviewOK struct {
@@ -100136,6 +100848,8 @@ type ReportsGetReportsWeeklyPreviewOKReport struct {
 	// Sources of the figures in the report; honeypot hits and anomalous logs are not included because the
 	// honeypot/logs modules do not share data yet.
 	Sources []ReportsGetReportsWeeklyPreviewOKReportSourcesItem `json:"sources"`
+	// The three biggest open risks, by product (D-485); absent in reports sent before it.
+	TopRisks []ReportsGetReportsWeeklyPreviewOKReportTopRisksItem `json:"top_risks"`
 }
 
 // GetActions returns the value of Actions.
@@ -100183,6 +100897,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) GetSources() []ReportsGetReport
 	return s.Sources
 }
 
+// GetTopRisks returns the value of TopRisks.
+func (s *ReportsGetReportsWeeklyPreviewOKReport) GetTopRisks() []ReportsGetReportsWeeklyPreviewOKReportTopRisksItem {
+	return s.TopRisks
+}
+
 // SetActions sets the value of Actions.
 func (s *ReportsGetReportsWeeklyPreviewOKReport) SetActions(val []ReportsGetReportsWeeklyPreviewOKReportActionsItem) {
 	s.Actions = val
@@ -100226,6 +100945,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) SetResolved(val []ReportsGetRep
 // SetSources sets the value of Sources.
 func (s *ReportsGetReportsWeeklyPreviewOKReport) SetSources(val []ReportsGetReportsWeeklyPreviewOKReportSourcesItem) {
 	s.Sources = val
+}
+
+// SetTopRisks sets the value of TopRisks.
+func (s *ReportsGetReportsWeeklyPreviewOKReport) SetTopRisks(val []ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) {
+	s.TopRisks = val
 }
 
 // ReportsGetReportsWeeklyPreviewOKReportActionsItem represents sum type.
@@ -100438,15 +101162,18 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportAiSummaryTokens) SetOutput(val fl
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportCounts struct {
+	// Devices as the Devices page counts them, this box included.
 	Devices           float64 `json:"devices"`
 	DevicesNew        float64 `json:"devices_new"`
 	DevicesUnapproved float64 `json:"devices_unapproved"`
-	KevMatched        float64 `json:"kev_matched"`
-	KevNew            float64 `json:"kev_new"`
-	NewFindings       float64 `json:"new_findings"`
-	OpenConfirmed     float64 `json:"open_confirmed"`
-	OpenSuspected     float64 `json:"open_suspected"`
-	Resolved          float64 `json:"resolved"`
+	// Products you use among them, as Home counts them (D-485; earlier reports: their CVEs on a device).
+	KevMatched float64 `json:"kev_matched"`
+	// Vulnerabilities newly exploited in the last 7 days, as Home counts them (D-485).
+	KevNew        float64 `json:"kev_new"`
+	NewFindings   float64 `json:"new_findings"`
+	OpenConfirmed float64 `json:"open_confirmed"`
+	OpenSuspected float64 `json:"open_suspected"`
+	Resolved      float64 `json:"resolved"`
 }
 
 // GetDevices returns the value of Devices.
@@ -100540,7 +101267,9 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetResolved(val float64) 
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem struct {
-	AssetID  string                                                        `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                                     `json:"by"`
 	Cve      string                                                        `json:"cve"`
 	Device   string                                                        `json:"device"`
 	ID       string                                                        `json:"id"`
@@ -100553,6 +101282,11 @@ type ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -100593,6 +101327,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) GetStatus() Repo
 // SetAssetID sets the value of AssetID.
 func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.
@@ -100762,7 +101501,9 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus) UnmarshalT
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportOpenItem struct {
-	AssetID  string                                                 `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                              `json:"by"`
 	Cve      string                                                 `json:"cve"`
 	Device   string                                                 `json:"device"`
 	ID       string                                                 `json:"id"`
@@ -100775,6 +101516,11 @@ type ReportsGetReportsWeeklyPreviewOKReportOpenItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -100815,6 +101561,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) GetStatus() ReportsGetR
 // SetAssetID sets the value of AssetID.
 func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.
@@ -101009,7 +101760,9 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportPeriod) SetTo(val time.Time) {
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportResolvedItem struct {
-	AssetID  string                                                     `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                                  `json:"by"`
 	Cve      string                                                     `json:"cve"`
 	Device   string                                                     `json:"device"`
 	ID       string                                                     `json:"id"`
@@ -101022,6 +101775,11 @@ type ReportsGetReportsWeeklyPreviewOKReportResolvedItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -101062,6 +101820,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) GetStatus() Reports
 // SetAssetID sets the value of AssetID.
 func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.
@@ -101297,6 +102060,165 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) UnmarshalText(data
 		return nil
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev:
 		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsWeeklyPreviewOKReportTopRisksItem struct {
+	// Open findings a scan confirmed.
+	Confirmed int    `json:"confirmed"`
+	Cve       string `json:"cve"`
+	// The device, or the first names and how many more.
+	Device  string `json:"device"`
+	Devices int    `json:"devices"`
+	// Its worst finding.
+	FindingID string `json:"finding_id"`
+	Open      int    `json:"open"`
+	// The product as Findings names it.
+	Product string `json:"product"`
+	// The worst severity.
+	Severity ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity `json:"severity"`
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetConfirmed() int {
+	return s.Confirmed
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetDevice() string {
+	return s.Device
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetDevices() int {
+	return s.Devices
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetOpen() int {
+	return s.Open
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetSeverity() ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity {
+	return s.Severity
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetConfirmed(val int) {
+	s.Confirmed = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetOpen(val int) {
+	s.Open = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetSeverity(val ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity) {
+	s.Severity = val
+}
+
+// The worst severity.
+type ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity string
+
+const (
+	ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityCritical ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity = "critical"
+	ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityHigh     ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity = "high"
+	ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityMedium   ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity = "medium"
+	ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityLow      ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity = "low"
+	ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityInfo     ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity values.
+func (ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity) AllValues() []ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity {
+	return []ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity{
+		ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityCritical,
+		ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityHigh,
+		ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityMedium,
+		ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityLow,
+		ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity(data) {
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityCritical:
+		*s = ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityCritical
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityHigh:
+		*s = ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityHigh
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityMedium:
+		*s = ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityMedium
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityLow:
+		*s = ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityLow
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityInfo:
+		*s = ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityInfo
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -102510,7 +103432,9 @@ func (s *ReportsPostReportsPdplGenerateOKOrgSize) UnmarshalText(data []byte) err
 }
 
 type ReportsPostReportsPdplGenerateOKRisksItem struct {
-	AssetID  string                                            `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                         `json:"by"`
 	Cve      string                                            `json:"cve"`
 	Device   string                                            `json:"device"`
 	ID       string                                            `json:"id"`
@@ -102523,6 +103447,11 @@ type ReportsPostReportsPdplGenerateOKRisksItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsPostReportsPdplGenerateOKRisksItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsPostReportsPdplGenerateOKRisksItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -102563,6 +103492,11 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) GetStatus() ReportsPostRepor
 // SetAssetID sets the value of AssetID.
 func (s *ReportsPostReportsPdplGenerateOKRisksItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsPostReportsPdplGenerateOKRisksItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.

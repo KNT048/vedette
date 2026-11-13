@@ -14,6 +14,7 @@ import type { Role } from '@/lib/session'
 import SiemSettings from './SiemSettings'
 import { CATALOG, ENTRIES, GROUPS, searchCatalog } from './catalog'
 import { KIND_IDS } from './kinds'
+import { syslogHeader } from './syslog'
 import type { SourceKind } from './types'
 
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
@@ -146,6 +147,15 @@ async function openAdd(pick: RegExp | string) {
   await userEvent.click(within(form).getByRole('button', { name: pick }))
   return form
 }
+
+describe('logs: the syslog header of a listed line (W1-22, D-485)', () => {
+  it('reads RFC 3164 and 5424 like the box (service_test.go TestEventHeaderIsReadForDisplay); a line without a header is all message', () => {
+    expect(syslogHeader('<38>Nov 13 14:15:02 laptop-it sshd[2211]: Failed password for invalid user admin from 45.155.205.233 port 51122 ssh2'))
+      .toEqual({ host: 'laptop-it', app: 'sshd', message: 'Failed password for invalid user admin from 45.155.205.233 port 51122 ssh2' })
+    expect(syslogHeader('<165>1 2026-11-13T07:15:02.000Z fw01 app 77 ID47 - hello')).toEqual({ host: 'fw01', app: 'app', message: 'hello' })
+    expect(syslogHeader('type="traffic" srcip=10.0.0.5 action="deny"')).toEqual({ host: null, app: null, message: 'type="traffic" srcip=10.0.0.5 action="deny"' })
+  })
+})
 
 describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   it('the heading answers the question, sources and digest tables show, no a11y violations', async () => {

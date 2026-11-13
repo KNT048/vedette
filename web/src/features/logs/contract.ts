@@ -79,7 +79,12 @@ export const IocHit = z.object({
 })
 export const Digest = z.object({ generated_at: iso, lines_24h: z.number().int(), baseline_days: z.number().int(), history_days: z.number().int().min(0).describe('Whole days of logs so far, at most baseline_days: from the first line of the source heard from the longest. Below baseline_days the digest is still learning what is normal'), new: z.array(NewItem), spikes: z.array(SpikeItem), bad_connections: z.array(IocHit), ioc_matching: z.boolean().describe('false when no connection can be matched: Feeds off, or no switched-on feed lists an indicator (every IOC feed off, or none loaded yet)') })
 
-export const LogEvent = z.object({ id: z.string(), ts: iso, source_id: z.string(), source_name: z.string(), line: z.string() })
+export const LogEvent = z.object({
+  id: z.string(), ts: iso, source_id: z.string(), source_name: z.string(), line: z.string().describe('The line as stored: what search and evidence use'),
+  host: z.string().nullable().describe('The sending host the syslog header names (RFC 5424 or 3164); null when it does not say (W1-22, D-485)'),
+  app: z.string().nullable().describe('The program the header names (sshd, CRON, …); null when it does not say'),
+  message: z.string().describe('The line without its syslog header (no "<38>Nov 13 …"); the whole line when it has none'),
+})
 export const EventWindow = z.enum(['1h', '24h', '7d'])
 export const EventsResponse = z.object({
   events: z.array(LogEvent),

@@ -19,6 +19,7 @@ type Device struct {
 	FirstSeen time.Time
 	Ports     []int    // open TCP/UDP service ports
 	KevKeys   []string // inventory KEV keys of the software on the device ("vendor|product")
+	Box       bool     // this Vedette box: listed on the Devices page, so counted in the weekly report; not in the PDPL inventory
 	Sources   []string // the source of each of vendor, model and OS that is known
 }
 
@@ -34,6 +35,7 @@ type Finding struct {
 	Status, Severity string
 	FirstSeen        time.Time
 	ResolvedAt       time.Time // zero = not closed
+	ResolvedBy       string    // who closed it ("" = open)
 }
 
 // Findings lists every finding.
@@ -44,13 +46,16 @@ type Findings interface {
 // KEVEntry is one entry of the exploited-vulnerability list.
 type KEVEntry struct {
 	CVE, Vendor, Product string
+	Display              string    // the product name Findings shows (feeds.DisplayOf); "" = "<vendor> <product>"
 	Key                  string    // the key inventory uses to match software ("vendor|product")
 	DateAdded            time.Time // a day, midnight UTC
 }
 
-// KEV lists the exploited-vulnerability list and says when it was last pulled (zero = never).
+// KEV lists the exploited-vulnerability list and says when it was last pulled (zero = never). NewlyExploited is the Home
+// headline as numbers (W1-24, D-485): the CVEs newly exploited in the last 7 days and how many of their products are in use.
 type KEV interface {
 	Entries(ctx context.Context) (entries []KEVEntry, pulledAt time.Time, err error)
+	NewlyExploited(ctx context.Context) (cves, productsInUse int, err error)
 }
 
 // Mail is the digest sent by email. Path is the page of Vedette the mail links to.

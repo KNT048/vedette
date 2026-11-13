@@ -3,6 +3,8 @@ package logs
 import (
 	"context"
 	"time"
+
+	"github.com/knt048/vedette/modules/logs/listen"
 )
 
 // ModuleID is the id of the module in the registry and in core/jobs.
@@ -128,6 +130,26 @@ type Event struct {
 	SourceID   string    `json:"source_id"`
 	SourceName string    `json:"source_name"`
 	Line       string    `json:"line"`
+	// Host, App and Message are the line read through its syslog header (RFC 5424 or RFC 3164, listen.ParseSyslog) for display
+	// (W1-22, D-485): no "<38>Nov 13 …" prefix. Host and App are nil when the header does not say; Message is the whole line
+	// when there is no header. Line stays the stored text: it is what search and evidence use.
+	Host    *string `json:"host"`
+	App     *string `json:"app"`
+	Message string  `json:"message"`
+}
+
+// withHeader fills Host, App and Message from Line.
+func (e *Event) withHeader() {
+	env := listen.ParseSyslog(e.Line)
+	e.Message = env.Msg
+	if env.Host != "" && env.Host != "-" {
+		h := env.Host
+		e.Host = &h
+	}
+	if env.App != "" {
+		a := env.App
+		e.App = &a
+	}
 }
 
 // EventQuery is GET /logs/events.

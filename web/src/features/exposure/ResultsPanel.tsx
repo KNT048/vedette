@@ -7,6 +7,7 @@ import { SourceBadge } from '@/components/common/SourceBadge'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Field, Select } from '@/components/ui/input'
 import { dateText } from './dates'
+import { riskOf } from './services'
 import { useDiff, useSnapshot, useSnapshots } from './api'
 import { CERT_WARN_DAYS, type AdminRow, type CertRow, type DiffItem, type DiffChange, type HostRow, type PortRow, type Snapshot, type Target } from './types'
 
@@ -58,6 +59,10 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="tabular-nums">{row.original.port}</span> },
     { id: 'service', header: t('col.service'), accessorFn: (r) => r.service },
     { id: 'product', header: t('col.product'), accessorFn: (r) => r.product ?? '', cell: ({ row }) => row.original.product ?? <span className="text-muted">{t('common:unknown')}</span> },
+    { id: 'note', header: t('col.note'), enableSorting: false, cell: ({ row }) => {
+      const risk = riskOf(row.original)
+      return risk ? <span className="grid gap-1"><Chip tone="warn">{t('open.attacked')}</Chip><span className="text-[12px] text-muted">{t(`risky.${risk}`)} {t('open.purpose')}</span></span> : null
+    } },
   ]
   const adminCols: ColumnDef<AdminRow>[] = [
     { id: 'url', header: t('col.url'), accessorFn: (r) => r.url },
@@ -87,7 +92,7 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
       {target.kind === 'domain' ? (
         <Section title={t('hosts.title')} description={t('hosts.description')}><DataTable caption={t('hosts.caption')} data={s.hosts} columns={hostCols} pageSize={20} empty={t('hosts.empty')} /></Section>
       ) : null}
-      <Section title={t('ports.title')} description={t('ports.description')}><DataTable caption={t('ports.caption')} data={s.ports} columns={portCols} pageSize={20} empty={t('ports.empty')} filterPlaceholder={t('ports.filter')} /></Section>
+      <Section title={t('ports.title')} description={t('ports.description')}><DataTable caption={t('ports.caption')} data={s.ports} columns={portCols} rowTone={(r) => (riskOf(r) ? 'warn' : undefined)} pageSize={20} empty={t('ports.empty')} filterPlaceholder={t('ports.filter')} /></Section>
       <Section title={t('admin.title')} description={t('admin.description')}>
         <DataTable caption={t('admin.caption')} data={s.admin_panels} columns={adminCols} pageSize={20} rowTone={(r) => (r.risk === 'danger' ? 'danger' : 'warn')} empty={<EmptyState title={t('admin.emptyTitle')}>{t('admin.emptyBody')}</EmptyState>} />
       </Section>

@@ -1,6 +1,7 @@
 package reports
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
@@ -45,6 +46,8 @@ type weeklyInput struct {
 	findings []Finding
 	kev      []KEVEntry
 	kevAt    time.Time
+	kevNew   int // KEV.NewlyExploited: the Home headline
+	kevInUse int
 	now      time.Time
 }
 
@@ -58,7 +61,11 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 	}
 	products := make(map[string]string, len(in.kev))
 	for _, k := range in.kev {
-		products[k.CVE] = clip(k.Vendor+" "+k.Product, 80)
+		name := k.Display // the name Findings shows (D-485)
+		if name == "" {
+			name = k.Vendor + " " + k.Product
+		}
+		products[k.CVE] = clip(name, 80)
 	}
 	row := func(f Finding, status string) FindingRow {
 		dev, ok := names[f.AssetID]
@@ -94,7 +101,9 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 			newRows = append(newRows, row(f, f.Status))
 		}
 		if inWeek(f.ResolvedAt) {
-			resolvedRows = append(resolvedRows, row(f, f.Status))
+			r := row(f, f.Status)
+			r.By = clip(f.ResolvedBy, 80)
+			resolvedRows = append(resolvedRows, r)
 		}
 		switch f.Status {
 		case "confirmed":
@@ -109,7 +118,6 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 	newRows, resolvedRows, openRows = capRows(order(newRows)), capRows(order(resolvedRows)), order(openRows)
 
 	var unapproved, eol, devicesNew int
-	have := map[string]bool{}
 	for _, d := range in.devices {
 		if !d.Approved {
 			unapproved++
@@ -120,40 +128,22 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 		if inWeek(d.FirstSeen) {
 			devicesNew++
 		}
-		for _, k := range d.KevKeys {
-			have[k] = true
-		}
-	}
-	var kevNew, kevMatched int
-	for _, k := range in.kev {
-		// KEV dates are days: the last seven calendar days up to today count, today's entries included.
-		if k.DateAdded.After(now.Truncate(day).Add(-7*day)) && !k.DateAdded.After(now) {
-			kevNew++
-			if have[k.Key] {
-				kevMatched++
-			}
-		}
 	}
 
+	risks := topRisks(openRows)
 	var actions []ActionItem
-	for _, r := range openRows {
-		if r.Status == "confirmed" {
-			actions = append(actions, ActionItem{Kind: "fix", CVE: r.CVE, Device: r.Device, FindingID: r.ID})
+	for _, r := range risks {
+		kind := "verify"
+		if r.Confirmed > 0 {
+			kind = "fix"
 		}
-	}
-	for _, r := range openRows {
-		if r.Status == "suspected" {
-			actions = append(actions, ActionItem{Kind: "verify", CVE: r.CVE, Device: r.Device, FindingID: r.ID})
-		}
+		actions = append(actions, ActionItem{Kind: kind, CVE: r.CVE, Device: r.Device, FindingID: r.FindingID, Product: r.Product, Count: r.Open})
 	}
 	if unapproved > 0 {
 		actions = append(actions, ActionItem{Kind: "review_devices", Count: unapproved})
 	}
 	if eol > 0 {
 		actions = append(actions, ActionItem{Kind: "plan_os", Count: eol})
-	}
-	if len(actions) > 6 {
-		actions = actions[:6]
 	}
 	openRows = capRows(openRows)
 
@@ -164,10 +154,76 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 	return WeeklyReport{
 		Period: Period{From: ts(from), To: ts(now)}, GeneratedAt: ts(now),
 		Counts: Counts{NewFindings: newN, Resolved: resolvedN, OpenConfirmed: openConfirmed, OpenSuspected: openSuspected,
-			Devices: len(in.devices), DevicesUnapprove: unapproved, DevicesNew: devicesNew, KevNew: kevNew, KevMatched: kevMatched},
-		NewFindings: nonNil(newRows), Resolved: nonNil(resolvedRows), Open: nonNil(openRows), Actions: nonNilA(actions),
+			Devices: len(in.devices), DevicesUnapprove: unapproved, DevicesNew: devicesNew, KevNew: in.kevNew, KevMatched: in.kevInUse},
+		TopRisks: risks, NewFindings: nonNil(newRows), Resolved: nonNil(resolvedRows), Open: nonNil(openRows), Actions: nonNilA(actions),
 		Sources: []Source{{ID: "inventory", At: ts(now)}, {ID: "findings", At: ts(now)}, {ID: "kev", At: ts(kevAt)}},
 	}
+}
+
+// TopRiskCount is how many risks the management page names (W1-24, D-485).
+const TopRiskCount = 3
+
+// topRisks groups the open findings (ordered by severity, newest first) by product and returns the TopRiskCount biggest:
+// confirmed by a scan first, then the worst severity, then the most open findings, then the name. Never nil.
+func topRisks(open []FindingRow) []TopRisk {
+	type acc struct {
+		TopRisk
+		names []string
+		seen  map[string]bool
+	}
+	by := map[string]*acc{}
+	var order []*acc
+	for _, f := range open {
+		g := by[f.Product]
+		if g == nil {
+			g = &acc{TopRisk: TopRisk{Product: f.Product, Severity: f.Severity, CVE: f.CVE, FindingID: f.ID}, seen: map[string]bool{}}
+			by[f.Product] = g
+			order = append(order, g)
+		}
+		g.Open++
+		if f.Status == "confirmed" {
+			if g.Confirmed == 0 { // the worst finding is one a scan confirmed
+				g.CVE, g.FindingID, g.Severity = f.CVE, f.ID, f.Severity
+			}
+			g.Confirmed++
+		}
+		if severityRank[f.Severity] < severityRank[g.Severity] {
+			g.Severity = f.Severity
+		}
+		if !g.seen[f.AssetID] {
+			g.seen[f.AssetID] = true
+			g.names = append(g.names, f.Device)
+		}
+	}
+	sort.SliceStable(order, func(i, j int) bool {
+		a, b := order[i], order[j]
+		if (a.Confirmed > 0) != (b.Confirmed > 0) {
+			return a.Confirmed > 0
+		}
+		if severityRank[a.Severity] != severityRank[b.Severity] {
+			return severityRank[a.Severity] < severityRank[b.Severity]
+		}
+		if a.Open != b.Open {
+			return a.Open > b.Open
+		}
+		return a.Product < b.Product
+	})
+	out := []TopRisk{}
+	for _, g := range order {
+		if len(out) == TopRiskCount {
+			break
+		}
+		g.Devices = len(g.names)
+		g.Device = g.names[0]
+		switch {
+		case len(g.names) == 2:
+			g.Device += " and " + g.names[1]
+		case len(g.names) > 2:
+			g.Device += fmt.Sprintf(" and %d more", len(g.names)-1)
+		}
+		out = append(out, g.TopRisk)
+	}
+	return out
 }
 
 func capRows(r []FindingRow) []FindingRow {

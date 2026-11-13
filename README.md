@@ -47,7 +47,7 @@ Until the first release exists, the script in this repository stops with "not ti
 
 ## What leaves your machine
 
-Exactly what `PRIVACY.md` lists. Notably, an **anonymous signal is on by default** (counts of trap touches, connections to bad IPs/domains and devices by type; no names, no IP addresses, no logs). Turn it off under Settings → Privacy.
+Exactly what `PRIVACY.md` lists, and Settings → Privacy shows the same list. The box sends **nothing to the Vedette project**: there is no anonymous signal (the project runs no server that could receive one, and this version has no code that sends one).
 
 ## Documentation
 

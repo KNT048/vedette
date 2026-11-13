@@ -1,4 +1,4 @@
-# Deferred from fix/walk2-small (W2-2/3/6/7/8, D-417)
+# Deferred from fix/walk2-small (W2-2/3/6/7/8, D-419)
 
 - [ ] 2026-11-13 core GUI: a set-up box opened while signed out still logs one 401 for `GET /me` in the browser console (RequireSession asks /me to know whether to show /login). Browsers log every 4xx whatever the page does; removing it needs `/me` to answer 200 `null` when signed out (API change) or a non-secret "signed in" hint. W2-8 fixed only the fresh box (/setup). Decide whether it is worth an API change.
 - [ ] 2026-11-13 agent-intake: W2-2 line "1981590 5597 1" comes from osquery's own deb package script (printed between dpkg's "Setting up osquery" and systemctl enable); now hidden in the install log. Not verified on a real Ubuntu run after the change (no SSH from a Mac subagent): the next customer walk should see only Vedette's lines.

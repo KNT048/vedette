@@ -28,6 +28,7 @@ func TestDecide(t *testing.T) {
 		"web production deps":      {"pull_request", []string{"web/package.json"}, true, allWebChanged}, // notices-check reads it (go job); vitest reruns all on package.json itself
 		"web file go reads":        {"pull_request", []string{"web/src/features/core/testdata/keys/ed25519"}, true, allWebChanged},
 		"audit labels file":        {"pull_request", []string{"web/src/locales/en/core.json"}, true, allWebChanged},
+		"module names file":        {"pull_request", []string{"web/src/locales/en/common.json"}, true, allWebChanged},
 		"privacy (web test reads)": {"pull_request", []string{"PRIVACY.md", "web/src/a.ts"}, true, Outputs{Web: true, WebAll: true}},
 		"openapi":                  {"pull_request", []string{"api/openapi.json"}, true, all},
 		"shared data":              {"pull_request", []string{"content/catalog/curated.json"}, true, all},

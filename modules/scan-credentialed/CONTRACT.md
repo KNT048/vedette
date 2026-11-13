@@ -50,7 +50,7 @@ Nguồn hành vi: `web/src/features/scan/CredentialedTab.tsx`, `/scans/credentia
 Không route `/scans/credentialed*` (tab hiện "off" qua `enabled:false` ở bản GUI), container greenbone dừng, không kết nối SSH. Tài khoản và khoá mã hoá giữ nguyên.
 
 ## Story và quyết định
-S-SCAN-5. D-17 giấy phép minh bạch; D-55 container `greenbone` tuỳ chọn.
+S-SCAN-5. D-17 giấy phép minh bạch; D-55 container `greenbone` tuỳ chọn. **D-417**: bản v1 không có backend (core trả 501 `not_implemented` cho `/scans/credentialed*`), nên GUI không mời module này: không tab, không dòng trong Settings → Modules hay trình cài đặt, sau công tắc `CREDENTIALED_IN_UI = false` (`web/src/lib/credentialed.ts`). Mã GUI, hợp đồng, mock giữ nguyên.
 
 ## Không khớp / câu hỏi mở
 - ~~`contract.ts` ghi "khoá riêng không bao giờ được lưu"~~ Đã sửa chữ trong GUI/contract theo D-57 (11): "lưu mã hoá trên hộp, không bao giờ hiện lại" (`core/secrets`, SYS-4).

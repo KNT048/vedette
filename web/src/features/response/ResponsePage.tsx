@@ -49,7 +49,7 @@ function Content() {
       {execution ? (
         <div role="status" className="mb-6 rounded-md border border-danger/50 bg-danger-soft px-4 py-3 text-sm">
           <p className="font-medium text-danger">{t('page.onTitle')}</p>
-          <p>{t('page.onBody', { pending })}</p>
+          <p>{t('page.onBody', { count: pending })}</p>
         </div>
       ) : (
         <p className="mb-6 rounded-md border border-dashed border-rule bg-surface px-4 py-3 text-sm text-muted">

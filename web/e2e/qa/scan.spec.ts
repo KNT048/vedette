@@ -211,7 +211,8 @@ test.describe('scan: admin sets safety', () => {
     await expect(page.getByText('No exploitation, no denial of service')).toBeVisible()
   })
 
-  test('credentialed scan: module-off message; then wrong key/port/account show errors in place; the private key never comes back', async ({ page }) => {
+  // D-417: v1 does not offer the credentialed scan (no backend yet); the GUI is kept for post-v1, so the walk is kept, skipped.
+  test.skip('credentialed scan: module-off message; then wrong key/port/account show errors in place; the private key never comes back', async ({ page }) => {
     await page.goto('/scans?tab=credentialed')
     await expect(page.getByText('Credentialed scan module is off')).toBeVisible()
     await enableCred(page)
@@ -348,13 +349,7 @@ test.describe('scan: screenshots and accessibility', () => {
         await english(page, `${tab} ${tag}`)
         await expectAccessible(page, `${tab} ${tag}`)
       }
-      await enableCred(page)
-      await page.goto('/scans?tab=credentialed')
-      await expect(page.getByRole('heading', { level: 2 }).first()).toBeVisible()
-      await shot(page, 'scan', `credentialed-${tag}`)
-      await noHScroll(page, `cred ${tag}`)
-      await english(page, `cred ${tag}`)
-      await expectAccessible(page, `cred ${tag}`)
+      // D-417: no Credentialed scan tab in v1, so no shot of it.
       expect(errors).toEqual([])
     })
   }

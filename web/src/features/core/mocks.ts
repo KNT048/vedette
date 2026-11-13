@@ -509,12 +509,27 @@ function filterAudit(q: Partial<AuditQuery>): AuditRow[] {
     const t = new Date(r.ts).getTime()
     if (t < from || t > to) return false
     if (q.user && r.user !== q.user) return false
+    if (q.actor === 'people' && isSystemActor(r.user)) return false
     if (q.group && r.action.split('.')[0] !== q.group) return false
     if (text && !`${r.action} ${r.target} ${r.detail ?? ''} ${r.user}`.toLowerCase().includes(text)) return false
     return true
   })
 }
-const qOf = (url: string): Partial<AuditQuery> => { const p = new URL(url).searchParams; return { q: p.get('q') ?? '', user: p.get('user') ?? '', group: p.get('group') ?? '', from: p.get('from') ?? '', to: p.get('to') ?? '' } }
+const qOf = (url: string): Partial<AuditQuery> => { const p = new URL(url).searchParams; return { q: p.get('q') ?? '', user: p.get('user') ?? '', group: p.get('group') ?? '', from: p.get('from') ?? '', to: p.get('to') ?? '', actor: p.get('actor') === 'people' ? 'people' : '' } }
+/** D-416: an automatic line is written by the box itself: user "system" or "system:<part>" (a person, the console and an MCP token are not). */
+const isSystemActor = (user: string) => user === 'system' || user.startsWith('system:')
+/** D-416: ids of devices (a-…) and findings (f-…) in a line's target or detail. */
+const AUDIT_ID_RE = /\b[af]-[a-z0-9]{1,64}\b/g
+/** D-416: the display names of the devices and findings named in these rows; a device is its host name, else its IP; a finding is "<CVE> on <device>". */
+function auditNames(rows: AuditRow[]): Record<string, string> {
+  const ids = new Set(rows.flatMap((r) => `${r.target} ${r.detail ?? ''}`.match(AUDIT_ID_RE) ?? []))
+  if (!ids.size) return {}
+  const assets = new Map(assetsStore.get().map((a) => [a.id, a.hostname || a.ip]))
+  const out: Record<string, string> = {}
+  for (const f of findingsStore.get()) if (ids.has(f.id)) out[f.id] = assets.has(f.asset_id) ? `${f.cve} on ${assets.get(f.asset_id)}` : f.cve
+  for (const [id, name] of assets) if (ids.has(id) && name) out[id] = name
+  return out
+}
 /** Ô CSV bắt đầu bằng = + - @ bị Excel hiểu là công thức: thêm dấu nháy để thành chữ. */
 const csvCell = (v: string) => { const s = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v; return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s }
 
@@ -524,7 +539,8 @@ const auditHandlers = [
     if (denied) return denied
     const all = auditStore.get()
     const rows = filterAudit(qOf(request.url))
-    return HttpResponse.json({ items: rows.slice(0, 200), total: rows.length, users: [...new Set(all.map((r) => r.user))].sort(), groups: [...new Set(all.map((r) => r.action.split('.')[0] ?? ''))].sort() })
+    const items = rows.slice(0, 200)
+    return HttpResponse.json({ items, total: rows.length, users: [...new Set(all.map((r) => r.user))].sort(), groups: [...new Set(all.map((r) => r.action.split('.')[0] ?? ''))].sort(), names: auditNames(items) })
   }),
   http.get(`${API}/core/audit/export`, ({ request }) => {
     const denied = guard('admin')

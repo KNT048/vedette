@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import { useModules, type ModuleId, type ModuleState } from '@/lib/modules'
+import { CREDENTIALED_IN_UI } from '@/lib/credentialed'
 import { fmtDate } from '@/lib/format'
 import { useToggleModule, useUsers } from './api'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
@@ -30,6 +31,8 @@ export default function ModulesSection() {
   const toggle = useToggleModule()
   const [confirm, setConfirm] = useState<Confirm>(null)
   const name = (id: ModuleId) => t(`modules.${id}.name`, { ns: 'common' })
+  // D-417: a module this build has no backend for is not listed (it would read "On" and do nothing).
+  const listed = q.data?.modules.filter((m) => CREDENTIALED_IN_UI || m.id !== 'scan-credentialed')
 
   async function run(id: ModuleId, enabled: boolean, withDependencies = false) {
     try {
@@ -47,10 +50,11 @@ export default function ModulesSection() {
 
   return (
     <>
-      <PageHeader title={q.data ? t('modules.title', { on: q.data.modules.filter((m) => m.enabled).length, total: q.data.modules.length }) : t('settings.modules')} meta={t('modules.meta')} stories={['S-CORE-1']} />
+      <PageHeader title={listed ? t('modules.title', { on: listed.filter((m) => m.enabled).length, total: listed.length }) : t('settings.modules')} meta={t('modules.meta')} stories={['S-CORE-1']} />
       <ReadOnlyNote role="admin" />
       <QueryState query={q}>
-        {({ modules }) => {
+        {(d) => {
+          const modules = d.modules.filter((m) => CREDENTIALED_IN_UI || m.id !== 'scan-credentialed')
           const columns: ColumnDef<ModuleState>[] = [
             { id: 'name', header: t('modules.col.module'), accessorFn: (m) => name(m.id), cell: ({ row }) => (
               <div className="grid max-w-md"><span className="font-medium">{name(row.original.id)}</span><span className="text-[13px] text-muted">{t(`modules.${row.original.id}.${row.original.id === 'sensor-active' && install === 'container' ? 'summaryContainer' : 'summary'}`, { ns: 'common' })}</span>{row.original.available ? null : <span className="text-[13px] text-warn">{t('modules.notHereWhy')}</span>}</div>

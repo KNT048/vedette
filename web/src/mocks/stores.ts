@@ -66,7 +66,8 @@ export const findingsStore = collection<Finding[]>('fnd_finding', seedFindings, 
 export interface AuditEntry { id: string; ts: string; user: string; action: string; target: string; detail: string | null; prev_hash: string; hash: string }
 export const auditStore = collection<AuditEntry[]>('core_audit', () => [])
 
-/** SYS-3: mọi mutation ghi kiểm toán. */
+/** SYS-3: mọi mutation ghi kiểm toán. The preview keeps the latest 1000 lines only because they live in browser storage; the box keeps
+ * 365 days, at most 200,000 lines (D-416, core INV-37). */
 export function audit(action: string, target: string, detail?: string) {
   const u = realSessionOn() ? realUser() : usersStore.get().find((x) => x.id === sessionStore.get().userId)
   auditStore.update((l) => {

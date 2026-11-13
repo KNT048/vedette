@@ -12,6 +12,7 @@ import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { saveInventoryScope, useSetupModules, useSetupStatus, useSubmitSetup } from './api'
 import { BUNDLES, closure, without } from './bundles'
+import { CREDENTIALED_IN_UI } from '@/lib/credentialed'
 import { errMsg } from './parts'
 import { EMAIL_RE, isBareIp, isPrivateCidr, MIN_PASSWORD, normaliseCidr } from './util'
 import type { BundleId, SetupPayload } from './types'
@@ -239,7 +240,7 @@ function ModulesStep({ s, set, error }: { s: State; set: (p: Partial<State>) => 
   const name = (id: ModuleId) => t(`modules.${id}.name`, { ns: 'common' })
   if (q.isPending) return <Loading />
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
-  const all = q.data.modules
+  const all = q.data.modules.filter((m) => CREDENTIALED_IN_UI || m.id !== 'scan-credentialed') // D-417: not offered in this build
   // D-381: a bundle leaves out what this install cannot run (the honeypot on a container-only install), as the box does.
   const here = (id: ModuleId) => all.find((m) => m.id === id)?.available !== false
   const bundle = (b: Exclude<BundleId, 'custom'>) => BUNDLES[b].filter(here)

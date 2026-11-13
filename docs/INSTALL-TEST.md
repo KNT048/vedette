@@ -96,7 +96,7 @@ Negative checks (cheap): build a third version with a DIFFERENT keys folder (omi
 
 ## Not failures
 
-The container run (`make install-check`) cannot show, and this plan checks on the box instead: macvlan decoys on a real wire, a second NIC and SPAN, `netplan` and the network hand-over (not exercised on this box on purpose), a reboot (the units come back after boot: only with the supervisor's OK). If the box has no second NIC, SPAN is skipped, not failed. The scan image build needs `deb.debian.org`; a box that cannot reach it installs without active scanning (the installer says so and goes on).
+The container run (`make install-check`) cannot show, and this plan checks on the box instead: macvlan decoys on a real wire, a second NIC and SPAN (**skipped for v1 (D-403)**: SPAN is hidden in the GUI), `netplan` and the network hand-over (not exercised on this box on purpose), a reboot (the units come back after boot: only with the supervisor's OK). If the box has no second NIC, SPAN is skipped, not failed. The scan image build needs `deb.debian.org`; a box that cannot reach it installs without active scanning (the installer says so and goes on).
 
 ## Report
 

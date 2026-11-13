@@ -79,7 +79,7 @@ test('GET /modules says container and the honeypot is not available; turning it 
 
 for (const [route, block, label] of [
   ['/settings/updates', /docker compose --env-file vedette\.env pull/, 'Updates'],
-  ['/settings/network', /Prepare the SPAN card on this machine yourself/, 'Box network'],
+  ['/settings/network', /start the sensor with compose\.sensors\.yaml, then choose the card/i, 'Box network'], // both texts, SPAN shown or hidden (D-403)
   ['/settings/data', /tar czf \/backup\/vedette-data\.tgz/, 'Data'],
 ] as const) {
   test(`${route} shows what to do on a container-only install, calls no host endpoint, and nothing breaks`, async ({ page }) => {

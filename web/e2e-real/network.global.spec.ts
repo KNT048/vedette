@@ -8,6 +8,7 @@ import { expect, request, test, type Page } from '@playwright/test'
 import { api, authFile, box } from './box'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'
 import { collectErrors, shot } from '../e2e/helpers'
+import { SPAN_IN_UI } from '../src/lib/span'
 
 test.use({ storageState: authFile('admin'), actionTimeout: 10_000 })
 test.describe.configure({ mode: 'serial' })
@@ -197,6 +198,7 @@ test('a mistake is told in words and sends nothing: a gateway outside the range,
 })
 
 test('SPAN: eth1 gets the role, the port, what is read and an exclusion are saved and survive a reload, and the switch guide shows steps', async ({ page }) => {
+  test.skip(!SPAN_IN_UI, 'D-403: SPAN is hidden in the GUI for v1; the backend and its tests are kept')
   test.setTimeout(90_000)
   const errors = collectErrors(page)
   await page.goto('/settings/network')

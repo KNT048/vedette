@@ -9,6 +9,7 @@ import { CodeBlock } from '@/components/common/CodeBlock'
 import { QueryState } from '@/components/common/States'
 import { Segmented } from '@/components/ui/segmented'
 import { useModules } from '@/lib/modules'
+import { SPAN_IN_UI } from '@/lib/span'
 import { fmtRelative } from '@/lib/format'
 import { useUpdates } from './api'
 import type { UpdateAvailable, UpdateCheckError, UpdatesState } from './types'
@@ -204,5 +205,5 @@ export function ContainerBackup() {
 /** Settings → Box network on a container-only install (S-CORE-9 G2, G6): the machine's network is the customer's. */
 export function ContainerNetwork() {
   const { t } = useTranslation('core')
-  return <Section title={t('container.network.title')} description={t('container.network.desc')}>{null}</Section>
+  return <Section title={t('container.network.title')} description={t(SPAN_IN_UI ? 'container.network.desc' : 'container.network.descNoSpan')}>{null}</Section>
 }

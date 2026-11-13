@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Plus } from 'lucide-react'
+import { Download, Plus } from 'lucide-react'
 import { Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { CodeBlock } from '@/components/common/CodeBlock'
@@ -17,7 +17,7 @@ import { linuxOneLiner, OSQUERY_SCHEDULE, osquerySteps, windowsOneLiner, wazuhRe
 import { NO_BOX_ADDRESS } from './installScripts'
 import { useAgentActions, useAgents, useWazuhActions } from './api'
 import { errMsg } from './kinds'
-import type { AgentToken, AgentsResponse, CreateTokenResult, WazuhConnection } from './types'
+import type { AgentToken, AgentsResponse, CreateTokenResult, OsqueryPackage, WazuhConnection } from './types'
 
 /** Chỉ bản xem thử có mock API: nút "Send sample data" giả lập một lần agent báo về (bản thật không có). */
 const MOCK_BUILD = import.meta.env.DEV || import.meta.env.VITE_API_MOCK !== 'off'
@@ -50,13 +50,52 @@ function NoBoxAddress() {
   )
 }
 
-/** Một dòng lệnh cài và gỡ cho Linux hoặc Windows Server, script đọc được, và cài tay ở mục "Advanced". */
+/** D-404: the packages the box serves for the chosen OS, each a direct download from this origin (the public mirror route of D-169: the
+ *  browser saves it under its own name), with what it is for, its size and the SHA-256 of the box's SHA256SUMS. */
+function Downloads({ packages }: { packages: OsqueryPackage[] }) {
+  const { t } = useTranslation('inventory')
+  return (
+    <div className="grid gap-1.5">
+      <p className="text-sm font-medium">{t('agents.download.title')}</p>
+      <p className="text-[13px] text-muted">{t('agents.download.body')}</p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-[13px]">
+          <caption className="sr-only">{t('agents.download.caption')}</caption>
+          <thead className="text-muted"><tr>
+            <th scope="col" className="py-1 pr-3 font-medium">{t('agents.download.col.file')}</th>
+            <th scope="col" className="py-1 pr-3 font-medium">{t('agents.download.col.for')}</th>
+            <th scope="col" className="py-1 pr-3 font-medium">{t('agents.download.col.size')}</th>
+            <th scope="col" className="py-1 font-medium">{t('agents.download.col.sha')}</th>
+          </tr></thead>
+          <tbody>
+            {packages.map((p) => (
+              <tr key={p.file} className="border-t border-rule align-top">
+                <td className="py-1.5 pr-3">
+                  <a href={`/api/v1/install/osquery/${encodeURIComponent(p.file)}`} download={p.file} aria-label={t('agents.download.link', { file: p.file })}
+                    className="inline-flex items-center gap-1 font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">
+                    <Download className="size-3.5 shrink-0" aria-hidden />{p.file}
+                  </a>
+                </td>
+                <td className="py-1.5 pr-3">{t(`agents.download.format.${p.format}`)} · {p.format === 'msi' ? 'x64' : p.arch}</td>
+                <td className="whitespace-nowrap py-1.5 pr-3">{t('agents.download.size', { mb: (p.size / 1e6).toFixed(1) })}</td>
+                <td className="py-1.5"><code className="break-all font-mono text-[12px]">{p.sha256}</code></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+/** Một dòng lệnh cài và gỡ cho Linux hoặc Windows Server, script đọc được, tải gói trực tiếp (D-404), và cài tay ở mục "Advanced". */
 function InstallPanel({ data, token }: { data: AgentsResponse; token: string }) {
   const { t } = useTranslation('inventory')
   const [platform, setPlatform] = useState<Platform>('linux')
   const box = data.server_url
   if (box.includes(NO_BOX_ADDRESS)) return <NoBoxAddress />
   const inst = data.install[platform]
+  const packages = data.install.packages.filter((p) => p.platform === platform)
   const one = platform === 'linux' ? linuxOneLiner : windowsOneLiner
   return (
     <div className="grid min-w-0 gap-4 [&>*]:min-w-0">
@@ -69,6 +108,7 @@ function InstallPanel({ data, token }: { data: AgentsResponse; token: string }) 
       <div className="grid gap-1.5">
         <p className="text-sm font-medium">{t('agents.install.title')}</p>
         <p className="text-[13px] text-muted">{t(`agents.install.${platform}How`)}</p>
+        {packages.length ? null : <p role="status" className="rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-sm">{t('agents.download.none')}</p>}
         <CodeBlock label={t(`agents.install.${platform}Label`)} code={one(box, inst.sha256, token)} />
         <p className="text-[13px]"><span className="font-medium">{t('agents.install.sha')}:</span> <code className="break-all font-mono text-[12.5px]">{inst.sha256}</code></p>
         <p className="text-[13px] text-muted">{t('agents.install.shaHint')}</p>
@@ -79,6 +119,7 @@ function InstallPanel({ data, token }: { data: AgentsResponse; token: string }) 
         <p className="my-2 text-[13px] text-muted">{t('agents.install.readFirstBody')}</p>
         <CodeBlock label={inst.url} code={inst.script} />
       </details>
+      {packages.length ? <Downloads packages={packages} /> : null}
       <div className="grid gap-1.5">
         <p className="text-sm font-medium">{t('agents.install.uninstall')}</p>
         <CodeBlock label={t(`agents.install.${platform}Label`)} code={one(box, inst.sha256, token, 'uninstall')} />
@@ -88,7 +129,7 @@ function InstallPanel({ data, token }: { data: AgentsResponse; token: string }) 
         <summary className="cursor-pointer text-sm font-medium">{t('agents.install.advanced')}</summary>
         <div className="mt-3 grid min-w-0 gap-4 [&>*]:min-w-0">
           <p className="text-[13px] text-muted">{t('agents.install.advancedBody')}</p>
-          <Steps items={osquerySteps(platform, box, token)} ns={`agents.steps.${platform}`} />
+          <Steps items={osquerySteps(platform, box, token, packages)} ns={`agents.steps.${platform}`} />
           <div className="grid gap-1.5">
             <p className="text-sm font-medium">{t('agents.install.queries')}</p>
             <p className="text-[13px] text-muted">{t('agents.install.queriesBody')}</p>

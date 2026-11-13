@@ -61,6 +61,7 @@ func (h *AdminHandlers) InventoryGetInventoryAgents(ctx context.Context) (*oas.I
 	out.Install.OsqueryVersion = OsqueryVersion
 	out.Install.Linux = oas.InventoryGetInventoryAgentsOKInstallLinux{URL: box + "/api/v1/install/osquery.sh", SHA256: sha256Hex(sh), Script: sh}
 	out.Install.Windows = oas.InventoryGetInventoryAgentsOKInstallWindows{URL: box + "/api/v1/install/osquery.ps1", SHA256: sha256Hex(ps1), Script: ps1}
+	out.Install.Packages = h.s.packages(ctx)
 	for _, t := range list {
 		out.Tokens = append(out.Tokens, oas.InventoryGetInventoryAgentsOKTokensItem{
 			ID: t.ID, Name: t.Name, Kind: oas.InventoryGetInventoryAgentsOKTokensItemKindOsquery, Last4: t.Last4, CreatedAt: t.CreatedAt, Hosts: t.Hosts,

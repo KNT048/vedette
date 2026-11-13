@@ -30,6 +30,7 @@ const (
 	MaxAuthTracked    = 2048
 	maxAuthStamps     = 32
 	maxAuthUsers      = 5
+	maxAuthExact      = 8
 	AuthEventsPerHour = 20
 	// AuthTarget starts the target of every event of this rule: its own namespace in notify's dedupe key.
 	AuthTarget = "auth:"
@@ -61,8 +62,9 @@ type authKey struct {
 type authState struct {
 	stamps    [authClasses][]time.Time
 	users     []string
-	success   time.Time // the last accepted login seen from the address
-	firedAt   time.Time // when the incident opened; zero before
+	exact     []netip.Addr // the exact addresses that failed (at most maxAuthExact): an IPv6 pair is a /64, and a login is only the attacker's when its own address failed
+	success   time.Time    // the last accepted login seen from the address
+	firedAt   time.Time    // when the incident opened; zero before
 	escalated bool
 	last      time.Time
 }
@@ -95,6 +97,9 @@ func authLine(sig string, bounded bool, text string) (class int, user string, ok
 	env := listen.ParseSyslog(text)
 	if env.Format == listen.FormatRaw { // no <PRI>: a header may still be there
 		env = listen.ParseSyslog("<13>" + text)
+	}
+	if env.Format == listen.FormatRFC3164 && strings.HasSuffix(env.Host, ":") { // "app: sshd[1]: ...": the first word is the program and sshd is text of the message
+		return 0, "", false
 	}
 	app := asciiLower(env.App)
 	msg := env.Msg
@@ -169,7 +174,7 @@ func (s *Service) noteAuth(obs []authObs) []authAlert {
 		k := authKey{o.source, net}
 		st := s.auth[k]
 		if o.class < 0 { // an accepted login counts only for an address that has failed lately
-			if st == nil || authAttempts(st, o.at) == 0 {
+			if st == nil || authAttempts(st, o.at) == 0 || !slices.Contains(st.exact, o.addr) {
 				continue
 			}
 			st.success, st.last = o.at, o.at
@@ -191,6 +196,9 @@ func (s *Service) noteAuth(obs []authObs) []authAlert {
 		st.stamps[o.class] = append(slices.DeleteFunc(st.stamps[o.class], func(t time.Time) bool { return t.Before(cut) }), o.at)
 		if n := len(st.stamps[o.class]); n > maxAuthStamps {
 			st.stamps[o.class] = st.stamps[o.class][n-maxAuthStamps:]
+		}
+		if len(st.exact) < maxAuthExact && !slices.Contains(st.exact, o.addr) {
+			st.exact = append(st.exact, o.addr)
 		}
 		if o.user != "" && len(st.users) < maxAuthUsers && !slices.Contains(st.users, o.user) {
 			st.users = append(st.users, o.user)

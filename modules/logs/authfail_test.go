@@ -280,3 +280,33 @@ func TestAuthFail_AcceptedFirstIncidentHasItsOwnTarget(t *testing.T) {
 		t.Fatalf("incidents: %+v", p.summaries)
 	}
 }
+
+// An IPv6 pair is a /64, but a login is the attacker's only when its own address failed: a neighbour on the same LAN logging in is not.
+func TestAuthFail_IPv6NeighbourLoginIsNotAcceptedAttacker(t *testing.T) {
+	t.Parallel()
+	e, src, p := authEnv(t)
+	for range 5 {
+		e.ingest(src, failedPassword("root", "2001:db8:aa:1::50"))
+	}
+	e.ingest(src, "Nov  9 10:01:00 web1 sshd[9]: Accepted publickey for kien from 2001:db8:aa:1::77 port 5 ssh2")
+	if len(p.summaries) != 1 || p.summaries[0].Severity != "medium" {
+		t.Fatalf("a neighbour's login: %+v", p.summaries)
+	}
+	e.ingest(src, "Nov  9 10:01:00 web1 sshd[9]: Accepted publickey for kien from 2001:db8:aa:1::50 port 5 ssh2")
+	if n := len(p.summaries); n != 2 || p.summaries[1].Severity != "high" {
+		t.Fatalf("the failing address logging in: %+v", p.summaries)
+	}
+}
+
+// "app: sshd[1]: ..." is a program called app whose message says sshd: the words are the sender's.
+func TestAuthFail_ProgramFirstWordIsNotSshd(t *testing.T) {
+	t.Parallel()
+	e, src, p := authEnv(t)
+	for range 6 {
+		e.ingest(src, "<13>Nov  9 10:00:00 app: sshd[1]: Failed password for root from "+attacker+" port 5 ssh2")
+	}
+	e.ingest(src, "<13>Nov  9 10:00:00 app: sshd[1]: Accepted password for root from "+attacker+" port 5 ssh2")
+	if len(p.summaries) != 0 {
+		t.Fatalf("visitor text made %d incidents", len(p.summaries))
+	}
+}

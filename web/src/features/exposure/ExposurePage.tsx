@@ -16,7 +16,7 @@ import { BoxIpPanel } from './BoxIpPanel'
 import { OwnerChip } from './OwnerChip'
 import { useAddTarget, useTargets } from './api'
 import { portLabel, riskOf } from './services'
-import type { PortRow, Target } from './types'
+import type { Gateway, PortRow, Target } from './types'
 
 export default function ExposurePage() {
   const { t } = useTranslation('exposure')
@@ -47,7 +47,7 @@ export default function ExposurePage() {
       <QueryState query={{ data, error, isPending, refetch }}>
         {(d) => (
           <>
-            {open.length > 0 ? <OpenPorts ports={open} total={ports} /> : null}
+            {open.length > 0 ? <OpenPorts ports={open} total={ports} gateway={d.gateway} /> : null}
             <Section id="targets" title={t('targets.title')} description={t('targets.description')}>
               <TargetsTable items={d.items.filter((x) => x.kind === 'domain')} />
             </Section>
@@ -61,10 +61,11 @@ export default function ExposurePage() {
 }
 
 /** W1-23: every open port of the newest scans, the commonly attacked ones called out, with "is that on purpose?" (S-EXP-1, D-485). */
-function OpenPorts({ ports, total }: { ports: (PortRow & { target: Target })[]; total: number }) {
+function OpenPorts({ ports, total, gateway }: { ports: (PortRow & { target: Target })[]; total: number; gateway: Gateway | null }) {
   const { t } = useTranslation('exposure')
   return (
     <Section id="open" title={t('open.title', { count: total })} description={t('open.description')}>
+      {gateway ? <GatewayNote g={gateway} /> : null}
       <Panel className="divide-y divide-rule">
         {ports.map((p) => {
           const risk = riskOf(p)
@@ -84,6 +85,22 @@ function OpenPorts({ ports, total }: { ports: (PortRow & { target: Target })[]; 
       </Panel>
       {total > ports.length ? <p className="mt-2 text-[13px] text-muted">{t('open.moreOnTarget', { count: total - ports.length })}</p> : null}
     </Section>
+  )
+}
+
+/** D-492: which device probably answers the open ports, and what is exploited on it. Never says for sure (a router can forward a port to another device). */
+function GatewayNote({ g }: { g: Gateway }) {
+  const { t } = useTranslation('exposure')
+  const name = g.name ?? ''
+  const ip = g.ip ?? ''
+  const known = g.device_id !== null
+  const text = !g.ip ? t('gateway.unknown') : !known ? t('gateway.notListed', { ip })
+    : g.open_exploited > 0 ? t('gateway.known', { name, ip, count: g.open_exploited }) : t('gateway.none', { name, ip })
+  return (
+    <div data-testid="gateway-note"><Panel className="mb-3 grid gap-1 px-4 py-3 text-sm">
+      <p>{text}</p>
+      {known && g.open_exploited > 0 ? <Link className="w-fit text-[13px] text-accent underline-offset-4 hover:underline" to={`/findings?device=${encodeURIComponent(g.device_id ?? '')}`}>{t('gateway.link', { name })}</Link> : null}
+    </Panel></div>
   )
 }
 

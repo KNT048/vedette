@@ -183,6 +183,9 @@ type ingestEnv struct {
 	order     []netip.Addr
 	openPorts bool
 	perSrc    map[netip.Addr]int
+	// touch: this batch is made of attempts the host recorded (PollTouches): new hits draw from touchLeft, not the listener caps.
+	touch     bool
+	touchLeft int
 	pollNew   int // new hits stored by this poll's earlier batches
 	hourNew   int // new hits stored in this clock hour before this batch
 	// of the batch in progress
@@ -257,7 +260,11 @@ func (s *Service) afterBatch(ctx context.Context, env *ingestEnv) {
 	env.pollNew += len(created)
 	env.hourNew += len(created)
 	s.mu.Lock()
-	s.hourNew = env.hourNew
+	if env.touch {
+		s.touchHourNew += len(created) // their own budget: never the listener's (B2 review M2)
+	} else {
+		s.hourNew += len(created) // a delta: a URL token hit stored meanwhile is not lost (B2 review L3)
+	}
 	s.stats.Lines += env.st.Lines
 	s.stats.Ignored += env.st.Ignored
 	s.stats.Skipped += env.st.Skipped
@@ -543,9 +550,13 @@ func (s *Service) sweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, src net
 	tsText := store.FormatTS(ts)
 	line := src.String() + " touched " + env.nameAt(trapIP) + " (" + trapIP + ")"
 	key := connKey("sweep", src.String(), strconv.FormatInt(ts.Truncate(hitWindow).Unix(), 10))
+	note := ""
+	if env.touch {
+		note = forgedNote
+	}
 	if err := s.upsert(ctx, tx, env, storedHit{
 		Hit: Hit{TS: tsText, Kind: KindScan, Label: "Scan across the Trap IPs", SrcIP: src.String(),
-			Excerpt: "Touched " + strings.Join(both, ", ") + " within a minute", TrapIP: joinMax(ips, maxTrapIPText), TrapHostname: joinMax(names, maxTrapNameText)},
+			Excerpt: "Touched " + strings.Join(both, ", ") + " within a minute" + note, TrapIP: joinMax(ips, maxTrapIPText), TrapHostname: joinMax(names, maxTrapNameText)},
 		connKey: key,
 		events:  []HitEvent{{TS: tsText, Source: "honeypot", Text: line, Mark: true}},
 	}, line, env.nameAt(trapIP)+" ("+trapIP+")"); err != nil {
@@ -619,7 +630,8 @@ func (s *Service) upsert(ctx context.Context, tx *sql.Tx, env *ingestEnv, h stor
 	err := tx.QueryRowContext(ctx, `SELECT id, excerpt, events FROM hp_hits WHERE conn_key = ?`, h.connKey).Scan(&id, &excerpt, &evJSON)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		if env.pollNew+len(env.newHits) >= maxNewPerPoll || env.hourNew+len(env.newHits) >= maxNewPerHour {
+		if env.touch && len(env.newHits) >= env.touchLeft ||
+			!env.touch && (env.pollNew+len(env.newHits) >= maxNewPerPoll || env.hourNew+len(env.newHits) >= maxNewPerHour) {
 			env.st.Suppressed++
 			return nil
 		}
@@ -706,6 +718,13 @@ const touchTTL = 2 * time.Minute
 // maxTouchKeys bounds the memory of attempts already fed (the host's set holds at most 1024).
 const maxTouchKeys = 4096
 
+// maxTouchScansPerHour is the budget of new scan hits from attempts that completed no handshake (their source can be forged): a
+// flood of forged sources stops here, never drawing from maxNewPerHour, so the listener hits keep alerting (B2 review M2).
+const maxTouchScansPerHour = 20
+
+// forgedNote ends the excerpt of a scan hit made from attempts the host recorded.
+const forgedNote = " The handshake was not completed, so the source address may be forged."
+
 // PollTouches feeds the host's record of new TCP/UDP attempts to the Trap IPs into the sweep detection (B2 review M2: a SYN scan,
 // nmap's default, completes no connection, so OpenCanary logs nothing). Only the sweep: a single attempt is no hit (the listener
 // hits stay the per-touch alerts). The source must be plausible as for a log line (not the box, a Trap IP, loopback, the network
@@ -747,11 +766,17 @@ func (s *Service) PollTouches(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	hour := now.Truncate(time.Hour)
+	s.mu.Lock()
+	if !s.touchHourStart.Equal(hour) {
+		s.touchHourStart, s.touchHourNew = hour, 0
+	}
+	env.touch, env.touchLeft = true, maxTouchScansPerHour-s.touchHourNew
+	s.mu.Unlock()
 	err = s.db.Write(ctx, func(tx *sql.Tx) error {
 		env.newHits, env.ignored, env.st = nil, 0, Stats{}
 		for _, t := range fresh {
-			if !env.touchPlausible(t) {
-				env.st.Implausible++
+			if !env.touchPlausible(t) { // the box, a Trap IP, broadcast...: not counted as an implausible log line (B2 review L2)
 				continue
 			}
 			if err := s.sweep(ctx, tx, env, t.Src, t.Dst.String(), t.At); err != nil {

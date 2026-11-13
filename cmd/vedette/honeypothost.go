@@ -355,6 +355,12 @@ func (h *honeypotHost) Touches(ctx context.Context) ([]honeypot.Touch, error) {
 	case err != nil:
 		return nil, fmt.Errorf("honeypot: host attempts: %w", err)
 	}
+	if !st.Recording && h.warnDue("touches off") {
+		h.log.WarnContext(ctx, "honeypot: vedette-host records no connection attempts to the Trap IPs (its ruleset was loaded without the set touched); a SYN scan is seen only by its completed connections")
+	}
+	if st.Full && h.warnDue("touches full") {
+		h.log.WarnContext(ctx, "honeypot: vedette-host's record of connection attempts to the Trap IPs is full; some may be missing")
+	}
 	now := time.Now()
 	out := make([]honeypot.Touch, 0, len(st.Touches))
 	for _, t := range st.Touches {

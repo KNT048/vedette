@@ -5,6 +5,7 @@ package honeypot_test
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"net/netip"
 	"slices"
@@ -515,5 +516,37 @@ func TestHostRecordedAttemptsAreASweep(t *testing.T) {
 	poll()
 	if n := len(hitsOfKind(t, e, honeypot.KindScan)); n != 1 {
 		t.Fatalf("%d scan hits while the module is off", n)
+	}
+}
+
+// B2 review M2: a scan hit made from attempts that completed no handshake says the source may be forged, and such hits have a
+// budget of their own (20 an hour): a flood of forged sources stops there and never uses up the listener hits' cap.
+func TestAttemptScansHaveTheirOwnBudget(t *testing.T) {
+	t.Parallel()
+	var list []honeypot.Touch
+	e := newEnv(t, func(e *env) { e.cfg.Host = touchHost{fakeHost: e.host, list: &list} })
+	e.now = t0.Add(5 * time.Minute)
+	e.setup()
+	e.addTrapIP("NAS-ARCHIVE", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	for i := range 25 {
+		src := fmt.Sprintf("192.168.10.%d", 150+i)
+		list = append(list, honeypot.Touch{Src: addr(src), Dst: addr("192.168.10.240"), At: e.now.Add(-20 * time.Second)},
+			honeypot.Touch{Src: addr(src), Dst: addr("192.168.10.241"), At: e.now.Add(-10 * time.Second)})
+	}
+	if err := e.svc.PollTouches(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	scans := hitsOfKind(t, e, honeypot.KindScan)
+	if len(scans) != 20 || e.svc.Stats().Suppressed != 5 || !strings.Contains(scans[0].Excerpt, "may be forged") {
+		t.Fatalf("%d scan hits, %d suppressed, excerpt %q", len(scans), e.svc.Stats().Suppressed, scans[0].Excerpt)
+	}
+	// A real connection still makes its hit.
+	e.appendLog(sshNew("192.168.10.107", 50001, e.now).json())
+	e.poll()
+	if n := len(hitsOfKind(t, e, honeypot.KindService)); n != 1 {
+		t.Fatalf("%d listener hits after the attempt budget ran out", n)
 	}
 }

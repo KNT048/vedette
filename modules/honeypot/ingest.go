@@ -562,6 +562,11 @@ func (s *Service) sweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, src net
 	}, line, env.nameAt(trapIP)+" ("+trapIP+")"); err != nil {
 		return err
 	}
+	if !env.touch { // a real connection from src: its source is not forged, whichever of the two made the hit first (W6-4)
+		if _, err := tx.ExecContext(ctx, `UPDATE hp_hits SET excerpt = REPLACE(excerpt, ?, '') WHERE conn_key = ?`, forgedNote, key); err != nil {
+			return fmt.Errorf("honeypot: update scan hit: %w", err)
+		}
+	}
 	return s.widenSweep(ctx, tx, env, key, near)
 }
 

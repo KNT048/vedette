@@ -945,7 +945,7 @@ func (f *updFollower) failed(ctx context.Context, rec *updateRunRec, i int, run 
 	}
 	if c.Undo {
 		rec.Outcome = runFailed
-		rec.Why += " Putting " + serviceName(c.Service) + " back failed as well (" + updateReason(ctx, code) + "). Check the services on the box before you try again."
+		rec.Why += " Putting " + serviceName(c.Service) + " back failed as well (" + strings.TrimSuffix(updateReason(ctx, code, runMessage(run)), ".") + "). Check the services on the box before you try again."
 		return nil
 	}
 	for j := i + 1; j < len(rec.Calls); j++ {
@@ -1004,7 +1004,7 @@ func (f *updFollower) why(ctx context.Context, rec *updateRunRec, c updateCall, 
 		code = run.Error.Code
 	}
 	name := serviceName(c.Service)
-	reason := updateReason(ctx, code)
+	reason := updateReason(ctx, code, runMessage(run))
 	from := orDash(rec.From)
 	switch {
 	case code == codeInterrupted && rec.Action == actionRollback:
@@ -1047,9 +1047,11 @@ func serviceName(s string) string {
 }
 
 // updateReason is one plain sentence for the end code of a container call; codes shared with the OS calls use
-// mapHostCode's sentence.
-func updateReason(ctx context.Context, code string) string {
+// mapHostCode's sentence. msg is the host's message of the run (only port_in_use reads it).
+func updateReason(ctx context.Context, code, msg string) string {
 	switch code {
+	case api.CodePortInUse:
+		return portInUseReason(msg)
 	case api.CodeSignatureInvalid, api.CodeKeyRevoked, api.CodeManifestMismatch, api.CodeRegistryNotAllowed, api.CodeDigestNotInManifest:
 		return "the release did not pass the signature check on the box, so nothing was installed."
 	case api.CodeReleaseRevoked:
@@ -1083,6 +1085,29 @@ func updateReason(ctx context.Context, code string) string {
 		return ae.Message
 	}
 	return "the operating system helper could not do this. The details are in the box log."
+}
+
+// runMessage is the host's message of a run that did not succeed, "" when it has none.
+func runMessage(run api.Run) string {
+	if run.Error == nil {
+		return ""
+	}
+	return run.Error.Message
+}
+
+// portInUseReason names the taken port and the program holding it (what `ss -ltnp` would show), so the administrator
+// knows what to stop without a shell on the box (D-412). The names come from the host's message (api.PortsInUse); a
+// message of another shape gives the sentence without them.
+func portInUseReason(msg string) string {
+	const fix = " Stop that program or move it to another port, then try again."
+	list, plural, ok := api.PortsInUse(msg)
+	switch {
+	case !ok:
+		return "a port it needs is used by another program on the box (the box log names it)." + fix
+	case plural:
+		return "ports " + list + " are used by another program on the box." + fix
+	}
+	return "port " + list + " is used by another program on the box." + fix
 }
 
 // rolledBackSince finds the rollback that a restored database forgot: core's container.rollback that put the

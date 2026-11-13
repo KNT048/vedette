@@ -352,5 +352,5 @@ func hostWhy(ctx context.Context, rec *updateRunRec, code string) string {
 	case codeHostDownload:
 		return "Updating the system helper to " + v + " failed: its package could not be downloaded. Check that the box can reach github.com over HTTPS, then apply again."
 	}
-	return "Updating the system helper to " + v + " failed: " + updateReason(ctx, code)
+	return "Updating the system helper to " + v + " failed: " + updateReason(ctx, code, "")
 }

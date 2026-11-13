@@ -20,7 +20,7 @@ func Preview(t Type, m Message) (subject, text string, err error) {
 	case Telegram:
 		return "", telegramText(n, link), nil
 	case Zalo, ZaloPersonal:
-		return "", fit(n.mapText(defang).lines(link), zaloTextMax), nil
+		return "", chatText(n, link, zaloTextMax), nil
 	case Email:
 		return emailSubject(n), emailBody(n, link), nil
 	case Webhook:

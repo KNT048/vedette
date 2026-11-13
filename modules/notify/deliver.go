@@ -22,6 +22,10 @@ type SendRecord struct {
 	MessageID int64
 	ChatID    string // the provider's chat of the sent message (Telegram, a checked number), "" when unknown
 	TS        string // Slack: the ts of the posted approval message, "" when unknown
+	// Limited is set when the provider asked to slow down (channel.RateLimitError), RetryAfter is the wait it named (0 = none, D-483).
+	Limited    bool
+	RetryAfter time.Duration
+	Delayed    bool // the history row of a message held back by a rate limit; it is sent again by itself
 }
 
 // Deliver makes one attempt through s and always returns its record (INV-6:
@@ -45,6 +49,10 @@ func Deliver(ctx context.Context, id string, s channel.Sender, m channel.Message
 	}
 	if err != nil {
 		rec.Error = friendlyError(err)
+		var rl *channel.RateLimitError
+		if errors.As(err, &rl) {
+			rec.Limited, rec.RetryAfter = true, rl.Wait
+		}
 		return rec
 	}
 	rec.OK, rec.MessageID, rec.ChatID, rec.TS = true, r.MessageID, r.ChatID, r.TS
@@ -88,7 +96,10 @@ func friendlyError(err error) string {
 	var se *channel.StatusError
 	var pe *channel.ProviderError
 	var si *channel.SignInError
+	var rl *channel.RateLimitError
 	switch {
+	case errors.As(err, &rl): // before StatusError: the 429 is under it (D-483)
+		return channelName[rl.Channel] + " asked Vedette to send more slowly (too many messages at once)."
 	case errors.As(err, &ce):
 		return ce.Msg
 	case errors.As(err, &si): // before StatusError: a refused sign-in carries the SMTP code under our sentence (D-449)

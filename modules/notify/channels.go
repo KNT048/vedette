@@ -40,7 +40,7 @@ const (
 var savedFields = map[channel.Type][]string{
 	channel.Telegram:     {"chat_id"},
 	channel.Slack:        {"label", "channel_id"},
-	channel.Zalo:         {"oa_id", "user_id"},
+	channel.Zalo:         {"oa_id", "user_id", "app_id"},          // app_id: the refresh-token flow (D-483)
 	channel.ZaloPersonal: {"user_id", "group", "name", "account"}, // name: the recipient's shown name; account: set from the sign-in only
 	channel.Email:        {"provider", "host", "port", "security", "username", "tenant_id", "client_id", "from", "to"},
 	channel.Webhook:      {"url"},
@@ -263,7 +263,9 @@ func (s *Service) newSender(t channel.Type, f map[string]string, secret string, 
 	case channel.Slack:
 		return channel.NewSlack(channel.SlackConfig{Webhook: sv, Label: f["label"], Client: hc})
 	case channel.Zalo:
-		return channel.NewZalo(channel.ZaloConfig{OAID: f["oa_id"], UserID: f["user_id"], Token: sv, Client: hc})
+		latest := s.latestZalo(secret)
+		return channel.NewZalo(channel.ZaloConfig{OAID: f["oa_id"], UserID: f["user_id"], AppID: f["app_id"], Token: secrets.NewValue(latest), Client: hc, Now: s.now,
+			SaveSecret: s.rotateZaloSecret, Unsaved: latest != secret})
 	case channel.ZaloPersonal:
 		return channel.NewZaloPersonal(channel.ZaloPersonalConfig{UserID: f["user_id"], Group: f["group"] == "true", Session: sv, Client: hc})
 	case channel.Email:
@@ -584,6 +586,19 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			}
 			rebind = secret == "" && cur.SecretID != "" && cur.savedFor() != emailBinding(fields)
 		}
+		if t == channel.Zalo { // D-483: the secret key and refresh token join the saved grant; an empty one keeps the saved value
+			saved := ""
+			if strings.TrimSpace(in.SecretKey) != "" || strings.TrimSpace(in.RefreshToken) != "" || secret != "" {
+				saved, _ = s.openSecret(ctx, tx, cur.SecretID) // unreadable = nothing saved: what was typed must be complete
+				saved = s.latestZalo(saved)                    // a rotation not saved yet is newer: its refresh token is the one that works
+			}
+			if secret, err = channel.ZaloOASecret(saved, in.SecretKey, in.RefreshToken, secret); err != nil {
+				return configAPIError(err)
+			}
+			if _, isGrant := channel.ParseZaloGrant(secret); !isGrant && secret != "" {
+				delete(fields, "app_id") // an access token only: no app to refresh with
+			}
+		}
 		effective := secret
 		if effective == "" && !rebind {
 			if effective, err = s.openSecret(ctx, tx, cur.SecretID); err != nil {
@@ -648,6 +663,9 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		if secret != "" {
 			if next.SecretID, next.SecretLast4, err = s.putSecret(ctx, tx, purposeSecret, cur.SecretID, secret); err != nil {
 				return err
+			}
+			if g, ok := channel.ParseZaloGrant(secret); ok && t == channel.Zalo {
+				next.SecretLast4 = lastFour(g.RefreshToken) // the end of the JSON says nothing: show the refresh token's
 			}
 		} else if rebind {
 			next.SecretID, next.SecretLast4 = "", "" // the row stops pointing at it here; it is deleted after the row is written

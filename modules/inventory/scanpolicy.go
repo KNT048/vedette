@@ -8,6 +8,8 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+
+	"github.com/knt048/vedette/content/devicetypes"
 )
 
 // ScanDecision is the answer of ScanPolicy: may the box probe this device actively, and how fast.
@@ -187,6 +189,7 @@ func (f *scanFacts) scan(r interface{ Scan(...any) error }, lead ...any) error {
 	if err := r.Scan(append(lead, &ip, &f.origin, &f.kind, &f.fragile, &f.regular, &firstScan, &f.isBox)...); err != nil {
 		return err
 	}
+	f.kind = devicetypes.ActsAs(f.kind) // the policies are keyed on the 13 kinds; a type acts as one of them (D-511)
 	f.firstScan = firstScan.Valid
 	if ip.Valid {
 		f.addr, _ = netip.ParseAddr(ip.String)
@@ -251,6 +254,7 @@ func (s *Service) ProtectedIPs(ctx context.Context) ([]netip.Addr, error) {
 		if err := rows.Scan(&ip, &origin, &kind, &fragile, &regular, &hadFirst, &isBox); err != nil {
 			return nil, fmt.Errorf("inventory: read protected addresses: %w", err)
 		}
+		kind = devicetypes.ActsAs(kind)
 		addr, err := netip.ParseAddr(ip)
 		if err != nil {
 			continue

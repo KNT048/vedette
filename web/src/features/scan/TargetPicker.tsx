@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input, Select } from '@/components/ui/input'
 import type { ScanTarget } from './types'
+import { kindLabel } from '@/lib/deviceTypes'
 
 const PAGE_SIZE = 50
 const NO_IP = 'none'
@@ -144,7 +145,7 @@ export function TargetPicker({ targets, sel, onToggle, onAdd, onRemove, onReplac
   for (const x of shown) { const k = subnetOf(x.ip); const g = groups.get(k); if (g) g.push(x); else groups.set(k, [x]) }
   const allSubnets = useMemo(() => [...new Set(internal.map((x) => subnetOf(x.ip)))], [internal])
   const kinds = useMemo(() => [...new Set(internal.map((x) => x.device_kind).filter((k): k is NonNullable<typeof k> => !!k))]
-    .sort((a, b) => t(`inventory:kind.${a}`).localeCompare(t(`inventory:kind.${b}`))), [internal, t])
+    .sort((a, b) => kindLabel(a).localeCompare(kindLabel(b))), [internal])
   const groupLabel = (k: string) => (k === NO_IP ? t('start.noIpGroup') : k)
 
   const entries: Entry[] = []
@@ -176,7 +177,7 @@ export function TargetPicker({ targets, sel, onToggle, onAdd, onRemove, onReplac
         <Input type="search" className="sm:w-64" value={f.q} onChange={(e) => patch({ q: e.target.value })} placeholder={t('start.searchPlaceholder')} aria-label={t('start.search')} />
         <Select className="sm:w-auto" aria-label={t('start.fKind')} value={f.kind} onChange={(e) => patch({ kind: e.target.value })}>
           <option value="">{t('start.fKindAll')}</option>
-          {kinds.map((k) => <option key={k} value={k}>{t(`inventory:kind.${k}`)}</option>)}
+          {kinds.map((k) => <option key={k} value={k}>{kindLabel(k)}</option>)}
         </Select>
         <Select className="sm:w-auto" aria-label={t('start.fSubnet')} value={f.subnet} onChange={(e) => patch({ subnet: e.target.value })}>
           <option value="">{t('start.fSubnetAll')}</option>

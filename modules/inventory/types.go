@@ -3,10 +3,13 @@ package inventory
 import (
 	"context"
 	"errors"
+
+	"github.com/knt048/vedette/content/devicetypes"
 )
 
-// Kinds are the device types (contract.ts AssetKind), in the order the interface lists them.
-var Kinds = []string{"firewall", "router", "switch", "ap", "nas", "server", "pc", "printer", "camera", "nvr", "iot", "web", "unknown"}
+// Kinds are the 13 kinds behaviour is keyed on (D-511): the fragile and regular-scan settings list them, and every device type acts
+// as one of them (devicetypes.ActsAs). The device types themselves are devicetypes.IDs (contract.ts AssetKind).
+var Kinds = devicetypes.Kinds
 
 // Limits (INV-4, INV-13).
 const (
@@ -159,32 +162,37 @@ type ServiceRow struct {
 	Name       string  `json:"name"`
 	Product    *string `json:"product,omitempty"`
 	Version    *string `json:"version,omitempty"`
+	Detail     *string `json:"detail,omitempty"` // what the service said about the device besides product and version (D-511)
 	Source     string  `json:"source"`
 	Confidence float64 `json:"confidence"`
 }
 
 // AssetCore is what a device row and a device detail share. The JSON names are the wire names.
 type AssetCore struct {
-	ID          string       `json:"id"`
-	Site        string       `json:"site"`
-	IP          string       `json:"ip"` // "—" when unknown
-	MAC         *string      `json:"mac"`
-	Hostname    *string      `json:"hostname"`
-	Kind        string       `json:"kind"`
-	Vendor      *Observed    `json:"vendor"`
-	Model       *Observed    `json:"model"`
-	OS          *Observed    `json:"os"`
-	Services    []ServiceRow `json:"services"`
-	FirstSeen   string       `json:"first_seen"`
-	LastSeen    string       `json:"last_seen"`
-	Approved    bool         `json:"approved"`
-	Fragile     bool         `json:"fragile"`
-	Origin      string       `json:"origin"`
-	Notes       *string      `json:"notes,omitempty"`
-	IsBox       bool         `json:"is_box"`
-	FirstScanAt *string      `json:"first_scan_at"`
-	ApprovedAt  *string      `json:"approved_at"` // when a person (or osquery enrolment) approved it; nil when not approved, added by hand, or approved before D-471
-	RegularScan string       `json:"regular_scan"`
+	ID         string  `json:"id"`
+	Site       string  `json:"site"`
+	IP         string  `json:"ip"` // "—" when unknown
+	MAC        *string `json:"mac"`
+	Hostname   *string `json:"hostname"`
+	Kind       string  `json:"kind"`
+	KindSource *string `json:"kind_source"` // the source of the kind's observation; nil for the default unknown (D-511)
+	// Guess is what the identification rules say the device most likely is, only while Kind is unknown (D-511). It is never the kind:
+	// nothing behaves on it; a person confirms it by setting the kind.
+	Guess       *devicetypes.Guess `json:"guess"`
+	Vendor      *Observed          `json:"vendor"`
+	Model       *Observed          `json:"model"`
+	OS          *Observed          `json:"os"`
+	Services    []ServiceRow       `json:"services"`
+	FirstSeen   string             `json:"first_seen"`
+	LastSeen    string             `json:"last_seen"`
+	Approved    bool               `json:"approved"`
+	Fragile     bool               `json:"fragile"`
+	Origin      string             `json:"origin"`
+	Notes       *string            `json:"notes,omitempty"`
+	IsBox       bool               `json:"is_box"`
+	FirstScanAt *string            `json:"first_scan_at"`
+	ApprovedAt  *string            `json:"approved_at"` // when a person (or osquery enrolment) approved it; nil when not approved, added by hand, or approved before D-471
+	RegularScan string             `json:"regular_scan"`
 }
 
 // Summary is the source of the most trusted value and the confidence of the weakest (DATA_MODEL 5.1 (5)).

@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/knt048/vedette/content/devicetypes"
 )
 
 // ActiveWindow is when and how fast the box may scan actively (INV-7).
@@ -187,13 +189,13 @@ func checkSettings(in SettingsInput) (SettingsInput, []Adjustment, error) {
 	if act.Enabled && !in.ScopeConfirmed {
 		return in, nil, badRequest("scope_not_confirmed", "Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only scans within the confirmed scope.")
 	}
-	for _, k := range in.FragileKinds {
-		if !validKind(k) {
+	for _, k := range in.FragileKinds { // the 13 kinds behaviour is keyed on; every device type acts as one of them (D-511)
+		if !slices.Contains(Kinds, k) {
 			return in, nil, badRequest("bad_kinds", "The list of fragile device types is not valid.")
 		}
 	}
 	for _, k := range in.RegularScanKinds {
-		if !validKind(k) {
+		if !slices.Contains(Kinds, k) {
 			return in, nil, badRequest("bad_kinds", "The list of device types for regular scans is not valid.")
 		}
 	}
@@ -338,9 +340,10 @@ func kindList(kinds []string) (string, []any) {
 	return "(" + strings.TrimSuffix(strings.Repeat("?,", len(kinds)), ",") + ")", args
 }
 
-// applyFragilePolicy sets fragile on every device whose flag was not set by hand (D-45).
+// applyFragilePolicy sets fragile on every device whose flag was not set by hand (D-45): a device whose type acts as one of kinds
+// (D-511).
 func applyFragilePolicy(ctx context.Context, tx *sql.Tx, kinds []string) error {
-	list, args := kindList(kinds)
+	list, args := kindList(devicetypes.ActingAs(kinds))
 	_, err := tx.ExecContext(ctx, `UPDATE inv_asset SET fragile = (kind IN `+list+`) WHERE fragile_manual = 0 AND fragile <> (kind IN `+list+`)`, append(args, args...)...) //nolint:gosec // list is only "?" placeholders, the kinds travel as arguments
 	if err != nil {
 		return fmt.Errorf("inventory: apply fragile policy: %w", err)

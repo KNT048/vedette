@@ -6,21 +6,6 @@
     "title": "The device list is off",
     "body": "Turn on the Inventory module to view, declare and approve devices. Existing data is kept."
   },
-  "kind": {
-    "firewall": "Firewall",
-    "router": "Router",
-    "switch": "Switch",
-    "ap": "Wi-Fi (AP)",
-    "nas": "NAS",
-    "server": "Server",
-    "pc": "Computer",
-    "printer": "Printer",
-    "camera": "Camera",
-    "nvr": "Camera recorder",
-    "iot": "IoT device",
-    "web": "Website",
-    "unknown": "Unknown"
-  },
   "chip": {
     "pending": "Not approved",
     "suspicious": "Marked unknown",
@@ -60,7 +45,9 @@
     "recent": "Approved in the last 24 h ({{count}})",
     "manual": "Added by hand ({{count}})",
     "agent": "From an agent ({{count}})",
-    "fragile": "Fragile ({{count}})"
+    "fragile": "Fragile ({{count}})",
+    "category": "Category",
+    "allCategories": "All categories"
   },
   "col": {
     "name": "Name",
@@ -217,7 +204,8 @@
     },
     "regularScanSaved": "Regular scan setting saved.",
     "firstScan": "First scan",
-    "firstScanNone": "No gentle first scan (declared by hand, the Vedette box itself, or a known type that is not fragile)"
+    "firstScanNone": "No gentle first scan (declared by hand, the Vedette box itself, or a known type that is not fragile)",
+    "kindFrom": "Set from"
   },
   "approval": {
     "pending": "This device is not approved yet",
@@ -253,7 +241,8 @@
     "product": "Product and version",
     "empty": "No open port seen yet",
     "emptyBody": "The active sensor has not scanned this device. Check the scan window in Scope and sensors, or pick the device under Vulnerability scans, Scan now, to identify it at once.",
-    "emptyFragile": "This is a fragile device, so Vedette scanned it gently once and only listens after that. Allow regular scans in the settings above if you want it checked again."
+    "emptyFragile": "This is a fragile device, so Vedette scanned it gently once and only listens after that. Allow regular scans in the settings above if you want it checked again.",
+    "detail": "What it says"
   },
   "software": {
     "title": "Software",
@@ -406,7 +395,7 @@
   },
   "fragile": {
     "title": "Device types scanned only once",
-    "description": "Vedette scans these gently once when it first sees them, then only listens. A device of unknown type is treated the same until it is classified.",
+    "description": "Vedette scans these gently once when it first sees them, then only listens. A device of unknown type is treated the same until it is classified. Every other type counts as the group it belongs to here: an IP phone, a UPS or a PLC as an IoT device, a laptop as a computer, a VPN gateway as a firewall.",
     "note": "Each device gets one scan at the lowest speed. To allow regular scans, switch it on for the type below. You can still change a single device on its detail page; changes here apply to devices you have not changed individually.",
     "allowRegular": "Allow regular scans",
     "allowRegularFor": "Allow regular scans, {{kind}}"
@@ -682,5 +671,12 @@
     "findings_other": "{{count}} findings on this box",
     "source": "This box",
     "origin": "This box (always on the list)"
+  },
+  "guess": {
+    "likely": "likely",
+    "title": "Most likely: {{kind}} ({{category}})",
+    "model": "model {{model}}",
+    "hint": "Vedette's guess from what it has seen. Until you confirm it, scans still treat this device as unknown and careful.",
+    "confirm": "Confirm: {{kind}}"
   }
 }

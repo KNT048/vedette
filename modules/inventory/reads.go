@@ -5,13 +5,17 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/netip"
 	"slices"
 	"strings"
+
+	"github.com/knt048/vedette/content/devicetypes"
+	"github.com/knt048/vedette/core/observe"
 )
 
 const noIP = "—" // what the API says for a device whose IP is unknown (contract.ts Asset.ip)
 
-const assetColumns = `a.id, a.ip, a.mac, a.hostname, a.kind, a.origin, a.approved, a.fragile, a.regular_scan, a.first_scan_at, a.approved_at, a.suspicious, a.is_box, a.notes, a.first_seen, a.last_seen,
+const assetColumns = `a.id, a.ip, a.mac, a.hostname, a.kind, k.source, a.origin, a.approved, a.fragile, a.regular_scan, a.first_scan_at, a.approved_at, a.suspicious, a.is_box, a.notes, a.first_seen, a.last_seen,
 	v.value, v.source, v.confidence, v.seen_at, m.value, m.source, m.confidence, m.seen_at, o.value, o.source, o.confidence, o.seen_at,
 	h.value, h.source, h.confidence, h.seen_at, x.value, x.source, x.confidence, x.seen_at`
 
@@ -20,7 +24,8 @@ const assetFrom = ` FROM inv_asset a
 	LEFT JOIN inv_observation m ON m.id = a.model_obs_id
 	LEFT JOIN inv_observation o ON o.id = a.os_obs_id
 	LEFT JOIN inv_observation h ON h.id = a.hostname_obs_id
-	LEFT JOIN inv_observation x ON x.id = a.mac_obs_id`
+	LEFT JOIN inv_observation x ON x.id = a.mac_obs_id
+	LEFT JOIN inv_observation k ON k.id = a.kind_obs_id`
 
 type obsCols struct {
 	value, source, seen sql.NullString
@@ -49,10 +54,10 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 	var out []Device
 	for rows.Next() {
 		var d Device
-		var ip, mac, host, scan, approvedAt, notes sql.NullString
+		var ip, mac, host, scan, approvedAt, notes, kindSrc sql.NullString
 		var v, m, o, h, x obsCols
 		var approved, fragile, suspicious, box bool
-		if err := rows.Scan(&d.ID, &ip, &mac, &host, &d.Kind, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &approvedAt, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen,
+		if err := rows.Scan(&d.ID, &ip, &mac, &host, &d.Kind, &kindSrc, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &approvedAt, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen,
 			&v.value, &v.source, &v.conf, &v.seen, &m.value, &m.source, &m.conf, &m.seen, &o.value, &o.source, &o.conf, &o.seen,
 			&h.value, &h.source, &h.conf, &h.seen, &x.value, &x.source, &x.conf, &x.seen); err != nil {
 			return nil, fmt.Errorf("inventory: read devices: %w", err)
@@ -62,7 +67,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		if ip.Valid {
 			d.IP = ip.String
 		}
-		d.MAC, d.Hostname, d.FirstScanAt, d.ApprovedAt, d.Notes = ptr(mac), ptr(host), ptr(scan), ptr(approvedAt), ptr(notes)
+		d.MAC, d.Hostname, d.FirstScanAt, d.ApprovedAt, d.Notes, d.KindSource = ptr(mac), ptr(host), ptr(scan), ptr(approvedAt), ptr(notes), ptr(kindSrc)
 		d.Vendor, d.Model, d.OS = v.observed(), m.observed(), o.observed()
 		d.ident = []*Observed{h.observed(), x.observed()}
 		d.Approved, d.Fragile, d.Suspicious, d.IsBox = approved, fragile, suspicious, box
@@ -124,7 +129,7 @@ func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx m
 }
 
 func loadServices(ctx context.Context, q querier, sub string, idx map[string]int, out []Device, args []any) error {
-	rows, err := q.QueryContext(ctx, `SELECT asset_id, port, proto, name, product, version, source, confidence FROM inv_service
+	rows, err := q.QueryContext(ctx, `SELECT asset_id, port, proto, name, product, version, detail, source, confidence FROM inv_service
 		WHERE asset_id IN `+sub+` ORDER BY asset_id, port, proto, source`, args...)
 	if err != nil {
 		return fmt.Errorf("inventory: read services: %w", err)
@@ -133,11 +138,11 @@ func loadServices(ctx context.Context, q querier, sub string, idx map[string]int
 	for rows.Next() {
 		var asset string
 		var sv ServiceRow
-		var product, version sql.NullString
-		if err := rows.Scan(&asset, &sv.Port, &sv.Proto, &sv.Name, &product, &version, &sv.Source, &sv.Confidence); err != nil {
+		var product, version, detail sql.NullString
+		if err := rows.Scan(&asset, &sv.Port, &sv.Proto, &sv.Name, &product, &version, &detail, &sv.Source, &sv.Confidence); err != nil {
 			return fmt.Errorf("inventory: read services: %w", err)
 		}
-		sv.Product, sv.Version = ptr(product), ptr(version)
+		sv.Product, sv.Version, sv.Detail = ptr(product), ptr(version), ptr(detail)
 		d := &out[idx[asset]]
 		d.Services = append(d.Services, sv)
 	}
@@ -198,6 +203,7 @@ func (s *Service) Devices(ctx context.Context) (DeviceList, error) {
 	if out.Items == nil {
 		out.Items = []Device{}
 	}
+	s.addGuesses(ctx, out.Items)
 	now := s.now()
 	for i := range out.Items {
 		d := &out.Items[i]
@@ -228,6 +234,7 @@ func (s *Service) Device(ctx context.Context, id string) (Device, error) {
 	if len(items) == 0 {
 		return Device{}, ErrNotFound
 	}
+	s.addGuesses(ctx, items)
 	d := items[0]
 	counts, err := s.findingCounts(ctx)
 	if err != nil {
@@ -295,7 +302,7 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 		Suspicious:    d.Suspicious,
 		FindingsCount: d.FindingsCount,
 		Observations:  list,
-		Kinds:         Kinds,
+		Kinds:         devicetypes.IDs(),
 	}, nil
 }
 
@@ -398,4 +405,46 @@ func deviceName(ctx context.Context, q querier, id string) string {
 		return n
 	}
 	return id
+}
+
+// addGuesses sets Guess on every device whose kind is still unknown and that one identification rule fits (D-511). It reads only what
+// the rows already hold (make, model, OS, host name, open services) and the box's default gateway, asked once.
+func (s *Service) addGuesses(ctx context.Context, items []Device) {
+	var gw netip.Addr
+	asked := false
+	for i := range items {
+		d := &items[i]
+		if d.Kind != devicetypes.Unknown || d.IsBox {
+			continue
+		}
+		if !asked && s.gateway != nil {
+			gw, asked = s.gateway(ctx), true
+		}
+		f := devicetypes.Facts{Gateway: gw.IsValid() && d.IP == gw.String()}
+		if d.IP != noIP {
+			f.IP = d.IP
+		}
+		if d.MAC != nil {
+			f.MAC = *d.MAC
+		}
+		if d.Hostname != nil {
+			f.Hostname = *d.Hostname
+		}
+		if d.Vendor != nil {
+			f.Vendor = d.Vendor.Value
+			f.VendorFromCard = d.Vendor.Source == string(observe.Passive) || d.Vendor.Source == string(observe.Nmap)
+		}
+		if d.Model != nil {
+			f.Model = d.Model.Value
+		}
+		if d.OS != nil {
+			f.OS = d.OS.Value
+		}
+		for _, sv := range d.Services {
+			f.Services = append(f.Services, devicetypes.Service{Port: sv.Port, Proto: sv.Proto, Name: sv.Name, Product: deref(sv.Product), Detail: deref(sv.Detail)})
+		}
+		if g, ok := devicetypes.Identify(f); ok {
+			d.Guess = &g
+		}
+	}
 }

@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/knt048/vedette/content/devicetypes"
 )
 
 // The "What to do" part of FindingDetail (web/src/features/findings/contract.ts). The shapes live here,
@@ -283,13 +285,8 @@ func newRow(r Record, a *AssetView, k *KevInfo) Row {
 	return row
 }
 
-func validKind(k string) bool {
-	switch k {
-	case "firewall", "router", "switch", "ap", "nas", "server", "pc", "printer", "camera", "nvr", "iot", "web", "unknown":
-		return true
-	}
-	return false
-}
+// validKind: k is one of the inventory's device types (D-511, content/devicetypes).
+func validKind(k string) bool { return devicetypes.Valid(k) }
 
 // Into encodes v as JSON and decodes it into one of the generated response types, which all describe
 // the same shape under different names (the generated FindingDetail of GET /findings/{id}, of

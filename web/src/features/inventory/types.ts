@@ -3,6 +3,8 @@ import type { z } from 'zod'
 import * as C from './contract'
 
 export const KINDS = C.AssetKind.options
+/** The 13 kinds the fragile and regular-scan settings list (D-511). */
+export const BEHAVIOUR_KINDS = C.BehaviourKind.options
 export type ObsField = z.infer<typeof C.ObsField>
 export type Observation = z.infer<typeof C.Observation>
 export type RegularScan = z.infer<typeof C.RegularScan>

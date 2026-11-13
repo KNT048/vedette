@@ -25,8 +25,8 @@ func TestIdentifiedFromRealOutputShapes(t *testing.T) {
 		why    string
 	}{
 		// The OS of a fingerprint is a guess: one row per OS without the generation (iOS 15 and 16 are one row), never a version.
-		{file: "iphone.xml", kind: "iot", cpes: []string{"cpe:/o:apple:iphone_os"},
-			found: []string{"Operating system: Apple iOS 15.0 - 16.1 (Darwin 21.0.0 - 22.1.0)", "Type: iot"}, why: WhyOSGuess},
+		{file: "iphone.xml", kind: "smartphone", cpes: []string{"cpe:/o:apple:iphone_os"},
+			found: []string{"Operating system: Apple iOS 15.0 - 16.1 (Darwin 21.0.0 - 22.1.0)", "Type: smartphone"}, why: WhyOSGuess},
 		// W3-5: "Microsoft Windows RPC" and the other banners with no version are open services, not software.
 		{file: "windows.xml", kind: "pc", cpes: []string{"cpe:/o:microsoft:windows_10"},
 			found: []string{"Operating system: Microsoft Windows 10 1607", "Type: pc"}, why: WhyOSGuess},

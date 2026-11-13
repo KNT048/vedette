@@ -97,8 +97,11 @@ type portInfo struct {
 	number                 int
 	proto, name            string
 	product, version, info string
-	conf                   int // nmap's 1..10, 0 when absent
-	cpes                   []string
+	// What the port said about the device besides product and version (D-511): nmap's device type of the service match, the page
+	// title (http-title) and the certificate subject (ssl-cert). Evidence for identification, never software.
+	devType, title, certSubject string
+	conf                        int // nmap's 1..10, 0 when absent
+	cpes                        []string
 }
 
 type osMatch struct {
@@ -122,6 +125,17 @@ func unprintable(r rune) bool {
 }
 
 // text accepts a string from nmap only if it is printable UTF-8 of 1..maxText runes; otherwise it is "" (absent).
+// certSubject is the subject line of ssl-cert's output ("Subject: commonName=FGT60F.../organizationName=Fortinet/..."), "" when it has
+// none or it is not printable (D-511).
+func certSubject(out string) string {
+	for line := range strings.Lines(out) {
+		if s, ok := strings.CutPrefix(strings.TrimSpace(line), "Subject: "); ok {
+			return text(strings.TrimSpace(s))
+		}
+	}
+	return ""
+}
+
 func text(s string) string {
 	n := utf8.RuneCountInString(s)
 	if n < 1 || n > maxText || !utf8.ValidString(s) || strings.ContainsFunc(s, unprintable) {
@@ -195,6 +209,7 @@ func parseNmapXML(data []byte) ([]host, error) {
 		cpeBuf  strings.Builder
 		closed  bool
 		ntlm    bool   // inside the <script> of an NTLM script of an open port
+		title   bool   // inside the <script> of http-title (D-511)
 		elemKey string // key of the <elem> being read; "" when none
 		elemBuf strings.Builder
 	)
@@ -278,6 +293,7 @@ func parseNmapXML(data []byte) ([]host, error) {
 			case "nmaprun/host/ports/port/service":
 				if port != nil {
 					port.name, port.product, port.version, port.info = text(a["name"]), text(a["product"]), text(a["version"]), text(a["extrainfo"])
+					port.devType = text(a["devicetype"])
 					port.conf = num(a["conf"], 10)
 				}
 			case "nmaprun/host/ports/port/service/cpe":
@@ -287,8 +303,12 @@ func parseNmapXML(data []byte) ([]host, error) {
 				}
 			case "nmaprun/host/ports/port/script":
 				ntlm = cur != nil && port != nil && ntlmScripts[a["id"]]
+				title = cur != nil && port != nil && a["id"] == "http-title"
+				if cur != nil && port != nil && a["id"] == "ssl-cert" {
+					port.certSubject = certSubject(a["output"])
+				}
 			case "nmaprun/host/ports/port/script/elem":
-				if ntlm {
+				if ntlm || (title && a["key"] == "title") {
 					elemKey = a["key"]
 					elemBuf.Reset()
 				}
@@ -334,11 +354,16 @@ func parseNmapXML(data []byte) ([]host, error) {
 				}
 				port = nil
 			case "nmaprun/host/ports/port/script":
-				ntlm = false
+				ntlm, title = false, false
 			case "nmaprun/host/ports/port/script/elem":
 				// The challenge is read only from an open port; a value longer than maxElemLen or of another form is dropped.
 				if elemKey != "" && cur != nil && portOK && elemBuf.Len() <= maxElemLen {
-					cur.setNTLM(port.number, elemKey, text(strings.TrimSpace(elemBuf.String())))
+					v := text(strings.Join(strings.Fields(elemBuf.String()), " "))
+					if title {
+						port.title = v
+					} else {
+						cur.setNTLM(port.number, elemKey, text(strings.TrimSpace(elemBuf.String())))
+					}
 				}
 				elemKey = ""
 			case "nmaprun/host/ports/port/service/cpe", "nmaprun/host/os/osmatch/osclass/cpe":

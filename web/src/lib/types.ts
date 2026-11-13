@@ -1,6 +1,9 @@
 // Kiểu dữ liệu dùng chung giữa nhiều module (tài sản là thực thể trung tâm, ARCHITECTURE §4). Kiểu riêng của module ở features/<m>/types.ts.
 export type ObsSource = 'manual' | 'agent' | 'snmp' | 'nmap' | 'passive' | 'scan'
-export type AssetKind = 'firewall' | 'router' | 'switch' | 'ap' | 'nas' | 'server' | 'pc' | 'printer' | 'camera' | 'nvr' | 'iot' | 'web' | 'unknown'
+/** A device type id of content/devicetypes/types.json (D-511): data, not a hand-written union. */
+export type AssetKind = string
+/** What the identification rules say a device of unknown kind most likely is (D-511); never its kind. */
+export interface KindGuess { kind: AssetKind; confidence: number; evidence: string; model?: string }
 
 export interface Observed { value: string; source: ObsSource; confidence: number; seen_at: string }
 
@@ -15,7 +18,7 @@ export interface Software {
   confidence: number
 }
 
-export interface Service { port: number; proto: 'tcp' | 'udp'; name: string; product?: string; version?: string; source: ObsSource; confidence: number }
+export interface Service { port: number; proto: 'tcp' | 'udp'; name: string; product?: string; version?: string; detail?: string; source: ObsSource; confidence: number }
 
 export interface Asset {
   id: string
@@ -24,6 +27,8 @@ export interface Asset {
   mac: string | null
   hostname: string | null
   kind: AssetKind
+  kind_source?: ObsSource | null // the source of the kind; null for the default unknown (D-511)
+  guess?: KindGuess | null
   vendor: Observed | null
   model: Observed | null
   os: Observed | null

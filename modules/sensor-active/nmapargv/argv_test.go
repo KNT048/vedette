@@ -31,9 +31,9 @@ func TestBuild(t *testing.T) {
 		{"sweep", Sweep, 50, addrs(t, "192.168.10.1", "192.168.10.2"),
 			[]string{"--privileged", "-sn", "-n", "--max-rate", "50", "-oX", "-", "192.168.10.1", "192.168.10.2"}},
 		{"normal", Normal, 100, one,
-			[]string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info", "-n", "--max-rate", "100", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}},
+			[]string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}},
 		{"versions: no -O, the same two scripts (D-504)", Versions, 25, one,
-			[]string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info", "-n", "--max-rate", "25", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}},
+			[]string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "25", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}},
 		{"gentle ignores the rate given: 1 packet per second, no -sV", Gentle, 500, one,
 			[]string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.20"}},
 	}
@@ -93,9 +93,9 @@ func TestBuildRefuses(t *testing.T) {
 // The four shapes written out apart from the code under test (INV-4, SYS-2; versions: D-501).
 var (
 	shapeSweep    = []string{"--privileged", "-sn", "-n", "--max-rate", "50", "-oX", "-", "192.168.10.1"}
-	shapeNormal   = []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info", "-n", "--max-rate", "100", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
+	shapeNormal   = []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
 	shapeGentle   = []string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.30"}
-	shapeVersions = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info", "-n", "--max-rate", "25", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.40"}
+	shapeVersions = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "25", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.40"}
 )
 
 // INV-4, SYS-2: the validator accepts exactly three command shapes, with only the rate (of sweep and normal)
@@ -120,12 +120,12 @@ func TestValidate(t *testing.T) {
 		"script":                              {"--privileged", "-sS", "--script", "vuln", "-oX", "-", "192.168.10.1"},
 		"script=":                             {"--privileged", "-sS", "--script=vuln", "-oX", "-", "192.168.10.1"},
 		"default scripts":                     {"--privileged", "-sS", "-sC", "-oX", "-", "192.168.10.1"},
-		"another script list":                 swap(shapeNormal, "rdp-ntlm-info,http-ntlm-info", "rdp-ntlm-info,smb-os-discovery"),
-		"script list reordered":               swap(shapeNormal, "rdp-ntlm-info,http-ntlm-info", "http-ntlm-info,rdp-ntlm-info"),
-		"script category":                     swap(shapeVersions, "rdp-ntlm-info,http-ntlm-info", "safe"),
-		"script wildcard":                     swap(shapeVersions, "rdp-ntlm-info,http-ntlm-info", "*-ntlm-info"),
+		"another script list":                 swap(shapeNormal, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "rdp-ntlm-info,smb-os-discovery"),
+		"script list reordered":               swap(shapeNormal, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "http-ntlm-info,rdp-ntlm-info,http-title,ssl-cert"),
+		"script category":                     swap(shapeVersions, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "safe"),
+		"script wildcard":                     swap(shapeVersions, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "*-ntlm-info"),
 		"script list without the flag":        drop(shapeNormal, "--script"),
-		"normal without its scripts":          drop(shapeNormal, "--script", "rdp-ntlm-info,http-ntlm-info"),
+		"normal without its scripts":          drop(shapeNormal, "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert"),
 		"output to a file":                    {"--privileged", "-sS", "-oN", "/tmp/x", "-oX", "-", "192.168.10.1"},
 		"xml to a file":                       swap(shapeNormal, "-", "/tmp/x"),
 		"input list":                          {"--privileged", "-sS", "-iL", "/etc/hosts", "-oX", "-", "192.168.10.1"},

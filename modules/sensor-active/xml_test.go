@@ -172,7 +172,7 @@ func TestSoftwareAndObservations(t *testing.T) {
 func TestKindOf(t *testing.T) {
 	t.Parallel()
 	for in, want := range map[string]string{"router": "router", "WAP": "ap", "printer": "printer", "webcam": "camera", "storage-misc": "nas", "general purpose": "", "": "",
-		"phone": "iot", "VoIP phone": "iot", "broadband router": "router", "print server": "printer"} { // D-501: no phone kind yet, phones are iot as in the catalog
+		"phone": "smartphone", "VoIP phone": "ip_phone", "VoIP adapter": "voip_adapter", "media device": "media_player", "power-device": "ups", "broadband router": "router", "print server": "printer"} { // D-511: phone types of their own, each acting as iot
 		if got := kindOf(in); got != want {
 			t.Errorf("kindOf(%q) = %q, want %q", in, got, want)
 		}
@@ -221,5 +221,41 @@ func TestServicesOfKeepsOnlyWhatTheInventoryAccepts(t *testing.T) {
 	}
 	if n := len(servicesOf(many)); n != maxServices {
 		t.Fatalf("%d services, want the cap %d", n, maxServices)
+	}
+}
+
+// D-511 (INV-15): what a port says about the device besides product and version (nmap's extra info and device type, the page
+// title, the certificate subject) is kept as the service's detail, never as software; a title with a control character is dropped.
+func TestServiceDetail(t *testing.T) {
+	t.Parallel()
+	xmlText := `<?xml version="1.0"?><nmaprun><host><status state="up"/><address addr="192.168.18.251" addrtype="ipv4"/><ports>
+<port protocol="tcp" portid="443"><state state="open"/><service name="https" product="Fortinet FortiGate firewall http config" extrainfo="FortiOS" devicetype="firewall" tunnel="ssl"/>
+<script id="ssl-cert" output="Subject: commonName=FGT60FTK2109ABCD/organizationName=Fortinet/countryName=US&#xa;Issuer: commonName=support"/>
+<script id="http-title" output="Login"><elem key="title">FortiGate  Login</elem></script></port>
+<port protocol="tcp" portid="80"><state state="open"/><service name="http"/><script id="http-title" output="x"><elem key="title">bad&#x202e;title</elem></script></port>
+<port protocol="tcp" portid="22"><state state="open"/><service name="ssh"/></port>
+</ports></host></nmaprun>`
+	hosts, err := parseNmapXML([]byte(xmlText))
+	if err != nil {
+		t.Fatal(err)
+	}
+	svcs := servicesOf(hosts[0])
+	want := map[int]string{
+		443: "FortiOS; device type: firewall; title: FortiGate Login; certificate: commonName=FGT60FTK2109ABCD/organizationName=Fortinet/countryName=US",
+		80:  "", 22: "",
+	}
+	for _, s := range svcs {
+		if s.Detail != want[s.Port] {
+			t.Errorf("port %d detail = %q, want %q", s.Port, s.Detail, want[s.Port])
+		}
+	}
+	for _, sw := range softwareOf(hosts[0]) {
+		if strings.Contains(sw.Display, "FGT60F") || strings.Contains(sw.Display, "Login") {
+			t.Errorf("a detail became software: %+v", sw)
+		}
+	}
+	long := portInfo{title: strings.Repeat("x", 300)}
+	if n := len([]rune(detailOf(long))); n != maxSvcDetail {
+		t.Errorf("detail of a long title has %d runes, want %d", n, maxSvcDetail)
 	}
 }

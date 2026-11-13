@@ -60,3 +60,4 @@
 
 ## Modifying: `HitDetail(ctx, id)`, `SourceConnected(ctx, src, at, window)` (D-509) — người gọi: `cmd/vedette` `responseIncidents`
 - Respond trên sự cố bẫy (`response`) đọc nguồn từ `HitDetail` (`SrcIP`, `SrcAssetID`, `IsTest`, `Kind`) và, với hit `scan`, hỏi `SourceConnected`: có hit `service` thật (không thử) của cùng `src_ip` trong `at ± window` không. Chỉ đọc. Đổi `kind`/`src_ip`/`ts` của hit `service` hay để luồng tạo `scan` cũng tạo hit `service` từ lần thử chưa bắt tay ⇒ response coi nguồn giả được là đã xác nhận (rủi ro chặn nhầm máy vô tội); trả lỗi ⇒ response trả lỗi (không đưa gì).
+- **Loại thiết bị (D-511)**: đọc `content/devicetypes` (gói lá, chỉ thư viện chuẩn). Gợi ý preset so loại hành xử như (`ActsAs`): máy ảo hành xử như server, DVR như nvr.

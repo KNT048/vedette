@@ -1,10 +1,9 @@
 import { useEffect, useRef } from 'react'
-import { useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
+import { PageTabs } from '@/components/common/PageFrame'
 import { RequireModule, SampleDataNote } from '@/components/common/States'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useRuns, useScanConfig } from './api'
 import { RunsTab } from './RunsTab'
@@ -13,14 +12,8 @@ import { AutoTab } from './AutoTab'
 import { ProbesTab } from './ProbesTab'
 import { CredentialedTab } from './CredentialedTab'
 
-const TABS = ['runs', 'safety', 'auto', 'probes', 'credentialed'] as const
-type Tab = (typeof TABS)[number]
-
 function Shell() {
   const { t } = useTranslation('scan')
-  const [params, setParams] = useSearchParams()
-  const raw = params.get('tab')
-  const tab: Tab = (TABS as readonly string[]).includes(raw ?? '') ? (raw as Tab) : 'runs'
   const runs = useRuns()
   const cfg = useScanConfig()
   const list = runs.data?.items
@@ -56,16 +49,13 @@ function Shell() {
         meta={!cfg.data ? null : !cfg.data.can_scan ? (cfg.data.scope.commitment ? (cfg.data.block_reason ?? t('metaScannerDown')) : t('metaSetup')) : !cfg.data.scope.networks.length ? t('metaSetup') : t('meta', { networks: cfg.data.scope.networks.join(', '), next: cfg.data.next_run ? fmtDateTime(cfg.data.next_run) : cfg.data.schedule_blocked_reason ? t('noScheduleZone') : t('noSchedule') })}
         actions={<SampleDataNote />}
       />
-      <Tabs value={tab} onValueChange={(v) => { const p = new URLSearchParams(params); p.set('tab', v); setParams(p, { replace: true }) }}>
-        <TabsList className="overflow-x-auto" aria-label={t('tabs.label')}>
-          {TABS.map((k) => <TabsTrigger key={k} value={k} className="shrink-0 whitespace-nowrap">{t(`tabs.${k}`)}</TabsTrigger>)}
-        </TabsList>
-        <TabsContent value="runs"><RunsTab /></TabsContent>
-        <TabsContent value="safety"><SafetyTab /></TabsContent>
-        <TabsContent value="auto"><AutoTab /></TabsContent>
-        <TabsContent value="probes"><ProbesTab /></TabsContent>
-        <TabsContent value="credentialed"><CredentialedTab /></TabsContent>
-      </Tabs>
+      <PageTabs label={t('tabs.label')} tabs={[
+        { id: 'runs', label: t('tabs.runs'), panel: <RunsTab /> },
+        { id: 'safety', label: t('tabs.safety'), panel: <SafetyTab /> },
+        { id: 'auto', label: t('tabs.auto'), panel: <AutoTab /> },
+        { id: 'probes', label: t('tabs.probes'), panel: <ProbesTab /> },
+        { id: 'credentialed', label: t('tabs.credentialed'), panel: <CredentialedTab /> },
+      ]} />
     </>
   )
 }

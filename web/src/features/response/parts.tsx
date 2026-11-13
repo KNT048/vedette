@@ -58,7 +58,7 @@ function ProposalView({ p }: { p: Proposal }) {
     <div className="grid gap-2 rounded-md border border-rule bg-paper p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium">{t('proposal.label')}: {p.title}</p>
-        {p.request_id ? <a className="text-[13px] text-accent underline underline-offset-4" href="#requests">{t('proposal.requested')}</a>
+        {p.request_id ? <Link className="text-[13px] text-accent underline underline-offset-4" to="/response?tab=requests">{t('proposal.requested')}</Link>
           : <Button size="sm" disabled={!can || p.state !== 'ready' || req.isPending} title={!can ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
               onClick={() => req.mutate(p.id, { onSuccess: () => toast.success(t('proposal.sent')), onError: (e) => toast.error(errText(e)) })}>{t('proposal.request')}</Button>}
       </div>

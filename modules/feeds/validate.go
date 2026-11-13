@@ -57,39 +57,48 @@ func checkURL(raw string, maxLen int) error {
 	return fail(ErrInvalidURL, "Enter a full address such as https://example.com/feed.json.")
 }
 
-// blockedText is the sentence for an address a feed may never be pulled from (D-208), at save (CheckDest) and at pull (userError).
-const blockedText = "Vedette does not pull feeds from itself or from loopback, link-local or cloud metadata addresses."
+// blockedText is the sentence for an address no feed may ever be pulled from (D-208), at save (CheckDest) and at pull (userError).
+const blockedText = "Vedette does not pull feeds from link-local, multicast, unspecified or cloud metadata addresses."
 
-// ownText is the sentence for an address of the box that is not loopback (ErrOwnAddress, D-420 (7)): on a container-only
-// install the container's gateway is the machine Docker runs on, a private address the http rule would otherwise allow.
-const ownText = "This address is the machine Vedette runs on (its own address, or the computer that runs its container). Vedette does not pull feeds from itself: serve the feed from another machine."
+// ownText is the sentence for Vedette itself (ErrOwnAddress, D-446): the same sentence in feeds, notify, logs and ai.
+const ownText = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
 
 // CheckDest is the save-time half of INV-17 (D-420 (1)): an address whose host is a literal IP the pull would refuse
-// (loopback, link-local, cloud metadata, unspecified, multicast, in any transition form, or one of box: the box's own
-// addresses and gateway) or a loopback name (localhost, *.localhost) is refused when the feed is saved, with the pull's
-// sentence (ownText for an address of the box that is not loopback, D-420 (7)).
+// (link-local, cloud metadata, unspecified, multicast, in any transition form: blockedText; Vedette itself, D-446: loopback,
+// an address of own.self, or one of own.machine on a port of vedettePorts: ownText) or a loopback name (localhost, *.localhost:
+// ownText) is refused when the feed is saved, with the pull's sentence.
 // Other names are not resolved here (no DNS lookup in a request; the answer could change before the pull anyway): a name
 // that resolves to a refused address is still refused by the dialer at every pull (guardedDial, destControl).
-func CheckDest(raw string, box []netip.Addr) error {
+func CheckDest(raw string, own ownAddrs) error {
 	u, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil {
 		return nil // CheckURL refuses it with its own sentence
 	}
 	h := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
 	if ip, err := netip.ParseAddr(h); err == nil {
-		g := &destGuard{}
-		if g.own(ip, box) && !refusedAlways(ip) {
-			return fail(ErrBlockedHost, ownText)
-		}
-		if refusedAlways(ip) || g.refused(ip, box) {
+		if refusedAlways(ip) {
 			return fail(ErrBlockedHost, blockedText)
+		}
+		if (&destGuard{}).refused(ip, urlPort(u), own) {
+			return fail(ErrBlockedHost, ownText)
 		}
 		return nil
 	}
 	if h == "localhost" || strings.HasSuffix(h, ".localhost") {
-		return fail(ErrBlockedHost, blockedText)
+		return fail(ErrBlockedHost, ownText)
 	}
 	return nil
+}
+
+// urlPort is the port a request to u connects to: the one written, else the scheme's (80 for http, 443 otherwise).
+func urlPort(u *url.URL) uint16 {
+	if p := u.Port(); p != "" {
+		return dialPort(p)
+	}
+	if strings.EqualFold(u.Scheme, "http") {
+		return 80
+	}
+	return 443
 }
 
 // sameAddress reports whether two feed addresses fetch the same document (D-420 (2)): scheme and host compared without

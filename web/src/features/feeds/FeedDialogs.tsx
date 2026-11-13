@@ -35,7 +35,7 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
   const urlErr = err ?? (serverField(patch.error) === 'url' ? (patch.error as Error).message : undefined)
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    const c = checkFeedUrl(url) === 'ok' && blockedFeedHost(url) ? 'blocked' : checkFeedUrl(url)
+    const c = (checkFeedUrl(url) === 'ok' && blockedFeedHost(url)) || checkFeedUrl(url)
     if (c !== 'ok') { setErr(t(`dialog.err.${c}`)); document.getElementById('bf-url')?.focus(); return }
     patch.mutate({ id: feed.id, interval_hours: hours, url: url.trim() }, { onSuccess: () => { toast.success(t('dialog.saved', { name: feed.name })); onClose() }, onError: () => document.getElementById('bf-url')?.focus() })
   }
@@ -102,7 +102,7 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
     if (!name.trim()) n.name = t('dialog.err.name')
     const c = checkFeedUrl(url)
     if (c !== 'ok') n.url = t(`dialog.err.${c}`)
-    else if (blockedFeedHost(url)) n.url = t('dialog.err.blocked') // D-420 (1): the server refuses it too (blocked_host)
+    else if (blockedFeedHost(url)) n.url = t(`dialog.err.${blockedFeedHost(url) as 'blocked' | 'own'}`) // D-420 (1), D-446: the server refuses it too (blocked_host)
     if (auth === 'header' && !/^[A-Za-z0-9-]{1,80}$/.test(header)) n.auth = t('dialog.err.header')
     else if (auth === 'basic' && !user.trim()) n.auth = t('dialog.err.user')
     else if (auth !== 'none' && !secret && !hadSecret) n.auth = t('dialog.err.secret')

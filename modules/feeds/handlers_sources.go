@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/netip"
 	"strings"
 	"time"
 
@@ -103,7 +102,7 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 // mock (name, address, format, authentication, parsing rules, then an address another feed already uses). prev is the feed being edited, nil on create; box is
 // the box's own addresses (CheckDest). It trims the text fields and treats an empty secret as "not sent" (keep the
 // stored one, INV-6).
-func checkCustom(ctx context.Context, tx *sql.Tx, in *feedInput, prev *sourceRow, box []netip.Addr) error {
+func checkCustom(ctx context.Context, tx *sql.Tx, in *feedInput, prev *sourceRow, own ownAddrs) error {
 	in.Name, in.URL = strings.TrimSpace(in.Name), strings.TrimSpace(in.URL)
 	if in.Auth.Secret != nil && *in.Auth.Secret == "" {
 		in.Auth.Secret = nil
@@ -122,7 +121,7 @@ func checkCustom(ctx context.Context, tx *sql.Tx, in *feedInput, prev *sourceRow
 	if err := CheckURL(in.URL); err != nil {
 		return apiError(err)
 	}
-	if err := CheckDest(in.URL, box); err != nil {
+	if err := CheckDest(in.URL, own); err != nil {
 		return apiError(err)
 	}
 	if err := CheckInterval(in.IntervalHours); err != nil {
@@ -168,11 +167,11 @@ func checkDuplicateURL(ctx context.Context, tx *sql.Tx, addr, skip string) error
 	return rows.Err()
 }
 
-// boxAddrs is every address that is the box itself, as the pull sees it now (INV-17): unknown host addresses leave
-// the container's own interfaces and gateway, which are always checked.
-func (s *Service) boxAddrs() []netip.Addr {
-	box, _ := (&destGuard{box: s.Fetcher.BoxAddrs, gateway: s.Fetcher.Gateway}).boxAddrs()
-	return box
+// boxAddrs is Vedette itself as the pull sees it now (INV-17, D-446): unknown host addresses leave the container's own
+// interfaces and gateway, which are always checked.
+func (s *Service) boxAddrs() ownAddrs {
+	own, _ := (&destGuard{box: s.Fetcher.BoxAddrs, gateway: s.Fetcher.Gateway, self: s.Fetcher.Self}).ownAddrs()
+	return own
 }
 
 // customRow builds the stored row of a custom feed body (the GUI mock's toCustom). The secret columns are set by saveSecret.

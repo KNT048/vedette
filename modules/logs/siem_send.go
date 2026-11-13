@@ -21,7 +21,8 @@ import (
 const siemTimeout = 10 * time.Second
 
 var (
-	errSiemForbidden  = errors.New("logs: the SIEM address is this machine, link-local, multicast, unspecified or an address of this box")
+	errSiemForbidden  = errors.New("logs: the SIEM address is link-local, multicast, unspecified or a cloud metadata service")
+	errSiemOwn        = errors.New("logs: the SIEM address is Vedette itself")
 	errSiemBoxUnknown = errors.New("logs: the box's own addresses are not known yet")
 	errSiemNotPrivate = errors.New("logs: plain http is only sent to an address on your own network")
 	errSiemStatus     = errors.New("logs: the destination answered with an error status")
@@ -215,27 +216,17 @@ var nat64Prefixes = (&nat64Cache{
 	now: time.Now,
 }).get
 
-// siemForbidden says whether the SIEM may never be at ip: loopback (the box's own services listen there), link-local, multicast,
-// unspecified, broadcast, a cloud metadata endpoint, or one of the box's own addresses, in any of its transition forms. RFC 1918
-// addresses are fine: an internal SIEM is the normal case. allowLoopback is set by tests only.
-func siemForbidden(ip netip.Addr, box []netip.Addr, allowLoopback bool) bool {
+// siemForbidden says whether the SIEM may never be at ip: link-local, multicast, unspecified, broadcast or a cloud metadata
+// endpoint, in any of its transition forms. RFC 1918 addresses are fine: an internal SIEM is the normal case. Vedette itself is
+// siemOwn's (D-446).
+func siemForbidden(ip netip.Addr) bool {
 	for _, f := range addrForms(ip) {
 		switch {
 		case f.IsUnspecified(), f.IsMulticast(), f.IsLinkLocalUnicast(), f.IsLinkLocalMulticast(), f == netip.AddrFrom4([4]byte{255, 255, 255, 255}):
 			return true
-		case f.IsLoopback():
-			if !allowLoopback {
-				return true
-			}
-			continue
 		}
 		for _, m := range metadataAddrs {
 			if f == m {
-				return true
-			}
-		}
-		for _, b := range box {
-			if b.Unmap().WithZone("") == f {
 				return true
 			}
 		}
@@ -243,12 +234,66 @@ func siemForbidden(ip netip.Addr, box []netip.Addr, allowLoopback bool) bool {
 	return false
 }
 
+// vedettePorts are the ports Vedette itself answers on at the machine's addresses (D-446): the interface 8443, the sensor link 8444,
+// MCP 8765, syslog 514 and syslog over TLS 6514 (install.sh preflight, the core unit's PublishPort lines, the container-only compose).
+// Same list in feeds, notify and ai. A SIEM forward to 514 or 6514 of the machine would loop back into Vedette's own listener.
+var vedettePorts = []uint16{514, 6514, 8443, 8444, 8765}
+
+// siemOwn says whether ip at port is Vedette itself (D-446), in any transition form: loopback (unless allowLoopback, tests only), an
+// address of core's own container (selfAddrs) or of extra (Config.SelfAddrs: the honeypot's decoys) on every port, or one of machine
+// (the machine's addresses: vedette-host, the container's gateway) on a port of vedettePorts. While the machine's addresses are not
+// known the socket refuses every send (errSiemBoxUnknown); 514 and 6514 are every SIEM's ports, so unlike ai and email they are not
+// refused on every address meanwhile. A SIEM on the machine at its own port is a normal destination.
+func siemOwn(ip netip.Addr, port uint16, machine, extra []netip.Addr, allowLoopback bool) bool {
+	self := append(selfAddrs(), extra...)
+	vport := slices.Contains(vedettePorts, port)
+	for _, f := range addrForms(ip) {
+		if f.IsLoopback() {
+			if !allowLoopback {
+				return true
+			}
+			continue
+		}
+		for _, s := range self {
+			if s.Unmap().WithZone("") == f {
+				return true
+			}
+		}
+		if vport {
+			for _, m := range machine {
+				if m.Unmap().WithZone("") == f {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// selfAddrs are the addresses of this process's own interfaces (in the shipped container: core itself), loopback left out.
+func selfAddrs() []netip.Addr {
+	var out []netip.Addr
+	if ifs, err := net.InterfaceAddrs(); err == nil {
+		for _, a := range ifs {
+			if p, ok := a.(*net.IPNet); ok {
+				if ip, ok := netip.AddrFromSlice(p.IP); ok && !ip.Unmap().IsLoopback() {
+					out = append(out, ip.Unmap().WithZone(""))
+				}
+			}
+		}
+	}
+	return out
+}
+
+// ownText is the sentence for Vedette itself (D-446): the same in feeds, notify, logs and ai.
+const ownText = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
+
 // siemControl runs on the socket just before connect, after name resolution, for TCP and UDP alike, so a name that resolves (or
 // rebinds) to a forbidden address is refused where it counts. privateOnly is the rule of plain http: only an address on the
 // customer's own network.
 func (s *Service) siemControl(privateOnly bool) func(network, address string, c syscall.RawConn) error {
 	return func(_, address string, _ syscall.RawConn) error {
-		host, _, err := net.SplitHostPort(address)
+		host, port, err := net.SplitHostPort(address)
 		if err != nil {
 			return errSiemForbidden
 		}
@@ -256,11 +301,18 @@ func (s *Service) siemControl(privateOnly bool) func(network, address string, c 
 		if err != nil {
 			return errSiemForbidden
 		}
+		n, err := strconv.ParseUint(port, 10, 16)
+		if err != nil {
+			return errSiemForbidden
+		}
 		box, known := s.boxAddrs()
 		if !known {
 			return errSiemBoxUnknown // fail closed: until vedette-host has answered, the box's own addresses cannot be excluded
 		}
-		if siemForbidden(ip, box, s.allowLoopback) {
+		if siemOwn(ip, uint16(n), box, s.extraSelf(), s.allowLoopback) {
+			return errSiemOwn
+		}
+		if siemForbidden(ip) {
 			return errSiemForbidden
 		}
 		if privateOnly {
@@ -389,8 +441,10 @@ func siemFailure(err error, cfg siemRow) string {
 	switch {
 	case errors.Is(err, errSiemBoxUnknown):
 		return "The box does not know its own addresses yet, so it cannot check the destination. Try again in a minute."
+	case errors.Is(err, errSiemOwn):
+		return "Refused. " + ownText
 	case errors.Is(err, errSiemForbidden):
-		return "Refused: the destination is this machine, a link-local, multicast or unspecified address, or an address of this box."
+		return "Refused: the destination is a link-local, multicast or unspecified address, or a cloud metadata service."
 	case errors.Is(err, errSiemNotPrivate):
 		return "Refused: plain http:// is only sent to an address on your own network. Use https:// for this destination."
 	case errors.Is(err, errSiemStatus):

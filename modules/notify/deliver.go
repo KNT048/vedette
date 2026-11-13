@@ -118,8 +118,10 @@ func friendlyError(err error) string {
 	switch {
 	case errors.Is(err, channel.ErrBoxAddrsUnknown), strings.Contains(text, "addresses are not known yet"): // the dial error arrives as text
 		return "Vedette does not know this box's own network addresses yet, so webhooks wait. Try again in a minute."
+	case strings.Contains(text, "refusing to connect to Vedette itself"):
+		return channel.OwnText
 	case strings.Contains(text, "refusing to connect"):
-		return "This address is not allowed: it points at this machine, a link-local, multicast or reserved address."
+		return "This address is not allowed: it is a link-local, multicast, unspecified or cloud metadata address."
 	case errors.Is(err, context.DeadlineExceeded), strings.Contains(text, "timed out"):
 		return "The server did not answer in time."
 	case errors.Is(err, context.Canceled), strings.Contains(text, "cancelled"):

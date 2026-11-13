@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -146,7 +147,14 @@ func (s *Service) siemTarget(in SiemInput) (SiemInput, error) {
 		if p := u.Port(); p != "" && !validPort(p) {
 			return in, bad
 		}
-		if err := s.checkHost(strings.ToLower(u.Hostname())); err != nil {
+		port := uint16(443)
+		if p := u.Port(); p != "" {
+			n, _ := strconv.ParseUint(p, 10, 16) // validPort above
+			port = uint16(n)
+		} else if u.Scheme == "http" {
+			port = 80
+		}
+		if err := s.checkHost(strings.ToLower(u.Hostname()), port); err != nil {
 			return in, err
 		}
 		in.Host, in.Port, in.Proto = "", 514, "udp"
@@ -162,7 +170,7 @@ func (s *Service) siemTarget(in SiemInput) (SiemInput, error) {
 	if !slices.Contains([]string{"udp", "tcp", "tls"}, in.Proto) {
 		return in, apierr.New(400, "bad_proto", "Choose UDP, TCP or TLS.")
 	}
-	if err := s.checkHost(strings.ToLower(in.Host)); err != nil {
+	if err := s.checkHost(strings.ToLower(in.Host), uint16(in.Port)); err != nil {
 		return in, err
 	}
 	return in, nil
@@ -184,14 +192,19 @@ func validPort(p string) bool {
 	return n >= 1 && n <= 65535
 }
 
-// checkHost refuses, at save time, what no destination may be: a literal address the guard forbids, a name that is an address in
-// disguise (2130706433, 0x7f.1) and localhost. Names are resolved only on the socket.
-func (s *Service) checkHost(host string) error {
-	blocked := apierr.New(400, "blocked_host", "The SIEM cannot be this machine, a link-local, multicast or unspecified address, or an address of this box.")
+// checkHost refuses, at save time, what no destination may be: a literal address the guard forbids (Vedette itself at port, D-446,
+// first, for its own sentence), a name that is an address in disguise (2130706433, 0x7f.1) and localhost. Names are resolved only on
+// the socket.
+func (s *Service) checkHost(host string, port uint16) error {
+	blocked := apierr.New(400, "blocked_host", "The SIEM cannot be a link-local, multicast or unspecified address, or a cloud metadata service.")
+	own := apierr.New(400, "blocked_host", ownText)
 	host = strings.TrimSuffix(strings.Trim(host, "[]"), ".")
 	if a, err := netip.ParseAddr(host); err == nil {
-		box, _ := s.boxAddrs()
-		if siemForbidden(a, box, s.allowLoopback) {
+		box, _ := s.boxAddrs() // unknown: judged with what is known; the socket refuses every send until it is known (siemOwn)
+		if siemOwn(a, port, box, s.extraSelf(), s.allowLoopback) {
+			return own
+		}
+		if siemForbidden(a) {
 			return blocked
 		}
 		return nil
@@ -201,9 +214,17 @@ func (s *Service) checkHost(host string) error {
 		return apierr.New(400, "bad_host", "The SIEM server must be an IP address or a domain name, for example 192.168.10.50 or siem.company.com.")
 	}
 	if !s.allowLoopback && (host == "localhost" || strings.HasSuffix(host, ".localhost")) {
-		return blocked
+		return own
 	}
 	return nil
+}
+
+// extraSelf is Config.SelfAddrs (nil: none).
+func (s *Service) extraSelf() []netip.Addr {
+	if s.cfg.SelfAddrs == nil {
+		return nil
+	}
+	return s.cfg.SelfAddrs()
 }
 
 func (s *Service) boxAddrs() ([]netip.Addr, bool) {

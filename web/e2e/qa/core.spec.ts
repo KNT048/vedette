@@ -102,7 +102,9 @@ test.describe('first-run setup', () => {
     await page.waitForTimeout(300) // nothing is sent behind the step
     expect(posts).toBe(0)
     await page.getByRole('button', { name: 'Finish setup' }).dblclick()
-    await expect(h1(page)).toContainText('Today')
+    // Home of a clean box: its heading is the "CISA list not fetched yet" sentence (D-92), not "Today"; the D-462 reminder shows it landed
+    await expect(page).toHaveURL(/\/$/)
+    await expect(page.getByText('No alert channel yet')).toBeVisible()
     expect(posts).toBe(1)
     noErrors(errors)
   })

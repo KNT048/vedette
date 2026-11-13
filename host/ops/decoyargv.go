@@ -97,7 +97,32 @@ func argvSysctlRead() []string {
 	}
 	return a
 }
-func argvLoUp() []string    { return inNS("link", "set", "lo", "up") }
+func argvLoUp() []string { return inNS("link", "set", "lo", "up") }
+
+// A decoy link is made in the host's namespace, so it carries the host's IPv6 defaults into vedette-hp: once up it would send IPv6
+// (DAD, router solicitation, MLD) from the decoy's MAC with no IPv4 address, and the sensors made devices of those MACs (B2 lab).
+// IPv6 is switched off on the link before it goes up, and read back.
+func ipv6Key(name string) string { return "net.ipv6.conf." + name + ".disable_ipv6" }
+func argvLinkNoIPv6(name string) []string {
+	return []string{"netns", "exec", hpNS, hpSysctlPath, "-w", ipv6Key(name) + "=1"}
+}
+func argvLinkNoIPv6Read(name string) []string {
+	return []string{"netns", "exec", hpNS, hpSysctlPath, "-n", ipv6Key(name)}
+}
+
+var linkIPv6RE = regexp.MustCompile(`^net\.ipv6\.conf\.(vdh[0-9a-f]{8})\.disable_ipv6(=1)?$`)
+
+// linkIPv6Argv is true for argvLinkNoIPv6 and argvLinkNoIPv6Read of a decoy link name, and nothing else.
+func linkIPv6Argv(args []string) bool {
+	if len(args) != 6 {
+		return false
+	}
+	m := linkIPv6RE.FindStringSubmatch(args[5])
+	if m == nil {
+		return false
+	}
+	return slices.Equal(args, argvLinkNoIPv6(m[1])) || slices.Equal(args, argvLinkNoIPv6Read(m[1]))
+}
 func argvNftLoad() []string { return []string{"netns", "exec", hpNS, hpNftPath, "-f", "-"} }
 func argvNftList() []string { return []string{"netns", "exec", hpNS, hpNftPath, "list", "ruleset"} }
 
@@ -189,7 +214,8 @@ func validateIP(args []string) error {
 		slices.Equal(args, argvSysctlRead()),
 		slices.Equal(args, argvNftLoad()),
 		slices.Equal(args, argvNftList()),
-		slices.Equal(args, argvNftTouched()):
+		slices.Equal(args, argvNftTouched()),
+		linkIPv6Argv(args):
 		return nil
 	}
 	return errors.New("not one of the fixed ip command lines")

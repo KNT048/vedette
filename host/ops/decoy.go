@@ -524,6 +524,18 @@ func stderrHead(b []byte) string {
 
 // buildDecoy makes the link, moves it into the namespace and configures it. It deletes only what
 // this call created: a failure of "link add" (the name taken by someone else) deletes nothing.
+// linkNoIPv6 switches IPv6 off on a decoy link in vedette-hp before it goes up and reads it back (argvLinkNoIPv6).
+func (o *Ops) linkNoIPv6(ctx context.Context, name string) error {
+	if _, code, err := o.exec(ctx, binIP, argvLinkNoIPv6(name)...); err != nil || code != 0 {
+		return fmt.Errorf("ops: switching IPv6 off on %s failed (exit %d)", name, code)
+	}
+	res, code, err := o.exec(ctx, binIP, argvLinkNoIPv6Read(name)...)
+	if err != nil || code != 0 || strings.TrimSpace(string(res.Stdout)) != "1" {
+		return fmt.Errorf("ops: IPv6 is not off on %s (exit %d)", name, code)
+	}
+	return nil
+}
+
 func (o *Ops) buildDecoy(ctx context.Context, d decoyEntry, m mgmtNet) error {
 	ip := d.addr()
 	name := linkName(ip)
@@ -532,6 +544,10 @@ func (o *Ops) buildDecoy(ctx context.Context, d decoyEntry, m mgmtNet) error {
 	}
 	if err := o.ipRun(ctx, argvLinkToNS(name)); err != nil {
 		_ = o.ipRun(ctx, argvHostLinkDel(name)) // we made it a moment ago and it never left
+		return err
+	}
+	if err := o.linkNoIPv6(ctx, name); err != nil {
+		o.removeDecoyNS(ctx, d)
 		return err
 	}
 	steps := [][]string{argvAddrAdd(netip.PrefixFrom(ip, m.Prefix.Bits()), name), argvUp(name)}

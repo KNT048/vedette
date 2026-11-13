@@ -102,8 +102,8 @@ var touchRuleForms = func() []string {
 	var out []string
 	for _, nf := range []string{"", "meta nfproto ipv4 "} {
 		for _, proto := range []string{"tcp, udp", "6, 17"} {
-			for _, pt := range []string{"meta pkttype host", "pkttype host"} {
-				out = append(out, nftNorm(nf+"meta l4proto { "+proto+" } "+pt+" ct state new add @touched { ip saddr . ip daddr }"))
+			for _, pt := range []string{"meta pkttype host ", "pkttype host ", ""} { // "": the rule of 7712c63f, printed by nft 1.1.6 in the lab
+				out = append(out, nftNorm(nf+"meta l4proto { "+proto+" } "+pt+"ct state new add @touched { ip saddr . ip daddr }"))
 			}
 		}
 	}
@@ -375,6 +375,7 @@ func touchedOK(s *nftSet) bool {
 	}
 	flags, size, timeout := false, false, false
 	for _, l := range s.other {
+		l, _, _ = strings.Cut(l, "#") // nft 1.1 prints "size 1024\t# count 6"
 		n := nftNorm(l)
 		switch {
 		case strings.HasPrefix(n, "flags"):

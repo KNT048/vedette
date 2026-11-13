@@ -132,6 +132,13 @@ func (s *Service) ownedFilter(ctx context.Context) func(ip netip.Addr, mac strin
 		}
 	}
 	return func(ip netip.Addr, mac string) bool {
+		if !ip.IsValid() && mac != "" && s.decoyMAC != nil { // a frame with a MAC and no IPv4 (B2 lab): a decoy's own MAC is the box
+			if !asked {
+				asked = true
+				load(false)
+			}
+			return isDecoyMAC(decoys, mac)
+		}
 		if !ip.IsValid() || !owned[ip] {
 			return false
 		}
@@ -152,12 +159,85 @@ func (s *Service) ownedFilter(ctx context.Context) func(ip netip.Addr, mac strin
 		// A foreign MAC is another machine only where the host holds a decoy with another MAC; where it holds none yet, the frame is
 		// the box's own link coming up (B2 lab), not a device.
 		if decoys != nil {
-			if _, held := decoys[ip]; !held {
+			if m, held := decoys[ip]; !held || m == mac {
 				return true
 			}
 		}
 		return false
 	}
+}
+
+func isDecoyMAC(decoys map[netip.Addr]string, mac string) bool {
+	for _, m := range decoys {
+		if n, ok := normMAC(m); ok && n == mac {
+			return true
+		}
+	}
+	return false
+}
+
+// ForgetBoxOwned deletes the device rows the sensors made of the box's own decoys before the inventory knew them (B2 lab: a Trap
+// IP's address seen before it was box-owned, a decoy's MAC seen with no IPv4): unapproved, not added by hand, not the box, and
+// either at a box-owned address with no MAC or one of the box's MACs, or with no address and a decoy's MAC. Each goes through
+// DeleteDevice (audit "inventory.delete" by "system", event, findings). The honeypot asks at every Apply; it returns how many went.
+func (s *Service) ForgetBoxOwned(ctx context.Context) (int, error) {
+	owned := s.ownedIPs(ctx)
+	if owned == nil || s.boxMACs == nil {
+		return 0, nil
+	}
+	type row struct {
+		id, mac string
+		ip      netip.Addr
+	}
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, ifnull(ip, ''), ifnull(mac, '') FROM inv_asset WHERE is_box = 0 AND approved = 0 AND origin != 'manual'`)
+	if err != nil {
+		return 0, fmt.Errorf("inventory: read devices: %w", err)
+	}
+	var cand []row // only these need the host's MACs: a read of them is skipped when there is none
+	for rows.Next() {
+		var r row
+		var ipS string
+		if err := rows.Scan(&r.id, &ipS, &r.mac); err != nil {
+			_ = rows.Close()
+			return 0, fmt.Errorf("inventory: read devices: %w", err)
+		}
+		r.ip, _ = netip.ParseAddr(ipS)
+		if r.ip.IsValid() && owned[r.ip] || !r.ip.IsValid() && r.mac != "" {
+			cand = append(cand, r)
+		}
+	}
+	err = rows.Err()
+	_ = rows.Close()
+	if err != nil {
+		return 0, fmt.Errorf("inventory: read devices: %w", err)
+	}
+	if len(cand) == 0 {
+		return 0, nil
+	}
+	list, err := s.boxMACs(ctx, false)
+	if err != nil {
+		return 0, nil // unknown: nothing is a ghost yet
+	}
+	macs := map[string]bool{}
+	for _, m := range list {
+		if n, ok := normMAC(m); ok {
+			macs[n] = true
+		}
+	}
+	var decoys map[netip.Addr]string
+	if s.decoyMAC != nil {
+		decoys, _ = s.decoyMAC(ctx, false)
+	}
+	n := 0
+	for _, r := range cand {
+		if r.ip.IsValid() && (r.mac == "" || macs[r.mac]) || !r.ip.IsValid() && isDecoyMAC(decoys, r.mac) {
+			if err := s.DeleteDevice(ctx, "system", r.id); err != nil {
+				return n, err
+			}
+			n++
+		}
+	}
+	return n, nil
 }
 
 // BoxOwnedSkipped counts the observations ignored since start because they came from a box-owned address.

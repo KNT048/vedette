@@ -173,3 +173,58 @@ func TestContract_INV17_ADecoyComingUpIsNoDevice(t *testing.T) {
 		t.Fatalf("a foreign machine on a held decoy address: %d devices", n)
 	}
 }
+
+// B2 lab: the sensors made devices of the box's own decoys before the inventory knew them: one at a Trap IP's address before it
+// was box-owned, others from a decoy's MAC with no IPv4 (IPv6 frames of the link). A frame with no IPv4 and a decoy's MAC is the
+// box; ForgetBoxOwned deletes such rows that already exist (unapproved, not by hand), and leaves every other device.
+func TestContract_INV17_TheBoxsOwnDecoysAreForgotten(t *testing.T) {
+	t.Parallel()
+	trap, decoyMAC := netip.MustParseAddr("192.168.10.240"), "f8:bc:12:00:02:40"
+	var owned []netip.Addr
+	decoys := map[netip.Addr]string{}
+	e := newEnv(t, func(c *inventory.Config) {
+		c.BoxOwnedIPs = func(context.Context) []netip.Addr { return owned }
+		c.BoxOwnedMACs = func(context.Context, bool) ([]string, error) { return []string{decoyMAC, "52:54:00:aa:bb:cc"}, nil }
+		c.BoxDecoyMACs = func(context.Context, bool) (map[netip.Addr]string, error) { return decoys, nil }
+	})
+	rec := func(ip netip.Addr, mac string, f observe.Field, v string) {
+		t.Helper()
+		if err := e.svc.Record(e.ctx(), []observe.Observation{{AssetHint: observe.AssetHint{IP: ip, MAC: mac}, Field: f, Value: v, Source: observe.Passive, Confidence: 0.9}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Before the inventory knew: the address asked for by another machine, the decoy's MAC with no IPv4, a real PC, and a device a
+	// person approved on the second Trap IP's address.
+	rec(trap, "", observe.Kind, "unknown")
+	rec(netip.Addr{}, decoyMAC, observe.MAC, decoyMAC)
+	rec(netip.MustParseAddr("192.168.10.107"), "aa:bb:cc:00:01:07", observe.MAC, "aa:bb:cc:00:01:07")
+	rec(netip.MustParseAddr("192.168.10.241"), "", observe.Kind, "unknown")
+	var kept string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT id FROM inv_asset WHERE ip = '192.168.10.241'`).Scan(&kept); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Approve(e.ctx(), "admin", kept); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_asset`); n != 4 {
+		t.Fatalf("setup: %d devices", n)
+	}
+	// Now the inventory knows: the Trap IPs are the box's and the host holds the decoy.
+	owned = []netip.Addr{trap, netip.MustParseAddr("192.168.10.241")}
+	decoys[trap] = decoyMAC
+	n, err := e.svc.ForgetBoxOwned(e.ctx())
+	if err != nil || n != 2 {
+		t.Fatalf("forgot %d rows: %v", n, err)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_asset WHERE ip = '192.168.10.107' OR id = ?`, kept); n != 2 || e.count(`SELECT count(*) FROM inv_asset`) != 2 {
+		t.Fatalf("other devices went too: %d left", e.count(`SELECT count(*) FROM inv_asset`))
+	}
+	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.delete' AND user = 'system'`); n != 2 {
+		t.Fatalf("%d audit rows", n)
+	}
+	// A decoy's MAC with no IPv4 is the box from now on.
+	rec(netip.Addr{}, decoyMAC, observe.MAC, decoyMAC)
+	if n := e.count(`SELECT count(*) FROM inv_asset`); n != 2 {
+		t.Fatalf("the decoy's MAC became a device again: %d devices", n)
+	}
+}

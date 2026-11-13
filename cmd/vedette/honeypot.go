@@ -138,6 +138,11 @@ func (a honeypotInventory) Devices(ctx context.Context) ([]honeypot.Device, erro
 	return out, nil
 }
 
+// ForgetBoxOwned lets the honeypot have the inventory delete the device rows made of its own decoys (honeypot ghostForgetter).
+func (a honeypotInventory) ForgetBoxOwned(ctx context.Context) (int, error) {
+	return a.inv.ForgetBoxOwned(ctx)
+}
+
 func (a honeypotInventory) LANRanges(ctx context.Context) ([]netip.Prefix, error) {
 	st, err := a.inv.Settings(ctx)
 	if err != nil {

@@ -152,6 +152,8 @@ Từ chối (`add`): `ip_not_in_mgmt_subnet`; `ip_is_gateway|ip_is_host|ip_is_ne
 `remove`: IP không có → thành công, không làm gì (idempotent). Host không tắt container `honeypot`; `core` gọi `container.start`/cấu hình honeypot theo DB sau đó.
 Không có lệnh nhận danh sách tuỳ ý, chỉ từng IP một. Với nhịp 10 lệnh ghi/phút, 32 decoy mất từ 3 phút: `core` chỉ gửi phần khác nhau giữa DB và `decoys` của `GET /v1/state/net`, không gửi lại mọi IP (honeypot CONTRACT). Timeout 30 giây mỗi lệnh.
 
+**IPv6 tắt trên link decoy (lab B2)**: link macvlan tạo ở namespace của host nên mang mặc định IPv6 của host vào `vedette-hp`; trước khi lên, host đặt `net.ipv6.conf.vdh<8 hex>.disable_ipv6=1` (`ip netns exec vedette-hp /usr/sbin/sysctl -w …`, văn phạm cố định theo tên link) và đọc lại bằng `sysctl -n` (phải là `1`; không thì decoy hỏng, `decoy_failed`). Nếu không, link gửi DAD/RS/MLD từ MAC decoy không kèm IPv4 và sensor tạo thiết bị từ MAC đó.
+
 **Cổng riêng của từng IP (D-466).** OpenCanary vẫn là một tiến trình nghe mọi địa chỉ của namespace (D-90 (1)); host giữ mỗi IP bẫy đúng bộ dịch vụ của nó bằng **danh sách cho phép trong ruleset nft của `vedette-hp`**.
 - Kiểu cổng: `{ "proto": "tcp"|"udp", "port": 1…65535 }`; tối đa 64 cổng mỗi IP, không trùng; host lưu và trả về đã sắp (proto rồi port). Sai → `400 invalid_args` trường `ports`.
 - `decoy_ip.add` nhận thêm `ports` tuỳ chọn. **Vắng (`null`) = không có danh sách cho phép**: IP trả lời mọi cổng mà honeypot nghe (đúng hành vi cũ, cho `core` đời trước). Có danh sách, kể cả rỗng = chỉ những cổng đó.

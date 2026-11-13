@@ -285,6 +285,8 @@ func TestContract_Decoy_AddBuildsTheLinkAndChecksTheEffect(t *testing.T) {
 		"-n vedette-hp -j addr show",
 		"link add link eth0 name vdhc0a80164 address " + mac + " type macvlan mode bridge",
 		"link set vdhc0a80164 netns vedette-hp",
+		"netns exec vedette-hp /usr/sbin/sysctl -w net.ipv6.conf.vdhc0a80164.disable_ipv6=1", // no IPv6 from the decoy's MAC (B2 lab)
+		"netns exec vedette-hp /usr/sbin/sysctl -n net.ipv6.conf.vdhc0a80164.disable_ipv6",   // read back
 		"-n vedette-hp addr add 192.168.1.100/24 dev vdhc0a80164",
 		"-n vedette-hp link set vdhc0a80164 up",
 		"-n vedette-hp route flush table 100",

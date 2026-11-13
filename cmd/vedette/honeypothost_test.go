@@ -813,3 +813,62 @@ func TestHoneypotHostReadsTheAttemptsToTheDecoys(t *testing.T) {
 		t.Fatalf("an older host: %+v %v", got, err)
 	}
 }
+
+// B2 lab rerun: a device row made of a Trap IP's address before the honeypot was on (another machine asked for it) is forgotten
+// at the first Apply and does not hold the Trap IP in conflict; while the module is on, the address of a Trap IP not handed over
+// yet and a decoy's MAC with no IPv4 never become devices.
+func TestHoneypotForgetsDevicesMadeOfItsTrapIPs(t *testing.T) {
+	t.Parallel()
+	e := startHPHost(t, false)
+	s := newStackWith(t, func(d *deps) {
+		d.HoneypotDir, d.HostSocket = t.TempDir(), e.h.Socket
+		d.DataDir, d.KeyPath = t.TempDir(), filepath.Join(t.TempDir(), "vedette.key")
+	})
+	s.saveScope(t)
+	frame := func(ip netip.Addr, mac string, f observe.Field, v string) {
+		t.Helper()
+		if err := s.d.Inventory.Record(t.Context(), []observe.Observation{{AssetHint: observe.AssetHint{IP: ip, MAC: mac}, Field: f, Value: v, Source: observe.Passive, Confidence: 0.9}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	devices := func() int {
+		l, err := s.d.Inventory.AllDevices(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(l)
+	}
+	before := devices()
+	s.setModule("honeypot", true)
+	s.addTrapIP(t, `{"name":"FILESRV-OLD","ip":"192.168.10.240","preset":"file_server","vendor":"dell","services":["smb","rdp"]}`)
+	s.addTrapIP(t, `{"name":"NAS-ARCHIVE","ip":"192.168.10.241","preset":"nas","vendor":"synology","services":["http","smb"]}`)
+	s.setModule("honeypot", false)
+	frame(netip.MustParseAddr("192.168.10.240"), "", observe.Kind, "unknown") // the honeypot is off: an address like any other
+	if devices() != before+1 {
+		t.Fatal("setup: no ghost row")
+	}
+	s.setModule("honeypot", true)
+	frame(netip.MustParseAddr("192.168.10.241"), "", observe.Kind, "unknown") // configured, not handed over yet
+	if err := s.d.Honeypot.Apply(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if n := devices(); n != before {
+		t.Fatalf("%d device rows of the Trap IPs are left", n-before)
+	}
+	ns, err := e.h.Client.StateNet(t.Context())
+	if err != nil || len(ns.Decoys) != 2 {
+		t.Fatalf("state/net %+v %v", ns.Decoys, err)
+	}
+	for _, d := range ns.Decoys {
+		frame(netip.Addr{}, d.MAC, observe.MAC, d.MAC) // the decoy's MAC with no IPv4
+	}
+	if n := devices(); n != before {
+		t.Fatalf("a decoy's MAC became %d device(s)", n-before)
+	}
+	_, b := s.do("GET", "/honeypot/trap-ips", "viewer", "")
+	for _, it := range field(t, b, "items").([]any) {
+		if m := it.(map[string]any); m["state"] != "listening" || m["device_id"] != nil {
+			t.Fatalf("a Trap IP is not listening: %v", m)
+		}
+	}
+}

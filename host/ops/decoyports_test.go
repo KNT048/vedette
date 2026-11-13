@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"net/netip"
 	"os"
 	"regexp"
 	"slices"
@@ -338,5 +339,57 @@ func TestTouchedSetAndRuleForms(t *testing.T) {
 	plain := printed(renderRulesetMode(list, false))
 	if strings.Contains(plain, "touched") || !rulesetIsMode([]byte(plain), list, false) || rulesetIsMode([]byte(plain), list, true) || rulesetIsMode([]byte(ours), list, false) {
 		t.Fatalf("the modes with and without the set are not told apart:\n%s", plain)
+	}
+}
+
+// The real nft 1.1.6 output of the lab VM (Ubuntu 26.04, 2026-11-13, after an nmap -sS of three Trap IPs): the ruleset with the
+// set touched (with "# count" after its size, elements with "expires") and the JSON of the set (no per-element timeout).
+func TestTheRealTouchedListingsOfUbuntu2604(t *testing.T) {
+	t.Parallel()
+	listed, err := os.ReadFile("testdata/nft-list-ruleset-vedette-hp-touched-ubuntu2604.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	list := []decoyEntry{
+		{IP: "192.168.18.240", MAC: "f8:bc:12:f0:6c:d1", Table: 100, Iface: "enp0s2", Ports: ports("tcp", 445, "tcp", 3389)},
+		{IP: "192.168.18.241", MAC: "00:11:32:ff:a9:bc", Table: 101, Iface: "enp0s2", Ports: ports("tcp", 80, "tcp", 445)},
+		{IP: "192.168.18.242", MAC: "00:50:56:22:e9:d1", Table: 102, Iface: "enp0s2", Ports: ports("tcp", 22)},
+	}
+	if !rulesetIs(listed, list) {
+		t.Fatalf("the effect check refuses the real listing:\n%s", listed)
+	}
+	raw, err := os.ReadFile("testdata/nft-list-set-touched-ubuntu2604.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := parseTouched(raw)
+	if err != nil || len(got) != 6 || got[0] != (api.HPTouch{Src: "192.168.18.250", Dst: "192.168.18.240", AgeS: 79}) ||
+		got[1] != (api.HPTouch{Src: "192.168.18.251", Dst: "192.168.18.240", AgeS: 21}) {
+		t.Fatalf("parseTouched: %+v %v", got, err)
+	}
+}
+
+// B2 lab: a decoy link has IPv6 switched off before it goes up; the grammar takes exactly that sysctl (and its read-back) for a
+// decoy link name, nothing else.
+func TestTheLinkIPv6SysctlGrammar(t *testing.T) {
+	t.Parallel()
+	name := linkName(netip.MustParseAddr("192.168.1.100"))
+	for _, a := range [][]string{argvLinkNoIPv6(name), argvLinkNoIPv6Read(name)} {
+		if err := validateIP(a); err != nil {
+			t.Errorf("refused %q: %v", a, err)
+		}
+	}
+	for _, a := range [][]string{
+		{"netns", "exec", "vedette-hp", "/usr/sbin/sysctl", "-w", "net.ipv6.conf.eth0.disable_ipv6=1"},
+		{"netns", "exec", "vedette-hp", "/usr/sbin/sysctl", "-w", "net.ipv6.conf." + name + ".disable_ipv6=0"},
+		{"netns", "exec", "vedette-hp", "/usr/sbin/sysctl", "-w", "net.ipv6.conf." + name + ".forwarding=1"},
+		{"netns", "exec", "vedette-hp", "/usr/sbin/sysctl", "-w", "net.ipv6.conf.all.disable_ipv6=0"},
+		{"netns", "exec", "other", "/usr/sbin/sysctl", "-w", "net.ipv6.conf." + name + ".disable_ipv6=1"},
+		{"netns", "exec", "vedette-hp", "/usr/sbin/sysctl", "-n", "net.ipv6.conf." + name + ".disable_ipv6=1"},
+		{"netns", "exec", "vedette-hp", "/usr/sbin/sysctl", "-w", "net.ipv6.conf." + name + ".disable_ipv6=1", "x"},
+	} {
+		if err := validateIP(a); err == nil {
+			t.Errorf("accepted %q", a)
+		}
 	}
 }

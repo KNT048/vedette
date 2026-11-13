@@ -139,6 +139,49 @@ func (s *Service) DecoyIPsRead(ctx context.Context) ([]netip.Addr, error) {
 	return out, nil
 }
 
+// DecoyMACs is the MAC of each address the host held at the last Apply (from DecoyLinks, read right after the addresses were
+// added): what the inventory's cached view of the host may not have yet (B2 lab), lower case. nil while unknown.
+func (s *Service) DecoyMACs() map[netip.Addr]string {
+	hv := s.hostView()
+	if len(hv.links) == 0 {
+		return nil
+	}
+	out := make(map[netip.Addr]string, len(hv.links))
+	for ip, l := range hv.links {
+		if l.MAC != "" {
+			out[ip] = strings.ToLower(l.MAC)
+		}
+	}
+	return out
+}
+
+// TrapIPAddrs are the addresses of the enabled Trap IPs while the module is on, handed to the host or not yet (B2 lab): the
+// sensors see such an address before the first Apply hands it over (another machine asking for it, the decoy's link coming up),
+// and the inventory must not make a device of it (cmd/vedette adds them to inventory.Config.BoxOwnedIPs with DecoyIPs).
+func (s *Service) TrapIPAddrs(ctx context.Context) []netip.Addr {
+	if !s.on() {
+		return nil
+	}
+	tips, err := loadTrapIPs(ctx, s.db.Reader())
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "honeypot: read the Trap IPs", "error", err)
+		return nil
+	}
+	var out []netip.Addr
+	for _, d := range tips {
+		if d.Enabled && d.ip.IsValid() {
+			out = append(out, d.ip)
+		}
+	}
+	return out
+}
+
+// ghostForgetter is the optional part of the Inventory that deletes the device rows its sensors made of the box's own decoys
+// (inventory ForgetBoxOwned, B2 lab): asked at every Apply, before the state is read, so such a row never holds a Trap IP in conflict.
+type ghostForgetter interface {
+	ForgetBoxOwned(ctx context.Context) (int, error)
+}
+
 // desired is what the host should look like, from the database and the inventory (D-55: configuration comes from the
 // database, never edited by hand): the enabled Trap IPs with at least one service, in creation order, and the services of
 // all of them (one OpenCanary process runs their union, D-90 (1); the host keeps each address to its own ports, D-466). An
@@ -249,6 +292,13 @@ func (s *Service) Apply(ctx context.Context) error {
 	}()
 	if !s.on() { // checked under the lock the teardown also holds: an Apply that waited behind a switch-off must not bring the traps back (D-189)
 		return nil
+	}
+	if g, ok := s.cfg.Inventory.(ghostForgetter); ok {
+		if n, err := g.ForgetBoxOwned(ctx); err != nil {
+			s.cfg.Log.WarnContext(ctx, "honeypot: the inventory could not forget the rows of the box's own decoys", "error", err)
+		} else if n > 0 {
+			s.cfg.Log.InfoContext(ctx, "honeypot: the inventory forgot device rows made of the box's own decoys", "rows", n)
+		}
 	}
 	w, err := s.load(ctx)
 	if err != nil {

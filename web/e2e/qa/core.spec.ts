@@ -748,7 +748,7 @@ test.describe('look and feel', () => {
     await page.keyboard.press('Tab'); await expect(page.getByLabel('Sign-in email')).toBeFocused()
     await page.keyboard.press('Tab'); await expect(page.getByLabel('Password', { exact: true })).toBeFocused()
     await page.keyboard.press('Tab'); await expect(page.getByLabel('Repeat password')).toBeFocused()
-    await expect(page.getByRole('button', { name: 'Back' })).toBeDisabled() // a disabled button is skipped by Tab
+    await expect(page.getByRole('button', { name: 'Back' })).toHaveCount(0) // W2-8: step 1 has no Back
     await page.keyboard.press('Tab'); await expect(page.getByRole('button', { name: 'Continue' })).toBeFocused()
     // network step on a phone: rows fit, no sideways scroll
     await startClean(page)

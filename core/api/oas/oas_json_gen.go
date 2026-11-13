@@ -145339,6 +145339,8 @@ func (s *InventoryGetInventorySensorsOKSensorsItemStatus) Decode(d *jx.Decoder) 
 		*s = InventoryGetInventorySensorsOKSensorsItemStatusOffline
 	case InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected:
 		*s = InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected
+	case InventoryGetInventorySensorsOKSensorsItemStatusStarting:
+		*s = InventoryGetInventorySensorsOKSensorsItemStatusStarting
 	default:
 		*s = InventoryGetInventorySensorsOKSensorsItemStatus(v)
 	}
@@ -146733,6 +146735,8 @@ func (s *InventoryPatchInventorySensorsIDOKStatus) Decode(d *jx.Decoder) error {
 		*s = InventoryPatchInventorySensorsIDOKStatusOffline
 	case InventoryPatchInventorySensorsIDOKStatusNeverConnected:
 		*s = InventoryPatchInventorySensorsIDOKStatusNeverConnected
+	case InventoryPatchInventorySensorsIDOKStatusStarting:
+		*s = InventoryPatchInventorySensorsIDOKStatusStarting
 	default:
 		*s = InventoryPatchInventorySensorsIDOKStatus(v)
 	}

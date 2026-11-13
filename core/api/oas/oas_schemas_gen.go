@@ -71700,7 +71700,10 @@ type InventoryGetInventorySensorsOKSensorsItem struct {
 	// Live mirrored-traffic health, the same as Settings → Box network.
 	SpanStatus InventoryGetInventorySensorsOKSensorsItemSpanStatus `json:"span_status"`
 	// Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
-	// never_connected: no heartbeat ever (D-387).
+	// never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the
+	// sensor container (an appliance after setup or after the module is turned on: the start is being
+	// retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A
+	// container-only install never says starting: the customer starts it.
 	Status  InventoryGetInventorySensorsOKSensorsItemStatus `json:"status"`
 	Version NilString                                       `json:"version"`
 }
@@ -71980,13 +71983,17 @@ func (s *InventoryGetInventorySensorsOKSensorsItemSpanStatusVerdict) UnmarshalTe
 }
 
 // Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
-// never_connected: no heartbeat ever (D-387).
+// never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the
+// sensor container (an appliance after setup or after the module is turned on: the start is being
+// retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A
+// container-only install never says starting: the customer starts it.
 type InventoryGetInventorySensorsOKSensorsItemStatus string
 
 const (
 	InventoryGetInventorySensorsOKSensorsItemStatusOnline         InventoryGetInventorySensorsOKSensorsItemStatus = "online"
 	InventoryGetInventorySensorsOKSensorsItemStatusOffline        InventoryGetInventorySensorsOKSensorsItemStatus = "offline"
 	InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected InventoryGetInventorySensorsOKSensorsItemStatus = "never_connected"
+	InventoryGetInventorySensorsOKSensorsItemStatusStarting       InventoryGetInventorySensorsOKSensorsItemStatus = "starting"
 )
 
 // AllValues returns all InventoryGetInventorySensorsOKSensorsItemStatus values.
@@ -71995,6 +72002,7 @@ func (InventoryGetInventorySensorsOKSensorsItemStatus) AllValues() []InventoryGe
 		InventoryGetInventorySensorsOKSensorsItemStatusOnline,
 		InventoryGetInventorySensorsOKSensorsItemStatusOffline,
 		InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected,
+		InventoryGetInventorySensorsOKSensorsItemStatusStarting,
 	}
 }
 
@@ -72006,6 +72014,8 @@ func (s InventoryGetInventorySensorsOKSensorsItemStatus) MarshalText() ([]byte, 
 	case InventoryGetInventorySensorsOKSensorsItemStatusOffline:
 		return []byte(s), nil
 	case InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected:
+		return []byte(s), nil
+	case InventoryGetInventorySensorsOKSensorsItemStatusStarting:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -72023,6 +72033,9 @@ func (s *InventoryGetInventorySensorsOKSensorsItemStatus) UnmarshalText(data []b
 		return nil
 	case InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected:
 		*s = InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected
+		return nil
+	case InventoryGetInventorySensorsOKSensorsItemStatusStarting:
+		*s = InventoryGetInventorySensorsOKSensorsItemStatusStarting
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -72665,7 +72678,10 @@ type InventoryPatchInventorySensorsIDOK struct {
 	// Live mirrored-traffic health, the same as Settings → Box network.
 	SpanStatus InventoryPatchInventorySensorsIDOKSpanStatus `json:"span_status"`
 	// Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
-	// never_connected: no heartbeat ever (D-387).
+	// never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the
+	// sensor container (an appliance after setup or after the module is turned on: the start is being
+	// retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A
+	// container-only install never says starting: the customer starts it.
 	Status  InventoryPatchInventorySensorsIDOKStatus `json:"status"`
 	Version NilString                                `json:"version"`
 }
@@ -72945,13 +72961,17 @@ func (s *InventoryPatchInventorySensorsIDOKSpanStatusVerdict) UnmarshalText(data
 }
 
 // Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
-// never_connected: no heartbeat ever (D-387).
+// never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the
+// sensor container (an appliance after setup or after the module is turned on: the start is being
+// retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A
+// container-only install never says starting: the customer starts it.
 type InventoryPatchInventorySensorsIDOKStatus string
 
 const (
 	InventoryPatchInventorySensorsIDOKStatusOnline         InventoryPatchInventorySensorsIDOKStatus = "online"
 	InventoryPatchInventorySensorsIDOKStatusOffline        InventoryPatchInventorySensorsIDOKStatus = "offline"
 	InventoryPatchInventorySensorsIDOKStatusNeverConnected InventoryPatchInventorySensorsIDOKStatus = "never_connected"
+	InventoryPatchInventorySensorsIDOKStatusStarting       InventoryPatchInventorySensorsIDOKStatus = "starting"
 )
 
 // AllValues returns all InventoryPatchInventorySensorsIDOKStatus values.
@@ -72960,6 +72980,7 @@ func (InventoryPatchInventorySensorsIDOKStatus) AllValues() []InventoryPatchInve
 		InventoryPatchInventorySensorsIDOKStatusOnline,
 		InventoryPatchInventorySensorsIDOKStatusOffline,
 		InventoryPatchInventorySensorsIDOKStatusNeverConnected,
+		InventoryPatchInventorySensorsIDOKStatusStarting,
 	}
 }
 
@@ -72971,6 +72992,8 @@ func (s InventoryPatchInventorySensorsIDOKStatus) MarshalText() ([]byte, error) 
 	case InventoryPatchInventorySensorsIDOKStatusOffline:
 		return []byte(s), nil
 	case InventoryPatchInventorySensorsIDOKStatusNeverConnected:
+		return []byte(s), nil
+	case InventoryPatchInventorySensorsIDOKStatusStarting:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -72988,6 +73011,9 @@ func (s *InventoryPatchInventorySensorsIDOKStatus) UnmarshalText(data []byte) er
 		return nil
 	case InventoryPatchInventorySensorsIDOKStatusNeverConnected:
 		*s = InventoryPatchInventorySensorsIDOKStatusNeverConnected
+		return nil
+	case InventoryPatchInventorySensorsIDOKStatusStarting:
+		*s = InventoryPatchInventorySensorsIDOKStatusStarting
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

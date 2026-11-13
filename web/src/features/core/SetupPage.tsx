@@ -218,7 +218,8 @@ export default function SetupPage() {
         {formError ? <p role="alert" className="mt-4 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{formError}</p> : null}
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
-          <Button onClick={() => { setErrors({}); setStep(STEPS[idx - 1] ?? step) }} disabled={idx === 0 || finished}>{t('setup.back')}</Button>
+          {/* W2-8: the first step has nowhere to go back to, so it has no Back (the span keeps Continue on the right). */}
+          {idx === 0 ? <span /> : <Button onClick={() => { setErrors({}); setStep(STEPS[idx - 1] ?? step) }} disabled={finished}>{t('setup.back')}</Button>}
           {/* Different keys: Continue and Finish are separate buttons. A click that is the 2nd or 3rd of a double/triple click
               (detail > 1, counted by the browser whichever button is under the pointer) never submits, so a double-click on
               Continue cannot skip a step or finish setup with the default bundle. Keyboard submits have detail 0. */}

@@ -125,6 +125,9 @@ type deps struct {
 	// PackLoader loads them into mitigation (the job load-packs). Set by buildServices.
 	PackLoader    *mitigation.Loader
 	SensorPassive *sensorpassive.Service // the sensor link and the HTTP handler share it: the SPAN measurement lives in its memory
+	// SensorStart is the start of the sensor container as its guard sees it (W2-6): the guard (addContainerGuards) writes it and
+	// GET /inventory/sensors reads it to say "starting". Set by buildServices when there is a host; nil otherwise.
+	SensorStart *startWatch
 	// SensorDispatcher is the Prober of sensor-active and the active half of the sensor link's Backend (D-113): one instance, so the
 	// job the service queues is the job the worker polls. Authority and SensorCreds exist only when -sensor-listen is set (D-141).
 	SensorDispatcher *sensoractive.Dispatcher

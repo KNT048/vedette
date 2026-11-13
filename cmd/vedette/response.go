@@ -370,7 +370,7 @@ func (l lateDecoys) DecoyIPsRead(ctx context.Context) ([]netip.Addr, error) {
 
 var errHostNetUnknown = errors.New("vedette-host has not reported the addresses of the box yet")
 
-// responseBoxAddrs is response's Config.BoxAddrs: what vedette-host reports for the appliance (the shared cache, read without waiting) and the
+// responseBoxAddrs is response's Config.BoxAddrs: what vedette-host reports for the appliance (the shared cache: read without waiting once the host has answered, else up to firstAnswerWait, D-408) and the
 // decoy addresses of the honeypot, the same sources as core/conn's boxSources. A set that is not known (a configured host that has never answered,
 // an unreadable honeypot record) is an error, so response refuses instead of checking against a smaller set (D-179 (8), as notify since #157).
 func responseBoxAddrs(host func() ([]netip.Addr, bool), decoys decoyIPs) func() ([]netip.Addr, error) {

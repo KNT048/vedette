@@ -21,6 +21,7 @@ import { EMAIL_PROVIDERS, OAUTH_HOST, emailBinding, emailProvider, isOAuth, isUs
 import { EmailSignin } from './EmailSignin'
 import { useChannels, useRemoveChannel, useSaveChannel, useSaveRules, useTestChannel } from './api'
 import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
+import { TelegramFind } from './TelegramFind'
 import { ApproverLinkState, ZaloApproverField, ZaloRecipient, ZaloSignIn, ZaloWarning, type ZaloTarget } from './ZaloPersonal'
 import type { Approver, Channel, Grouping, Quiet, RouteSeverity } from './types'
 
@@ -215,11 +216,18 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
               )
             }
             const hint = type === 'webhook' && k === 'url' && channel.fields.url ? t('channels.urlSaved', { url: channel.fields.url }) : type === 'email' ? t(emailKeys(prov, k, 'hint')) : t(`channels.f.${type}.${k}.hint`)
-            return (
+            const input = (
               <Field key={k} label={label} hint={hint} htmlFor={id} error={fieldErr[k]}>
                 <Input id={id} value={fields[k] ?? ''} type={k === 'port' ? 'number' : 'text'} readOnly={type === 'email' && ((k === 'host' && !!OAUTH_HOST[prov.id]) || (k === 'username' && isUserSignin(prov.auth)))} onChange={(e) => set(k, e.target.value)} autoComplete="off" {...aria(id, k)} />
               </Field>
             )
+            // D-491: Telegram's Chat ID can be picked from the chats the bot has seen
+            return type === 'telegram' && k === 'chat_id' ? (
+              <div key={k} className="grid gap-2">
+                {input}
+                <TelegramFind token={secret} hasSaved={!!channel.secret_last4} chatId={(fields.chat_id ?? '').trim()} onPick={(v) => set('chat_id', v)} onTokenError={(m) => showErrors({ secret: m })} />
+              </div>
+            ) : input
           })}
           {type === 'zalo' ? (
             <div className="grid gap-3">

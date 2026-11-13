@@ -42772,6 +42772,102 @@
         }
       }
     },
+    "/notify/telegram/chats": {
+      "post": {
+        "operationId": "notify_post_notify_telegram_chats",
+        "summary": "Find the chats a Telegram bot has seen, for the Chat ID picker (D-491): the token in the body, or the saved one when empty; asks Telegram once without confirming any update. 400 bad_token (not valid), 409 telegram_busy (approval buttons on, a webhook or another reader), 502 telegram_failed",
+        "tags": [
+          "notify"
+        ],
+        "x-stories": [
+          "S-NOT-1"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "description": "Bot token from the form; empty or absent uses the saved channel's token, which never leaves the box",
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "Chat ID as Telegram writes it: a person is positive, a group negative (-100…)"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "private",
+                              "group",
+                              "supergroup",
+                              "channel"
+                            ]
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "The person's name or the group's title, cleaned and shortened"
+                          },
+                          "username": {
+                            "type": "string",
+                            "description": "Public name without @; empty when none"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "name",
+                          "username"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Chats the bot has seen, newest first, at most 10; empty when no message has reached it yet"
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/notify/zalo/approvers": {
       "get": {
         "operationId": "notify_get_notify_zalo_approvers",

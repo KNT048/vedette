@@ -380,7 +380,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (93 mã)
+#### HTTP 409 (94 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -477,6 +477,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `rollback_is_upgrade` | 409 | The previous version is newer than the running one. Install it as an update instead. Chỉ backend (D-342): `core.previous` cao hơn bản đang chạy (sau một lần rollback), kiểm trước mọi lời gọi host. | `POST /core/updates/rollback` |
 | `current_version_unknown` | 409 | The box has no record of which version it runs, so it cannot switch versions yet. See the RUNBOOK (first version record). Chỉ backend (D-342): host chưa ghi bản đang chạy (bootstrap 3-8b). | `POST /core/updates/apply`, `POST /core/updates/rollback` |
 | `approver_not_ready` | 409 | This message went to one approver, who can no longer approve (why). It was not sent again. | `POST /notify/history/{id}/resend` (module notify INV-11) |
+| `telegram_busy` | 409 | Another program is already reading this bot's messages (a webhook is set, or other software uses the same token). Type the Chat ID by hand, or stop the other reader and try again. Also: Approval buttons are on for this bot, so Vedette is already reading its messages. Switch approvals off and save, press Find my chat, then switch them on again; or type the Chat ID by hand. | `POST /notify/telegram/chats` (D-491) |
 
 #### HTTP 412 (1 mã)
 
@@ -513,7 +514,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `too_many_codes` | 429 | Too many codes were sent in the last hour. Try again later. | module core (validator dùng chung) |
 | `too_many_nodes` | 429 | This enrollment token already has the most machines it can have. Revoke it and make a new one. | `POST /intake/osquery/enroll` khi token đã có 500 máy hoặc hộp đã có 5.000 máy (agent-intake INV-14, D-265 (2); kèm `retry_after` 3600 và `Retry-After`); máy-với-máy, osquery chỉ ghi log và thử lại |
 
-#### HTTP 502 (26 mã)
+#### HTTP 502 (27 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -543,6 +544,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `arp_probe_failed` | 502 | The box could not check whether the new address is free, so nothing was changed. Try again. Chỉ backend (D-101). | `PUT /core/network/management` |
 | `pending_invalid` | 502 | The box could not trust its record of the waiting change, so it went back to the old settings. Make the change again. Chỉ backend. | `POST /core/network/management/confirm` |
 | `confirm_failed` | 502 | The box could not save the new settings, so it went back to the old ones. Make the change again. Chỉ backend. | `POST /core/network/management/confirm` |
+| `telegram_failed` | 502 | Telegram did not answer: ${reason} | `POST /notify/telegram/chats` (D-491) |
 
 #### HTTP 500 (2 mã)
 

@@ -490,6 +490,24 @@ export const handlers = [
     return HttpResponse.json(zaloApprover(a))
   }),
 
+  // D-491: the chats a bot has seen. A token ending _none has no message yet, _revoked is refused by Telegram, _busy has a webhook.
+  http.post(`${API}/notify/telegram/chats`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<{ token?: string }>(request)
+    const saved = channels.get().find((x) => x.type === 'telegram')
+    const typed = (b.token ?? '').trim()
+    const token = typed || saved?.secret || ''
+    if (!token) return fail(400, 'secret_required', 'Enter the bot token first.')
+    if (typed && !/^\d{6,12}:[A-Za-z0-9_-]{30,}$/.test(typed)) return fail(400, 'bad_token', 'A bot token looks like 123456789:AAH… and comes from @BotFather. Copy it again without extra spaces.')
+    if (token.endsWith('_revoked')) return fail(400, 'bad_token', 'The bot token is not valid. Copy it again from @BotFather.')
+    if (token.endsWith('_busy')) return fail(409, 'telegram_busy', "Another program is already reading this bot's messages (a webhook is set, or other software uses the same token). Type the Chat ID by hand, or stop the other reader and try again.")
+    if (token.endsWith('_none')) return HttpResponse.json({ items: [] })
+    return HttpResponse.json({ items: [
+      { id: '-1002145678901', kind: 'supergroup', name: 'IT Ops', username: '' },
+      { id: '5550001', kind: 'private', name: 'Lan Tran', username: 'lan_t' },
+    ] })
+  }),
+
   http.get(`${API}/notify/telegram/approvers`, () => {
     const denied = guard('admin'); if (denied) return denied
     const c = channels.get().find((x) => x.type === 'telegram')

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { EmailSignin, EmailSigninStart, FindingNotices, HistoryItem, HistoryResponse, IncidentDetail, IncidentsResponse, IncidentStatus, Channel, ChannelInput, ChannelsResponse, ChannelType, Grouping, Quiet, TestResult, ZaloApprover, ZaloApprovers, ZaloContacts, ZaloFound, ZaloLogin } from './types'
+import type { EmailSignin, EmailSigninStart, FindingNotices, HistoryItem, HistoryResponse, IncidentDetail, IncidentsResponse, IncidentStatus, Channel, ChannelInput, ChannelsResponse, ChannelType, Grouping, Quiet, TestResult, ZaloApprover, ZaloApprovers, ZaloContacts, ZaloFound, ZaloLogin, TelegramChat } from './types'
 
 export const useIncidents = () => useQuery({ queryKey: ['notify', 'incidents'], queryFn: () => api.get<IncidentsResponse>('/notify/incidents') })
 export const useIncident = (id: string) => useQuery({ queryKey: ['notify', 'incident', id], queryFn: () => api.get<IncidentDetail>(`/notify/incidents/${encodeURIComponent(id)}`), retry: false })
@@ -43,3 +43,5 @@ export type LinkKind = 'zalo' | 'telegram'
 export const useLinkApprovers = (kind: LinkKind, enabled: boolean) => useQuery({ queryKey: ['notify', kind, 'approvers'], queryFn: () => api.get<ZaloApprovers>(`/notify/${kind}/approvers`), enabled,
   refetchInterval: (q) => (q.state.data?.items.some((a) => WAITING.includes(a.state)) ? 3000 : false) })
 export const useSendLink = (kind: LinkKind) => useInvalidating((userId: string) => api.post<ZaloApprover>(`/notify/${kind}/approvers/${encodeURIComponent(userId)}/code`))
+// D-491: Find my chat. The token goes in the body (empty = the saved one, which never leaves the box); nothing is cached.
+export const useFindTelegramChats = () => useMutation({ mutationFn: (token: string) => api.post<{ items: TelegramChat[] }>('/notify/telegram/chats', { token }) })

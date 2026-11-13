@@ -351,3 +351,20 @@ func (h *NotifyHandlers) NotifyPostNotifyTelegramApproversUserIDCode(ctx context
 	}
 	return convert[oas.NotifyPostNotifyTelegramApproversUserIDCodeOK](v)
 }
+
+// NotifyPostNotifyTelegramChats implements POST /notify/telegram/chats (admin, D-491).
+func (h *NotifyHandlers) NotifyPostNotifyTelegramChats(ctx context.Context, req *oas.NotifyPostNotifyTelegramChatsReq) (*oas.NotifyPostNotifyTelegramChatsOK, error) {
+	if _, err := actor(ctx); err != nil {
+		return nil, err
+	}
+	chats, err := h.svc.TelegramChats(ctx, req.Token.Or(""))
+	if err != nil {
+		return nil, err
+	}
+	if chats == nil {
+		chats = []channel.TelegramChat{}
+	}
+	return convert[oas.NotifyPostNotifyTelegramChatsOK](struct {
+		Items []channel.TelegramChat `json:"items"`
+	}{chats})
+}

@@ -189,3 +189,7 @@ Chưa có caller ngoài test; WP-22 nối vào `Service`. Đổi chữ ký dư�
 - GUI: `ApproverLinkState` (trước là `ZaloLinkState`, `ZaloPersonal.tsx`) nhận `kind` (`zalo` | `telegram`), hook `useLinkApprovers`/`useSendLink` (`api.ts`); hộp thoại Telegram hiện trạng thái dưới ô user ID. Trang xác nhận chuyển sang module `response` (`/link/telegram`, `/link/zalo`, `ChatLinkPage.tsx`); `ZaloLinkPage.tsx` và khoá i18n `zl.*` bỏ.
 - Mock: `sendTelegramLink`, `telegramMessagesForTest`, `linkApprover`, đăng ký `chatLinkSenders` của mock `response`; Save bỏ bằng chứng của người duyệt đã liên kết bị bỏ/đổi (Zalo và Telegram).
 
+
+## Telegram Find my chat (D-491)
+- `tgchats.go` (`Service.TelegramChats`), `channel/telegramchats.go` (`TelegramBot.FindChats`, `ParseTelegramChats`), handler `NotifyPostNotifyTelegramChats`; route in `api/route-modules.json` and `contractRoutes` (`core/server/modules_test.go`). Reads the saved Telegram row and its sealed token; changes nothing. Dependency on the approval listener's rule (`approvalChat`, same bot id): if that rule changes, the 409 guard must follow, or a second `getUpdates` ends the box's long poll. New codes `telegram_busy`, `telegram_failed` in `docs/API_CONVENTIONS.md`.
+- GUI: `TelegramFind.tsx` under Chat ID in `ChannelsSettings.tsx`; hook `useFindTelegramChats`; mock handler in `mocks.ts` (tokens ending `_none`, `_revoked`, `_busy` give the empty, refused and busy answers).

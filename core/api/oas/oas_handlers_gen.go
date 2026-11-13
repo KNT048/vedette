@@ -31341,6 +31341,149 @@ func (s *Server) handleNotifyPostNotifyTelegramApproversUserIDCodeRequest(args [
 	}
 }
 
+// handleNotifyPostNotifyTelegramChatsRequest handles notify_post_notify_telegram_chats operation.
+//
+// Find the chats a Telegram bot has seen, for the Chat ID picker (D-491): the token in the body, or
+// the saved one when empty; asks Telegram once without confirming any update. 400 bad_token (not
+// valid), 409 telegram_busy (approval buttons on, a webhook or another reader), 502 telegram_failed.
+//
+// POST /notify/telegram/chats
+func (s *Server) handleNotifyPostNotifyTelegramChatsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: NotifyPostNotifyTelegramChatsOperation,
+			ID:   "notify_post_notify_telegram_chats",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, NotifyPostNotifyTelegramChatsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeNotifyPostNotifyTelegramChatsRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *NotifyPostNotifyTelegramChatsOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    NotifyPostNotifyTelegramChatsOperation,
+			OperationSummary: "Find the chats a Telegram bot has seen, for the Chat ID picker (D-491): the token in the body, or the saved one when empty; asks Telegram once without confirming any update. 400 bad_token (not valid), 409 telegram_busy (approval buttons on, a webhook or another reader), 502 telegram_failed",
+			OperationID:      "notify_post_notify_telegram_chats",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *NotifyPostNotifyTelegramChatsReq
+			Params   = struct{}
+			Response = *NotifyPostNotifyTelegramChatsOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.NotifyPostNotifyTelegramChats(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.NotifyPostNotifyTelegramChats(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeNotifyPostNotifyTelegramChatsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleNotifyPostNotifyZaloApproversUserIDCodeRequest handles notify_post_notify_zalo_approvers_user_id_code operation.
 //
 // Send an approver a new confirm link to their Zalo (the old one stops working); for your own row,

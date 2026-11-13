@@ -311,6 +311,31 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(auditStore.get().some((e) => e.action === 'notify.channel_test' && e.target === 'telegram')).toBe(true)
   })
 
+  it('Telegram Find my chat (D-491): the chats the bot saw are listed, picking one fills Chat ID; empty, refused and busy bots say what to do', async () => {
+    renderChannels()
+    await press('Edit Telegram')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Telegram' })
+    const chat = within(dlg).getByLabelText('Chat ID')
+    await userEvent.clear(chat)
+    const none = `${TOKEN}_none`, revoked = `${TOKEN}_revoked`, busy = `${TOKEN}_busy`
+    const token = within(dlg).getByLabelText('Bot token')
+    const findBtn = within(dlg).getByRole('button', { name: 'Find my chat' })
+    await userEvent.click(findBtn) // the saved token is used when none is typed
+    await userEvent.click(await within(dlg).findByRole('button', { name: /Lan Tran \(@lan_t\) - private chat, ID 5550001/ }))
+    expect(chat).toHaveValue('5550001')
+    await userEvent.click(within(dlg).getByRole('button', { name: /IT Ops - group, ID -1002145678901/ }))
+    expect(chat).toHaveValue('-1002145678901')
+    await userEvent.type(token, none)
+    await userEvent.click(findBtn)
+    expect(await within(dlg).findByText(/No message yet: send any message to your bot/)).toBeInTheDocument()
+    await userEvent.clear(token); await userEvent.type(token, busy)
+    await userEvent.click(findBtn)
+    expect(await within(dlg).findByText(/Another program is already reading this bot's messages/)).toBeInTheDocument()
+    await userEvent.clear(token); await userEvent.type(token, revoked)
+    await userEvent.click(findBtn)
+    await waitFor(() => expect(token).toHaveAccessibleDescription(/The bot token is not valid/))
+  })
+
   it('Zalo OA (D-483): App ID, Secret key and refresh token, checked field by field; the box renews the access token', async () => {
     renderChannels()
     await press('Set up Zalo OA')

@@ -299,70 +299,73 @@ var (
 	rn280AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
-	rn299AllowedHeaders = map[string]string{
+	rn301AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn298AllowedHeaders = map[string]string{
+	rn296AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn313AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn302AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn346AllowedHeaders = map[string]string{
+	rn300AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
+	}
+	rn315AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn304AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
 	}
 	rn348AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn349AllowedHeaders = map[string]string{
+	rn350AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn352AllowedHeaders = map[string]string{
+	rn351AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn325AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
+	rn354AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
 	}
 	rn327AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn332AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn316AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn360AllowedHeaders = map[string]string{
+	rn329AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn363AllowedHeaders = map[string]string{
+	rn334AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn339AllowedHeaders = map[string]string{
+	rn318AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn362AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
+	}
+	rn365AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn341AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn372AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn323AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
 	}
 	rn370AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn321AllowedHeaders = map[string]string{
+	rn342AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn368AllowedHeaders = map[string]string{
+	rn380AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn381AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn340AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn378AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn379AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn384AllowedHeaders = map[string]string{
+	rn386AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 )
@@ -6588,7 +6591,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "PUT",
-								allowedHeaders: rn299AllowedHeaders,
+								allowedHeaders: rn301AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
@@ -6597,78 +6600,117 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						return
 					}
 
-				case 't': // Prefix: "telegram/approvers"
+				case 't': // Prefix: "telegram/"
 
-					if l := len("telegram/approvers"); len(elem) >= l && elem[0:l] == "telegram/approvers" {
+					if l := len("telegram/"); len(elem) >= l && elem[0:l] == "telegram/" {
 						elem = elem[l:]
 					} else {
 						break
 					}
 
 					if len(elem) == 0 {
-						switch r.Method {
-						case "GET":
-							s.handleNotifyGetNotifyTelegramApproversRequest([0]string{}, elemIsEscaped, w, r)
-						default:
-							s.notAllowed(w, r, notAllowedParams{
-								allowedMethods: "GET",
-								allowedHeaders: nil,
-								acceptPost:     "",
-								acceptPatch:    "",
-							})
-						}
-
-						return
+						break
 					}
 					switch elem[0] {
-					case '/': // Prefix: "/"
+					case 'a': // Prefix: "approvers"
 
-						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						if l := len("approvers"); len(elem) >= l && elem[0:l] == "approvers" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
-						// Param: "user_id"
-						// Match until "/"
-						idx := strings.IndexByte(elem, '/')
-						if idx < 0 {
-							idx = len(elem)
-						}
-						args[0] = elem[:idx]
-						elem = elem[idx:]
-
 						if len(elem) == 0 {
-							break
+							switch r.Method {
+							case "GET":
+								s.handleNotifyGetNotifyTelegramApproversRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "GET",
+									allowedHeaders: nil,
+									acceptPost:     "",
+									acceptPatch:    "",
+								})
+							}
+
+							return
 						}
 						switch elem[0] {
-						case '/': // Prefix: "/code"
+						case '/': // Prefix: "/"
 
-							if l := len("/code"); len(elem) >= l && elem[0:l] == "/code" {
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 								elem = elem[l:]
 							} else {
 								break
 							}
 
+							// Param: "user_id"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[0] = elem[:idx]
+							elem = elem[idx:]
+
 							if len(elem) == 0 {
-								// Leaf node.
-								switch r.Method {
-								case "POST":
-									s.handleNotifyPostNotifyTelegramApproversUserIDCodeRequest([1]string{
-										args[0],
-									}, elemIsEscaped, w, r)
-								default:
-									s.notAllowed(w, r, notAllowedParams{
-										allowedMethods: "POST",
-										allowedHeaders: nil,
-										acceptPost:     "",
-										acceptPatch:    "",
-									})
+								break
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/code"
+
+								if l := len("/code"); len(elem) >= l && elem[0:l] == "/code" {
+									elem = elem[l:]
+								} else {
+									break
 								}
 
-								return
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "POST":
+										s.handleNotifyPostNotifyTelegramApproversUserIDCodeRequest([1]string{
+											args[0],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, notAllowedParams{
+											allowedMethods: "POST",
+											allowedHeaders: nil,
+											acceptPost:     "",
+											acceptPatch:    "",
+										})
+									}
+
+									return
+								}
+
 							}
 
+						}
+
+					case 'c': // Prefix: "chats"
+
+						if l := len("chats"); len(elem) >= l && elem[0:l] == "chats" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "POST":
+								s.handleNotifyPostNotifyTelegramChatsRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "POST",
+									allowedHeaders: rn296AllowedHeaders,
+									acceptPost:     "application/json",
+									acceptPatch:    "",
+								})
+							}
+
+							return
 						}
 
 					}
@@ -6831,7 +6873,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn298AllowedHeaders,
+									allowedHeaders: rn300AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -6970,7 +7012,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "PUT",
-											allowedHeaders: rn313AllowedHeaders,
+											allowedHeaders: rn315AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
@@ -7001,7 +7043,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PUT",
-									allowedHeaders: rn302AllowedHeaders,
+									allowedHeaders: rn304AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -7262,7 +7304,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn346AllowedHeaders,
+													allowedHeaders: rn348AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -7289,7 +7331,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn348AllowedHeaders,
+													allowedHeaders: rn350AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -7328,7 +7370,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												default:
 													s.notAllowed(w, r, notAllowedParams{
 														allowedMethods: "POST",
-														allowedHeaders: rn349AllowedHeaders,
+														allowedHeaders: rn351AllowedHeaders,
 														acceptPost:     "application/json",
 														acceptPatch:    "",
 													})
@@ -7424,7 +7466,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn352AllowedHeaders,
+												allowedHeaders: rn354AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -7480,7 +7522,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,PUT",
-										allowedHeaders: rn325AllowedHeaders,
+										allowedHeaders: rn327AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -7520,7 +7562,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,POST",
-										allowedHeaders: rn327AllowedHeaders,
+										allowedHeaders: rn329AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -7694,7 +7736,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn332AllowedHeaders,
+									allowedHeaders: rn334AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -7734,7 +7776,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,PUT",
-										allowedHeaders: rn316AllowedHeaders,
+										allowedHeaders: rn318AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -7823,7 +7865,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn360AllowedHeaders,
+										allowedHeaders: rn362AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -7987,7 +8029,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn363AllowedHeaders,
+													allowedHeaders: rn365AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -8135,7 +8177,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn339AllowedHeaders,
+									allowedHeaders: rn341AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -8198,7 +8240,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn370AllowedHeaders,
+											allowedHeaders: rn372AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -8231,7 +8273,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,PUT",
-										allowedHeaders: rn321AllowedHeaders,
+										allowedHeaders: rn323AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -8258,7 +8300,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn368AllowedHeaders,
+											allowedHeaders: rn370AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -8289,7 +8331,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PUT",
-									allowedHeaders: rn340AllowedHeaders,
+									allowedHeaders: rn342AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -8471,7 +8513,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,PUT",
-										allowedHeaders: rn378AllowedHeaders,
+										allowedHeaders: rn380AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -8497,7 +8539,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,POST",
-										allowedHeaders: rn379AllowedHeaders,
+										allowedHeaders: rn381AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -8667,7 +8709,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn384AllowedHeaders,
+									allowedHeaders: rn386AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -15193,76 +15235,115 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						}
 					}
 
-				case 't': // Prefix: "telegram/approvers"
+				case 't': // Prefix: "telegram/"
 
-					if l := len("telegram/approvers"); len(elem) >= l && elem[0:l] == "telegram/approvers" {
+					if l := len("telegram/"); len(elem) >= l && elem[0:l] == "telegram/" {
 						elem = elem[l:]
 					} else {
 						break
 					}
 
 					if len(elem) == 0 {
-						switch method {
-						case "GET":
-							r.name = NotifyGetNotifyTelegramApproversOperation
-							r.summary = "Approvers of the Telegram channel and whether each confirmed the link the bot sent them while signed in as themself (linked); box_account is always false (D-414)"
-							r.operationID = "notify_get_notify_telegram_approvers"
-							r.operationGroup = ""
-							r.pathPattern = "/notify/telegram/approvers"
-							r.args = args
-							r.count = 0
-							return r, true
-						default:
-							return
-						}
+						break
 					}
 					switch elem[0] {
-					case '/': // Prefix: "/"
+					case 'a': // Prefix: "approvers"
 
-						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						if l := len("approvers"); len(elem) >= l && elem[0:l] == "approvers" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
-						// Param: "user_id"
-						// Match until "/"
-						idx := strings.IndexByte(elem, '/')
-						if idx < 0 {
-							idx = len(elem)
-						}
-						args[0] = elem[:idx]
-						elem = elem[idx:]
-
 						if len(elem) == 0 {
-							break
+							switch method {
+							case "GET":
+								r.name = NotifyGetNotifyTelegramApproversOperation
+								r.summary = "Approvers of the Telegram channel and whether each confirmed the link the bot sent them while signed in as themself (linked); box_account is always false (D-414)"
+								r.operationID = "notify_get_notify_telegram_approvers"
+								r.operationGroup = ""
+								r.pathPattern = "/notify/telegram/approvers"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
 						}
 						switch elem[0] {
-						case '/': // Prefix: "/code"
+						case '/': // Prefix: "/"
 
-							if l := len("/code"); len(elem) >= l && elem[0:l] == "/code" {
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 								elem = elem[l:]
 							} else {
 								break
 							}
 
+							// Param: "user_id"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[0] = elem[:idx]
+							elem = elem[idx:]
+
 							if len(elem) == 0 {
-								// Leaf node.
-								switch method {
-								case "POST":
-									r.name = NotifyPostNotifyTelegramApproversUserIDCodeOperation
-									r.summary = "Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the link in the approval chat asks them to press Start (D-414)"
-									r.operationID = "notify_post_notify_telegram_approvers_user_id_code"
-									r.operationGroup = ""
-									r.pathPattern = "/notify/telegram/approvers/{user_id}/code"
-									r.args = args
-									r.count = 1
-									return r, true
-								default:
-									return
+								break
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/code"
+
+								if l := len("/code"); len(elem) >= l && elem[0:l] == "/code" {
+									elem = elem[l:]
+								} else {
+									break
 								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = NotifyPostNotifyTelegramApproversUserIDCodeOperation
+										r.summary = "Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the link in the approval chat asks them to press Start (D-414)"
+										r.operationID = "notify_post_notify_telegram_approvers_user_id_code"
+										r.operationGroup = ""
+										r.pathPattern = "/notify/telegram/approvers/{user_id}/code"
+										r.args = args
+										r.count = 1
+										return r, true
+									default:
+										return
+									}
+								}
+
 							}
 
+						}
+
+					case 'c': // Prefix: "chats"
+
+						if l := len("chats"); len(elem) >= l && elem[0:l] == "chats" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "POST":
+								r.name = NotifyPostNotifyTelegramChatsOperation
+								r.summary = "Find the chats a Telegram bot has seen, for the Chat ID picker (D-491): the token in the body, or the saved one when empty; asks Telegram once without confirming any update. 400 bad_token (not valid), 409 telegram_busy (approval buttons on, a webhook or another reader), 502 telegram_failed"
+								r.operationID = "notify_post_notify_telegram_chats"
+								r.operationGroup = ""
+								r.pathPattern = "/notify/telegram/chats"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
 						}
 
 					}

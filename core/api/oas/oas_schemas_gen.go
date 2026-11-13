@@ -98468,6 +98468,141 @@ func (s *NotifyPostNotifyTelegramApproversUserIDCodeOKState) UnmarshalText(data 
 	}
 }
 
+type NotifyPostNotifyTelegramChatsOK struct {
+	// Chats the bot has seen, newest first, at most 10; empty when no message has reached it yet.
+	Items []NotifyPostNotifyTelegramChatsOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *NotifyPostNotifyTelegramChatsOK) GetItems() []NotifyPostNotifyTelegramChatsOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *NotifyPostNotifyTelegramChatsOK) SetItems(val []NotifyPostNotifyTelegramChatsOKItemsItem) {
+	s.Items = val
+}
+
+type NotifyPostNotifyTelegramChatsOKItemsItem struct {
+	// Chat ID as Telegram writes it: a person is positive, a group negative (-100…).
+	ID   string                                       `json:"id"`
+	Kind NotifyPostNotifyTelegramChatsOKItemsItemKind `json:"kind"`
+	// The person's name or the group's title, cleaned and shortened.
+	Name string `json:"name"`
+	// Public name without @; empty when none.
+	Username string `json:"username"`
+}
+
+// GetID returns the value of ID.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) GetKind() NotifyPostNotifyTelegramChatsOKItemsItemKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) GetName() string {
+	return s.Name
+}
+
+// GetUsername returns the value of Username.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) GetUsername() string {
+	return s.Username
+}
+
+// SetID sets the value of ID.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) SetKind(val NotifyPostNotifyTelegramChatsOKItemsItemKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetUsername sets the value of Username.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) SetUsername(val string) {
+	s.Username = val
+}
+
+type NotifyPostNotifyTelegramChatsOKItemsItemKind string
+
+const (
+	NotifyPostNotifyTelegramChatsOKItemsItemKindPrivate    NotifyPostNotifyTelegramChatsOKItemsItemKind = "private"
+	NotifyPostNotifyTelegramChatsOKItemsItemKindGroup      NotifyPostNotifyTelegramChatsOKItemsItemKind = "group"
+	NotifyPostNotifyTelegramChatsOKItemsItemKindSupergroup NotifyPostNotifyTelegramChatsOKItemsItemKind = "supergroup"
+	NotifyPostNotifyTelegramChatsOKItemsItemKindChannel    NotifyPostNotifyTelegramChatsOKItemsItemKind = "channel"
+)
+
+// AllValues returns all NotifyPostNotifyTelegramChatsOKItemsItemKind values.
+func (NotifyPostNotifyTelegramChatsOKItemsItemKind) AllValues() []NotifyPostNotifyTelegramChatsOKItemsItemKind {
+	return []NotifyPostNotifyTelegramChatsOKItemsItemKind{
+		NotifyPostNotifyTelegramChatsOKItemsItemKindPrivate,
+		NotifyPostNotifyTelegramChatsOKItemsItemKindGroup,
+		NotifyPostNotifyTelegramChatsOKItemsItemKindSupergroup,
+		NotifyPostNotifyTelegramChatsOKItemsItemKindChannel,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyTelegramChatsOKItemsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindPrivate:
+		return []byte(s), nil
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindGroup:
+		return []byte(s), nil
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindSupergroup:
+		return []byte(s), nil
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindChannel:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItemKind) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyTelegramChatsOKItemsItemKind(data) {
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindPrivate:
+		*s = NotifyPostNotifyTelegramChatsOKItemsItemKindPrivate
+		return nil
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindGroup:
+		*s = NotifyPostNotifyTelegramChatsOKItemsItemKindGroup
+		return nil
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindSupergroup:
+		*s = NotifyPostNotifyTelegramChatsOKItemsItemKindSupergroup
+		return nil
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindChannel:
+		*s = NotifyPostNotifyTelegramChatsOKItemsItemKindChannel
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyTelegramChatsReq struct {
+	// Bot token from the form; empty or absent uses the saved channel's token, which never leaves the box.
+	Token OptString `json:"token"`
+}
+
+// GetToken returns the value of Token.
+func (s *NotifyPostNotifyTelegramChatsReq) GetToken() OptString {
+	return s.Token
+}
+
+// SetToken sets the value of Token.
+func (s *NotifyPostNotifyTelegramChatsReq) SetToken(val OptString) {
+	s.Token = val
+}
+
 type NotifyPostNotifyZaloApproversUserIDCodeOK struct {
 	Address string `json:"address"`
 	// The address is the box's own signed-in Zalo account (the QR sign-in proved it); only your own row

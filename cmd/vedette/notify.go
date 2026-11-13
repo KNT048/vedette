@@ -75,6 +75,37 @@ func (a notifyDevices) DeviceName(ctx context.Context, assetID string) (string, 
 	return r.Display, true, nil
 }
 
+// deviceVendorMax caps the vendor in a device label: notify refuses an incident title over 200 characters.
+const deviceVendorMax = 48
+
+// DeviceLabel names a newly discovered device for its unknown_device incident (walk 4: "A new unknown device appeared:
+// switch"): the hostname, else the IP or else the MAC followed by the vendor when one is known ("192.168.18.254 (Sichuan
+// AI-Link)"); the kind only when nothing else is known. The values come from the network: plainText cleans them.
+func (a notifyDevices) DeviceLabel(ctx context.Context, assetID string) (string, bool, error) {
+	refs, err := a.inv.DeviceRefs(ctx, []string{assetID})
+	if err != nil {
+		return "", false, err
+	}
+	r, ok := refs[assetID]
+	if !ok {
+		return "", false, nil
+	}
+	if r.Hostname != nil && *r.Hostname != "" {
+		return *r.Hostname, true, nil
+	}
+	id := r.MAC
+	if _, err := netip.ParseAddr(r.IP); err == nil { // the inventory shows an em dash when the IP is unknown
+		id = r.IP
+	}
+	if id == "" {
+		return r.Display, true, nil
+	}
+	if v := plainText(r.Vendor, deviceVendorMax); v != "" {
+		id += " (" + v + ")"
+	}
+	return id, true, nil
+}
+
 // orgZone is notify's Zone: the organization time zone of core's general settings, read at every use so a change
 // applies at once. A failed read answers "" and notify uses its default zone for that call.
 func orgZone(d *deps) func(context.Context) string {

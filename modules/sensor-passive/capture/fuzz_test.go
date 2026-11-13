@@ -103,6 +103,9 @@ func FuzzParseLLDP(f *testing.F) {
 		if err == nil && (len(l.sysName) > 255 || len(l.sysDesc) > 255 || !printable(l.sysName) || !printable(l.sysDesc)) {
 			t.Fatalf("out of bounds: %+v", l)
 		}
+		if model, os := parseSysDesc(l.sysDesc); len(model) > maxBareDesc || len(os) > 64 || !printable(model) || !printable(os) {
+			t.Fatalf("description gave %q, %q", model, os)
+		}
 	})
 }
 

@@ -75,6 +75,6 @@ func weeklyText(v Vuln) string {
 	if t, err := parseDate(v.DateAdded); err == nil {
 		day = fmt.Sprintf("%d %s", t.Day(), t.Format("Jan"))
 	}
-	return fmt.Sprintf("%s has a vulnerability %s (added to the CISA list on %s). If your company uses it, update it following %s's advisory this week.",
+	return fmt.Sprintf("%s has a vulnerability %s (added to the CISA list on %s). If your company uses it, update it following the advisory from %s this week.",
 		DisplayOf(v.Vendor, v.Product), what, day, v.Vendor)
 }

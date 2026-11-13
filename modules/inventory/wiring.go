@@ -18,6 +18,8 @@ type DeviceRef struct {
 	ID       string
 	Hostname *string
 	IP       string // "—" when unknown, like the API
+	MAC      string // "" when unknown
+	Vendor   string // the current vendor value, "" when none
 	Kind     string
 	Display  string // the first software's display name, else the kind
 }
@@ -30,7 +32,7 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		for i, id := range chunk {
 			args[i] = id
 		}
-		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.ip, a.kind,
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.ip, a.mac, a.vendor, a.kind,
 			(SELECT display FROM inv_software WHERE asset_id = a.id ORDER BY display, id LIMIT 1)
 			FROM inv_asset a WHERE a.id IN (?`+strings.Repeat(`, ?`, len(chunk)-1)+`)`, args...)
 		if err != nil {
@@ -38,12 +40,12 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		}
 		for rows.Next() {
 			var d DeviceRef
-			var host, ip, display sql.NullString
-			if err := rows.Scan(&d.ID, &host, &ip, &d.Kind, &display); err != nil {
+			var host, ip, mac, vendor, display sql.NullString
+			if err := rows.Scan(&d.ID, &host, &ip, &mac, &vendor, &d.Kind, &display); err != nil {
 				_ = rows.Close()
 				return nil, fmt.Errorf("inventory: read devices: %w", err)
 			}
-			d.Hostname, d.IP, d.Display = ptr(host), noIP, d.Kind
+			d.Hostname, d.IP, d.MAC, d.Vendor, d.Display = ptr(host), noIP, mac.String, vendor.String, d.Kind
 			if ip.Valid {
 				d.IP = ip.String
 			}

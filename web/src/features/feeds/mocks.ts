@@ -93,7 +93,7 @@ function weekly(): WeeklyItem[] {
     if (seen.has(key) || v.cve === 'CVE-2022-27593') continue
     seen.add(key)
     const d = new Date(`${v.date_added}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-    const text = `${displayOf(v.vendor, v.product)} has a vulnerability ${v.ransomware ? 'that ransomware groups are exploiting' : 'that is being exploited in the wild'} (added to the CISA list on ${d}). If your company uses it, update it following ${v.vendor}'s advisory this week.`
+    const text = `${displayOf(v.vendor, v.product)} has a vulnerability ${v.ransomware ? 'that ransomware groups are exploiting' : 'that is being exploited in the wild'} (added to the CISA list on ${d}). If your company uses it, update it following the advisory from ${v.vendor} this week.`
     items.push({ id: key, key, cve: v.cve, date_added: v.date_added, answer: answers[key] ?? null, text })
     if (items.length >= 8) break
   }

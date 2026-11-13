@@ -72,7 +72,8 @@
     }
   },
   "users": {
-    "title": "{{count}} active users",
+    "title_one": "{{count}} active user",
+    "title_other": "{{count}} active users",
     "meta": "Three roles: viewer (read), operator (daily handling), admin (system settings). Every change is written to the audit log.",
     "caption": "Users",
     "filter": "Find a user",

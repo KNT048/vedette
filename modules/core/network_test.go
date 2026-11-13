@@ -1486,3 +1486,22 @@ func TestNetworkDemotedAdminIsRefusedBeforeTheHostIsCalled(t *testing.T) {
 		t.Error("the refused change must not wait")
 	}
 }
+
+// D-405: the network first-run setup offers is the management card's (host bits cleared); a second ask within the read window
+// does not read the host again, whatever the first answer was; no host → none.
+func TestNetworkManagementLANForSetup(t *testing.T) {
+	t.Parallel()
+	e := newNetEnv(t, netOpts{})
+	p, ok := e.nh.ManagementLAN(t.Context())
+	if !ok || p.String() != "192.168.1.0/24" {
+		t.Fatalf("ManagementLAN = %v %v, want 192.168.1.0/24", p, ok)
+	}
+	calls := e.fault.stateCalls.Load()
+	e.fault.stateErr.Store(errBox{context.DeadlineExceeded})
+	if p, ok := e.nh.ManagementLAN(t.Context()); !ok || p.String() != "192.168.1.0/24" || e.fault.stateCalls.Load() != calls {
+		t.Fatalf("second ask in the window = %v %v, host reads %d -> %d", p, ok, calls, e.fault.stateCalls.Load())
+	}
+	if _, ok := newNetEnv(t, netOpts{noHost: true}).nh.ManagementLAN(t.Context()); ok {
+		t.Fatal("ManagementLAN without a host")
+	}
+}

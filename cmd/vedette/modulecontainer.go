@@ -253,11 +253,7 @@ func newModuleContainers(d deps) map[string]*moduleContainer {
 			return nil
 		}
 		h.who = m.service
-		c := &moduleContainer{h: h, reg: d.Reg, module: m.module, service: m.service, version: version}
-		if d.Core != nil {
-			c.setupDone = d.Core.SetupDone
-		}
-		out[m.module] = c
+		out[m.module] = &moduleContainer{h: h, reg: d.Reg, module: m.module, service: m.service, version: version}
 	}
 	return out
 }
@@ -266,9 +262,11 @@ func newModuleContainers(d deps) map[string]*moduleContainer {
 // start does nothing (D-405); the wizard's commit publishes inventory.settings.changed (its LAN ranges become the scope), and
 // that event runs the start again for every module that is on, so the bundle's containers start then, whether the wizard
 // switched them or left them on. Any later scope change runs it too: a start of a container that runs costs one state read.
-func addContainerGuards(on, off *modreg.OffGuard, d deps) {
+// setupDone is core's SetupDone (nil: no core, the containers follow the modules alone).
+func addContainerGuards(on, off *modreg.OffGuard, d deps, setupDone func(context.Context) (bool, error)) {
 	all := newModuleContainers(d)
 	for id, c := range all {
+		c.setupDone = setupDone
 		off.Add(id, c.ensureOff)
 		on.Add(id, c.ensureOn)
 	}

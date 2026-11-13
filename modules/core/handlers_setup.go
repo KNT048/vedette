@@ -81,7 +81,7 @@ func (h *APIHandlers) CoreGetCoreSetupModules(ctx context.Context) (*oas.CoreGet
 	out.Lan = oas.NilString{Null: true}
 	if h.boxLAN != nil {
 		if done, err := h.setupDone(ctx); err == nil && !done {
-			if p, ok := h.boxLAN(ctx); ok && isPrivateLAN(p) {
+			if p, ok := h.boxLAN(ctx); ok && isPrivateLAN(p) && p.Bits() >= 16 { // a flat /8 or /12 is not offered as a whole scan scope
 				out.Lan = oas.NewNilString(p.Masked().String())
 			}
 		}

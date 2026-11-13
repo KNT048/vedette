@@ -26,11 +26,11 @@ export function TwoStepPrompt() {
   const { data: me } = useMe()
   const ask = !!me && me.role === 'admin' && !me.twofa
   const account = useAccount(ask)
-  const [later, setLater] = useState(() => (me ? snoozed(me.id) : false))
-  if (!ask || later || snoozed(me.id) || !account.data || account.data.user.sso) return null
+  const [laterFor, setLaterFor] = useState<string | null>(null) // the user who pressed Remind in this tab
+  if (!ask || laterFor === me.id || snoozed(me.id) || !account.data || account.data.user.sso) return null
   const remind = () => {
     try { localStorage.setItem(key(me.id), String(Date.now() + TWO_STEP_SNOOZE_DAYS * 86_400_000)) } catch { /* the prompt comes back next visit */ }
-    setLater(true)
+    setLaterFor(me.id)
   }
   return (
     <div role="status" className="mb-6 rounded-md border border-warn/50 bg-warn-soft/60 px-4 py-3 text-sm">

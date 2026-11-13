@@ -684,3 +684,14 @@ func TestContract_INV15_SetupOffersTheBoxNetwork(t *testing.T) {
 		}
 	}
 }
+
+// D-405 review: a flat /8 management network is not offered as the whole scan scope.
+func TestContract_INV15_SetupDoesNotOfferAFlatNetwork(t *testing.T) {
+	t.Parallel()
+	w := newWorldWith(t, func(hc *core.HandlersConfig) {
+		hc.BoxLAN = func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("10.4.5.6/8"), true }
+	})
+	if got := w.client().get("/core/setup/modules").JSON["lan"]; got != nil {
+		t.Fatalf("lan = %v, want null for a /8", got)
+	}
+}

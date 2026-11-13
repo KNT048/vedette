@@ -199,7 +199,7 @@ export default function SetupPage() {
           <div className="mt-4 grid gap-4">
             <fieldset className="grid gap-2">
               <legend className="text-sm font-medium">{t('setup.network.lan')}</legend>
-              <p className="text-[13px] text-muted">{t('setup.network.lanHint')}{boxLan && s.lan.includes(boxLan) ? ` ${t('setup.network.lanFromBox', { lan: boxLan })}` : ''}</p>
+              <p className="text-[13px] text-muted">{t('setup.network.lanHint')}{boxLan && s.lan[0] === boxLan ? ` ${t('setup.network.lanFromBox', { lan: boxLan })}` : ''}</p>
               {s.lan.map((v, i) => (
                 <div key={i} className="grid gap-1">
                   <div className="flex items-center gap-2">

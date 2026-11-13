@@ -252,6 +252,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		return fmt.Errorf("os updates: %w", err)
 	}
 	sensor := &spanSensor{reg: d.Reg} // its service comes below: the Box network page needs the sensor and the sensor needs the page's settings
+	//nolint:contextcheck // AddressesChanged (core) has no context; Invalidate bounds its own read (boxAddrTimeout)
 	if d.Network, err = newNetworkHandlers(d, sensor); err != nil {
 		return fmt.Errorf("box network: %w", err)
 	}

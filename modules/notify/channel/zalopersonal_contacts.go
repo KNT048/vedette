@@ -438,3 +438,34 @@ func parseZaloFoundUser(data json.RawMessage) (ZaloContact, error) {
 	}
 	return ZaloContact{ID: zaloID(u.UID), Name: zaloName(u.DisplayName, u.ZaloName)}, nil
 }
+
+// ZaloSelf returns the user ID of the account the session of snd is signed in to (the uid of the sign-in answer), signing in first if
+// needed, under the same pause and one-at-a-time rule as a send. "" when the answer named none. It is the one Zalo account the box
+// knows is the administrator's own without a confirm link: the QR sign-in proved it (D-447).
+func ZaloSelf(ctx context.Context, snd Sender) (string, error) {
+	z, err := accountOf(snd)
+	if err != nil {
+		return "", err
+	}
+	var self string
+	err = z.query(ctx, func(bool) error { self = z.li.self; return nil })
+	return self, err
+}
+
+// ZaloKnownSelf is ZaloSelf without the network: the uid of the last sign-in of snd, or "" when it has not signed in yet.
+func ZaloKnownSelf(snd Sender) string {
+	z, ok := snd.(*zaloPersonalSender)
+	if !ok {
+		return ""
+	}
+	select {
+	case z.sem <- struct{}{}:
+		defer func() { <-z.sem }()
+	default: // a send or a sign-in is running: not known now
+		return ""
+	}
+	if z.li == nil {
+		return ""
+	}
+	return z.li.self
+}

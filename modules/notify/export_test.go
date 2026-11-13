@@ -52,3 +52,8 @@ func (s *Service) SetZaloStartQRForTest(f func(context.Context, *http.Client) (Z
 
 // WaitZaloForTest waits for the sign-ins and the link-code sends running in the background.
 func (s *Service) WaitZaloForTest() { s.zalo.bg.Wait() }
+
+// SetZaloSelfForTest replaces how the uid of the box's own Zalo account is read (channel.ZaloSelf in production).
+func (s *Service) SetZaloSelfForTest(f func(context.Context, channel.Sender) (string, error)) {
+	s.zaloSelf = f
+}

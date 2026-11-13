@@ -86,8 +86,9 @@ export const ZaloContacts = z.object({ friends: z.array(ZaloContact), groups: z.
 export const ZaloFound = ZaloContact.extend({ member: z.boolean().describe('false: a group the signed-in account is not a member of (messages would not reach it)') })
 export const ZaloApproverState = z.enum(['linked', 'sending', 'waiting', 'not_sent'])
 export const ZaloApprover = z.object({ user_id: z.string(), address: z.string(), name: z.string(), state: ZaloApproverState, sent_at: iso.nullable(), error: z.string().describe('not_sent: why (failed, expired, or no link made)'),
-  self: z.boolean().describe('The administrator asking: they confirm their own Zalo in their session, no message is sent'),
-  link: z.string().optional().describe('Only in the answer of POST …/code for your own row: the confirm page (/link/zalo?c=…) to open in this session') })
+  self: z.boolean().describe('The administrator asking'),
+  box_account: z.boolean().describe('The address is the box\'s own signed-in Zalo account (the QR sign-in proved it); only your own row with it skips the message'),
+  link: z.string().optional().describe('Only in the answer of POST …/code for your own row with the box\'s own account: the confirm page (/link/zalo?c=…) to open in this session; any other Zalo gets the link by message') })
 export const ZaloApprovers = z.object({ items: z.array(ZaloApprover) })
 
 const id = z.object({ id: z.string() })

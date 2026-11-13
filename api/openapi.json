@@ -40256,10 +40256,14 @@
                           },
                           "self": {
                             "type": "boolean",
-                            "description": "The administrator asking: they confirm their own Zalo in their session, no message is sent"
+                            "description": "The administrator asking"
+                          },
+                          "box_account": {
+                            "type": "boolean",
+                            "description": "The address is the box's own signed-in Zalo account (the QR sign-in proved it); only your own row with it skips the message"
                           },
                           "link": {
-                            "description": "Only in the answer of POST …/code for your own row: the confirm page (/link/zalo?c=…) to open in this session",
+                            "description": "Only in the answer of POST …/code for your own row with the box's own account: the confirm page (/link/zalo?c=…) to open in this session; any other Zalo gets the link by message",
                             "type": "string"
                           }
                         },
@@ -40270,7 +40274,8 @@
                           "state",
                           "sent_at",
                           "error",
-                          "self"
+                          "self",
+                          "box_account"
                         ],
                         "additionalProperties": false
                       }
@@ -40362,10 +40367,14 @@
                     },
                     "self": {
                       "type": "boolean",
-                      "description": "The administrator asking: they confirm their own Zalo in their session, no message is sent"
+                      "description": "The administrator asking"
+                    },
+                    "box_account": {
+                      "type": "boolean",
+                      "description": "The address is the box's own signed-in Zalo account (the QR sign-in proved it); only your own row with it skips the message"
                     },
                     "link": {
-                      "description": "Only in the answer of POST …/code for your own row: the confirm page (/link/zalo?c=…) to open in this session",
+                      "description": "Only in the answer of POST …/code for your own row with the box's own account: the confirm page (/link/zalo?c=…) to open in this session; any other Zalo gets the link by message",
                       "type": "string"
                     }
                   },
@@ -40376,7 +40385,8 @@
                     "state",
                     "sent_at",
                     "error",
-                    "self"
+                    "self",
+                    "box_account"
                   ],
                   "additionalProperties": false
                 }

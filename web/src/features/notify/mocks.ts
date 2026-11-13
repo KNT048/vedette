@@ -9,7 +9,7 @@ import { collection, daysAgo, newId, nowIso } from '@/mocks/db'
 import type { Severity } from '@/lib/types'
 import { isInternalHost } from '@/features/feeds/defaults'
 import { newLinkToken } from '@/features/response/identity'
-import { isLinked } from '@/features/response/state'
+import { identityStore, isLinked } from '@/features/response/state'
 import { CHANNEL_TYPES, FIELDS, OWN_TEXT, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
 import type { Approver, Channel, ChannelInput, ChannelType, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult, ZaloApprover, ZaloContact, ZaloLogin } from './types'
 
@@ -295,6 +295,8 @@ function sendZaloLink(a: Approver) {
 }
 const zaloSignedIn = () => (zaloLogin?.state === 'signed_in' && zaloLogin.owner === currentUser()?.id ? 'Vedette Box' : null)
 const ZALO_GROUPS: ZaloContact[] = [{ id: '8000000001', name: 'IT team', group: true, members: 5 }, { id: '8000000002', name: 'Night shift', group: true, members: 12 }]
+/** The uid of the mock's signed-in Zalo account (the box's own account): only your own row with it confirms without a message. */
+export const ZALO_BOX_UID = '1000000000000000001'
 const ZALO_FRIENDS: ZaloContact[] = [{ id: '3847561029384756102', name: 'Lan Pham', group: false, members: 0 }, { id: '2938475610293847561', name: 'Minh Tran', group: false, members: 0 }]
 const zaloView = (): ZaloLogin => {
   const l = zaloLogin
@@ -307,7 +309,7 @@ const NO_SESSION = () => fail(409, 'no_session', 'Sign in with the QR code first
 const BAD_QUERY = 'Enter a group invite link (https://zalo.me/g/…), a phone number such as 0912345678, or a Zalo ID.'
 function zaloApprover(a: Approver): ZaloApprover {
   const rec = zaloCodes.get(a.user_id)
-  const base = { user_id: a.user_id, address: a.address, name: a.name ?? '', sent_at: rec?.address === a.address ? rec.at : null, error: '', self: a.user_id === currentUser()?.id }
+  const base = { user_id: a.user_id, address: a.address, name: a.name ?? '', sent_at: rec?.address === a.address ? rec.at : null, error: '', self: a.user_id === currentUser()?.id, box_account: a.address === ZALO_BOX_UID }
   if (isLinked(a.user_id, 'zalo-personal', a.address)) return { ...base, state: 'linked' }
   if (!rec || rec.address !== a.address) return { ...base, state: 'not_sent' }
   if (rec.error) return { ...base, state: 'not_sent', error: rec.error }
@@ -373,7 +375,7 @@ export const handlers = [
     if (!c?.configured || !c.enabled || !c.approvals) return fail(409, 'channel_not_ready', 'Save the Zalo (personal) channel turned on, with "Approve actions from this channel", first.')
     const a = (c.approvers ?? []).find((x) => x.user_id === params.user_id)
     if (!a) return fail(404, 'not_listed', 'This person is not an approver on the Zalo channel. Save the channel first.')
-    if (a.user_id === currentUser()!.id) { // your own Zalo: no message, confirm it now in this session
+    if (a.user_id === currentUser()!.id && a.address === ZALO_BOX_UID) { // the box's own account: no message, confirm it now in this session
       const made = newLinkToken(a.user_id, 'zalo-personal', a.address)
       if (!('token' in made)) return fail(made.status, made.code, made.message)
       audit('notify.zalo_link_code', 'zalo-personal', `a confirm link was made for the administrator's own Zalo ${a.address} (no message sent)`)
@@ -477,7 +479,8 @@ export const handlers = [
     const next: StoredChannel = { ...cur, configured: true, enabled: b.enabled === true, fields, secret: secret ? secret : cur.secret, ...(type === 'webhook' ? { url: webhookUrl(b.fields ?? {}, cur) } : {}), min_severity: b.min_severity!, last_test: null, approvals, approvers,
       app_token: type === 'slack' ? (b.app_token?.trim() || cur.app_token) : undefined, bot_token: type === 'slack' ? (b.bot_token?.trim() || cur.bot_token) : undefined }
     channels.update((l) => [...l.filter((c) => c.type !== type), next])
-    if (next.enabled && approvals) for (const a of fresh) if (a.user_id !== currentUser()!.id) sendZaloLink(a) // you confirm your own Zalo in your session
+    // your own row with the box's own account confirms in your session; every other Zalo, yours too, gets the link by message
+    if (next.enabled && approvals) for (const a of fresh) if (!(a.user_id === currentUser()!.id && a.address === ZALO_BOX_UID)) sendZaloLink(a)
     audit('notify.channel_save', type, `${next.enabled ? 'on' : 'off'}${approvals ? `, approvals on (${approvers.length} approver${approvers.length === 1 ? '' : 's'})` : ''}`)
     return HttpResponse.json(pub(next))
   }),
@@ -486,7 +489,10 @@ export const handlers = [
     const denied = guard('admin'); if (denied) return denied
     const type = params.type
     if (!isType(type)) return fail(404, 'not_found', 'No such channel type.')
+    const gone = channels.get().find((c) => c.type === type)?.approvers ?? []
     channels.update((l) => [...l.filter((c) => c.type !== type), blank(type)])
+    // the approvers' proofs end with the channel (D-447): a recreated channel does not show them linked
+    identityStore.update((l) => l.filter((x) => !(x.channel === type && gone.some((a) => a.user_id === x.user_id && a.address === x.address))))
     audit('notify.channel_remove', type, 'configuration and saved key deleted')
     return new HttpResponse(null, { status: 204 })
   }),

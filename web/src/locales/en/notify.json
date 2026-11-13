@@ -267,7 +267,7 @@
     "approverFindHint": "The phone number of their Zalo account, for example 0912345678.",
     "codesSent": "Each new approver gets a confirm link from this Zalo account. They are linked once they open it and confirm while signed in to Vedette.",
     "link": {
-      "unsaved": "Save to send this person a confirm link on Zalo (your own Zalo: you confirm it here after saving).",
+      "unsaved": "Save to send this person a confirm link on Zalo (your own Zalo too, unless it is this box's signed-in account: that one you confirm here).",
       "linked": "Linked",
       "sending": "Sending the link",
       "waiting": "Waiting",
@@ -275,7 +275,7 @@
       "waitingFor": "Waiting for {{name}} to open the link sent at {{time}} and confirm it while signed in to Vedette.",
       "again": "Send again",
       "sentToast": "A new confirm link was sent to {{name}}. The old one no longer works.",
-      "yours": "This is your own Zalo account: link it to your Vedette account now.",
+      "yours": "This is the box's own Zalo account, which you signed in with: link it to your Vedette account now.",
       "mine": "Link my Zalo now"
     },
     "signOutHint": "Zalo has no sign-out for this kind of session: a sign-in you cancel, replace or do not save stays signed in on Zalo until it expires or you log it out of the account's devices in the Zalo app."
@@ -424,14 +424,16 @@
   },
   "zl": {
     "title": "Link your Zalo account",
-    "account": "{{name}} (ID {{id}})",
-    "thisAccount": "this Zalo account",
+    "account": "Zalo ID {{id}}",
+    "thisAccount": "This Zalo account",
     "noToken": "This link is not complete. Open it again from the Zalo message.",
-    "question": "Link Zalo {{zalo}} to your account, {{who}}?",
-    "explain": "An administrator listed this Zalo account as yours for approving actions, and Vedette's Zalo account sent you this link. Confirm only if the Zalo account is yours: approval replies from it will then count as you.",
+    "question": "Link this Zalo account to your account, {{who}}?",
+    "explain": "An administrator listed this Zalo account as yours for approving actions, and Vedette sent you this link. Confirm only if this Zalo account is yours: approval replies from it will then count as you.",
     "confirm": "Confirm",
-    "linked": "Linked. Zalo {{zalo}} now counts as you when you reply to approval messages.",
-    "already": "Zalo {{zalo}} is already linked to your account.",
-    "toAccount": "Open My account"
+    "linked": "Linked. {{zalo}} now counts as you when you reply to approval messages.",
+    "already": "{{zalo}} is already linked to your account.",
+    "toAccount": "Open My account",
+    "idLabel": "Zalo ID",
+    "namedBy": "Named \"{{name}}\" by your administrator."
   }
 }

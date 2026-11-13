@@ -168906,6 +168906,10 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.Address)
 	}
 	{
+		e.FieldStart("box_account")
+		e.Bool(s.BoxAccount)
+	}
+	{
 		e.FieldStart("error")
 		e.Str(s.Error)
 	}
@@ -168937,15 +168941,16 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfNotifyGetNotifyZaloApproversOKItemsItem = [8]string{
+var jsonFieldsNameOfNotifyGetNotifyZaloApproversOKItemsItem = [9]string{
 	0: "address",
-	1: "error",
-	2: "link",
-	3: "name",
-	4: "self",
-	5: "sent_at",
-	6: "state",
-	7: "user_id",
+	1: "box_account",
+	2: "error",
+	3: "link",
+	4: "name",
+	5: "self",
+	6: "sent_at",
+	7: "state",
+	8: "user_id",
 }
 
 // Decode decodes NotifyGetNotifyZaloApproversOKItemsItem from json.
@@ -168953,7 +168958,7 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode NotifyGetNotifyZaloApproversOKItemsItem to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -168969,8 +168974,20 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"address\"")
 			}
-		case "error":
+		case "box_account":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.BoxAccount = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box_account\"")
+			}
+		case "error":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Error = string(v)
@@ -168992,7 +169009,7 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"link\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -169004,7 +169021,7 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "self":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Bool()
 				s.Self = bool(v)
@@ -169016,7 +169033,7 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"self\"")
 			}
 		case "sent_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.SentAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -169026,7 +169043,7 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sent_at\"")
 			}
 		case "state":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -169036,7 +169053,7 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"state\"")
 			}
 		case "user_id":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.UserID = string(v)
@@ -169056,8 +169073,9 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b11111011,
+	for i, mask := range [2]uint8{
+		0b11110111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -171658,6 +171676,10 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) encodeFields(e *jx.Encoder) 
 		e.Str(s.Address)
 	}
 	{
+		e.FieldStart("box_account")
+		e.Bool(s.BoxAccount)
+	}
+	{
 		e.FieldStart("error")
 		e.Str(s.Error)
 	}
@@ -171689,15 +171711,16 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) encodeFields(e *jx.Encoder) 
 	}
 }
 
-var jsonFieldsNameOfNotifyPostNotifyZaloApproversUserIDCodeOK = [8]string{
+var jsonFieldsNameOfNotifyPostNotifyZaloApproversUserIDCodeOK = [9]string{
 	0: "address",
-	1: "error",
-	2: "link",
-	3: "name",
-	4: "self",
-	5: "sent_at",
-	6: "state",
-	7: "user_id",
+	1: "box_account",
+	2: "error",
+	3: "link",
+	4: "name",
+	5: "self",
+	6: "sent_at",
+	7: "state",
+	8: "user_id",
 }
 
 // Decode decodes NotifyPostNotifyZaloApproversUserIDCodeOK from json.
@@ -171705,7 +171728,7 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) Decode(d *jx.Decoder) error 
 	if s == nil {
 		return errors.New("invalid: unable to decode NotifyPostNotifyZaloApproversUserIDCodeOK to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -171721,8 +171744,20 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) Decode(d *jx.Decoder) error 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"address\"")
 			}
-		case "error":
+		case "box_account":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.BoxAccount = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box_account\"")
+			}
+		case "error":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Error = string(v)
@@ -171744,7 +171779,7 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"link\"")
 			}
 		case "name":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -171756,7 +171791,7 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "self":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Bool()
 				s.Self = bool(v)
@@ -171768,7 +171803,7 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"self\"")
 			}
 		case "sent_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.SentAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -171778,7 +171813,7 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"sent_at\"")
 			}
 		case "state":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -171788,7 +171823,7 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"state\"")
 			}
 		case "user_id":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.UserID = string(v)
@@ -171808,8 +171843,9 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) Decode(d *jx.Decoder) error 
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b11111011,
+	for i, mask := range [2]uint8{
+		0b11110111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

@@ -12,7 +12,7 @@ import { eachOption } from '@/test/formMatrix'
 import { auditStore, installStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
 import ChannelsSettings from './ChannelsSettings'
-import { zaloMessagesForTest } from './mocks'
+import { ZALO_BOX_UID, zaloMessagesForTest } from './mocks'
 import { forbiddenHost, ownHost } from './types'
 
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
@@ -762,24 +762,25 @@ describe('notify: channel form matrix (docs/QA.md §2)', () => {
     expect(within(dlg).getAllByText(/^Save to send this person a confirm link on Zalo/)).toHaveLength(2)
     const before = zaloMessagesForTest().length
     await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
-    // The dialog stays open. The other approver (it@) is sent a confirm link and waits; my own Zalo gets no message: I link it here.
-    expect(await within(dlg).findByText(/Waiting for Hoa Le to open the link/)).toBeInTheDocument()
-    expect(within(dlg).getByRole('button', { name: 'Link my Zalo now' })).toBeInTheDocument()
+    // The dialog stays open. Each approver is sent a confirm link and waits, my own row too: Minh Tran is a friend, not the box's own
+    // account, so only a confirm from that Zalo's link can make it mine.
+    expect(await within(dlg).findAllByText(/Waiting for (Minh Tran|Hoa Le) to open the link/)).toHaveLength(2)
+    expect(within(dlg).queryByRole('button', { name: 'Link my Zalo now' })).toBeNull()
     const sent = zaloMessagesForTest().slice(before)
-    expect(sent).toHaveLength(1)
-    expect(sent[0]!.to).toBe('4756102938475610293')
-    expect(sent[0]!.text).toMatch(/^Vedette: open this link and sign in to Vedette as .+ to link this Zalo account/)
-    const token = decodeURIComponent(/c=([^ ]+)/.exec(sent[0]!.text)![1]!)
+    expect(sent.map((m) => m.to)).toEqual(['2938475610293847561', '4756102938475610293'])
+    expect(sent[1]!.text).toMatch(/^Vedette: open this link and sign in to Vedette as .+ to link this Zalo account/)
+    const token = decodeURIComponent(/c=([^ ]+)/.exec(sent[1]!.text)![1]!)
     // Send again within a minute is refused (one link a minute per person); the link already sent still counts.
-    await userEvent.click(within(dlg).getByRole('button', { name: 'Send again' }))
+    await userEvent.click(within(dlg).getAllByRole('button', { name: 'Send again' })[1]!)
     expect(await screen.findByText(/Wait \d+ seconds before sending a new link/)).toBeInTheDocument()
-    expect(zaloMessagesForTest().slice(before)).toHaveLength(1)
+    expect(zaloMessagesForTest().slice(before)).toHaveLength(2)
     // it@ confirms, signed in as themself; the dialog shows Linked at its next look.
     sessionStore.set({ userId: 'u-op' })
     const ok = await fetch(`${location.origin}/api/v1/response/me/identities/zalo-personal/confirm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: token }) })
     sessionStore.set({ userId: 'u-admin' })
     expect(ok.status).toBe(200)
     expect(await within(dlg).findByText('Linked', undefined, { timeout: 5000 })).toBeInTheDocument()
+    expect(within(dlg).getAllByText(/Waiting for Minh Tran to open the link/)).toHaveLength(1) // my own friend-picked Zalo: still waiting
     const z = (await getJson('/notify/channels') as { channels: { type: string; approvals: boolean; fields: Record<string, string>; approvers: { address: string; name?: string }[] }[] }).channels.find((c) => c.type === 'zalo-personal')!
     expect(z.fields).toEqual({ user_id: '8000000002', group: 'true', name: 'Night shift', account: 'Vedette Box' })
     expect(z.approvers.map((a) => [a.address, a.name])).toEqual([['2938475610293847561', 'Minh Tran'], ['4756102938475610293', 'Hoa Le']])
@@ -804,9 +805,12 @@ describe('notify: channel form matrix (docs/QA.md §2)', () => {
     wrong.unmount()
     // the right person
     renderApp(path, { role: 'operator' })
-    expect(await screen.findByText(/^Link Zalo Lan Pham \(ID 3847561029384756102\) to your account, /)).toBeInTheDocument()
+    expect(await screen.findByText(/^Link this Zalo account to your account, /)).toBeInTheDocument()
+    expect(await screen.findByText('3847561029384756102')).toHaveClass('font-mono')
+    expect(screen.getByText('Named "Lan Pham" by your administrator.')).toBeInTheDocument()
+    expect(screen.getByText(/Confirm only if this Zalo account is yours/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
-    expect(await screen.findByText(/Linked\. Zalo Lan Pham .* now counts as you/)).toBeInTheDocument()
+    expect(await screen.findByText(/Linked\. Zalo ID 3847561029384756102 now counts as you/)).toBeInTheDocument()
     sessionStore.set({ userId: 'u-admin' })
     expect(await linked()).toBe('linked')
     sessionStore.set({ userId: 'u-op' })
@@ -814,21 +818,21 @@ describe('notify: channel form matrix (docs/QA.md §2)', () => {
     expect((await again.json() as { error: { code: string } }).error.code).toBe('no_code')
   })
 
-  it('an administrator links their own Zalo in their session: no message, the same confirm page (S-RESP-2, D-447)', async () => {
+  it("an administrator links the box's own signed-in Zalo in their session: no message, the same confirm page (S-RESP-2, D-447)", async () => {
     orgStore.update((o) => ({ ...o, setup_complete: true }))
     sessionStore.set({ userId: 'u-admin' })
     const before = zaloMessagesForTest().length
     await fetch(`${location.origin}/api/v1/notify/channels/zalo-personal`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: true, min_severity: 'high', fields: { user_id: '8000000002', group: 'true' }, secret: 'zl-session', approvals: true, approvers: [{ user_id: 'u-admin', address: '2938475610293847561', name: 'Minh Tran' }] }) })
+      body: JSON.stringify({ enabled: true, min_severity: 'high', fields: { user_id: '8000000002', group: 'true' }, secret: 'zl-session', approvals: true, approvers: [{ user_id: 'u-admin', address: ZALO_BOX_UID, name: 'Vedette Box' }] }) })
     expect(zaloMessagesForTest().length).toBe(before)
     const mine = await (await fetch(`${location.origin}/api/v1/notify/zalo/approvers/u-admin/code`, { method: 'POST' })).json() as { self: boolean; link: string; state: string }
-    expect(mine).toMatchObject({ self: true, state: 'not_sent' })
+    expect(mine).toMatchObject({ self: true, box_account: true, state: 'not_sent' })
     expect(mine.link).toMatch(/^\/link\/zalo\?c=/)
     expect(zaloMessagesForTest().length).toBe(before)
     renderApp(mine.link, { role: 'admin' })
-    expect(await screen.findByText(/^Link Zalo Minh Tran \(ID 2938475610293847561\) to your account, /)).toBeInTheDocument()
+    expect(await screen.findByText(ZALO_BOX_UID)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
-    expect(await screen.findByText(/Linked\. Zalo Minh Tran/)).toBeInTheDocument()
+    expect(await screen.findByText(new RegExp(`Linked\\. Zalo ID ${ZALO_BOX_UID}`))).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 

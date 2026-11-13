@@ -172,7 +172,7 @@ function ZaloLinkState({ approver, saved }: { approver: Approver; saved: Channel
     onSuccess: (v) => { if (v.link) void navigate(v.link); else toast.success(t('zp.link.sentToast', { name: who })) },
     onError: (e) => toast.error(errMsg(e)),
   })
-  if (s.state !== 'linked' && s.self) {
+  if (s.state !== 'linked' && s.self && s.box_account) { // the box's own account, proved by the QR sign-in: confirm it here
     return (
       <div className="flex flex-wrap items-center gap-2 text-[13px]" role="status">
         <Chip tone="warn">{t('zp.link.not_sent')}</Chip>

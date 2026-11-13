@@ -24,7 +24,8 @@ export default function ZaloLinkPage() {
     onSettled: () => { void qc.invalidateQueries({ queryKey: ['response'] }) } })
   const [done, setDone] = useState<Identity | null>(null)
   const row = ids.data?.items.find((r) => r.channel === 'zalo-personal')
-  const zalo = row ? (row.name ? t('zl.account', { name: row.name, id: row.address }) : row.address) : t('zl.thisAccount')
+  // The Zalo ID first and plain: the name is free text an administrator typed, the ID is what Vedette will trust.
+  const zalo = row ? t('zl.account', { id: row.address }) : t('zl.thisAccount')
   const err = confirm.error instanceof ApiError ? confirm.error.message : confirm.error ? String(confirm.error) : null
   return (
     <div className="max-w-xl">
@@ -35,7 +36,13 @@ export default function ZaloLinkPage() {
             <p role="status" className="flex items-start gap-2 text-sm"><CircleCheck className="mt-0.5 size-4 shrink-0 text-ok" aria-hidden />{t('zl.linked', { zalo })}</p>
           ) : row?.linked ? <p role="status" className="text-sm">{t('zl.already', { zalo })}</p> : (
             <>
-              <p className="text-sm font-medium">{t('zl.question', { zalo, who: me.data ? `${me.data.name} (${me.data.email})` : '' })}</p>
+              <p className="text-sm font-medium">{t('zl.question', { who: me.data ? `${me.data.name} (${me.data.email})` : '' })}</p>
+              {row ? (
+                <div className="grid gap-1 rounded-md border border-rule bg-sunken px-3 py-2">
+                  <p className="text-sm">{t('zl.idLabel')} <span className="font-mono text-lg font-semibold tracking-wide">{row.address}</span></p>
+                  {row.name ? <p className="text-[13px] text-muted">{t('zl.namedBy', { name: row.name })}</p> : null}
+                </div>
+              ) : null}
               <p className="text-[13px] text-muted">{t('zl.explain')}</p>
               {err ? <p role="alert" className="text-sm text-danger">{err}</p> : null}
               <div><Button variant="primary" disabled={confirm.isPending} onClick={() => confirm.mutate(undefined, { onSuccess: setDone })}>{t('zl.confirm')}</Button></div>

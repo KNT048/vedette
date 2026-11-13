@@ -60,17 +60,19 @@ type ZaloFound struct {
 
 // ZaloApprover is the link state of one approver of the Zalo personal channel (GET /notify/zalo/approvers): linked, sending (the confirm
 // link is on its way), waiting (sent, not confirmed yet), not_sent (never sent, failed, or expired; Error says which). Self marks the
-// administrator asking: they confirm their own Zalo in their session, without a message (Link, set only on that answer of
-// POST …/code, is the confirm page).
+// administrator asking; BoxAccount, that the address is the box's own signed-in Zalo account (the QR sign-in proved it is theirs, as far
+// as the box last signed in). Only when both hold is no message sent: the answer of POST …/code carries the confirm page (Link) and they
+// confirm it in their session. Any other address of their own gets the message like everyone's (D-447 review round 2).
 type ZaloApprover struct {
-	UserID  string  `json:"user_id"`
-	Address string  `json:"address"`
-	Name    string  `json:"name"`
-	State   string  `json:"state"`
-	SentAt  *string `json:"sent_at"`
-	Error   string  `json:"error"`
-	Self    bool    `json:"self"`
-	Link    string  `json:"link,omitempty"`
+	UserID     string  `json:"user_id"`
+	Address    string  `json:"address"`
+	Name       string  `json:"name"`
+	State      string  `json:"state"`
+	SentAt     *string `json:"sent_at"`
+	Error      string  `json:"error"`
+	Self       bool    `json:"self"`
+	BoxAccount bool    `json:"box_account"`
+	Link       string  `json:"link,omitempty"`
 }
 
 // zaloQRFlow is one QR sign-in (channel.ZaloQR); a test replaces how it starts (Service.zaloStartQR).
@@ -410,11 +412,35 @@ func (s *Service) ZaloApprovers(ctx context.Context, who string) ([]ZaloApprover
 	if err != nil {
 		return nil, err
 	}
+	box := s.knownBoxAccount(ctx)
 	out := make([]ZaloApprover, 0, len(list))
 	for _, a := range list {
-		out = append(out, s.approverState(ctx, a, who))
+		out = append(out, s.approverState(ctx, a, who, box))
 	}
 	return out, nil
+}
+
+// knownBoxAccount is the uid of the box's own Zalo account as the saved channel's last sign-in named it, without the network ("" unknown).
+func (s *Service) knownBoxAccount(ctx context.Context) string {
+	c, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.ZaloPersonal)
+	if err != nil || !c.Configured || c.SecretID == "" {
+		return ""
+	}
+	snd, err := s.savedSender(ctx, c, nil)
+	if err != nil {
+		return ""
+	}
+	return channel.ZaloKnownSelf(snd)
+}
+
+// isBoxAccount says whether address is the box's own signed-in Zalo account, signing in if needed; an error is no (the message is sent).
+func (s *Service) isBoxAccount(ctx context.Context, c channelRow, address string) bool {
+	snd, err := s.savedSender(ctx, c, nil)
+	if err != nil {
+		return false
+	}
+	self, err := s.zaloSelf(ctx, snd)
+	return err == nil && self != "" && self == address
 }
 
 // isUser says whether the user userID is the administrator who (an email); an error or no such user is no.
@@ -423,8 +449,8 @@ func (s *Service) isUser(ctx context.Context, userID, who string) bool {
 	return err == nil && ok && strings.EqualFold(u.Email, who)
 }
 
-func (s *Service) approverState(ctx context.Context, a Approver, who string) ZaloApprover {
-	v := ZaloApprover{UserID: a.UserID, Address: a.Address, Name: a.Name, State: "not_sent", Self: s.isUser(ctx, a.UserID, who)}
+func (s *Service) approverState(ctx context.Context, a Approver, who, box string) ZaloApprover {
+	v := ZaloApprover{UserID: a.UserID, Address: a.Address, Name: a.Name, State: "not_sent", Self: s.isUser(ctx, a.UserID, who), BoxAccount: box != "" && box == a.Address}
 	if s.cfg.ApproverLinks != nil {
 		if ok, err := s.cfg.ApproverLinks.Linked(ctx, a.UserID, channel.ZaloPersonal, a.Address); err == nil && ok {
 			v.State = "linked"
@@ -455,8 +481,9 @@ func (s *Service) approverState(ctx context.Context, a Approver, who string) Zal
 }
 
 // SendZaloCode is POST /notify/zalo/approvers/{user_id}/code: a new confirm link for that approver (the old one stops working), sent to
-// their Zalo. For the administrator's own row nothing is sent: the answer carries the link (Link) and they confirm it in this session,
-// through the same page and the same check as anyone (D-447).
+// their Zalo. Only for the administrator's own row whose address is the box's own signed-in Zalo account is nothing sent: the answer
+// carries the link (Link) and they confirm it in this session, through the same page and check as anyone (D-447). Their own row with any
+// other Zalo gets the message, so a wrongly picked friend never becomes their identity without that account's link being opened.
 func (s *Service) SendZaloCode(ctx context.Context, actor, userID string) (ZaloApprover, error) {
 	c, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.ZaloPersonal)
 	if err != nil {
@@ -474,7 +501,7 @@ func (s *Service) SendZaloCode(ctx context.Context, actor, userID string) (ZaloA
 		return ZaloApprover{}, apierr.New(http.StatusNotFound, "not_listed", "This person is not an approver on the Zalo channel. Save the channel first.")
 	}
 	a := list[i]
-	if s.isUser(ctx, a.UserID, actor) {
+	if s.isUser(ctx, a.UserID, actor) && s.isBoxAccount(ctx, c, a.Address) {
 		token, err := s.linkToken(ctx, a)
 		if err != nil {
 			return ZaloApprover{}, err
@@ -484,14 +511,14 @@ func (s *Service) SendZaloCode(ctx context.Context, actor, userID string) (ZaloA
 		}); err != nil {
 			return ZaloApprover{}, err
 		}
-		v := s.approverState(ctx, a, actor)
+		v := s.approverState(ctx, a, actor, a.Address)
 		v.Link = zaloLinkPath(token)
 		return v, nil
 	}
 	if err := s.sendLinkCode(ctx, actor, c, a); err != nil {
 		return ZaloApprover{}, err
 	}
-	return s.approverState(ctx, a, actor), nil
+	return s.approverState(ctx, a, actor, s.knownBoxAccount(ctx)), nil
 }
 
 func zaloLinkPath(token string) string { return "/link/zalo?c=" + url.QueryEscape(token) }
@@ -588,16 +615,18 @@ func (s *Service) sendLinkCodesLater(ctx context.Context, actor string, c channe
 	if len(list) == 0 || s.cfg.LinkCodes == nil {
 		return
 	}
-	list = slices.DeleteFunc(slices.Clone(list), func(a Approver) bool { return s.isUser(ctx, a.UserID, actor) }) // they confirm in their session
-	if len(list) == 0 {
-		return
-	}
 	for _, a := range list {
 		s.markCode(a, zaloCodeSent{address: a.Address, sending: true})
 	}
 	bg := context.WithoutCancel(ctx)
 	s.zalo.bg.Go(func() {
 		for _, a := range list {
+			if s.isUser(bg, a.UserID, actor) && s.isBoxAccount(bg, c, a.Address) { // the box's own account: they confirm in their session
+				s.zalo.mu.Lock()
+				delete(s.zalo.codes, a.UserID)
+				s.zalo.mu.Unlock()
+				continue
+			}
 			if err := s.sendLinkCode(bg, actor, c, a); err != nil {
 				s.cfg.Log.DebugContext(bg, "notify: zalo-personal: a link code was not sent", "error", err.Error())
 			}

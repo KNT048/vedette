@@ -726,10 +726,15 @@ func lastFour(s string) string {
 }
 
 // DeleteChannel removes the saved configuration and every secret of a channel, and with them a Zalo
-// personal session (INV-12). The row stays, blank, so the API still lists six channels.
+// personal session (INV-12). The row stays, blank, so the API still lists six channels. The approvers'
+// proofs of their addresses on it end too (Config.LinkCodes.DropChatLink, D-447).
 func (s *Service) DeleteChannel(ctx context.Context, actor string, t channel.Type) error {
+	before, err := loadApprovers(ctx, s.cfg.DB.Reader(), t) // their proofs end with the channel (below, after the commit)
+	if err != nil {
+		return err
+	}
 	ob := &events.Outbox{}
-	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		cur, err := loadChannel(ctx, tx, t)
 		if err != nil {
 			return err
@@ -764,6 +769,15 @@ func (s *Service) DeleteChannel(ctx context.Context, actor string, t channel.Typ
 	}
 	s.forget(t)
 	s.flush(ctx, ob)
+	// D-447 review round 2: a recreated channel listing the same addresses must not show them linked without a new proof.
+	for _, a := range before {
+		if s.cfg.LinkCodes == nil {
+			break
+		}
+		if err := s.cfg.LinkCodes.DropChatLink(ctx, actor, a.UserID, t, a.Address); err != nil {
+			s.cfg.Log.WarnContext(ctx, "notify: an approver proof could not be dropped with its channel", "channel", string(t), "user", a.UserID, "error", err.Error())
+		}
+	}
 	return nil
 }
 

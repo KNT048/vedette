@@ -230,6 +230,7 @@ func TestContract_D447_ZaloApproverLinkCodes(t *testing.T) {
 	e := newZaloEnv(t, func(c *notify.Config) { c.ApproverLinks, c.LinkCodes = links, codes })
 	z := &zaloRecorder{codes: func() int { return 0 }}
 	e.svc.SetZaloToForTest(z.direct)
+	e.svc.SetZaloSelfForTest(func(context.Context, channel.Sender) (string, error) { return "", nil }) // the box's account is none of these
 	in := notify.ChannelInput{Enabled: true, Fields: map[string]string{"user_id": "123456789"}, Secret: zaloSession, MinSeverity: notify.Low, Approvals: true,
 		Approvers: []notify.Approver{{UserID: "u-op", Address: zaloOp, Name: "Op on Zalo"}}}
 	c := e.save(channel.ZaloPersonal, in)
@@ -307,30 +308,58 @@ func TestZaloLinkCodeMessagesAreRationed(t *testing.T) {
 	}
 }
 
-// D-447: an administrator who lists their own Zalo is sent nothing: the answer carries the confirm page for this session, through the same
-// token and confirm step as anyone; nobody else's row gets a link back.
-func TestContract_D447_AdminConfirmsTheirOwnZaloInTheirSession(t *testing.T) {
+// D-447 (review round 2): an administrator's own row skips the message only when the address is the box's own signed-in Zalo account,
+// which the QR sign-in proved. Any other Zalo of theirs (a friend picked by mistake, say) gets the confirm link like everyone, and
+// nothing links it until that link is confirmed.
+func TestContract_D447_AdminOwnZaloIsProvedUnlessItIsTheBoxAccount(t *testing.T) {
+	const box = "9990009990"
 	codes := &fakeLinkCodes{}
-	e := newZaloEnv(t, func(c *notify.Config) { c.ApproverLinks, c.LinkCodes = &fakeLinks{}, codes })
+	links := &fakeLinks{}
+	e := newZaloEnv(t, func(c *notify.Config) { c.ApproverLinks, c.LinkCodes = links, codes })
 	z := &zaloRecorder{codes: func() int { return 0 }}
 	e.svc.SetZaloToForTest(z.direct)
-	e.save(channel.ZaloPersonal, notify.ChannelInput{Enabled: true, Fields: map[string]string{"user_id": "123456789"}, Secret: zaloSession, MinSeverity: notify.Low, Approvals: true,
-		Approvers: []notify.Approver{{UserID: "u-admin", Address: zaloAdmin}, {UserID: "u-op", Address: zaloOp}}})
+	e.svc.SetZaloSelfForTest(func(context.Context, channel.Sender) (string, error) { return box, nil })
+	in := notify.ChannelInput{Enabled: true, Fields: map[string]string{"user_id": "123456789"}, Secret: zaloSession, MinSeverity: notify.Low, Approvals: true,
+		Approvers: []notify.Approver{{UserID: "u-admin", Address: zaloAdmin}, {UserID: "u-op", Address: zaloOp}}}
+	e.save(channel.ZaloPersonal, in)
 	e.svc.WaitZaloForTest()
-	if len(z.sent) != 1 || z.sent[0].to != zaloOp {
-		t.Fatalf("messages %+v: only the other approver gets one", z.sent)
-	}
-	st, err := e.svc.ZaloApprovers(e.ctx(), "admin@acme.example")
-	if err != nil || !st[0].Self || st[1].Self || st[0].State != "not_sent" {
-		t.Fatalf("states %+v, %v", st, err)
-	}
-	mine, err := e.svc.SendZaloCode(e.ctx(), "admin@acme.example", "u-admin")
-	if err != nil || mine.Link != "/link/zalo?c=0a1b2c3d-tokenTOKENtoken0123456" || len(z.sent) != 1 {
-		t.Fatalf("own link %+v, %v; messages %d", mine, err, len(z.sent))
+	if len(z.sent) != 2 || z.sent[0].to != zaloAdmin || z.sent[1].to != zaloOp {
+		t.Fatalf("messages %+v: my own other Zalo gets the link too", z.sent)
 	}
 	e.clock.Add(time.Minute)
-	other, err := e.svc.SendZaloCode(e.ctx(), "admin@acme.example", "u-op")
-	if err != nil || other.Link != "" || len(z.sent) != 2 {
-		t.Fatalf("another approver's link came back %+v, %v", other, err)
+	mine, err := e.svc.SendZaloCode(e.ctx(), "admin@acme.example", "u-admin")
+	if err != nil || mine.Link != "" || !mine.Self || mine.BoxAccount || len(z.sent) != 3 || z.sent[2].to != zaloAdmin {
+		t.Fatalf("send again for my own other Zalo: %+v, %v; messages %d", mine, err, len(z.sent))
+	}
+	if st, _ := e.svc.ZaloApprovers(e.ctx(), "admin@acme.example"); st[0].State != "waiting" {
+		t.Fatalf("linked without the confirm from the link: %+v", st[0])
+	}
+	// The box's own account: no message, the confirm page comes back for this session.
+	in.Approvers = []notify.Approver{{UserID: "u-admin", Address: box}}
+	e.save(channel.ZaloPersonal, in)
+	e.svc.WaitZaloForTest()
+	if len(z.sent) != 3 {
+		t.Fatalf("a message went to the box's own account: %+v", z.sent[3:])
+	}
+	e.clock.Add(time.Minute)
+	own, err := e.svc.SendZaloCode(e.ctx(), "admin@acme.example", "u-admin")
+	if err != nil || own.Link != "/link/zalo?c=0a1b2c3d-tokenTOKENtoken0123456" || !own.BoxAccount || len(z.sent) != 3 {
+		t.Fatalf("own box account: %+v, %v; messages %d", own, err, len(z.sent))
+	}
+}
+
+// D-447 (review round 2): deleting the channel ends the approvers' proofs, so a recreated channel does not show them linked.
+func TestZaloDeleteChannelDropsTheApproversProofs(t *testing.T) {
+	codes := &fakeLinkCodes{}
+	e := newZaloEnv(t, func(c *notify.Config) { c.ApproverLinks, c.LinkCodes = &fakeLinks{}, codes })
+	e.svc.SetZaloToForTest((&zaloRecorder{codes: func() int { return 0 }}).direct)
+	e.save(channel.ZaloPersonal, notify.ChannelInput{Enabled: true, Fields: map[string]string{"user_id": "123456789"}, Secret: zaloSession, MinSeverity: notify.Low, Approvals: true,
+		Approvers: []notify.Approver{{UserID: "u-op", Address: zaloOp}}})
+	e.svc.WaitZaloForTest()
+	if err := e.svc.DeleteChannel(e.ctx(), "admin@acme.example", channel.ZaloPersonal); err != nil {
+		t.Fatal(err)
+	}
+	if len(codes.dropped) != 1 || codes.dropped[0] != "admin@acme.example|u-op|"+zaloOp {
+		t.Fatalf("dropped %v", codes.dropped)
 	}
 }

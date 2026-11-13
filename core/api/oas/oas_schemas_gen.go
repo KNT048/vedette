@@ -91216,13 +91216,16 @@ func (s *NotifyGetNotifyZaloApproversOK) SetItems(val []NotifyGetNotifyZaloAppro
 
 type NotifyGetNotifyZaloApproversOKItemsItem struct {
 	Address string `json:"address"`
+	// The address is the box's own signed-in Zalo account (the QR sign-in proved it); only your own row
+	// with it skips the message.
+	BoxAccount bool `json:"box_account"`
 	// Not_sent: why (failed, expired, or no link made).
 	Error string `json:"error"`
-	// Only in the answer of POST …/code for your own row: the confirm page (/link/zalo?c=…) to open in
-	// this session.
+	// Only in the answer of POST …/code for your own row with the box's own account: the confirm page
+	// (/link/zalo?c=…) to open in this session; any other Zalo gets the link by message.
 	Link OptString `json:"link"`
 	Name string    `json:"name"`
-	// The administrator asking: they confirm their own Zalo in their session, no message is sent.
+	// The administrator asking.
 	Self   bool                                         `json:"self"`
 	SentAt NilDateTime                                  `json:"sent_at"`
 	State  NotifyGetNotifyZaloApproversOKItemsItemState `json:"state"`
@@ -91232,6 +91235,11 @@ type NotifyGetNotifyZaloApproversOKItemsItem struct {
 // GetAddress returns the value of Address.
 func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetAddress() string {
 	return s.Address
+}
+
+// GetBoxAccount returns the value of BoxAccount.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetBoxAccount() bool {
+	return s.BoxAccount
 }
 
 // GetError returns the value of Error.
@@ -91272,6 +91280,11 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetUserID() string {
 // SetAddress sets the value of Address.
 func (s *NotifyGetNotifyZaloApproversOKItemsItem) SetAddress(val string) {
 	s.Address = val
+}
+
+// SetBoxAccount sets the value of BoxAccount.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) SetBoxAccount(val bool) {
+	s.BoxAccount = val
 }
 
 // SetError sets the value of Error.
@@ -92705,13 +92718,16 @@ func (s *NotifyPostNotifyHistoryIDResendOKKind) UnmarshalText(data []byte) error
 
 type NotifyPostNotifyZaloApproversUserIDCodeOK struct {
 	Address string `json:"address"`
+	// The address is the box's own signed-in Zalo account (the QR sign-in proved it); only your own row
+	// with it skips the message.
+	BoxAccount bool `json:"box_account"`
 	// Not_sent: why (failed, expired, or no link made).
 	Error string `json:"error"`
-	// Only in the answer of POST …/code for your own row: the confirm page (/link/zalo?c=…) to open in
-	// this session.
+	// Only in the answer of POST …/code for your own row with the box's own account: the confirm page
+	// (/link/zalo?c=…) to open in this session; any other Zalo gets the link by message.
 	Link OptString `json:"link"`
 	Name string    `json:"name"`
-	// The administrator asking: they confirm their own Zalo in their session, no message is sent.
+	// The administrator asking.
 	Self   bool                                           `json:"self"`
 	SentAt NilDateTime                                    `json:"sent_at"`
 	State  NotifyPostNotifyZaloApproversUserIDCodeOKState `json:"state"`
@@ -92721,6 +92737,11 @@ type NotifyPostNotifyZaloApproversUserIDCodeOK struct {
 // GetAddress returns the value of Address.
 func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetAddress() string {
 	return s.Address
+}
+
+// GetBoxAccount returns the value of BoxAccount.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetBoxAccount() bool {
+	return s.BoxAccount
 }
 
 // GetError returns the value of Error.
@@ -92761,6 +92782,11 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetUserID() string {
 // SetAddress sets the value of Address.
 func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) SetAddress(val string) {
 	s.Address = val
+}
+
+// SetBoxAccount sets the value of BoxAccount.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) SetBoxAccount(val bool) {
+	s.BoxAccount = val
 }
 
 // SetError sets the value of Error.

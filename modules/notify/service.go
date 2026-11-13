@@ -102,6 +102,7 @@ type Service struct {
 	// (channel.StartZaloQR), only export_test.go replaces it.
 	zalo        zaloSetup
 	zaloStartQR func(context.Context, *http.Client) (zaloQRFlow, error)
+	zaloSelf    func(context.Context, channel.Sender) (string, error) // the uid of the box's own Zalo account (channel.ZaloSelf)
 	// reenabled is set when the module is turned on (modreg tells us) and cleared by the next Flush, which then drops
 	// the queued notices that went stale while it was off (D-86 (7)).
 	reenabled atomic.Bool
@@ -132,7 +133,7 @@ func New(c Config) (*Service, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	s := &Service{cfg: c, senders: map[channel.Type]cachedSender{}, zaloTo: channel.ZaloPersonalTo, zaloListen: openZaloInbox, zaloStartQR: startZaloQR}
+	s := &Service{cfg: c, senders: map[channel.Type]cachedSender{}, zaloTo: channel.ZaloPersonalTo, zaloListen: openZaloInbox, zaloStartQR: startZaloQR, zaloSelf: channel.ZaloSelf}
 	if cn, ok := c.Modules.(changeNotifier); ok { // the callback only sets a flag: it runs on the publisher's goroutine and must not block
 		cn.OnChange(func(id string, enabled bool) {
 			if id == ModuleID && enabled {

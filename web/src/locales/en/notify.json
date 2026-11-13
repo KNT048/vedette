@@ -558,6 +558,6 @@
     "clientSecretHint": "Used to sign in and kept on this box, encrypted. Enter it again when you sign in again."
   },
   "tg": {
-    "unsaved": "Save to send this person a confirm link on Telegram: the bot sends it to them privately if they once pressed Start in a chat with the bot, otherwise into this chat addressed to them. They confirm it while signed in to Vedette as themselves."
+    "unsaved": "Save to send this person a confirm link on Telegram, privately. The bot can write to them only after they press Start once in a private chat with the bot; otherwise a note in this chat asks them to. They confirm the link while signed in to Vedette as themselves."
   }
 }

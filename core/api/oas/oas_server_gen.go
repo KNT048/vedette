@@ -1485,8 +1485,9 @@ type Handler interface {
 	NotifyPostNotifyHistoryIDResend(ctx context.Context, params NotifyPostNotifyHistoryIDResendParams) (*NotifyPostNotifyHistoryIDResendOK, error)
 	// NotifyPostNotifyTelegramApproversUserIDCode implements notify_post_notify_telegram_approvers_user_id_code operation.
 	//
-	// Send an approver a new confirm link by the Telegram bot (the old one stops working): privately to
-	// their user ID when the bot can write to them, else in the approval chat addressed by name (D-414).
+	// Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately
+	// to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the
+	// link in the approval chat asks them to press Start (D-414).
 	//
 	// POST /notify/telegram/approvers/{user_id}/code
 	NotifyPostNotifyTelegramApproversUserIDCode(ctx context.Context, params NotifyPostNotifyTelegramApproversUserIDCodeParams) (*NotifyPostNotifyTelegramApproversUserIDCodeOK, error)

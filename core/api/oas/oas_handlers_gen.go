@@ -30764,8 +30764,9 @@ func (s *Server) handleNotifyPostNotifyHistoryIDResendRequest(args [1]string, ar
 
 // handleNotifyPostNotifyTelegramApproversUserIDCodeRequest handles notify_post_notify_telegram_approvers_user_id_code operation.
 //
-// Send an approver a new confirm link by the Telegram bot (the old one stops working): privately to
-// their user ID when the bot can write to them, else in the approval chat addressed by name (D-414).
+// Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately
+// to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the
+// link in the approval chat asks them to press Start (D-414).
 //
 // POST /notify/telegram/approvers/{user_id}/code
 func (s *Server) handleNotifyPostNotifyTelegramApproversUserIDCodeRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -30844,7 +30845,7 @@ func (s *Server) handleNotifyPostNotifyTelegramApproversUserIDCodeRequest(args [
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    NotifyPostNotifyTelegramApproversUserIDCodeOperation,
-			OperationSummary: "Send an approver a new confirm link by the Telegram bot (the old one stops working): privately to their user ID when the bot can write to them, else in the approval chat addressed by name (D-414)",
+			OperationSummary: "Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the link in the approval chat asks them to press Start (D-414)",
 			OperationID:      "notify_post_notify_telegram_approvers_user_id_code",
 			Body:             nil,
 			RawBody:          rawBody,

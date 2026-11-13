@@ -15078,7 +15078,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "POST":
 									r.name = NotifyPostNotifyTelegramApproversUserIDCodeOperation
-									r.summary = "Send an approver a new confirm link by the Telegram bot (the old one stops working): privately to their user ID when the bot can write to them, else in the approval chat addressed by name (D-414)"
+									r.summary = "Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the link in the approval chat asks them to press Start (D-414)"
 									r.operationID = "notify_post_notify_telegram_approvers_user_id_code"
 									r.operationGroup = ""
 									r.pathPattern = "/notify/telegram/approvers/{user_id}/code"

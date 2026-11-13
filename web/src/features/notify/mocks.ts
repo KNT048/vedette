@@ -380,8 +380,9 @@ const zaloView = (): ZaloLogin => {
 const zaloSession = () => zaloSignedIn() !== null || !!channels.get().find((c) => c.type === 'zalo-personal' && c.configured && c.secret)
 const NO_SESSION = () => fail(409, 'no_session', 'Sign in with the QR code first: finding groups and people needs the Zalo account.')
 const BAD_QUERY = 'Enter a group invite link (https://zalo.me/g/…), a phone number such as 0912345678, or a Zalo ID.'
-// Telegram approvers (D-414): the bot sends each a confirm link (made by the response mock, kept in tgMessages; the real box tries the
-// person's private chat first, then the approval chat) and they are linked once they confirm it signed in, as on Zalo.
+// Telegram approvers (D-414): the bot sends each a confirm link privately (made by the response mock, kept in tgMessages) and they are
+// linked once they confirm it signed in, as on Zalo. The mock's bot may always write to the person; the real box, when it may not, posts a
+// note without the link in the approval chat asking them to press Start, and answers send_failed.
 const tgCodes = new Map<string, { address: string; at: string; error: string }>()
 const tgMessages: { to: string; text: string }[] = []
 /** The messages the Telegram bot sent (tests read the confirm link from them). */
@@ -711,7 +712,8 @@ chatLinkSenders['zalo-personal'] = (userId) => {
   if (!c?.configured || !c.enabled || !c.approvals) return { status: 409, code: 'channel_not_ready', message: 'Save the Zalo (personal) channel turned on, with "Approve actions from this channel", first.' }
   const a = (c.approvers ?? []).find((x) => x.user_id === userId)
   if (!a) return { status: 404, code: 'not_listed', message: 'This person is not an approver on the Zalo channel. Save the channel first.' }
-  if (a.address === ZALO_BOX_UID) { // your own row with the box's own account: confirm it now in this session
+  // your own row with the box's own account confirms in this session, for an administrator only (D-414 review: an operator never)
+  if (a.address === ZALO_BOX_UID && usersStore.get().find((u) => u.id === userId)?.role === 'admin') {
     const made = newLinkToken(a.user_id, 'zalo-personal', a.address)
     return 'token' in made ? { link: `/link/zalo?c=${encodeURIComponent(made.token)}` } : made
   }

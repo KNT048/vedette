@@ -444,10 +444,11 @@ func (s *Service) isBoxAccount(ctx context.Context, c channelRow, address string
 	return err == nil && self != "" && self == address
 }
 
-// isUser says whether the user userID is the administrator who (an email); an error or no such user is no.
+// isUser says whether the user userID is the administrator who (an email); an error, no such user or a user who is not an administrator
+// is no (D-414 review: Send again from My account reaches SendZaloCode as an operator, who never gets the box-account shortcut).
 func (s *Service) isUser(ctx context.Context, userID, who string) bool {
 	u, ok, err := s.cfg.Users.Lookup(ctx, userID)
-	return err == nil && ok && strings.EqualFold(u.Email, who)
+	return err == nil && ok && u.Role == "admin" && strings.EqualFold(u.Email, who)
 }
 
 // codeKey is the key of an approver's confirm-link state: the channel and the user ID.

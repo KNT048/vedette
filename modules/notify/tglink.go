@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
@@ -37,7 +38,7 @@ func (s *Service) TelegramApprovers(ctx context.Context, who string) ([]ZaloAppr
 }
 
 // SendTelegramLink is POST /notify/telegram/approvers/{user_id}/code: a new confirm link for that approver (the old one stops working),
-// sent by the bot. An administrator's own row gets the message like everyone's; they confirm it in their session.
+// sent privately by the bot. An administrator's own row gets the message like everyone's; they confirm it in their session.
 func (s *Service) SendTelegramLink(ctx context.Context, actor, userID string) (ZaloApprover, error) {
 	c, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.Telegram)
 	if err != nil {
@@ -75,9 +76,10 @@ func (s *Service) SendApproverLink(ctx context.Context, actor string, t channel.
 	return "", badRequest("chat_channel", "This channel is not linked by a confirm link.")
 }
 
-// sendTelegramLink asks response for a new token and sends the link: "<name>: open this link to link your Telegram account to Vedette".
-// The link needs the address people open Vedette at (Config.BaseURL). A failed send is kept as the approver's state. The token is never
-// logged nor audited.
+// sendTelegramLink asks response for a new token and sends the link privately: "<name>: open this link to link your Telegram account to
+// Vedette". The link needs the address people open Vedette at (Config.BaseURL). The token goes only to the listed user ID, never into a
+// shared chat (review of D-414): only that account can open it. A link that could not be delivered is dropped (response DropChatLink: no
+// token waits that nobody received) and answered as 502 send_failed; the approver's state keeps why. The token is never logged nor audited.
 func (s *Service) sendTelegramLink(ctx context.Context, actor string, c channelRow, a Approver) error {
 	if s.cfg.LinkCodes == nil {
 		return apierr.New(http.StatusServiceUnavailable, "link_unavailable", "Approvers cannot be linked now: the Response module is off.")
@@ -93,47 +95,80 @@ func (s *Service) sendTelegramLink(ctx context.Context, actor string, c channelR
 		s.markCode(channel.Telegram, a, zaloCodeSent{address: a.Address, errText: "No link was made: " + refusalText(err)})
 		return err
 	}
-	sent, where := s.deliverTelegramLink(ctx, c, a, s.link(telegramLinkPath(token)), name)
+	sent, note := s.deliverTelegramLink(ctx, c, a, s.link(telegramLinkPath(token)), name)
 	s.markCode(channel.Telegram, a, sent)
-	detail := "a confirm link was sent to Telegram " + a.Address + " " + where
+	detail := "a confirm link was sent privately to Telegram " + a.Address
 	if sent.errText != "" {
 		detail = "a confirm link could not be sent to Telegram " + a.Address + ": " + sent.errText
+		if note {
+			detail = "a confirm link could not be sent to Telegram " + a.Address + " (the bot may not write to it first); a note asking them to press Start was posted in the approval chat"
+		}
+		if derr := s.cfg.LinkCodes.DropChatLink(ctx, actor, a.UserID, channel.Telegram, a.Address); derr != nil {
+			s.cfg.Log.WarnContext(ctx, "notify: telegram: an undelivered confirm link could not be dropped", "user", a.UserID, "error", derr.Error())
+		}
 	}
 	if u, ok, uerr := s.cfg.Users.Lookup(ctx, a.UserID); uerr == nil && ok {
 		detail += " (approver " + u.Email + ")"
 	}
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		return s.record(ctx, tx, actor, "notify.telegram_link_code", string(channel.Telegram), clip(detail, 400))
-	})
+	}); err != nil {
+		return err
+	}
+	if sent.errText != "" {
+		return apierr.New(http.StatusBadGateway, "send_failed", sent.errText)
+	}
+	return nil
 }
 
-// deliverTelegramLink sends the link privately to the approver's user ID, so that only that account receives it. A bot cannot write first
-// to someone who never wrote to it (Telegram answers 403, or 400 for an unknown chat): then the link goes to the approval chat, addressed
-// by name; it is of no use to anyone but that Vedette user, who must sign in to confirm it.
-func (s *Service) deliverTelegramLink(ctx context.Context, c channelRow, a Approver, link, name string) (zaloCodeSent, string) {
-	out := zaloCodeSent{address: a.Address, at: time.Now()}
+// deliverTelegramLink sends the link privately to the approver's user ID. A bot cannot write first to someone who never wrote to it
+// (Telegram answers 403, or 400 "chat not found"): then the approval chat gets a note WITHOUT the link, addressed to the person, asking them
+// to open a private chat with the bot and press Start, then Send again (My account). note says that the note was posted.
+func (s *Service) deliverTelegramLink(ctx context.Context, c channelRow, a Approver, link, name string) (out zaloCodeSent, note bool) {
+	out = zaloCodeSent{address: a.Address, at: time.Now()}
 	who := clip(name, 64)
 	m := channel.Message{Kind: channel.KindReply, Severity: "info", Title: who + ": open this link to link your Telegram account to Vedette.",
 		What: "Sign in to Vedette as " + who + ", then press Confirm. It works once, within 10 minutes. If you are not " + who + ", ignore this message.",
 		Link: link}
 	sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), tgLinkSendWait)
 	defer cancel()
-	where := "privately"
 	snd, err := s.savedSender(sctx, c, []string{a.Address})
 	if err == nil {
 		_, err = snd.Send(sctx, m)
 	}
+	if err == nil {
+		return out, false
+	}
 	var se *channel.StatusError
-	if errors.As(err, &se) && (se.Code == http.StatusForbidden || se.Code == http.StatusBadRequest) {
-		where = "in the approval chat"
-		if snd, err = s.savedSender(sctx, c, nil); err == nil {
-			_, err = snd.Send(sctx, m)
-		}
-	}
-	if err != nil {
+	if !errors.As(err, &se) || (se.Code != http.StatusForbidden && se.Code != http.StatusBadRequest) {
 		out.errText = userText(err)
+		return out, false
 	}
-	return out, where
+	shown := shownName(who) // the chat sees a name, never a sign-in email
+	out.errText = "The bot cannot write to " + shown + " yet: they must open a private chat with the bot and press Start, then press Send again. " +
+		"If they did, check the Telegram user ID."
+	ask := channel.Message{Kind: channel.KindReply, Severity: "info",
+		Title: shown + ": to link your Telegram account to Vedette, open a private chat with this bot and press Start, then press Send again in Vedette (My account), or ask your administrator to.",
+		Link:  s.link("/account#approver-identities")}
+	gs, gerr := s.savedSender(sctx, c, nil)
+	if gerr == nil {
+		_, gerr = gs.Send(sctx, ask)
+	}
+	if gerr != nil {
+		out.errText += " The note to the approval chat failed too: " + userText(gerr)
+		return out, false
+	}
+	out.errText += " A note asking them to was posted in the approval chat."
+	return out, true
+}
+
+// shownName is a name for a shared chat: an email (a user without a name) is masked to its first letter and domain.
+func shownName(name string) string {
+	local, domain, ok := strings.Cut(name, "@")
+	if !ok || local == "" {
+		return name
+	}
+	return string([]rune(local)[0]) + "•••@" + domain
 }
 
 // sendTelegramLinksLater sends the links of approvers a save added or gave a new Telegram ID, after the save, one after the other. The

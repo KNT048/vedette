@@ -57,16 +57,19 @@ func machineAddrs(d *deps) func() ([]netip.Addr, bool) {
 // vedetteSelf is Config.SelfAddrs of feeds, notify, logs and ai: the honeypot's decoys, Vedette itself on every port (a webhook to a
 // trap would loop: incident, webhook, trap hit). Read lazily through d (the honeypot is built after notify); a record that cannot be
 // read counts as none (the decoys stay refused on Vedette's own ports, as part of what vedette-host reports).
-func vedetteSelf(d *deps) func() []netip.Addr {
-	return func() []netip.Addr {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second) // one short query; the ports have no context
-		defer cancel()
-		out, err := lateDecoys{d}.DecoyIPsRead(ctx)
-		if err != nil {
-			return nil
-		}
-		return out
+func vedetteSelf(d *deps) func() []netip.Addr { return decoySelf{d}.addrs }
+
+// decoySelf reads the decoys for vedetteSelf.
+type decoySelf struct{ d *deps }
+
+func (s decoySelf) addrs() []netip.Addr {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second) // one short query; the ports have no context
+	defer cancel()
+	out, err := lateDecoys(s).DecoyIPsRead(ctx)
+	if err != nil {
+		return nil
 	}
+	return out
 }
 
 // hostAliasNames are the names Docker (Desktop, or host-gateway) and Podman give the machine that runs the container.

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { RefreshCw } from 'lucide-react'
@@ -41,7 +42,15 @@ export function BlocklistTab() {
                   ))}
                 </tbody>
               </table></div>
-            ) : <p className="px-4 py-3 text-sm text-muted">{t('blocklist.empty')}</p>}
+            ) : (
+              // D-469: an empty list says what fills it, what it never holds, and where the rule that fills it is turned on
+              <div className="grid gap-2 px-4 py-3 text-sm">
+                <p className="font-medium">{t('blocklist.empty')}</p>
+                <p className="text-muted">{t('blocklist.emptyWhat')}</p>
+                <p className="text-muted">{t('blocklist.emptyPublic')}</p>
+                <p className="text-muted">{t('blocklist.emptyTemplate')} <Link className="text-accent underline underline-offset-4" to={{ hash: 'rules' }}>{t('blocklist.emptyLink')}</Link></p>
+              </div>
+            )}
           </Panel>
           <p className="text-[13px] text-muted">{t('blocklist.ipOnly')}</p>
         </div>

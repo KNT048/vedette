@@ -501,7 +501,7 @@ func (e *env) trap(id, src string) response.Det {
 func twoBlocks() []response.RuleAction {
 	return []response.RuleAction{
 		{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)},
-		{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.src_ip}}"}, TTLMin: intp(60)},
+		{ActionID: "blocklist_add", Params: map[string]string{"ip": "203.0.113.200"}, TTLMin: intp(60)}, // a fixed public address: the LAN source would be refused (D-469)
 	}
 }
 func strp(s string) *string { return &s }

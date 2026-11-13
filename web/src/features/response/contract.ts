@@ -55,11 +55,11 @@ export const Change = z.object({
 })
 
 // ---- AI proposals from plans (S-RESP-1) ----
-export const ProposalState = z.enum(['ready', 'execution_off', 'tool_not_allowed', 'tool_unavailable'])
+export const ProposalState = z.enum(['ready', 'execution_off', 'tool_not_allowed', 'tool_unavailable', 'not_publishable'])
 export const Proposal = z.object({
   id, title: z.string(), tool_key: z.string().describe('connection id / tool name'), tool: z.string(),
   connector_id: z.string(), connection: z.string(), asset_id: z.string(), asset_name: z.string(), change: Change,
-  state: ProposalState.describe('ready = a request can be made now; the others say what blocks it'),
+  state: ProposalState.describe('ready = a request can be made now; the others say what blocks it (not_publishable: a block list action on an address the list never publishes, D-469)'),
   request_id: z.string().nullable().describe('Open (pending) or executed request for this proposal'),
 })
 export const PlanStep = z.object({ kind: z.enum(['contain', 'check', 'patch']), title: z.string(), detail: z.string(), proposal: Proposal.nullable() })

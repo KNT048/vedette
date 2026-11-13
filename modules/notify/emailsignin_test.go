@@ -92,19 +92,18 @@ func TestEmailDeviceSigninThenSaveThenRotate(t *testing.T) {
 	_, err = e.svc.SaveChannel(e.ctx(), admin, channel.Email, in) // used once
 	wantCode(t, err, 400, "secret_required")
 
-	// A refresh token Microsoft rotated is saved back, unless the channel was saved again since (the newer save wins). The sending
-	// side (channel.EmailConfig.SaveSecret) is TestMicrosoftUserRefreshTokenRotates.
-	rt1, rt2 := `{"refresh_token":"rt-1"}`, `{"refresh_token":"rt-2"}`
-	if got := e.svc.EmailSecretForTest(e.ctx()); got != rt1 {
-		t.Fatalf("saved secret %q", got)
+	// The saved grant is the sign-in's refresh token with the sign-in's id; a rotation of that sign-in is saved back (the sending side
+	// is TestMicrosoftUserRefreshTokenRotates; the order of rotations, TestEmailRotationFollowsTheSignInNotTheToken).
+	var g struct {
+		ID           string `json:"id"`
+		RefreshToken string `json:"refresh_token"`
 	}
-	e.svc.RotateEmailSecretForTest(rt1, rt2)
-	if got := e.svc.EmailSecretForTest(e.ctx()); got != rt2 {
+	if err := json.Unmarshal([]byte(e.svc.EmailSecretForTest(e.ctx())), &g); err != nil || len(g.ID) != 32 || g.RefreshToken != "rt-1" {
+		t.Fatalf("saved grant %+v %v", g, err)
+	}
+	e.svc.RotateEmailSecretForTest(grantJSON(g.ID, "rt-1"), grantJSON(g.ID, "rt-2"))
+	if got := e.svc.EmailSecretForTest(e.ctx()); got != grantJSON(g.ID, "rt-2") {
 		t.Fatalf("after rotation %q", got)
-	}
-	e.svc.RotateEmailSecretForTest(rt1, `{"refresh_token":"rt-stale"}`)
-	if got := e.svc.EmailSecretForTest(e.ctx()); got != rt2 {
-		t.Fatalf("a rotation from an older secret overwrote %q", got)
 	}
 }
 
@@ -130,4 +129,158 @@ func TestEmailGoogleSigninRefusesAStrangePaste(t *testing.T) {
 	}
 	_, err = e.svc.StartEmailSignin(e.ctx(), admin, notify.EmailSigninStart{Provider: "gmail", ClientID: "x"})
 	wantCode(t, err, 400, "bad_provider")
+}
+
+func grantJSON(id, rt string) string { return `{"id":"` + id + `","refresh_token":"` + rt + `"}` }
+
+// Round-2 review: a per-address sender (two-step code, approval) rotates the token between two rotations of the cached sender.
+// The saved grant follows the newest rotation of the same sign-in (same grant id) whichever token each sender held; a grant of
+// another sign-in is left alone and the cached sender is dropped so the next send loads the saved one.
+func TestEmailRotationFollowsTheSignInNotTheToken(t *testing.T) {
+	e := newEnv(t, func(c *notify.Config) {
+		c.HTTPClient = &http.Client{Transport: roundTrip(func(*http.Request, url.Values) (int, string) { return 500, `{}` })}
+	})
+	const g1, g2 = "11111111111111111111111111111111", "22222222222222222222222222222222"
+	f := map[string]string{"provider": "microsoft365-user", "host": "smtp.office365.com", "port": "587", "security": "starttls", "tenant_id": "organizations",
+		"client_id": msClient, "username": "alerts@acme.example", "from": "alerts@acme.example", "to": "it@acme.example"}
+	save := func(secret string) {
+		t.Helper()
+		if _, err := e.svc.SaveChannel(e.ctx(), "admin@acme.example", channel.Email, notify.ChannelInput{Enabled: true, MinSeverity: notify.High, Fields: f, Secret: secret}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	save(grantJSON(g1, "rt-2"))
+	e.svc.RotateEmailSecretForTest(grantJSON(g1, "rt-2"), grantJSON(g1, "rt-3")) // a code send rotates rt-2 → rt-3
+	e.svc.RotateEmailSecretForTest(grantJSON(g1, "rt-2"), grantJSON(g1, "rt-4")) // the cached sender, still on rt-2, rotates → rt-4
+	if got := e.svc.EmailSecretForTest(e.ctx()); got != grantJSON(g1, "rt-4") {
+		t.Fatalf("the newest rotation of the sign-in was not saved: %q", got)
+	}
+	// Signed in again (another grant): an older sender's rotation does not overwrite it, and the cached sender is dropped.
+	save(grantJSON(g2, "rt-9"))
+	if err := e.svc.CacheEmailSenderForTest(e.ctx()); err != nil || !e.svc.EmailSenderCachedForTest() {
+		t.Fatalf("cache: %v", err)
+	}
+	e.svc.RotateEmailSecretForTest(grantJSON(g1, "rt-4"), grantJSON(g1, "rt-5"))
+	if got := e.svc.EmailSecretForTest(e.ctx()); got != grantJSON(g2, "rt-9") {
+		t.Fatalf("another sign-in's rotation overwrote the saved one: %q", got)
+	}
+	if e.svc.EmailSenderCachedForTest() {
+		t.Fatal("the cached sender stayed after its sign-in was replaced")
+	}
+}
+
+// A device sign-in that signed in, ready to save: the start, two checks past the interval.
+func signedInDevice(t *testing.T, e *env, admin string) notify.EmailSignin {
+	t.Helper()
+	s, err := e.svc.StartEmailSignin(e.ctx(), admin, notify.EmailSigninStart{Provider: "microsoft365-user", TenantID: "organizations", ClientID: msClient})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.clock.Add(5 * time.Second)
+	v, err := e.svc.CheckEmailSignin(e.ctx(), admin, s.ID, "")
+	if err != nil || v.Status != "signed_in" {
+		t.Fatalf("sign-in: %+v %v", v, err)
+	}
+	return v
+}
+
+func deviceThatSignsIn(fail func() bool) roundTrip {
+	return func(r *http.Request, form url.Values) (int, string) {
+		if r.URL.Path == "/organizations/oauth2/v2.0/devicecode" {
+			return 200, `{"device_code":"dc-1","user_code":"QWER-TYUI","verification_uri":"https://microsoft.com/devicelogin","expires_in":900,"interval":5}`
+		}
+		if fail != nil && fail() {
+			return 500, `{"error":"temporarily_unavailable"}`
+		}
+		return 200, `{"access_token":"at-0","expires_in":3599,"refresh_token":"rt-1","id_token":"` + unsignedIDToken(map[string]string{"preferred_username": "alerts@acme.example"}) + `"}`
+	}
+}
+
+// Round-2 review: a sign-in is taken by one save only, even when two saves run at the same moment; a failed save gives it back.
+func TestEmailSigninIsTakenByOneSaveOnly(t *testing.T) {
+	e := newEnv(t, func(c *notify.Config) { c.HTTPClient = &http.Client{Transport: deviceThatSignsIn(nil)} })
+	const admin = "admin@acme.example"
+	v := signedInDevice(t, e, admin)
+	f := map[string]string{"provider": "microsoft365-user", "host": "smtp.office365.com", "port": "587", "security": "starttls", "tenant_id": "organizations",
+		"client_id": msClient, "from": "alerts@acme.example", "to": "it@acme.example"}
+	in := notify.ChannelInput{Enabled: true, MinSeverity: notify.High, Signin: v.ID}
+	// a save that fails after taking the sign-in (a bad recipient) gives it back
+	bad := map[string]string{}
+	for k, x := range f {
+		bad[k] = x
+	}
+	bad["to"] = "nope"
+	in.Fields = bad
+	_, err := e.svc.SaveChannel(e.ctx(), admin, channel.Email, in)
+	wantCode(t, err, 400, "bad_to")
+	in.Fields = f
+	var wg sync.WaitGroup
+	errs := make([]error, 2)
+	for i := range errs {
+		wg.Go(func() {
+			ff := map[string]string{}
+			for k, x := range f {
+				ff[k] = x
+			}
+			c := in
+			c.Fields = ff
+			_, errs[i] = e.svc.SaveChannel(e.ctx(), admin, channel.Email, c)
+		})
+	}
+	wg.Wait()
+	if (errs[0] == nil) == (errs[1] == nil) {
+		t.Fatalf("two saves of one sign-in: %v, %v", errs[0], errs[1])
+	}
+	for _, err := range errs {
+		if err != nil {
+			wantCode(t, err, 400, "secret_required")
+		}
+	}
+}
+
+// Round-2 review: a check that fails still waits the interval before asking Microsoft again; starts are limited per admin; a
+// sign-in that ended is dropped (and its refresh token with it).
+func TestEmailSigninPacingAndExpiry(t *testing.T) {
+	var mu sync.Mutex
+	failing, polls := true, 0
+	e := newEnv(t, func(c *notify.Config) {
+		c.HTTPClient = &http.Client{Transport: deviceThatSignsIn(func() bool { mu.Lock(); defer mu.Unlock(); polls++; return failing })}
+	})
+	const admin = "admin@acme.example"
+	s, err := e.svc.StartEmailSignin(e.ctx(), admin, notify.EmailSigninStart{Provider: "microsoft365-user", TenantID: "organizations", ClientID: msClient})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.clock.Add(5 * time.Second)
+	_, err = e.svc.CheckEmailSignin(e.ctx(), admin, s.ID, "")
+	wantCode(t, err, 400, "signin_refused")
+	if _, err := e.svc.CheckEmailSignin(e.ctx(), admin, s.ID, ""); err != nil || polls != 1 {
+		t.Fatalf("asked Microsoft again before the interval after a failure: %d polls, %v", polls, err)
+	}
+	mu.Lock()
+	failing = false
+	mu.Unlock()
+	e.clock.Add(5 * time.Second)
+	if v, err := e.svc.CheckEmailSignin(e.ctx(), admin, s.ID, ""); err != nil || v.Status != "signed_in" {
+		t.Fatalf("after the interval: %+v %v", v, err)
+	}
+	// ended sign-ins go, refresh token and all
+	e.clock.Add(16*time.Minute + time.Minute)
+	_, err = e.svc.CheckEmailSignin(e.ctx(), admin, s.ID, "")
+	wantCode(t, err, 404, "not_found")
+	// five starts per admin in ten minutes (the first start is older than that by now), then 429; another admin is not held back
+	for range 5 {
+		if _, err := e.svc.StartEmailSignin(e.ctx(), admin, notify.EmailSigninStart{Provider: "microsoft365-user", TenantID: "organizations", ClientID: msClient}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err = e.svc.StartEmailSignin(e.ctx(), admin, notify.EmailSigninStart{Provider: "microsoft365-user", TenantID: "organizations", ClientID: msClient})
+	wantCode(t, err, 429, "rate_limited")
+	if _, err := e.svc.StartEmailSignin(e.ctx(), "other@acme.example", notify.EmailSigninStart{Provider: "microsoft365-user", TenantID: "organizations", ClientID: msClient}); err != nil {
+		t.Fatal(err)
+	}
+	e.clock.Add(10 * time.Minute)
+	if _, err := e.svc.StartEmailSignin(e.ctx(), admin, notify.EmailSigninStart{Provider: "microsoft365-user", TenantID: "organizations", ClientID: msClient}); err != nil {
+		t.Fatalf("after the window: %v", err)
+	}
 }

@@ -84,7 +84,7 @@ func TestMicrosoftDeviceCodeStates(t *testing.T) {
 		t.Fatalf("invalid_client: %v", err)
 	}
 	st, in, err := poll()
-	if err != nil || st != SigninSignedIn || in.Mailbox != "alerts@acme.example" || in.Secret.Reveal() != `{"refresh_token":"rt-1"}` {
+	if g, ok := parseGrant(in.Secret.Reveal(), false); err != nil || st != SigninSignedIn || in.Mailbox != "alerts@acme.example" || !ok || g.RefreshToken != "rt-1" {
 		t.Fatalf("signed in: %q %+v %v", st, in, err)
 	}
 	if _, _, err := poll(); !errors.As(err, &si) || !strings.Contains(si.Msg, "no refresh token") {
@@ -117,7 +117,7 @@ func TestMicrosoftUserRefreshTokenRotates(t *testing.T) {
 	now := time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)
 	var saved []string
 	cfg := oauthAt(f, emailCfg(f, SecurityStartTLS), "smtp.office365.com")
-	cfg.Provider, cfg.TenantID, cfg.ClientID, cfg.Password, cfg.HTTPClient = "microsoft365-user", "organizations", testClient, secrets.NewValue(`{"refresh_token":"rt-1"}`), clientTo(t, svc.srv.URL)
+	cfg.Provider, cfg.TenantID, cfg.ClientID, cfg.Password, cfg.HTTPClient = "microsoft365-user", "organizations", testClient, secrets.NewValue(`{"id":"0123456789abcdef0123456789abcdef","refresh_token":"rt-1"}`), clientTo(t, svc.srv.URL)
 	cfg.Now = func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
 	cfg.SaveSecret = func(_ context.Context, old, next secrets.Value) error {
 		saved = append(saved, old.Reveal()+" -> "+next.Reveal())
@@ -139,11 +139,11 @@ func TestMicrosoftUserRefreshTokenRotates(t *testing.T) {
 	if _, err := s.Send(context.Background(), sample); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(seen, ",") != "rt-1,rt-2" || len(saved) != 2 || saved[0] != `{"refresh_token":"rt-1"} -> {"refresh_token":"rt-2"}` {
+	if strings.Join(seen, ",") != "rt-1,rt-2" || len(saved) != 2 || saved[0] != `{"id":"0123456789abcdef0123456789abcdef","refresh_token":"rt-1"} -> {"id":"0123456789abcdef0123456789abcdef","refresh_token":"rt-2"}` {
 		t.Fatalf("refreshes %v, saved %v", seen, saved)
 	}
 	// A refresh token Microsoft no longer takes: our sentence, nothing of Microsoft's text, no SMTP session.
-	cfg.Password, cfg.Tokens = secrets.NewValue(`{"refresh_token":"rt-old"}`), NewTokenCache()
+	cfg.Password, cfg.Tokens = secrets.NewValue(`{"id":"0123456789abcdef0123456789abcdef","refresh_token":"rt-old"}`), NewTokenCache()
 	s2, _ := NewEmail(cfg)
 	_, err = s2.Send(context.Background(), sample)
 	var si *SignInError
@@ -208,7 +208,7 @@ func TestGoogleConsentPasteBack(t *testing.T) {
 		return 200, `{"access_token":"ya29.a","expires_in":3599,"refresh_token":"1//0g-refresh","id_token":"` + idToken(map[string]string{"email": "me@gmail.com"}) + `"}`
 	})
 	in, err := g.Finish(context.Background(), clientTo(t, svc.srv.URL), ok)
-	if err != nil || in.Mailbox != "me@gmail.com" || in.Secret.Reveal() != `{"refresh_token":"1//0g-refresh","client_secret":"GOCSPX-secret_1"}` {
+	if g, ok := parseGrant(in.Secret.Reveal(), true); err != nil || in.Mailbox != "me@gmail.com" || !ok || g.RefreshToken != "1//0g-refresh" || g.ClientSecret != "GOCSPX-secret_1" {
 		t.Fatalf("finish: %+v %v", in, err)
 	}
 	// the code was used: Google refuses it again, with our sentence
@@ -222,7 +222,7 @@ func TestGoogleConsentPasteBack(t *testing.T) {
 func TestUserGrantConfig(t *testing.T) {
 	t.Parallel()
 	base := EmailConfig{Host: "smtp.gmail.com", Port: 587, Security: SecurityStartTLS, Provider: "gmail-oauth", Username: "me@gmail.com", ClientID: testGoogleClient,
-		Password: secrets.NewValue(`{"refresh_token":"1//0g","client_secret":"GOCSPX-x"}`), From: "me@gmail.com", To: []string{"it@acme.example"}}
+		Password: secrets.NewValue(`{"id":"0123456789abcdef0123456789abcdef","refresh_token":"1//0g","client_secret":"GOCSPX-x"}`), From: "me@gmail.com", To: []string{"it@acme.example"}}
 	if _, err := NewEmail(base); err != nil {
 		t.Fatal(err)
 	}
@@ -230,14 +230,21 @@ func TestUserGrantConfig(t *testing.T) {
 		mod  func(*EmailConfig)
 		code string
 	}{
-		"elsewhere":            {func(c *EmailConfig) { c.Host = "smtp.acme.example" }, "bad_host"},
-		"not signed in":        {func(c *EmailConfig) { c.Password = secrets.Value{} }, "secret_required"},
-		"no mailbox":           {func(c *EmailConfig) { c.Username = "" }, "bad_username"},
-		"grant without secret": {func(c *EmailConfig) { c.Password = secrets.NewValue(`{"refresh_token":"1//0g"}`) }, "bad_secret"},
-		"grant crlf":           {func(c *EmailConfig) { c.Password = secrets.NewValue(`{"refresh_token":"a\r\nb","client_secret":"x"}`) }, "bad_secret"},
-		"client id":            {func(c *EmailConfig) { c.ClientID = "x.apps.googleusercontent.com" }, "bad_client_id"},
+		"elsewhere":     {func(c *EmailConfig) { c.Host = "smtp.acme.example" }, "bad_host"},
+		"not signed in": {func(c *EmailConfig) { c.Password = secrets.Value{} }, "secret_required"},
+		"no mailbox":    {func(c *EmailConfig) { c.Username = "" }, "bad_username"},
+		"grant without secret": {func(c *EmailConfig) {
+			c.Password = secrets.NewValue(`{"id":"0123456789abcdef0123456789abcdef","refresh_token":"1//0g"}`)
+		}, "bad_secret"},
+		"grant without id": {func(c *EmailConfig) {
+			c.Password = secrets.NewValue(`{"refresh_token":"1//0g","client_secret":"GOCSPX-x"}`)
+		}, "bad_secret"},
+		"grant crlf": {func(c *EmailConfig) {
+			c.Password = secrets.NewValue(`{"id":"0123456789abcdef0123456789abcdef","refresh_token":"a\r\nb","client_secret":"x"}`)
+		}, "bad_secret"},
+		"client id": {func(c *EmailConfig) { c.ClientID = "x.apps.googleusercontent.com" }, "bad_client_id"},
 		"outlook elsewhere": {func(c *EmailConfig) {
-			c.Provider, c.Host, c.TenantID, c.ClientID, c.Password = "outlook", "smtp.office365.com", "consumers", testClient, secrets.NewValue(`{"refresh_token":"m"}`)
+			c.Provider, c.Host, c.TenantID, c.ClientID, c.Password = "outlook", "smtp.office365.com", "consumers", testClient, secrets.NewValue(`{"id":"0123456789abcdef0123456789abcdef","refresh_token":"m"}`)
 		}, "bad_host"},
 	} {
 		cfg := base
@@ -247,7 +254,7 @@ func TestUserGrantConfig(t *testing.T) {
 		}
 	}
 	ol := base
-	ol.Provider, ol.Host, ol.TenantID, ol.ClientID, ol.Password = "outlook", "smtp-mail.outlook.com", "consumers", testClient, secrets.NewValue(`{"refresh_token":"m"}`)
+	ol.Provider, ol.Host, ol.TenantID, ol.ClientID, ol.Password = "outlook", "smtp-mail.outlook.com", "consumers", testClient, secrets.NewValue(`{"id":"0123456789abcdef0123456789abcdef","refresh_token":"m"}`)
 	if _, err := NewEmail(ol); err != nil {
 		t.Fatalf("outlook: %v", err)
 	}

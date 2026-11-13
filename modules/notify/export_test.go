@@ -43,6 +43,24 @@ func (s *Service) RotateEmailSecretForTest(old, next string) {
 	s.rotations.Wait()
 }
 
+// CacheEmailSenderForTest builds the cached sender of the saved email channel, as a send would.
+func (s *Service) CacheEmailSenderForTest(ctx context.Context) error {
+	c, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.Email)
+	if err != nil {
+		return err
+	}
+	_, err = s.savedSender(ctx, c, nil)
+	return err
+}
+
+// EmailSenderCachedForTest says whether a cached email sender exists.
+func (s *Service) EmailSenderCachedForTest() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.senders[channel.Email]
+	return ok
+}
+
 // EmailSecretForTest opens the saved secret of the email channel.
 func (s *Service) EmailSecretForTest(ctx context.Context) string {
 	c, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.Email)

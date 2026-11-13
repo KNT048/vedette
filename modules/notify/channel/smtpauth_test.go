@@ -537,3 +537,29 @@ func TestSMTPTokenCacheIsSharedAndSingleFlight(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+// A fetch that started before Clear (the channel was saved meanwhile) does not cache the token it gets.
+func TestTokenCacheClearDuringAFetch(t *testing.T) {
+	t.Parallel()
+	c := NewTokenCache()
+	var k [32]byte
+	now := time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)
+	fetches := 0
+	fetch := func(clear bool) func() (secrets.Value, time.Duration, error) {
+		return func() (secrets.Value, time.Duration, error) {
+			fetches++
+			if clear {
+				c.Clear()
+			}
+			return secrets.NewValue("tok"), time.Hour, nil
+		}
+	}
+	for _, clear := range []bool{true, false, false} {
+		if _, err := c.once(context.Background(), k, now, fetch(clear)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if fetches != 2 {
+		t.Fatalf("fetches = %d, want 2: the token fetched across a Clear is not kept, the next one is", fetches)
+	}
+}

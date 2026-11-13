@@ -517,6 +517,7 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 	}
 	var out Channel
 	ob := &events.Outbox{}
+	var releaseSignin func() // a sign-in this save took (D-480): given back if the save fails
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		cur, err := loadChannel(ctx, tx, t)
 		if err != nil {
@@ -539,9 +540,11 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 				return err
 			}
 			if in.Signin != "" { // D-480: the refresh token of a finished sign-in, never seen by the browser
-				if secret, err = s.takeSignin(actor, in.Signin, fields); err != nil {
+				var release func()
+				if secret, release, err = s.takeSignin(actor, in.Signin, fields); err != nil {
 					return err
 				}
+				releaseSignin = release
 			}
 			rebind = secret == "" && cur.SecretID != "" && cur.savedFor() != emailBinding(fields)
 		}
@@ -678,6 +681,9 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		return nil
 	})
 	if err != nil {
+		if releaseSignin != nil {
+			releaseSignin()
+		}
 		return Channel{}, err
 	}
 	s.forget(t)

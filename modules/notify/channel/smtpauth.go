@@ -171,6 +171,7 @@ type TokenCache struct {
 	mu      sync.Mutex
 	m       map[[32]byte]cachedToken
 	flights map[[32]byte]*tokenFlight // fetches under way: one per key, the other senders wait for it
+	gen     uint64                    // Clear counts up: a fetch started before a Clear does not cache what it gets
 }
 
 type tokenFlight struct {
@@ -195,13 +196,14 @@ func NewTokenCache() *TokenCache {
 func (c *TokenCache) Clear() {
 	c.mu.Lock()
 	clear(c.m)
+	c.gen++
 	c.mu.Unlock()
 }
 
-// once returns the cached token of key k, or waits for the fetch of k under way, or runs fetch (which caches what it gets) while the
-// others wait: one request per key at a time. The cache is read under the same lock that starts a fetch, so a sender that comes after
+// once returns the cached token of key k, or waits for the fetch of k under way, or runs fetch while the others wait: one request per
+// key at a time. What fetch gets is cached until tokenSkew before it expires, unless the cache was cleared meanwhile. The cache is read under the same lock that starts a fetch, so a sender that comes after
 // a fetch ended finds its token. A waiter stops at its own ctx; the fetch runs under the context of the sender that started it.
-func (c *TokenCache) once(ctx context.Context, k [32]byte, now time.Time, fetch func() (secrets.Value, error)) (secrets.Value, error) {
+func (c *TokenCache) once(ctx context.Context, k [32]byte, now time.Time, fetch func() (secrets.Value, time.Duration, error)) (secrets.Value, error) {
 	c.mu.Lock()
 	if t, ok := c.m[k]; ok && now.Before(t.until) {
 		c.mu.Unlock()
@@ -218,25 +220,21 @@ func (c *TokenCache) once(ctx context.Context, k [32]byte, now time.Time, fetch 
 	}
 	f := &tokenFlight{done: make(chan struct{})}
 	c.flights[k] = f
+	gen := c.gen
 	c.mu.Unlock()
-	f.tok, f.err = fetch()
+	var life time.Duration
+	f.tok, life, f.err = fetch()
 	c.mu.Lock()
 	delete(c.flights, k)
+	if f.err == nil && gen == c.gen && life > tokenSkew { // a token that lives less than the skew is used once and not kept
+		if len(c.m) >= maxCachedTokens { // ponytail: 16 entries, then start over; one box has one email channel
+			clear(c.m)
+		}
+		c.m[k] = cachedToken{token: f.tok, until: now.Add(life - tokenSkew)}
+	}
 	c.mu.Unlock()
 	close(f.done)
 	return f.tok, f.err
-}
-
-func (c *TokenCache) put(k [32]byte, tok secrets.Value, until, now time.Time) {
-	if !now.Before(until) {
-		return
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if len(c.m) >= maxCachedTokens { // ponytail: 16 entries, then start over; one box has one email channel
-		clear(c.m)
-	}
-	c.m[k] = cachedToken{token: tok, until: until}
 }
 
 func (c *TokenCache) drop(k [32]byte) {
@@ -263,13 +261,13 @@ func (e *emailSender) tokenKey() [32]byte {
 func (e *emailSender) token(ctx context.Context) (secrets.Value, [32]byte, error) {
 	k := e.tokenKey()
 	now := e.cfg.Now()
-	t, err := e.tokens.once(ctx, k, now, func() (secrets.Value, error) { return e.fetchToken(ctx, k, now) })
+	t, err := e.tokens.once(ctx, k, now, func() (secrets.Value, time.Duration, error) { return e.fetchToken(ctx, now) })
 	return t, k, err
 }
 
-// fetchToken asks the token service for a new token and caches it. A user sign-in (D-480) refreshes its grant; a rotated refresh
-// token is kept (rotate).
-func (e *emailSender) fetchToken(ctx context.Context, k [32]byte, now time.Time) (secrets.Value, error) {
+// fetchToken asks the token service for a new token and says how long it lives. A user sign-in (D-480) refreshes its grant; a
+// rotated refresh token is kept (rotate).
+func (e *emailSender) fetchToken(ctx context.Context, now time.Time) (secrets.Value, time.Duration, error) {
 	var form url.Values
 	var endpoint, who string
 	switch e.auth {
@@ -280,7 +278,7 @@ func (e *emailSender) fetchToken(ctx context.Context, k [32]byte, now time.Time)
 		endpoint, who = googleTokenURL, "Google"
 		jwt, err := googleAssertion(e.gkey, e.cfg.Username, now)
 		if err != nil {
-			return secrets.Value{}, fmt.Errorf("notify: email: sign the token request: %w", err)
+			return secrets.Value{}, 0, fmt.Errorf("notify: email: sign the token request: %w", err)
 		}
 		form = url.Values{"grant_type": {"urn:ietf:params:oauth:grant-type:jwt-bearer"}, "assertion": {jwt}}
 	case AuthMicrosoftUser:
@@ -294,22 +292,18 @@ func (e *emailSender) fetchToken(ctx context.Context, k [32]byte, now time.Time)
 	ans, err := postToken(ctx, e.client, endpoint, form, who)
 	var tr *tokenRefused
 	if errors.As(err, &tr) {
-		return secrets.Value{}, &SignInError{Msg: e.tokenRefusal(tr.code, tr.status)}
+		return secrets.Value{}, 0, &SignInError{Msg: e.tokenRefusal(tr.code, tr.status)}
 	}
 	if err != nil {
-		return secrets.Value{}, err
+		return secrets.Value{}, 0, err
 	}
 	if ans.AccessToken == "" {
-		return secrets.Value{}, &SignInError{Msg: who + "'s sign-in service sent an answer Vedette cannot read."}
+		return secrets.Value{}, 0, &SignInError{Msg: who + "'s sign-in service sent an answer Vedette cannot read."}
 	}
 	if ans.RefreshToken != "" && e.user() {
 		e.rotate(ctx, ans.RefreshToken)
 	}
-	tok := secrets.NewValue(ans.AccessToken)
-	if d := ans.life(); d > tokenSkew {
-		e.tokens.put(k, tok, now.Add(d-tokenSkew), now) // a token that lives less than the skew is used once and not kept
-	}
-	return tok, nil
+	return secrets.NewValue(ans.AccessToken), ans.life(), nil
 }
 
 // tokenAnswer is what Vedette reads of a token or device-code answer (RFC 6749 5.1 and 5.2, RFC 8628 3.2); everything is checked

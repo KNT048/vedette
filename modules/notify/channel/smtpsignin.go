@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -42,15 +43,27 @@ var (
 	userCodeRE     = regexp.MustCompile(`^[A-Za-z0-9-]{4,20}$`)
 	authCodeRE     = regexp.MustCompile(`^[\x21-\x7e]+$`) // with a length check: Go's regexp repeats at most 1000 times
 	stateRE        = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
+	grantIDRE      = regexp.MustCompile(`^[0-9a-f]{32}$`)
 	// verificationHosts are the pages Microsoft sends people to for a device code; another host is replaced by microsoftDeviceLogin.
 	verificationHosts = map[string]bool{"microsoft.com": true, "www.microsoft.com": true, "login.microsoftonline.com": true, "login.live.com": true}
 )
 
-// userGrant is the channel secret of a user sign-in, JSON: the refresh token and, for Google, the client secret of the customer's
-// Desktop client (Google calls it not confidential, but it stays in core/secrets all the same).
+// userGrant is the channel secret of a user sign-in, JSON: a random id of that sign-in, the refresh token and, for Google, the client
+// secret of the customer's Desktop client (Google calls it not confidential, but it stays in core/secrets all the same). The id stays
+// through rotations: the saved grant is the same sign-in as a sender's as long as the ids match, whichever refresh token each holds.
 type userGrant struct {
+	ID           string `json:"id"`
 	RefreshToken string `json:"refresh_token"`
 	ClientSecret string `json:"client_secret,omitempty"`
+}
+
+// GrantID is the sign-in id of a user grant (the channel secret of a D-480 preset); "" when secret is not one.
+func GrantID(secret string) string {
+	var g userGrant
+	if json.Unmarshal([]byte(secret), &g) != nil || !grantIDRE.MatchString(g.ID) {
+		return ""
+	}
+	return g.ID
 }
 
 func (g userGrant) secret() secrets.Value {
@@ -60,7 +73,7 @@ func (g userGrant) secret() secrets.Value {
 
 func parseGrant(raw string, google bool) (userGrant, bool) {
 	var g userGrant
-	if len(raw) > maxKeyFile || json.Unmarshal([]byte(raw), &g) != nil || len(g.RefreshToken) > maxAccess || !accessRE.MatchString(g.RefreshToken) {
+	if len(raw) > maxKeyFile || json.Unmarshal([]byte(raw), &g) != nil || len(g.RefreshToken) > maxAccess || !accessRE.MatchString(g.RefreshToken) || !grantIDRE.MatchString(g.ID) {
 		return userGrant{}, false
 	}
 	if google != (g.ClientSecret != "") || (google && (len(g.ClientSecret) > 256 || !accessRE.MatchString(g.ClientSecret))) {
@@ -86,8 +99,9 @@ func (e *emailSender) currentGrant() userGrant {
 	return e.grant
 }
 
-// rotate keeps a new refresh token: in memory at once, and in the saved channel through EmailConfig.SaveSecret. A failed save is
-// not fatal: Microsoft keeps the previous refresh token valid, and the next refresh tries again.
+// rotate keeps a new refresh token: in memory at once, and in the saved channel through EmailConfig.SaveSecret, which writes it when
+// the saved grant is still this sign-in (same id). A failed save is not fatal: Microsoft keeps the previous refresh token valid, and
+// the next rotation writes again.
 func (e *emailSender) rotate(ctx context.Context, refresh string) {
 	e.mu.Lock()
 	old := e.grant
@@ -210,7 +224,11 @@ func finishUser(a tokenAnswer, g userGrant, who string) (string, UserSignIn, err
 	if mailbox == "" {
 		return "", UserSignIn{}, &SignInError{Msg: who + " did not say which mailbox signed in. Sign in again."}
 	}
-	g.RefreshToken = a.RefreshToken
+	var id [16]byte
+	if _, err := rand.Read(id[:]); err != nil {
+		return "", UserSignIn{}, fmt.Errorf("notify: email: random: %w", err)
+	}
+	g.ID, g.RefreshToken = hex.EncodeToString(id[:]), a.RefreshToken
 	return SigninSignedIn, UserSignIn{Mailbox: mailbox, Secret: g.secret()}, nil
 }
 

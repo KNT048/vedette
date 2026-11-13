@@ -42603,6 +42603,63 @@
                               ],
                               "additionalProperties": false
                             }
+                          },
+                          "not_sent": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "reason": {
+                                    "type": "string",
+                                    "enum": [
+                                      "queued",
+                                      "quiet_hours",
+                                      "no_channel",
+                                      "channels_off",
+                                      "channel_off",
+                                      "channel_removed",
+                                      "below_min_severity",
+                                      "failed",
+                                      "dropped_stale",
+                                      "first_run_summary",
+                                      "unknown"
+                                    ],
+                                    "description": "Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours still go out by themselves; unknown = opened before the reason was kept and today's channels would take it"
+                                  },
+                                  "text": {
+                                    "type": "string",
+                                    "description": "One plain sentence for the customer, e.g. \"Not sent: this incident is medium, and your channels only send high and above.\""
+                                  },
+                                  "channel": {
+                                    "description": "The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while the message waited (channel_off, channel_removed), or the one with the lowest minimum (below_min_severity)",
+                                    "type": "string",
+                                    "enum": [
+                                      "telegram",
+                                      "slack",
+                                      "zalo",
+                                      "zalo-personal",
+                                      "email",
+                                      "webhook"
+                                    ]
+                                  },
+                                  "until": {
+                                    "description": "quiet_hours: when the held message goes out",
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  }
+                                },
+                                "required": [
+                                  "reason",
+                                  "text"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Why no channel received it; null when any attempt delivered it (a later failed Resend does not undo that)"
                           }
                         },
                         "required": [
@@ -42622,7 +42679,8 @@
                           "handled_by",
                           "handled_at",
                           "note",
-                          "sends"
+                          "sends",
+                          "not_sent"
                         ],
                         "additionalProperties": false
                       }
@@ -42837,6 +42895,63 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "not_sent": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "reason": {
+                                  "type": "string",
+                                  "enum": [
+                                    "queued",
+                                    "quiet_hours",
+                                    "no_channel",
+                                    "channels_off",
+                                    "channel_off",
+                                    "channel_removed",
+                                    "below_min_severity",
+                                    "failed",
+                                    "dropped_stale",
+                                    "first_run_summary",
+                                    "unknown"
+                                  ],
+                                  "description": "Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours still go out by themselves; unknown = opened before the reason was kept and today's channels would take it"
+                                },
+                                "text": {
+                                  "type": "string",
+                                  "description": "One plain sentence for the customer, e.g. \"Not sent: this incident is medium, and your channels only send high and above.\""
+                                },
+                                "channel": {
+                                  "description": "The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while the message waited (channel_off, channel_removed), or the one with the lowest minimum (below_min_severity)",
+                                  "type": "string",
+                                  "enum": [
+                                    "telegram",
+                                    "slack",
+                                    "zalo",
+                                    "zalo-personal",
+                                    "email",
+                                    "webhook"
+                                  ]
+                                },
+                                "until": {
+                                  "description": "quiet_hours: when the held message goes out",
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                }
+                              },
+                              "required": [
+                                "reason",
+                                "text"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Why no channel received it; null when any attempt delivered it (a later failed Resend does not undo that)"
                         }
                       },
                       "required": [
@@ -42856,7 +42971,8 @@
                         "handled_by",
                         "handled_at",
                         "note",
-                        "sends"
+                        "sends",
+                        "not_sent"
                       ],
                       "additionalProperties": false
                     },
@@ -43127,6 +43243,63 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "not_sent": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "reason": {
+                                  "type": "string",
+                                  "enum": [
+                                    "queued",
+                                    "quiet_hours",
+                                    "no_channel",
+                                    "channels_off",
+                                    "channel_off",
+                                    "channel_removed",
+                                    "below_min_severity",
+                                    "failed",
+                                    "dropped_stale",
+                                    "first_run_summary",
+                                    "unknown"
+                                  ],
+                                  "description": "Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours still go out by themselves; unknown = opened before the reason was kept and today's channels would take it"
+                                },
+                                "text": {
+                                  "type": "string",
+                                  "description": "One plain sentence for the customer, e.g. \"Not sent: this incident is medium, and your channels only send high and above.\""
+                                },
+                                "channel": {
+                                  "description": "The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while the message waited (channel_off, channel_removed), or the one with the lowest minimum (below_min_severity)",
+                                  "type": "string",
+                                  "enum": [
+                                    "telegram",
+                                    "slack",
+                                    "zalo",
+                                    "zalo-personal",
+                                    "email",
+                                    "webhook"
+                                  ]
+                                },
+                                "until": {
+                                  "description": "quiet_hours: when the held message goes out",
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                }
+                              },
+                              "required": [
+                                "reason",
+                                "text"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Why no channel received it; null when any attempt delivered it (a later failed Resend does not undo that)"
                         }
                       },
                       "required": [
@@ -43146,7 +43319,8 @@
                         "handled_by",
                         "handled_at",
                         "note",
-                        "sends"
+                        "sends",
+                        "not_sent"
                       ],
                       "additionalProperties": false
                     },
@@ -43184,6 +43358,105 @@
                   "required": [
                     "incident",
                     "previews"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notify/incidents/status": {
+      "post": {
+        "operationId": "notify_post_notify_incidents_status",
+        "summary": "Acknowledge or resolve up to 500 incidents with one note; one audit row per changed incident, all or nothing; resolved incidents keep their state, acknowledging an acknowledged one changes nothing",
+        "tags": [
+          "notify"
+        ],
+        "x-stories": [
+          "S-ALERT-3"
+        ],
+        "x-min-role": "operator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "minItems": 1,
+                    "maxItems": 500,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 96
+                    }
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "acknowledged",
+                      "resolved"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "ids",
+                  "status"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "updated": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Incidents changed"
+                    },
+                    "already_resolved": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Resolved incidents, left as they were"
+                    },
+                    "already_acknowledged": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Acknowledge only: incidents already acknowledged, left as they were"
+                    }
+                  },
+                  "required": [
+                    "updated",
+                    "already_resolved",
+                    "already_acknowledged"
                   ],
                   "additionalProperties": false
                 }

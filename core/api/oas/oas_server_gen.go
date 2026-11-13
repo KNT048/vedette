@@ -1531,6 +1531,13 @@ type Handler interface {
 	//
 	// POST /notify/history/{id}/resend
 	NotifyPostNotifyHistoryIDResend(ctx context.Context, params NotifyPostNotifyHistoryIDResendParams) (*NotifyPostNotifyHistoryIDResendOK, error)
+	// NotifyPostNotifyIncidentsStatus implements notify_post_notify_incidents_status operation.
+	//
+	// Acknowledge or resolve up to 500 incidents with one note; one audit row per changed incident, all or
+	// nothing; resolved incidents keep their state, acknowledging an acknowledged one changes nothing.
+	//
+	// POST /notify/incidents/status
+	NotifyPostNotifyIncidentsStatus(ctx context.Context, req *NotifyPostNotifyIncidentsStatusReq) (*NotifyPostNotifyIncidentsStatusOK, error)
 	// NotifyPostNotifyTelegramApproversUserIDCode implements notify_post_notify_telegram_approvers_user_id_code operation.
 	//
 	// Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately

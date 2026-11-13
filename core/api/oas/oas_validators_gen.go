@@ -548,24 +548,6 @@ func (s *AiGetAiAsksOKItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.Downgraded.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "downgraded",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if s.Hooks == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -658,66 +640,6 @@ func (s *AiGetAiAsksOKItemsItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s *AiGetAiAsksOKItemsItemDowngraded) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.From.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "from",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.To.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "to",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s AiGetAiAsksOKItemsItemDowngradedFrom) Validate() error {
-	switch s {
-	case "min":
-		return nil
-	case "med":
-		return nil
-	case "max":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s AiGetAiAsksOKItemsItemDowngradedTo) Validate() error {
-	switch s {
-	case "min":
-		return nil
-	case "med":
-		return nil
-	case "max":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *AiGetAiAsksOKItemsItemHooksItem) Validate() error {
@@ -2976,24 +2898,6 @@ func (s *AiPostAiAskOK) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.Downgraded.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "downgraded",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if s.Hooks == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -3086,66 +2990,6 @@ func (s *AiPostAiAskOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
-}
-
-func (s *AiPostAiAskOKDowngraded) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.From.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "from",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.To.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "to",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s AiPostAiAskOKDowngradedFrom) Validate() error {
-	switch s {
-	case "min":
-		return nil
-	case "med":
-		return nil
-	case "max":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s AiPostAiAskOKDowngradedTo) Validate() error {
-	switch s {
-	case "min":
-		return nil
-	case "med":
-		return nil
-	case "max":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
 }
 
 func (s *AiPostAiAskOKHooksItem) Validate() error {

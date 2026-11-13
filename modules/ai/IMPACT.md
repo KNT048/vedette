@@ -26,7 +26,7 @@
 
 ## Modifying: vòng công cụ của `ask-my-data` (`ask_loop.go`, `ask_tools.go`, lát 5a, INV-22)
 - Thêm một công cụ đọc = thêm bề mặt dữ liệu rời hộp tới nhà cung cấp AI: ghi vào `toolImpl` (đối số schema đóng, trần số hàng/byte, `Cite`), cập nhật PRIVACY.md luồng 3 và `privacy.flow.3.what` trong `web/src/locales/en/core.json` cùng commit; việc thêm `log-investigate` (lát 5b) thêm công cụ log vào đúng danh sách này (`Jobs`).
-- Đổi `Config.Data` (cmd/vedette `aiAsk`) hoặc `Config.Conns` (`core/conn/read`): đổi dữ liệu AI thấy; đổi `ConnReader` = đổi bề mặt INV-14. `RunJob` có thêm `JobSpec.tools`/`AnswerWhenBlocked` và `JobResult.Hits/Blocked/Downgrade` (người gọi khác không bị ảnh hưởng).
+- Đổi `Config.Data` (cmd/vedette `aiAsk`) hoặc `Config.Conns` (`core/conn/read`): đổi dữ liệu AI thấy; đổi `ConnReader` = đổi bề mặt INV-14. `RunJob` có thêm `JobSpec.tools`/`AnswerWhenBlocked` và `JobResult.Hits/Blocked` (người gọi khác không bị ảnh hưởng).
 - GUI: `AskResult` khớp `web/src/features/ai/contract.ts`; đổi hình dạng = đổi cả mock, `api/openapi.json` và `core/api/oas`.
 - Đổi hình dạng kết quả của `search_assets`/`list_findings`/`lookup_cve` hay trần của vòng (D-482): mỗi lượt gửi lại cả hội thoại, nên số token đầu vào của một câu hỏi tăng theo kích thước kết quả nhân số lượt sau nó; chạy `TestAskBetaBoxQuestionStaysInBudget` (≤ 8.000 / ≤ 20.000) và giữ tổng rõ ràng (`matching_*`, `note`) để mô hình không đọc một trang là toàn bộ.
 - `ai_result` kind `ask` do `insertAsk` ghi, giữ 100 dòng; `GET /ai/asks` đọc 10 dòng. Xuất qua chính sách `ai_result` của core (payload là JSON).
@@ -59,7 +59,7 @@
 ### `modules/ai` — định tuyến và đồng hồ
 - `Profile.Validate`, `Profile.Usable`, `Profile.Provider`; `Assignments.Validate(profiles)`, `Assignments.Allowed(job, p)` (**điểm duy nhất quyết định INV-3**); `NewRouter(RouterConfig)`, `Router.Candidates(job)`, `Router.Call(ctx, job, req) (CallResult, error)`; `ErrUnavailable` (409 `ai_unavailable`), `ErrCapped` (429 `budget_reached`).
 - Sửa `Allowed` hoặc vòng lặp trong `Call` → có thể gửi dữ liệu nội bộ lên cloud: `TestContract_INV3_InternalOnlyNeverReachesCloud` bắt buộc xanh. Việc mới phải khai `CarriesInternalData()` trong `jobs.go`.
-- `NewMeter`, `Meter.Record/Seed/Tier/Used/ProfileUsed/Exhausted/SetConfig`, `LoadLocation`: ngày tính theo múi giờ của hộp (`core_org.timezone`, mặc định `Asia/Ho_Chi_Minh`); mức bị hạ chỉ kéo dài đến hết ngày địa phương. WP-25 phải `Seed` từ `ai_activity` khi khởi động và ghi `ai_downgrade` + `core_audit` từ `CallResult.Downgrade`.
+- `NewMeter`, `Meter.Record/Seed/Tier/Used/ProfileUsed/Exhausted/SetConfig`, `LoadLocation`: tháng tính theo múi giờ của hộp (`core_org.timezone`, mặc định `Asia/Ho_Chi_Minh`); ngân sách không hạ mức (D-531), nên không còn ghi `ai_downgrade` mới. WP-25 phải `Seed` từ `ai_activity` khi khởi động.
 
 ### `modules/ai` — harness
 - `NewHookRunner(builtinEnabled, custom)`, `HookRunner.Run(ctx, when, text)`, `HookRunner.CheckTool(ctx, access, args)`, `CustomHook.Validate`, `ValidateBuiltinToggle`, `QuestionForStorage`, `HiddenQuestion`. Mọi lỗi từ `Run` nghĩa là **không được gửi tiếp** (văn bản quá 1 MiB hoặc ngữ cảnh hết hạn). Đổi thứ tự (chặn trước che) hoặc thêm hook dựng sẵn → đổi dữ liệu rời hộp (PRIVACY luồng 3). Cú pháp regex của hook tuỳ chỉnh là RE2 (câu hỏi mở 5 đã chốt).

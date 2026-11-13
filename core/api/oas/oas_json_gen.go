@@ -1454,10 +1454,6 @@ func (s *AiGetAiAsksOKItemsItem) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
-		e.FieldStart("downgraded")
-		s.Downgraded.Encode(e)
-	}
-	{
 		e.FieldStart("hooks")
 		e.ArrStart()
 		for _, elem := range s.Hooks {
@@ -1503,20 +1499,19 @@ func (s *AiGetAiAsksOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfAiGetAiAsksOKItemsItem = [13]string{
+var jsonFieldsNameOfAiGetAiAsksOKItemsItem = [12]string{
 	0:  "answer",
 	1:  "asked_at",
 	2:  "citations",
-	3:  "downgraded",
-	4:  "hooks",
-	5:  "id",
-	6:  "memories_suggested",
-	7:  "model",
-	8:  "profile",
-	9:  "question",
-	10: "table",
-	11: "tokens",
-	12: "tool_calls",
+	3:  "hooks",
+	4:  "id",
+	5:  "memories_suggested",
+	6:  "model",
+	7:  "profile",
+	8:  "question",
+	9:  "table",
+	10: "tokens",
+	11: "tool_calls",
 }
 
 // Decode decodes AiGetAiAsksOKItemsItem from json.
@@ -1578,18 +1573,8 @@ func (s *AiGetAiAsksOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"citations\"")
 			}
-		case "downgraded":
-			requiredBitSet[0] |= 1 << 3
-			if err := func() error {
-				if err := s.Downgraded.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"downgraded\"")
-			}
 		case "hooks":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Hooks = make([]AiGetAiAsksOKItemsItemHooksItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -1607,7 +1592,7 @@ func (s *AiGetAiAsksOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"hooks\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -1619,7 +1604,7 @@ func (s *AiGetAiAsksOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "memories_suggested":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.MemoriesSuggested = int(v)
@@ -1631,7 +1616,7 @@ func (s *AiGetAiAsksOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"memories_suggested\"")
 			}
 		case "model":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Model = string(v)
@@ -1643,7 +1628,7 @@ func (s *AiGetAiAsksOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "profile":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Profile = string(v)
@@ -1655,7 +1640,7 @@ func (s *AiGetAiAsksOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"profile\"")
 			}
 		case "question":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Question = string(v)
@@ -1667,7 +1652,7 @@ func (s *AiGetAiAsksOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"question\"")
 			}
 		case "table":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Table.Decode(d); err != nil {
 					return err
@@ -1677,7 +1662,7 @@ func (s *AiGetAiAsksOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"table\"")
 			}
 		case "tokens":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.Tokens.Decode(d); err != nil {
 					return err
@@ -1687,7 +1672,7 @@ func (s *AiGetAiAsksOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tokens\"")
 			}
 		case "tool_calls":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				s.ToolCalls = make([]AiGetAiAsksOKItemsItemToolCallsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -1715,7 +1700,7 @@ func (s *AiGetAiAsksOKItemsItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -1870,199 +1855,6 @@ func (s *AiGetAiAsksOKItemsItemCitationsItem) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *AiGetAiAsksOKItemsItemCitationsItem) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *AiGetAiAsksOKItemsItemDowngraded) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *AiGetAiAsksOKItemsItemDowngraded) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("from")
-		s.From.Encode(e)
-	}
-	{
-		e.FieldStart("to")
-		s.To.Encode(e)
-	}
-}
-
-var jsonFieldsNameOfAiGetAiAsksOKItemsItemDowngraded = [2]string{
-	0: "from",
-	1: "to",
-}
-
-// Decode decodes AiGetAiAsksOKItemsItemDowngraded from json.
-func (s *AiGetAiAsksOKItemsItemDowngraded) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode AiGetAiAsksOKItemsItemDowngraded to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "from":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				if err := s.From.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"from\"")
-			}
-		case "to":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				if err := s.To.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"to\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode AiGetAiAsksOKItemsItemDowngraded")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00000011,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfAiGetAiAsksOKItemsItemDowngraded) {
-					name = jsonFieldsNameOfAiGetAiAsksOKItemsItemDowngraded[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *AiGetAiAsksOKItemsItemDowngraded) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *AiGetAiAsksOKItemsItemDowngraded) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes AiGetAiAsksOKItemsItemDowngradedFrom as json.
-func (s AiGetAiAsksOKItemsItemDowngradedFrom) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes AiGetAiAsksOKItemsItemDowngradedFrom from json.
-func (s *AiGetAiAsksOKItemsItemDowngradedFrom) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode AiGetAiAsksOKItemsItemDowngradedFrom to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch AiGetAiAsksOKItemsItemDowngradedFrom(v) {
-	case AiGetAiAsksOKItemsItemDowngradedFromMin:
-		*s = AiGetAiAsksOKItemsItemDowngradedFromMin
-	case AiGetAiAsksOKItemsItemDowngradedFromMed:
-		*s = AiGetAiAsksOKItemsItemDowngradedFromMed
-	case AiGetAiAsksOKItemsItemDowngradedFromMax:
-		*s = AiGetAiAsksOKItemsItemDowngradedFromMax
-	default:
-		*s = AiGetAiAsksOKItemsItemDowngradedFrom(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s AiGetAiAsksOKItemsItemDowngradedFrom) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *AiGetAiAsksOKItemsItemDowngradedFrom) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes AiGetAiAsksOKItemsItemDowngradedTo as json.
-func (s AiGetAiAsksOKItemsItemDowngradedTo) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes AiGetAiAsksOKItemsItemDowngradedTo from json.
-func (s *AiGetAiAsksOKItemsItemDowngradedTo) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode AiGetAiAsksOKItemsItemDowngradedTo to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch AiGetAiAsksOKItemsItemDowngradedTo(v) {
-	case AiGetAiAsksOKItemsItemDowngradedToMin:
-		*s = AiGetAiAsksOKItemsItemDowngradedToMin
-	case AiGetAiAsksOKItemsItemDowngradedToMed:
-		*s = AiGetAiAsksOKItemsItemDowngradedToMed
-	case AiGetAiAsksOKItemsItemDowngradedToMax:
-		*s = AiGetAiAsksOKItemsItemDowngradedToMax
-	default:
-		*s = AiGetAiAsksOKItemsItemDowngradedTo(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s AiGetAiAsksOKItemsItemDowngradedTo) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *AiGetAiAsksOKItemsItemDowngradedTo) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -10541,10 +10333,6 @@ func (s *AiPostAiAskOK) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
-		e.FieldStart("downgraded")
-		s.Downgraded.Encode(e)
-	}
-	{
 		e.FieldStart("hooks")
 		e.ArrStart()
 		for _, elem := range s.Hooks {
@@ -10590,20 +10378,19 @@ func (s *AiPostAiAskOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfAiPostAiAskOK = [13]string{
+var jsonFieldsNameOfAiPostAiAskOK = [12]string{
 	0:  "answer",
 	1:  "asked_at",
 	2:  "citations",
-	3:  "downgraded",
-	4:  "hooks",
-	5:  "id",
-	6:  "memories_suggested",
-	7:  "model",
-	8:  "profile",
-	9:  "question",
-	10: "table",
-	11: "tokens",
-	12: "tool_calls",
+	3:  "hooks",
+	4:  "id",
+	5:  "memories_suggested",
+	6:  "model",
+	7:  "profile",
+	8:  "question",
+	9:  "table",
+	10: "tokens",
+	11: "tool_calls",
 }
 
 // Decode decodes AiPostAiAskOK from json.
@@ -10665,18 +10452,8 @@ func (s *AiPostAiAskOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"citations\"")
 			}
-		case "downgraded":
-			requiredBitSet[0] |= 1 << 3
-			if err := func() error {
-				if err := s.Downgraded.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"downgraded\"")
-			}
 		case "hooks":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Hooks = make([]AiPostAiAskOKHooksItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -10694,7 +10471,7 @@ func (s *AiPostAiAskOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"hooks\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -10706,7 +10483,7 @@ func (s *AiPostAiAskOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "memories_suggested":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.MemoriesSuggested = int(v)
@@ -10718,7 +10495,7 @@ func (s *AiPostAiAskOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"memories_suggested\"")
 			}
 		case "model":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Model = string(v)
@@ -10730,7 +10507,7 @@ func (s *AiPostAiAskOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "profile":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Profile = string(v)
@@ -10742,7 +10519,7 @@ func (s *AiPostAiAskOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"profile\"")
 			}
 		case "question":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Question = string(v)
@@ -10754,7 +10531,7 @@ func (s *AiPostAiAskOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"question\"")
 			}
 		case "table":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Table.Decode(d); err != nil {
 					return err
@@ -10764,7 +10541,7 @@ func (s *AiPostAiAskOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"table\"")
 			}
 		case "tokens":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.Tokens.Decode(d); err != nil {
 					return err
@@ -10774,7 +10551,7 @@ func (s *AiPostAiAskOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tokens\"")
 			}
 		case "tool_calls":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				s.ToolCalls = make([]AiPostAiAskOKToolCallsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -10802,7 +10579,7 @@ func (s *AiPostAiAskOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -10957,199 +10734,6 @@ func (s *AiPostAiAskOKCitationsItem) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *AiPostAiAskOKCitationsItem) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *AiPostAiAskOKDowngraded) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *AiPostAiAskOKDowngraded) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("from")
-		s.From.Encode(e)
-	}
-	{
-		e.FieldStart("to")
-		s.To.Encode(e)
-	}
-}
-
-var jsonFieldsNameOfAiPostAiAskOKDowngraded = [2]string{
-	0: "from",
-	1: "to",
-}
-
-// Decode decodes AiPostAiAskOKDowngraded from json.
-func (s *AiPostAiAskOKDowngraded) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode AiPostAiAskOKDowngraded to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "from":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				if err := s.From.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"from\"")
-			}
-		case "to":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				if err := s.To.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"to\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode AiPostAiAskOKDowngraded")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00000011,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfAiPostAiAskOKDowngraded) {
-					name = jsonFieldsNameOfAiPostAiAskOKDowngraded[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *AiPostAiAskOKDowngraded) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *AiPostAiAskOKDowngraded) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes AiPostAiAskOKDowngradedFrom as json.
-func (s AiPostAiAskOKDowngradedFrom) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes AiPostAiAskOKDowngradedFrom from json.
-func (s *AiPostAiAskOKDowngradedFrom) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode AiPostAiAskOKDowngradedFrom to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch AiPostAiAskOKDowngradedFrom(v) {
-	case AiPostAiAskOKDowngradedFromMin:
-		*s = AiPostAiAskOKDowngradedFromMin
-	case AiPostAiAskOKDowngradedFromMed:
-		*s = AiPostAiAskOKDowngradedFromMed
-	case AiPostAiAskOKDowngradedFromMax:
-		*s = AiPostAiAskOKDowngradedFromMax
-	default:
-		*s = AiPostAiAskOKDowngradedFrom(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s AiPostAiAskOKDowngradedFrom) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *AiPostAiAskOKDowngradedFrom) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes AiPostAiAskOKDowngradedTo as json.
-func (s AiPostAiAskOKDowngradedTo) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes AiPostAiAskOKDowngradedTo from json.
-func (s *AiPostAiAskOKDowngradedTo) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode AiPostAiAskOKDowngradedTo to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch AiPostAiAskOKDowngradedTo(v) {
-	case AiPostAiAskOKDowngradedToMin:
-		*s = AiPostAiAskOKDowngradedToMin
-	case AiPostAiAskOKDowngradedToMed:
-		*s = AiPostAiAskOKDowngradedToMed
-	case AiPostAiAskOKDowngradedToMax:
-		*s = AiPostAiAskOKDowngradedToMax
-	default:
-		*s = AiPostAiAskOKDowngradedTo(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s AiPostAiAskOKDowngradedTo) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *AiPostAiAskOKDowngradedTo) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -162619,50 +162203,6 @@ func (s *LogsPutLogsSourcesIDReqProto) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes AiGetAiAsksOKItemsItemDowngraded as json.
-func (o NilAiGetAiAsksOKItemsItemDowngraded) Encode(e *jx.Encoder) {
-	if o.Null {
-		e.Null()
-		return
-	}
-	o.Value.Encode(e)
-}
-
-// Decode decodes AiGetAiAsksOKItemsItemDowngraded from json.
-func (o *NilAiGetAiAsksOKItemsItemDowngraded) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode NilAiGetAiAsksOKItemsItemDowngraded to nil")
-	}
-	if d.Next() == jx.Null {
-		if err := d.Null(); err != nil {
-			return err
-		}
-
-		var v AiGetAiAsksOKItemsItemDowngraded
-		o.Value = v
-		o.Null = true
-		return nil
-	}
-	o.Null = false
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NilAiGetAiAsksOKItemsItemDowngraded) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NilAiGetAiAsksOKItemsItemDowngraded) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode encodes AiGetAiAsksOKItemsItemTable as json.
 func (o NilAiGetAiAsksOKItemsItemTable) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -162879,50 +162419,6 @@ func (s NilAiGetAiProfilesOKItemsItemLastTest) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilAiGetAiProfilesOKItemsItemLastTest) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes AiPostAiAskOKDowngraded as json.
-func (o NilAiPostAiAskOKDowngraded) Encode(e *jx.Encoder) {
-	if o.Null {
-		e.Null()
-		return
-	}
-	o.Value.Encode(e)
-}
-
-// Decode decodes AiPostAiAskOKDowngraded from json.
-func (o *NilAiPostAiAskOKDowngraded) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode NilAiPostAiAskOKDowngraded to nil")
-	}
-	if d.Next() == jx.Null {
-		if err := d.Null(); err != nil {
-			return err
-		}
-
-		var v AiPostAiAskOKDowngraded
-		o.Value = v
-		o.Null = true
-		return nil
-	}
-	o.Null = false
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NilAiPostAiAskOKDowngraded) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NilAiPostAiAskOKDowngraded) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

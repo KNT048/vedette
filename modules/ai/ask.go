@@ -108,18 +108,17 @@ func stepHooks(step, tool string, hits []HookHit) []AskHook {
 
 // AskResult is one question and its answer (contract.ts AskResult).
 type AskResult struct {
-	ID         string        `json:"id"`
-	Question   string        `json:"question"`
-	AskedAt    string        `json:"asked_at"`
-	Answer     []string      `json:"answer"`
-	Table      *AskTable     `json:"table"`
-	ToolCalls  []AskToolCall `json:"tool_calls"`
-	Citations  []Citation    `json:"citations"`
-	Model      string        `json:"model"`
-	Profile    string        `json:"profile"`
-	Tokens     askTokens     `json:"tokens"`
-	Downgraded *askDowngrade `json:"downgraded"`
-	Hooks      []AskHook     `json:"hooks"`
+	ID        string        `json:"id"`
+	Question  string        `json:"question"`
+	AskedAt   string        `json:"asked_at"`
+	Answer    []string      `json:"answer"`
+	Table     *AskTable     `json:"table"`
+	ToolCalls []AskToolCall `json:"tool_calls"`
+	Citations []Citation    `json:"citations"`
+	Model     string        `json:"model"`
+	Profile   string        `json:"profile"`
+	Tokens    askTokens     `json:"tokens"`
+	Hooks     []AskHook     `json:"hooks"`
 	// MemoriesSuggested is how many memories the AI suggested with this answer (D-225); 0 when the history is read back.
 	MemoriesSuggested int `json:"memories_suggested"`
 }
@@ -129,20 +128,14 @@ type askTokens struct {
 	Output int `json:"output"`
 }
 
-type askDowngrade struct {
-	From Tier `json:"from"`
-	To   Tier `json:"to"`
-}
-
 // askBody is what is stored in ai_result.payload: the result without what the row columns hold.
 type askBody struct {
-	Question   string        `json:"question"`
-	Answer     []string      `json:"answer"`
-	Table      *AskTable     `json:"table"`
-	ToolCalls  []AskToolCall `json:"tool_calls"`
-	Citations  []Citation    `json:"citations"`
-	Downgraded *askDowngrade `json:"downgraded"`
-	Hooks      []AskHook     `json:"hooks"`
+	Question  string        `json:"question"`
+	Answer    []string      `json:"answer"`
+	Table     *AskTable     `json:"table"`
+	ToolCalls []AskToolCall `json:"tool_calls"`
+	Citations []Citation    `json:"citations"`
+	Hooks     []AskHook     `json:"hooks"`
 }
 
 // Limits of asking.
@@ -308,9 +301,6 @@ func (s *Service) Ask(ctx context.Context, actor, question string) (AskResult, e
 			docs = r.Documents // the documents that went with the question are named first among the sources (D-445)
 			out = AskResult{ID: id, Question: sent, AskedAt: FormatTS(now), Answer: answer, Table: ts.table, ToolCalls: nonNilCalls(ts.calls), Citations: nonNilCites(append(documentsCite(docs), ts.cites...)),
 				Model: r.Model, Profile: r.Profile, Tokens: askTokens{r.TokensIn, r.TokensOut}, Hooks: askHooks(stepHooks(StepQuestion, "", pre.Hits), ts.hits, stepHooks(StepAnswer, "", r.Hits))}
-			if r.Downgrade != nil {
-				out.Downgraded = &askDowngrade{From: r.Downgrade.From, To: r.Downgrade.To}
-			}
 			if ts.leftOut { // the box says so, not the model: an answer from part of the data must not read as complete (D-482)
 				out.Answer = append(out.Answer, askLeftOut)
 			}
@@ -363,7 +353,7 @@ func (s *Service) storeAsk(ctx context.Context, entry ActivityEntry, res AskResu
 
 // insertAsk stores one result and removes the oldest beyond askKeep, in the caller's transaction.
 func insertAsk(ctx context.Context, tx *sql.Tx, r AskResult, actor, activityID string) error {
-	payload, err := json.Marshal(askBody{Question: r.Question, Answer: r.Answer, Table: r.Table, ToolCalls: r.ToolCalls, Citations: r.Citations, Downgraded: r.Downgraded, Hooks: r.Hooks})
+	payload, err := json.Marshal(askBody{Question: r.Question, Answer: r.Answer, Table: r.Table, ToolCalls: r.ToolCalls, Citations: r.Citations, Hooks: r.Hooks})
 	if err != nil {
 		return fmt.Errorf("ai: encode answer: %w", err)
 	}
@@ -400,7 +390,7 @@ func (s *Service) Asks(ctx context.Context) ([]AskResult, error) {
 		if _, err := time.Parse("2006-01-02T15:04:05.000Z", created); err != nil {
 			return nil, fmt.Errorf("ai: stored question time: %w", err)
 		}
-		r.AskedAt, r.Question, r.Answer, r.Table, r.Downgraded = created, b.Question, b.Answer, b.Table, b.Downgraded
+		r.AskedAt, r.Question, r.Answer, r.Table = created, b.Question, b.Answer, b.Table
 		r.ToolCalls, r.Citations, r.Hooks = nonNilCalls(b.ToolCalls), nonNilCites(b.Citations), b.Hooks
 		for i, h := range r.Hooks { // an answer stored before the step was recorded: the step its moment and the answer allow
 			if h.Step == "" {

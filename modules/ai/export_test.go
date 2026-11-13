@@ -59,3 +59,12 @@ func (s *Service) HoldBudget(tokens int) (release func()) {
 	}
 	return r.Cancel
 }
+
+// HoldProfileBudget holds tokens of one profile's own budget as a call in flight would, and returns the function that gives them back.
+func (s *Service) HoldProfileBudget(profileID string, profileCap, tokens int) (release func()) {
+	r, err := s.meter.Reserve(profileID, profileCap, tokens)
+	if err != nil {
+		panic(err)
+	}
+	return r.Cancel
+}

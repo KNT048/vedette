@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 import { PageHeader, Panel, Section } from '@/components/common/PageHeader'
 import { AiBlock } from '@/components/common/AiBlock'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
@@ -56,7 +55,7 @@ function Ask() {
   function run(text: string) {
     if (!text.trim() || text.length > ASK_MAX) return
     setShown(null)
-    ask.mutate(text, { onSuccess: (r) => { if (r.downgraded) toast.warning(t('ask.downgraded', { from: t(`settings.tier.${r.downgraded.from}.name`), to: t(`settings.tier.${r.downgraded.to}.name`) })) } })
+    ask.mutate(text)
   }
 
   if (gate.state === 'off') return <Section title={t('ask.title')}><ModuleOff module="ai" /></Section>

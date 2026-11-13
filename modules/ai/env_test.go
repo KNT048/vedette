@@ -166,6 +166,25 @@ type env struct {
 	data        *fakeData
 	conns       *fakeConns
 	logs        *fakeLogs
+	logBuf      *logBuffer // what the service logged
+}
+
+// logBuffer is the service log of a test, safe for the goroutines that write to it.
+type logBuffer struct {
+	mu sync.Mutex
+	b  strings.Builder
+}
+
+func (l *logBuffer) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.Write(p)
+}
+
+func (l *logBuffer) count(sub string) int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return strings.Count(l.b.String(), sub)
 }
 
 func (e *env) ctx() context.Context { return e.t.Context() }
@@ -184,7 +203,7 @@ func newEnv(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e := &env{t: t, db: db, sec: sec, fake: &fakeProviders{fail: map[string]error{}, tools: true, structd: true}, clock: &clock{t: time.Date(2026, 11, 10, 3, 0, 0, 0, time.UTC)}, facts: newFacts(), pruner: &fakePruner{}, data: newFakeData(), conns: &fakeConns{}, logs: &fakeLogs{on: true}}
+	e := &env{t: t, db: db, sec: sec, fake: &fakeProviders{fail: map[string]error{}, tools: true, structd: true}, clock: &clock{t: time.Date(2026, 11, 10, 3, 0, 0, 0, time.UTC)}, facts: newFacts(), pruner: &fakePruner{}, data: newFakeData(), conns: &fakeConns{}, logs: &fakeLogs{on: true}, logBuf: &logBuffer{}}
 	e.svc = e.newService()
 	return e
 }
@@ -192,7 +211,7 @@ func newEnv(t *testing.T) *env {
 // newService builds a service over the same database, as a restart does.
 func (e *env) newService() *ai.Service {
 	e.t.Helper()
-	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Factory: e.fake.factory, Facts: e.facts, ChainPruner: e.pruner, HookTimeout: e.hookTimeout, Data: e.data, Conns: e.conns, ConnTargets: e.conns.targets, AskTimeout: e.askTimeout, LogDigest: e.logs.read, LogAround: e.logs.readAround})
+	svc, err := ai.New(e.ctx(), ai.Config{DB: e.db, Secrets: e.sec, Audit: audit.New(e.clock.Now), Log: slog.New(slog.NewTextHandler(e.logBuf, nil)), Clock: e.clock.Now, Factory: e.fake.factory, Facts: e.facts, ChainPruner: e.pruner, HookTimeout: e.hookTimeout, Data: e.data, Conns: e.conns, ConnTargets: e.conns.targets, AskTimeout: e.askTimeout, LogDigest: e.logs.read, LogAround: e.logs.readAround})
 	if err != nil {
 		e.t.Fatal(err)
 	}

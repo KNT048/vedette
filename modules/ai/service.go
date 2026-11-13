@@ -193,7 +193,8 @@ type Service struct {
 	news       *newsFetcher           // the box's own fetcher of public pages for CVE news (S-AI-3)
 	fuseMu     sync.Mutex             // guards fuse
 	fuse       map[Job]*fuseWindow    // calls of each job in the current minute (the runaway fuse, D-531)
-	pauseNoted string                 // the month and reason of the last scheduled-job pause logged (fuseMu): one line a month
+	pauseMonth string                 // the month the reasons in pauseNoted belong to (fuseMu)
+	pauseNoted map[string]bool        // the reasons of scheduled-job stops already logged this month (fuseMu): one line a month per reason
 }
 
 // New loads the settings and builds the router and the meter. A saved state that the rules refuse is an error: the service does

@@ -9,6 +9,7 @@ import { connectorsStore } from '@/mocks/connectors'
 import { aiAvailable, aiCandidates, assetsStore, findingsStore, recordAiRun, usersStore } from '@/mocks/stores'
 import { boxAddress } from '@/mocks/network'
 import type { Finding } from '@/lib/types'
+import { scheduledPause } from '@/features/ai/mocks'
 import { aiState, afterReject, metrics, propose, resume } from './ai'
 import { RISK_PHRASE } from './contract'
 import { TRIGGERS } from './data'
@@ -98,7 +99,7 @@ export const handlers = [
     sweep()
     const open = findingsStore.get().filter(openCritical)
     // Draft a plan for each unresolved critical finding that has none yet (needs a usable AI profile for the job).
-    if (aiAvailable('response-plan')) {
+    if (aiAvailable('response-plan') && !scheduledPause()) { // from 80 % of the month's AI budget the scheduled plan job is paused (backend: 429 budget_reached, no row)
       for (const f of open) {
         if (plansStore.get().some((p) => p.finding_id === f.id)) continue
         const p = draft(f); if (!p) continue

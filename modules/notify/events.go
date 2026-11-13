@@ -285,9 +285,11 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 	}
 	name := e.AssetID
 	if s.cfg.Devices != nil {
-		if st, ok, err := s.cfg.Devices.DeviceState(ctx, e.AssetID); err != nil {
+		states, err := s.cfg.Devices.DeviceStates(ctx, []string{e.AssetID})
+		if err != nil {
 			return err
-		} else if ok && st.Name != "" {
+		}
+		if st, ok := states[e.AssetID]; ok && st.Name != "" {
 			name = deviceLabel(st)
 		}
 	}
@@ -327,7 +329,8 @@ const approvedInDevices = "Closed by Vedette: the device was approved in Devices
 // assetUpdated follows a device that changed in Devices (inventory.asset.updated {asset_id}, D-552): a person's Approve publishes it
 // (B9's inventory.asset.approved is not published yet). When the device is on an open new-device incident, the incident takes the
 // name Devices shows now, and an approved device leaves it as INV-22 (1) says (approvedInDevices). An update of a device on no open
-// new-device incident, the usual case, costs one indexed read; a deleted device is INV-20's.
+// new-device incident, the usual case, costs one indexed read and no inventory read; nothing changed means no write. A deleted
+// device is INV-20's.
 func (s *Service) assetUpdated(ctx context.Context, data any) error {
 	var e struct {
 		AssetID string `json:"asset_id"`
@@ -338,18 +341,17 @@ func (s *Service) assetUpdated(ctx context.Context, data any) error {
 	if e.AssetID == "" || s.cfg.Devices == nil {
 		return nil
 	}
-	var open bool
-	if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM notify_incident i WHERE i.dedupe_key IN (?, ?) AND i.status <> 'resolved'
-		AND EXISTS (SELECT 1 FROM notify_incident_device d WHERE d.incident_id = i.id AND d.asset_id = ?))`,
-		newDeviceKey(e.AssetID), newDeviceKey(firstDiscoverySource), e.AssetID).Scan(&open); err != nil {
-		return fmt.Errorf("notify: find the incidents of a device: %w", err)
-	}
-	if !open {
-		return nil
-	}
-	st, ok, err := s.cfg.Devices.DeviceState(ctx, e.AssetID)
-	if err != nil || !ok {
+	rows, err := s.openDeviceRows(ctx, e.AssetID)
+	if err != nil || len(rows) == 0 {
 		return err
+	}
+	states, err := s.cfg.Devices.DeviceStates(ctx, []string{e.AssetID})
+	if err != nil {
+		return err
+	}
+	st, ok := states[e.AssetID]
+	if !ok || !needsFollow(st, rows) {
+		return nil
 	}
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.followDevice(ctx, tx, e.AssetID, st) })
 }
@@ -360,9 +362,72 @@ func newDeviceKey(source string) string {
 	return dedupeKey(IncidentInput{Kind: IncidentUnknownDevice, Source: source})
 }
 
+// openDeviceRow is one device line of an open new-device incident (its own incident, or the first-discovery summary: link /devices).
+type openDeviceRow struct {
+	asset, link, title, name string
+	firstSeen, active        string // active: when the box last saw it or a person reopened it (INV-22)
+}
+
+// openDeviceRows reads the device lines of the open new-device incidents: of one device (through the open dedupe keys of its own
+// incident and of the summary, an indexed read), or of every device when assetID is "", oldest incident first.
+func (s *Service) openDeviceRows(ctx context.Context, assetID string) ([]openDeviceRow, error) {
+	q := `SELECT d.asset_id, i.link, i.title, d.name, i.first_seen, COALESCE(i.active_at, i.last_seen) FROM notify_incident i
+		JOIN notify_incident_device d ON d.incident_id = i.id WHERE i.kind = ? AND i.status <> 'resolved'`
+	args := []any{string(IncidentUnknownDevice)}
+	if assetID != "" {
+		q += ` AND i.dedupe_key IN (?, ?) AND d.asset_id = ?`
+		args = append(args, newDeviceKey(assetID), newDeviceKey(firstDiscoverySource), assetID)
+	}
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, q+` ORDER BY i.first_seen, d.asset_id`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("notify: find the incidents of a device: %w", err)
+	}
+	var out []openDeviceRow
+	for rows.Next() {
+		var r openDeviceRow
+		if err := rows.Scan(&r.asset, &r.link, &r.title, &r.name, &r.firstSeen, &r.active); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("notify: find the incidents of a device: %w", err)
+		}
+		out = append(out, r)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("notify: find the incidents of a device: %w", err)
+	}
+	return out, nil
+}
+
+// reopenedSinceApproval says whether a device's own new-device incident showed life after the device was approved: a person reopened
+// it (active_at), or the device was found again. Vedette then leaves it open: the person took it back (Opus review LOW-2 of D-552).
+// Approved at an unknown time (before D-471), any reopen counts.
+func reopenedSinceApproval(approvedAt time.Time, firstSeen, active string) bool {
+	since := firstSeen
+	if !approvedAt.IsZero() {
+		since = max(since, store.FormatTS(approvedAt))
+	}
+	return active > since
+}
+
+// needsFollow says whether followDevice would change anything for these device lines: a label that differs from the one Devices
+// gives now, or an approved device on an incident Vedette may close. Nothing to change means no write transaction.
+func needsFollow(st DeviceState, rows []openDeviceRow) bool {
+	label := deviceLabel(st)
+	title, _ := newDeviceTexts(label)
+	for _, r := range rows {
+		own := r.link != "/devices"
+		if st.Name != "" && (r.name != label || (own && r.title != title)) {
+			return true
+		}
+		if st.Approved && (!own || !reopenedSinceApproval(st.ApprovedAt, r.firstSeen, r.active)) {
+			return true
+		}
+	}
+	return false
+}
+
 // followDevice brings the open new-device incidents of a device up to date with Devices (D-552): the device's own incident and its
-// entry on the first-discovery summary take its current label, and an approved device leaves them (leaveDevice, INV-22). Nothing is
-// sent; a renamed incident keeps its history.
+// entry on the first-discovery summary take its current label, and an approved device leaves them (leaveDevice, INV-22), except an
+// own incident a person reopened after the approval. Nothing is sent; a renamed incident keeps its history.
 func (s *Service) followDevice(ctx context.Context, tx *sql.Tx, assetID string, st DeviceState) error {
 	if st.Name != "" {
 		label := deviceLabel(st)
@@ -380,7 +445,7 @@ func (s *Service) followDevice(ctx context.Context, tx *sql.Tx, assetID string, 
 	if !st.Approved {
 		return nil
 	}
-	return s.leaveDevice(ctx, tx, assetID, approvedInDevices)
+	return s.leaveDevice(ctx, tx, assetID, approvedInDevices, &st.ApprovedAt)
 }
 
 // assetDeleted takes a device deleted in Devices off the open new-device incidents (W6-3, D-497, INV-20): see leaveDeviceIncidents.
@@ -445,21 +510,22 @@ func (s *Service) leaveDeviceIncidents(ctx context.Context, assetID, reason stri
 	if assetID == "" {
 		return nil
 	}
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.leaveDevice(ctx, tx, assetID, reason) })
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.leaveDevice(ctx, tx, assetID, reason, nil) })
 }
 
-// leaveDevice is leaveDeviceIncidents inside a transaction.
-func (s *Service) leaveDevice(ctx context.Context, tx *sql.Tx, assetID, reason string) error {
-	rows, err := tx.QueryContext(ctx, `SELECT i.id, i.title, i.link FROM notify_incident i JOIN notify_incident_device d ON d.incident_id = i.id
+// leaveDevice is leaveDeviceIncidents inside a transaction. With approvedAt (the device's approval as an update showed it, D-552), the
+// device's own incident stays open when a person reopened it after that approval (reopenedSinceApproval).
+func (s *Service) leaveDevice(ctx context.Context, tx *sql.Tx, assetID, reason string, approvedAt *time.Time) error {
+	rows, err := tx.QueryContext(ctx, `SELECT i.id, i.title, i.link, i.first_seen, COALESCE(i.active_at, i.last_seen) FROM notify_incident i JOIN notify_incident_device d ON d.incident_id = i.id
 		WHERE i.kind = ? AND i.status <> 'resolved' AND d.asset_id = ?`, string(IncidentUnknownDevice), assetID)
 	if err != nil {
 		return fmt.Errorf("notify: find the incidents of a device: %w", err)
 	}
-	type open struct{ id, title, link string }
+	type open struct{ id, title, link, firstSeen, active string }
 	var list []open
 	for rows.Next() {
 		var o open
-		if err := rows.Scan(&o.id, &o.title, &o.link); err != nil {
+		if err := rows.Scan(&o.id, &o.title, &o.link, &o.firstSeen, &o.active); err != nil {
 			_ = rows.Close()
 			return fmt.Errorf("notify: find the incidents of a device: %w", err)
 		}
@@ -470,6 +536,9 @@ func (s *Service) leaveDevice(ctx context.Context, tx *sql.Tx, assetID, reason s
 	}
 	for _, o := range list {
 		if o.link != "/devices" { // the device's own incident: nothing is left to approve
+			if approvedAt != nil && reopenedSinceApproval(*approvedAt, o.firstSeen, o.active) {
+				continue
+			}
 			if err := s.closeBySystem(ctx, tx, o.id, o.title, reason); err != nil {
 				return err
 			}

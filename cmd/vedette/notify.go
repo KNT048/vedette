@@ -76,18 +76,48 @@ func (a notifyDevices) DeviceName(ctx context.Context, assetID string) (string, 
 	return r.Display, true, nil
 }
 
-// DeviceState is notify's view of a device for its unknown_device incidents (D-552, W8-2): the name of the Devices page
-// (inventory.Device.Name, the one naming rule of D-471), else the MAC, else the kind; the IP, else the MAC, as the address; and
-// whether it is approved, which a person's Approve sets (notify closes the device's incident on it). The values come from the
-// network: plainText cleans them.
-func (a notifyDevices) DeviceState(ctx context.Context, assetID string) (notify.DeviceState, bool, error) {
-	d, err := a.inv.Device(ctx, assetID)
-	if errors.Is(err, inventory.ErrNotFound) {
-		return notify.DeviceState{}, false, nil
+// DeviceStates is notify's view of devices for their unknown_device incidents (D-552, W8-2): the name of the Devices page
+// (inventory.Device.Name, the one naming rule of D-471), else the MAC, else the kind; the IP, else the MAC, as the address; whether
+// and when it was approved (notify closes the device's incident on it). The values come from the network: plainText cleans them.
+// One id (notify's handler of inventory.asset.updated, only for a device on an open new-device incident) reads that device; more
+// (the hourly autoclose job) read every device once, never one read per id.
+// ponytail: inventory has no light read that says approved: Device also counts the findings of the whole box
+// (findings.CountByAsset) and AllDevices loads every device's software. Upgrade path: an inventory batch read like DeviceRefs that
+// adds model, origin, approved and approved_at (one query, no findings), used for both (deferred line, Kiên's module).
+func (a notifyDevices) DeviceStates(ctx context.Context, ids []string) (map[string]notify.DeviceState, error) {
+	out := make(map[string]notify.DeviceState, len(ids))
+	switch len(ids) {
+	case 0:
+		return out, nil
+	case 1:
+		d, err := a.inv.Device(ctx, ids[0])
+		if errors.Is(err, inventory.ErrNotFound) {
+			return out, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		out[d.ID] = deviceState(d)
+		return out, nil
 	}
+	want := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		want[id] = true
+	}
+	all, err := a.inv.AllDevices(ctx)
 	if err != nil {
-		return notify.DeviceState{}, false, err
+		return nil, err
 	}
+	for _, d := range all {
+		if want[d.ID] {
+			out[d.ID] = deviceState(d)
+		}
+	}
+	return out, nil
+}
+
+// deviceState is DeviceStates of one device of the inventory.
+func deviceState(d inventory.Device) notify.DeviceState {
 	var mac string
 	if d.MAC != nil {
 		mac = plainText(*d.MAC, 64)
@@ -102,7 +132,10 @@ func (a notifyDevices) DeviceState(ctx context.Context, assetID string) (notify.
 	if st.Name == "" {
 		st.Name = plainText(d.Kind, 64)
 	}
-	return st, true, nil
+	if d.ApprovedAt != nil {
+		st.ApprovedAt, _ = time.Parse(time.RFC3339, *d.ApprovedAt) // unreadable: unknown, as before D-471
+	}
+	return st
 }
 
 // orgZone is notify's Zone: the organization time zone of core's general settings, read at every use so a change

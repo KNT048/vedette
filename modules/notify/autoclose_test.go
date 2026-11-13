@@ -279,8 +279,9 @@ func TestFirstRunSummaryOfResolvedIncidentsIsDropped(t *testing.T) {
 
 // stateDevices is a DeviceDirectory whose devices a test approves and renames.
 type stateDevices struct {
-	mu sync.Mutex
-	m  map[string]notify.DeviceState
+	mu    sync.Mutex
+	m     map[string]notify.DeviceState
+	reads int // DeviceStates calls
 }
 
 func (f *stateDevices) set(id string, st notify.DeviceState) {
@@ -296,11 +297,17 @@ func (f *stateDevices) DeviceName(_ context.Context, id string) (string, bool, e
 	return st.Name, ok, nil
 }
 
-func (f *stateDevices) DeviceState(_ context.Context, id string) (notify.DeviceState, bool, error) {
+func (f *stateDevices) DeviceStates(_ context.Context, ids []string) (map[string]notify.DeviceState, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	st, ok := f.m[id]
-	return st, ok, nil
+	f.reads++
+	out := map[string]notify.DeviceState{}
+	for _, id := range ids {
+		if st, ok := f.m[id]; ok {
+			out[id] = st
+		}
+	}
+	return out, nil
 }
 
 // D-552 (W8-1, W8-2): a person's Approve publishes inventory.asset.updated, not B9's inventory.asset.approved. The update closes the
@@ -378,7 +385,11 @@ func TestAutoCloseClosesNewDeviceIncidentsOfApprovedDevices(t *testing.T) {
 	devs.mu.Lock()
 	delete(devs.m, "gone")
 	devs.mu.Unlock()
+	devs.reads = 0
 	e.autoClose()
+	if devs.reads != 1 {
+		t.Fatalf("inventory reads in one run = %d, want one batch read", devs.reads)
+	}
 	got := map[string]notify.Incident{}
 	l, _ := e.svc.Incidents(e.ctx())
 	for _, i := range l {
@@ -397,5 +408,43 @@ func TestAutoCloseClosesNewDeviceIncidentsOfApprovedDevices(t *testing.T) {
 	e.autoClose() // nothing changed: no second close
 	if n := e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.incident_status'`); n != 1 {
 		t.Fatalf("audit rows = %d, want 1", n)
+	}
+}
+
+// D-552 review LOW-2: a person who reopens the incident of an approved device keeps it open; neither the next update of the device
+// nor the job closes it again. An update of a device on no open incident does not read the inventory.
+func TestReopenedIncidentOfAnApprovedDeviceStaysOpen(t *testing.T) {
+	devs := &stateDevices{m: map[string]notify.DeviceState{"145": {Name: "kiens-macbook-air", Address: "192.168.18.145"}}}
+	e := newEnv(t, func(c *notify.Config) { c.Devices = devs })
+	e.firstRunAt(e.clock.Now().AddDate(0, -1, 0))
+	e.svc.Subscribe(e.bus)
+	publish := func(name string, data any) {
+		t.Helper()
+		if err := e.bus.Publish(e.ctx(), eventOf(name, data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "145", Notify: true})
+	l, _ := e.svc.Incidents(e.ctx())
+	id := l[0].ID
+	e.clock.Add(time.Minute)
+	devs.set("145", notify.DeviceState{Name: "kiens-macbook-air", Address: "192.168.18.145", Approved: true, ApprovedAt: e.clock.Now()})
+	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "145"})
+	if e.detail(id).Status != notify.StatusResolved {
+		t.Fatal("approving did not close the incident")
+	}
+	e.clock.Add(time.Minute)
+	if _, err := e.svc.HandleIncident(e.ctx(), "u-op", id, notify.StatusNew, ""); err != nil {
+		t.Fatal(err)
+	}
+	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "145"})
+	e.autoClose()
+	if i := e.detail(id); i.Status != notify.StatusNew || i.ResolvedReason != nil {
+		t.Fatalf("reopened incident = %+v", i)
+	}
+	devs.reads = 0
+	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "other"})
+	if devs.reads != 0 {
+		t.Fatalf("inventory reads for a device on no open incident = %d", devs.reads)
 	}
 }

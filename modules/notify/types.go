@@ -314,16 +314,17 @@ type FindingDirectory interface {
 // DeviceDirectory names a device by inventory id. Without one, device events show the id.
 type DeviceDirectory interface {
 	DeviceName(ctx context.Context, assetID string) (string, bool, error)
-	// DeviceState is the device as the Devices page shows it now, for its unknown_device incidents (D-552); ok is false when
-	// the inventory does not have it.
-	DeviceState(ctx context.Context, assetID string) (st DeviceState, ok bool, err error)
+	// DeviceStates is the devices as the Devices page shows them now, for their unknown_device incidents (D-552); a device the
+	// inventory does not have is absent from the map.
+	DeviceStates(ctx context.Context, assetIDs []string) (map[string]DeviceState, error)
 }
 
 // DeviceState is a device as the Devices page shows it now (D-552).
 type DeviceState struct {
-	Name     string // inventory's one naming rule (D-471), else the MAC, else the kind; plain text, at most 160 characters
-	Address  string // the IP, else the MAC; "" when neither is known
-	Approved bool   // a person (or an osquery enrolment) approved it
+	Name       string    // inventory's one naming rule (D-471), else the MAC, else the kind; plain text, at most 160 characters
+	Address    string    // the IP, else the MAC; "" when neither is known
+	Approved   bool      // a person (or an osquery enrolment) approved it
+	ApprovedAt time.Time // when; zero when unknown (approved before inventory kept it, D-471)
 }
 
 // TokenRecorder stores an approval token record (spec approval-tokens.md 4.1: the record in the

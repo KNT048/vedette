@@ -2,7 +2,11 @@
 // install comes from GET /modules, host pages show what the customer does instead and never call the host endpoints,
 // the honeypot cannot be turned on and its page claims no coverage, the setup code hint names vedette-core.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from 'react-router'
+import { makeQueryClient } from '@/app/App'
+import { ModuleOff } from '@/components/common/States'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp } from '@/test/render'
@@ -182,12 +186,15 @@ describe('container-only install (D-381)', () => {
 
   it('Modules: what needs the host is not on this install; off it cannot be turned on, on (sample data) it can be turned off', async () => {
     renderApp('/settings/modules')
-    const off = await screen.findByRole('switch', { name: 'Turn on module Credentialed scan' })
-    expect(off).toBeDisabled()
-    expect(within(off.closest('tr')!).getByText('Not on this install')).toBeInTheDocument()
-    const on = screen.getByRole('switch', { name: 'Turn off module Internal traps' })
+    const on = await screen.findByRole('switch', { name: 'Turn off module Internal traps' })
     expect(on).toBeEnabled()
     expect(within(on.closest('tr')!).getByText('Not on this install')).toBeInTheDocument()
+    expect(screen.queryByText('Credentialed scan')).toBeNull() // not offered in v1 at all (D-417)
+    modulesStore.update((l) => l.map((m) => (m.id === 'honeypot' ? { ...m, enabled: false } : m)))
+    renderApp('/settings/modules')
+    const off = await screen.findByRole('switch', { name: 'Turn on module Internal traps' })
+    expect(off).toBeDisabled()
+    expect(within(off.closest('tr')!).getByText('Not on this install')).toBeInTheDocument()
   })
 
   it('Modules: the active sensor does not claim nmap here; the response gallery cannot clone a trap template', async () => {
@@ -232,12 +239,21 @@ describe('container-only install (D-381)', () => {
     expect(within(small).queryByText(/internal traps/i)).toBeNull()
     expect(screen.getByText(/Not on this install: .*Internal traps/)).toBeInTheDocument()
   })
-  it('Scans, Credentialed scan: says it is not on this install, never invites turning it on (S-CORE-9 G5, D-420)', async () => {
-    renderApp('/scans?tab=credentialed')
+  it('module-off notice of a module this install cannot run: not on this install, never invites turning it on (S-CORE-9 G5, D-420)', async () => {
+    // The credentialed scan was the page that showed it; v1 does not offer that tab (D-417), so the notice is rendered on its own.
+    sessionStore.set({ userId: 'u-admin' })
+    render(<QueryClientProvider client={makeQueryClient()}><MemoryRouter><ModuleOff module="scan-credentialed" /></MemoryRouter></QueryClientProvider>)
     expect(await screen.findByText('Credentialed scan is not on this install')).toBeInTheDocument()
     expect(screen.getByText(/needs the appliance install/)).toBeInTheDocument()
     expect(screen.queryByText(/Turn the module on/)).toBeNull()
     expect(screen.queryByRole('link', { name: 'Open module settings' })).toBeNull()
+  })
+
+  it('Scans: v1 offers no Credentialed scan tab, so nothing on this install invites it either (D-417, S-SCAN-5)', async () => {
+    renderApp('/scans?tab=credentialed')
+    expect(await screen.findByRole('tab', { name: 'Scans and history' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Credentialed scan' })).toBeNull()
+    expect(screen.queryByText(/Credentialed scan is not on this install/)).toBeNull()
   })
 
   it('MCP: on the localhost of the machine that runs the container, an SSH tunnel to that machine, update an older compose.yaml (S-MCP-1, D-395)', async () => {

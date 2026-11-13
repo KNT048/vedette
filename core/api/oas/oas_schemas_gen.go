@@ -138805,6 +138805,9 @@ func (s *ScanGetScansTargetsOK) SetItems(val []ScanGetScansTargetsOKItemsItem) {
 }
 
 type ScanGetScansTargetsOKItemsItem struct {
+	// The Vedette box itself (D-470): pick_only, so it is scanned only when a person ticks it; sweeps,
+	// schedules, KEV rescans and Select all never include it.
+	Box bool `json:"box"`
 	// Device type in the inventory; null for external targets.
 	DeviceKind NilScanGetScansTargetsOKItemsItemDeviceKind `json:"device_kind"`
 	Findings   int                                         `json:"findings"`
@@ -138819,11 +138822,15 @@ type ScanGetScansTargetsOKItemsItem struct {
 	// Fragile, unclassified or added by hand: scanned only when a person ticks it in Scan now (D-126 (2)).
 	// The page never ticks it for you: not by default, not with Select all, not from a link.
 	PickOnly bool `json:"pick_only"`
-	// Null when the target can be scanned by picking it. box: the Vedette box itself is never scanned.
-	// regular_scan_never: a person set "never scan" on the device (D-126). not_supported: external targets
-	// are not scanned by this version yet.
+	// Null when the target can be scanned by picking it. regular_scan_never: a person set "never scan" on
+	// the device (D-126). not_supported: external targets are not scanned by this version yet.
 	Reason     NilScanGetScansTargetsOKItemsItemReason `json:"reason"`
 	Selectable bool                                    `json:"selectable"`
+}
+
+// GetBox returns the value of Box.
+func (s *ScanGetScansTargetsOKItemsItem) GetBox() bool {
+	return s.Box
 }
 
 // GetDeviceKind returns the value of DeviceKind.
@@ -138874,6 +138881,11 @@ func (s *ScanGetScansTargetsOKItemsItem) GetReason() NilScanGetScansTargetsOKIte
 // GetSelectable returns the value of Selectable.
 func (s *ScanGetScansTargetsOKItemsItem) GetSelectable() bool {
 	return s.Selectable
+}
+
+// SetBox sets the value of Box.
+func (s *ScanGetScansTargetsOKItemsItem) SetBox(val bool) {
+	s.Box = val
 }
 
 // SetDeviceKind sets the value of DeviceKind.
@@ -139091,7 +139103,6 @@ const (
 	ScanGetScansTargetsOKItemsItemReasonUnapproved       ScanGetScansTargetsOKItemsItemReason = "unapproved"
 	ScanGetScansTargetsOKItemsItemReasonExcluded         ScanGetScansTargetsOKItemsItemReason = "excluded"
 	ScanGetScansTargetsOKItemsItemReasonOutOfScope       ScanGetScansTargetsOKItemsItemReason = "out_of_scope"
-	ScanGetScansTargetsOKItemsItemReasonBox              ScanGetScansTargetsOKItemsItemReason = "box"
 	ScanGetScansTargetsOKItemsItemReasonRegularScanNever ScanGetScansTargetsOKItemsItemReason = "regular_scan_never"
 	ScanGetScansTargetsOKItemsItemReasonUnverified       ScanGetScansTargetsOKItemsItemReason = "unverified"
 	ScanGetScansTargetsOKItemsItemReasonExpired          ScanGetScansTargetsOKItemsItemReason = "expired"
@@ -139104,7 +139115,6 @@ func (ScanGetScansTargetsOKItemsItemReason) AllValues() []ScanGetScansTargetsOKI
 		ScanGetScansTargetsOKItemsItemReasonUnapproved,
 		ScanGetScansTargetsOKItemsItemReasonExcluded,
 		ScanGetScansTargetsOKItemsItemReasonOutOfScope,
-		ScanGetScansTargetsOKItemsItemReasonBox,
 		ScanGetScansTargetsOKItemsItemReasonRegularScanNever,
 		ScanGetScansTargetsOKItemsItemReasonUnverified,
 		ScanGetScansTargetsOKItemsItemReasonExpired,
@@ -139120,8 +139130,6 @@ func (s ScanGetScansTargetsOKItemsItemReason) MarshalText() ([]byte, error) {
 	case ScanGetScansTargetsOKItemsItemReasonExcluded:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemReasonOutOfScope:
-		return []byte(s), nil
-	case ScanGetScansTargetsOKItemsItemReasonBox:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemReasonRegularScanNever:
 		return []byte(s), nil
@@ -139147,9 +139155,6 @@ func (s *ScanGetScansTargetsOKItemsItemReason) UnmarshalText(data []byte) error 
 		return nil
 	case ScanGetScansTargetsOKItemsItemReasonOutOfScope:
 		*s = ScanGetScansTargetsOKItemsItemReasonOutOfScope
-		return nil
-	case ScanGetScansTargetsOKItemsItemReasonBox:
-		*s = ScanGetScansTargetsOKItemsItemReasonBox
 		return nil
 	case ScanGetScansTargetsOKItemsItemReasonRegularScanNever:
 		*s = ScanGetScansTargetsOKItemsItemReasonRegularScanNever

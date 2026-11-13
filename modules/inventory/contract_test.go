@@ -1,6 +1,7 @@
 package inventory_test
 
 import (
+	"context"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -510,5 +511,32 @@ func TestSummaryOfADeviceSeenOnlyByARP(t *testing.T) {
 	e.record(obsv(macB, observe.Vendor, "Acme", observe.Passive, 0.4))
 	if s := summary(); s == nil || s.Source != "passive" || s.Confidence != 0.4 {
 		t.Fatalf("summary with a vendor = %+v, want the vendor's 0.4", s)
+	}
+}
+
+// swapBox is a BoxPackages whose answer a test changes between refreshes.
+type swapBox struct{ items *[]inventory.SoftwareItem }
+
+func (s swapBox) Packages(context.Context) ([]inventory.SoftwareItem, error) { return *s.items, nil }
+
+// D-470: a host that gives no list (nil: older than the packages read) leaves the box's software as it is; it is never
+// read as "no packages".
+func TestContract_INV3_NoListFromTheHostKeepsTheBoxSoftware(t *testing.T) {
+	t.Parallel()
+	items := []inventory.SoftwareItem{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1"}}
+	e := newEnv(t, withBox(swapBox{&items}))
+	id, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "vedette-hq", IP: "192.168.10.2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.RefreshBoxPackages(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	items = nil
+	if err := e.svc.RefreshBoxPackages(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if sw := e.detail(id).Asset.Software; len(sw) != 1 || sw[0].Product != "OpenSSH" {
+		t.Fatalf("box software = %+v, want the stored row kept", sw)
 	}
 }

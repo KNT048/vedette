@@ -15,6 +15,7 @@ type Device struct {
 	Kind     string // inventory kind; "unknown" until classified
 	Approved bool
 	Fragile  bool
+	Box      bool // the Vedette box itself: scanned only when a person picks it (D-470)
 	Services []OpenPort
 }
 

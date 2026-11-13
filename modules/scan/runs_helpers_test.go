@@ -27,18 +27,21 @@ func sampleDevices() []Device {
 		{ID: "a-web01", Label: "WEB01", IP: "192.168.10.12", Kind: "web", Approved: true, Services: []OpenPort{{Port: 443, Name: "https"}}},
 		{ID: "a-srv", Label: "SRV-AD", IP: "192.168.10.10", Kind: "server", Approved: true},
 		{ID: "a-unk", Label: "192.168.10.157", IP: "192.168.10.157", Kind: "unknown", Approved: false},
-		{ID: "a-box", Label: "vedette", IP: "192.168.10.250", Kind: "server", Approved: true},
+		{ID: "a-box", Label: "vedette", IP: "192.168.10.250", Kind: "server", Approved: true, Box: true},
 		{ID: "a-never", Label: "PLC-1", IP: "192.168.20.40", Kind: "iot", Approved: true},
 		{ID: "a-far", Label: "FAR", IP: "10.9.9.9", Kind: "pc", Approved: true},
 	}
 }
 
-// fakePolicy answers VulnScanPolicy like inventory does for the sample (D-126): the box and "never" always refused, a
-// fragile device only when explicit.
+// fakePolicy answers VulnScanPolicy like inventory does for the sample (D-126): "never" always refused, a fragile device
+// and the box (D-470) only when explicit.
 func samplePolicy(id string, explicit bool) Decision {
 	switch id {
 	case "a-box":
-		return Decision{Reason: reasonBox}
+		if !explicit {
+			return Decision{Reason: reasonBox}
+		}
+		return Decision{Allowed: true, Reason: "ok"}
 	case "a-never":
 		return Decision{Reason: reasonNever}
 	case "a-far":

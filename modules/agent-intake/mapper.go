@@ -138,6 +138,20 @@ func mapPackages(snaps map[string][]row) (items []observe.Software, dropped int)
 	return items, dropped
 }
 
+// DebPackage is one installed Debian package: name, full Debian version and source package ("" when it has none).
+type DebPackage struct{ Name, Version, Source string }
+
+// MapDebPackages turns a dpkg list into software the way an osquery deb_packages snapshot is turned (same table, same upstream
+// version, same limits), so the box's own list (vedette-host, D-470) and an osquery agent on the same machine give the same rows.
+// It is a pure function: it reads no table and works with the module off. dropped counts rows outside the inventory's limits.
+func MapDebPackages(pkgs []DebPackage) (items []observe.Software, dropped int) {
+	rows := make([]row, 0, len(pkgs))
+	for _, p := range pkgs {
+		rows = append(rows, row{"name": p.Name, "version": p.Version, "source": p.Source})
+	}
+	return mapPackages(map[string][]row{"deb_packages": rows})
+}
+
 // fits reports whether s is 1..maxName runes (the rows are already clean text).
 func fits(s string) bool {
 	n := utf8.RuneCountInString(s)

@@ -52,7 +52,7 @@ function TargetRow({ t: target, checked, onChange }: { t: ScanTarget; checked: b
       </label>
       {target.findings > 0 ? <Chip tone="warn">{t('start.findings', { count: target.findings })}</Chip> : null}
       {target.fragile && target.selectable ? <Chip tone="off" title={t('start.fragileHint')}>{t('start.fragile')}</Chip> : null}
-      {target.pick_only ? <span className="text-[13px] text-muted">{t(target.device_kind === 'unknown' ? 'start.pickUnknown' : target.fragile ? 'start.pickFragile' : 'start.pickManual')}</span> : null}
+      {target.pick_only ? <span className="text-[13px] text-muted">{t(target.box ? 'start.pickBox' : target.device_kind === 'unknown' ? 'start.pickUnknown' : target.fragile ? 'start.pickFragile' : 'start.pickManual')}</span> : null}
       {target.reason ? <span className="text-[13px] text-muted">{t(`reason.${target.reason}`)}</span> : null}
     </li>
   )
@@ -61,7 +61,7 @@ function TargetRow({ t: target, checked, onChange }: { t: ScanTarget; checked: b
 function Setup({ cfg, internal }: { cfg: ScanConfigResponse; internal: ScanTarget[] }) {
   const { t } = useTranslation('scan')
   const scopeOk = cfg.can_scan && cfg.scope.networks.length > 0
-  const devOk = internal.some((x) => x.selectable)
+  const devOk = internal.some((x) => x.selectable && !x.box) // the box alone does not finish setup: it is pick-only (D-470)
   if (scopeOk && devOk) return null
   const steps = [
     { key: 'scope', ok: scopeOk, title: t('start.stepScope'), help: t('start.stepScopeHelp'), to: '/devices/setup', cta: t('start.openSetup') },

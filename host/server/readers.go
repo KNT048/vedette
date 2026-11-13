@@ -50,6 +50,7 @@ type Readers struct {
 	Net           func(ctx context.Context) (any, error) // GET /v1/state/net (WP-07b part 3, slice 3-3)
 	Containers    func(ctx context.Context) (any, error) // GET /v1/state/containers (slice 3-6)
 	Host          func(ctx context.Context) (any, error) // GET /v1/state/host (host.self_update, D-316)
+	Packages      func(ctx context.Context) (any, error) // GET /v1/state/packages (the box's dpkg list, D-470)
 	BackupContent func(id string) (File, error)          // GET /v1/backups/{id}/content
 	ExportContent func(id string) (File, error)          // GET /v1/exports/{id}/content
 }
@@ -71,6 +72,8 @@ func (s *Server) serveRead(w http.ResponseWriter, r *http.Request, kind routeKin
 		s.serveState(w, r, rd.Containers)
 	case routeStateHost:
 		s.serveState(w, r, rd.Host)
+	case routeStatePackages:
+		s.serveState(w, r, rd.Packages)
 	case routeBackupContent:
 		s.serveFile(w, rc, rd.BackupContent, arg)
 	case routeExportContent:

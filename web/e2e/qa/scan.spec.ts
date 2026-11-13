@@ -278,10 +278,10 @@ test.describe('scan: clean install', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cannot scan yet: confirm the scan scope first')
     await expect(page.getByText('What to set up before scanning')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open Scope and sensors' })).toHaveAttribute('href', '/devices/setup')
-    // The box is the first device of every inventory (D-53, S-INV-5), but it is never scanned (D-126), so step 2 is still to do.
+    // The box is the first device of every inventory (D-53, S-INV-5), but it is only scanned when picked (D-470), so step 2 is still to do.
     await expect(page.getByText(/2\. At least one approved device inside the scope \(Not done\)/)).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open Devices' })).toBeVisible()
-    await expect(page.getByRole('checkbox', { name: /^vedette 10\.20\.0\./ })).toBeDisabled()
+    await expect(page.getByRole('checkbox', { name: /^vedette 10\.20\.0\./ })).toBeEnabled() // pickable (D-470); nothing runs before the commitment
     await expect(page.getByRole('button', { name: /Scan now/ })).toBeDisabled()
     await expect(page.getByText('No scans yet.').first()).toBeVisible()
     for (const tab of ['runs', 'safety', 'auto', 'probes']) {
@@ -296,15 +296,20 @@ test.describe('scan: clean install', () => {
     expect(errors).toEqual([])
   })
 
-  test('with the commitment ticked, only the devices step is left: the box itself is listed but never scanned (D-126)', async ({ page }) => {
+  test('with the commitment ticked, only the devices step is left: the box itself can be picked, never ticked for you (D-470)', async ({ page }) => {
     await clean(page, true)
     await page.goto('/scans')
     await expect(page.getByText('What to set up before scanning')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open Scope and sensors' })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Open Devices' })).toBeVisible()
-    await expect(page.getByRole('checkbox', { name: /^vedette 10\.20\.0\./ })).toBeDisabled()
-    await expect(page.getByText('This is the Vedette box itself, never scanned').first()).toBeVisible()
+    const box = page.getByRole('checkbox', { name: /^vedette 10\.20\.0\./ })
+    await expect(box).toBeEnabled()
+    await expect(page.getByText(/^The Vedette box itself: pick it to scan it from the network/).first()).toBeVisible()
+    await page.getByRole('button', { name: 'Select all' }).click()
+    await expect(box).not.toBeChecked()
     await expect(page.getByRole('button', { name: /Scan now/ })).toBeDisabled()
+    await box.click()
+    await expect(page.getByRole('button', { name: 'Scan now (1)' })).toBeEnabled()
   })
 
   test('the box public IP is listed as an external target but not scanned yet, and the page says so', async ({ page }) => {

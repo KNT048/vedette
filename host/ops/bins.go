@@ -231,7 +231,8 @@ func hostBinaries(stateDir, coreUnit string, paths map[string]string, streamLimi
 		// host.self_update (D-316): the start of the applier, and the read-only looks at the staged file and dpkg.
 		{Name: binSystemdRun, Path: p(binSystemdRun), Validate: validateSystemdRun(stateDir), MaxOutput: 1 << 16},
 		{Name: binDpkgDeb, Path: p(binDpkgDeb), Validate: validateDpkgDeb(stateDir), MaxOutput: 1 << 12},
-		{Name: binDpkgQuery, Path: p(binDpkgQuery), Validate: validateDpkgQuery, MaxOutput: 1 << 12},
+		// the package list of the box itself (D-470, GET /v1/state/packages) shares the binary, so the bound is the list's.
+		{Name: binDpkgQuery, Path: p(binDpkgQuery), Validate: validateHostDpkgQuery, MaxOutput: maxPackagesOutput},
 		// os.reboot (D-453): the one read of logind's inhibitors.
 		{Name: binBusctl, Path: p(binBusctl), Validate: exactly(argsListInhibitors...), MaxOutput: maxInhibitOutput},
 		// D-458: the one load of the containers' AppArmor profile at Start, when the kernel does not list it.

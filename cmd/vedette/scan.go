@@ -107,7 +107,7 @@ func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 		if d.Hostname != nil && *d.Hostname != "" {
 			label = *d.Hostname
 		}
-		sd := scan.Device{ID: d.ID, Label: label, IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile}
+		sd := scan.Device{ID: d.ID, Label: label, IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, Box: d.IsBox}
 		for _, sv := range d.Services {
 			if sv.Proto == "" || sv.Proto == "tcp" {
 				sd.Services = append(sd.Services, scan.OpenPort{Port: sv.Port, Name: sv.Name})

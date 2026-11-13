@@ -73512,8 +73512,6 @@ func (s ScanGetScansTargetsOKItemsItemReason) Validate() error {
 		return nil
 	case "out_of_scope":
 		return nil
-	case "box":
-		return nil
 	case "regular_scan_never":
 		return nil
 	case "unverified":

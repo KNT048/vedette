@@ -109,6 +109,14 @@ func (c *Client) StateHost(ctx context.Context) (api.HostState, error) {
 	return out, err
 }
 
+// StatePackages returns GET /v1/state/packages: the Debian packages installed on the box (D-470). A host older than
+// D-470 answers 404 unknown_command.
+func (c *Client) StatePackages(ctx context.Context) (api.PackagesState, error) {
+	var out api.PackagesState
+	err := c.getJSON(ctx, "/v1/state/packages", &out)
+	return out, err
+}
+
 // StateContainers returns GET /v1/state/containers.
 func (c *Client) StateContainers(ctx context.Context) (api.ContainersState, error) {
 	var out api.ContainersState

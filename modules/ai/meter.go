@@ -27,15 +27,6 @@ func LoadLocation(name string) (*time.Location, error) {
 	return loc, nil
 }
 
-// Downgrade records one automatic drop of the token level (INV-4, `ai_downgrades`, `ai.downgrade`). Since D-531 the monthly budget
-// stops calls at 100 % instead of lowering the level, so the meter writes none; the type stays for the rows of earlier days, which
-// Usage still lists.
-type Downgrade struct {
-	At       time.Time
-	From, To Tier
-	Reason   string
-}
-
 // ErrProfileCapped means a profile has used its own monthly budget; the router moves on to the fallback.
 var ErrProfileCapped = errors.New("ai: the profile's monthly token budget is used up")
 
@@ -232,12 +223,11 @@ func (m *Meter) Reserve(profileID string, profileCap, estimate int) (*Reservatio
 }
 
 // Settle releases the hold and counts what the call really used (also for a failed call whose usage is known, such as a refusal).
-// It returns nil: the budget lowers no level (D-531); the result is kept for the callers that write a downgrade row when there is one.
-func (r *Reservation) Settle(tokensIn, tokensOut int) *Downgrade {
+func (r *Reservation) Settle(tokensIn, tokensOut int) {
 	r.m.mu.Lock()
 	defer r.m.mu.Unlock()
 	if r.done {
-		return nil
+		return
 	}
 	r.done = true
 	r.m.roll()
@@ -246,19 +236,17 @@ func (r *Reservation) Settle(tokensIn, tokensOut int) *Downgrade {
 		r.m.pendProf[r.profile] = max(r.m.pendProf[r.profile]-r.tokens, 0)
 	}
 	r.m.add(r.profile, tokensIn, tokensOut)
-	return nil
 }
 
 // Cancel releases the hold without counting anything (the call never reached the provider).
 func (r *Reservation) Cancel() { r.Settle(0, 0) }
 
 // Record adds a call that was not reserved (a profile test). Counts are added with saturation.
-func (m *Meter) Record(profileID string, tokensIn, tokensOut int) *Downgrade {
+func (m *Meter) Record(profileID string, tokensIn, tokensOut int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.roll()
 	m.add(profileID, tokensIn, tokensOut)
-	return nil
 }
 
 func (m *Meter) add(profileID string, tokensIn, tokensOut int) {

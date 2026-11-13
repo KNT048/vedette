@@ -20,7 +20,7 @@ kien, 2026-11-06: mọi thứ liên quan luật pháp, giấy phép, cookie ph�
 
 ## 3. Quét và kiểm kê (Luật An ninh mạng 116/2025, BLHS Điều 289)
 
-- Quét chủ động chỉ trên tài sản **đã xác thực**: dải LAN người dùng khai + tick cam kết; domain qua DNS TXT (kiểm lại trước mỗi lần quét); IP công cộng chỉ là IP chính hộp đang ra Internet, hộp tự phát hiện và tự gia hạn, hiệu lực 30 ngày kể từ lần thấy cuối (D-25, sửa theo kien 2026-11-09). Không có văn bản đồng ý; thay bằng ô cam kết + câu "Vedette được cung cấp nguyên trạng theo Apache-2.0; tác giả (Kiên) không chịu trách nhiệm về cách bạn sử dụng" (D-26).
+- Quét chủ động chỉ trên tài sản **đã xác thực**: dải LAN người dùng khai + tick cam kết; domain qua DNS TXT (kiểm lại trước mỗi lần quét); IP công cộng chỉ là IP chính hộp đang ra Internet, hộp tự phát hiện và tự gia hạn, hiệu lực 30 ngày kể từ lần thấy cuối (D-25, sửa theo kien 2026-11-09). Không có văn bản đồng ý; thay bằng cam kết + câu "Vedette được cung cấp nguyên trạng theo Apache-2.0; tác giả (Kiên) không chịu trách nhiệm về cách bạn sử dụng" (D-26). **Domain và IP ngoài (D-473, kien 2026-11-13):** không còn bước xác nhận riêng; lần Scan now đầu tiên của admin có đăng nhập hai bước ghi cam kết D-26 (ai, khi nào, mục tiêu, đúng câu hiện cạnh nút và phiên bản của nó) vào `exp_target` và `core_audit` cùng một giao dịch. Operator không quét được mục tiêu chưa cam kết. Sửa D-26, giữ bản ghi của D-5.
 - Nhật ký mọi probe (đích, thời điểm, template) giữ ≥90 ngày để chứng minh phạm vi.
 - Không có chế độ quét IP ngoài scope; không có template khai thác (`-exclude-tags dos,intrusive,fuzz`).
 - Honeypot chỉ nghe, không phản công, không tương tác với hệ thống bên ngoài.

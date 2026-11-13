@@ -25,6 +25,7 @@ type Config struct {
 	Prober    EgressProber     // the three public IP services (PublicServiceProber); tests pass a fake
 	Publisher Publisher        // nil: no events
 	Runner    Runner           // nil: scanning answers 501 until the scan module registers one
+	TwoStep   TwoStep          // nil: nobody has two-step sign-in, so no first scan can record the commitment (D-473)
 	Gateway   Gateway          // nil: the page makes no claim about which device answers the open ports (D-492)
 	Location  *time.Location   // the day of a snapshot (nil: time.Local)
 	Log       *slog.Logger     //
@@ -209,6 +210,10 @@ func (s *Service) view(t Target, latest map[string]latestResult, c checks, now t
 	if val := t.validity(now); val != "" {
 		v.Validity = &val
 	}
+	if t.Commitment == nil {
+		n := noticeFor(t.Value)
+		v.CommitmentNotice = &n
+	}
 	b := t.blocked(now)
 	if b == "" && t.Kind == KindIP && c.paused(t) {
 		b = BlockedNotCurrent // the latest full check did not see this IP (INV-13): the same answer the scan gate gives
@@ -356,34 +361,6 @@ func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) erro
 		return fmt.Errorf("exposure: deleting target: %w", err)
 	}
 	return nil
-}
-
-// Commit records the commitment of D-26 (POST …/commitment, PRE-4): only for a verified target (INV-7).
-func (s *Service) Commit(ctx context.Context, user, id string, confirm bool) (TargetView, error) {
-	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
-		t, err := loadTarget(ctx, tx, id)
-		if err != nil {
-			return err
-		}
-		now := s.clock()
-		switch t.status(now) {
-		case statusUnverified:
-			return apiErr(409, "not_verified", "Verify ownership first; only then can you confirm the commitment for this target.")
-		case statusExpired:
-			return apiErr(409, "expired", "Verification of %s has expired. Verify it again first.", t.Value)
-		}
-		if !confirm {
-			return ErrNotConfirmed
-		}
-		if err := setCommitment(ctx, tx, id, user, now); err != nil {
-			return err
-		}
-		return s.audit(ctx, tx, user, "exposure.commitment", t.Value, "confirmed: company owns it and user is authorized to scan it")
-	})
-	if err != nil {
-		return TargetView{}, fmt.Errorf("exposure: recording commitment: %w", err)
-	}
-	return s.Target(ctx, id)
 }
 
 // Ignored returns the Ignored list, newest first (GET /exposure/targets, ignored).

@@ -32,6 +32,7 @@ var rules = []rule{
 	{"modules/core/testdata/", Result{true, true}},                         // chain_vectors.json is a vector for Go and web
 	{"web/src/features/response/templates/", Result{true, true}},           // Go reads the *.sample.json files
 	{"web/src/features/core/testdata/", Result{true, true}},                // Go reads connections_matrix.json and keys/
+	{"web/src/features/exposure/contract.ts", Result{true, true}},          // modules/exposure/notice_test.go: the mock's commitment sentence equals the box's (D-473)
 	{"web/src/features/logs/snippets.ts", Result{true, true}},              // modules/logs/siem_test.go: the SIEM samples equal what the formatters write
 	{"web/src/features/core/bundles.ts", Result{true, true}},               // modules/core/handlers_setup_test.go
 	{"web/src/features/core/ContainerOnly.tsx", Result{true, true}},        // deploy/compose/compose_test.go: its backup image equals pins.env (D-381)

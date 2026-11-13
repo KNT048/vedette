@@ -55,7 +55,6 @@
     "tooLong": "A question has {{max}} characters at most; this one has {{n}}. Shorten it, then ask.",
     "count": "{{n}} of {{max}} characters",
     "history": "Recent questions",
-    "downgraded": "Token budget exceeded, level lowered from {{from}} to {{to}}.",
     "answerFor": "Answer to: {{q}}",
     "you": "You asked:",
     "tableTitle": "Result table ({{n}} rows)",

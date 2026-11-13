@@ -12,6 +12,7 @@ import { eachOption } from '@/test/formMatrix'
 import { aiAssignStore, aiAvailable, aiConfigStore, aiProfilesStore, aiRunsStore, assetsStore, installStore, modulesStore, sessionStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
 import AiSettings from './AiSettings'
+import { scheduledPause } from './mocks'
 import LogsPanel from './LogsPanel'
 import type { AiProfile } from './types'
 
@@ -120,7 +121,7 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
 
   // beta 0.1.0-beta.1 item 19: a tool result a hook held back is not a refused question; only a stopped question reads "not asked"
   const asked = (hooks: object[]) => ({ id: 'ask-x', question: 'give me solution of currently status', asked_at: '2026-11-13T05:00:00.000Z', answer: ['FW-HQ needs the PAN-OS update first.'], table: null,
-    tool_calls: [{ tool: 'search_assets', args: '{}', result: 'withheld by hook Block personal data' }], citations: [], model: 'claude-haiku-5-5', profile: 'Claude', tokens: { input: 900, output: 200 }, downgraded: null, hooks, memories_suggested: 0 })
+    tool_calls: [{ tool: 'search_assets', args: '{}', result: 'withheld by hook Block personal data' }], citations: [], model: 'claude-haiku-5-5', profile: 'Claude', tokens: { input: 900, output: 200 }, hooks, memories_suggested: 0 })
   const hit = { id: 'block-pii', name: 'Block personal data', kind: 'builtin', when: 'before_ai', action: 'block' }
   it.each([
     ['tool_result', { ...hit, step: 'tool_result', tool: 'search_assets', message: 'The result of the tool search_assets contained an ID number, so the box held it back from the AI. The AI answered without it.' }, null, 'on the result of search_assets:'],
@@ -219,6 +220,23 @@ describe('ai: token meter, monthly budget, fallback (S-AI-4, D-531)', () => {
     renderApp('/assistant')
     expect(await screen.findByText(/This month's budget is used up: every AI job is stopped until it renews on/)).toBeInTheDocument()
     expect(screen.getByText(/lowered from Medium to Minimum/)).toBeInTheDocument()
+  })
+
+  it('scheduled jobs pause from 80 % of the month\'s budget and when it is used up, as on the box (D-531a)', async () => {
+    aiConfigStore.update((c) => ({ ...c, monthly_budget: 10_000_000 }))
+    aiRunsStore.set([])
+    expect(scheduledPause()).toBeNull()
+    spend(8_500_000)
+    let res = scheduledPause()
+    expect(res?.status).toBe(429)
+    let err = (await res!.json()).error
+    expect(err.code).toBe('budget_reached')
+    expect(err.message).toMatch(/^Scheduled AI jobs such as response plans pause at 80 % of this month's AI budget/)
+    expect(err.retry_after).toBeGreaterThan(0)
+    spend(2_000_000)
+    res = scheduledPause()
+    err = (await res!.json()).error
+    expect(err.message).toMatch(/^This month's AI budget of 10,000,000 tokens is used up/)
   })
 
   it('Home warns at 80 % and says when the budget is used up; a profile near its own budget is named (D-531)', async () => {

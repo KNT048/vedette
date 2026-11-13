@@ -18,6 +18,7 @@ import { auditStore, isOn } from '@/mocks/stores'
 import { canonHash, GENESIS } from '@/lib/chain'
 import { collection, newId, nowIso, type Collection } from '@/mocks/db'
 import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, DEFAULT_INTERVAL, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, type StoredTarget } from './data'
+import { NOTICE_TEMPLATE, NOTICE_VERSION } from './contract'
 import { dateText, dateTimeText } from './dates'
 import type { BoxIpSettings, Commitment, Diff, DiffChange, DiffItem, IgnoredIp, Snapshot, Target } from './types'
 
@@ -26,10 +27,10 @@ const snapshots = collection<Record<string, Snapshot[]>>('exp_snapshots', seedSn
 const commitments = collection<Record<string, Commitment>>('exp_commitments', () => {
   const at = (d: number) => new Date(Date.now() - d * 864e5).toISOString()
   return {
-    'xt-1': { by: 'admin@acme.example', at: at(20) },
-    'xt-2': { by: 'admin@acme.example', at: at(20) },
-    'xt-4': { by: 'admin@acme.example', at: at(60) },
-    'xt-5': { by: 'admin@acme.example', at: at(39) },
+    'xt-1': { by: 'admin@acme.example', at: at(20), version: null, sentence: null },
+    'xt-2': { by: 'admin@acme.example', at: at(20), version: null, sentence: null },
+    'xt-4': { by: 'admin@acme.example', at: at(60), version: null, sentence: null },
+    'xt-5': { by: 'admin@acme.example', at: at(39), version: null, sentence: null },
   }
 }, () => ({}))
 /** Timestamps of verification attempts in the last hour (rate limit, anti-abuse). */
@@ -112,6 +113,7 @@ function view(t: StoredTarget): Target {
   return {
     id: t.id, kind: t.kind, value: t.value, status: !verified ? 'unverified' : expired ? 'expired' : 'verified', method: t.method, token: t.token,
     verified_at: t.verified_at, expires_at: t.expires_at, validity, last_check: t.last_check, commitment,
+    commitment_notice: commitment ? null : { version: NOTICE_VERSION, text: NOTICE_TEMPLATE.replace('{value}', t.value) },
     scannable: blocked === null, blocked_reason: blocked, created_at: t.created_at, last_scan_at: t.last_scan_at, latest: last ? last.counts : null, open_ports: last ? last.ports.slice(0, 20) : null,
   }
 }
@@ -409,23 +411,7 @@ export const handlers = [
     return HttpResponse.json({ verified: ok, message, target: view(next) })
   }),
 
-  // The commitment (replaces signed consent documents): who ticked "I own this and I am authorized to scan it", and when. Verified targets only.
-  http.post(`${API}/exposure/targets/:id/commitment`, async ({ params, request }) => {
-    const denied = guard('admin'); if (denied) return denied
-    const t = find(params.id)
-    if (!t) return notFound()
-    const v = view(t)
-    if (v.status === 'unverified') return fail(409, 'not_verified', 'Verify ownership first; only then can you confirm the commitment for this target.')
-    if (v.status === 'expired') return fail(409, 'expired', `Verification of ${t.value} has expired. Verify it again first.`)
-    const b = await body<{ confirm: boolean }>(request)
-    if (b.confirm !== true) return fail(400, 'not_confirmed', 'Tick the box to confirm that your company owns this and you are authorized to scan it.')
-    const c: Commitment = { by: currentUser()?.email ?? 'system', at: nowIso() }
-    commitments.update((m) => ({ ...m, [t.id]: c }))
-    audit('exposure.commitment', t.value, 'confirmed: company owns it and user is authorized to scan it')
-    return HttpResponse.json(view(t))
-  }),
-
-  http.post(`${API}/exposure/targets/:id/scan`, ({ params }) => {
+  http.post(`${API}/exposure/targets/:id/scan`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
     const t = find(params.id)
     if (!t) return notFound()
@@ -437,7 +423,18 @@ export const handlers = [
       targets.update((l) => l.map((x) => (x.id === t.id ? { ...x, last_check: { at: nowIso(), ok: false, message: `The TXT record vedette-verify=${t.token} was not found on ${t.value}.` } } : x)))
       return fail(409, 'txt_missing', `The DNS TXT record vedette-verify=${t.token} is no longer on ${t.value}, so it cannot be scanned. Add the record back, then check again.`)
     }
-    if (!v.commitment) return fail(400, 'commitment_required', `You have not confirmed that your company owns ${t.value} and you are authorized to scan it. Confirm it first.`)
+    if (!v.commitment) {
+      // D-473: an administrator's first Scan now is the confirmation (D-26); an operator cannot scan an unconfirmed target.
+      const me = currentUser()
+      if (me?.role !== 'admin') return fail(400, 'commitment_required', `${t.value} has not been confirmed yet. An administrator must run the first scan: it records that your company owns ${t.value} and that the scan is authorized.`)
+      if (!me.twofa && !me.sso) return fail(403, 'twofa_required', 'Turn on two-step sign-in for your account first (My account), then run the first scan again. The first scan records your confirmation that your company owns the target and that you are authorized to scan it.')
+      const sent = await body<{ notice_version?: string }>(request)
+      if (!sent.notice_version) return fail(400, 'commitment_required', `The first scan of ${t.value} records a confirmation, so the request must carry notice_version of the sentence shown next to Scan now.`)
+      if (sent.notice_version !== NOTICE_VERSION) return fail(409, 'notice_changed', 'The confirmation text changed since this page loaded. Read it again, then press Scan now again.')
+      const sentence = NOTICE_TEMPLATE.replace('{value}', t.value)
+      commitments.update((m) => ({ ...m, [t.id]: { by: me.email, at: nowIso(), version: NOTICE_VERSION, sentence } }))
+      audit('exposure.commitment', t.value, `confirmed by the first Scan now (notice ${NOTICE_VERSION}): ${sentence}`)
+    }
     // An IP is scanned only while the box still goes out through it (a fresh full check just before the scan sees it). Not seen, or no answer = paused, fail closed; the IP stays in the list.
     if (t.kind === 'ip') {
       const paused = ipPaused(t)

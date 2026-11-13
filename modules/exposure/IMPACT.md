@@ -13,6 +13,7 @@
 - **`core/server`**: `ModuleOf` đưa mọi `/exposure/*` về module `exposure` theo tag; route mới cần một dòng trong `contractRoutes` của `core/server/modules_test.go` và `api/route-modules.json`.
 
 ## Modifying: `ScannableIP(ctx, actor, ip)` (D-57 (7), LEGAL §3)
+- **core/auth** (qua `Config.TwoStep`, nối ở `cmd/vedette/exposure.go` bằng `Auth.GetUser`): cho biết tài khoản có hai bước không. Nới nó (luôn `true`) cho phép ghi cam kết pháp lý (D-26/D-473) mà không có hai bước: sửa CONTRACT INV-17. Đổi chữ câu cam kết (`notice.go`) = đổi `NoticeVersion` và `contract.ts` cùng lúc (test giữ bằng nhau).
 - **scan** (runner) hỏi nó trước khi quét cổng một địa chỉ mà tên của domain trỏ tới. Nới nó (ví dụ trả `true` cho IP chưa cam kết hay không phải mục tiêu) là quét ngoài phạm vi: sửa CONTRACT INV-12 + `TestContract_INV12_ScannableIP` + `cmd/vedette` `TestExposureRunnerResult`.
 
 ## Modifying: `Runner` (`Config.Runner`, `SetRunner`, `ScanTarget.User`), `ScanEvery`, khoá một lượt mỗi lúc, và `ErrScanOff`, `ErrScanBusy`, `ErrCTDown`, `ErrScanTooLong`, `TooManyNames`

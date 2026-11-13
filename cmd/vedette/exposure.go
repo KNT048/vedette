@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"net"
 	"sync"
 
+	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
 	hostclient "github.com/knt048/vedette/host/client"
@@ -34,6 +36,9 @@ func exposureService(d deps) *exposure.Service {
 		panic("vedette: " + err.Error())
 	}
 	cfg := exposure.Config{DB: d.DB, Audit: d.Audit, Resolver: net.DefaultResolver, Prober: prober, Runner: scanRunner(d), Log: d.Log, Clock: d.Clock}
+	if d.Auth != nil { // D-473: the first scan of a target records the commitment only for an administrator with two-step sign-in
+		cfg.TwoStep = exposureTwoStep(d.Auth)
+	}
 	if d.Inventory != nil && d.Findings != nil { // D-492; a nil service would only fail at the first read
 		g := exposureGateway{inv: d.Inventory, fnd: d.Findings}
 		if d.HostSocket != "" {
@@ -57,3 +62,18 @@ func exposureService(d deps) *exposure.Service {
 
 // exposureJobs is the Jobs func of the exposure entry in wiredModules.
 func exposureJobs(d deps) []jobs.Job { return exposure.Jobs(exposureService(d)) }
+
+// exposureTwoStep says how a user meets two-step sign-in for the first Scan now of a target (D-473): Vedette's own method, or "sso"
+// for an account made by an SSO sign-in, whose MFA the identity provider owns (Vedette two-step cannot be turned on for it, D-195).
+func exposureTwoStep(a *auth.Service) exposure.TwoStep {
+	return func(ctx context.Context, userID string) (string, error) {
+		u, err := a.GetUser(ctx, userID)
+		if err != nil {
+			return "", err
+		}
+		if u.TwofaMethod == "" && u.SSO {
+			return "sso", nil
+		}
+		return u.TwofaMethod, nil
+	}
+}

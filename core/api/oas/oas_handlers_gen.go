@@ -17787,175 +17787,24 @@ func (s *Server) handleExposurePostExposureTargetsRequest(args [0]string, argsEs
 	}
 }
 
-// handleExposurePostExposureTargetsIDCommitmentRequest handles exposure_post_exposure_targets_id_commitment operation.
-//
-// Record the commitment: my company owns this domain/IP and I am authorized to scan it (who and when
-// are audited). Only for verified targets.
-//
-// POST /exposure/targets/{id}/commitment
-func (s *Server) handleExposurePostExposureTargetsIDCommitmentRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	ctx := r.Context()
-
-	var (
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: ExposurePostExposureTargetsIDCommitmentOperation,
-			ID:   "exposure_post_exposure_targets_id_commitment",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securitySession(ctx, ExposurePostExposureTargetsIDCommitmentOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Session",
-					Err:              err,
-				}
-				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-					defer recordError("Security:Session", err)
-				}
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-				defer recordError("Security", err)
-			}
-			return
-		}
-	}
-	params, err := decodeExposurePostExposureTargetsIDCommitmentParams(args, argsEscaped, r)
-	if err != nil {
-		err = &ogenerrors.DecodeParamsError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeParams", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	var rawBody []byte
-	request, rawBody, close, err := s.decodeExposurePostExposureTargetsIDCommitmentRequest(r)
-	if err != nil {
-		err = &ogenerrors.DecodeRequestError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeRequest", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-	defer func() {
-		if err := close(); err != nil {
-			recordError("CloseRequest", err)
-		}
-	}()
-
-	var response *ExposurePostExposureTargetsIDCommitmentOK
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    ExposurePostExposureTargetsIDCommitmentOperation,
-			OperationSummary: "Record the commitment: my company owns this domain/IP and I am authorized to scan it (who and when are audited). Only for verified targets",
-			OperationID:      "exposure_post_exposure_targets_id_commitment",
-			Body:             request,
-			RawBody:          rawBody,
-			Params: middleware.Parameters{
-				{
-					Name: "id",
-					In:   "path",
-				}: params.ID,
-			},
-			Raw: r,
-		}
-
-		type (
-			Request  = *ExposurePostExposureTargetsIDCommitmentReq
-			Params   = ExposurePostExposureTargetsIDCommitmentParams
-			Response = *ExposurePostExposureTargetsIDCommitmentOK
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			unpackExposurePostExposureTargetsIDCommitmentParams,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.ExposurePostExposureTargetsIDCommitment(ctx, request, params)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.ExposurePostExposureTargetsIDCommitment(ctx, request, params)
-	}
-	if err != nil {
-		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
-			if err := encodeErrorResponse(errRes, w); err != nil {
-				defer recordError("Internal", err)
-			}
-			return
-		}
-		if errors.Is(err, ht.ErrNotImplemented) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
-			defer recordError("Internal", err)
-		}
-		return
-	}
-
-	if err := encodeExposurePostExposureTargetsIDCommitmentResponse(response, w); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
 // handleExposurePostExposureTargetsIDScanRequest handles exposure_post_exposure_targets_id_scan operation.
 //
 // Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked
 // right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through
 // (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required
-// when the commitment is missing. After those checks the Vulnerability scans module does the scan
-// (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names
-// from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409
-// module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited
-// within 10 minutes of the target's last scan; 400 too_many when the domain has more than 300 names in
-// the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the
-// scan does not finish within 5 minutes. Nothing is saved then; every attempt is audited.
+// when the commitment is missing and the caller is an operator (an administrator must run the first
+// scan). For an administrator that first scan IS the confirmation (D-473, amends D-26): it needs
+// two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence
+// shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not
+// the current one); the commitment is then recorded with who, when and that exact sentence, and the
+// scan goes on. A target that already has a commitment records nothing again. After those checks the
+// Vulnerability scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own
+// verified public IPs; a domain's names from certificate transparency are listed and get one GET of /
+// by name on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan
+// runs on the box; 429 rate_limited within 10 minutes of the target's last scan; 400 too_many when the
+// domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search
+// (crt.sh) does not answer or the scan does not finish within 5 minutes. Nothing is saved then; every
+// attempt is audited.
 //
 // POST /exposure/targets/{id}/scan
 func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -18028,15 +17877,30 @@ func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, 
 	}
 
 	var rawBody []byte
+	request, rawBody, close, err := s.decodeExposurePostExposureTargetsIDScanRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
 
 	var response *ExposurePostExposureTargetsIDScanOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureTargetsIDScanOperation,
-			OperationSummary: "Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing. After those checks the Vulnerability scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan; 400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes. Nothing is saved then; every attempt is audited",
+			OperationSummary: "Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation (D-473, amends D-26): it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target that already has a commitment records nothing again. After those checks the Vulnerability scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan; 400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes. Nothing is saved then; every attempt is audited",
 			OperationID:      "exposure_post_exposure_targets_id_scan",
-			Body:             nil,
+			Body:             request,
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
 				{
@@ -18048,7 +17912,7 @@ func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, 
 		}
 
 		type (
-			Request  = struct{}
+			Request  = OptExposurePostExposureTargetsIDScanReq
 			Params   = ExposurePostExposureTargetsIDScanParams
 			Response = *ExposurePostExposureTargetsIDScanOK
 		)
@@ -18061,12 +17925,12 @@ func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, 
 			mreq,
 			unpackExposurePostExposureTargetsIDScanParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.ExposurePostExposureTargetsIDScan(ctx, params)
+				response, err = s.h.ExposurePostExposureTargetsIDScan(ctx, request, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.ExposurePostExposureTargetsIDScan(ctx, params)
+		response, err = s.h.ExposurePostExposureTargetsIDScan(ctx, request, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {

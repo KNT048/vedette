@@ -156,7 +156,6 @@ var Operations = map[string]Operation{
 	"exposure_get_exposure_targets_id_snapshots_date":       {Method: "GET", Path: "/exposure/targets/{id}/snapshots/{date}", MinRole: Viewer, Tag: "exposure"},
 	"exposure_post_exposure_box_ip_verify":                  {Method: "POST", Path: "/exposure/box-ip/verify", MinRole: Admin, Tag: "exposure"},
 	"exposure_post_exposure_targets":                        {Method: "POST", Path: "/exposure/targets", MinRole: Admin, Tag: "exposure"},
-	"exposure_post_exposure_targets_id_commitment":          {Method: "POST", Path: "/exposure/targets/{id}/commitment", MinRole: Admin, Tag: "exposure"},
 	"exposure_post_exposure_targets_id_scan":                {Method: "POST", Path: "/exposure/targets/{id}/scan", MinRole: Operator, Tag: "exposure"},
 	"exposure_post_exposure_targets_id_verify":              {Method: "POST", Path: "/exposure/targets/{id}/verify", MinRole: Operator, Tag: "exposure"},
 	"exposure_put_exposure_box_ip_settings":                 {Method: "PUT", Path: "/exposure/box-ip/settings", MinRole: Admin, Tag: "exposure"},

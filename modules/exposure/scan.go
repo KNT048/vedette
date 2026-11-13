@@ -182,7 +182,7 @@ func (s *Service) refusal(t Target, r BlockedReason, now time.Time) error {
 	case BlockedTxtMissing:
 		return apiErr(409, "txt_missing", "The DNS TXT record %s is no longer on %s, so it cannot be scanned. Add the record back, then check again.", txtRecord(t.Token), t.Value)
 	case BlockedNoCommitment:
-		return apiErr(400, "commitment_required", "You have not confirmed that your company owns %s and you are authorized to scan it. Confirm it first.", t.Value)
+		return errNeedAdminFirstScan(t.Value)
 	case BlockedNotCurrent:
 		return apiErr(409, "ip_not_current", "This box no longer reaches the Internet through %s; it was last seen %s. Scans of it are paused until the box uses it again.", t.Value, s.momentText(t.VerifiedAt))
 	}
@@ -193,18 +193,34 @@ func (s *Service) refusal(t Target, r BlockedReason, now time.Time) error {
 // that repeats is answered 429 rather than sent again.
 const ScanEvery = 10 * time.Minute
 
-// Scan scans one target now (POST …/scan, PRE-1, INV-1, INV-12): the gate first, then one scan at a time on the box (409 busy)
+// Scan scans one target now for a caller that is not a person at the button (the commitment must already exist). See ScanNow.
+func (s *Service) Scan(ctx context.Context, user, id string) (Snapshot, error) {
+	return s.ScanNow(ctx, Actor{Email: user}, id, "")
+}
+
+// ScanNow scans one target now (POST …/scan, PRE-1, INV-1, INV-12, INV-17): the gate first, then one scan at a time on the box (409 busy)
 // and at most one per target every ScanEvery (429 rate_limited), then the runner the scan module registered, then one snapshot
 // for the day. Without a runner the answer is 501 after the gate. Every attempt on a target that exists is audited as
-// exposure.scan with its outcome, refused or failed ones too (LEGAL §3).
-func (s *Service) Scan(ctx context.Context, user, id string) (Snapshot, error) {
-	t, reason, err := s.gate(ctx, user, id)
+// exposure.scan with its outcome, refused or failed ones too (LEGAL §3). When the only thing missing is the commitment and who.Admin
+// is set, this scan is the confirmation (D-473): it needs two-step sign-in and the notice version the page showed (confirmByScan),
+// then the gate runs again with the commitment in place. For anyone else the answer is 400 commitment_required.
+func (s *Service) ScanNow(ctx context.Context, who Actor, id, noticeVersion string) (Snapshot, error) {
+	t, reason, err := s.gate(ctx, who.Email, id)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("exposure: scanning: %w", err)
 	}
-	snap, err := s.scan(ctx, user, t, reason)
+	if reason == BlockedNoCommitment && who.Admin {
+		if err = s.confirmByScan(ctx, who, t, noticeVersion); err == nil {
+			t, reason, err = s.gate(ctx, who.Email, id)
+		}
+		if err != nil {
+			s.auditFailedScan(ctx, who.Email, t, err)
+			return Snapshot{}, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
+		}
+	}
+	snap, err := s.scan(ctx, who.Email, t, reason)
 	if err != nil {
-		s.auditFailedScan(ctx, user, t, err)
+		s.auditFailedScan(ctx, who.Email, t, err)
 		return Snapshot{}, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
 	}
 	return snap, nil

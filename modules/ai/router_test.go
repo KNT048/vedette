@@ -263,15 +263,15 @@ func TestRouterUsesTheMeter(t *testing.T) {
 		t.Fatal(err)
 	}
 	for range 40 { // each call is 150 tokens: the 7th takes the total past the budget of 1000 (D-531)
-		res, err := r.Call(context.Background(), JobLogDigest, req)
+		_, err := r.Call(context.Background(), JobLogDigest, req)
 		if errors.Is(err, ErrCapped) {
 			break
 		}
 		if err != nil {
 			t.Fatal(err)
 		}
-		if res.Downgrade != nil || m.Tier() != TierMax {
-			t.Fatalf("the budget lowered the level: %+v %s", res.Downgrade, m.Tier())
+		if m.Tier() != TierMax {
+			t.Fatalf("the budget lowered the level: %s", m.Tier())
 		}
 	}
 	if _, err := r.Call(context.Background(), JobLogDigest, req); !errors.Is(err, ErrCapped) {

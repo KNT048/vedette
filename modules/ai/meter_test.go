@@ -29,8 +29,9 @@ func TestContract_INV4_TokenMeterMonthlyBudget(t *testing.T) {
 	}
 
 	m := newMeter(t, c, TierMax, 1000)
-	if d := m.Record("a", 400, 100); d != nil || m.Tier() != TierMax || m.Used() != 500 || m.Exhausted() {
-		t.Fatalf("under the budget: %v %v %d", d, m.Tier(), m.Used())
+	m.Record("a", 400, 100)
+	if m.Tier() != TierMax || m.Used() != 500 || m.Exhausted() {
+		t.Fatalf("under the budget: %v %d", m.Tier(), m.Used())
 	}
 	if _, err := m.Reserve("a", 5000, 500); err != nil { // 500 used, nothing held: allowed
 		t.Fatalf("under the budget: %v", err)
@@ -42,8 +43,9 @@ func TestContract_INV4_TokenMeterMonthlyBudget(t *testing.T) {
 		t.Fatal("holds alone made the budget used up")
 	}
 	m2 := newMeter(t, c, TierMax, 1000)
-	if d := m2.Record("a", 1000, 0); d != nil || m2.Tier() != TierMax {
-		t.Fatalf("at the budget the level stays: %+v %v", d, m2.Tier())
+	m2.Record("a", 1000, 0)
+	if m2.Tier() != TierMax {
+		t.Fatalf("at the budget the level stays: %v", m2.Tier())
 	}
 	if !m2.Exhausted() || !m2.UsedUp() {
 		t.Fatal("at 100 % of the budget no call may go, at any level")
@@ -51,8 +53,9 @@ func TestContract_INV4_TokenMeterMonthlyBudget(t *testing.T) {
 	if _, err := m2.Reserve("a", 5000, 1); !errors.Is(err, ErrCapped) {
 		t.Fatalf("reserve at the budget: %v", err)
 	}
-	if d := m2.Record("b", 2500, 0); d != nil || m2.Tier() != TierMax {
-		t.Fatalf("far over the budget the level still stays (D-531): %+v %v", d, m2.Tier())
+	m2.Record("b", 2500, 0)
+	if m2.Tier() != TierMax {
+		t.Fatalf("far over the budget the level still stays (D-531): %v", m2.Tier())
 	}
 	if m2.ProfileUsed("a") != 1000 || m2.ProfileUsed("b") != 2500 || m2.ProfileUsed("none") != 0 {
 		t.Fatalf("per profile: a=%d b=%d", m2.ProfileUsed("a"), m2.ProfileUsed("b"))

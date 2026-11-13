@@ -76,7 +76,6 @@ export const AskHookHit = HookHit.extend({
 export const AskResult = z.object({
   id: z.string(), question: z.string(), asked_at: iso, answer: z.array(z.string()), table: AskTable.nullable(),
   tool_calls: z.array(ToolCall), citations: z.array(Citation), model: z.string(), profile: z.string(), tokens: Tokens,
-  downgraded: z.object({ from: AiTier, to: AiTier }).nullable(),
   hooks: z.array(AskHookHit).describe('Hooks that acted on this question, a tool call, a tool result or the answer; empty when none did'),
   memories_suggested: z.number().int().min(0).describe('memories the AI suggested with this answer (0 when read back); they wait for an administrator (S-AI-7, D-225)'),
 })

@@ -1,8 +1,10 @@
 -- +goose Up
 -- D-467: more trap services (https, ftp, telnet, mysql, mongodb, redis, vnc, git, httpproxy, tcpbanner, tftp, ntp, sip). A hit may
 -- name any of them, and hp_config gets the key "https": the id of the core_secret row that holds the HTTPS trap's certificate and
--- key (never the key itself). SQLite cannot change a CHECK, so both tables are rebuilt with the same columns and rows. Trap IPs keep
--- exactly the services they have. Forward-only (DATA_MODEL 6, rule 1).
+-- key (never the key itself). A hit gets `handshake`: 0 for a UDP service hit (TFTP, NTP, SIP have no handshake, so the source can be
+-- forged: such a hit never confirms a source, D-467 review H1), 1 for every other hit and every hit stored before. SQLite cannot
+-- change a CHECK, so both tables are rebuilt with the same rows. Trap IPs keep exactly the services they have. Forward-only
+-- (DATA_MODEL 6, rule 1); an older core still runs on it (D-138): modules/honeypot IMPACT says what it does with the new rows.
 CREATE TABLE hp_config_new (
     key        TEXT NOT NULL PRIMARY KEY CHECK (key IN ('applied', 'tail', 'https')),
     value      TEXT NOT NULL CHECK (json_valid(value)),
@@ -31,7 +33,8 @@ CREATE TABLE hp_hits_new (
     token_id       TEXT    CHECK (token_id IS NULL OR length(token_id) <= 96),
     events         TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(events)),
     conn_key       TEXT    UNIQUE CHECK (conn_key IS NULL OR length(conn_key) = 64),
-    conn_count     INTEGER NOT NULL DEFAULT 1 CHECK (conn_count >= 1)
+    conn_count     INTEGER NOT NULL DEFAULT 1 CHECK (conn_count >= 1),
+    handshake      INTEGER NOT NULL DEFAULT 1 CHECK (handshake IN (0, 1))
 ) STRICT;
 INSERT INTO hp_hits_new (id, ts, kind, service, label, port, src_ip, is_test, excerpt, trap_ip, trap_hostname, token_id, events, conn_key, conn_count)
     SELECT id, ts, kind, service, label, port, src_ip, is_test, excerpt, trap_ip, trap_hostname, token_id, events, conn_key, conn_count FROM hp_hits;

@@ -186,8 +186,11 @@ type ingestEnv struct {
 	// touch: this batch is made of attempts the host recorded (PollTouches): new hits draw from touchLeft, not the listener caps.
 	touch     bool
 	touchLeft int
-	pollNew   int // new hits stored by this poll's earlier batches
-	hourNew   int // new hits stored in this clock hour before this batch
+	pollNew   int // new hits of real connections stored by this poll's earlier batches
+	hourNew   int // new hits of real connections stored in this clock hour before this batch
+	// udpLeft is what this clock hour's UDP budget had when the poll began, udpNew what this poll's earlier batches took of it.
+	udpLeft, udpNew int
+	batchUDP        int // new UDP hits of the batch in progress
 	// of the batch in progress
 	newHits []HitEventData
 	ignored int
@@ -222,9 +225,10 @@ func (s *Service) newIngest(ctx context.Context) (*ingestEnv, error) {
 	hour := env.now.Truncate(time.Hour)
 	s.mu.Lock()
 	if !s.hourStart.Equal(hour) {
-		s.hourStart, s.hourNew = hour, 0
+		s.hourStart, s.hourNew, s.udpHourNew = hour, 0, 0
 	}
 	env.hourNew = s.hourNew
+	env.udpLeft = maxUDPHitsPerHour - s.udpHourNew
 	s.mu.Unlock()
 	return env, nil
 }
@@ -233,7 +237,7 @@ func (s *Service) newIngest(ctx context.Context) (*ingestEnv, error) {
 // hits it made (core/events: after the commit, a rolled-back hit is never announced).
 func (s *Service) ingestBatch(ctx context.Context, env *ingestEnv, batch []tailItem, pos tailPos) error {
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		env.newHits, env.ignored, env.st = nil, 0, Stats{}
+		env.newHits, env.ignored, env.st, env.batchUDP = nil, 0, Stats{}, 0
 		for _, it := range batch {
 			if err := s.ingestOne(ctx, tx, env, it.rec); err != nil {
 				return err
@@ -257,13 +261,16 @@ func (s *Service) ingestBatch(ctx context.Context, env *ingestEnv, batch []tailI
 // afterBatch counts and publishes what a committed batch made (core/events: after the commit, a rolled-back hit is never announced).
 func (s *Service) afterBatch(ctx context.Context, env *ingestEnv) {
 	created := env.newHits
-	env.pollNew += len(created)
-	env.hourNew += len(created)
+	listener := len(created) - env.batchUDP
+	env.pollNew += listener
+	env.hourNew += listener
+	env.udpNew += env.batchUDP
 	s.mu.Lock()
 	if env.touch {
 		s.touchHourNew += len(created) // their own budget: never the listener's (B2 review M2)
 	} else {
-		s.hourNew += len(created) // a delta: a URL token hit stored meanwhile is not lost (B2 review L3)
+		s.hourNew += listener        // a delta: a URL token hit stored meanwhile is not lost (B2 review L3)
+		s.udpHourNew += env.batchUDP // their own budget (D-467 review M1)
 	}
 	s.stats.Lines += env.st.Lines
 	s.stats.Ignored += env.st.Ignored
@@ -558,16 +565,25 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 		more += " [from port " + strconv.Itoa(r.SrcPort) + "]"
 	}
 	svcCopy := svc
+	// A UDP service (TFTP, NTP, SIP) has no handshake: one datagram with any source address makes the line, so the hit confirms nothing
+	// about its source and says so (D-467 review H1).
+	handshake := svc.Proto() == "tcp"
+	excerpt := det
+	if !handshake {
+		excerpt += "." + udpNote
+	}
 	if err := s.upsert(ctx, tx, env, storedHit{
-		Hit:     Hit{TS: tsText, Kind: KindService, Service: &svcCopy, Label: svc.Label(), Port: &port, SrcIP: src, Excerpt: det, TrapIP: trapIP, TrapHostname: env.nameAt(trapIP)},
+		Hit: Hit{TS: tsText, Kind: KindService, Service: &svcCopy, Label: svc.Label(), Port: &port, SrcIP: src, Excerpt: excerpt, TrapIP: trapIP,
+			TrapHostname: env.nameAt(trapIP), NoHandshake: !handshake},
 		connKey: connKey("service", string(svc), src, dst, strconv.Itoa(port), window),
 		events:  []HitEvent{{TS: tsText, Source: "honeypot", Text: first, Mark: true}},
 	}, more, det); err != nil {
 		return err
 	}
-	// A UDP line has no target address (OpenCanary's UDP listeners report 0.0.0.0): the Trap IP named above is a guess, so it is
-	// not fed to the sweep, which counts Trap IPs; the host's record of the attempts (PollTouches) has the real target.
-	if r.Dst.IsValid() || svc.Proto() != "udp" {
+	// A UDP line is not fed to the sweep: its source may be forged (and the sweep would take it as a completed connection that
+	// vouches for the source), and its target is a guess (OpenCanary's UDP listeners report 0.0.0.0); the host's record of the
+	// attempts (PollTouches) has the real source and target of the UDP datagrams, as for a SYN.
+	if handshake {
 		if err := s.sweep(ctx, tx, env, r.Src, trapIP, ts); err != nil {
 			return err
 		}
@@ -660,7 +676,7 @@ func (s *Service) sweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, src net
 	note := ""
 	if env.touch { // only attempts: forged unless src completed a connection near it (the rule response uses, SourceConnected, D-509)
 		var n int
-		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM hp_hits WHERE src_ip = ? AND is_test = 0 AND kind = 'service' AND ts BETWEEN ? AND ?`,
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM hp_hits WHERE src_ip = ? AND is_test = 0 AND kind = 'service' AND handshake = 1 AND ts BETWEEN ? AND ?`,
 			src.String(), from, to).Scan(&n); err != nil {
 			return fmt.Errorf("honeypot: read the hits of a source: %w", err)
 		}
@@ -747,8 +763,10 @@ func (s *Service) upsert(ctx context.Context, tx *sql.Tx, env *ingestEnv, h stor
 	err := tx.QueryRowContext(ctx, `SELECT id, excerpt, events FROM hp_hits WHERE conn_key = ?`, h.connKey).Scan(&id, &excerpt, &evJSON)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
+		listener := len(env.newHits) - env.batchUDP
 		if env.touch && len(env.newHits) >= env.touchLeft ||
-			!env.touch && (env.pollNew+len(env.newHits) >= maxNewPerPoll || env.hourNew+len(env.newHits) >= maxNewPerHour) {
+			!env.touch && h.NoHandshake && env.udpNew+env.batchUDP >= env.udpLeft ||
+			!env.touch && !h.NoHandshake && (env.pollNew+listener >= maxNewPerPoll || env.hourNew+listener >= maxNewPerHour) {
 			env.st.Suppressed++
 			return nil
 		}
@@ -763,7 +781,10 @@ func (s *Service) upsert(ctx context.Context, tx *sql.Tx, env *ingestEnv, h stor
 		if err := s.insertHit(ctx, tx, h); err != nil {
 			return err
 		}
-		d := HitEventData{ID: h.ID, TS: h.TS, Kind: h.Kind, SrcIP: h.SrcIP, Label: h.Label, Decoy: h.TrapHostname}
+		d := HitEventData{ID: h.ID, TS: h.TS, Kind: h.Kind, SrcIP: h.SrcIP, Label: h.Label, Decoy: h.TrapHostname, Unconfirmed: h.NoHandshake}
+		if h.NoHandshake {
+			env.batchUDP++
+		}
 		if d.Decoy == "" {
 			d.Decoy = h.TrapIP
 		}
@@ -846,6 +867,14 @@ const maxTouchScansPerHour = 20
 // forgedNote ends the excerpt of a scan hit made from attempts the host recorded.
 const forgedNote = " The handshake was not completed, so the source address may be forged."
 
+// udpNote ends the excerpt of a UDP service hit (D-467 review H1).
+const udpNote = " UDP has no handshake, so the source address may be forged."
+
+// maxUDPHitsPerHour is the budget of new UDP service hits (TFTP, NTP, SIP) in a clock hour: their source can be forged, so a flood of
+// datagrams with rotating sources stops here and never draws from maxNewPerPoll or maxNewPerHour, which the hits of real connections
+// keep (D-467 review M1).
+const maxUDPHitsPerHour = 20
+
 // PollTouches feeds the host's record of new TCP/UDP attempts to the Trap IPs into the sweep detection (B2 review M2: a SYN scan,
 // nmap's default, completes no connection, so OpenCanary logs nothing). Only the sweep: a single attempt is no hit (the listener
 // hits stay the per-touch alerts). The source must be plausible as for a log line (not the box, a Trap IP, loopback, the network
@@ -895,7 +924,7 @@ func (s *Service) PollTouches(ctx context.Context) error {
 	env.touch, env.touchLeft = true, maxTouchScansPerHour-s.touchHourNew
 	s.mu.Unlock()
 	err = s.db.Write(ctx, func(tx *sql.Tx) error {
-		env.newHits, env.ignored, env.st = nil, 0, Stats{}
+		env.newHits, env.ignored, env.st, env.batchUDP = nil, 0, Stats{}, 0
 		for _, t := range fresh {
 			if !env.touchPlausible(t) { // the box, a Trap IP, broadcast...: not counted as an implausible log line (B2 review L2)
 				continue

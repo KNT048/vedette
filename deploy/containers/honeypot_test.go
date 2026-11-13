@@ -619,7 +619,7 @@ func TestHoneypotWriteFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	files := map[string][]byte{honeypot.ConfFile: conf, honeypot.TokensFile: tokens,
-		honeypot.CertFile: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), honeypot.CertKeyFile: pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})}
+		honeypot.CertFile: append(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}), pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})...)}
 	for name, data := range files {
 		if err := os.WriteFile(filepath.Join(out, name), data, 0o644); err != nil { //nolint:gosec // a fixture the container reads
 			t.Fatal(err)

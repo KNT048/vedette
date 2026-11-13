@@ -217,6 +217,8 @@ func (s *Service) honeypotEvent(ctx context.Context, data any) error {
 		SrcIP      string `json:"src_ip"`
 		Decoy      string `json:"decoy"`
 		SrcAssetID string `json:"src_asset_id"`
+		// Unconfirmed: the hit completed no handshake (a UDP trap, honeypot D-467), so its source may be forged, as a scan's.
+		Unconfirmed bool `json:"unconfirmed"`
 	}
 	if err := decode(data, &e); err != nil {
 		return err
@@ -231,7 +233,7 @@ func (s *Service) honeypotEvent(ctx context.Context, data any) error {
 		return nil
 	}
 	ip = ip.Unmap()
-	if e.Kind == "scan" && !s.scanRoom(ctx) {
+	if (e.Kind == "scan" || e.Unconfirmed) && !s.scanRoom(ctx) { // forgeable hits share the scan budget (honeypot D-467 review M1)
 		return nil
 	}
 	var dev DeviceInfo
@@ -257,9 +259,12 @@ func (s *Service) honeypotEvent(ctx context.Context, data any) error {
 	if t, err := time.Parse(time.RFC3339Nano, e.TS); err == nil {
 		ts = store2(t)
 	}
+	fields := map[string]string{"source_ip": ip.String(), "source_device": name, "decoy": decoy, "kind": e.Kind, "switch_port": ""}
+	if e.Unconfirmed {
+		fields["unconfirmed"] = "1"
+	}
 	return s.StoreEvent(ctx, Det{ID: "honeypot:" + e.ID, Trigger: "honeypot", TS: ts, DeviceKind: dev.Kind, AssetID: dev.ID,
-		Summary: oneLine(who+" touched a trap ("+decoy+", "+e.Kind+")", 300),
-		Fields:  map[string]string{"source_ip": ip.String(), "source_device": name, "decoy": decoy, "kind": e.Kind, "switch_port": ""}})
+		Summary: oneLine(who+" touched a trap ("+decoy+", "+e.Kind+")", 300), Fields: fields})
 }
 
 // maxScansPerHour bounds the port-scan hits that reach the rules in one clock hour. A scan hit's source can be forged, so a LAN

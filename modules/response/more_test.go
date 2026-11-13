@@ -363,6 +363,39 @@ func TestHoneypotScanNeverPreApprovedAndHourlyCap(t *testing.T) {
 	}
 }
 
+// Honeypot D-467 review H1: a UDP trap hit (TFTP, NTP, SIP) completes no handshake, so its source can be forged as a scan's: the event
+// says unconfirmed, a pre-approved rule asks a person for it, and it draws from the scan budget; a TCP service hit is carried out.
+func TestHoneypotUnconfirmedHitNeverPreApproved(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.svc.Subscribe(e.bus)
+	e.rule("Trap", "honeypot", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.source_ip}}"}, TTLMin: intp(60)}},
+		func(in *response.RuleInput) { in.PreApproved = true })
+	e.must(e.bus.Publish(context.Background(), events.Event{Name: "honeypot.hit.created", Data: map[string]any{"id": "hit-udp", "kind": "service", "src_ip": "185.220.101.47", "unconfirmed": true}}))
+	e.must(e.bus.Publish(context.Background(), events.Event{Name: "honeypot.hit.created", Data: map[string]any{"id": "hit-tcp", "kind": "service", "src_ip": "185.220.101.48"}}))
+	_, err := e.svc.Evaluate(e.ctx())
+	e.must(err)
+	got := map[string]response.ActionRequest{}
+	for _, a := range e.actions() {
+		got[a.Items[0].Title] = a
+	}
+	if len(got) != 2 {
+		t.Fatalf("requests: %+v", got)
+	}
+	for title, a := range got {
+		udp := strings.Contains(title, "185.220.101.47")
+		if udp && (a.Status != "pending" || a.PreApproved) || !udp && (a.Status == "pending" || !a.PreApproved) {
+			t.Errorf("%s: status %s, pre-approved %v", title, a.Status, a.PreApproved)
+		}
+	}
+	for i := 0; i < 70; i++ {
+		e.must(e.bus.Publish(context.Background(), events.Event{Name: "honeypot.hit.created", Data: map[string]any{"id": "udp-" + strconv.Itoa(i), "kind": "service", "src_ip": "185.220.102." + strconv.Itoa(i), "unconfirmed": true}}))
+	}
+	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE trigger = 'honeypot' AND fields LIKE '%"unconfirmed":"1"%'`); n != 60 {
+		t.Errorf("%d unconfirmed events stored this hour, want the scan cap of 60", n)
+	}
+}
+
 type gate struct{ on bool }
 
 func (g *gate) Enabled(string) bool { return g.on }

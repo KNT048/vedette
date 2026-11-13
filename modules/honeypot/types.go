@@ -160,6 +160,10 @@ type Hit struct {
 	// column of the hit list (W1-13).
 	TrapIP       string `json:"trap_ip"`
 	TrapHostname string `json:"trap_hostname"`
+	// NoHandshake: a UDP service hit (TFTP, NTP, SIP). UDP has no handshake, so its source can be forged like a scan's: it never
+	// confirms a source (SourceConnected) and response holds it from pre-approved rules (D-467 review H1). Not part of the API: the
+	// excerpt says it.
+	NoHandshake bool `json:"-"`
 }
 
 // SourceIP is the address the hit came from, for the response module.
@@ -447,4 +451,7 @@ type HitEventData struct {
 	Decoy      string  `json:"decoy"`
 	SrcAssetID string  `json:"src_asset_id"`
 	SrcName    string  `json:"src_name"` // the name of that device, "" for none (notify names it on the incident, W1-13)
+	// Unconfirmed: the source completed no handshake (a UDP service hit), so it may be forged: response holds it from pre-approved
+	// rules and from its scan budget as it does a scan (D-467 review H1). Absent (false) on every other hit.
+	Unconfirmed bool `json:"unconfirmed,omitempty"`
 }

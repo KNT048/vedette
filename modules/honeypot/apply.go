@@ -314,12 +314,16 @@ func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceNa
 		data []byte
 	}
 	out := []file{{ConfFile, conf}, {TokensFile, tok}}
-	if slices.Contains(services, HTTPS) { // the key is written first: the certificate names it, and the container needs both
+	if slices.Contains(services, HTTPS) {
+		// One file, key then certificate, replaced in one rename: the container never sees a new key with an old certificate (review
+		// L2). It is written before opencanary.conf switches the trap on.
 		cert, key, err := s.httpsFiles(ctx, looks[HTTPS])
 		if err != nil {
 			return err
 		}
-		out = []file{{CertKeyFile, key}, {CertFile, cert}, {ConfFile, conf}, {TokensFile, tok}}
+		out = []file{{CertFile, append(append([]byte{}, key...), cert...)}, {ConfFile, conf}, {TokensFile, tok}}
+	} else if err := s.removeCert(); err != nil { // no Trap IP has HTTPS: its key does not stay on the shared folder (review L1)
+		s.cfg.Log.WarnContext(ctx, "honeypot: remove the HTTPS trap's key from the config folder", "error", err) // tried again next Apply
 	}
 	for _, f := range out {
 		sum := sha256.Sum256(f.data)
@@ -692,6 +696,19 @@ func (s *Service) Disable(ctx context.Context) error {
 	return s.disable(ctx)
 }
 
+// removeCert removes the HTTPS trap's key and certificate from config/ (nothing there when none was written); the next write is
+// a new one. Guarded by applyMu.
+func (s *Service) removeCert() error {
+	if s.cfg.ConfigDir == "" {
+		return nil
+	}
+	if err := removeInRoot(s.cfg.ConfigDir, CertFile); err != nil {
+		return err
+	}
+	delete(s.written, CertFile)
+	return nil
+}
+
 func (s *Service) disable(ctx context.Context) error {
 	defer func() { // a later switch-on must read "starting", never the "the module is off" this left behind; the back-off starts over
 		s.mu.Lock()
@@ -708,6 +725,9 @@ func (s *Service) disable(ctx context.Context) error {
 	if s.cfg.ConfigDir == "" { // nothing was ever started without a configuration folder
 		s.setHost(hostCache{reason: "the module is off"})
 		return nil
+	}
+	if err := s.removeCert(); err != nil { // the module is off (or the box is purged): no trap key stays behind (review L1)
+		s.cfg.Log.WarnContext(ctx, "honeypot: remove the HTTPS trap's key from the config folder", "error", err)
 	}
 	if !st.Available {
 		// A host that is unreachable or rebooting is not a host with nothing on it: say "done" only when the record

@@ -56,15 +56,16 @@ type Service struct {
 
 	kick chan struct{} // capacity 1: "the state changed, apply it to the host"
 
-	mu        sync.Mutex // guards host, tl's counters (copied into stats), stats, lastWarn, hourStart, hourNew
-	host      hostCache
-	kickGen   uint64 // bumped by Kick; doneGen is the kickGen the last finished Apply started with: kickGen > doneGen = a change the host has not confirmed (state starting/stopping)
-	doneGen   uint64
-	tl        *tailer
-	stats     Stats
-	lastWarn  map[string]time.Time
-	hourStart time.Time // the clock hour hourNew counts
-	hourNew   int       // new hits stored in that hour (per-hour cap, ingest.go)
+	mu         sync.Mutex // guards host, tl's counters (copied into stats), stats, lastWarn, hourStart, hourNew
+	host       hostCache
+	kickGen    uint64 // bumped by Kick; doneGen is the kickGen the last finished Apply started with: kickGen > doneGen = a change the host has not confirmed (state starting/stopping)
+	doneGen    uint64
+	tl         *tailer
+	stats      Stats
+	lastWarn   map[string]time.Time
+	hourStart  time.Time // the clock hour hourNew counts
+	hourNew    int       // new hits of real connections stored in that hour (per-hour cap, ingest.go)
+	udpHourNew int       // new UDP service hits stored in that hour (their own budget, maxUDPHitsPerHour)
 
 	applyMu sync.Mutex                   // one Apply or teardown at a time (they rewrite "applied" and talk to the host)
 	written map[string][sha256.Size]byte // hash of what Apply last wrote to ConfigDir, by file name (guarded by applyMu)

@@ -22,9 +22,9 @@ type IncidentInfo struct {
 	SourceIP                string
 	AssetID                 string // the inventory device of the source, "" when not known
 	HitKind                 string // a trap's hit: service, token or scan
-	// Unconfirmed: the source may be forged. A scan hit can be made from attempts that completed no handshake; it counts as
-	// confirmed only when the same source also completed a connection to a trap service (a service hit) near it. Nothing is
-	// offered for an unconfirmed source.
+	// Unconfirmed: the source may be forged. A scan hit can be made from attempts that completed no handshake, and a UDP trap hit
+	// from one datagram (honeypot D-467); it counts as confirmed only when the same source also completed a connection to a trap
+	// service (a TCP service hit) near it. Nothing is offered for an unconfirmed source.
 	Unconfirmed bool
 }
 
@@ -80,7 +80,7 @@ const sourcePerson = "person"
 
 const (
 	resolvedMsg    = "This incident is resolved, so nothing is offered. Reopen it in Incidents to act on it."
-	unconfirmedMsg = "The source of a scan can be forged: these attempts completed no connection, so this address may belong to someone innocent. Confirm on the device first. Nothing is offered for it."
+	unconfirmedMsg = "The source of a scan or of a UDP request can be forged: it completed no connection, so this address may belong to someone innocent. Confirm on the device first. Nothing is offered for it."
 	scanConfirmed  = " (a scan; the same source also completed a connection to a trap, so its address is not forged)"
 )
 

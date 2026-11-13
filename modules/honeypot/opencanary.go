@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"slices"
 	"strings"
@@ -14,13 +15,14 @@ import (
 
 // Names of the files: the first two are written by core into Config.ConfigDir (mounted read-only into the honeypot
 // container), the log is written by the container into Config.LogDir and only read by core (D-89). Nothing here is a secret of
-// the box: the files are readable by the container. The one private key among them (CertKeyFile) is the HTTPS trap's own, which
+// the box: the files are readable by the container. The one private key among them (in CertFile) is the HTTPS trap's own, which
 // core made for it alone and which nothing trusts (https.go, D-467): the container has to read it to serve TLS.
 const (
-	ConfFile       = "opencanary.conf"
-	TokensFile     = "honeytokens.json"
-	CertFile       = "https.crt"
-	CertKeyFile    = "https.key"
+	ConfFile   = "opencanary.conf"
+	TokensFile = "honeytokens.json"
+	// CertFile is the HTTPS trap's key and certificate in one PEM file (OpenCanary reads it as both https.key and https.certificate;
+	// OpenSSL takes the first block of the type it wants), so one rename replaces the pair. Present only while a Trap IP has HTTPS.
+	CertFile       = "https.pem"
 	defaultLogFile = "opencanary.jsonl"
 	sambaAuditFile = "/var/log/samba-audit.log"
 	// imageConfDir is where the honeypot image finds config/ (a symlink to the mount point, deploy/containers/honeypot/Containerfile).
@@ -123,7 +125,7 @@ func RenderConfig(in ConfigInput) ([]byte, error) {
 		// OpenCanary logs GET / (its redirect to the login page) and refused methods only when asked; without these the first request of any scanner is invisible.
 		"http.log_redirect_request": web, "http.log_unimplemented_method_requests": web,
 		// core's own certificate for the trap (https.go): OpenCanary would otherwise try to write one into the read-only image
-		"https.certificate": imageConfDir + CertFile, "https.key": imageConfDir + CertKeyFile,
+		"https.certificate": imageConfDir + CertFile, "https.key": imageConfDir + CertFile,
 		// a bare connection is a hit for these two too, as for SSH; FTP logs only a login (OpenCanary has no switch for its connect)
 		"telnet.log_tcp_connection": on(Telnet), "mysql.log_connection_made": on(MySQL),
 		"httpproxy.skin": "squid",
@@ -183,6 +185,22 @@ func marshalStable(v any) ([]byte, error) {
 		return nil, fmt.Errorf("honeypot: render: %w", err)
 	}
 	return b.Bytes(), nil
+}
+
+// removeInRoot removes dir/name through os.Root (no path component can leave dir); a name that is not there is no error.
+func removeInRoot(dir, name string) error {
+	root, err := os.OpenRoot(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("honeypot: open config dir: %w", err)
+	}
+	defer func() { _ = root.Close() }()
+	if err := root.Remove(name); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("honeypot: remove %s: %w", name, err)
+	}
+	return nil
 }
 
 // writeInRoot replaces dir/name with data: a new file with a random name (O_EXCL) created through os.Root, so no path

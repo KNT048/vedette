@@ -80444,8 +80444,8 @@ type InventoryPostInventorySnmpReq struct {
 	// V3 with aes128: 8 to 64 printable ASCII characters; blank when editing keeps the saved one.
 	PrivPassword OptString `json:"priv_password"`
 	// Required: the IPv4 addresses or CIDR ranges of the local network this credential belongs to (400
-	// scope_required when empty). A device someone plugs in later and gets approved never receives it
-	// (D-512).
+	// scope_required when empty, from the handler so the person reads why). A device someone plugs in
+	// later and gets approved never receives it (D-512).
 	Scope []string `json:"scope"`
 	// V3: letters, digits and . _ @ -.
 	Username OptString `json:"username"`
@@ -81997,8 +81997,8 @@ type InventoryPutInventorySnmpIDReq struct {
 	// V3 with aes128: 8 to 64 printable ASCII characters; blank when editing keeps the saved one.
 	PrivPassword OptString `json:"priv_password"`
 	// Required: the IPv4 addresses or CIDR ranges of the local network this credential belongs to (400
-	// scope_required when empty). A device someone plugs in later and gets approved never receives it
-	// (D-512).
+	// scope_required when empty, from the handler so the person reads why). A device someone plugs in
+	// later and gets approved never receives it (D-512).
 	Scope []string `json:"scope"`
 	// V3: letters, digits and . _ @ -.
 	Username OptString `json:"username"`

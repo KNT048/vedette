@@ -39072,13 +39072,12 @@
                     "maxLength": 64
                   },
                   "scope": {
-                    "minItems": 1,
                     "maxItems": 16,
                     "type": "array",
                     "items": {
                       "type": "string"
                     },
-                    "description": "Required: the IPv4 addresses or CIDR ranges of the local network this credential belongs to (400 scope_required when empty). A device someone plugs in later and gets approved never receives it (D-512)"
+                    "description": "Required: the IPv4 addresses or CIDR ranges of the local network this credential belongs to (400 scope_required when empty, from the handler so the person reads why). A device someone plugs in later and gets approved never receives it (D-512)"
                   }
                 },
                 "required": [
@@ -39338,13 +39337,12 @@
                     "maxLength": 64
                   },
                   "scope": {
-                    "minItems": 1,
                     "maxItems": 16,
                     "type": "array",
                     "items": {
                       "type": "string"
                     },
-                    "description": "Required: the IPv4 addresses or CIDR ranges of the local network this credential belongs to (400 scope_required when empty). A device someone plugs in later and gets approved never receives it (D-512)"
+                    "description": "Required: the IPv4 addresses or CIDR ranges of the local network this credential belongs to (400 scope_required when empty, from the handler so the person reads why). A device someone plugs in later and gets approved never receives it (D-512)"
                   }
                 },
                 "required": [

@@ -3,8 +3,8 @@
 // form carries (NAT64, 6to4, IPv4-compatible), so that a guard judges both. Each guard keeps its own rules (box addresses, private ranges,
 // ports); this package says only what those addresses are (D-411).
 //
-// ponytail: response uses it; notify, feeds, logs and ai still keep their own copy of the same code (moving them is a follow-up after
-// PR #625, which changes those guards, lands: .ai/deferred/fix-v1-intake-sensor-response.md).
+// ponytail: response uses it; notify, feeds, logs and ai still keep their own copy of the same code until they move here (one follow-up
+// PR: .ai/deferred/fix-v1-intake-sensor-response.md).
 package netguard
 
 import (

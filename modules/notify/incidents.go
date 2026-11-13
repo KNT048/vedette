@@ -325,7 +325,46 @@ func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 	if err := errors.Join(srows.Err(), srows.Close()); err != nil {
 		return nil, fmt.Errorf("notify: read incident sends: %w", err)
 	}
+	s.withConnections(ctx, out)
 	return out, nil
+}
+
+// maxHitLookups is the most trap incidents of one answer whose hit is asked about (the newest first).
+const maxHitLookups = 100
+
+const hitLinkPrefix = "/honeypot/hits/"
+
+// withConnections raises the count of each trap incident to the connections its hit saw: notify counts one per event, and a
+// repeat connection folds into the hit without an event (D-496). The hit is counted once, so a later hit of the same incident
+// stays one. Without the port, or when it fails, the count stays notify's own (one log line, no error to the page).
+func (s *Service) withConnections(ctx context.Context, list []Incident) {
+	if s.cfg.Hits == nil || len(list) == 0 || (s.cfg.Modules != nil && !s.cfg.Modules.Enabled("honeypot")) {
+		return
+	}
+	var refs []HitRef
+	for _, i := range list {
+		id, ok := strings.CutPrefix(i.Link, hitLinkPrefix)
+		at, err := time.Parse(time.RFC3339, i.FirstSeen)
+		if i.Kind != IncidentTrap || !ok || id == "" || err != nil || len(refs) >= maxHitLookups {
+			continue
+		}
+		refs = append(refs, HitRef{ID: id, At: at})
+	}
+	if len(refs) == 0 {
+		return
+	}
+	conns, err := s.cfg.Hits.HitConnections(ctx, refs)
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "notify: trap hit connections are not available, showing notify's own count", "error", err)
+		return
+	}
+	for k := range list {
+		if id, ok := strings.CutPrefix(list[k].Link, hitLinkPrefix); ok && list[k].Kind == IncidentTrap {
+			if n := conns[id]; n > 1 {
+				list[k].Count += n - 1
+			}
+		}
+	}
 }
 
 // incidentsLimit is the most incidents GET /notify/incidents returns, newest seen first (the page of an
@@ -348,6 +387,9 @@ func (s *Service) incidentDetail(ctx context.Context, q dbtx, id string) (Incide
 	if err := fillIncident(ctx, q, &i); err != nil {
 		return IncidentDetail{}, err
 	}
+	one := []Incident{i}
+	s.withConnections(ctx, one)
+	i.Count = one[0].Count
 	names := make([]string, 0, len(i.Devices))
 	for _, d := range i.Devices {
 		names = append(names, d.Name)

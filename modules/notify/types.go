@@ -236,6 +236,19 @@ type LinkCodes interface {
 	DropChatLink(ctx context.Context, actor, userID string, ch channel.Type, address string) error
 }
 
+// HitRef names a trap hit an incident links to: its id and the time it was seen (the incident's first_seen).
+type HitRef struct {
+	ID string
+	At time.Time
+}
+
+// HitConnections is what notify reads from the honeypot at render time (D-496): how many connections each hit saw (hp_hits.conn_count;
+// later connections of the same source, service and trap IP fold into the hit and raise no event, honeypot INV-17). Hits it does not
+// know are left out. ponytail: read at render, not kept; switch to the honeypot.hit.updated event {id, conn_count} when honeypot sends it.
+type HitConnections interface {
+	HitConnections(ctx context.Context, hits []HitRef) (map[string]int, error)
+}
+
 // ModuleGate says whether a module is on (modreg.Registry satisfies it).
 type ModuleGate interface{ Enabled(id string) bool }
 

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/netip"
@@ -148,6 +150,34 @@ func (l notifyApproverLinks) DropChatLink(ctx context.Context, actor, userID str
 	return l.d.Response.DropChatLink(ctx, actor, userID, string(ch), address)
 }
 
+// notifyHits implements notify.HitConnections over the honeypot's export of hits (the one public read that carries conn_count; honeypot
+// is built after notify, so it is read when asked). A hit is found by its time: the incident's first_seen is the hit's ts, so one
+// narrow window per hit (D-496).
+type notifyHits struct{ d *deps }
+
+func (h notifyHits) HitConnections(ctx context.Context, hits []notify.HitRef) (map[string]int, error) {
+	if h.d.Honeypot == nil {
+		return nil, errors.New("honeypot is not ready")
+	}
+	out := map[string]int{}
+	for _, r := range hits {
+		var buf bytes.Buffer
+		if err := h.d.Honeypot.ExportHits(ctx, r.At, r.At, &buf); err != nil {
+			return nil, err
+		}
+		for _, line := range bytes.Split(buf.Bytes(), []byte("\n")) {
+			var row struct {
+				ID        string `json:"id"`
+				ConnCount int    `json:"conn_count"`
+			}
+			if json.Unmarshal(line, &row) == nil && row.ID == r.ID {
+				out[r.ID] = row.ConnCount
+			}
+		}
+	}
+	return out, nil
+}
+
 // newNotify builds the notify service once per database, so the handlers, the deliver job, the event
 // subscriptions and the code mailer share it (the Zalo personal adapter keeps its signed-in session and its
 // sign-in pause in memory). Events go to and come from deps.Bus. buildServices calls it first with the real
@@ -172,6 +202,7 @@ func newNotify(d *deps) *notify.Service {
 	if d.Inventory != nil {
 		c.Devices = notifyDevices{d.Inventory}
 	}
+	c.Hits = notifyHits{d}
 	c.Findings = notifyFindings{d} // d.Findings and the feeds store are built after notify: read when asked
 	if d.Reg != nil {              // a nil *modreg.Registry inside the interface would not compare equal to nil, and OnChange would panic
 		c.Modules = d.Reg

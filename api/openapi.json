@@ -33380,7 +33380,7 @@
       },
       "post": {
         "operationId": "honeypot_post_honeypot_tokens",
-        "summary": "Create a honey token (decoy file, fake credentials, URL or DNS name)",
+        "summary": "Create a honey token (decoy file, fake credentials or URL); a DNS token is refused (D-468)",
         "tags": [
           "honeypot"
         ],

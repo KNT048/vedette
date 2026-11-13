@@ -1609,7 +1609,7 @@ func (UnimplementedHandler) HoneypotPostHoneypotTestScan(ctx context.Context) (r
 
 // HoneypotPostHoneypotTokens implements honeypot_post_honeypot_tokens operation.
 //
-// Create a honey token (decoy file, fake credentials, URL or DNS name).
+// Create a honey token (decoy file, fake credentials or URL); a DNS token is refused (D-468).
 //
 // POST /honeypot/tokens
 func (UnimplementedHandler) HoneypotPostHoneypotTokens(ctx context.Context, req *HoneypotPostHoneypotTokensReq) (r *HoneypotPostHoneypotTokensCreated, _ error) {

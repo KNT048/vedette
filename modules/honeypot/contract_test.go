@@ -672,10 +672,16 @@ func TestContract_INV10_POST2_POST4_Tokens(t *testing.T) {
 		t.Fatalf("%+v %v", file, err)
 	}
 	u, _ := e.svc.AddToken(e.ctx(), "a", honeypot.TokenInput{Type: honeypot.TokenURL, Name: "Wiki link", PlantAt: "wiki"})
-	d, _ := e.svc.AddToken(e.ctx(), "a", honeypot.TokenInput{Type: honeypot.TokenDNS, Name: "Backup host", PlantAt: "script"})
 	// D-465: without a Box address the URL token carries the box's IP, never its host name (vedette-hq here, "vedette" on many boxes)
-	if u.Password != nil || d.Password != nil || !strings.HasPrefix(u.Value, "https://192.168.10.2:8443/t/") || !strings.HasSuffix(d.Value, ".vedette.internal") {
-		t.Fatalf("%+v %+v", u, d)
+	if u.Password != nil || !strings.HasPrefix(u.Value, "https://192.168.10.2:8443/t/") {
+		t.Fatalf("%+v", u)
+	}
+	// D-468: the box runs no DNS server (D-81/D-82: no project servers), so a DNS token could never alert; none is made.
+	if _, err := e.svc.AddToken(e.ctx(), "a", honeypot.TokenInput{Type: honeypot.TokenDNS, Name: "Backup host", PlantAt: "script"}); err == nil || !strings.Contains(err.Error(), "409 dns_unavailable") {
+		t.Fatalf("DNS token: %v, want 409 dns_unavailable", err)
+	}
+	if n := e.count(`SELECT count(*) FROM hp_tokens WHERE type = 'dns'`); n != 0 {
+		t.Fatalf("%d DNS tokens written", n)
 	}
 	withBox := newEnv(t, func(e *env) { e.cfg.BoxURL = func() string { return "https://vedette.office.lan:8443/" } })
 	withBox.setup()
@@ -890,7 +896,7 @@ func TestContract_INV13_EveryMutationAudited(t *testing.T) {
 		}},
 		{"honeypot.test_scan", func() error { _, err := e.svc.TestScan(ctx, "o@x"); return err }},
 		{"honeypot.token_add", func() error {
-			_, err := e.svc.AddToken(ctx, "a@x", honeypot.TokenInput{Type: honeypot.TokenDNS, Name: "dnsbait", PlantAt: "x"})
+			_, err := e.svc.AddToken(ctx, "a@x", honeypot.TokenInput{Type: honeypot.TokenURL, Name: "urlbait", PlantAt: "x"})
 			return err
 		}},
 	}

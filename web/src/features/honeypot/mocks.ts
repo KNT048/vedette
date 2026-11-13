@@ -400,7 +400,9 @@ export const handlers = [
   http.post(`${API}/honeypot/tokens`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
     const b = await body<{ type: TokenType; name: string; plant_at: string; ext?: 'docx' | 'xlsx' }>(request)
-    if (!['file', 'credential', 'url', 'dns'].includes(String(b.type))) return fail(400, 'bad_type', 'Choose a token type: decoy file, fake credentials, URL or DNS name.')
+    // D-468: the box runs no DNS server, so a DNS token could never alert; the seeded one (tok-4) still lists, a new one is refused.
+    if (b.type === 'dns') return fail(409, 'dns_unavailable', 'A DNS token cannot alert: the box runs no DNS server, so nothing would record a lookup of its name. Use a URL token or fake credentials instead.')
+    if (!['file', 'credential', 'url'].includes(String(b.type))) return fail(400, 'bad_type', 'Choose a token type: decoy file, fake credentials or URL.')
     const name = String(b.name ?? '').trim()
     const plant = String(b.plant_at ?? '').trim().slice(0, 120)
     if (!TOKEN_NAME_RE.test(name)) return fail(400, 'bad_name', 'The name may only contain letters without accents, digits, spaces, hyphens, dots or underscores, start with a letter or digit, and be at most 64 characters. Example: Payroll-2026-Q4.')
@@ -408,10 +410,9 @@ export const handlers = [
     if (b.type === 'file' && b.ext !== 'docx' && b.ext !== 'xlsx') return fail(400, 'bad_ext', 'Choose the file type: .docx or .xlsx.')
     if (tokens.get().some((x) => x.type === b.type && x.name.toLowerCase() === name.toLowerCase())) return fail(409, 'duplicate', 'A token of this type with this name already exists.')
     const rnd = Math.random().toString(36).slice(2, 12).padEnd(10, 'x')
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 20) || 'token'
     const box = boxAddress() ?? boxInfo().ip // D-465: the Box address, else the box's IP (as the box does), never its host name
     if (b.type === 'url' && !box) return fail(409, 'no_box_address', 'The box does not know an address other machines can reach yet. Set the Box address in Settings → Box network, then try again.')
-    const value = b.type === 'file' ? `${name.replace(/\s+/g, '-')}.${b.ext}` : b.type === 'credential' ? name.replace(/\s+/g, '-').toLowerCase() : b.type === 'url' ? `https://${box}:8443/t/${rnd}` : `${slug}-${rnd.slice(0, 4)}.vedette.internal`
+    const value = b.type === 'file' ? `${name.replace(/\s+/g, '-')}.${b.ext}` : b.type === 'credential' ? `svc_${Array.from({ length: 6 }, () => 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]).join('')}` : `https://${box}:8443/t/${rnd}`
     const password = b.type === 'credential' ? `Bk!${rnd.slice(0, 4)}-${rnd.slice(4).toUpperCase()}x9` : null
     const t: StoredToken = { id: newId('tok'), type: b.type!, name, value, password, plant_at: plant, created_at: nowIso() }
     tokens.update((l) => [t, ...l])

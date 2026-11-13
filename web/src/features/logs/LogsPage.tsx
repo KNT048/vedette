@@ -235,8 +235,8 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
   }
   const columns: ColumnDef<LogEvent>[] = [
     { id: 'time', header: t('events.col.time'), accessorFn: (r) => r.ts, cell: ({ row }) => <span className="whitespace-nowrap">{fmtDateTime(row.original.ts)}</span> },
-    { id: 'source', header: t('events.col.source'), accessorFn: (r) => r.source_name },
-    { id: 'line', header: t('events.col.line'), accessorFn: (r) => r.line, enableSorting: false, cell: ({ row }) => <span className="break-all font-mono text-[12px]">{row.original.line}</span> },
+    { id: 'source', header: t('events.col.source'), accessorFn: (r) => r.source_name, cell: ({ row }) => <span className="grid">{row.original.source_name}{row.original.host && row.original.host !== row.original.source_name ? <span className="text-[12px] text-muted">{row.original.host}</span> : null}</span> },
+    { id: 'line', header: t('events.col.message'), accessorFn: (r) => r.message, enableSorting: false, cell: ({ row }) => <Message e={row.original} /> },
   ]
   return (
     <Section id="events" title={t('events.title')} description={t('events.description')}>
@@ -262,7 +262,7 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
               <p className="mb-2 text-[13px] text-muted">{kw.trim() ? t('events.found', { count: rows.length }) : t('events.count', { shown: d.events.length, total: d.total })} {!kw.trim() && d.total > d.events.length ? t('events.capped') : ''}</p>
             )}
             <DataTable key={`${win}-${source}-${text}`} caption={t('events.caption')} data={rows} columns={columns} pageSize={25} mobileRow={(r) => (
-              <div className="grid gap-1"><p className="text-[12px] text-muted">{fmtDateTime(r.ts)}, {r.source_name}</p><p className="break-all font-mono text-[12px]">{r.line}</p></div>
+              <div className="grid gap-1"><p className="text-[12px] text-muted">{fmtDateTime(r.ts)}, {r.source_name}{r.host && r.host !== r.source_name ? ` (${r.host})` : ''}</p><Message e={r} /></div>
             )} empty={!text.trim() && !source ? t('events.emptyNone') : t('events.empty')} />
           </>
           )
@@ -270,6 +270,11 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
       </QueryState>
     </Section>
   )
+}
+
+/** The line without its syslog header (W1-22, D-485): the program, then the message; the stored line is the tooltip. */
+function Message({ e }: { e: LogEvent }) {
+  return <span className="break-all font-mono text-[12px]" title={e.line}>{e.app ? <span className="text-muted">{e.app}: </span> : null}{e.message}</span>
 }
 
 function RetentionSection({ days, linesPerHour }: { days: number; linesPerHour: number }) {

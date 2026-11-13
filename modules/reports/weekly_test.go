@@ -29,7 +29,9 @@ func sampleInput() weeklyInput {
 			{CVE: "CVE-2026-0002", Vendor: "Acme", Product: "Srv", Key: "acme|srv", DateAdded: day0(2).Truncate(24 * time.Hour)},
 			{CVE: "CVE-2025-9999", Vendor: "Old", Product: "Thing", Key: "old|thing", DateAdded: day0(40).Truncate(24 * time.Hour)},
 		},
-		kevAt: day0(0).Add(-time.Hour),
+		kevAt:    day0(0).Add(-time.Hour),
+		kevNew:   2, // Home's headline (feeds.Service.NewlyExploited)
+		kevInUse: 1,
 	}
 }
 
@@ -65,12 +67,21 @@ func TestWeeklyActionsOrderAndCap(t *testing.T) {
 	if r.Actions[2].Count != 1 || r.Actions[3].Count != 2 { // one unapproved device; two end-of-life systems
 		t.Fatalf("action counts = %+v", r.Actions)
 	}
+	// W1-24: 20 findings of one product on two devices are one risk and one action, not 20 rows (D-485)
 	in := sampleInput()
 	for i := 0; i < 20; i++ {
-		in.findings = append(in.findings, Finding{ID: fmt.Sprintf("x%d", i), AssetID: "a1", CVE: "CVE-2026-1", Status: "confirmed", Severity: "low", FirstSeen: day0(3)})
+		in.findings = append(in.findings, Finding{ID: fmt.Sprintf("x%02d", i), AssetID: []string{"a1", "a3"}[i%2], CVE: fmt.Sprintf("CVE-2026-1%02d", i), Status: "suspected", Severity: "critical", FirstSeen: day0(3)})
+		in.kev = append(in.kev, KEVEntry{CVE: fmt.Sprintf("CVE-2026-1%02d", i), Vendor: "Apple", Product: "Multiple Products", Display: "Apple devices (iPhone, iPad, Mac)"})
 	}
-	if n := len(buildWeekly(in).Actions); n != 6 {
-		t.Fatalf("actions are capped at 6, got %d", n)
+	w := buildWeekly(in)
+	if len(w.TopRisks) != TopRiskCount || len(w.Actions) != TopRiskCount+2 {
+		t.Fatalf("top risks = %+v, actions = %+v", w.TopRisks, w.Actions)
+	}
+	// confirmed by a scan first; then the worst severity
+	got := w.TopRisks[1]
+	if w.TopRisks[0].Product != "Microsoft Windows" || got.Product != "Apple devices (iPhone, iPad, Mac)" || got.Open != 20 || got.Devices != 2 ||
+		got.Device != "fw-01 and srv" || got.Confirmed != 0 || got.Severity != "critical" || w.Actions[1].Kind != "verify" || w.Actions[1].Count != 20 {
+		t.Fatalf("top risks = %+v, actions = %+v", w.TopRisks, w.Actions)
 	}
 }
 
@@ -130,16 +141,33 @@ func TestWeeklyEmptyBoxHasEmptyListsNotNull(t *testing.T) {
 	}
 }
 
-func TestWeeklyKEVWindowIsTheLastSevenCalendarDays(t *testing.T) {
+// D-485 review: a product's risk keeps the worst severity of its open findings even when the one a scan confirmed is milder;
+// the finding it names is the confirmed one. Closed rows say who closed them.
+func TestWeeklyTopRiskKeepsTheWorstSeverityAndClosedRowsSayWho(t *testing.T) {
 	t.Parallel()
-	today := t0.Truncate(24 * time.Hour)
-	in := weeklyInput{now: t0, kev: []KEVEntry{
-		{CVE: "a", DateAdded: today},               // today: in
-		{CVE: "b", DateAdded: today.Add(-6 * day)}, // six days ago: in
-		{CVE: "c", DateAdded: today.Add(-7 * day)}, // a week ago: out
-		{CVE: "d", DateAdded: today.Add(day)},      // tomorrow (clock skew in the feed): out
-	}}
-	if n := buildWeekly(in).Counts.KevNew; n != 2 {
-		t.Fatalf("kev_new = %d, want 2", n)
+	in := sampleInput()
+	in.findings = append(in.findings,
+		Finding{ID: "w1", AssetID: "a1", CVE: "CVE-2026-0101", Status: "suspected", Severity: "critical", FirstSeen: day0(5)},
+		Finding{ID: "w2", AssetID: "a1", CVE: "CVE-2026-0102", Status: "confirmed", Severity: "medium", FirstSeen: day0(5)},
+		Finding{ID: "w3", AssetID: "a1", CVE: "CVE-2026-0103", Status: "not_relevant", Severity: "low", FirstSeen: day0(9), ResolvedAt: day0(1), ResolvedBy: "an@acme.example"})
+	for _, c := range []string{"CVE-2026-0101", "CVE-2026-0102"} {
+		in.kev = append(in.kev, KEVEntry{CVE: c, Vendor: "Fortinet", Product: "FortiOS", Display: "FortiGate (FortiOS)"})
+	}
+	r := buildWeekly(in)
+	var got *TopRisk
+	for i := range r.TopRisks {
+		if r.TopRisks[i].Product == "FortiGate (FortiOS)" {
+			got = &r.TopRisks[i]
+		}
+	}
+	if got == nil || got.Severity != "critical" || got.Confirmed != 1 || got.FindingID != "w2" || got.Open != 2 {
+		t.Fatalf("top risks = %+v", r.TopRisks)
+	}
+	by := map[string]string{}
+	for _, f := range r.Resolved {
+		by[f.ID] = f.By
+	}
+	if by["w3"] != "an@acme.example" || by["f3"] != "" {
+		t.Errorf("closed rows: %+v", r.Resolved)
 	}
 }

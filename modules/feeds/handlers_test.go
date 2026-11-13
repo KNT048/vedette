@@ -302,6 +302,10 @@ func TestContract_POST2_HotBoardOrderAndInventory(t *testing.T) {
 	if at(b, "latest", "cve") != "CVE-2026-10001" || at(b, "latest", "display") != "Synology NAS (DSM)" {
 		t.Errorf("latest: %v", at(b, "latest"))
 	}
+	// the weekly report reads the same board (W1-24, D-485): Home's three CVEs, one product in use ("maybe" is not in use)
+	if cves, inUse, err := e.svc.NewlyExploited(t.Context()); err != nil || cves != 3 || inUse != 1 {
+		t.Errorf("NewlyExploited = %d, %d, %v; want 3, 1", cves, inUse, err)
+	}
 	// the 24 h window, counted from the clock
 	e.setNow(time.Date(2026, 11, 4, 0, 0, 0, 0, time.UTC))
 	_, b = e.get("/feeds/hot?window=24h")
@@ -525,7 +529,7 @@ func TestStatusAndSourcesListing(t *testing.T) {
 	}
 	f := at(b, "items", 0)
 	if at(f, "id") != "cisa-kev" || at(f, "builtin") != true || at(f, "status") != "never" || at(f, "last_fetch") != nil || at(f, "records") != nil || at(f, "parser") != nil ||
-		at(f, "default_url") != at(f, "url") || at(f, "interval_hours") != 24.0 || at(f, "auth", "type") != "none" || at(f, "license") != "CC0" || at(b, "items", 3, "interval_hours") != 6.0 {
+		at(f, "default_url") != at(f, "url") || at(f, "interval_hours") != 1.0 || at(f, "auth", "type") != "none" || at(f, "license") != "CC0" || at(b, "items", 3, "interval_hours") != 6.0 {
 		t.Errorf("feed: %v", f)
 	}
 	_, s := e.get("/feeds/status")
@@ -921,5 +925,23 @@ func TestG10_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
 	}
 	if got, b, _ := e.do("PUT", "/feeds/custom/"+id, "admin", withURL("Fine 1", "http://192.168.77.10:8444/x")); got != 400 || code(b) != "blocked_host" {
 		t.Errorf("edit onto the box: %d %v", got, b)
+	}
+}
+
+// D-485: Home's "newly exploited in the last 7 days" (and the weekly report, which reads the same function): the day counts
+// until its last second, the eighth day back is out, and an entry dated after now is not counted (the store already turns a feed's
+// future date into the day of the pull; this is the box clock set back after a pull).
+func TestNewlyExploitedWindowIsHomes(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t) // now: 2026-11-05 12:00 UTC
+	// pulled a day ahead (a clock that was later set back): the store keeps a date up to the day of the pull, so 2026-11-06 stays
+	applyV(t, e.db, e.clock().Add(24*time.Hour), "cisa-kev", []Vuln{
+		vuln("CVE-2026-0001", "Acme", "A", "2026-11-05"), // today: in
+		vuln("CVE-2026-0002", "Acme", "A", "2026-10-29"), // the day 7 days ago, until its last second: in
+		vuln("CVE-2026-0003", "Acme", "A", "2026-10-28"), // out
+		vuln("CVE-2026-0004", "Acme", "A", "2026-11-06"), // tomorrow: out
+	}, false)
+	if n, _, err := e.svc.NewlyExploited(t.Context()); err != nil || n != 2 {
+		t.Errorf("NewlyExploited = %d, %v; want 2", n, err)
 	}
 }

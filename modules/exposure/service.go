@@ -188,7 +188,7 @@ func (t Target) blocked(now time.Time) BlockedReason {
 	return ""
 }
 
-func (s *Service) view(t Target, latest map[string]Counts, c checks, now time.Time) TargetView {
+func (s *Service) view(t Target, latest map[string]latestResult, c checks, now time.Time) TargetView {
 	v := TargetView{
 		ID: t.ID, Kind: t.Kind, Value: t.Value, Status: t.status(now), Token: t.Token,
 		LastCheck: t.LastCheck, Commitment: t.Commitment, CreatedAt: store.FormatTS(t.CreatedAt),
@@ -221,8 +221,11 @@ func (s *Service) view(t Target, latest map[string]Counts, c checks, now time.Ti
 		x := store.FormatTS(t.LastScanAt)
 		v.LastScanAt = &x
 	}
-	if c, ok := latest[t.ID]; ok {
-		v.Latest = &c
+	if r, ok := latest[t.ID]; ok {
+		v.Latest, v.OpenPorts = &r.Counts, r.Ports
+		if v.OpenPorts == nil {
+			v.OpenPorts = []PortRow{}
+		}
 	}
 	return v
 }
@@ -235,7 +238,7 @@ func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
 	if err != nil {
 		return nil, fmt.Errorf("exposure: listing targets: %w", err)
 	}
-	latest, err := latestCounts(ctx, db)
+	latest, err := latestResults(ctx, db)
 	if err != nil {
 		return nil, fmt.Errorf("exposure: listing targets: %w", err)
 	}
@@ -260,7 +263,7 @@ func (s *Service) targetView(ctx context.Context, q querier, id string) (TargetV
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
 	}
-	latest, err := latestCounts(ctx, q)
+	latest, err := latestResults(ctx, q)
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
 	}

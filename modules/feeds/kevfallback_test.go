@@ -239,3 +239,34 @@ func TestD91_TimeoutErrorsAreRecognised(t *testing.T) {
 		}
 	}
 }
+
+// D-485: the CISA list is pulled every hour, so while CISA refuses the box the mirror is asked with its own validators and
+// answers 304 instead of the whole file each hour; CISA still never sees them.
+func TestContract_D485_TheMirrorIsAskedWithItsOwnValidators(t *testing.T) {
+	t.Parallel()
+	e, o := kevEnv(t)
+	o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusForbidden) })
+	o.body(mirrorPath, `"m1"`, testFile(t, "kev.json"))
+	e.fetch("cisa-kev")
+	c, b := e.fetch("cisa-kev")
+	if c != 200 || at(b, "status") != "ok" || at(b, "answered_by") != AnsweredMirror {
+		t.Fatalf("second pull: %d %v %v", c, at(b, "status"), at(b, "answered_by"))
+	}
+	var mirrorAsks []string
+	for _, h := range o.all() {
+		switch h.path {
+		case mirrorPath:
+			mirrorAsks = append(mirrorAsks, h.header.Get("If-None-Match"))
+		case primaryPath:
+			if h.header.Get("If-None-Match") != "" {
+				t.Errorf("CISA was asked with %q", h.header.Get("If-None-Match"))
+			}
+		}
+	}
+	if strings.Join(mirrorAsks, ",") != `,"m1"` { // the first ask is plain, the second conditional (and answered 304)
+		t.Errorf("mirror asked with %q", mirrorAsks)
+	}
+	if v, found, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-10001"); !found || v.Vendor != "Synology" {
+		t.Error("a 304 from the mirror lost the list")
+	}
+}

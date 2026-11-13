@@ -21041,6 +21041,42 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "open_ports": {
+                            "anyOf": [
+                              {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "ip": {
+                                      "type": "string"
+                                    },
+                                    "port": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "service": {
+                                      "type": "string"
+                                    },
+                                    "product": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "ip",
+                                    "port",
+                                    "service"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
                           }
                         },
                         "required": [
@@ -21059,7 +21095,8 @@
                           "blocked_reason",
                           "created_at",
                           "last_scan_at",
-                          "latest"
+                          "latest",
+                          "open_ports"
                         ],
                         "additionalProperties": false
                       },
@@ -21334,6 +21371,42 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "open_ports": {
+                            "anyOf": [
+                              {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "ip": {
+                                      "type": "string"
+                                    },
+                                    "port": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "service": {
+                                      "type": "string"
+                                    },
+                                    "product": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "ip",
+                                    "port",
+                                    "service"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
                           }
                         },
                         "required": [
@@ -21352,7 +21425,8 @@
                           "blocked_reason",
                           "created_at",
                           "last_scan_at",
-                          "latest"
+                          "latest",
+                          "open_ports"
                         ],
                         "additionalProperties": false
                       }
@@ -21729,6 +21803,42 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "open_ports": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ip": {
+                                "type": "string"
+                              },
+                              "port": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "service": {
+                                "type": "string"
+                              },
+                              "product": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "ip",
+                              "port",
+                              "service"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
                     }
                   },
                   "required": [
@@ -21747,7 +21857,8 @@
                     "blocked_reason",
                     "created_at",
                     "last_scan_at",
-                    "latest"
+                    "latest",
+                    "open_ports"
                   ],
                   "additionalProperties": false
                 }
@@ -22063,6 +22174,42 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "open_ports": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ip": {
+                                "type": "string"
+                              },
+                              "port": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "service": {
+                                "type": "string"
+                              },
+                              "product": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "ip",
+                              "port",
+                              "service"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
                     }
                   },
                   "required": [
@@ -22081,7 +22228,8 @@
                     "blocked_reason",
                     "created_at",
                     "last_scan_at",
-                    "latest"
+                    "latest",
+                    "open_ports"
                   ],
                   "additionalProperties": false
                 }
@@ -22369,6 +22517,42 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "open_ports": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ip": {
+                                "type": "string"
+                              },
+                              "port": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "service": {
+                                "type": "string"
+                              },
+                              "product": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "ip",
+                              "port",
+                              "service"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
                     }
                   },
                   "required": [
@@ -22387,7 +22571,8 @@
                     "blocked_reason",
                     "created_at",
                     "last_scan_at",
-                    "latest"
+                    "latest",
+                    "open_ports"
                   ],
                   "additionalProperties": false
                 }
@@ -23411,6 +23596,42 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "open_ports": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "ip": {
+                                    "type": "string"
+                                  },
+                                  "port": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "service": {
+                                    "type": "string"
+                                  },
+                                  "product": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "ip",
+                                  "port",
+                                  "service"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
                         }
                       },
                       "required": [
@@ -23429,7 +23650,8 @@
                         "blocked_reason",
                         "created_at",
                         "last_scan_at",
-                        "latest"
+                        "latest",
+                        "open_ports"
                       ],
                       "additionalProperties": false
                     }
@@ -37693,7 +37915,26 @@
                             "type": "string"
                           },
                           "line": {
-                            "type": "string"
+                            "type": "string",
+                            "description": "The line as stored: what search and evidence use"
+                          },
+                          "host": {
+                            "description": "The sending host the syslog header names (RFC 5424 or 3164); null when it does not say (W1-22, D-485)",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "app": {
+                            "description": "The program the header names (sshd, CRON, …); null when it does not say",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "message": {
+                            "type": "string",
+                            "description": "The line without its syslog header (no \"<38>Nov 13 …\"); the whole line when it has none"
                           }
                         },
                         "required": [
@@ -37701,7 +37942,10 @@
                           "ts",
                           "source_id",
                           "source_name",
-                          "line"
+                          "line",
+                          "host",
+                          "app",
+                          "message"
                         ],
                         "additionalProperties": false
                       }
@@ -43151,6 +43395,10 @@
                                     "type": "string",
                                     "format": "date-time",
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "by": {
+                                    "description": "Who closed it (rows of what was done)",
+                                    "type": "string"
                                   }
                                 },
                                 "required": [
@@ -43717,6 +43965,10 @@
                             "type": "string",
                             "format": "date-time",
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "by": {
+                            "description": "Who closed it (rows of what was done)",
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -44576,7 +44828,8 @@
                               "type": "number"
                             },
                             "devices": {
-                              "type": "number"
+                              "type": "number",
+                              "description": "Devices as the Devices page counts them, this box included"
                             },
                             "devices_unapproved": {
                               "type": "number"
@@ -44585,10 +44838,12 @@
                               "type": "number"
                             },
                             "kev_new": {
-                              "type": "number"
+                              "type": "number",
+                              "description": "Vulnerabilities newly exploited in the last 7 days, as Home counts them (D-485)"
                             },
                             "kev_matched": {
-                              "type": "number"
+                              "type": "number",
+                              "description": "Products you use among them, as Home counts them (D-485; earlier reports: their CVEs on a device)"
                             }
                           },
                           "required": [
@@ -44603,6 +44858,69 @@
                             "kev_matched"
                           ],
                           "additionalProperties": false
+                        },
+                        "top_risks": {
+                          "description": "The three biggest open risks, by product (D-485); absent in reports sent before it",
+                          "maxItems": 3,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "product": {
+                                "type": "string",
+                                "description": "The product as Findings names it"
+                              },
+                              "device": {
+                                "type": "string",
+                                "description": "The device, or the first names and how many more"
+                              },
+                              "devices": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "open": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "confirmed": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991,
+                                "description": "Open findings a scan confirmed"
+                              },
+                              "severity": {
+                                "type": "string",
+                                "enum": [
+                                  "critical",
+                                  "high",
+                                  "medium",
+                                  "low",
+                                  "info"
+                                ],
+                                "description": "The worst severity"
+                              },
+                              "cve": {
+                                "type": "string"
+                              },
+                              "finding_id": {
+                                "type": "string",
+                                "description": "Its worst finding"
+                              }
+                            },
+                            "required": [
+                              "product",
+                              "device",
+                              "devices",
+                              "open",
+                              "confirmed",
+                              "severity",
+                              "cve",
+                              "finding_id"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "new_findings": {
                           "type": "array",
@@ -44649,6 +44967,10 @@
                                 "type": "string",
                                 "format": "date-time",
                                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "by": {
+                                "description": "Who closed it (rows of what was done)",
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -44709,6 +45031,10 @@
                                 "type": "string",
                                 "format": "date-time",
                                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "by": {
+                                "description": "Who closed it (rows of what was done)",
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -44769,6 +45095,10 @@
                                 "type": "string",
                                 "format": "date-time",
                                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "by": {
+                                "description": "Who closed it (rows of what was done)",
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -44803,6 +45133,14 @@
                                   },
                                   "finding_id": {
                                     "type": "string"
+                                  },
+                                  "product": {
+                                    "type": "string"
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
                                   }
                                 },
                                 "required": [
@@ -44811,7 +45149,8 @@
                                   "device",
                                   "finding_id"
                                 ],
-                                "additionalProperties": false
+                                "additionalProperties": false,
+                                "description": "Since D-485 one top risk: product and count (its open findings) are set; cve and finding_id are its worst finding"
                               },
                               {
                                 "type": "object",
@@ -44828,6 +45167,14 @@
                                   },
                                   "finding_id": {
                                     "type": "string"
+                                  },
+                                  "product": {
+                                    "type": "string"
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
                                   }
                                 },
                                 "required": [
@@ -45063,7 +45410,8 @@
                               "type": "number"
                             },
                             "devices": {
-                              "type": "number"
+                              "type": "number",
+                              "description": "Devices as the Devices page counts them, this box included"
                             },
                             "devices_unapproved": {
                               "type": "number"
@@ -45072,10 +45420,12 @@
                               "type": "number"
                             },
                             "kev_new": {
-                              "type": "number"
+                              "type": "number",
+                              "description": "Vulnerabilities newly exploited in the last 7 days, as Home counts them (D-485)"
                             },
                             "kev_matched": {
-                              "type": "number"
+                              "type": "number",
+                              "description": "Products you use among them, as Home counts them (D-485; earlier reports: their CVEs on a device)"
                             }
                           },
                           "required": [
@@ -45090,6 +45440,69 @@
                             "kev_matched"
                           ],
                           "additionalProperties": false
+                        },
+                        "top_risks": {
+                          "description": "The three biggest open risks, by product (D-485); absent in reports sent before it",
+                          "maxItems": 3,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "product": {
+                                "type": "string",
+                                "description": "The product as Findings names it"
+                              },
+                              "device": {
+                                "type": "string",
+                                "description": "The device, or the first names and how many more"
+                              },
+                              "devices": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "open": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "confirmed": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991,
+                                "description": "Open findings a scan confirmed"
+                              },
+                              "severity": {
+                                "type": "string",
+                                "enum": [
+                                  "critical",
+                                  "high",
+                                  "medium",
+                                  "low",
+                                  "info"
+                                ],
+                                "description": "The worst severity"
+                              },
+                              "cve": {
+                                "type": "string"
+                              },
+                              "finding_id": {
+                                "type": "string",
+                                "description": "Its worst finding"
+                              }
+                            },
+                            "required": [
+                              "product",
+                              "device",
+                              "devices",
+                              "open",
+                              "confirmed",
+                              "severity",
+                              "cve",
+                              "finding_id"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "new_findings": {
                           "type": "array",
@@ -45136,6 +45549,10 @@
                                 "type": "string",
                                 "format": "date-time",
                                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "by": {
+                                "description": "Who closed it (rows of what was done)",
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -45196,6 +45613,10 @@
                                 "type": "string",
                                 "format": "date-time",
                                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "by": {
+                                "description": "Who closed it (rows of what was done)",
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -45256,6 +45677,10 @@
                                 "type": "string",
                                 "format": "date-time",
                                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "by": {
+                                "description": "Who closed it (rows of what was done)",
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -45290,6 +45715,14 @@
                                   },
                                   "finding_id": {
                                     "type": "string"
+                                  },
+                                  "product": {
+                                    "type": "string"
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
                                   }
                                 },
                                 "required": [
@@ -45298,7 +45731,8 @@
                                   "device",
                                   "finding_id"
                                 ],
-                                "additionalProperties": false
+                                "additionalProperties": false,
+                                "description": "Since D-485 one top risk: product and count (its open findings) are set; cve and finding_id are its worst finding"
                               },
                               {
                                 "type": "object",
@@ -45315,6 +45749,14 @@
                                   },
                                   "finding_id": {
                                     "type": "string"
+                                  },
+                                  "product": {
+                                    "type": "string"
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
                                   }
                                 },
                                 "required": [

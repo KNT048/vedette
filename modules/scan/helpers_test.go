@@ -53,6 +53,14 @@ func (f *fakeInventory) VulnScanPolicy(context.Context, string, bool) (Decision,
 	return Decision{Allowed: true, Reason: "ok"}, nil
 }
 
+func (f *fakeInventory) VulnScanPolicies(_ context.Context, ids []string, _ bool) (map[string]Decision, error) {
+	out := map[string]Decision{}
+	for _, id := range ids {
+		out[id] = Decision{Allowed: true, Reason: "ok"}
+	}
+	return out, nil
+}
+
 // fakeEngine is the scanner seam: ready or not.
 type fakeEngine struct {
 	mu   sync.Mutex

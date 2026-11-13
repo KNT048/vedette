@@ -175,12 +175,12 @@ func parseQual(tail string) (qual, string, bool) {
 		if w == "b" {
 			rank = 3
 		}
-		return withTail(qual{-1, rank, n}, left, ok)
+		return withTail(qual{class: -1, sub: rank, num: n}, left, ok)
 	case preRelease[w] != 0:
 		n, left, ok := num()
-		return withTail(qual{-1, preRelease[w], n}, left, ok)
+		return withTail(qual{class: -1, sub: preRelease[w], num: n}, left, ok)
 	case len(w) == 1 && sep == 0 && after == "": // OpenSSL style 1.1.1w
-		return qual{1, 1, uint64(w[0]-'a') + 1}, "", true
+		return qual{class: 1, sub: 1, num: uint64(w[0]-'a') + 1}, "", true
 	case postRelease[w]:
 		n, left, ok := num()
 		q := qual{class: 1, num: n}

@@ -243,7 +243,7 @@ func TestMatchAsset_EvidenceTextIsCleaned(t *testing.T) {
 			t.Fatalf("control character in summary %q", m.Evidence.Summary)
 		}
 	}
-	a.Software[0].Version = "1\x00.\n2"
+	a.Software[0].Version = "n/a\x00\n" // no number: the add-the-version item (a version with a number is a product finding, H1)
 	n := MatchAsset(a, []Vuln{qnapVuln()}, nil, t0).NeedVersion[0]
 	for _, r := range n.Software + n.Version {
 		if unicode.IsControl(r) {
@@ -339,14 +339,15 @@ func TestMatchAsset_UpdatePinnedConfig(t *testing.T) {
 		want                 Basis // "" = dropped
 	}{
 		{"8.9p1 against 8.9:p1", "8.9p1", "", pinned, BasisVersion},
-		{"8.9p2 against 8.9:p1 is undecided", "8.9p2", "", pinned, BasisProduct},
+		{"8.9p2 against 8.9:p1 is another release (review H1: h1 is not h2)", "8.9p2", "", pinned, ""},
 		{"8.8p1 is outside", "8.8p1", "", pinned, ""},
 		{"plain 8.9 does not say which update", "8.9", "", pinned, BasisProduct},
 		{"update from the software CPE", "8.9", `cpe:2.3:a:openssh:openssh:8.9:p1:*:*:*:*:*:*`, pinned, BasisVersion},
 		{"other update in the software CPE", "8.9", `cpe:2.3:a:openssh:openssh:8.9:p2:*:*:*:*:*:*`, pinned, ""},
 		{"beta1 against 2.0:beta1", "2.0-beta1", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, BasisVersion},
 		{"plain 2.0 against 2.0:beta1 is the release, not the beta (D-500)", "2.0", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, ""},
-		{"beta2 against 2.0:beta1 is undecided", "2.0-beta2", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, BasisProduct},
+		{"beta2 against 2.0:beta1 is another release", "2.0-beta2", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, ""},
+		{"beta against 2.0:beta1 is undecided (no number)", "2.0-beta", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, BasisProduct},
 		{"rc against 2.0:beta1 differs", "2.0-rc1", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, ""},
 		{"wildcard update (bug 7)", "2.0", `cpe:2.3:a:openssh:openssh:2.0:beta2:*:*:*:*:*:*`, `cpe:2.3:a:openssh:openssh:2.0:beta*:*:*:*:*:*:*`, BasisVersion},
 		{"wildcard update other prefix", "2.0", `cpe:2.3:a:openssh:openssh:2.0:rc2:*:*:*:*:*:*`, `cpe:2.3:a:openssh:openssh:2.0:beta*:*:*:*:*:*:*`, ""},
@@ -441,13 +442,14 @@ func TestMatchAsset_PinnedAttributesNeedSoftwareSupport(t *testing.T) {
 }
 
 // Regression: an unknown version is not a version match even when every version
-// is affected (review nit).
+// is affected (review nit); review M4: it is a product finding, not "add the
+// version", because the answer does not depend on the version.
 func TestMatchAsset_AllVersionsWithUnknownVersionIsProduct(t *testing.T) {
 	t.Parallel()
 	for _, v := range []string{"", "latest"} {
 		res := MatchAsset(nas(v), []Vuln{qnapVuln(Affected{CPE: qnapCPE})}, nil, t0)
-		if got := basisOf(t, res); got != needVersion {
-			t.Errorf("version %q: basis = %q, want the add-the-version item", v, got)
+		if got := basisOf(t, res); got != BasisProduct || len(res.NeedVersion) != 0 {
+			t.Errorf("version %q: basis = %q (need %d), want a product finding", v, got, len(res.NeedVersion))
 		}
 	}
 	if got := basisOf(t, MatchAsset(nas("2.1"), []Vuln{qnapVuln(Affected{CPE: qnapCPE})}, nil, t0)); got != BasisVersion {

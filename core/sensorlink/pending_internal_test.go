@@ -4,6 +4,7 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -113,25 +114,34 @@ func TestPendingPoolEvictsTheOldestOrRefusesTheNewest(t *testing.T) {
 	_ = b.Close() // twice is harmless
 }
 
-// D-326: a connection still pending after the deadline is closed, whatever net/http's own timeouts say.
+// D-326: a connection still pending after the deadline is closed, whatever net/http's own timeouts say. The listener's timer runs on
+// the fake clock of a synctest bubble, so the deadline is exact and a slow machine cannot make it look late (D-373).
 func TestPendingConnectionsHaveADeadline(t *testing.T) {
 	t.Parallel()
-	in := &fakeLn{ch: make(chan net.Conn, 2)}
-	l := newPendingListener(in, 4, 0, 20*time.Millisecond, time.Now)
-	raw := &fakeConn{}
-	in.ch <- raw
-	c, err := l.Accept()
-	if err != nil {
-		t.Fatal(err)
-	}
-	deadline := time.Now().Add(2 * time.Second)
-	for !raw.isClosed() && time.Now().Before(deadline) {
-		time.Sleep(5 * time.Millisecond) //nolint:forbidigo // waits for the real timer of the listener
-	}
-	if !raw.isClosed() || c.(*limitConn).promote() {
-		t.Fatal("a connection still in its handshake after the deadline was kept")
-	}
-	if n := len(l.pending); n != 0 {
-		t.Errorf("%d connections left in the pool after the deadline", n)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		in := &fakeLn{ch: make(chan net.Conn, 2)}
+		l := newPendingListener(in, 4, 0, 20*time.Millisecond, time.Now)
+		raw := &fakeConn{}
+		in.ch <- raw
+		c, err := l.Accept()
+		if err != nil {
+			t.Fatal(err)
+		}
+		<-time.After(20*time.Millisecond - time.Nanosecond)
+		synctest.Wait()
+		if raw.isClosed() {
+			t.Fatal("a pending connection was closed before its deadline")
+		}
+		<-time.After(time.Nanosecond)
+		synctest.Wait()
+		if !raw.isClosed() || c.(*limitConn).promote() {
+			t.Fatal("a connection still in its handshake after the deadline was kept")
+		}
+		l.mu.Lock()
+		n := len(l.pending)
+		l.mu.Unlock()
+		if n != 0 {
+			t.Errorf("%d connections left in the pool after the deadline", n)
+		}
+	})
 }

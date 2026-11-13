@@ -240,7 +240,7 @@ func TestGolden_KEVWithNVDRanges(t *testing.T) {
 		// W1-30: FortiOS 7.4.8 had all 22 FortiOS CVEs since 2018; only these four ranges include it.
 		{name: "FortiOS 7.4.8", sw: fortiGate(vulns, "7.4.8"), version: "CVE-2025-25249 CVE-2025-59718 CVE-2025-61624 CVE-2026-24858"},
 		// FortiOS entries plus the "Multiple Products" entries whose NVD data names FortiOS; the others (FortiMail,
-		// FortiVoice…) are about other products, as NVD names FortiOS elsewhere.
+		// FortiVoice…) list other products in NVD, so they give FortiOS no finding (D-505).
 		{name: "FortiOS without a version", sw: fortiGate(vulns, ""), need: 21},
 		{name: "Office without a version", sw: office(vulns, ""), need: 32},
 		{name: "Office 16.0 build", sw: office(vulns, "16.0.17928.20114"), product: office16},

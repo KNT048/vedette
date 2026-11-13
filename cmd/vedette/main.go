@@ -270,7 +270,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	// a container, starts it on the fresh box (D-154). Without a supervisor the box stays stopped until someone starts it.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	tightenContainerDataDir(o.db, log)
+	tightenContainerDataDir(o.db, o.sensorCreds, log)
 	if err := ensureKey(o.key); err != nil {
 		return err
 	}
@@ -535,14 +535,26 @@ func serveUntilDone(ctx context.Context, log *slog.Logger, srv *http.Server, ln 
 // containerDataDir is the data directory of every container image and of the appliance (the -db and -key defaults live in it).
 const containerDataDir = "/var/lib/vedette"
 
-// tightenContainerDataDir is the call of serve: only the data directory of the images, only when core is not root.
-func tightenContainerDataDir(db string, log *slog.Logger) {
-	tightenDataDir(filepath.Dir(db), containerDataDir, os.Geteuid(), log)
+// containerCredsDir is the -sensor-creds of the images and the appliance; its passive/ and active/ folders are the two creds volumes.
+const containerCredsDir = "/var/lib/vedette-creds"
+
+// tightenContainerDataDir is the call of serve: only the data directory of the images and, with the sensor link, the credentials
+// directory and its two role folders (the creds-* volumes, which hold the 0640 credential files; D-409), only when core is not root.
+// The sensors read their folder through the group (0750 keeps it), never through "other".
+func tightenContainerDataDir(db, creds string, log *slog.Logger) {
+	uid := os.Geteuid()
+	tightenDataDir(filepath.Dir(db), containerDataDir, uid, log)
+	if creds == "" {
+		return
+	}
+	for _, sub := range []string{"", "passive", "active"} {
+		tightenDataDir(filepath.Join(creds, sub), filepath.Join(containerCredsDir, sub), uid, log)
+	}
 }
 
 // tightenDataDir removes group-write and any "other" access (mode bits 0o027) from dataDir when dir is exactly dataDir, is a real
-// directory (a symlink is left alone) and is owned by uid, which must not be root. Rootless Podman gives a new named volume the image
-// directory's owner but not its 0750 mode (buildah does not carry it), so the container-only install started with 0755; Docker keeps
+// directory (a symlink is left alone) and is owned by uid, which must not be root. A new named volume may start 0755 (rootless
+// Podman, and images built before D-409, whose COPY --chmod left the image directory 0755 on buildah) while the image directory is
 // 0750. It only clears those bits (0700 stays 0700; setuid, setgid and sticky are kept), never touches any other directory (a dev
 // -db path, /tmp, $HOME), and a failure is logged, not fatal: the key and database files are 0600 either way.
 func tightenDataDir(dir, dataDir string, uid int, log *slog.Logger) {
@@ -564,10 +576,10 @@ func tightenDataDir(dir, dataDir string, uid int, log *slog.Logger) {
 	}
 	special := fi.Mode() & (os.ModeSetuid | os.ModeSetgid | os.ModeSticky)
 	if err := os.Chmod(dir, special|want); err != nil {
-		log.Warn("data directory is wider than 0750 and could not be tightened", "dir", dir, "mode", perm.String(), "err", err)
+		log.Warn("directory is wider than 0750 and could not be tightened", "dir", dir, "mode", perm.String(), "err", err)
 		return
 	}
-	log.Info("data directory tightened", "dir", dir, "was", perm.String(), "now", want.String())
+	log.Info("directory tightened", "dir", dir, "was", perm.String(), "now", want.String())
 }
 
 // ensureKey creates the master key on first start. An existing file is left alone (and validated by

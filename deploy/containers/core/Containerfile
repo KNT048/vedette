@@ -31,7 +31,8 @@ RUN set -eu; \
     go build -tags webui -trimpath -ldflags "-s -w -X main.version=${VERSION} -X github.com/knt048/vedette/internal/release.MinSequenceText=${MIN_SEQUENCE}" -o /out/vedette ./cmd/vedette; \
     install -D -m 0644 internal/webui/licenses/web-third-party-licenses.txt /out/licenses/web-third-party-licenses.txt; \
     CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go run ./scripts/hostlicenses -goos "${TARGETOS}" -goarch "${TARGETARCH}" -pkg ./cmd/vedette -name vedette-core -tags webui -out /out/licenses/third-party-licenses
-RUN mkdir -p -m 0750 /out/dirs/var/lib/vedette /out/dirs/var/lib/vedette-creds/passive /out/dirs/var/lib/vedette-creds/active
+RUN set -eu; mkdir -p -m 0750 /out/dirs/var/lib/vedette /out/dirs/var/lib/vedette-creds/passive /out/dirs/var/lib/vedette-creds/active; \
+    chmod 0750 /out/dirs/var/lib/vedette-creds; chmod 0755 /out/dirs/var/lib
 # The signed confirmed mitigation packs (D-345): the regular files of content/mitigation/packs, hidden ones left out (a Finder .DS_Store
 # would make the box refuse the folder), modes set here and not by COPY --chmod (podman applies it to folders too, scan-base).
 RUN set -eu; install -d -m 0755 /out/content/mitigation; \
@@ -91,10 +92,11 @@ COPY --from=osquery /out/ /usr/share/vedette/osquery/
 # starts with that owner (Docker and Podman copy the image's directory into an empty volume): the container-only compose needs no
 # root step (D-168 (5)). The appliance bind-mounts /var/lib/vedette, and its two creds volumes are Quadlet volumes with an explicit
 # User=/Group= (host/ops/testdata/units/vedette-creds-*.volume), which Podman keeps; the lab confirms it (deferred line).
-# One COPY per leaf directory, each to a destination that does not exist yet: a COPY of /out/dirs/ to / would also give /var and
-# /var/lib (root-owned in distroless) to 65532 (BuildKit and buildah both overwrite the owner of existing parents).
-COPY --from=build --chown=65532:65532 --chmod=0750 /out/dirs/var/lib/vedette/ /var/lib/vedette/
-COPY --from=build --chown=65532:65532 --chmod=0750 /out/dirs/var/lib/vedette-creds/ /var/lib/vedette-creds/
+# One COPY of the CONTENTS of /out/dirs/var/lib/ into the existing /var/lib (D-409): the three directories are entries of the copy,
+# so they keep the 0750 the build stage gave them, and /var/lib, the destination itself, keeps its owner root (BuildKit and buildah
+# both, measured 2026-11-13 by export of the image). Not a COPY of /out/dirs/ to / (it would give /var and /var/lib to 65532), and
+# not a COPY --chmod=0750 per leaf to a new destination: buildah makes that destination 0755 (world-listable data folder).
+COPY --from=build --chown=65532:65532 /out/dirs/var/lib/ /var/lib/
 # The confirmed mitigation packs of this release, signed with the release minisign key (D-345, `make release-packs`); owned by root
 # and read-only for core, which loads them only when the signature holds (job mitigation/load-packs). Modes come from the build stage.
 COPY --from=build /out/content/mitigation/ /opt/vedette/content/mitigation/

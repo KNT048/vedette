@@ -569,24 +569,26 @@ func TestEveryImageShipsItsThirdPartyLicenses(t *testing.T) {
 }
 
 // The core image carries its data and credentials directories, owned by the user it runs as, so the container-only compose can mount
-// new named volumes on them without a root step (D-168 (5)). The directories are made in the build stage (the final stage has no RUN).
+// new named volumes on them without a root step (D-168 (5)). The directories are made in the build stage (the final stage has no RUN),
+// 0750 each, and copied as the contents of /out/dirs/var/lib/ into /var/lib, so they keep that mode on buildah too (D-409).
 func TestCoreImageOwnsItsVolumeDirectories(t *testing.T) {
 	t.Parallel()
 	text := read(t, "core/Containerfile")
 	stages := stagesOf(text)
 	build, final := stages[0].body, stages[len(stages)-1].body
-	for _, d := range []string{"/out/dirs/var/lib/vedette ", "/out/dirs/var/lib/vedette-creds/passive ", "/out/dirs/var/lib/vedette-creds/active\n"} {
+	for _, d := range []string{
+		"mkdir -p -m 0750 /out/dirs/var/lib/vedette /out/dirs/var/lib/vedette-creds/passive /out/dirs/var/lib/vedette-creds/active;",
+		"chmod 0750 /out/dirs/var/lib/vedette-creds;", "chmod 0755 /out/dirs/var/lib\n",
+	} {
 		if !strings.Contains(build, d) {
-			t.Errorf("core/Containerfile: the build stage does not make %q", strings.TrimSpace(d))
+			t.Errorf("core/Containerfile: the build stage does not contain %q", strings.TrimSpace(d))
 		}
 	}
-	for _, l := range []string{
-		"COPY --from=build --chown=65532:65532 --chmod=0750 /out/dirs/var/lib/vedette/ /var/lib/vedette/\n",
-		"COPY --from=build --chown=65532:65532 --chmod=0750 /out/dirs/var/lib/vedette-creds/ /var/lib/vedette-creds/\n",
-	} {
-		if !strings.Contains(final, l) {
-			t.Errorf("core/Containerfile: the final stage must contain %q (one COPY per leaf, owner 65532, the user of the image)", strings.TrimSpace(l))
-		}
+	if l := "COPY --from=build --chown=65532:65532 /out/dirs/var/lib/ /var/lib/\n"; !strings.Contains(final, l) {
+		t.Errorf("core/Containerfile: the final stage must contain %q (the directories are entries of the copy and keep 0750)", strings.TrimSpace(l))
+	}
+	if strings.Contains(final, "--chmod=0750 /out/dirs/") {
+		t.Error("core/Containerfile: a COPY --chmod of a directory to a new destination gives that destination 0755 on buildah (D-409)")
 	}
 	if regexp.MustCompile(`(?m)^COPY .* /$`).MatchString(final) {
 		t.Error("core/Containerfile: a COPY to / rewrites the owner of the existing parents (/var, /var/lib)")

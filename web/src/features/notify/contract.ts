@@ -89,6 +89,8 @@ export const Incident = z.object({
   handled_by: z.string().nullable().describe('Who acknowledged or resolved it'),
   handled_at: iso.nullable(),
   note: z.string().nullable(),
+  resolved_reason: z.string().nullable().describe('Why Vedette closed it by itself, plain English shown as is ("Closed by Vedette: the device was approved by an@example.com.", "Closed by Vedette: no new activity for 7 days."); null when a person handled it last or it is open (D-550)'),
+  first_run_summary: z.boolean().describe('Opened in the first 36 hours as a low or medium bad-connection or log incident, so it was told in the hourly first-run summary message instead of its own (D-550)'),
   sends: z.array(SendRecord),
   not_sent: NotSent.nullable().describe('Why no channel received it; null when any attempt delivered it (a later failed Resend does not undo that)'),
 })

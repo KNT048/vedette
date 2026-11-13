@@ -73,7 +73,7 @@ function Seen({ i }: { i: Incident }) {
 }
 function Handled({ i }: { i: Incident }) {
   const { t } = useTranslation('notify')
-  return <div className="grid gap-0.5"><IncidentStatusChip status={i.status} />{i.handled_by ? <span className="text-[12px] text-muted">{t('incidents.statusBy', { user: i.handled_by, time: fmtDateTime(i.handled_at) })}</span> : null}</div>
+  return <div className="grid gap-0.5"><IncidentStatusChip status={i.status} />{i.resolved_reason ? <span className="text-[12px] text-muted">{t('incidents.closedBy', { reason: i.resolved_reason, time: fmtDateTime(i.handled_at) })}</span> : i.handled_by ? <span className="text-[12px] text-muted">{t('incidents.statusBy', { user: i.handled_by, time: fmtDateTime(i.handled_at) })}</span> : null}</div>
 }
 function RespondLink({ i }: { i: Incident }) {
   const { t } = useTranslation('notify')

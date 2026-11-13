@@ -232,3 +232,56 @@ func TestContract_DecoyPorts_AReapplyThatDropsADecoyTakesItOutOfTheSets(t *testi
 		t.Fatalf("the ruleset after the re-apply:\n%s", rs)
 	}
 }
+
+// closeNamespace puts the namespace in the state closeUnproven leaves: the ruleset cannot be proven,
+// so every decoy link is deleted and state/net lists no decoy, while hp/decoys.json keeps the intent.
+func (d *decoyEnv) closeNamespace(t *testing.T) {
+	t.Helper()
+	d.m.SetIPState("ruleset", "table inet other {\n}\n")
+	d.m.Mark("nft-noload", true)
+	d.final(t, "decoy_ip.set_ports", api.DecoySetPortsArgs{IP: decoyIP1, Ports: dports("tcp", 22)}, api.StatusFailed, api.CodeHPNamespaceUnavailable)
+	if links := d.m.IPLinks("ns"); len(links) != 0 || len(d.state(t).Decoys) != 0 || !strings.Contains(d.decoysFile(), decoyIP1) {
+		t.Fatalf("not closed: links %v, state %+v, file %s", links, d.state(t).Decoys, d.decoysFile())
+	}
+	d.m.Mark("nft-noload", false)
+}
+
+// B2 review M1: after the namespace was closed, core sees no decoy and asks to add it again. The host
+// does not refuse it as duplicate_decoy (which core reads as "held" while nothing answers): it builds
+// the link again from hp/decoys.json, with the ports it had, and state/net lists it again.
+func TestContract_DecoyPorts_AnAddAfterTheNamespaceWasClosedBuildsTheLinkAgain(t *testing.T) {
+	t.Parallel()
+	d := startDecoy(t)
+	d.addPorts(t, decoyIP1, dports("tcp", 445))
+	d.closeNamespace(t)
+	d.addPorts(t, decoyIP1, dports("tcp", 445))
+	if links := d.m.IPLinks("ns"); !slices.Equal(links, []string{"vdhc0a80164"}) {
+		t.Fatalf("links after the add: %v", links)
+	}
+	if got := d.portsOf(t, decoyIP1); got == nil || !slices.Equal(*got, dports("tcp", 445)) {
+		t.Fatalf("ports %v", got)
+	}
+	if rs := d.m.IPState("ruleset"); !strings.Contains(rs, decoyIP1+" . tcp . 445") || strings.Contains(rs, "inet other") {
+		t.Fatalf("ruleset:\n%s", rs)
+	}
+	// Now that it is live, a second add is the duplicate it always was.
+	if code := d.refusedBy(t, api.DecoyAddArgs{IP: decoyIP1}); code != api.CodeDuplicateDecoy {
+		t.Fatalf("second add: %s", code)
+	}
+}
+
+// B2 review M1: the first write that proves a closed namespace again builds every decoy link of the
+// file, not only the one it was about, so state/net never lists a decoy whose link is gone.
+func TestContract_DecoyPorts_ProvingTheNamespaceAgainBuildsEveryLink(t *testing.T) {
+	t.Parallel()
+	d := startDecoy(t)
+	d.addPorts(t, decoyIP1, dports("tcp", 445))
+	d.closeNamespace(t)
+	d.addPorts(t, decoyIP2, dports("tcp", 22))
+	if links := d.m.IPLinks("ns"); !slices.Equal(links, []string{"vdhc0a80164", "vdhc0a80165"}) {
+		t.Fatalf("links: %v", links)
+	}
+	if n := len(d.state(t).Decoys); n != 2 {
+		t.Fatalf("state/net lists %d decoys", n)
+	}
+}

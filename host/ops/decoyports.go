@@ -456,9 +456,15 @@ func (o *Ops) runDecoySetPorts(ctx context.Context, rc *server.RunContext, a api
 		return nil, refuse412(api.CodeNotADecoy, notADecoyMsg)
 	}
 	result := api.DecoySetPortsResult{IP: ip.String(), Ports: ports}
-	if err := o.ensureHP(ctx, false); err != nil {
+	if err := o.ensureHPLinks(ctx); err != nil {
 		o.log.ErrorContext(ctx, "the honeypot namespace is not usable", "error", err.Error())
 		return nil, fail(api.CodeHPNamespaceUnavailable, "The honeypot network namespace is not usable, so nothing was changed.")
+	}
+	if list, err = o.loadDecoysNoted(); err != nil { // a rebuild may have dropped a decoy that no longer fits
+		return nil, fail(api.CodeDecoysStateInvalid, "The decoy state file could not be read or set aside.")
+	}
+	if i = slices.IndexFunc(list, func(e decoyEntry) bool { return e.IP == ip.String() }); i < 0 {
+		return nil, refuse412(api.CodeNotADecoy, notADecoyMsg)
 	}
 	if list[i].Ports != nil && slices.Equal(*list[i].Ports, ports) {
 		rc.Log("The ports of " + ip.String() + " are already these; nothing to do.")
@@ -474,10 +480,16 @@ func (o *Ops) runDecoySetPorts(ctx context.Context, rc *server.RunContext, a api
 	if err := o.applyRuleset(ctx, next); err != nil {
 		o.log.ErrorContext(ctx, "the new ports of a decoy could not be put in force", fieldIP, ip.String(), "error", err.Error())
 		if serr := o.saveDecoys(list); serr != nil {
+			// The file keeps the new ports, which the ruleset could not prove: the file and the ruleset
+			// would disagree, and the next ensureHP would load the file. Close the namespace instead
+			// (fail closed); the next write proves it from the file and builds the links again.
 			o.log.ErrorContext(ctx, "could not put the old entry back in hp/decoys.json", "error", serr.Error())
+			o.closeUnproven(ctx, serr)
+			return nil, fail(api.CodeDecoyFailed, "The new ports could not be put in force and the old ones could not be written back; the decoys are off until the host proves the namespace again.")
 		}
 		if rerr := o.applyRuleset(ctx, list); rerr != nil {
 			o.closeUnproven(ctx, rerr)
+			return nil, fail(api.CodeDecoyFailed, "The new ports could not be put in force and the old ruleset could not be proven; the decoys are off until the host proves the namespace again.")
 		}
 		return nil, fail(api.CodeDecoyFailed, "The new ports could not be put in force; the old ones were put back.")
 	}

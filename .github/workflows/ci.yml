@@ -2,26 +2,26 @@
 # suites (vitest, govulncheck) off the developers' machines. Every job calls make only,
 # except the two aggregators `go` and `web`, which only compare job results (D-140).
 # No Playwright e2e here (D-64): the full e2e suite runs only when the product is production-ready.
-# Local gate before pushing stays `make check` (D-62). Third-party actions pinned by commit SHA.
+# Before pushing, an agent builds and lints the packages it changed (D-413); CI is the merge gate. Third-party actions pinned by
+# commit SHA.
 #
 # Shape (D-140, D-365): `changes` decides what a run needs (scripts/ci, no third-party action);
 # go-static, go-lint, go-test (4 shards, weighted by scripts/ci/testtime.tsv) and go-release run in parallel; web-verify runs the web
 # suite. go-static and go-lint each keep a rolling Go cache that only main saves (D-372).
-# go-test runs -race in the daily run only (D-371, D-376): pull requests, the merge queue and pushes to main run without it,
+# D-413: a pull request tests only what it reaches: go-test the packages holding a changed file and their direct importers
+# (CHANGED_BASE, scripts/ci Affected), web-verify the vitest tests of the changed files (make verify-web-pr, no build). There is
+# no merge queue: the supervisor squash-merges a green PR, and the push to main runs the full suite, Go and web, on the merged
+# tree (main red: revert or fix at once); that run also saves main's Go caches.
+# go-test runs -race in the daily run only (D-371, D-376): pull requests and pushes to main run without it,
 # and skip the slow and quarantined tests of scripts/ci/skip-tests.txt, which only the daily run runs.
-# A push to main runs the Go jobs, mostly from the cache, to save main's Go caches (the merge queue already ran every job on that
-# tree; a merge_group ref cannot save a cache others can read), not web-verify; the daily schedule runs everything twice, uncached and shuffled (-count=2 -shuffle=on), and its failed tests go to
+# The daily schedule runs everything twice, uncached and shuffled (-count=2 -shuffle=on), and its failed tests go to
 # the issue labelled flaky.
-# `go` and `web` always run and always report under those names (the ruleset on main requires them,
-# and the merge queue runs this workflow on its merge_group ref, D-245): they succeed only when every job they need succeeded or was
-# skipped because `changes` said it was not needed. A failed or cancelled job fails the aggregator.
+# `go` and `web` always run and always report under those names (the required checks on main): they succeed only when every
+# job they need succeeded or was skipped because `changes` said it was not needed. A failed or cancelled job fails the aggregator.
 name: ci
 
 on:
   pull_request:
-  # The merge queue (D-245) tests each queued PR merged onto main and the PRs ahead of it; `changes` runs
-  # everything for this event (scripts/ci Decide), so what lands on main passed the full suite as merged.
-  merge_group:
   push:
     branches: [main]
   schedule:
@@ -46,6 +46,7 @@ jobs:
       go: ${{ steps.c.outputs.go }}
       tests: ${{ steps.c.outputs.tests }}
       web: ${{ steps.c.outputs.web }}
+      webtests: ${{ steps.c.outputs.webtests }}
       vuln: ${{ steps.c.outputs.vuln }}
       audit: ${{ steps.c.outputs.audit }}
     steps:
@@ -143,12 +144,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }} # a PR merge commit: HEAD^1 is the base (CHANGED_BASE)
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache: false # the Go cache below holds the build and test caches of this shard
       # D-365: go test reuses the result of a package whose test binary and inputs did not change. Every run restores the newest
-      # cache of its shard that main saved (a pull request and a merge_group ref may restore main's caches, never each other's);
+      # cache of its shard that main saved (a pull request may restore main's caches, never another pull request's);
       # only main saves, so the repository's 10 GB is not filled with per-PR copies that would evict main's.
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -159,15 +161,17 @@ jobs:
           restore-keys: go-test-${{ runner.os }}-${{ matrix.shard }}-
       - name: go test (-race daily only), shard ${{ matrix.shard }} of 4
         env:
-          # D-371, D-376: only the daily run uses the race detector (4-8x slower: modules/ai 180 s vs 17 s); pull requests, the merge
-          # queue and pushes to main test without it, so the queue reuses main's test cache. A race is caught within a day of its merge.
+          # D-371, D-376: only the daily run uses the race detector (4-8x slower: modules/ai 180 s vs 17 s); pull requests and
+          # pushes to main test without it, so pull requests reuse main's test cache. A race is caught within a day of its merge.
           RACE: ${{ github.event_name == 'schedule' && '-race' || '' }}
           # D-376: the tests of scripts/ci/skip-tests.txt (slow, quarantined flaky) run only in the daily schedule.
           SKIPTESTS: ${{ github.event_name != 'schedule' && '1' || '' }}
           # The daily run tests everything twice, uncached, in a shuffled order, to find flaky tests (the flaky job lists them).
           # -shuffle stays off elsewhere: it is not a cacheable flag, so it would turn the test cache off (go help test).
           GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=2 -shuffle=on -timeout=40m' || '' }}
-        run: make test-go-shard SHARD=${{ matrix.shard }} RACE="$RACE" SKIPTESTS="$SKIPTESTS"
+          # D-413: a pull request tests the packages it changed and their direct importers; main and the daily run test all.
+          CHANGED_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
+        run: make test-go-shard SHARD=${{ matrix.shard }} RACE="$RACE" SKIPTESTS="$SKIPTESTS" CHANGED_BASE="$CHANGED_BASE"
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule')
         with:
@@ -254,11 +258,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }} # a PR merge commit: HEAD^1 is the base (vitest --changed)
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           package_json_file: web/package.json
+      # D-413: a pull request runs typecheck, lint, the tests of its changed files and contract drift, no build; every test when a
+      # file outside web/ that the web tests read changed (webtests=all). main and the daily run run verify-web in full.
+      - name: Typecheck, lint, unit tests of the change, contract drift (pull request)
+        if: needs.changes.outputs.web == 'true' && github.event_name == 'pull_request'
+        env:
+          VITEST_BASE: ${{ needs.changes.outputs.webtests == 'changed' && 'HEAD^1' || '' }}
+        run: make verify-web-pr VITEST_BASE="$VITEST_BASE"
       - name: Typecheck, lint, unit, contract drift, build
-        if: needs.changes.outputs.web == 'true'
+        if: needs.changes.outputs.web == 'true' && github.event_name != 'pull_request'
         run: make verify-web
       - name: Daily vulnerability scan (web)
         if: needs.changes.outputs.audit == 'true'

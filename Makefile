@@ -1,7 +1,7 @@
 # Vedette — lệnh chung. Máy: `make check` trước khi push (D-62); CI gọi đúng các đích ở đây (D-63, docs/ENGINEERING.md §7).
 # Node ghim trong web/package.json (devEngines), pnpm tự tải đúng bản.
 # Go ghim trong go.mod (go tự tải toolchain); công cụ Go ghim trong tools/go.mod.
-.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check syslog-ports-check scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check check-fast verify node-version-check verify-web verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes ci-flaky contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
+.PHONY: images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check syslog-ports-check scan-pack scan-base-image scan-image images-check dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check check-fast verify node-version-check verify-web verify-web-pr verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes ci-flaky contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -38,7 +38,7 @@ endif
 help:
 	@echo "make dev           chạy giao diện với dữ liệu mẫu tại http://localhost:5173"
 	@echo "make dev-api      backend Go thật + giao diện; REAL=core,inventory chọn module thật, còn lại là mock"
-	@echo "make check-fast    cổng trước khi push: build, vet, lint dòng mới, test (không -race) của gói đã đổi, tsc/lint/vitest --changed (D-370)"
+	@echo "make check-fast    tuỳ chọn (D-413): build, vet, lint dòng mới, test (không -race) của gói đã đổi, tsc/lint/vitest --changed"
 	@echo "make check         kiểm phần đã đổi so với origin/main kèm -race và gói phụ thuộc (tuỳ chọn; tái hiện CI đỏ)"
 	@echo "make verify        web + Go: gõ kiểu, lint, test, kiểm lệch hợp đồng, build (rồi dọn)"
 	@echo "make verify-web    chỉ phần giao diện"
@@ -86,11 +86,23 @@ dev-api:
 check:
 	scripts/check.sh
 
-# Cổng trước khi push (D-370): gói đã đổi, không -race, không gói phụ thuộc, không Playwright; không cần khe việc nặng. CI là cổng merge.
+# Tuỳ chọn từ D-413 (không còn bắt buộc trước khi push; agent chỉ build + lint gói đã đổi): gói đã đổi, không -race, không gói phụ
+# thuộc, không Playwright. CI là cổng merge.
 check-fast:
 	scripts/check-fast.sh
 
 verify: verify-web verify-go
+
+# CI web-verify on a pull request (D-413): verify-web without the build. VITEST_BASE=<ref> runs only the tests a change since
+# that ref reaches (vitest --changed; a change to package.json or the Vite/Vitest config reruns them all); empty runs every test
+# (CI leaves it empty when a file outside web/ that the web tests read changed). main's push run and the daily run use verify-web.
+verify-web-pr: node-version-check
+	pnpm --dir web install --frozen-lockfile
+	pnpm --dir web exec tsc -b
+	pnpm --dir web lint
+	if [ -n "$(VITEST_BASE)" ]; then pnpm --dir web exec vitest run --changed "$(VITEST_BASE)" --passWithNoTests; else pnpm --dir web test; fi
+	$(MAKE) openapi-check
+	$(MAKE) clean
 
 verify-web: node-version-check
 	pnpm --dir web install --frozen-lockfile
@@ -107,7 +119,8 @@ verify-go: verify-go-static
 	$(MAKE) clean
 
 # CI job "go-static" (D-140): everything in verify-go except golangci-lint (job go-lint), the tests and govulncheck. No
-# `make contract` (D-372): go-test runs every TestContract… already, with -race on the merge queue; `make contract` stays for check.
+# `make contract` (D-372): go-test runs every TestContract… already (on a pull request those of the packages it reaches, D-413;
+# every one on main and daily); `make contract` stays for check.
 verify-go-static:
 	go build ./...
 	go vet ./...
@@ -153,7 +166,9 @@ test-go-release:
 	go test -race -tags releasetestkeys -run 'Pull|Embedded|CommittedVectors' ./modules/host/
 
 # CI (D-140): the same `go test -race ./...` in SHARDS parallel jobs. `make test-go-shard SHARD=2` runs the second.
-# RACE= drops the race detector: every go-test but the daily run's does (D-371, D-376), so main's test cache serves the merge queue.
+# RACE= drops the race detector: every go-test but the daily run's does (D-371, D-376), so main's test cache serves pull requests.
+# CHANGED_BASE=<ref> (pull requests, D-413) keeps only the shard's packages that the change since <ref> reaches: the packages
+# holding a changed file and their direct importers (scripts/ci Affected); a changed Go-side path outside every package runs all.
 # scripts/ci splits `go list ./...` by the measured test time of scripts/ci/testtime.tsv (D-365); every package lands in
 # exactly one shard. The shard's packages may come from go test's cache, except those whose tests read files through a child
 # process (go build, go list), which the cache cannot see: they always run (`ci shard I N uncached`, D-365). GOTESTFLAGS adds go
@@ -165,9 +180,11 @@ test-go-release:
 SHARDS ?= 4
 RACE ?= -race
 SKIPTESTS ?= 1
+CHANGED_BASE ?=
 test-go-shard:
 	@test -n "$(SHARD)" || { echo "usage: make test-go-shard SHARD=1 (of $(SHARDS))"; exit 2; }
-	@c=$$(go run ./scripts/ci shard $(SHARD) $(SHARDS) cached) && u=$$(go run ./scripts/ci shard $(SHARD) $(SHARDS) uncached) || exit 1; \
+	@export CI_CHANGED_BASE="$(CHANGED_BASE)"; \
+	c=$$(go run ./scripts/ci shard $(SHARD) $(SHARDS) cached) && u=$$(go run ./scripts/ci shard $(SHARD) $(SHARDS) uncached) || exit 1; \
 	skip='^$$'; if [ -n "$(SKIPTESTS)" ]; then skip=$$(go run ./scripts/ci skip) || exit 1; skip=$${skip:-^$$}; fi; \
 	s=0; if [ -n "$$c" ]; then go test $(RACE) -timeout 18m -skip "$$skip" $(GOTESTFLAGS) $$c || s=1; fi; \
 	if [ -n "$$u" ]; then go test $(RACE) -count=1 -timeout 18m -skip "$$skip" $(GOTESTFLAGS) $$u || s=1; fi; exit $$s

@@ -142,7 +142,7 @@ func scanSends(rows *sql.Rows) ([]SendView, error) {
 		var v SendView
 		var ch string
 		var e sql.NullString
-		if err := rows.Scan(&v.ID, &ch, &v.To, &v.At, &v.OK, &e); err != nil {
+		if err := rows.Scan(&v.ID, &ch, &v.To, &v.At, &v.OK, &e, &v.Delayed); err != nil {
 			return nil, fmt.Errorf("notify: read sends: %w", err)
 		}
 		v.Channel, v.Error = channel.Type(ch), e.String
@@ -183,7 +183,7 @@ func fillIncident(ctx context.Context, q dbtx, i *Incident) error {
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return fmt.Errorf("notify: read incident devices: %w", err)
 	}
-	srows, err := q.QueryContext(ctx, `SELECT id, channel, "to", at, ok, error FROM notify_send WHERE kind = 'incident' AND ref_id = ? ORDER BY at, rowid`, i.ID)
+	srows, err := q.QueryContext(ctx, `SELECT id, channel, "to", at, ok, error, delayed FROM notify_send WHERE kind = 'incident' AND ref_id = ? ORDER BY at, rowid`, i.ID)
 	if err != nil {
 		return fmt.Errorf("notify: read incident sends: %w", err)
 	}
@@ -235,7 +235,7 @@ func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 	if err := errors.Join(drows.Err(), drows.Close()); err != nil {
 		return nil, fmt.Errorf("notify: read incident devices: %w", err)
 	}
-	srows, err := db.QueryContext(ctx, `SELECT ref_id, id, channel, "to", at, ok, error FROM notify_send WHERE kind = 'incident' AND ref_id IN `+page+` ORDER BY at, rowid`, incidentsLimit)
+	srows, err := db.QueryContext(ctx, `SELECT ref_id, id, channel, "to", at, ok, error, delayed FROM notify_send WHERE kind = 'incident' AND ref_id IN `+page+` ORDER BY at, rowid`, incidentsLimit)
 	if err != nil {
 		return nil, fmt.Errorf("notify: read incident sends: %w", err)
 	}
@@ -243,7 +243,7 @@ func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 		var ref, ch string
 		var v SendView
 		var e sql.NullString
-		if err := srows.Scan(&ref, &v.ID, &ch, &v.To, &v.At, &v.OK, &e); err != nil {
+		if err := srows.Scan(&ref, &v.ID, &ch, &v.To, &v.At, &v.OK, &e, &v.Delayed); err != nil {
 			_ = srows.Close()
 			return nil, fmt.Errorf("notify: read incident sends: %w", err)
 		}
@@ -361,7 +361,7 @@ func (s *Service) HandleIncident(ctx context.Context, actor, id string, status I
 func (s *Service) History(ctx context.Context) (HistoryView, error) {
 	db := s.cfg.DB.Reader()
 	v := HistoryView{Items: []HistoryItem{}}
-	rows, err := db.QueryContext(ctx, `SELECT id, channel, "to", at, ok, error, kind, what, link FROM notify_send ORDER BY at DESC, rowid DESC LIMIT ?`, historyLimit)
+	rows, err := db.QueryContext(ctx, `SELECT id, channel, "to", at, ok, error, delayed, kind, what, link FROM notify_send ORDER BY at DESC, rowid DESC LIMIT ?`, historyLimit)
 	if err != nil {
 		return v, fmt.Errorf("notify: read history: %w", err)
 	}
@@ -370,7 +370,7 @@ func (s *Service) History(ctx context.Context) (HistoryView, error) {
 		var h HistoryItem
 		var ch string
 		var e sql.NullString
-		if err := rows.Scan(&h.ID, &ch, &h.To, &h.At, &h.OK, &e, &h.Kind, &h.What, &h.Link); err != nil {
+		if err := rows.Scan(&h.ID, &ch, &h.To, &h.At, &h.OK, &e, &h.Delayed, &h.Kind, &h.What, &h.Link); err != nil {
 			return v, fmt.Errorf("notify: read history: %w", err)
 		}
 		h.Channel, h.Error = channel.Type(ch), e.String
@@ -474,7 +474,7 @@ func (s *Service) Resend(ctx context.Context, actor, id string) (HistoryItem, er
 
 // FindingNotices lists who was told about a finding, oldest first (GET /notify/findings/{id}/notices).
 func (s *Service) FindingNotices(ctx context.Context, findingID string) ([]SendView, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT s.id, s.channel, s."to", s.at, s.ok, s.error FROM notify_send s
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT s.id, s.channel, s."to", s.at, s.ok, s.error, s.delayed FROM notify_send s
 		WHERE s.id IN (SELECT sn.send_id FROM notify_send_notice sn JOIN notify_notice_finding nf ON nf.notice_id = sn.notice_id WHERE nf.finding_id = ?)
 		ORDER BY s.at, s.rowid`, findingID)
 	if err != nil {

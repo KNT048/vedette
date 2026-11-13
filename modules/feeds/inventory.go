@@ -41,8 +41,10 @@ type Inventory interface {
 	// The map is keyed by Product.Key(); a product with no device has no entry.
 	MatchProducts(ctx context.Context, products []Product) (map[string][]MatchedAsset, error)
 	// AddManualDevice declares one manually added device that runs the product. It runs inside the caller's
-	// write transaction (tx) so the device, the audit row of the inventory and the answer commit together.
-	AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d ManualDevice) error
+	// write transaction (tx) so the device, the audit row of the inventory and the answer commit together. It
+	// returns the new device's id, or "" when the inventory does not say it: then "I have this" scopes no device
+	// (D-484, HaveSince) and findings match it like any other device.
+	AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d ManualDevice) (deviceID string, err error)
 }
 
 func youHave(matched []MatchedAsset) YouHave {

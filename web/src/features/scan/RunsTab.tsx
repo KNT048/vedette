@@ -48,7 +48,7 @@ function TargetRow({ t: target, checked, onChange }: { t: ScanTarget; checked: b
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
       <Checkbox id={id} checked={checked} disabled={!target.selectable} onCheckedChange={(v) => onChange(v === true)} />
       <label htmlFor={id} className={target.selectable ? 'text-sm' : 'text-sm text-muted'}>
-        <span className="font-medium">{target.label}</span> <span className="text-muted">{target.ip}</span>
+        <span className="font-medium">{target.label}</span>{target.ip && target.ip !== '—' ? <> <span className="text-muted">{target.ip}</span></> : null}
       </label>
       {target.findings > 0 ? <Chip tone="warn">{t('start.findings', { count: target.findings })}</Chip> : null}
       {target.fragile && target.selectable ? <Chip tone="off" title={t('start.fragileHint')}>{t('start.fragile')}</Chip> : null}

@@ -88,8 +88,9 @@ Hộp phục vụ hai script (`osquery.sh`, `osquery.ps1`) có chèn sẵn: đ�
 
 Lệnh người dùng sao chép từ GUI (admin đã đăng nhập) chứa `sha256` của script:
 
-- Linux: `curl -fsSLk <box>/api/v1/install/osquery.sh -o /tmp/vedette-osquery.sh && echo "<sha256>  /tmp/vedette-osquery.sh" | sha256sum -c - && sudo sh /tmp/vedette-osquery.sh --token <token>`
-- Windows (PowerShell 5.1): tải bằng `curl.exe -fsSLk`, so `Get-FileHash -Algorithm SHA256` với giá trị trong lệnh, sai thì `throw`, đúng thì chạy `-File … -Token '<token>'`.
+- Linux: `(f=$(mktemp) && curl -fsSLk <box>/api/v1/install/osquery.sh -o "$f" && echo "<sha256>  $f" | sha256sum -c - && sudo sh "$f" --token <token>; r=$?; rm -f "$f"; exit $r)` (subshell: mã thoát của tải/kiểm/cài giữ nguyên sau khi dọn, `exit` không đóng terminal) (tệp tạm mới mỗi lần rồi xoá: tên cố định trong `/tmp` do người dùng khác để lại không ghi đè được khi `fs.protected_regular=2`, lượt đi thật 2 W2-3)
+- Windows (PowerShell 5.1): tải bằng `curl.exe -fsSLk` vào `%TEMP%\vedette-osquery-<GUID>.ps1`, so `Get-FileHash -Algorithm SHA256` với giá trị trong lệnh, sai thì xoá tệp và `throw`, đúng thì chạy `-File … -Token '<token>'` rồi xoá tệp.
+- Script in các dòng của Vedette thôi: đầu ra của `dpkg`/`rpm` (kể cả dòng số do script của gói osquery in) vào log tạm, chỉ in ra khi cài lỗi; `systemctl enable --quiet` (W2-2).
 - Gỡ: `--uninstall` / `-Uninstall`.
 
 Chuỗi tin cậy (viết rõ vì lần tải đầu dùng `-k`):

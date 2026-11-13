@@ -1010,6 +1010,13 @@ type Handler interface {
 	//
 	// POST /findings/{id}/status
 	FindingsPostFindingsIDStatus(ctx context.Context, req *FindingsPostFindingsIDStatusReq, params FindingsPostFindingsIDStatusParams) (*FindingsPostFindingsIDStatusOK, error)
+	// FindingsPostFindingsStatus implements findings_post_findings_status operation.
+	//
+	// Change the status of the open findings among the ids (at most 500) with one note; one history and
+	// audit row per finding, all or nothing; closed findings are skipped.
+	//
+	// POST /findings/status
+	FindingsPostFindingsStatus(ctx context.Context, req *FindingsPostFindingsStatusReq) (*FindingsPostFindingsStatusOK, error)
 	// HoneypotDeleteHoneypotDecoysID implements honeypot_delete_honeypot_decoys_id operation.
 	//
 	// Delete a decoy.

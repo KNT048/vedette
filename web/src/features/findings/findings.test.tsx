@@ -8,7 +8,7 @@ import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { eachOption } from '@/test/formMatrix'
 import { server } from '@/test/server'
 import { makeQueryClient } from '@/app/App'
-import { aiConfigStore, aiRunsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { aiConfigStore, aiRunsStore, assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { feature } from './index'
 
 const FORTI = 'show firewall vip | grep -f 192.168.10.21'
@@ -156,7 +156,8 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(await screen.findByText('No confirmed recommendation yet')).toBeInTheDocument()
     expect(screen.queryByText('Confirmed by Vedette maintainers')).not.toBeInTheDocument()
     expect(screen.getByText(/Apply mitigations in accordance with vendor instructions/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'https://wordpress.org/news/2026/10/wordpress-7-1-4' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Vendor advisory (wordpress.org)' })).toHaveAttribute('href', 'https://wordpress.org/news/2026/10/wordpress-7-1-4')
+    expect(screen.getByText('Steps you can take now')).toBeInTheDocument() // W1-31: what the box knows, without a pack
     expect(screen.getByText(/No confirmed exploitation signs/)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
@@ -164,7 +165,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
   it('f-3 cũng vậy, với link MSRC', async () => {
     renderApp('/findings/f-3')
     expect(await screen.findByText('No confirmed recommendation yet')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2026-96951' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Vendor advisory (msrc.microsoft.com)' })).toHaveAttribute('href', 'https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2026-96951')
   })
 
   it('"Hỏi AI của tôi" trả lời trong AiBlock của khách, ghi lượt chạy, còn sau khi tải lại', async () => {
@@ -334,5 +335,58 @@ describe('findings: Mark as handled form matrix (docs/QA.md §2, QA walk 2026-11
     })
     expect(within(dlg).getByRole('radio', { name: /Patched/ })).toBeChecked()
     expect(within(dlg).getByRole('textbox')).toHaveValue('')
+  })
+})
+
+describe('findings: customer walk 1 (D-484)', () => {
+  it('W1-4: real risk first; a product-only guess shows its severity muted as unverified; certainty filter', async () => {
+    renderApp('/findings')
+    const table = await screen.findByRole('table', { name: 'Findings list' })
+    const rows = within(table).getAllByRole('row').slice(1)
+    expect(rows.map((r) => within(r).getByRole('link', { name: /^CVE-/ }).textContent)).toEqual(['CVE-2022-27593', 'CVE-2026-96951', 'CVE-2026-119977'])
+    expect(within(rows[2]!).getByText('High, unverified')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Unverified' }))
+    await waitFor(() => expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2))
+  })
+
+  it('W1-12: select all shown, one action and one note, one history and audit row per finding', async () => {
+    renderApp('/findings')
+    await screen.findByRole('table', { name: 'Findings list' })
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 3 findings shown' }))
+    const bar = screen.getByRole('region', { name: 'Selected findings' })
+    expect(within(bar).getByText('3 findings selected')).toBeInTheDocument()
+    await userEvent.click(within(bar).getByRole('button', { name: 'Mark as handled' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Mark 3 findings as handled' })
+    await userEvent.click(within(dlg).getByRole('radio', { name: /False positive/ }))
+    await userEvent.type(within(dlg).getByLabelText('Note: why (required)'), 'Lab network, not ours')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save status for 3 findings' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'No unresolved findings' })).toBeInTheDocument()
+    expect(findingsStore.get().every((f) => f.status === 'false_positive' && f.resolution_note === 'Lab network, not ours' && f.history.at(-1)?.action === 'false_positive')).toBe(true)
+    expect(auditStore.get().filter((a) => a.action === 'findings.status')).toHaveLength(3)
+  })
+
+  it('W1-12: a closed finding in the selection keeps its status and reason; the toast says so', async () => {
+    findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'patched' as const, resolution_note: 'Updated to 6.1.2' } : f)))
+    renderApp('/findings')
+    await screen.findByRole('table', { name: 'Findings list' })
+    await userEvent.click(screen.getByRole('button', { name: 'All' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 3 findings shown' }))
+    await userEvent.click(within(screen.getByRole('region', { name: 'Selected findings' })).getByRole('button', { name: 'Mark as handled' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Mark 3 findings as handled' })
+    await userEvent.click(within(dlg).getByRole('radio', { name: /Not relevant/ }))
+    await userEvent.type(within(dlg).getByLabelText('Note: why (required)'), 'Retired next month')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save status for 3 findings' }))
+    expect(await screen.findByText('Status saved for 2 findings. 1 was already closed and kept its status.')).toBeInTheDocument()
+    const f1 = findingsStore.get().find((f) => f.id === 'f-1')!
+    expect([f1.status, f1.resolution_note]).toEqual(['patched', 'Updated to 6.1.2'])
+  })
+
+  it('W1-2, W1-32: a device with no IP is named, says "No IP address" and offers no rescan', async () => {
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, ip: '—', hostname: null } : a)))
+    renderApp('/findings/f-2')
+    expect(await screen.findByRole('heading', { level: 1, name: /^VMware may be affected/ })).toBeInTheDocument()
+    expect(screen.getAllByText('No IP address').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('link', { name: 'Rescan this device' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/a-web01/)).not.toBeInTheDocument()
   })
 })

@@ -49,14 +49,14 @@ func (f *fakeInv) MatchProducts(_ context.Context, ps []Product) (map[string][]M
 	return out, nil
 }
 
-func (f *fakeInv) AddManualDevice(_ context.Context, tx *sql.Tx, _ string, d ManualDevice) error {
+func (f *fakeInv) AddManualDevice(_ context.Context, tx *sql.Tx, _ string, d ManualDevice) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if tx == nil {
-		return errors.New("no transaction")
+		return "", errors.New("no transaction")
 	}
 	f.added = append(f.added, d)
-	return nil
+	return fmt.Sprintf("a-declared-%d", len(f.added)), nil
 }
 
 type published struct {

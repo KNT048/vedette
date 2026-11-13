@@ -21,9 +21,10 @@ export default function History() {
   const where = (r: HistoryItem) => t('history.via', { channel: t(`ch.${r.channel}`), to: r.to })
   const what = (r: HistoryItem) => <div className="grid"><Link to={r.link} className="text-accent underline-offset-4 hover:underline">{r.what}</Link><span className="text-[12px] text-muted">{t(`history.kind.${r.kind}`)}</span></div>
   const result = (r: HistoryItem) => (
-    <div className="grid justify-items-start gap-1">{r.ok ? <Chip tone="ok">{t('history.ok')}</Chip> : <Chip tone="warn">{t('history.failed')}</Chip>}{r.error ? <span className="min-w-[10rem] max-w-[48ch] text-[13px]">{r.error}</span> : null}</div>
+    <div className="grid justify-items-start gap-1">{r.ok ? <Chip tone="ok">{t('history.ok')}</Chip> : r.delayed ? <Chip tone="accent">{t('history.delayed')}</Chip> : <Chip tone="warn">{t('history.failed')}</Chip>}{r.error ? <span className="min-w-[10rem] max-w-[48ch] text-[13px]">{r.error}</span> : null}</div>
   )
-  const again = (r: HistoryItem) => (
+  // A delayed message is sent again by the box itself once the provider's wait is over (D-483): no Send again.
+  const again = (r: HistoryItem) => (r.delayed ? null :
     <Button size="sm" disabled={!can || resend.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} aria-label={t('history.resendFor', { channel: t(`ch.${r.channel}`) })}
       onClick={() => resend.mutate(r.id, { onSuccess: (res) => { if (res.ok) toast.success(t('history.resendOk', { channel: t(`ch.${r.channel}`) })); else toast.error(res.error ?? t('history.failed')) }, onError: (e) => toast.error(e instanceof ApiError ? e.message : String(e)) })}>
       {t('history.resend')}

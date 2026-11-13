@@ -11,9 +11,9 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
-// Migration 0005 (D-485) on a box that ran 0001..0004: the CISA list still on the old 24-hour default moves to 1 hour, other
+// Migration 0006 (D-485) on a box that ran 0001..0005: the CISA list still on the old 24-hour default moves to 1 hour, other
 // schedules and custom feeds are kept, and the validators the GitHub mirror handed out move to the mirror's own columns.
-func TestMigration0005KEVHourlyAndMirrorValidators(t *testing.T) {
+func TestMigration0006KEVHourlyAndMirrorValidators(t *testing.T) {
 	t.Parallel()
 	before := fstest.MapFS{}
 	entries, err := fs.ReadDir(Migrations, ".")
@@ -21,7 +21,7 @@ func TestMigration0005KEVHourlyAndMirrorValidators(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, e := range entries {
-		if e.Name() >= "0005" { // what a box had before this change
+		if e.Name() >= "0006" { // what a box had before this change
 			continue
 		}
 		b, err := fs.ReadFile(Migrations, e.Name())
@@ -47,7 +47,7 @@ func TestMigration0005KEVHourlyAndMirrorValidators(t *testing.T) {
 		t.Fatal(err)
 	}
 	if kev.IntervalHours != 1 || kev.ETag != nil || kev.LastModified != nil || orEmpty(kev.MirrorETag) != `"m1"` || orEmpty(kev.MirrorLastModified) == "" {
-		t.Errorf("cisa-kev after 0005: every %d h, etag %v, mirror etag %v", kev.IntervalHours, kev.ETag, kev.MirrorETag)
+		t.Errorf("cisa-kev after 0006: every %d h, etag %v, mirror etag %v", kev.IntervalHours, kev.ETag, kev.MirrorETag)
 	}
 	for id, want := range map[string]int{"cf-v": 24, "first-epss": 24, "ipsum": 6} {
 		if r, err := s.source(t.Context(), id); err != nil || r.IntervalHours != want {

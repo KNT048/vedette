@@ -18,7 +18,7 @@ import { useSensorCard, useSensors } from './api'
 import { errMsg } from './kinds'
 import type { Sensor, SensorStatus } from './types'
 
-const TONE: Record<SensorStatus, Tone> = { online: 'ok', offline: 'warn', never_connected: 'off' }
+const TONE: Record<SensorStatus, Tone> = { online: 'ok', offline: 'warn', never_connected: 'off', starting: 'accent' }
 const VERDICT_TONE: Record<Sensor['span_status']['verdict'], Tone> = { ok: 'ok', off: 'off', own_only: 'warn', no_traffic: 'warn', no_link: 'warn' }
 
 /** What the sensor hears now: the card it listens on and the health of the mirrored traffic. */
@@ -145,7 +145,8 @@ export function SensorsSection() {
           ? <><Chip tone="warn">{t('sensors.capture.notCapturing')}</Chip><span className="max-w-xs text-[12px] text-warn">{t(`sensors.capture.${row.original.capture_error}`)}</span></>
           : <Chip tone={TONE[row.original.status]}>{t(`sensors.status.${row.original.status}`)}</Chip>}
         {row.original.last_seen ? <span className="text-[12px] text-muted">{t('sensors.lastSeen', { when: fmtRelative(row.original.last_seen) })}</span> : null}
-        {row.original.status === 'never_connected' && install === 'container' ? <span className="text-[12px] text-muted">{t('sensors.startHint')}</span> : null}
+        {row.original.status === 'never_connected' && install ? <span className="max-w-xs text-[12px] text-muted">{t(install === 'container' ? 'sensors.startHint' : 'sensors.notStartedHint')}</span> : null}
+        {row.original.status === 'starting' ? <span className="max-w-xs text-[12px] text-muted">{t('sensors.startingHint')}</span> : null}
       </div>
     ) },
     { id: 'seen', header: t('sensors.col.devices'), accessorFn: (s) => s.devices_seen },

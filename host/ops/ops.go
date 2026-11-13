@@ -168,6 +168,7 @@ type Ops struct {
 	hpMu         sync.Mutex  // guards hp/decoys.json and the contents of the honeypot namespace
 	hpConfigured atomic.Bool // the sysctls, lo and ruleset were set and read back since this host started
 	hpOK         atomic.Bool // the last ensureHP proved the namespace (state/net lists decoys only then)
+	touchOff     atomic.Bool // the ruleset is loaded without the set touched: nft printed it in a form the check does not know (loadProven)
 	hpDirErr     error       // hp/ is not a usable directory: decoys are off (D-121)
 
 	// restorePending lists the services whose unit bytes Start put back and whose state AfterReady still

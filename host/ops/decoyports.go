@@ -90,14 +90,25 @@ const (
 	hpTouchedType  = "ipv4_addr . ipv4_addr"
 	hpTouchedSize  = 1024
 	hpTouchTimeout = 2 * time.Minute
-	hpTouchRule    = "meta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }"
+	// Only unicast to the namespace (pkttype host): broadcast and multicast UDP (NetBIOS, mDNS, SSDP) would fill the set and
+	// hide a real scan (B2 review M1).
+	hpTouchRule = "meta l4proto { tcp, udp } meta pkttype host ct state new add @touched { ip saddr . ip daddr }"
 )
 
-// touchRuleForms are the ways nft may print hpTouchRule back, normalised (protocols as names or numbers).
-var touchRuleForms = []string{
-	nftNorm(hpTouchRule),
-	nftNorm("meta l4proto { 6, 17 } ct state new add @touched { ip saddr . ip daddr }"),
-}
+// touchRuleForms are the ways nft may print hpTouchRule back, normalised: protocols as names or numbers, pkttype with or
+// without "meta" (nft prints unqualified meta keys bare), with or without the implicit "meta nfproto ipv4" of the inet family.
+// A form none of these matches is not fatal: applyRuleset then loads the ruleset without the set (loadProven).
+var touchRuleForms = func() []string {
+	var out []string
+	for _, nf := range []string{"", "meta nfproto ipv4 "} {
+		for _, proto := range []string{"tcp, udp", "6, 17"} {
+			for _, pt := range []string{"meta pkttype host", "pkttype host"} {
+				out = append(out, nftNorm(nf+"meta l4proto { "+proto+" } "+pt+" ct state new add @touched { ip saddr . ip daddr }"))
+			}
+		}
+	}
+	return out
+}()
 
 // wantedSets are the elements of the two sets for a decoy list: the addresses without an allow-list,
 // and "ip . proto . port" of every allowed port.
@@ -118,7 +129,19 @@ func wantedSets(list []decoyEntry) (open, allow []string) {
 
 // renderRuleset is the text nft -f loads for a decoy list. Every value in it is a validated address,
 // protocol word or number from decoys.json (parseDecoys checks them all).
-func renderRuleset(list []decoyEntry) string {
+func renderRuleset(list []decoyEntry) string { return renderRulesetMode(list, true) }
+
+// inputRules are the rules of the input chain, with or without the touch rule.
+func inputRules(touch bool) []string {
+	if touch {
+		return hpInputRules
+	}
+	return slices.DeleteFunc(slices.Clone(hpInputRules), func(r string) bool { return r == hpTouchRule })
+}
+
+// renderRulesetMode is renderRuleset with (touch) or without the set touched and its rule: the ruleset of before B2 review M2,
+// what the host falls back to when nft prints the touch part in a form the effect check does not know (loadProven).
+func renderRulesetMode(list []decoyEntry, touch bool) string {
 	open, allow := wantedSets(list)
 	var b strings.Builder
 	set := func(name, typ string, elems []string) {
@@ -138,9 +161,11 @@ func renderRuleset(list []decoyEntry) string {
 	b.WriteString("flush ruleset\ntable inet vedette_hp {\n")
 	set("open", hpOpenType, open)
 	set("allow", hpAllowType, allow)
-	b.WriteString("\tset touched {\n\t\ttype " + hpTouchedType + "\n\t\tsize " + strconv.Itoa(hpTouchedSize) +
-		"\n\t\tflags dynamic,timeout\n\t\ttimeout " + strconv.Itoa(int(hpTouchTimeout/time.Second)) + "s\n\t}\n")
-	chain("input", "type filter hook input priority 0; policy accept;", hpInputRules)
+	if touch {
+		b.WriteString("\tset touched {\n\t\ttype " + hpTouchedType + "\n\t\tsize " + strconv.Itoa(hpTouchedSize) +
+			"\n\t\tflags dynamic,timeout\n\t\ttimeout " + strconv.Itoa(int(hpTouchTimeout/time.Second)) + "s\n\t}\n")
+	}
+	chain("input", "type filter hook input priority 0; policy accept;", inputRules(touch))
 	chain("output", "type filter hook output priority 0; policy accept;", hpOutputRules)
 	chain("forward", "type filter hook forward priority 0; policy drop;", nil)
 	b.WriteString("}\n")
@@ -324,13 +349,14 @@ func (t nftTable) egressOK() bool {
 		len(fwd.rules) == 0 && slices.Equal(out.rules, normAll(hpOutputRules))
 }
 
-// inputOK: the input chain (hook input, policy accept) holds exactly the rules of hpInputRules, in order.
-func (t nftTable) inputOK() bool {
+// inputOK: the input chain (hook input, policy accept) holds exactly the rules of inputRules(touch), in order.
+func (t nftTable) inputOK(touch bool) bool {
+	rules := inputRules(touch)
 	in := t.chains["input"]
-	if in == nil || !strings.HasPrefix(in.hdr, "typefilterhookinput") || !strings.Contains(in.hdr, "policyaccept") || len(in.rules) != len(hpInputRules) {
+	if in == nil || !strings.HasPrefix(in.hdr, "typefilterhookinput") || !strings.Contains(in.hdr, "policyaccept") || len(in.rules) != len(rules) {
 		return false
 	}
-	want := normAll(hpInputRules)
+	want := normAll(rules)
 	for i, r := range in.rules {
 		udpReject := i == len(want)-1 && slices.Contains(rejectUDPForms, r)
 		touch := want[i] == nftNorm(hpTouchRule) && slices.Contains(touchRuleForms, r)
@@ -341,25 +367,28 @@ func (t nftTable) inputOK() bool {
 	return true
 }
 
-// touchedOK is the check of the dynamic set: its type, the flags dynamic and timeout, and no line but its size, flags and
-// timeout. Its elements are the traffic of the moment and are not compared.
+// touchedOK is the check of the dynamic set: its type, the flags dynamic and timeout, its size and timeout as loaded (the timeout
+// as nft prints it, 2m, or as loaded, 120s), and no other line. Its elements are the traffic of the moment and are not compared.
 func touchedOK(s *nftSet) bool {
 	if s == nil || s.typ != hpTouchedType {
 		return false
 	}
-	flags := false
+	flags, size, timeout := false, false, false
 	for _, l := range s.other {
 		n := nftNorm(l)
 		switch {
 		case strings.HasPrefix(n, "flags"):
 			f := strings.Split(strings.TrimPrefix(n, "flags"), ",")
-			flags = slices.Contains(f, "dynamic") && slices.Contains(f, "timeout")
-		case strings.HasPrefix(n, "size"), strings.HasPrefix(n, "timeout"):
+			flags = len(f) == 2 && slices.Contains(f, "dynamic") && slices.Contains(f, "timeout")
+		case n == "size"+strconv.Itoa(hpTouchedSize):
+			size = true
+		case n == "timeout2m" || n == "timeout"+strconv.Itoa(int(hpTouchTimeout/time.Second))+"s":
+			timeout = true
 		default:
 			return false
 		}
 	}
-	return flags
+	return flags && size && timeout
 }
 
 // hasEgressDrop reads the text of "nft list ruleset" and accepts only the egress part of the host's
@@ -371,12 +400,26 @@ func hasEgressDrop(out []byte) bool { return parseHPTable(out).egressOK() }
 // the input chain, the two sets with exactly the wanted elements (so every address it names is a
 // decoy's), no other chain or set in the table (one could hold a hook of its own), and no other table
 // in the namespace.
-func rulesetIs(out []byte, list []decoyEntry) bool {
+func rulesetIs(out []byte, list []decoyEntry) bool { return rulesetIsMode(out, list, true) }
+
+// rulesetIsMode is rulesetIs for the ruleset with (touch) or without the set touched and its rule.
+func rulesetIsMode(out []byte, list []decoyEntry, touch bool) bool {
 	t := parseHPTable(out)
 	open, allow := wantedSets(list)
-	return t.foreign == 0 && t.egressOK() && t.inputOK() && len(t.chains) == 3 && len(t.sets) == 3 && touchedOK(t.sets["touched"]) &&
+	sets := 2
+	if touch {
+		sets = 3
+		if !touchedOK(t.sets["touched"]) {
+			return false
+		}
+	}
+	return t.foreign == 0 && t.egressOK() && t.inputOK(touch) && len(t.chains) == 3 && len(t.sets) == sets &&
 		setIs(t.sets["open"], hpOpenType, open, false) && setIs(t.sets["allow"], hpAllowType, allow, true)
 }
+
+// withTouch says whether the host loads the set touched and its rule: until nft printed them in a form the effect check does not
+// know (loadProven), for the life of the process.
+func (o *Ops) withTouch() bool { return !o.touchOff.Load() }
 
 // wantedDecoys is the list the ruleset is rendered from when a caller has none at hand (ensureHP):
 // the state file; one that cannot be read gives no address at all (fail closed), and the writer
@@ -395,23 +438,38 @@ func (o *Ops) rulesetLoaded(ctx context.Context, list []decoyEntry) (bool, error
 	if err != nil || code != 0 || res.Truncated {
 		return false, fmt.Errorf("ops: listing the ruleset of vedette-hp failed (exit %d)", code)
 	}
-	return rulesetIs(res.Stdout, list), nil
+	return rulesetIsMode(res.Stdout, list, o.withTouch()), nil
 }
 
 // applyRuleset loads the ruleset for list and proves it (the effect check). It changes nothing else:
 // the caller decides what a failure means.
-func (o *Ops) applyRuleset(ctx context.Context, list []decoyEntry) error {
+func (o *Ops) applyRuleset(ctx context.Context, list []decoyEntry) error { return o.loadProven(ctx, list) }
+
+// loadProven loads the ruleset for list and proves it. When the ruleset with the set touched cannot be proven but the same
+// ruleset without it can, the touch part is what nft printed in a form the check does not know (B2 review H1): the host keeps
+// the decoys up without it, for the life of the process, says so (log, audit line, hp-touches "recording": false), and a SYN
+// scan is then seen only by its completed connections. When neither can be proven the touch part is kept and the error stands
+// (the caller decides: undo, close the namespace).
+func (o *Ops) loadProven(ctx context.Context, list []decoyEntry) error {
 	if err := o.loadRuleset(ctx, list); err != nil {
 		return err
 	}
 	ok, err := o.rulesetLoaded(ctx, list)
-	if err != nil {
+	if err != nil || ok {
 		return err
 	}
-	if !ok {
-		return errors.New("ops: the ruleset of vedette-hp is not the one the host loaded")
+	if o.withTouch() {
+		o.touchOff.Store(true)
+		if err := o.loadRuleset(ctx, list); err == nil {
+			if ok, err := o.rulesetLoaded(ctx, list); err == nil && ok {
+				o.log.ErrorContext(ctx, "the ruleset of vedette-hp could not be proven with the set touched; loaded without it: SYN scans of the decoys are not recorded")
+				o.note("decoy_ip", "touch_record_off", map[string]any{})
+				return nil
+			}
+		}
+		o.touchOff.Store(false) // the touch part was not the trouble
 	}
-	return nil
+	return errors.New("ops: the ruleset of vedette-hp is not the one the host loaded")
 }
 
 // closeUnproven is what a ruleset that cannot be proven means for the namespace: not usable (state/net
@@ -558,8 +616,8 @@ func portsOf(e decoyEntry) *[]api.DecoyPort {
 // namespace that is not proven answers no touch. Anything nft prints that does not parse is an error (fail closed: no touch is
 // made up).
 func (o *Ops) readHPTouches(ctx context.Context) (any, error) {
-	out := api.HPTouchesState{Touches: []api.HPTouch{}}
-	if o.hpDirErr != nil || !o.hpOK.Load() {
+	out := api.HPTouchesState{Touches: []api.HPTouch{}, Recording: o.withTouch()}
+	if o.hpDirErr != nil || !o.hpOK.Load() || !out.Recording {
 		return out, nil
 	}
 	list, err := o.readDecoys()
@@ -573,6 +631,10 @@ func (o *Ops) readHPTouches(ctx context.Context) (any, error) {
 	touches, err := parseTouched(res.Stdout)
 	if err != nil {
 		return nil, err
+	}
+	if len(touches) >= api.HPTouchesFull {
+		out.Full = true
+		o.log.WarnContext(ctx, "the set touched of vedette-hp is (nearly) full: new attempts to the decoys may not be recorded", "elements", len(touches))
 	}
 	decoys := map[string]bool{}
 	for _, e := range list {

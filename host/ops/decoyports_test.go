@@ -71,7 +71,7 @@ func TestRenderRulesetPutsEachAddressInItsSet(t *testing.T) {
 		"\tset open {\n\t\ttype ipv4_addr\n\t\telements = { 192.168.1.101 }\n\t}\n",
 		"\tset allow {\n\t\ttype ipv4_addr . inet_proto . inet_service\n\t\telements = { 192.168.1.100 . tcp . 3389, 192.168.1.100 . tcp . 445 }\n\t}\n",
 		"\tset touched {\n\t\ttype ipv4_addr . ipv4_addr\n\t\tsize 1024\n\t\tflags dynamic,timeout\n\t\ttimeout 120s\n\t}\n",
-		"\t\ttype filter hook input priority 0; policy accept;\n\t\tiif lo accept\n\t\tmeta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }\n\t\tct state established,related accept\n\t\tip daddr @open accept\n" +
+		"\t\ttype filter hook input priority 0; policy accept;\n\t\tiif lo accept\n\t\tmeta l4proto { tcp, udp } meta pkttype host ct state new add @touched { ip saddr . ip daddr }\n\t\tct state established,related accept\n\t\tip daddr @open accept\n" +
 			"\t\tip daddr . meta l4proto . th dport @allow accept\n\t\tmeta l4proto tcp reject with tcp reset\n\t\tmeta l4proto udp reject\n",
 		"\tchain output {\n\t\ttype filter hook output priority 0; policy accept;\n\t\tct state established,related accept\n\t\toif lo accept\n\t\tct state new drop\n\t}\n",
 		"\tchain forward {\n\t\ttype filter hook forward priority 0; policy drop;\n\t}\n}\n",
@@ -122,7 +122,7 @@ table inet vedette_hp {
 	chain input {
 		type filter hook input priority filter; policy accept;
 		iif "lo" accept
-		meta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }
+		meta l4proto { tcp, udp } pkttype host ct state new add @touched { ip saddr . ip daddr }
 		ct state established,related accept
 		ip daddr @open accept
 		ip daddr . meta l4proto . th dport @allow accept
@@ -173,8 +173,8 @@ func TestRulesetIsReadsTheRealListing(t *testing.T) {
 		"no touched set":    ours[:strings.Index(ours, "\tset touched")] + ours[strings.Index(ours, "\tchain input"):],
 		"touched not dyn":   strings.Replace(ours, "flags dynamic,timeout", "flags timeout", 1),
 		"touched other":     strings.Replace(ours, "\t\tsize 1024\n", "\t\tsize 1024\n\t\tpolicy memory\n", 1),
-		"no touch rule":     strings.Replace(ours, "\t\tmeta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }\n", "", 1),
-		"touch rule late":   strings.Replace(strings.Replace(ours, "\t\tmeta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }\n", "", 1), "\t\tmeta l4proto tcp reject", "\t\tmeta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }\n\t\tmeta l4proto tcp reject", 1),
+		"no touch rule":     strings.Replace(ours, "\t\tmeta l4proto { tcp, udp } pkttype host ct state new add @touched { ip saddr . ip daddr }\n", "", 1),
+		"touch rule late":   strings.Replace(strings.Replace(ours, "\t\tmeta l4proto { tcp, udp } pkttype host ct state new add @touched { ip saddr . ip daddr }\n", "", 1), "\t\tmeta l4proto tcp reject", "\t\tmeta l4proto { tcp, udp } pkttype host ct state new add @touched { ip saddr . ip daddr }\n\t\tmeta l4proto tcp reject", 1),
 		"dormant":           strings.Replace(ours, "table inet vedette_hp {\n", "table inet vedette_hp {\n\tflags dormant\n", 1),
 		"egress gone":       strings.Replace(ours, "\t\tct state new drop\n", "", 1),
 	} {
@@ -298,11 +298,45 @@ func TestRulesetIsAcceptsTheRealUbuntu2604Listing(t *testing.T) {
 		t.Fatalf("the pre-M2 listing: rulesetIs %v, egress %v", rulesetIs(listed, list), hasEgressDrop(listed))
 	}
 	listed = []byte(strings.Replace(strings.Replace(string(listed), "\tchain input {", "\tset touched {\n\t\ttype ipv4_addr . ipv4_addr\n\t\tsize 1024\n\t\tflags dynamic,timeout\n\t\ttimeout 2m\n\t}\n\n\tchain input {", 1),
-		"\t\tiif \"lo\" accept\n", "\t\tiif \"lo\" accept\n\t\tmeta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }\n", 1))
+		"\t\tiif \"lo\" accept\n", "\t\tiif \"lo\" accept\n\t\tmeta l4proto { tcp, udp } pkttype host ct state new add @touched { ip saddr . ip daddr }\n", 1))
 	if !rulesetIs(listed, list) {
 		t.Fatalf("the effect check refuses the real listing with the touched set:\n%s", listed)
 	}
 	if rulesetIs(listed, list[:1]) || rulesetIs(listed, append(slices.Clone(list), decoyEntry{IP: "192.168.18.242", MAC: "00:50:56:00:00:01", Table: 102, Iface: "enp0s2", Ports: ports("tcp", 22)})) {
 		t.Fatal("the real listing was taken for another decoy list")
+	}
+}
+
+// B2 review L1, H1: the set touched must have the size and timeout the host loads (printed 2m or 120s) and only the flags dynamic
+// and timeout; the touch rule is accepted in the forms nft may print (implicit nfproto, numbers, bare pkttype); the ruleset
+// without the set (the fallback of loadProven) is its own mode.
+func TestTouchedSetAndRuleForms(t *testing.T) {
+	t.Parallel()
+	list := entries()
+	ours := printed(renderRuleset(list))
+	if !rulesetIs([]byte(ours), list) {
+		t.Fatalf("the host does not accept its own ruleset:\n%s", ours)
+	}
+	for name, in := range map[string]string{
+		"size":    strings.Replace(ours, "size 1024", "size 65535", 1),
+		"timeout": strings.Replace(ours, "timeout 120s", "timeout 1h", 1),
+		"flags":   strings.Replace(ours, "flags dynamic,timeout", "flags dynamic,timeout,interval", 1),
+	} {
+		if rulesetIs([]byte(in), list) {
+			t.Errorf("%s accepted", name)
+		}
+	}
+	for _, form := range []string{
+		"meta nfproto ipv4 meta l4proto { 6, 17 } pkttype host ct state new add @touched { ip saddr . ip daddr }",
+		"meta l4proto { tcp, udp } pkttype host ct state new add @touched { ip saddr . ip daddr }",
+	} {
+		in := strings.Replace(ours, "meta l4proto { tcp, udp } meta pkttype host ct state new add @touched { ip saddr . ip daddr }", form, 1)
+		if !rulesetIs([]byte(in), list) {
+			t.Errorf("form %q refused", form)
+		}
+	}
+	plain := printed(renderRulesetMode(list, false))
+	if strings.Contains(plain, "touched") || !rulesetIsMode([]byte(plain), list, false) || rulesetIsMode([]byte(plain), list, true) || rulesetIsMode([]byte(ours), list, false) {
+		t.Fatalf("the modes with and without the set are not told apart:\n%s", plain)
 	}
 }

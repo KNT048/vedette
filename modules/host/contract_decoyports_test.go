@@ -2,6 +2,7 @@ package host_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"slices"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/ops"
+	"github.com/knt048/vedette/host/ops/opstest"
 )
 
 // D-466: each decoy address answers only its own services. decoy_ip.add takes an optional allow-list,
@@ -297,7 +299,7 @@ func TestContract_DecoyPorts_TouchesListWhoTriedADecoy(t *testing.T) {
 	d.addPorts(t, decoyIP1, dports("tcp", 445))
 	rs := d.m.IPState("ruleset")
 	for _, want := range []string{"set touched {\n\t\ttype ipv4_addr . ipv4_addr\n\t\tsize 1024\n\t\tflags dynamic,timeout\n\t\ttimeout 120s\n\t}",
-		"iif lo accept\n\t\tmeta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }\n\t\tct state established,related accept"} {
+		"iif lo accept\n\t\tmeta l4proto { tcp, udp } meta pkttype host ct state new add @touched { ip saddr . ip daddr }\n\t\tct state established,related accept"} {
 		if !strings.Contains(rs, want) {
 			t.Fatalf("the ruleset lacks %q:\n%s", want, rs)
 		}
@@ -334,5 +336,29 @@ func TestContract_DecoyPorts_TouchesListWhoTriedADecoy(t *testing.T) {
 	d.m.SetIPState("touched.json", `not json`)
 	if code, _ := get(); code != 500 {
 		t.Fatalf("output that is not JSON: %d", code)
+	}
+}
+
+// B2 review H1: when nft prints the set touched or its rule in a form the effect check does not know, the host does not close the
+// namespace (every Trap IP dark): it loads the ruleset without them, proves that, keeps the decoys up, and says it records no
+// attempt (hp-touches "recording": false, an audit line).
+func TestContract_DecoyPorts_AnUnknownTouchFormFallsBackToTheRulesetWithoutIt(t *testing.T) {
+	t.Parallel()
+	d := startDecoy(t, func(m *opstest.Machine) { m.Mark("nft-touch-odd", true) })
+	d.addPorts(t, decoyIP1, dports("tcp", 445))
+	rs := d.m.IPState("ruleset")
+	if strings.Contains(rs, "touched") || !strings.Contains(rs, decoyIP1+" . tcp . 445") {
+		t.Fatalf("the ruleset after the fallback:\n%s", rs)
+	}
+	if links := d.m.IPLinks("ns"); !slices.Equal(links, []string{"vdhc0a80164"}) || len(d.state(t).Decoys) != 1 {
+		t.Fatalf("the decoy is not up: links %v, state %+v", links, d.state(t).Decoys)
+	}
+	code, body := rawGet(t, d.h, "/v1/state/hp-touches")
+	var st api.HPTouchesState
+	if err := json.Unmarshal(body, &st); err != nil || code != 200 || st.Recording || len(st.Touches) != 0 {
+		t.Fatalf("hp-touches %d %s", code, body)
+	}
+	if !slices.Contains(d.auditCodes(t), "decoy_ip/touch_record_off") && !strings.Contains(fmt.Sprint(audit(t, d.h)), "touch_record_off") {
+		t.Fatalf("no audit line says the attempts are not recorded: %v", d.auditCodes(t))
 	}
 }

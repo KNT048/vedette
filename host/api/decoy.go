@@ -93,9 +93,16 @@ type HPTouch struct {
 }
 
 // HPTouchesState is the body of GET /v1/state/hp-touches; Touches is [] when none (or while the namespace is not proven).
+// Recording is false when the host loaded the ruleset without the set (its print form could not be proven, B2 review H1): no
+// attempt is recorded then. Full is true when the set holds close to its 1024 elements: new pairs may be missing.
 type HPTouchesState struct {
-	Touches []HPTouch `json:"touches"`
+	Touches   []HPTouch `json:"touches"`
+	Recording bool      `json:"recording"`
+	Full      bool      `json:"full"`
 }
+
+// HPTouchesFull is the number of elements from which the set touched (1024) counts as full.
+const HPTouchesFull = 1000
 
 // DecoyRemoveArgs are the args of decoy_ip.remove.
 type DecoyRemoveArgs struct {

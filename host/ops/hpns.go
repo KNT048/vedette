@@ -137,17 +137,10 @@ func (o *Ops) ensureHP(ctx context.Context, configure bool) (err error) {
 	if err != nil {
 		return err
 	}
-	if !ok && !configure {
-		if err := o.loadRuleset(ctx, want); err != nil {
-			return err
-		}
-		ok, err = o.rulesetLoaded(ctx, want)
-		if err != nil {
-			return err
-		}
-	}
 	if !ok {
-		return errors.New("ops: the ruleset of vedette-hp (egress drop, per-address ports) is not loaded")
+		if err := o.loadProven(ctx, want); err != nil {
+			return errors.Join(errors.New("ops: the ruleset of vedette-hp (egress drop, per-address ports) is not loaded"), err)
+		}
 	}
 	return nil
 }
@@ -219,7 +212,7 @@ func (o *Ops) verifySysctls(ctx context.Context) error {
 // loadRuleset loads the ruleset rendered for list (renderRuleset, decoyports.go) in one nft
 // transaction: "flush ruleset" and the new table replace what was there at once.
 func (o *Ops) loadRuleset(ctx context.Context, list []decoyEntry) error {
-	_, code, err := o.execIn(ctx, binIP, strings.NewReader(renderRuleset(list)), argvNftLoad()...)
+	_, code, err := o.execIn(ctx, binIP, strings.NewReader(renderRulesetMode(list, o.withTouch())), argvNftLoad()...)
 	if err != nil || code != 0 {
 		return fmt.Errorf("ops: loading the ruleset of vedette-hp failed (exit %d)", code)
 	}

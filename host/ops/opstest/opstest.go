@@ -554,7 +554,7 @@ func (m *Machine) Ops(now func() time.Time, mutate ...func(*ops.Config, *ops.Dep
 // iproute2 6.19 does (exit 2, "Error: ipv4: FIB table does not exist." and "Flush terminated" on stderr; #475),
 // "ip -n vedette-hp -j addr show" prints the links as JSON, and "nft list ruleset" prints the
 // ruleset "nft -f -" loaded last, the way nft prints it back, "nft -j list set … touched" prints the IP state "touched.json" (an empty
-// set when it is not set), "sysctl -n" reads back what "sysctl -w" set (the marker "sysctl-wrong" makes it read 9) (unless the marker "nft-noload" is set: the load then
+// set when it is not set), the marker "nft-touch-odd" prints the touch rule in a form the effect check does not know, "sysctl -n" reads back what "sysctl -w" set (the marker "sysctl-wrong" makes it read 9) (unless the marker "nft-noload" is set: the load then
 // silently does nothing). Rules added with Rule fire before this and can make a call fail.
 func (m *Machine) StatefulIP() {
 	m.writeFakeWith(ops.BinIP, `S="$REC/ip"; ROOT='`+m.Root+`'
@@ -589,7 +589,8 @@ case "$mode:$args" in
     exit 0 ;;
   "host:netns exec vedette-hp /usr/sbin/nft list ruleset")
     if [ -e "$S/ruleset" ]; then # what was loaded, as nft prints it back (no flush line, priority name, quoted interface)
-      sed -e '/^flush ruleset$/d' -e 's/priority 0;/priority filter;/' -e 's/oif lo /oif "lo" /' -e 's/iif lo /iif "lo" /' "$S/ruleset"
+      sed -e '/^flush ruleset$/d' -e 's/priority 0;/priority filter;/' -e 's/oif lo /oif "lo" /' -e 's/iif lo /iif "lo" /' \
+        -e "$([ -e "$REC/mark.nft-touch-odd" ] && echo 's/ct state new add @touched/ct state new update @touched/' || echo 's/^$//')" "$S/ruleset"
     fi
     exit 0 ;;
   "host:netns exec vedette-hp /usr/sbin/nft -j list set inet vedette_hp touched")

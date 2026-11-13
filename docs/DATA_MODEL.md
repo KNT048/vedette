@@ -161,7 +161,7 @@ UQ `(type, value)`. IX `(type, value)` phục vụ khớp log, `(expires_at)`. G
 | `ip` | ip | có | địa chỉ hiện biết; mock dùng `'—'` cho "chưa có IP": backend lưu NULL, API trả `"—"` như mock/contract (WP-10 chốt câu hỏi mở 10 theo contract); UQ một phần `WHERE ip IS NOT NULL` (mã `ip_in_use`, `duplicate_ip`) |
 | `mac` | text | có | chữ thường `aa:bb:…`, hiện hành từ observation `mac`; UQ một phần `WHERE mac IS NOT NULL` (WP-10: khoá tìm thiết bị của cảm biến; một MAC đã thuộc thiết bị khác không thành MAC của thiết bị này, `RecomputeAsset` lấy giá trị tốt nhất còn trống) |
 | `hostname` | text | có | hiện hành; **index thường** không phân biệt hoa thường (WP-10: không UQ vì cảm biến thấy cùng tên DHCP trên nhiều thiết bị và UQ làm `RecomputeAsset` thất bại; nhập CSV tự chặn trùng tên với thiết bị chưa có IP) |
-| `kind` | enum(firewall\|router\|switch\|ap\|nas\|server\|pc\|printer\|camera\|nvr\|iot\|web\|unknown) | không | `unknown` |
+| `kind` | text `[a-z0-9_]{1,40}`, một id của `content/devicetypes/types.json` (D-511: 89 loại trong 14 nhóm; 13 loại cũ giữ id; Go kiểm danh sách, SQL chỉ kiểm dạng từ migration inventory 0004) | không | `unknown` |
 | `vendor`, `model`, `os` | text | có | hiện hành từ observation cùng tên |
 | `vendor_obs_id`, `model_obs_id`, `os_obs_id`, `kind_obs_id`, `hostname_obs_id`, `mac_obs_id` | id | có | observation đang thắng; để API trả `{value, source, confidence, seen_at}` (`Observed`) mà không tính lại |
 | `origin` | enum(discovered\|manual) | không | `manual` = khai tay (`origin` của `Asset`) |

@@ -65,6 +65,9 @@ export function seedAssets(): Asset[] {
       software: [sw('s-cam03', 'Hikvision camera', 'Hikvision', 'IP Camera firmware', null, ['hikvision|multiple products', 'hikvision|security cameras web server'], 'passive', 0.5)] }),
     a({ id: 'a-nvr01', ip: '192.168.20.10', kind: 'nvr', hostname: 'NVR-01', vendor: o('Hikvision', 'passive', 0.95), model: o('DS-7608NI-K2', 'passive', 0.8), fragile: true,
       software: [sw('s-nvr01', 'Hikvision NVR', 'Hikvision', 'NVR firmware', null, ['hikvision|multiple products'], 'passive', 0.5)], services: [svc(80, 'http', 'passive', 0.7), svc(8000, 'hikvision-sdk', 'passive', 0.6)] }),
+    // D-511: a device of unknown kind that the identification rules recognise from its card maker and its open port (the N100's FortiGate).
+    a({ id: 'a-unk02', ip: '192.168.10.251', kind: 'unknown', mac: '70:4c:a5:fc:2f:50', vendor: o('Fortinet', 'nmap', 0.6), services: [svc(22, 'ssh', 'nmap', 0.5)], first_seen: D(1), last_seen: D(0),
+      guess: { kind: 'firewall', confidence: 0.35, evidence: 'Fortinet network card and port 22 (ssh): most likely a FortiGate firewall (Fortinet also makes FortiAP access points and FortiSwitch switches; a scan of its web page or certificate tells which).', alternatives: ['ap', 'switch'] } }),
     a({ id: 'a-unk01', ip: '192.168.10.157', kind: 'unknown', hostname: null, mac: 'da:a1:19:5c:77:01', vendor: o('Device with a randomized MAC', 'passive', 0.3), approved: false, first_seen: D(0, ), last_seen: D(0) }),
   ]
 }

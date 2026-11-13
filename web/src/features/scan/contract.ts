@@ -1,6 +1,7 @@
 // Hợp đồng API module scan (D-18). Kiểu UI suy ra từ schema ở đây (types.ts).
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
+import { TYPE_IDS } from '@/lib/deviceTypes'
 
 const iso = z.iso.datetime()
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).describe('HH:MM')
@@ -8,7 +9,7 @@ const day = z.number().int().min(1).max(7).describe('1 = Monday … 7 = Sunday (
 
 export const ScanTarget = z.object({
   id: z.string().describe('device id (a-nas02) or ext:<target id> for a verified external target'),
-  kind: z.enum(['internal', 'external']), device_kind: z.enum(['firewall', 'router', 'switch', 'ap', 'nas', 'server', 'pc', 'printer', 'camera', 'nvr', 'iot', 'web', 'unknown']).nullable().describe('Device type in the inventory; null for external targets'), label: z.string(), ip: z.string(),
+  kind: z.enum(['internal', 'external']), device_kind: z.enum(TYPE_IDS).nullable().describe('Device type in the inventory; null for external targets'), label: z.string(), ip: z.string(),
   fragile: z.boolean().describe('Fragile, or not yet classified (kind unknown): only scanned when picked by hand, at a quarter of the speed (D-126)'), findings: z.number().int(),
   pick_only: z.boolean().describe('Fragile, unclassified or added by hand: scanned only when a person ticks it in Scan now (D-126 (2)). The page never ticks it for you: not by default, not with Select all, not from a link'),
   selectable: z.boolean(), reason: z.enum(['unapproved', 'excluded', 'out_of_scope', 'no_ip', 'regular_scan_never', 'unverified', 'expired', 'not_supported']).nullable()

@@ -1,9 +1,13 @@
 // Hợp đồng API module inventory (D-18). Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
+import { BEHAVIOUR_KINDS, TYPE_IDS } from '@/lib/deviceTypes'
 
 export const ObsSource = z.enum(['manual', 'agent', 'snmp', 'nmap', 'passive', 'scan'])
-export const AssetKind = z.enum(['firewall', 'router', 'switch', 'ap', 'nas', 'server', 'pc', 'printer', 'camera', 'nvr', 'iot', 'web', 'unknown'])
+/** Device type (D-511): one of content/devicetypes/types.json, grouped in categories; the 13 types of before keep their ids. */
+export const AssetKind = z.enum(TYPE_IDS).describe('Device type (content/devicetypes/types.json, D-511)')
+/** The 13 kinds behaviour is keyed on (fragile defaults, never-touch gateways, …); every device type acts as one of them (D-511). */
+export const BehaviourKind = z.enum(BEHAVIOUR_KINDS)
 export const ObsField = z.enum(['hostname', 'mac', 'vendor', 'model', 'os', 'kind'])
 const dt = z.iso.datetime()
 const confidence = z.number().min(0).max(1)
@@ -13,9 +17,19 @@ export const Software = z.object({
   id: z.string(), display: z.string().describe('Commercial name the user recognizes'), vendor: z.string(), product: z.string(), version: z.string().nullable(),
   kev: z.array(z.string()).describe('KEV match keys: lowercase "vendorproject|product"'), source: ObsSource, confidence,
 })
-export const Service = z.object({ port: z.number().int().min(1).max(65535), proto: z.enum(['tcp', 'udp']), name: z.string(), product: z.string().optional(), version: z.string().optional(), source: ObsSource, confidence })
+export const Service = z.object({
+  port: z.number().int().min(1).max(65535), proto: z.enum(['tcp', 'udp']), name: z.string(), product: z.string().optional(), version: z.string().optional(),
+  detail: z.string().optional().describe('What the service said about the device besides product and version: nmap extra info and device type, page title, certificate subject (D-511). Evidence only, never software'),
+  source: ObsSource, confidence,
+})
+export const KindGuess = z.object({
+  kind: AssetKind, confidence, evidence: z.string().describe('What matched and what it most likely means, one sentence'),
+  model: z.string().optional().describe('A model a certificate or page title states'),
+  alternatives: z.array(AssetKind).optional().describe('Other types the same signals fit, offered next to the guess'),
+}).describe('What the identification rules say the device most likely is (D-511), only while kind is unknown; it changes no behaviour until a person sets the kind')
 export const Asset = z.object({
   id: z.string(), site: z.string(), ip: z.string().describe('"—" when declared manually and the IP is unknown'), mac: z.string().nullable(), hostname: z.string().nullable(), kind: AssetKind,
+  kind_source: ObsSource.nullable().describe('Source of the kind; null for the default unknown (D-511)'), guess: KindGuess.nullable(),
   vendor: Observed.nullable(), model: Observed.nullable(), os: Observed.nullable(), software: z.array(Software), services: z.array(Service),
   first_seen: dt, last_seen: dt, approved: z.boolean(), fragile: z.boolean(), origin: z.enum(['discovered', 'manual']), notes: z.string().optional(),
 })
@@ -73,8 +87,8 @@ export const ActiveWindow = z.object({
   rate: z.number().int().min(1).max(1000).describe('Packets per second'), exclusions: z.array(z.string()).describe('IPv4 or CIDR'),
 })
 export const InventorySettings = z.object({
-  lan_ranges: z.array(z.string()).max(16).describe('Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461)'), active: ActiveWindow, fragile_kinds: z.array(AssetKind).describe('Device types scanned only once, gently, when first seen; passive-only after that'),
-  regular_scan_kinds: z.array(AssetKind).describe('Subset of fragile_kinds for which the owner allowed regular scans'),
+  lan_ranges: z.array(z.string()).max(16).describe('Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461)'), active: ActiveWindow, fragile_kinds: z.array(BehaviourKind).describe('Device types scanned only once, gently, when first seen; passive-only after that. Every type acting as one of them counts (D-511)'),
+  regular_scan_kinds: z.array(BehaviourKind).describe('Subset of fragile_kinds for which the owner allowed regular scans'),
   scope_confirmed_at: dt.nullable(), scope_confirmed_by: z.string().nullable(),
 })
 export const SettingsInput = InventorySettings.extend({ scope_confirmed: z.boolean().describe('Attestation: the ranges belong to the company and scanning them is permitted') })

@@ -172,7 +172,7 @@ func TestSoftwareAndObservations(t *testing.T) {
 func TestKindOf(t *testing.T) {
 	t.Parallel()
 	for in, want := range map[string]string{"router": "router", "WAP": "ap", "printer": "printer", "webcam": "camera", "storage-misc": "nas", "general purpose": "", "": "",
-		"phone": "iot", "VoIP phone": "iot", "broadband router": "router", "print server": "printer"} { // D-501: no phone kind yet, phones are iot as in the catalog
+		"phone": "smartphone", "VoIP phone": "ip_phone", "VoIP adapter": "voip_adapter", "media device": "media_player", "power-device": "ups", "broadband router": "router", "print server": "printer"} { // D-511: phone types of their own, each acting as iot
 		if got := kindOf(in); got != want {
 			t.Errorf("kindOf(%q) = %q, want %q", in, got, want)
 		}
@@ -221,5 +221,69 @@ func TestServicesOfKeepsOnlyWhatTheInventoryAccepts(t *testing.T) {
 	}
 	if n := len(servicesOf(many)); n != maxServices {
 		t.Fatalf("%d services, want the cap %d", n, maxServices)
+	}
+}
+
+// D-511 (INV-15): what a port says about the device besides product and version (nmap's extra info and device type, the page
+// title, the certificate subject) is kept as the service's detail, never as software; a title with a control character is dropped.
+func TestServiceDetail(t *testing.T) {
+	t.Parallel()
+	xmlText := `<?xml version="1.0"?><nmaprun><host><status state="up"/><address addr="192.168.18.251" addrtype="ipv4"/><ports>
+<port protocol="tcp" portid="443"><state state="open"/><service name="https" product="Fortinet FortiGate firewall http config" extrainfo="FortiOS" devicetype="firewall" tunnel="ssl"/>
+<script id="ssl-cert" output="Subject: commonName=FGT60FTK2109ABCD/organizationName=Fortinet/countryName=US&#xa;Issuer: commonName=support"/>
+<script id="http-title" output="Login"><elem key="title">FortiGate  Login</elem></script></port>
+<port protocol="tcp" portid="80"><state state="open"/><service name="http"/><script id="http-title" output="x"><elem key="title">bad&#x202e;title</elem></script></port>
+<port protocol="tcp" portid="22"><state state="open"/><service name="ssh"/></port>
+</ports></host></nmaprun>`
+	hosts, err := parseNmapXML([]byte(xmlText))
+	if err != nil {
+		t.Fatal(err)
+	}
+	svcs := servicesOf(hosts[0])
+	want := map[int]string{
+		443: "certificate: commonName=FGT60FTK2109ABCD/organizationName=Fortinet/countryName=US; title: FortiGate Login; device type: firewall; FortiOS",
+		80:  "", 22: "",
+	}
+	for _, s := range svcs {
+		if s.Detail != want[s.Port] {
+			t.Errorf("port %d detail = %q, want %q", s.Port, s.Detail, want[s.Port])
+		}
+	}
+	for _, sw := range softwareOf(hosts[0]) {
+		if strings.Contains(sw.Display, "FGT60F") || strings.Contains(sw.Display, "Login") {
+			t.Errorf("a detail became software: %+v", sw)
+		}
+	}
+	long := portInfo{title: strings.Repeat("x", 300)}
+	if n := len([]rune(detailOf(long))); n != maxSvcDetail {
+		t.Errorf("detail of a long title has %d runes, want %d", n, maxSvcDetail)
+	}
+	// #714 review: a certificate subject or title longer than the inventory keeps is shortened, its commonName first, never dropped.
+	longXML := `<?xml version="1.0"?><nmaprun><host><status state="up"/><address addr="192.168.18.252" addrtype="ipv4"/><ports>
+<port protocol="tcp" portid="443"><state state="open"/><service name="https" extrainfo="` + strings.Repeat("e", 150) + `"/>
+<script id="ssl-cert" output="Subject: countryName=US/stateOrProvinceName=` + strings.Repeat("California", 20) + `/organizationName=Fortinet/organizationalUnitName=` + strings.Repeat("FortiGate", 20) + `/commonName=FGT60FTK2109WXYZ/emailAddress=support@fortinet.com"/>
+<script id="http-title" output="x"><elem key="title">` + strings.Repeat("Juniper Web Device Manager ", 20) + `</elem></script></port>
+</ports></host></nmaprun>`
+	lh, err := parseNmapXML([]byte(longXML))
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := servicesOf(lh[0])[0].Detail
+	// A certificate with many names prints more than 4 KB; that does not refuse the run (other attributes stay at 4 KB).
+	sans := strings.Repeat("DNS:host.example.com, ", 400)
+	bigXML := strings.Replace(longXML, "/emailAddress=support@fortinet.com", "/emailAddress=support@fortinet.com&#xa;Subject Alternative Name: "+sans, 1)
+	if bh, err := parseNmapXML([]byte(bigXML)); err != nil || len(bh) != 1 || !strings.HasPrefix(servicesOf(bh[0])[0].Detail, "certificate: commonName=FGT60FTK2109WXYZ") {
+		t.Errorf("ssl-cert output of %d bytes: %v", len(sans), err)
+	}
+	// An output over 64 KB is ignored alone: the port and the rest of the run stay (#714 round 2, L3).
+	huge := strings.Replace(longXML, "/emailAddress=support@fortinet.com", "/emailAddress=support@fortinet.com&#xa;"+strings.Repeat("x", 70<<10), 1)
+	if hh, err := parseNmapXML([]byte(huge)); err != nil || len(hh) != 1 || len(hh[0].ports) != 1 || strings.HasPrefix(servicesOf(hh[0])[0].Detail, "certificate:") || !strings.Contains(servicesOf(hh[0])[0].Detail, "title: Juniper") {
+		t.Errorf("a 70 KB ssl-cert output: err %v, hosts %d", err, len(hh))
+	}
+	if _, err := parseNmapXML([]byte(strings.Replace(longXML, `extrainfo="`, `extrainfo="`+sans, 1))); err == nil {
+		t.Error("a 9 KB extrainfo was accepted: only a script's output may pass 4 KB")
+	}
+	if !strings.HasPrefix(d, "certificate: commonName=FGT60FTK2109WXYZ/organizationName=Fortinet/") || !strings.Contains(d, "title: Juniper Web Device Manager") || len([]rune(d)) > maxSvcDetail {
+		t.Errorf("long subject and title: detail = %q", d)
 	}
 }

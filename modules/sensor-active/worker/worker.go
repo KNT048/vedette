@@ -494,7 +494,7 @@ func argvOf(j sensorlink.Job) ([]string, error) {
 	if j.TimeoutS < 1 || j.TimeoutS > MaxTimeout {
 		return nil, fmt.Errorf("timeout %d s is outside 1..%d", j.TimeoutS, MaxTimeout)
 	}
-	if kind == nmapargv.Gentle && j.Rate != 1 {
+	if kind.IsGentle() && j.Rate != 1 {
 		return nil, fmt.Errorf("a gentle job carries rate 1, got %d", j.Rate)
 	}
 	targets, err := parseTargets(j.Targets)

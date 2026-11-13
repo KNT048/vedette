@@ -307,3 +307,43 @@ func TestPruneRemovesOldJobsWithTheirProbes(t *testing.T) {
 		t.Fatalf("%d jobs after pruning, want only the recent one", got)
 	}
 }
+
+// pendingInv is the inventory with PendingGentle: the devices still waiting for their one gentle scan.
+type pendingInv struct {
+	*fakeInv
+	ids   []string
+	reads int
+}
+
+func (p *pendingInv) PendingGentleScans(context.Context) ([]string, error) {
+	p.reads++
+	return p.ids, nil
+}
+
+// D-511 (#714 round 2, M1): a device whose first scan inventory migration 0004 cleared gets no inventory.asset.discovered event;
+// the first tick queues it (once per start) and the window runs its gentle scan with titles.
+func TestPendingGentleScanRunsAtTheFirstWindowTick(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{})
+	p := &pendingInv{fakeInv: e.inv, ids: []string{"a-printer"}}
+	e.inv.decision["a-printer"] = sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true, Unclassified: true}
+	svc, err := sa.New(sa.Config{DB: e.db, Inventory: p, Observe: e.sink, Software: e.sink, Services: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: e.prober(), Clock: e.clock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.base, e.t0 = local(9, 2, 0), time.Now() // inside the 01:00-05:00 window
+	markSweepDone(t, e, "saj-sweep-p")
+	if err := svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	calls := e.nm.calls(t)
+	if len(calls) != 1 || !slices.Contains(calls[0], "192.168.10.30") || !slices.Contains(calls[0], "http-title,ssl-cert") {
+		t.Fatalf("nmap runs = %q, want the gentle scan with titles of a-printer", calls)
+	}
+	if err := svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if p.reads != 1 {
+		t.Fatalf("the waiting devices were read %d times: once per start", p.reads)
+	}
+}

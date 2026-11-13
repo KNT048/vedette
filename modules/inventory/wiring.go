@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/knt048/vedette/content/devicetypes"
 )
 
 // This file is what other modules read and ask through their own ports (feeds.Inventory, findings.Inventory,
@@ -151,6 +153,7 @@ func matchView(ctx context.Context, q querier, id string) (string, error) {
 // or that of one of its software rows) is the given one, compared without case.
 func (s *Service) HasDevice(ctx context.Context, kinds []string, vendor string) (bool, error) {
 	vendor = strings.ToLower(strings.TrimSpace(vendor))
+	kinds = devicetypes.ActingAs(kinds) // every type that acts as one of the kinds (D-511)
 	if vendor == "" || len(kinds) == 0 {
 		return false, nil
 	}
@@ -223,6 +226,7 @@ func (s *Service) AssetIDs(ctx context.Context) ([]string, error) {
 // wrong read for a safety list: the oldest device, usually the gateway, would be the one cut). Read-only, ordered by id. An empty
 // kinds is an empty answer. Any read error is returned and the caller must fail closed: a short list is never a valid answer.
 func (s *Service) DevicesOfKind(ctx context.Context, kinds []string) ([]KindDevice, error) {
+	kinds = devicetypes.ActingAs(kinds) // every type that acts as one of the kinds: a VPN gateway is a firewall, a modem a router (D-511)
 	if len(kinds) == 0 {
 		return nil, nil
 	}

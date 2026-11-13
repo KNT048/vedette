@@ -212,6 +212,11 @@ func (a sensorInventory) ScanPolicy(ctx context.Context, assetID string) (sensor
 		Fragile: dec.Fragile, Unclassified: dec.Unclassified, Never: dec.Never}, nil
 }
 
+// PendingGentleScans implements sensoractive.PendingGentle (D-511).
+func (a sensorInventory) PendingGentleScans(ctx context.Context) ([]string, error) {
+	return a.inv.PendingGentleScans(ctx)
+}
+
 func (a sensorInventory) MarkFirstScan(ctx context.Context, assetID string) error {
 	err := a.inv.MarkFirstScan(ctx, assetID)
 	if errors.Is(err, inventory.ErrNotFound) {

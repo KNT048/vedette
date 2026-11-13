@@ -10,6 +10,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
 )
@@ -547,7 +548,7 @@ func (s *Service) RecomputeAsset(ctx context.Context, tx *sql.Tx, assetID string
 		if err != nil {
 			return false, err
 		}
-		fragile = slices.Contains(st.FragileKinds, kindV.(string))
+		fragile = slices.Contains(st.FragileKinds, devicetypes.ActsAs(kindV.(string))) // a type acts as one of the 13 kinds (D-511)
 	}
 	same := func(ns sql.NullString, v any) bool {
 		if v == nil {

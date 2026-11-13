@@ -13,6 +13,7 @@ import { DeleteDialog } from './DeleteDialog'
 import { errMsg } from './kinds'
 import { nameOf } from './nameOf'
 import type { DeviceRow, DevicesResponse } from './types'
+import { kindLabel } from '@/lib/deviceTypes'
 
 function PendingItem({ d }: { d: DeviceRow }) {
   const { t } = useTranslation('inventory')
@@ -20,7 +21,7 @@ function PendingItem({ d }: { d: DeviceRow }) {
   const act = useDeviceAction(d.id)
   const navigate = useNavigate()
   const [del, setDel] = useState(false)
-  const name = nameOf(d, t(`kind.${d.kind}`))
+  const name = nameOf(d, kindLabel(d.kind))
   const title = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const busy = act.approve.isPending || act.suspicious.isPending || act.remove.isPending
   const fail = (e: unknown) => toast.error(errMsg(e))
@@ -32,7 +33,7 @@ function PendingItem({ d }: { d: DeviceRow }) {
           {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
         </div>
         <p className="text-[13px] text-muted">
-          {[d.ip, d.mac, t(`kind.${d.kind}`)].filter((x) => x && x !== '—').join(', ')}. {t('pending.firstSeen', { when: fmtRelative(d.first_seen) })}
+          {[d.ip, d.mac, kindLabel(d.kind)].filter((x) => x && x !== '—').join(', ')}. {t('pending.firstSeen', { when: fmtRelative(d.first_seen) })}
         </p>
       </div>
       {/* mutateAsync: the row leaves this list when the list reloads, which would drop a mutate() callback and its toast (D-471: the toast links the device). */}

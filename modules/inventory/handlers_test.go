@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
 	"github.com/knt048/vedette/modules/inventory"
@@ -118,7 +119,7 @@ func TestHandlersRolesAndShapes(t *testing.T) {
 	d := a.want("GET", "/inventory/devices/"+id, "viewer", "", 200, "")
 	asset := d["asset"].(map[string]any)
 	sw := asset["software"].([]any)[0].(map[string]any)
-	if asset["origin"] != "manual" || asset["ip"] != "192.168.30.1" || asset["site"] != "hq" || sw["source"] != "manual" || len(sw["kev_cves"].([]any)) != 1 || len(d["kinds"].([]any)) != 13 {
+	if asset["origin"] != "manual" || asset["ip"] != "192.168.30.1" || asset["site"] != "hq" || sw["source"] != "manual" || len(sw["kev_cves"].([]any)) != 1 || len(d["kinds"].([]any)) != len(devicetypes.IDs()) || asset["kind_source"] != "manual" || asset["guess"] != nil {
 		t.Fatalf("detail = %v", d)
 	}
 	var cur int

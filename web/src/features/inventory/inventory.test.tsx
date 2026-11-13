@@ -380,6 +380,61 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   })
 })
 
+describe('inventory: device types in two levels (D-511)', () => {
+  it('the list shows category and type, a guess as "likely" with its evidence, and filters by category in ?cat=', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices')
+    const table = await deviceTable()
+    const row = within(table).getByRole('link', { name: /192\.168\.10\.251|Fortinet/ }).closest('tr')!
+    expect(within(row).getByText('Firewall')).toBeInTheDocument()
+    expect(within(row).getByText('likely')).toBeInTheDocument()
+    expect(within(row).getByText('Security')).toBeInTheDocument()
+    expect(within(row).getByTitle(/Fortinet network card and port 22/)).toBeInTheDocument()
+    const nas = within(table).getByRole('link', { name: 'NAS-PHOTOS' }).closest('tr')!
+    expect(within(nas).getByText('Storage')).toBeInTheDocument()
+    expect(within(nas).queryByText('likely')).toBeNull()
+
+    const category = screen.getByRole('combobox', { name: 'Category' })
+    await user.selectOptions(category, 'security')
+    await waitFor(() => expect(within(table).queryByRole('link', { name: 'NAS-PHOTOS' })).toBeNull(), T)
+    expect(within(table).getByRole('link', { name: /192\.168\.10\.251|Fortinet/ })).toBeInTheDocument()
+  })
+
+  it('the device page groups the type picker by category and confirms a guess as the person\'s type', async () => {
+    const user = userEvent.setup()
+    asAdmin()
+    renderApp('/devices/a-unk02')
+    const box = await screen.findByTestId('kind-guess', undefined, T)
+    expect(box).toHaveTextContent('Most likely: Firewall (Security)')
+    expect(box).toHaveTextContent('Fortinet network card and port 22 (ssh)')
+    expect(box).toHaveTextContent('scans still treat this device as unknown')
+    const picker = screen.getByRole('combobox', { name: 'Device type' })
+    expect(within(picker).getByRole('group', { name: 'Telephony' })).toBeInTheDocument()
+    expect(within(picker).getByRole('option', { name: 'IP phone' })).toBeInTheDocument()
+    await user.click(within(box).getByRole('button', { name: 'Confirm: Firewall' }))
+    await waitFor(() => expect(find('a-unk02').kind).toBe('firewall'), T)
+    await waitFor(() => expect(screen.queryByTestId('kind-guess')).toBeNull(), T)
+  })
+
+  it('the guess offers the other types the same signals fit; picking the access point keeps the device fragile (#714 review)', async () => {
+    const user = userEvent.setup()
+    asAdmin()
+    renderApp('/devices/a-unk02')
+    const box = await screen.findByTestId('kind-guess', undefined, T)
+    expect(box).toHaveTextContent('The same signals also fit: Wi-Fi (AP), Switch')
+    await user.click(within(box).getByRole('button', { name: 'It is a Wi-Fi (AP)' }))
+    await waitFor(() => expect(find('a-unk02')).toMatchObject({ kind: 'ap', fragile: true }), T)
+  })
+
+  it('the fragile setting still lists the 13 kinds every type acts as; a new type is fragile as the kind it acts as', async () => {
+    asAdmin()
+    expect((await call('PATCH', '/devices/a-pc01', { kind: 'ip_phone' })).status).toBe(200)
+    expect(find('a-pc01').fragile).toBe(true) // an IP phone acts as an IoT device, fragile by default
+    expect((await call('PATCH', '/devices/a-pc01', { kind: 'laptop' })).status).toBe(200)
+    expect(find('a-pc01').fragile).toBe(false)
+  })
+})
+
 describe('inventory: CSV (S-INV-2)', () => {
   it('exports CSV with a UTF-8 BOM, a header row, and CSV-injection protection', async () => {
     asAdmin()
@@ -418,7 +473,7 @@ describe('inventory: CSV (S-INV-2)', () => {
     expect(screen.getByText('Line 4:').parentElement).toHaveTextContent('Product "Khongco" not recognised')
     expect(screen.getByText('Line 5:').parentElement).toHaveTextContent('That IP address is not valid')
     expect(screen.getByText('Line 6:').parentElement).toHaveTextContent('IP 192.168.30.1 is already in the list')
-    expect(screen.getByText('Line 8:').parentElement).toHaveTextContent('Type "notakind" is not valid')
+    expect(screen.getByText('Line 8:').parentElement).toHaveTextContent('Type "notakind" is not a device type')
     expect(assetsStore.get()).toHaveLength(before + 2)
     expect(assetsStore.get().find((a) => a.ip === '192.168.30.1')!.software[0]!.version).toBe('7.2.5')
     await expectNoA11yViolations()

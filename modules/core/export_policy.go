@@ -92,7 +92,7 @@ var exportPolicy = map[string]tablePolicy{
 	"hp_trap_ips":            {export: "id name ip preset vendor enabled mac created_at enabled_at", json: "services"},
 	"inv_asset":              {export: "id ip mac hostname kind vendor model os vendor_obs_id model_obs_id os_obs_id kind_obs_id hostname_obs_id mac_obs_id origin approved approved_at fragile fragile_manual regular_scan first_scan_at suspicious is_box notes first_seen last_seen"},
 	"inv_observation":        {export: "id asset_id field value source confidence seen_at evidence"},
-	"inv_service":            {export: "id asset_id port proto name product version source confidence seen_at"},
+	"inv_service":            {export: "id asset_id port proto name product version detail source confidence seen_at"},
 	"inv_setting":            {export: "key updated_at updated_by", json: "value"},
 	"inv_software":           {export: "id asset_id display vendor product version cpe source confidence seen_at"},
 	"inv_software_kev":       {export: "software_id kev_key"},

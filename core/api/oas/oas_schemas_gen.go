@@ -55473,36 +55473,188 @@ func (s *FindingsGetFindingsIDOKAsset) SetName(val string) {
 type FindingsGetFindingsIDOKAssetKind string
 
 const (
-	FindingsGetFindingsIDOKAssetKindFirewall FindingsGetFindingsIDOKAssetKind = "firewall"
-	FindingsGetFindingsIDOKAssetKindRouter   FindingsGetFindingsIDOKAssetKind = "router"
-	FindingsGetFindingsIDOKAssetKindSwitch   FindingsGetFindingsIDOKAssetKind = "switch"
-	FindingsGetFindingsIDOKAssetKindAp       FindingsGetFindingsIDOKAssetKind = "ap"
-	FindingsGetFindingsIDOKAssetKindNas      FindingsGetFindingsIDOKAssetKind = "nas"
-	FindingsGetFindingsIDOKAssetKindServer   FindingsGetFindingsIDOKAssetKind = "server"
-	FindingsGetFindingsIDOKAssetKindPc       FindingsGetFindingsIDOKAssetKind = "pc"
-	FindingsGetFindingsIDOKAssetKindPrinter  FindingsGetFindingsIDOKAssetKind = "printer"
-	FindingsGetFindingsIDOKAssetKindCamera   FindingsGetFindingsIDOKAssetKind = "camera"
-	FindingsGetFindingsIDOKAssetKindNvr      FindingsGetFindingsIDOKAssetKind = "nvr"
-	FindingsGetFindingsIDOKAssetKindIot      FindingsGetFindingsIDOKAssetKind = "iot"
-	FindingsGetFindingsIDOKAssetKindWeb      FindingsGetFindingsIDOKAssetKind = "web"
-	FindingsGetFindingsIDOKAssetKindUnknown  FindingsGetFindingsIDOKAssetKind = "unknown"
+	FindingsGetFindingsIDOKAssetKindRouter              FindingsGetFindingsIDOKAssetKind = "router"
+	FindingsGetFindingsIDOKAssetKindSwitch              FindingsGetFindingsIDOKAssetKind = "switch"
+	FindingsGetFindingsIDOKAssetKindModem               FindingsGetFindingsIDOKAssetKind = "modem"
+	FindingsGetFindingsIDOKAssetKindSdWan               FindingsGetFindingsIDOKAssetKind = "sd_wan"
+	FindingsGetFindingsIDOKAssetKindLoadBalancer        FindingsGetFindingsIDOKAssetKind = "load_balancer"
+	FindingsGetFindingsIDOKAssetKindNetworkController   FindingsGetFindingsIDOKAssetKind = "network_controller"
+	FindingsGetFindingsIDOKAssetKindFirewall            FindingsGetFindingsIDOKAssetKind = "firewall"
+	FindingsGetFindingsIDOKAssetKindVpnGateway          FindingsGetFindingsIDOKAssetKind = "vpn_gateway"
+	FindingsGetFindingsIDOKAssetKindIdsSensor           FindingsGetFindingsIDOKAssetKind = "ids_sensor"
+	FindingsGetFindingsIDOKAssetKindProxy               FindingsGetFindingsIDOKAssetKind = "proxy"
+	FindingsGetFindingsIDOKAssetKindAp                  FindingsGetFindingsIDOKAssetKind = "ap"
+	FindingsGetFindingsIDOKAssetKindWirelessController  FindingsGetFindingsIDOKAssetKind = "wireless_controller"
+	FindingsGetFindingsIDOKAssetKindWifiExtender        FindingsGetFindingsIDOKAssetKind = "wifi_extender"
+	FindingsGetFindingsIDOKAssetKindMeshNode            FindingsGetFindingsIDOKAssetKind = "mesh_node"
+	FindingsGetFindingsIDOKAssetKindServer              FindingsGetFindingsIDOKAssetKind = "server"
+	FindingsGetFindingsIDOKAssetKindVirtualMachine      FindingsGetFindingsIDOKAssetKind = "virtual_machine"
+	FindingsGetFindingsIDOKAssetKindHypervisor          FindingsGetFindingsIDOKAssetKind = "hypervisor"
+	FindingsGetFindingsIDOKAssetKindBmc                 FindingsGetFindingsIDOKAssetKind = "bmc"
+	FindingsGetFindingsIDOKAssetKindDomainController    FindingsGetFindingsIDOKAssetKind = "domain_controller"
+	FindingsGetFindingsIDOKAssetKindMailServer          FindingsGetFindingsIDOKAssetKind = "mail_server"
+	FindingsGetFindingsIDOKAssetKindDatabaseServer      FindingsGetFindingsIDOKAssetKind = "database_server"
+	FindingsGetFindingsIDOKAssetKindBackupServer        FindingsGetFindingsIDOKAssetKind = "backup_server"
+	FindingsGetFindingsIDOKAssetKindPc                  FindingsGetFindingsIDOKAssetKind = "pc"
+	FindingsGetFindingsIDOKAssetKindLaptop              FindingsGetFindingsIDOKAssetKind = "laptop"
+	FindingsGetFindingsIDOKAssetKindWorkstation         FindingsGetFindingsIDOKAssetKind = "workstation"
+	FindingsGetFindingsIDOKAssetKindThinClient          FindingsGetFindingsIDOKAssetKind = "thin_client"
+	FindingsGetFindingsIDOKAssetKindPosTerminal         FindingsGetFindingsIDOKAssetKind = "pos_terminal"
+	FindingsGetFindingsIDOKAssetKindKiosk               FindingsGetFindingsIDOKAssetKind = "kiosk"
+	FindingsGetFindingsIDOKAssetKindSmartphone          FindingsGetFindingsIDOKAssetKind = "smartphone"
+	FindingsGetFindingsIDOKAssetKindTablet              FindingsGetFindingsIDOKAssetKind = "tablet"
+	FindingsGetFindingsIDOKAssetKindSmartwatch          FindingsGetFindingsIDOKAssetKind = "smartwatch"
+	FindingsGetFindingsIDOKAssetKindPrinter             FindingsGetFindingsIDOKAssetKind = "printer"
+	FindingsGetFindingsIDOKAssetKindMfp                 FindingsGetFindingsIDOKAssetKind = "mfp"
+	FindingsGetFindingsIDOKAssetKindScanner             FindingsGetFindingsIDOKAssetKind = "scanner"
+	FindingsGetFindingsIDOKAssetKindLabelPrinter        FindingsGetFindingsIDOKAssetKind = "label_printer"
+	FindingsGetFindingsIDOKAssetKindReceiptPrinter      FindingsGetFindingsIDOKAssetKind = "receipt_printer"
+	FindingsGetFindingsIDOKAssetKindPlotter             FindingsGetFindingsIDOKAssetKind = "plotter"
+	FindingsGetFindingsIDOKAssetKind3dPrinter           FindingsGetFindingsIDOKAssetKind = "3d_printer"
+	FindingsGetFindingsIDOKAssetKindCamera              FindingsGetFindingsIDOKAssetKind = "camera"
+	FindingsGetFindingsIDOKAssetKindNvr                 FindingsGetFindingsIDOKAssetKind = "nvr"
+	FindingsGetFindingsIDOKAssetKindDvr                 FindingsGetFindingsIDOKAssetKind = "dvr"
+	FindingsGetFindingsIDOKAssetKindVideoEncoder        FindingsGetFindingsIDOKAssetKind = "video_encoder"
+	FindingsGetFindingsIDOKAssetKindDoorbell            FindingsGetFindingsIDOKAssetKind = "doorbell"
+	FindingsGetFindingsIDOKAssetKindVideoConferencing   FindingsGetFindingsIDOKAssetKind = "video_conferencing"
+	FindingsGetFindingsIDOKAssetKindIPPhone             FindingsGetFindingsIDOKAssetKind = "ip_phone"
+	FindingsGetFindingsIDOKAssetKindPbx                 FindingsGetFindingsIDOKAssetKind = "pbx"
+	FindingsGetFindingsIDOKAssetKindVoipAdapter         FindingsGetFindingsIDOKAssetKind = "voip_adapter"
+	FindingsGetFindingsIDOKAssetKindVoipGateway         FindingsGetFindingsIDOKAssetKind = "voip_gateway"
+	FindingsGetFindingsIDOKAssetKindConferencePhone     FindingsGetFindingsIDOKAssetKind = "conference_phone"
+	FindingsGetFindingsIDOKAssetKindIntercom            FindingsGetFindingsIDOKAssetKind = "intercom"
+	FindingsGetFindingsIDOKAssetKindNas                 FindingsGetFindingsIDOKAssetKind = "nas"
+	FindingsGetFindingsIDOKAssetKindSan                 FindingsGetFindingsIDOKAssetKind = "san"
+	FindingsGetFindingsIDOKAssetKindBackupAppliance     FindingsGetFindingsIDOKAssetKind = "backup_appliance"
+	FindingsGetFindingsIDOKAssetKindTapeLibrary         FindingsGetFindingsIDOKAssetKind = "tape_library"
+	FindingsGetFindingsIDOKAssetKindIot                 FindingsGetFindingsIDOKAssetKind = "iot"
+	FindingsGetFindingsIDOKAssetKindSmartTv             FindingsGetFindingsIDOKAssetKind = "smart_tv"
+	FindingsGetFindingsIDOKAssetKindMediaPlayer         FindingsGetFindingsIDOKAssetKind = "media_player"
+	FindingsGetFindingsIDOKAssetKindSmartSpeaker        FindingsGetFindingsIDOKAssetKind = "smart_speaker"
+	FindingsGetFindingsIDOKAssetKindGameConsole         FindingsGetFindingsIDOKAssetKind = "game_console"
+	FindingsGetFindingsIDOKAssetKindSmartPlug           FindingsGetFindingsIDOKAssetKind = "smart_plug"
+	FindingsGetFindingsIDOKAssetKindSmartLight          FindingsGetFindingsIDOKAssetKind = "smart_light"
+	FindingsGetFindingsIDOKAssetKindSmartHub            FindingsGetFindingsIDOKAssetKind = "smart_hub"
+	FindingsGetFindingsIDOKAssetKindThermostat          FindingsGetFindingsIDOKAssetKind = "thermostat"
+	FindingsGetFindingsIDOKAssetKindProjector           FindingsGetFindingsIDOKAssetKind = "projector"
+	FindingsGetFindingsIDOKAssetKindDigitalSignage      FindingsGetFindingsIDOKAssetKind = "digital_signage"
+	FindingsGetFindingsIDOKAssetKindSingleBoardComputer FindingsGetFindingsIDOKAssetKind = "single_board_computer"
+	FindingsGetFindingsIDOKAssetKindSmartAppliance      FindingsGetFindingsIDOKAssetKind = "smart_appliance"
+	FindingsGetFindingsIDOKAssetKindRobotVacuum         FindingsGetFindingsIDOKAssetKind = "robot_vacuum"
+	FindingsGetFindingsIDOKAssetKindWirelessBridge      FindingsGetFindingsIDOKAssetKind = "wireless_bridge"
+	FindingsGetFindingsIDOKAssetKindPlc                 FindingsGetFindingsIDOKAssetKind = "plc"
+	FindingsGetFindingsIDOKAssetKindHmi                 FindingsGetFindingsIDOKAssetKind = "hmi"
+	FindingsGetFindingsIDOKAssetKindRtu                 FindingsGetFindingsIDOKAssetKind = "rtu"
+	FindingsGetFindingsIDOKAssetKindScadaServer         FindingsGetFindingsIDOKAssetKind = "scada_server"
+	FindingsGetFindingsIDOKAssetKindIndustrialSwitch    FindingsGetFindingsIDOKAssetKind = "industrial_switch"
+	FindingsGetFindingsIDOKAssetKindUps                 FindingsGetFindingsIDOKAssetKind = "ups"
+	FindingsGetFindingsIDOKAssetKindPdu                 FindingsGetFindingsIDOKAssetKind = "pdu"
+	FindingsGetFindingsIDOKAssetKindAccessControl       FindingsGetFindingsIDOKAssetKind = "access_control"
+	FindingsGetFindingsIDOKAssetKindTimeClock           FindingsGetFindingsIDOKAssetKind = "time_clock"
+	FindingsGetFindingsIDOKAssetKindAlarmPanel          FindingsGetFindingsIDOKAssetKind = "alarm_panel"
+	FindingsGetFindingsIDOKAssetKindHvacController      FindingsGetFindingsIDOKAssetKind = "hvac_controller"
+	FindingsGetFindingsIDOKAssetKindBuildingController  FindingsGetFindingsIDOKAssetKind = "building_controller"
+	FindingsGetFindingsIDOKAssetKindPowerMeter          FindingsGetFindingsIDOKAssetKind = "power_meter"
+	FindingsGetFindingsIDOKAssetKindEnvironmentMonitor  FindingsGetFindingsIDOKAssetKind = "environment_monitor"
+	FindingsGetFindingsIDOKAssetKindEvCharger           FindingsGetFindingsIDOKAssetKind = "ev_charger"
+	FindingsGetFindingsIDOKAssetKindSolarInverter       FindingsGetFindingsIDOKAssetKind = "solar_inverter"
+	FindingsGetFindingsIDOKAssetKindMedicalDevice       FindingsGetFindingsIDOKAssetKind = "medical_device"
+	FindingsGetFindingsIDOKAssetKindWeb                 FindingsGetFindingsIDOKAssetKind = "web"
+	FindingsGetFindingsIDOKAssetKindCloudService        FindingsGetFindingsIDOKAssetKind = "cloud_service"
+	FindingsGetFindingsIDOKAssetKindUnknown             FindingsGetFindingsIDOKAssetKind = "unknown"
 )
 
 // AllValues returns all FindingsGetFindingsIDOKAssetKind values.
 func (FindingsGetFindingsIDOKAssetKind) AllValues() []FindingsGetFindingsIDOKAssetKind {
 	return []FindingsGetFindingsIDOKAssetKind{
-		FindingsGetFindingsIDOKAssetKindFirewall,
 		FindingsGetFindingsIDOKAssetKindRouter,
 		FindingsGetFindingsIDOKAssetKindSwitch,
+		FindingsGetFindingsIDOKAssetKindModem,
+		FindingsGetFindingsIDOKAssetKindSdWan,
+		FindingsGetFindingsIDOKAssetKindLoadBalancer,
+		FindingsGetFindingsIDOKAssetKindNetworkController,
+		FindingsGetFindingsIDOKAssetKindFirewall,
+		FindingsGetFindingsIDOKAssetKindVpnGateway,
+		FindingsGetFindingsIDOKAssetKindIdsSensor,
+		FindingsGetFindingsIDOKAssetKindProxy,
 		FindingsGetFindingsIDOKAssetKindAp,
-		FindingsGetFindingsIDOKAssetKindNas,
+		FindingsGetFindingsIDOKAssetKindWirelessController,
+		FindingsGetFindingsIDOKAssetKindWifiExtender,
+		FindingsGetFindingsIDOKAssetKindMeshNode,
 		FindingsGetFindingsIDOKAssetKindServer,
+		FindingsGetFindingsIDOKAssetKindVirtualMachine,
+		FindingsGetFindingsIDOKAssetKindHypervisor,
+		FindingsGetFindingsIDOKAssetKindBmc,
+		FindingsGetFindingsIDOKAssetKindDomainController,
+		FindingsGetFindingsIDOKAssetKindMailServer,
+		FindingsGetFindingsIDOKAssetKindDatabaseServer,
+		FindingsGetFindingsIDOKAssetKindBackupServer,
 		FindingsGetFindingsIDOKAssetKindPc,
+		FindingsGetFindingsIDOKAssetKindLaptop,
+		FindingsGetFindingsIDOKAssetKindWorkstation,
+		FindingsGetFindingsIDOKAssetKindThinClient,
+		FindingsGetFindingsIDOKAssetKindPosTerminal,
+		FindingsGetFindingsIDOKAssetKindKiosk,
+		FindingsGetFindingsIDOKAssetKindSmartphone,
+		FindingsGetFindingsIDOKAssetKindTablet,
+		FindingsGetFindingsIDOKAssetKindSmartwatch,
 		FindingsGetFindingsIDOKAssetKindPrinter,
+		FindingsGetFindingsIDOKAssetKindMfp,
+		FindingsGetFindingsIDOKAssetKindScanner,
+		FindingsGetFindingsIDOKAssetKindLabelPrinter,
+		FindingsGetFindingsIDOKAssetKindReceiptPrinter,
+		FindingsGetFindingsIDOKAssetKindPlotter,
+		FindingsGetFindingsIDOKAssetKind3dPrinter,
 		FindingsGetFindingsIDOKAssetKindCamera,
 		FindingsGetFindingsIDOKAssetKindNvr,
+		FindingsGetFindingsIDOKAssetKindDvr,
+		FindingsGetFindingsIDOKAssetKindVideoEncoder,
+		FindingsGetFindingsIDOKAssetKindDoorbell,
+		FindingsGetFindingsIDOKAssetKindVideoConferencing,
+		FindingsGetFindingsIDOKAssetKindIPPhone,
+		FindingsGetFindingsIDOKAssetKindPbx,
+		FindingsGetFindingsIDOKAssetKindVoipAdapter,
+		FindingsGetFindingsIDOKAssetKindVoipGateway,
+		FindingsGetFindingsIDOKAssetKindConferencePhone,
+		FindingsGetFindingsIDOKAssetKindIntercom,
+		FindingsGetFindingsIDOKAssetKindNas,
+		FindingsGetFindingsIDOKAssetKindSan,
+		FindingsGetFindingsIDOKAssetKindBackupAppliance,
+		FindingsGetFindingsIDOKAssetKindTapeLibrary,
 		FindingsGetFindingsIDOKAssetKindIot,
+		FindingsGetFindingsIDOKAssetKindSmartTv,
+		FindingsGetFindingsIDOKAssetKindMediaPlayer,
+		FindingsGetFindingsIDOKAssetKindSmartSpeaker,
+		FindingsGetFindingsIDOKAssetKindGameConsole,
+		FindingsGetFindingsIDOKAssetKindSmartPlug,
+		FindingsGetFindingsIDOKAssetKindSmartLight,
+		FindingsGetFindingsIDOKAssetKindSmartHub,
+		FindingsGetFindingsIDOKAssetKindThermostat,
+		FindingsGetFindingsIDOKAssetKindProjector,
+		FindingsGetFindingsIDOKAssetKindDigitalSignage,
+		FindingsGetFindingsIDOKAssetKindSingleBoardComputer,
+		FindingsGetFindingsIDOKAssetKindSmartAppliance,
+		FindingsGetFindingsIDOKAssetKindRobotVacuum,
+		FindingsGetFindingsIDOKAssetKindWirelessBridge,
+		FindingsGetFindingsIDOKAssetKindPlc,
+		FindingsGetFindingsIDOKAssetKindHmi,
+		FindingsGetFindingsIDOKAssetKindRtu,
+		FindingsGetFindingsIDOKAssetKindScadaServer,
+		FindingsGetFindingsIDOKAssetKindIndustrialSwitch,
+		FindingsGetFindingsIDOKAssetKindUps,
+		FindingsGetFindingsIDOKAssetKindPdu,
+		FindingsGetFindingsIDOKAssetKindAccessControl,
+		FindingsGetFindingsIDOKAssetKindTimeClock,
+		FindingsGetFindingsIDOKAssetKindAlarmPanel,
+		FindingsGetFindingsIDOKAssetKindHvacController,
+		FindingsGetFindingsIDOKAssetKindBuildingController,
+		FindingsGetFindingsIDOKAssetKindPowerMeter,
+		FindingsGetFindingsIDOKAssetKindEnvironmentMonitor,
+		FindingsGetFindingsIDOKAssetKindEvCharger,
+		FindingsGetFindingsIDOKAssetKindSolarInverter,
+		FindingsGetFindingsIDOKAssetKindMedicalDevice,
 		FindingsGetFindingsIDOKAssetKindWeb,
+		FindingsGetFindingsIDOKAssetKindCloudService,
 		FindingsGetFindingsIDOKAssetKindUnknown,
 	}
 }
@@ -55510,29 +55662,181 @@ func (FindingsGetFindingsIDOKAssetKind) AllValues() []FindingsGetFindingsIDOKAss
 // MarshalText implements encoding.TextMarshaler.
 func (s FindingsGetFindingsIDOKAssetKind) MarshalText() ([]byte, error) {
 	switch s {
-	case FindingsGetFindingsIDOKAssetKindFirewall:
-		return []byte(s), nil
 	case FindingsGetFindingsIDOKAssetKindRouter:
 		return []byte(s), nil
 	case FindingsGetFindingsIDOKAssetKindSwitch:
 		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindModem:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindSdWan:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindNetworkController:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindVpnGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindIdsSensor:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindProxy:
+		return []byte(s), nil
 	case FindingsGetFindingsIDOKAssetKindAp:
 		return []byte(s), nil
-	case FindingsGetFindingsIDOKAssetKindNas:
+	case FindingsGetFindingsIDOKAssetKindWirelessController:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindWifiExtender:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindMeshNode:
 		return []byte(s), nil
 	case FindingsGetFindingsIDOKAssetKindServer:
 		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindHypervisor:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindBmc:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindDomainController:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindMailServer:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindBackupServer:
+		return []byte(s), nil
 	case FindingsGetFindingsIDOKAssetKindPc:
 		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindLaptop:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindWorkstation:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindThinClient:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindPosTerminal:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindKiosk:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindSmartphone:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindTablet:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindSmartwatch:
+		return []byte(s), nil
 	case FindingsGetFindingsIDOKAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindMfp:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindScanner:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindPlotter:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKind3dPrinter:
 		return []byte(s), nil
 	case FindingsGetFindingsIDOKAssetKindCamera:
 		return []byte(s), nil
 	case FindingsGetFindingsIDOKAssetKindNvr:
 		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindDvr:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindDoorbell:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindIPPhone:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindPbx:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindVoipGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindConferencePhone:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindIntercom:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindNas:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindSan:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindTapeLibrary:
+		return []byte(s), nil
 	case FindingsGetFindingsIDOKAssetKindIot:
 		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindSmartTv:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindGameConsole:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindSmartPlug:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindSmartLight:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindSmartHub:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindThermostat:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindProjector:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindPlc:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindHmi:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindRtu:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindScadaServer:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindUps:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindPdu:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindAccessControl:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindTimeClock:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindHvacController:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindBuildingController:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindPowerMeter:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindEvCharger:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindSolarInverter:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindMedicalDevice:
+		return []byte(s), nil
 	case FindingsGetFindingsIDOKAssetKindWeb:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKAssetKindCloudService:
 		return []byte(s), nil
 	case FindingsGetFindingsIDOKAssetKindUnknown:
 		return []byte(s), nil
@@ -55544,29 +55848,119 @@ func (s FindingsGetFindingsIDOKAssetKind) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *FindingsGetFindingsIDOKAssetKind) UnmarshalText(data []byte) error {
 	switch FindingsGetFindingsIDOKAssetKind(data) {
-	case FindingsGetFindingsIDOKAssetKindFirewall:
-		*s = FindingsGetFindingsIDOKAssetKindFirewall
-		return nil
 	case FindingsGetFindingsIDOKAssetKindRouter:
 		*s = FindingsGetFindingsIDOKAssetKindRouter
 		return nil
 	case FindingsGetFindingsIDOKAssetKindSwitch:
 		*s = FindingsGetFindingsIDOKAssetKindSwitch
 		return nil
+	case FindingsGetFindingsIDOKAssetKindModem:
+		*s = FindingsGetFindingsIDOKAssetKindModem
+		return nil
+	case FindingsGetFindingsIDOKAssetKindSdWan:
+		*s = FindingsGetFindingsIDOKAssetKindSdWan
+		return nil
+	case FindingsGetFindingsIDOKAssetKindLoadBalancer:
+		*s = FindingsGetFindingsIDOKAssetKindLoadBalancer
+		return nil
+	case FindingsGetFindingsIDOKAssetKindNetworkController:
+		*s = FindingsGetFindingsIDOKAssetKindNetworkController
+		return nil
+	case FindingsGetFindingsIDOKAssetKindFirewall:
+		*s = FindingsGetFindingsIDOKAssetKindFirewall
+		return nil
+	case FindingsGetFindingsIDOKAssetKindVpnGateway:
+		*s = FindingsGetFindingsIDOKAssetKindVpnGateway
+		return nil
+	case FindingsGetFindingsIDOKAssetKindIdsSensor:
+		*s = FindingsGetFindingsIDOKAssetKindIdsSensor
+		return nil
+	case FindingsGetFindingsIDOKAssetKindProxy:
+		*s = FindingsGetFindingsIDOKAssetKindProxy
+		return nil
 	case FindingsGetFindingsIDOKAssetKindAp:
 		*s = FindingsGetFindingsIDOKAssetKindAp
 		return nil
-	case FindingsGetFindingsIDOKAssetKindNas:
-		*s = FindingsGetFindingsIDOKAssetKindNas
+	case FindingsGetFindingsIDOKAssetKindWirelessController:
+		*s = FindingsGetFindingsIDOKAssetKindWirelessController
+		return nil
+	case FindingsGetFindingsIDOKAssetKindWifiExtender:
+		*s = FindingsGetFindingsIDOKAssetKindWifiExtender
+		return nil
+	case FindingsGetFindingsIDOKAssetKindMeshNode:
+		*s = FindingsGetFindingsIDOKAssetKindMeshNode
 		return nil
 	case FindingsGetFindingsIDOKAssetKindServer:
 		*s = FindingsGetFindingsIDOKAssetKindServer
 		return nil
+	case FindingsGetFindingsIDOKAssetKindVirtualMachine:
+		*s = FindingsGetFindingsIDOKAssetKindVirtualMachine
+		return nil
+	case FindingsGetFindingsIDOKAssetKindHypervisor:
+		*s = FindingsGetFindingsIDOKAssetKindHypervisor
+		return nil
+	case FindingsGetFindingsIDOKAssetKindBmc:
+		*s = FindingsGetFindingsIDOKAssetKindBmc
+		return nil
+	case FindingsGetFindingsIDOKAssetKindDomainController:
+		*s = FindingsGetFindingsIDOKAssetKindDomainController
+		return nil
+	case FindingsGetFindingsIDOKAssetKindMailServer:
+		*s = FindingsGetFindingsIDOKAssetKindMailServer
+		return nil
+	case FindingsGetFindingsIDOKAssetKindDatabaseServer:
+		*s = FindingsGetFindingsIDOKAssetKindDatabaseServer
+		return nil
+	case FindingsGetFindingsIDOKAssetKindBackupServer:
+		*s = FindingsGetFindingsIDOKAssetKindBackupServer
+		return nil
 	case FindingsGetFindingsIDOKAssetKindPc:
 		*s = FindingsGetFindingsIDOKAssetKindPc
 		return nil
+	case FindingsGetFindingsIDOKAssetKindLaptop:
+		*s = FindingsGetFindingsIDOKAssetKindLaptop
+		return nil
+	case FindingsGetFindingsIDOKAssetKindWorkstation:
+		*s = FindingsGetFindingsIDOKAssetKindWorkstation
+		return nil
+	case FindingsGetFindingsIDOKAssetKindThinClient:
+		*s = FindingsGetFindingsIDOKAssetKindThinClient
+		return nil
+	case FindingsGetFindingsIDOKAssetKindPosTerminal:
+		*s = FindingsGetFindingsIDOKAssetKindPosTerminal
+		return nil
+	case FindingsGetFindingsIDOKAssetKindKiosk:
+		*s = FindingsGetFindingsIDOKAssetKindKiosk
+		return nil
+	case FindingsGetFindingsIDOKAssetKindSmartphone:
+		*s = FindingsGetFindingsIDOKAssetKindSmartphone
+		return nil
+	case FindingsGetFindingsIDOKAssetKindTablet:
+		*s = FindingsGetFindingsIDOKAssetKindTablet
+		return nil
+	case FindingsGetFindingsIDOKAssetKindSmartwatch:
+		*s = FindingsGetFindingsIDOKAssetKindSmartwatch
+		return nil
 	case FindingsGetFindingsIDOKAssetKindPrinter:
 		*s = FindingsGetFindingsIDOKAssetKindPrinter
+		return nil
+	case FindingsGetFindingsIDOKAssetKindMfp:
+		*s = FindingsGetFindingsIDOKAssetKindMfp
+		return nil
+	case FindingsGetFindingsIDOKAssetKindScanner:
+		*s = FindingsGetFindingsIDOKAssetKindScanner
+		return nil
+	case FindingsGetFindingsIDOKAssetKindLabelPrinter:
+		*s = FindingsGetFindingsIDOKAssetKindLabelPrinter
+		return nil
+	case FindingsGetFindingsIDOKAssetKindReceiptPrinter:
+		*s = FindingsGetFindingsIDOKAssetKindReceiptPrinter
+		return nil
+	case FindingsGetFindingsIDOKAssetKindPlotter:
+		*s = FindingsGetFindingsIDOKAssetKindPlotter
+		return nil
+	case FindingsGetFindingsIDOKAssetKind3dPrinter:
+		*s = FindingsGetFindingsIDOKAssetKind3dPrinter
 		return nil
 	case FindingsGetFindingsIDOKAssetKindCamera:
 		*s = FindingsGetFindingsIDOKAssetKindCamera
@@ -55574,11 +55968,149 @@ func (s *FindingsGetFindingsIDOKAssetKind) UnmarshalText(data []byte) error {
 	case FindingsGetFindingsIDOKAssetKindNvr:
 		*s = FindingsGetFindingsIDOKAssetKindNvr
 		return nil
+	case FindingsGetFindingsIDOKAssetKindDvr:
+		*s = FindingsGetFindingsIDOKAssetKindDvr
+		return nil
+	case FindingsGetFindingsIDOKAssetKindVideoEncoder:
+		*s = FindingsGetFindingsIDOKAssetKindVideoEncoder
+		return nil
+	case FindingsGetFindingsIDOKAssetKindDoorbell:
+		*s = FindingsGetFindingsIDOKAssetKindDoorbell
+		return nil
+	case FindingsGetFindingsIDOKAssetKindVideoConferencing:
+		*s = FindingsGetFindingsIDOKAssetKindVideoConferencing
+		return nil
+	case FindingsGetFindingsIDOKAssetKindIPPhone:
+		*s = FindingsGetFindingsIDOKAssetKindIPPhone
+		return nil
+	case FindingsGetFindingsIDOKAssetKindPbx:
+		*s = FindingsGetFindingsIDOKAssetKindPbx
+		return nil
+	case FindingsGetFindingsIDOKAssetKindVoipAdapter:
+		*s = FindingsGetFindingsIDOKAssetKindVoipAdapter
+		return nil
+	case FindingsGetFindingsIDOKAssetKindVoipGateway:
+		*s = FindingsGetFindingsIDOKAssetKindVoipGateway
+		return nil
+	case FindingsGetFindingsIDOKAssetKindConferencePhone:
+		*s = FindingsGetFindingsIDOKAssetKindConferencePhone
+		return nil
+	case FindingsGetFindingsIDOKAssetKindIntercom:
+		*s = FindingsGetFindingsIDOKAssetKindIntercom
+		return nil
+	case FindingsGetFindingsIDOKAssetKindNas:
+		*s = FindingsGetFindingsIDOKAssetKindNas
+		return nil
+	case FindingsGetFindingsIDOKAssetKindSan:
+		*s = FindingsGetFindingsIDOKAssetKindSan
+		return nil
+	case FindingsGetFindingsIDOKAssetKindBackupAppliance:
+		*s = FindingsGetFindingsIDOKAssetKindBackupAppliance
+		return nil
+	case FindingsGetFindingsIDOKAssetKindTapeLibrary:
+		*s = FindingsGetFindingsIDOKAssetKindTapeLibrary
+		return nil
 	case FindingsGetFindingsIDOKAssetKindIot:
 		*s = FindingsGetFindingsIDOKAssetKindIot
 		return nil
+	case FindingsGetFindingsIDOKAssetKindSmartTv:
+		*s = FindingsGetFindingsIDOKAssetKindSmartTv
+		return nil
+	case FindingsGetFindingsIDOKAssetKindMediaPlayer:
+		*s = FindingsGetFindingsIDOKAssetKindMediaPlayer
+		return nil
+	case FindingsGetFindingsIDOKAssetKindSmartSpeaker:
+		*s = FindingsGetFindingsIDOKAssetKindSmartSpeaker
+		return nil
+	case FindingsGetFindingsIDOKAssetKindGameConsole:
+		*s = FindingsGetFindingsIDOKAssetKindGameConsole
+		return nil
+	case FindingsGetFindingsIDOKAssetKindSmartPlug:
+		*s = FindingsGetFindingsIDOKAssetKindSmartPlug
+		return nil
+	case FindingsGetFindingsIDOKAssetKindSmartLight:
+		*s = FindingsGetFindingsIDOKAssetKindSmartLight
+		return nil
+	case FindingsGetFindingsIDOKAssetKindSmartHub:
+		*s = FindingsGetFindingsIDOKAssetKindSmartHub
+		return nil
+	case FindingsGetFindingsIDOKAssetKindThermostat:
+		*s = FindingsGetFindingsIDOKAssetKindThermostat
+		return nil
+	case FindingsGetFindingsIDOKAssetKindProjector:
+		*s = FindingsGetFindingsIDOKAssetKindProjector
+		return nil
+	case FindingsGetFindingsIDOKAssetKindDigitalSignage:
+		*s = FindingsGetFindingsIDOKAssetKindDigitalSignage
+		return nil
+	case FindingsGetFindingsIDOKAssetKindSingleBoardComputer:
+		*s = FindingsGetFindingsIDOKAssetKindSingleBoardComputer
+		return nil
+	case FindingsGetFindingsIDOKAssetKindSmartAppliance:
+		*s = FindingsGetFindingsIDOKAssetKindSmartAppliance
+		return nil
+	case FindingsGetFindingsIDOKAssetKindRobotVacuum:
+		*s = FindingsGetFindingsIDOKAssetKindRobotVacuum
+		return nil
+	case FindingsGetFindingsIDOKAssetKindWirelessBridge:
+		*s = FindingsGetFindingsIDOKAssetKindWirelessBridge
+		return nil
+	case FindingsGetFindingsIDOKAssetKindPlc:
+		*s = FindingsGetFindingsIDOKAssetKindPlc
+		return nil
+	case FindingsGetFindingsIDOKAssetKindHmi:
+		*s = FindingsGetFindingsIDOKAssetKindHmi
+		return nil
+	case FindingsGetFindingsIDOKAssetKindRtu:
+		*s = FindingsGetFindingsIDOKAssetKindRtu
+		return nil
+	case FindingsGetFindingsIDOKAssetKindScadaServer:
+		*s = FindingsGetFindingsIDOKAssetKindScadaServer
+		return nil
+	case FindingsGetFindingsIDOKAssetKindIndustrialSwitch:
+		*s = FindingsGetFindingsIDOKAssetKindIndustrialSwitch
+		return nil
+	case FindingsGetFindingsIDOKAssetKindUps:
+		*s = FindingsGetFindingsIDOKAssetKindUps
+		return nil
+	case FindingsGetFindingsIDOKAssetKindPdu:
+		*s = FindingsGetFindingsIDOKAssetKindPdu
+		return nil
+	case FindingsGetFindingsIDOKAssetKindAccessControl:
+		*s = FindingsGetFindingsIDOKAssetKindAccessControl
+		return nil
+	case FindingsGetFindingsIDOKAssetKindTimeClock:
+		*s = FindingsGetFindingsIDOKAssetKindTimeClock
+		return nil
+	case FindingsGetFindingsIDOKAssetKindAlarmPanel:
+		*s = FindingsGetFindingsIDOKAssetKindAlarmPanel
+		return nil
+	case FindingsGetFindingsIDOKAssetKindHvacController:
+		*s = FindingsGetFindingsIDOKAssetKindHvacController
+		return nil
+	case FindingsGetFindingsIDOKAssetKindBuildingController:
+		*s = FindingsGetFindingsIDOKAssetKindBuildingController
+		return nil
+	case FindingsGetFindingsIDOKAssetKindPowerMeter:
+		*s = FindingsGetFindingsIDOKAssetKindPowerMeter
+		return nil
+	case FindingsGetFindingsIDOKAssetKindEnvironmentMonitor:
+		*s = FindingsGetFindingsIDOKAssetKindEnvironmentMonitor
+		return nil
+	case FindingsGetFindingsIDOKAssetKindEvCharger:
+		*s = FindingsGetFindingsIDOKAssetKindEvCharger
+		return nil
+	case FindingsGetFindingsIDOKAssetKindSolarInverter:
+		*s = FindingsGetFindingsIDOKAssetKindSolarInverter
+		return nil
+	case FindingsGetFindingsIDOKAssetKindMedicalDevice:
+		*s = FindingsGetFindingsIDOKAssetKindMedicalDevice
+		return nil
 	case FindingsGetFindingsIDOKAssetKindWeb:
 		*s = FindingsGetFindingsIDOKAssetKindWeb
+		return nil
+	case FindingsGetFindingsIDOKAssetKindCloudService:
+		*s = FindingsGetFindingsIDOKAssetKindCloudService
 		return nil
 	case FindingsGetFindingsIDOKAssetKindUnknown:
 		*s = FindingsGetFindingsIDOKAssetKindUnknown
@@ -57279,36 +57811,188 @@ func (s *FindingsGetFindingsOKItemsItemAsset) SetName(val string) {
 type FindingsGetFindingsOKItemsItemAssetKind string
 
 const (
-	FindingsGetFindingsOKItemsItemAssetKindFirewall FindingsGetFindingsOKItemsItemAssetKind = "firewall"
-	FindingsGetFindingsOKItemsItemAssetKindRouter   FindingsGetFindingsOKItemsItemAssetKind = "router"
-	FindingsGetFindingsOKItemsItemAssetKindSwitch   FindingsGetFindingsOKItemsItemAssetKind = "switch"
-	FindingsGetFindingsOKItemsItemAssetKindAp       FindingsGetFindingsOKItemsItemAssetKind = "ap"
-	FindingsGetFindingsOKItemsItemAssetKindNas      FindingsGetFindingsOKItemsItemAssetKind = "nas"
-	FindingsGetFindingsOKItemsItemAssetKindServer   FindingsGetFindingsOKItemsItemAssetKind = "server"
-	FindingsGetFindingsOKItemsItemAssetKindPc       FindingsGetFindingsOKItemsItemAssetKind = "pc"
-	FindingsGetFindingsOKItemsItemAssetKindPrinter  FindingsGetFindingsOKItemsItemAssetKind = "printer"
-	FindingsGetFindingsOKItemsItemAssetKindCamera   FindingsGetFindingsOKItemsItemAssetKind = "camera"
-	FindingsGetFindingsOKItemsItemAssetKindNvr      FindingsGetFindingsOKItemsItemAssetKind = "nvr"
-	FindingsGetFindingsOKItemsItemAssetKindIot      FindingsGetFindingsOKItemsItemAssetKind = "iot"
-	FindingsGetFindingsOKItemsItemAssetKindWeb      FindingsGetFindingsOKItemsItemAssetKind = "web"
-	FindingsGetFindingsOKItemsItemAssetKindUnknown  FindingsGetFindingsOKItemsItemAssetKind = "unknown"
+	FindingsGetFindingsOKItemsItemAssetKindRouter              FindingsGetFindingsOKItemsItemAssetKind = "router"
+	FindingsGetFindingsOKItemsItemAssetKindSwitch              FindingsGetFindingsOKItemsItemAssetKind = "switch"
+	FindingsGetFindingsOKItemsItemAssetKindModem               FindingsGetFindingsOKItemsItemAssetKind = "modem"
+	FindingsGetFindingsOKItemsItemAssetKindSdWan               FindingsGetFindingsOKItemsItemAssetKind = "sd_wan"
+	FindingsGetFindingsOKItemsItemAssetKindLoadBalancer        FindingsGetFindingsOKItemsItemAssetKind = "load_balancer"
+	FindingsGetFindingsOKItemsItemAssetKindNetworkController   FindingsGetFindingsOKItemsItemAssetKind = "network_controller"
+	FindingsGetFindingsOKItemsItemAssetKindFirewall            FindingsGetFindingsOKItemsItemAssetKind = "firewall"
+	FindingsGetFindingsOKItemsItemAssetKindVpnGateway          FindingsGetFindingsOKItemsItemAssetKind = "vpn_gateway"
+	FindingsGetFindingsOKItemsItemAssetKindIdsSensor           FindingsGetFindingsOKItemsItemAssetKind = "ids_sensor"
+	FindingsGetFindingsOKItemsItemAssetKindProxy               FindingsGetFindingsOKItemsItemAssetKind = "proxy"
+	FindingsGetFindingsOKItemsItemAssetKindAp                  FindingsGetFindingsOKItemsItemAssetKind = "ap"
+	FindingsGetFindingsOKItemsItemAssetKindWirelessController  FindingsGetFindingsOKItemsItemAssetKind = "wireless_controller"
+	FindingsGetFindingsOKItemsItemAssetKindWifiExtender        FindingsGetFindingsOKItemsItemAssetKind = "wifi_extender"
+	FindingsGetFindingsOKItemsItemAssetKindMeshNode            FindingsGetFindingsOKItemsItemAssetKind = "mesh_node"
+	FindingsGetFindingsOKItemsItemAssetKindServer              FindingsGetFindingsOKItemsItemAssetKind = "server"
+	FindingsGetFindingsOKItemsItemAssetKindVirtualMachine      FindingsGetFindingsOKItemsItemAssetKind = "virtual_machine"
+	FindingsGetFindingsOKItemsItemAssetKindHypervisor          FindingsGetFindingsOKItemsItemAssetKind = "hypervisor"
+	FindingsGetFindingsOKItemsItemAssetKindBmc                 FindingsGetFindingsOKItemsItemAssetKind = "bmc"
+	FindingsGetFindingsOKItemsItemAssetKindDomainController    FindingsGetFindingsOKItemsItemAssetKind = "domain_controller"
+	FindingsGetFindingsOKItemsItemAssetKindMailServer          FindingsGetFindingsOKItemsItemAssetKind = "mail_server"
+	FindingsGetFindingsOKItemsItemAssetKindDatabaseServer      FindingsGetFindingsOKItemsItemAssetKind = "database_server"
+	FindingsGetFindingsOKItemsItemAssetKindBackupServer        FindingsGetFindingsOKItemsItemAssetKind = "backup_server"
+	FindingsGetFindingsOKItemsItemAssetKindPc                  FindingsGetFindingsOKItemsItemAssetKind = "pc"
+	FindingsGetFindingsOKItemsItemAssetKindLaptop              FindingsGetFindingsOKItemsItemAssetKind = "laptop"
+	FindingsGetFindingsOKItemsItemAssetKindWorkstation         FindingsGetFindingsOKItemsItemAssetKind = "workstation"
+	FindingsGetFindingsOKItemsItemAssetKindThinClient          FindingsGetFindingsOKItemsItemAssetKind = "thin_client"
+	FindingsGetFindingsOKItemsItemAssetKindPosTerminal         FindingsGetFindingsOKItemsItemAssetKind = "pos_terminal"
+	FindingsGetFindingsOKItemsItemAssetKindKiosk               FindingsGetFindingsOKItemsItemAssetKind = "kiosk"
+	FindingsGetFindingsOKItemsItemAssetKindSmartphone          FindingsGetFindingsOKItemsItemAssetKind = "smartphone"
+	FindingsGetFindingsOKItemsItemAssetKindTablet              FindingsGetFindingsOKItemsItemAssetKind = "tablet"
+	FindingsGetFindingsOKItemsItemAssetKindSmartwatch          FindingsGetFindingsOKItemsItemAssetKind = "smartwatch"
+	FindingsGetFindingsOKItemsItemAssetKindPrinter             FindingsGetFindingsOKItemsItemAssetKind = "printer"
+	FindingsGetFindingsOKItemsItemAssetKindMfp                 FindingsGetFindingsOKItemsItemAssetKind = "mfp"
+	FindingsGetFindingsOKItemsItemAssetKindScanner             FindingsGetFindingsOKItemsItemAssetKind = "scanner"
+	FindingsGetFindingsOKItemsItemAssetKindLabelPrinter        FindingsGetFindingsOKItemsItemAssetKind = "label_printer"
+	FindingsGetFindingsOKItemsItemAssetKindReceiptPrinter      FindingsGetFindingsOKItemsItemAssetKind = "receipt_printer"
+	FindingsGetFindingsOKItemsItemAssetKindPlotter             FindingsGetFindingsOKItemsItemAssetKind = "plotter"
+	FindingsGetFindingsOKItemsItemAssetKind3dPrinter           FindingsGetFindingsOKItemsItemAssetKind = "3d_printer"
+	FindingsGetFindingsOKItemsItemAssetKindCamera              FindingsGetFindingsOKItemsItemAssetKind = "camera"
+	FindingsGetFindingsOKItemsItemAssetKindNvr                 FindingsGetFindingsOKItemsItemAssetKind = "nvr"
+	FindingsGetFindingsOKItemsItemAssetKindDvr                 FindingsGetFindingsOKItemsItemAssetKind = "dvr"
+	FindingsGetFindingsOKItemsItemAssetKindVideoEncoder        FindingsGetFindingsOKItemsItemAssetKind = "video_encoder"
+	FindingsGetFindingsOKItemsItemAssetKindDoorbell            FindingsGetFindingsOKItemsItemAssetKind = "doorbell"
+	FindingsGetFindingsOKItemsItemAssetKindVideoConferencing   FindingsGetFindingsOKItemsItemAssetKind = "video_conferencing"
+	FindingsGetFindingsOKItemsItemAssetKindIPPhone             FindingsGetFindingsOKItemsItemAssetKind = "ip_phone"
+	FindingsGetFindingsOKItemsItemAssetKindPbx                 FindingsGetFindingsOKItemsItemAssetKind = "pbx"
+	FindingsGetFindingsOKItemsItemAssetKindVoipAdapter         FindingsGetFindingsOKItemsItemAssetKind = "voip_adapter"
+	FindingsGetFindingsOKItemsItemAssetKindVoipGateway         FindingsGetFindingsOKItemsItemAssetKind = "voip_gateway"
+	FindingsGetFindingsOKItemsItemAssetKindConferencePhone     FindingsGetFindingsOKItemsItemAssetKind = "conference_phone"
+	FindingsGetFindingsOKItemsItemAssetKindIntercom            FindingsGetFindingsOKItemsItemAssetKind = "intercom"
+	FindingsGetFindingsOKItemsItemAssetKindNas                 FindingsGetFindingsOKItemsItemAssetKind = "nas"
+	FindingsGetFindingsOKItemsItemAssetKindSan                 FindingsGetFindingsOKItemsItemAssetKind = "san"
+	FindingsGetFindingsOKItemsItemAssetKindBackupAppliance     FindingsGetFindingsOKItemsItemAssetKind = "backup_appliance"
+	FindingsGetFindingsOKItemsItemAssetKindTapeLibrary         FindingsGetFindingsOKItemsItemAssetKind = "tape_library"
+	FindingsGetFindingsOKItemsItemAssetKindIot                 FindingsGetFindingsOKItemsItemAssetKind = "iot"
+	FindingsGetFindingsOKItemsItemAssetKindSmartTv             FindingsGetFindingsOKItemsItemAssetKind = "smart_tv"
+	FindingsGetFindingsOKItemsItemAssetKindMediaPlayer         FindingsGetFindingsOKItemsItemAssetKind = "media_player"
+	FindingsGetFindingsOKItemsItemAssetKindSmartSpeaker        FindingsGetFindingsOKItemsItemAssetKind = "smart_speaker"
+	FindingsGetFindingsOKItemsItemAssetKindGameConsole         FindingsGetFindingsOKItemsItemAssetKind = "game_console"
+	FindingsGetFindingsOKItemsItemAssetKindSmartPlug           FindingsGetFindingsOKItemsItemAssetKind = "smart_plug"
+	FindingsGetFindingsOKItemsItemAssetKindSmartLight          FindingsGetFindingsOKItemsItemAssetKind = "smart_light"
+	FindingsGetFindingsOKItemsItemAssetKindSmartHub            FindingsGetFindingsOKItemsItemAssetKind = "smart_hub"
+	FindingsGetFindingsOKItemsItemAssetKindThermostat          FindingsGetFindingsOKItemsItemAssetKind = "thermostat"
+	FindingsGetFindingsOKItemsItemAssetKindProjector           FindingsGetFindingsOKItemsItemAssetKind = "projector"
+	FindingsGetFindingsOKItemsItemAssetKindDigitalSignage      FindingsGetFindingsOKItemsItemAssetKind = "digital_signage"
+	FindingsGetFindingsOKItemsItemAssetKindSingleBoardComputer FindingsGetFindingsOKItemsItemAssetKind = "single_board_computer"
+	FindingsGetFindingsOKItemsItemAssetKindSmartAppliance      FindingsGetFindingsOKItemsItemAssetKind = "smart_appliance"
+	FindingsGetFindingsOKItemsItemAssetKindRobotVacuum         FindingsGetFindingsOKItemsItemAssetKind = "robot_vacuum"
+	FindingsGetFindingsOKItemsItemAssetKindWirelessBridge      FindingsGetFindingsOKItemsItemAssetKind = "wireless_bridge"
+	FindingsGetFindingsOKItemsItemAssetKindPlc                 FindingsGetFindingsOKItemsItemAssetKind = "plc"
+	FindingsGetFindingsOKItemsItemAssetKindHmi                 FindingsGetFindingsOKItemsItemAssetKind = "hmi"
+	FindingsGetFindingsOKItemsItemAssetKindRtu                 FindingsGetFindingsOKItemsItemAssetKind = "rtu"
+	FindingsGetFindingsOKItemsItemAssetKindScadaServer         FindingsGetFindingsOKItemsItemAssetKind = "scada_server"
+	FindingsGetFindingsOKItemsItemAssetKindIndustrialSwitch    FindingsGetFindingsOKItemsItemAssetKind = "industrial_switch"
+	FindingsGetFindingsOKItemsItemAssetKindUps                 FindingsGetFindingsOKItemsItemAssetKind = "ups"
+	FindingsGetFindingsOKItemsItemAssetKindPdu                 FindingsGetFindingsOKItemsItemAssetKind = "pdu"
+	FindingsGetFindingsOKItemsItemAssetKindAccessControl       FindingsGetFindingsOKItemsItemAssetKind = "access_control"
+	FindingsGetFindingsOKItemsItemAssetKindTimeClock           FindingsGetFindingsOKItemsItemAssetKind = "time_clock"
+	FindingsGetFindingsOKItemsItemAssetKindAlarmPanel          FindingsGetFindingsOKItemsItemAssetKind = "alarm_panel"
+	FindingsGetFindingsOKItemsItemAssetKindHvacController      FindingsGetFindingsOKItemsItemAssetKind = "hvac_controller"
+	FindingsGetFindingsOKItemsItemAssetKindBuildingController  FindingsGetFindingsOKItemsItemAssetKind = "building_controller"
+	FindingsGetFindingsOKItemsItemAssetKindPowerMeter          FindingsGetFindingsOKItemsItemAssetKind = "power_meter"
+	FindingsGetFindingsOKItemsItemAssetKindEnvironmentMonitor  FindingsGetFindingsOKItemsItemAssetKind = "environment_monitor"
+	FindingsGetFindingsOKItemsItemAssetKindEvCharger           FindingsGetFindingsOKItemsItemAssetKind = "ev_charger"
+	FindingsGetFindingsOKItemsItemAssetKindSolarInverter       FindingsGetFindingsOKItemsItemAssetKind = "solar_inverter"
+	FindingsGetFindingsOKItemsItemAssetKindMedicalDevice       FindingsGetFindingsOKItemsItemAssetKind = "medical_device"
+	FindingsGetFindingsOKItemsItemAssetKindWeb                 FindingsGetFindingsOKItemsItemAssetKind = "web"
+	FindingsGetFindingsOKItemsItemAssetKindCloudService        FindingsGetFindingsOKItemsItemAssetKind = "cloud_service"
+	FindingsGetFindingsOKItemsItemAssetKindUnknown             FindingsGetFindingsOKItemsItemAssetKind = "unknown"
 )
 
 // AllValues returns all FindingsGetFindingsOKItemsItemAssetKind values.
 func (FindingsGetFindingsOKItemsItemAssetKind) AllValues() []FindingsGetFindingsOKItemsItemAssetKind {
 	return []FindingsGetFindingsOKItemsItemAssetKind{
-		FindingsGetFindingsOKItemsItemAssetKindFirewall,
 		FindingsGetFindingsOKItemsItemAssetKindRouter,
 		FindingsGetFindingsOKItemsItemAssetKindSwitch,
+		FindingsGetFindingsOKItemsItemAssetKindModem,
+		FindingsGetFindingsOKItemsItemAssetKindSdWan,
+		FindingsGetFindingsOKItemsItemAssetKindLoadBalancer,
+		FindingsGetFindingsOKItemsItemAssetKindNetworkController,
+		FindingsGetFindingsOKItemsItemAssetKindFirewall,
+		FindingsGetFindingsOKItemsItemAssetKindVpnGateway,
+		FindingsGetFindingsOKItemsItemAssetKindIdsSensor,
+		FindingsGetFindingsOKItemsItemAssetKindProxy,
 		FindingsGetFindingsOKItemsItemAssetKindAp,
-		FindingsGetFindingsOKItemsItemAssetKindNas,
+		FindingsGetFindingsOKItemsItemAssetKindWirelessController,
+		FindingsGetFindingsOKItemsItemAssetKindWifiExtender,
+		FindingsGetFindingsOKItemsItemAssetKindMeshNode,
 		FindingsGetFindingsOKItemsItemAssetKindServer,
+		FindingsGetFindingsOKItemsItemAssetKindVirtualMachine,
+		FindingsGetFindingsOKItemsItemAssetKindHypervisor,
+		FindingsGetFindingsOKItemsItemAssetKindBmc,
+		FindingsGetFindingsOKItemsItemAssetKindDomainController,
+		FindingsGetFindingsOKItemsItemAssetKindMailServer,
+		FindingsGetFindingsOKItemsItemAssetKindDatabaseServer,
+		FindingsGetFindingsOKItemsItemAssetKindBackupServer,
 		FindingsGetFindingsOKItemsItemAssetKindPc,
+		FindingsGetFindingsOKItemsItemAssetKindLaptop,
+		FindingsGetFindingsOKItemsItemAssetKindWorkstation,
+		FindingsGetFindingsOKItemsItemAssetKindThinClient,
+		FindingsGetFindingsOKItemsItemAssetKindPosTerminal,
+		FindingsGetFindingsOKItemsItemAssetKindKiosk,
+		FindingsGetFindingsOKItemsItemAssetKindSmartphone,
+		FindingsGetFindingsOKItemsItemAssetKindTablet,
+		FindingsGetFindingsOKItemsItemAssetKindSmartwatch,
 		FindingsGetFindingsOKItemsItemAssetKindPrinter,
+		FindingsGetFindingsOKItemsItemAssetKindMfp,
+		FindingsGetFindingsOKItemsItemAssetKindScanner,
+		FindingsGetFindingsOKItemsItemAssetKindLabelPrinter,
+		FindingsGetFindingsOKItemsItemAssetKindReceiptPrinter,
+		FindingsGetFindingsOKItemsItemAssetKindPlotter,
+		FindingsGetFindingsOKItemsItemAssetKind3dPrinter,
 		FindingsGetFindingsOKItemsItemAssetKindCamera,
 		FindingsGetFindingsOKItemsItemAssetKindNvr,
+		FindingsGetFindingsOKItemsItemAssetKindDvr,
+		FindingsGetFindingsOKItemsItemAssetKindVideoEncoder,
+		FindingsGetFindingsOKItemsItemAssetKindDoorbell,
+		FindingsGetFindingsOKItemsItemAssetKindVideoConferencing,
+		FindingsGetFindingsOKItemsItemAssetKindIPPhone,
+		FindingsGetFindingsOKItemsItemAssetKindPbx,
+		FindingsGetFindingsOKItemsItemAssetKindVoipAdapter,
+		FindingsGetFindingsOKItemsItemAssetKindVoipGateway,
+		FindingsGetFindingsOKItemsItemAssetKindConferencePhone,
+		FindingsGetFindingsOKItemsItemAssetKindIntercom,
+		FindingsGetFindingsOKItemsItemAssetKindNas,
+		FindingsGetFindingsOKItemsItemAssetKindSan,
+		FindingsGetFindingsOKItemsItemAssetKindBackupAppliance,
+		FindingsGetFindingsOKItemsItemAssetKindTapeLibrary,
 		FindingsGetFindingsOKItemsItemAssetKindIot,
+		FindingsGetFindingsOKItemsItemAssetKindSmartTv,
+		FindingsGetFindingsOKItemsItemAssetKindMediaPlayer,
+		FindingsGetFindingsOKItemsItemAssetKindSmartSpeaker,
+		FindingsGetFindingsOKItemsItemAssetKindGameConsole,
+		FindingsGetFindingsOKItemsItemAssetKindSmartPlug,
+		FindingsGetFindingsOKItemsItemAssetKindSmartLight,
+		FindingsGetFindingsOKItemsItemAssetKindSmartHub,
+		FindingsGetFindingsOKItemsItemAssetKindThermostat,
+		FindingsGetFindingsOKItemsItemAssetKindProjector,
+		FindingsGetFindingsOKItemsItemAssetKindDigitalSignage,
+		FindingsGetFindingsOKItemsItemAssetKindSingleBoardComputer,
+		FindingsGetFindingsOKItemsItemAssetKindSmartAppliance,
+		FindingsGetFindingsOKItemsItemAssetKindRobotVacuum,
+		FindingsGetFindingsOKItemsItemAssetKindWirelessBridge,
+		FindingsGetFindingsOKItemsItemAssetKindPlc,
+		FindingsGetFindingsOKItemsItemAssetKindHmi,
+		FindingsGetFindingsOKItemsItemAssetKindRtu,
+		FindingsGetFindingsOKItemsItemAssetKindScadaServer,
+		FindingsGetFindingsOKItemsItemAssetKindIndustrialSwitch,
+		FindingsGetFindingsOKItemsItemAssetKindUps,
+		FindingsGetFindingsOKItemsItemAssetKindPdu,
+		FindingsGetFindingsOKItemsItemAssetKindAccessControl,
+		FindingsGetFindingsOKItemsItemAssetKindTimeClock,
+		FindingsGetFindingsOKItemsItemAssetKindAlarmPanel,
+		FindingsGetFindingsOKItemsItemAssetKindHvacController,
+		FindingsGetFindingsOKItemsItemAssetKindBuildingController,
+		FindingsGetFindingsOKItemsItemAssetKindPowerMeter,
+		FindingsGetFindingsOKItemsItemAssetKindEnvironmentMonitor,
+		FindingsGetFindingsOKItemsItemAssetKindEvCharger,
+		FindingsGetFindingsOKItemsItemAssetKindSolarInverter,
+		FindingsGetFindingsOKItemsItemAssetKindMedicalDevice,
 		FindingsGetFindingsOKItemsItemAssetKindWeb,
+		FindingsGetFindingsOKItemsItemAssetKindCloudService,
 		FindingsGetFindingsOKItemsItemAssetKindUnknown,
 	}
 }
@@ -57316,29 +58000,181 @@ func (FindingsGetFindingsOKItemsItemAssetKind) AllValues() []FindingsGetFindings
 // MarshalText implements encoding.TextMarshaler.
 func (s FindingsGetFindingsOKItemsItemAssetKind) MarshalText() ([]byte, error) {
 	switch s {
-	case FindingsGetFindingsOKItemsItemAssetKindFirewall:
-		return []byte(s), nil
 	case FindingsGetFindingsOKItemsItemAssetKindRouter:
 		return []byte(s), nil
 	case FindingsGetFindingsOKItemsItemAssetKindSwitch:
 		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindModem:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindSdWan:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindNetworkController:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindVpnGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindIdsSensor:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindProxy:
+		return []byte(s), nil
 	case FindingsGetFindingsOKItemsItemAssetKindAp:
 		return []byte(s), nil
-	case FindingsGetFindingsOKItemsItemAssetKindNas:
+	case FindingsGetFindingsOKItemsItemAssetKindWirelessController:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindWifiExtender:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindMeshNode:
 		return []byte(s), nil
 	case FindingsGetFindingsOKItemsItemAssetKindServer:
 		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindHypervisor:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindBmc:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindDomainController:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindMailServer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindBackupServer:
+		return []byte(s), nil
 	case FindingsGetFindingsOKItemsItemAssetKindPc:
 		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindLaptop:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindWorkstation:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindThinClient:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindPosTerminal:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindKiosk:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartphone:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindTablet:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartwatch:
+		return []byte(s), nil
 	case FindingsGetFindingsOKItemsItemAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindMfp:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindScanner:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindPlotter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKind3dPrinter:
 		return []byte(s), nil
 	case FindingsGetFindingsOKItemsItemAssetKindCamera:
 		return []byte(s), nil
 	case FindingsGetFindingsOKItemsItemAssetKindNvr:
 		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindDvr:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindDoorbell:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindIPPhone:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindPbx:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindVoipGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindConferencePhone:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindIntercom:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindNas:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindSan:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindTapeLibrary:
+		return []byte(s), nil
 	case FindingsGetFindingsOKItemsItemAssetKindIot:
 		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartTv:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindGameConsole:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartPlug:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartLight:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartHub:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindThermostat:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindProjector:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindPlc:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindHmi:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindRtu:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindScadaServer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindUps:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindPdu:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindAccessControl:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindTimeClock:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindHvacController:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindBuildingController:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindPowerMeter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindEvCharger:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindSolarInverter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindMedicalDevice:
+		return []byte(s), nil
 	case FindingsGetFindingsOKItemsItemAssetKindWeb:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemAssetKindCloudService:
 		return []byte(s), nil
 	case FindingsGetFindingsOKItemsItemAssetKindUnknown:
 		return []byte(s), nil
@@ -57350,29 +58186,119 @@ func (s FindingsGetFindingsOKItemsItemAssetKind) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *FindingsGetFindingsOKItemsItemAssetKind) UnmarshalText(data []byte) error {
 	switch FindingsGetFindingsOKItemsItemAssetKind(data) {
-	case FindingsGetFindingsOKItemsItemAssetKindFirewall:
-		*s = FindingsGetFindingsOKItemsItemAssetKindFirewall
-		return nil
 	case FindingsGetFindingsOKItemsItemAssetKindRouter:
 		*s = FindingsGetFindingsOKItemsItemAssetKindRouter
 		return nil
 	case FindingsGetFindingsOKItemsItemAssetKindSwitch:
 		*s = FindingsGetFindingsOKItemsItemAssetKindSwitch
 		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindModem:
+		*s = FindingsGetFindingsOKItemsItemAssetKindModem
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindSdWan:
+		*s = FindingsGetFindingsOKItemsItemAssetKindSdWan
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindLoadBalancer:
+		*s = FindingsGetFindingsOKItemsItemAssetKindLoadBalancer
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindNetworkController:
+		*s = FindingsGetFindingsOKItemsItemAssetKindNetworkController
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindFirewall:
+		*s = FindingsGetFindingsOKItemsItemAssetKindFirewall
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindVpnGateway:
+		*s = FindingsGetFindingsOKItemsItemAssetKindVpnGateway
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindIdsSensor:
+		*s = FindingsGetFindingsOKItemsItemAssetKindIdsSensor
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindProxy:
+		*s = FindingsGetFindingsOKItemsItemAssetKindProxy
+		return nil
 	case FindingsGetFindingsOKItemsItemAssetKindAp:
 		*s = FindingsGetFindingsOKItemsItemAssetKindAp
 		return nil
-	case FindingsGetFindingsOKItemsItemAssetKindNas:
-		*s = FindingsGetFindingsOKItemsItemAssetKindNas
+	case FindingsGetFindingsOKItemsItemAssetKindWirelessController:
+		*s = FindingsGetFindingsOKItemsItemAssetKindWirelessController
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindWifiExtender:
+		*s = FindingsGetFindingsOKItemsItemAssetKindWifiExtender
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindMeshNode:
+		*s = FindingsGetFindingsOKItemsItemAssetKindMeshNode
 		return nil
 	case FindingsGetFindingsOKItemsItemAssetKindServer:
 		*s = FindingsGetFindingsOKItemsItemAssetKindServer
 		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindVirtualMachine:
+		*s = FindingsGetFindingsOKItemsItemAssetKindVirtualMachine
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindHypervisor:
+		*s = FindingsGetFindingsOKItemsItemAssetKindHypervisor
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindBmc:
+		*s = FindingsGetFindingsOKItemsItemAssetKindBmc
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindDomainController:
+		*s = FindingsGetFindingsOKItemsItemAssetKindDomainController
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindMailServer:
+		*s = FindingsGetFindingsOKItemsItemAssetKindMailServer
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindDatabaseServer:
+		*s = FindingsGetFindingsOKItemsItemAssetKindDatabaseServer
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindBackupServer:
+		*s = FindingsGetFindingsOKItemsItemAssetKindBackupServer
+		return nil
 	case FindingsGetFindingsOKItemsItemAssetKindPc:
 		*s = FindingsGetFindingsOKItemsItemAssetKindPc
 		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindLaptop:
+		*s = FindingsGetFindingsOKItemsItemAssetKindLaptop
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindWorkstation:
+		*s = FindingsGetFindingsOKItemsItemAssetKindWorkstation
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindThinClient:
+		*s = FindingsGetFindingsOKItemsItemAssetKindThinClient
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindPosTerminal:
+		*s = FindingsGetFindingsOKItemsItemAssetKindPosTerminal
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindKiosk:
+		*s = FindingsGetFindingsOKItemsItemAssetKindKiosk
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartphone:
+		*s = FindingsGetFindingsOKItemsItemAssetKindSmartphone
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindTablet:
+		*s = FindingsGetFindingsOKItemsItemAssetKindTablet
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartwatch:
+		*s = FindingsGetFindingsOKItemsItemAssetKindSmartwatch
+		return nil
 	case FindingsGetFindingsOKItemsItemAssetKindPrinter:
 		*s = FindingsGetFindingsOKItemsItemAssetKindPrinter
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindMfp:
+		*s = FindingsGetFindingsOKItemsItemAssetKindMfp
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindScanner:
+		*s = FindingsGetFindingsOKItemsItemAssetKindScanner
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindLabelPrinter:
+		*s = FindingsGetFindingsOKItemsItemAssetKindLabelPrinter
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindReceiptPrinter:
+		*s = FindingsGetFindingsOKItemsItemAssetKindReceiptPrinter
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindPlotter:
+		*s = FindingsGetFindingsOKItemsItemAssetKindPlotter
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKind3dPrinter:
+		*s = FindingsGetFindingsOKItemsItemAssetKind3dPrinter
 		return nil
 	case FindingsGetFindingsOKItemsItemAssetKindCamera:
 		*s = FindingsGetFindingsOKItemsItemAssetKindCamera
@@ -57380,11 +58306,149 @@ func (s *FindingsGetFindingsOKItemsItemAssetKind) UnmarshalText(data []byte) err
 	case FindingsGetFindingsOKItemsItemAssetKindNvr:
 		*s = FindingsGetFindingsOKItemsItemAssetKindNvr
 		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindDvr:
+		*s = FindingsGetFindingsOKItemsItemAssetKindDvr
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindVideoEncoder:
+		*s = FindingsGetFindingsOKItemsItemAssetKindVideoEncoder
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindDoorbell:
+		*s = FindingsGetFindingsOKItemsItemAssetKindDoorbell
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindVideoConferencing:
+		*s = FindingsGetFindingsOKItemsItemAssetKindVideoConferencing
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindIPPhone:
+		*s = FindingsGetFindingsOKItemsItemAssetKindIPPhone
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindPbx:
+		*s = FindingsGetFindingsOKItemsItemAssetKindPbx
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindVoipAdapter:
+		*s = FindingsGetFindingsOKItemsItemAssetKindVoipAdapter
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindVoipGateway:
+		*s = FindingsGetFindingsOKItemsItemAssetKindVoipGateway
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindConferencePhone:
+		*s = FindingsGetFindingsOKItemsItemAssetKindConferencePhone
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindIntercom:
+		*s = FindingsGetFindingsOKItemsItemAssetKindIntercom
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindNas:
+		*s = FindingsGetFindingsOKItemsItemAssetKindNas
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindSan:
+		*s = FindingsGetFindingsOKItemsItemAssetKindSan
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindBackupAppliance:
+		*s = FindingsGetFindingsOKItemsItemAssetKindBackupAppliance
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindTapeLibrary:
+		*s = FindingsGetFindingsOKItemsItemAssetKindTapeLibrary
+		return nil
 	case FindingsGetFindingsOKItemsItemAssetKindIot:
 		*s = FindingsGetFindingsOKItemsItemAssetKindIot
 		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartTv:
+		*s = FindingsGetFindingsOKItemsItemAssetKindSmartTv
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindMediaPlayer:
+		*s = FindingsGetFindingsOKItemsItemAssetKindMediaPlayer
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartSpeaker:
+		*s = FindingsGetFindingsOKItemsItemAssetKindSmartSpeaker
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindGameConsole:
+		*s = FindingsGetFindingsOKItemsItemAssetKindGameConsole
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartPlug:
+		*s = FindingsGetFindingsOKItemsItemAssetKindSmartPlug
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartLight:
+		*s = FindingsGetFindingsOKItemsItemAssetKindSmartLight
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartHub:
+		*s = FindingsGetFindingsOKItemsItemAssetKindSmartHub
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindThermostat:
+		*s = FindingsGetFindingsOKItemsItemAssetKindThermostat
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindProjector:
+		*s = FindingsGetFindingsOKItemsItemAssetKindProjector
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindDigitalSignage:
+		*s = FindingsGetFindingsOKItemsItemAssetKindDigitalSignage
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindSingleBoardComputer:
+		*s = FindingsGetFindingsOKItemsItemAssetKindSingleBoardComputer
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindSmartAppliance:
+		*s = FindingsGetFindingsOKItemsItemAssetKindSmartAppliance
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindRobotVacuum:
+		*s = FindingsGetFindingsOKItemsItemAssetKindRobotVacuum
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindWirelessBridge:
+		*s = FindingsGetFindingsOKItemsItemAssetKindWirelessBridge
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindPlc:
+		*s = FindingsGetFindingsOKItemsItemAssetKindPlc
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindHmi:
+		*s = FindingsGetFindingsOKItemsItemAssetKindHmi
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindRtu:
+		*s = FindingsGetFindingsOKItemsItemAssetKindRtu
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindScadaServer:
+		*s = FindingsGetFindingsOKItemsItemAssetKindScadaServer
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindIndustrialSwitch:
+		*s = FindingsGetFindingsOKItemsItemAssetKindIndustrialSwitch
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindUps:
+		*s = FindingsGetFindingsOKItemsItemAssetKindUps
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindPdu:
+		*s = FindingsGetFindingsOKItemsItemAssetKindPdu
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindAccessControl:
+		*s = FindingsGetFindingsOKItemsItemAssetKindAccessControl
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindTimeClock:
+		*s = FindingsGetFindingsOKItemsItemAssetKindTimeClock
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindAlarmPanel:
+		*s = FindingsGetFindingsOKItemsItemAssetKindAlarmPanel
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindHvacController:
+		*s = FindingsGetFindingsOKItemsItemAssetKindHvacController
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindBuildingController:
+		*s = FindingsGetFindingsOKItemsItemAssetKindBuildingController
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindPowerMeter:
+		*s = FindingsGetFindingsOKItemsItemAssetKindPowerMeter
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindEnvironmentMonitor:
+		*s = FindingsGetFindingsOKItemsItemAssetKindEnvironmentMonitor
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindEvCharger:
+		*s = FindingsGetFindingsOKItemsItemAssetKindEvCharger
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindSolarInverter:
+		*s = FindingsGetFindingsOKItemsItemAssetKindSolarInverter
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindMedicalDevice:
+		*s = FindingsGetFindingsOKItemsItemAssetKindMedicalDevice
+		return nil
 	case FindingsGetFindingsOKItemsItemAssetKindWeb:
 		*s = FindingsGetFindingsOKItemsItemAssetKindWeb
+		return nil
+	case FindingsGetFindingsOKItemsItemAssetKindCloudService:
+		*s = FindingsGetFindingsOKItemsItemAssetKindCloudService
 		return nil
 	case FindingsGetFindingsOKItemsItemAssetKindUnknown:
 		*s = FindingsGetFindingsOKItemsItemAssetKindUnknown
@@ -57960,36 +59024,188 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetName(val string) {
 type FindingsGetFindingsOKVersionNeededItemAssetKind string
 
 const (
-	FindingsGetFindingsOKVersionNeededItemAssetKindFirewall FindingsGetFindingsOKVersionNeededItemAssetKind = "firewall"
-	FindingsGetFindingsOKVersionNeededItemAssetKindRouter   FindingsGetFindingsOKVersionNeededItemAssetKind = "router"
-	FindingsGetFindingsOKVersionNeededItemAssetKindSwitch   FindingsGetFindingsOKVersionNeededItemAssetKind = "switch"
-	FindingsGetFindingsOKVersionNeededItemAssetKindAp       FindingsGetFindingsOKVersionNeededItemAssetKind = "ap"
-	FindingsGetFindingsOKVersionNeededItemAssetKindNas      FindingsGetFindingsOKVersionNeededItemAssetKind = "nas"
-	FindingsGetFindingsOKVersionNeededItemAssetKindServer   FindingsGetFindingsOKVersionNeededItemAssetKind = "server"
-	FindingsGetFindingsOKVersionNeededItemAssetKindPc       FindingsGetFindingsOKVersionNeededItemAssetKind = "pc"
-	FindingsGetFindingsOKVersionNeededItemAssetKindPrinter  FindingsGetFindingsOKVersionNeededItemAssetKind = "printer"
-	FindingsGetFindingsOKVersionNeededItemAssetKindCamera   FindingsGetFindingsOKVersionNeededItemAssetKind = "camera"
-	FindingsGetFindingsOKVersionNeededItemAssetKindNvr      FindingsGetFindingsOKVersionNeededItemAssetKind = "nvr"
-	FindingsGetFindingsOKVersionNeededItemAssetKindIot      FindingsGetFindingsOKVersionNeededItemAssetKind = "iot"
-	FindingsGetFindingsOKVersionNeededItemAssetKindWeb      FindingsGetFindingsOKVersionNeededItemAssetKind = "web"
-	FindingsGetFindingsOKVersionNeededItemAssetKindUnknown  FindingsGetFindingsOKVersionNeededItemAssetKind = "unknown"
+	FindingsGetFindingsOKVersionNeededItemAssetKindRouter              FindingsGetFindingsOKVersionNeededItemAssetKind = "router"
+	FindingsGetFindingsOKVersionNeededItemAssetKindSwitch              FindingsGetFindingsOKVersionNeededItemAssetKind = "switch"
+	FindingsGetFindingsOKVersionNeededItemAssetKindModem               FindingsGetFindingsOKVersionNeededItemAssetKind = "modem"
+	FindingsGetFindingsOKVersionNeededItemAssetKindSdWan               FindingsGetFindingsOKVersionNeededItemAssetKind = "sd_wan"
+	FindingsGetFindingsOKVersionNeededItemAssetKindLoadBalancer        FindingsGetFindingsOKVersionNeededItemAssetKind = "load_balancer"
+	FindingsGetFindingsOKVersionNeededItemAssetKindNetworkController   FindingsGetFindingsOKVersionNeededItemAssetKind = "network_controller"
+	FindingsGetFindingsOKVersionNeededItemAssetKindFirewall            FindingsGetFindingsOKVersionNeededItemAssetKind = "firewall"
+	FindingsGetFindingsOKVersionNeededItemAssetKindVpnGateway          FindingsGetFindingsOKVersionNeededItemAssetKind = "vpn_gateway"
+	FindingsGetFindingsOKVersionNeededItemAssetKindIdsSensor           FindingsGetFindingsOKVersionNeededItemAssetKind = "ids_sensor"
+	FindingsGetFindingsOKVersionNeededItemAssetKindProxy               FindingsGetFindingsOKVersionNeededItemAssetKind = "proxy"
+	FindingsGetFindingsOKVersionNeededItemAssetKindAp                  FindingsGetFindingsOKVersionNeededItemAssetKind = "ap"
+	FindingsGetFindingsOKVersionNeededItemAssetKindWirelessController  FindingsGetFindingsOKVersionNeededItemAssetKind = "wireless_controller"
+	FindingsGetFindingsOKVersionNeededItemAssetKindWifiExtender        FindingsGetFindingsOKVersionNeededItemAssetKind = "wifi_extender"
+	FindingsGetFindingsOKVersionNeededItemAssetKindMeshNode            FindingsGetFindingsOKVersionNeededItemAssetKind = "mesh_node"
+	FindingsGetFindingsOKVersionNeededItemAssetKindServer              FindingsGetFindingsOKVersionNeededItemAssetKind = "server"
+	FindingsGetFindingsOKVersionNeededItemAssetKindVirtualMachine      FindingsGetFindingsOKVersionNeededItemAssetKind = "virtual_machine"
+	FindingsGetFindingsOKVersionNeededItemAssetKindHypervisor          FindingsGetFindingsOKVersionNeededItemAssetKind = "hypervisor"
+	FindingsGetFindingsOKVersionNeededItemAssetKindBmc                 FindingsGetFindingsOKVersionNeededItemAssetKind = "bmc"
+	FindingsGetFindingsOKVersionNeededItemAssetKindDomainController    FindingsGetFindingsOKVersionNeededItemAssetKind = "domain_controller"
+	FindingsGetFindingsOKVersionNeededItemAssetKindMailServer          FindingsGetFindingsOKVersionNeededItemAssetKind = "mail_server"
+	FindingsGetFindingsOKVersionNeededItemAssetKindDatabaseServer      FindingsGetFindingsOKVersionNeededItemAssetKind = "database_server"
+	FindingsGetFindingsOKVersionNeededItemAssetKindBackupServer        FindingsGetFindingsOKVersionNeededItemAssetKind = "backup_server"
+	FindingsGetFindingsOKVersionNeededItemAssetKindPc                  FindingsGetFindingsOKVersionNeededItemAssetKind = "pc"
+	FindingsGetFindingsOKVersionNeededItemAssetKindLaptop              FindingsGetFindingsOKVersionNeededItemAssetKind = "laptop"
+	FindingsGetFindingsOKVersionNeededItemAssetKindWorkstation         FindingsGetFindingsOKVersionNeededItemAssetKind = "workstation"
+	FindingsGetFindingsOKVersionNeededItemAssetKindThinClient          FindingsGetFindingsOKVersionNeededItemAssetKind = "thin_client"
+	FindingsGetFindingsOKVersionNeededItemAssetKindPosTerminal         FindingsGetFindingsOKVersionNeededItemAssetKind = "pos_terminal"
+	FindingsGetFindingsOKVersionNeededItemAssetKindKiosk               FindingsGetFindingsOKVersionNeededItemAssetKind = "kiosk"
+	FindingsGetFindingsOKVersionNeededItemAssetKindSmartphone          FindingsGetFindingsOKVersionNeededItemAssetKind = "smartphone"
+	FindingsGetFindingsOKVersionNeededItemAssetKindTablet              FindingsGetFindingsOKVersionNeededItemAssetKind = "tablet"
+	FindingsGetFindingsOKVersionNeededItemAssetKindSmartwatch          FindingsGetFindingsOKVersionNeededItemAssetKind = "smartwatch"
+	FindingsGetFindingsOKVersionNeededItemAssetKindPrinter             FindingsGetFindingsOKVersionNeededItemAssetKind = "printer"
+	FindingsGetFindingsOKVersionNeededItemAssetKindMfp                 FindingsGetFindingsOKVersionNeededItemAssetKind = "mfp"
+	FindingsGetFindingsOKVersionNeededItemAssetKindScanner             FindingsGetFindingsOKVersionNeededItemAssetKind = "scanner"
+	FindingsGetFindingsOKVersionNeededItemAssetKindLabelPrinter        FindingsGetFindingsOKVersionNeededItemAssetKind = "label_printer"
+	FindingsGetFindingsOKVersionNeededItemAssetKindReceiptPrinter      FindingsGetFindingsOKVersionNeededItemAssetKind = "receipt_printer"
+	FindingsGetFindingsOKVersionNeededItemAssetKindPlotter             FindingsGetFindingsOKVersionNeededItemAssetKind = "plotter"
+	FindingsGetFindingsOKVersionNeededItemAssetKind3dPrinter           FindingsGetFindingsOKVersionNeededItemAssetKind = "3d_printer"
+	FindingsGetFindingsOKVersionNeededItemAssetKindCamera              FindingsGetFindingsOKVersionNeededItemAssetKind = "camera"
+	FindingsGetFindingsOKVersionNeededItemAssetKindNvr                 FindingsGetFindingsOKVersionNeededItemAssetKind = "nvr"
+	FindingsGetFindingsOKVersionNeededItemAssetKindDvr                 FindingsGetFindingsOKVersionNeededItemAssetKind = "dvr"
+	FindingsGetFindingsOKVersionNeededItemAssetKindVideoEncoder        FindingsGetFindingsOKVersionNeededItemAssetKind = "video_encoder"
+	FindingsGetFindingsOKVersionNeededItemAssetKindDoorbell            FindingsGetFindingsOKVersionNeededItemAssetKind = "doorbell"
+	FindingsGetFindingsOKVersionNeededItemAssetKindVideoConferencing   FindingsGetFindingsOKVersionNeededItemAssetKind = "video_conferencing"
+	FindingsGetFindingsOKVersionNeededItemAssetKindIPPhone             FindingsGetFindingsOKVersionNeededItemAssetKind = "ip_phone"
+	FindingsGetFindingsOKVersionNeededItemAssetKindPbx                 FindingsGetFindingsOKVersionNeededItemAssetKind = "pbx"
+	FindingsGetFindingsOKVersionNeededItemAssetKindVoipAdapter         FindingsGetFindingsOKVersionNeededItemAssetKind = "voip_adapter"
+	FindingsGetFindingsOKVersionNeededItemAssetKindVoipGateway         FindingsGetFindingsOKVersionNeededItemAssetKind = "voip_gateway"
+	FindingsGetFindingsOKVersionNeededItemAssetKindConferencePhone     FindingsGetFindingsOKVersionNeededItemAssetKind = "conference_phone"
+	FindingsGetFindingsOKVersionNeededItemAssetKindIntercom            FindingsGetFindingsOKVersionNeededItemAssetKind = "intercom"
+	FindingsGetFindingsOKVersionNeededItemAssetKindNas                 FindingsGetFindingsOKVersionNeededItemAssetKind = "nas"
+	FindingsGetFindingsOKVersionNeededItemAssetKindSan                 FindingsGetFindingsOKVersionNeededItemAssetKind = "san"
+	FindingsGetFindingsOKVersionNeededItemAssetKindBackupAppliance     FindingsGetFindingsOKVersionNeededItemAssetKind = "backup_appliance"
+	FindingsGetFindingsOKVersionNeededItemAssetKindTapeLibrary         FindingsGetFindingsOKVersionNeededItemAssetKind = "tape_library"
+	FindingsGetFindingsOKVersionNeededItemAssetKindIot                 FindingsGetFindingsOKVersionNeededItemAssetKind = "iot"
+	FindingsGetFindingsOKVersionNeededItemAssetKindSmartTv             FindingsGetFindingsOKVersionNeededItemAssetKind = "smart_tv"
+	FindingsGetFindingsOKVersionNeededItemAssetKindMediaPlayer         FindingsGetFindingsOKVersionNeededItemAssetKind = "media_player"
+	FindingsGetFindingsOKVersionNeededItemAssetKindSmartSpeaker        FindingsGetFindingsOKVersionNeededItemAssetKind = "smart_speaker"
+	FindingsGetFindingsOKVersionNeededItemAssetKindGameConsole         FindingsGetFindingsOKVersionNeededItemAssetKind = "game_console"
+	FindingsGetFindingsOKVersionNeededItemAssetKindSmartPlug           FindingsGetFindingsOKVersionNeededItemAssetKind = "smart_plug"
+	FindingsGetFindingsOKVersionNeededItemAssetKindSmartLight          FindingsGetFindingsOKVersionNeededItemAssetKind = "smart_light"
+	FindingsGetFindingsOKVersionNeededItemAssetKindSmartHub            FindingsGetFindingsOKVersionNeededItemAssetKind = "smart_hub"
+	FindingsGetFindingsOKVersionNeededItemAssetKindThermostat          FindingsGetFindingsOKVersionNeededItemAssetKind = "thermostat"
+	FindingsGetFindingsOKVersionNeededItemAssetKindProjector           FindingsGetFindingsOKVersionNeededItemAssetKind = "projector"
+	FindingsGetFindingsOKVersionNeededItemAssetKindDigitalSignage      FindingsGetFindingsOKVersionNeededItemAssetKind = "digital_signage"
+	FindingsGetFindingsOKVersionNeededItemAssetKindSingleBoardComputer FindingsGetFindingsOKVersionNeededItemAssetKind = "single_board_computer"
+	FindingsGetFindingsOKVersionNeededItemAssetKindSmartAppliance      FindingsGetFindingsOKVersionNeededItemAssetKind = "smart_appliance"
+	FindingsGetFindingsOKVersionNeededItemAssetKindRobotVacuum         FindingsGetFindingsOKVersionNeededItemAssetKind = "robot_vacuum"
+	FindingsGetFindingsOKVersionNeededItemAssetKindWirelessBridge      FindingsGetFindingsOKVersionNeededItemAssetKind = "wireless_bridge"
+	FindingsGetFindingsOKVersionNeededItemAssetKindPlc                 FindingsGetFindingsOKVersionNeededItemAssetKind = "plc"
+	FindingsGetFindingsOKVersionNeededItemAssetKindHmi                 FindingsGetFindingsOKVersionNeededItemAssetKind = "hmi"
+	FindingsGetFindingsOKVersionNeededItemAssetKindRtu                 FindingsGetFindingsOKVersionNeededItemAssetKind = "rtu"
+	FindingsGetFindingsOKVersionNeededItemAssetKindScadaServer         FindingsGetFindingsOKVersionNeededItemAssetKind = "scada_server"
+	FindingsGetFindingsOKVersionNeededItemAssetKindIndustrialSwitch    FindingsGetFindingsOKVersionNeededItemAssetKind = "industrial_switch"
+	FindingsGetFindingsOKVersionNeededItemAssetKindUps                 FindingsGetFindingsOKVersionNeededItemAssetKind = "ups"
+	FindingsGetFindingsOKVersionNeededItemAssetKindPdu                 FindingsGetFindingsOKVersionNeededItemAssetKind = "pdu"
+	FindingsGetFindingsOKVersionNeededItemAssetKindAccessControl       FindingsGetFindingsOKVersionNeededItemAssetKind = "access_control"
+	FindingsGetFindingsOKVersionNeededItemAssetKindTimeClock           FindingsGetFindingsOKVersionNeededItemAssetKind = "time_clock"
+	FindingsGetFindingsOKVersionNeededItemAssetKindAlarmPanel          FindingsGetFindingsOKVersionNeededItemAssetKind = "alarm_panel"
+	FindingsGetFindingsOKVersionNeededItemAssetKindHvacController      FindingsGetFindingsOKVersionNeededItemAssetKind = "hvac_controller"
+	FindingsGetFindingsOKVersionNeededItemAssetKindBuildingController  FindingsGetFindingsOKVersionNeededItemAssetKind = "building_controller"
+	FindingsGetFindingsOKVersionNeededItemAssetKindPowerMeter          FindingsGetFindingsOKVersionNeededItemAssetKind = "power_meter"
+	FindingsGetFindingsOKVersionNeededItemAssetKindEnvironmentMonitor  FindingsGetFindingsOKVersionNeededItemAssetKind = "environment_monitor"
+	FindingsGetFindingsOKVersionNeededItemAssetKindEvCharger           FindingsGetFindingsOKVersionNeededItemAssetKind = "ev_charger"
+	FindingsGetFindingsOKVersionNeededItemAssetKindSolarInverter       FindingsGetFindingsOKVersionNeededItemAssetKind = "solar_inverter"
+	FindingsGetFindingsOKVersionNeededItemAssetKindMedicalDevice       FindingsGetFindingsOKVersionNeededItemAssetKind = "medical_device"
+	FindingsGetFindingsOKVersionNeededItemAssetKindWeb                 FindingsGetFindingsOKVersionNeededItemAssetKind = "web"
+	FindingsGetFindingsOKVersionNeededItemAssetKindCloudService        FindingsGetFindingsOKVersionNeededItemAssetKind = "cloud_service"
+	FindingsGetFindingsOKVersionNeededItemAssetKindUnknown             FindingsGetFindingsOKVersionNeededItemAssetKind = "unknown"
 )
 
 // AllValues returns all FindingsGetFindingsOKVersionNeededItemAssetKind values.
 func (FindingsGetFindingsOKVersionNeededItemAssetKind) AllValues() []FindingsGetFindingsOKVersionNeededItemAssetKind {
 	return []FindingsGetFindingsOKVersionNeededItemAssetKind{
-		FindingsGetFindingsOKVersionNeededItemAssetKindFirewall,
 		FindingsGetFindingsOKVersionNeededItemAssetKindRouter,
 		FindingsGetFindingsOKVersionNeededItemAssetKindSwitch,
+		FindingsGetFindingsOKVersionNeededItemAssetKindModem,
+		FindingsGetFindingsOKVersionNeededItemAssetKindSdWan,
+		FindingsGetFindingsOKVersionNeededItemAssetKindLoadBalancer,
+		FindingsGetFindingsOKVersionNeededItemAssetKindNetworkController,
+		FindingsGetFindingsOKVersionNeededItemAssetKindFirewall,
+		FindingsGetFindingsOKVersionNeededItemAssetKindVpnGateway,
+		FindingsGetFindingsOKVersionNeededItemAssetKindIdsSensor,
+		FindingsGetFindingsOKVersionNeededItemAssetKindProxy,
 		FindingsGetFindingsOKVersionNeededItemAssetKindAp,
-		FindingsGetFindingsOKVersionNeededItemAssetKindNas,
+		FindingsGetFindingsOKVersionNeededItemAssetKindWirelessController,
+		FindingsGetFindingsOKVersionNeededItemAssetKindWifiExtender,
+		FindingsGetFindingsOKVersionNeededItemAssetKindMeshNode,
 		FindingsGetFindingsOKVersionNeededItemAssetKindServer,
+		FindingsGetFindingsOKVersionNeededItemAssetKindVirtualMachine,
+		FindingsGetFindingsOKVersionNeededItemAssetKindHypervisor,
+		FindingsGetFindingsOKVersionNeededItemAssetKindBmc,
+		FindingsGetFindingsOKVersionNeededItemAssetKindDomainController,
+		FindingsGetFindingsOKVersionNeededItemAssetKindMailServer,
+		FindingsGetFindingsOKVersionNeededItemAssetKindDatabaseServer,
+		FindingsGetFindingsOKVersionNeededItemAssetKindBackupServer,
 		FindingsGetFindingsOKVersionNeededItemAssetKindPc,
+		FindingsGetFindingsOKVersionNeededItemAssetKindLaptop,
+		FindingsGetFindingsOKVersionNeededItemAssetKindWorkstation,
+		FindingsGetFindingsOKVersionNeededItemAssetKindThinClient,
+		FindingsGetFindingsOKVersionNeededItemAssetKindPosTerminal,
+		FindingsGetFindingsOKVersionNeededItemAssetKindKiosk,
+		FindingsGetFindingsOKVersionNeededItemAssetKindSmartphone,
+		FindingsGetFindingsOKVersionNeededItemAssetKindTablet,
+		FindingsGetFindingsOKVersionNeededItemAssetKindSmartwatch,
 		FindingsGetFindingsOKVersionNeededItemAssetKindPrinter,
+		FindingsGetFindingsOKVersionNeededItemAssetKindMfp,
+		FindingsGetFindingsOKVersionNeededItemAssetKindScanner,
+		FindingsGetFindingsOKVersionNeededItemAssetKindLabelPrinter,
+		FindingsGetFindingsOKVersionNeededItemAssetKindReceiptPrinter,
+		FindingsGetFindingsOKVersionNeededItemAssetKindPlotter,
+		FindingsGetFindingsOKVersionNeededItemAssetKind3dPrinter,
 		FindingsGetFindingsOKVersionNeededItemAssetKindCamera,
 		FindingsGetFindingsOKVersionNeededItemAssetKindNvr,
+		FindingsGetFindingsOKVersionNeededItemAssetKindDvr,
+		FindingsGetFindingsOKVersionNeededItemAssetKindVideoEncoder,
+		FindingsGetFindingsOKVersionNeededItemAssetKindDoorbell,
+		FindingsGetFindingsOKVersionNeededItemAssetKindVideoConferencing,
+		FindingsGetFindingsOKVersionNeededItemAssetKindIPPhone,
+		FindingsGetFindingsOKVersionNeededItemAssetKindPbx,
+		FindingsGetFindingsOKVersionNeededItemAssetKindVoipAdapter,
+		FindingsGetFindingsOKVersionNeededItemAssetKindVoipGateway,
+		FindingsGetFindingsOKVersionNeededItemAssetKindConferencePhone,
+		FindingsGetFindingsOKVersionNeededItemAssetKindIntercom,
+		FindingsGetFindingsOKVersionNeededItemAssetKindNas,
+		FindingsGetFindingsOKVersionNeededItemAssetKindSan,
+		FindingsGetFindingsOKVersionNeededItemAssetKindBackupAppliance,
+		FindingsGetFindingsOKVersionNeededItemAssetKindTapeLibrary,
 		FindingsGetFindingsOKVersionNeededItemAssetKindIot,
+		FindingsGetFindingsOKVersionNeededItemAssetKindSmartTv,
+		FindingsGetFindingsOKVersionNeededItemAssetKindMediaPlayer,
+		FindingsGetFindingsOKVersionNeededItemAssetKindSmartSpeaker,
+		FindingsGetFindingsOKVersionNeededItemAssetKindGameConsole,
+		FindingsGetFindingsOKVersionNeededItemAssetKindSmartPlug,
+		FindingsGetFindingsOKVersionNeededItemAssetKindSmartLight,
+		FindingsGetFindingsOKVersionNeededItemAssetKindSmartHub,
+		FindingsGetFindingsOKVersionNeededItemAssetKindThermostat,
+		FindingsGetFindingsOKVersionNeededItemAssetKindProjector,
+		FindingsGetFindingsOKVersionNeededItemAssetKindDigitalSignage,
+		FindingsGetFindingsOKVersionNeededItemAssetKindSingleBoardComputer,
+		FindingsGetFindingsOKVersionNeededItemAssetKindSmartAppliance,
+		FindingsGetFindingsOKVersionNeededItemAssetKindRobotVacuum,
+		FindingsGetFindingsOKVersionNeededItemAssetKindWirelessBridge,
+		FindingsGetFindingsOKVersionNeededItemAssetKindPlc,
+		FindingsGetFindingsOKVersionNeededItemAssetKindHmi,
+		FindingsGetFindingsOKVersionNeededItemAssetKindRtu,
+		FindingsGetFindingsOKVersionNeededItemAssetKindScadaServer,
+		FindingsGetFindingsOKVersionNeededItemAssetKindIndustrialSwitch,
+		FindingsGetFindingsOKVersionNeededItemAssetKindUps,
+		FindingsGetFindingsOKVersionNeededItemAssetKindPdu,
+		FindingsGetFindingsOKVersionNeededItemAssetKindAccessControl,
+		FindingsGetFindingsOKVersionNeededItemAssetKindTimeClock,
+		FindingsGetFindingsOKVersionNeededItemAssetKindAlarmPanel,
+		FindingsGetFindingsOKVersionNeededItemAssetKindHvacController,
+		FindingsGetFindingsOKVersionNeededItemAssetKindBuildingController,
+		FindingsGetFindingsOKVersionNeededItemAssetKindPowerMeter,
+		FindingsGetFindingsOKVersionNeededItemAssetKindEnvironmentMonitor,
+		FindingsGetFindingsOKVersionNeededItemAssetKindEvCharger,
+		FindingsGetFindingsOKVersionNeededItemAssetKindSolarInverter,
+		FindingsGetFindingsOKVersionNeededItemAssetKindMedicalDevice,
 		FindingsGetFindingsOKVersionNeededItemAssetKindWeb,
+		FindingsGetFindingsOKVersionNeededItemAssetKindCloudService,
 		FindingsGetFindingsOKVersionNeededItemAssetKindUnknown,
 	}
 }
@@ -57997,29 +59213,181 @@ func (FindingsGetFindingsOKVersionNeededItemAssetKind) AllValues() []FindingsGet
 // MarshalText implements encoding.TextMarshaler.
 func (s FindingsGetFindingsOKVersionNeededItemAssetKind) MarshalText() ([]byte, error) {
 	switch s {
-	case FindingsGetFindingsOKVersionNeededItemAssetKindFirewall:
-		return []byte(s), nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindRouter:
 		return []byte(s), nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindSwitch:
 		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindModem:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSdWan:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindNetworkController:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindVpnGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindIdsSensor:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindProxy:
+		return []byte(s), nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindAp:
 		return []byte(s), nil
-	case FindingsGetFindingsOKVersionNeededItemAssetKindNas:
+	case FindingsGetFindingsOKVersionNeededItemAssetKindWirelessController:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindWifiExtender:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindMeshNode:
 		return []byte(s), nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindServer:
 		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindHypervisor:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindBmc:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindDomainController:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindMailServer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindBackupServer:
+		return []byte(s), nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindPc:
 		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindLaptop:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindWorkstation:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindThinClient:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPosTerminal:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindKiosk:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartphone:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindTablet:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartwatch:
+		return []byte(s), nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindMfp:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindScanner:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPlotter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKind3dPrinter:
 		return []byte(s), nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindCamera:
 		return []byte(s), nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindNvr:
 		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindDvr:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindDoorbell:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindIPPhone:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPbx:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindVoipGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindConferencePhone:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindIntercom:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindNas:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSan:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindTapeLibrary:
+		return []byte(s), nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindIot:
 		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartTv:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindGameConsole:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartPlug:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartLight:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartHub:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindThermostat:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindProjector:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPlc:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindHmi:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindRtu:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindScadaServer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindUps:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPdu:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindAccessControl:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindTimeClock:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindHvacController:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindBuildingController:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPowerMeter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindEvCharger:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSolarInverter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindMedicalDevice:
+		return []byte(s), nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindWeb:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindCloudService:
 		return []byte(s), nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindUnknown:
 		return []byte(s), nil
@@ -58031,29 +59399,119 @@ func (s FindingsGetFindingsOKVersionNeededItemAssetKind) MarshalText() ([]byte, 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *FindingsGetFindingsOKVersionNeededItemAssetKind) UnmarshalText(data []byte) error {
 	switch FindingsGetFindingsOKVersionNeededItemAssetKind(data) {
-	case FindingsGetFindingsOKVersionNeededItemAssetKindFirewall:
-		*s = FindingsGetFindingsOKVersionNeededItemAssetKindFirewall
-		return nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindRouter:
 		*s = FindingsGetFindingsOKVersionNeededItemAssetKindRouter
 		return nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindSwitch:
 		*s = FindingsGetFindingsOKVersionNeededItemAssetKindSwitch
 		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindModem:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindModem
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSdWan:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindSdWan
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindLoadBalancer:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindLoadBalancer
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindNetworkController:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindNetworkController
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindFirewall:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindFirewall
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindVpnGateway:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindVpnGateway
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindIdsSensor:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindIdsSensor
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindProxy:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindProxy
+		return nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindAp:
 		*s = FindingsGetFindingsOKVersionNeededItemAssetKindAp
 		return nil
-	case FindingsGetFindingsOKVersionNeededItemAssetKindNas:
-		*s = FindingsGetFindingsOKVersionNeededItemAssetKindNas
+	case FindingsGetFindingsOKVersionNeededItemAssetKindWirelessController:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindWirelessController
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindWifiExtender:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindWifiExtender
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindMeshNode:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindMeshNode
 		return nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindServer:
 		*s = FindingsGetFindingsOKVersionNeededItemAssetKindServer
 		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindVirtualMachine:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindVirtualMachine
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindHypervisor:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindHypervisor
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindBmc:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindBmc
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindDomainController:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindDomainController
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindMailServer:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindMailServer
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindDatabaseServer:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindDatabaseServer
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindBackupServer:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindBackupServer
+		return nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindPc:
 		*s = FindingsGetFindingsOKVersionNeededItemAssetKindPc
 		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindLaptop:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindLaptop
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindWorkstation:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindWorkstation
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindThinClient:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindThinClient
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPosTerminal:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindPosTerminal
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindKiosk:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindKiosk
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartphone:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindSmartphone
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindTablet:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindTablet
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartwatch:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindSmartwatch
+		return nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindPrinter:
 		*s = FindingsGetFindingsOKVersionNeededItemAssetKindPrinter
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindMfp:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindMfp
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindScanner:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindScanner
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindLabelPrinter:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindLabelPrinter
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindReceiptPrinter:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindReceiptPrinter
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPlotter:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindPlotter
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKind3dPrinter:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKind3dPrinter
 		return nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindCamera:
 		*s = FindingsGetFindingsOKVersionNeededItemAssetKindCamera
@@ -58061,11 +59519,149 @@ func (s *FindingsGetFindingsOKVersionNeededItemAssetKind) UnmarshalText(data []b
 	case FindingsGetFindingsOKVersionNeededItemAssetKindNvr:
 		*s = FindingsGetFindingsOKVersionNeededItemAssetKindNvr
 		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindDvr:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindDvr
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindVideoEncoder:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindVideoEncoder
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindDoorbell:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindDoorbell
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindVideoConferencing:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindVideoConferencing
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindIPPhone:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindIPPhone
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPbx:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindPbx
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindVoipAdapter:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindVoipAdapter
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindVoipGateway:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindVoipGateway
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindConferencePhone:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindConferencePhone
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindIntercom:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindIntercom
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindNas:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindNas
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSan:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindSan
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindBackupAppliance:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindBackupAppliance
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindTapeLibrary:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindTapeLibrary
+		return nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindIot:
 		*s = FindingsGetFindingsOKVersionNeededItemAssetKindIot
 		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartTv:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindSmartTv
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindMediaPlayer:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindMediaPlayer
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartSpeaker:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindSmartSpeaker
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindGameConsole:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindGameConsole
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartPlug:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindSmartPlug
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartLight:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindSmartLight
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartHub:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindSmartHub
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindThermostat:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindThermostat
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindProjector:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindProjector
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindDigitalSignage:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindDigitalSignage
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSingleBoardComputer:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindSingleBoardComputer
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSmartAppliance:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindSmartAppliance
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindRobotVacuum:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindRobotVacuum
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindWirelessBridge:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindWirelessBridge
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPlc:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindPlc
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindHmi:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindHmi
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindRtu:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindRtu
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindScadaServer:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindScadaServer
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindIndustrialSwitch:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindIndustrialSwitch
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindUps:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindUps
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPdu:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindPdu
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindAccessControl:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindAccessControl
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindTimeClock:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindTimeClock
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindAlarmPanel:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindAlarmPanel
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindHvacController:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindHvacController
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindBuildingController:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindBuildingController
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPowerMeter:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindPowerMeter
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindEnvironmentMonitor:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindEnvironmentMonitor
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindEvCharger:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindEvCharger
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSolarInverter:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindSolarInverter
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindMedicalDevice:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindMedicalDevice
+		return nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindWeb:
 		*s = FindingsGetFindingsOKVersionNeededItemAssetKindWeb
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindCloudService:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindCloudService
 		return nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindUnknown:
 		*s = FindingsGetFindingsOKVersionNeededItemAssetKindUnknown
@@ -58879,36 +60475,188 @@ func (s *FindingsPostFindingsIDAiOKAsset) SetName(val string) {
 type FindingsPostFindingsIDAiOKAssetKind string
 
 const (
-	FindingsPostFindingsIDAiOKAssetKindFirewall FindingsPostFindingsIDAiOKAssetKind = "firewall"
-	FindingsPostFindingsIDAiOKAssetKindRouter   FindingsPostFindingsIDAiOKAssetKind = "router"
-	FindingsPostFindingsIDAiOKAssetKindSwitch   FindingsPostFindingsIDAiOKAssetKind = "switch"
-	FindingsPostFindingsIDAiOKAssetKindAp       FindingsPostFindingsIDAiOKAssetKind = "ap"
-	FindingsPostFindingsIDAiOKAssetKindNas      FindingsPostFindingsIDAiOKAssetKind = "nas"
-	FindingsPostFindingsIDAiOKAssetKindServer   FindingsPostFindingsIDAiOKAssetKind = "server"
-	FindingsPostFindingsIDAiOKAssetKindPc       FindingsPostFindingsIDAiOKAssetKind = "pc"
-	FindingsPostFindingsIDAiOKAssetKindPrinter  FindingsPostFindingsIDAiOKAssetKind = "printer"
-	FindingsPostFindingsIDAiOKAssetKindCamera   FindingsPostFindingsIDAiOKAssetKind = "camera"
-	FindingsPostFindingsIDAiOKAssetKindNvr      FindingsPostFindingsIDAiOKAssetKind = "nvr"
-	FindingsPostFindingsIDAiOKAssetKindIot      FindingsPostFindingsIDAiOKAssetKind = "iot"
-	FindingsPostFindingsIDAiOKAssetKindWeb      FindingsPostFindingsIDAiOKAssetKind = "web"
-	FindingsPostFindingsIDAiOKAssetKindUnknown  FindingsPostFindingsIDAiOKAssetKind = "unknown"
+	FindingsPostFindingsIDAiOKAssetKindRouter              FindingsPostFindingsIDAiOKAssetKind = "router"
+	FindingsPostFindingsIDAiOKAssetKindSwitch              FindingsPostFindingsIDAiOKAssetKind = "switch"
+	FindingsPostFindingsIDAiOKAssetKindModem               FindingsPostFindingsIDAiOKAssetKind = "modem"
+	FindingsPostFindingsIDAiOKAssetKindSdWan               FindingsPostFindingsIDAiOKAssetKind = "sd_wan"
+	FindingsPostFindingsIDAiOKAssetKindLoadBalancer        FindingsPostFindingsIDAiOKAssetKind = "load_balancer"
+	FindingsPostFindingsIDAiOKAssetKindNetworkController   FindingsPostFindingsIDAiOKAssetKind = "network_controller"
+	FindingsPostFindingsIDAiOKAssetKindFirewall            FindingsPostFindingsIDAiOKAssetKind = "firewall"
+	FindingsPostFindingsIDAiOKAssetKindVpnGateway          FindingsPostFindingsIDAiOKAssetKind = "vpn_gateway"
+	FindingsPostFindingsIDAiOKAssetKindIdsSensor           FindingsPostFindingsIDAiOKAssetKind = "ids_sensor"
+	FindingsPostFindingsIDAiOKAssetKindProxy               FindingsPostFindingsIDAiOKAssetKind = "proxy"
+	FindingsPostFindingsIDAiOKAssetKindAp                  FindingsPostFindingsIDAiOKAssetKind = "ap"
+	FindingsPostFindingsIDAiOKAssetKindWirelessController  FindingsPostFindingsIDAiOKAssetKind = "wireless_controller"
+	FindingsPostFindingsIDAiOKAssetKindWifiExtender        FindingsPostFindingsIDAiOKAssetKind = "wifi_extender"
+	FindingsPostFindingsIDAiOKAssetKindMeshNode            FindingsPostFindingsIDAiOKAssetKind = "mesh_node"
+	FindingsPostFindingsIDAiOKAssetKindServer              FindingsPostFindingsIDAiOKAssetKind = "server"
+	FindingsPostFindingsIDAiOKAssetKindVirtualMachine      FindingsPostFindingsIDAiOKAssetKind = "virtual_machine"
+	FindingsPostFindingsIDAiOKAssetKindHypervisor          FindingsPostFindingsIDAiOKAssetKind = "hypervisor"
+	FindingsPostFindingsIDAiOKAssetKindBmc                 FindingsPostFindingsIDAiOKAssetKind = "bmc"
+	FindingsPostFindingsIDAiOKAssetKindDomainController    FindingsPostFindingsIDAiOKAssetKind = "domain_controller"
+	FindingsPostFindingsIDAiOKAssetKindMailServer          FindingsPostFindingsIDAiOKAssetKind = "mail_server"
+	FindingsPostFindingsIDAiOKAssetKindDatabaseServer      FindingsPostFindingsIDAiOKAssetKind = "database_server"
+	FindingsPostFindingsIDAiOKAssetKindBackupServer        FindingsPostFindingsIDAiOKAssetKind = "backup_server"
+	FindingsPostFindingsIDAiOKAssetKindPc                  FindingsPostFindingsIDAiOKAssetKind = "pc"
+	FindingsPostFindingsIDAiOKAssetKindLaptop              FindingsPostFindingsIDAiOKAssetKind = "laptop"
+	FindingsPostFindingsIDAiOKAssetKindWorkstation         FindingsPostFindingsIDAiOKAssetKind = "workstation"
+	FindingsPostFindingsIDAiOKAssetKindThinClient          FindingsPostFindingsIDAiOKAssetKind = "thin_client"
+	FindingsPostFindingsIDAiOKAssetKindPosTerminal         FindingsPostFindingsIDAiOKAssetKind = "pos_terminal"
+	FindingsPostFindingsIDAiOKAssetKindKiosk               FindingsPostFindingsIDAiOKAssetKind = "kiosk"
+	FindingsPostFindingsIDAiOKAssetKindSmartphone          FindingsPostFindingsIDAiOKAssetKind = "smartphone"
+	FindingsPostFindingsIDAiOKAssetKindTablet              FindingsPostFindingsIDAiOKAssetKind = "tablet"
+	FindingsPostFindingsIDAiOKAssetKindSmartwatch          FindingsPostFindingsIDAiOKAssetKind = "smartwatch"
+	FindingsPostFindingsIDAiOKAssetKindPrinter             FindingsPostFindingsIDAiOKAssetKind = "printer"
+	FindingsPostFindingsIDAiOKAssetKindMfp                 FindingsPostFindingsIDAiOKAssetKind = "mfp"
+	FindingsPostFindingsIDAiOKAssetKindScanner             FindingsPostFindingsIDAiOKAssetKind = "scanner"
+	FindingsPostFindingsIDAiOKAssetKindLabelPrinter        FindingsPostFindingsIDAiOKAssetKind = "label_printer"
+	FindingsPostFindingsIDAiOKAssetKindReceiptPrinter      FindingsPostFindingsIDAiOKAssetKind = "receipt_printer"
+	FindingsPostFindingsIDAiOKAssetKindPlotter             FindingsPostFindingsIDAiOKAssetKind = "plotter"
+	FindingsPostFindingsIDAiOKAssetKind3dPrinter           FindingsPostFindingsIDAiOKAssetKind = "3d_printer"
+	FindingsPostFindingsIDAiOKAssetKindCamera              FindingsPostFindingsIDAiOKAssetKind = "camera"
+	FindingsPostFindingsIDAiOKAssetKindNvr                 FindingsPostFindingsIDAiOKAssetKind = "nvr"
+	FindingsPostFindingsIDAiOKAssetKindDvr                 FindingsPostFindingsIDAiOKAssetKind = "dvr"
+	FindingsPostFindingsIDAiOKAssetKindVideoEncoder        FindingsPostFindingsIDAiOKAssetKind = "video_encoder"
+	FindingsPostFindingsIDAiOKAssetKindDoorbell            FindingsPostFindingsIDAiOKAssetKind = "doorbell"
+	FindingsPostFindingsIDAiOKAssetKindVideoConferencing   FindingsPostFindingsIDAiOKAssetKind = "video_conferencing"
+	FindingsPostFindingsIDAiOKAssetKindIPPhone             FindingsPostFindingsIDAiOKAssetKind = "ip_phone"
+	FindingsPostFindingsIDAiOKAssetKindPbx                 FindingsPostFindingsIDAiOKAssetKind = "pbx"
+	FindingsPostFindingsIDAiOKAssetKindVoipAdapter         FindingsPostFindingsIDAiOKAssetKind = "voip_adapter"
+	FindingsPostFindingsIDAiOKAssetKindVoipGateway         FindingsPostFindingsIDAiOKAssetKind = "voip_gateway"
+	FindingsPostFindingsIDAiOKAssetKindConferencePhone     FindingsPostFindingsIDAiOKAssetKind = "conference_phone"
+	FindingsPostFindingsIDAiOKAssetKindIntercom            FindingsPostFindingsIDAiOKAssetKind = "intercom"
+	FindingsPostFindingsIDAiOKAssetKindNas                 FindingsPostFindingsIDAiOKAssetKind = "nas"
+	FindingsPostFindingsIDAiOKAssetKindSan                 FindingsPostFindingsIDAiOKAssetKind = "san"
+	FindingsPostFindingsIDAiOKAssetKindBackupAppliance     FindingsPostFindingsIDAiOKAssetKind = "backup_appliance"
+	FindingsPostFindingsIDAiOKAssetKindTapeLibrary         FindingsPostFindingsIDAiOKAssetKind = "tape_library"
+	FindingsPostFindingsIDAiOKAssetKindIot                 FindingsPostFindingsIDAiOKAssetKind = "iot"
+	FindingsPostFindingsIDAiOKAssetKindSmartTv             FindingsPostFindingsIDAiOKAssetKind = "smart_tv"
+	FindingsPostFindingsIDAiOKAssetKindMediaPlayer         FindingsPostFindingsIDAiOKAssetKind = "media_player"
+	FindingsPostFindingsIDAiOKAssetKindSmartSpeaker        FindingsPostFindingsIDAiOKAssetKind = "smart_speaker"
+	FindingsPostFindingsIDAiOKAssetKindGameConsole         FindingsPostFindingsIDAiOKAssetKind = "game_console"
+	FindingsPostFindingsIDAiOKAssetKindSmartPlug           FindingsPostFindingsIDAiOKAssetKind = "smart_plug"
+	FindingsPostFindingsIDAiOKAssetKindSmartLight          FindingsPostFindingsIDAiOKAssetKind = "smart_light"
+	FindingsPostFindingsIDAiOKAssetKindSmartHub            FindingsPostFindingsIDAiOKAssetKind = "smart_hub"
+	FindingsPostFindingsIDAiOKAssetKindThermostat          FindingsPostFindingsIDAiOKAssetKind = "thermostat"
+	FindingsPostFindingsIDAiOKAssetKindProjector           FindingsPostFindingsIDAiOKAssetKind = "projector"
+	FindingsPostFindingsIDAiOKAssetKindDigitalSignage      FindingsPostFindingsIDAiOKAssetKind = "digital_signage"
+	FindingsPostFindingsIDAiOKAssetKindSingleBoardComputer FindingsPostFindingsIDAiOKAssetKind = "single_board_computer"
+	FindingsPostFindingsIDAiOKAssetKindSmartAppliance      FindingsPostFindingsIDAiOKAssetKind = "smart_appliance"
+	FindingsPostFindingsIDAiOKAssetKindRobotVacuum         FindingsPostFindingsIDAiOKAssetKind = "robot_vacuum"
+	FindingsPostFindingsIDAiOKAssetKindWirelessBridge      FindingsPostFindingsIDAiOKAssetKind = "wireless_bridge"
+	FindingsPostFindingsIDAiOKAssetKindPlc                 FindingsPostFindingsIDAiOKAssetKind = "plc"
+	FindingsPostFindingsIDAiOKAssetKindHmi                 FindingsPostFindingsIDAiOKAssetKind = "hmi"
+	FindingsPostFindingsIDAiOKAssetKindRtu                 FindingsPostFindingsIDAiOKAssetKind = "rtu"
+	FindingsPostFindingsIDAiOKAssetKindScadaServer         FindingsPostFindingsIDAiOKAssetKind = "scada_server"
+	FindingsPostFindingsIDAiOKAssetKindIndustrialSwitch    FindingsPostFindingsIDAiOKAssetKind = "industrial_switch"
+	FindingsPostFindingsIDAiOKAssetKindUps                 FindingsPostFindingsIDAiOKAssetKind = "ups"
+	FindingsPostFindingsIDAiOKAssetKindPdu                 FindingsPostFindingsIDAiOKAssetKind = "pdu"
+	FindingsPostFindingsIDAiOKAssetKindAccessControl       FindingsPostFindingsIDAiOKAssetKind = "access_control"
+	FindingsPostFindingsIDAiOKAssetKindTimeClock           FindingsPostFindingsIDAiOKAssetKind = "time_clock"
+	FindingsPostFindingsIDAiOKAssetKindAlarmPanel          FindingsPostFindingsIDAiOKAssetKind = "alarm_panel"
+	FindingsPostFindingsIDAiOKAssetKindHvacController      FindingsPostFindingsIDAiOKAssetKind = "hvac_controller"
+	FindingsPostFindingsIDAiOKAssetKindBuildingController  FindingsPostFindingsIDAiOKAssetKind = "building_controller"
+	FindingsPostFindingsIDAiOKAssetKindPowerMeter          FindingsPostFindingsIDAiOKAssetKind = "power_meter"
+	FindingsPostFindingsIDAiOKAssetKindEnvironmentMonitor  FindingsPostFindingsIDAiOKAssetKind = "environment_monitor"
+	FindingsPostFindingsIDAiOKAssetKindEvCharger           FindingsPostFindingsIDAiOKAssetKind = "ev_charger"
+	FindingsPostFindingsIDAiOKAssetKindSolarInverter       FindingsPostFindingsIDAiOKAssetKind = "solar_inverter"
+	FindingsPostFindingsIDAiOKAssetKindMedicalDevice       FindingsPostFindingsIDAiOKAssetKind = "medical_device"
+	FindingsPostFindingsIDAiOKAssetKindWeb                 FindingsPostFindingsIDAiOKAssetKind = "web"
+	FindingsPostFindingsIDAiOKAssetKindCloudService        FindingsPostFindingsIDAiOKAssetKind = "cloud_service"
+	FindingsPostFindingsIDAiOKAssetKindUnknown             FindingsPostFindingsIDAiOKAssetKind = "unknown"
 )
 
 // AllValues returns all FindingsPostFindingsIDAiOKAssetKind values.
 func (FindingsPostFindingsIDAiOKAssetKind) AllValues() []FindingsPostFindingsIDAiOKAssetKind {
 	return []FindingsPostFindingsIDAiOKAssetKind{
-		FindingsPostFindingsIDAiOKAssetKindFirewall,
 		FindingsPostFindingsIDAiOKAssetKindRouter,
 		FindingsPostFindingsIDAiOKAssetKindSwitch,
+		FindingsPostFindingsIDAiOKAssetKindModem,
+		FindingsPostFindingsIDAiOKAssetKindSdWan,
+		FindingsPostFindingsIDAiOKAssetKindLoadBalancer,
+		FindingsPostFindingsIDAiOKAssetKindNetworkController,
+		FindingsPostFindingsIDAiOKAssetKindFirewall,
+		FindingsPostFindingsIDAiOKAssetKindVpnGateway,
+		FindingsPostFindingsIDAiOKAssetKindIdsSensor,
+		FindingsPostFindingsIDAiOKAssetKindProxy,
 		FindingsPostFindingsIDAiOKAssetKindAp,
-		FindingsPostFindingsIDAiOKAssetKindNas,
+		FindingsPostFindingsIDAiOKAssetKindWirelessController,
+		FindingsPostFindingsIDAiOKAssetKindWifiExtender,
+		FindingsPostFindingsIDAiOKAssetKindMeshNode,
 		FindingsPostFindingsIDAiOKAssetKindServer,
+		FindingsPostFindingsIDAiOKAssetKindVirtualMachine,
+		FindingsPostFindingsIDAiOKAssetKindHypervisor,
+		FindingsPostFindingsIDAiOKAssetKindBmc,
+		FindingsPostFindingsIDAiOKAssetKindDomainController,
+		FindingsPostFindingsIDAiOKAssetKindMailServer,
+		FindingsPostFindingsIDAiOKAssetKindDatabaseServer,
+		FindingsPostFindingsIDAiOKAssetKindBackupServer,
 		FindingsPostFindingsIDAiOKAssetKindPc,
+		FindingsPostFindingsIDAiOKAssetKindLaptop,
+		FindingsPostFindingsIDAiOKAssetKindWorkstation,
+		FindingsPostFindingsIDAiOKAssetKindThinClient,
+		FindingsPostFindingsIDAiOKAssetKindPosTerminal,
+		FindingsPostFindingsIDAiOKAssetKindKiosk,
+		FindingsPostFindingsIDAiOKAssetKindSmartphone,
+		FindingsPostFindingsIDAiOKAssetKindTablet,
+		FindingsPostFindingsIDAiOKAssetKindSmartwatch,
 		FindingsPostFindingsIDAiOKAssetKindPrinter,
+		FindingsPostFindingsIDAiOKAssetKindMfp,
+		FindingsPostFindingsIDAiOKAssetKindScanner,
+		FindingsPostFindingsIDAiOKAssetKindLabelPrinter,
+		FindingsPostFindingsIDAiOKAssetKindReceiptPrinter,
+		FindingsPostFindingsIDAiOKAssetKindPlotter,
+		FindingsPostFindingsIDAiOKAssetKind3dPrinter,
 		FindingsPostFindingsIDAiOKAssetKindCamera,
 		FindingsPostFindingsIDAiOKAssetKindNvr,
+		FindingsPostFindingsIDAiOKAssetKindDvr,
+		FindingsPostFindingsIDAiOKAssetKindVideoEncoder,
+		FindingsPostFindingsIDAiOKAssetKindDoorbell,
+		FindingsPostFindingsIDAiOKAssetKindVideoConferencing,
+		FindingsPostFindingsIDAiOKAssetKindIPPhone,
+		FindingsPostFindingsIDAiOKAssetKindPbx,
+		FindingsPostFindingsIDAiOKAssetKindVoipAdapter,
+		FindingsPostFindingsIDAiOKAssetKindVoipGateway,
+		FindingsPostFindingsIDAiOKAssetKindConferencePhone,
+		FindingsPostFindingsIDAiOKAssetKindIntercom,
+		FindingsPostFindingsIDAiOKAssetKindNas,
+		FindingsPostFindingsIDAiOKAssetKindSan,
+		FindingsPostFindingsIDAiOKAssetKindBackupAppliance,
+		FindingsPostFindingsIDAiOKAssetKindTapeLibrary,
 		FindingsPostFindingsIDAiOKAssetKindIot,
+		FindingsPostFindingsIDAiOKAssetKindSmartTv,
+		FindingsPostFindingsIDAiOKAssetKindMediaPlayer,
+		FindingsPostFindingsIDAiOKAssetKindSmartSpeaker,
+		FindingsPostFindingsIDAiOKAssetKindGameConsole,
+		FindingsPostFindingsIDAiOKAssetKindSmartPlug,
+		FindingsPostFindingsIDAiOKAssetKindSmartLight,
+		FindingsPostFindingsIDAiOKAssetKindSmartHub,
+		FindingsPostFindingsIDAiOKAssetKindThermostat,
+		FindingsPostFindingsIDAiOKAssetKindProjector,
+		FindingsPostFindingsIDAiOKAssetKindDigitalSignage,
+		FindingsPostFindingsIDAiOKAssetKindSingleBoardComputer,
+		FindingsPostFindingsIDAiOKAssetKindSmartAppliance,
+		FindingsPostFindingsIDAiOKAssetKindRobotVacuum,
+		FindingsPostFindingsIDAiOKAssetKindWirelessBridge,
+		FindingsPostFindingsIDAiOKAssetKindPlc,
+		FindingsPostFindingsIDAiOKAssetKindHmi,
+		FindingsPostFindingsIDAiOKAssetKindRtu,
+		FindingsPostFindingsIDAiOKAssetKindScadaServer,
+		FindingsPostFindingsIDAiOKAssetKindIndustrialSwitch,
+		FindingsPostFindingsIDAiOKAssetKindUps,
+		FindingsPostFindingsIDAiOKAssetKindPdu,
+		FindingsPostFindingsIDAiOKAssetKindAccessControl,
+		FindingsPostFindingsIDAiOKAssetKindTimeClock,
+		FindingsPostFindingsIDAiOKAssetKindAlarmPanel,
+		FindingsPostFindingsIDAiOKAssetKindHvacController,
+		FindingsPostFindingsIDAiOKAssetKindBuildingController,
+		FindingsPostFindingsIDAiOKAssetKindPowerMeter,
+		FindingsPostFindingsIDAiOKAssetKindEnvironmentMonitor,
+		FindingsPostFindingsIDAiOKAssetKindEvCharger,
+		FindingsPostFindingsIDAiOKAssetKindSolarInverter,
+		FindingsPostFindingsIDAiOKAssetKindMedicalDevice,
 		FindingsPostFindingsIDAiOKAssetKindWeb,
+		FindingsPostFindingsIDAiOKAssetKindCloudService,
 		FindingsPostFindingsIDAiOKAssetKindUnknown,
 	}
 }
@@ -58916,29 +60664,181 @@ func (FindingsPostFindingsIDAiOKAssetKind) AllValues() []FindingsPostFindingsIDA
 // MarshalText implements encoding.TextMarshaler.
 func (s FindingsPostFindingsIDAiOKAssetKind) MarshalText() ([]byte, error) {
 	switch s {
-	case FindingsPostFindingsIDAiOKAssetKindFirewall:
-		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKAssetKindRouter:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKAssetKindSwitch:
 		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindModem:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindSdWan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindNetworkController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindVpnGateway:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindIdsSensor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindProxy:
+		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKAssetKindAp:
 		return []byte(s), nil
-	case FindingsPostFindingsIDAiOKAssetKindNas:
+	case FindingsPostFindingsIDAiOKAssetKindWirelessController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindWifiExtender:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindMeshNode:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKAssetKindServer:
 		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindHypervisor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindBmc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindDomainController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindMailServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindBackupServer:
+		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKAssetKindPc:
 		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindLaptop:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindWorkstation:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindThinClient:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindPosTerminal:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindKiosk:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartphone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindTablet:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartwatch:
+		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindMfp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindScanner:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindPlotter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKind3dPrinter:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKAssetKindCamera:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKAssetKindNvr:
 		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindDvr:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindDoorbell:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindIPPhone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindPbx:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindVoipGateway:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindConferencePhone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindIntercom:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindNas:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindSan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindTapeLibrary:
+		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKAssetKindIot:
 		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartTv:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindGameConsole:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartPlug:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartLight:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartHub:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindThermostat:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindProjector:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindPlc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindHmi:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindRtu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindScadaServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindUps:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindPdu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindAccessControl:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindTimeClock:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindHvacController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindBuildingController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindPowerMeter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindEvCharger:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindSolarInverter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindMedicalDevice:
+		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKAssetKindWeb:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKAssetKindCloudService:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKAssetKindUnknown:
 		return []byte(s), nil
@@ -58950,29 +60850,119 @@ func (s FindingsPostFindingsIDAiOKAssetKind) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *FindingsPostFindingsIDAiOKAssetKind) UnmarshalText(data []byte) error {
 	switch FindingsPostFindingsIDAiOKAssetKind(data) {
-	case FindingsPostFindingsIDAiOKAssetKindFirewall:
-		*s = FindingsPostFindingsIDAiOKAssetKindFirewall
-		return nil
 	case FindingsPostFindingsIDAiOKAssetKindRouter:
 		*s = FindingsPostFindingsIDAiOKAssetKindRouter
 		return nil
 	case FindingsPostFindingsIDAiOKAssetKindSwitch:
 		*s = FindingsPostFindingsIDAiOKAssetKindSwitch
 		return nil
+	case FindingsPostFindingsIDAiOKAssetKindModem:
+		*s = FindingsPostFindingsIDAiOKAssetKindModem
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindSdWan:
+		*s = FindingsPostFindingsIDAiOKAssetKindSdWan
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindLoadBalancer:
+		*s = FindingsPostFindingsIDAiOKAssetKindLoadBalancer
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindNetworkController:
+		*s = FindingsPostFindingsIDAiOKAssetKindNetworkController
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindFirewall:
+		*s = FindingsPostFindingsIDAiOKAssetKindFirewall
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindVpnGateway:
+		*s = FindingsPostFindingsIDAiOKAssetKindVpnGateway
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindIdsSensor:
+		*s = FindingsPostFindingsIDAiOKAssetKindIdsSensor
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindProxy:
+		*s = FindingsPostFindingsIDAiOKAssetKindProxy
+		return nil
 	case FindingsPostFindingsIDAiOKAssetKindAp:
 		*s = FindingsPostFindingsIDAiOKAssetKindAp
 		return nil
-	case FindingsPostFindingsIDAiOKAssetKindNas:
-		*s = FindingsPostFindingsIDAiOKAssetKindNas
+	case FindingsPostFindingsIDAiOKAssetKindWirelessController:
+		*s = FindingsPostFindingsIDAiOKAssetKindWirelessController
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindWifiExtender:
+		*s = FindingsPostFindingsIDAiOKAssetKindWifiExtender
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindMeshNode:
+		*s = FindingsPostFindingsIDAiOKAssetKindMeshNode
 		return nil
 	case FindingsPostFindingsIDAiOKAssetKindServer:
 		*s = FindingsPostFindingsIDAiOKAssetKindServer
 		return nil
+	case FindingsPostFindingsIDAiOKAssetKindVirtualMachine:
+		*s = FindingsPostFindingsIDAiOKAssetKindVirtualMachine
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindHypervisor:
+		*s = FindingsPostFindingsIDAiOKAssetKindHypervisor
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindBmc:
+		*s = FindingsPostFindingsIDAiOKAssetKindBmc
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindDomainController:
+		*s = FindingsPostFindingsIDAiOKAssetKindDomainController
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindMailServer:
+		*s = FindingsPostFindingsIDAiOKAssetKindMailServer
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindDatabaseServer:
+		*s = FindingsPostFindingsIDAiOKAssetKindDatabaseServer
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindBackupServer:
+		*s = FindingsPostFindingsIDAiOKAssetKindBackupServer
+		return nil
 	case FindingsPostFindingsIDAiOKAssetKindPc:
 		*s = FindingsPostFindingsIDAiOKAssetKindPc
 		return nil
+	case FindingsPostFindingsIDAiOKAssetKindLaptop:
+		*s = FindingsPostFindingsIDAiOKAssetKindLaptop
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindWorkstation:
+		*s = FindingsPostFindingsIDAiOKAssetKindWorkstation
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindThinClient:
+		*s = FindingsPostFindingsIDAiOKAssetKindThinClient
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindPosTerminal:
+		*s = FindingsPostFindingsIDAiOKAssetKindPosTerminal
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindKiosk:
+		*s = FindingsPostFindingsIDAiOKAssetKindKiosk
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartphone:
+		*s = FindingsPostFindingsIDAiOKAssetKindSmartphone
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindTablet:
+		*s = FindingsPostFindingsIDAiOKAssetKindTablet
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartwatch:
+		*s = FindingsPostFindingsIDAiOKAssetKindSmartwatch
+		return nil
 	case FindingsPostFindingsIDAiOKAssetKindPrinter:
 		*s = FindingsPostFindingsIDAiOKAssetKindPrinter
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindMfp:
+		*s = FindingsPostFindingsIDAiOKAssetKindMfp
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindScanner:
+		*s = FindingsPostFindingsIDAiOKAssetKindScanner
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindLabelPrinter:
+		*s = FindingsPostFindingsIDAiOKAssetKindLabelPrinter
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindReceiptPrinter:
+		*s = FindingsPostFindingsIDAiOKAssetKindReceiptPrinter
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindPlotter:
+		*s = FindingsPostFindingsIDAiOKAssetKindPlotter
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKind3dPrinter:
+		*s = FindingsPostFindingsIDAiOKAssetKind3dPrinter
 		return nil
 	case FindingsPostFindingsIDAiOKAssetKindCamera:
 		*s = FindingsPostFindingsIDAiOKAssetKindCamera
@@ -58980,11 +60970,149 @@ func (s *FindingsPostFindingsIDAiOKAssetKind) UnmarshalText(data []byte) error {
 	case FindingsPostFindingsIDAiOKAssetKindNvr:
 		*s = FindingsPostFindingsIDAiOKAssetKindNvr
 		return nil
+	case FindingsPostFindingsIDAiOKAssetKindDvr:
+		*s = FindingsPostFindingsIDAiOKAssetKindDvr
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindVideoEncoder:
+		*s = FindingsPostFindingsIDAiOKAssetKindVideoEncoder
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindDoorbell:
+		*s = FindingsPostFindingsIDAiOKAssetKindDoorbell
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindVideoConferencing:
+		*s = FindingsPostFindingsIDAiOKAssetKindVideoConferencing
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindIPPhone:
+		*s = FindingsPostFindingsIDAiOKAssetKindIPPhone
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindPbx:
+		*s = FindingsPostFindingsIDAiOKAssetKindPbx
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindVoipAdapter:
+		*s = FindingsPostFindingsIDAiOKAssetKindVoipAdapter
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindVoipGateway:
+		*s = FindingsPostFindingsIDAiOKAssetKindVoipGateway
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindConferencePhone:
+		*s = FindingsPostFindingsIDAiOKAssetKindConferencePhone
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindIntercom:
+		*s = FindingsPostFindingsIDAiOKAssetKindIntercom
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindNas:
+		*s = FindingsPostFindingsIDAiOKAssetKindNas
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindSan:
+		*s = FindingsPostFindingsIDAiOKAssetKindSan
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindBackupAppliance:
+		*s = FindingsPostFindingsIDAiOKAssetKindBackupAppliance
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindTapeLibrary:
+		*s = FindingsPostFindingsIDAiOKAssetKindTapeLibrary
+		return nil
 	case FindingsPostFindingsIDAiOKAssetKindIot:
 		*s = FindingsPostFindingsIDAiOKAssetKindIot
 		return nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartTv:
+		*s = FindingsPostFindingsIDAiOKAssetKindSmartTv
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindMediaPlayer:
+		*s = FindingsPostFindingsIDAiOKAssetKindMediaPlayer
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartSpeaker:
+		*s = FindingsPostFindingsIDAiOKAssetKindSmartSpeaker
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindGameConsole:
+		*s = FindingsPostFindingsIDAiOKAssetKindGameConsole
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartPlug:
+		*s = FindingsPostFindingsIDAiOKAssetKindSmartPlug
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartLight:
+		*s = FindingsPostFindingsIDAiOKAssetKindSmartLight
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartHub:
+		*s = FindingsPostFindingsIDAiOKAssetKindSmartHub
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindThermostat:
+		*s = FindingsPostFindingsIDAiOKAssetKindThermostat
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindProjector:
+		*s = FindingsPostFindingsIDAiOKAssetKindProjector
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindDigitalSignage:
+		*s = FindingsPostFindingsIDAiOKAssetKindDigitalSignage
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindSingleBoardComputer:
+		*s = FindingsPostFindingsIDAiOKAssetKindSingleBoardComputer
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindSmartAppliance:
+		*s = FindingsPostFindingsIDAiOKAssetKindSmartAppliance
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindRobotVacuum:
+		*s = FindingsPostFindingsIDAiOKAssetKindRobotVacuum
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindWirelessBridge:
+		*s = FindingsPostFindingsIDAiOKAssetKindWirelessBridge
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindPlc:
+		*s = FindingsPostFindingsIDAiOKAssetKindPlc
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindHmi:
+		*s = FindingsPostFindingsIDAiOKAssetKindHmi
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindRtu:
+		*s = FindingsPostFindingsIDAiOKAssetKindRtu
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindScadaServer:
+		*s = FindingsPostFindingsIDAiOKAssetKindScadaServer
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindIndustrialSwitch:
+		*s = FindingsPostFindingsIDAiOKAssetKindIndustrialSwitch
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindUps:
+		*s = FindingsPostFindingsIDAiOKAssetKindUps
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindPdu:
+		*s = FindingsPostFindingsIDAiOKAssetKindPdu
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindAccessControl:
+		*s = FindingsPostFindingsIDAiOKAssetKindAccessControl
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindTimeClock:
+		*s = FindingsPostFindingsIDAiOKAssetKindTimeClock
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindAlarmPanel:
+		*s = FindingsPostFindingsIDAiOKAssetKindAlarmPanel
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindHvacController:
+		*s = FindingsPostFindingsIDAiOKAssetKindHvacController
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindBuildingController:
+		*s = FindingsPostFindingsIDAiOKAssetKindBuildingController
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindPowerMeter:
+		*s = FindingsPostFindingsIDAiOKAssetKindPowerMeter
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindEnvironmentMonitor:
+		*s = FindingsPostFindingsIDAiOKAssetKindEnvironmentMonitor
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindEvCharger:
+		*s = FindingsPostFindingsIDAiOKAssetKindEvCharger
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindSolarInverter:
+		*s = FindingsPostFindingsIDAiOKAssetKindSolarInverter
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindMedicalDevice:
+		*s = FindingsPostFindingsIDAiOKAssetKindMedicalDevice
+		return nil
 	case FindingsPostFindingsIDAiOKAssetKindWeb:
 		*s = FindingsPostFindingsIDAiOKAssetKindWeb
+		return nil
+	case FindingsPostFindingsIDAiOKAssetKindCloudService:
+		*s = FindingsPostFindingsIDAiOKAssetKindCloudService
 		return nil
 	case FindingsPostFindingsIDAiOKAssetKindUnknown:
 		*s = FindingsPostFindingsIDAiOKAssetKindUnknown
@@ -61249,36 +63377,188 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) SetName(val string) {
 type FindingsPostFindingsIDAppliedOKAssetKind string
 
 const (
-	FindingsPostFindingsIDAppliedOKAssetKindFirewall FindingsPostFindingsIDAppliedOKAssetKind = "firewall"
-	FindingsPostFindingsIDAppliedOKAssetKindRouter   FindingsPostFindingsIDAppliedOKAssetKind = "router"
-	FindingsPostFindingsIDAppliedOKAssetKindSwitch   FindingsPostFindingsIDAppliedOKAssetKind = "switch"
-	FindingsPostFindingsIDAppliedOKAssetKindAp       FindingsPostFindingsIDAppliedOKAssetKind = "ap"
-	FindingsPostFindingsIDAppliedOKAssetKindNas      FindingsPostFindingsIDAppliedOKAssetKind = "nas"
-	FindingsPostFindingsIDAppliedOKAssetKindServer   FindingsPostFindingsIDAppliedOKAssetKind = "server"
-	FindingsPostFindingsIDAppliedOKAssetKindPc       FindingsPostFindingsIDAppliedOKAssetKind = "pc"
-	FindingsPostFindingsIDAppliedOKAssetKindPrinter  FindingsPostFindingsIDAppliedOKAssetKind = "printer"
-	FindingsPostFindingsIDAppliedOKAssetKindCamera   FindingsPostFindingsIDAppliedOKAssetKind = "camera"
-	FindingsPostFindingsIDAppliedOKAssetKindNvr      FindingsPostFindingsIDAppliedOKAssetKind = "nvr"
-	FindingsPostFindingsIDAppliedOKAssetKindIot      FindingsPostFindingsIDAppliedOKAssetKind = "iot"
-	FindingsPostFindingsIDAppliedOKAssetKindWeb      FindingsPostFindingsIDAppliedOKAssetKind = "web"
-	FindingsPostFindingsIDAppliedOKAssetKindUnknown  FindingsPostFindingsIDAppliedOKAssetKind = "unknown"
+	FindingsPostFindingsIDAppliedOKAssetKindRouter              FindingsPostFindingsIDAppliedOKAssetKind = "router"
+	FindingsPostFindingsIDAppliedOKAssetKindSwitch              FindingsPostFindingsIDAppliedOKAssetKind = "switch"
+	FindingsPostFindingsIDAppliedOKAssetKindModem               FindingsPostFindingsIDAppliedOKAssetKind = "modem"
+	FindingsPostFindingsIDAppliedOKAssetKindSdWan               FindingsPostFindingsIDAppliedOKAssetKind = "sd_wan"
+	FindingsPostFindingsIDAppliedOKAssetKindLoadBalancer        FindingsPostFindingsIDAppliedOKAssetKind = "load_balancer"
+	FindingsPostFindingsIDAppliedOKAssetKindNetworkController   FindingsPostFindingsIDAppliedOKAssetKind = "network_controller"
+	FindingsPostFindingsIDAppliedOKAssetKindFirewall            FindingsPostFindingsIDAppliedOKAssetKind = "firewall"
+	FindingsPostFindingsIDAppliedOKAssetKindVpnGateway          FindingsPostFindingsIDAppliedOKAssetKind = "vpn_gateway"
+	FindingsPostFindingsIDAppliedOKAssetKindIdsSensor           FindingsPostFindingsIDAppliedOKAssetKind = "ids_sensor"
+	FindingsPostFindingsIDAppliedOKAssetKindProxy               FindingsPostFindingsIDAppliedOKAssetKind = "proxy"
+	FindingsPostFindingsIDAppliedOKAssetKindAp                  FindingsPostFindingsIDAppliedOKAssetKind = "ap"
+	FindingsPostFindingsIDAppliedOKAssetKindWirelessController  FindingsPostFindingsIDAppliedOKAssetKind = "wireless_controller"
+	FindingsPostFindingsIDAppliedOKAssetKindWifiExtender        FindingsPostFindingsIDAppliedOKAssetKind = "wifi_extender"
+	FindingsPostFindingsIDAppliedOKAssetKindMeshNode            FindingsPostFindingsIDAppliedOKAssetKind = "mesh_node"
+	FindingsPostFindingsIDAppliedOKAssetKindServer              FindingsPostFindingsIDAppliedOKAssetKind = "server"
+	FindingsPostFindingsIDAppliedOKAssetKindVirtualMachine      FindingsPostFindingsIDAppliedOKAssetKind = "virtual_machine"
+	FindingsPostFindingsIDAppliedOKAssetKindHypervisor          FindingsPostFindingsIDAppliedOKAssetKind = "hypervisor"
+	FindingsPostFindingsIDAppliedOKAssetKindBmc                 FindingsPostFindingsIDAppliedOKAssetKind = "bmc"
+	FindingsPostFindingsIDAppliedOKAssetKindDomainController    FindingsPostFindingsIDAppliedOKAssetKind = "domain_controller"
+	FindingsPostFindingsIDAppliedOKAssetKindMailServer          FindingsPostFindingsIDAppliedOKAssetKind = "mail_server"
+	FindingsPostFindingsIDAppliedOKAssetKindDatabaseServer      FindingsPostFindingsIDAppliedOKAssetKind = "database_server"
+	FindingsPostFindingsIDAppliedOKAssetKindBackupServer        FindingsPostFindingsIDAppliedOKAssetKind = "backup_server"
+	FindingsPostFindingsIDAppliedOKAssetKindPc                  FindingsPostFindingsIDAppliedOKAssetKind = "pc"
+	FindingsPostFindingsIDAppliedOKAssetKindLaptop              FindingsPostFindingsIDAppliedOKAssetKind = "laptop"
+	FindingsPostFindingsIDAppliedOKAssetKindWorkstation         FindingsPostFindingsIDAppliedOKAssetKind = "workstation"
+	FindingsPostFindingsIDAppliedOKAssetKindThinClient          FindingsPostFindingsIDAppliedOKAssetKind = "thin_client"
+	FindingsPostFindingsIDAppliedOKAssetKindPosTerminal         FindingsPostFindingsIDAppliedOKAssetKind = "pos_terminal"
+	FindingsPostFindingsIDAppliedOKAssetKindKiosk               FindingsPostFindingsIDAppliedOKAssetKind = "kiosk"
+	FindingsPostFindingsIDAppliedOKAssetKindSmartphone          FindingsPostFindingsIDAppliedOKAssetKind = "smartphone"
+	FindingsPostFindingsIDAppliedOKAssetKindTablet              FindingsPostFindingsIDAppliedOKAssetKind = "tablet"
+	FindingsPostFindingsIDAppliedOKAssetKindSmartwatch          FindingsPostFindingsIDAppliedOKAssetKind = "smartwatch"
+	FindingsPostFindingsIDAppliedOKAssetKindPrinter             FindingsPostFindingsIDAppliedOKAssetKind = "printer"
+	FindingsPostFindingsIDAppliedOKAssetKindMfp                 FindingsPostFindingsIDAppliedOKAssetKind = "mfp"
+	FindingsPostFindingsIDAppliedOKAssetKindScanner             FindingsPostFindingsIDAppliedOKAssetKind = "scanner"
+	FindingsPostFindingsIDAppliedOKAssetKindLabelPrinter        FindingsPostFindingsIDAppliedOKAssetKind = "label_printer"
+	FindingsPostFindingsIDAppliedOKAssetKindReceiptPrinter      FindingsPostFindingsIDAppliedOKAssetKind = "receipt_printer"
+	FindingsPostFindingsIDAppliedOKAssetKindPlotter             FindingsPostFindingsIDAppliedOKAssetKind = "plotter"
+	FindingsPostFindingsIDAppliedOKAssetKind3dPrinter           FindingsPostFindingsIDAppliedOKAssetKind = "3d_printer"
+	FindingsPostFindingsIDAppliedOKAssetKindCamera              FindingsPostFindingsIDAppliedOKAssetKind = "camera"
+	FindingsPostFindingsIDAppliedOKAssetKindNvr                 FindingsPostFindingsIDAppliedOKAssetKind = "nvr"
+	FindingsPostFindingsIDAppliedOKAssetKindDvr                 FindingsPostFindingsIDAppliedOKAssetKind = "dvr"
+	FindingsPostFindingsIDAppliedOKAssetKindVideoEncoder        FindingsPostFindingsIDAppliedOKAssetKind = "video_encoder"
+	FindingsPostFindingsIDAppliedOKAssetKindDoorbell            FindingsPostFindingsIDAppliedOKAssetKind = "doorbell"
+	FindingsPostFindingsIDAppliedOKAssetKindVideoConferencing   FindingsPostFindingsIDAppliedOKAssetKind = "video_conferencing"
+	FindingsPostFindingsIDAppliedOKAssetKindIPPhone             FindingsPostFindingsIDAppliedOKAssetKind = "ip_phone"
+	FindingsPostFindingsIDAppliedOKAssetKindPbx                 FindingsPostFindingsIDAppliedOKAssetKind = "pbx"
+	FindingsPostFindingsIDAppliedOKAssetKindVoipAdapter         FindingsPostFindingsIDAppliedOKAssetKind = "voip_adapter"
+	FindingsPostFindingsIDAppliedOKAssetKindVoipGateway         FindingsPostFindingsIDAppliedOKAssetKind = "voip_gateway"
+	FindingsPostFindingsIDAppliedOKAssetKindConferencePhone     FindingsPostFindingsIDAppliedOKAssetKind = "conference_phone"
+	FindingsPostFindingsIDAppliedOKAssetKindIntercom            FindingsPostFindingsIDAppliedOKAssetKind = "intercom"
+	FindingsPostFindingsIDAppliedOKAssetKindNas                 FindingsPostFindingsIDAppliedOKAssetKind = "nas"
+	FindingsPostFindingsIDAppliedOKAssetKindSan                 FindingsPostFindingsIDAppliedOKAssetKind = "san"
+	FindingsPostFindingsIDAppliedOKAssetKindBackupAppliance     FindingsPostFindingsIDAppliedOKAssetKind = "backup_appliance"
+	FindingsPostFindingsIDAppliedOKAssetKindTapeLibrary         FindingsPostFindingsIDAppliedOKAssetKind = "tape_library"
+	FindingsPostFindingsIDAppliedOKAssetKindIot                 FindingsPostFindingsIDAppliedOKAssetKind = "iot"
+	FindingsPostFindingsIDAppliedOKAssetKindSmartTv             FindingsPostFindingsIDAppliedOKAssetKind = "smart_tv"
+	FindingsPostFindingsIDAppliedOKAssetKindMediaPlayer         FindingsPostFindingsIDAppliedOKAssetKind = "media_player"
+	FindingsPostFindingsIDAppliedOKAssetKindSmartSpeaker        FindingsPostFindingsIDAppliedOKAssetKind = "smart_speaker"
+	FindingsPostFindingsIDAppliedOKAssetKindGameConsole         FindingsPostFindingsIDAppliedOKAssetKind = "game_console"
+	FindingsPostFindingsIDAppliedOKAssetKindSmartPlug           FindingsPostFindingsIDAppliedOKAssetKind = "smart_plug"
+	FindingsPostFindingsIDAppliedOKAssetKindSmartLight          FindingsPostFindingsIDAppliedOKAssetKind = "smart_light"
+	FindingsPostFindingsIDAppliedOKAssetKindSmartHub            FindingsPostFindingsIDAppliedOKAssetKind = "smart_hub"
+	FindingsPostFindingsIDAppliedOKAssetKindThermostat          FindingsPostFindingsIDAppliedOKAssetKind = "thermostat"
+	FindingsPostFindingsIDAppliedOKAssetKindProjector           FindingsPostFindingsIDAppliedOKAssetKind = "projector"
+	FindingsPostFindingsIDAppliedOKAssetKindDigitalSignage      FindingsPostFindingsIDAppliedOKAssetKind = "digital_signage"
+	FindingsPostFindingsIDAppliedOKAssetKindSingleBoardComputer FindingsPostFindingsIDAppliedOKAssetKind = "single_board_computer"
+	FindingsPostFindingsIDAppliedOKAssetKindSmartAppliance      FindingsPostFindingsIDAppliedOKAssetKind = "smart_appliance"
+	FindingsPostFindingsIDAppliedOKAssetKindRobotVacuum         FindingsPostFindingsIDAppliedOKAssetKind = "robot_vacuum"
+	FindingsPostFindingsIDAppliedOKAssetKindWirelessBridge      FindingsPostFindingsIDAppliedOKAssetKind = "wireless_bridge"
+	FindingsPostFindingsIDAppliedOKAssetKindPlc                 FindingsPostFindingsIDAppliedOKAssetKind = "plc"
+	FindingsPostFindingsIDAppliedOKAssetKindHmi                 FindingsPostFindingsIDAppliedOKAssetKind = "hmi"
+	FindingsPostFindingsIDAppliedOKAssetKindRtu                 FindingsPostFindingsIDAppliedOKAssetKind = "rtu"
+	FindingsPostFindingsIDAppliedOKAssetKindScadaServer         FindingsPostFindingsIDAppliedOKAssetKind = "scada_server"
+	FindingsPostFindingsIDAppliedOKAssetKindIndustrialSwitch    FindingsPostFindingsIDAppliedOKAssetKind = "industrial_switch"
+	FindingsPostFindingsIDAppliedOKAssetKindUps                 FindingsPostFindingsIDAppliedOKAssetKind = "ups"
+	FindingsPostFindingsIDAppliedOKAssetKindPdu                 FindingsPostFindingsIDAppliedOKAssetKind = "pdu"
+	FindingsPostFindingsIDAppliedOKAssetKindAccessControl       FindingsPostFindingsIDAppliedOKAssetKind = "access_control"
+	FindingsPostFindingsIDAppliedOKAssetKindTimeClock           FindingsPostFindingsIDAppliedOKAssetKind = "time_clock"
+	FindingsPostFindingsIDAppliedOKAssetKindAlarmPanel          FindingsPostFindingsIDAppliedOKAssetKind = "alarm_panel"
+	FindingsPostFindingsIDAppliedOKAssetKindHvacController      FindingsPostFindingsIDAppliedOKAssetKind = "hvac_controller"
+	FindingsPostFindingsIDAppliedOKAssetKindBuildingController  FindingsPostFindingsIDAppliedOKAssetKind = "building_controller"
+	FindingsPostFindingsIDAppliedOKAssetKindPowerMeter          FindingsPostFindingsIDAppliedOKAssetKind = "power_meter"
+	FindingsPostFindingsIDAppliedOKAssetKindEnvironmentMonitor  FindingsPostFindingsIDAppliedOKAssetKind = "environment_monitor"
+	FindingsPostFindingsIDAppliedOKAssetKindEvCharger           FindingsPostFindingsIDAppliedOKAssetKind = "ev_charger"
+	FindingsPostFindingsIDAppliedOKAssetKindSolarInverter       FindingsPostFindingsIDAppliedOKAssetKind = "solar_inverter"
+	FindingsPostFindingsIDAppliedOKAssetKindMedicalDevice       FindingsPostFindingsIDAppliedOKAssetKind = "medical_device"
+	FindingsPostFindingsIDAppliedOKAssetKindWeb                 FindingsPostFindingsIDAppliedOKAssetKind = "web"
+	FindingsPostFindingsIDAppliedOKAssetKindCloudService        FindingsPostFindingsIDAppliedOKAssetKind = "cloud_service"
+	FindingsPostFindingsIDAppliedOKAssetKindUnknown             FindingsPostFindingsIDAppliedOKAssetKind = "unknown"
 )
 
 // AllValues returns all FindingsPostFindingsIDAppliedOKAssetKind values.
 func (FindingsPostFindingsIDAppliedOKAssetKind) AllValues() []FindingsPostFindingsIDAppliedOKAssetKind {
 	return []FindingsPostFindingsIDAppliedOKAssetKind{
-		FindingsPostFindingsIDAppliedOKAssetKindFirewall,
 		FindingsPostFindingsIDAppliedOKAssetKindRouter,
 		FindingsPostFindingsIDAppliedOKAssetKindSwitch,
+		FindingsPostFindingsIDAppliedOKAssetKindModem,
+		FindingsPostFindingsIDAppliedOKAssetKindSdWan,
+		FindingsPostFindingsIDAppliedOKAssetKindLoadBalancer,
+		FindingsPostFindingsIDAppliedOKAssetKindNetworkController,
+		FindingsPostFindingsIDAppliedOKAssetKindFirewall,
+		FindingsPostFindingsIDAppliedOKAssetKindVpnGateway,
+		FindingsPostFindingsIDAppliedOKAssetKindIdsSensor,
+		FindingsPostFindingsIDAppliedOKAssetKindProxy,
 		FindingsPostFindingsIDAppliedOKAssetKindAp,
-		FindingsPostFindingsIDAppliedOKAssetKindNas,
+		FindingsPostFindingsIDAppliedOKAssetKindWirelessController,
+		FindingsPostFindingsIDAppliedOKAssetKindWifiExtender,
+		FindingsPostFindingsIDAppliedOKAssetKindMeshNode,
 		FindingsPostFindingsIDAppliedOKAssetKindServer,
+		FindingsPostFindingsIDAppliedOKAssetKindVirtualMachine,
+		FindingsPostFindingsIDAppliedOKAssetKindHypervisor,
+		FindingsPostFindingsIDAppliedOKAssetKindBmc,
+		FindingsPostFindingsIDAppliedOKAssetKindDomainController,
+		FindingsPostFindingsIDAppliedOKAssetKindMailServer,
+		FindingsPostFindingsIDAppliedOKAssetKindDatabaseServer,
+		FindingsPostFindingsIDAppliedOKAssetKindBackupServer,
 		FindingsPostFindingsIDAppliedOKAssetKindPc,
+		FindingsPostFindingsIDAppliedOKAssetKindLaptop,
+		FindingsPostFindingsIDAppliedOKAssetKindWorkstation,
+		FindingsPostFindingsIDAppliedOKAssetKindThinClient,
+		FindingsPostFindingsIDAppliedOKAssetKindPosTerminal,
+		FindingsPostFindingsIDAppliedOKAssetKindKiosk,
+		FindingsPostFindingsIDAppliedOKAssetKindSmartphone,
+		FindingsPostFindingsIDAppliedOKAssetKindTablet,
+		FindingsPostFindingsIDAppliedOKAssetKindSmartwatch,
 		FindingsPostFindingsIDAppliedOKAssetKindPrinter,
+		FindingsPostFindingsIDAppliedOKAssetKindMfp,
+		FindingsPostFindingsIDAppliedOKAssetKindScanner,
+		FindingsPostFindingsIDAppliedOKAssetKindLabelPrinter,
+		FindingsPostFindingsIDAppliedOKAssetKindReceiptPrinter,
+		FindingsPostFindingsIDAppliedOKAssetKindPlotter,
+		FindingsPostFindingsIDAppliedOKAssetKind3dPrinter,
 		FindingsPostFindingsIDAppliedOKAssetKindCamera,
 		FindingsPostFindingsIDAppliedOKAssetKindNvr,
+		FindingsPostFindingsIDAppliedOKAssetKindDvr,
+		FindingsPostFindingsIDAppliedOKAssetKindVideoEncoder,
+		FindingsPostFindingsIDAppliedOKAssetKindDoorbell,
+		FindingsPostFindingsIDAppliedOKAssetKindVideoConferencing,
+		FindingsPostFindingsIDAppliedOKAssetKindIPPhone,
+		FindingsPostFindingsIDAppliedOKAssetKindPbx,
+		FindingsPostFindingsIDAppliedOKAssetKindVoipAdapter,
+		FindingsPostFindingsIDAppliedOKAssetKindVoipGateway,
+		FindingsPostFindingsIDAppliedOKAssetKindConferencePhone,
+		FindingsPostFindingsIDAppliedOKAssetKindIntercom,
+		FindingsPostFindingsIDAppliedOKAssetKindNas,
+		FindingsPostFindingsIDAppliedOKAssetKindSan,
+		FindingsPostFindingsIDAppliedOKAssetKindBackupAppliance,
+		FindingsPostFindingsIDAppliedOKAssetKindTapeLibrary,
 		FindingsPostFindingsIDAppliedOKAssetKindIot,
+		FindingsPostFindingsIDAppliedOKAssetKindSmartTv,
+		FindingsPostFindingsIDAppliedOKAssetKindMediaPlayer,
+		FindingsPostFindingsIDAppliedOKAssetKindSmartSpeaker,
+		FindingsPostFindingsIDAppliedOKAssetKindGameConsole,
+		FindingsPostFindingsIDAppliedOKAssetKindSmartPlug,
+		FindingsPostFindingsIDAppliedOKAssetKindSmartLight,
+		FindingsPostFindingsIDAppliedOKAssetKindSmartHub,
+		FindingsPostFindingsIDAppliedOKAssetKindThermostat,
+		FindingsPostFindingsIDAppliedOKAssetKindProjector,
+		FindingsPostFindingsIDAppliedOKAssetKindDigitalSignage,
+		FindingsPostFindingsIDAppliedOKAssetKindSingleBoardComputer,
+		FindingsPostFindingsIDAppliedOKAssetKindSmartAppliance,
+		FindingsPostFindingsIDAppliedOKAssetKindRobotVacuum,
+		FindingsPostFindingsIDAppliedOKAssetKindWirelessBridge,
+		FindingsPostFindingsIDAppliedOKAssetKindPlc,
+		FindingsPostFindingsIDAppliedOKAssetKindHmi,
+		FindingsPostFindingsIDAppliedOKAssetKindRtu,
+		FindingsPostFindingsIDAppliedOKAssetKindScadaServer,
+		FindingsPostFindingsIDAppliedOKAssetKindIndustrialSwitch,
+		FindingsPostFindingsIDAppliedOKAssetKindUps,
+		FindingsPostFindingsIDAppliedOKAssetKindPdu,
+		FindingsPostFindingsIDAppliedOKAssetKindAccessControl,
+		FindingsPostFindingsIDAppliedOKAssetKindTimeClock,
+		FindingsPostFindingsIDAppliedOKAssetKindAlarmPanel,
+		FindingsPostFindingsIDAppliedOKAssetKindHvacController,
+		FindingsPostFindingsIDAppliedOKAssetKindBuildingController,
+		FindingsPostFindingsIDAppliedOKAssetKindPowerMeter,
+		FindingsPostFindingsIDAppliedOKAssetKindEnvironmentMonitor,
+		FindingsPostFindingsIDAppliedOKAssetKindEvCharger,
+		FindingsPostFindingsIDAppliedOKAssetKindSolarInverter,
+		FindingsPostFindingsIDAppliedOKAssetKindMedicalDevice,
 		FindingsPostFindingsIDAppliedOKAssetKindWeb,
+		FindingsPostFindingsIDAppliedOKAssetKindCloudService,
 		FindingsPostFindingsIDAppliedOKAssetKindUnknown,
 	}
 }
@@ -61286,29 +63566,181 @@ func (FindingsPostFindingsIDAppliedOKAssetKind) AllValues() []FindingsPostFindin
 // MarshalText implements encoding.TextMarshaler.
 func (s FindingsPostFindingsIDAppliedOKAssetKind) MarshalText() ([]byte, error) {
 	switch s {
-	case FindingsPostFindingsIDAppliedOKAssetKindFirewall:
-		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKAssetKindRouter:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKAssetKindSwitch:
 		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindModem:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSdWan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindNetworkController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindVpnGateway:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindIdsSensor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindProxy:
+		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKAssetKindAp:
 		return []byte(s), nil
-	case FindingsPostFindingsIDAppliedOKAssetKindNas:
+	case FindingsPostFindingsIDAppliedOKAssetKindWirelessController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindWifiExtender:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindMeshNode:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKAssetKindServer:
 		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindHypervisor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindBmc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindDomainController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindMailServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindBackupServer:
+		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKAssetKindPc:
 		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindLaptop:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindWorkstation:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindThinClient:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindPosTerminal:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindKiosk:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartphone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindTablet:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartwatch:
+		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindMfp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindScanner:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindPlotter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKind3dPrinter:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKAssetKindCamera:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKAssetKindNvr:
 		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindDvr:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindDoorbell:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindIPPhone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindPbx:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindVoipGateway:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindConferencePhone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindIntercom:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindNas:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindTapeLibrary:
+		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKAssetKindIot:
 		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartTv:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindGameConsole:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartPlug:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartLight:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartHub:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindThermostat:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindProjector:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindPlc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindHmi:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindRtu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindScadaServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindUps:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindPdu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindAccessControl:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindTimeClock:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindHvacController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindBuildingController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindPowerMeter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindEvCharger:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSolarInverter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindMedicalDevice:
+		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKAssetKindWeb:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKAssetKindCloudService:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKAssetKindUnknown:
 		return []byte(s), nil
@@ -61320,29 +63752,119 @@ func (s FindingsPostFindingsIDAppliedOKAssetKind) MarshalText() ([]byte, error) 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *FindingsPostFindingsIDAppliedOKAssetKind) UnmarshalText(data []byte) error {
 	switch FindingsPostFindingsIDAppliedOKAssetKind(data) {
-	case FindingsPostFindingsIDAppliedOKAssetKindFirewall:
-		*s = FindingsPostFindingsIDAppliedOKAssetKindFirewall
-		return nil
 	case FindingsPostFindingsIDAppliedOKAssetKindRouter:
 		*s = FindingsPostFindingsIDAppliedOKAssetKindRouter
 		return nil
 	case FindingsPostFindingsIDAppliedOKAssetKindSwitch:
 		*s = FindingsPostFindingsIDAppliedOKAssetKindSwitch
 		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindModem:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindModem
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSdWan:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindSdWan
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindLoadBalancer:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindLoadBalancer
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindNetworkController:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindNetworkController
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindFirewall:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindFirewall
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindVpnGateway:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindVpnGateway
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindIdsSensor:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindIdsSensor
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindProxy:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindProxy
+		return nil
 	case FindingsPostFindingsIDAppliedOKAssetKindAp:
 		*s = FindingsPostFindingsIDAppliedOKAssetKindAp
 		return nil
-	case FindingsPostFindingsIDAppliedOKAssetKindNas:
-		*s = FindingsPostFindingsIDAppliedOKAssetKindNas
+	case FindingsPostFindingsIDAppliedOKAssetKindWirelessController:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindWirelessController
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindWifiExtender:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindWifiExtender
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindMeshNode:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindMeshNode
 		return nil
 	case FindingsPostFindingsIDAppliedOKAssetKindServer:
 		*s = FindingsPostFindingsIDAppliedOKAssetKindServer
 		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindVirtualMachine:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindVirtualMachine
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindHypervisor:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindHypervisor
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindBmc:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindBmc
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindDomainController:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindDomainController
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindMailServer:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindMailServer
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindDatabaseServer:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindDatabaseServer
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindBackupServer:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindBackupServer
+		return nil
 	case FindingsPostFindingsIDAppliedOKAssetKindPc:
 		*s = FindingsPostFindingsIDAppliedOKAssetKindPc
 		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindLaptop:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindLaptop
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindWorkstation:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindWorkstation
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindThinClient:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindThinClient
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindPosTerminal:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindPosTerminal
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindKiosk:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindKiosk
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartphone:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindSmartphone
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindTablet:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindTablet
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartwatch:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindSmartwatch
+		return nil
 	case FindingsPostFindingsIDAppliedOKAssetKindPrinter:
 		*s = FindingsPostFindingsIDAppliedOKAssetKindPrinter
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindMfp:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindMfp
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindScanner:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindScanner
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindLabelPrinter:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindLabelPrinter
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindReceiptPrinter:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindReceiptPrinter
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindPlotter:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindPlotter
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKind3dPrinter:
+		*s = FindingsPostFindingsIDAppliedOKAssetKind3dPrinter
 		return nil
 	case FindingsPostFindingsIDAppliedOKAssetKindCamera:
 		*s = FindingsPostFindingsIDAppliedOKAssetKindCamera
@@ -61350,11 +63872,149 @@ func (s *FindingsPostFindingsIDAppliedOKAssetKind) UnmarshalText(data []byte) er
 	case FindingsPostFindingsIDAppliedOKAssetKindNvr:
 		*s = FindingsPostFindingsIDAppliedOKAssetKindNvr
 		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindDvr:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindDvr
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindVideoEncoder:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindVideoEncoder
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindDoorbell:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindDoorbell
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindVideoConferencing:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindVideoConferencing
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindIPPhone:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindIPPhone
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindPbx:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindPbx
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindVoipAdapter:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindVoipAdapter
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindVoipGateway:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindVoipGateway
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindConferencePhone:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindConferencePhone
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindIntercom:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindIntercom
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindNas:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindNas
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSan:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindSan
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindBackupAppliance:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindBackupAppliance
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindTapeLibrary:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindTapeLibrary
+		return nil
 	case FindingsPostFindingsIDAppliedOKAssetKindIot:
 		*s = FindingsPostFindingsIDAppliedOKAssetKindIot
 		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartTv:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindSmartTv
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindMediaPlayer:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindMediaPlayer
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartSpeaker:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindSmartSpeaker
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindGameConsole:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindGameConsole
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartPlug:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindSmartPlug
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartLight:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindSmartLight
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartHub:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindSmartHub
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindThermostat:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindThermostat
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindProjector:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindProjector
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindDigitalSignage:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindDigitalSignage
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSingleBoardComputer:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindSingleBoardComputer
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSmartAppliance:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindSmartAppliance
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindRobotVacuum:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindRobotVacuum
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindWirelessBridge:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindWirelessBridge
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindPlc:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindPlc
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindHmi:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindHmi
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindRtu:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindRtu
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindScadaServer:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindScadaServer
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindIndustrialSwitch:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindIndustrialSwitch
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindUps:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindUps
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindPdu:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindPdu
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindAccessControl:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindAccessControl
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindTimeClock:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindTimeClock
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindAlarmPanel:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindAlarmPanel
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindHvacController:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindHvacController
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindBuildingController:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindBuildingController
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindPowerMeter:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindPowerMeter
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindEnvironmentMonitor:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindEnvironmentMonitor
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindEvCharger:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindEvCharger
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindSolarInverter:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindSolarInverter
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindMedicalDevice:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindMedicalDevice
+		return nil
 	case FindingsPostFindingsIDAppliedOKAssetKindWeb:
 		*s = FindingsPostFindingsIDAppliedOKAssetKindWeb
+		return nil
+	case FindingsPostFindingsIDAppliedOKAssetKindCloudService:
+		*s = FindingsPostFindingsIDAppliedOKAssetKindCloudService
 		return nil
 	case FindingsPostFindingsIDAppliedOKAssetKindUnknown:
 		*s = FindingsPostFindingsIDAppliedOKAssetKindUnknown
@@ -63640,36 +66300,188 @@ func (s *FindingsPostFindingsIDStatusOKAsset) SetName(val string) {
 type FindingsPostFindingsIDStatusOKAssetKind string
 
 const (
-	FindingsPostFindingsIDStatusOKAssetKindFirewall FindingsPostFindingsIDStatusOKAssetKind = "firewall"
-	FindingsPostFindingsIDStatusOKAssetKindRouter   FindingsPostFindingsIDStatusOKAssetKind = "router"
-	FindingsPostFindingsIDStatusOKAssetKindSwitch   FindingsPostFindingsIDStatusOKAssetKind = "switch"
-	FindingsPostFindingsIDStatusOKAssetKindAp       FindingsPostFindingsIDStatusOKAssetKind = "ap"
-	FindingsPostFindingsIDStatusOKAssetKindNas      FindingsPostFindingsIDStatusOKAssetKind = "nas"
-	FindingsPostFindingsIDStatusOKAssetKindServer   FindingsPostFindingsIDStatusOKAssetKind = "server"
-	FindingsPostFindingsIDStatusOKAssetKindPc       FindingsPostFindingsIDStatusOKAssetKind = "pc"
-	FindingsPostFindingsIDStatusOKAssetKindPrinter  FindingsPostFindingsIDStatusOKAssetKind = "printer"
-	FindingsPostFindingsIDStatusOKAssetKindCamera   FindingsPostFindingsIDStatusOKAssetKind = "camera"
-	FindingsPostFindingsIDStatusOKAssetKindNvr      FindingsPostFindingsIDStatusOKAssetKind = "nvr"
-	FindingsPostFindingsIDStatusOKAssetKindIot      FindingsPostFindingsIDStatusOKAssetKind = "iot"
-	FindingsPostFindingsIDStatusOKAssetKindWeb      FindingsPostFindingsIDStatusOKAssetKind = "web"
-	FindingsPostFindingsIDStatusOKAssetKindUnknown  FindingsPostFindingsIDStatusOKAssetKind = "unknown"
+	FindingsPostFindingsIDStatusOKAssetKindRouter              FindingsPostFindingsIDStatusOKAssetKind = "router"
+	FindingsPostFindingsIDStatusOKAssetKindSwitch              FindingsPostFindingsIDStatusOKAssetKind = "switch"
+	FindingsPostFindingsIDStatusOKAssetKindModem               FindingsPostFindingsIDStatusOKAssetKind = "modem"
+	FindingsPostFindingsIDStatusOKAssetKindSdWan               FindingsPostFindingsIDStatusOKAssetKind = "sd_wan"
+	FindingsPostFindingsIDStatusOKAssetKindLoadBalancer        FindingsPostFindingsIDStatusOKAssetKind = "load_balancer"
+	FindingsPostFindingsIDStatusOKAssetKindNetworkController   FindingsPostFindingsIDStatusOKAssetKind = "network_controller"
+	FindingsPostFindingsIDStatusOKAssetKindFirewall            FindingsPostFindingsIDStatusOKAssetKind = "firewall"
+	FindingsPostFindingsIDStatusOKAssetKindVpnGateway          FindingsPostFindingsIDStatusOKAssetKind = "vpn_gateway"
+	FindingsPostFindingsIDStatusOKAssetKindIdsSensor           FindingsPostFindingsIDStatusOKAssetKind = "ids_sensor"
+	FindingsPostFindingsIDStatusOKAssetKindProxy               FindingsPostFindingsIDStatusOKAssetKind = "proxy"
+	FindingsPostFindingsIDStatusOKAssetKindAp                  FindingsPostFindingsIDStatusOKAssetKind = "ap"
+	FindingsPostFindingsIDStatusOKAssetKindWirelessController  FindingsPostFindingsIDStatusOKAssetKind = "wireless_controller"
+	FindingsPostFindingsIDStatusOKAssetKindWifiExtender        FindingsPostFindingsIDStatusOKAssetKind = "wifi_extender"
+	FindingsPostFindingsIDStatusOKAssetKindMeshNode            FindingsPostFindingsIDStatusOKAssetKind = "mesh_node"
+	FindingsPostFindingsIDStatusOKAssetKindServer              FindingsPostFindingsIDStatusOKAssetKind = "server"
+	FindingsPostFindingsIDStatusOKAssetKindVirtualMachine      FindingsPostFindingsIDStatusOKAssetKind = "virtual_machine"
+	FindingsPostFindingsIDStatusOKAssetKindHypervisor          FindingsPostFindingsIDStatusOKAssetKind = "hypervisor"
+	FindingsPostFindingsIDStatusOKAssetKindBmc                 FindingsPostFindingsIDStatusOKAssetKind = "bmc"
+	FindingsPostFindingsIDStatusOKAssetKindDomainController    FindingsPostFindingsIDStatusOKAssetKind = "domain_controller"
+	FindingsPostFindingsIDStatusOKAssetKindMailServer          FindingsPostFindingsIDStatusOKAssetKind = "mail_server"
+	FindingsPostFindingsIDStatusOKAssetKindDatabaseServer      FindingsPostFindingsIDStatusOKAssetKind = "database_server"
+	FindingsPostFindingsIDStatusOKAssetKindBackupServer        FindingsPostFindingsIDStatusOKAssetKind = "backup_server"
+	FindingsPostFindingsIDStatusOKAssetKindPc                  FindingsPostFindingsIDStatusOKAssetKind = "pc"
+	FindingsPostFindingsIDStatusOKAssetKindLaptop              FindingsPostFindingsIDStatusOKAssetKind = "laptop"
+	FindingsPostFindingsIDStatusOKAssetKindWorkstation         FindingsPostFindingsIDStatusOKAssetKind = "workstation"
+	FindingsPostFindingsIDStatusOKAssetKindThinClient          FindingsPostFindingsIDStatusOKAssetKind = "thin_client"
+	FindingsPostFindingsIDStatusOKAssetKindPosTerminal         FindingsPostFindingsIDStatusOKAssetKind = "pos_terminal"
+	FindingsPostFindingsIDStatusOKAssetKindKiosk               FindingsPostFindingsIDStatusOKAssetKind = "kiosk"
+	FindingsPostFindingsIDStatusOKAssetKindSmartphone          FindingsPostFindingsIDStatusOKAssetKind = "smartphone"
+	FindingsPostFindingsIDStatusOKAssetKindTablet              FindingsPostFindingsIDStatusOKAssetKind = "tablet"
+	FindingsPostFindingsIDStatusOKAssetKindSmartwatch          FindingsPostFindingsIDStatusOKAssetKind = "smartwatch"
+	FindingsPostFindingsIDStatusOKAssetKindPrinter             FindingsPostFindingsIDStatusOKAssetKind = "printer"
+	FindingsPostFindingsIDStatusOKAssetKindMfp                 FindingsPostFindingsIDStatusOKAssetKind = "mfp"
+	FindingsPostFindingsIDStatusOKAssetKindScanner             FindingsPostFindingsIDStatusOKAssetKind = "scanner"
+	FindingsPostFindingsIDStatusOKAssetKindLabelPrinter        FindingsPostFindingsIDStatusOKAssetKind = "label_printer"
+	FindingsPostFindingsIDStatusOKAssetKindReceiptPrinter      FindingsPostFindingsIDStatusOKAssetKind = "receipt_printer"
+	FindingsPostFindingsIDStatusOKAssetKindPlotter             FindingsPostFindingsIDStatusOKAssetKind = "plotter"
+	FindingsPostFindingsIDStatusOKAssetKind3dPrinter           FindingsPostFindingsIDStatusOKAssetKind = "3d_printer"
+	FindingsPostFindingsIDStatusOKAssetKindCamera              FindingsPostFindingsIDStatusOKAssetKind = "camera"
+	FindingsPostFindingsIDStatusOKAssetKindNvr                 FindingsPostFindingsIDStatusOKAssetKind = "nvr"
+	FindingsPostFindingsIDStatusOKAssetKindDvr                 FindingsPostFindingsIDStatusOKAssetKind = "dvr"
+	FindingsPostFindingsIDStatusOKAssetKindVideoEncoder        FindingsPostFindingsIDStatusOKAssetKind = "video_encoder"
+	FindingsPostFindingsIDStatusOKAssetKindDoorbell            FindingsPostFindingsIDStatusOKAssetKind = "doorbell"
+	FindingsPostFindingsIDStatusOKAssetKindVideoConferencing   FindingsPostFindingsIDStatusOKAssetKind = "video_conferencing"
+	FindingsPostFindingsIDStatusOKAssetKindIPPhone             FindingsPostFindingsIDStatusOKAssetKind = "ip_phone"
+	FindingsPostFindingsIDStatusOKAssetKindPbx                 FindingsPostFindingsIDStatusOKAssetKind = "pbx"
+	FindingsPostFindingsIDStatusOKAssetKindVoipAdapter         FindingsPostFindingsIDStatusOKAssetKind = "voip_adapter"
+	FindingsPostFindingsIDStatusOKAssetKindVoipGateway         FindingsPostFindingsIDStatusOKAssetKind = "voip_gateway"
+	FindingsPostFindingsIDStatusOKAssetKindConferencePhone     FindingsPostFindingsIDStatusOKAssetKind = "conference_phone"
+	FindingsPostFindingsIDStatusOKAssetKindIntercom            FindingsPostFindingsIDStatusOKAssetKind = "intercom"
+	FindingsPostFindingsIDStatusOKAssetKindNas                 FindingsPostFindingsIDStatusOKAssetKind = "nas"
+	FindingsPostFindingsIDStatusOKAssetKindSan                 FindingsPostFindingsIDStatusOKAssetKind = "san"
+	FindingsPostFindingsIDStatusOKAssetKindBackupAppliance     FindingsPostFindingsIDStatusOKAssetKind = "backup_appliance"
+	FindingsPostFindingsIDStatusOKAssetKindTapeLibrary         FindingsPostFindingsIDStatusOKAssetKind = "tape_library"
+	FindingsPostFindingsIDStatusOKAssetKindIot                 FindingsPostFindingsIDStatusOKAssetKind = "iot"
+	FindingsPostFindingsIDStatusOKAssetKindSmartTv             FindingsPostFindingsIDStatusOKAssetKind = "smart_tv"
+	FindingsPostFindingsIDStatusOKAssetKindMediaPlayer         FindingsPostFindingsIDStatusOKAssetKind = "media_player"
+	FindingsPostFindingsIDStatusOKAssetKindSmartSpeaker        FindingsPostFindingsIDStatusOKAssetKind = "smart_speaker"
+	FindingsPostFindingsIDStatusOKAssetKindGameConsole         FindingsPostFindingsIDStatusOKAssetKind = "game_console"
+	FindingsPostFindingsIDStatusOKAssetKindSmartPlug           FindingsPostFindingsIDStatusOKAssetKind = "smart_plug"
+	FindingsPostFindingsIDStatusOKAssetKindSmartLight          FindingsPostFindingsIDStatusOKAssetKind = "smart_light"
+	FindingsPostFindingsIDStatusOKAssetKindSmartHub            FindingsPostFindingsIDStatusOKAssetKind = "smart_hub"
+	FindingsPostFindingsIDStatusOKAssetKindThermostat          FindingsPostFindingsIDStatusOKAssetKind = "thermostat"
+	FindingsPostFindingsIDStatusOKAssetKindProjector           FindingsPostFindingsIDStatusOKAssetKind = "projector"
+	FindingsPostFindingsIDStatusOKAssetKindDigitalSignage      FindingsPostFindingsIDStatusOKAssetKind = "digital_signage"
+	FindingsPostFindingsIDStatusOKAssetKindSingleBoardComputer FindingsPostFindingsIDStatusOKAssetKind = "single_board_computer"
+	FindingsPostFindingsIDStatusOKAssetKindSmartAppliance      FindingsPostFindingsIDStatusOKAssetKind = "smart_appliance"
+	FindingsPostFindingsIDStatusOKAssetKindRobotVacuum         FindingsPostFindingsIDStatusOKAssetKind = "robot_vacuum"
+	FindingsPostFindingsIDStatusOKAssetKindWirelessBridge      FindingsPostFindingsIDStatusOKAssetKind = "wireless_bridge"
+	FindingsPostFindingsIDStatusOKAssetKindPlc                 FindingsPostFindingsIDStatusOKAssetKind = "plc"
+	FindingsPostFindingsIDStatusOKAssetKindHmi                 FindingsPostFindingsIDStatusOKAssetKind = "hmi"
+	FindingsPostFindingsIDStatusOKAssetKindRtu                 FindingsPostFindingsIDStatusOKAssetKind = "rtu"
+	FindingsPostFindingsIDStatusOKAssetKindScadaServer         FindingsPostFindingsIDStatusOKAssetKind = "scada_server"
+	FindingsPostFindingsIDStatusOKAssetKindIndustrialSwitch    FindingsPostFindingsIDStatusOKAssetKind = "industrial_switch"
+	FindingsPostFindingsIDStatusOKAssetKindUps                 FindingsPostFindingsIDStatusOKAssetKind = "ups"
+	FindingsPostFindingsIDStatusOKAssetKindPdu                 FindingsPostFindingsIDStatusOKAssetKind = "pdu"
+	FindingsPostFindingsIDStatusOKAssetKindAccessControl       FindingsPostFindingsIDStatusOKAssetKind = "access_control"
+	FindingsPostFindingsIDStatusOKAssetKindTimeClock           FindingsPostFindingsIDStatusOKAssetKind = "time_clock"
+	FindingsPostFindingsIDStatusOKAssetKindAlarmPanel          FindingsPostFindingsIDStatusOKAssetKind = "alarm_panel"
+	FindingsPostFindingsIDStatusOKAssetKindHvacController      FindingsPostFindingsIDStatusOKAssetKind = "hvac_controller"
+	FindingsPostFindingsIDStatusOKAssetKindBuildingController  FindingsPostFindingsIDStatusOKAssetKind = "building_controller"
+	FindingsPostFindingsIDStatusOKAssetKindPowerMeter          FindingsPostFindingsIDStatusOKAssetKind = "power_meter"
+	FindingsPostFindingsIDStatusOKAssetKindEnvironmentMonitor  FindingsPostFindingsIDStatusOKAssetKind = "environment_monitor"
+	FindingsPostFindingsIDStatusOKAssetKindEvCharger           FindingsPostFindingsIDStatusOKAssetKind = "ev_charger"
+	FindingsPostFindingsIDStatusOKAssetKindSolarInverter       FindingsPostFindingsIDStatusOKAssetKind = "solar_inverter"
+	FindingsPostFindingsIDStatusOKAssetKindMedicalDevice       FindingsPostFindingsIDStatusOKAssetKind = "medical_device"
+	FindingsPostFindingsIDStatusOKAssetKindWeb                 FindingsPostFindingsIDStatusOKAssetKind = "web"
+	FindingsPostFindingsIDStatusOKAssetKindCloudService        FindingsPostFindingsIDStatusOKAssetKind = "cloud_service"
+	FindingsPostFindingsIDStatusOKAssetKindUnknown             FindingsPostFindingsIDStatusOKAssetKind = "unknown"
 )
 
 // AllValues returns all FindingsPostFindingsIDStatusOKAssetKind values.
 func (FindingsPostFindingsIDStatusOKAssetKind) AllValues() []FindingsPostFindingsIDStatusOKAssetKind {
 	return []FindingsPostFindingsIDStatusOKAssetKind{
-		FindingsPostFindingsIDStatusOKAssetKindFirewall,
 		FindingsPostFindingsIDStatusOKAssetKindRouter,
 		FindingsPostFindingsIDStatusOKAssetKindSwitch,
+		FindingsPostFindingsIDStatusOKAssetKindModem,
+		FindingsPostFindingsIDStatusOKAssetKindSdWan,
+		FindingsPostFindingsIDStatusOKAssetKindLoadBalancer,
+		FindingsPostFindingsIDStatusOKAssetKindNetworkController,
+		FindingsPostFindingsIDStatusOKAssetKindFirewall,
+		FindingsPostFindingsIDStatusOKAssetKindVpnGateway,
+		FindingsPostFindingsIDStatusOKAssetKindIdsSensor,
+		FindingsPostFindingsIDStatusOKAssetKindProxy,
 		FindingsPostFindingsIDStatusOKAssetKindAp,
-		FindingsPostFindingsIDStatusOKAssetKindNas,
+		FindingsPostFindingsIDStatusOKAssetKindWirelessController,
+		FindingsPostFindingsIDStatusOKAssetKindWifiExtender,
+		FindingsPostFindingsIDStatusOKAssetKindMeshNode,
 		FindingsPostFindingsIDStatusOKAssetKindServer,
+		FindingsPostFindingsIDStatusOKAssetKindVirtualMachine,
+		FindingsPostFindingsIDStatusOKAssetKindHypervisor,
+		FindingsPostFindingsIDStatusOKAssetKindBmc,
+		FindingsPostFindingsIDStatusOKAssetKindDomainController,
+		FindingsPostFindingsIDStatusOKAssetKindMailServer,
+		FindingsPostFindingsIDStatusOKAssetKindDatabaseServer,
+		FindingsPostFindingsIDStatusOKAssetKindBackupServer,
 		FindingsPostFindingsIDStatusOKAssetKindPc,
+		FindingsPostFindingsIDStatusOKAssetKindLaptop,
+		FindingsPostFindingsIDStatusOKAssetKindWorkstation,
+		FindingsPostFindingsIDStatusOKAssetKindThinClient,
+		FindingsPostFindingsIDStatusOKAssetKindPosTerminal,
+		FindingsPostFindingsIDStatusOKAssetKindKiosk,
+		FindingsPostFindingsIDStatusOKAssetKindSmartphone,
+		FindingsPostFindingsIDStatusOKAssetKindTablet,
+		FindingsPostFindingsIDStatusOKAssetKindSmartwatch,
 		FindingsPostFindingsIDStatusOKAssetKindPrinter,
+		FindingsPostFindingsIDStatusOKAssetKindMfp,
+		FindingsPostFindingsIDStatusOKAssetKindScanner,
+		FindingsPostFindingsIDStatusOKAssetKindLabelPrinter,
+		FindingsPostFindingsIDStatusOKAssetKindReceiptPrinter,
+		FindingsPostFindingsIDStatusOKAssetKindPlotter,
+		FindingsPostFindingsIDStatusOKAssetKind3dPrinter,
 		FindingsPostFindingsIDStatusOKAssetKindCamera,
 		FindingsPostFindingsIDStatusOKAssetKindNvr,
+		FindingsPostFindingsIDStatusOKAssetKindDvr,
+		FindingsPostFindingsIDStatusOKAssetKindVideoEncoder,
+		FindingsPostFindingsIDStatusOKAssetKindDoorbell,
+		FindingsPostFindingsIDStatusOKAssetKindVideoConferencing,
+		FindingsPostFindingsIDStatusOKAssetKindIPPhone,
+		FindingsPostFindingsIDStatusOKAssetKindPbx,
+		FindingsPostFindingsIDStatusOKAssetKindVoipAdapter,
+		FindingsPostFindingsIDStatusOKAssetKindVoipGateway,
+		FindingsPostFindingsIDStatusOKAssetKindConferencePhone,
+		FindingsPostFindingsIDStatusOKAssetKindIntercom,
+		FindingsPostFindingsIDStatusOKAssetKindNas,
+		FindingsPostFindingsIDStatusOKAssetKindSan,
+		FindingsPostFindingsIDStatusOKAssetKindBackupAppliance,
+		FindingsPostFindingsIDStatusOKAssetKindTapeLibrary,
 		FindingsPostFindingsIDStatusOKAssetKindIot,
+		FindingsPostFindingsIDStatusOKAssetKindSmartTv,
+		FindingsPostFindingsIDStatusOKAssetKindMediaPlayer,
+		FindingsPostFindingsIDStatusOKAssetKindSmartSpeaker,
+		FindingsPostFindingsIDStatusOKAssetKindGameConsole,
+		FindingsPostFindingsIDStatusOKAssetKindSmartPlug,
+		FindingsPostFindingsIDStatusOKAssetKindSmartLight,
+		FindingsPostFindingsIDStatusOKAssetKindSmartHub,
+		FindingsPostFindingsIDStatusOKAssetKindThermostat,
+		FindingsPostFindingsIDStatusOKAssetKindProjector,
+		FindingsPostFindingsIDStatusOKAssetKindDigitalSignage,
+		FindingsPostFindingsIDStatusOKAssetKindSingleBoardComputer,
+		FindingsPostFindingsIDStatusOKAssetKindSmartAppliance,
+		FindingsPostFindingsIDStatusOKAssetKindRobotVacuum,
+		FindingsPostFindingsIDStatusOKAssetKindWirelessBridge,
+		FindingsPostFindingsIDStatusOKAssetKindPlc,
+		FindingsPostFindingsIDStatusOKAssetKindHmi,
+		FindingsPostFindingsIDStatusOKAssetKindRtu,
+		FindingsPostFindingsIDStatusOKAssetKindScadaServer,
+		FindingsPostFindingsIDStatusOKAssetKindIndustrialSwitch,
+		FindingsPostFindingsIDStatusOKAssetKindUps,
+		FindingsPostFindingsIDStatusOKAssetKindPdu,
+		FindingsPostFindingsIDStatusOKAssetKindAccessControl,
+		FindingsPostFindingsIDStatusOKAssetKindTimeClock,
+		FindingsPostFindingsIDStatusOKAssetKindAlarmPanel,
+		FindingsPostFindingsIDStatusOKAssetKindHvacController,
+		FindingsPostFindingsIDStatusOKAssetKindBuildingController,
+		FindingsPostFindingsIDStatusOKAssetKindPowerMeter,
+		FindingsPostFindingsIDStatusOKAssetKindEnvironmentMonitor,
+		FindingsPostFindingsIDStatusOKAssetKindEvCharger,
+		FindingsPostFindingsIDStatusOKAssetKindSolarInverter,
+		FindingsPostFindingsIDStatusOKAssetKindMedicalDevice,
 		FindingsPostFindingsIDStatusOKAssetKindWeb,
+		FindingsPostFindingsIDStatusOKAssetKindCloudService,
 		FindingsPostFindingsIDStatusOKAssetKindUnknown,
 	}
 }
@@ -63677,29 +66489,181 @@ func (FindingsPostFindingsIDStatusOKAssetKind) AllValues() []FindingsPostFinding
 // MarshalText implements encoding.TextMarshaler.
 func (s FindingsPostFindingsIDStatusOKAssetKind) MarshalText() ([]byte, error) {
 	switch s {
-	case FindingsPostFindingsIDStatusOKAssetKindFirewall:
-		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKAssetKindRouter:
 		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKAssetKindSwitch:
 		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindModem:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindSdWan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindNetworkController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindVpnGateway:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindIdsSensor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindProxy:
+		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKAssetKindAp:
 		return []byte(s), nil
-	case FindingsPostFindingsIDStatusOKAssetKindNas:
+	case FindingsPostFindingsIDStatusOKAssetKindWirelessController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindWifiExtender:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindMeshNode:
 		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKAssetKindServer:
 		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindHypervisor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindBmc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindDomainController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindMailServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindBackupServer:
+		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKAssetKindPc:
 		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindLaptop:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindWorkstation:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindThinClient:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindPosTerminal:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindKiosk:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartphone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindTablet:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartwatch:
+		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindMfp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindScanner:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindPlotter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKind3dPrinter:
 		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKAssetKindCamera:
 		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKAssetKindNvr:
 		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindDvr:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindDoorbell:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindIPPhone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindPbx:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindVoipGateway:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindConferencePhone:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindIntercom:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindNas:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindSan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindTapeLibrary:
+		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKAssetKindIot:
 		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartTv:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindGameConsole:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartPlug:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartLight:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartHub:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindThermostat:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindProjector:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindPlc:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindHmi:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindRtu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindScadaServer:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindUps:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindPdu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindAccessControl:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindTimeClock:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindHvacController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindBuildingController:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindPowerMeter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindEvCharger:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindSolarInverter:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindMedicalDevice:
+		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKAssetKindWeb:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKAssetKindCloudService:
 		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKAssetKindUnknown:
 		return []byte(s), nil
@@ -63711,29 +66675,119 @@ func (s FindingsPostFindingsIDStatusOKAssetKind) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *FindingsPostFindingsIDStatusOKAssetKind) UnmarshalText(data []byte) error {
 	switch FindingsPostFindingsIDStatusOKAssetKind(data) {
-	case FindingsPostFindingsIDStatusOKAssetKindFirewall:
-		*s = FindingsPostFindingsIDStatusOKAssetKindFirewall
-		return nil
 	case FindingsPostFindingsIDStatusOKAssetKindRouter:
 		*s = FindingsPostFindingsIDStatusOKAssetKindRouter
 		return nil
 	case FindingsPostFindingsIDStatusOKAssetKindSwitch:
 		*s = FindingsPostFindingsIDStatusOKAssetKindSwitch
 		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindModem:
+		*s = FindingsPostFindingsIDStatusOKAssetKindModem
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindSdWan:
+		*s = FindingsPostFindingsIDStatusOKAssetKindSdWan
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindLoadBalancer:
+		*s = FindingsPostFindingsIDStatusOKAssetKindLoadBalancer
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindNetworkController:
+		*s = FindingsPostFindingsIDStatusOKAssetKindNetworkController
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindFirewall:
+		*s = FindingsPostFindingsIDStatusOKAssetKindFirewall
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindVpnGateway:
+		*s = FindingsPostFindingsIDStatusOKAssetKindVpnGateway
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindIdsSensor:
+		*s = FindingsPostFindingsIDStatusOKAssetKindIdsSensor
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindProxy:
+		*s = FindingsPostFindingsIDStatusOKAssetKindProxy
+		return nil
 	case FindingsPostFindingsIDStatusOKAssetKindAp:
 		*s = FindingsPostFindingsIDStatusOKAssetKindAp
 		return nil
-	case FindingsPostFindingsIDStatusOKAssetKindNas:
-		*s = FindingsPostFindingsIDStatusOKAssetKindNas
+	case FindingsPostFindingsIDStatusOKAssetKindWirelessController:
+		*s = FindingsPostFindingsIDStatusOKAssetKindWirelessController
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindWifiExtender:
+		*s = FindingsPostFindingsIDStatusOKAssetKindWifiExtender
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindMeshNode:
+		*s = FindingsPostFindingsIDStatusOKAssetKindMeshNode
 		return nil
 	case FindingsPostFindingsIDStatusOKAssetKindServer:
 		*s = FindingsPostFindingsIDStatusOKAssetKindServer
 		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindVirtualMachine:
+		*s = FindingsPostFindingsIDStatusOKAssetKindVirtualMachine
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindHypervisor:
+		*s = FindingsPostFindingsIDStatusOKAssetKindHypervisor
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindBmc:
+		*s = FindingsPostFindingsIDStatusOKAssetKindBmc
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindDomainController:
+		*s = FindingsPostFindingsIDStatusOKAssetKindDomainController
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindMailServer:
+		*s = FindingsPostFindingsIDStatusOKAssetKindMailServer
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindDatabaseServer:
+		*s = FindingsPostFindingsIDStatusOKAssetKindDatabaseServer
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindBackupServer:
+		*s = FindingsPostFindingsIDStatusOKAssetKindBackupServer
+		return nil
 	case FindingsPostFindingsIDStatusOKAssetKindPc:
 		*s = FindingsPostFindingsIDStatusOKAssetKindPc
 		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindLaptop:
+		*s = FindingsPostFindingsIDStatusOKAssetKindLaptop
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindWorkstation:
+		*s = FindingsPostFindingsIDStatusOKAssetKindWorkstation
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindThinClient:
+		*s = FindingsPostFindingsIDStatusOKAssetKindThinClient
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindPosTerminal:
+		*s = FindingsPostFindingsIDStatusOKAssetKindPosTerminal
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindKiosk:
+		*s = FindingsPostFindingsIDStatusOKAssetKindKiosk
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartphone:
+		*s = FindingsPostFindingsIDStatusOKAssetKindSmartphone
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindTablet:
+		*s = FindingsPostFindingsIDStatusOKAssetKindTablet
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartwatch:
+		*s = FindingsPostFindingsIDStatusOKAssetKindSmartwatch
+		return nil
 	case FindingsPostFindingsIDStatusOKAssetKindPrinter:
 		*s = FindingsPostFindingsIDStatusOKAssetKindPrinter
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindMfp:
+		*s = FindingsPostFindingsIDStatusOKAssetKindMfp
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindScanner:
+		*s = FindingsPostFindingsIDStatusOKAssetKindScanner
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindLabelPrinter:
+		*s = FindingsPostFindingsIDStatusOKAssetKindLabelPrinter
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindReceiptPrinter:
+		*s = FindingsPostFindingsIDStatusOKAssetKindReceiptPrinter
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindPlotter:
+		*s = FindingsPostFindingsIDStatusOKAssetKindPlotter
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKind3dPrinter:
+		*s = FindingsPostFindingsIDStatusOKAssetKind3dPrinter
 		return nil
 	case FindingsPostFindingsIDStatusOKAssetKindCamera:
 		*s = FindingsPostFindingsIDStatusOKAssetKindCamera
@@ -63741,11 +66795,149 @@ func (s *FindingsPostFindingsIDStatusOKAssetKind) UnmarshalText(data []byte) err
 	case FindingsPostFindingsIDStatusOKAssetKindNvr:
 		*s = FindingsPostFindingsIDStatusOKAssetKindNvr
 		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindDvr:
+		*s = FindingsPostFindingsIDStatusOKAssetKindDvr
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindVideoEncoder:
+		*s = FindingsPostFindingsIDStatusOKAssetKindVideoEncoder
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindDoorbell:
+		*s = FindingsPostFindingsIDStatusOKAssetKindDoorbell
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindVideoConferencing:
+		*s = FindingsPostFindingsIDStatusOKAssetKindVideoConferencing
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindIPPhone:
+		*s = FindingsPostFindingsIDStatusOKAssetKindIPPhone
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindPbx:
+		*s = FindingsPostFindingsIDStatusOKAssetKindPbx
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindVoipAdapter:
+		*s = FindingsPostFindingsIDStatusOKAssetKindVoipAdapter
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindVoipGateway:
+		*s = FindingsPostFindingsIDStatusOKAssetKindVoipGateway
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindConferencePhone:
+		*s = FindingsPostFindingsIDStatusOKAssetKindConferencePhone
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindIntercom:
+		*s = FindingsPostFindingsIDStatusOKAssetKindIntercom
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindNas:
+		*s = FindingsPostFindingsIDStatusOKAssetKindNas
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindSan:
+		*s = FindingsPostFindingsIDStatusOKAssetKindSan
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindBackupAppliance:
+		*s = FindingsPostFindingsIDStatusOKAssetKindBackupAppliance
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindTapeLibrary:
+		*s = FindingsPostFindingsIDStatusOKAssetKindTapeLibrary
+		return nil
 	case FindingsPostFindingsIDStatusOKAssetKindIot:
 		*s = FindingsPostFindingsIDStatusOKAssetKindIot
 		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartTv:
+		*s = FindingsPostFindingsIDStatusOKAssetKindSmartTv
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindMediaPlayer:
+		*s = FindingsPostFindingsIDStatusOKAssetKindMediaPlayer
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartSpeaker:
+		*s = FindingsPostFindingsIDStatusOKAssetKindSmartSpeaker
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindGameConsole:
+		*s = FindingsPostFindingsIDStatusOKAssetKindGameConsole
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartPlug:
+		*s = FindingsPostFindingsIDStatusOKAssetKindSmartPlug
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartLight:
+		*s = FindingsPostFindingsIDStatusOKAssetKindSmartLight
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartHub:
+		*s = FindingsPostFindingsIDStatusOKAssetKindSmartHub
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindThermostat:
+		*s = FindingsPostFindingsIDStatusOKAssetKindThermostat
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindProjector:
+		*s = FindingsPostFindingsIDStatusOKAssetKindProjector
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindDigitalSignage:
+		*s = FindingsPostFindingsIDStatusOKAssetKindDigitalSignage
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindSingleBoardComputer:
+		*s = FindingsPostFindingsIDStatusOKAssetKindSingleBoardComputer
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindSmartAppliance:
+		*s = FindingsPostFindingsIDStatusOKAssetKindSmartAppliance
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindRobotVacuum:
+		*s = FindingsPostFindingsIDStatusOKAssetKindRobotVacuum
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindWirelessBridge:
+		*s = FindingsPostFindingsIDStatusOKAssetKindWirelessBridge
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindPlc:
+		*s = FindingsPostFindingsIDStatusOKAssetKindPlc
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindHmi:
+		*s = FindingsPostFindingsIDStatusOKAssetKindHmi
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindRtu:
+		*s = FindingsPostFindingsIDStatusOKAssetKindRtu
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindScadaServer:
+		*s = FindingsPostFindingsIDStatusOKAssetKindScadaServer
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindIndustrialSwitch:
+		*s = FindingsPostFindingsIDStatusOKAssetKindIndustrialSwitch
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindUps:
+		*s = FindingsPostFindingsIDStatusOKAssetKindUps
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindPdu:
+		*s = FindingsPostFindingsIDStatusOKAssetKindPdu
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindAccessControl:
+		*s = FindingsPostFindingsIDStatusOKAssetKindAccessControl
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindTimeClock:
+		*s = FindingsPostFindingsIDStatusOKAssetKindTimeClock
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindAlarmPanel:
+		*s = FindingsPostFindingsIDStatusOKAssetKindAlarmPanel
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindHvacController:
+		*s = FindingsPostFindingsIDStatusOKAssetKindHvacController
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindBuildingController:
+		*s = FindingsPostFindingsIDStatusOKAssetKindBuildingController
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindPowerMeter:
+		*s = FindingsPostFindingsIDStatusOKAssetKindPowerMeter
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindEnvironmentMonitor:
+		*s = FindingsPostFindingsIDStatusOKAssetKindEnvironmentMonitor
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindEvCharger:
+		*s = FindingsPostFindingsIDStatusOKAssetKindEvCharger
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindSolarInverter:
+		*s = FindingsPostFindingsIDStatusOKAssetKindSolarInverter
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindMedicalDevice:
+		*s = FindingsPostFindingsIDStatusOKAssetKindMedicalDevice
+		return nil
 	case FindingsPostFindingsIDStatusOKAssetKindWeb:
 		*s = FindingsPostFindingsIDStatusOKAssetKindWeb
+		return nil
+	case FindingsPostFindingsIDStatusOKAssetKindCloudService:
+		*s = FindingsPostFindingsIDStatusOKAssetKindCloudService
 		return nil
 	case FindingsPostFindingsIDStatusOKAssetKindUnknown:
 		*s = FindingsPostFindingsIDStatusOKAssetKindUnknown
@@ -73813,7 +77005,8 @@ type InventoryGetInventoryCatalogOKItemsItem struct {
 	// Stable: curated entries have fixed ids, entries from CISA KEV have id "kev::".
 	ID string `json:"id"`
 	// Number of the product vulnerabilities ever exploited in the wild (CISA KEV).
-	KevCves     int                                         `json:"kev_cves"`
+	KevCves int `json:"kev_cves"`
+	// Device type (content/devicetypes/types.json, D-511).
 	Kind        InventoryGetInventoryCatalogOKItemsItemKind `json:"kind"`
 	Product     string                                      `json:"product"`
 	Vendor      string                                      `json:"vendor"`
@@ -73910,39 +77103,192 @@ func (s *InventoryGetInventoryCatalogOKItemsItem) SetVersionHint(val string) {
 	s.VersionHint = val
 }
 
+// Device type (content/devicetypes/types.json, D-511).
 type InventoryGetInventoryCatalogOKItemsItemKind string
 
 const (
-	InventoryGetInventoryCatalogOKItemsItemKindFirewall InventoryGetInventoryCatalogOKItemsItemKind = "firewall"
-	InventoryGetInventoryCatalogOKItemsItemKindRouter   InventoryGetInventoryCatalogOKItemsItemKind = "router"
-	InventoryGetInventoryCatalogOKItemsItemKindSwitch   InventoryGetInventoryCatalogOKItemsItemKind = "switch"
-	InventoryGetInventoryCatalogOKItemsItemKindAp       InventoryGetInventoryCatalogOKItemsItemKind = "ap"
-	InventoryGetInventoryCatalogOKItemsItemKindNas      InventoryGetInventoryCatalogOKItemsItemKind = "nas"
-	InventoryGetInventoryCatalogOKItemsItemKindServer   InventoryGetInventoryCatalogOKItemsItemKind = "server"
-	InventoryGetInventoryCatalogOKItemsItemKindPc       InventoryGetInventoryCatalogOKItemsItemKind = "pc"
-	InventoryGetInventoryCatalogOKItemsItemKindPrinter  InventoryGetInventoryCatalogOKItemsItemKind = "printer"
-	InventoryGetInventoryCatalogOKItemsItemKindCamera   InventoryGetInventoryCatalogOKItemsItemKind = "camera"
-	InventoryGetInventoryCatalogOKItemsItemKindNvr      InventoryGetInventoryCatalogOKItemsItemKind = "nvr"
-	InventoryGetInventoryCatalogOKItemsItemKindIot      InventoryGetInventoryCatalogOKItemsItemKind = "iot"
-	InventoryGetInventoryCatalogOKItemsItemKindWeb      InventoryGetInventoryCatalogOKItemsItemKind = "web"
-	InventoryGetInventoryCatalogOKItemsItemKindUnknown  InventoryGetInventoryCatalogOKItemsItemKind = "unknown"
+	InventoryGetInventoryCatalogOKItemsItemKindRouter              InventoryGetInventoryCatalogOKItemsItemKind = "router"
+	InventoryGetInventoryCatalogOKItemsItemKindSwitch              InventoryGetInventoryCatalogOKItemsItemKind = "switch"
+	InventoryGetInventoryCatalogOKItemsItemKindModem               InventoryGetInventoryCatalogOKItemsItemKind = "modem"
+	InventoryGetInventoryCatalogOKItemsItemKindSdWan               InventoryGetInventoryCatalogOKItemsItemKind = "sd_wan"
+	InventoryGetInventoryCatalogOKItemsItemKindLoadBalancer        InventoryGetInventoryCatalogOKItemsItemKind = "load_balancer"
+	InventoryGetInventoryCatalogOKItemsItemKindNetworkController   InventoryGetInventoryCatalogOKItemsItemKind = "network_controller"
+	InventoryGetInventoryCatalogOKItemsItemKindFirewall            InventoryGetInventoryCatalogOKItemsItemKind = "firewall"
+	InventoryGetInventoryCatalogOKItemsItemKindVpnGateway          InventoryGetInventoryCatalogOKItemsItemKind = "vpn_gateway"
+	InventoryGetInventoryCatalogOKItemsItemKindIdsSensor           InventoryGetInventoryCatalogOKItemsItemKind = "ids_sensor"
+	InventoryGetInventoryCatalogOKItemsItemKindProxy               InventoryGetInventoryCatalogOKItemsItemKind = "proxy"
+	InventoryGetInventoryCatalogOKItemsItemKindAp                  InventoryGetInventoryCatalogOKItemsItemKind = "ap"
+	InventoryGetInventoryCatalogOKItemsItemKindWirelessController  InventoryGetInventoryCatalogOKItemsItemKind = "wireless_controller"
+	InventoryGetInventoryCatalogOKItemsItemKindWifiExtender        InventoryGetInventoryCatalogOKItemsItemKind = "wifi_extender"
+	InventoryGetInventoryCatalogOKItemsItemKindMeshNode            InventoryGetInventoryCatalogOKItemsItemKind = "mesh_node"
+	InventoryGetInventoryCatalogOKItemsItemKindServer              InventoryGetInventoryCatalogOKItemsItemKind = "server"
+	InventoryGetInventoryCatalogOKItemsItemKindVirtualMachine      InventoryGetInventoryCatalogOKItemsItemKind = "virtual_machine"
+	InventoryGetInventoryCatalogOKItemsItemKindHypervisor          InventoryGetInventoryCatalogOKItemsItemKind = "hypervisor"
+	InventoryGetInventoryCatalogOKItemsItemKindBmc                 InventoryGetInventoryCatalogOKItemsItemKind = "bmc"
+	InventoryGetInventoryCatalogOKItemsItemKindDomainController    InventoryGetInventoryCatalogOKItemsItemKind = "domain_controller"
+	InventoryGetInventoryCatalogOKItemsItemKindMailServer          InventoryGetInventoryCatalogOKItemsItemKind = "mail_server"
+	InventoryGetInventoryCatalogOKItemsItemKindDatabaseServer      InventoryGetInventoryCatalogOKItemsItemKind = "database_server"
+	InventoryGetInventoryCatalogOKItemsItemKindBackupServer        InventoryGetInventoryCatalogOKItemsItemKind = "backup_server"
+	InventoryGetInventoryCatalogOKItemsItemKindPc                  InventoryGetInventoryCatalogOKItemsItemKind = "pc"
+	InventoryGetInventoryCatalogOKItemsItemKindLaptop              InventoryGetInventoryCatalogOKItemsItemKind = "laptop"
+	InventoryGetInventoryCatalogOKItemsItemKindWorkstation         InventoryGetInventoryCatalogOKItemsItemKind = "workstation"
+	InventoryGetInventoryCatalogOKItemsItemKindThinClient          InventoryGetInventoryCatalogOKItemsItemKind = "thin_client"
+	InventoryGetInventoryCatalogOKItemsItemKindPosTerminal         InventoryGetInventoryCatalogOKItemsItemKind = "pos_terminal"
+	InventoryGetInventoryCatalogOKItemsItemKindKiosk               InventoryGetInventoryCatalogOKItemsItemKind = "kiosk"
+	InventoryGetInventoryCatalogOKItemsItemKindSmartphone          InventoryGetInventoryCatalogOKItemsItemKind = "smartphone"
+	InventoryGetInventoryCatalogOKItemsItemKindTablet              InventoryGetInventoryCatalogOKItemsItemKind = "tablet"
+	InventoryGetInventoryCatalogOKItemsItemKindSmartwatch          InventoryGetInventoryCatalogOKItemsItemKind = "smartwatch"
+	InventoryGetInventoryCatalogOKItemsItemKindPrinter             InventoryGetInventoryCatalogOKItemsItemKind = "printer"
+	InventoryGetInventoryCatalogOKItemsItemKindMfp                 InventoryGetInventoryCatalogOKItemsItemKind = "mfp"
+	InventoryGetInventoryCatalogOKItemsItemKindScanner             InventoryGetInventoryCatalogOKItemsItemKind = "scanner"
+	InventoryGetInventoryCatalogOKItemsItemKindLabelPrinter        InventoryGetInventoryCatalogOKItemsItemKind = "label_printer"
+	InventoryGetInventoryCatalogOKItemsItemKindReceiptPrinter      InventoryGetInventoryCatalogOKItemsItemKind = "receipt_printer"
+	InventoryGetInventoryCatalogOKItemsItemKindPlotter             InventoryGetInventoryCatalogOKItemsItemKind = "plotter"
+	InventoryGetInventoryCatalogOKItemsItemKind3dPrinter           InventoryGetInventoryCatalogOKItemsItemKind = "3d_printer"
+	InventoryGetInventoryCatalogOKItemsItemKindCamera              InventoryGetInventoryCatalogOKItemsItemKind = "camera"
+	InventoryGetInventoryCatalogOKItemsItemKindNvr                 InventoryGetInventoryCatalogOKItemsItemKind = "nvr"
+	InventoryGetInventoryCatalogOKItemsItemKindDvr                 InventoryGetInventoryCatalogOKItemsItemKind = "dvr"
+	InventoryGetInventoryCatalogOKItemsItemKindVideoEncoder        InventoryGetInventoryCatalogOKItemsItemKind = "video_encoder"
+	InventoryGetInventoryCatalogOKItemsItemKindDoorbell            InventoryGetInventoryCatalogOKItemsItemKind = "doorbell"
+	InventoryGetInventoryCatalogOKItemsItemKindVideoConferencing   InventoryGetInventoryCatalogOKItemsItemKind = "video_conferencing"
+	InventoryGetInventoryCatalogOKItemsItemKindIPPhone             InventoryGetInventoryCatalogOKItemsItemKind = "ip_phone"
+	InventoryGetInventoryCatalogOKItemsItemKindPbx                 InventoryGetInventoryCatalogOKItemsItemKind = "pbx"
+	InventoryGetInventoryCatalogOKItemsItemKindVoipAdapter         InventoryGetInventoryCatalogOKItemsItemKind = "voip_adapter"
+	InventoryGetInventoryCatalogOKItemsItemKindVoipGateway         InventoryGetInventoryCatalogOKItemsItemKind = "voip_gateway"
+	InventoryGetInventoryCatalogOKItemsItemKindConferencePhone     InventoryGetInventoryCatalogOKItemsItemKind = "conference_phone"
+	InventoryGetInventoryCatalogOKItemsItemKindIntercom            InventoryGetInventoryCatalogOKItemsItemKind = "intercom"
+	InventoryGetInventoryCatalogOKItemsItemKindNas                 InventoryGetInventoryCatalogOKItemsItemKind = "nas"
+	InventoryGetInventoryCatalogOKItemsItemKindSan                 InventoryGetInventoryCatalogOKItemsItemKind = "san"
+	InventoryGetInventoryCatalogOKItemsItemKindBackupAppliance     InventoryGetInventoryCatalogOKItemsItemKind = "backup_appliance"
+	InventoryGetInventoryCatalogOKItemsItemKindTapeLibrary         InventoryGetInventoryCatalogOKItemsItemKind = "tape_library"
+	InventoryGetInventoryCatalogOKItemsItemKindIot                 InventoryGetInventoryCatalogOKItemsItemKind = "iot"
+	InventoryGetInventoryCatalogOKItemsItemKindSmartTv             InventoryGetInventoryCatalogOKItemsItemKind = "smart_tv"
+	InventoryGetInventoryCatalogOKItemsItemKindMediaPlayer         InventoryGetInventoryCatalogOKItemsItemKind = "media_player"
+	InventoryGetInventoryCatalogOKItemsItemKindSmartSpeaker        InventoryGetInventoryCatalogOKItemsItemKind = "smart_speaker"
+	InventoryGetInventoryCatalogOKItemsItemKindGameConsole         InventoryGetInventoryCatalogOKItemsItemKind = "game_console"
+	InventoryGetInventoryCatalogOKItemsItemKindSmartPlug           InventoryGetInventoryCatalogOKItemsItemKind = "smart_plug"
+	InventoryGetInventoryCatalogOKItemsItemKindSmartLight          InventoryGetInventoryCatalogOKItemsItemKind = "smart_light"
+	InventoryGetInventoryCatalogOKItemsItemKindSmartHub            InventoryGetInventoryCatalogOKItemsItemKind = "smart_hub"
+	InventoryGetInventoryCatalogOKItemsItemKindThermostat          InventoryGetInventoryCatalogOKItemsItemKind = "thermostat"
+	InventoryGetInventoryCatalogOKItemsItemKindProjector           InventoryGetInventoryCatalogOKItemsItemKind = "projector"
+	InventoryGetInventoryCatalogOKItemsItemKindDigitalSignage      InventoryGetInventoryCatalogOKItemsItemKind = "digital_signage"
+	InventoryGetInventoryCatalogOKItemsItemKindSingleBoardComputer InventoryGetInventoryCatalogOKItemsItemKind = "single_board_computer"
+	InventoryGetInventoryCatalogOKItemsItemKindSmartAppliance      InventoryGetInventoryCatalogOKItemsItemKind = "smart_appliance"
+	InventoryGetInventoryCatalogOKItemsItemKindRobotVacuum         InventoryGetInventoryCatalogOKItemsItemKind = "robot_vacuum"
+	InventoryGetInventoryCatalogOKItemsItemKindWirelessBridge      InventoryGetInventoryCatalogOKItemsItemKind = "wireless_bridge"
+	InventoryGetInventoryCatalogOKItemsItemKindPlc                 InventoryGetInventoryCatalogOKItemsItemKind = "plc"
+	InventoryGetInventoryCatalogOKItemsItemKindHmi                 InventoryGetInventoryCatalogOKItemsItemKind = "hmi"
+	InventoryGetInventoryCatalogOKItemsItemKindRtu                 InventoryGetInventoryCatalogOKItemsItemKind = "rtu"
+	InventoryGetInventoryCatalogOKItemsItemKindScadaServer         InventoryGetInventoryCatalogOKItemsItemKind = "scada_server"
+	InventoryGetInventoryCatalogOKItemsItemKindIndustrialSwitch    InventoryGetInventoryCatalogOKItemsItemKind = "industrial_switch"
+	InventoryGetInventoryCatalogOKItemsItemKindUps                 InventoryGetInventoryCatalogOKItemsItemKind = "ups"
+	InventoryGetInventoryCatalogOKItemsItemKindPdu                 InventoryGetInventoryCatalogOKItemsItemKind = "pdu"
+	InventoryGetInventoryCatalogOKItemsItemKindAccessControl       InventoryGetInventoryCatalogOKItemsItemKind = "access_control"
+	InventoryGetInventoryCatalogOKItemsItemKindTimeClock           InventoryGetInventoryCatalogOKItemsItemKind = "time_clock"
+	InventoryGetInventoryCatalogOKItemsItemKindAlarmPanel          InventoryGetInventoryCatalogOKItemsItemKind = "alarm_panel"
+	InventoryGetInventoryCatalogOKItemsItemKindHvacController      InventoryGetInventoryCatalogOKItemsItemKind = "hvac_controller"
+	InventoryGetInventoryCatalogOKItemsItemKindBuildingController  InventoryGetInventoryCatalogOKItemsItemKind = "building_controller"
+	InventoryGetInventoryCatalogOKItemsItemKindPowerMeter          InventoryGetInventoryCatalogOKItemsItemKind = "power_meter"
+	InventoryGetInventoryCatalogOKItemsItemKindEnvironmentMonitor  InventoryGetInventoryCatalogOKItemsItemKind = "environment_monitor"
+	InventoryGetInventoryCatalogOKItemsItemKindEvCharger           InventoryGetInventoryCatalogOKItemsItemKind = "ev_charger"
+	InventoryGetInventoryCatalogOKItemsItemKindSolarInverter       InventoryGetInventoryCatalogOKItemsItemKind = "solar_inverter"
+	InventoryGetInventoryCatalogOKItemsItemKindMedicalDevice       InventoryGetInventoryCatalogOKItemsItemKind = "medical_device"
+	InventoryGetInventoryCatalogOKItemsItemKindWeb                 InventoryGetInventoryCatalogOKItemsItemKind = "web"
+	InventoryGetInventoryCatalogOKItemsItemKindCloudService        InventoryGetInventoryCatalogOKItemsItemKind = "cloud_service"
+	InventoryGetInventoryCatalogOKItemsItemKindUnknown             InventoryGetInventoryCatalogOKItemsItemKind = "unknown"
 )
 
 // AllValues returns all InventoryGetInventoryCatalogOKItemsItemKind values.
 func (InventoryGetInventoryCatalogOKItemsItemKind) AllValues() []InventoryGetInventoryCatalogOKItemsItemKind {
 	return []InventoryGetInventoryCatalogOKItemsItemKind{
-		InventoryGetInventoryCatalogOKItemsItemKindFirewall,
 		InventoryGetInventoryCatalogOKItemsItemKindRouter,
 		InventoryGetInventoryCatalogOKItemsItemKindSwitch,
+		InventoryGetInventoryCatalogOKItemsItemKindModem,
+		InventoryGetInventoryCatalogOKItemsItemKindSdWan,
+		InventoryGetInventoryCatalogOKItemsItemKindLoadBalancer,
+		InventoryGetInventoryCatalogOKItemsItemKindNetworkController,
+		InventoryGetInventoryCatalogOKItemsItemKindFirewall,
+		InventoryGetInventoryCatalogOKItemsItemKindVpnGateway,
+		InventoryGetInventoryCatalogOKItemsItemKindIdsSensor,
+		InventoryGetInventoryCatalogOKItemsItemKindProxy,
 		InventoryGetInventoryCatalogOKItemsItemKindAp,
-		InventoryGetInventoryCatalogOKItemsItemKindNas,
+		InventoryGetInventoryCatalogOKItemsItemKindWirelessController,
+		InventoryGetInventoryCatalogOKItemsItemKindWifiExtender,
+		InventoryGetInventoryCatalogOKItemsItemKindMeshNode,
 		InventoryGetInventoryCatalogOKItemsItemKindServer,
+		InventoryGetInventoryCatalogOKItemsItemKindVirtualMachine,
+		InventoryGetInventoryCatalogOKItemsItemKindHypervisor,
+		InventoryGetInventoryCatalogOKItemsItemKindBmc,
+		InventoryGetInventoryCatalogOKItemsItemKindDomainController,
+		InventoryGetInventoryCatalogOKItemsItemKindMailServer,
+		InventoryGetInventoryCatalogOKItemsItemKindDatabaseServer,
+		InventoryGetInventoryCatalogOKItemsItemKindBackupServer,
 		InventoryGetInventoryCatalogOKItemsItemKindPc,
+		InventoryGetInventoryCatalogOKItemsItemKindLaptop,
+		InventoryGetInventoryCatalogOKItemsItemKindWorkstation,
+		InventoryGetInventoryCatalogOKItemsItemKindThinClient,
+		InventoryGetInventoryCatalogOKItemsItemKindPosTerminal,
+		InventoryGetInventoryCatalogOKItemsItemKindKiosk,
+		InventoryGetInventoryCatalogOKItemsItemKindSmartphone,
+		InventoryGetInventoryCatalogOKItemsItemKindTablet,
+		InventoryGetInventoryCatalogOKItemsItemKindSmartwatch,
 		InventoryGetInventoryCatalogOKItemsItemKindPrinter,
+		InventoryGetInventoryCatalogOKItemsItemKindMfp,
+		InventoryGetInventoryCatalogOKItemsItemKindScanner,
+		InventoryGetInventoryCatalogOKItemsItemKindLabelPrinter,
+		InventoryGetInventoryCatalogOKItemsItemKindReceiptPrinter,
+		InventoryGetInventoryCatalogOKItemsItemKindPlotter,
+		InventoryGetInventoryCatalogOKItemsItemKind3dPrinter,
 		InventoryGetInventoryCatalogOKItemsItemKindCamera,
 		InventoryGetInventoryCatalogOKItemsItemKindNvr,
+		InventoryGetInventoryCatalogOKItemsItemKindDvr,
+		InventoryGetInventoryCatalogOKItemsItemKindVideoEncoder,
+		InventoryGetInventoryCatalogOKItemsItemKindDoorbell,
+		InventoryGetInventoryCatalogOKItemsItemKindVideoConferencing,
+		InventoryGetInventoryCatalogOKItemsItemKindIPPhone,
+		InventoryGetInventoryCatalogOKItemsItemKindPbx,
+		InventoryGetInventoryCatalogOKItemsItemKindVoipAdapter,
+		InventoryGetInventoryCatalogOKItemsItemKindVoipGateway,
+		InventoryGetInventoryCatalogOKItemsItemKindConferencePhone,
+		InventoryGetInventoryCatalogOKItemsItemKindIntercom,
+		InventoryGetInventoryCatalogOKItemsItemKindNas,
+		InventoryGetInventoryCatalogOKItemsItemKindSan,
+		InventoryGetInventoryCatalogOKItemsItemKindBackupAppliance,
+		InventoryGetInventoryCatalogOKItemsItemKindTapeLibrary,
 		InventoryGetInventoryCatalogOKItemsItemKindIot,
+		InventoryGetInventoryCatalogOKItemsItemKindSmartTv,
+		InventoryGetInventoryCatalogOKItemsItemKindMediaPlayer,
+		InventoryGetInventoryCatalogOKItemsItemKindSmartSpeaker,
+		InventoryGetInventoryCatalogOKItemsItemKindGameConsole,
+		InventoryGetInventoryCatalogOKItemsItemKindSmartPlug,
+		InventoryGetInventoryCatalogOKItemsItemKindSmartLight,
+		InventoryGetInventoryCatalogOKItemsItemKindSmartHub,
+		InventoryGetInventoryCatalogOKItemsItemKindThermostat,
+		InventoryGetInventoryCatalogOKItemsItemKindProjector,
+		InventoryGetInventoryCatalogOKItemsItemKindDigitalSignage,
+		InventoryGetInventoryCatalogOKItemsItemKindSingleBoardComputer,
+		InventoryGetInventoryCatalogOKItemsItemKindSmartAppliance,
+		InventoryGetInventoryCatalogOKItemsItemKindRobotVacuum,
+		InventoryGetInventoryCatalogOKItemsItemKindWirelessBridge,
+		InventoryGetInventoryCatalogOKItemsItemKindPlc,
+		InventoryGetInventoryCatalogOKItemsItemKindHmi,
+		InventoryGetInventoryCatalogOKItemsItemKindRtu,
+		InventoryGetInventoryCatalogOKItemsItemKindScadaServer,
+		InventoryGetInventoryCatalogOKItemsItemKindIndustrialSwitch,
+		InventoryGetInventoryCatalogOKItemsItemKindUps,
+		InventoryGetInventoryCatalogOKItemsItemKindPdu,
+		InventoryGetInventoryCatalogOKItemsItemKindAccessControl,
+		InventoryGetInventoryCatalogOKItemsItemKindTimeClock,
+		InventoryGetInventoryCatalogOKItemsItemKindAlarmPanel,
+		InventoryGetInventoryCatalogOKItemsItemKindHvacController,
+		InventoryGetInventoryCatalogOKItemsItemKindBuildingController,
+		InventoryGetInventoryCatalogOKItemsItemKindPowerMeter,
+		InventoryGetInventoryCatalogOKItemsItemKindEnvironmentMonitor,
+		InventoryGetInventoryCatalogOKItemsItemKindEvCharger,
+		InventoryGetInventoryCatalogOKItemsItemKindSolarInverter,
+		InventoryGetInventoryCatalogOKItemsItemKindMedicalDevice,
 		InventoryGetInventoryCatalogOKItemsItemKindWeb,
+		InventoryGetInventoryCatalogOKItemsItemKindCloudService,
 		InventoryGetInventoryCatalogOKItemsItemKindUnknown,
 	}
 }
@@ -73950,29 +77296,181 @@ func (InventoryGetInventoryCatalogOKItemsItemKind) AllValues() []InventoryGetInv
 // MarshalText implements encoding.TextMarshaler.
 func (s InventoryGetInventoryCatalogOKItemsItemKind) MarshalText() ([]byte, error) {
 	switch s {
-	case InventoryGetInventoryCatalogOKItemsItemKindFirewall:
-		return []byte(s), nil
 	case InventoryGetInventoryCatalogOKItemsItemKindRouter:
 		return []byte(s), nil
 	case InventoryGetInventoryCatalogOKItemsItemKindSwitch:
 		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindModem:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSdWan:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindLoadBalancer:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindNetworkController:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindFirewall:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindVpnGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindIdsSensor:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindProxy:
+		return []byte(s), nil
 	case InventoryGetInventoryCatalogOKItemsItemKindAp:
 		return []byte(s), nil
-	case InventoryGetInventoryCatalogOKItemsItemKindNas:
+	case InventoryGetInventoryCatalogOKItemsItemKindWirelessController:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindWifiExtender:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindMeshNode:
 		return []byte(s), nil
 	case InventoryGetInventoryCatalogOKItemsItemKindServer:
 		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindVirtualMachine:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindHypervisor:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindBmc:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindDomainController:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindMailServer:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindDatabaseServer:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindBackupServer:
+		return []byte(s), nil
 	case InventoryGetInventoryCatalogOKItemsItemKindPc:
 		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindLaptop:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindWorkstation:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindThinClient:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindPosTerminal:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindKiosk:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartphone:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindTablet:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartwatch:
+		return []byte(s), nil
 	case InventoryGetInventoryCatalogOKItemsItemKindPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindMfp:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindScanner:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindLabelPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindReceiptPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindPlotter:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKind3dPrinter:
 		return []byte(s), nil
 	case InventoryGetInventoryCatalogOKItemsItemKindCamera:
 		return []byte(s), nil
 	case InventoryGetInventoryCatalogOKItemsItemKindNvr:
 		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindDvr:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindVideoEncoder:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindDoorbell:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindVideoConferencing:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindIPPhone:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindPbx:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindVoipAdapter:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindVoipGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindConferencePhone:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindIntercom:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindNas:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSan:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindBackupAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindTapeLibrary:
+		return []byte(s), nil
 	case InventoryGetInventoryCatalogOKItemsItemKindIot:
 		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartTv:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindMediaPlayer:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartSpeaker:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindGameConsole:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartPlug:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartLight:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartHub:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindThermostat:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindProjector:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindDigitalSignage:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSingleBoardComputer:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindRobotVacuum:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindWirelessBridge:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindPlc:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindHmi:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindRtu:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindScadaServer:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindIndustrialSwitch:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindUps:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindPdu:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindAccessControl:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindTimeClock:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindAlarmPanel:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindHvacController:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindBuildingController:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindPowerMeter:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindEnvironmentMonitor:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindEvCharger:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSolarInverter:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindMedicalDevice:
+		return []byte(s), nil
 	case InventoryGetInventoryCatalogOKItemsItemKindWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryCatalogOKItemsItemKindCloudService:
 		return []byte(s), nil
 	case InventoryGetInventoryCatalogOKItemsItemKindUnknown:
 		return []byte(s), nil
@@ -73984,29 +77482,119 @@ func (s InventoryGetInventoryCatalogOKItemsItemKind) MarshalText() ([]byte, erro
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *InventoryGetInventoryCatalogOKItemsItemKind) UnmarshalText(data []byte) error {
 	switch InventoryGetInventoryCatalogOKItemsItemKind(data) {
-	case InventoryGetInventoryCatalogOKItemsItemKindFirewall:
-		*s = InventoryGetInventoryCatalogOKItemsItemKindFirewall
-		return nil
 	case InventoryGetInventoryCatalogOKItemsItemKindRouter:
 		*s = InventoryGetInventoryCatalogOKItemsItemKindRouter
 		return nil
 	case InventoryGetInventoryCatalogOKItemsItemKindSwitch:
 		*s = InventoryGetInventoryCatalogOKItemsItemKindSwitch
 		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindModem:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindModem
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSdWan:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindSdWan
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindLoadBalancer:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindLoadBalancer
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindNetworkController:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindNetworkController
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindFirewall:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindFirewall
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindVpnGateway:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindVpnGateway
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindIdsSensor:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindIdsSensor
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindProxy:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindProxy
+		return nil
 	case InventoryGetInventoryCatalogOKItemsItemKindAp:
 		*s = InventoryGetInventoryCatalogOKItemsItemKindAp
 		return nil
-	case InventoryGetInventoryCatalogOKItemsItemKindNas:
-		*s = InventoryGetInventoryCatalogOKItemsItemKindNas
+	case InventoryGetInventoryCatalogOKItemsItemKindWirelessController:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindWirelessController
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindWifiExtender:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindWifiExtender
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindMeshNode:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindMeshNode
 		return nil
 	case InventoryGetInventoryCatalogOKItemsItemKindServer:
 		*s = InventoryGetInventoryCatalogOKItemsItemKindServer
 		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindVirtualMachine:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindVirtualMachine
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindHypervisor:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindHypervisor
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindBmc:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindBmc
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindDomainController:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindDomainController
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindMailServer:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindMailServer
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindDatabaseServer:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindDatabaseServer
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindBackupServer:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindBackupServer
+		return nil
 	case InventoryGetInventoryCatalogOKItemsItemKindPc:
 		*s = InventoryGetInventoryCatalogOKItemsItemKindPc
 		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindLaptop:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindLaptop
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindWorkstation:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindWorkstation
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindThinClient:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindThinClient
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindPosTerminal:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindPosTerminal
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindKiosk:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindKiosk
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartphone:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindSmartphone
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindTablet:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindTablet
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartwatch:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindSmartwatch
+		return nil
 	case InventoryGetInventoryCatalogOKItemsItemKindPrinter:
 		*s = InventoryGetInventoryCatalogOKItemsItemKindPrinter
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindMfp:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindMfp
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindScanner:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindScanner
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindLabelPrinter:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindLabelPrinter
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindReceiptPrinter:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindReceiptPrinter
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindPlotter:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindPlotter
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKind3dPrinter:
+		*s = InventoryGetInventoryCatalogOKItemsItemKind3dPrinter
 		return nil
 	case InventoryGetInventoryCatalogOKItemsItemKindCamera:
 		*s = InventoryGetInventoryCatalogOKItemsItemKindCamera
@@ -74014,11 +77602,149 @@ func (s *InventoryGetInventoryCatalogOKItemsItemKind) UnmarshalText(data []byte)
 	case InventoryGetInventoryCatalogOKItemsItemKindNvr:
 		*s = InventoryGetInventoryCatalogOKItemsItemKindNvr
 		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindDvr:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindDvr
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindVideoEncoder:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindVideoEncoder
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindDoorbell:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindDoorbell
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindVideoConferencing:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindVideoConferencing
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindIPPhone:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindIPPhone
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindPbx:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindPbx
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindVoipAdapter:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindVoipAdapter
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindVoipGateway:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindVoipGateway
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindConferencePhone:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindConferencePhone
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindIntercom:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindIntercom
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindNas:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindNas
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSan:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindSan
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindBackupAppliance:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindBackupAppliance
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindTapeLibrary:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindTapeLibrary
+		return nil
 	case InventoryGetInventoryCatalogOKItemsItemKindIot:
 		*s = InventoryGetInventoryCatalogOKItemsItemKindIot
 		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartTv:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindSmartTv
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindMediaPlayer:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindMediaPlayer
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartSpeaker:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindSmartSpeaker
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindGameConsole:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindGameConsole
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartPlug:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindSmartPlug
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartLight:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindSmartLight
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartHub:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindSmartHub
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindThermostat:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindThermostat
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindProjector:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindProjector
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindDigitalSignage:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindDigitalSignage
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSingleBoardComputer:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindSingleBoardComputer
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSmartAppliance:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindSmartAppliance
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindRobotVacuum:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindRobotVacuum
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindWirelessBridge:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindWirelessBridge
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindPlc:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindPlc
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindHmi:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindHmi
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindRtu:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindRtu
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindScadaServer:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindScadaServer
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindIndustrialSwitch:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindIndustrialSwitch
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindUps:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindUps
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindPdu:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindPdu
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindAccessControl:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindAccessControl
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindTimeClock:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindTimeClock
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindAlarmPanel:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindAlarmPanel
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindHvacController:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindHvacController
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindBuildingController:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindBuildingController
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindPowerMeter:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindPowerMeter
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindEnvironmentMonitor:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindEnvironmentMonitor
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindEvCharger:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindEvCharger
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindSolarInverter:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindSolarInverter
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindMedicalDevice:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindMedicalDevice
+		return nil
 	case InventoryGetInventoryCatalogOKItemsItemKindWeb:
 		*s = InventoryGetInventoryCatalogOKItemsItemKindWeb
+		return nil
+	case InventoryGetInventoryCatalogOKItemsItemKindCloudService:
+		*s = InventoryGetInventoryCatalogOKItemsItemKindCloudService
 		return nil
 	case InventoryGetInventoryCatalogOKItemsItemKindUnknown:
 		*s = InventoryGetInventoryCatalogOKItemsItemKindUnknown
@@ -74095,22 +77821,26 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	ApprovedAt NilDateTime `json:"approved_at"`
 	// When the one gentle first scan happened; null = no gentle scan (declared by hand, the box itself, or
 	// a known kind that is not fragile and not set to never).
-	FirstScanAt NilDateTime `json:"first_scan_at"`
-	FirstSeen   time.Time   `json:"first_seen"`
-	Fragile     bool        `json:"fragile"`
-	Hostname    NilString   `json:"hostname"`
-	ID          string      `json:"id"`
+	FirstScanAt NilDateTime                                   `json:"first_scan_at"`
+	FirstSeen   time.Time                                     `json:"first_seen"`
+	Fragile     bool                                          `json:"fragile"`
+	Guess       NilInventoryGetInventoryDevicesIDOKAssetGuess `json:"guess"`
+	Hostname    NilString                                     `json:"hostname"`
+	ID          string                                        `json:"id"`
 	// "—" when declared manually and the IP is unknown.
 	IP string `json:"ip"`
 	// True for the Vedette box itself: the first device, always present, cannot be deleted (409).
-	IsBox    bool                                          `json:"is_box"`
-	Kind     InventoryGetInventoryDevicesIDOKAssetKind     `json:"kind"`
-	LastSeen time.Time                                     `json:"last_seen"`
-	MAC      NilString                                     `json:"mac"`
-	Model    NilInventoryGetInventoryDevicesIDOKAssetModel `json:"model"`
-	Notes    OptString                                     `json:"notes"`
-	Origin   InventoryGetInventoryDevicesIDOKAssetOrigin   `json:"origin"`
-	Os       NilInventoryGetInventoryDevicesIDOKAssetOs    `json:"os"`
+	IsBox bool `json:"is_box"`
+	// Device type (content/devicetypes/types.json, D-511).
+	Kind InventoryGetInventoryDevicesIDOKAssetKind `json:"kind"`
+	// Source of the kind; null for the default unknown (D-511).
+	KindSource NilInventoryGetInventoryDevicesIDOKAssetKindSource `json:"kind_source"`
+	LastSeen   time.Time                                          `json:"last_seen"`
+	MAC        NilString                                          `json:"mac"`
+	Model      NilInventoryGetInventoryDevicesIDOKAssetModel      `json:"model"`
+	Notes      OptString                                          `json:"notes"`
+	Origin     InventoryGetInventoryDevicesIDOKAssetOrigin        `json:"origin"`
+	Os         NilInventoryGetInventoryDevicesIDOKAssetOs         `json:"os"`
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
 	RegularScan InventoryGetInventoryDevicesIDOKAssetRegularScan    `json:"regular_scan"`
@@ -74145,6 +77875,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) GetFragile() bool {
 	return s.Fragile
 }
 
+// GetGuess returns the value of Guess.
+func (s *InventoryGetInventoryDevicesIDOKAsset) GetGuess() NilInventoryGetInventoryDevicesIDOKAssetGuess {
+	return s.Guess
+}
+
 // GetHostname returns the value of Hostname.
 func (s *InventoryGetInventoryDevicesIDOKAsset) GetHostname() NilString {
 	return s.Hostname
@@ -74168,6 +77903,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) GetIsBox() bool {
 // GetKind returns the value of Kind.
 func (s *InventoryGetInventoryDevicesIDOKAsset) GetKind() InventoryGetInventoryDevicesIDOKAssetKind {
 	return s.Kind
+}
+
+// GetKindSource returns the value of KindSource.
+func (s *InventoryGetInventoryDevicesIDOKAsset) GetKindSource() NilInventoryGetInventoryDevicesIDOKAssetKindSource {
+	return s.KindSource
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -74250,6 +77990,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) SetFragile(val bool) {
 	s.Fragile = val
 }
 
+// SetGuess sets the value of Guess.
+func (s *InventoryGetInventoryDevicesIDOKAsset) SetGuess(val NilInventoryGetInventoryDevicesIDOKAssetGuess) {
+	s.Guess = val
+}
+
 // SetHostname sets the value of Hostname.
 func (s *InventoryGetInventoryDevicesIDOKAsset) SetHostname(val NilString) {
 	s.Hostname = val
@@ -74273,6 +78018,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) SetIsBox(val bool) {
 // SetKind sets the value of Kind.
 func (s *InventoryGetInventoryDevicesIDOKAsset) SetKind(val InventoryGetInventoryDevicesIDOKAssetKind) {
 	s.Kind = val
+}
+
+// SetKindSource sets the value of KindSource.
+func (s *InventoryGetInventoryDevicesIDOKAsset) SetKindSource(val NilInventoryGetInventoryDevicesIDOKAssetKindSource) {
+	s.KindSource = val
 }
 
 // SetLastSeen sets the value of LastSeen.
@@ -74330,39 +78080,1558 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) SetVendor(val NilInventoryGetInv
 	s.Vendor = val
 }
 
+// What the identification rules say the device most likely is (D-511), only while kind is unknown; it
+// changes no behaviour until a person sets the kind.
+type InventoryGetInventoryDevicesIDOKAssetGuess struct {
+	// Other types the same signals fit, offered next to the guess.
+	Alternatives []InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem `json:"alternatives"`
+	Confidence   float64                                                      `json:"confidence"`
+	// What matched and what it most likely means, one sentence.
+	Evidence string `json:"evidence"`
+	// Device type (content/devicetypes/types.json, D-511).
+	Kind InventoryGetInventoryDevicesIDOKAssetGuessKind `json:"kind"`
+	// A model a certificate or page title states.
+	Model OptString `json:"model"`
+}
+
+// GetAlternatives returns the value of Alternatives.
+func (s *InventoryGetInventoryDevicesIDOKAssetGuess) GetAlternatives() []InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem {
+	return s.Alternatives
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *InventoryGetInventoryDevicesIDOKAssetGuess) GetConfidence() float64 {
+	return s.Confidence
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *InventoryGetInventoryDevicesIDOKAssetGuess) GetEvidence() string {
+	return s.Evidence
+}
+
+// GetKind returns the value of Kind.
+func (s *InventoryGetInventoryDevicesIDOKAssetGuess) GetKind() InventoryGetInventoryDevicesIDOKAssetGuessKind {
+	return s.Kind
+}
+
+// GetModel returns the value of Model.
+func (s *InventoryGetInventoryDevicesIDOKAssetGuess) GetModel() OptString {
+	return s.Model
+}
+
+// SetAlternatives sets the value of Alternatives.
+func (s *InventoryGetInventoryDevicesIDOKAssetGuess) SetAlternatives(val []InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem) {
+	s.Alternatives = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *InventoryGetInventoryDevicesIDOKAssetGuess) SetConfidence(val float64) {
+	s.Confidence = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *InventoryGetInventoryDevicesIDOKAssetGuess) SetEvidence(val string) {
+	s.Evidence = val
+}
+
+// SetKind sets the value of Kind.
+func (s *InventoryGetInventoryDevicesIDOKAssetGuess) SetKind(val InventoryGetInventoryDevicesIDOKAssetGuessKind) {
+	s.Kind = val
+}
+
+// SetModel sets the value of Model.
+func (s *InventoryGetInventoryDevicesIDOKAssetGuess) SetModel(val OptString) {
+	s.Model = val
+}
+
+// Device type (content/devicetypes/types.json, D-511).
+type InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem string
+
+const (
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRouter              InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "router"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSwitch              InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "switch"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemModem               InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "modem"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSdWan               InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "sd_wan"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLoadBalancer        InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "load_balancer"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNetworkController   InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "network_controller"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemFirewall            InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "firewall"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVpnGateway          InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "vpn_gateway"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIdsSensor           InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "ids_sensor"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemProxy               InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "proxy"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAp                  InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "ap"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWirelessController  InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "wireless_controller"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWifiExtender        InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "wifi_extender"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMeshNode            InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "mesh_node"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemServer              InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "server"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVirtualMachine      InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "virtual_machine"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHypervisor          InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "hypervisor"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBmc                 InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "bmc"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDomainController    InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "domain_controller"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMailServer          InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "mail_server"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDatabaseServer      InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "database_server"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBackupServer        InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "backup_server"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPc                  InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "pc"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLaptop              InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "laptop"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWorkstation         InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "workstation"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemThinClient          InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "thin_client"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPosTerminal         InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "pos_terminal"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemKiosk               InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "kiosk"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartphone          InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "smartphone"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTablet              InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "tablet"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartwatch          InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "smartwatch"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPrinter             InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "printer"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMfp                 InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "mfp"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemScanner             InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "scanner"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLabelPrinter        InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "label_printer"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemReceiptPrinter      InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "receipt_printer"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPlotter             InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "plotter"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem3dPrinter           InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "3d_printer"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemCamera              InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "camera"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNvr                 InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "nvr"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDvr                 InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "dvr"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVideoEncoder        InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "video_encoder"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDoorbell            InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "doorbell"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVideoConferencing   InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "video_conferencing"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIPPhone             InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "ip_phone"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPbx                 InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "pbx"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVoipAdapter         InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "voip_adapter"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVoipGateway         InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "voip_gateway"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemConferencePhone     InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "conference_phone"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIntercom            InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "intercom"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNas                 InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "nas"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSan                 InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "san"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBackupAppliance     InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "backup_appliance"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTapeLibrary         InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "tape_library"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIot                 InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "iot"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartTv             InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "smart_tv"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMediaPlayer         InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "media_player"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartSpeaker        InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "smart_speaker"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemGameConsole         InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "game_console"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartPlug           InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "smart_plug"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartLight          InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "smart_light"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartHub            InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "smart_hub"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemThermostat          InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "thermostat"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemProjector           InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "projector"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDigitalSignage      InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "digital_signage"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSingleBoardComputer InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "single_board_computer"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartAppliance      InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "smart_appliance"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRobotVacuum         InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "robot_vacuum"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWirelessBridge      InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "wireless_bridge"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPlc                 InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "plc"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHmi                 InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "hmi"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRtu                 InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "rtu"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemScadaServer         InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "scada_server"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIndustrialSwitch    InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "industrial_switch"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemUps                 InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "ups"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPdu                 InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "pdu"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAccessControl       InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "access_control"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTimeClock           InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "time_clock"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAlarmPanel          InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "alarm_panel"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHvacController      InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "hvac_controller"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBuildingController  InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "building_controller"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPowerMeter          InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "power_meter"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemEnvironmentMonitor  InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "environment_monitor"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemEvCharger           InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "ev_charger"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSolarInverter       InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "solar_inverter"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMedicalDevice       InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "medical_device"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWeb                 InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "web"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemCloudService        InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "cloud_service"
+	InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemUnknown             InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem = "unknown"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem values.
+func (InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem) AllValues() []InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem {
+	return []InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem{
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRouter,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSwitch,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemModem,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSdWan,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLoadBalancer,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNetworkController,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemFirewall,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVpnGateway,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIdsSensor,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemProxy,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAp,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWirelessController,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWifiExtender,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMeshNode,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemServer,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVirtualMachine,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHypervisor,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBmc,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDomainController,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMailServer,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDatabaseServer,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBackupServer,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPc,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLaptop,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWorkstation,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemThinClient,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPosTerminal,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemKiosk,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartphone,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTablet,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartwatch,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPrinter,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMfp,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemScanner,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLabelPrinter,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemReceiptPrinter,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPlotter,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem3dPrinter,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemCamera,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNvr,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDvr,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVideoEncoder,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDoorbell,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVideoConferencing,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIPPhone,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPbx,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVoipAdapter,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVoipGateway,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemConferencePhone,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIntercom,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNas,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSan,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBackupAppliance,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTapeLibrary,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIot,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartTv,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMediaPlayer,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartSpeaker,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemGameConsole,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartPlug,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartLight,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartHub,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemThermostat,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemProjector,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDigitalSignage,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSingleBoardComputer,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartAppliance,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRobotVacuum,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWirelessBridge,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPlc,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHmi,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRtu,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemScadaServer,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIndustrialSwitch,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemUps,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPdu,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAccessControl,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTimeClock,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAlarmPanel,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHvacController,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBuildingController,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPowerMeter,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemEnvironmentMonitor,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemEvCharger,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSolarInverter,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMedicalDevice,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWeb,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemCloudService,
+		InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRouter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSwitch:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemModem:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSdWan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLoadBalancer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNetworkController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemFirewall:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVpnGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIdsSensor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemProxy:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWirelessController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWifiExtender:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMeshNode:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVirtualMachine:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHypervisor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBmc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDomainController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMailServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDatabaseServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBackupServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLaptop:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWorkstation:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemThinClient:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPosTerminal:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemKiosk:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartphone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTablet:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartwatch:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMfp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemScanner:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLabelPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemReceiptPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPlotter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem3dPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemCamera:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNvr:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDvr:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVideoEncoder:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDoorbell:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVideoConferencing:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIPPhone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPbx:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVoipAdapter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVoipGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemConferencePhone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIntercom:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNas:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBackupAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTapeLibrary:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIot:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartTv:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMediaPlayer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartSpeaker:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemGameConsole:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartPlug:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartLight:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartHub:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemThermostat:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemProjector:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDigitalSignage:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSingleBoardComputer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRobotVacuum:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWirelessBridge:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPlc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHmi:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRtu:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemScadaServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIndustrialSwitch:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemUps:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPdu:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAccessControl:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTimeClock:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAlarmPanel:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHvacController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBuildingController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPowerMeter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemEnvironmentMonitor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemEvCharger:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSolarInverter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMedicalDevice:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemCloudService:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem(data) {
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRouter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRouter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSwitch:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSwitch
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemModem:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemModem
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSdWan:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSdWan
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLoadBalancer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLoadBalancer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNetworkController:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNetworkController
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemFirewall:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemFirewall
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVpnGateway:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVpnGateway
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIdsSensor:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIdsSensor
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemProxy:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemProxy
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAp:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAp
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWirelessController:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWirelessController
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWifiExtender:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWifiExtender
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMeshNode:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMeshNode
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVirtualMachine:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVirtualMachine
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHypervisor:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHypervisor
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBmc:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBmc
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDomainController:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDomainController
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMailServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMailServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDatabaseServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDatabaseServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBackupServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBackupServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPc:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPc
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLaptop:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLaptop
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWorkstation:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWorkstation
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemThinClient:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemThinClient
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPosTerminal:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPosTerminal
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemKiosk:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemKiosk
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartphone:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartphone
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTablet:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTablet
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartwatch:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartwatch
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPrinter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPrinter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMfp:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMfp
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemScanner:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemScanner
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLabelPrinter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLabelPrinter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemReceiptPrinter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemReceiptPrinter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPlotter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPlotter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem3dPrinter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem3dPrinter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemCamera:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemCamera
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNvr:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNvr
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDvr:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDvr
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVideoEncoder:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVideoEncoder
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDoorbell:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDoorbell
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVideoConferencing:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVideoConferencing
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIPPhone:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIPPhone
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPbx:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPbx
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVoipAdapter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVoipAdapter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVoipGateway:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVoipGateway
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemConferencePhone:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemConferencePhone
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIntercom:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIntercom
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNas:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNas
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSan:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSan
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBackupAppliance:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBackupAppliance
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTapeLibrary:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTapeLibrary
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIot:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIot
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartTv:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartTv
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMediaPlayer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMediaPlayer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartSpeaker:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartSpeaker
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemGameConsole:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemGameConsole
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartPlug:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartPlug
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartLight:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartLight
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartHub:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartHub
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemThermostat:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemThermostat
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemProjector:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemProjector
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDigitalSignage:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDigitalSignage
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSingleBoardComputer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSingleBoardComputer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartAppliance:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartAppliance
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRobotVacuum:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRobotVacuum
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWirelessBridge:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWirelessBridge
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPlc:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPlc
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHmi:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHmi
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRtu:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRtu
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemScadaServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemScadaServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIndustrialSwitch:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIndustrialSwitch
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemUps:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemUps
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPdu:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPdu
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAccessControl:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAccessControl
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTimeClock:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTimeClock
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAlarmPanel:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAlarmPanel
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHvacController:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHvacController
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBuildingController:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBuildingController
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPowerMeter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPowerMeter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemEnvironmentMonitor:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemEnvironmentMonitor
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemEvCharger:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemEvCharger
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSolarInverter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSolarInverter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMedicalDevice:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMedicalDevice
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWeb:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWeb
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemCloudService:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemCloudService
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemUnknown:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Device type (content/devicetypes/types.json, D-511).
+type InventoryGetInventoryDevicesIDOKAssetGuessKind string
+
+const (
+	InventoryGetInventoryDevicesIDOKAssetGuessKindRouter              InventoryGetInventoryDevicesIDOKAssetGuessKind = "router"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindSwitch              InventoryGetInventoryDevicesIDOKAssetGuessKind = "switch"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindModem               InventoryGetInventoryDevicesIDOKAssetGuessKind = "modem"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindSdWan               InventoryGetInventoryDevicesIDOKAssetGuessKind = "sd_wan"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindLoadBalancer        InventoryGetInventoryDevicesIDOKAssetGuessKind = "load_balancer"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindNetworkController   InventoryGetInventoryDevicesIDOKAssetGuessKind = "network_controller"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindFirewall            InventoryGetInventoryDevicesIDOKAssetGuessKind = "firewall"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindVpnGateway          InventoryGetInventoryDevicesIDOKAssetGuessKind = "vpn_gateway"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindIdsSensor           InventoryGetInventoryDevicesIDOKAssetGuessKind = "ids_sensor"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindProxy               InventoryGetInventoryDevicesIDOKAssetGuessKind = "proxy"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindAp                  InventoryGetInventoryDevicesIDOKAssetGuessKind = "ap"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindWirelessController  InventoryGetInventoryDevicesIDOKAssetGuessKind = "wireless_controller"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindWifiExtender        InventoryGetInventoryDevicesIDOKAssetGuessKind = "wifi_extender"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindMeshNode            InventoryGetInventoryDevicesIDOKAssetGuessKind = "mesh_node"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindServer              InventoryGetInventoryDevicesIDOKAssetGuessKind = "server"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindVirtualMachine      InventoryGetInventoryDevicesIDOKAssetGuessKind = "virtual_machine"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindHypervisor          InventoryGetInventoryDevicesIDOKAssetGuessKind = "hypervisor"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindBmc                 InventoryGetInventoryDevicesIDOKAssetGuessKind = "bmc"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindDomainController    InventoryGetInventoryDevicesIDOKAssetGuessKind = "domain_controller"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindMailServer          InventoryGetInventoryDevicesIDOKAssetGuessKind = "mail_server"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindDatabaseServer      InventoryGetInventoryDevicesIDOKAssetGuessKind = "database_server"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindBackupServer        InventoryGetInventoryDevicesIDOKAssetGuessKind = "backup_server"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindPc                  InventoryGetInventoryDevicesIDOKAssetGuessKind = "pc"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindLaptop              InventoryGetInventoryDevicesIDOKAssetGuessKind = "laptop"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindWorkstation         InventoryGetInventoryDevicesIDOKAssetGuessKind = "workstation"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindThinClient          InventoryGetInventoryDevicesIDOKAssetGuessKind = "thin_client"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindPosTerminal         InventoryGetInventoryDevicesIDOKAssetGuessKind = "pos_terminal"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindKiosk               InventoryGetInventoryDevicesIDOKAssetGuessKind = "kiosk"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindSmartphone          InventoryGetInventoryDevicesIDOKAssetGuessKind = "smartphone"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindTablet              InventoryGetInventoryDevicesIDOKAssetGuessKind = "tablet"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindSmartwatch          InventoryGetInventoryDevicesIDOKAssetGuessKind = "smartwatch"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindPrinter             InventoryGetInventoryDevicesIDOKAssetGuessKind = "printer"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindMfp                 InventoryGetInventoryDevicesIDOKAssetGuessKind = "mfp"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindScanner             InventoryGetInventoryDevicesIDOKAssetGuessKind = "scanner"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindLabelPrinter        InventoryGetInventoryDevicesIDOKAssetGuessKind = "label_printer"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindReceiptPrinter      InventoryGetInventoryDevicesIDOKAssetGuessKind = "receipt_printer"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindPlotter             InventoryGetInventoryDevicesIDOKAssetGuessKind = "plotter"
+	InventoryGetInventoryDevicesIDOKAssetGuessKind3dPrinter           InventoryGetInventoryDevicesIDOKAssetGuessKind = "3d_printer"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindCamera              InventoryGetInventoryDevicesIDOKAssetGuessKind = "camera"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindNvr                 InventoryGetInventoryDevicesIDOKAssetGuessKind = "nvr"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindDvr                 InventoryGetInventoryDevicesIDOKAssetGuessKind = "dvr"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindVideoEncoder        InventoryGetInventoryDevicesIDOKAssetGuessKind = "video_encoder"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindDoorbell            InventoryGetInventoryDevicesIDOKAssetGuessKind = "doorbell"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindVideoConferencing   InventoryGetInventoryDevicesIDOKAssetGuessKind = "video_conferencing"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindIPPhone             InventoryGetInventoryDevicesIDOKAssetGuessKind = "ip_phone"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindPbx                 InventoryGetInventoryDevicesIDOKAssetGuessKind = "pbx"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindVoipAdapter         InventoryGetInventoryDevicesIDOKAssetGuessKind = "voip_adapter"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindVoipGateway         InventoryGetInventoryDevicesIDOKAssetGuessKind = "voip_gateway"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindConferencePhone     InventoryGetInventoryDevicesIDOKAssetGuessKind = "conference_phone"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindIntercom            InventoryGetInventoryDevicesIDOKAssetGuessKind = "intercom"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindNas                 InventoryGetInventoryDevicesIDOKAssetGuessKind = "nas"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindSan                 InventoryGetInventoryDevicesIDOKAssetGuessKind = "san"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindBackupAppliance     InventoryGetInventoryDevicesIDOKAssetGuessKind = "backup_appliance"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindTapeLibrary         InventoryGetInventoryDevicesIDOKAssetGuessKind = "tape_library"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindIot                 InventoryGetInventoryDevicesIDOKAssetGuessKind = "iot"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindSmartTv             InventoryGetInventoryDevicesIDOKAssetGuessKind = "smart_tv"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindMediaPlayer         InventoryGetInventoryDevicesIDOKAssetGuessKind = "media_player"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindSmartSpeaker        InventoryGetInventoryDevicesIDOKAssetGuessKind = "smart_speaker"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindGameConsole         InventoryGetInventoryDevicesIDOKAssetGuessKind = "game_console"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindSmartPlug           InventoryGetInventoryDevicesIDOKAssetGuessKind = "smart_plug"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindSmartLight          InventoryGetInventoryDevicesIDOKAssetGuessKind = "smart_light"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindSmartHub            InventoryGetInventoryDevicesIDOKAssetGuessKind = "smart_hub"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindThermostat          InventoryGetInventoryDevicesIDOKAssetGuessKind = "thermostat"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindProjector           InventoryGetInventoryDevicesIDOKAssetGuessKind = "projector"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindDigitalSignage      InventoryGetInventoryDevicesIDOKAssetGuessKind = "digital_signage"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindSingleBoardComputer InventoryGetInventoryDevicesIDOKAssetGuessKind = "single_board_computer"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindSmartAppliance      InventoryGetInventoryDevicesIDOKAssetGuessKind = "smart_appliance"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindRobotVacuum         InventoryGetInventoryDevicesIDOKAssetGuessKind = "robot_vacuum"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindWirelessBridge      InventoryGetInventoryDevicesIDOKAssetGuessKind = "wireless_bridge"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindPlc                 InventoryGetInventoryDevicesIDOKAssetGuessKind = "plc"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindHmi                 InventoryGetInventoryDevicesIDOKAssetGuessKind = "hmi"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindRtu                 InventoryGetInventoryDevicesIDOKAssetGuessKind = "rtu"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindScadaServer         InventoryGetInventoryDevicesIDOKAssetGuessKind = "scada_server"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindIndustrialSwitch    InventoryGetInventoryDevicesIDOKAssetGuessKind = "industrial_switch"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindUps                 InventoryGetInventoryDevicesIDOKAssetGuessKind = "ups"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindPdu                 InventoryGetInventoryDevicesIDOKAssetGuessKind = "pdu"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindAccessControl       InventoryGetInventoryDevicesIDOKAssetGuessKind = "access_control"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindTimeClock           InventoryGetInventoryDevicesIDOKAssetGuessKind = "time_clock"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindAlarmPanel          InventoryGetInventoryDevicesIDOKAssetGuessKind = "alarm_panel"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindHvacController      InventoryGetInventoryDevicesIDOKAssetGuessKind = "hvac_controller"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindBuildingController  InventoryGetInventoryDevicesIDOKAssetGuessKind = "building_controller"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindPowerMeter          InventoryGetInventoryDevicesIDOKAssetGuessKind = "power_meter"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindEnvironmentMonitor  InventoryGetInventoryDevicesIDOKAssetGuessKind = "environment_monitor"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindEvCharger           InventoryGetInventoryDevicesIDOKAssetGuessKind = "ev_charger"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindSolarInverter       InventoryGetInventoryDevicesIDOKAssetGuessKind = "solar_inverter"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindMedicalDevice       InventoryGetInventoryDevicesIDOKAssetGuessKind = "medical_device"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindWeb                 InventoryGetInventoryDevicesIDOKAssetGuessKind = "web"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindCloudService        InventoryGetInventoryDevicesIDOKAssetGuessKind = "cloud_service"
+	InventoryGetInventoryDevicesIDOKAssetGuessKindUnknown             InventoryGetInventoryDevicesIDOKAssetGuessKind = "unknown"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKAssetGuessKind values.
+func (InventoryGetInventoryDevicesIDOKAssetGuessKind) AllValues() []InventoryGetInventoryDevicesIDOKAssetGuessKind {
+	return []InventoryGetInventoryDevicesIDOKAssetGuessKind{
+		InventoryGetInventoryDevicesIDOKAssetGuessKindRouter,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindSwitch,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindModem,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindSdWan,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindLoadBalancer,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindNetworkController,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindFirewall,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindVpnGateway,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindIdsSensor,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindProxy,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindAp,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindWirelessController,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindWifiExtender,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindMeshNode,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindServer,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindVirtualMachine,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindHypervisor,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindBmc,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindDomainController,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindMailServer,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindDatabaseServer,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindBackupServer,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindPc,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindLaptop,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindWorkstation,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindThinClient,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindPosTerminal,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindKiosk,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindSmartphone,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindTablet,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindSmartwatch,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindPrinter,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindMfp,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindScanner,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindLabelPrinter,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindReceiptPrinter,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindPlotter,
+		InventoryGetInventoryDevicesIDOKAssetGuessKind3dPrinter,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindCamera,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindNvr,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindDvr,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindVideoEncoder,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindDoorbell,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindVideoConferencing,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindIPPhone,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindPbx,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindVoipAdapter,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindVoipGateway,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindConferencePhone,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindIntercom,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindNas,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindSan,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindBackupAppliance,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindTapeLibrary,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindIot,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindSmartTv,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindMediaPlayer,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindSmartSpeaker,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindGameConsole,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindSmartPlug,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindSmartLight,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindSmartHub,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindThermostat,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindProjector,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindDigitalSignage,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindSingleBoardComputer,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindSmartAppliance,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindRobotVacuum,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindWirelessBridge,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindPlc,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindHmi,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindRtu,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindScadaServer,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindIndustrialSwitch,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindUps,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindPdu,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindAccessControl,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindTimeClock,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindAlarmPanel,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindHvacController,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindBuildingController,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindPowerMeter,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindEnvironmentMonitor,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindEvCharger,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindSolarInverter,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindMedicalDevice,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindWeb,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindCloudService,
+		InventoryGetInventoryDevicesIDOKAssetGuessKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKAssetGuessKind) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindRouter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSwitch:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindModem:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSdWan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindLoadBalancer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindNetworkController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindFirewall:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindVpnGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindIdsSensor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindProxy:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindAp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindWirelessController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindWifiExtender:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindMeshNode:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindVirtualMachine:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindHypervisor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindBmc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindDomainController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindMailServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindDatabaseServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindBackupServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindLaptop:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindWorkstation:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindThinClient:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPosTerminal:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindKiosk:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartphone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindTablet:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartwatch:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindMfp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindScanner:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindLabelPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindReceiptPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPlotter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKind3dPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindCamera:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindNvr:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindDvr:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindVideoEncoder:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindDoorbell:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindVideoConferencing:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindIPPhone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPbx:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindVoipAdapter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindVoipGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindConferencePhone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindIntercom:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindNas:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindBackupAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindTapeLibrary:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindIot:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartTv:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindMediaPlayer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartSpeaker:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindGameConsole:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartPlug:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartLight:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartHub:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindThermostat:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindProjector:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindDigitalSignage:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSingleBoardComputer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindRobotVacuum:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindWirelessBridge:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPlc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindHmi:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindRtu:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindScadaServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindIndustrialSwitch:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindUps:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPdu:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindAccessControl:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindTimeClock:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindAlarmPanel:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindHvacController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindBuildingController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPowerMeter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindEnvironmentMonitor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindEvCharger:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSolarInverter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindMedicalDevice:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindCloudService:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKAssetGuessKind) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKAssetGuessKind(data) {
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindRouter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindRouter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSwitch:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindSwitch
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindModem:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindModem
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSdWan:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindSdWan
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindLoadBalancer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindLoadBalancer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindNetworkController:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindNetworkController
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindFirewall:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindFirewall
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindVpnGateway:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindVpnGateway
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindIdsSensor:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindIdsSensor
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindProxy:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindProxy
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindAp:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindAp
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindWirelessController:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindWirelessController
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindWifiExtender:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindWifiExtender
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindMeshNode:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindMeshNode
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindVirtualMachine:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindVirtualMachine
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindHypervisor:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindHypervisor
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindBmc:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindBmc
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindDomainController:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindDomainController
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindMailServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindMailServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindDatabaseServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindDatabaseServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindBackupServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindBackupServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPc:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindPc
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindLaptop:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindLaptop
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindWorkstation:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindWorkstation
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindThinClient:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindThinClient
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPosTerminal:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindPosTerminal
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindKiosk:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindKiosk
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartphone:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindSmartphone
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindTablet:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindTablet
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartwatch:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindSmartwatch
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPrinter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindPrinter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindMfp:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindMfp
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindScanner:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindScanner
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindLabelPrinter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindLabelPrinter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindReceiptPrinter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindReceiptPrinter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPlotter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindPlotter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKind3dPrinter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKind3dPrinter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindCamera:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindCamera
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindNvr:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindNvr
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindDvr:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindDvr
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindVideoEncoder:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindVideoEncoder
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindDoorbell:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindDoorbell
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindVideoConferencing:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindVideoConferencing
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindIPPhone:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindIPPhone
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPbx:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindPbx
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindVoipAdapter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindVoipAdapter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindVoipGateway:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindVoipGateway
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindConferencePhone:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindConferencePhone
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindIntercom:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindIntercom
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindNas:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindNas
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSan:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindSan
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindBackupAppliance:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindBackupAppliance
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindTapeLibrary:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindTapeLibrary
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindIot:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindIot
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartTv:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindSmartTv
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindMediaPlayer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindMediaPlayer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartSpeaker:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindSmartSpeaker
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindGameConsole:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindGameConsole
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartPlug:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindSmartPlug
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartLight:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindSmartLight
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartHub:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindSmartHub
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindThermostat:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindThermostat
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindProjector:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindProjector
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindDigitalSignage:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindDigitalSignage
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSingleBoardComputer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindSingleBoardComputer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSmartAppliance:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindSmartAppliance
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindRobotVacuum:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindRobotVacuum
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindWirelessBridge:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindWirelessBridge
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPlc:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindPlc
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindHmi:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindHmi
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindRtu:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindRtu
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindScadaServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindScadaServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindIndustrialSwitch:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindIndustrialSwitch
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindUps:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindUps
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPdu:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindPdu
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindAccessControl:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindAccessControl
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindTimeClock:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindTimeClock
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindAlarmPanel:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindAlarmPanel
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindHvacController:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindHvacController
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindBuildingController:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindBuildingController
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindPowerMeter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindPowerMeter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindEnvironmentMonitor:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindEnvironmentMonitor
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindEvCharger:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindEvCharger
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindSolarInverter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindSolarInverter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindMedicalDevice:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindMedicalDevice
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindWeb:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindWeb
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindCloudService:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindCloudService
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetGuessKindUnknown:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Device type (content/devicetypes/types.json, D-511).
 type InventoryGetInventoryDevicesIDOKAssetKind string
 
 const (
-	InventoryGetInventoryDevicesIDOKAssetKindFirewall InventoryGetInventoryDevicesIDOKAssetKind = "firewall"
-	InventoryGetInventoryDevicesIDOKAssetKindRouter   InventoryGetInventoryDevicesIDOKAssetKind = "router"
-	InventoryGetInventoryDevicesIDOKAssetKindSwitch   InventoryGetInventoryDevicesIDOKAssetKind = "switch"
-	InventoryGetInventoryDevicesIDOKAssetKindAp       InventoryGetInventoryDevicesIDOKAssetKind = "ap"
-	InventoryGetInventoryDevicesIDOKAssetKindNas      InventoryGetInventoryDevicesIDOKAssetKind = "nas"
-	InventoryGetInventoryDevicesIDOKAssetKindServer   InventoryGetInventoryDevicesIDOKAssetKind = "server"
-	InventoryGetInventoryDevicesIDOKAssetKindPc       InventoryGetInventoryDevicesIDOKAssetKind = "pc"
-	InventoryGetInventoryDevicesIDOKAssetKindPrinter  InventoryGetInventoryDevicesIDOKAssetKind = "printer"
-	InventoryGetInventoryDevicesIDOKAssetKindCamera   InventoryGetInventoryDevicesIDOKAssetKind = "camera"
-	InventoryGetInventoryDevicesIDOKAssetKindNvr      InventoryGetInventoryDevicesIDOKAssetKind = "nvr"
-	InventoryGetInventoryDevicesIDOKAssetKindIot      InventoryGetInventoryDevicesIDOKAssetKind = "iot"
-	InventoryGetInventoryDevicesIDOKAssetKindWeb      InventoryGetInventoryDevicesIDOKAssetKind = "web"
-	InventoryGetInventoryDevicesIDOKAssetKindUnknown  InventoryGetInventoryDevicesIDOKAssetKind = "unknown"
+	InventoryGetInventoryDevicesIDOKAssetKindRouter              InventoryGetInventoryDevicesIDOKAssetKind = "router"
+	InventoryGetInventoryDevicesIDOKAssetKindSwitch              InventoryGetInventoryDevicesIDOKAssetKind = "switch"
+	InventoryGetInventoryDevicesIDOKAssetKindModem               InventoryGetInventoryDevicesIDOKAssetKind = "modem"
+	InventoryGetInventoryDevicesIDOKAssetKindSdWan               InventoryGetInventoryDevicesIDOKAssetKind = "sd_wan"
+	InventoryGetInventoryDevicesIDOKAssetKindLoadBalancer        InventoryGetInventoryDevicesIDOKAssetKind = "load_balancer"
+	InventoryGetInventoryDevicesIDOKAssetKindNetworkController   InventoryGetInventoryDevicesIDOKAssetKind = "network_controller"
+	InventoryGetInventoryDevicesIDOKAssetKindFirewall            InventoryGetInventoryDevicesIDOKAssetKind = "firewall"
+	InventoryGetInventoryDevicesIDOKAssetKindVpnGateway          InventoryGetInventoryDevicesIDOKAssetKind = "vpn_gateway"
+	InventoryGetInventoryDevicesIDOKAssetKindIdsSensor           InventoryGetInventoryDevicesIDOKAssetKind = "ids_sensor"
+	InventoryGetInventoryDevicesIDOKAssetKindProxy               InventoryGetInventoryDevicesIDOKAssetKind = "proxy"
+	InventoryGetInventoryDevicesIDOKAssetKindAp                  InventoryGetInventoryDevicesIDOKAssetKind = "ap"
+	InventoryGetInventoryDevicesIDOKAssetKindWirelessController  InventoryGetInventoryDevicesIDOKAssetKind = "wireless_controller"
+	InventoryGetInventoryDevicesIDOKAssetKindWifiExtender        InventoryGetInventoryDevicesIDOKAssetKind = "wifi_extender"
+	InventoryGetInventoryDevicesIDOKAssetKindMeshNode            InventoryGetInventoryDevicesIDOKAssetKind = "mesh_node"
+	InventoryGetInventoryDevicesIDOKAssetKindServer              InventoryGetInventoryDevicesIDOKAssetKind = "server"
+	InventoryGetInventoryDevicesIDOKAssetKindVirtualMachine      InventoryGetInventoryDevicesIDOKAssetKind = "virtual_machine"
+	InventoryGetInventoryDevicesIDOKAssetKindHypervisor          InventoryGetInventoryDevicesIDOKAssetKind = "hypervisor"
+	InventoryGetInventoryDevicesIDOKAssetKindBmc                 InventoryGetInventoryDevicesIDOKAssetKind = "bmc"
+	InventoryGetInventoryDevicesIDOKAssetKindDomainController    InventoryGetInventoryDevicesIDOKAssetKind = "domain_controller"
+	InventoryGetInventoryDevicesIDOKAssetKindMailServer          InventoryGetInventoryDevicesIDOKAssetKind = "mail_server"
+	InventoryGetInventoryDevicesIDOKAssetKindDatabaseServer      InventoryGetInventoryDevicesIDOKAssetKind = "database_server"
+	InventoryGetInventoryDevicesIDOKAssetKindBackupServer        InventoryGetInventoryDevicesIDOKAssetKind = "backup_server"
+	InventoryGetInventoryDevicesIDOKAssetKindPc                  InventoryGetInventoryDevicesIDOKAssetKind = "pc"
+	InventoryGetInventoryDevicesIDOKAssetKindLaptop              InventoryGetInventoryDevicesIDOKAssetKind = "laptop"
+	InventoryGetInventoryDevicesIDOKAssetKindWorkstation         InventoryGetInventoryDevicesIDOKAssetKind = "workstation"
+	InventoryGetInventoryDevicesIDOKAssetKindThinClient          InventoryGetInventoryDevicesIDOKAssetKind = "thin_client"
+	InventoryGetInventoryDevicesIDOKAssetKindPosTerminal         InventoryGetInventoryDevicesIDOKAssetKind = "pos_terminal"
+	InventoryGetInventoryDevicesIDOKAssetKindKiosk               InventoryGetInventoryDevicesIDOKAssetKind = "kiosk"
+	InventoryGetInventoryDevicesIDOKAssetKindSmartphone          InventoryGetInventoryDevicesIDOKAssetKind = "smartphone"
+	InventoryGetInventoryDevicesIDOKAssetKindTablet              InventoryGetInventoryDevicesIDOKAssetKind = "tablet"
+	InventoryGetInventoryDevicesIDOKAssetKindSmartwatch          InventoryGetInventoryDevicesIDOKAssetKind = "smartwatch"
+	InventoryGetInventoryDevicesIDOKAssetKindPrinter             InventoryGetInventoryDevicesIDOKAssetKind = "printer"
+	InventoryGetInventoryDevicesIDOKAssetKindMfp                 InventoryGetInventoryDevicesIDOKAssetKind = "mfp"
+	InventoryGetInventoryDevicesIDOKAssetKindScanner             InventoryGetInventoryDevicesIDOKAssetKind = "scanner"
+	InventoryGetInventoryDevicesIDOKAssetKindLabelPrinter        InventoryGetInventoryDevicesIDOKAssetKind = "label_printer"
+	InventoryGetInventoryDevicesIDOKAssetKindReceiptPrinter      InventoryGetInventoryDevicesIDOKAssetKind = "receipt_printer"
+	InventoryGetInventoryDevicesIDOKAssetKindPlotter             InventoryGetInventoryDevicesIDOKAssetKind = "plotter"
+	InventoryGetInventoryDevicesIDOKAssetKind3dPrinter           InventoryGetInventoryDevicesIDOKAssetKind = "3d_printer"
+	InventoryGetInventoryDevicesIDOKAssetKindCamera              InventoryGetInventoryDevicesIDOKAssetKind = "camera"
+	InventoryGetInventoryDevicesIDOKAssetKindNvr                 InventoryGetInventoryDevicesIDOKAssetKind = "nvr"
+	InventoryGetInventoryDevicesIDOKAssetKindDvr                 InventoryGetInventoryDevicesIDOKAssetKind = "dvr"
+	InventoryGetInventoryDevicesIDOKAssetKindVideoEncoder        InventoryGetInventoryDevicesIDOKAssetKind = "video_encoder"
+	InventoryGetInventoryDevicesIDOKAssetKindDoorbell            InventoryGetInventoryDevicesIDOKAssetKind = "doorbell"
+	InventoryGetInventoryDevicesIDOKAssetKindVideoConferencing   InventoryGetInventoryDevicesIDOKAssetKind = "video_conferencing"
+	InventoryGetInventoryDevicesIDOKAssetKindIPPhone             InventoryGetInventoryDevicesIDOKAssetKind = "ip_phone"
+	InventoryGetInventoryDevicesIDOKAssetKindPbx                 InventoryGetInventoryDevicesIDOKAssetKind = "pbx"
+	InventoryGetInventoryDevicesIDOKAssetKindVoipAdapter         InventoryGetInventoryDevicesIDOKAssetKind = "voip_adapter"
+	InventoryGetInventoryDevicesIDOKAssetKindVoipGateway         InventoryGetInventoryDevicesIDOKAssetKind = "voip_gateway"
+	InventoryGetInventoryDevicesIDOKAssetKindConferencePhone     InventoryGetInventoryDevicesIDOKAssetKind = "conference_phone"
+	InventoryGetInventoryDevicesIDOKAssetKindIntercom            InventoryGetInventoryDevicesIDOKAssetKind = "intercom"
+	InventoryGetInventoryDevicesIDOKAssetKindNas                 InventoryGetInventoryDevicesIDOKAssetKind = "nas"
+	InventoryGetInventoryDevicesIDOKAssetKindSan                 InventoryGetInventoryDevicesIDOKAssetKind = "san"
+	InventoryGetInventoryDevicesIDOKAssetKindBackupAppliance     InventoryGetInventoryDevicesIDOKAssetKind = "backup_appliance"
+	InventoryGetInventoryDevicesIDOKAssetKindTapeLibrary         InventoryGetInventoryDevicesIDOKAssetKind = "tape_library"
+	InventoryGetInventoryDevicesIDOKAssetKindIot                 InventoryGetInventoryDevicesIDOKAssetKind = "iot"
+	InventoryGetInventoryDevicesIDOKAssetKindSmartTv             InventoryGetInventoryDevicesIDOKAssetKind = "smart_tv"
+	InventoryGetInventoryDevicesIDOKAssetKindMediaPlayer         InventoryGetInventoryDevicesIDOKAssetKind = "media_player"
+	InventoryGetInventoryDevicesIDOKAssetKindSmartSpeaker        InventoryGetInventoryDevicesIDOKAssetKind = "smart_speaker"
+	InventoryGetInventoryDevicesIDOKAssetKindGameConsole         InventoryGetInventoryDevicesIDOKAssetKind = "game_console"
+	InventoryGetInventoryDevicesIDOKAssetKindSmartPlug           InventoryGetInventoryDevicesIDOKAssetKind = "smart_plug"
+	InventoryGetInventoryDevicesIDOKAssetKindSmartLight          InventoryGetInventoryDevicesIDOKAssetKind = "smart_light"
+	InventoryGetInventoryDevicesIDOKAssetKindSmartHub            InventoryGetInventoryDevicesIDOKAssetKind = "smart_hub"
+	InventoryGetInventoryDevicesIDOKAssetKindThermostat          InventoryGetInventoryDevicesIDOKAssetKind = "thermostat"
+	InventoryGetInventoryDevicesIDOKAssetKindProjector           InventoryGetInventoryDevicesIDOKAssetKind = "projector"
+	InventoryGetInventoryDevicesIDOKAssetKindDigitalSignage      InventoryGetInventoryDevicesIDOKAssetKind = "digital_signage"
+	InventoryGetInventoryDevicesIDOKAssetKindSingleBoardComputer InventoryGetInventoryDevicesIDOKAssetKind = "single_board_computer"
+	InventoryGetInventoryDevicesIDOKAssetKindSmartAppliance      InventoryGetInventoryDevicesIDOKAssetKind = "smart_appliance"
+	InventoryGetInventoryDevicesIDOKAssetKindRobotVacuum         InventoryGetInventoryDevicesIDOKAssetKind = "robot_vacuum"
+	InventoryGetInventoryDevicesIDOKAssetKindWirelessBridge      InventoryGetInventoryDevicesIDOKAssetKind = "wireless_bridge"
+	InventoryGetInventoryDevicesIDOKAssetKindPlc                 InventoryGetInventoryDevicesIDOKAssetKind = "plc"
+	InventoryGetInventoryDevicesIDOKAssetKindHmi                 InventoryGetInventoryDevicesIDOKAssetKind = "hmi"
+	InventoryGetInventoryDevicesIDOKAssetKindRtu                 InventoryGetInventoryDevicesIDOKAssetKind = "rtu"
+	InventoryGetInventoryDevicesIDOKAssetKindScadaServer         InventoryGetInventoryDevicesIDOKAssetKind = "scada_server"
+	InventoryGetInventoryDevicesIDOKAssetKindIndustrialSwitch    InventoryGetInventoryDevicesIDOKAssetKind = "industrial_switch"
+	InventoryGetInventoryDevicesIDOKAssetKindUps                 InventoryGetInventoryDevicesIDOKAssetKind = "ups"
+	InventoryGetInventoryDevicesIDOKAssetKindPdu                 InventoryGetInventoryDevicesIDOKAssetKind = "pdu"
+	InventoryGetInventoryDevicesIDOKAssetKindAccessControl       InventoryGetInventoryDevicesIDOKAssetKind = "access_control"
+	InventoryGetInventoryDevicesIDOKAssetKindTimeClock           InventoryGetInventoryDevicesIDOKAssetKind = "time_clock"
+	InventoryGetInventoryDevicesIDOKAssetKindAlarmPanel          InventoryGetInventoryDevicesIDOKAssetKind = "alarm_panel"
+	InventoryGetInventoryDevicesIDOKAssetKindHvacController      InventoryGetInventoryDevicesIDOKAssetKind = "hvac_controller"
+	InventoryGetInventoryDevicesIDOKAssetKindBuildingController  InventoryGetInventoryDevicesIDOKAssetKind = "building_controller"
+	InventoryGetInventoryDevicesIDOKAssetKindPowerMeter          InventoryGetInventoryDevicesIDOKAssetKind = "power_meter"
+	InventoryGetInventoryDevicesIDOKAssetKindEnvironmentMonitor  InventoryGetInventoryDevicesIDOKAssetKind = "environment_monitor"
+	InventoryGetInventoryDevicesIDOKAssetKindEvCharger           InventoryGetInventoryDevicesIDOKAssetKind = "ev_charger"
+	InventoryGetInventoryDevicesIDOKAssetKindSolarInverter       InventoryGetInventoryDevicesIDOKAssetKind = "solar_inverter"
+	InventoryGetInventoryDevicesIDOKAssetKindMedicalDevice       InventoryGetInventoryDevicesIDOKAssetKind = "medical_device"
+	InventoryGetInventoryDevicesIDOKAssetKindWeb                 InventoryGetInventoryDevicesIDOKAssetKind = "web"
+	InventoryGetInventoryDevicesIDOKAssetKindCloudService        InventoryGetInventoryDevicesIDOKAssetKind = "cloud_service"
+	InventoryGetInventoryDevicesIDOKAssetKindUnknown             InventoryGetInventoryDevicesIDOKAssetKind = "unknown"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKAssetKind values.
 func (InventoryGetInventoryDevicesIDOKAssetKind) AllValues() []InventoryGetInventoryDevicesIDOKAssetKind {
 	return []InventoryGetInventoryDevicesIDOKAssetKind{
-		InventoryGetInventoryDevicesIDOKAssetKindFirewall,
 		InventoryGetInventoryDevicesIDOKAssetKindRouter,
 		InventoryGetInventoryDevicesIDOKAssetKindSwitch,
+		InventoryGetInventoryDevicesIDOKAssetKindModem,
+		InventoryGetInventoryDevicesIDOKAssetKindSdWan,
+		InventoryGetInventoryDevicesIDOKAssetKindLoadBalancer,
+		InventoryGetInventoryDevicesIDOKAssetKindNetworkController,
+		InventoryGetInventoryDevicesIDOKAssetKindFirewall,
+		InventoryGetInventoryDevicesIDOKAssetKindVpnGateway,
+		InventoryGetInventoryDevicesIDOKAssetKindIdsSensor,
+		InventoryGetInventoryDevicesIDOKAssetKindProxy,
 		InventoryGetInventoryDevicesIDOKAssetKindAp,
-		InventoryGetInventoryDevicesIDOKAssetKindNas,
+		InventoryGetInventoryDevicesIDOKAssetKindWirelessController,
+		InventoryGetInventoryDevicesIDOKAssetKindWifiExtender,
+		InventoryGetInventoryDevicesIDOKAssetKindMeshNode,
 		InventoryGetInventoryDevicesIDOKAssetKindServer,
+		InventoryGetInventoryDevicesIDOKAssetKindVirtualMachine,
+		InventoryGetInventoryDevicesIDOKAssetKindHypervisor,
+		InventoryGetInventoryDevicesIDOKAssetKindBmc,
+		InventoryGetInventoryDevicesIDOKAssetKindDomainController,
+		InventoryGetInventoryDevicesIDOKAssetKindMailServer,
+		InventoryGetInventoryDevicesIDOKAssetKindDatabaseServer,
+		InventoryGetInventoryDevicesIDOKAssetKindBackupServer,
 		InventoryGetInventoryDevicesIDOKAssetKindPc,
+		InventoryGetInventoryDevicesIDOKAssetKindLaptop,
+		InventoryGetInventoryDevicesIDOKAssetKindWorkstation,
+		InventoryGetInventoryDevicesIDOKAssetKindThinClient,
+		InventoryGetInventoryDevicesIDOKAssetKindPosTerminal,
+		InventoryGetInventoryDevicesIDOKAssetKindKiosk,
+		InventoryGetInventoryDevicesIDOKAssetKindSmartphone,
+		InventoryGetInventoryDevicesIDOKAssetKindTablet,
+		InventoryGetInventoryDevicesIDOKAssetKindSmartwatch,
 		InventoryGetInventoryDevicesIDOKAssetKindPrinter,
+		InventoryGetInventoryDevicesIDOKAssetKindMfp,
+		InventoryGetInventoryDevicesIDOKAssetKindScanner,
+		InventoryGetInventoryDevicesIDOKAssetKindLabelPrinter,
+		InventoryGetInventoryDevicesIDOKAssetKindReceiptPrinter,
+		InventoryGetInventoryDevicesIDOKAssetKindPlotter,
+		InventoryGetInventoryDevicesIDOKAssetKind3dPrinter,
 		InventoryGetInventoryDevicesIDOKAssetKindCamera,
 		InventoryGetInventoryDevicesIDOKAssetKindNvr,
+		InventoryGetInventoryDevicesIDOKAssetKindDvr,
+		InventoryGetInventoryDevicesIDOKAssetKindVideoEncoder,
+		InventoryGetInventoryDevicesIDOKAssetKindDoorbell,
+		InventoryGetInventoryDevicesIDOKAssetKindVideoConferencing,
+		InventoryGetInventoryDevicesIDOKAssetKindIPPhone,
+		InventoryGetInventoryDevicesIDOKAssetKindPbx,
+		InventoryGetInventoryDevicesIDOKAssetKindVoipAdapter,
+		InventoryGetInventoryDevicesIDOKAssetKindVoipGateway,
+		InventoryGetInventoryDevicesIDOKAssetKindConferencePhone,
+		InventoryGetInventoryDevicesIDOKAssetKindIntercom,
+		InventoryGetInventoryDevicesIDOKAssetKindNas,
+		InventoryGetInventoryDevicesIDOKAssetKindSan,
+		InventoryGetInventoryDevicesIDOKAssetKindBackupAppliance,
+		InventoryGetInventoryDevicesIDOKAssetKindTapeLibrary,
 		InventoryGetInventoryDevicesIDOKAssetKindIot,
+		InventoryGetInventoryDevicesIDOKAssetKindSmartTv,
+		InventoryGetInventoryDevicesIDOKAssetKindMediaPlayer,
+		InventoryGetInventoryDevicesIDOKAssetKindSmartSpeaker,
+		InventoryGetInventoryDevicesIDOKAssetKindGameConsole,
+		InventoryGetInventoryDevicesIDOKAssetKindSmartPlug,
+		InventoryGetInventoryDevicesIDOKAssetKindSmartLight,
+		InventoryGetInventoryDevicesIDOKAssetKindSmartHub,
+		InventoryGetInventoryDevicesIDOKAssetKindThermostat,
+		InventoryGetInventoryDevicesIDOKAssetKindProjector,
+		InventoryGetInventoryDevicesIDOKAssetKindDigitalSignage,
+		InventoryGetInventoryDevicesIDOKAssetKindSingleBoardComputer,
+		InventoryGetInventoryDevicesIDOKAssetKindSmartAppliance,
+		InventoryGetInventoryDevicesIDOKAssetKindRobotVacuum,
+		InventoryGetInventoryDevicesIDOKAssetKindWirelessBridge,
+		InventoryGetInventoryDevicesIDOKAssetKindPlc,
+		InventoryGetInventoryDevicesIDOKAssetKindHmi,
+		InventoryGetInventoryDevicesIDOKAssetKindRtu,
+		InventoryGetInventoryDevicesIDOKAssetKindScadaServer,
+		InventoryGetInventoryDevicesIDOKAssetKindIndustrialSwitch,
+		InventoryGetInventoryDevicesIDOKAssetKindUps,
+		InventoryGetInventoryDevicesIDOKAssetKindPdu,
+		InventoryGetInventoryDevicesIDOKAssetKindAccessControl,
+		InventoryGetInventoryDevicesIDOKAssetKindTimeClock,
+		InventoryGetInventoryDevicesIDOKAssetKindAlarmPanel,
+		InventoryGetInventoryDevicesIDOKAssetKindHvacController,
+		InventoryGetInventoryDevicesIDOKAssetKindBuildingController,
+		InventoryGetInventoryDevicesIDOKAssetKindPowerMeter,
+		InventoryGetInventoryDevicesIDOKAssetKindEnvironmentMonitor,
+		InventoryGetInventoryDevicesIDOKAssetKindEvCharger,
+		InventoryGetInventoryDevicesIDOKAssetKindSolarInverter,
+		InventoryGetInventoryDevicesIDOKAssetKindMedicalDevice,
 		InventoryGetInventoryDevicesIDOKAssetKindWeb,
+		InventoryGetInventoryDevicesIDOKAssetKindCloudService,
 		InventoryGetInventoryDevicesIDOKAssetKindUnknown,
 	}
 }
@@ -74370,29 +79639,181 @@ func (InventoryGetInventoryDevicesIDOKAssetKind) AllValues() []InventoryGetInven
 // MarshalText implements encoding.TextMarshaler.
 func (s InventoryGetInventoryDevicesIDOKAssetKind) MarshalText() ([]byte, error) {
 	switch s {
-	case InventoryGetInventoryDevicesIDOKAssetKindFirewall:
-		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetKindRouter:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetKindSwitch:
 		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindModem:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSdWan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindLoadBalancer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindNetworkController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindFirewall:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindVpnGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindIdsSensor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindProxy:
+		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetKindAp:
 		return []byte(s), nil
-	case InventoryGetInventoryDevicesIDOKAssetKindNas:
+	case InventoryGetInventoryDevicesIDOKAssetKindWirelessController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindWifiExtender:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindMeshNode:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetKindServer:
 		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindVirtualMachine:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindHypervisor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindBmc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindDomainController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindMailServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindDatabaseServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindBackupServer:
+		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetKindPc:
 		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindLaptop:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindWorkstation:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindThinClient:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindPosTerminal:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindKiosk:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartphone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindTablet:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartwatch:
+		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetKindPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindMfp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindScanner:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindLabelPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindReceiptPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindPlotter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKind3dPrinter:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetKindCamera:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetKindNvr:
 		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindDvr:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindVideoEncoder:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindDoorbell:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindVideoConferencing:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindIPPhone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindPbx:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindVoipAdapter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindVoipGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindConferencePhone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindIntercom:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindNas:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindBackupAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindTapeLibrary:
+		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetKindIot:
 		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartTv:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindMediaPlayer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartSpeaker:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindGameConsole:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartPlug:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartLight:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartHub:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindThermostat:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindProjector:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindDigitalSignage:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSingleBoardComputer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindRobotVacuum:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindWirelessBridge:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindPlc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindHmi:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindRtu:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindScadaServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindIndustrialSwitch:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindUps:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindPdu:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindAccessControl:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindTimeClock:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindAlarmPanel:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindHvacController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindBuildingController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindPowerMeter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindEnvironmentMonitor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindEvCharger:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSolarInverter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindMedicalDevice:
+		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetKindWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindCloudService:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetKindUnknown:
 		return []byte(s), nil
@@ -74404,29 +79825,119 @@ func (s InventoryGetInventoryDevicesIDOKAssetKind) MarshalText() ([]byte, error)
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *InventoryGetInventoryDevicesIDOKAssetKind) UnmarshalText(data []byte) error {
 	switch InventoryGetInventoryDevicesIDOKAssetKind(data) {
-	case InventoryGetInventoryDevicesIDOKAssetKindFirewall:
-		*s = InventoryGetInventoryDevicesIDOKAssetKindFirewall
-		return nil
 	case InventoryGetInventoryDevicesIDOKAssetKindRouter:
 		*s = InventoryGetInventoryDevicesIDOKAssetKindRouter
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetKindSwitch:
 		*s = InventoryGetInventoryDevicesIDOKAssetKindSwitch
 		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindModem:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindModem
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSdWan:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSdWan
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindLoadBalancer:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindLoadBalancer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindNetworkController:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindNetworkController
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindFirewall:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindFirewall
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindVpnGateway:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindVpnGateway
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindIdsSensor:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindIdsSensor
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindProxy:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindProxy
+		return nil
 	case InventoryGetInventoryDevicesIDOKAssetKindAp:
 		*s = InventoryGetInventoryDevicesIDOKAssetKindAp
 		return nil
-	case InventoryGetInventoryDevicesIDOKAssetKindNas:
-		*s = InventoryGetInventoryDevicesIDOKAssetKindNas
+	case InventoryGetInventoryDevicesIDOKAssetKindWirelessController:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindWirelessController
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindWifiExtender:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindWifiExtender
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindMeshNode:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindMeshNode
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetKindServer:
 		*s = InventoryGetInventoryDevicesIDOKAssetKindServer
 		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindVirtualMachine:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindVirtualMachine
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindHypervisor:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindHypervisor
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindBmc:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindBmc
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindDomainController:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindDomainController
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindMailServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindMailServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindDatabaseServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindDatabaseServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindBackupServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindBackupServer
+		return nil
 	case InventoryGetInventoryDevicesIDOKAssetKindPc:
 		*s = InventoryGetInventoryDevicesIDOKAssetKindPc
 		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindLaptop:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindLaptop
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindWorkstation:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindWorkstation
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindThinClient:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindThinClient
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindPosTerminal:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindPosTerminal
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindKiosk:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindKiosk
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartphone:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSmartphone
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindTablet:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindTablet
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartwatch:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSmartwatch
+		return nil
 	case InventoryGetInventoryDevicesIDOKAssetKindPrinter:
 		*s = InventoryGetInventoryDevicesIDOKAssetKindPrinter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindMfp:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindMfp
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindScanner:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindScanner
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindLabelPrinter:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindLabelPrinter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindReceiptPrinter:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindReceiptPrinter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindPlotter:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindPlotter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKind3dPrinter:
+		*s = InventoryGetInventoryDevicesIDOKAssetKind3dPrinter
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetKindCamera:
 		*s = InventoryGetInventoryDevicesIDOKAssetKindCamera
@@ -74434,14 +79945,221 @@ func (s *InventoryGetInventoryDevicesIDOKAssetKind) UnmarshalText(data []byte) e
 	case InventoryGetInventoryDevicesIDOKAssetKindNvr:
 		*s = InventoryGetInventoryDevicesIDOKAssetKindNvr
 		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindDvr:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindDvr
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindVideoEncoder:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindVideoEncoder
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindDoorbell:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindDoorbell
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindVideoConferencing:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindVideoConferencing
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindIPPhone:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindIPPhone
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindPbx:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindPbx
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindVoipAdapter:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindVoipAdapter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindVoipGateway:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindVoipGateway
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindConferencePhone:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindConferencePhone
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindIntercom:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindIntercom
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindNas:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindNas
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSan:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSan
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindBackupAppliance:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindBackupAppliance
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindTapeLibrary:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindTapeLibrary
+		return nil
 	case InventoryGetInventoryDevicesIDOKAssetKindIot:
 		*s = InventoryGetInventoryDevicesIDOKAssetKindIot
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartTv:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSmartTv
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindMediaPlayer:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindMediaPlayer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartSpeaker:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSmartSpeaker
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindGameConsole:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindGameConsole
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartPlug:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSmartPlug
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartLight:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSmartLight
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartHub:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSmartHub
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindThermostat:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindThermostat
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindProjector:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindProjector
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindDigitalSignage:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindDigitalSignage
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSingleBoardComputer:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSingleBoardComputer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSmartAppliance:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSmartAppliance
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindRobotVacuum:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindRobotVacuum
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindWirelessBridge:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindWirelessBridge
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindPlc:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindPlc
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindHmi:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindHmi
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindRtu:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindRtu
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindScadaServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindScadaServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindIndustrialSwitch:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindIndustrialSwitch
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindUps:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindUps
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindPdu:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindPdu
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindAccessControl:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindAccessControl
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindTimeClock:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindTimeClock
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindAlarmPanel:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindAlarmPanel
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindHvacController:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindHvacController
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindBuildingController:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindBuildingController
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindPowerMeter:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindPowerMeter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindEnvironmentMonitor:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindEnvironmentMonitor
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindEvCharger:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindEvCharger
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSolarInverter:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSolarInverter
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindMedicalDevice:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindMedicalDevice
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetKindWeb:
 		*s = InventoryGetInventoryDevicesIDOKAssetKindWeb
 		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindCloudService:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindCloudService
+		return nil
 	case InventoryGetInventoryDevicesIDOKAssetKindUnknown:
 		*s = InventoryGetInventoryDevicesIDOKAssetKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryDevicesIDOKAssetKindSource string
+
+const (
+	InventoryGetInventoryDevicesIDOKAssetKindSourceManual  InventoryGetInventoryDevicesIDOKAssetKindSource = "manual"
+	InventoryGetInventoryDevicesIDOKAssetKindSourceAgent   InventoryGetInventoryDevicesIDOKAssetKindSource = "agent"
+	InventoryGetInventoryDevicesIDOKAssetKindSourceSnmp    InventoryGetInventoryDevicesIDOKAssetKindSource = "snmp"
+	InventoryGetInventoryDevicesIDOKAssetKindSourceNmap    InventoryGetInventoryDevicesIDOKAssetKindSource = "nmap"
+	InventoryGetInventoryDevicesIDOKAssetKindSourcePassive InventoryGetInventoryDevicesIDOKAssetKindSource = "passive"
+	InventoryGetInventoryDevicesIDOKAssetKindSourceScan    InventoryGetInventoryDevicesIDOKAssetKindSource = "scan"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKAssetKindSource values.
+func (InventoryGetInventoryDevicesIDOKAssetKindSource) AllValues() []InventoryGetInventoryDevicesIDOKAssetKindSource {
+	return []InventoryGetInventoryDevicesIDOKAssetKindSource{
+		InventoryGetInventoryDevicesIDOKAssetKindSourceManual,
+		InventoryGetInventoryDevicesIDOKAssetKindSourceAgent,
+		InventoryGetInventoryDevicesIDOKAssetKindSourceSnmp,
+		InventoryGetInventoryDevicesIDOKAssetKindSourceNmap,
+		InventoryGetInventoryDevicesIDOKAssetKindSourcePassive,
+		InventoryGetInventoryDevicesIDOKAssetKindSourceScan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKAssetKindSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKAssetKindSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSourceAgent:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSourceSnmp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSourceNmap:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSourcePassive:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSourceScan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKAssetKindSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKAssetKindSource(data) {
+	case InventoryGetInventoryDevicesIDOKAssetKindSourceManual:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSourceAgent:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSourceAgent
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSourceSnmp:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSourceSnmp
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSourceNmap:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSourceNmap
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSourcePassive:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSourcePassive
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSourceScan:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSourceScan
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -74772,18 +80490,26 @@ func (s *InventoryGetInventoryDevicesIDOKAssetRegularScan) UnmarshalText(data []
 }
 
 type InventoryGetInventoryDevicesIDOKAssetServicesItem struct {
-	Confidence float64                                                 `json:"confidence"`
-	Name       string                                                  `json:"name"`
-	Port       int                                                     `json:"port"`
-	Product    OptString                                               `json:"product"`
-	Proto      InventoryGetInventoryDevicesIDOKAssetServicesItemProto  `json:"proto"`
-	Source     InventoryGetInventoryDevicesIDOKAssetServicesItemSource `json:"source"`
-	Version    OptString                                               `json:"version"`
+	Confidence float64 `json:"confidence"`
+	// What the service said about the device besides product and version: nmap extra info and device type,
+	// page title, certificate subject (D-511). Evidence only, never software.
+	Detail  OptString                                               `json:"detail"`
+	Name    string                                                  `json:"name"`
+	Port    int                                                     `json:"port"`
+	Product OptString                                               `json:"product"`
+	Proto   InventoryGetInventoryDevicesIDOKAssetServicesItemProto  `json:"proto"`
+	Source  InventoryGetInventoryDevicesIDOKAssetServicesItemSource `json:"source"`
+	Version OptString                                               `json:"version"`
 }
 
 // GetConfidence returns the value of Confidence.
 func (s *InventoryGetInventoryDevicesIDOKAssetServicesItem) GetConfidence() float64 {
 	return s.Confidence
+}
+
+// GetDetail returns the value of Detail.
+func (s *InventoryGetInventoryDevicesIDOKAssetServicesItem) GetDetail() OptString {
+	return s.Detail
 }
 
 // GetName returns the value of Name.
@@ -74819,6 +80545,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetServicesItem) GetVersion() OptStri
 // SetConfidence sets the value of Confidence.
 func (s *InventoryGetInventoryDevicesIDOKAssetServicesItem) SetConfidence(val float64) {
 	s.Confidence = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *InventoryGetInventoryDevicesIDOKAssetServicesItem) SetDetail(val OptString) {
+	s.Detail = val
 }
 
 // SetName sets the value of Name.
@@ -75238,39 +80969,192 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendorSource) UnmarshalText(data [
 	}
 }
 
+// Device type (content/devicetypes/types.json, D-511).
 type InventoryGetInventoryDevicesIDOKKindsItem string
 
 const (
-	InventoryGetInventoryDevicesIDOKKindsItemFirewall InventoryGetInventoryDevicesIDOKKindsItem = "firewall"
-	InventoryGetInventoryDevicesIDOKKindsItemRouter   InventoryGetInventoryDevicesIDOKKindsItem = "router"
-	InventoryGetInventoryDevicesIDOKKindsItemSwitch   InventoryGetInventoryDevicesIDOKKindsItem = "switch"
-	InventoryGetInventoryDevicesIDOKKindsItemAp       InventoryGetInventoryDevicesIDOKKindsItem = "ap"
-	InventoryGetInventoryDevicesIDOKKindsItemNas      InventoryGetInventoryDevicesIDOKKindsItem = "nas"
-	InventoryGetInventoryDevicesIDOKKindsItemServer   InventoryGetInventoryDevicesIDOKKindsItem = "server"
-	InventoryGetInventoryDevicesIDOKKindsItemPc       InventoryGetInventoryDevicesIDOKKindsItem = "pc"
-	InventoryGetInventoryDevicesIDOKKindsItemPrinter  InventoryGetInventoryDevicesIDOKKindsItem = "printer"
-	InventoryGetInventoryDevicesIDOKKindsItemCamera   InventoryGetInventoryDevicesIDOKKindsItem = "camera"
-	InventoryGetInventoryDevicesIDOKKindsItemNvr      InventoryGetInventoryDevicesIDOKKindsItem = "nvr"
-	InventoryGetInventoryDevicesIDOKKindsItemIot      InventoryGetInventoryDevicesIDOKKindsItem = "iot"
-	InventoryGetInventoryDevicesIDOKKindsItemWeb      InventoryGetInventoryDevicesIDOKKindsItem = "web"
-	InventoryGetInventoryDevicesIDOKKindsItemUnknown  InventoryGetInventoryDevicesIDOKKindsItem = "unknown"
+	InventoryGetInventoryDevicesIDOKKindsItemRouter              InventoryGetInventoryDevicesIDOKKindsItem = "router"
+	InventoryGetInventoryDevicesIDOKKindsItemSwitch              InventoryGetInventoryDevicesIDOKKindsItem = "switch"
+	InventoryGetInventoryDevicesIDOKKindsItemModem               InventoryGetInventoryDevicesIDOKKindsItem = "modem"
+	InventoryGetInventoryDevicesIDOKKindsItemSdWan               InventoryGetInventoryDevicesIDOKKindsItem = "sd_wan"
+	InventoryGetInventoryDevicesIDOKKindsItemLoadBalancer        InventoryGetInventoryDevicesIDOKKindsItem = "load_balancer"
+	InventoryGetInventoryDevicesIDOKKindsItemNetworkController   InventoryGetInventoryDevicesIDOKKindsItem = "network_controller"
+	InventoryGetInventoryDevicesIDOKKindsItemFirewall            InventoryGetInventoryDevicesIDOKKindsItem = "firewall"
+	InventoryGetInventoryDevicesIDOKKindsItemVpnGateway          InventoryGetInventoryDevicesIDOKKindsItem = "vpn_gateway"
+	InventoryGetInventoryDevicesIDOKKindsItemIdsSensor           InventoryGetInventoryDevicesIDOKKindsItem = "ids_sensor"
+	InventoryGetInventoryDevicesIDOKKindsItemProxy               InventoryGetInventoryDevicesIDOKKindsItem = "proxy"
+	InventoryGetInventoryDevicesIDOKKindsItemAp                  InventoryGetInventoryDevicesIDOKKindsItem = "ap"
+	InventoryGetInventoryDevicesIDOKKindsItemWirelessController  InventoryGetInventoryDevicesIDOKKindsItem = "wireless_controller"
+	InventoryGetInventoryDevicesIDOKKindsItemWifiExtender        InventoryGetInventoryDevicesIDOKKindsItem = "wifi_extender"
+	InventoryGetInventoryDevicesIDOKKindsItemMeshNode            InventoryGetInventoryDevicesIDOKKindsItem = "mesh_node"
+	InventoryGetInventoryDevicesIDOKKindsItemServer              InventoryGetInventoryDevicesIDOKKindsItem = "server"
+	InventoryGetInventoryDevicesIDOKKindsItemVirtualMachine      InventoryGetInventoryDevicesIDOKKindsItem = "virtual_machine"
+	InventoryGetInventoryDevicesIDOKKindsItemHypervisor          InventoryGetInventoryDevicesIDOKKindsItem = "hypervisor"
+	InventoryGetInventoryDevicesIDOKKindsItemBmc                 InventoryGetInventoryDevicesIDOKKindsItem = "bmc"
+	InventoryGetInventoryDevicesIDOKKindsItemDomainController    InventoryGetInventoryDevicesIDOKKindsItem = "domain_controller"
+	InventoryGetInventoryDevicesIDOKKindsItemMailServer          InventoryGetInventoryDevicesIDOKKindsItem = "mail_server"
+	InventoryGetInventoryDevicesIDOKKindsItemDatabaseServer      InventoryGetInventoryDevicesIDOKKindsItem = "database_server"
+	InventoryGetInventoryDevicesIDOKKindsItemBackupServer        InventoryGetInventoryDevicesIDOKKindsItem = "backup_server"
+	InventoryGetInventoryDevicesIDOKKindsItemPc                  InventoryGetInventoryDevicesIDOKKindsItem = "pc"
+	InventoryGetInventoryDevicesIDOKKindsItemLaptop              InventoryGetInventoryDevicesIDOKKindsItem = "laptop"
+	InventoryGetInventoryDevicesIDOKKindsItemWorkstation         InventoryGetInventoryDevicesIDOKKindsItem = "workstation"
+	InventoryGetInventoryDevicesIDOKKindsItemThinClient          InventoryGetInventoryDevicesIDOKKindsItem = "thin_client"
+	InventoryGetInventoryDevicesIDOKKindsItemPosTerminal         InventoryGetInventoryDevicesIDOKKindsItem = "pos_terminal"
+	InventoryGetInventoryDevicesIDOKKindsItemKiosk               InventoryGetInventoryDevicesIDOKKindsItem = "kiosk"
+	InventoryGetInventoryDevicesIDOKKindsItemSmartphone          InventoryGetInventoryDevicesIDOKKindsItem = "smartphone"
+	InventoryGetInventoryDevicesIDOKKindsItemTablet              InventoryGetInventoryDevicesIDOKKindsItem = "tablet"
+	InventoryGetInventoryDevicesIDOKKindsItemSmartwatch          InventoryGetInventoryDevicesIDOKKindsItem = "smartwatch"
+	InventoryGetInventoryDevicesIDOKKindsItemPrinter             InventoryGetInventoryDevicesIDOKKindsItem = "printer"
+	InventoryGetInventoryDevicesIDOKKindsItemMfp                 InventoryGetInventoryDevicesIDOKKindsItem = "mfp"
+	InventoryGetInventoryDevicesIDOKKindsItemScanner             InventoryGetInventoryDevicesIDOKKindsItem = "scanner"
+	InventoryGetInventoryDevicesIDOKKindsItemLabelPrinter        InventoryGetInventoryDevicesIDOKKindsItem = "label_printer"
+	InventoryGetInventoryDevicesIDOKKindsItemReceiptPrinter      InventoryGetInventoryDevicesIDOKKindsItem = "receipt_printer"
+	InventoryGetInventoryDevicesIDOKKindsItemPlotter             InventoryGetInventoryDevicesIDOKKindsItem = "plotter"
+	InventoryGetInventoryDevicesIDOKKindsItem3dPrinter           InventoryGetInventoryDevicesIDOKKindsItem = "3d_printer"
+	InventoryGetInventoryDevicesIDOKKindsItemCamera              InventoryGetInventoryDevicesIDOKKindsItem = "camera"
+	InventoryGetInventoryDevicesIDOKKindsItemNvr                 InventoryGetInventoryDevicesIDOKKindsItem = "nvr"
+	InventoryGetInventoryDevicesIDOKKindsItemDvr                 InventoryGetInventoryDevicesIDOKKindsItem = "dvr"
+	InventoryGetInventoryDevicesIDOKKindsItemVideoEncoder        InventoryGetInventoryDevicesIDOKKindsItem = "video_encoder"
+	InventoryGetInventoryDevicesIDOKKindsItemDoorbell            InventoryGetInventoryDevicesIDOKKindsItem = "doorbell"
+	InventoryGetInventoryDevicesIDOKKindsItemVideoConferencing   InventoryGetInventoryDevicesIDOKKindsItem = "video_conferencing"
+	InventoryGetInventoryDevicesIDOKKindsItemIPPhone             InventoryGetInventoryDevicesIDOKKindsItem = "ip_phone"
+	InventoryGetInventoryDevicesIDOKKindsItemPbx                 InventoryGetInventoryDevicesIDOKKindsItem = "pbx"
+	InventoryGetInventoryDevicesIDOKKindsItemVoipAdapter         InventoryGetInventoryDevicesIDOKKindsItem = "voip_adapter"
+	InventoryGetInventoryDevicesIDOKKindsItemVoipGateway         InventoryGetInventoryDevicesIDOKKindsItem = "voip_gateway"
+	InventoryGetInventoryDevicesIDOKKindsItemConferencePhone     InventoryGetInventoryDevicesIDOKKindsItem = "conference_phone"
+	InventoryGetInventoryDevicesIDOKKindsItemIntercom            InventoryGetInventoryDevicesIDOKKindsItem = "intercom"
+	InventoryGetInventoryDevicesIDOKKindsItemNas                 InventoryGetInventoryDevicesIDOKKindsItem = "nas"
+	InventoryGetInventoryDevicesIDOKKindsItemSan                 InventoryGetInventoryDevicesIDOKKindsItem = "san"
+	InventoryGetInventoryDevicesIDOKKindsItemBackupAppliance     InventoryGetInventoryDevicesIDOKKindsItem = "backup_appliance"
+	InventoryGetInventoryDevicesIDOKKindsItemTapeLibrary         InventoryGetInventoryDevicesIDOKKindsItem = "tape_library"
+	InventoryGetInventoryDevicesIDOKKindsItemIot                 InventoryGetInventoryDevicesIDOKKindsItem = "iot"
+	InventoryGetInventoryDevicesIDOKKindsItemSmartTv             InventoryGetInventoryDevicesIDOKKindsItem = "smart_tv"
+	InventoryGetInventoryDevicesIDOKKindsItemMediaPlayer         InventoryGetInventoryDevicesIDOKKindsItem = "media_player"
+	InventoryGetInventoryDevicesIDOKKindsItemSmartSpeaker        InventoryGetInventoryDevicesIDOKKindsItem = "smart_speaker"
+	InventoryGetInventoryDevicesIDOKKindsItemGameConsole         InventoryGetInventoryDevicesIDOKKindsItem = "game_console"
+	InventoryGetInventoryDevicesIDOKKindsItemSmartPlug           InventoryGetInventoryDevicesIDOKKindsItem = "smart_plug"
+	InventoryGetInventoryDevicesIDOKKindsItemSmartLight          InventoryGetInventoryDevicesIDOKKindsItem = "smart_light"
+	InventoryGetInventoryDevicesIDOKKindsItemSmartHub            InventoryGetInventoryDevicesIDOKKindsItem = "smart_hub"
+	InventoryGetInventoryDevicesIDOKKindsItemThermostat          InventoryGetInventoryDevicesIDOKKindsItem = "thermostat"
+	InventoryGetInventoryDevicesIDOKKindsItemProjector           InventoryGetInventoryDevicesIDOKKindsItem = "projector"
+	InventoryGetInventoryDevicesIDOKKindsItemDigitalSignage      InventoryGetInventoryDevicesIDOKKindsItem = "digital_signage"
+	InventoryGetInventoryDevicesIDOKKindsItemSingleBoardComputer InventoryGetInventoryDevicesIDOKKindsItem = "single_board_computer"
+	InventoryGetInventoryDevicesIDOKKindsItemSmartAppliance      InventoryGetInventoryDevicesIDOKKindsItem = "smart_appliance"
+	InventoryGetInventoryDevicesIDOKKindsItemRobotVacuum         InventoryGetInventoryDevicesIDOKKindsItem = "robot_vacuum"
+	InventoryGetInventoryDevicesIDOKKindsItemWirelessBridge      InventoryGetInventoryDevicesIDOKKindsItem = "wireless_bridge"
+	InventoryGetInventoryDevicesIDOKKindsItemPlc                 InventoryGetInventoryDevicesIDOKKindsItem = "plc"
+	InventoryGetInventoryDevicesIDOKKindsItemHmi                 InventoryGetInventoryDevicesIDOKKindsItem = "hmi"
+	InventoryGetInventoryDevicesIDOKKindsItemRtu                 InventoryGetInventoryDevicesIDOKKindsItem = "rtu"
+	InventoryGetInventoryDevicesIDOKKindsItemScadaServer         InventoryGetInventoryDevicesIDOKKindsItem = "scada_server"
+	InventoryGetInventoryDevicesIDOKKindsItemIndustrialSwitch    InventoryGetInventoryDevicesIDOKKindsItem = "industrial_switch"
+	InventoryGetInventoryDevicesIDOKKindsItemUps                 InventoryGetInventoryDevicesIDOKKindsItem = "ups"
+	InventoryGetInventoryDevicesIDOKKindsItemPdu                 InventoryGetInventoryDevicesIDOKKindsItem = "pdu"
+	InventoryGetInventoryDevicesIDOKKindsItemAccessControl       InventoryGetInventoryDevicesIDOKKindsItem = "access_control"
+	InventoryGetInventoryDevicesIDOKKindsItemTimeClock           InventoryGetInventoryDevicesIDOKKindsItem = "time_clock"
+	InventoryGetInventoryDevicesIDOKKindsItemAlarmPanel          InventoryGetInventoryDevicesIDOKKindsItem = "alarm_panel"
+	InventoryGetInventoryDevicesIDOKKindsItemHvacController      InventoryGetInventoryDevicesIDOKKindsItem = "hvac_controller"
+	InventoryGetInventoryDevicesIDOKKindsItemBuildingController  InventoryGetInventoryDevicesIDOKKindsItem = "building_controller"
+	InventoryGetInventoryDevicesIDOKKindsItemPowerMeter          InventoryGetInventoryDevicesIDOKKindsItem = "power_meter"
+	InventoryGetInventoryDevicesIDOKKindsItemEnvironmentMonitor  InventoryGetInventoryDevicesIDOKKindsItem = "environment_monitor"
+	InventoryGetInventoryDevicesIDOKKindsItemEvCharger           InventoryGetInventoryDevicesIDOKKindsItem = "ev_charger"
+	InventoryGetInventoryDevicesIDOKKindsItemSolarInverter       InventoryGetInventoryDevicesIDOKKindsItem = "solar_inverter"
+	InventoryGetInventoryDevicesIDOKKindsItemMedicalDevice       InventoryGetInventoryDevicesIDOKKindsItem = "medical_device"
+	InventoryGetInventoryDevicesIDOKKindsItemWeb                 InventoryGetInventoryDevicesIDOKKindsItem = "web"
+	InventoryGetInventoryDevicesIDOKKindsItemCloudService        InventoryGetInventoryDevicesIDOKKindsItem = "cloud_service"
+	InventoryGetInventoryDevicesIDOKKindsItemUnknown             InventoryGetInventoryDevicesIDOKKindsItem = "unknown"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKKindsItem values.
 func (InventoryGetInventoryDevicesIDOKKindsItem) AllValues() []InventoryGetInventoryDevicesIDOKKindsItem {
 	return []InventoryGetInventoryDevicesIDOKKindsItem{
-		InventoryGetInventoryDevicesIDOKKindsItemFirewall,
 		InventoryGetInventoryDevicesIDOKKindsItemRouter,
 		InventoryGetInventoryDevicesIDOKKindsItemSwitch,
+		InventoryGetInventoryDevicesIDOKKindsItemModem,
+		InventoryGetInventoryDevicesIDOKKindsItemSdWan,
+		InventoryGetInventoryDevicesIDOKKindsItemLoadBalancer,
+		InventoryGetInventoryDevicesIDOKKindsItemNetworkController,
+		InventoryGetInventoryDevicesIDOKKindsItemFirewall,
+		InventoryGetInventoryDevicesIDOKKindsItemVpnGateway,
+		InventoryGetInventoryDevicesIDOKKindsItemIdsSensor,
+		InventoryGetInventoryDevicesIDOKKindsItemProxy,
 		InventoryGetInventoryDevicesIDOKKindsItemAp,
-		InventoryGetInventoryDevicesIDOKKindsItemNas,
+		InventoryGetInventoryDevicesIDOKKindsItemWirelessController,
+		InventoryGetInventoryDevicesIDOKKindsItemWifiExtender,
+		InventoryGetInventoryDevicesIDOKKindsItemMeshNode,
 		InventoryGetInventoryDevicesIDOKKindsItemServer,
+		InventoryGetInventoryDevicesIDOKKindsItemVirtualMachine,
+		InventoryGetInventoryDevicesIDOKKindsItemHypervisor,
+		InventoryGetInventoryDevicesIDOKKindsItemBmc,
+		InventoryGetInventoryDevicesIDOKKindsItemDomainController,
+		InventoryGetInventoryDevicesIDOKKindsItemMailServer,
+		InventoryGetInventoryDevicesIDOKKindsItemDatabaseServer,
+		InventoryGetInventoryDevicesIDOKKindsItemBackupServer,
 		InventoryGetInventoryDevicesIDOKKindsItemPc,
+		InventoryGetInventoryDevicesIDOKKindsItemLaptop,
+		InventoryGetInventoryDevicesIDOKKindsItemWorkstation,
+		InventoryGetInventoryDevicesIDOKKindsItemThinClient,
+		InventoryGetInventoryDevicesIDOKKindsItemPosTerminal,
+		InventoryGetInventoryDevicesIDOKKindsItemKiosk,
+		InventoryGetInventoryDevicesIDOKKindsItemSmartphone,
+		InventoryGetInventoryDevicesIDOKKindsItemTablet,
+		InventoryGetInventoryDevicesIDOKKindsItemSmartwatch,
 		InventoryGetInventoryDevicesIDOKKindsItemPrinter,
+		InventoryGetInventoryDevicesIDOKKindsItemMfp,
+		InventoryGetInventoryDevicesIDOKKindsItemScanner,
+		InventoryGetInventoryDevicesIDOKKindsItemLabelPrinter,
+		InventoryGetInventoryDevicesIDOKKindsItemReceiptPrinter,
+		InventoryGetInventoryDevicesIDOKKindsItemPlotter,
+		InventoryGetInventoryDevicesIDOKKindsItem3dPrinter,
 		InventoryGetInventoryDevicesIDOKKindsItemCamera,
 		InventoryGetInventoryDevicesIDOKKindsItemNvr,
+		InventoryGetInventoryDevicesIDOKKindsItemDvr,
+		InventoryGetInventoryDevicesIDOKKindsItemVideoEncoder,
+		InventoryGetInventoryDevicesIDOKKindsItemDoorbell,
+		InventoryGetInventoryDevicesIDOKKindsItemVideoConferencing,
+		InventoryGetInventoryDevicesIDOKKindsItemIPPhone,
+		InventoryGetInventoryDevicesIDOKKindsItemPbx,
+		InventoryGetInventoryDevicesIDOKKindsItemVoipAdapter,
+		InventoryGetInventoryDevicesIDOKKindsItemVoipGateway,
+		InventoryGetInventoryDevicesIDOKKindsItemConferencePhone,
+		InventoryGetInventoryDevicesIDOKKindsItemIntercom,
+		InventoryGetInventoryDevicesIDOKKindsItemNas,
+		InventoryGetInventoryDevicesIDOKKindsItemSan,
+		InventoryGetInventoryDevicesIDOKKindsItemBackupAppliance,
+		InventoryGetInventoryDevicesIDOKKindsItemTapeLibrary,
 		InventoryGetInventoryDevicesIDOKKindsItemIot,
+		InventoryGetInventoryDevicesIDOKKindsItemSmartTv,
+		InventoryGetInventoryDevicesIDOKKindsItemMediaPlayer,
+		InventoryGetInventoryDevicesIDOKKindsItemSmartSpeaker,
+		InventoryGetInventoryDevicesIDOKKindsItemGameConsole,
+		InventoryGetInventoryDevicesIDOKKindsItemSmartPlug,
+		InventoryGetInventoryDevicesIDOKKindsItemSmartLight,
+		InventoryGetInventoryDevicesIDOKKindsItemSmartHub,
+		InventoryGetInventoryDevicesIDOKKindsItemThermostat,
+		InventoryGetInventoryDevicesIDOKKindsItemProjector,
+		InventoryGetInventoryDevicesIDOKKindsItemDigitalSignage,
+		InventoryGetInventoryDevicesIDOKKindsItemSingleBoardComputer,
+		InventoryGetInventoryDevicesIDOKKindsItemSmartAppliance,
+		InventoryGetInventoryDevicesIDOKKindsItemRobotVacuum,
+		InventoryGetInventoryDevicesIDOKKindsItemWirelessBridge,
+		InventoryGetInventoryDevicesIDOKKindsItemPlc,
+		InventoryGetInventoryDevicesIDOKKindsItemHmi,
+		InventoryGetInventoryDevicesIDOKKindsItemRtu,
+		InventoryGetInventoryDevicesIDOKKindsItemScadaServer,
+		InventoryGetInventoryDevicesIDOKKindsItemIndustrialSwitch,
+		InventoryGetInventoryDevicesIDOKKindsItemUps,
+		InventoryGetInventoryDevicesIDOKKindsItemPdu,
+		InventoryGetInventoryDevicesIDOKKindsItemAccessControl,
+		InventoryGetInventoryDevicesIDOKKindsItemTimeClock,
+		InventoryGetInventoryDevicesIDOKKindsItemAlarmPanel,
+		InventoryGetInventoryDevicesIDOKKindsItemHvacController,
+		InventoryGetInventoryDevicesIDOKKindsItemBuildingController,
+		InventoryGetInventoryDevicesIDOKKindsItemPowerMeter,
+		InventoryGetInventoryDevicesIDOKKindsItemEnvironmentMonitor,
+		InventoryGetInventoryDevicesIDOKKindsItemEvCharger,
+		InventoryGetInventoryDevicesIDOKKindsItemSolarInverter,
+		InventoryGetInventoryDevicesIDOKKindsItemMedicalDevice,
 		InventoryGetInventoryDevicesIDOKKindsItemWeb,
+		InventoryGetInventoryDevicesIDOKKindsItemCloudService,
 		InventoryGetInventoryDevicesIDOKKindsItemUnknown,
 	}
 }
@@ -75278,29 +81162,181 @@ func (InventoryGetInventoryDevicesIDOKKindsItem) AllValues() []InventoryGetInven
 // MarshalText implements encoding.TextMarshaler.
 func (s InventoryGetInventoryDevicesIDOKKindsItem) MarshalText() ([]byte, error) {
 	switch s {
-	case InventoryGetInventoryDevicesIDOKKindsItemFirewall:
-		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKKindsItemRouter:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKKindsItemSwitch:
 		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemModem:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSdWan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemLoadBalancer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemNetworkController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemFirewall:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemVpnGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemIdsSensor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemProxy:
+		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKKindsItemAp:
 		return []byte(s), nil
-	case InventoryGetInventoryDevicesIDOKKindsItemNas:
+	case InventoryGetInventoryDevicesIDOKKindsItemWirelessController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemWifiExtender:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemMeshNode:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKKindsItemServer:
 		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemVirtualMachine:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemHypervisor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemBmc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemDomainController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemMailServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemDatabaseServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemBackupServer:
+		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKKindsItemPc:
 		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemLaptop:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemWorkstation:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemThinClient:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemPosTerminal:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemKiosk:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartphone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemTablet:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartwatch:
+		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKKindsItemPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemMfp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemScanner:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemLabelPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemReceiptPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemPlotter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItem3dPrinter:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKKindsItemCamera:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKKindsItemNvr:
 		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemDvr:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemVideoEncoder:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemDoorbell:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemVideoConferencing:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemIPPhone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemPbx:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemVoipAdapter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemVoipGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemConferencePhone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemIntercom:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemNas:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemBackupAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemTapeLibrary:
+		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKKindsItemIot:
 		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartTv:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemMediaPlayer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartSpeaker:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemGameConsole:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartPlug:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartLight:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartHub:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemThermostat:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemProjector:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemDigitalSignage:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSingleBoardComputer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemRobotVacuum:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemWirelessBridge:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemPlc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemHmi:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemRtu:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemScadaServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemIndustrialSwitch:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemUps:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemPdu:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemAccessControl:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemTimeClock:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemAlarmPanel:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemHvacController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemBuildingController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemPowerMeter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemEnvironmentMonitor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemEvCharger:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSolarInverter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemMedicalDevice:
+		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKKindsItemWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKKindsItemCloudService:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKKindsItemUnknown:
 		return []byte(s), nil
@@ -75312,29 +81348,119 @@ func (s InventoryGetInventoryDevicesIDOKKindsItem) MarshalText() ([]byte, error)
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *InventoryGetInventoryDevicesIDOKKindsItem) UnmarshalText(data []byte) error {
 	switch InventoryGetInventoryDevicesIDOKKindsItem(data) {
-	case InventoryGetInventoryDevicesIDOKKindsItemFirewall:
-		*s = InventoryGetInventoryDevicesIDOKKindsItemFirewall
-		return nil
 	case InventoryGetInventoryDevicesIDOKKindsItemRouter:
 		*s = InventoryGetInventoryDevicesIDOKKindsItemRouter
 		return nil
 	case InventoryGetInventoryDevicesIDOKKindsItemSwitch:
 		*s = InventoryGetInventoryDevicesIDOKKindsItemSwitch
 		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemModem:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemModem
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSdWan:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemSdWan
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemLoadBalancer:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemLoadBalancer
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemNetworkController:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemNetworkController
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemFirewall:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemFirewall
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemVpnGateway:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemVpnGateway
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemIdsSensor:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemIdsSensor
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemProxy:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemProxy
+		return nil
 	case InventoryGetInventoryDevicesIDOKKindsItemAp:
 		*s = InventoryGetInventoryDevicesIDOKKindsItemAp
 		return nil
-	case InventoryGetInventoryDevicesIDOKKindsItemNas:
-		*s = InventoryGetInventoryDevicesIDOKKindsItemNas
+	case InventoryGetInventoryDevicesIDOKKindsItemWirelessController:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemWirelessController
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemWifiExtender:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemWifiExtender
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemMeshNode:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemMeshNode
 		return nil
 	case InventoryGetInventoryDevicesIDOKKindsItemServer:
 		*s = InventoryGetInventoryDevicesIDOKKindsItemServer
 		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemVirtualMachine:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemVirtualMachine
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemHypervisor:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemHypervisor
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemBmc:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemBmc
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemDomainController:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemDomainController
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemMailServer:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemMailServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemDatabaseServer:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemDatabaseServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemBackupServer:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemBackupServer
+		return nil
 	case InventoryGetInventoryDevicesIDOKKindsItemPc:
 		*s = InventoryGetInventoryDevicesIDOKKindsItemPc
 		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemLaptop:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemLaptop
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemWorkstation:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemWorkstation
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemThinClient:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemThinClient
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemPosTerminal:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemPosTerminal
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemKiosk:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemKiosk
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartphone:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemSmartphone
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemTablet:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemTablet
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartwatch:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemSmartwatch
+		return nil
 	case InventoryGetInventoryDevicesIDOKKindsItemPrinter:
 		*s = InventoryGetInventoryDevicesIDOKKindsItemPrinter
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemMfp:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemMfp
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemScanner:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemScanner
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemLabelPrinter:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemLabelPrinter
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemReceiptPrinter:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemReceiptPrinter
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemPlotter:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemPlotter
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItem3dPrinter:
+		*s = InventoryGetInventoryDevicesIDOKKindsItem3dPrinter
 		return nil
 	case InventoryGetInventoryDevicesIDOKKindsItemCamera:
 		*s = InventoryGetInventoryDevicesIDOKKindsItemCamera
@@ -75342,11 +81468,149 @@ func (s *InventoryGetInventoryDevicesIDOKKindsItem) UnmarshalText(data []byte) e
 	case InventoryGetInventoryDevicesIDOKKindsItemNvr:
 		*s = InventoryGetInventoryDevicesIDOKKindsItemNvr
 		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemDvr:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemDvr
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemVideoEncoder:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemVideoEncoder
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemDoorbell:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemDoorbell
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemVideoConferencing:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemVideoConferencing
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemIPPhone:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemIPPhone
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemPbx:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemPbx
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemVoipAdapter:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemVoipAdapter
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemVoipGateway:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemVoipGateway
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemConferencePhone:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemConferencePhone
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemIntercom:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemIntercom
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemNas:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemNas
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSan:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemSan
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemBackupAppliance:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemBackupAppliance
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemTapeLibrary:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemTapeLibrary
+		return nil
 	case InventoryGetInventoryDevicesIDOKKindsItemIot:
 		*s = InventoryGetInventoryDevicesIDOKKindsItemIot
 		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartTv:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemSmartTv
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemMediaPlayer:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemMediaPlayer
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartSpeaker:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemSmartSpeaker
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemGameConsole:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemGameConsole
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartPlug:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemSmartPlug
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartLight:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemSmartLight
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartHub:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemSmartHub
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemThermostat:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemThermostat
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemProjector:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemProjector
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemDigitalSignage:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemDigitalSignage
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSingleBoardComputer:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemSingleBoardComputer
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSmartAppliance:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemSmartAppliance
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemRobotVacuum:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemRobotVacuum
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemWirelessBridge:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemWirelessBridge
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemPlc:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemPlc
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemHmi:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemHmi
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemRtu:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemRtu
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemScadaServer:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemScadaServer
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemIndustrialSwitch:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemIndustrialSwitch
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemUps:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemUps
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemPdu:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemPdu
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemAccessControl:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemAccessControl
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemTimeClock:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemTimeClock
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemAlarmPanel:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemAlarmPanel
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemHvacController:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemHvacController
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemBuildingController:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemBuildingController
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemPowerMeter:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemPowerMeter
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemEnvironmentMonitor:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemEnvironmentMonitor
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemEvCharger:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemEvCharger
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemSolarInverter:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemSolarInverter
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemMedicalDevice:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemMedicalDevice
+		return nil
 	case InventoryGetInventoryDevicesIDOKKindsItemWeb:
 		*s = InventoryGetInventoryDevicesIDOKKindsItemWeb
+		return nil
+	case InventoryGetInventoryDevicesIDOKKindsItemCloudService:
+		*s = InventoryGetInventoryDevicesIDOKKindsItemCloudService
 		return nil
 	case InventoryGetInventoryDevicesIDOKKindsItemUnknown:
 		*s = InventoryGetInventoryDevicesIDOKKindsItemUnknown
@@ -75679,22 +81943,26 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	FindingsCount int `json:"findings_count"`
 	// When the one gentle first scan happened; null = no gentle scan (declared by hand, the box itself, or
 	// a known kind that is not fragile and not set to never).
-	FirstScanAt NilDateTime `json:"first_scan_at"`
-	FirstSeen   time.Time   `json:"first_seen"`
-	Fragile     bool        `json:"fragile"`
-	Hostname    NilString   `json:"hostname"`
-	ID          string      `json:"id"`
+	FirstScanAt NilDateTime                                     `json:"first_scan_at"`
+	FirstSeen   time.Time                                       `json:"first_seen"`
+	Fragile     bool                                            `json:"fragile"`
+	Guess       NilInventoryGetInventoryDevicesOKItemsItemGuess `json:"guess"`
+	Hostname    NilString                                       `json:"hostname"`
+	ID          string                                          `json:"id"`
 	// "—" when declared manually and the IP is unknown.
 	IP string `json:"ip"`
 	// True for the Vedette box itself: the first device, always present, cannot be deleted (409).
-	IsBox    bool                                            `json:"is_box"`
-	Kind     InventoryGetInventoryDevicesOKItemsItemKind     `json:"kind"`
-	LastSeen time.Time                                       `json:"last_seen"`
-	MAC      NilString                                       `json:"mac"`
-	Model    NilInventoryGetInventoryDevicesOKItemsItemModel `json:"model"`
-	Notes    OptString                                       `json:"notes"`
-	Origin   InventoryGetInventoryDevicesOKItemsItemOrigin   `json:"origin"`
-	Os       NilInventoryGetInventoryDevicesOKItemsItemOs    `json:"os"`
+	IsBox bool `json:"is_box"`
+	// Device type (content/devicetypes/types.json, D-511).
+	Kind InventoryGetInventoryDevicesOKItemsItemKind `json:"kind"`
+	// Source of the kind; null for the default unknown (D-511).
+	KindSource NilInventoryGetInventoryDevicesOKItemsItemKindSource `json:"kind_source"`
+	LastSeen   time.Time                                            `json:"last_seen"`
+	MAC        NilString                                            `json:"mac"`
+	Model      NilInventoryGetInventoryDevicesOKItemsItemModel      `json:"model"`
+	Notes      OptString                                            `json:"notes"`
+	Origin     InventoryGetInventoryDevicesOKItemsItemOrigin        `json:"origin"`
+	Os         NilInventoryGetInventoryDevicesOKItemsItemOs         `json:"os"`
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
 	RegularScan InventoryGetInventoryDevicesOKItemsItemRegularScan    `json:"regular_scan"`
@@ -75737,6 +82005,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetFragile() bool {
 	return s.Fragile
 }
 
+// GetGuess returns the value of Guess.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetGuess() NilInventoryGetInventoryDevicesOKItemsItemGuess {
+	return s.Guess
+}
+
 // GetHostname returns the value of Hostname.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetHostname() NilString {
 	return s.Hostname
@@ -75760,6 +82033,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetIsBox() bool {
 // GetKind returns the value of Kind.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetKind() InventoryGetInventoryDevicesOKItemsItemKind {
 	return s.Kind
+}
+
+// GetKindSource returns the value of KindSource.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetKindSource() NilInventoryGetInventoryDevicesOKItemsItemKindSource {
+	return s.KindSource
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -75857,6 +82135,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetFragile(val bool) {
 	s.Fragile = val
 }
 
+// SetGuess sets the value of Guess.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetGuess(val NilInventoryGetInventoryDevicesOKItemsItemGuess) {
+	s.Guess = val
+}
+
 // SetHostname sets the value of Hostname.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetHostname(val NilString) {
 	s.Hostname = val
@@ -75880,6 +82163,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetIsBox(val bool) {
 // SetKind sets the value of Kind.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetKind(val InventoryGetInventoryDevicesOKItemsItemKind) {
 	s.Kind = val
+}
+
+// SetKindSource sets the value of KindSource.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetKindSource(val NilInventoryGetInventoryDevicesOKItemsItemKindSource) {
+	s.KindSource = val
 }
 
 // SetLastSeen sets the value of LastSeen.
@@ -75947,39 +82235,1558 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetVendor(val NilInventoryGetI
 	s.Vendor = val
 }
 
+// What the identification rules say the device most likely is (D-511), only while kind is unknown; it
+// changes no behaviour until a person sets the kind.
+type InventoryGetInventoryDevicesOKItemsItemGuess struct {
+	// Other types the same signals fit, offered next to the guess.
+	Alternatives []InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem `json:"alternatives"`
+	Confidence   float64                                                        `json:"confidence"`
+	// What matched and what it most likely means, one sentence.
+	Evidence string `json:"evidence"`
+	// Device type (content/devicetypes/types.json, D-511).
+	Kind InventoryGetInventoryDevicesOKItemsItemGuessKind `json:"kind"`
+	// A model a certificate or page title states.
+	Model OptString `json:"model"`
+}
+
+// GetAlternatives returns the value of Alternatives.
+func (s *InventoryGetInventoryDevicesOKItemsItemGuess) GetAlternatives() []InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem {
+	return s.Alternatives
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *InventoryGetInventoryDevicesOKItemsItemGuess) GetConfidence() float64 {
+	return s.Confidence
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *InventoryGetInventoryDevicesOKItemsItemGuess) GetEvidence() string {
+	return s.Evidence
+}
+
+// GetKind returns the value of Kind.
+func (s *InventoryGetInventoryDevicesOKItemsItemGuess) GetKind() InventoryGetInventoryDevicesOKItemsItemGuessKind {
+	return s.Kind
+}
+
+// GetModel returns the value of Model.
+func (s *InventoryGetInventoryDevicesOKItemsItemGuess) GetModel() OptString {
+	return s.Model
+}
+
+// SetAlternatives sets the value of Alternatives.
+func (s *InventoryGetInventoryDevicesOKItemsItemGuess) SetAlternatives(val []InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem) {
+	s.Alternatives = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *InventoryGetInventoryDevicesOKItemsItemGuess) SetConfidence(val float64) {
+	s.Confidence = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *InventoryGetInventoryDevicesOKItemsItemGuess) SetEvidence(val string) {
+	s.Evidence = val
+}
+
+// SetKind sets the value of Kind.
+func (s *InventoryGetInventoryDevicesOKItemsItemGuess) SetKind(val InventoryGetInventoryDevicesOKItemsItemGuessKind) {
+	s.Kind = val
+}
+
+// SetModel sets the value of Model.
+func (s *InventoryGetInventoryDevicesOKItemsItemGuess) SetModel(val OptString) {
+	s.Model = val
+}
+
+// Device type (content/devicetypes/types.json, D-511).
+type InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRouter              InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "router"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSwitch              InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "switch"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemModem               InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "modem"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSdWan               InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "sd_wan"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLoadBalancer        InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "load_balancer"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNetworkController   InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "network_controller"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemFirewall            InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "firewall"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVpnGateway          InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "vpn_gateway"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIdsSensor           InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "ids_sensor"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemProxy               InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "proxy"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAp                  InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "ap"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWirelessController  InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "wireless_controller"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWifiExtender        InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "wifi_extender"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMeshNode            InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "mesh_node"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemServer              InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "server"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVirtualMachine      InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "virtual_machine"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHypervisor          InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "hypervisor"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBmc                 InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "bmc"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDomainController    InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "domain_controller"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMailServer          InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "mail_server"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDatabaseServer      InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "database_server"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBackupServer        InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "backup_server"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPc                  InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "pc"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLaptop              InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "laptop"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWorkstation         InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "workstation"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemThinClient          InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "thin_client"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPosTerminal         InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "pos_terminal"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemKiosk               InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "kiosk"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartphone          InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "smartphone"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTablet              InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "tablet"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartwatch          InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "smartwatch"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPrinter             InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "printer"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMfp                 InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "mfp"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemScanner             InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "scanner"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLabelPrinter        InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "label_printer"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemReceiptPrinter      InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "receipt_printer"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPlotter             InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "plotter"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem3dPrinter           InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "3d_printer"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemCamera              InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "camera"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNvr                 InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "nvr"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDvr                 InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "dvr"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVideoEncoder        InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "video_encoder"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDoorbell            InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "doorbell"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVideoConferencing   InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "video_conferencing"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIPPhone             InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "ip_phone"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPbx                 InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "pbx"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVoipAdapter         InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "voip_adapter"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVoipGateway         InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "voip_gateway"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemConferencePhone     InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "conference_phone"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIntercom            InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "intercom"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNas                 InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "nas"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSan                 InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "san"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBackupAppliance     InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "backup_appliance"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTapeLibrary         InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "tape_library"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIot                 InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "iot"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartTv             InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "smart_tv"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMediaPlayer         InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "media_player"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartSpeaker        InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "smart_speaker"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemGameConsole         InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "game_console"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartPlug           InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "smart_plug"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartLight          InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "smart_light"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartHub            InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "smart_hub"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemThermostat          InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "thermostat"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemProjector           InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "projector"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDigitalSignage      InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "digital_signage"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSingleBoardComputer InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "single_board_computer"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartAppliance      InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "smart_appliance"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRobotVacuum         InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "robot_vacuum"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWirelessBridge      InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "wireless_bridge"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPlc                 InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "plc"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHmi                 InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "hmi"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRtu                 InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "rtu"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemScadaServer         InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "scada_server"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIndustrialSwitch    InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "industrial_switch"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemUps                 InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "ups"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPdu                 InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "pdu"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAccessControl       InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "access_control"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTimeClock           InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "time_clock"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAlarmPanel          InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "alarm_panel"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHvacController      InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "hvac_controller"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBuildingController  InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "building_controller"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPowerMeter          InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "power_meter"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemEnvironmentMonitor  InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "environment_monitor"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemEvCharger           InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "ev_charger"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSolarInverter       InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "solar_inverter"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMedicalDevice       InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "medical_device"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWeb                 InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "web"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemCloudService        InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "cloud_service"
+	InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemUnknown             InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem = "unknown"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem values.
+func (InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem) AllValues() []InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem {
+	return []InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem{
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRouter,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSwitch,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemModem,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSdWan,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLoadBalancer,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNetworkController,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemFirewall,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVpnGateway,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIdsSensor,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemProxy,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAp,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWirelessController,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWifiExtender,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMeshNode,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemServer,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVirtualMachine,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHypervisor,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBmc,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDomainController,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMailServer,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDatabaseServer,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBackupServer,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPc,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLaptop,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWorkstation,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemThinClient,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPosTerminal,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemKiosk,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartphone,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTablet,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartwatch,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPrinter,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMfp,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemScanner,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLabelPrinter,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemReceiptPrinter,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPlotter,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem3dPrinter,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemCamera,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNvr,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDvr,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVideoEncoder,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDoorbell,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVideoConferencing,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIPPhone,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPbx,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVoipAdapter,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVoipGateway,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemConferencePhone,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIntercom,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNas,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSan,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBackupAppliance,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTapeLibrary,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIot,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartTv,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMediaPlayer,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartSpeaker,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemGameConsole,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartPlug,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartLight,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartHub,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemThermostat,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemProjector,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDigitalSignage,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSingleBoardComputer,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartAppliance,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRobotVacuum,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWirelessBridge,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPlc,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHmi,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRtu,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemScadaServer,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIndustrialSwitch,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemUps,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPdu,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAccessControl,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTimeClock,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAlarmPanel,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHvacController,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBuildingController,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPowerMeter,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemEnvironmentMonitor,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemEvCharger,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSolarInverter,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMedicalDevice,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWeb,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemCloudService,
+		InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRouter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSwitch:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemModem:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSdWan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLoadBalancer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNetworkController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemFirewall:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVpnGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIdsSensor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemProxy:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWirelessController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWifiExtender:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMeshNode:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVirtualMachine:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHypervisor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBmc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDomainController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMailServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDatabaseServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBackupServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLaptop:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWorkstation:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemThinClient:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPosTerminal:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemKiosk:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartphone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTablet:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartwatch:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMfp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemScanner:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLabelPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemReceiptPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPlotter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem3dPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemCamera:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNvr:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDvr:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVideoEncoder:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDoorbell:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVideoConferencing:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIPPhone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPbx:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVoipAdapter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVoipGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemConferencePhone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIntercom:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNas:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBackupAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTapeLibrary:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIot:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartTv:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMediaPlayer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartSpeaker:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemGameConsole:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartPlug:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartLight:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartHub:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemThermostat:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemProjector:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDigitalSignage:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSingleBoardComputer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRobotVacuum:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWirelessBridge:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPlc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHmi:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRtu:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemScadaServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIndustrialSwitch:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemUps:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPdu:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAccessControl:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTimeClock:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAlarmPanel:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHvacController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBuildingController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPowerMeter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemEnvironmentMonitor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemEvCharger:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSolarInverter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMedicalDevice:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemCloudService:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem(data) {
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRouter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRouter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSwitch:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSwitch
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemModem:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemModem
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSdWan:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSdWan
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLoadBalancer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLoadBalancer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNetworkController:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNetworkController
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemFirewall:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemFirewall
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVpnGateway:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVpnGateway
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIdsSensor:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIdsSensor
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemProxy:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemProxy
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAp:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAp
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWirelessController:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWirelessController
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWifiExtender:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWifiExtender
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMeshNode:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMeshNode
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemServer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVirtualMachine:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVirtualMachine
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHypervisor:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHypervisor
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBmc:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBmc
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDomainController:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDomainController
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMailServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMailServer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDatabaseServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDatabaseServer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBackupServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBackupServer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPc:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPc
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLaptop:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLaptop
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWorkstation:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWorkstation
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemThinClient:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemThinClient
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPosTerminal:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPosTerminal
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemKiosk:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemKiosk
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartphone:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartphone
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTablet:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTablet
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartwatch:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartwatch
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPrinter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPrinter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMfp:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMfp
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemScanner:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemScanner
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLabelPrinter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLabelPrinter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemReceiptPrinter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemReceiptPrinter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPlotter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPlotter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem3dPrinter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem3dPrinter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemCamera:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemCamera
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNvr:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNvr
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDvr:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDvr
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVideoEncoder:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVideoEncoder
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDoorbell:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDoorbell
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVideoConferencing:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVideoConferencing
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIPPhone:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIPPhone
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPbx:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPbx
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVoipAdapter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVoipAdapter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVoipGateway:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVoipGateway
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemConferencePhone:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemConferencePhone
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIntercom:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIntercom
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNas:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNas
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSan:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSan
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBackupAppliance:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBackupAppliance
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTapeLibrary:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTapeLibrary
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIot:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIot
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartTv:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartTv
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMediaPlayer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMediaPlayer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartSpeaker:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartSpeaker
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemGameConsole:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemGameConsole
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartPlug:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartPlug
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartLight:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartLight
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartHub:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartHub
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemThermostat:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemThermostat
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemProjector:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemProjector
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDigitalSignage:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDigitalSignage
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSingleBoardComputer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSingleBoardComputer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartAppliance:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartAppliance
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRobotVacuum:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRobotVacuum
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWirelessBridge:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWirelessBridge
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPlc:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPlc
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHmi:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHmi
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRtu:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRtu
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemScadaServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemScadaServer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIndustrialSwitch:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIndustrialSwitch
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemUps:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemUps
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPdu:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPdu
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAccessControl:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAccessControl
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTimeClock:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTimeClock
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAlarmPanel:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAlarmPanel
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHvacController:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHvacController
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBuildingController:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBuildingController
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPowerMeter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPowerMeter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemEnvironmentMonitor:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemEnvironmentMonitor
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemEvCharger:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemEvCharger
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSolarInverter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSolarInverter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMedicalDevice:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMedicalDevice
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWeb:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWeb
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemCloudService:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemCloudService
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemUnknown:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Device type (content/devicetypes/types.json, D-511).
+type InventoryGetInventoryDevicesOKItemsItemGuessKind string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemGuessKindRouter              InventoryGetInventoryDevicesOKItemsItemGuessKind = "router"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindSwitch              InventoryGetInventoryDevicesOKItemsItemGuessKind = "switch"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindModem               InventoryGetInventoryDevicesOKItemsItemGuessKind = "modem"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindSdWan               InventoryGetInventoryDevicesOKItemsItemGuessKind = "sd_wan"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindLoadBalancer        InventoryGetInventoryDevicesOKItemsItemGuessKind = "load_balancer"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindNetworkController   InventoryGetInventoryDevicesOKItemsItemGuessKind = "network_controller"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindFirewall            InventoryGetInventoryDevicesOKItemsItemGuessKind = "firewall"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindVpnGateway          InventoryGetInventoryDevicesOKItemsItemGuessKind = "vpn_gateway"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindIdsSensor           InventoryGetInventoryDevicesOKItemsItemGuessKind = "ids_sensor"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindProxy               InventoryGetInventoryDevicesOKItemsItemGuessKind = "proxy"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindAp                  InventoryGetInventoryDevicesOKItemsItemGuessKind = "ap"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindWirelessController  InventoryGetInventoryDevicesOKItemsItemGuessKind = "wireless_controller"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindWifiExtender        InventoryGetInventoryDevicesOKItemsItemGuessKind = "wifi_extender"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindMeshNode            InventoryGetInventoryDevicesOKItemsItemGuessKind = "mesh_node"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindServer              InventoryGetInventoryDevicesOKItemsItemGuessKind = "server"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindVirtualMachine      InventoryGetInventoryDevicesOKItemsItemGuessKind = "virtual_machine"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindHypervisor          InventoryGetInventoryDevicesOKItemsItemGuessKind = "hypervisor"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindBmc                 InventoryGetInventoryDevicesOKItemsItemGuessKind = "bmc"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindDomainController    InventoryGetInventoryDevicesOKItemsItemGuessKind = "domain_controller"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindMailServer          InventoryGetInventoryDevicesOKItemsItemGuessKind = "mail_server"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindDatabaseServer      InventoryGetInventoryDevicesOKItemsItemGuessKind = "database_server"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindBackupServer        InventoryGetInventoryDevicesOKItemsItemGuessKind = "backup_server"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindPc                  InventoryGetInventoryDevicesOKItemsItemGuessKind = "pc"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindLaptop              InventoryGetInventoryDevicesOKItemsItemGuessKind = "laptop"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindWorkstation         InventoryGetInventoryDevicesOKItemsItemGuessKind = "workstation"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindThinClient          InventoryGetInventoryDevicesOKItemsItemGuessKind = "thin_client"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindPosTerminal         InventoryGetInventoryDevicesOKItemsItemGuessKind = "pos_terminal"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindKiosk               InventoryGetInventoryDevicesOKItemsItemGuessKind = "kiosk"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindSmartphone          InventoryGetInventoryDevicesOKItemsItemGuessKind = "smartphone"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindTablet              InventoryGetInventoryDevicesOKItemsItemGuessKind = "tablet"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindSmartwatch          InventoryGetInventoryDevicesOKItemsItemGuessKind = "smartwatch"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindPrinter             InventoryGetInventoryDevicesOKItemsItemGuessKind = "printer"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindMfp                 InventoryGetInventoryDevicesOKItemsItemGuessKind = "mfp"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindScanner             InventoryGetInventoryDevicesOKItemsItemGuessKind = "scanner"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindLabelPrinter        InventoryGetInventoryDevicesOKItemsItemGuessKind = "label_printer"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindReceiptPrinter      InventoryGetInventoryDevicesOKItemsItemGuessKind = "receipt_printer"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindPlotter             InventoryGetInventoryDevicesOKItemsItemGuessKind = "plotter"
+	InventoryGetInventoryDevicesOKItemsItemGuessKind3dPrinter           InventoryGetInventoryDevicesOKItemsItemGuessKind = "3d_printer"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindCamera              InventoryGetInventoryDevicesOKItemsItemGuessKind = "camera"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindNvr                 InventoryGetInventoryDevicesOKItemsItemGuessKind = "nvr"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindDvr                 InventoryGetInventoryDevicesOKItemsItemGuessKind = "dvr"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindVideoEncoder        InventoryGetInventoryDevicesOKItemsItemGuessKind = "video_encoder"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindDoorbell            InventoryGetInventoryDevicesOKItemsItemGuessKind = "doorbell"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindVideoConferencing   InventoryGetInventoryDevicesOKItemsItemGuessKind = "video_conferencing"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindIPPhone             InventoryGetInventoryDevicesOKItemsItemGuessKind = "ip_phone"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindPbx                 InventoryGetInventoryDevicesOKItemsItemGuessKind = "pbx"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindVoipAdapter         InventoryGetInventoryDevicesOKItemsItemGuessKind = "voip_adapter"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindVoipGateway         InventoryGetInventoryDevicesOKItemsItemGuessKind = "voip_gateway"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindConferencePhone     InventoryGetInventoryDevicesOKItemsItemGuessKind = "conference_phone"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindIntercom            InventoryGetInventoryDevicesOKItemsItemGuessKind = "intercom"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindNas                 InventoryGetInventoryDevicesOKItemsItemGuessKind = "nas"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindSan                 InventoryGetInventoryDevicesOKItemsItemGuessKind = "san"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindBackupAppliance     InventoryGetInventoryDevicesOKItemsItemGuessKind = "backup_appliance"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindTapeLibrary         InventoryGetInventoryDevicesOKItemsItemGuessKind = "tape_library"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindIot                 InventoryGetInventoryDevicesOKItemsItemGuessKind = "iot"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindSmartTv             InventoryGetInventoryDevicesOKItemsItemGuessKind = "smart_tv"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindMediaPlayer         InventoryGetInventoryDevicesOKItemsItemGuessKind = "media_player"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindSmartSpeaker        InventoryGetInventoryDevicesOKItemsItemGuessKind = "smart_speaker"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindGameConsole         InventoryGetInventoryDevicesOKItemsItemGuessKind = "game_console"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindSmartPlug           InventoryGetInventoryDevicesOKItemsItemGuessKind = "smart_plug"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindSmartLight          InventoryGetInventoryDevicesOKItemsItemGuessKind = "smart_light"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindSmartHub            InventoryGetInventoryDevicesOKItemsItemGuessKind = "smart_hub"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindThermostat          InventoryGetInventoryDevicesOKItemsItemGuessKind = "thermostat"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindProjector           InventoryGetInventoryDevicesOKItemsItemGuessKind = "projector"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindDigitalSignage      InventoryGetInventoryDevicesOKItemsItemGuessKind = "digital_signage"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindSingleBoardComputer InventoryGetInventoryDevicesOKItemsItemGuessKind = "single_board_computer"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindSmartAppliance      InventoryGetInventoryDevicesOKItemsItemGuessKind = "smart_appliance"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindRobotVacuum         InventoryGetInventoryDevicesOKItemsItemGuessKind = "robot_vacuum"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindWirelessBridge      InventoryGetInventoryDevicesOKItemsItemGuessKind = "wireless_bridge"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindPlc                 InventoryGetInventoryDevicesOKItemsItemGuessKind = "plc"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindHmi                 InventoryGetInventoryDevicesOKItemsItemGuessKind = "hmi"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindRtu                 InventoryGetInventoryDevicesOKItemsItemGuessKind = "rtu"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindScadaServer         InventoryGetInventoryDevicesOKItemsItemGuessKind = "scada_server"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindIndustrialSwitch    InventoryGetInventoryDevicesOKItemsItemGuessKind = "industrial_switch"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindUps                 InventoryGetInventoryDevicesOKItemsItemGuessKind = "ups"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindPdu                 InventoryGetInventoryDevicesOKItemsItemGuessKind = "pdu"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindAccessControl       InventoryGetInventoryDevicesOKItemsItemGuessKind = "access_control"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindTimeClock           InventoryGetInventoryDevicesOKItemsItemGuessKind = "time_clock"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindAlarmPanel          InventoryGetInventoryDevicesOKItemsItemGuessKind = "alarm_panel"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindHvacController      InventoryGetInventoryDevicesOKItemsItemGuessKind = "hvac_controller"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindBuildingController  InventoryGetInventoryDevicesOKItemsItemGuessKind = "building_controller"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindPowerMeter          InventoryGetInventoryDevicesOKItemsItemGuessKind = "power_meter"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindEnvironmentMonitor  InventoryGetInventoryDevicesOKItemsItemGuessKind = "environment_monitor"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindEvCharger           InventoryGetInventoryDevicesOKItemsItemGuessKind = "ev_charger"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindSolarInverter       InventoryGetInventoryDevicesOKItemsItemGuessKind = "solar_inverter"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindMedicalDevice       InventoryGetInventoryDevicesOKItemsItemGuessKind = "medical_device"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindWeb                 InventoryGetInventoryDevicesOKItemsItemGuessKind = "web"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindCloudService        InventoryGetInventoryDevicesOKItemsItemGuessKind = "cloud_service"
+	InventoryGetInventoryDevicesOKItemsItemGuessKindUnknown             InventoryGetInventoryDevicesOKItemsItemGuessKind = "unknown"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemGuessKind values.
+func (InventoryGetInventoryDevicesOKItemsItemGuessKind) AllValues() []InventoryGetInventoryDevicesOKItemsItemGuessKind {
+	return []InventoryGetInventoryDevicesOKItemsItemGuessKind{
+		InventoryGetInventoryDevicesOKItemsItemGuessKindRouter,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindSwitch,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindModem,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindSdWan,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindLoadBalancer,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindNetworkController,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindFirewall,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindVpnGateway,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindIdsSensor,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindProxy,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindAp,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindWirelessController,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindWifiExtender,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindMeshNode,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindServer,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindVirtualMachine,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindHypervisor,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindBmc,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindDomainController,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindMailServer,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindDatabaseServer,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindBackupServer,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindPc,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindLaptop,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindWorkstation,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindThinClient,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindPosTerminal,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindKiosk,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindSmartphone,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindTablet,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindSmartwatch,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindPrinter,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindMfp,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindScanner,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindLabelPrinter,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindReceiptPrinter,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindPlotter,
+		InventoryGetInventoryDevicesOKItemsItemGuessKind3dPrinter,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindCamera,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindNvr,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindDvr,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindVideoEncoder,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindDoorbell,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindVideoConferencing,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindIPPhone,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindPbx,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindVoipAdapter,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindVoipGateway,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindConferencePhone,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindIntercom,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindNas,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindSan,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindBackupAppliance,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindTapeLibrary,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindIot,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindSmartTv,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindMediaPlayer,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindSmartSpeaker,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindGameConsole,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindSmartPlug,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindSmartLight,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindSmartHub,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindThermostat,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindProjector,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindDigitalSignage,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindSingleBoardComputer,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindSmartAppliance,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindRobotVacuum,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindWirelessBridge,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindPlc,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindHmi,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindRtu,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindScadaServer,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindIndustrialSwitch,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindUps,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindPdu,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindAccessControl,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindTimeClock,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindAlarmPanel,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindHvacController,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindBuildingController,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindPowerMeter,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindEnvironmentMonitor,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindEvCharger,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindSolarInverter,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindMedicalDevice,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindWeb,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindCloudService,
+		InventoryGetInventoryDevicesOKItemsItemGuessKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemGuessKind) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindRouter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSwitch:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindModem:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSdWan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindLoadBalancer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindNetworkController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindFirewall:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindVpnGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindIdsSensor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindProxy:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindAp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindWirelessController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindWifiExtender:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindMeshNode:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindVirtualMachine:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindHypervisor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindBmc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindDomainController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindMailServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindDatabaseServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindBackupServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindLaptop:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindWorkstation:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindThinClient:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPosTerminal:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindKiosk:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartphone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindTablet:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartwatch:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindMfp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindScanner:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindLabelPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindReceiptPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPlotter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKind3dPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindCamera:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindNvr:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindDvr:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindVideoEncoder:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindDoorbell:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindVideoConferencing:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindIPPhone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPbx:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindVoipAdapter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindVoipGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindConferencePhone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindIntercom:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindNas:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindBackupAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindTapeLibrary:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindIot:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartTv:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindMediaPlayer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartSpeaker:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindGameConsole:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartPlug:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartLight:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartHub:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindThermostat:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindProjector:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindDigitalSignage:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSingleBoardComputer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindRobotVacuum:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindWirelessBridge:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPlc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindHmi:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindRtu:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindScadaServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindIndustrialSwitch:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindUps:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPdu:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindAccessControl:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindTimeClock:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindAlarmPanel:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindHvacController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindBuildingController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPowerMeter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindEnvironmentMonitor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindEvCharger:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSolarInverter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindMedicalDevice:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindCloudService:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemGuessKind) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemGuessKind(data) {
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindRouter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindRouter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSwitch:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindSwitch
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindModem:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindModem
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSdWan:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindSdWan
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindLoadBalancer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindLoadBalancer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindNetworkController:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindNetworkController
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindFirewall:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindFirewall
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindVpnGateway:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindVpnGateway
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindIdsSensor:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindIdsSensor
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindProxy:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindProxy
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindAp:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindAp
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindWirelessController:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindWirelessController
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindWifiExtender:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindWifiExtender
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindMeshNode:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindMeshNode
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindServer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindVirtualMachine:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindVirtualMachine
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindHypervisor:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindHypervisor
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindBmc:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindBmc
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindDomainController:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindDomainController
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindMailServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindMailServer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindDatabaseServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindDatabaseServer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindBackupServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindBackupServer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPc:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindPc
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindLaptop:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindLaptop
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindWorkstation:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindWorkstation
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindThinClient:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindThinClient
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPosTerminal:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindPosTerminal
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindKiosk:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindKiosk
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartphone:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindSmartphone
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindTablet:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindTablet
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartwatch:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindSmartwatch
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPrinter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindPrinter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindMfp:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindMfp
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindScanner:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindScanner
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindLabelPrinter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindLabelPrinter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindReceiptPrinter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindReceiptPrinter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPlotter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindPlotter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKind3dPrinter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKind3dPrinter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindCamera:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindCamera
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindNvr:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindNvr
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindDvr:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindDvr
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindVideoEncoder:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindVideoEncoder
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindDoorbell:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindDoorbell
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindVideoConferencing:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindVideoConferencing
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindIPPhone:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindIPPhone
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPbx:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindPbx
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindVoipAdapter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindVoipAdapter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindVoipGateway:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindVoipGateway
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindConferencePhone:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindConferencePhone
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindIntercom:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindIntercom
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindNas:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindNas
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSan:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindSan
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindBackupAppliance:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindBackupAppliance
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindTapeLibrary:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindTapeLibrary
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindIot:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindIot
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartTv:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindSmartTv
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindMediaPlayer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindMediaPlayer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartSpeaker:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindSmartSpeaker
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindGameConsole:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindGameConsole
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartPlug:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindSmartPlug
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartLight:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindSmartLight
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartHub:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindSmartHub
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindThermostat:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindThermostat
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindProjector:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindProjector
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindDigitalSignage:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindDigitalSignage
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSingleBoardComputer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindSingleBoardComputer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSmartAppliance:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindSmartAppliance
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindRobotVacuum:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindRobotVacuum
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindWirelessBridge:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindWirelessBridge
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPlc:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindPlc
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindHmi:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindHmi
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindRtu:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindRtu
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindScadaServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindScadaServer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindIndustrialSwitch:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindIndustrialSwitch
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindUps:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindUps
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPdu:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindPdu
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindAccessControl:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindAccessControl
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindTimeClock:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindTimeClock
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindAlarmPanel:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindAlarmPanel
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindHvacController:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindHvacController
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindBuildingController:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindBuildingController
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindPowerMeter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindPowerMeter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindEnvironmentMonitor:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindEnvironmentMonitor
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindEvCharger:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindEvCharger
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindSolarInverter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindSolarInverter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindMedicalDevice:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindMedicalDevice
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindWeb:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindWeb
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindCloudService:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindCloudService
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemGuessKindUnknown:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Device type (content/devicetypes/types.json, D-511).
 type InventoryGetInventoryDevicesOKItemsItemKind string
 
 const (
-	InventoryGetInventoryDevicesOKItemsItemKindFirewall InventoryGetInventoryDevicesOKItemsItemKind = "firewall"
-	InventoryGetInventoryDevicesOKItemsItemKindRouter   InventoryGetInventoryDevicesOKItemsItemKind = "router"
-	InventoryGetInventoryDevicesOKItemsItemKindSwitch   InventoryGetInventoryDevicesOKItemsItemKind = "switch"
-	InventoryGetInventoryDevicesOKItemsItemKindAp       InventoryGetInventoryDevicesOKItemsItemKind = "ap"
-	InventoryGetInventoryDevicesOKItemsItemKindNas      InventoryGetInventoryDevicesOKItemsItemKind = "nas"
-	InventoryGetInventoryDevicesOKItemsItemKindServer   InventoryGetInventoryDevicesOKItemsItemKind = "server"
-	InventoryGetInventoryDevicesOKItemsItemKindPc       InventoryGetInventoryDevicesOKItemsItemKind = "pc"
-	InventoryGetInventoryDevicesOKItemsItemKindPrinter  InventoryGetInventoryDevicesOKItemsItemKind = "printer"
-	InventoryGetInventoryDevicesOKItemsItemKindCamera   InventoryGetInventoryDevicesOKItemsItemKind = "camera"
-	InventoryGetInventoryDevicesOKItemsItemKindNvr      InventoryGetInventoryDevicesOKItemsItemKind = "nvr"
-	InventoryGetInventoryDevicesOKItemsItemKindIot      InventoryGetInventoryDevicesOKItemsItemKind = "iot"
-	InventoryGetInventoryDevicesOKItemsItemKindWeb      InventoryGetInventoryDevicesOKItemsItemKind = "web"
-	InventoryGetInventoryDevicesOKItemsItemKindUnknown  InventoryGetInventoryDevicesOKItemsItemKind = "unknown"
+	InventoryGetInventoryDevicesOKItemsItemKindRouter              InventoryGetInventoryDevicesOKItemsItemKind = "router"
+	InventoryGetInventoryDevicesOKItemsItemKindSwitch              InventoryGetInventoryDevicesOKItemsItemKind = "switch"
+	InventoryGetInventoryDevicesOKItemsItemKindModem               InventoryGetInventoryDevicesOKItemsItemKind = "modem"
+	InventoryGetInventoryDevicesOKItemsItemKindSdWan               InventoryGetInventoryDevicesOKItemsItemKind = "sd_wan"
+	InventoryGetInventoryDevicesOKItemsItemKindLoadBalancer        InventoryGetInventoryDevicesOKItemsItemKind = "load_balancer"
+	InventoryGetInventoryDevicesOKItemsItemKindNetworkController   InventoryGetInventoryDevicesOKItemsItemKind = "network_controller"
+	InventoryGetInventoryDevicesOKItemsItemKindFirewall            InventoryGetInventoryDevicesOKItemsItemKind = "firewall"
+	InventoryGetInventoryDevicesOKItemsItemKindVpnGateway          InventoryGetInventoryDevicesOKItemsItemKind = "vpn_gateway"
+	InventoryGetInventoryDevicesOKItemsItemKindIdsSensor           InventoryGetInventoryDevicesOKItemsItemKind = "ids_sensor"
+	InventoryGetInventoryDevicesOKItemsItemKindProxy               InventoryGetInventoryDevicesOKItemsItemKind = "proxy"
+	InventoryGetInventoryDevicesOKItemsItemKindAp                  InventoryGetInventoryDevicesOKItemsItemKind = "ap"
+	InventoryGetInventoryDevicesOKItemsItemKindWirelessController  InventoryGetInventoryDevicesOKItemsItemKind = "wireless_controller"
+	InventoryGetInventoryDevicesOKItemsItemKindWifiExtender        InventoryGetInventoryDevicesOKItemsItemKind = "wifi_extender"
+	InventoryGetInventoryDevicesOKItemsItemKindMeshNode            InventoryGetInventoryDevicesOKItemsItemKind = "mesh_node"
+	InventoryGetInventoryDevicesOKItemsItemKindServer              InventoryGetInventoryDevicesOKItemsItemKind = "server"
+	InventoryGetInventoryDevicesOKItemsItemKindVirtualMachine      InventoryGetInventoryDevicesOKItemsItemKind = "virtual_machine"
+	InventoryGetInventoryDevicesOKItemsItemKindHypervisor          InventoryGetInventoryDevicesOKItemsItemKind = "hypervisor"
+	InventoryGetInventoryDevicesOKItemsItemKindBmc                 InventoryGetInventoryDevicesOKItemsItemKind = "bmc"
+	InventoryGetInventoryDevicesOKItemsItemKindDomainController    InventoryGetInventoryDevicesOKItemsItemKind = "domain_controller"
+	InventoryGetInventoryDevicesOKItemsItemKindMailServer          InventoryGetInventoryDevicesOKItemsItemKind = "mail_server"
+	InventoryGetInventoryDevicesOKItemsItemKindDatabaseServer      InventoryGetInventoryDevicesOKItemsItemKind = "database_server"
+	InventoryGetInventoryDevicesOKItemsItemKindBackupServer        InventoryGetInventoryDevicesOKItemsItemKind = "backup_server"
+	InventoryGetInventoryDevicesOKItemsItemKindPc                  InventoryGetInventoryDevicesOKItemsItemKind = "pc"
+	InventoryGetInventoryDevicesOKItemsItemKindLaptop              InventoryGetInventoryDevicesOKItemsItemKind = "laptop"
+	InventoryGetInventoryDevicesOKItemsItemKindWorkstation         InventoryGetInventoryDevicesOKItemsItemKind = "workstation"
+	InventoryGetInventoryDevicesOKItemsItemKindThinClient          InventoryGetInventoryDevicesOKItemsItemKind = "thin_client"
+	InventoryGetInventoryDevicesOKItemsItemKindPosTerminal         InventoryGetInventoryDevicesOKItemsItemKind = "pos_terminal"
+	InventoryGetInventoryDevicesOKItemsItemKindKiosk               InventoryGetInventoryDevicesOKItemsItemKind = "kiosk"
+	InventoryGetInventoryDevicesOKItemsItemKindSmartphone          InventoryGetInventoryDevicesOKItemsItemKind = "smartphone"
+	InventoryGetInventoryDevicesOKItemsItemKindTablet              InventoryGetInventoryDevicesOKItemsItemKind = "tablet"
+	InventoryGetInventoryDevicesOKItemsItemKindSmartwatch          InventoryGetInventoryDevicesOKItemsItemKind = "smartwatch"
+	InventoryGetInventoryDevicesOKItemsItemKindPrinter             InventoryGetInventoryDevicesOKItemsItemKind = "printer"
+	InventoryGetInventoryDevicesOKItemsItemKindMfp                 InventoryGetInventoryDevicesOKItemsItemKind = "mfp"
+	InventoryGetInventoryDevicesOKItemsItemKindScanner             InventoryGetInventoryDevicesOKItemsItemKind = "scanner"
+	InventoryGetInventoryDevicesOKItemsItemKindLabelPrinter        InventoryGetInventoryDevicesOKItemsItemKind = "label_printer"
+	InventoryGetInventoryDevicesOKItemsItemKindReceiptPrinter      InventoryGetInventoryDevicesOKItemsItemKind = "receipt_printer"
+	InventoryGetInventoryDevicesOKItemsItemKindPlotter             InventoryGetInventoryDevicesOKItemsItemKind = "plotter"
+	InventoryGetInventoryDevicesOKItemsItemKind3dPrinter           InventoryGetInventoryDevicesOKItemsItemKind = "3d_printer"
+	InventoryGetInventoryDevicesOKItemsItemKindCamera              InventoryGetInventoryDevicesOKItemsItemKind = "camera"
+	InventoryGetInventoryDevicesOKItemsItemKindNvr                 InventoryGetInventoryDevicesOKItemsItemKind = "nvr"
+	InventoryGetInventoryDevicesOKItemsItemKindDvr                 InventoryGetInventoryDevicesOKItemsItemKind = "dvr"
+	InventoryGetInventoryDevicesOKItemsItemKindVideoEncoder        InventoryGetInventoryDevicesOKItemsItemKind = "video_encoder"
+	InventoryGetInventoryDevicesOKItemsItemKindDoorbell            InventoryGetInventoryDevicesOKItemsItemKind = "doorbell"
+	InventoryGetInventoryDevicesOKItemsItemKindVideoConferencing   InventoryGetInventoryDevicesOKItemsItemKind = "video_conferencing"
+	InventoryGetInventoryDevicesOKItemsItemKindIPPhone             InventoryGetInventoryDevicesOKItemsItemKind = "ip_phone"
+	InventoryGetInventoryDevicesOKItemsItemKindPbx                 InventoryGetInventoryDevicesOKItemsItemKind = "pbx"
+	InventoryGetInventoryDevicesOKItemsItemKindVoipAdapter         InventoryGetInventoryDevicesOKItemsItemKind = "voip_adapter"
+	InventoryGetInventoryDevicesOKItemsItemKindVoipGateway         InventoryGetInventoryDevicesOKItemsItemKind = "voip_gateway"
+	InventoryGetInventoryDevicesOKItemsItemKindConferencePhone     InventoryGetInventoryDevicesOKItemsItemKind = "conference_phone"
+	InventoryGetInventoryDevicesOKItemsItemKindIntercom            InventoryGetInventoryDevicesOKItemsItemKind = "intercom"
+	InventoryGetInventoryDevicesOKItemsItemKindNas                 InventoryGetInventoryDevicesOKItemsItemKind = "nas"
+	InventoryGetInventoryDevicesOKItemsItemKindSan                 InventoryGetInventoryDevicesOKItemsItemKind = "san"
+	InventoryGetInventoryDevicesOKItemsItemKindBackupAppliance     InventoryGetInventoryDevicesOKItemsItemKind = "backup_appliance"
+	InventoryGetInventoryDevicesOKItemsItemKindTapeLibrary         InventoryGetInventoryDevicesOKItemsItemKind = "tape_library"
+	InventoryGetInventoryDevicesOKItemsItemKindIot                 InventoryGetInventoryDevicesOKItemsItemKind = "iot"
+	InventoryGetInventoryDevicesOKItemsItemKindSmartTv             InventoryGetInventoryDevicesOKItemsItemKind = "smart_tv"
+	InventoryGetInventoryDevicesOKItemsItemKindMediaPlayer         InventoryGetInventoryDevicesOKItemsItemKind = "media_player"
+	InventoryGetInventoryDevicesOKItemsItemKindSmartSpeaker        InventoryGetInventoryDevicesOKItemsItemKind = "smart_speaker"
+	InventoryGetInventoryDevicesOKItemsItemKindGameConsole         InventoryGetInventoryDevicesOKItemsItemKind = "game_console"
+	InventoryGetInventoryDevicesOKItemsItemKindSmartPlug           InventoryGetInventoryDevicesOKItemsItemKind = "smart_plug"
+	InventoryGetInventoryDevicesOKItemsItemKindSmartLight          InventoryGetInventoryDevicesOKItemsItemKind = "smart_light"
+	InventoryGetInventoryDevicesOKItemsItemKindSmartHub            InventoryGetInventoryDevicesOKItemsItemKind = "smart_hub"
+	InventoryGetInventoryDevicesOKItemsItemKindThermostat          InventoryGetInventoryDevicesOKItemsItemKind = "thermostat"
+	InventoryGetInventoryDevicesOKItemsItemKindProjector           InventoryGetInventoryDevicesOKItemsItemKind = "projector"
+	InventoryGetInventoryDevicesOKItemsItemKindDigitalSignage      InventoryGetInventoryDevicesOKItemsItemKind = "digital_signage"
+	InventoryGetInventoryDevicesOKItemsItemKindSingleBoardComputer InventoryGetInventoryDevicesOKItemsItemKind = "single_board_computer"
+	InventoryGetInventoryDevicesOKItemsItemKindSmartAppliance      InventoryGetInventoryDevicesOKItemsItemKind = "smart_appliance"
+	InventoryGetInventoryDevicesOKItemsItemKindRobotVacuum         InventoryGetInventoryDevicesOKItemsItemKind = "robot_vacuum"
+	InventoryGetInventoryDevicesOKItemsItemKindWirelessBridge      InventoryGetInventoryDevicesOKItemsItemKind = "wireless_bridge"
+	InventoryGetInventoryDevicesOKItemsItemKindPlc                 InventoryGetInventoryDevicesOKItemsItemKind = "plc"
+	InventoryGetInventoryDevicesOKItemsItemKindHmi                 InventoryGetInventoryDevicesOKItemsItemKind = "hmi"
+	InventoryGetInventoryDevicesOKItemsItemKindRtu                 InventoryGetInventoryDevicesOKItemsItemKind = "rtu"
+	InventoryGetInventoryDevicesOKItemsItemKindScadaServer         InventoryGetInventoryDevicesOKItemsItemKind = "scada_server"
+	InventoryGetInventoryDevicesOKItemsItemKindIndustrialSwitch    InventoryGetInventoryDevicesOKItemsItemKind = "industrial_switch"
+	InventoryGetInventoryDevicesOKItemsItemKindUps                 InventoryGetInventoryDevicesOKItemsItemKind = "ups"
+	InventoryGetInventoryDevicesOKItemsItemKindPdu                 InventoryGetInventoryDevicesOKItemsItemKind = "pdu"
+	InventoryGetInventoryDevicesOKItemsItemKindAccessControl       InventoryGetInventoryDevicesOKItemsItemKind = "access_control"
+	InventoryGetInventoryDevicesOKItemsItemKindTimeClock           InventoryGetInventoryDevicesOKItemsItemKind = "time_clock"
+	InventoryGetInventoryDevicesOKItemsItemKindAlarmPanel          InventoryGetInventoryDevicesOKItemsItemKind = "alarm_panel"
+	InventoryGetInventoryDevicesOKItemsItemKindHvacController      InventoryGetInventoryDevicesOKItemsItemKind = "hvac_controller"
+	InventoryGetInventoryDevicesOKItemsItemKindBuildingController  InventoryGetInventoryDevicesOKItemsItemKind = "building_controller"
+	InventoryGetInventoryDevicesOKItemsItemKindPowerMeter          InventoryGetInventoryDevicesOKItemsItemKind = "power_meter"
+	InventoryGetInventoryDevicesOKItemsItemKindEnvironmentMonitor  InventoryGetInventoryDevicesOKItemsItemKind = "environment_monitor"
+	InventoryGetInventoryDevicesOKItemsItemKindEvCharger           InventoryGetInventoryDevicesOKItemsItemKind = "ev_charger"
+	InventoryGetInventoryDevicesOKItemsItemKindSolarInverter       InventoryGetInventoryDevicesOKItemsItemKind = "solar_inverter"
+	InventoryGetInventoryDevicesOKItemsItemKindMedicalDevice       InventoryGetInventoryDevicesOKItemsItemKind = "medical_device"
+	InventoryGetInventoryDevicesOKItemsItemKindWeb                 InventoryGetInventoryDevicesOKItemsItemKind = "web"
+	InventoryGetInventoryDevicesOKItemsItemKindCloudService        InventoryGetInventoryDevicesOKItemsItemKind = "cloud_service"
+	InventoryGetInventoryDevicesOKItemsItemKindUnknown             InventoryGetInventoryDevicesOKItemsItemKind = "unknown"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesOKItemsItemKind values.
 func (InventoryGetInventoryDevicesOKItemsItemKind) AllValues() []InventoryGetInventoryDevicesOKItemsItemKind {
 	return []InventoryGetInventoryDevicesOKItemsItemKind{
-		InventoryGetInventoryDevicesOKItemsItemKindFirewall,
 		InventoryGetInventoryDevicesOKItemsItemKindRouter,
 		InventoryGetInventoryDevicesOKItemsItemKindSwitch,
+		InventoryGetInventoryDevicesOKItemsItemKindModem,
+		InventoryGetInventoryDevicesOKItemsItemKindSdWan,
+		InventoryGetInventoryDevicesOKItemsItemKindLoadBalancer,
+		InventoryGetInventoryDevicesOKItemsItemKindNetworkController,
+		InventoryGetInventoryDevicesOKItemsItemKindFirewall,
+		InventoryGetInventoryDevicesOKItemsItemKindVpnGateway,
+		InventoryGetInventoryDevicesOKItemsItemKindIdsSensor,
+		InventoryGetInventoryDevicesOKItemsItemKindProxy,
 		InventoryGetInventoryDevicesOKItemsItemKindAp,
-		InventoryGetInventoryDevicesOKItemsItemKindNas,
+		InventoryGetInventoryDevicesOKItemsItemKindWirelessController,
+		InventoryGetInventoryDevicesOKItemsItemKindWifiExtender,
+		InventoryGetInventoryDevicesOKItemsItemKindMeshNode,
 		InventoryGetInventoryDevicesOKItemsItemKindServer,
+		InventoryGetInventoryDevicesOKItemsItemKindVirtualMachine,
+		InventoryGetInventoryDevicesOKItemsItemKindHypervisor,
+		InventoryGetInventoryDevicesOKItemsItemKindBmc,
+		InventoryGetInventoryDevicesOKItemsItemKindDomainController,
+		InventoryGetInventoryDevicesOKItemsItemKindMailServer,
+		InventoryGetInventoryDevicesOKItemsItemKindDatabaseServer,
+		InventoryGetInventoryDevicesOKItemsItemKindBackupServer,
 		InventoryGetInventoryDevicesOKItemsItemKindPc,
+		InventoryGetInventoryDevicesOKItemsItemKindLaptop,
+		InventoryGetInventoryDevicesOKItemsItemKindWorkstation,
+		InventoryGetInventoryDevicesOKItemsItemKindThinClient,
+		InventoryGetInventoryDevicesOKItemsItemKindPosTerminal,
+		InventoryGetInventoryDevicesOKItemsItemKindKiosk,
+		InventoryGetInventoryDevicesOKItemsItemKindSmartphone,
+		InventoryGetInventoryDevicesOKItemsItemKindTablet,
+		InventoryGetInventoryDevicesOKItemsItemKindSmartwatch,
 		InventoryGetInventoryDevicesOKItemsItemKindPrinter,
+		InventoryGetInventoryDevicesOKItemsItemKindMfp,
+		InventoryGetInventoryDevicesOKItemsItemKindScanner,
+		InventoryGetInventoryDevicesOKItemsItemKindLabelPrinter,
+		InventoryGetInventoryDevicesOKItemsItemKindReceiptPrinter,
+		InventoryGetInventoryDevicesOKItemsItemKindPlotter,
+		InventoryGetInventoryDevicesOKItemsItemKind3dPrinter,
 		InventoryGetInventoryDevicesOKItemsItemKindCamera,
 		InventoryGetInventoryDevicesOKItemsItemKindNvr,
+		InventoryGetInventoryDevicesOKItemsItemKindDvr,
+		InventoryGetInventoryDevicesOKItemsItemKindVideoEncoder,
+		InventoryGetInventoryDevicesOKItemsItemKindDoorbell,
+		InventoryGetInventoryDevicesOKItemsItemKindVideoConferencing,
+		InventoryGetInventoryDevicesOKItemsItemKindIPPhone,
+		InventoryGetInventoryDevicesOKItemsItemKindPbx,
+		InventoryGetInventoryDevicesOKItemsItemKindVoipAdapter,
+		InventoryGetInventoryDevicesOKItemsItemKindVoipGateway,
+		InventoryGetInventoryDevicesOKItemsItemKindConferencePhone,
+		InventoryGetInventoryDevicesOKItemsItemKindIntercom,
+		InventoryGetInventoryDevicesOKItemsItemKindNas,
+		InventoryGetInventoryDevicesOKItemsItemKindSan,
+		InventoryGetInventoryDevicesOKItemsItemKindBackupAppliance,
+		InventoryGetInventoryDevicesOKItemsItemKindTapeLibrary,
 		InventoryGetInventoryDevicesOKItemsItemKindIot,
+		InventoryGetInventoryDevicesOKItemsItemKindSmartTv,
+		InventoryGetInventoryDevicesOKItemsItemKindMediaPlayer,
+		InventoryGetInventoryDevicesOKItemsItemKindSmartSpeaker,
+		InventoryGetInventoryDevicesOKItemsItemKindGameConsole,
+		InventoryGetInventoryDevicesOKItemsItemKindSmartPlug,
+		InventoryGetInventoryDevicesOKItemsItemKindSmartLight,
+		InventoryGetInventoryDevicesOKItemsItemKindSmartHub,
+		InventoryGetInventoryDevicesOKItemsItemKindThermostat,
+		InventoryGetInventoryDevicesOKItemsItemKindProjector,
+		InventoryGetInventoryDevicesOKItemsItemKindDigitalSignage,
+		InventoryGetInventoryDevicesOKItemsItemKindSingleBoardComputer,
+		InventoryGetInventoryDevicesOKItemsItemKindSmartAppliance,
+		InventoryGetInventoryDevicesOKItemsItemKindRobotVacuum,
+		InventoryGetInventoryDevicesOKItemsItemKindWirelessBridge,
+		InventoryGetInventoryDevicesOKItemsItemKindPlc,
+		InventoryGetInventoryDevicesOKItemsItemKindHmi,
+		InventoryGetInventoryDevicesOKItemsItemKindRtu,
+		InventoryGetInventoryDevicesOKItemsItemKindScadaServer,
+		InventoryGetInventoryDevicesOKItemsItemKindIndustrialSwitch,
+		InventoryGetInventoryDevicesOKItemsItemKindUps,
+		InventoryGetInventoryDevicesOKItemsItemKindPdu,
+		InventoryGetInventoryDevicesOKItemsItemKindAccessControl,
+		InventoryGetInventoryDevicesOKItemsItemKindTimeClock,
+		InventoryGetInventoryDevicesOKItemsItemKindAlarmPanel,
+		InventoryGetInventoryDevicesOKItemsItemKindHvacController,
+		InventoryGetInventoryDevicesOKItemsItemKindBuildingController,
+		InventoryGetInventoryDevicesOKItemsItemKindPowerMeter,
+		InventoryGetInventoryDevicesOKItemsItemKindEnvironmentMonitor,
+		InventoryGetInventoryDevicesOKItemsItemKindEvCharger,
+		InventoryGetInventoryDevicesOKItemsItemKindSolarInverter,
+		InventoryGetInventoryDevicesOKItemsItemKindMedicalDevice,
 		InventoryGetInventoryDevicesOKItemsItemKindWeb,
+		InventoryGetInventoryDevicesOKItemsItemKindCloudService,
 		InventoryGetInventoryDevicesOKItemsItemKindUnknown,
 	}
 }
@@ -75987,29 +83794,181 @@ func (InventoryGetInventoryDevicesOKItemsItemKind) AllValues() []InventoryGetInv
 // MarshalText implements encoding.TextMarshaler.
 func (s InventoryGetInventoryDevicesOKItemsItemKind) MarshalText() ([]byte, error) {
 	switch s {
-	case InventoryGetInventoryDevicesOKItemsItemKindFirewall:
-		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemKindRouter:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemKindSwitch:
 		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindModem:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSdWan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindLoadBalancer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindNetworkController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindFirewall:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindVpnGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindIdsSensor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindProxy:
+		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemKindAp:
 		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemKindNas:
+	case InventoryGetInventoryDevicesOKItemsItemKindWirelessController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindWifiExtender:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindMeshNode:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemKindServer:
 		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindVirtualMachine:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindHypervisor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindBmc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindDomainController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindMailServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindDatabaseServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindBackupServer:
+		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemKindPc:
 		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindLaptop:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindWorkstation:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindThinClient:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindPosTerminal:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindKiosk:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartphone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindTablet:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartwatch:
+		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemKindPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindMfp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindScanner:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindLabelPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindReceiptPrinter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindPlotter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKind3dPrinter:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemKindCamera:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemKindNvr:
 		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindDvr:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindVideoEncoder:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindDoorbell:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindVideoConferencing:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindIPPhone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindPbx:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindVoipAdapter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindVoipGateway:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindConferencePhone:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindIntercom:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindNas:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindBackupAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindTapeLibrary:
+		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemKindIot:
 		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartTv:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindMediaPlayer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartSpeaker:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindGameConsole:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartPlug:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartLight:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartHub:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindThermostat:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindProjector:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindDigitalSignage:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSingleBoardComputer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartAppliance:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindRobotVacuum:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindWirelessBridge:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindPlc:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindHmi:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindRtu:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindScadaServer:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindIndustrialSwitch:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindUps:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindPdu:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindAccessControl:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindTimeClock:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindAlarmPanel:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindHvacController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindBuildingController:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindPowerMeter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindEnvironmentMonitor:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindEvCharger:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSolarInverter:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindMedicalDevice:
+		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemKindWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindCloudService:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemKindUnknown:
 		return []byte(s), nil
@@ -76021,29 +83980,119 @@ func (s InventoryGetInventoryDevicesOKItemsItemKind) MarshalText() ([]byte, erro
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *InventoryGetInventoryDevicesOKItemsItemKind) UnmarshalText(data []byte) error {
 	switch InventoryGetInventoryDevicesOKItemsItemKind(data) {
-	case InventoryGetInventoryDevicesOKItemsItemKindFirewall:
-		*s = InventoryGetInventoryDevicesOKItemsItemKindFirewall
-		return nil
 	case InventoryGetInventoryDevicesOKItemsItemKindRouter:
 		*s = InventoryGetInventoryDevicesOKItemsItemKindRouter
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemKindSwitch:
 		*s = InventoryGetInventoryDevicesOKItemsItemKindSwitch
 		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindModem:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindModem
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSdWan:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSdWan
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindLoadBalancer:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindLoadBalancer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindNetworkController:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindNetworkController
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindFirewall:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindFirewall
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindVpnGateway:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindVpnGateway
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindIdsSensor:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindIdsSensor
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindProxy:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindProxy
+		return nil
 	case InventoryGetInventoryDevicesOKItemsItemKindAp:
 		*s = InventoryGetInventoryDevicesOKItemsItemKindAp
 		return nil
-	case InventoryGetInventoryDevicesOKItemsItemKindNas:
-		*s = InventoryGetInventoryDevicesOKItemsItemKindNas
+	case InventoryGetInventoryDevicesOKItemsItemKindWirelessController:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindWirelessController
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindWifiExtender:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindWifiExtender
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindMeshNode:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindMeshNode
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemKindServer:
 		*s = InventoryGetInventoryDevicesOKItemsItemKindServer
 		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindVirtualMachine:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindVirtualMachine
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindHypervisor:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindHypervisor
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindBmc:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindBmc
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindDomainController:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindDomainController
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindMailServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindMailServer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindDatabaseServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindDatabaseServer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindBackupServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindBackupServer
+		return nil
 	case InventoryGetInventoryDevicesOKItemsItemKindPc:
 		*s = InventoryGetInventoryDevicesOKItemsItemKindPc
 		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindLaptop:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindLaptop
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindWorkstation:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindWorkstation
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindThinClient:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindThinClient
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindPosTerminal:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindPosTerminal
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindKiosk:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindKiosk
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartphone:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSmartphone
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindTablet:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindTablet
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartwatch:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSmartwatch
+		return nil
 	case InventoryGetInventoryDevicesOKItemsItemKindPrinter:
 		*s = InventoryGetInventoryDevicesOKItemsItemKindPrinter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindMfp:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindMfp
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindScanner:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindScanner
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindLabelPrinter:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindLabelPrinter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindReceiptPrinter:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindReceiptPrinter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindPlotter:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindPlotter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKind3dPrinter:
+		*s = InventoryGetInventoryDevicesOKItemsItemKind3dPrinter
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemKindCamera:
 		*s = InventoryGetInventoryDevicesOKItemsItemKindCamera
@@ -76051,14 +84100,221 @@ func (s *InventoryGetInventoryDevicesOKItemsItemKind) UnmarshalText(data []byte)
 	case InventoryGetInventoryDevicesOKItemsItemKindNvr:
 		*s = InventoryGetInventoryDevicesOKItemsItemKindNvr
 		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindDvr:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindDvr
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindVideoEncoder:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindVideoEncoder
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindDoorbell:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindDoorbell
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindVideoConferencing:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindVideoConferencing
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindIPPhone:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindIPPhone
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindPbx:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindPbx
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindVoipAdapter:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindVoipAdapter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindVoipGateway:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindVoipGateway
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindConferencePhone:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindConferencePhone
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindIntercom:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindIntercom
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindNas:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindNas
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSan:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSan
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindBackupAppliance:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindBackupAppliance
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindTapeLibrary:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindTapeLibrary
+		return nil
 	case InventoryGetInventoryDevicesOKItemsItemKindIot:
 		*s = InventoryGetInventoryDevicesOKItemsItemKindIot
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartTv:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSmartTv
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindMediaPlayer:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindMediaPlayer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartSpeaker:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSmartSpeaker
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindGameConsole:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindGameConsole
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartPlug:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSmartPlug
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartLight:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSmartLight
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartHub:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSmartHub
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindThermostat:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindThermostat
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindProjector:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindProjector
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindDigitalSignage:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindDigitalSignage
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSingleBoardComputer:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSingleBoardComputer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSmartAppliance:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSmartAppliance
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindRobotVacuum:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindRobotVacuum
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindWirelessBridge:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindWirelessBridge
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindPlc:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindPlc
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindHmi:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindHmi
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindRtu:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindRtu
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindScadaServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindScadaServer
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindIndustrialSwitch:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindIndustrialSwitch
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindUps:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindUps
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindPdu:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindPdu
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindAccessControl:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindAccessControl
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindTimeClock:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindTimeClock
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindAlarmPanel:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindAlarmPanel
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindHvacController:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindHvacController
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindBuildingController:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindBuildingController
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindPowerMeter:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindPowerMeter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindEnvironmentMonitor:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindEnvironmentMonitor
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindEvCharger:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindEvCharger
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSolarInverter:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSolarInverter
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindMedicalDevice:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindMedicalDevice
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemKindWeb:
 		*s = InventoryGetInventoryDevicesOKItemsItemKindWeb
 		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindCloudService:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindCloudService
+		return nil
 	case InventoryGetInventoryDevicesOKItemsItemKindUnknown:
 		*s = InventoryGetInventoryDevicesOKItemsItemKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryDevicesOKItemsItemKindSource string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemKindSourceManual  InventoryGetInventoryDevicesOKItemsItemKindSource = "manual"
+	InventoryGetInventoryDevicesOKItemsItemKindSourceAgent   InventoryGetInventoryDevicesOKItemsItemKindSource = "agent"
+	InventoryGetInventoryDevicesOKItemsItemKindSourceSnmp    InventoryGetInventoryDevicesOKItemsItemKindSource = "snmp"
+	InventoryGetInventoryDevicesOKItemsItemKindSourceNmap    InventoryGetInventoryDevicesOKItemsItemKindSource = "nmap"
+	InventoryGetInventoryDevicesOKItemsItemKindSourcePassive InventoryGetInventoryDevicesOKItemsItemKindSource = "passive"
+	InventoryGetInventoryDevicesOKItemsItemKindSourceScan    InventoryGetInventoryDevicesOKItemsItemKindSource = "scan"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemKindSource values.
+func (InventoryGetInventoryDevicesOKItemsItemKindSource) AllValues() []InventoryGetInventoryDevicesOKItemsItemKindSource {
+	return []InventoryGetInventoryDevicesOKItemsItemKindSource{
+		InventoryGetInventoryDevicesOKItemsItemKindSourceManual,
+		InventoryGetInventoryDevicesOKItemsItemKindSourceAgent,
+		InventoryGetInventoryDevicesOKItemsItemKindSourceSnmp,
+		InventoryGetInventoryDevicesOKItemsItemKindSourceNmap,
+		InventoryGetInventoryDevicesOKItemsItemKindSourcePassive,
+		InventoryGetInventoryDevicesOKItemsItemKindSourceScan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemKindSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemKindSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSourceAgent:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSourceSnmp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSourceNmap:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSourcePassive:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSourceScan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemKindSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemKindSource(data) {
+	case InventoryGetInventoryDevicesOKItemsItemKindSourceManual:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSourceManual
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSourceAgent:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSourceAgent
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSourceSnmp:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSourceSnmp
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSourceNmap:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSourceNmap
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSourcePassive:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSourcePassive
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSourceScan:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSourceScan
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -76389,18 +84645,26 @@ func (s *InventoryGetInventoryDevicesOKItemsItemRegularScan) UnmarshalText(data 
 }
 
 type InventoryGetInventoryDevicesOKItemsItemServicesItem struct {
-	Confidence float64                                                   `json:"confidence"`
-	Name       string                                                    `json:"name"`
-	Port       int                                                       `json:"port"`
-	Product    OptString                                                 `json:"product"`
-	Proto      InventoryGetInventoryDevicesOKItemsItemServicesItemProto  `json:"proto"`
-	Source     InventoryGetInventoryDevicesOKItemsItemServicesItemSource `json:"source"`
-	Version    OptString                                                 `json:"version"`
+	Confidence float64 `json:"confidence"`
+	// What the service said about the device besides product and version: nmap extra info and device type,
+	// page title, certificate subject (D-511). Evidence only, never software.
+	Detail  OptString                                                 `json:"detail"`
+	Name    string                                                    `json:"name"`
+	Port    int                                                       `json:"port"`
+	Product OptString                                                 `json:"product"`
+	Proto   InventoryGetInventoryDevicesOKItemsItemServicesItemProto  `json:"proto"`
+	Source  InventoryGetInventoryDevicesOKItemsItemServicesItemSource `json:"source"`
+	Version OptString                                                 `json:"version"`
 }
 
 // GetConfidence returns the value of Confidence.
 func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) GetConfidence() float64 {
 	return s.Confidence
+}
+
+// GetDetail returns the value of Detail.
+func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) GetDetail() OptString {
+	return s.Detail
 }
 
 // GetName returns the value of Name.
@@ -76436,6 +84700,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) GetVersion() OptSt
 // SetConfidence sets the value of Confidence.
 func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) SetConfidence(val float64) {
 	s.Confidence = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) SetDetail(val OptString) {
+	s.Detail = val
 }
 
 // SetName sets the value of Name.
@@ -77360,7 +85629,8 @@ func (s *InventoryGetInventorySensorsOKSensorsItemStatus) UnmarshalText(data []b
 
 type InventoryGetInventorySettingsOK struct {
 	Active InventoryGetInventorySettingsOKActive `json:"active"`
-	// Device types scanned only once, gently, when first seen; passive-only after that.
+	// Device types scanned only once, gently, when first seen; passive-only after that. Every type acting
+	// as one of them counts (D-511).
 	FragileKinds []InventoryGetInventorySettingsOKFragileKindsItem `json:"fragile_kinds"`
 	// Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461).
 	LanRanges []string `json:"lan_ranges"`
@@ -78067,9 +86337,10 @@ func (s *InventoryPatchInventoryDevicesIDOK) SetOk(val bool) {
 }
 
 type InventoryPatchInventoryDevicesIDReq struct {
-	Fragile OptBool                                    `json:"fragile"`
-	Kind    OptInventoryPatchInventoryDevicesIDReqKind `json:"kind"`
-	Notes   OptString                                  `json:"notes"`
+	Fragile OptBool `json:"fragile"`
+	// Device type (content/devicetypes/types.json, D-511).
+	Kind  OptInventoryPatchInventoryDevicesIDReqKind `json:"kind"`
+	Notes OptString                                  `json:"notes"`
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
 	RegularScan OptInventoryPatchInventoryDevicesIDReqRegularScan `json:"regular_scan"`
@@ -78115,39 +86386,192 @@ func (s *InventoryPatchInventoryDevicesIDReq) SetRegularScan(val OptInventoryPat
 	s.RegularScan = val
 }
 
+// Device type (content/devicetypes/types.json, D-511).
 type InventoryPatchInventoryDevicesIDReqKind string
 
 const (
-	InventoryPatchInventoryDevicesIDReqKindFirewall InventoryPatchInventoryDevicesIDReqKind = "firewall"
-	InventoryPatchInventoryDevicesIDReqKindRouter   InventoryPatchInventoryDevicesIDReqKind = "router"
-	InventoryPatchInventoryDevicesIDReqKindSwitch   InventoryPatchInventoryDevicesIDReqKind = "switch"
-	InventoryPatchInventoryDevicesIDReqKindAp       InventoryPatchInventoryDevicesIDReqKind = "ap"
-	InventoryPatchInventoryDevicesIDReqKindNas      InventoryPatchInventoryDevicesIDReqKind = "nas"
-	InventoryPatchInventoryDevicesIDReqKindServer   InventoryPatchInventoryDevicesIDReqKind = "server"
-	InventoryPatchInventoryDevicesIDReqKindPc       InventoryPatchInventoryDevicesIDReqKind = "pc"
-	InventoryPatchInventoryDevicesIDReqKindPrinter  InventoryPatchInventoryDevicesIDReqKind = "printer"
-	InventoryPatchInventoryDevicesIDReqKindCamera   InventoryPatchInventoryDevicesIDReqKind = "camera"
-	InventoryPatchInventoryDevicesIDReqKindNvr      InventoryPatchInventoryDevicesIDReqKind = "nvr"
-	InventoryPatchInventoryDevicesIDReqKindIot      InventoryPatchInventoryDevicesIDReqKind = "iot"
-	InventoryPatchInventoryDevicesIDReqKindWeb      InventoryPatchInventoryDevicesIDReqKind = "web"
-	InventoryPatchInventoryDevicesIDReqKindUnknown  InventoryPatchInventoryDevicesIDReqKind = "unknown"
+	InventoryPatchInventoryDevicesIDReqKindRouter              InventoryPatchInventoryDevicesIDReqKind = "router"
+	InventoryPatchInventoryDevicesIDReqKindSwitch              InventoryPatchInventoryDevicesIDReqKind = "switch"
+	InventoryPatchInventoryDevicesIDReqKindModem               InventoryPatchInventoryDevicesIDReqKind = "modem"
+	InventoryPatchInventoryDevicesIDReqKindSdWan               InventoryPatchInventoryDevicesIDReqKind = "sd_wan"
+	InventoryPatchInventoryDevicesIDReqKindLoadBalancer        InventoryPatchInventoryDevicesIDReqKind = "load_balancer"
+	InventoryPatchInventoryDevicesIDReqKindNetworkController   InventoryPatchInventoryDevicesIDReqKind = "network_controller"
+	InventoryPatchInventoryDevicesIDReqKindFirewall            InventoryPatchInventoryDevicesIDReqKind = "firewall"
+	InventoryPatchInventoryDevicesIDReqKindVpnGateway          InventoryPatchInventoryDevicesIDReqKind = "vpn_gateway"
+	InventoryPatchInventoryDevicesIDReqKindIdsSensor           InventoryPatchInventoryDevicesIDReqKind = "ids_sensor"
+	InventoryPatchInventoryDevicesIDReqKindProxy               InventoryPatchInventoryDevicesIDReqKind = "proxy"
+	InventoryPatchInventoryDevicesIDReqKindAp                  InventoryPatchInventoryDevicesIDReqKind = "ap"
+	InventoryPatchInventoryDevicesIDReqKindWirelessController  InventoryPatchInventoryDevicesIDReqKind = "wireless_controller"
+	InventoryPatchInventoryDevicesIDReqKindWifiExtender        InventoryPatchInventoryDevicesIDReqKind = "wifi_extender"
+	InventoryPatchInventoryDevicesIDReqKindMeshNode            InventoryPatchInventoryDevicesIDReqKind = "mesh_node"
+	InventoryPatchInventoryDevicesIDReqKindServer              InventoryPatchInventoryDevicesIDReqKind = "server"
+	InventoryPatchInventoryDevicesIDReqKindVirtualMachine      InventoryPatchInventoryDevicesIDReqKind = "virtual_machine"
+	InventoryPatchInventoryDevicesIDReqKindHypervisor          InventoryPatchInventoryDevicesIDReqKind = "hypervisor"
+	InventoryPatchInventoryDevicesIDReqKindBmc                 InventoryPatchInventoryDevicesIDReqKind = "bmc"
+	InventoryPatchInventoryDevicesIDReqKindDomainController    InventoryPatchInventoryDevicesIDReqKind = "domain_controller"
+	InventoryPatchInventoryDevicesIDReqKindMailServer          InventoryPatchInventoryDevicesIDReqKind = "mail_server"
+	InventoryPatchInventoryDevicesIDReqKindDatabaseServer      InventoryPatchInventoryDevicesIDReqKind = "database_server"
+	InventoryPatchInventoryDevicesIDReqKindBackupServer        InventoryPatchInventoryDevicesIDReqKind = "backup_server"
+	InventoryPatchInventoryDevicesIDReqKindPc                  InventoryPatchInventoryDevicesIDReqKind = "pc"
+	InventoryPatchInventoryDevicesIDReqKindLaptop              InventoryPatchInventoryDevicesIDReqKind = "laptop"
+	InventoryPatchInventoryDevicesIDReqKindWorkstation         InventoryPatchInventoryDevicesIDReqKind = "workstation"
+	InventoryPatchInventoryDevicesIDReqKindThinClient          InventoryPatchInventoryDevicesIDReqKind = "thin_client"
+	InventoryPatchInventoryDevicesIDReqKindPosTerminal         InventoryPatchInventoryDevicesIDReqKind = "pos_terminal"
+	InventoryPatchInventoryDevicesIDReqKindKiosk               InventoryPatchInventoryDevicesIDReqKind = "kiosk"
+	InventoryPatchInventoryDevicesIDReqKindSmartphone          InventoryPatchInventoryDevicesIDReqKind = "smartphone"
+	InventoryPatchInventoryDevicesIDReqKindTablet              InventoryPatchInventoryDevicesIDReqKind = "tablet"
+	InventoryPatchInventoryDevicesIDReqKindSmartwatch          InventoryPatchInventoryDevicesIDReqKind = "smartwatch"
+	InventoryPatchInventoryDevicesIDReqKindPrinter             InventoryPatchInventoryDevicesIDReqKind = "printer"
+	InventoryPatchInventoryDevicesIDReqKindMfp                 InventoryPatchInventoryDevicesIDReqKind = "mfp"
+	InventoryPatchInventoryDevicesIDReqKindScanner             InventoryPatchInventoryDevicesIDReqKind = "scanner"
+	InventoryPatchInventoryDevicesIDReqKindLabelPrinter        InventoryPatchInventoryDevicesIDReqKind = "label_printer"
+	InventoryPatchInventoryDevicesIDReqKindReceiptPrinter      InventoryPatchInventoryDevicesIDReqKind = "receipt_printer"
+	InventoryPatchInventoryDevicesIDReqKindPlotter             InventoryPatchInventoryDevicesIDReqKind = "plotter"
+	InventoryPatchInventoryDevicesIDReqKind3dPrinter           InventoryPatchInventoryDevicesIDReqKind = "3d_printer"
+	InventoryPatchInventoryDevicesIDReqKindCamera              InventoryPatchInventoryDevicesIDReqKind = "camera"
+	InventoryPatchInventoryDevicesIDReqKindNvr                 InventoryPatchInventoryDevicesIDReqKind = "nvr"
+	InventoryPatchInventoryDevicesIDReqKindDvr                 InventoryPatchInventoryDevicesIDReqKind = "dvr"
+	InventoryPatchInventoryDevicesIDReqKindVideoEncoder        InventoryPatchInventoryDevicesIDReqKind = "video_encoder"
+	InventoryPatchInventoryDevicesIDReqKindDoorbell            InventoryPatchInventoryDevicesIDReqKind = "doorbell"
+	InventoryPatchInventoryDevicesIDReqKindVideoConferencing   InventoryPatchInventoryDevicesIDReqKind = "video_conferencing"
+	InventoryPatchInventoryDevicesIDReqKindIPPhone             InventoryPatchInventoryDevicesIDReqKind = "ip_phone"
+	InventoryPatchInventoryDevicesIDReqKindPbx                 InventoryPatchInventoryDevicesIDReqKind = "pbx"
+	InventoryPatchInventoryDevicesIDReqKindVoipAdapter         InventoryPatchInventoryDevicesIDReqKind = "voip_adapter"
+	InventoryPatchInventoryDevicesIDReqKindVoipGateway         InventoryPatchInventoryDevicesIDReqKind = "voip_gateway"
+	InventoryPatchInventoryDevicesIDReqKindConferencePhone     InventoryPatchInventoryDevicesIDReqKind = "conference_phone"
+	InventoryPatchInventoryDevicesIDReqKindIntercom            InventoryPatchInventoryDevicesIDReqKind = "intercom"
+	InventoryPatchInventoryDevicesIDReqKindNas                 InventoryPatchInventoryDevicesIDReqKind = "nas"
+	InventoryPatchInventoryDevicesIDReqKindSan                 InventoryPatchInventoryDevicesIDReqKind = "san"
+	InventoryPatchInventoryDevicesIDReqKindBackupAppliance     InventoryPatchInventoryDevicesIDReqKind = "backup_appliance"
+	InventoryPatchInventoryDevicesIDReqKindTapeLibrary         InventoryPatchInventoryDevicesIDReqKind = "tape_library"
+	InventoryPatchInventoryDevicesIDReqKindIot                 InventoryPatchInventoryDevicesIDReqKind = "iot"
+	InventoryPatchInventoryDevicesIDReqKindSmartTv             InventoryPatchInventoryDevicesIDReqKind = "smart_tv"
+	InventoryPatchInventoryDevicesIDReqKindMediaPlayer         InventoryPatchInventoryDevicesIDReqKind = "media_player"
+	InventoryPatchInventoryDevicesIDReqKindSmartSpeaker        InventoryPatchInventoryDevicesIDReqKind = "smart_speaker"
+	InventoryPatchInventoryDevicesIDReqKindGameConsole         InventoryPatchInventoryDevicesIDReqKind = "game_console"
+	InventoryPatchInventoryDevicesIDReqKindSmartPlug           InventoryPatchInventoryDevicesIDReqKind = "smart_plug"
+	InventoryPatchInventoryDevicesIDReqKindSmartLight          InventoryPatchInventoryDevicesIDReqKind = "smart_light"
+	InventoryPatchInventoryDevicesIDReqKindSmartHub            InventoryPatchInventoryDevicesIDReqKind = "smart_hub"
+	InventoryPatchInventoryDevicesIDReqKindThermostat          InventoryPatchInventoryDevicesIDReqKind = "thermostat"
+	InventoryPatchInventoryDevicesIDReqKindProjector           InventoryPatchInventoryDevicesIDReqKind = "projector"
+	InventoryPatchInventoryDevicesIDReqKindDigitalSignage      InventoryPatchInventoryDevicesIDReqKind = "digital_signage"
+	InventoryPatchInventoryDevicesIDReqKindSingleBoardComputer InventoryPatchInventoryDevicesIDReqKind = "single_board_computer"
+	InventoryPatchInventoryDevicesIDReqKindSmartAppliance      InventoryPatchInventoryDevicesIDReqKind = "smart_appliance"
+	InventoryPatchInventoryDevicesIDReqKindRobotVacuum         InventoryPatchInventoryDevicesIDReqKind = "robot_vacuum"
+	InventoryPatchInventoryDevicesIDReqKindWirelessBridge      InventoryPatchInventoryDevicesIDReqKind = "wireless_bridge"
+	InventoryPatchInventoryDevicesIDReqKindPlc                 InventoryPatchInventoryDevicesIDReqKind = "plc"
+	InventoryPatchInventoryDevicesIDReqKindHmi                 InventoryPatchInventoryDevicesIDReqKind = "hmi"
+	InventoryPatchInventoryDevicesIDReqKindRtu                 InventoryPatchInventoryDevicesIDReqKind = "rtu"
+	InventoryPatchInventoryDevicesIDReqKindScadaServer         InventoryPatchInventoryDevicesIDReqKind = "scada_server"
+	InventoryPatchInventoryDevicesIDReqKindIndustrialSwitch    InventoryPatchInventoryDevicesIDReqKind = "industrial_switch"
+	InventoryPatchInventoryDevicesIDReqKindUps                 InventoryPatchInventoryDevicesIDReqKind = "ups"
+	InventoryPatchInventoryDevicesIDReqKindPdu                 InventoryPatchInventoryDevicesIDReqKind = "pdu"
+	InventoryPatchInventoryDevicesIDReqKindAccessControl       InventoryPatchInventoryDevicesIDReqKind = "access_control"
+	InventoryPatchInventoryDevicesIDReqKindTimeClock           InventoryPatchInventoryDevicesIDReqKind = "time_clock"
+	InventoryPatchInventoryDevicesIDReqKindAlarmPanel          InventoryPatchInventoryDevicesIDReqKind = "alarm_panel"
+	InventoryPatchInventoryDevicesIDReqKindHvacController      InventoryPatchInventoryDevicesIDReqKind = "hvac_controller"
+	InventoryPatchInventoryDevicesIDReqKindBuildingController  InventoryPatchInventoryDevicesIDReqKind = "building_controller"
+	InventoryPatchInventoryDevicesIDReqKindPowerMeter          InventoryPatchInventoryDevicesIDReqKind = "power_meter"
+	InventoryPatchInventoryDevicesIDReqKindEnvironmentMonitor  InventoryPatchInventoryDevicesIDReqKind = "environment_monitor"
+	InventoryPatchInventoryDevicesIDReqKindEvCharger           InventoryPatchInventoryDevicesIDReqKind = "ev_charger"
+	InventoryPatchInventoryDevicesIDReqKindSolarInverter       InventoryPatchInventoryDevicesIDReqKind = "solar_inverter"
+	InventoryPatchInventoryDevicesIDReqKindMedicalDevice       InventoryPatchInventoryDevicesIDReqKind = "medical_device"
+	InventoryPatchInventoryDevicesIDReqKindWeb                 InventoryPatchInventoryDevicesIDReqKind = "web"
+	InventoryPatchInventoryDevicesIDReqKindCloudService        InventoryPatchInventoryDevicesIDReqKind = "cloud_service"
+	InventoryPatchInventoryDevicesIDReqKindUnknown             InventoryPatchInventoryDevicesIDReqKind = "unknown"
 )
 
 // AllValues returns all InventoryPatchInventoryDevicesIDReqKind values.
 func (InventoryPatchInventoryDevicesIDReqKind) AllValues() []InventoryPatchInventoryDevicesIDReqKind {
 	return []InventoryPatchInventoryDevicesIDReqKind{
-		InventoryPatchInventoryDevicesIDReqKindFirewall,
 		InventoryPatchInventoryDevicesIDReqKindRouter,
 		InventoryPatchInventoryDevicesIDReqKindSwitch,
+		InventoryPatchInventoryDevicesIDReqKindModem,
+		InventoryPatchInventoryDevicesIDReqKindSdWan,
+		InventoryPatchInventoryDevicesIDReqKindLoadBalancer,
+		InventoryPatchInventoryDevicesIDReqKindNetworkController,
+		InventoryPatchInventoryDevicesIDReqKindFirewall,
+		InventoryPatchInventoryDevicesIDReqKindVpnGateway,
+		InventoryPatchInventoryDevicesIDReqKindIdsSensor,
+		InventoryPatchInventoryDevicesIDReqKindProxy,
 		InventoryPatchInventoryDevicesIDReqKindAp,
-		InventoryPatchInventoryDevicesIDReqKindNas,
+		InventoryPatchInventoryDevicesIDReqKindWirelessController,
+		InventoryPatchInventoryDevicesIDReqKindWifiExtender,
+		InventoryPatchInventoryDevicesIDReqKindMeshNode,
 		InventoryPatchInventoryDevicesIDReqKindServer,
+		InventoryPatchInventoryDevicesIDReqKindVirtualMachine,
+		InventoryPatchInventoryDevicesIDReqKindHypervisor,
+		InventoryPatchInventoryDevicesIDReqKindBmc,
+		InventoryPatchInventoryDevicesIDReqKindDomainController,
+		InventoryPatchInventoryDevicesIDReqKindMailServer,
+		InventoryPatchInventoryDevicesIDReqKindDatabaseServer,
+		InventoryPatchInventoryDevicesIDReqKindBackupServer,
 		InventoryPatchInventoryDevicesIDReqKindPc,
+		InventoryPatchInventoryDevicesIDReqKindLaptop,
+		InventoryPatchInventoryDevicesIDReqKindWorkstation,
+		InventoryPatchInventoryDevicesIDReqKindThinClient,
+		InventoryPatchInventoryDevicesIDReqKindPosTerminal,
+		InventoryPatchInventoryDevicesIDReqKindKiosk,
+		InventoryPatchInventoryDevicesIDReqKindSmartphone,
+		InventoryPatchInventoryDevicesIDReqKindTablet,
+		InventoryPatchInventoryDevicesIDReqKindSmartwatch,
 		InventoryPatchInventoryDevicesIDReqKindPrinter,
+		InventoryPatchInventoryDevicesIDReqKindMfp,
+		InventoryPatchInventoryDevicesIDReqKindScanner,
+		InventoryPatchInventoryDevicesIDReqKindLabelPrinter,
+		InventoryPatchInventoryDevicesIDReqKindReceiptPrinter,
+		InventoryPatchInventoryDevicesIDReqKindPlotter,
+		InventoryPatchInventoryDevicesIDReqKind3dPrinter,
 		InventoryPatchInventoryDevicesIDReqKindCamera,
 		InventoryPatchInventoryDevicesIDReqKindNvr,
+		InventoryPatchInventoryDevicesIDReqKindDvr,
+		InventoryPatchInventoryDevicesIDReqKindVideoEncoder,
+		InventoryPatchInventoryDevicesIDReqKindDoorbell,
+		InventoryPatchInventoryDevicesIDReqKindVideoConferencing,
+		InventoryPatchInventoryDevicesIDReqKindIPPhone,
+		InventoryPatchInventoryDevicesIDReqKindPbx,
+		InventoryPatchInventoryDevicesIDReqKindVoipAdapter,
+		InventoryPatchInventoryDevicesIDReqKindVoipGateway,
+		InventoryPatchInventoryDevicesIDReqKindConferencePhone,
+		InventoryPatchInventoryDevicesIDReqKindIntercom,
+		InventoryPatchInventoryDevicesIDReqKindNas,
+		InventoryPatchInventoryDevicesIDReqKindSan,
+		InventoryPatchInventoryDevicesIDReqKindBackupAppliance,
+		InventoryPatchInventoryDevicesIDReqKindTapeLibrary,
 		InventoryPatchInventoryDevicesIDReqKindIot,
+		InventoryPatchInventoryDevicesIDReqKindSmartTv,
+		InventoryPatchInventoryDevicesIDReqKindMediaPlayer,
+		InventoryPatchInventoryDevicesIDReqKindSmartSpeaker,
+		InventoryPatchInventoryDevicesIDReqKindGameConsole,
+		InventoryPatchInventoryDevicesIDReqKindSmartPlug,
+		InventoryPatchInventoryDevicesIDReqKindSmartLight,
+		InventoryPatchInventoryDevicesIDReqKindSmartHub,
+		InventoryPatchInventoryDevicesIDReqKindThermostat,
+		InventoryPatchInventoryDevicesIDReqKindProjector,
+		InventoryPatchInventoryDevicesIDReqKindDigitalSignage,
+		InventoryPatchInventoryDevicesIDReqKindSingleBoardComputer,
+		InventoryPatchInventoryDevicesIDReqKindSmartAppliance,
+		InventoryPatchInventoryDevicesIDReqKindRobotVacuum,
+		InventoryPatchInventoryDevicesIDReqKindWirelessBridge,
+		InventoryPatchInventoryDevicesIDReqKindPlc,
+		InventoryPatchInventoryDevicesIDReqKindHmi,
+		InventoryPatchInventoryDevicesIDReqKindRtu,
+		InventoryPatchInventoryDevicesIDReqKindScadaServer,
+		InventoryPatchInventoryDevicesIDReqKindIndustrialSwitch,
+		InventoryPatchInventoryDevicesIDReqKindUps,
+		InventoryPatchInventoryDevicesIDReqKindPdu,
+		InventoryPatchInventoryDevicesIDReqKindAccessControl,
+		InventoryPatchInventoryDevicesIDReqKindTimeClock,
+		InventoryPatchInventoryDevicesIDReqKindAlarmPanel,
+		InventoryPatchInventoryDevicesIDReqKindHvacController,
+		InventoryPatchInventoryDevicesIDReqKindBuildingController,
+		InventoryPatchInventoryDevicesIDReqKindPowerMeter,
+		InventoryPatchInventoryDevicesIDReqKindEnvironmentMonitor,
+		InventoryPatchInventoryDevicesIDReqKindEvCharger,
+		InventoryPatchInventoryDevicesIDReqKindSolarInverter,
+		InventoryPatchInventoryDevicesIDReqKindMedicalDevice,
 		InventoryPatchInventoryDevicesIDReqKindWeb,
+		InventoryPatchInventoryDevicesIDReqKindCloudService,
 		InventoryPatchInventoryDevicesIDReqKindUnknown,
 	}
 }
@@ -78155,29 +86579,181 @@ func (InventoryPatchInventoryDevicesIDReqKind) AllValues() []InventoryPatchInven
 // MarshalText implements encoding.TextMarshaler.
 func (s InventoryPatchInventoryDevicesIDReqKind) MarshalText() ([]byte, error) {
 	switch s {
-	case InventoryPatchInventoryDevicesIDReqKindFirewall:
-		return []byte(s), nil
 	case InventoryPatchInventoryDevicesIDReqKindRouter:
 		return []byte(s), nil
 	case InventoryPatchInventoryDevicesIDReqKindSwitch:
 		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindModem:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindSdWan:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindLoadBalancer:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindNetworkController:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindFirewall:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindVpnGateway:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindIdsSensor:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindProxy:
+		return []byte(s), nil
 	case InventoryPatchInventoryDevicesIDReqKindAp:
 		return []byte(s), nil
-	case InventoryPatchInventoryDevicesIDReqKindNas:
+	case InventoryPatchInventoryDevicesIDReqKindWirelessController:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindWifiExtender:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindMeshNode:
 		return []byte(s), nil
 	case InventoryPatchInventoryDevicesIDReqKindServer:
 		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindVirtualMachine:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindHypervisor:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindBmc:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindDomainController:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindMailServer:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindDatabaseServer:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindBackupServer:
+		return []byte(s), nil
 	case InventoryPatchInventoryDevicesIDReqKindPc:
 		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindLaptop:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindWorkstation:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindThinClient:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindPosTerminal:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindKiosk:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartphone:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindTablet:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartwatch:
+		return []byte(s), nil
 	case InventoryPatchInventoryDevicesIDReqKindPrinter:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindMfp:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindScanner:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindLabelPrinter:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindReceiptPrinter:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindPlotter:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKind3dPrinter:
 		return []byte(s), nil
 	case InventoryPatchInventoryDevicesIDReqKindCamera:
 		return []byte(s), nil
 	case InventoryPatchInventoryDevicesIDReqKindNvr:
 		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindDvr:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindVideoEncoder:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindDoorbell:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindVideoConferencing:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindIPPhone:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindPbx:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindVoipAdapter:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindVoipGateway:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindConferencePhone:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindIntercom:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindNas:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindSan:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindBackupAppliance:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindTapeLibrary:
+		return []byte(s), nil
 	case InventoryPatchInventoryDevicesIDReqKindIot:
 		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartTv:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindMediaPlayer:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartSpeaker:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindGameConsole:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartPlug:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartLight:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartHub:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindThermostat:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindProjector:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindDigitalSignage:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindSingleBoardComputer:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartAppliance:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindRobotVacuum:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindWirelessBridge:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindPlc:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindHmi:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindRtu:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindScadaServer:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindIndustrialSwitch:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindUps:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindPdu:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindAccessControl:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindTimeClock:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindAlarmPanel:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindHvacController:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindBuildingController:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindPowerMeter:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindEnvironmentMonitor:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindEvCharger:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindSolarInverter:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindMedicalDevice:
+		return []byte(s), nil
 	case InventoryPatchInventoryDevicesIDReqKindWeb:
+		return []byte(s), nil
+	case InventoryPatchInventoryDevicesIDReqKindCloudService:
 		return []byte(s), nil
 	case InventoryPatchInventoryDevicesIDReqKindUnknown:
 		return []byte(s), nil
@@ -78189,29 +86765,119 @@ func (s InventoryPatchInventoryDevicesIDReqKind) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *InventoryPatchInventoryDevicesIDReqKind) UnmarshalText(data []byte) error {
 	switch InventoryPatchInventoryDevicesIDReqKind(data) {
-	case InventoryPatchInventoryDevicesIDReqKindFirewall:
-		*s = InventoryPatchInventoryDevicesIDReqKindFirewall
-		return nil
 	case InventoryPatchInventoryDevicesIDReqKindRouter:
 		*s = InventoryPatchInventoryDevicesIDReqKindRouter
 		return nil
 	case InventoryPatchInventoryDevicesIDReqKindSwitch:
 		*s = InventoryPatchInventoryDevicesIDReqKindSwitch
 		return nil
+	case InventoryPatchInventoryDevicesIDReqKindModem:
+		*s = InventoryPatchInventoryDevicesIDReqKindModem
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindSdWan:
+		*s = InventoryPatchInventoryDevicesIDReqKindSdWan
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindLoadBalancer:
+		*s = InventoryPatchInventoryDevicesIDReqKindLoadBalancer
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindNetworkController:
+		*s = InventoryPatchInventoryDevicesIDReqKindNetworkController
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindFirewall:
+		*s = InventoryPatchInventoryDevicesIDReqKindFirewall
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindVpnGateway:
+		*s = InventoryPatchInventoryDevicesIDReqKindVpnGateway
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindIdsSensor:
+		*s = InventoryPatchInventoryDevicesIDReqKindIdsSensor
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindProxy:
+		*s = InventoryPatchInventoryDevicesIDReqKindProxy
+		return nil
 	case InventoryPatchInventoryDevicesIDReqKindAp:
 		*s = InventoryPatchInventoryDevicesIDReqKindAp
 		return nil
-	case InventoryPatchInventoryDevicesIDReqKindNas:
-		*s = InventoryPatchInventoryDevicesIDReqKindNas
+	case InventoryPatchInventoryDevicesIDReqKindWirelessController:
+		*s = InventoryPatchInventoryDevicesIDReqKindWirelessController
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindWifiExtender:
+		*s = InventoryPatchInventoryDevicesIDReqKindWifiExtender
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindMeshNode:
+		*s = InventoryPatchInventoryDevicesIDReqKindMeshNode
 		return nil
 	case InventoryPatchInventoryDevicesIDReqKindServer:
 		*s = InventoryPatchInventoryDevicesIDReqKindServer
 		return nil
+	case InventoryPatchInventoryDevicesIDReqKindVirtualMachine:
+		*s = InventoryPatchInventoryDevicesIDReqKindVirtualMachine
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindHypervisor:
+		*s = InventoryPatchInventoryDevicesIDReqKindHypervisor
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindBmc:
+		*s = InventoryPatchInventoryDevicesIDReqKindBmc
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindDomainController:
+		*s = InventoryPatchInventoryDevicesIDReqKindDomainController
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindMailServer:
+		*s = InventoryPatchInventoryDevicesIDReqKindMailServer
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindDatabaseServer:
+		*s = InventoryPatchInventoryDevicesIDReqKindDatabaseServer
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindBackupServer:
+		*s = InventoryPatchInventoryDevicesIDReqKindBackupServer
+		return nil
 	case InventoryPatchInventoryDevicesIDReqKindPc:
 		*s = InventoryPatchInventoryDevicesIDReqKindPc
 		return nil
+	case InventoryPatchInventoryDevicesIDReqKindLaptop:
+		*s = InventoryPatchInventoryDevicesIDReqKindLaptop
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindWorkstation:
+		*s = InventoryPatchInventoryDevicesIDReqKindWorkstation
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindThinClient:
+		*s = InventoryPatchInventoryDevicesIDReqKindThinClient
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindPosTerminal:
+		*s = InventoryPatchInventoryDevicesIDReqKindPosTerminal
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindKiosk:
+		*s = InventoryPatchInventoryDevicesIDReqKindKiosk
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartphone:
+		*s = InventoryPatchInventoryDevicesIDReqKindSmartphone
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindTablet:
+		*s = InventoryPatchInventoryDevicesIDReqKindTablet
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartwatch:
+		*s = InventoryPatchInventoryDevicesIDReqKindSmartwatch
+		return nil
 	case InventoryPatchInventoryDevicesIDReqKindPrinter:
 		*s = InventoryPatchInventoryDevicesIDReqKindPrinter
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindMfp:
+		*s = InventoryPatchInventoryDevicesIDReqKindMfp
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindScanner:
+		*s = InventoryPatchInventoryDevicesIDReqKindScanner
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindLabelPrinter:
+		*s = InventoryPatchInventoryDevicesIDReqKindLabelPrinter
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindReceiptPrinter:
+		*s = InventoryPatchInventoryDevicesIDReqKindReceiptPrinter
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindPlotter:
+		*s = InventoryPatchInventoryDevicesIDReqKindPlotter
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKind3dPrinter:
+		*s = InventoryPatchInventoryDevicesIDReqKind3dPrinter
 		return nil
 	case InventoryPatchInventoryDevicesIDReqKindCamera:
 		*s = InventoryPatchInventoryDevicesIDReqKindCamera
@@ -78219,11 +86885,149 @@ func (s *InventoryPatchInventoryDevicesIDReqKind) UnmarshalText(data []byte) err
 	case InventoryPatchInventoryDevicesIDReqKindNvr:
 		*s = InventoryPatchInventoryDevicesIDReqKindNvr
 		return nil
+	case InventoryPatchInventoryDevicesIDReqKindDvr:
+		*s = InventoryPatchInventoryDevicesIDReqKindDvr
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindVideoEncoder:
+		*s = InventoryPatchInventoryDevicesIDReqKindVideoEncoder
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindDoorbell:
+		*s = InventoryPatchInventoryDevicesIDReqKindDoorbell
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindVideoConferencing:
+		*s = InventoryPatchInventoryDevicesIDReqKindVideoConferencing
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindIPPhone:
+		*s = InventoryPatchInventoryDevicesIDReqKindIPPhone
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindPbx:
+		*s = InventoryPatchInventoryDevicesIDReqKindPbx
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindVoipAdapter:
+		*s = InventoryPatchInventoryDevicesIDReqKindVoipAdapter
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindVoipGateway:
+		*s = InventoryPatchInventoryDevicesIDReqKindVoipGateway
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindConferencePhone:
+		*s = InventoryPatchInventoryDevicesIDReqKindConferencePhone
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindIntercom:
+		*s = InventoryPatchInventoryDevicesIDReqKindIntercom
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindNas:
+		*s = InventoryPatchInventoryDevicesIDReqKindNas
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindSan:
+		*s = InventoryPatchInventoryDevicesIDReqKindSan
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindBackupAppliance:
+		*s = InventoryPatchInventoryDevicesIDReqKindBackupAppliance
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindTapeLibrary:
+		*s = InventoryPatchInventoryDevicesIDReqKindTapeLibrary
+		return nil
 	case InventoryPatchInventoryDevicesIDReqKindIot:
 		*s = InventoryPatchInventoryDevicesIDReqKindIot
 		return nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartTv:
+		*s = InventoryPatchInventoryDevicesIDReqKindSmartTv
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindMediaPlayer:
+		*s = InventoryPatchInventoryDevicesIDReqKindMediaPlayer
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartSpeaker:
+		*s = InventoryPatchInventoryDevicesIDReqKindSmartSpeaker
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindGameConsole:
+		*s = InventoryPatchInventoryDevicesIDReqKindGameConsole
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartPlug:
+		*s = InventoryPatchInventoryDevicesIDReqKindSmartPlug
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartLight:
+		*s = InventoryPatchInventoryDevicesIDReqKindSmartLight
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartHub:
+		*s = InventoryPatchInventoryDevicesIDReqKindSmartHub
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindThermostat:
+		*s = InventoryPatchInventoryDevicesIDReqKindThermostat
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindProjector:
+		*s = InventoryPatchInventoryDevicesIDReqKindProjector
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindDigitalSignage:
+		*s = InventoryPatchInventoryDevicesIDReqKindDigitalSignage
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindSingleBoardComputer:
+		*s = InventoryPatchInventoryDevicesIDReqKindSingleBoardComputer
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindSmartAppliance:
+		*s = InventoryPatchInventoryDevicesIDReqKindSmartAppliance
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindRobotVacuum:
+		*s = InventoryPatchInventoryDevicesIDReqKindRobotVacuum
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindWirelessBridge:
+		*s = InventoryPatchInventoryDevicesIDReqKindWirelessBridge
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindPlc:
+		*s = InventoryPatchInventoryDevicesIDReqKindPlc
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindHmi:
+		*s = InventoryPatchInventoryDevicesIDReqKindHmi
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindRtu:
+		*s = InventoryPatchInventoryDevicesIDReqKindRtu
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindScadaServer:
+		*s = InventoryPatchInventoryDevicesIDReqKindScadaServer
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindIndustrialSwitch:
+		*s = InventoryPatchInventoryDevicesIDReqKindIndustrialSwitch
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindUps:
+		*s = InventoryPatchInventoryDevicesIDReqKindUps
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindPdu:
+		*s = InventoryPatchInventoryDevicesIDReqKindPdu
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindAccessControl:
+		*s = InventoryPatchInventoryDevicesIDReqKindAccessControl
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindTimeClock:
+		*s = InventoryPatchInventoryDevicesIDReqKindTimeClock
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindAlarmPanel:
+		*s = InventoryPatchInventoryDevicesIDReqKindAlarmPanel
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindHvacController:
+		*s = InventoryPatchInventoryDevicesIDReqKindHvacController
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindBuildingController:
+		*s = InventoryPatchInventoryDevicesIDReqKindBuildingController
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindPowerMeter:
+		*s = InventoryPatchInventoryDevicesIDReqKindPowerMeter
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindEnvironmentMonitor:
+		*s = InventoryPatchInventoryDevicesIDReqKindEnvironmentMonitor
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindEvCharger:
+		*s = InventoryPatchInventoryDevicesIDReqKindEvCharger
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindSolarInverter:
+		*s = InventoryPatchInventoryDevicesIDReqKindSolarInverter
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindMedicalDevice:
+		*s = InventoryPatchInventoryDevicesIDReqKindMedicalDevice
+		return nil
 	case InventoryPatchInventoryDevicesIDReqKindWeb:
 		*s = InventoryPatchInventoryDevicesIDReqKindWeb
+		return nil
+	case InventoryPatchInventoryDevicesIDReqKindCloudService:
+		*s = InventoryPatchInventoryDevicesIDReqKindCloudService
 		return nil
 	case InventoryPatchInventoryDevicesIDReqKindUnknown:
 		*s = InventoryPatchInventoryDevicesIDReqKindUnknown
@@ -80902,7 +89706,8 @@ type InventoryPutInventorySettingsOK struct {
 	Active InventoryPutInventorySettingsOKActive `json:"active"`
 	// Ranges normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24.
 	Adjusted []InventoryPutInventorySettingsOKAdjustedItem `json:"adjusted"`
-	// Device types scanned only once, gently, when first seen; passive-only after that.
+	// Device types scanned only once, gently, when first seen; passive-only after that. Every type acting
+	// as one of them counts (D-511).
 	FragileKinds []InventoryPutInventorySettingsOKFragileKindsItem `json:"fragile_kinds"`
 	// Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461).
 	LanRanges []string `json:"lan_ranges"`
@@ -81318,7 +90123,8 @@ func (s *InventoryPutInventorySettingsOKRegularScanKindsItem) UnmarshalText(data
 
 type InventoryPutInventorySettingsReq struct {
 	Active InventoryPutInventorySettingsReqActive `json:"active"`
-	// Device types scanned only once, gently, when first seen; passive-only after that.
+	// Device types scanned only once, gently, when first seen; passive-only after that. Every type acting
+	// as one of them counts (D-511).
 	FragileKinds []InventoryPutInventorySettingsReqFragileKindsItem `json:"fragile_kinds"`
 	// Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461).
 	LanRanges []string `json:"lan_ranges"`
@@ -94962,6 +103768,96 @@ func (o NilInventoryGetInventoryAgentsOKWazuh) Or(d InventoryGetInventoryAgentsO
 	return d
 }
 
+// NewNilInventoryGetInventoryDevicesIDOKAssetGuess returns new NilInventoryGetInventoryDevicesIDOKAssetGuess with value set to v.
+func NewNilInventoryGetInventoryDevicesIDOKAssetGuess(v InventoryGetInventoryDevicesIDOKAssetGuess) NilInventoryGetInventoryDevicesIDOKAssetGuess {
+	return NilInventoryGetInventoryDevicesIDOKAssetGuess{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesIDOKAssetGuess is nullable InventoryGetInventoryDevicesIDOKAssetGuess.
+type NilInventoryGetInventoryDevicesIDOKAssetGuess struct {
+	Value InventoryGetInventoryDevicesIDOKAssetGuess
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesIDOKAssetGuess) SetTo(v InventoryGetInventoryDevicesIDOKAssetGuess) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesIDOKAssetGuess) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesIDOKAssetGuess) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesIDOKAssetGuess
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesIDOKAssetGuess) Get() (v InventoryGetInventoryDevicesIDOKAssetGuess, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesIDOKAssetGuess) Or(d InventoryGetInventoryDevicesIDOKAssetGuess) InventoryGetInventoryDevicesIDOKAssetGuess {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryGetInventoryDevicesIDOKAssetKindSource returns new NilInventoryGetInventoryDevicesIDOKAssetKindSource with value set to v.
+func NewNilInventoryGetInventoryDevicesIDOKAssetKindSource(v InventoryGetInventoryDevicesIDOKAssetKindSource) NilInventoryGetInventoryDevicesIDOKAssetKindSource {
+	return NilInventoryGetInventoryDevicesIDOKAssetKindSource{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesIDOKAssetKindSource is nullable InventoryGetInventoryDevicesIDOKAssetKindSource.
+type NilInventoryGetInventoryDevicesIDOKAssetKindSource struct {
+	Value InventoryGetInventoryDevicesIDOKAssetKindSource
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesIDOKAssetKindSource) SetTo(v InventoryGetInventoryDevicesIDOKAssetKindSource) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesIDOKAssetKindSource) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesIDOKAssetKindSource) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesIDOKAssetKindSource
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesIDOKAssetKindSource) Get() (v InventoryGetInventoryDevicesIDOKAssetKindSource, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesIDOKAssetKindSource) Or(d InventoryGetInventoryDevicesIDOKAssetKindSource) InventoryGetInventoryDevicesIDOKAssetKindSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilInventoryGetInventoryDevicesIDOKAssetModel returns new NilInventoryGetInventoryDevicesIDOKAssetModel with value set to v.
 func NewNilInventoryGetInventoryDevicesIDOKAssetModel(v InventoryGetInventoryDevicesIDOKAssetModel) NilInventoryGetInventoryDevicesIDOKAssetModel {
 	return NilInventoryGetInventoryDevicesIDOKAssetModel{
@@ -95091,6 +103987,96 @@ func (o NilInventoryGetInventoryDevicesIDOKAssetVendor) Get() (v InventoryGetInv
 
 // Or returns value if set, or given parameter if does not.
 func (o NilInventoryGetInventoryDevicesIDOKAssetVendor) Or(d InventoryGetInventoryDevicesIDOKAssetVendor) InventoryGetInventoryDevicesIDOKAssetVendor {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryGetInventoryDevicesOKItemsItemGuess returns new NilInventoryGetInventoryDevicesOKItemsItemGuess with value set to v.
+func NewNilInventoryGetInventoryDevicesOKItemsItemGuess(v InventoryGetInventoryDevicesOKItemsItemGuess) NilInventoryGetInventoryDevicesOKItemsItemGuess {
+	return NilInventoryGetInventoryDevicesOKItemsItemGuess{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesOKItemsItemGuess is nullable InventoryGetInventoryDevicesOKItemsItemGuess.
+type NilInventoryGetInventoryDevicesOKItemsItemGuess struct {
+	Value InventoryGetInventoryDevicesOKItemsItemGuess
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesOKItemsItemGuess) SetTo(v InventoryGetInventoryDevicesOKItemsItemGuess) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesOKItemsItemGuess) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesOKItemsItemGuess) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesOKItemsItemGuess
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesOKItemsItemGuess) Get() (v InventoryGetInventoryDevicesOKItemsItemGuess, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesOKItemsItemGuess) Or(d InventoryGetInventoryDevicesOKItemsItemGuess) InventoryGetInventoryDevicesOKItemsItemGuess {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryGetInventoryDevicesOKItemsItemKindSource returns new NilInventoryGetInventoryDevicesOKItemsItemKindSource with value set to v.
+func NewNilInventoryGetInventoryDevicesOKItemsItemKindSource(v InventoryGetInventoryDevicesOKItemsItemKindSource) NilInventoryGetInventoryDevicesOKItemsItemKindSource {
+	return NilInventoryGetInventoryDevicesOKItemsItemKindSource{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesOKItemsItemKindSource is nullable InventoryGetInventoryDevicesOKItemsItemKindSource.
+type NilInventoryGetInventoryDevicesOKItemsItemKindSource struct {
+	Value InventoryGetInventoryDevicesOKItemsItemKindSource
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesOKItemsItemKindSource) SetTo(v InventoryGetInventoryDevicesOKItemsItemKindSource) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesOKItemsItemKindSource) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesOKItemsItemKindSource) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesOKItemsItemKindSource
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesOKItemsItemKindSource) Get() (v InventoryGetInventoryDevicesOKItemsItemKindSource, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesOKItemsItemKindSource) Or(d InventoryGetInventoryDevicesOKItemsItemKindSource) InventoryGetInventoryDevicesOKItemsItemKindSource {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -153046,36 +162032,188 @@ func (s *ScanGetScansTargetsOKItemsItem) SetVendor(val NilString) {
 type ScanGetScansTargetsOKItemsItemDeviceKind string
 
 const (
-	ScanGetScansTargetsOKItemsItemDeviceKindFirewall ScanGetScansTargetsOKItemsItemDeviceKind = "firewall"
-	ScanGetScansTargetsOKItemsItemDeviceKindRouter   ScanGetScansTargetsOKItemsItemDeviceKind = "router"
-	ScanGetScansTargetsOKItemsItemDeviceKindSwitch   ScanGetScansTargetsOKItemsItemDeviceKind = "switch"
-	ScanGetScansTargetsOKItemsItemDeviceKindAp       ScanGetScansTargetsOKItemsItemDeviceKind = "ap"
-	ScanGetScansTargetsOKItemsItemDeviceKindNas      ScanGetScansTargetsOKItemsItemDeviceKind = "nas"
-	ScanGetScansTargetsOKItemsItemDeviceKindServer   ScanGetScansTargetsOKItemsItemDeviceKind = "server"
-	ScanGetScansTargetsOKItemsItemDeviceKindPc       ScanGetScansTargetsOKItemsItemDeviceKind = "pc"
-	ScanGetScansTargetsOKItemsItemDeviceKindPrinter  ScanGetScansTargetsOKItemsItemDeviceKind = "printer"
-	ScanGetScansTargetsOKItemsItemDeviceKindCamera   ScanGetScansTargetsOKItemsItemDeviceKind = "camera"
-	ScanGetScansTargetsOKItemsItemDeviceKindNvr      ScanGetScansTargetsOKItemsItemDeviceKind = "nvr"
-	ScanGetScansTargetsOKItemsItemDeviceKindIot      ScanGetScansTargetsOKItemsItemDeviceKind = "iot"
-	ScanGetScansTargetsOKItemsItemDeviceKindWeb      ScanGetScansTargetsOKItemsItemDeviceKind = "web"
-	ScanGetScansTargetsOKItemsItemDeviceKindUnknown  ScanGetScansTargetsOKItemsItemDeviceKind = "unknown"
+	ScanGetScansTargetsOKItemsItemDeviceKindRouter              ScanGetScansTargetsOKItemsItemDeviceKind = "router"
+	ScanGetScansTargetsOKItemsItemDeviceKindSwitch              ScanGetScansTargetsOKItemsItemDeviceKind = "switch"
+	ScanGetScansTargetsOKItemsItemDeviceKindModem               ScanGetScansTargetsOKItemsItemDeviceKind = "modem"
+	ScanGetScansTargetsOKItemsItemDeviceKindSdWan               ScanGetScansTargetsOKItemsItemDeviceKind = "sd_wan"
+	ScanGetScansTargetsOKItemsItemDeviceKindLoadBalancer        ScanGetScansTargetsOKItemsItemDeviceKind = "load_balancer"
+	ScanGetScansTargetsOKItemsItemDeviceKindNetworkController   ScanGetScansTargetsOKItemsItemDeviceKind = "network_controller"
+	ScanGetScansTargetsOKItemsItemDeviceKindFirewall            ScanGetScansTargetsOKItemsItemDeviceKind = "firewall"
+	ScanGetScansTargetsOKItemsItemDeviceKindVpnGateway          ScanGetScansTargetsOKItemsItemDeviceKind = "vpn_gateway"
+	ScanGetScansTargetsOKItemsItemDeviceKindIdsSensor           ScanGetScansTargetsOKItemsItemDeviceKind = "ids_sensor"
+	ScanGetScansTargetsOKItemsItemDeviceKindProxy               ScanGetScansTargetsOKItemsItemDeviceKind = "proxy"
+	ScanGetScansTargetsOKItemsItemDeviceKindAp                  ScanGetScansTargetsOKItemsItemDeviceKind = "ap"
+	ScanGetScansTargetsOKItemsItemDeviceKindWirelessController  ScanGetScansTargetsOKItemsItemDeviceKind = "wireless_controller"
+	ScanGetScansTargetsOKItemsItemDeviceKindWifiExtender        ScanGetScansTargetsOKItemsItemDeviceKind = "wifi_extender"
+	ScanGetScansTargetsOKItemsItemDeviceKindMeshNode            ScanGetScansTargetsOKItemsItemDeviceKind = "mesh_node"
+	ScanGetScansTargetsOKItemsItemDeviceKindServer              ScanGetScansTargetsOKItemsItemDeviceKind = "server"
+	ScanGetScansTargetsOKItemsItemDeviceKindVirtualMachine      ScanGetScansTargetsOKItemsItemDeviceKind = "virtual_machine"
+	ScanGetScansTargetsOKItemsItemDeviceKindHypervisor          ScanGetScansTargetsOKItemsItemDeviceKind = "hypervisor"
+	ScanGetScansTargetsOKItemsItemDeviceKindBmc                 ScanGetScansTargetsOKItemsItemDeviceKind = "bmc"
+	ScanGetScansTargetsOKItemsItemDeviceKindDomainController    ScanGetScansTargetsOKItemsItemDeviceKind = "domain_controller"
+	ScanGetScansTargetsOKItemsItemDeviceKindMailServer          ScanGetScansTargetsOKItemsItemDeviceKind = "mail_server"
+	ScanGetScansTargetsOKItemsItemDeviceKindDatabaseServer      ScanGetScansTargetsOKItemsItemDeviceKind = "database_server"
+	ScanGetScansTargetsOKItemsItemDeviceKindBackupServer        ScanGetScansTargetsOKItemsItemDeviceKind = "backup_server"
+	ScanGetScansTargetsOKItemsItemDeviceKindPc                  ScanGetScansTargetsOKItemsItemDeviceKind = "pc"
+	ScanGetScansTargetsOKItemsItemDeviceKindLaptop              ScanGetScansTargetsOKItemsItemDeviceKind = "laptop"
+	ScanGetScansTargetsOKItemsItemDeviceKindWorkstation         ScanGetScansTargetsOKItemsItemDeviceKind = "workstation"
+	ScanGetScansTargetsOKItemsItemDeviceKindThinClient          ScanGetScansTargetsOKItemsItemDeviceKind = "thin_client"
+	ScanGetScansTargetsOKItemsItemDeviceKindPosTerminal         ScanGetScansTargetsOKItemsItemDeviceKind = "pos_terminal"
+	ScanGetScansTargetsOKItemsItemDeviceKindKiosk               ScanGetScansTargetsOKItemsItemDeviceKind = "kiosk"
+	ScanGetScansTargetsOKItemsItemDeviceKindSmartphone          ScanGetScansTargetsOKItemsItemDeviceKind = "smartphone"
+	ScanGetScansTargetsOKItemsItemDeviceKindTablet              ScanGetScansTargetsOKItemsItemDeviceKind = "tablet"
+	ScanGetScansTargetsOKItemsItemDeviceKindSmartwatch          ScanGetScansTargetsOKItemsItemDeviceKind = "smartwatch"
+	ScanGetScansTargetsOKItemsItemDeviceKindPrinter             ScanGetScansTargetsOKItemsItemDeviceKind = "printer"
+	ScanGetScansTargetsOKItemsItemDeviceKindMfp                 ScanGetScansTargetsOKItemsItemDeviceKind = "mfp"
+	ScanGetScansTargetsOKItemsItemDeviceKindScanner             ScanGetScansTargetsOKItemsItemDeviceKind = "scanner"
+	ScanGetScansTargetsOKItemsItemDeviceKindLabelPrinter        ScanGetScansTargetsOKItemsItemDeviceKind = "label_printer"
+	ScanGetScansTargetsOKItemsItemDeviceKindReceiptPrinter      ScanGetScansTargetsOKItemsItemDeviceKind = "receipt_printer"
+	ScanGetScansTargetsOKItemsItemDeviceKindPlotter             ScanGetScansTargetsOKItemsItemDeviceKind = "plotter"
+	ScanGetScansTargetsOKItemsItemDeviceKind3dPrinter           ScanGetScansTargetsOKItemsItemDeviceKind = "3d_printer"
+	ScanGetScansTargetsOKItemsItemDeviceKindCamera              ScanGetScansTargetsOKItemsItemDeviceKind = "camera"
+	ScanGetScansTargetsOKItemsItemDeviceKindNvr                 ScanGetScansTargetsOKItemsItemDeviceKind = "nvr"
+	ScanGetScansTargetsOKItemsItemDeviceKindDvr                 ScanGetScansTargetsOKItemsItemDeviceKind = "dvr"
+	ScanGetScansTargetsOKItemsItemDeviceKindVideoEncoder        ScanGetScansTargetsOKItemsItemDeviceKind = "video_encoder"
+	ScanGetScansTargetsOKItemsItemDeviceKindDoorbell            ScanGetScansTargetsOKItemsItemDeviceKind = "doorbell"
+	ScanGetScansTargetsOKItemsItemDeviceKindVideoConferencing   ScanGetScansTargetsOKItemsItemDeviceKind = "video_conferencing"
+	ScanGetScansTargetsOKItemsItemDeviceKindIPPhone             ScanGetScansTargetsOKItemsItemDeviceKind = "ip_phone"
+	ScanGetScansTargetsOKItemsItemDeviceKindPbx                 ScanGetScansTargetsOKItemsItemDeviceKind = "pbx"
+	ScanGetScansTargetsOKItemsItemDeviceKindVoipAdapter         ScanGetScansTargetsOKItemsItemDeviceKind = "voip_adapter"
+	ScanGetScansTargetsOKItemsItemDeviceKindVoipGateway         ScanGetScansTargetsOKItemsItemDeviceKind = "voip_gateway"
+	ScanGetScansTargetsOKItemsItemDeviceKindConferencePhone     ScanGetScansTargetsOKItemsItemDeviceKind = "conference_phone"
+	ScanGetScansTargetsOKItemsItemDeviceKindIntercom            ScanGetScansTargetsOKItemsItemDeviceKind = "intercom"
+	ScanGetScansTargetsOKItemsItemDeviceKindNas                 ScanGetScansTargetsOKItemsItemDeviceKind = "nas"
+	ScanGetScansTargetsOKItemsItemDeviceKindSan                 ScanGetScansTargetsOKItemsItemDeviceKind = "san"
+	ScanGetScansTargetsOKItemsItemDeviceKindBackupAppliance     ScanGetScansTargetsOKItemsItemDeviceKind = "backup_appliance"
+	ScanGetScansTargetsOKItemsItemDeviceKindTapeLibrary         ScanGetScansTargetsOKItemsItemDeviceKind = "tape_library"
+	ScanGetScansTargetsOKItemsItemDeviceKindIot                 ScanGetScansTargetsOKItemsItemDeviceKind = "iot"
+	ScanGetScansTargetsOKItemsItemDeviceKindSmartTv             ScanGetScansTargetsOKItemsItemDeviceKind = "smart_tv"
+	ScanGetScansTargetsOKItemsItemDeviceKindMediaPlayer         ScanGetScansTargetsOKItemsItemDeviceKind = "media_player"
+	ScanGetScansTargetsOKItemsItemDeviceKindSmartSpeaker        ScanGetScansTargetsOKItemsItemDeviceKind = "smart_speaker"
+	ScanGetScansTargetsOKItemsItemDeviceKindGameConsole         ScanGetScansTargetsOKItemsItemDeviceKind = "game_console"
+	ScanGetScansTargetsOKItemsItemDeviceKindSmartPlug           ScanGetScansTargetsOKItemsItemDeviceKind = "smart_plug"
+	ScanGetScansTargetsOKItemsItemDeviceKindSmartLight          ScanGetScansTargetsOKItemsItemDeviceKind = "smart_light"
+	ScanGetScansTargetsOKItemsItemDeviceKindSmartHub            ScanGetScansTargetsOKItemsItemDeviceKind = "smart_hub"
+	ScanGetScansTargetsOKItemsItemDeviceKindThermostat          ScanGetScansTargetsOKItemsItemDeviceKind = "thermostat"
+	ScanGetScansTargetsOKItemsItemDeviceKindProjector           ScanGetScansTargetsOKItemsItemDeviceKind = "projector"
+	ScanGetScansTargetsOKItemsItemDeviceKindDigitalSignage      ScanGetScansTargetsOKItemsItemDeviceKind = "digital_signage"
+	ScanGetScansTargetsOKItemsItemDeviceKindSingleBoardComputer ScanGetScansTargetsOKItemsItemDeviceKind = "single_board_computer"
+	ScanGetScansTargetsOKItemsItemDeviceKindSmartAppliance      ScanGetScansTargetsOKItemsItemDeviceKind = "smart_appliance"
+	ScanGetScansTargetsOKItemsItemDeviceKindRobotVacuum         ScanGetScansTargetsOKItemsItemDeviceKind = "robot_vacuum"
+	ScanGetScansTargetsOKItemsItemDeviceKindWirelessBridge      ScanGetScansTargetsOKItemsItemDeviceKind = "wireless_bridge"
+	ScanGetScansTargetsOKItemsItemDeviceKindPlc                 ScanGetScansTargetsOKItemsItemDeviceKind = "plc"
+	ScanGetScansTargetsOKItemsItemDeviceKindHmi                 ScanGetScansTargetsOKItemsItemDeviceKind = "hmi"
+	ScanGetScansTargetsOKItemsItemDeviceKindRtu                 ScanGetScansTargetsOKItemsItemDeviceKind = "rtu"
+	ScanGetScansTargetsOKItemsItemDeviceKindScadaServer         ScanGetScansTargetsOKItemsItemDeviceKind = "scada_server"
+	ScanGetScansTargetsOKItemsItemDeviceKindIndustrialSwitch    ScanGetScansTargetsOKItemsItemDeviceKind = "industrial_switch"
+	ScanGetScansTargetsOKItemsItemDeviceKindUps                 ScanGetScansTargetsOKItemsItemDeviceKind = "ups"
+	ScanGetScansTargetsOKItemsItemDeviceKindPdu                 ScanGetScansTargetsOKItemsItemDeviceKind = "pdu"
+	ScanGetScansTargetsOKItemsItemDeviceKindAccessControl       ScanGetScansTargetsOKItemsItemDeviceKind = "access_control"
+	ScanGetScansTargetsOKItemsItemDeviceKindTimeClock           ScanGetScansTargetsOKItemsItemDeviceKind = "time_clock"
+	ScanGetScansTargetsOKItemsItemDeviceKindAlarmPanel          ScanGetScansTargetsOKItemsItemDeviceKind = "alarm_panel"
+	ScanGetScansTargetsOKItemsItemDeviceKindHvacController      ScanGetScansTargetsOKItemsItemDeviceKind = "hvac_controller"
+	ScanGetScansTargetsOKItemsItemDeviceKindBuildingController  ScanGetScansTargetsOKItemsItemDeviceKind = "building_controller"
+	ScanGetScansTargetsOKItemsItemDeviceKindPowerMeter          ScanGetScansTargetsOKItemsItemDeviceKind = "power_meter"
+	ScanGetScansTargetsOKItemsItemDeviceKindEnvironmentMonitor  ScanGetScansTargetsOKItemsItemDeviceKind = "environment_monitor"
+	ScanGetScansTargetsOKItemsItemDeviceKindEvCharger           ScanGetScansTargetsOKItemsItemDeviceKind = "ev_charger"
+	ScanGetScansTargetsOKItemsItemDeviceKindSolarInverter       ScanGetScansTargetsOKItemsItemDeviceKind = "solar_inverter"
+	ScanGetScansTargetsOKItemsItemDeviceKindMedicalDevice       ScanGetScansTargetsOKItemsItemDeviceKind = "medical_device"
+	ScanGetScansTargetsOKItemsItemDeviceKindWeb                 ScanGetScansTargetsOKItemsItemDeviceKind = "web"
+	ScanGetScansTargetsOKItemsItemDeviceKindCloudService        ScanGetScansTargetsOKItemsItemDeviceKind = "cloud_service"
+	ScanGetScansTargetsOKItemsItemDeviceKindUnknown             ScanGetScansTargetsOKItemsItemDeviceKind = "unknown"
 )
 
 // AllValues returns all ScanGetScansTargetsOKItemsItemDeviceKind values.
 func (ScanGetScansTargetsOKItemsItemDeviceKind) AllValues() []ScanGetScansTargetsOKItemsItemDeviceKind {
 	return []ScanGetScansTargetsOKItemsItemDeviceKind{
-		ScanGetScansTargetsOKItemsItemDeviceKindFirewall,
 		ScanGetScansTargetsOKItemsItemDeviceKindRouter,
 		ScanGetScansTargetsOKItemsItemDeviceKindSwitch,
+		ScanGetScansTargetsOKItemsItemDeviceKindModem,
+		ScanGetScansTargetsOKItemsItemDeviceKindSdWan,
+		ScanGetScansTargetsOKItemsItemDeviceKindLoadBalancer,
+		ScanGetScansTargetsOKItemsItemDeviceKindNetworkController,
+		ScanGetScansTargetsOKItemsItemDeviceKindFirewall,
+		ScanGetScansTargetsOKItemsItemDeviceKindVpnGateway,
+		ScanGetScansTargetsOKItemsItemDeviceKindIdsSensor,
+		ScanGetScansTargetsOKItemsItemDeviceKindProxy,
 		ScanGetScansTargetsOKItemsItemDeviceKindAp,
-		ScanGetScansTargetsOKItemsItemDeviceKindNas,
+		ScanGetScansTargetsOKItemsItemDeviceKindWirelessController,
+		ScanGetScansTargetsOKItemsItemDeviceKindWifiExtender,
+		ScanGetScansTargetsOKItemsItemDeviceKindMeshNode,
 		ScanGetScansTargetsOKItemsItemDeviceKindServer,
+		ScanGetScansTargetsOKItemsItemDeviceKindVirtualMachine,
+		ScanGetScansTargetsOKItemsItemDeviceKindHypervisor,
+		ScanGetScansTargetsOKItemsItemDeviceKindBmc,
+		ScanGetScansTargetsOKItemsItemDeviceKindDomainController,
+		ScanGetScansTargetsOKItemsItemDeviceKindMailServer,
+		ScanGetScansTargetsOKItemsItemDeviceKindDatabaseServer,
+		ScanGetScansTargetsOKItemsItemDeviceKindBackupServer,
 		ScanGetScansTargetsOKItemsItemDeviceKindPc,
+		ScanGetScansTargetsOKItemsItemDeviceKindLaptop,
+		ScanGetScansTargetsOKItemsItemDeviceKindWorkstation,
+		ScanGetScansTargetsOKItemsItemDeviceKindThinClient,
+		ScanGetScansTargetsOKItemsItemDeviceKindPosTerminal,
+		ScanGetScansTargetsOKItemsItemDeviceKindKiosk,
+		ScanGetScansTargetsOKItemsItemDeviceKindSmartphone,
+		ScanGetScansTargetsOKItemsItemDeviceKindTablet,
+		ScanGetScansTargetsOKItemsItemDeviceKindSmartwatch,
 		ScanGetScansTargetsOKItemsItemDeviceKindPrinter,
+		ScanGetScansTargetsOKItemsItemDeviceKindMfp,
+		ScanGetScansTargetsOKItemsItemDeviceKindScanner,
+		ScanGetScansTargetsOKItemsItemDeviceKindLabelPrinter,
+		ScanGetScansTargetsOKItemsItemDeviceKindReceiptPrinter,
+		ScanGetScansTargetsOKItemsItemDeviceKindPlotter,
+		ScanGetScansTargetsOKItemsItemDeviceKind3dPrinter,
 		ScanGetScansTargetsOKItemsItemDeviceKindCamera,
 		ScanGetScansTargetsOKItemsItemDeviceKindNvr,
+		ScanGetScansTargetsOKItemsItemDeviceKindDvr,
+		ScanGetScansTargetsOKItemsItemDeviceKindVideoEncoder,
+		ScanGetScansTargetsOKItemsItemDeviceKindDoorbell,
+		ScanGetScansTargetsOKItemsItemDeviceKindVideoConferencing,
+		ScanGetScansTargetsOKItemsItemDeviceKindIPPhone,
+		ScanGetScansTargetsOKItemsItemDeviceKindPbx,
+		ScanGetScansTargetsOKItemsItemDeviceKindVoipAdapter,
+		ScanGetScansTargetsOKItemsItemDeviceKindVoipGateway,
+		ScanGetScansTargetsOKItemsItemDeviceKindConferencePhone,
+		ScanGetScansTargetsOKItemsItemDeviceKindIntercom,
+		ScanGetScansTargetsOKItemsItemDeviceKindNas,
+		ScanGetScansTargetsOKItemsItemDeviceKindSan,
+		ScanGetScansTargetsOKItemsItemDeviceKindBackupAppliance,
+		ScanGetScansTargetsOKItemsItemDeviceKindTapeLibrary,
 		ScanGetScansTargetsOKItemsItemDeviceKindIot,
+		ScanGetScansTargetsOKItemsItemDeviceKindSmartTv,
+		ScanGetScansTargetsOKItemsItemDeviceKindMediaPlayer,
+		ScanGetScansTargetsOKItemsItemDeviceKindSmartSpeaker,
+		ScanGetScansTargetsOKItemsItemDeviceKindGameConsole,
+		ScanGetScansTargetsOKItemsItemDeviceKindSmartPlug,
+		ScanGetScansTargetsOKItemsItemDeviceKindSmartLight,
+		ScanGetScansTargetsOKItemsItemDeviceKindSmartHub,
+		ScanGetScansTargetsOKItemsItemDeviceKindThermostat,
+		ScanGetScansTargetsOKItemsItemDeviceKindProjector,
+		ScanGetScansTargetsOKItemsItemDeviceKindDigitalSignage,
+		ScanGetScansTargetsOKItemsItemDeviceKindSingleBoardComputer,
+		ScanGetScansTargetsOKItemsItemDeviceKindSmartAppliance,
+		ScanGetScansTargetsOKItemsItemDeviceKindRobotVacuum,
+		ScanGetScansTargetsOKItemsItemDeviceKindWirelessBridge,
+		ScanGetScansTargetsOKItemsItemDeviceKindPlc,
+		ScanGetScansTargetsOKItemsItemDeviceKindHmi,
+		ScanGetScansTargetsOKItemsItemDeviceKindRtu,
+		ScanGetScansTargetsOKItemsItemDeviceKindScadaServer,
+		ScanGetScansTargetsOKItemsItemDeviceKindIndustrialSwitch,
+		ScanGetScansTargetsOKItemsItemDeviceKindUps,
+		ScanGetScansTargetsOKItemsItemDeviceKindPdu,
+		ScanGetScansTargetsOKItemsItemDeviceKindAccessControl,
+		ScanGetScansTargetsOKItemsItemDeviceKindTimeClock,
+		ScanGetScansTargetsOKItemsItemDeviceKindAlarmPanel,
+		ScanGetScansTargetsOKItemsItemDeviceKindHvacController,
+		ScanGetScansTargetsOKItemsItemDeviceKindBuildingController,
+		ScanGetScansTargetsOKItemsItemDeviceKindPowerMeter,
+		ScanGetScansTargetsOKItemsItemDeviceKindEnvironmentMonitor,
+		ScanGetScansTargetsOKItemsItemDeviceKindEvCharger,
+		ScanGetScansTargetsOKItemsItemDeviceKindSolarInverter,
+		ScanGetScansTargetsOKItemsItemDeviceKindMedicalDevice,
 		ScanGetScansTargetsOKItemsItemDeviceKindWeb,
+		ScanGetScansTargetsOKItemsItemDeviceKindCloudService,
 		ScanGetScansTargetsOKItemsItemDeviceKindUnknown,
 	}
 }
@@ -153083,29 +162221,181 @@ func (ScanGetScansTargetsOKItemsItemDeviceKind) AllValues() []ScanGetScansTarget
 // MarshalText implements encoding.TextMarshaler.
 func (s ScanGetScansTargetsOKItemsItemDeviceKind) MarshalText() ([]byte, error) {
 	switch s {
-	case ScanGetScansTargetsOKItemsItemDeviceKindFirewall:
-		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindRouter:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindSwitch:
 		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindModem:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSdWan:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindLoadBalancer:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindNetworkController:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindFirewall:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindVpnGateway:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindIdsSensor:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindProxy:
+		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindAp:
 		return []byte(s), nil
-	case ScanGetScansTargetsOKItemsItemDeviceKindNas:
+	case ScanGetScansTargetsOKItemsItemDeviceKindWirelessController:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindWifiExtender:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindMeshNode:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindServer:
 		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindVirtualMachine:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindHypervisor:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindBmc:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindDomainController:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindMailServer:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindDatabaseServer:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindBackupServer:
+		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindPc:
 		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindLaptop:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindWorkstation:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindThinClient:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindPosTerminal:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindKiosk:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartphone:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindTablet:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartwatch:
+		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindPrinter:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindMfp:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindScanner:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindLabelPrinter:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindReceiptPrinter:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindPlotter:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKind3dPrinter:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindCamera:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindNvr:
 		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindDvr:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindVideoEncoder:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindDoorbell:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindVideoConferencing:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindIPPhone:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindPbx:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindVoipAdapter:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindVoipGateway:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindConferencePhone:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindIntercom:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindNas:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSan:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindBackupAppliance:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindTapeLibrary:
+		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindIot:
 		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartTv:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindMediaPlayer:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartSpeaker:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindGameConsole:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartPlug:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartLight:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartHub:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindThermostat:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindProjector:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindDigitalSignage:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSingleBoardComputer:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartAppliance:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindRobotVacuum:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindWirelessBridge:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindPlc:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindHmi:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindRtu:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindScadaServer:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindIndustrialSwitch:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindUps:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindPdu:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindAccessControl:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindTimeClock:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindAlarmPanel:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindHvacController:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindBuildingController:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindPowerMeter:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindEnvironmentMonitor:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindEvCharger:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSolarInverter:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindMedicalDevice:
+		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindWeb:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindCloudService:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindUnknown:
 		return []byte(s), nil
@@ -153117,29 +162407,119 @@ func (s ScanGetScansTargetsOKItemsItemDeviceKind) MarshalText() ([]byte, error) 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ScanGetScansTargetsOKItemsItemDeviceKind) UnmarshalText(data []byte) error {
 	switch ScanGetScansTargetsOKItemsItemDeviceKind(data) {
-	case ScanGetScansTargetsOKItemsItemDeviceKindFirewall:
-		*s = ScanGetScansTargetsOKItemsItemDeviceKindFirewall
-		return nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindRouter:
 		*s = ScanGetScansTargetsOKItemsItemDeviceKindRouter
 		return nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindSwitch:
 		*s = ScanGetScansTargetsOKItemsItemDeviceKindSwitch
 		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindModem:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindModem
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSdWan:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindSdWan
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindLoadBalancer:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindLoadBalancer
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindNetworkController:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindNetworkController
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindFirewall:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindFirewall
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindVpnGateway:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindVpnGateway
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindIdsSensor:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindIdsSensor
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindProxy:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindProxy
+		return nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindAp:
 		*s = ScanGetScansTargetsOKItemsItemDeviceKindAp
 		return nil
-	case ScanGetScansTargetsOKItemsItemDeviceKindNas:
-		*s = ScanGetScansTargetsOKItemsItemDeviceKindNas
+	case ScanGetScansTargetsOKItemsItemDeviceKindWirelessController:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindWirelessController
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindWifiExtender:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindWifiExtender
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindMeshNode:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindMeshNode
 		return nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindServer:
 		*s = ScanGetScansTargetsOKItemsItemDeviceKindServer
 		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindVirtualMachine:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindVirtualMachine
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindHypervisor:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindHypervisor
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindBmc:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindBmc
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindDomainController:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindDomainController
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindMailServer:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindMailServer
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindDatabaseServer:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindDatabaseServer
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindBackupServer:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindBackupServer
+		return nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindPc:
 		*s = ScanGetScansTargetsOKItemsItemDeviceKindPc
 		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindLaptop:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindLaptop
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindWorkstation:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindWorkstation
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindThinClient:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindThinClient
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindPosTerminal:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindPosTerminal
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindKiosk:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindKiosk
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartphone:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindSmartphone
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindTablet:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindTablet
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartwatch:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindSmartwatch
+		return nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindPrinter:
 		*s = ScanGetScansTargetsOKItemsItemDeviceKindPrinter
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindMfp:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindMfp
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindScanner:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindScanner
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindLabelPrinter:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindLabelPrinter
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindReceiptPrinter:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindReceiptPrinter
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindPlotter:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindPlotter
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKind3dPrinter:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKind3dPrinter
 		return nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindCamera:
 		*s = ScanGetScansTargetsOKItemsItemDeviceKindCamera
@@ -153147,11 +162527,149 @@ func (s *ScanGetScansTargetsOKItemsItemDeviceKind) UnmarshalText(data []byte) er
 	case ScanGetScansTargetsOKItemsItemDeviceKindNvr:
 		*s = ScanGetScansTargetsOKItemsItemDeviceKindNvr
 		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindDvr:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindDvr
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindVideoEncoder:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindVideoEncoder
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindDoorbell:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindDoorbell
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindVideoConferencing:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindVideoConferencing
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindIPPhone:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindIPPhone
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindPbx:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindPbx
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindVoipAdapter:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindVoipAdapter
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindVoipGateway:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindVoipGateway
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindConferencePhone:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindConferencePhone
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindIntercom:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindIntercom
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindNas:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindNas
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSan:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindSan
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindBackupAppliance:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindBackupAppliance
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindTapeLibrary:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindTapeLibrary
+		return nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindIot:
 		*s = ScanGetScansTargetsOKItemsItemDeviceKindIot
 		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartTv:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindSmartTv
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindMediaPlayer:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindMediaPlayer
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartSpeaker:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindSmartSpeaker
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindGameConsole:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindGameConsole
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartPlug:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindSmartPlug
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartLight:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindSmartLight
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartHub:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindSmartHub
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindThermostat:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindThermostat
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindProjector:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindProjector
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindDigitalSignage:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindDigitalSignage
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSingleBoardComputer:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindSingleBoardComputer
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSmartAppliance:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindSmartAppliance
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindRobotVacuum:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindRobotVacuum
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindWirelessBridge:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindWirelessBridge
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindPlc:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindPlc
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindHmi:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindHmi
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindRtu:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindRtu
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindScadaServer:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindScadaServer
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindIndustrialSwitch:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindIndustrialSwitch
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindUps:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindUps
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindPdu:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindPdu
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindAccessControl:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindAccessControl
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindTimeClock:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindTimeClock
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindAlarmPanel:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindAlarmPanel
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindHvacController:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindHvacController
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindBuildingController:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindBuildingController
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindPowerMeter:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindPowerMeter
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindEnvironmentMonitor:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindEnvironmentMonitor
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindEvCharger:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindEvCharger
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindSolarInverter:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindSolarInverter
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindMedicalDevice:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindMedicalDevice
+		return nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindWeb:
 		*s = ScanGetScansTargetsOKItemsItemDeviceKindWeb
+		return nil
+	case ScanGetScansTargetsOKItemsItemDeviceKindCloudService:
+		*s = ScanGetScansTargetsOKItemsItemDeviceKindCloudService
 		return nil
 	case ScanGetScansTargetsOKItemsItemDeviceKindUnknown:
 		*s = ScanGetScansTargetsOKItemsItemDeviceKindUnknown

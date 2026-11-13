@@ -61,6 +61,78 @@ type moduleContainer struct {
 	// unsureSince is when ensureOn first found the state unreadable since the last good read (zero: it was readable). Reset
 	// by a good read, a start the host confirmed and ensureOff, so a later switch-on waits its own unsureFor again.
 	unsureSince time.Time
+	// watch records how the start goes for GET /inventory/sensors (W2-6); nil: nobody asks (scan, tests).
+	watch *startWatch
+}
+
+// startWatch tells GET /inventory/sensors that the box is still bringing the sensor container up, so that a sensor that has not
+// reported yet says "starting" instead of "not connected" (customer walk 2, W2-6: right after setup the host was busy and the
+// start was retried for about two minutes). Starting: the start is being retried, for at most startGiveUp, or the host confirmed
+// it (or that the unit already runs) less than startSettle ago. A start that keeps failing past startGiveUp, or a container
+// that has not reported startSettle after it started, is a failure the admin should see. Safe on a nil *startWatch.
+type startWatch struct {
+	now func() time.Time // nil: time.Now
+
+	mu            sync.Mutex
+	retryingSince time.Time // zero: the last attempt did not fail
+	confirmedAt   time.Time // zero: no start confirmed since the last reset
+}
+
+const (
+	startSettle = 3 * time.Minute  // a started sensor sends its first heartbeat within seconds; its health start period is 60 s
+	startGiveUp = 10 * time.Minute // modreg.OffBackoff tries at 10 s, 40 s and 2 min 40 s, then every 10 min: past that it is a failure
+)
+
+func (w *startWatch) clock() time.Time {
+	if w.now != nil {
+		return w.now()
+	}
+	return time.Now()
+}
+
+// done records the end of one attempt of ensureOn: err != nil, it is retried; sent, a start went out and the host confirmed it;
+// neither, the unit already ran, which counts only as the first look since the last reset (a scope change re-runs the guard and
+// must not make a broken sensor "start" again).
+func (w *startWatch) done(err error, sent bool) {
+	if w == nil {
+		return
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	switch {
+	case err != nil:
+		if w.retryingSince.IsZero() {
+			w.retryingSince = w.clock()
+		}
+	case sent || w.confirmedAt.IsZero():
+		w.retryingSince, w.confirmedAt = time.Time{}, w.clock()
+	default:
+		w.retryingSince = time.Time{}
+	}
+}
+
+// reset: nothing is being started (the module is off, or first-run setup has not finished, D-405).
+func (w *startWatch) reset() {
+	if w == nil {
+		return
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.retryingSince, w.confirmedAt = time.Time{}, time.Time{}
+}
+
+// Starting is sensorpassive.Config.Starting.
+func (w *startWatch) Starting() bool {
+	if w == nil {
+		return false
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	now := w.clock()
+	if !w.retryingSince.IsZero() {
+		return now.Sub(w.retryingSince) < startGiveUp
+	}
+	return !w.confirmedAt.IsZero() && now.Sub(w.confirmedAt) < startSettle
 }
 
 // unsureFor bounds how long ensureOn waits for a readable state before it starts the container anyway. The window it must
@@ -81,17 +153,27 @@ func (c *moduleContainer) ensureOn(ctx context.Context) error {
 	defer c.mu.Unlock()
 	if !c.reg.Enabled(c.module) { // checked under the lock: a switch-off between the guard's check and the host call wins
 		c.unsureSince = time.Time{} // the next switch-on waits its own unsureFor
+		c.watch.reset()
 		return nil
 	}
 	if c.setupDone != nil {
 		done, err := c.setupDone(ctx)
 		if err != nil {
+			c.watch.done(err, false)
 			return fmt.Errorf("%s: whether first-run setup is done could not be read: %w", c.service, err)
 		}
 		if !done {
+			c.watch.reset()
 			return nil // D-405: nothing to start before the wizard; its commit starts the guard again (addContainerGuards)
 		}
 	}
+	sent, err := c.converge(ctx)
+	c.watch.done(err, sent) // W2-6: what GET /inventory/sensors says while this converges
+	return err
+}
+
+// converge is ensureOn once the module is on and setup is done (under c.mu); sent: a start went out and the host confirmed it.
+func (c *moduleContainer) converge(ctx context.Context) (sent bool, _ error) {
 	// Skip only what the host vouches for: a unit it trusts (Installed), with [Install], that is active or coming up, running the
 	// version pulled for it when that is core's own (D-342 (2)). Start only on what it positively says is wrong. Anything else
 	// is unknown: an error, so the guard reads again after its backoff, until it has been unknown for unsureFor.
@@ -112,9 +194,9 @@ func (c *moduleContainer) ensureOn(ctx context.Context) error {
 		waited := now.Sub(c.unsureSince)
 		if waited < unsureFor {
 			if err != nil {
-				return fmt.Errorf("%w; will read again before any start", err)
+				return false, fmt.Errorf("%w; will read again before any start", err)
 			}
-			return fmt.Errorf("%s: the host could not tell whether its unit runs (unit_state unknown); will read again before any start", c.service)
+			return false, fmt.Errorf("%s: the host could not tell whether its unit runs (unit_state unknown); will read again before any start", c.service)
 		}
 		cause := why
 		if err != nil {
@@ -128,7 +210,7 @@ func (c *moduleContainer) ensureOn(ctx context.Context) error {
 	} else {
 		c.unsureSince = time.Time{}
 		if why == "" {
-			return nil // running / coming up with [Install]: systemd's Restart= owns it
+			return false, nil // running / coming up with [Install]: systemd's Restart= owns it
 		}
 		if c.h.warnDue("start " + why) {
 			c.h.log.WarnContext(ctx, "container host: starting a module's container, the host's state calls for it", "service", c.service,
@@ -136,10 +218,10 @@ func (c *moduleContainer) ensureOn(ctx context.Context) error {
 		}
 	}
 	if err := c.start(ctx, v); err != nil {
-		return err
+		return false, err
 	}
 	c.unsureSince = time.Time{}
-	return nil
+	return true, nil
 }
 
 // start sends container.start: of version v first when it is set, then of the image the unit pins.
@@ -225,6 +307,7 @@ func (c *moduleContainer) ensureOff(ctx context.Context) error {
 	if c.reg.Enabled(c.module) {
 		return nil
 	}
+	c.watch.reset()
 	// Skip only a unit the host trusts that is already stopped and without [Install]; an untrusted or missing unit, or a
 	// state that cannot be read, goes to the stop (a missing one succeeds at once, an edited one is refused unit_unsafe,
 	// logged and retried).
@@ -255,6 +338,7 @@ func newModuleContainers(d deps) map[string]*moduleContainer {
 		h.who = m.service
 		out[m.module] = &moduleContainer{h: h, reg: d.Reg, module: m.module, service: m.service, version: version}
 	}
+	out["sensor-passive"].watch = d.SensorStart // W2-6: GET /inventory/sensors reads it (nil when buildServices did not run: tests)
 	return out
 }
 

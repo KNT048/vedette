@@ -12,7 +12,7 @@ import { catalogPath, CATALOG_Q_MAX } from './api'
 import { CATALOG, customEntry, findCatalog, searchCatalog } from './catalog'
 import { sha256Hex } from './kinds'
 import { OSQUERY_VERSION } from './installScripts'
-import { BOX_ID, compareObs, ensureBox, inventorySettingsStore, markCurrent, type StoredObs } from './mocks'
+import { BOX_ID, compareObs, ensureBox, inventorySettingsStore, markCurrent, sensorsStore, type StoredObs } from './mocks'
 import type { OsqueryPackage } from './types'
 import { normalizeRange, rangeProblem } from './validate'
 
@@ -1039,6 +1039,22 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect(within(dlg).getByRole('link', { name: 'Open Settings → Box network' })).toHaveAttribute('href', '/settings/network')
   })
 
+  it('W2-6: while the box starts the sensor the row says Starting… with why; a sensor the box could not start says what to check', async () => {
+    asAdmin()
+    sensorsStore.update((l) => l.map((x) => ({ ...x, status: 'starting' as const, last_seen: null, version: null, devices_seen: 0 })))
+    const sec = () => document.getElementById('sensors')!
+    const first = renderApp('/devices/setup')
+    await waitFor(() => expect(sec()).toHaveTextContent('Starting…'), T)
+    expect(sec()).toHaveTextContent('The box is starting the sensor (after setup or after you turned it on).')
+    expect(sec()).not.toHaveTextContent('Not connected yet')
+    first.unmount()
+    sensorsStore.update((l) => l.map((x) => ({ ...x, status: 'never_connected' as const })))
+    renderApp('/devices/setup')
+    await waitFor(() => expect(sec()).toHaveTextContent('Not connected yet'), T)
+    expect(sec()).toHaveTextContent('The box could not get the sensor running. Turn Passive sensor off and on in Settings → Modules')
+    expect(sec().textContent).not.toContain('compose.sensors.yaml') // that hint is the container-only one
+  })
+
   it('single-box only: one local sensor, no kind/site/enrollment fields, no "other site" button, no remote-sensor endpoints', async () => {
     asAdmin()
     const list = (await call('GET', '/sensors')).json!.sensors as Record<string, unknown>[]
@@ -1199,7 +1215,7 @@ describe('inventory: agents (S-INV-4)', () => {
     const sha = (await call('GET', '/agents')).json!.install.linux.sha256 as string
     expect(sha).toMatch(/^[0-9a-f]{64}$/)
     expect(within(dialog).getByRole('button', { name: 'Linux' })).toHaveAttribute('aria-pressed', 'true')
-    expect(within(dialog).getByText(new RegExp(`sudo sh /tmp/vedette-osquery\\.sh --token ${secret}$`))).toBeInTheDocument()
+    expect(within(dialog).getByText(new RegExp(`sudo sh "\\$f" --token ${secret}; r=\\$\\?; rm -f "\\$f"; exit \\$r\\)$`))).toBeInTheDocument()
     expect(within(dialog).getByText('Expected SHA-256 of the script:').parentElement).toHaveTextContent(sha)
     expect(within(dialog).getByText('What this script does')).toBeInTheDocument()
     expect(within(dialog).getByText('Advanced: manual setup')).toBeInTheDocument()
@@ -1274,7 +1290,7 @@ describe('inventory: agents (S-INV-4)', () => {
     await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     await clickUntil(user, () => screen.getAllByRole('button', { name: `Show setup for ${OSQ}` })[0]!, () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: `Set up ${OSQ}` }, T)
-    expect(within(dialog).getByText(/sudo sh \/tmp\/vedette-osquery\.sh --token <TOKEN>$/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/sudo sh "\$f" --token <TOKEN>; r=\$\?; rm -f "\$f"; exit \$r\)$/)).toBeInTheDocument()
     expect(dialog.textContent).not.toMatch(/vdt_osquery_[a-z0-9]{32}/)
     await user.click(within(dialog).getAllByRole('button', { name: 'Close' })[0]!)
     await clickUntil(user, () => screen.getAllByRole('button', { name: `Revoke token ${OSQ}` })[0]!, () => screen.getByRole('dialog'))
@@ -1580,16 +1596,21 @@ describe('inventory: agents (S-INV-4)', () => {
     const sha = 'a'.repeat(64)
     const lin = linuxOneLiner(BOX, sha, 'vdt_osquery_x')
     expect(lin).toContain(`curl -fsSLk ${BOX}/api/v1/install/osquery.sh`) // -k exactly once, for the script itself
-    expect(lin).toContain(`echo "${sha}  /tmp/vedette-osquery.sh" | sha256sum -c -`)
-    expect(lin).toContain('sudo sh /tmp/vedette-osquery.sh --token vdt_osquery_x')
+    // W2-3: a new mktemp file every run (a fixed /tmp name left by another user cannot be overwritten), removed afterwards
+    expect(lin).toMatch(/^\(f=\$\(mktemp\) && curl /) // a subshell: the install's exit status survives the cleanup (review)
+    expect(lin).toContain(`-o "$f" && echo "${sha}  $f" | sha256sum -c -`)
+    expect(lin).toContain('sudo sh "$f" --token vdt_osquery_x; r=$?; rm -f "$f"; exit $r)')
+    expect(lin).not.toContain('/tmp/')
     expect(lin.match(/curl/g)).toHaveLength(1)
-    expect(linuxOneLiner(BOX, sha, 'vdt_osquery_x', 'uninstall')).toMatch(/--uninstall$/)
+    expect(linuxOneLiner(BOX, sha, 'vdt_osquery_x', 'uninstall')).toMatch(/sudo sh "\$f" --uninstall; r=\$\?; rm -f "\$f"; exit \$r\)$/)
     expect(linuxOneLiner(BOX, sha, 'vdt_osquery_x', 'uninstall')).not.toContain('vdt_osquery_x')
     const win = windowsOneLiner(BOX, sha, 'vdt_osquery_x')
     expect(win).toContain(`curl.exe -fsSLk ${BOX}/api/v1/install/osquery.ps1`)
     expect(win).toContain(`-ieq '${sha}'`)
     expect(win).toContain("-Token 'vdt_osquery_x'")
     expect(win).toContain("throw 'Checksum mismatch: do not run this file'")
+    expect(win).toContain("[guid]::NewGuid()")
+    expect(win.match(/Remove-Item -Force \$f/g)).toHaveLength(2)
     expect(windowsOneLiner(BOX, sha, 'vdt_osquery_x', 'uninstall')).toContain('-Uninstall')
     for (const s of [lin, win]) expect(s).not.toMatch(/http:\/\/|localhost/)
 

@@ -36461,9 +36461,10 @@
                             "enum": [
                               "online",
                               "offline",
-                              "never_connected"
+                              "never_connected",
+                              "starting"
                             ],
-                            "description": "online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever (D-387)"
+                            "description": "online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the sensor container (an appliance after setup or after the module is turned on: the start is being retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A container-only install never says starting: the customer starts it"
                           },
                           "last_seen": {
                             "anyOf": [
@@ -36672,9 +36673,10 @@
                       "enum": [
                         "online",
                         "offline",
-                        "never_connected"
+                        "never_connected",
+                        "starting"
                       ],
-                      "description": "online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever (D-387)"
+                      "description": "online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the sensor container (an appliance after setup or after the module is turned on: the start is being retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A container-only install never says starting: the customer starts it"
                     },
                     "last_seen": {
                       "anyOf": [

@@ -158,14 +158,14 @@ func TestSNMPTestRefusesTheBoxAndAMovedDevice(t *testing.T) {
 	}
 }
 
-// L5: migration 0003 keeps the probe log's counter: the id of a pruned probe row is never handed out again.
-func TestMigration0003KeepsTheProbeCounter(t *testing.T) {
+// L5: migration 0004 keeps the probe log's counter: the id of a pruned probe row is never handed out again.
+func TestMigration0004KeepsTheProbeCounter(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	db := storetest.New(t)
 	before := fstest.MapFS{}
 	if err := fs.WalkDir(sa.Migrations, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || strings.HasPrefix(p, "0003") {
+		if err != nil || d.IsDir() || strings.HasPrefix(p, "0004") {
 			return err
 		}
 		b, err := fs.ReadFile(sa.Migrations, p)

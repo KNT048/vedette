@@ -426,7 +426,7 @@ func TestGatesRefuse(t *testing.T) {
 			writeJSON(t, filepath.Join(o.VulnDir, "sensor-arm64.json"), map[string]any{"Metadata": map[string]any{"ImageID": digestOf("before the rebuild")}})
 		}, false},
 		{"source gate red", "vulnerability report of the source", func(o *gatesOpts, _ *gatesFake) {
-			must(t, os.Rename(filepath.Join(o.VulnDir, "source.json"), filepath.Join(o.VulnDir, "source.gate-failed.json")))
+			must(t, os.Rename(filepath.Join(o.VulnDir, "source.json"), filepath.Join(o.VulnDir, "source.gate-failed.json"))) //nolint:gosec // test: the rig's temporary directory
 		}, false},
 		{"hard-linked nmap in scan-base", "holds /usr/sbin/nmap", func(_ *gatesOpts, g *gatesFake) {
 			good := g.files

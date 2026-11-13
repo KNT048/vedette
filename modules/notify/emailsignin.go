@@ -299,41 +299,61 @@ func (s *Service) rotateEmailSecret(ctx context.Context, old, next secrets.Value
 	return nil
 }
 
-// rotateZaloSecret keeps the grant of a Zalo OA channel after a refresh (D-483): a refresh token works once, so the new one must replace
-// the saved one, but only while the saved grant is the same one (same id): an admin who saved a new refresh token meanwhile wins. Like
-// rotateEmailSecret it writes on its own goroutine: a send can run inside another module's write transaction.
-func (s *Service) rotateZaloSecret(ctx context.Context, old, next secrets.Value) error {
-	s.rotations.Add(1)
-	ctx = context.WithoutCancel(ctx)
-	go func() {
-		defer s.rotations.Done()
-		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-		err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-			c, err := loadChannel(ctx, tx, channel.Zalo)
-			if err != nil || c.SecretID == "" {
+// rotateZaloSecret keeps the grant of a Zalo OA channel after a refresh (D-483). Zalo ends the old refresh token at once, so the new
+// grant is kept in memory first (zaloGrant: a sender built later and a save of the channel start from it), then written to the
+// channel synchronously, before the sender uses the new access token; an error goes back to the sender, which keeps the grant and
+// calls again before its next send. Only while the saved grant is the same one (same id): an admin who saved another grant wins. Zalo
+// OA sends never run inside another module's write transaction (Flush, Test, Resend; it takes no approvals), and the write has its
+// own deadline in case one ever does.
+func (s *Service) rotateZaloSecret(ctx context.Context, _, next secrets.Value) error {
+	after, ok := channel.ParseZaloGrant(next.Reveal())
+	if !ok {
+		return errors.New("notify: a rotated Zalo grant cannot be read")
+	}
+	s.mu.Lock()
+	if held, ok := channel.ParseZaloGrant(s.zaloGrant.Reveal()); !ok || held.ID != after.ID || held.Rotation < after.Rotation {
+		s.zaloGrant = next
+	}
+	s.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
+	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		if s.zaloSaveFault != nil {
+			if err := s.zaloSaveFault(); err != nil {
 				return err
 			}
-			cur, err := s.openSecret(ctx, tx, c.SecretID)
-			if err != nil {
-				return err
-			}
-			was, ok1 := channel.ParseZaloGrant(cur)
-			before, ok2 := channel.ParseZaloGrant(old.Reveal())
-			after, ok3 := channel.ParseZaloGrant(next.Reveal())
-			if !ok1 || !ok2 || !ok3 || was.ID != before.ID {
-				s.forget(channel.Zalo) // another grant is saved: the cached sender must not keep using its own
-				return nil
-			}
-			if _, _, err := s.putSecret(ctx, tx, purposeSecret, c.SecretID, next.Reveal()); err != nil {
-				return err
-			}
-			_, err = tx.ExecContext(ctx, `UPDATE notify_channel SET secret_last4 = ? WHERE type = 'zalo' AND secret_id = ?`, nullable(lastFour(after.RefreshToken)), c.SecretID)
-			return err
-		})
-		if err != nil {
-			s.cfg.Log.WarnContext(ctx, "notify: the new Zalo OA refresh token could not be saved; the next refresh tries again", "error", err.Error())
 		}
-	}()
-	return nil
+		c, err := loadChannel(ctx, tx, channel.Zalo)
+		if err != nil || c.SecretID == "" {
+			return err
+		}
+		cur, err := s.openSecret(ctx, tx, c.SecretID)
+		if err != nil {
+			return err
+		}
+		was, ok := channel.ParseZaloGrant(cur)
+		if !ok || was.ID != after.ID {
+			s.forget(channel.Zalo) // another grant is saved: the cached sender must not keep using its own
+			return nil
+		}
+		if was.Rotation >= after.Rotation {
+			return nil // already there
+		}
+		if _, _, err := s.putSecret(ctx, tx, purposeSecret, c.SecretID, next.Reveal()); err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, `UPDATE notify_channel SET secret_last4 = ? WHERE type = 'zalo' AND secret_id = ?`, nullable(lastFour(after.RefreshToken)), c.SecretID)
+		return err
+	})
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "notify: the new Zalo OA refresh token could not be saved yet; it is kept in memory and saved before the next send", "error", err.Error())
+	}
+	return err
+}
+
+// latestZalo is saved, or the rotation of the same grant kept in memory when that is newer (rotateZaloSecret).
+func (s *Service) latestZalo(saved string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return channel.NewerZaloGrant(saved, s.zaloGrant.Reveal())
 }

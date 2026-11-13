@@ -407,12 +407,16 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 				}
 				continue
 			}
-			if s.pausedUntil(t, now) { // the provider asked to wait (D-483): everything stays queued
+			nowTS := store.FormatTS(now)
+			held := false // a message the provider refused waits until its due_at, and the whole channel with it (D-483; lasts a restart)
+			for _, r := range list {
+				held = held || (r.attempts > 0 && r.due > nowTS)
+			}
+			if held {
 				continue
 			}
 			rowOf, triesOf := map[string]string{}, map[string]int{}
 			seen := map[string]bool{}
-			nowTS := store.FormatTS(now)
 			var nowN, heldN, grpN []Notice
 			for _, r := range list {
 				rowOf[r.notice.ID], triesOf[r.notice.ID] = r.id, r.attempts
@@ -452,7 +456,16 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 					drop = append(drop, r.id) // below the channel's minimum now: INV-4
 				}
 			}
-			release = digest(release, s.link("/findings"))
+			// A message the provider already refused stays its own digest with its own refusal count; new notices do not join it.
+			var fresh, retried []Batch
+			for _, b := range release {
+				if slices.ContainsFunc(b.Notices, func(n Notice) bool { return triesOf[n.ID] > 0 }) {
+					retried = append(retried, b)
+				} else {
+					fresh = append(fresh, b)
+				}
+			}
+			release = append(digest(retried, s.link("/findings")), digest(fresh, s.link("/findings"))...)
 			// Critical first, then the order they were queued in; what does not fit in this run stays pending.
 			sort.SliceStable(release, func(i, j int) bool {
 				return release[i].Severity() == Critical && release[j].Severity() != Critical
@@ -546,7 +559,11 @@ func (s *Service) deliver(ctx context.Context, cl claim) error {
 			return err
 		}
 		if kind == "vuln" {
-			for _, n := range cl.batch.Listed() { // only what the message names: "Notified" on a finding must be true (W1-11)
+			told := cl.batch.Listed() // a failure: the findings it would have named, so their page says "Not delivered"
+			if rec.OK {
+				told = cl.batch.Told(cl.channel, msg) // only the lines the channel sent whole: "Notified" must be true (W1-11)
+			}
+			for _, n := range told {
 				if _, err := tx.ExecContext(wctx, `INSERT INTO notify_send_notice (send_id, notice_id) VALUES (?, ?) ON CONFLICT DO NOTHING`, rec.ID, n.ID); err != nil {
 					return fmt.Errorf("notify: link send to notice: %w", err)
 				}
@@ -571,30 +588,15 @@ func (s *Service) deliver(ctx context.Context, cl claim) error {
 	return nil
 }
 
-// pausedUntil reports whether channel t is waiting for its provider at now (D-483).
-func (s *Service) pausedUntil(t channel.Type, now time.Time) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return now.Before(s.paused[t])
-}
-
-// delay handles a send the provider refused with "too many requests" (D-483): the channel waits as long as the provider asked
-// (defaultRateWait when it did not say), the rows go back to the queue due then, and the first time a message is held back the
+// delay handles a send the provider refused with "too many requests" (D-483): the rows go back to the queue due when the provider
+// said (defaultRateWait when it did not), which holds the whole channel until then (claim), and the first time a message is held back the
 // history gets one "Delayed (rate limited)" row, not linked to the findings (nothing reached anyone yet). It returns errRateLimited.
 func (s *Service) delay(ctx context.Context, cl claim, rec SendRecord, msg channel.Message) error {
 	wait := rec.RetryAfter
 	if wait <= 0 {
 		wait = defaultRateWait
 	}
-	until := s.now().Add(wait)
-	s.mu.Lock()
-	if s.paused == nil {
-		s.paused = map[channel.Type]time.Time{}
-	}
-	if until.After(s.paused[cl.channel]) {
-		s.paused[cl.channel] = until
-	}
-	s.mu.Unlock()
+	until := s.now().Add(wait) // the refused rows are due then, and they hold the channel's queue until then (claim): it lasts a restart
 	kind, ref, link := refOf(cl.batch.Notices[0])
 	rec.Delayed, rec.Error = true, fmt.Sprintf("Delayed (rate limited): %s asked Vedette to wait %s. It is sent again by itself after %s.",
 		channelName[cl.channel], wait.Round(time.Second), until.In(s.loc(ctx)).Format("15:04"))

@@ -258,7 +258,9 @@ func (s *Service) newSender(t channel.Type, f map[string]string, secret string, 
 	case channel.Slack:
 		return channel.NewSlack(channel.SlackConfig{Webhook: sv, Label: f["label"], Client: hc})
 	case channel.Zalo:
-		return channel.NewZalo(channel.ZaloConfig{OAID: f["oa_id"], UserID: f["user_id"], AppID: f["app_id"], Token: sv, Client: hc, Now: s.now, SaveSecret: s.rotateZaloSecret})
+		latest := s.latestZalo(secret)
+		return channel.NewZalo(channel.ZaloConfig{OAID: f["oa_id"], UserID: f["user_id"], AppID: f["app_id"], Token: secrets.NewValue(latest), Client: hc, Now: s.now,
+			SaveSecret: s.rotateZaloSecret, Unsaved: latest != secret})
 	case channel.ZaloPersonal:
 		return channel.NewZaloPersonal(channel.ZaloPersonalConfig{UserID: f["user_id"], Group: f["group"] == "true", Session: sv, Client: hc})
 	case channel.Email:
@@ -583,6 +585,7 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			saved := ""
 			if strings.TrimSpace(in.SecretKey) != "" || strings.TrimSpace(in.RefreshToken) != "" || secret != "" {
 				saved, _ = s.openSecret(ctx, tx, cur.SecretID) // unreadable = nothing saved: what was typed must be complete
+				saved = s.latestZalo(saved)                    // a rotation not saved yet is newer: its refresh token is the one that works
 			}
 			if secret, err = channel.ZaloOASecret(saved, in.SecretKey, in.RefreshToken, secret); err != nil {
 				return configAPIError(err)

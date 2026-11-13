@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -87,9 +88,10 @@ func (m Message) norm() Message {
 			out.Devices = append(out.Devices, DeviceRef{ID: one(d.ID, 96), Name: d.Name})
 		}
 	}
+	out.More = min(max(m.More, 0), 1_000_000)
 	for i, it := range m.Items {
 		if i == maxItems {
-			out.Items = append(out.Items, "…and more")
+			out.More += len(m.Items) - maxItems
 			break
 		}
 		if it = one(it, maxItem); it != "" {
@@ -97,6 +99,48 @@ func (m Message) norm() Message {
 		}
 	}
 	return out
+}
+
+// moreLine is the line after the listed items when some are not listed; "" when all are.
+func (m Message) moreLine() string {
+	if m.More <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("and %d more: open Vedette to see them all", m.More)
+}
+
+// fitItems drops whole Items lines from the end of m until render(m) is at most limit runes, counting each in More, so the text an
+// adapter cuts to its limit never ends in half a line and its "and N more" line stays true (D-483). m must be normalised.
+func fitItems(m Message, limit int, render func(Message) string) Message {
+	for len(m.Items) > 0 && utf8.RuneCountInString(render(m)) > limit {
+		m.Items = m.Items[: len(m.Items)-1 : len(m.Items)-1]
+		m.More++
+	}
+	return m
+}
+
+// chatText is the plain text of a chat channel with a limit (Telegram, Zalo): feed text defanged, whole item lines dropped until it
+// fits, then fit, which keeps the last line (the "and N more" line with the link) whole.
+func chatText(m Message, link string, limit int) string {
+	return fit(fitChat(m, link, limit).lines(link), limit)
+}
+
+func fitChat(m Message, link string, limit int) Message {
+	return fitItems(m.mapText(defang), limit, func(x Message) string { return strings.Join(x.lines(link), "\n") })
+}
+
+// Listed is how many of m's Items the adapter of t sends whole (D-483): Telegram and Zalo cut their text at a limit and drop the item
+// lines that do not fit; the other channels send them all. The notify module counts a finding as told only when its line is sent.
+func Listed(t Type, m Message) int {
+	link, _ := safeLink(m.Link)
+	n := m.norm()
+	switch t {
+	case Telegram:
+		return len(fitChat(n, link, telegramTextMax).Items)
+	case Zalo, ZaloPersonal:
+		return len(fitChat(n, link, zaloTextMax).Items)
+	}
+	return len(n.Items)
 }
 
 // head is the first line of a text rendering: "High: title".
@@ -119,10 +163,14 @@ func (m Message) lines(link string) []string {
 	for _, it := range m.Items {
 		l = append(l, "- "+it)
 	}
+	last := "Details: " + link
 	if link == "" {
-		return append(l, openVedetteLine)
+		last = openVedetteLine
 	}
-	return append(l, "Details: "+link)
+	if more := m.moreLine(); more != "" { // joined to the last line, which fit never cuts: "and N more" always survives
+		last = "- " + more + "\n" + last
+	}
+	return append(l, last)
 }
 
 // openVedetteLine replaces the link line when the message has no link (the box address is not configured).

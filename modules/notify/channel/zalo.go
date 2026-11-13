@@ -29,8 +29,11 @@ type ZaloConfig struct {
 	Token  secrets.Value
 	Client *http.Client // nil = NewHTTPClient()
 	Now    func() time.Time
-	// SaveSecret keeps a rotated grant (a refresh token works once): called with the grant before and after; nil = memory only.
+	// SaveSecret keeps a rotated grant (a refresh token works once): called with the grant before and after, synchronously, before the
+	// new access token is used; on an error the sender keeps the grant and calls it again before its next send. nil = memory only.
 	SaveSecret func(ctx context.Context, old, next secrets.Value) error
+	// Unsaved says Token is a rotation the saved channel does not have yet (the service's memory is newer): saved before the next send.
+	Unsaved bool
 }
 
 var (
@@ -66,6 +69,18 @@ type ZaloGrant struct {
 	RefreshToken string    `json:"refresh_token"`
 	AccessToken  string    `json:"access_token,omitempty"`
 	Expires      time.Time `json:"expires_at,omitzero"`
+	Rotation     int       `json:"rotation,omitempty"` // refreshes since the admin saved it: of two copies with one ID, the higher is newer
+}
+
+// NewerZaloGrant returns whichever of two saved Zalo OA secrets is the newer rotation of the same grant (same ID, higher Rotation),
+// else a: the service keeps the last rotation in memory while the saved channel may still have the one before (D-483).
+func NewerZaloGrant(a, b string) string {
+	ga, okA := ParseZaloGrant(a)
+	gb, okB := ParseZaloGrant(b)
+	if okA && okB && ga.ID == gb.ID && gb.Rotation > ga.Rotation {
+		return b
+	}
+	return a
 }
 
 func (g ZaloGrant) secret() secrets.Value {
@@ -123,7 +138,7 @@ func ZaloOASecret(saved, secretKey, refresh, access string) (string, error) {
 	if g.RefreshToken == "" {
 		return "", cfgErr("bad_refresh_token", "Enter the refresh token of the OA (Zalo Developers, API Explorer, OA access token). It lasts about 3 months.")
 	}
-	g.ID = newGrantID()
+	g.ID, g.Rotation = newGrantID(), 0
 	return string(g.secret().Reveal()), nil
 }
 
@@ -148,6 +163,7 @@ type zaloSender struct {
 	grant   ZaloGrant
 	isGrant bool
 	since   time.Time // when this sender took an access token whose end is not known
+	unsaved bool      // the grant is a rotation SaveSecret has not stored yet: stored before the next send
 }
 
 // NewZalo validates cfg and returns the adapter.
@@ -177,7 +193,7 @@ func NewZalo(cfg ZaloConfig) (Sender, error) {
 		if g.AccessToken != "" && !zaloTokenText(g.AccessToken, zaloMinToken, zaloMaxToken) {
 			return nil, cfgErr("bad_token", "The Zalo access token has a character that is not allowed. Copy it again without spaces, or leave it empty.")
 		}
-		z.grant, z.isGrant, z.token, z.since = g, true, secrets.NewValue(g.AccessToken), z.now()
+		z.grant, z.isGrant, z.token, z.since, z.unsaved = g, true, secrets.NewValue(g.AccessToken), z.now(), cfg.Unsaved
 		return z, nil
 	}
 	if raw == "" {
@@ -203,6 +219,9 @@ func (z *zaloSender) accessToken(ctx context.Context, force bool) (secrets.Value
 	defer z.mu.Unlock()
 	if !z.isGrant {
 		return z.token, nil
+	}
+	if z.unsaved && z.save != nil { // a rotation the channel does not have yet: the refresh token it saved no longer works
+		z.unsaved = z.save(ctx, z.grant.secret(), z.grant.secret()) != nil
 	}
 	now := z.now()
 	end := z.grant.Expires
@@ -239,9 +258,10 @@ func (z *zaloSender) accessToken(ctx context.Context, force bool) (secrets.Value
 		life = time.Duration(n) * time.Second
 	}
 	z.grant.AccessToken, z.grant.RefreshToken, z.grant.Expires = out.AccessToken, out.RefreshToken, now.Add(life)
+	z.grant.Rotation++
 	z.token = secrets.NewValue(out.AccessToken)
-	if z.save != nil { // the old refresh token no longer works: the new one must be kept
-		_ = z.save(ctx, old.secret(), z.grant.secret())
+	if z.save != nil { // the old refresh token no longer works: the new one is stored before it is used; a failure is tried again
+		z.unsaved = z.save(ctx, old.secret(), z.grant.secret()) != nil
 	}
 	return z.token, nil
 }
@@ -259,7 +279,7 @@ func (z *zaloSender) Send(ctx context.Context, m Message) (Receipt, error) {
 	link, _ := safeLink(m.Link)
 	body, err := json.Marshal(map[string]any{
 		"recipient": map[string]string{"user_id": z.user},
-		"message":   map[string]string{"text": fit(m.norm().mapText(defang).lines(link), zaloTextMax)},
+		"message":   map[string]string{"text": chatText(m.norm(), link, zaloTextMax)},
 	})
 	if err != nil {
 		return Receipt{}, fmt.Errorf("notify: zalo: encode message: %w", err)

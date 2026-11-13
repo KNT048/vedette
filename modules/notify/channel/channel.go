@@ -48,7 +48,10 @@ type Message struct {
 	What         string      // what happened and how urgent
 	Action       string      // what to do first
 	Items        []string    // optional detail lines, e.g. the CVEs of a grouped notice
-	Link         string      // absolute http(s) URL that opens the item in Vedette
+	// More counts further detail lines that are not listed (a digest of many findings, D-483): the last line says "and N more". The
+	// chat adapters also drop whole Items lines that do not fit their text limit and count them here, so every listed line is whole.
+	More int    `json:"more,omitempty"`
+	Link string // absolute http(s) URL that opens the item in Vedette
 	// Buttons go under the message on Telegram (inline keyboard; approvals, spec approval-tokens.md 6). Other adapters
 	// ignore them. They are never part of the JSON form, so the history (and a resend) never has them.
 	Buttons []Button `json:"-"`

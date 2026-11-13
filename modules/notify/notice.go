@@ -179,13 +179,20 @@ func digest(release []Batch, link string) []Batch {
 	return out
 }
 
-// Listed is the notices the message of the batch names one by one: all of them, or, past channel.MaxItems, the first
-// channel.MaxItems-1 (the last line then says how many more). Only these count as told on their findings (W1-11).
+// Listed is the notices the message of the batch names one by one, in its order: at most channel.MaxItems (the message counts the
+// rest in "and N more"). A chat channel may send fewer lines whole (channel.Listed); only the lines sent count as told (W1-11).
 func (b Batch) Listed() []Notice {
-	if len(b.Notices) <= channel.MaxItems {
-		return b.Notices
+	return b.Notices[:min(len(b.Notices), channel.MaxItems)]
+}
+
+// Told is the notices a message of the batch on channel t actually names (D-483): one notice is the message itself; of several, the
+// ones whose line t sends whole (channel.Listed of msg, the message of the batch).
+func (b Batch) Told(t channel.Type, msg channel.Message) []Notice {
+	l := b.Listed()
+	if len(b.Notices) == 1 {
+		return l
 	}
-	return b.Notices[:channel.MaxItems-1]
+	return l[:min(len(l), channel.Listed(t, msg))]
 }
 
 // DueAt is when a batch opened by its first notice must be sent at the latest
@@ -265,9 +272,7 @@ func (b Batch) Message() (channel.Message, error) {
 		}
 		items = append(items, line)
 	}
-	if more := len(b.Notices) - len(listed); more > 0 {
-		items = append(items, fmt.Sprintf("and %d more: open the findings in Vedette to see them all", more))
-	}
+	more := len(b.Notices) - len(listed)
 	if mixed { // a digest of a burst across products (D-483)
 		var names []string
 		for _, p := range products {
@@ -286,7 +291,7 @@ func (b Batch) Message() (channel.Message, error) {
 			Title:  fmt.Sprintf("%d exploited vulnerabilities match your devices", len(b.Notices)),
 			Device: joinDevices(devices), Devices: deviceRefs(devices, nil),
 			What:   fmt.Sprintf("%d vulnerabilities that attackers are using match devices in your network: %s.", len(b.Notices), strings.Join(names, ", ")),
-			Action: "Open the findings in Vedette and start with the critical ones.", Items: items, Link: link,
+			Action: "Open the findings in Vedette and start with the critical ones.", Items: items, More: more, Link: link,
 		}, nil
 	}
 	return channel.Message{
@@ -294,7 +299,7 @@ func (b Batch) Message() (channel.Message, error) {
 		Title:  fmt.Sprintf("%s: %d vulnerabilities are being exploited", first.Product, len(b.Notices)),
 		Device: joinDevices(devices), Devices: deviceRefs(devices, nil),
 		What:   fmt.Sprintf("%d vulnerabilities in %s are being exploited and match your devices.", len(b.Notices), first.Product),
-		Action: first.Action, Items: items, Link: first.Link,
+		Action: first.Action, Items: items, More: more, Link: first.Link,
 	}, nil
 }
 

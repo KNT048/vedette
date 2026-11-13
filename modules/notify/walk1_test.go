@@ -1,16 +1,22 @@
 package notify_test
 
 import (
+	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/notify/channel"
@@ -33,7 +39,7 @@ func TestBurstOfMatchesIsOneDigestAndNamesOnlyWhatItLists(t *testing.T) {
 	e.flush()
 	calls := e.net.to("api.telegram.org")
 	if len(calls) != 1 || !strings.Contains(calls[0].Body, "25 exploited vulnerabilities match your devices") ||
-		!strings.Contains(calls[0].Body, "Microsoft Office (20), Apple iOS (5)") || !strings.Contains(calls[0].Body, "and 6 more") {
+		!strings.Contains(calls[0].Body, "Microsoft Office (20), Apple iOS (5)") || !strings.Contains(calls[0].Body, "and 5 more") {
 		t.Fatalf("calls = %d, first = %.600s", len(calls), func() string {
 			if len(calls) == 0 {
 				return ""
@@ -48,8 +54,8 @@ func TestBurstOfMatchesIsOneDigestAndNamesOnlyWhatItLists(t *testing.T) {
 		}
 		return len(l)
 	}
-	if told("f-o0") != 1 || told("f-o18") != 1 || told("f-o19") != 0 || told("f-p4") != 0 {
-		t.Fatalf("notified: o0 %d, o18 %d, o19 %d, p4 %d: only the 19 lines the message names count", told("f-o0"), told("f-o18"), told("f-o19"), told("f-p4"))
+	if told("f-o0") != 1 || told("f-o19") != 1 || told("f-p0") != 0 || told("f-p4") != 0 {
+		t.Fatalf("notified: o0 %d, o19 %d, p0 %d, p4 %d: only the 20 lines the message names count", told("f-o0"), told("f-o19"), told("f-p0"), told("f-p4"))
 	}
 	if e.count(`SELECT COUNT(*) FROM notify_pending`) != 0 {
 		t.Fatal("the digest left notices in the queue")
@@ -94,9 +100,10 @@ func TestRateLimitedSendWaitsAndIsSentLater(t *testing.T) {
 	if e.count(`SELECT COUNT(*) FROM notify_send WHERE ok = 1`) != 0 {
 		t.Fatal("sent before the wait Telegram asked for")
 	}
+	e.critical("c2", "QNAP", "CVE-2026-32") // new while c1 waits: it does not join the refused message (its own count, its own Delayed row)
 	e.clock.Add(25 * time.Second)
 	e.flush()
-	if e.count(`SELECT COUNT(*) FROM notify_send WHERE ok = 1`) != 2 || e.count(`SELECT COUNT(*) FROM notify_pending`) != 0 {
+	if e.count(`SELECT COUNT(*) FROM notify_send WHERE ok = 1`) != 3 || e.count(`SELECT COUNT(*) FROM notify_pending`) != 0 {
 		t.Fatalf("after the wait: ok = %d, pending = %d", e.count(`SELECT COUNT(*) FROM notify_send WHERE ok = 1`), e.count(`SELECT COUNT(*) FROM notify_pending`))
 	}
 	if l, _ := e.svc.FindingNotices(e.ctx(), "f-c1"); len(l) != 1 || !l[0].OK {
@@ -123,19 +130,28 @@ func TestRateLimitGivesUpAfterBoundedTries(t *testing.T) {
 	}
 }
 
-// W1-11: on a new box every device is new; the first discovery is one summary incident with every device, not one incident each.
+// W1-11: on a new box every device is new; the first discovery is one summary incident with every device, not one incident each. A
+// device found later in the window is told in one short update; after the window, and on a box that ran before, a device is news alone.
 func TestFirstDiscoveryIsOneSummaryIncident(t *testing.T) {
 	e := newEnv(t, func(c *notify.Config) {
-		c.Devices = fakeDevices{"a1": "PC-01", "a2": "NAS-01", "a3": "192.168.10.9", "a9": "LAPTOP-NEW"}
+		c.Devices = fakeDevices{"a1": "PC-01", "a2": "NAS-01", "a3": "192.168.10.9", "a4": "PRINTER-2", "a5": "PRINTER-3", "a9": "LAPTOP-NEW"}
+	})
+	e.write(func(tx *sql.Tx) error { // the box was installed now (the migration takes the real clock)
+		_, err := tx.ExecContext(e.ctx(), `UPDATE notify_box SET first_run_at = ?`, store.FormatTS(e.clock.Now()))
+		return err
 	})
 	e.telegram(notify.Low)
 	e.plain()
 	e.svc.Subscribe(e.bus)
-	for _, id := range []string{"a1", "a2", "a3"} {
+	found := func(id string) {
+		t.Helper()
 		if err := e.bus.Publish(e.ctx(), eventOf(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: id, Notify: true})); err != nil {
 			t.Fatal(err)
 		}
-		e.clock.Add(time.Hour)
+	}
+	for _, id := range []string{"a1", "a2", "a3"} {
+		found(id)
+		e.clock.Add(10 * time.Minute)
 	}
 	l, _ := e.svc.Incidents(e.ctx())
 	if len(l) != 1 || l[0].Title != "3 devices found on your network: approve them in Devices" || len(l[0].Devices) != 3 || l[0].Link != "/devices" {
@@ -145,12 +161,38 @@ func TestFirstDiscoveryIsOneSummaryIncident(t *testing.T) {
 	if n := len(e.net.to("api.telegram.org")); n != 1 {
 		t.Fatalf("messages = %d, want the one summary", n)
 	}
-	e.clock.Add(36 * time.Hour) // the first discovery is over: a new device is news again
-	if err := e.bus.Publish(e.ctx(), eventOf(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "a9", Notify: true})); err != nil {
-		t.Fatal(err)
+	e.clock.Add(20 * time.Hour) // hour 20: two more devices; the first tells people again, the second waits for the next hour
+	found("a4")
+	found("a5")
+	e.flush()
+	calls := e.net.to("api.telegram.org")
+	if len(calls) != 2 || !strings.Contains(calls[1].Body, "4 devices found on your network") || !strings.Contains(calls[1].Body, "3 more devices found since the last message") {
+		t.Fatalf("calls = %d, last = %.300s", len(calls), calls[len(calls)-1].Body)
 	}
-	l, _ = e.svc.Incidents(e.ctx())
-	if len(l) != 2 || l[0].Title != "A new unknown device appeared: LAPTOP-NEW" {
+	if l, _ = e.svc.Incidents(e.ctx()); len(l) != 1 || l[0].Title != "5 devices found on your network: approve them in Devices" {
+		t.Fatalf("incidents = %+v", l)
+	}
+	e.clock.Add(16 * time.Hour) // the first discovery is over: a new device is news again
+	found("a9")
+	if l, _ = e.svc.Incidents(e.ctx()); len(l) != 2 || l[0].Title != "A new unknown device appeared: LAPTOP-NEW" {
+		t.Fatalf("incidents = %+v", l)
+	}
+}
+
+// A box that ran before (an upgrade, or new-device alerts turned on later) never opens the first-discovery window.
+func TestFirstDiscoveryNeverOpensOnABoxThatRanBefore(t *testing.T) {
+	e := newEnv(t, func(c *notify.Config) { c.Devices = fakeDevices{"a1": "PC-01", "a2": "NAS-01"} })
+	e.write(func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `UPDATE notify_box SET first_run_at = ?`, store.FormatTS(e.clock.Now().AddDate(0, -2, 0)))
+		return err
+	})
+	e.svc.Subscribe(e.bus)
+	for _, id := range []string{"a1", "a2"} {
+		if err := e.bus.Publish(e.ctx(), eventOf(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: id, Notify: true})); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if l, _ := e.svc.Incidents(e.ctx()); len(l) != 2 || !strings.HasPrefix(l[0].Title, "A new unknown device appeared: ") {
 		t.Fatalf("incidents = %+v", l)
 	}
 }
@@ -225,3 +267,124 @@ func hasLast4(v notify.ChannelsView, t channel.Type, l4 string) bool {
 }
 
 func eventOf(name string, data any) events.Event { return events.Event{Name: name, Data: data} }
+
+// D-483 review: Zalo cuts its text at 2000 characters. With long lines, only the lines that are sent whole count as told, and the
+// "and N more" line counts the rest.
+func TestZaloDigestNamesOnlyTheLinesThatFit(t *testing.T) {
+	var mu sync.Mutex
+	var texts []string
+	e := newEnv(t, withNet(func(r *http.Request) (*http.Response, error) {
+		b, _ := io.ReadAll(r.Body)
+		var body struct {
+			Message struct {
+				Text string `json:"text"`
+			} `json:"message"`
+		}
+		_ = json.Unmarshal(b, &body)
+		mu.Lock()
+		texts = append(texts, body.Message.Text)
+		mu.Unlock()
+		return &http.Response{StatusCode: 200, Header: http.Header{}, Request: r, Body: io.NopCloser(strings.NewReader(`{"error":0,"message":"Success"}`))}, nil
+	}))
+	e.save(channel.Zalo, notify.ChannelInput{Enabled: true, MinSeverity: notify.Low, Secret: "zalo-access-token-0123456789-abcdef",
+		Fields: map[string]string{"oa_id": "1234567890", "user_id": "987654321"}})
+	e.plain()
+	device := strings.Repeat("WORKSTATION-OF-THE-ACCOUNTING-DEPARTMENT-", 3)
+	for i := range 25 {
+		e.critical(fmt.Sprintf("z%d", i), "Microsoft Office", fmt.Sprintf("CVE-2026-%05d", i))
+		e.write(func(tx *sql.Tx) error { // a long device name makes each line long
+			_, err := tx.ExecContext(e.ctx(), `UPDATE notify_pending SET notice = json_set(notice, '$.Devices', json_array(?)) WHERE notice_id = ?`, device, fmt.Sprintf("z%d", i))
+			return err
+		})
+	}
+	e.flush()
+	mu.Lock()
+	defer mu.Unlock()
+	if len(texts) != 1 || utf8.RuneCountInString(texts[0]) > 2000 {
+		t.Fatalf("texts = %d, first %d runes", len(texts), utf8.RuneCountInString(texts[0]))
+	}
+	lines := strings.Count(texts[0], "\n- CVE-2026-")
+	told := 0
+	for i := range 25 {
+		if l, _ := e.svc.FindingNotices(e.ctx(), fmt.Sprintf("f-z%d", i)); len(l) == 1 {
+			told++
+			if !strings.Contains(texts[0], fmt.Sprintf("CVE-2026-%05d on %s", i, device)) {
+				t.Fatalf("z%d counts as told but its line is not whole in the text", i)
+			}
+		}
+	}
+	if lines == 0 || lines >= 20 || told != lines || !strings.Contains(texts[0], fmt.Sprintf("- and %d more: open Vedette to see them all", 25-lines)) {
+		t.Fatalf("lines %d, told %d, text:\n%s", lines, told, texts[0])
+	}
+}
+
+// D-483 review: a rotated refresh token is saved before it is used; a failed save keeps it in memory and is tried again before the
+// next send, and a sender built meanwhile, or a save of only the Secret key, starts from it, never from the used token.
+func TestZaloRotationSurvivesAFailedSave(t *testing.T) {
+	var mu sync.Mutex
+	var forms []url.Values
+	var keys []string
+	n, rejectAccess := 0, ""
+	e := newEnv(t, withNet(func(r *http.Request) (*http.Response, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		body, _ := io.ReadAll(r.Body)
+		answer := func(s string) (*http.Response, error) {
+			return &http.Response{StatusCode: 200, Header: http.Header{}, Request: r, Body: io.NopCloser(strings.NewReader(s))}, nil
+		}
+		if r.URL.Host == "oauth.zaloapp.com" {
+			f, _ := url.ParseQuery(string(body))
+			forms, keys = append(forms, f), append(keys, r.Header.Get("secret_key"))
+			n++
+			return answer(fmt.Sprintf(`{"access_token":"access-token-number-%02d-abcdefghij","refresh_token":"refresh-token-number-%02d-abcdefghij","expires_in":"90000"}`, n, n))
+		}
+		if r.Header.Get("access_token") == rejectAccess {
+			return answer(`{"error":-216,"message":"Access token is invalid"}`)
+		}
+		return answer(`{"error":0,"message":"Success"}`)
+	}))
+	in := notify.ChannelInput{Enabled: true, MinSeverity: notify.Low, SecretKey: "app-secret-key-123", //nolint:gosec // fake test secrets
+		RefreshToken: "refresh-token-first-0123456789", Fields: map[string]string{"oa_id": "1234567890", "user_id": "987654321", "app_id": "4318650137000000000"}}
+	e.save(channel.Zalo, in)
+	e.plain()
+	var fail atomic.Int32
+	fail.Store(1)
+	e.svc.SetZaloSaveFaultForTest(func() error {
+		if fail.Add(-1) >= 0 {
+			return errors.New("database busy")
+		}
+		return nil
+	})
+	e.incident("i1", notify.Critical)
+	e.flush() // refreshes; the save fails; the message still goes with the new access token
+	if c, _ := e.svc.Channels(e.ctx()); !hasLast4(c, channel.Zalo, "6789") {
+		t.Fatal("the failed save changed the channel")
+	}
+	e.incident("i2", notify.Critical)
+	e.flush() // the same sender saves the rotation before it sends again
+	if c, _ := e.svc.Channels(e.ctx()); !hasLast4(c, channel.Zalo, "ghij") {
+		t.Fatal("the rotation was not saved before the next send")
+	}
+	if e.count(`SELECT COUNT(*) FROM notify_send WHERE channel = 'zalo' AND ok = 1`) != 2 {
+		t.Fatal("a failed save must not stop the alerts")
+	}
+
+	fail.Store(1) // the next rotation fails to save; then the admin saves only a new Secret key and a new sender is built
+	mu.Lock()
+	rejectAccess = "access-token-number-01-abcdefghij"
+	mu.Unlock()
+	e.incident("i3", notify.Critical)
+	e.flush()                                                                                                              // -216 forces refresh 2 (refresh token 01); its save fails, memory keeps refresh token 02
+	key := notify.ChannelInput{Enabled: true, MinSeverity: notify.Low, SecretKey: "app-secret-key-456", Fields: in.Fields} //nolint:gosec // fake test secret
+	e.save(channel.Zalo, key)
+	mu.Lock()
+	rejectAccess = "access-token-number-02-abcdefghij"
+	mu.Unlock()
+	e.incident("i4", notify.Critical)
+	e.flush() // a new sender (new revision): Zalo refuses access token 02, so it refreshes with the newest refresh token and the new key
+	mu.Lock()
+	defer mu.Unlock()
+	if len(forms) != 3 || forms[1].Get("refresh_token") != "refresh-token-number-01-abcdefghij" || forms[2].Get("refresh_token") != "refresh-token-number-02-abcdefghij" || keys[2] != "app-secret-key-456" {
+		t.Fatalf("refreshes = %v, keys %v: the used refresh token came back", forms, keys)
+	}
+}

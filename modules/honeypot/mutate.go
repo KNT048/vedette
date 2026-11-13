@@ -132,6 +132,9 @@ func (s *Service) token(ctx context.Context, id string) (Token, error) {
 // msgNoBoxAddress is the refusal of a URL token while the box knows no address other machines reach (D-465).
 const msgNoBoxAddress = "The box does not know an address other machines can reach yet. Set the Box address in Settings → Box network, then try again."
 
+// msgDNSUnavailable is the refusal of a new DNS token (D-468); the mock says the same.
+const msgDNSUnavailable = "A DNS token cannot alert: the box runs no DNS server, so nothing would record a lookup of its name. Use a URL token or fake credentials instead."
+
 // boxURL is the start of a URL token (D-465): the Box address (Config.BoxURL), else the box's IP from the inventory on 8443; never the
 // box's host name (before D-465 it was, and a box named "vedette" handed out https://vedette:8443 links nothing resolves).
 func (s *Service) boxURL(ctx context.Context) (string, error) {
@@ -153,9 +156,13 @@ func (s *Service) boxURL(ctx context.Context) (string, error) {
 // AddToken is POST /honeypot/tokens (INV-10, POST-4, INV-13).
 func (s *Service) AddToken(ctx context.Context, actor string, in TokenInput) (Token, error) {
 	switch in.Type {
-	case TokenFile, TokenCredential, TokenURL, TokenDNS:
+	case TokenFile, TokenCredential, TokenURL:
+	case TokenDNS:
+		// D-468: the box runs no DNS server and the project runs none (D-81/D-82), so a DNS token could never alert. Rows made
+		// before stay readable; no new one is made.
+		return Token{}, conflictErr("dns_unavailable", msgDNSUnavailable)
 	default:
-		return Token{}, bad("bad_type", "Choose a token type: decoy file, fake credentials, URL or DNS name.")
+		return Token{}, bad("bad_type", "Choose a token type: decoy file, fake credentials or URL.")
 	}
 	name := strings.TrimSpace(in.Name)
 	plant := strings.TrimSpace(in.PlantAt)
@@ -199,12 +206,6 @@ func (s *Service) AddToken(ctx context.Context, actor string, in TokenInput) (To
 			return Token{}, err
 		}
 		value = base + "/t/" + rnd
-	case TokenDNS:
-		sl := slug(name)
-		if sl == "" {
-			sl = "token"
-		}
-		value = sl[:min(20, len(sl))] + "-" + rnd[:4] + ".vedette.internal"
 	}
 	t := Token{ID: store.NewID("tok"), Type: in.Type, Name: name, Value: value, PlantAt: plant, CreatedAt: store.FormatTS(s.now())}
 	err = s.db.Write(ctx, func(tx *sql.Tx) error {

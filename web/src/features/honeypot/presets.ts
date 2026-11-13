@@ -1,7 +1,7 @@
 // Trap IP presets and vendors (D-466): data, as modules/honeypot/presets.go. A preset fills the services and the vendor of a Trap IP;
 // both stay editable. Adding a service later (B3) is a row here and in presets.go, not new screens.
 import type { AssetKind } from '@/lib/types'
-import type { HpService, TrapPreset, TrapVendor } from './types'
+import type { HpService, OfferedTokenType, TrapPreset, TrapVendor } from './types'
 
 export interface PresetDef { id: TrapPreset; services: HpService[]; vendor: TrapVendor | null; kinds: AssetKind[]; example: string }
 
@@ -24,3 +24,23 @@ export const VENDORS: { id: TrapVendor; oui: string }[] = [
 ]
 
 export const SERVICE_PORT: Record<HpService, number> = { smb: 445, rdp: 3389, ssh: 22, mssql: 1433, http: 80 }
+
+// Honey token presets (D-468, S-HP-2): a believable token in one click, as Canarytokens offers ready token kinds. A preset fills the
+// type, name, file type and place of the form (the place text is token.preset.<id>.plant); every field stays editable. Web only:
+// the API gets the fields, never the preset. {year} becomes this year. Custom is the blank form.
+export type TokenPreset = 'payroll' | 'passwords' | 'bank_accounts' | 'network_diagram' | 'vpn_setup' | 'backup_account' | 'old_admin' | 'db_login' | 'wiki' | 'router_admin' | 'custom'
+export interface TokenPresetDef { id: TokenPreset; type: OfferedTokenType; name: string; ext?: 'docx' | 'xlsx' }
+
+export const TOKEN_PRESETS: TokenPresetDef[] = [
+  { id: 'payroll', type: 'file', name: 'Payroll-{year}', ext: 'xlsx' },
+  { id: 'passwords', type: 'file', name: 'Passwords', ext: 'xlsx' },
+  { id: 'bank_accounts', type: 'file', name: 'Bank-accounts-{year}', ext: 'xlsx' },
+  { id: 'network_diagram', type: 'file', name: 'Network-diagram', ext: 'docx' },
+  { id: 'vpn_setup', type: 'file', name: 'VPN-setup', ext: 'docx' },
+  { id: 'backup_account', type: 'credential', name: 'svc-backup' },
+  { id: 'old_admin', type: 'credential', name: 'admin-old' },
+  { id: 'db_login', type: 'credential', name: 'sql-reports' },
+  { id: 'wiki', type: 'url', name: 'Wiki admin page' },
+  { id: 'router_admin', type: 'url', name: 'Router admin' },
+]
+export const tokenPresetName = (p: TokenPresetDef) => p.name.replace('{year}', String(new Date().getFullYear()))

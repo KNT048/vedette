@@ -344,18 +344,56 @@ describe('honeypot: Trap IP and honey token form matrix (docs/QA.md §2)', () =>
       { option: 'Decoy file', shown: ['File name', FILE, /Looks tempting/], hidden: ['User name', 'Label'] },
       { option: 'Fake credentials', shown: ['User name', /Looks like an old service account/], hidden: ['File name', FILE, 'Label'] },
       { option: 'URL token', shown: ['Label', /intranet wiki page/], hidden: ['File name', FILE, 'User name'] },
-      { option: 'DNS token', shown: ['Label', /backup script config/, /cannot alert yet/], hidden: ['File name', FILE, 'User name'] },
       { option: 'Decoy file', shown: ['File name', FILE], hidden: ['Label'] },
     ], pick('Token type'), form)
-    await pick('Token type')('DNS token') // D-507: the box answers no DNS, so a DNS token cannot be made
-    expect(within(form).getByRole('button', { name: 'Create token' })).toBeDisabled()
-    await pick('Token type')('Decoy file')
+    // D-468 (D-507): the box answers no DNS, so a DNS token could never alert and is not offered
+    expect(within(within(form).getByLabelText('Token type')).queryByRole('option', { name: 'DNS token' })).toBeNull()
     expect(within(form).getByRole('button', { name: 'Create token' })).toBeEnabled()
     await userEvent.type(within(form).getByLabelText('File name'), 'Payroll-2026-Q4')
     await userEvent.type(within(form).getByLabelText('Where will you plant it?'), 'SRV-FILE-HR')
     await pick('Token type')('Fake credentials')
     expect(within(form).getByLabelText('User name')).toHaveValue('')
     expect(within(form).getByLabelText('Where will you plant it?')).toHaveValue('')
+  })
+
+  it('honey token presets (D-468): picking one fills type, name, file type and place; every field stays editable; Custom is blank', async () => {
+    renderApp('/honeypot?tab=tokens')
+    const list = await screen.findByRole('list', { name: 'Honey tokens' })
+    // an older DNS token still lists, saying it cannot alert
+    expect(within(within(list).getByText('Backup script host').closest('li')!).getByText('Cannot alert')).toBeInTheDocument()
+    const form = formOf('Start from')
+    const field = (label: string) => within(form).getByLabelText(label)
+    const year = new Date().getFullYear()
+    expect(field('File name')).toHaveValue(`Payroll-${year}`) // one click: the first preset is filled in already
+    await pick('Start from')('Network diagram (.docx)')
+    expect(field('Token type')).toHaveValue('file')
+    expect(field('File name')).toHaveValue('Network-diagram')
+    expect(field('File type')).toHaveValue('docx')
+    expect(field('Where will you plant it?')).toHaveValue('IT folder on the file share')
+    await userEvent.clear(field('File name'))
+    await userEvent.type(field('File name'), 'Network-map-2019')
+    await userEvent.selectOptions(field('File type'), 'xlsx')
+    await userEvent.clear(field('Where will you plant it?'))
+    await userEvent.type(field('Where will you plant it?'), 'Shared drive, IT')
+    expect(field('File name')).toHaveValue('Network-map-2019')
+    expect(field('File type')).toHaveValue('xlsx')
+    expect(field('Where will you plant it?')).toHaveValue('Shared drive, IT')
+    await pick('Start from')('Backup service account')
+    expect(field('Token type')).toHaveValue('credential')
+    expect(field('User name')).toHaveValue('svc-backup')
+    expect(field('Where will you plant it?')).toHaveValue('IT password manager')
+    await pick('Start from')('Router admin bookmark')
+    expect(field('Token type')).toHaveValue('url')
+    expect(field('Label')).toHaveValue('Router admin')
+    expect(within(form).queryByLabelText('File type')).toBeNull()
+    await pick('Start from')('Custom (blank)')
+    expect(field('Token type')).toHaveValue('url')
+    expect(field('Label')).toHaveValue('')
+    expect(field('Where will you plant it?')).toHaveValue('')
+    await pick('Start from')('Payroll spreadsheet (.xlsx)')
+    await userEvent.click(within(form).getByRole('button', { name: 'Create token' }))
+    expect(await screen.findByRole('button', { name: `Test token Payroll-${year}` })).toBeInTheDocument()
+    expect(field('Start from')).toHaveValue('custom')
   })
 
   it('Trap IP: each preset fills its own services and vendor; Custom keeps what was picked', async () => {

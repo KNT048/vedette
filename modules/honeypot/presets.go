@@ -5,7 +5,6 @@ import (
 	"net/netip"
 	"regexp"
 	"slices"
-	"strings"
 )
 
 // presets follows web/src/features/honeypot/presets.ts (D-466): what a Trap IP of each kind answers on, the vendor whose MAC
@@ -173,18 +172,3 @@ var (
 )
 
 func validHostname(s string) bool { return netbiosRE.MatchString(s) && !allDigitsRE.MatchString(s) }
-
-func slug(name string) string {
-	var b strings.Builder
-	dash := true
-	for _, r := range strings.ToLower(name) {
-		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
-			b.WriteRune(r)
-			dash = false
-		} else if !dash {
-			b.WriteByte('-')
-			dash = true
-		}
-	}
-	return strings.Trim(b.String(), "-")
-}

@@ -11,11 +11,13 @@ import { Field, Input, Select } from '@/components/ui/input'
 import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useAddToken, useDeleteToken, useTestToken, useTokens } from './api'
-import { TOKEN_TYPES, type Token, type TokenType } from './types'
+import { TOKEN_PRESETS, tokenPresetName, type TokenPreset } from './presets'
+import { TOKEN_TYPES, type OfferedTokenType, type Token } from './types'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-/** S-HP-2: honey tokens. Each says where to plant it and what triggers it. A DNS token cannot be created: the box answers no DNS (D-507). */
+/** S-HP-2: honey tokens. Each says where to plant it and what triggers it. A preset fills a believable token, every field stays editable
+ * (D-468). No DNS token is offered: the box answers no DNS, so it could never alert; an older one still lists, saying so (D-507). */
 export default function TokensSection() {
   const { t } = useTranslation('honeypot')
   const q = useTokens()
@@ -33,17 +35,30 @@ function Inner({ items }: { items: Token[] }) {
   const add = useAddToken()
   const del = useDeleteToken()
   const test = useTestToken()
-  const [type, setType] = useState<TokenType>('file')
-  const [ext, setExt] = useState<'docx' | 'xlsx'>('xlsx')
-  const [name, setName] = useState('')
-  const [plant, setPlant] = useState('')
+  const first = TOKEN_PRESETS[0]!
+  const [preset, setPreset] = useState<TokenPreset>(first.id)
+  const [type, setType] = useState<OfferedTokenType>(first.type)
+  const [ext, setExt] = useState<'docx' | 'xlsx'>(first.ext ?? 'xlsx')
+  const [name, setName] = useState(tokenPresetName(first))
+  const [plant, setPlant] = useState(t(`token.preset.${first.id}.plant`))
   const [error, setError] = useState<string | null>(null)
+
+  function pickPreset(id: TokenPreset) {
+    setPreset(id)
+    setError(null)
+    const d = TOKEN_PRESETS.find((p) => p.id === id)
+    if (!d) { setName(''); setPlant(''); return } // Custom: the blank form, the type stays
+    setType(d.type)
+    if (d.ext) setExt(d.ext)
+    setName(tokenPresetName(d))
+    setPlant(t(`token.preset.${d.id}.plant`))
+  }
 
   function submit(e: FormEvent) {
     e.preventDefault()
     setError(null)
     add.mutate({ type, name: name.trim(), plant_at: plant.trim(), ...(type === 'file' ? { ext } : {}) }, {
-      onSuccess: () => { toast.success(t('token.created')); setName(''); setPlant('') },
+      onSuccess: () => { toast.success(t('token.created')); pickPreset('custom') },
       onError: (er) => setError(errMsg(er)),
     })
   }
@@ -52,8 +67,18 @@ function Inner({ items }: { items: Token[] }) {
     <div className="grid gap-4">
       <Panel className="p-4">
         <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.2fr_auto] lg:items-start" noValidate>
+          <Field label={t('token.form.preset')} htmlFor="tk-preset" hint={t('token.form.presetHint')} className="sm:col-span-2 sm:max-w-sm lg:col-span-4">
+            <Select id="tk-preset" value={preset} disabled={!admin} onChange={(e) => pickPreset(e.target.value as TokenPreset)}>
+              {TOKEN_TYPES.map((x) => (
+                <optgroup key={x} label={t(`token.type.${x}`)}>
+                  {TOKEN_PRESETS.filter((p) => p.type === x).map((p) => <option key={p.id} value={p.id}>{t(`token.preset.${p.id}.label`)}</option>)}
+                </optgroup>
+              ))}
+              <option value="custom">{t('token.preset.custom.label')}</option>
+            </Select>
+          </Field>
           <Field label={t('token.form.type')} htmlFor="tk-type" hint={t(`token.what.${type}`)}>
-            <Select id="tk-type" value={type} disabled={!admin} onChange={(e) => { setType(e.target.value as TokenType); setName(''); setPlant(''); setError(null) }}>
+            <Select id="tk-type" value={type} disabled={!admin} onChange={(e) => { setType(e.target.value as OfferedTokenType); setPreset('custom'); setName(''); setPlant(''); setError(null) }}>
               {TOKEN_TYPES.map((x) => <option key={x} value={x}>{t(`token.type.${x}`)}</option>)}
             </Select>
           </Field>
@@ -70,7 +95,7 @@ function Inner({ items }: { items: Token[] }) {
           <Field label={t('token.form.plant')} htmlFor="tk-plant" hint={t(`token.form.plantHint.${type}`)}>
             <Input id="tk-plant" value={plant} onChange={(e) => setPlant(e.target.value)} disabled={!admin} autoComplete="off" />
           </Field>
-          <Button type="submit" variant="primary" className="sm:mt-[26px]" disabled={!admin || add.isPending || type === 'dns'} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : type === 'dns' ? t('token.what.dns') : undefined}>{t('token.form.create')}</Button>
+          <Button type="submit" variant="primary" className="sm:mt-[26px]" disabled={!admin || add.isPending} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : undefined}>{t('token.form.create')}</Button>
         </form>
       </Panel>
 
@@ -80,7 +105,7 @@ function Inner({ items }: { items: Token[] }) {
             <li key={k.id} className="rounded-md border border-rule bg-surface p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="grid gap-1">
-                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium">{k.name} <Chip tone="accent">{t(`token.type.${k.type}`)}</Chip></p>
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium">{k.name} <Chip tone="accent">{t(`token.type.${k.type}`)}</Chip>{k.type === 'dns' ? <Chip tone="warn">{t('token.noAlert')}</Chip> : null}</p>
                   <p className="text-[13px] text-muted">{t('token.plantedAt', { where: k.plant_at })}</p>
                   <p className="text-[13px] text-muted">{k.last_triggered_at ? t('token.lastTriggered', { when: fmtRelative(k.last_triggered_at), count: k.triggers }) : t('token.never')}</p>
                 </div>

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -154,13 +155,23 @@ func knowledgeNote(kc knowCall) string {
 	return b.String()[:237] + "...)" // the row holds 600 characters in all
 }
 
-// documentsCite is the source line of the knowledge documents a call carried ("Documents: runbook.md, vpn.pdf"), none when it carried
-// none (S-AI-7, D-445). The names are the box's own (checkDocName), never the model's.
+// documentsCite is the source line of the knowledge documents a call carried (`Documents: "runbook.md", "vpn.pdf"`), none when it
+// carried none (S-AI-7, D-445). The names are the box's own (checkDocName), never the model's. Whoever sees the answer sees the names,
+// also after a document is deleted: the answer drawn from them already reached them.
 func documentsCite(docs []string) []Citation {
 	if len(docs) == 0 {
 		return nil
 	}
-	return []Citation{{Title: "Documents: " + strings.Join(docs, ", ")}}
+	return []Citation{{Title: "Documents: " + docNames(docs)}}
+}
+
+// docNames quotes each name, so a name with a comma still reads as one: "a, b.md", "c.md".
+func docNames(docs []string) string {
+	q := make([]string, len(docs))
+	for i, d := range docs {
+		q[i] = strconv.Quote(d)
+	}
+	return strings.Join(q, ", ")
 }
 
 // knowledgeQuery is the text a call is searched with: the explicit one of the spec, else the question and the data.

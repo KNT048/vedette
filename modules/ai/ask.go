@@ -139,7 +139,7 @@ func endsSentence(t string) bool {
 }
 
 // askEvidence names the question, the tools and the knowledge documents the fact came from (`From the question "…"; tools read: a,
-// b; documents: runbook.md`, the documents as the answer's sources name them), at most evidenceMax characters, without the invisible
+// b; documents: "runbook.md"`, the documents as the answer's sources name them), at most evidenceMax characters, without the invisible
 // characters that SuggestMemory refuses (pasted questions often carry them).
 func askEvidence(question string, calls []AskToolCall, docs []string) string {
 	var tools []string
@@ -150,7 +150,7 @@ func askEvidence(question string, calls []AskToolCall, docs []string) string {
 	}
 	tail := `"; tools read: ` + strings.Join(tools, ", ")
 	if len(docs) > 0 {
-		tail += "; documents: " + strings.Join(docs, ", ")
+		tail += "; documents: " + docNames(docs)
 	}
 	tail = clipRunes(tail, 120)
 	q := strings.Map(func(r rune) rune {

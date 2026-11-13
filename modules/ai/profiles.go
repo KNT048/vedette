@@ -100,9 +100,11 @@ func mapErr(err error) error {
 	return err
 }
 
-// sameConnection: a and b reach the same model at the same address with the same key, so a test of one holds for the other.
+// sameConnection: a and b reach the same model at the same address with the same key from the same place, so a test of one holds for
+// the other. The place counts: it decides the proxy and the addresses the client may reach (provider.Options.InternalOnly).
 func sameConnection(a, b Profile) bool {
-	return a.Kind == b.Kind && a.APIStyle == b.APIStyle && a.BaseURL == b.BaseURL && a.Model == b.Model && a.APIKey.Reveal() == b.APIKey.Reveal()
+	return a.Kind == b.Kind && a.APIStyle == b.APIStyle && a.BaseURL == b.BaseURL && a.Model == b.Model && a.Location == b.Location &&
+		a.APIKey.Reveal() == b.APIKey.Reveal()
 }
 
 // draftTestTTL is how long the test of settings not saved yet waits for the profile saved with them (D-445): the time to finish the
@@ -121,19 +123,30 @@ type draftTest struct {
 // claim one: only TestProfile records them, after the box ran the test. The caller holds s.mu.
 func (s *Service) draftTestOf(who string, p Profile) *LastTest {
 	d, ok := s.drafts[who]
-	if !ok || s.cfg.Clock().Sub(d.at) > draftTestTTL || !sameConnection(d.conn, p) {
+	if ok && s.cfg.Clock().Sub(d.at) > draftTestTTL {
+		delete(s.drafts, who) // its key is not held past the window
+		ok = false
+	}
+	if !ok || !sameConnection(d.conn, p) {
 		return nil
 	}
 	t := d.test
 	return &t
 }
 
-// recordDraftTest keeps the test of settings not saved yet for the profile saved with them; one per admin. The caller holds s.mu.
+// recordDraftTest keeps the test of settings not saved yet for the profile saved with them; one per admin, the expired ones of other
+// admins dropped with their keys. The caller holds s.mu.
 func (s *Service) recordDraftTest(who string, p Profile, failure error) {
+	now := s.cfg.Clock()
 	if s.drafts == nil {
 		s.drafts = map[string]draftTest{}
 	}
-	s.drafts[who] = draftTest{conn: p, test: *s.lastTestOf(failure), at: s.cfg.Clock()}
+	for w, d := range s.drafts {
+		if now.Sub(d.at) > draftTestTTL {
+			delete(s.drafts, w)
+		}
+	}
+	s.drafts[who] = draftTest{conn: p, test: *s.lastTestOf(failure), at: now}
 }
 
 // saveTests writes the last tests of the profiles of sn (ai_setting `profile_tests`); a removed profile's goes with it.
@@ -299,7 +312,7 @@ func (s *Service) EditProfile(ctx context.Context, who, id string, in ProfileInp
 	keepSecret := key.IsSet() && secretID != ""
 	st := stored{Profile: p, secretID: secretID}
 	if sameConnection(old.Profile, p) {
-		st.lastTest = old.lastTest // a new name, place or cap does not change what the test reached; another address, model or key does
+		st.lastTest = old.lastTest // a new name or cap does not change what the test reached; another address, model, key or place does
 	} else {
 		st.lastTest = s.draftTestOf(who, p) // unless the dialog tested the new connection before Save
 	}
@@ -501,12 +514,7 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 		outcome, failure = "failed", probeFailure(probeErr, p.BaseURL)
 	}
 	keep := saved != nil && ctx.Err() == nil // a cancelled request did not find out whether the connection works
-	if saved == nil && ctx.Err() == nil {
-		// settings not saved yet: kept for the profile the dialog then saves with exactly them (D-445)
-		s.mu.Lock()
-		s.recordDraftTest(who, p, failure)
-		s.mu.Unlock()
-	}
+	draft := saved == nil && ctx.Err() == nil
 	if keep {
 		// held while the result is written so that no edit of the profile slips between the check and the swap
 		s.mu.Lock()
@@ -542,6 +550,11 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 		return s.auditTx(actx, tx, who, "ai.test", name, fmt.Sprintf("model=%s, host=%s, result=%s", p.Model, hostOf(p.BaseURL), outcome))
 	}); err != nil {
 		return TestResult{}, err
+	}
+	if draft { // settings not saved yet, once the test is on record: kept for the profile the dialog then saves with exactly them (D-445)
+		s.mu.Lock()
+		s.recordDraftTest(who, p, failure)
+		s.mu.Unlock()
 	}
 	if next != nil {
 		s.snap.Store(next) // only a last test changed: the router's profiles are the same

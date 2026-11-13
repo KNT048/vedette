@@ -1071,11 +1071,11 @@ func TestAskNamesTheDocumentsItSent(t *testing.T) {
 	a.fake.play(turn{calls: []provider.ToolCall{call("search_assets", `{"kind":"nas"}`)}}, turn{text: "The backups run at 01:00.\n\nRemember: the file server is backed up every night at 01:00."})
 	got := a.ask("When do the backups run?", 200, "")
 	cites := list(got["citations"])
-	if len(cites) < 2 || cites[0].(map[string]any)["title"] != "Documents: backups.md" || !strings.HasPrefix(cites[1].(map[string]any)["title"].(string), "Inventory: ") {
+	if len(cites) < 2 || cites[0].(map[string]any)["title"] != `Documents: "backups.md"` || !strings.HasPrefix(cites[1].(map[string]any)["title"].(string), "Inventory: ") {
 		t.Fatalf("citations = %v", cites)
 	}
 	sg := a.want("GET", "/ai/memory", "admin", "", 200, "")["suggestions"].([]any)
-	if len(sg) != 1 || sg[0].(map[string]any)["evidence"] != `From the question "When do the backups run?"; tools read: search_assets; documents: backups.md` {
+	if len(sg) != 1 || sg[0].(map[string]any)["evidence"] != `From the question "When do the backups run?"; tools read: search_assets; documents: "backups.md"` {
 		t.Fatalf("suggestions = %v", sg)
 	}
 	if h := list(a.want("GET", "/ai/asks", "operator", "", 200, "")["items"]); fmt.Sprint(h[0].(map[string]any)["citations"]) != fmt.Sprint(cites) {

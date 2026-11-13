@@ -199,6 +199,15 @@ func newAPIGate(t *testing.T, gate *servertest.Gate) *api {
 	return &api{env: e, h: e.handler(gate)}
 }
 
+// users are the standard ones and a second admin, "admin2", for what one admin does that another must not inherit.
+func users() map[string]server.Principal {
+	u := servertest.StandardUsers()
+	second := u["admin"]
+	second.ID, second.Email = "u-admin2", "second@acme.example"
+	u["admin2"] = second
+	return u
+}
+
 type composite struct {
 	server.Fallback
 	*ai.AIHandlers
@@ -208,7 +217,7 @@ func (e *env) handler(gate *servertest.Gate) http.Handler {
 	e.t.Helper()
 	h, err := server.New(server.Config{
 		API:        composite{Fallback: server.Fallback{Log: slog.New(slog.DiscardHandler)}, AIHandlers: ai.NewAIHandlers(e.svc)},
-		Auth:       &servertest.Auth{Users: servertest.StandardUsers()},
+		Auth:       &servertest.Auth{Users: users()},
 		Modules:    gate,
 		Log:        slog.New(slog.DiscardHandler),
 		BodyLimits: ai.BodyLimits,

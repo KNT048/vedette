@@ -433,6 +433,16 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     expect((await api('/ai/profiles/test', { method: 'POST', body: JSON.stringify(draft) })).status).toBe(200)
     const other = (await (await api('/ai/profiles', { method: 'POST', body: JSON.stringify({ ...draft, name: 'Luna 2', api_key: 'sk-other-key-6789' }) })).json()) as AiProfile
     expect(other.last_test).toBeNull() // another key than the one tested
+    const reused = (await (await api('/ai/profiles', { method: 'POST', body: JSON.stringify({ ...draft, name: 'Luna 3' }) })).json()) as AiProfile
+    expect(reused.last_test).toBeNull() // every save ends the dialog's test
+    // edit: the kept key typed again is the same connection; another place is not
+    expect((await api('/ai/profiles/test', { method: 'POST', body: JSON.stringify({ ...draft, id: added.id, name: 'Luna', model: 'gpt-6-sol', api_key: '' }) })).status).toBe(200)
+    const edited = (await (await api(`/ai/profiles/${added.id}`, { method: 'PUT', body: JSON.stringify({ ...draft, name: 'Luna', model: 'gpt-6-sol' }) })).json()) as AiProfile
+    expect(edited.last_test?.ok).toBe(true)
+    const compat = { ...draft, kind: 'openai-compatible', base_url: 'https://llm.acme.example/v1' }
+    expect((await api('/ai/profiles/test', { method: 'POST', body: JSON.stringify(compat) })).status).toBe(200)
+    const moved = (await (await api('/ai/profiles', { method: 'POST', body: JSON.stringify({ ...compat, name: 'Lab', location: 'internal' }) })).json()) as AiProfile
+    expect(moved.last_test).toBeNull()
   })
 
   it('removing asks for confirmation and names the tasks that lose the profile; a fallback moves up', async () => {

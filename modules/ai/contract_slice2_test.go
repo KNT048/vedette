@@ -583,46 +583,93 @@ func TestAnEditDuringATestDropsItsResult(t *testing.T) {
 	}
 }
 
-// D-445: the test made in the Add or Edit dialog becomes the last test of the profile saved with exactly those settings, a failure as
-// much as a success; other settings, an old test or a body that claims a test the box did not run do not count.
+// D-445: the test made in the Add or Edit dialog becomes the last test of the profile saved with exactly those settings by the same
+// admin, a failure as much as a success; other settings, another place, another admin, an old test, a test already used by a save,
+// or a body that claims a test the box did not run do not count.
 func TestADialogTestIsKeptForTheProfileSavedWithIt(t *testing.T) {
-	a := newAPI(t)
-	lastTest := func(i int) map[string]any {
-		t.Helper()
-		lt, _ := a.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any)[i].(map[string]any)["last_test"].(map[string]any)
-		return lt
+	compat := func(name, loc string) string { // the same server reached from either place
+		return `{"name":"` + name + `","kind":"openai-compatible","api_style":"openai","base_url":"https://llm.acme.example/v1","model":"qwen3:8b","api_key":"` + keyA + `","location":"` + loc + `","daily_cap":60000}`
 	}
-	a.want("POST", "/ai/profiles/test", "admin", cloudBody("", keyA), 200, "")
-	if p := a.addProfile(cloudBody("First", keyA)); p["last_test"] == nil || p["last_test"].(map[string]any)["ok"] != true {
-		t.Fatalf("the dialog's test was not kept: %v", p["last_test"])
-	}
-	if lt := lastTest(0); lt == nil || lt["ok"] != true {
-		t.Fatalf("last_test = %v", lt)
-	}
-	// another key than the one tested, a test past the window: not tested; a body that claims a test is refused at the boundary
-	a.want("POST", "/ai/profiles/test", "admin", cloudBody("Second", keyA), 200, "")
-	a.addProfile(cloudBody("Second", keyB))
-	a.want("POST", "/ai/profiles/test", "admin", cloudBody("Third", keyB), 200, "")
-	a.clock.Add(16 * time.Minute)
-	a.want("POST", "/ai/profiles", "admin", strings.Replace(cloudBody("Third", keyB), `"location"`, `"last_test":{"at":"2026-11-10T03:00:00.000Z","ok":true,"detail":""},"location"`, 1), 400, "invalid")
-	a.addProfile(cloudBody("Third", keyB))
-	if lastTest(1) != nil || lastTest(2) != nil {
-		t.Fatalf("a profile not tested as saved has a last test: %v, %v", lastTest(1), lastTest(2))
-	}
-	// a failed dialog test is kept as a failure, and it survives a restart
-	a.fake.failWith("Fourth", &provider.Error{Kind: provider.ErrAuth, Status: 401})
-	a.want("POST", "/ai/profiles/test", "admin", cloudBody("Fourth", keyA), 502, "key_rejected")
-	a.addProfile(cloudBody("Fourth", keyA))
-	if lt, _ := newAPIOver(a.env).want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any)[3].(map[string]any)["last_test"].(map[string]any); lt == nil || lt["ok"] != false {
-		t.Fatalf("the failed dialog test after a restart = %v", lt)
-	}
-	// Edit: a new model tested in the dialog, then saved
-	id := a.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any)[1].(map[string]any)["id"].(string)
-	sonnet := strings.Replace(cloudBody("Second", ""), "claude-haiku-5-5", "claude-sonnet-5-5", 1)
-	a.want("POST", "/ai/profiles/test", "admin", `{"id":"`+id+`",`+sonnet[1:], 200, "")
-	a.want("PUT", "/ai/profiles/"+id, "admin", sonnet, 200, "")
-	if lt := lastTest(1); lt == nil || lt["ok"] != true {
-		t.Fatalf("the edit dialog's test was not kept: %v", lt)
+	haiku := cloudBody("P", keyA)
+	sonnet := strings.Replace(haiku, "claude-haiku-5-5", "claude-sonnet-5-5", 1)
+	for _, c := range []struct {
+		name string
+		run  func(a *api) map[string]any // returns the last_test of the profile it saved last
+		want any                         // true, false, or nil = not tested
+	}{
+		{"same settings", func(a *api) map[string]any {
+			a.want("POST", "/ai/profiles/test", "admin", cloudBody("", keyA), 200, "")
+			return a.addProfile(haiku)
+		}, true},
+		{"a failed test is kept as failed", func(a *api) map[string]any {
+			a.fake.failWith("P", &provider.Error{Kind: provider.ErrAuth, Status: 401})
+			a.want("POST", "/ai/profiles/test", "admin", haiku, 502, "key_rejected")
+			return a.addProfile(haiku)
+		}, false},
+		{"another key", func(a *api) map[string]any {
+			a.want("POST", "/ai/profiles/test", "admin", haiku, 200, "")
+			return a.addProfile(cloudBody("P", keyB))
+		}, nil},
+		{"past the window", func(a *api) map[string]any {
+			a.want("POST", "/ai/profiles/test", "admin", haiku, 200, "")
+			a.clock.Add(16 * time.Minute)
+			return a.addProfile(haiku)
+		}, nil},
+		{"another admin saves", func(a *api) map[string]any {
+			a.want("POST", "/ai/profiles/test", "admin", haiku, 200, "")
+			return a.want("POST", "/ai/profiles", "admin2", haiku, 200, "")
+		}, nil},
+		{"another place than tested", func(a *api) map[string]any {
+			a.want("POST", "/ai/profiles/test", "admin", compat("", "cloud"), 200, "")
+			return a.addProfile(compat("P", "internal"))
+		}, nil},
+		{"a test is used by one save only", func(a *api) map[string]any {
+			a.want("POST", "/ai/profiles/test", "admin", haiku, 200, "")
+			if p := a.addProfile(haiku); p["last_test"] == nil {
+				t.Fatal("the first save did not take the test")
+			}
+			return a.addProfile(cloudBody("P2", keyA))
+		}, nil},
+		{"a claim in the body is refused", func(a *api) map[string]any {
+			a.want("POST", "/ai/profiles", "admin", strings.Replace(haiku, `"location"`, `"last_test":{"at":"2026-11-10T03:00:00.000Z","ok":true,"detail":""},"location"`, 1), 400, "invalid")
+			return a.addProfile(haiku)
+		}, nil},
+		{"edit to the tested connection", func(a *api) map[string]any {
+			id := a.addProfile(haiku)["id"].(string)
+			a.want("POST", "/ai/profiles/test", "admin", `{"id":"`+id+`",`+sonnet[1:], 200, "")
+			return a.want("PUT", "/ai/profiles/"+id, "admin", sonnet, 200, "")
+		}, true},
+		{"edit to another connection than tested", func(a *api) map[string]any {
+			id := a.addProfile(haiku)["id"].(string)
+			a.want("POST", "/ai/profiles/test", "admin", `{"id":"`+id+`",`+sonnet[1:], 200, "")
+			return a.want("PUT", "/ai/profiles/"+id, "admin", strings.Replace(haiku, "claude-haiku-5-5", "claude-opus-5-5", 1), 200, "")
+		}, nil},
+		{"edit of the place clears the saved test", func(a *api) map[string]any {
+			id := a.addProfile(compat("P", "cloud"))["id"].(string)
+			a.want("POST", "/ai/profiles/test", "admin", `{"id":"`+id+`",`+compat("P", "cloud")[1:], 200, "")
+			if lt := a.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any)[0].(map[string]any)["last_test"]; lt == nil {
+				t.Fatal("the test as saved was not kept")
+			}
+			return a.want("PUT", "/ai/profiles/"+id, "admin", compat("P", "internal"), 200, "")
+		}, nil},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			a := newAPI(t)
+			p := c.run(a)
+			lt, _ := p["last_test"].(map[string]any)
+			if c.want == nil && lt != nil || c.want != nil && (lt == nil || lt["ok"] != c.want) {
+				t.Fatalf("last_test = %v, want ok = %v", p["last_test"], c.want)
+			}
+			if c.want == nil {
+				return
+			}
+			// what the save returned is what the list shows, also after a restart
+			for _, it := range newAPIOver(a.env).want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any) {
+				if m := it.(map[string]any); m["id"] == p["id"] && fmt.Sprint(m["last_test"]) != fmt.Sprint(p["last_test"]) {
+					t.Fatalf("after a restart %v, saved %v", m["last_test"], p["last_test"])
+				}
+			}
+		})
 	}
 }
 

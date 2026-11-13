@@ -10,7 +10,7 @@ import (
 // Software updates of Vedette itself (S-CORE-2, D-340, update-manifest.md §5–§10). Two halves on OSHandlers:
 // the check side (updates_check.go: fetch and verify the signed index and manifest, channel, mode, cohort, what is
 // offered, GET/PATCH /core/updates, POST /core/updates/check) and the run side (updates_run.go: apply and rollback
-// as one run over every service, core last, kept across core's own restart, history). This file is the seam between them.
+// as one run over every service, core first on Apply and last on Rollback (D-459), kept across core's own restart, history). This file is the seam between them.
 
 // core_setting keys of the software update. Every value is one JSON object (or array) written in a transaction.
 const (

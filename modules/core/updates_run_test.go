@@ -441,21 +441,22 @@ func steps(run map[string]any) string {
 	return strings.Join(s, ",")
 }
 
-func TestUpdateApplyPullsEveryServiceStartsTheOthersThenCoreLast(t *testing.T) {
+func TestUpdateApplyPullsEveryServiceSwitchesCoreFirstThenTheOthers(t *testing.T) {
 	t.Parallel()
 	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
 	r := e.admin.post("/core/updates/apply", map[string]any{"component": "software"})
 	wantOK(t, r, 200)
-	if run := runOf(t, r); run["status"] != "running" || run["action"] != "update" || run["from"] != "1.3.0" || run["to"] != "1.4.0" || steps(run) != "download,start,restart" {
+	if run := runOf(t, r); run["status"] != "running" || run["action"] != "update" || run["from"] != "1.3.0" || run["to"] != "1.4.0" || steps(run) != "download,restart,start" {
 		t.Fatalf("run at the start = %v", run)
 	}
 	run := endedRun(t, e)
 	if run["status"] != "done" || run["error"] != nil || run["step"] != nil || run["user"] != "admin@acme.example" {
 		t.Fatalf("run = %v", run)
 	}
-	// Every installed service is pulled (honeypot too, though off); the running ones start; honeypot, which is
-	// off, does not (SYS-5); greenbone is not installed; core is last, with a snapshot.
-	want := []string{"pull core 1.4.0", "pull sensor 1.4.0", "pull honeypot 1.4.0", "pull scan 1.4.0", "start sensor 1.4.0", "start scan 1.4.0", "start core 1.4.0 snap"}
+	// Every installed service is pulled (honeypot too, though off); core switches first, with a snapshot (D-459: a
+	// sensor is never newer than core); then the running ones start; honeypot, which is off, does not (SYS-5);
+	// greenbone is not installed.
+	want := []string{"pull core 1.4.0", "pull sensor 1.4.0", "pull honeypot 1.4.0", "pull scan 1.4.0", "start core 1.4.0 snap", "start sensor 1.4.0", "start scan 1.4.0"}
 	if got := fh.callList(); !slices.Equal(got, want) {
 		t.Errorf("calls = %q, want %q", got, want)
 	}
@@ -470,7 +471,8 @@ func TestUpdateApplyPullsEveryServiceStartsTheOthersThenCoreLast(t *testing.T) {
 	eventuallyOS(t, "the snapshot to be removed", func() bool { return len(e.snapshotDirs()) == 0 })
 }
 
-// core's own switch restarts core: the next process finds the stored run, asks the host about the stored run id
+// core's own switch restarts core: the next process (the new release) finds the stored run, asks the host about the
+// stored run id, switches the other services only then (D-459: the host judges them by core taking their heartbeat)
 // and settles it once, with the user who started it.
 func TestUpdateRunIsCarriedOnAfterCoreRestarts(t *testing.T) {
 	t.Parallel()
@@ -485,6 +487,9 @@ func TestUpdateRunIsCarriedOnAfterCoreRestarts(t *testing.T) {
 	if d := e.snapshotDirs(); len(d) != 1 {
 		t.Fatalf("snapshot directories while core switches = %v", d)
 	}
+	if c := fh.callList(); slices.ContainsFunc(c, func(x string) bool { return strings.HasPrefix(x, "start sensor") || strings.HasPrefix(x, "start scan") }) {
+		t.Fatalf("a sensor or scan worker was switched before core's switch ended: %q", c)
+	}
 	e.handler.Close() // the host stops core
 	fh.release("start core")
 	e.handler = e.start(t, "1.4.0") // the new version starts on the same database
@@ -494,6 +499,9 @@ func TestUpdateRunIsCarriedOnAfterCoreRestarts(t *testing.T) {
 	}
 	if n := countOf(fh.callList(), "start core 1.4.0 snap"); n != 1 {
 		t.Errorf("core's switch was sent %d times, want once (calls %q)", n, fh.callList())
+	}
+	if c := fh.callList(); !slices.Equal(c[len(c)-3:], []string{"start core 1.4.0 snap", "start sensor 1.4.0", "start scan 1.4.0"}) {
+		t.Errorf("calls = %q, want core's switch and then the sensor's and the scanner's", c)
 	}
 	if a := e.actions(); countOf(a, "update.apply_done") != 1 {
 		t.Errorf("audit = %v", a)
@@ -506,8 +514,8 @@ func TestUpdateRunIsCarriedOnAfterCoreRestarts(t *testing.T) {
 	eventuallyOS(t, "the snapshot to be removed", func() bool { return len(e.snapshotDirs()) == 0 })
 }
 
-// After a restart, a switch of core that the host never took is not sent again: the run stops and the services it
-// switched go back.
+// After a restart, a switch of core that the host never took is not sent again: the run stops, and no other service
+// switched before it (D-459).
 func TestUpdateCoreSwitchIsNotSentAgainAfterARestart(t *testing.T) {
 	t.Parallel()
 	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
@@ -521,7 +529,9 @@ func TestUpdateCoreSwitchIsNotSentAgainAfterARestart(t *testing.T) {
 		t.Fatalf("run = %v", run)
 	}
 	calls := fh.callList()
-	if !slices.Contains(calls, "rollback sensor") || !slices.Contains(calls, "rollback scan") || slices.Contains(calls[len(calls)-2:], "start core 1.4.0 snap") {
+	if slices.ContainsFunc(calls, func(c string) bool {
+		return strings.HasPrefix(c, "rollback") || strings.HasPrefix(c, "start sensor") || strings.HasPrefix(c, "start scan")
+	}) {
 		t.Errorf("calls = %q", calls)
 	}
 }
@@ -567,25 +577,62 @@ func TestUpdatePullRefusedEndsTheRunBeforeAnythingSwitches(t *testing.T) {
 	}
 }
 
-// core did not become healthy: the host put it back; the run puts the services it switched back too.
-func TestUpdateCoreRevertedPutsTheOthersBack(t *testing.T) {
+// core did not become healthy: the host put it back; nothing else was switched (core goes first, D-459).
+func TestUpdateCoreRevertedSwitchesNothingElse(t *testing.T) {
 	t.Parallel()
 	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
 	fh.ends["start core"] = api.RunError{Code: api.CodeUnitFailed}
 	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
 	run := endedRun(t, e)
-	if run["status"] != "reverted" || run["error"] != "Vedette 1.4.0 did not start correctly, so the box went back to 1.3.0. The other services were put back on 1.3.0." {
+	if run["status"] != "reverted" || run["error"] != "Vedette 1.4.0 did not start correctly, so the box went back to 1.3.0." {
 		t.Fatalf("run = %v", run)
 	}
-	calls := fh.callList()
-	if got := calls[len(calls)-3:]; !slices.Equal(got, []string{"start core 1.4.0 snap", "rollback sensor", "rollback scan"}) {
-		t.Errorf("last calls = %q", got)
+	if calls := fh.callList(); calls[len(calls)-1] != "start core 1.4.0 snap" {
+		t.Errorf("calls = %q, want core's switch last", calls)
 	}
 	st, _ := fh.StateContainers(t.Context())
 	for _, s := range st.Services {
 		if s.Installed && *s.Version != "1.3.0" {
 			t.Errorf("%s runs %s after the revert", s.Service, *s.Version)
 		}
+	}
+	if hist := e.admin.get("/core/updates").JSON["history"].([]any); len(hist) != 0 {
+		t.Errorf("history of a reverted run = %v", hist)
+	}
+}
+
+// A sensor that does not become healthy after core switched went back by itself; core stays on the new release (it
+// takes the sensor's older protocol, D-459), the scanner after it is not switched, nothing is rolled back, and the run
+// fails saying so. Core moved, so the history has the update.
+func TestUpdateServiceFailingAfterCoreLeavesCoreOnTheNewRelease(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+	fh.ends["start sensor"] = api.RunError{Code: api.CodeUnitFailed}
+	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+	run := endedRun(t, e)
+	want := "the sensor did not start correctly on 1.4.0, so it went back to 1.3.0. Vedette itself runs 1.4.0. It keeps working with the services still on 1.3.0, which move with the next update. To put the whole box back on 1.3.0, use Rollback."
+	if run["status"] != "failed" || run["error"] != want {
+		t.Fatalf("run = %v", run)
+	}
+	calls := fh.callList()
+	if got := calls[len(calls)-2:]; !slices.Equal(got, []string{"start core 1.4.0 snap", "start sensor 1.4.0"}) {
+		t.Errorf("last calls = %q", got)
+	}
+	st, _ := fh.StateContainers(t.Context())
+	vers := map[string]string{api.ServiceCore: "1.4.0", api.ServiceSensor: "1.3.0", api.ServiceScan: "1.3.0"}
+	for _, s := range st.Services {
+		if v, ok := vers[s.Service]; ok && *s.Version != v {
+			t.Errorf("%s runs %s, want %s", s.Service, *s.Version, v)
+		}
+	}
+	if hist := e.admin.get("/core/updates").JSON["history"].([]any); len(hist) != 1 || hist[0].(map[string]any)["to"] != "1.4.0" {
+		t.Errorf("history = %v", hist)
+	}
+	// Rollback then takes core back alone: the sensor and the scanner never moved with it.
+	wantOK(t, e.admin.post("/core/updates/rollback", map[string]any{"component": "software"}), 200)
+	waitCall(t, fh, "rollback core")
+	if c := fh.callList(); slices.Contains(c, "rollback sensor") || slices.Contains(c, "rollback scan") {
+		t.Errorf("calls = %q", c)
 	}
 }
 
@@ -675,7 +722,7 @@ func TestUpdateRollbackLostToARestoredDatabaseIsRebuiltFromTheHost(t *testing.T)
 	eventuallyOS(t, "the run id of core's switch to be stored", func() bool {
 		var raw string
 		_ = e.env.DB.Reader().QueryRowContext(t.Context(), "SELECT value FROM core_setting WHERE key = 'core_update_run'").Scan(&raw)
-		return strings.Contains(raw, `"service":"core","request_id"`) && strings.Count(raw, `"run_id"`) == 7
+		return strings.Contains(raw, `"service":"core","request_id"`) && strings.Count(raw, `"run_id"`) == 5
 	})
 	e.handler.Close()
 	fh.release("start core")
@@ -694,6 +741,11 @@ func TestUpdateRollbackLostToARestoredDatabaseIsRebuiltFromTheHost(t *testing.T)
 	if len(hist) != 2 || hist[0].(map[string]any)["action"] != "rollback" || hist[1].(map[string]any)["action"] != "update" {
 		t.Errorf("history = %v", hist)
 	}
+	// The restored copy is of the run at core's switch, before the sensor's and the scanner's: core no longer runs
+	// 1.4.0, so they are not switched up after the rollback (D-459).
+	if c := fh.callList(); slices.ContainsFunc(c, func(x string) bool { return strings.HasPrefix(x, "start sensor") || strings.HasPrefix(x, "start scan") }) {
+		t.Errorf("calls = %q", c)
+	}
 }
 
 // The lab sequence: the rollback restored the database, core is back up and follows the restored update run while the
@@ -708,7 +760,7 @@ func TestUpdateRollbackStillRunningAtTheHostIsWaitedFor(t *testing.T) {
 	eventuallyOS(t, "the run id of core's switch to be stored", func() bool {
 		var raw string
 		_ = e.env.DB.Reader().QueryRowContext(t.Context(), "SELECT value FROM core_setting WHERE key = 'core_update_run'").Scan(&raw)
-		return strings.Contains(raw, `"service":"core","request_id"`) && strings.Count(raw, `"run_id"`) == 7
+		return strings.Contains(raw, `"service":"core","request_id"`) && strings.Count(raw, `"run_id"`) == 5
 	})
 	e.handler.Close()
 	fh.release("start core")
@@ -813,7 +865,7 @@ func TestUpdateRollbackLostToARestoredDatabaseSurvivesFailedHostReads(t *testing
 	eventuallyOS(t, "the run id of core's switch to be stored", func() bool {
 		var raw string
 		_ = e.env.DB.Reader().QueryRowContext(t.Context(), "SELECT value FROM core_setting WHERE key = 'core_update_run'").Scan(&raw)
-		return strings.Contains(raw, `"service":"core","request_id"`) && strings.Count(raw, `"run_id"`) == 7
+		return strings.Contains(raw, `"service":"core","request_id"`) && strings.Count(raw, `"run_id"`) == 5
 	})
 	e.handler.Close()
 	fh.release("start core")
@@ -970,6 +1022,19 @@ func TestUpdateRunThatTheHostKeepsRefusingMeetsTheSixHourRule(t *testing.T) {
 	e.clock.Advance(7 * time.Hour)
 	if run := endedRun(t, e); run["status"] == "done" {
 		t.Fatalf("run = %v, want it ended by the 6-hour rule", run)
+	}
+
+	// The same after core switched (D-459): core runs the new release, so the end says so and the history has it.
+	m, fm := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+	fm.refuse["start sensor"] = api.CodeBusy
+	wantOK(t, m.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+	waitCall(t, fm, "start sensor")
+	m.clock.Advance(7 * time.Hour)
+	if run := endedRun(t, m); run["status"] != "failed" || !strings.HasSuffix(run["error"].(string), "Vedette itself runs 1.4.0; to put the whole box back on 1.3.0, use Rollback.") {
+		t.Fatalf("run = %v", run)
+	}
+	if hist := m.admin.get("/core/updates").JSON["history"].([]any); len(hist) != 1 || hist[0].(map[string]any)["to"] != "1.4.0" {
+		t.Errorf("history = %v", hist)
 	}
 }
 

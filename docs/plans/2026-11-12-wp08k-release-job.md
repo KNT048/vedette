@@ -19,18 +19,18 @@ has none.
 | 0 | `git tag -s v<v>` on the release commit, `git push origin v<v>` | **kien, by hand** | | tag | git signing key (optional), GitHub push |
 | 1 | `make images IMAGE_TAG=<v> IMAGE_VERSION=<v> RELEASE_PREV_INDEX=<prev>` (or `MIN_SEQUENCE=0` for the very first) | maintainer | tree at the tag, `pins.env` | 4 local podman manifest lists `localhost/vedette-{core,sensor,scan-base,honeypot}:<v>`, amd64 + arm64 | none |
 | 2 | `make host-deb VERSION=<v> ARCH=amd64` and `ARCH=arm64` (same `RELEASE_PREV_INDEX`), then **[A]** `make release-deb-name VERSION=<v>` (a prerelease: nfpm's `~` name → SemVer; a plain `<v>` needs nothing) | maintainer | tree | `dist/vedette-host_<v>_<arch>.deb` | none |
-| 3 | **[B]** `make release-gates VERSION=<v> RELEASE_PREV_INDEX=<prev>` (or `MIN_SEQUENCE=0` for the very first): `make vuln-scan`, `sbom`, `notices-check`, `check-binaries -release`, image version label = `<v>`, `MIN_SEQUENCE` floor (D-401) | maintainer | lists, `.deb`, `<prev>` | `dist/sbom`, `dist/vuln` (RELEASE=1) | none |
-| 4 | **`make release-push VERSION=<v>`** | maintainer | the 4 local lists | ghcr.io: `vedette-{core,sensor,scan,honeypot}` by digest (+ tag `<v>`); `dist/release/images.json` | **ghcr token** (`podman login ghcr.io`, `write:packages`) |
-| 5 | **`make release-in RELEASE_CHANNEL=stable RELEASE_ROLLBACK_SAFE=false`** (+ `RELEASE_ROLLBACK_MIN`, `RELEASE_MIN_UPGRADE_FROM` when wanted), then write the notes into `release.in.json` | maintainer | `images.json`, the two `.deb`, local lists (sizes) | `release.in.json` | none |
+| 3 | **[B]** `make release-gates VERSION=<v> RELEASE_PREV_INDEX=<prev>` (or `MIN_SEQUENCE=0` for the very first): `make vuln-scan`, `sbom`, `notices-check`, `check-binaries -release`, image version label = `<v>`, `MIN_SEQUENCE` floor (D-401) | maintainer | lists, `.deb`, `<prev>` | `dist/sbom`, `dist/vuln` (RELEASE=1); `dist/release/gates.json` (only when all passed) | none |
+| 4 | **`make release-push VERSION=<v>`** | maintainer | the 4 local lists, `gates.json` | ghcr.io: `vedette-{core,sensor,scan,honeypot}` by digest (+ tag `<v>`); `dist/release/images.json` | **ghcr token** (`podman login ghcr.io`, `write:packages`) |
+| 5 | **`make release-in RELEASE_CHANNEL=stable RELEASE_ROLLBACK_SAFE=false`** (+ `RELEASE_ROLLBACK_MIN`, `RELEASE_MIN_UPGRADE_FROM` when wanted), then write the notes into `release.in.json` | maintainer | `images.json`, `gates.json`, the two `.deb`, local lists (sizes) | `release.in.json` | none |
 | 6 | **[C]** `make release-cosign-plan COSIGN_KEY=…` (sign lines + `cosign attest --type cyclonedx` lines from `images.json`; each SBOM's trivy `ImageID` must be the platform's `config` in `images.json`) | maintainer | `release.in.json`, `images.json`, `dist/sbom` | printed commands | none |
 | 7 | run the printed cosign commands | **kien** | | `dist/release/cosign/<service>.{payload.json,sig}`; attestations in ghcr | **cosign key** + `COSIGN_PASSWORD`, ghcr token (attest uploads) |
-| 8 | `make release-manifest RELEASE_PREV_INDEX=<prev>` | maintainer | `release.in.json`, cosign files, git at `v<v>`, `<prev>` | `release-manifest.json`, `index.json` (unsigned) | none |
+| 8 | `make release-manifest RELEASE_PREV_INDEX=<prev>` | maintainer | `release.in.json`, `gates.json` (the `.deb` hashes), cosign files, git at `v<v>`, `<prev>` | `release-manifest.json`, `index.json` (unsigned) | none |
 | 9 | `make release-container-assets` | maintainer | git at `v<v>`, `release.in.json` | the four container-only files | none |
 | 10 | **[A]** `make release-bake-install MINISIGN_KEY=…` (active; the backup key only for a rescue) | maintainer | `install.sh` at the tag, `release-manifest.json`, the `.deb` | `dist/release/install.sh` (3 baked lines), `install.sh.minisig` with the trusted comment `file:install.sh version:<v>` | **minisign active key** |
 | 11 | `make release-sign MINISIGN_KEY=…` (active), then `RELEASE_SLOT=backup` with the offline key | **kien** | `dist/release` | `.minisig` files; `index.json.backup.minisig` | **minisign active**, then **backup** (USB) |
 | 12 | `make release-verify RELEASE=1 RELEASE_PREV_INDEX=<prev>` | maintainer | `dist/release` | nothing (kept) | none |
 | 13 | **`make release-publish RELEASE_PREV_INDEX=<prev>`** (prints), then the same with **`PUBLISH=1`** (the first release: `FIRST_RELEASE=1` and no `RELEASE_PREV_INDEX`) | **kien** | `dist/release`, `release.in.json`, `<prev>`, the live index, ghcr anonymously | GitHub release `v<v>` and the fixed release `index` | **gh token** (`repo` scope) |
-| 14 | archive, before `make clean`: `dist/release/index.json`, `.minisig`, `.backup.minisig` (its SHA-256 noted: the next `<prev>`), `release-manifest.json(.minisig)`, `images.json`, `release.in.json`, `dist/release/cosign/`; then `make clean` and remove the local lists | kien | | archive | |
+| 14 | archive, before `make clean`: `dist/release/index.json`, `.minisig`, `.backup.minisig` (its SHA-256 noted: the next `<prev>`), `release-manifest.json(.minisig)`, `gates.json`, `images.json`, `release.in.json`, `dist/release/cosign/`; then `make clean` and remove the local lists | kien | | archive | |
 
 The weekly index refresh (D-150) is `release-refresh RELEASE_PREV_INDEX=<prev>` → `release-sign` (+ backup) → `release-verify RELEASE=1
 RELEASE_PREV_INDEX=<prev>` → `release-publish RELEASE_PREV_INDEX=<prev> PUBLISH=1`: on an index-only directory publish uploads only the
@@ -45,14 +45,33 @@ of the four lists, and core's `io.github.knt048.vedette.min-sequence` label = th
 `make host-deb … MIN_SEQUENCE=<floor>` into a temporary directory and compared byte for byte (the package is reproducible; a stripped
 binary does not show its floor). The floor is the verified sequence of `RELEASE_PREV_INDEX` (checked by the Go step too, since an
 environment `MIN_SEQUENCE` would win in make), so images and packages must have been
-built with that same `<prev>`.
+built with that same `<prev>`. `host-deb` pins `GOAMD64=v1` and `GOARM64=v8.0` on its `go build`, so a package built with another CPU
+level in the environment (one an older box cannot run) is not rebuilt the same way and is refused.
+
+Only when every check passed does the final run write **`dist/release/gates.json`** (`-out`, atomically, mode 0644): the version, the
+floor, per `.deb` arch its file name, SHA-256 and size (of the bytes compared with the rebuild), and per image and platform the
+**config digest** (podman's image ID) of the platform image it read. The config digest is the identity the rest of the chain already
+uses (push compares it with a list already in the registry, `images.json` records it, part C requires each SBOM's trivy `ImageID` to
+equal it); a re-read of the same list gives the same one, any rebuild another (a bit-for-bit identical rebuild is the same image).
+Before writing it, the run also requires the trivy report `dist/vuln/<local>-<arch>.json` (`Metadata.ImageID`) and the SBOM
+`dist/sbom/<local>-<arch>.cdx.json` (`aquasecurity:trivy:ImageID`) of every platform to be of that same config digest, so a
+`make images` during the scans is refused rather than recorded. The first line of `make release-gates` removes an earlier
+`gates.json` (and the Go step does too), so a run that fails at any step, the scans included, never leaves a previous pass;
+`-preflight` itself writes and removes nothing. Decision: D-460.
+Steps 4, 5 and 8 read it strictly (known fields only, both packages and the four images once each) and refuse when it is missing, of
+another version, or names other bytes: "run make release-gates again". A `make images` or `make host-deb` between step 3 and steps
+4–8 is therefore caught, not shipped (step 8 checks the hashes the manifest names, so bake-install and publish, which compare with
+the signed manifest, inherit it).
 
 **`release-push`** (`scripts/release` `push`, podman only). For each of `core`, `sensor`, `scan-base` (published as **`vedette-scan`**:
 the manifest, the cosign identity and `vedette.env` all call it `scan`, and the box builds its scan image FROM it, D-147) and `honeypot`:
 
 1. `podman manifest exists` + `inspect` of `localhost/vedette-<image>:<v>`: a manifest list holding exactly the platforms of `PLATFORMS`
    (default linux/amd64 + linux/arm64); `podman images --all --format json` gives each platform image's ID (its config digest), size
-   and labels, and every platform must carry `org.opencontainers.image.version=<v>`.
+   and labels, and every platform must carry `org.opencontainers.image.version=<v>` and have the config digest `gates.json` records
+   (`-gates`, default `<out>/gates.json`; a missing record or one of another version is refused). All four lists are read and compared
+   before anything is pushed, and each list is read again (local storage only) right after its own push: podman pushes whatever the
+   name holds at that moment, so a `make images` during the push is refused and nothing is written to `images.json`.
 2. Refuses when a **local** image is named `ghcr.io/knt048/vedette-<service>:<v>`: podman resolves a name in local storage first and
    has no `docker://` form for `manifest inspect` (measured, podman 5.7), so the read-back below would read the local copy.
 3. Is `…:<v>` already in the registry (`podman manifest inspect`, with podman's login)? "manifest unknown" → push. Present → read it
@@ -68,9 +87,9 @@ the manifest, the cosign identity and `vedette.env` all call it `scan`, and the 
 6. `podman manifest inspect …:<v>`: the version tag must name the same per-platform digests. The tag is for people; nothing
    downstream reads it.
 
-Also refused: a registry other than `ghcr.io/knt048` unless it is on 127.0.0.1/[::1]/localhost (a **rehearsal**: TLS verification, the
-`-test.` refusal and the git checks are off; Linux only, because podman on macOS runs in a VM whose 127.0.0.1 is not the Mac's); a
-non-SemVer or `-test.` version; uncommitted changes to tracked files; HEAD not equal to tag `v<v>`; `CONTAINER=docker` (§4).
+Also refused: a registry other than `ghcr.io/knt048` unless it is on 127.0.0.1/[::1]/localhost (a **rehearsal**: TLS verification and the
+git checks are off; Linux only, because podman on macOS runs in a VM whose 127.0.0.1 is not the Mac's); a
+non-SemVer or `-test.` version (a rehearsal too); uncommitted changes to tracked files; HEAD not equal to tag `v<v>`; `CONTAINER=docker` (§4).
 The git check proves the **tree** is the tag, not that the images were built from it: untracked files are not looked at, and the images
 are only tied to `<v>` by their version label (and B's gates); build them from the tag in the same session.
 `images.json` is written only after all four are in the registry and read back:
@@ -101,7 +120,9 @@ the compiled-in ones) and its comment read back. On any failure neither `install
 file is refused), and writes `release.in.json`: images (`digest` = index digest, `platforms`, `size` = the largest unpacked size among
 the platforms of the local list, used by the box only for its free-space check, D-104), host = the two
 `<deb-dir>/vedette-host_<v>_<amd64|arm64>.deb` (checked by the same `buildHostPart` the manifest uses), `install_modes`
-`["appliance","container"]` (D-451), `released_at` empty, `content`/`bundled` empty, `sbom` null. `channel` and `rollback.safe` must
+`["appliance","container"]` (D-451), `released_at` empty, `content`/`bundled` empty, `sbom` null. It reads `gates.json` (`-gates`,
+default next to `-images`) and refuses another version, a `.deb` whose SHA-256 or size is not the recorded one, and a platform config
+digest, in `images.json` or in the local lists it takes the sizes from, that is not the recorded one. `channel` and `rollback.safe` must
 be given (`stable|beta`, `true|false`); `rollback.min_version` and `min_upgrade_from` only when given. It refuses to overwrite an
 existing `release.in.json` (it may hold notes). The result is parsed back with `ParseInputs`, and a test runs it through
 `BuildManifest`.
@@ -145,7 +166,7 @@ Default: prints the commands (the notes go to `dist/release/release-notes.md`). 
 7. **Last:** anonymous pull checked again, the live index read again (it must not have moved since step 1), the index files re-hashed,
    then `gh release upload index --clobber index.json index.json.minisig` (+ any `index.v<N>.json` pair, D-108), read back.
 
-`index.json.backup.minisig`, `images.json`, `release.in.json` and the cosign files are not uploaded (the box never fetches them); kien
+`index.json.backup.minisig`, `gates.json`, `images.json`, `release.in.json` and the cosign files are not uploaded (the box never fetches them); kien
 keeps them in the archive of step 14.
 
 ## 2. Why this order: a half-published release
@@ -221,3 +242,7 @@ that every asset of `v<v>` has the SHA-256 of `dist/release/` (`gh release view 
 - Release notes: written by hand into `release.in.json` after step 5 (they are signed in the manifest and reused as the GitHub notes).
 - Only a loopback registry, a fake registry (`httptest`) and fakes of `gh` were used: the first real ghcr push and publish are kien's
   (`.ai/deferred/feat-release-push.md`).
+- **Rehearsing** steps 1–5 is as strict as a release (no bypass, no rehearsal record): in a scratch full clone, tag a real SemVer
+  version locally (`git tag v9.9.0`, never pushed), run steps 1–3 with `MIN_SEQUENCE=0` (a first release), then
+  `make release-push VERSION=9.9.0 REGISTRY=127.0.0.1:<port>` against a local `registry:2`. `release-in` refuses the rehearsal's
+  `images.json` by design (D-460, which replaces the rehearsal part of D-457).

@@ -103,7 +103,16 @@ export const AgentToken = z.object({
   expires_at: dt.nullable().describe('null = never expires; default 7 days. The token only enrolls osquery (it can read nothing) and can be revoked'),
 })
 const Installer = z.object({ url: z.string(), sha256: z.string().describe('SHA-256 (lowercase hex) of the script served by the box; users compare it before running'), script: z.string().describe('Full script text, for the admin to read first') })
-export const Installers = z.object({ osquery_version: z.string(), linux: Installer, windows: Installer })
+export const OsqueryPackage = z.object({
+  file: z.string().describe('File name; the browser downloads it from /api/v1/install/osquery/{file} (D-404)'),
+  platform: z.enum(['linux', 'windows']), format: z.enum(['deb', 'rpm', 'msi']), arch: z.enum(['x86_64', 'arm64']),
+  size: z.number().int().describe('Bytes'),
+  sha256: z.string().describe("SHA-256 (lowercase hex) from the box's SHA256SUMS, which the core build writes from deploy/osquery/PINS"),
+})
+export const Installers = z.object({
+  osquery_version: z.string(), linux: Installer, windows: Installer,
+  packages: z.array(OsqueryPackage).describe('The osquery packages this box serves (D-404); empty when it has no copy (a development build without the mirror)'),
+})
 export const OsqueryStatusBody = z.object({ host_identifier: z.string().max(200).optional().describe('The name this machine enrols under (the install script sets osquery host_identifier = specified and sends the same name here); the install script sends it so the answer is about THIS machine') })
 export const OsqueryStatus = z.object({
   enrolled: z.boolean(), hosts: z.number().int(),

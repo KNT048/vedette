@@ -61,7 +61,7 @@ help:
 	@echo "make sbom        CycloneDX SBOM (trivy) of each local image per platform and of the source, into dist/sbom/; RELEASE=1 keeps it; trivy's database cache: TRIVY_CACHE_DIR=~/.cache/vedette-trivy (WP-08i, D-159)"
 	@echo "make vuln-scan    trivy on the local images and the source: fails on a fixable HIGH/CRITICAL; exceptions only in .trivyignore.yaml with reason and date (D-159)"
 	@echo "make notices-check  THIRD_PARTY_NOTICES.md against the Go modules linked into the binaries and the web production dependencies; no GPL/AGPL (D-159)"
-	@echo "make release-gates VERSION=<v> RELEASE_PREV_INDEX=<prev>   step 3 of the release job (D-457, D-401), after make images and both host-deb: vuln-scan + sbom (kept in dist/sbom, dist/vuln), notices-check, check-binaries -release inside each .deb, the version label of every image platform and core's floor label, each .deb rebuilt with the floor and compared byte for byte; MIN_SEQUENCE=0 instead of RELEASE_PREV_INDEX for the very first release only"
+	@echo "make release-gates VERSION=<v> RELEASE_PREV_INDEX=<prev>   step 3 of the release job (D-457, D-401), after make images and both host-deb: vuln-scan + sbom (kept in dist/sbom, dist/vuln), notices-check, check-binaries -release inside each .deb, the version label of every image platform and core's floor label, each .deb rebuilt with the floor and compared byte for byte; then dist/release/gates.json, the record release-push, release-in and release-manifest refuse to differ from; MIN_SEQUENCE=0 instead of RELEASE_PREV_INDEX for the very first release only"
 	@echo "make install-artifacts [FAST=1] [TEST_VERSION=0.0.1-test.1]   the TEST release for install.sh --test-artifacts into dist/install (.deb, images, documents signed with throwaway keys; WP-08h, D-166); install-check runs install.sh end to end in systemd containers (opt-in)"
 	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f, D-164): print the cosign commands, build release-manifest.json + index.json (refuses rollback.safe=true unless rollback.min_version is set and every migration since that release, read from git, is add-only, D-183); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index), sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
 	@echo "make release-container-assets   after release-manifest: the container-only files (compose.yaml, compose.sensors.yaml, compose.syslog.yaml, vedette.env with the three image digests) read from git at the tag into dist/release; release-sign signs them, release-verify requires them when install_modes lists container (D-451)"
@@ -295,7 +295,8 @@ $(PACK_DIR)/index.json: deploy/containers/pins.env $(wildcard scripts/scanpack/*
 ifeq ($(CONTAINER),docker)
 MULTI = { mkdir -p dist/images && docker buildx build --platform $(PLATFORMS) $(if $(findstring $(comma),$(PLATFORMS)),--output type=oci$(comma)dest=dist/images/vedette-$(1)-$(IMAGE_TAG).tar,--load -t localhost/vedette-$(1):$(IMAGE_TAG)) -f $(2) $(PIN_ARGS) $(3) .; }
 else
-MULTI = { $(CONTAINER) manifest rm localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&1 || $(CONTAINER) rmi -f localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&1 || true; $(CONTAINER) build --platform $(PLATFORMS) --manifest localhost/vedette-$(1):$(IMAGE_TAG) -f $(2) $(PIN_ARGS) $(3) .; }
+# --format oci (D-460): the gates tie the podman image ID to trivy's ImageID, which is the same digest only for an OCI image (a Docker-format build, e.g. BUILDAH_FORMAT=docker, is converted on export).
+MULTI = { $(CONTAINER) manifest rm localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&1 || $(CONTAINER) rmi -f localhost/vedette-$(1):$(IMAGE_TAG) >/dev/null 2>&1 || true; $(CONTAINER) build --format oci --platform $(PLATFORMS) --manifest localhost/vedette-$(1):$(IMAGE_TAG) -f $(2) $(PIN_ARGS) $(3) .; }
 endif
 comma := ,
 images: webui-dist scan-pack check-min-sequence
@@ -345,7 +346,7 @@ ifneq ($(RELEASE_BUILD),)
 	@case " $$GOFLAGS $$(go env GOFLAGS) " in *-overlay*|*-tags*) echo "host-deb: a release ($(VERSION)) is not built with -overlay or -tags in GOFLAGS (it could embed other keys); unset GOFLAGS" >&2; exit 1;; esac
 endif
 	mkdir -p $(DEB_OUT)/host-deb/$(ARCH)
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -trimpath -ldflags "-s -w -X main.version=$(VERSION) -X $(RELEASE_PKG).MinSequenceText=$(MIN_SEQUENCE)" -o $(DEB_OUT)/host-deb/$(ARCH)/vedette-host ./cmd/vedette-host
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) GOAMD64=v1 GOARM64=v8.0 go build -trimpath -ldflags "-s -w -X main.version=$(VERSION) -X $(RELEASE_PKG).MinSequenceText=$(MIN_SEQUENCE)" -o $(DEB_OUT)/host-deb/$(ARCH)/vedette-host ./cmd/vedette-host
 	GOFLAGS= go run ./scripts/release check-binaries $(if $(RELEASE_BUILD),-release) $(DEB_OUT)/host-deb/$(ARCH)/vedette-host
 	go run ./scripts/hostlicenses -goos linux -goarch $(ARCH) -out $(DEB_OUT)/host-deb/$(ARCH)/third-party-licenses
 	SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) VERSION=$(VERSION) ARCH=$(ARCH) BINARY=$(DEB_OUT)/host-deb/$(ARCH)/vedette-host LICENSES=$(DEB_OUT)/host-deb/$(ARCH)/third-party-licenses $(GO_TOOL) nfpm pkg --packager deb --config deploy/deb/nfpm.yaml --target $(DEB_OUT)/
@@ -385,9 +386,13 @@ notices-check:
 # platform of the four lists (and core's floor label), and each .deb built again with the floor of RELEASE_PREV_INDEX (MIN_SEQUENCE, the
 # verified sequence of that index, checked again by `release gates` since make lets a MIN_SEQUENCE from the environment win; MIN_SEQUENCE=0
 # for the very first release only) and compared byte for byte (the .deb is reproducible: build it and run this with GOFLAGS unset).
+# Only when all of it passed does `release gates` write $(RELEASE_OUT)/gates.json (each .deb's sha256 and size, each image platform's
+# config digest, which the trivy report in dist/vuln and the SBOM in dist/sbom must name too); the first line removes an earlier one, so
+# a failing step leaves none (D-460). release-push, release-in and release-manifest refuse anything that differs from it.
 .PHONY: release-gates
 RELEASE_GATES_ARGS = -version '$(VERSION)' -min-sequence '$(MIN_SEQUENCE)' $(if $(RELEASE_PREV_INDEX),-prev-index '$(RELEASE_PREV_INDEX)') $(RELEASE_KEYS_ARG)
 release-gates: check-min-sequence
+	rm -f '$(RELEASE_OUT)/gates.json'
 	@test "$(CONTAINER)" = podman || { echo "release-gates: reads the podman manifest lists of make images; CONTAINER=$(CONTAINER) is not supported yet (D-457)" >&2; exit 1; }
 	@$(if $(or $(RELEASE_PREV_INDEX),$(filter-out file,$(origin MIN_SEQUENCE))),:,echo "release-gates: the release floor is the sequence of the published index: pass RELEASE_PREV_INDEX=<published index dir>, or MIN_SEQUENCE=0 for the very first release only" >&2; exit 1)
 	@printf '%s' "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$$' || { echo "release-gates: VERSION must be SemVer without v (VERSION=1.0.0), got '$(VERSION)'" >&2; exit 1; }
@@ -395,7 +400,7 @@ release-gates: check-min-sequence
 	$(MAKE) --no-print-directory vuln-scan IMAGE_TAG='$(VERSION)' RELEASE=1 MIN_SEQUENCE='$(MIN_SEQUENCE)'
 	$(MAKE) --no-print-directory sbom IMAGE_TAG='$(VERSION)' RELEASE=1 MIN_SEQUENCE='$(MIN_SEQUENCE)'
 	$(MAKE) --no-print-directory notices-check MIN_SEQUENCE='$(MIN_SEQUENCE)'
-	GOFLAGS= $(RELEASE_GO) gates $(RELEASE_GATES_ARGS) -platforms '$(PLATFORMS)' -deb-dir '$(DEB_OUT)'
+	GOFLAGS= $(RELEASE_GO) gates $(RELEASE_GATES_ARGS) -platforms '$(PLATFORMS)' -deb-dir '$(DEB_OUT)' -out '$(RELEASE_OUT)'
 
 # Builds the images one at a time and checks each by effect (scripts/dev/images-check.sh), then removes them (rules/build-artifacts.md).
 images-check:
@@ -472,7 +477,7 @@ release-cosign-plan:
 	@$(RELEASE_GO) cosign-plan -in $(RELEASE_IN) -images $(RELEASE_OUT)/images.json -sbom dist/sbom -key "$$COSIGN_KEY" -out $(RELEASE_OUT)/cosign -cosign "$${COSIGN_BIN:-$$(scripts/release/cosign.sh)}"
 
 release-manifest: check-min-sequence
-	$(RELEASE_GO) manifest -in $(RELEASE_IN) -cosign-dir $(RELEASE_OUT)/cosign -out $(RELEASE_OUT) $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(if $(RELEASE_REF),-ref $(RELEASE_REF)) $(if $(RELEASE_BASELINE_REF),-baseline-ref $(RELEASE_BASELINE_REF)) $(RELEASE_KEYS_ARG)
+	$(RELEASE_GO) manifest -in $(RELEASE_IN) -cosign-dir $(RELEASE_OUT)/cosign -out $(RELEASE_OUT) -gates $(RELEASE_OUT)/gates.json $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(if $(RELEASE_REF),-ref $(RELEASE_REF)) $(if $(RELEASE_BASELINE_REF),-baseline-ref $(RELEASE_BASELINE_REF)) $(RELEASE_KEYS_ARG)
 	$(RELEASE_GO) index -out $(RELEASE_OUT) -manifest $(RELEASE_OUT)/release-manifest.json $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX) -min-sequence $(MIN_SEQUENCE)) $(RELEASE_KEYS_ARG)
 
 # D-451: read from git at the release tag (RELEASE_REF, default v<version>), like the migrations of release-manifest.
@@ -494,11 +499,13 @@ release-verify:
 # The release job's network steps (WP-08k, D-457; order and owners in docs/plans/2026-11-12-wp08k-release-job.md). Each refuses rather than guesses.
 #   release-push      the four podman manifest lists of `make images IMAGE_TAG=<VERSION> IMAGE_VERSION=<VERSION>` to REGISTRY by digest (read back
 #                     by digest, the version tag pushed too and checked; a version already there is reused only with the same images), then
-#                     dist/release/images.json. Each platform image must carry the version label VERSION. The real registry needs a clean tree at
+#                     dist/release/images.json. Each platform image must carry the version label VERSION and be the one dist/release/gates.json
+#                     of release-gates names (config digest), all four checked before anything is pushed. The real registry needs a clean tree at
 #                     kien's tag v<VERSION> and no -test. version; REGISTRY=127.0.0.1:<port> is a rehearsal (no TLS, no git check; Linux only:
-#                     podman machine on macOS cannot reach the Mac's 127.0.0.1).
+#                     podman machine on macOS cannot reach the Mac's 127.0.0.1); a rehearsal needs a gates.json too.
 #   release-in        release.in.json from images.json and the two dist/vedette-host_<VERSION>_<arch>.deb; RELEASE_CHANNEL (stable|beta) and
-#                     RELEASE_ROLLBACK_SAFE (true|false) are required, RELEASE_ROLLBACK_MIN / RELEASE_MIN_UPGRADE_FROM optional; add the notes by hand
+#                     RELEASE_ROLLBACK_SAFE (true|false) are required, RELEASE_ROLLBACK_MIN / RELEASE_MIN_UPGRADE_FROM optional; add the notes by hand.
+#                     Each .deb (sha256), each image of images.json and of the local lists (config digest) must be what gates.json names
 #   release-publish   verifies dist/release again (install.sh too) and prints the gh release commands; PUBLISH=1 runs them (needs RELEASE_PREV_INDEX
 #                     equal to the live index, or FIRST_RELEASE=1 before any index exists; signers must be the compiled-in production keys): draft
 #                     v<version>, every asset, read back, anonymous pull of every image, publish, then index.json + .minisig to the release "index" LAST

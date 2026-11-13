@@ -593,7 +593,7 @@ function managedOf(components: UpdateComponent[], available: UpdateAvailable[]):
 
 /** Mỗi bước của một lần chạy mô phỏng (D-340); bản thật: kéo image tới 45 phút, rồi khởi động lại. */
 export const RUN_STEP_MS = import.meta.env.MODE === 'test' ? 300 : 1500
-const runSteps = (action: UpdateRun['action'], restore: boolean): UpdateRun['steps'] => (action === 'update' ? ['download', 'start', 'restart'] : restore ? ['start', 'restore', 'restart'] : ['start', 'restart'])
+const runSteps = (action: UpdateRun['action'], restore: boolean): UpdateRun['steps'] => (action === 'update' ? ['download', 'restart', 'start'] : restore ? ['start', 'restore', 'restart'] : ['start', 'restart'])
 
 /**
  * How the system helper step of the next software update ends (S-CORE-2 criterion D-316); code null = it succeeds. Only tests and

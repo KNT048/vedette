@@ -97569,10 +97569,13 @@ type NotifyGetNotifyIncidentsIDOKIncident struct {
 	// connection (D-227); false for the other kinds.
 	Attempt bool `json:"attempt"`
 	// Repeats of the same thing are grouped into one incident.
-	Count     int                                               `json:"count"`
-	Devices   []NotifyGetNotifyIncidentsIDOKIncidentDevicesItem `json:"devices"`
-	FirstSeen time.Time                                         `json:"first_seen"`
-	HandledAt NilDateTime                                       `json:"handled_at"`
+	Count   int                                               `json:"count"`
+	Devices []NotifyGetNotifyIncidentsIDOKIncidentDevicesItem `json:"devices"`
+	// Opened in the first 36 hours as a low or medium bad-connection or log incident, so it was told in
+	// the hourly first-run summary message instead of its own (D-550).
+	FirstRunSummary bool        `json:"first_run_summary"`
+	FirstSeen       time.Time   `json:"first_seen"`
+	HandledAt       NilDateTime `json:"handled_at"`
 	// Who acknowledged or resolved it.
 	HandledBy NilString                                `json:"handled_by"`
 	ID        string                                   `json:"id"`
@@ -97580,11 +97583,15 @@ type NotifyGetNotifyIncidentsIDOKIncident struct {
 	LastSeen  time.Time                                `json:"last_seen"`
 	// Where to view the source: /honeypot/hits/ (trap), /logs (bad address, log anomaly), /devices/
 	// (unknown device).
-	Link     string                                          `json:"link"`
-	Note     NilString                                       `json:"note"`
-	Sends    []NotifyGetNotifyIncidentsIDOKIncidentSendsItem `json:"sends"`
-	Severity NotifyGetNotifyIncidentsIDOKIncidentSeverity    `json:"severity"`
-	Status   NotifyGetNotifyIncidentsIDOKIncidentStatus      `json:"status"`
+	Link string    `json:"link"`
+	Note NilString `json:"note"`
+	// Why Vedette closed it by itself, plain English shown as is ("Closed by Vedette: the device was
+	// approved by an@example.com.", "Closed by Vedette: no new activity for 7 days."); null when a person
+	// handled it last or it is open (D-550).
+	ResolvedReason NilString                                       `json:"resolved_reason"`
+	Sends          []NotifyGetNotifyIncidentsIDOKIncidentSendsItem `json:"sends"`
+	Severity       NotifyGetNotifyIncidentsIDOKIncidentSeverity    `json:"severity"`
+	Status         NotifyGetNotifyIncidentsIDOKIncidentStatus      `json:"status"`
 	// One plain-words sentence: who did what.
 	Title string `json:"title"`
 	What  string `json:"what"`
@@ -97608,6 +97615,11 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) GetCount() int {
 // GetDevices returns the value of Devices.
 func (s *NotifyGetNotifyIncidentsIDOKIncident) GetDevices() []NotifyGetNotifyIncidentsIDOKIncidentDevicesItem {
 	return s.Devices
+}
+
+// GetFirstRunSummary returns the value of FirstRunSummary.
+func (s *NotifyGetNotifyIncidentsIDOKIncident) GetFirstRunSummary() bool {
+	return s.FirstRunSummary
 }
 
 // GetFirstSeen returns the value of FirstSeen.
@@ -97648,6 +97660,11 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) GetLink() string {
 // GetNote returns the value of Note.
 func (s *NotifyGetNotifyIncidentsIDOKIncident) GetNote() NilString {
 	return s.Note
+}
+
+// GetResolvedReason returns the value of ResolvedReason.
+func (s *NotifyGetNotifyIncidentsIDOKIncident) GetResolvedReason() NilString {
+	return s.ResolvedReason
 }
 
 // GetSends returns the value of Sends.
@@ -97695,6 +97712,11 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) SetDevices(val []NotifyGetNotifyI
 	s.Devices = val
 }
 
+// SetFirstRunSummary sets the value of FirstRunSummary.
+func (s *NotifyGetNotifyIncidentsIDOKIncident) SetFirstRunSummary(val bool) {
+	s.FirstRunSummary = val
+}
+
 // SetFirstSeen sets the value of FirstSeen.
 func (s *NotifyGetNotifyIncidentsIDOKIncident) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
@@ -97733,6 +97755,11 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) SetLink(val string) {
 // SetNote sets the value of Note.
 func (s *NotifyGetNotifyIncidentsIDOKIncident) SetNote(val NilString) {
 	s.Note = val
+}
+
+// SetResolvedReason sets the value of ResolvedReason.
+func (s *NotifyGetNotifyIncidentsIDOKIncident) SetResolvedReason(val NilString) {
+	s.ResolvedReason = val
 }
 
 // SetSends sets the value of Sends.
@@ -98226,10 +98253,13 @@ type NotifyGetNotifyIncidentsOKIncidentsItem struct {
 	// connection (D-227); false for the other kinds.
 	Attempt bool `json:"attempt"`
 	// Repeats of the same thing are grouped into one incident.
-	Count     int                                                  `json:"count"`
-	Devices   []NotifyGetNotifyIncidentsOKIncidentsItemDevicesItem `json:"devices"`
-	FirstSeen time.Time                                            `json:"first_seen"`
-	HandledAt NilDateTime                                          `json:"handled_at"`
+	Count   int                                                  `json:"count"`
+	Devices []NotifyGetNotifyIncidentsOKIncidentsItemDevicesItem `json:"devices"`
+	// Opened in the first 36 hours as a low or medium bad-connection or log incident, so it was told in
+	// the hourly first-run summary message instead of its own (D-550).
+	FirstRunSummary bool        `json:"first_run_summary"`
+	FirstSeen       time.Time   `json:"first_seen"`
+	HandledAt       NilDateTime `json:"handled_at"`
 	// Who acknowledged or resolved it.
 	HandledBy NilString                                   `json:"handled_by"`
 	ID        string                                      `json:"id"`
@@ -98237,11 +98267,15 @@ type NotifyGetNotifyIncidentsOKIncidentsItem struct {
 	LastSeen  time.Time                                   `json:"last_seen"`
 	// Where to view the source: /honeypot/hits/ (trap), /logs (bad address, log anomaly), /devices/
 	// (unknown device).
-	Link     string                                             `json:"link"`
-	Note     NilString                                          `json:"note"`
-	Sends    []NotifyGetNotifyIncidentsOKIncidentsItemSendsItem `json:"sends"`
-	Severity NotifyGetNotifyIncidentsOKIncidentsItemSeverity    `json:"severity"`
-	Status   NotifyGetNotifyIncidentsOKIncidentsItemStatus      `json:"status"`
+	Link string    `json:"link"`
+	Note NilString `json:"note"`
+	// Why Vedette closed it by itself, plain English shown as is ("Closed by Vedette: the device was
+	// approved by an@example.com.", "Closed by Vedette: no new activity for 7 days."); null when a person
+	// handled it last or it is open (D-550).
+	ResolvedReason NilString                                          `json:"resolved_reason"`
+	Sends          []NotifyGetNotifyIncidentsOKIncidentsItemSendsItem `json:"sends"`
+	Severity       NotifyGetNotifyIncidentsOKIncidentsItemSeverity    `json:"severity"`
+	Status         NotifyGetNotifyIncidentsOKIncidentsItemStatus      `json:"status"`
 	// One plain-words sentence: who did what.
 	Title string `json:"title"`
 	What  string `json:"what"`
@@ -98265,6 +98299,11 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) GetCount() int {
 // GetDevices returns the value of Devices.
 func (s *NotifyGetNotifyIncidentsOKIncidentsItem) GetDevices() []NotifyGetNotifyIncidentsOKIncidentsItemDevicesItem {
 	return s.Devices
+}
+
+// GetFirstRunSummary returns the value of FirstRunSummary.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItem) GetFirstRunSummary() bool {
+	return s.FirstRunSummary
 }
 
 // GetFirstSeen returns the value of FirstSeen.
@@ -98305,6 +98344,11 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) GetLink() string {
 // GetNote returns the value of Note.
 func (s *NotifyGetNotifyIncidentsOKIncidentsItem) GetNote() NilString {
 	return s.Note
+}
+
+// GetResolvedReason returns the value of ResolvedReason.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItem) GetResolvedReason() NilString {
+	return s.ResolvedReason
 }
 
 // GetSends returns the value of Sends.
@@ -98352,6 +98396,11 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) SetDevices(val []NotifyGetNoti
 	s.Devices = val
 }
 
+// SetFirstRunSummary sets the value of FirstRunSummary.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItem) SetFirstRunSummary(val bool) {
+	s.FirstRunSummary = val
+}
+
 // SetFirstSeen sets the value of FirstSeen.
 func (s *NotifyGetNotifyIncidentsOKIncidentsItem) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
@@ -98390,6 +98439,11 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) SetLink(val string) {
 // SetNote sets the value of Note.
 func (s *NotifyGetNotifyIncidentsOKIncidentsItem) SetNote(val NilString) {
 	s.Note = val
+}
+
+// SetResolvedReason sets the value of ResolvedReason.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItem) SetResolvedReason(val NilString) {
+	s.ResolvedReason = val
 }
 
 // SetSends sets the value of Sends.
@@ -99430,10 +99484,13 @@ type NotifyPatchNotifyIncidentsIDOKIncident struct {
 	// connection (D-227); false for the other kinds.
 	Attempt bool `json:"attempt"`
 	// Repeats of the same thing are grouped into one incident.
-	Count     int                                                 `json:"count"`
-	Devices   []NotifyPatchNotifyIncidentsIDOKIncidentDevicesItem `json:"devices"`
-	FirstSeen time.Time                                           `json:"first_seen"`
-	HandledAt NilDateTime                                         `json:"handled_at"`
+	Count   int                                                 `json:"count"`
+	Devices []NotifyPatchNotifyIncidentsIDOKIncidentDevicesItem `json:"devices"`
+	// Opened in the first 36 hours as a low or medium bad-connection or log incident, so it was told in
+	// the hourly first-run summary message instead of its own (D-550).
+	FirstRunSummary bool        `json:"first_run_summary"`
+	FirstSeen       time.Time   `json:"first_seen"`
+	HandledAt       NilDateTime `json:"handled_at"`
 	// Who acknowledged or resolved it.
 	HandledBy NilString                                  `json:"handled_by"`
 	ID        string                                     `json:"id"`
@@ -99441,11 +99498,15 @@ type NotifyPatchNotifyIncidentsIDOKIncident struct {
 	LastSeen  time.Time                                  `json:"last_seen"`
 	// Where to view the source: /honeypot/hits/ (trap), /logs (bad address, log anomaly), /devices/
 	// (unknown device).
-	Link     string                                            `json:"link"`
-	Note     NilString                                         `json:"note"`
-	Sends    []NotifyPatchNotifyIncidentsIDOKIncidentSendsItem `json:"sends"`
-	Severity NotifyPatchNotifyIncidentsIDOKIncidentSeverity    `json:"severity"`
-	Status   NotifyPatchNotifyIncidentsIDOKIncidentStatus      `json:"status"`
+	Link string    `json:"link"`
+	Note NilString `json:"note"`
+	// Why Vedette closed it by itself, plain English shown as is ("Closed by Vedette: the device was
+	// approved by an@example.com.", "Closed by Vedette: no new activity for 7 days."); null when a person
+	// handled it last or it is open (D-550).
+	ResolvedReason NilString                                         `json:"resolved_reason"`
+	Sends          []NotifyPatchNotifyIncidentsIDOKIncidentSendsItem `json:"sends"`
+	Severity       NotifyPatchNotifyIncidentsIDOKIncidentSeverity    `json:"severity"`
+	Status         NotifyPatchNotifyIncidentsIDOKIncidentStatus      `json:"status"`
 	// One plain-words sentence: who did what.
 	Title string `json:"title"`
 	What  string `json:"what"`
@@ -99469,6 +99530,11 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) GetCount() int {
 // GetDevices returns the value of Devices.
 func (s *NotifyPatchNotifyIncidentsIDOKIncident) GetDevices() []NotifyPatchNotifyIncidentsIDOKIncidentDevicesItem {
 	return s.Devices
+}
+
+// GetFirstRunSummary returns the value of FirstRunSummary.
+func (s *NotifyPatchNotifyIncidentsIDOKIncident) GetFirstRunSummary() bool {
+	return s.FirstRunSummary
 }
 
 // GetFirstSeen returns the value of FirstSeen.
@@ -99509,6 +99575,11 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) GetLink() string {
 // GetNote returns the value of Note.
 func (s *NotifyPatchNotifyIncidentsIDOKIncident) GetNote() NilString {
 	return s.Note
+}
+
+// GetResolvedReason returns the value of ResolvedReason.
+func (s *NotifyPatchNotifyIncidentsIDOKIncident) GetResolvedReason() NilString {
+	return s.ResolvedReason
 }
 
 // GetSends returns the value of Sends.
@@ -99556,6 +99627,11 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) SetDevices(val []NotifyPatchNot
 	s.Devices = val
 }
 
+// SetFirstRunSummary sets the value of FirstRunSummary.
+func (s *NotifyPatchNotifyIncidentsIDOKIncident) SetFirstRunSummary(val bool) {
+	s.FirstRunSummary = val
+}
+
 // SetFirstSeen sets the value of FirstSeen.
 func (s *NotifyPatchNotifyIncidentsIDOKIncident) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
@@ -99594,6 +99670,11 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) SetLink(val string) {
 // SetNote sets the value of Note.
 func (s *NotifyPatchNotifyIncidentsIDOKIncident) SetNote(val NilString) {
 	s.Note = val
+}
+
+// SetResolvedReason sets the value of ResolvedReason.
+func (s *NotifyPatchNotifyIncidentsIDOKIncident) SetResolvedReason(val NilString) {
+	s.ResolvedReason = val
 }
 
 // SetSends sets the value of Sends.

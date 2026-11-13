@@ -43,7 +43,7 @@ function Handle({ d }: { d: IncidentDetail }) {
           </>
         ) : (
           <>
-            <p className="text-sm">{t('detail.handledBy', { status: t('incidents.status.resolved'), user: a.handled_by ?? '', time: fmtDateTime(a.handled_at) })} {a.note ? t('detail.noteShown', { note: a.note }) : null}</p>
+            <p className="text-sm">{a.resolved_reason ? t('detail.closedBy', { reason: a.resolved_reason, time: fmtDateTime(a.handled_at) }) : t('detail.handledBy', { status: t('incidents.status.resolved'), user: a.handled_by ?? '', time: fmtDateTime(a.handled_at) })} {a.note ? t('detail.noteShown', { note: a.note }) : null}</p>
             <div><Button disabled={!can || set.isPending} title={need} onClick={() => go('new')}><RotateCcw />{t('detail.reopen')}</Button></div>
           </>
         )}

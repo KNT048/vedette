@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/events"
@@ -24,6 +25,7 @@ const (
 	EventFindingRaised        = "findings.finding.severity_raised"
 	EventAssetDiscovered      = "inventory.asset.discovered"
 	EventAssetDeleted         = "inventory.asset.deleted"
+	EventAssetApproved        = "inventory.asset.approved" // B9 (D-474): {asset_id, actor}
 	EventNewKEV               = "feeds.vuln.new_kev"
 	EventHoneypotHit          = "honeypot.hit.created"
 	EventLogAnomaly           = "logs.anomaly.detected"
@@ -62,6 +64,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventNewKEV, s.kevEvent)
 	on(EventAssetDiscovered, s.assetEvent)
 	on(EventAssetDeleted, s.assetDeleted)
+	on(EventAssetApproved, s.assetApproved)
 	on(EventHoneypotHit, s.hitEvent)
 	on(EventLogAnomaly, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentLogAnomaly) })
 	on(EventLogBadAddress, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentBadAddress) })
@@ -301,54 +304,81 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 	return err
 }
 
-// assetDeleted takes a device deleted in Devices off the open new-device incidents (W6-3, D-497): the first-discovery summary drops it
-// from its list and its count (and is resolved when no device is left), and the device's own "new unknown device" incident is
-// resolved, since there is nothing left to approve. Resolved incidents and the other kinds keep the device: they are history.
+// assetDeleted takes a device deleted in Devices off the open new-device incidents (W6-3, D-497, INV-20): see leaveDeviceIncidents.
 func (s *Service) assetDeleted(ctx context.Context, data any) error {
 	var e struct {
 		AssetID string `json:"asset_id"`
+		Actor   string `json:"actor"` // B9 (D-474) adds who deleted it; older producers leave it out
 	}
 	if err := decode(data, &e); err != nil {
 		return err
 	}
-	if e.AssetID == "" {
+	return s.leaveDeviceIncidents(ctx, e.AssetID, "Closed by Vedette: the device was deleted in Devices"+byActor(e.Actor)+".")
+}
+
+// assetApproved takes a device a person approved in Devices (inventory.asset.approved {asset_id, actor}, B9 / D-474) off the open
+// new-device incidents the way a delete does (D-550, INV-22): there is nothing left to approve.
+func (s *Service) assetApproved(ctx context.Context, data any) error {
+	var e struct {
+		AssetID string `json:"asset_id"`
+		Actor   string `json:"actor"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	return s.leaveDeviceIncidents(ctx, e.AssetID, "Closed by Vedette: the device was approved"+byActor(e.Actor)+".")
+}
+
+// byActor is " by <who>" from an event's actor (a user name or email that inventory sends), cut to size and stripped of control
+// characters; "" when there is none.
+func byActor(actor string) string {
+	who := strings.TrimSpace(strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, actor))
+	if who == "" {
+		return ""
+	}
+	return " by " + clip(who, 120)
+}
+
+// leaveDeviceIncidents takes a device off the open new-device incidents (INV-20, INV-22): the first-discovery summary drops it from
+// its list and its count (and is resolved when no device is left), and the device's own "new unknown device" incident is resolved
+// by Vedette with reason. Resolved incidents and the other kinds keep the device: they are history. Nothing is sent.
+func (s *Service) leaveDeviceIncidents(ctx context.Context, assetID, reason string) error {
+	if assetID == "" {
 		return nil
 	}
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx, `SELECT i.id, i.link, d.name FROM notify_incident i JOIN notify_incident_device d ON d.incident_id = i.id
-			WHERE i.kind = ? AND i.status <> 'resolved' AND d.asset_id = ?`, string(IncidentUnknownDevice), e.AssetID)
+		rows, err := tx.QueryContext(ctx, `SELECT i.id, i.title, i.link FROM notify_incident i JOIN notify_incident_device d ON d.incident_id = i.id
+			WHERE i.kind = ? AND i.status <> 'resolved' AND d.asset_id = ?`, string(IncidentUnknownDevice), assetID)
 		if err != nil {
-			return fmt.Errorf("notify: find the incidents of a deleted device: %w", err)
+			return fmt.Errorf("notify: find the incidents of a device: %w", err)
 		}
-		type open struct{ id, link, name string }
+		type open struct{ id, title, link string }
 		var list []open
 		for rows.Next() {
 			var o open
-			if err := rows.Scan(&o.id, &o.link, &o.name); err != nil {
+			if err := rows.Scan(&o.id, &o.title, &o.link); err != nil {
 				_ = rows.Close()
-				return fmt.Errorf("notify: find the incidents of a deleted device: %w", err)
+				return fmt.Errorf("notify: find the incidents of a device: %w", err)
 			}
 			list = append(list, o)
 		}
 		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-			return fmt.Errorf("notify: find the incidents of a deleted device: %w", err)
-		}
-		at := store.FormatTS(s.now())
-		resolve := func(id, title, note string) error {
-			if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET status = 'resolved', handled_by = ?, handled_at = ?, note = ? WHERE id = ?`, systemUser, at, note, id); err != nil {
-				return fmt.Errorf("notify: resolve the incident of a deleted device: %w", err)
-			}
-			return s.record(ctx, tx, systemUser, "notify.incident_status", clip(title, 400), "resolved: "+note)
+			return fmt.Errorf("notify: find the incidents of a device: %w", err)
 		}
 		for _, o := range list {
 			if o.link != "/devices" { // the device's own incident: nothing is left to approve
-				if err := resolve(o.id, "A new unknown device appeared: "+o.name, "The device was deleted in Devices."); err != nil {
+				if err := s.closeBySystem(ctx, tx, o.id, o.title, reason); err != nil {
 					return err
 				}
 				continue
 			}
-			if _, err := tx.ExecContext(ctx, `DELETE FROM notify_incident_device WHERE incident_id = ? AND asset_id = ?`, o.id, e.AssetID); err != nil {
-				return fmt.Errorf("notify: take a deleted device off the summary: %w", err)
+			if _, err := tx.ExecContext(ctx, `DELETE FROM notify_incident_device WHERE incident_id = ? AND asset_id = ?`, o.id, assetID); err != nil {
+				return fmt.Errorf("notify: take a device off the summary: %w", err)
 			}
 			var n, count int // count can be above the listed rows: the list stops at maxDiscoveryDevices
 			if err := tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM notify_incident_device WHERE incident_id = ?), count FROM notify_incident WHERE id = ?`, o.id, o.id).Scan(&n, &count); err != nil {
@@ -356,7 +386,7 @@ func (s *Service) assetDeleted(ctx context.Context, data any) error {
 			}
 			n = max(n, count-1)
 			if n == 0 {
-				if err := resolve(o.id, "Devices found on your network", "Every device on it was deleted in Devices."); err != nil {
+				if err := s.closeBySystem(ctx, tx, o.id, o.title, "Closed by Vedette: every device on it was approved or deleted in Devices."); err != nil {
 					return err
 				}
 				continue
@@ -546,14 +576,16 @@ func (s *Service) logEvent(ctx context.Context, data any, kind IncidentKind) err
 }
 
 // Jobs returns the scheduler jobs of the module: "deliver" sends what is due (held notices when quiet
-// hours end, grouped batches at their DueAt, the rest at once); "telegram-listen" and "slack-listen" take approval button presses
-// while the Telegram / Slack channel takes approvals (tglisten.go, slacklisten.go). The four above run only while the module is on: `deliver` sends and its deletes are queue upkeep, not a customer retention, so it is not housekeeping (D-160). "retention" is Housekeeping (retention.go).
+// hours end, grouped batches at their DueAt, the rest at once); "autoclose" sends the first-run summary and closes quiet incidents
+// (autoclose.go); "telegram-listen" and "slack-listen" take approval button presses
+// while the Telegram / Slack channel takes approvals (tglisten.go, slacklisten.go). The five above run only while the module is on: `deliver` sends and its deletes are queue upkeep, not a customer retention, so it is not housekeeping (D-160). "retention" is Housekeeping (retention.go).
 func (s *Service) Jobs() []jobs.Job {
 	return []jobs.Job{
 		{Module: ModuleID, Name: "deliver", Every: flushEvery, Run: s.Flush},
 		{Module: ModuleID, Name: telegramListenJob, Every: telegramListenEvery, Run: s.listenTelegram},
 		{Module: ModuleID, Name: slackListenJob, Every: slackListenEvery, Run: s.listenSlack},
 		{Module: ModuleID, Name: zaloListenJob, Every: zaloListenEvery, Run: s.listenZalo},
+		{Module: ModuleID, Name: autoCloseJob, Every: autoCloseEvery, Run: s.runAutoClose},                     // INV-22, INV-23: a normal job, only while notify is on
 		{Module: ModuleID, Name: retentionJob, Every: retentionEvery, Housekeeping: true, Run: s.RunRetention}, // D-160: deletes history past 1 year, also while the module is off
 	}
 }

@@ -433,6 +433,7 @@
       "resolved": "Resolved"
     },
     "statusBy": "{{user}}, {{time}}",
+    "closedBy": "{{reason}} {{time}}",
     "times": "{{count}}×",
     "seen": "{{first}} to {{last}}",
     "seenOnce": "{{first}}",
@@ -507,6 +508,7 @@
     "resolve": "Resolve",
     "reopen": "Reopen",
     "handledBy": "{{status}} by {{user}} at {{time}}.",
+    "closedBy": "{{reason}} Resolved at {{time}}.",
     "noteShown": "Note: {{note}}",
     "updated": "Incident updated."
   },

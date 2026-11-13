@@ -66,7 +66,8 @@ func dedupeKey(in IncidentInput) string {
 
 // OpenIncident records an incident (PRE-2, POST-2, INV-10). The same kind, source and target while
 // the incident is not resolved only raises its count and last_seen; a new incident is queued for the
-// channels and announced as notify.incident.created. Repeats are not sent again. It returns the
+// channels and announced as notify.incident.created. Repeats are not sent again. In the first-run window a
+// low or medium bad-connection or log incident is not queued: the hourly first-run summary tells it (INV-23). It returns the
 // incident id and whether it was created.
 func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string, created bool, err error) {
 	if !s.on() {
@@ -88,6 +89,12 @@ func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string
 		conn.Attempt = false
 		first = dedupeKey(conn)
 	}
+	held := false // INV-23: a low or medium bad-connection or log incident of the first-run window waits for the hourly summary
+	if heldKind(in.Kind) && in.Severity.rank() <= Medium.rank() {
+		if held, err = s.firstDiscovery(ctx); err != nil {
+			return "", false, err
+		}
+	}
 	ob := &events.Outbox{}
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		ob = &events.Outbox{}
@@ -104,8 +111,8 @@ func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string
 			return fmt.Errorf("notify: find incident: %w", err)
 		}
 		created, id = true, store.NewID("in")
-		if _, err := tx.ExecContext(ctx, `INSERT INTO notify_incident (id, kind, attempt, title, link, severity, what, action, first_seen, last_seen, dedupe_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			id, string(in.Kind), in.Attempt, strings.TrimSpace(in.Title), in.Link, string(in.Severity), in.What, in.Action, ts, ts, key); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO notify_incident (id, kind, attempt, title, link, severity, what, action, first_seen, last_seen, dedupe_key, first_run) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			id, string(in.Kind), in.Attempt, strings.TrimSpace(in.Title), in.Link, string(in.Severity), in.What, in.Action, ts, ts, key, boolInt(held)); err != nil {
 			return fmt.Errorf("notify: save incident: %w", err)
 		}
 		names, ids := make([]string, 0, len(in.Devices)), make([]string, 0, len(in.Devices))
@@ -118,9 +125,11 @@ func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string
 		if err := s.record(ctx, tx, systemUser, "notify.incident_open", clip(strings.TrimSpace(in.Title), 400), string(in.Kind)); err != nil {
 			return err
 		}
-		if err := s.enqueue(ctx, tx, Notice{ID: id, Kind: KindIncident, Severity: in.Severity, Title: strings.TrimSpace(in.Title), What: in.What, Action: in.Action,
-			Devices: names, DeviceIDs: ids, IncidentKind: string(in.Kind), Link: s.link("/incidents/" + id), At: at}); err != nil {
-			return err
+		if !held {
+			if err := s.enqueue(ctx, tx, Notice{ID: id, Kind: KindIncident, Severity: in.Severity, Title: strings.TrimSpace(in.Title), What: in.What, Action: in.Action,
+				Devices: names, DeviceIDs: ids, IncidentKind: string(in.Kind), Link: s.link("/incidents/" + id), At: at}); err != nil {
+				return err
+			}
 		}
 		ob.Add(events.Event{Name: "notify.incident.created", Data: map[string]string{"id": id, "kind": string(in.Kind), "severity": string(in.Severity)}})
 		return nil
@@ -152,17 +161,19 @@ func scanSends(rows *sql.Rows) ([]SendView, error) {
 	return out, rows.Err()
 }
 
-const incidentCols = `id, kind, attempt, title, link, severity, what, action, first_seen, last_seen, count, status, handled_by, handled_at, note`
+const incidentCols = `id, kind, attempt, title, link, severity, what, action, first_seen, last_seen, count, status, handled_by, handled_at, note, resolved_reason, first_run`
 
 func scanIncident(r scanner) (Incident, error) {
 	var i Incident
 	var kind, sev, status string
-	var by, at, note sql.NullString
-	if err := r.Scan(&i.ID, &kind, &i.Attempt, &i.Title, &i.Link, &sev, &i.What, &i.Action, &i.FirstSeen, &i.LastSeen, &i.Count, &status, &by, &at, &note); err != nil {
+	var by, at, note, reason sql.NullString
+	var firstRun int
+	if err := r.Scan(&i.ID, &kind, &i.Attempt, &i.Title, &i.Link, &sev, &i.What, &i.Action, &i.FirstSeen, &i.LastSeen, &i.Count, &status, &by, &at, &note, &reason, &firstRun); err != nil {
 		return i, err
 	}
 	i.Kind, i.Severity, i.Status = IncidentKind(kind), Severity(sev), IncidentStatus(status)
-	i.HandledBy, i.HandledAt, i.Note = ptr(by.String), ptr(at.String), ptr(note.String)
+	i.HandledBy, i.HandledAt, i.Note, i.ResolvedReason = ptr(by.String), ptr(at.String), ptr(note.String), ptr(reason.String)
+	i.FirstRunSummary = firstRun > 0
 	i.Devices, i.Sends = []Device{}, []SendView{}
 	return i, nil
 }
@@ -452,7 +463,8 @@ func (s *Service) HandleIncident(ctx context.Context, actor, id string, status I
 		if status != StatusNew {
 			by, at, nt = actor, store.FormatTS(s.now()), nullable(note)
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET status = ?, handled_by = ?, handled_at = ?, note = ? WHERE id = ?`, string(status), by, at, nt, id); err != nil {
+		// A person's action replaces Vedette's reason (INV-22): the incident is theirs now.
+		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET status = ?, handled_by = ?, handled_at = ?, note = ?, resolved_reason = NULL WHERE id = ?`, string(status), by, at, nt, id); err != nil {
 			return fmt.Errorf("notify: update incident: %w", err)
 		}
 		detail := string(status)

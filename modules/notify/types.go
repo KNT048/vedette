@@ -165,7 +165,13 @@ type Incident struct {
 	HandledBy *string        `json:"handled_by"`
 	HandledAt *string        `json:"handled_at"`
 	Note      *string        `json:"note"`
-	Sends     []SendView     `json:"sends"`
+	// ResolvedReason is why Vedette closed the incident by itself (D-550, INV-22), a plain-English sentence such as "Closed by
+	// Vedette: no new activity for 7 days."; nil when a person handled it last or it is open.
+	ResolvedReason *string `json:"resolved_reason"`
+	// FirstRunSummary: opened in the box's first 36 hours as a low or medium bad-connection or log incident, so it was told in the
+	// hourly first-run summary message, not one by one (INV-23).
+	FirstRunSummary bool       `json:"first_run_summary"`
+	Sends           []SendView `json:"sends"`
 }
 
 // Preview is what one channel received (or would receive) for an incident.

@@ -47,6 +47,12 @@ Người gọi duy nhất ở mọi mục là `response` (qua adapter ở `cmd/v
 - **inventory** (Kiên): sự kiện `inventory.asset.discovered` không đổi; notify nghe thêm `inventory.asset.deleted {asset_id}` (INV-20, D-497) để gỡ thiết bị đã xoá khỏi incident thiết bị mới còn mở — đổi tên hay payload của sự kiện này làm thiết bị đã xoá ở lại trong cảnh báo; muốn tóm tắt cả lần quét đầu của một sensor thêm sau này cần inventory đánh dấu lần quét đó (dòng để sau).
 - Tin lỗ hổng trong cùng lượt thành một tin: test nào cần nhiều tin trong một lượt dùng incident (`env.incident`) hoặc lệch thời điểm đến hạn.
 
+## Modifying: incident tự đóng, tin tóm tắt lần chạy đầu (D-550, INV-22, INV-23; `autoclose.go`, job `autoclose`)
+- **API**: `Incident.resolved_reason` (null hoặc câu "Closed by Vedette: …"), `Incident.first_run_summary` (bool), cột `notify_incident.resolved_reason`, `first_run` (migration 0012); `modules/core/export_policy.go` liệt kê hai cột (bản xuất JSON). **SPA**: `IncidentsPage.tsx` (cột Status: lý do thay "system, <giờ>"), `IncidentDetailPage.tsx` (phần Handle), mock `in-9`. M3b (D-551) đọc `first_run_summary` cho lý do "Not sent".
+- **inventory** (Kiên, B9/D-474): notify nghe `inventory.asset.approved {asset_id, actor}`; đổi tên sự kiện hay trường = thiết bị đã duyệt vẫn để incident mở. `actor` là tên/email người duyệt, hiện nguyên văn trong lý do.
+- **response**: không đổi; incident tự đóng không phát sự kiện mới (như người đóng). **reports**: incident đóng theo thời gian vẫn đếm theo `last_seen` (D-490).
+- Đổi cửa sổ yên lặng (`quietWindows`) = đổi số incident mở người dùng thấy; đổi `heldKind` hay ngưỡng mức = đổi số tin ngày đầu.
+
 ## Modifying: `GET /notify/channels` `approvals`, `approvers`
 - **SPA** `ChannelsSettings`; module khác đọc cấu hình duyệt qua interface `ApprovalChannels()`, không đọc bảng `notify_*`.
 

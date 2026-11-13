@@ -94,7 +94,8 @@ type SNMPTestResult struct {
 // snmpRow is a credential as stored.
 type snmpRow struct {
 	SNMPCredential
-	secretID, privID string
+	secretID, privID    string
+	scopeRaw, updatedAt string // as stored: snmpJob checks the row did not change since the batch read it (review #715 r2 M1)
 }
 
 // snmpRun is the SNMP batch in progress, for SettingsChanged, AssetChanged and Stop.
@@ -103,6 +104,10 @@ type snmpRun struct {
 	targets []netip.Addr
 	assets  []string
 	picked  bool // a Test: the window does not bind it
+	// credIDs are the credentials the batch carries (an edit or a delete of one stops it); deadline is when a round's batch stops by
+	// itself, the window's end or snmpRoundRun (a shorter window stops it earlier). Both are set under s.mu once known.
+	credIDs  []string
+	deadline time.Time
 }
 
 var (
@@ -141,7 +146,7 @@ func (s *Service) SNMPCredentials(ctx context.Context) ([]SNMPCredential, error)
 	return out, nil
 }
 
-const snmpCols = `id, name, version, username, auth, priv, secret_id, secret_last4, priv_secret_id, priv_last4, scope, created_at, last_answer_at, answered`
+const snmpCols = `id, name, version, username, auth, priv, secret_id, secret_last4, priv_secret_id, priv_last4, scope, created_at, last_answer_at, answered, updated_at`
 
 func (s *Service) snmpRows(ctx context.Context, q interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
@@ -166,10 +171,10 @@ func scanSNMPRow(r interface{ Scan(...any) error }) (snmpRow, error) {
 	var row snmpRow
 	var user, auth, priv, privID, last sql.NullString
 	var scope, created string
-	if err := r.Scan(&row.ID, &row.Name, &row.Version, &user, &auth, &priv, &row.secretID, &row.SecretLast4, &privID, &row.PrivLast4, &scope, &created, &last, &row.Answered); err != nil {
+	if err := r.Scan(&row.ID, &row.Name, &row.Version, &user, &auth, &priv, &row.secretID, &row.SecretLast4, &privID, &row.PrivLast4, &scope, &created, &last, &row.Answered, &row.updatedAt); err != nil {
 		return snmpRow{}, fmt.Errorf("sensoractive: read snmp credential: %w", err)
 	}
-	row.Username, row.Auth, row.privID = user.String, auth.String, privID.String
+	row.Username, row.Auth, row.privID, row.scopeRaw = user.String, auth.String, privID.String, scope
 	if row.Version == sensorlink.SNMPv3 {
 		row.Priv = cmpOr(priv.String, "none")
 	}
@@ -446,6 +451,7 @@ func (s *Service) EditSNMP(ctx context.Context, actor, id string, in SNMPCredent
 	if err != nil {
 		return SNMPCredential{}, err
 	}
+	s.snmpCredentialChanged(id)
 	r, err := s.snmpRow(ctx, s.db.Reader(), id)
 	if err != nil {
 		return SNMPCredential{}, err
@@ -458,6 +464,7 @@ func (s *Service) DeleteSNMP(ctx context.Context, actor, id string) error {
 	if s.secrets == nil {
 		return snmpOff()
 	}
+	defer s.snmpCredentialChanged(id) // after the delete committed (or failed: a needless stop, retried next round)
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
 		prev, err := s.snmpRow(ctx, tx, id)
 		if err != nil {
@@ -669,6 +676,9 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 	for _, t := range targets {
 		run.targets, run.assets = append(run.targets, t.ip), append(run.assets, t.asset)
 	}
+	for _, c := range creds { // registered before the batch reads them again: an edit committed after that read still stops it
+		run.credIDs = append(run.credIDs, c.ID)
+	}
 	s.mu.Lock()
 	s.snmpCur = run
 	s.mu.Unlock()
@@ -697,6 +707,9 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 		var stop context.CancelFunc
 		rctx, stop = context.WithTimeout(rctx, timeout)
 		defer stop()
+		s.mu.Lock()
+		run.deadline = s.clock().Add(timeout) // a window shortened under the batch stops it (snmpChanged, review #715 r2 L1)
+		s.mu.Unlock()
 	}
 	// The round chose its devices and credentials when it started: read both again now, so a device set to never, no longer
 	// approved, moved or deleted, and a credential deleted or narrowed since, gets nothing (review M1, L3).
@@ -709,6 +722,15 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 	if len(targets) == 0 {
 		return nil, nil
 	}
+	// From now on only the credentials this batch carries stop it when edited or deleted; one changed between the read above and
+	// here is caught by snmpJob, which reads each row again with its secrets.
+	ids := make([]string, len(creds))
+	for i, c := range creds {
+		ids[i] = c.ID
+	}
+	s.mu.Lock()
+	run.credIDs = ids
+	s.mu.Unlock()
 	sc := newScope(st)
 	for _, t := range targets {
 		if !sc.contains(t.ip) {
@@ -721,6 +743,9 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 	rate := max(1, min(st.Rate, 1000))
 	probeID, err := s.insertSNMPProbe(rctx, jobID, rate, creds, targets)
 	if err != nil {
+		if rctx.Err() != nil { // stopped before the row was written: nothing was sent
+			return nil, ErrStopped
+		}
 		return nil, err
 	}
 	if rctx.Err() != nil || s.ver.Load() != v0 {
@@ -728,7 +753,14 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 		return nil, ErrStopped
 	}
 	job, err := s.snmpJob(rctx, rate, creds, targets)
-	if err != nil {
+	switch {
+	case errors.Is(err, ErrStopped):
+		s.finishProbe(ctx, probeID, "stopped: a credential changed or was deleted")
+		return nil, ErrStopped
+	case err != nil && rctx.Err() != nil:
+		s.finishProbe(ctx, probeID, stoppedText)
+		return nil, ErrStopped
+	case err != nil:
 		s.finishProbe(ctx, probeID, "failed: the credentials could not be read")
 		return nil, err
 	}
@@ -811,10 +843,30 @@ func (s *Service) recheckSNMP(ctx context.Context, creds []snmpRow, targets []sn
 }
 
 // snmpJob opens the secrets of the batch's credentials (only here, only for the job) and builds the job of the wire.
-func (s *Service) snmpJob(ctx context.Context, rate int, creds []snmpRow, targets []snmpTarget) (sensorlink.SNMPJob, error) {
-	job := sensorlink.SNMPJob{Rate: rate}
+//
+// The secrets are opened in one read transaction that also reads each credential's row again: a credential edited (its version,
+// scope, secrets or anything else: updated_at) or deleted since the batch read it stops the batch (ErrStopped), so a v3 password never
+// leaves as a v2c community and a rotated community never goes to a device its new scope no longer holds (review #715 r2 M1).
+func (s *Service) snmpJob(ctx context.Context, rate int, creds []snmpRow, targets []snmpTarget) (job sensorlink.SNMPJob, err error) {
+	job = sensorlink.SNMPJob{Rate: rate}
+	tx, err := s.db.Reader().BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return job, fmt.Errorf("sensoractive: read snmp credentials: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
 	for _, c := range creds {
-		secret, err := s.secrets.Open(ctx, s.db.Reader(), c.secretID, snmpSecretPurpose)
+		var version, scope, secretID, privID, updated string
+		err := tx.QueryRowContext(ctx, `SELECT version, scope, secret_id, coalesce(priv_secret_id, ''), updated_at FROM sa_snmp WHERE id = ?`, c.ID).
+			Scan(&version, &scope, &secretID, &privID, &updated)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return job, ErrStopped
+		case err != nil:
+			return job, fmt.Errorf("sensoractive: read snmp credential: %w", err)
+		case version != c.Version || scope != c.scopeRaw || secretID != c.secretID || privID != c.privID || updated != c.updatedAt:
+			return job, ErrStopped
+		}
+		secret, err := s.secrets.Open(ctx, tx, c.secretID, snmpSecretPurpose)
 		if err != nil {
 			return job, fmt.Errorf("sensoractive: open snmp secret: %w", err)
 		}
@@ -825,7 +877,7 @@ func (s *Service) snmpJob(ctx context.Context, rate int, creds []snmpRow, target
 		default:
 			w.User, w.Auth, w.AuthPass = c.Username, c.Auth, string(secret)
 			if c.privID != "" {
-				priv, err := s.secrets.Open(ctx, s.db.Reader(), c.privID, snmpPrivPurpose)
+				priv, err := s.secrets.Open(ctx, tx, c.privID, snmpPrivPurpose)
 				if err != nil {
 					return job, fmt.Errorf("sensoractive: open snmp privacy password: %w", err)
 				}
@@ -1047,12 +1099,29 @@ func (s *Service) snmpChanged(ctx context.Context, asset string) {
 		run.cancel()
 		return
 	}
-	if _, ok := s.windowNow(st); !ok && !run.picked {
+	end, ok := s.windowNow(st)
+	s.mu.Lock()
+	deadline := run.deadline
+	s.mu.Unlock()
+	// Outside the window, or a window shortened under the batch: its deadline came from the old end (INV-3, as nmap's
+	// SettingsChanged; review #715 r2 L1). A Test is not bound to the window.
+	if !run.picked && (!ok || !deadline.IsZero() && end.Before(deadline)) {
 		run.cancel()
 		return
 	}
 	sc := newScope(st)
 	if slices.ContainsFunc(run.targets, func(t netip.Addr) bool { return !sc.contains(t) }) {
+		run.cancel()
+	}
+}
+
+// snmpCredentialChanged stops the batch in progress when it carries the credential an edit or a delete just changed: a job already
+// with the worker is cancelled there too (review #715 r2 M1). The next batch reads the credential again.
+func (s *Service) snmpCredentialChanged(id string) {
+	s.mu.Lock()
+	run := s.snmpCur
+	s.mu.Unlock()
+	if run != nil && slices.Contains(run.credIDs, id) {
 		run.cancel()
 	}
 }

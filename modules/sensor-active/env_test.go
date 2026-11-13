@@ -116,6 +116,8 @@ type fakeInv struct {
 	protected []netip.Addr
 	approved  map[string]bool // Asset.Approved (SNMP, D-512)
 	box       []netip.Addr    // BoxIPs: the box and its decoys (a part of protected)
+	// onInScope runs once, at the next InScope (outside the lock): a test changes something between a check and the run.
+	onInScope func()
 }
 
 func (f *fakeInv) BoxIPs(context.Context) ([]netip.Addr, error) {
@@ -137,6 +139,13 @@ func (f *fakeInv) set(fn func(*sa.Settings)) {
 }
 
 func (f *fakeInv) InScope(_ context.Context, ip netip.Addr) (bool, error) {
+	f.mu.Lock()
+	hook := f.onInScope
+	f.onInScope = nil
+	f.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.checked = append(f.checked, ip)

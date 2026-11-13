@@ -6,8 +6,8 @@
 -- job a probe row of shape 'snmp', so the probe log answers "which device got which credential when" as it does for nmap. SQLite
 -- cannot change a CHECK: sa_job and sa_probe are rebuilt with the same columns and ids. sa_probe refers to sa_job, so the new
 -- sa_probe is made against the new sa_job before the old tables go, and the renames carry the reference (SQLite 3.26+).
--- 0003 (D-511, #714) added the shape 'gentle_titles': it is kept here, so this migration runs on top of it, and on a box without it
--- the shape is merely allowed. Forward-only (DATA_MODEL 6, rule 1).
+-- It runs after 0003 (D-511, #714), which added the shape 'gentle_titles': that shape is kept here. The migrations run in order
+-- only (goose, no out-of-order), so this file ships only with 0003 (TestMigrationsKeepTheirOrder). Forward-only (DATA_MODEL 6, rule 1).
 CREATE TABLE sa_snmp (
     id             TEXT    NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
     name           TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 64),

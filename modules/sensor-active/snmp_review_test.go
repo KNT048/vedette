@@ -86,7 +86,8 @@ func TestSNMPEachBatchReadsTheDevicesAndCredentialsAgain(t *testing.T) {
 	if _, err := svc.AddSNMP(t.Context(), "a", v2cInput("all", "community-1")); err != nil {
 		t.Fatal(err)
 	}
-	c, err := svc.AddSNMP(t.Context(), "a", v2cInput("deleted mid-round", "community-2"))
+	// only for .75, a device of batch 2: deleting it does not stop batch 1, which does not carry it (r2 M1 stops a batch that does)
+	c, err := svc.AddSNMP(t.Context(), "a", v2cInput("deleted mid-round", "community-2", "192.168.10.75"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,5 +196,122 @@ func TestMigration0004KeepsTheProbeCounter(t *testing.T) {
 	var id int
 	if err := db.Reader().QueryRowContext(ctx, `SELECT max(id) FROM sa_probe`).Scan(&id); err != nil || id != 4 {
 		t.Fatalf("the next probe id is %d (%v), want 4", id, err)
+	}
+}
+
+// Review #715 round 2.
+
+// r2 M1 (A, B): a credential edited after the batch read it and before its secrets are opened stops the batch: a v3 password never
+// leaves as a v2c community, a rotated community never goes to a device the narrowed scope no longer holds.
+func TestSNMPAnEditBetweenTheCheckAndTheJobStopsIt(t *testing.T) {
+	t.Parallel()
+	r := &fakeReader{}
+	w := newSNMPWorld(t, r)
+	toV3 := w.add(v2cInput("to v3", "s3cret-community"))
+	narrowed := w.add(v2cInput("narrowed", "old-community-1"))
+	for name, edit := range map[string]struct {
+		id string
+		in sa.SNMPCredentialInput
+	}{
+		"v2c to v3":            {toV3.ID, sa.SNMPCredentialInput{Name: "to v3", Version: "v3", Username: "u", Auth: "sha", AuthPassword: secrets.NewValue("auth-pass-XYZ"), Priv: "none", Scope: []string{worldScope}}},
+		"rotated and narrowed": {narrowed.ID, v2cInput("narrowed", "rotated-community-1", "192.168.10.30")},
+	} {
+		w.inv.mu.Lock()
+		w.inv.onInScope = func() {
+			if _, err := w.svc.EditSNMP(context.Background(), "a", edit.id, edit.in); err != nil {
+				t.Errorf("%s: %v", name, err)
+			}
+		}
+		w.inv.mu.Unlock()
+		if _, err := w.svc.TestSNMP(t.Context(), "a", edit.id, "192.168.10.20"); apiCode(err) != "stopped" {
+			t.Errorf("%s: %v, want stopped", name, err)
+		}
+	}
+	if jobs := r.sent(); len(jobs) != 0 {
+		t.Fatalf("%d jobs left with a changed credential", len(jobs))
+	}
+}
+
+// r2 M1 (C): a delete or a narrowing edit of a credential stops a job the worker already has.
+func TestSNMPADeleteOrANarrowingStopsAJobWithTheWorker(t *testing.T) {
+	t.Parallel()
+	started := make(chan struct{}, 1)
+	r := &fakeReader{answer: func(ctx context.Context, j sensorlink.SNMPJob) ([]sensorlink.SNMPAnswer, error) {
+		started <- struct{}{}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(5 * time.Second): // only without the fix: the job runs on with the old credential
+			return juniperAnswers(j), nil
+		}
+	}}
+	w := newSNMPWorld(t, r)
+	gone := w.add(v2cInput("deleted", "community-1"))
+	narrow := w.add(v2cInput("narrowed", "community-2"))
+	for name, change := range map[string]func() error{
+		gone.ID: func() error { return w.svc.DeleteSNMP(context.Background(), "a", gone.ID) },
+		narrow.ID: func() error {
+			_, err := w.svc.EditSNMP(context.Background(), "a", narrow.ID, v2cInput("narrowed", "", "192.168.10.30"))
+			return err
+		},
+	} {
+		go func() {
+			<-started
+			if err := change(); err != nil {
+				t.Error(err)
+			}
+		}()
+		if _, err := w.svc.TestSNMP(t.Context(), "a", name, "192.168.10.20"); apiCode(err) != "stopped" {
+			t.Errorf("%s: %v, want stopped", name, err)
+		}
+	}
+}
+
+// r2 L1: a window shortened under a round's batch stops it (its deadline came from the old end), as nmap's run is stopped.
+func TestSNMPAShorterWindowStopsTheBatch(t *testing.T) {
+	t.Parallel()
+	var svc *sa.Service
+	var inv *fakeInv
+	cancelled := false
+	r := &fakeReader{}
+	r.answer = func(ctx context.Context, _ sensorlink.SNMPJob) ([]sensorlink.SNMPAnswer, error) {
+		if !cancelled {
+			inv.set(func(s *sa.Settings) { s.To = "02:30" }) // it is 02:00: still inside, but the batch had until 03:00
+			go func() { _ = svc.SettingsChanged(context.WithoutCancel(ctx)) }()
+			select {
+			case <-ctx.Done():
+				cancelled = true
+			case <-time.After(5 * time.Second): // only without the fix
+			}
+		}
+		return nil, ctx.Err()
+	}
+	svc, inv = newBigWorld(t, r, 2, 0)
+	if _, err := svc.AddSNMP(t.Context(), "a", v2cInput("all", "community-1")); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Tick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if !cancelled {
+		t.Fatal("the shortened window did not stop the batch")
+	}
+}
+
+// r2 M2: the migrations run in order only (goose has no out-of-order), and 0004_snmp keeps the probe shape of #714's 0003: this
+// branch must carry 0003_gentle_titles, numbered without a gap, or a box that got 0004 first would never start the module.
+func TestMigrationsKeepTheirOrder(t *testing.T) {
+	t.Parallel()
+	names, err := fs.Glob(sa.Migrations, "*.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(names, "0003_gentle_titles.sql") {
+		t.Fatalf("0003_gentle_titles.sql (#714) is missing: merge origin/main once #714 has landed (%v)", names)
+	}
+	for i, n := range names {
+		if want := fmt.Sprintf("%04d_", i+1); !strings.HasPrefix(n, want) {
+			t.Errorf("migration %d is %s, want %s…", i+1, n, want)
+		}
 	}
 }

@@ -26,7 +26,9 @@ var (
 // share one instance (and one "one nmap at a time" lock), like feedsService. The inventory must be built first.
 //
 // ctx is the caller's: the service keeps only its values (context.WithoutCancel) for the time-zone reads of orgLocation, since it
-// outlives any one caller.
+// outlives any one caller. The first caller's ctx is kept for the life of the process, so a request's context must never be the first
+// to build it: keep today's order, where the module's jobs (sensorActiveJobs) or newHandler (the server's start-up ctx) build it before
+// any request runs; scanIdentify and the others only find the cached one (review #715 r2 L2).
 func sensorActiveService(ctx context.Context, d deps) (*sensoractive.Service, error) {
 	saMu.Lock()
 	defer saMu.Unlock()
@@ -135,7 +137,8 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 // orgLocation is sensor-active's Config.Location: the organization time zone of core's general settings, read at
 // every use so a change applies to the next window check without a restart (INV-3). nil (module falls back to
 // the process zone) when core is not built or the read fails or names an unknown zone. The reads keep parent's values but not its
-// end (the service outlives the caller that built it), each with its own 2 s budget.
+// end (the service outlives the caller that built it), each with its own 2 s budget. parent is held for the life of the process:
+// never a request's context (see sensorActiveService).
 func orgLocation(parent context.Context, d deps) func() *time.Location {
 	base := context.WithoutCancel(parent)
 	return func() *time.Location {

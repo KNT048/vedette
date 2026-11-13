@@ -65,8 +65,9 @@ func (s *Service) HandleIncidents(ctx context.Context, actor string, ids []strin
 				res.AlreadyAcknowledged++
 				continue
 			}
-			// no note given: the one already there stays (an acknowledge note is not erased by a bulk Resolve)
-			if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET status = ?, handled_by = ?, handled_at = ?, note = COALESCE(?, note) WHERE id = ?`,
+			// no note given: the one already there stays (an acknowledge note is not erased by a bulk Resolve); a person's action replaces
+			// Vedette's reason (D-550, INV-22)
+			if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET status = ?, handled_by = ?, handled_at = ?, note = COALESCE(?, note), resolved_reason = NULL WHERE id = ?`,
 				string(status), actor, at, nullable(note), id); err != nil {
 				return fmt.Errorf("notify: update incident: %w", err)
 			}

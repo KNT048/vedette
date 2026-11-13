@@ -59,16 +59,18 @@ func (s *Service) withNotSent(ctx context.Context, q dbtx, list []Incident) erro
 	}
 	type kept struct {
 		why, floor, ch sql.NullString
+		summary, told  sql.NullString // first-run incidents (INV-23): the summary that tells it, and when a channel delivered that summary
 	}
 	decided := map[string]kept{}
-	rows, err = q.QueryContext(ctx, `SELECT id, unsent, unsent_floor, unsent_channel FROM notify_incident WHERE id IN `+in, ids...)
+	rows, err = q.QueryContext(ctx, `SELECT i.id, i.unsent, i.unsent_floor, i.unsent_channel, i.summary_id,
+		(SELECT MIN(d.at) FROM notify_send d WHERE d.ref_id = i.summary_id AND d.ok = 1) FROM notify_incident i WHERE i.id IN `+in, ids...)
 	if err != nil {
 		return fmt.Errorf("notify: read why incidents were not sent: %w", err)
 	}
 	for rows.Next() {
 		var id string
 		var k kept
-		if err := rows.Scan(&id, &k.why, &k.floor, &k.ch); err != nil {
+		if err := rows.Scan(&id, &k.why, &k.floor, &k.ch, &k.summary, &k.told); err != nil {
 			_ = rows.Close()
 			return fmt.Errorf("notify: read why incidents were not sent: %w", err)
 		}
@@ -83,6 +85,15 @@ func (s *Service) withNotSent(ctx context.Context, q dbtx, list []Incident) erro
 		i := &list[k]
 		w, kd := queue[id], decided[id]
 		switch {
+		case i.FirstRunSummary: // held by the first-run window (D-550, INV-23): never queued on its own, so unsent stays NULL
+			detail := ""
+			if kd.summary.Valid {
+				detail = "pending"
+			}
+			if kd.told.Valid {
+				detail = kd.told.String
+			}
+			i.NotSent = notSent(UnsentFirstRun, i.Severity, "", "", detail, loc)
 		case w != nil && w.now:
 			i.NotSent = notSent(UnsentQueued, i.Severity, "", "", "", loc)
 		case w != nil:
@@ -227,8 +238,13 @@ func notSent(why NotSentReason, sev, floor Severity, ch channel.Type, detail str
 		}
 	case UnsentDroppedStale:
 		n.Text = "Not sent: alerts were off, and it was more than a day old when they came back on."
-	case UnsentFirstRun:
-		n.Text = "Not sent on its own: Vedette tells it in the hourly first-run summary."
+	case UnsentFirstRun: // detail: "" = not in a summary yet, "pending" = in one no channel delivered yet, else when one delivered it
+		n.Text = "Not sent on its own: it goes out in the next first-run summary, within the hour."
+		if t, err := time.Parse(time.RFC3339, detail); err == nil {
+			n.Text = fmt.Sprintf("Not sent on its own: it was in the first-run summary sent at %s.", t.In(loc).Format("15:04"))
+		} else if detail == "pending" {
+			n.Text = "Not sent on its own: it is in the first-run summary, which no channel has delivered yet."
+		}
 	default:
 		n.Reason = UnsentUnknown
 		n.Text = "Not sent. It was opened before this version of Vedette kept the reason."

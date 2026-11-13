@@ -12,6 +12,7 @@ import { eachOption } from '@/test/formMatrix'
 import { auditStore, installStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
 import ChannelsSettings from './ChannelsSettings'
+import { ZALO_BOX_UID, zaloMessagesForTest } from './mocks'
 import { forbiddenHost, ownHost } from './types'
 
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
@@ -639,7 +640,7 @@ describe('notify: forbidden webhook hosts match the box (forbiddenAddr after Unm
 })
 
 describe('notify: channel form matrix (docs/QA.md §2)', () => {
-  const ALL = ['Chat ID', 'Bot token', 'OA ID', 'Access token', 'Recipient ID (user_id)', 'SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password', 'Webhook URL', 'Signing key', 'Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)', 'Recipient (user or group ID)']
+  const ALL = ['Chat ID', 'Bot token', 'OA ID', 'Access token', 'Recipient ID (user_id)', 'Provider', 'SMTP server', 'Port', 'Encryption', 'Username', 'Tenant ID', 'Client ID', 'Send from', 'Send to', 'SMTP password', 'Webhook URL', 'Signing key', 'Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)', 'Recipient (user or group ID)']
   const only = (...keep: string[]) => ALL.filter((x) => !keep.includes(x))
   const APPROVE = 'Approve actions from this channel'
   const LINK_ONLY = /This channel cannot take approvals/
@@ -657,8 +658,8 @@ describe('notify: channel form matrix (docs/QA.md §2)', () => {
       { option: 'Telegram', shown: ['Chat ID', 'Bot token', APPROVE], hidden: [...only('Chat ID', 'Bot token'), LINK_ONLY] },
       { option: 'Slack', shown: ['Channel label (optional)', 'Incoming Webhook URL', APPROVE], hidden: [...only('Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)'), LINK_ONLY] },
       { option: 'Zalo OA', shown: ['OA ID', 'Access token', 'Recipient ID (user_id)', LINK_ONLY], hidden: [...only('OA ID', 'Access token', 'Recipient ID (user_id)'), APPROVE] },
-      { option: 'Zalo personal', shown: ['Recipient (user or group ID)', 'Zalo login', APPROVE, /Unofficial/], hidden: [...only('Recipient (user or group ID)'), LINK_ONLY, 'Bot token'] },
-      { option: 'Email', shown: ['SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password', APPROVE], hidden: [...only('SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password'), LINK_ONLY] },
+      { option: 'Zalo personal', shown: ['Zalo sign-in', 'Or find by invite link, phone number or ID', APPROVE, /Unofficial channel/], hidden: [...only(), LINK_ONLY, 'Bot token', 'I scanned it'] },
+      { option: 'Email', shown: ['Provider', 'SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password', APPROVE], hidden: [...only('Provider', 'SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password'), LINK_ONLY] },
       { option: 'Webhook', shown: ['Webhook URL', 'Signing key', 'Generate random', LINK_ONLY], hidden: [...only('Webhook URL', 'Signing key'), APPROVE] },
       { option: 'Telegram', shown: ['Chat ID', 'Bot token'], hidden: [...only('Chat ID', 'Bot token')] }, // going back restores the same fields
     ], open)
@@ -723,30 +724,349 @@ describe('notify: channel form matrix (docs/QA.md §2)', () => {
     expect((await put({ ...base, approvals: false, approvers: [], fields: { chat_id: '@vedette_alerts' } })).status).toBe(200) // a @name is fine for alerts only
   })
 
-  it('Zalo personal: sign in by QR, turn approvals on, add two approvers, each with their own Zalo ID', async () => {
+  it('Zalo personal: a real QR sign-in, the recipient picked from the groups, approvers by friend or phone, Waiting then Linked (S-NOT-1, S-RESP-2, D-447)', async () => {
     renderChannels()
     await screen.findByRole('table')
     await press(/^Set up Zalo personal$/)
     const dlg = await screen.findByRole('dialog')
-    await userEvent.type(within(dlg).getByLabelText('Recipient (user or group ID)'), '8412345678901')
-    await userEvent.click(within(dlg).getByRole('button', { name: 'Show QR code' }))
-    await userEvent.click(within(dlg).getByRole('button', { name: 'I scanned it' }))
-    expect(within(dlg).getByText(/Signed in/)).toBeInTheDocument()
+    expect(within(dlg).getByRole('note')).toHaveTextContent('Unofficial channel: Zalo may lock the account it signs in with')
+    expect(within(dlg).getByText(/Sign in to pick from the account's groups/)).toBeInTheDocument()
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Sign in with a QR code' }))
+    expect(await within(dlg).findByRole('img', { name: 'QR code to sign in to Zalo' })).toBeInTheDocument()
+    expect(await within(dlg).findByText(/Signed in as Vedette Box\. Press Save/, undefined, { timeout: 5000 })).toBeInTheDocument()
+    expect(within(dlg).queryByRole('img', { name: 'QR code to sign in to Zalo' })).toBeNull()
+    const pick = await within(dlg).findByLabelText('Group or friend')
+    await waitFor(() => expect(within(pick).getByRole('option', { name: 'Night shift (12 members)' })).toBeInTheDocument())
+    await userEvent.selectOptions(pick, '8000000002')
+    expect(within(dlg).getByText('Alerts go to the group Night shift (ID 8000000002).')).toBeInTheDocument()
+    // An invite link resolves to its group; the account is not a member, which the dialog says.
+    await userEvent.type(within(dlg).getByLabelText('Or find by invite link, phone number or ID'), 'https://zalo.me/g/rowukgvsyq24kacrh4ii')
+    await userEvent.click(within(dlg).getAllByRole('button', { name: 'Find' })[0]!)
+    expect(await within(dlg).findByText('Alerts go to the group Support group (ID 8000000009).')).toBeInTheDocument()
+    expect(within(dlg).getByText(/not a member of Support group/)).toBeInTheDocument()
+    await userEvent.type(within(dlg).getByLabelText('Or find by invite link, phone number or ID'), 'hello')
+    await userEvent.click(within(dlg).getAllByRole('button', { name: 'Find' })[0]!)
+    expect(await within(dlg).findByText(/Enter a group invite link/)).toBeInTheDocument()
+    expect(within(dlg).getByLabelText('Or find by invite link, phone number or ID')).toHaveAttribute('aria-invalid', 'true')
+    await userEvent.selectOptions(within(dlg).getByLabelText('Group or friend'), '8000000002')
     await userEvent.click(within(dlg).getByRole('switch', { name: APPROVE_LABEL }))
     await userEvent.click(within(dlg).getByRole('button', { name: 'Add' }))
     await userEvent.click(within(dlg).getByRole('button', { name: 'Add' }))
-    const ids = within(dlg).getAllByLabelText('Zalo user ID')
-    expect(ids).toHaveLength(2)
-    await userEvent.type(ids[0]!, '2938475610293847561')
-    await userEvent.type(ids[1]!, 'not a number')
+    const friends = within(dlg).getAllByLabelText('Zalo friend')
+    expect(friends).toHaveLength(2)
+    await userEvent.selectOptions(friends[0]!, '2938475610293847561')
+    const phones = within(dlg).getAllByLabelText('Or find by phone number')
+    await userEvent.type(phones[1]!, '0912 345 678')
+    await userEvent.click(within(dlg).getAllByRole('button', { name: 'Find' })[2]!)
+    expect(await within(dlg).findByText('Zalo: Hoa Le (ID 4756102938475610293)')).toBeInTheDocument()
+    expect(within(dlg).getAllByText(/^Save to send this person a confirm link on Zalo/)).toHaveLength(2)
+    const before = zaloMessagesForTest().length
     await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
-    expect(await within(dlg).findByRole('alert')).toHaveTextContent(/Zalo user ID/)
-    await userEvent.clear(ids[1]!); await userEvent.type(ids[1]!, '3847561029384756102')
-    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    const z = (await getJson('/notify/channels') as { channels: { type: string; approvals: boolean; approvers: unknown[] }[] }).channels.find((c) => c.type === 'zalo-personal')!
-    expect(z.approvals).toBe(true)
-    expect(z.approvers).toHaveLength(2)
+    // The dialog stays open. Each approver is sent a confirm link and waits, my own row too: Minh Tran is a friend, not the box's own
+    // account, so only a confirm from that Zalo's link can make it mine.
+    expect(await within(dlg).findAllByText(/Waiting for (Minh Tran|Hoa Le) to open the link/)).toHaveLength(2)
+    expect(within(dlg).queryByRole('button', { name: 'Link my Zalo now' })).toBeNull()
+    const sent = zaloMessagesForTest().slice(before)
+    expect(sent.map((m) => m.to)).toEqual(['2938475610293847561', '4756102938475610293'])
+    expect(sent[1]!.text).toMatch(/^Vedette: open this link and sign in to Vedette as .+ to link this Zalo account/)
+    const token = decodeURIComponent(/c=([^ ]+)/.exec(sent[1]!.text)![1]!)
+    // Send again within a minute is refused (one link a minute per person); the link already sent still counts.
+    await userEvent.click(within(dlg).getAllByRole('button', { name: 'Send again' })[1]!)
+    expect(await screen.findByText(/Wait \d+ seconds before sending a new link/)).toBeInTheDocument()
+    expect(zaloMessagesForTest().slice(before)).toHaveLength(2)
+    // it@ confirms, signed in as themself; the dialog shows Linked at its next look.
+    sessionStore.set({ userId: 'u-op' })
+    const ok = await fetch(`${location.origin}/api/v1/response/me/identities/zalo-personal/confirm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: token }) })
+    sessionStore.set({ userId: 'u-admin' })
+    expect(ok.status).toBe(200)
+    expect(await within(dlg).findByText('Linked', undefined, { timeout: 5000 })).toBeInTheDocument()
+    expect(within(dlg).getAllByText(/Waiting for Minh Tran to open the link/)).toHaveLength(1) // my own friend-picked Zalo: still waiting
+    const z = (await getJson('/notify/channels') as { channels: { type: string; approvals: boolean; fields: Record<string, string>; approvers: { address: string; name?: string }[] }[] }).channels.find((c) => c.type === 'zalo-personal')!
+    expect(z.fields).toEqual({ user_id: '8000000002', group: 'true', name: 'Night shift', account: 'Vedette Box' })
+    expect(z.approvers.map((a) => [a.address, a.name])).toEqual([['2938475610293847561', 'Minh Tran'], ['4756102938475610293', 'Hoa Le']])
+  })
+
+  it('the confirm link: a GET never links, another signed-in user is refused and the link stays good, then the right user confirms; a used link is refused (S-RESP-2, D-447)', async () => {
+    renderChannels()
+    await screen.findByRole('table')
+    const put = await fetch(`${location.origin}/api/v1/notify/channels/zalo-personal`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: true, min_severity: 'high', fields: { user_id: '8000000002', group: 'true' }, secret: 'zl-session', approvals: true, approvers: [{ user_id: 'u-op', address: '3847561029384756102', name: 'Lan Pham' }] }) })
+    expect(put.status).toBe(200)
+    const msg = zaloMessagesForTest().at(-1)!
+    expect(msg.to).toBe('3847561029384756102')
+    const path = /https:\/\/[^/]+(\/link\/zalo\?c=[^ ]+)/.exec(msg.text)![1]!
+    const linked = async () => ((await getJson('/notify/zalo/approvers')).items as { state: string }[])[0]!.state
+    // signed in as someone else (the administrator): the page opens, nothing links, Confirm is refused, the link stays good
+    const wrong = renderApp(path, { role: 'admin' })
+    expect(await screen.findByRole('button', { name: 'Confirm' })).toBeInTheDocument()
+    expect(await linked()).toBe('waiting')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    expect(await screen.findByText(/This link is for another Vedette account/)).toBeInTheDocument()
+    wrong.unmount()
+    // the right person
+    renderApp(path, { role: 'operator' })
+    expect(await screen.findByText(/^Link this Zalo account to your account, /)).toBeInTheDocument()
+    expect(await screen.findByText('3847561029384756102')).toHaveClass('font-mono')
+    expect(screen.getByText('Named "Lan Pham" by your administrator.')).toBeInTheDocument()
+    expect(screen.getByText(/Confirm only if this Zalo account is yours/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    expect(await screen.findByText(/Linked\. Zalo ID 3847561029384756102 now counts as you/)).toBeInTheDocument()
+    sessionStore.set({ userId: 'u-admin' })
+    expect(await linked()).toBe('linked')
+    sessionStore.set({ userId: 'u-op' })
+    const again = await fetch(`${location.origin}/api/v1/response/me/identities/zalo-personal/confirm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: decodeURIComponent(path.split('c=')[1]!) }) })
+    expect((await again.json() as { error: { code: string } }).error.code).toBe('no_code')
+  })
+
+  it("an administrator links the box's own signed-in Zalo in their session: no message, the same confirm page (S-RESP-2, D-447)", async () => {
+    orgStore.update((o) => ({ ...o, setup_complete: true }))
+    sessionStore.set({ userId: 'u-admin' })
+    const before = zaloMessagesForTest().length
+    await fetch(`${location.origin}/api/v1/notify/channels/zalo-personal`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: true, min_severity: 'high', fields: { user_id: '8000000002', group: 'true' }, secret: 'zl-session', approvals: true, approvers: [{ user_id: 'u-admin', address: ZALO_BOX_UID, name: 'Vedette Box' }] }) })
+    expect(zaloMessagesForTest().length).toBe(before)
+    const mine = await (await fetch(`${location.origin}/api/v1/notify/zalo/approvers/u-admin/code`, { method: 'POST' })).json() as { self: boolean; link: string; state: string }
+    expect(mine).toMatchObject({ self: true, box_account: true, state: 'not_sent' })
+    expect(mine.link).toMatch(/^\/link\/zalo\?c=/)
+    expect(zaloMessagesForTest().length).toBe(before)
+    renderApp(mine.link, { role: 'admin' })
+    expect(await screen.findByText(ZALO_BOX_UID)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    expect(await screen.findByText(new RegExp(`Linked\\. Zalo ID ${ZALO_BOX_UID}`))).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('Zalo personal: saving with a sign-in that ended is refused, and finding needs a session (S-NOT-1, D-447)', async () => {
+    renderChannels()
+    await screen.findByRole('table')
+    const res = await fetch(`${location.origin}/api/v1/notify/channels/zalo-personal`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: true, min_severity: 'high', fields: { user_id: '8000000002' }, zalo_login: true }) })
+    expect(res.status).toBe(400)
+    expect((await res.json() as { error: { code: string } }).error.code).toBe('login_required')
+    await fetch(`${location.origin}/api/v1/notify/channels/zalo-personal`, { method: 'DELETE' })
+    const find = await fetch(`${location.origin}/api/v1/notify/zalo/resolve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: '0912345678' }) })
+    expect(find.status).toBe(409)
   })
 })
 const APPROVE_LABEL = 'Approve actions from this channel'
+
+describe('notify: email providers (S-NOT-1, D-449)', () => {
+  const put = (b: unknown) => fetch(`${location.origin}/api/v1/notify/channels/email`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
+  const emailOf = async () => ((await getJson('/notify/channels')).channels as { type: string; fields: Record<string, string>; secret_last4: string | null }[]).find((c) => c.type === 'email')!
+  const openEmail = async () => {
+    renderChannels()
+    await press('Edit Email')
+    return screen.findByRole('dialog', { name: 'Channel Email' })
+  }
+  const KEY = JSON.stringify({ type: 'service_account', project_id: 'acme-alerts', private_key_id: 'ab12', private_key: '-----BEGIN PRIVATE KEY-----\nMIIEv…\n-----END PRIVATE KEY-----\n', client_email: 'vedette@acme-alerts.iam.gserviceaccount.com' }, null, 2)
+
+  it('each preset fills server, port and encryption, and shows only the fields its sign-in uses (form matrix)', async () => {
+    const dlg = await openEmail()
+    const provider = within(dlg).getByLabelText('Provider')
+    expect(provider).toHaveValue('custom') // a channel saved before the presets
+    const host = () => within(dlg).getByLabelText('SMTP server')
+    const pick = async (id: string) => { await userEvent.selectOptions(provider, id) }
+    const OAUTH = ['Tenant ID', 'Client ID', 'Client secret', 'Mailbox to send as', 'Service account key (JSON file)']
+    await eachOption([
+      { option: 'gmail', shown: ['Username', 'App password', /Create an app password|turn on 2-Step Verification/], hidden: OAUTH },
+      { option: 'sendgrid', shown: ['Username', 'API key'], hidden: OAUTH },
+      { option: 'postmark', shown: ['Server API token'], hidden: ['Username', ...OAUTH] },
+      { option: 'microsoft365', shown: ['Mailbox to send as', 'Tenant ID', 'Client ID', 'Client secret', /SMTP\.SendAsApp/, /New-ServicePrincipal/, /login\.microsoftonline\.com/], hidden: ['Username', 'App password', 'Service account key (JSON file)'] },
+      { option: 'google-workspace', shown: ['Mailbox to send as', 'Service account key (JSON file)', /Domain Wide Delegation/, /oauth2\.googleapis\.com/], hidden: ['Username', 'Tenant ID', 'Client ID', 'Client secret'] },
+      { option: 'custom', shown: ['Username', 'SMTP password'], hidden: OAUTH },
+    ], pick, dlg)
+    for (const [id, h, port, enc] of [['gmail', 'smtp.gmail.com', 587, 'starttls'], ['yahoo', 'smtp.mail.yahoo.com', 465, 'ssl'], ['fastmail', 'smtp.fastmail.com', 465, 'ssl'], ['ses', 'email-smtp.us-east-1.amazonaws.com', 587, 'starttls'], ['microsoft365', 'smtp.office365.com', 587, 'starttls']] as const) {
+      await pick(id)
+      expect(host()).toHaveValue(h)
+      expect(within(dlg).getByLabelText('Port')).toHaveValue(port)
+      expect(within(dlg).getByLabelText('Encryption')).toHaveValue(enc)
+    }
+    await pick('gmail')
+    expect(within(dlg).getByRole('link', { name: "Read Gmail (personal account)'s instructions" })).toHaveAttribute('href', 'https://support.google.com/accounts/answer/185833')
+    // SendGrid's fixed username comes and goes with the preset
+    await pick('sendgrid')
+    expect(within(dlg).getByLabelText('Username')).toHaveValue('apikey')
+    await pick('mailgun')
+    expect(within(dlg).getByLabelText('Username')).toHaveValue('')
+    await expectNoA11yViolations(dlg)
+  })
+
+  it('Microsoft 365: wrong IDs show under their fields first; the saved password is not a client secret; a full form saves', async () => {
+    const dlg = await openEmail()
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'microsoft365')
+    const mailbox = within(dlg).getByLabelText('Mailbox to send as')
+    await userEvent.clear(mailbox)
+    await userEvent.type(mailbox, 'alerts@acme.example')
+    const tenant = within(dlg).getByLabelText('Tenant ID')
+    await userEvent.type(tenant, 'not a tenant')
+    await userEvent.type(within(dlg).getByLabelText('Client ID'), '0a1b2c3d-4e5f-6789-abcd-ef0123456789')
+    const save = () => userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await save()
+    await waitFor(() => expect(tenant).toHaveAccessibleDescription(/^The tenant ID is the Directory \(tenant\) ID/))
+    await userEvent.clear(tenant)
+    await userEvent.type(tenant, '72f988bf-86f1-41af-91ab-2d7cd011db47')
+    await save()
+    // the sign-in method changed: the saved SMTP password is not kept as the client secret
+    const secret = within(dlg).getByLabelText('Client secret')
+    await waitFor(() => expect(secret).toHaveAccessibleDescription(/^Enter the client secret again: the sign-in method, the server or the port changed/))
+    await userEvent.type(secret, 'Abc8Q~client.secret_value-123')
+    await save()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    const em = await emailOf()
+    expect(em.fields).toMatchObject({ provider: 'microsoft365', host: 'smtp.office365.com', tenant_id: '72f988bf-86f1-41af-91ab-2d7cd011db47', username: 'alerts@acme.example' })
+    expect(em.secret_last4).toBe('-123')
+  })
+
+  it('Google Workspace: the key is a file; a file that is not a key is refused before saving; a key file saves', async () => {
+    const dlg = await openEmail()
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'google-workspace')
+    const mailbox = within(dlg).getByLabelText('Mailbox to send as')
+    await userEvent.clear(mailbox)
+    await userEvent.type(mailbox, 'alerts@acme.example')
+    const file = within(dlg).getByLabelText('Service account key (JSON file)')
+    await userEvent.upload(file, new File(['{"type":"authorized_user"}'], 'key.json', { type: 'application/json' }))
+    await waitFor(() => expect(file).toHaveAccessibleDescription('This file is not a service account key file from Google Cloud.'))
+    await userEvent.upload(file, new File([KEY], 'acme-alerts-ab12.json', { type: 'application/json' }))
+    await waitFor(() => expect(file).toHaveAccessibleDescription('Key of vedette@acme-alerts.iam.gserviceaccount.com chosen. Save to keep it.'))
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect((await emailOf()).fields.provider).toBe('google-workspace')
+  })
+
+  it('a saved secret goes only to the method, server and port it was saved for; a save without encryption between deletes it (D-449 review)', async () => {
+    await openEmail()
+    const ms = { enabled: true, min_severity: 'high', fields: { provider: 'microsoft365', host: 'smtp.office365.com', port: '587', security: 'starttls', username: 'alerts@acme.example', tenant_id: '72f988bf-86f1-41af-91ab-2d7cd011db47', client_id: '0a1b2c3d-4e5f-6789-abcd-ef0123456789', from: 'alerts@acme.example', to: 'it@acme.example' }, secret: 'Abc8Q~client.secret_value-123' }
+    const code = async (b: unknown) => { const r = await put(b); return r.ok ? 'ok' : ((await r.json()) as { error: { code: string } }).error.code }
+    expect(await code(ms)).toBe('ok')
+    expect(await code({ ...ms, fields: { ...ms.fields, host: 'smtp.attacker.example' } })).toBe('bad_host') // the token goes to Microsoft only
+    // two steps: Custom without encryption (no secret needed: the client secret is deleted), then STARTTLS has nothing to send
+    expect(await code({ enabled: true, min_severity: 'high', fields: { provider: 'custom', host: '192.168.1.25', port: '25', security: 'none', from: 'alerts@acme.example', to: 'it@acme.example' } })).toBe('ok')
+    expect((await emailOf()).secret_last4).toBeNull()
+    const tls = { enabled: true, min_severity: 'high', fields: { provider: 'custom', host: 'smtp.attacker.example', port: '587', security: 'starttls', username: 'x', from: 'alerts@acme.example', to: 'it@acme.example' } }
+    expect(await code(tls)).toBe('secret_required')
+    // a password saved for one server is not sent to another server or port
+    expect(await code({ ...tls, secret: 'pass-word-1' })).toBe('ok')
+    expect(await code({ ...tls, fields: { ...tls.fields, host: 'smtp.other.example' } })).toBe('secret_required')
+    expect(await code({ ...tls, fields: { ...tls.fields, port: '2525' } })).toBe('secret_required')
+    expect(await code({ ...tls, fields: { ...tls.fields, to: 'director@acme.example' } })).toBe('ok')
+    expect(await code({ ...tls, secret: 'pass\nword' })).toBe('bad_secret')
+  })
+
+  it('the dialog says the saved password is kept only while server, port and method stay; OAuth presets lock the server', async () => {
+    const dlg = await openEmail()
+    const secret = within(dlg).getByLabelText('SMTP password')
+    expect(secret).toHaveAccessibleDescription(/m3Tz/) // the saved one, for this server
+    const host = within(dlg).getByLabelText('SMTP server')
+    await userEvent.type(host, 'x')
+    expect(secret).not.toHaveAccessibleDescription(/m3Tz/)
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'google-workspace')
+    expect(within(dlg).getByLabelText('SMTP server')).toHaveAttribute('readonly')
+    expect(within(dlg).getByLabelText('SMTP server')).toHaveValue('smtp.gmail.com')
+  })
+
+  it('the mock refuses as the box does: unknown preset, bad key, OAuth without encryption; Postmark keeps no username', async () => {
+    await openEmail()
+    const base = { enabled: true, min_severity: 'high', fields: { host: 'smtp.gmail.com', port: '587', security: 'starttls', username: 'alerts@acme.example', from: 'alerts@acme.example', to: 'it@acme.example' } }
+    const code = async (b: unknown) => ((await (await put(b)).json()) as { error: { code: string } }).error.code
+    expect(await code({ ...base, fields: { ...base.fields, provider: 'hotmail' } })).toBe('bad_provider')
+    expect(await code({ ...base, fields: { ...base.fields, provider: 'google-workspace' }, secret: '{"type":"service_account"}' })).toBe('bad_secret')
+    expect(await code({ ...base, fields: { ...base.fields, provider: 'google-workspace', security: 'none', host: '192.168.1.5' }, secret: KEY })).toBe('bad_security')
+    const res = await put({ ...base, fields: { ...base.fields, provider: 'postmark', host: 'smtp.postmarkapp.com', username: 'secret-token-as-user' }, secret: '1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d' })
+    expect(res.status).toBe(200)
+    expect((await emailOf()).fields.username).toBeUndefined()
+  })
+})
+
+describe('notify: email user sign-in (S-NOT-1, D-480)', () => {
+  const emailOf = async () => ((await getJson('/notify/channels')).channels as { type: string; fields: Record<string, string> }[]).find((c) => c.type === 'email')!
+  const openEmail = async (provider: string) => {
+    renderChannels()
+    await press('Edit Email')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Email' })
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), provider)
+    return dlg
+  }
+
+  it('each sign-in preset shows its own fields and guide (form matrix)', async () => {
+    renderChannels()
+    await press('Edit Email')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Email' })
+    const pick = async (id: string) => { await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), id) }
+    await eachOption([
+      { option: 'microsoft365-user', shown: ['Tenant ID', 'Client ID', 'Mailbox', 'Sign in with Microsoft', /Allow public client flows to Yes/, /SMTP\.Send/], hidden: ['Client secret', 'SMTP password', 'Client secret of the Desktop client', 'Username'] },
+      { option: 'outlook', shown: ['Client ID', 'Mailbox', 'Sign in with Microsoft', /personal Microsoft accounts/], hidden: ['Tenant ID', 'Client secret of the Desktop client'] },
+      { option: 'gmail-oauth', shown: ['Client ID', 'Client secret of the Desktop client', 'Mailbox', 'Sign in with Google', /Desktop app/, /7 days/], hidden: ['Tenant ID', 'App password', 'Service account key (JSON file)'] },
+      { option: 'gmail', shown: ['Username', 'App password'], hidden: ['Client ID', 'Mailbox', 'Sign in with Google'] },
+    ], pick, dlg)
+    await pick('outlook')
+    expect(within(dlg).getByLabelText('SMTP server')).toHaveValue('smtp-mail.outlook.com')
+    expect(within(dlg).getByLabelText('SMTP server')).toHaveAttribute('readonly')
+  })
+
+  it('Microsoft: the device code and the address show; the box is asked until the user signed in; the save keeps the mailbox that signed in', async () => {
+    const dlg = await openEmail('microsoft365-user')
+    expect(within(dlg).getByLabelText('Tenant ID')).toHaveValue('organizations')
+    const client = within(dlg).getByLabelText('Client ID')
+    await userEvent.type(client, 'my-app')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Sign in with Microsoft' }))
+    await waitFor(() => expect(client).toHaveAccessibleDescription(/^The client ID is the Application \(client\) ID/))
+    await userEvent.clear(client)
+    await userEvent.type(client, '0a1b2c3d-4e5f-6789-abcd-ef0123456789')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Sign in with Microsoft' }))
+    expect(await within(dlg).findByLabelText('Sign-in code')).toHaveTextContent('WDJB-MJHT')
+    expect(within(dlg).getByRole('link', { name: 'https://microsoft.com/devicelogin' })).toHaveAttribute('href', 'https://microsoft.com/devicelogin')
+    expect(within(dlg).getByText('Waiting for you to finish the sign-in with Microsoft.')).toBeInTheDocument()
+    // The mock signs in at the second check. The page also checks on its own every 5 s, so on a slow machine a check may already
+    // have happened: press "check now" while it is there, until the page says signed in (a state wait, not a count of presses).
+    const SIGNED_IN = 'Signed in as alerts@acme.example. Save to keep this sign-in.'
+    await waitFor(async () => {
+      const b = within(dlg).queryByRole('button', { name: 'I have signed in, check now' })
+      if (b && !b.hasAttribute('disabled')) await userEvent.click(b)
+      expect(within(dlg).getByText(SIGNED_IN)).toBeInTheDocument()
+    }, { timeout: 5000 })
+    expect(within(dlg).getByLabelText('Mailbox')).toHaveValue('alerts@acme.example')
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect((await emailOf()).fields).toMatchObject({ provider: 'microsoft365-user', username: 'alerts@acme.example', tenant_id: 'organizations', client_id: '0a1b2c3d-4e5f-6789-abcd-ef0123456789' })
+  })
+
+  it('Google: only the loopback address of this sign-in is taken; a declined consent says so; a fitting address signs in and saves', async () => {
+    const dlg = await openEmail('gmail-oauth')
+    await userEvent.type(within(dlg).getByLabelText('Client ID'), '123456789012-abcdefghijklmnop0123456789abcdef.apps.googleusercontent.com')
+    await userEvent.type(within(dlg).getByLabelText('Client secret of the Desktop client'), 'GOCSPX-test')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Sign in with Google' }))
+    const consent = await within(dlg).findByRole('link', { name: "Open Google's consent page and approve" })
+    expect(new URL(consent.getAttribute('href')!).host).toBe('accounts.google.com')
+    const paste = within(dlg).getByLabelText('Address from the browser')
+    const finish = async (url: string) => {
+      await userEvent.clear(paste)
+      await userEvent.type(paste, url)
+      await userEvent.click(within(dlg).getByRole('button', { name: 'Finish sign-in' }))
+    }
+    const S = 'S'.repeat(43)
+    await finish(`http://evil.example:53121/?state=${S}&code=4/abc`)
+    expect(await within(dlg).findByRole('alert')).toHaveTextContent(/^Paste the whole address/)
+    await finish(`http://127.0.0.1:53121/?state=${'T'.repeat(43)}&code=4/abc`)
+    await waitFor(() => expect(within(dlg).getByRole('alert')).toHaveTextContent(/belongs to another sign-in/))
+    await finish(`http://127.0.0.1:53121/?state=${S}`)
+    await waitFor(() => expect(within(dlg).getByRole('alert')).toHaveTextContent(/has no sign-in code/))
+    await finish(`http://127.0.0.1:53121/?state=${S}&code=4/0AeanS0Zabc`)
+    expect(await within(dlg).findByText('Signed in as alerts@acme.example. Save to keep this sign-in.')).toBeInTheDocument()
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect((await emailOf()).fields).toMatchObject({ provider: 'gmail-oauth', username: 'alerts@acme.example' })
+  })
+
+  it('Google: a declined consent ends the sign-in; saving without a sign-in asks for one', async () => {
+    const dlg = await openEmail('gmail-oauth')
+    await userEvent.type(within(dlg).getByLabelText('Client ID'), '123456789012-abcdefghijklmnop0123456789abcdef.apps.googleusercontent.com')
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    // the saved password is not a Google sign-in: the box asks for the sign-in, under the sign-in
+    await waitFor(() => expect(within(dlg).getByRole('alert')).toHaveTextContent(/^Sign in with Google again: the sign-in method, the server or the port changed/))
+    await userEvent.type(within(dlg).getByLabelText('Client secret of the Desktop client'), 'GOCSPX-test')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Sign in with Google' }))
+    await userEvent.type(await within(dlg).findByLabelText('Address from the browser'), `http://127.0.0.1:53121/?state=${'S'.repeat(43)}&error=access_denied`)
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Finish sign-in' }))
+    expect(await within(dlg).findByText('The sign-in was declined. Sign in again and approve.')).toBeInTheDocument()
+  })
+})

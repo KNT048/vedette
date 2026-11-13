@@ -213,6 +213,24 @@ func TestContract_Bootstrap_SecondRunIsANoOp(t *testing.T) {
 	}
 }
 
+// N100: the WARN "release index stored" goes to the journal; an index signed with the offline backup key is also said in words
+// on the installer's terminal (a progress line), and only then.
+func TestContract_Bootstrap_ABackupSignedIndexIsSaidInWords(t *testing.T) {
+	t.Parallel()
+	const said = "signed with Vedette's offline backup key"
+	e := startUpd(t)
+	if lines := e.bootstrapOK(t, e.bsDocs(t, 5, v1, bsDigest)); strings.Contains(strings.Join(lines, "\n"), said) {
+		t.Errorf("an index of the active key was called backup-signed: %v", lines)
+	}
+	e2 := startUpd(t)
+	a := e2.bsDocs(t, 5, v1, bsDigest)
+	a.IndexSig, a.ManifestSig = e2.rel.SignBackup(a.Index), e2.rel.SignBackup(a.Manifest)
+	lines := e2.bootstrapOK(t, a)
+	if n := strings.Count(strings.Join(lines, "\n"), said); n != 1 {
+		t.Errorf("the backup-signed index is said %d times, want 1: %v", n, lines)
+	}
+}
+
 func TestContract_Bootstrap_ServicesListAndItsLimits(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)

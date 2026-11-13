@@ -284,41 +284,32 @@ var (
 	rn265AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn277AllowedHeaders = map[string]string{
+	rn283AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn285AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn278AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
-	rn282AllowedHeaders = map[string]string{
+	rn293AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn292AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn307AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
 	rn296AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn285AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn329AllowedHeaders = map[string]string{
+	rn340AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn331AllowedHeaders = map[string]string{
+	rn342AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
-	}
-	rn332AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn335AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn308AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn310AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn315AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn299AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
 	}
 	rn343AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
@@ -326,28 +317,46 @@ var (
 	rn346AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn322AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn353AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn304AllowedHeaders = map[string]string{
+	rn319AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn351AllowedHeaders = map[string]string{
+	rn321AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn323AllowedHeaders = map[string]string{
+	rn326AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn310AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn361AllowedHeaders = map[string]string{
+	rn354AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn357AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn333AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn364AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn315AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
 	rn362AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn367AllowedHeaders = map[string]string{
+	rn334AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn372AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn373AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn378AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 )
@@ -6246,6 +6255,68 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 					}
 
+				case 'e': // Prefix: "email-signin"
+
+					if l := len("email-signin"); len(elem) >= l && elem[0:l] == "email-signin" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						switch r.Method {
+						case "POST":
+							s.handleNotifyPostNotifyEmailSigninRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "POST",
+								allowedHeaders: rn283AllowedHeaders,
+								acceptPost:     "application/json",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/"
+
+						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "id"
+						// Leaf parameter, slashes are prohibited
+						idx := strings.IndexByte(elem, '/')
+						if idx >= 0 {
+							break
+						}
+						args[0] = elem
+						elem = ""
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "POST":
+								s.handleNotifyPostNotifyEmailSigninIDRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "POST",
+									allowedHeaders: rn285AllowedHeaders,
+									acceptPost:     "application/json",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+
+					}
+
 				case 'f': // Prefix: "findings/"
 
 					if l := len("findings/"); len(elem) >= l && elem[0:l] == "findings/" {
@@ -6427,7 +6498,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PATCH",
-									allowedHeaders: rn277AllowedHeaders,
+									allowedHeaders: rn278AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "application/json",
 								})
@@ -6454,13 +6525,182 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "PUT",
-								allowedHeaders: rn282AllowedHeaders,
+								allowedHeaders: rn293AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
 						}
 
 						return
+					}
+
+				case 'z': // Prefix: "zalo/"
+
+					if l := len("zalo/"); len(elem) >= l && elem[0:l] == "zalo/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case 'a': // Prefix: "approvers"
+
+						if l := len("approvers"); len(elem) >= l && elem[0:l] == "approvers" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							switch r.Method {
+							case "GET":
+								s.handleNotifyGetNotifyZaloApproversRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "GET",
+									allowedHeaders: nil,
+									acceptPost:     "",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/"
+
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "user_id"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[0] = elem[:idx]
+							elem = elem[idx:]
+
+							if len(elem) == 0 {
+								break
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/code"
+
+								if l := len("/code"); len(elem) >= l && elem[0:l] == "/code" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "POST":
+										s.handleNotifyPostNotifyZaloApproversUserIDCodeRequest([1]string{
+											args[0],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, notAllowedParams{
+											allowedMethods: "POST",
+											allowedHeaders: nil,
+											acceptPost:     "",
+											acceptPatch:    "",
+										})
+									}
+
+									return
+								}
+
+							}
+
+						}
+
+					case 'c': // Prefix: "contacts"
+
+						if l := len("contacts"); len(elem) >= l && elem[0:l] == "contacts" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "GET":
+								s.handleNotifyGetNotifyZaloContactsRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "GET",
+									allowedHeaders: nil,
+									acceptPost:     "",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+
+					case 'l': // Prefix: "login"
+
+						if l := len("login"); len(elem) >= l && elem[0:l] == "login" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "DELETE":
+								s.handleNotifyDeleteNotifyZaloLoginRequest([0]string{}, elemIsEscaped, w, r)
+							case "GET":
+								s.handleNotifyGetNotifyZaloLoginRequest([0]string{}, elemIsEscaped, w, r)
+							case "POST":
+								s.handleNotifyPostNotifyZaloLoginRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "DELETE,GET,POST",
+									allowedHeaders: nil,
+									acceptPost:     "",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+
+					case 'r': // Prefix: "resolve"
+
+						if l := len("resolve"); len(elem) >= l && elem[0:l] == "resolve" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "POST":
+								s.handleNotifyPostNotifyZaloResolveRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "POST",
+									allowedHeaders: rn292AllowedHeaders,
+									acceptPost:     "application/json",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+
 					}
 
 				}
@@ -6591,7 +6831,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "PUT",
-											allowedHeaders: rn296AllowedHeaders,
+											allowedHeaders: rn307AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
@@ -6622,7 +6862,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PUT",
-									allowedHeaders: rn285AllowedHeaders,
+									allowedHeaders: rn296AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -6883,7 +7123,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn329AllowedHeaders,
+													allowedHeaders: rn340AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -6910,7 +7150,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn331AllowedHeaders,
+													allowedHeaders: rn342AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -6949,7 +7189,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												default:
 													s.notAllowed(w, r, notAllowedParams{
 														allowedMethods: "POST",
-														allowedHeaders: rn332AllowedHeaders,
+														allowedHeaders: rn343AllowedHeaders,
 														acceptPost:     "application/json",
 														acceptPatch:    "",
 													})
@@ -7045,7 +7285,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn335AllowedHeaders,
+												allowedHeaders: rn346AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -7101,7 +7341,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,PUT",
-										allowedHeaders: rn308AllowedHeaders,
+										allowedHeaders: rn319AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -7141,7 +7381,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,POST",
-										allowedHeaders: rn310AllowedHeaders,
+										allowedHeaders: rn321AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -7315,7 +7555,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn315AllowedHeaders,
+									allowedHeaders: rn326AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -7355,7 +7595,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,PUT",
-										allowedHeaders: rn299AllowedHeaders,
+										allowedHeaders: rn310AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -7444,7 +7684,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn343AllowedHeaders,
+										allowedHeaders: rn354AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -7608,7 +7848,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn346AllowedHeaders,
+													allowedHeaders: rn357AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -7756,7 +7996,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn322AllowedHeaders,
+									allowedHeaders: rn333AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -7819,7 +8059,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn353AllowedHeaders,
+											allowedHeaders: rn364AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -7852,7 +8092,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,PUT",
-										allowedHeaders: rn304AllowedHeaders,
+										allowedHeaders: rn315AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -7879,7 +8119,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn351AllowedHeaders,
+											allowedHeaders: rn362AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -7910,7 +8150,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PUT",
-									allowedHeaders: rn323AllowedHeaders,
+									allowedHeaders: rn334AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -8092,7 +8332,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,PUT",
-										allowedHeaders: rn361AllowedHeaders,
+										allowedHeaders: rn372AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -8118,7 +8358,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,POST",
-										allowedHeaders: rn362AllowedHeaders,
+										allowedHeaders: rn373AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -8288,7 +8528,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn367AllowedHeaders,
+									allowedHeaders: rn378AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -14481,6 +14721,66 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 					}
 
+				case 'e': // Prefix: "email-signin"
+
+					if l := len("email-signin"); len(elem) >= l && elem[0:l] == "email-signin" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						switch method {
+						case "POST":
+							r.name = NotifyPostNotifyEmailSigninOperation
+							r.summary = "Start a user sign-in for the email channel (D-480): a Microsoft device code, or a Google consent address to open and paste back"
+							r.operationID = "notify_post_notify_email_signin"
+							r.operationGroup = ""
+							r.pathPattern = "/notify/email-signin"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/"
+
+						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "id"
+						// Leaf parameter, slashes are prohibited
+						idx := strings.IndexByte(elem, '/')
+						if idx >= 0 {
+							break
+						}
+						args[0] = elem
+						elem = ""
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "POST":
+								r.name = NotifyPostNotifyEmailSigninIDOperation
+								r.summary = "Check a user sign-in: ask Microsoft once when the interval has passed, or finish a Google sign-in with the pasted address"
+								r.operationID = "notify_post_notify_email_signin_id"
+								r.operationGroup = ""
+								r.pathPattern = "/notify/email-signin/{id}"
+								r.args = args
+								r.count = 1
+								return r, true
+							default:
+								return
+							}
+						}
+
+					}
+
 				case 'f': // Prefix: "findings/"
 
 					if l := len("findings/"); len(elem) >= l && elem[0:l] == "findings/" {
@@ -14695,6 +14995,187 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						default:
 							return
 						}
+					}
+
+				case 'z': // Prefix: "zalo/"
+
+					if l := len("zalo/"); len(elem) >= l && elem[0:l] == "zalo/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case 'a': // Prefix: "approvers"
+
+						if l := len("approvers"); len(elem) >= l && elem[0:l] == "approvers" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							switch method {
+							case "GET":
+								r.name = NotifyGetNotifyZaloApproversOperation
+								r.summary = "Approvers of the Zalo personal channel and whether each confirmed the link sent to their Zalo while signed in as themself (linked)"
+								r.operationID = "notify_get_notify_zalo_approvers"
+								r.operationGroup = ""
+								r.pathPattern = "/notify/zalo/approvers"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/"
+
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "user_id"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[0] = elem[:idx]
+							elem = elem[idx:]
+
+							if len(elem) == 0 {
+								break
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/code"
+
+								if l := len("/code"); len(elem) >= l && elem[0:l] == "/code" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = NotifyPostNotifyZaloApproversUserIDCodeOperation
+										r.summary = "Send an approver a new confirm link to their Zalo (the old one stops working); for your own row, return the link to confirm now instead"
+										r.operationID = "notify_post_notify_zalo_approvers_user_id_code"
+										r.operationGroup = ""
+										r.pathPattern = "/notify/zalo/approvers/{user_id}/code"
+										r.args = args
+										r.count = 1
+										return r, true
+									default:
+										return
+									}
+								}
+
+							}
+
+						}
+
+					case 'c': // Prefix: "contacts"
+
+						if l := len("contacts"); len(elem) >= l && elem[0:l] == "contacts" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "GET":
+								r.name = NotifyGetNotifyZaloContactsOperation
+								r.summary = "Friends and groups of the Zalo account (your finished sign-in, else the saved session)"
+								r.operationID = "notify_get_notify_zalo_contacts"
+								r.operationGroup = ""
+								r.pathPattern = "/notify/zalo/contacts"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
+						}
+
+					case 'l': // Prefix: "login"
+
+						if l := len("login"); len(elem) >= l && elem[0:l] == "login" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "DELETE":
+								r.name = NotifyDeleteNotifyZaloLoginOperation
+								r.summary = "Cancel your Zalo QR sign-in (a finished one is dropped unsaved)"
+								r.operationID = "notify_delete_notify_zalo_login"
+								r.operationGroup = ""
+								r.pathPattern = "/notify/zalo/login"
+								r.args = args
+								r.count = 0
+								return r, true
+							case "GET":
+								r.name = NotifyGetNotifyZaloLoginOperation
+								r.summary = "State of your Zalo QR sign-in: waiting, scanned, signed in, expired, declined or failed"
+								r.operationID = "notify_get_notify_zalo_login"
+								r.operationGroup = ""
+								r.pathPattern = "/notify/zalo/login"
+								r.args = args
+								r.count = 0
+								return r, true
+							case "POST":
+								r.name = NotifyPostNotifyZaloLoginOperation
+								r.summary = "Start a Zalo personal QR sign-in for the signed-in administrator (one at a time per box; at most one start in 30 s and five an hour)"
+								r.operationID = "notify_post_notify_zalo_login"
+								r.operationGroup = ""
+								r.pathPattern = "/notify/zalo/login"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
+						}
+
+					case 'r': // Prefix: "resolve"
+
+						if l := len("resolve"); len(elem) >= l && elem[0:l] == "resolve" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "POST":
+								r.name = NotifyPostNotifyZaloResolveOperation
+								r.summary = "Find the group of a zalo.me/g/ invite link, the person of a phone number, or take a numeric Zalo ID"
+								r.operationID = "notify_post_notify_zalo_resolve"
+								r.operationGroup = ""
+								r.pathPattern = "/notify/zalo/resolve"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
+						}
+
 					}
 
 				}

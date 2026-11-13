@@ -132,6 +132,22 @@ func (l notifyApproverLinks) Linked(ctx context.Context, userID string, ch chann
 	return l.d.Response.Linked(ctx, userID, string(ch), address)
 }
 
+// ChatLinkToken is notify's Config.LinkCodes (D-447): response makes the token of the confirm link sent to a Zalo personal approver.
+func (l notifyApproverLinks) ChatLinkToken(ctx context.Context, userID string, ch channel.Type, address string) (token, name string, err error) {
+	if l.d.Response == nil {
+		return "", "", errResponseNotReady
+	}
+	return l.d.Response.ChatLinkToken(ctx, userID, string(ch), address)
+}
+
+// DropChatLink is the other half of notify's Config.LinkCodes (D-447): an approver removed or given another Zalo loses the old proof.
+func (l notifyApproverLinks) DropChatLink(ctx context.Context, actor, userID string, ch channel.Type, address string) error {
+	if l.d.Response == nil {
+		return errResponseNotReady
+	}
+	return l.d.Response.DropChatLink(ctx, actor, userID, string(ch), address)
+}
+
 // newNotify builds the notify service once per database, so the handlers, the deliver job, the event
 // subscriptions and the code mailer share it (the Zalo personal adapter keeps its signed-in session and its
 // sign-in pause in memory). Events go to and come from deps.Bus. buildServices calls it first with the real
@@ -152,7 +168,7 @@ func newNotify(d *deps) *notify.Service {
 	}
 	c := notify.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: notifyUsers{d}, Log: d.Log, Clock: d.Clock,
 		Zone: orgZone(d), BaseURL: d.BaseURL, Tokens: notifyTokens{d}, Decisions: responseDecisions{d}, BoxAddrs: machineAddrs(d), SelfAddrs: vedetteSelf(d),
-		ApproverLinks: notifyApproverLinks{d}, SMTPLoopback: notifySMTPLoopback} // unknown only while a configured vedette-host has never answered (#157)
+		ApproverLinks: notifyApproverLinks{d}, LinkCodes: notifyApproverLinks{d}, SMTPLoopback: notifySMTPLoopback} // unknown only while a configured vedette-host has never answered (#157)
 	if d.Inventory != nil {
 		c.Devices = notifyDevices{d.Inventory}
 	}

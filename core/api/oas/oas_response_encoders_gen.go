@@ -2662,6 +2662,12 @@ func encodeNotifyDeleteNotifyChannelsTypeResponse(response *NotifyDeleteNotifyCh
 	return nil
 }
 
+func encodeNotifyDeleteNotifyZaloLoginResponse(response *NotifyDeleteNotifyZaloLoginNoContent, w http.ResponseWriter) error {
+	w.WriteHeader(204)
+
+	return nil
+}
+
 func encodeNotifyGetNotifyAlertsIDTargetResponse(response *NotifyGetNotifyAlertsIDTargetOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -2740,6 +2746,45 @@ func encodeNotifyGetNotifyIncidentsIDResponse(response *NotifyGetNotifyIncidents
 	return nil
 }
 
+func encodeNotifyGetNotifyZaloApproversResponse(response *NotifyGetNotifyZaloApproversOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeNotifyGetNotifyZaloContactsResponse(response *NotifyGetNotifyZaloContactsOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeNotifyGetNotifyZaloLoginResponse(response *NotifyGetNotifyZaloLoginOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeNotifyPatchNotifyIncidentsIDResponse(response *NotifyPatchNotifyIncidentsIDOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -2766,7 +2811,72 @@ func encodeNotifyPostNotifyChannelsTypeTestResponse(response *NotifyPostNotifyCh
 	return nil
 }
 
+func encodeNotifyPostNotifyEmailSigninResponse(response *NotifyPostNotifyEmailSigninOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeNotifyPostNotifyEmailSigninIDResponse(response *NotifyPostNotifyEmailSigninIDOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeNotifyPostNotifyHistoryIDResendResponse(response *NotifyPostNotifyHistoryIDResendOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeNotifyPostNotifyZaloApproversUserIDCodeResponse(response *NotifyPostNotifyZaloApproversUserIDCodeOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeNotifyPostNotifyZaloLoginResponse(response *NotifyPostNotifyZaloLoginOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeNotifyPostNotifyZaloResolveResponse(response *NotifyPostNotifyZaloResolveOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

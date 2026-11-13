@@ -86334,6 +86334,96 @@ func (o NilNotifyGetNotifyChannelsOKChannelsItemLastTest) Or(d NotifyGetNotifyCh
 	return d
 }
 
+// NewNilNotifyGetNotifyZaloLoginOKQr returns new NilNotifyGetNotifyZaloLoginOKQr with value set to v.
+func NewNilNotifyGetNotifyZaloLoginOKQr(v NotifyGetNotifyZaloLoginOKQr) NilNotifyGetNotifyZaloLoginOKQr {
+	return NilNotifyGetNotifyZaloLoginOKQr{
+		Value: v,
+	}
+}
+
+// NilNotifyGetNotifyZaloLoginOKQr is nullable NotifyGetNotifyZaloLoginOKQr.
+type NilNotifyGetNotifyZaloLoginOKQr struct {
+	Value NotifyGetNotifyZaloLoginOKQr
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilNotifyGetNotifyZaloLoginOKQr) SetTo(v NotifyGetNotifyZaloLoginOKQr) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilNotifyGetNotifyZaloLoginOKQr) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilNotifyGetNotifyZaloLoginOKQr) SetToNull() {
+	o.Null = true
+	var v NotifyGetNotifyZaloLoginOKQr
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilNotifyGetNotifyZaloLoginOKQr) Get() (v NotifyGetNotifyZaloLoginOKQr, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilNotifyGetNotifyZaloLoginOKQr) Or(d NotifyGetNotifyZaloLoginOKQr) NotifyGetNotifyZaloLoginOKQr {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilNotifyPostNotifyZaloLoginOKQr returns new NilNotifyPostNotifyZaloLoginOKQr with value set to v.
+func NewNilNotifyPostNotifyZaloLoginOKQr(v NotifyPostNotifyZaloLoginOKQr) NilNotifyPostNotifyZaloLoginOKQr {
+	return NilNotifyPostNotifyZaloLoginOKQr{
+		Value: v,
+	}
+}
+
+// NilNotifyPostNotifyZaloLoginOKQr is nullable NotifyPostNotifyZaloLoginOKQr.
+type NilNotifyPostNotifyZaloLoginOKQr struct {
+	Value NotifyPostNotifyZaloLoginOKQr
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilNotifyPostNotifyZaloLoginOKQr) SetTo(v NotifyPostNotifyZaloLoginOKQr) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilNotifyPostNotifyZaloLoginOKQr) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilNotifyPostNotifyZaloLoginOKQr) SetToNull() {
+	o.Null = true
+	var v NotifyPostNotifyZaloLoginOKQr
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilNotifyPostNotifyZaloLoginOKQr) Get() (v NotifyPostNotifyZaloLoginOKQr, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilNotifyPostNotifyZaloLoginOKQr) Or(d NotifyPostNotifyZaloLoginOKQr) NotifyPostNotifyZaloLoginOKQr {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilNotifyPutNotifyChannelsTypeOKLastTest returns new NilNotifyPutNotifyChannelsTypeOKLastTest with value set to v.
 func NewNilNotifyPutNotifyChannelsTypeOKLastTest(v NotifyPutNotifyChannelsTypeOKLastTest) NilNotifyPutNotifyChannelsTypeOKLastTest {
 	return NilNotifyPutNotifyChannelsTypeOKLastTest{
@@ -90124,6 +90214,9 @@ func (s *NotifyDeleteNotifyChannelsTypeType) UnmarshalText(data []byte) error {
 	}
 }
 
+// NotifyDeleteNotifyZaloLoginNoContent is response for NotifyDeleteNotifyZaloLogin operation.
+type NotifyDeleteNotifyZaloLoginNoContent struct{}
+
 type NotifyGetNotifyAlertsIDTargetOK struct {
 	To string `json:"to"`
 }
@@ -90197,10 +90290,18 @@ type NotifyGetNotifyChannelsOKChannelsItem struct {
 	Configured bool                                                 `json:"configured"`
 	Enabled    bool                                                 `json:"enabled"`
 	// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-	// or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-	// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
-	// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
-	// (optional), channel_id (approvals only).
+	// or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
+	// the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
+	// email provider (preset, D-449:
+	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
+	// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
+	// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
+	// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
+	// microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by
+	// the box: the sign-in method, server and port the saved secret is for; changing one needs the secret
+	// again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its
+	// last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
+	// channel_id (approvals only).
 	Fields      NotifyGetNotifyChannelsOKChannelsItemFields      `json:"fields"`
 	LastTest    NilNotifyGetNotifyChannelsOKChannelsItemLastTest `json:"last_test"`
 	MinSeverity NotifyGetNotifyChannelsOKChannelsItemMinSeverity `json:"min_severity"`
@@ -90339,12 +90440,19 @@ type NotifyGetNotifyChannelsOKChannelsItemApproversItem struct {
 	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number);
 	// unique per channel.
 	Address string `json:"address"`
-	UserID  string `json:"user_id"`
+	// Zalo personal: the shown name of the approver's Zalo account, from the picker (D-447).
+	Name   OptString `json:"name"`
+	UserID string    `json:"user_id"`
 }
 
 // GetAddress returns the value of Address.
 func (s *NotifyGetNotifyChannelsOKChannelsItemApproversItem) GetAddress() string {
 	return s.Address
+}
+
+// GetName returns the value of Name.
+func (s *NotifyGetNotifyChannelsOKChannelsItemApproversItem) GetName() OptString {
+	return s.Name
 }
 
 // GetUserID returns the value of UserID.
@@ -90357,16 +90465,29 @@ func (s *NotifyGetNotifyChannelsOKChannelsItemApproversItem) SetAddress(val stri
 	s.Address = val
 }
 
+// SetName sets the value of Name.
+func (s *NotifyGetNotifyChannelsOKChannelsItemApproversItem) SetName(val OptString) {
+	s.Name = val
+}
+
 // SetUserID sets the value of UserID.
 func (s *NotifyGetNotifyChannelsOKChannelsItemApproversItem) SetUserID(val string) {
 	s.UserID = val
 }
 
 // Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-// or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
-// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
-// (optional), channel_id (approvals only).
+// or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
+// the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
+// email provider (preset, D-449:
+// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
+// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
+// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
+// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
+// microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by
+// the box: the sign-in method, server and port the saved secret is for; changing one needs the secret
+// again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its
+// last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
+// channel_id (approvals only).
 type NotifyGetNotifyChannelsOKChannelsItemFields map[string]string
 
 func (s *NotifyGetNotifyChannelsOKChannelsItemFields) init() NotifyGetNotifyChannelsOKChannelsItemFields {
@@ -92242,6 +92363,470 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemStatus) UnmarshalText(data []byt
 	}
 }
 
+type NotifyGetNotifyZaloApproversOK struct {
+	Items []NotifyGetNotifyZaloApproversOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *NotifyGetNotifyZaloApproversOK) GetItems() []NotifyGetNotifyZaloApproversOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *NotifyGetNotifyZaloApproversOK) SetItems(val []NotifyGetNotifyZaloApproversOKItemsItem) {
+	s.Items = val
+}
+
+type NotifyGetNotifyZaloApproversOKItemsItem struct {
+	Address string `json:"address"`
+	// The address is the box's own signed-in Zalo account (the QR sign-in proved it); only your own row
+	// with it skips the message.
+	BoxAccount bool `json:"box_account"`
+	// Not_sent: why (failed, expired, or no link made).
+	Error string `json:"error"`
+	// Only in the answer of POST …/code for your own row with the box's own account: the confirm page
+	// (/link/zalo?c=…) to open in this session; any other Zalo gets the link by message.
+	Link OptString `json:"link"`
+	Name string    `json:"name"`
+	// The administrator asking.
+	Self   bool                                         `json:"self"`
+	SentAt NilDateTime                                  `json:"sent_at"`
+	State  NotifyGetNotifyZaloApproversOKItemsItemState `json:"state"`
+	UserID string                                       `json:"user_id"`
+}
+
+// GetAddress returns the value of Address.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetAddress() string {
+	return s.Address
+}
+
+// GetBoxAccount returns the value of BoxAccount.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetBoxAccount() bool {
+	return s.BoxAccount
+}
+
+// GetError returns the value of Error.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetError() string {
+	return s.Error
+}
+
+// GetLink returns the value of Link.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetLink() OptString {
+	return s.Link
+}
+
+// GetName returns the value of Name.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetName() string {
+	return s.Name
+}
+
+// GetSelf returns the value of Self.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetSelf() bool {
+	return s.Self
+}
+
+// GetSentAt returns the value of SentAt.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetSentAt() NilDateTime {
+	return s.SentAt
+}
+
+// GetState returns the value of State.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetState() NotifyGetNotifyZaloApproversOKItemsItemState {
+	return s.State
+}
+
+// GetUserID returns the value of UserID.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetUserID() string {
+	return s.UserID
+}
+
+// SetAddress sets the value of Address.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetBoxAccount sets the value of BoxAccount.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) SetBoxAccount(val bool) {
+	s.BoxAccount = val
+}
+
+// SetError sets the value of Error.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) SetError(val string) {
+	s.Error = val
+}
+
+// SetLink sets the value of Link.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) SetLink(val OptString) {
+	s.Link = val
+}
+
+// SetName sets the value of Name.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetSelf sets the value of Self.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) SetSelf(val bool) {
+	s.Self = val
+}
+
+// SetSentAt sets the value of SentAt.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) SetSentAt(val NilDateTime) {
+	s.SentAt = val
+}
+
+// SetState sets the value of State.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) SetState(val NotifyGetNotifyZaloApproversOKItemsItemState) {
+	s.State = val
+}
+
+// SetUserID sets the value of UserID.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) SetUserID(val string) {
+	s.UserID = val
+}
+
+type NotifyGetNotifyZaloApproversOKItemsItemState string
+
+const (
+	NotifyGetNotifyZaloApproversOKItemsItemStateLinked  NotifyGetNotifyZaloApproversOKItemsItemState = "linked"
+	NotifyGetNotifyZaloApproversOKItemsItemStateSending NotifyGetNotifyZaloApproversOKItemsItemState = "sending"
+	NotifyGetNotifyZaloApproversOKItemsItemStateWaiting NotifyGetNotifyZaloApproversOKItemsItemState = "waiting"
+	NotifyGetNotifyZaloApproversOKItemsItemStateNotSent NotifyGetNotifyZaloApproversOKItemsItemState = "not_sent"
+)
+
+// AllValues returns all NotifyGetNotifyZaloApproversOKItemsItemState values.
+func (NotifyGetNotifyZaloApproversOKItemsItemState) AllValues() []NotifyGetNotifyZaloApproversOKItemsItemState {
+	return []NotifyGetNotifyZaloApproversOKItemsItemState{
+		NotifyGetNotifyZaloApproversOKItemsItemStateLinked,
+		NotifyGetNotifyZaloApproversOKItemsItemStateSending,
+		NotifyGetNotifyZaloApproversOKItemsItemStateWaiting,
+		NotifyGetNotifyZaloApproversOKItemsItemStateNotSent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyGetNotifyZaloApproversOKItemsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyGetNotifyZaloApproversOKItemsItemStateLinked:
+		return []byte(s), nil
+	case NotifyGetNotifyZaloApproversOKItemsItemStateSending:
+		return []byte(s), nil
+	case NotifyGetNotifyZaloApproversOKItemsItemStateWaiting:
+		return []byte(s), nil
+	case NotifyGetNotifyZaloApproversOKItemsItemStateNotSent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyGetNotifyZaloApproversOKItemsItemState) UnmarshalText(data []byte) error {
+	switch NotifyGetNotifyZaloApproversOKItemsItemState(data) {
+	case NotifyGetNotifyZaloApproversOKItemsItemStateLinked:
+		*s = NotifyGetNotifyZaloApproversOKItemsItemStateLinked
+		return nil
+	case NotifyGetNotifyZaloApproversOKItemsItemStateSending:
+		*s = NotifyGetNotifyZaloApproversOKItemsItemStateSending
+		return nil
+	case NotifyGetNotifyZaloApproversOKItemsItemStateWaiting:
+		*s = NotifyGetNotifyZaloApproversOKItemsItemStateWaiting
+		return nil
+	case NotifyGetNotifyZaloApproversOKItemsItemStateNotSent:
+		*s = NotifyGetNotifyZaloApproversOKItemsItemStateNotSent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyGetNotifyZaloContactsOK struct {
+	Friends []NotifyGetNotifyZaloContactsOKFriendsItem `json:"friends"`
+	Groups  []NotifyGetNotifyZaloContactsOKGroupsItem  `json:"groups"`
+}
+
+// GetFriends returns the value of Friends.
+func (s *NotifyGetNotifyZaloContactsOK) GetFriends() []NotifyGetNotifyZaloContactsOKFriendsItem {
+	return s.Friends
+}
+
+// GetGroups returns the value of Groups.
+func (s *NotifyGetNotifyZaloContactsOK) GetGroups() []NotifyGetNotifyZaloContactsOKGroupsItem {
+	return s.Groups
+}
+
+// SetFriends sets the value of Friends.
+func (s *NotifyGetNotifyZaloContactsOK) SetFriends(val []NotifyGetNotifyZaloContactsOKFriendsItem) {
+	s.Friends = val
+}
+
+// SetGroups sets the value of Groups.
+func (s *NotifyGetNotifyZaloContactsOK) SetGroups(val []NotifyGetNotifyZaloContactsOKGroupsItem) {
+	s.Groups = val
+}
+
+type NotifyGetNotifyZaloContactsOKFriendsItem struct {
+	Group bool   `json:"group"`
+	ID    string `json:"id"`
+	// Group size; 0 when not given.
+	Members int    `json:"members"`
+	Name    string `json:"name"`
+}
+
+// GetGroup returns the value of Group.
+func (s *NotifyGetNotifyZaloContactsOKFriendsItem) GetGroup() bool {
+	return s.Group
+}
+
+// GetID returns the value of ID.
+func (s *NotifyGetNotifyZaloContactsOKFriendsItem) GetID() string {
+	return s.ID
+}
+
+// GetMembers returns the value of Members.
+func (s *NotifyGetNotifyZaloContactsOKFriendsItem) GetMembers() int {
+	return s.Members
+}
+
+// GetName returns the value of Name.
+func (s *NotifyGetNotifyZaloContactsOKFriendsItem) GetName() string {
+	return s.Name
+}
+
+// SetGroup sets the value of Group.
+func (s *NotifyGetNotifyZaloContactsOKFriendsItem) SetGroup(val bool) {
+	s.Group = val
+}
+
+// SetID sets the value of ID.
+func (s *NotifyGetNotifyZaloContactsOKFriendsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetMembers sets the value of Members.
+func (s *NotifyGetNotifyZaloContactsOKFriendsItem) SetMembers(val int) {
+	s.Members = val
+}
+
+// SetName sets the value of Name.
+func (s *NotifyGetNotifyZaloContactsOKFriendsItem) SetName(val string) {
+	s.Name = val
+}
+
+type NotifyGetNotifyZaloContactsOKGroupsItem struct {
+	Group bool   `json:"group"`
+	ID    string `json:"id"`
+	// Group size; 0 when not given.
+	Members int    `json:"members"`
+	Name    string `json:"name"`
+}
+
+// GetGroup returns the value of Group.
+func (s *NotifyGetNotifyZaloContactsOKGroupsItem) GetGroup() bool {
+	return s.Group
+}
+
+// GetID returns the value of ID.
+func (s *NotifyGetNotifyZaloContactsOKGroupsItem) GetID() string {
+	return s.ID
+}
+
+// GetMembers returns the value of Members.
+func (s *NotifyGetNotifyZaloContactsOKGroupsItem) GetMembers() int {
+	return s.Members
+}
+
+// GetName returns the value of Name.
+func (s *NotifyGetNotifyZaloContactsOKGroupsItem) GetName() string {
+	return s.Name
+}
+
+// SetGroup sets the value of Group.
+func (s *NotifyGetNotifyZaloContactsOKGroupsItem) SetGroup(val bool) {
+	s.Group = val
+}
+
+// SetID sets the value of ID.
+func (s *NotifyGetNotifyZaloContactsOKGroupsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetMembers sets the value of Members.
+func (s *NotifyGetNotifyZaloContactsOKGroupsItem) SetMembers(val int) {
+	s.Members = val
+}
+
+// SetName sets the value of Name.
+func (s *NotifyGetNotifyZaloContactsOKGroupsItem) SetName(val string) {
+	s.Name = val
+}
+
+type NotifyGetNotifyZaloLoginOK struct {
+	// Failed: why.
+	Error string `json:"error"`
+	// When the QR code expires (waiting, scanned).
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// Scanned: the name the Zalo app shows for who scanned; signed_in: the signed-in account's display
+	// name.
+	Name string `json:"name"`
+	// Set while waiting or scanned.
+	Qr    NilNotifyGetNotifyZaloLoginOKQr `json:"qr"`
+	State NotifyGetNotifyZaloLoginOKState `json:"state"`
+}
+
+// GetError returns the value of Error.
+func (s *NotifyGetNotifyZaloLoginOK) GetError() string {
+	return s.Error
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *NotifyGetNotifyZaloLoginOK) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetName returns the value of Name.
+func (s *NotifyGetNotifyZaloLoginOK) GetName() string {
+	return s.Name
+}
+
+// GetQr returns the value of Qr.
+func (s *NotifyGetNotifyZaloLoginOK) GetQr() NilNotifyGetNotifyZaloLoginOKQr {
+	return s.Qr
+}
+
+// GetState returns the value of State.
+func (s *NotifyGetNotifyZaloLoginOK) GetState() NotifyGetNotifyZaloLoginOKState {
+	return s.State
+}
+
+// SetError sets the value of Error.
+func (s *NotifyGetNotifyZaloLoginOK) SetError(val string) {
+	s.Error = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *NotifyGetNotifyZaloLoginOK) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetName sets the value of Name.
+func (s *NotifyGetNotifyZaloLoginOK) SetName(val string) {
+	s.Name = val
+}
+
+// SetQr sets the value of Qr.
+func (s *NotifyGetNotifyZaloLoginOK) SetQr(val NilNotifyGetNotifyZaloLoginOKQr) {
+	s.Qr = val
+}
+
+// SetState sets the value of State.
+func (s *NotifyGetNotifyZaloLoginOK) SetState(val NotifyGetNotifyZaloLoginOKState) {
+	s.State = val
+}
+
+type NotifyGetNotifyZaloLoginOKQr struct {
+	// SVG path of the dark cells, redrawn by the box from Zalo's image.
+	Path string `json:"path"`
+	// Side of the square view box, quiet zone included.
+	Size int `json:"size"`
+}
+
+// GetPath returns the value of Path.
+func (s *NotifyGetNotifyZaloLoginOKQr) GetPath() string {
+	return s.Path
+}
+
+// GetSize returns the value of Size.
+func (s *NotifyGetNotifyZaloLoginOKQr) GetSize() int {
+	return s.Size
+}
+
+// SetPath sets the value of Path.
+func (s *NotifyGetNotifyZaloLoginOKQr) SetPath(val string) {
+	s.Path = val
+}
+
+// SetSize sets the value of Size.
+func (s *NotifyGetNotifyZaloLoginOKQr) SetSize(val int) {
+	s.Size = val
+}
+
+type NotifyGetNotifyZaloLoginOKState string
+
+const (
+	NotifyGetNotifyZaloLoginOKStateNone     NotifyGetNotifyZaloLoginOKState = "none"
+	NotifyGetNotifyZaloLoginOKStateWaiting  NotifyGetNotifyZaloLoginOKState = "waiting"
+	NotifyGetNotifyZaloLoginOKStateScanned  NotifyGetNotifyZaloLoginOKState = "scanned"
+	NotifyGetNotifyZaloLoginOKStateSignedIn NotifyGetNotifyZaloLoginOKState = "signed_in"
+	NotifyGetNotifyZaloLoginOKStateExpired  NotifyGetNotifyZaloLoginOKState = "expired"
+	NotifyGetNotifyZaloLoginOKStateDeclined NotifyGetNotifyZaloLoginOKState = "declined"
+	NotifyGetNotifyZaloLoginOKStateFailed   NotifyGetNotifyZaloLoginOKState = "failed"
+)
+
+// AllValues returns all NotifyGetNotifyZaloLoginOKState values.
+func (NotifyGetNotifyZaloLoginOKState) AllValues() []NotifyGetNotifyZaloLoginOKState {
+	return []NotifyGetNotifyZaloLoginOKState{
+		NotifyGetNotifyZaloLoginOKStateNone,
+		NotifyGetNotifyZaloLoginOKStateWaiting,
+		NotifyGetNotifyZaloLoginOKStateScanned,
+		NotifyGetNotifyZaloLoginOKStateSignedIn,
+		NotifyGetNotifyZaloLoginOKStateExpired,
+		NotifyGetNotifyZaloLoginOKStateDeclined,
+		NotifyGetNotifyZaloLoginOKStateFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyGetNotifyZaloLoginOKState) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyGetNotifyZaloLoginOKStateNone:
+		return []byte(s), nil
+	case NotifyGetNotifyZaloLoginOKStateWaiting:
+		return []byte(s), nil
+	case NotifyGetNotifyZaloLoginOKStateScanned:
+		return []byte(s), nil
+	case NotifyGetNotifyZaloLoginOKStateSignedIn:
+		return []byte(s), nil
+	case NotifyGetNotifyZaloLoginOKStateExpired:
+		return []byte(s), nil
+	case NotifyGetNotifyZaloLoginOKStateDeclined:
+		return []byte(s), nil
+	case NotifyGetNotifyZaloLoginOKStateFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyGetNotifyZaloLoginOKState) UnmarshalText(data []byte) error {
+	switch NotifyGetNotifyZaloLoginOKState(data) {
+	case NotifyGetNotifyZaloLoginOKStateNone:
+		*s = NotifyGetNotifyZaloLoginOKStateNone
+		return nil
+	case NotifyGetNotifyZaloLoginOKStateWaiting:
+		*s = NotifyGetNotifyZaloLoginOKStateWaiting
+		return nil
+	case NotifyGetNotifyZaloLoginOKStateScanned:
+		*s = NotifyGetNotifyZaloLoginOKStateScanned
+		return nil
+	case NotifyGetNotifyZaloLoginOKStateSignedIn:
+		*s = NotifyGetNotifyZaloLoginOKStateSignedIn
+		return nil
+	case NotifyGetNotifyZaloLoginOKStateExpired:
+		*s = NotifyGetNotifyZaloLoginOKStateExpired
+		return nil
+	case NotifyGetNotifyZaloLoginOKStateDeclined:
+		*s = NotifyGetNotifyZaloLoginOKStateDeclined
+		return nil
+	case NotifyGetNotifyZaloLoginOKStateFailed:
+		*s = NotifyGetNotifyZaloLoginOKStateFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type NotifyPatchNotifyIncidentsIDOK struct {
 	Incident NotifyPatchNotifyIncidentsIDOKIncident       `json:"incident"`
 	Previews []NotifyPatchNotifyIncidentsIDOKPreviewsItem `json:"previews"`
@@ -93075,6 +93660,646 @@ func (s *NotifyPostNotifyChannelsTypeTestType) UnmarshalText(data []byte) error 
 	}
 }
 
+type NotifyPostNotifyEmailSigninIDOK struct {
+	ConsentURL OptString `json:"consent_url"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	// Device: Microsoft device code, the box polls; paste: Google consent, the admin pastes the loopback
+	// address back.
+	Flow NotifyPostNotifyEmailSigninIDOKFlow `json:"flow"`
+	ID   string                              `json:"id"`
+	// Seconds between checks of a device sign-in.
+	Interval OptInt `json:"interval"`
+	// The account that signed in.
+	Mailbox         OptString                               `json:"mailbox"`
+	Provider        NotifyPostNotifyEmailSigninIDOKProvider `json:"provider"`
+	Status          NotifyPostNotifyEmailSigninIDOKStatus   `json:"status"`
+	UserCode        OptString                               `json:"user_code"`
+	VerificationURI OptString                               `json:"verification_uri"`
+}
+
+// GetConsentURL returns the value of ConsentURL.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetConsentURL() OptString {
+	return s.ConsentURL
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// GetFlow returns the value of Flow.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetFlow() NotifyPostNotifyEmailSigninIDOKFlow {
+	return s.Flow
+}
+
+// GetID returns the value of ID.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetID() string {
+	return s.ID
+}
+
+// GetInterval returns the value of Interval.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetInterval() OptInt {
+	return s.Interval
+}
+
+// GetMailbox returns the value of Mailbox.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetMailbox() OptString {
+	return s.Mailbox
+}
+
+// GetProvider returns the value of Provider.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetProvider() NotifyPostNotifyEmailSigninIDOKProvider {
+	return s.Provider
+}
+
+// GetStatus returns the value of Status.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetStatus() NotifyPostNotifyEmailSigninIDOKStatus {
+	return s.Status
+}
+
+// GetUserCode returns the value of UserCode.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetUserCode() OptString {
+	return s.UserCode
+}
+
+// GetVerificationURI returns the value of VerificationURI.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetVerificationURI() OptString {
+	return s.VerificationURI
+}
+
+// SetConsentURL sets the value of ConsentURL.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetConsentURL(val OptString) {
+	s.ConsentURL = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+// SetFlow sets the value of Flow.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetFlow(val NotifyPostNotifyEmailSigninIDOKFlow) {
+	s.Flow = val
+}
+
+// SetID sets the value of ID.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetInterval sets the value of Interval.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetInterval(val OptInt) {
+	s.Interval = val
+}
+
+// SetMailbox sets the value of Mailbox.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetMailbox(val OptString) {
+	s.Mailbox = val
+}
+
+// SetProvider sets the value of Provider.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetProvider(val NotifyPostNotifyEmailSigninIDOKProvider) {
+	s.Provider = val
+}
+
+// SetStatus sets the value of Status.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetStatus(val NotifyPostNotifyEmailSigninIDOKStatus) {
+	s.Status = val
+}
+
+// SetUserCode sets the value of UserCode.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetUserCode(val OptString) {
+	s.UserCode = val
+}
+
+// SetVerificationURI sets the value of VerificationURI.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetVerificationURI(val OptString) {
+	s.VerificationURI = val
+}
+
+// Device: Microsoft device code, the box polls; paste: Google consent, the admin pastes the loopback
+// address back.
+type NotifyPostNotifyEmailSigninIDOKFlow string
+
+const (
+	NotifyPostNotifyEmailSigninIDOKFlowDevice NotifyPostNotifyEmailSigninIDOKFlow = "device"
+	NotifyPostNotifyEmailSigninIDOKFlowPaste  NotifyPostNotifyEmailSigninIDOKFlow = "paste"
+)
+
+// AllValues returns all NotifyPostNotifyEmailSigninIDOKFlow values.
+func (NotifyPostNotifyEmailSigninIDOKFlow) AllValues() []NotifyPostNotifyEmailSigninIDOKFlow {
+	return []NotifyPostNotifyEmailSigninIDOKFlow{
+		NotifyPostNotifyEmailSigninIDOKFlowDevice,
+		NotifyPostNotifyEmailSigninIDOKFlowPaste,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyEmailSigninIDOKFlow) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyEmailSigninIDOKFlowDevice:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninIDOKFlowPaste:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyEmailSigninIDOKFlow) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyEmailSigninIDOKFlow(data) {
+	case NotifyPostNotifyEmailSigninIDOKFlowDevice:
+		*s = NotifyPostNotifyEmailSigninIDOKFlowDevice
+		return nil
+	case NotifyPostNotifyEmailSigninIDOKFlowPaste:
+		*s = NotifyPostNotifyEmailSigninIDOKFlowPaste
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyEmailSigninIDOKProvider string
+
+const (
+	NotifyPostNotifyEmailSigninIDOKProviderMicrosoft365User NotifyPostNotifyEmailSigninIDOKProvider = "microsoft365-user"
+	NotifyPostNotifyEmailSigninIDOKProviderOutlook          NotifyPostNotifyEmailSigninIDOKProvider = "outlook"
+	NotifyPostNotifyEmailSigninIDOKProviderGmailOAuth       NotifyPostNotifyEmailSigninIDOKProvider = "gmail-oauth"
+)
+
+// AllValues returns all NotifyPostNotifyEmailSigninIDOKProvider values.
+func (NotifyPostNotifyEmailSigninIDOKProvider) AllValues() []NotifyPostNotifyEmailSigninIDOKProvider {
+	return []NotifyPostNotifyEmailSigninIDOKProvider{
+		NotifyPostNotifyEmailSigninIDOKProviderMicrosoft365User,
+		NotifyPostNotifyEmailSigninIDOKProviderOutlook,
+		NotifyPostNotifyEmailSigninIDOKProviderGmailOAuth,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyEmailSigninIDOKProvider) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyEmailSigninIDOKProviderMicrosoft365User:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninIDOKProviderOutlook:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninIDOKProviderGmailOAuth:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyEmailSigninIDOKProvider) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyEmailSigninIDOKProvider(data) {
+	case NotifyPostNotifyEmailSigninIDOKProviderMicrosoft365User:
+		*s = NotifyPostNotifyEmailSigninIDOKProviderMicrosoft365User
+		return nil
+	case NotifyPostNotifyEmailSigninIDOKProviderOutlook:
+		*s = NotifyPostNotifyEmailSigninIDOKProviderOutlook
+		return nil
+	case NotifyPostNotifyEmailSigninIDOKProviderGmailOAuth:
+		*s = NotifyPostNotifyEmailSigninIDOKProviderGmailOAuth
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyEmailSigninIDOKStatus string
+
+const (
+	NotifyPostNotifyEmailSigninIDOKStatusWaiting  NotifyPostNotifyEmailSigninIDOKStatus = "waiting"
+	NotifyPostNotifyEmailSigninIDOKStatusSignedIn NotifyPostNotifyEmailSigninIDOKStatus = "signed_in"
+	NotifyPostNotifyEmailSigninIDOKStatusExpired  NotifyPostNotifyEmailSigninIDOKStatus = "expired"
+	NotifyPostNotifyEmailSigninIDOKStatusDeclined NotifyPostNotifyEmailSigninIDOKStatus = "declined"
+)
+
+// AllValues returns all NotifyPostNotifyEmailSigninIDOKStatus values.
+func (NotifyPostNotifyEmailSigninIDOKStatus) AllValues() []NotifyPostNotifyEmailSigninIDOKStatus {
+	return []NotifyPostNotifyEmailSigninIDOKStatus{
+		NotifyPostNotifyEmailSigninIDOKStatusWaiting,
+		NotifyPostNotifyEmailSigninIDOKStatusSignedIn,
+		NotifyPostNotifyEmailSigninIDOKStatusExpired,
+		NotifyPostNotifyEmailSigninIDOKStatusDeclined,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyEmailSigninIDOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyEmailSigninIDOKStatusWaiting:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninIDOKStatusSignedIn:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninIDOKStatusExpired:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninIDOKStatusDeclined:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyEmailSigninIDOKStatus) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyEmailSigninIDOKStatus(data) {
+	case NotifyPostNotifyEmailSigninIDOKStatusWaiting:
+		*s = NotifyPostNotifyEmailSigninIDOKStatusWaiting
+		return nil
+	case NotifyPostNotifyEmailSigninIDOKStatusSignedIn:
+		*s = NotifyPostNotifyEmailSigninIDOKStatusSignedIn
+		return nil
+	case NotifyPostNotifyEmailSigninIDOKStatusExpired:
+		*s = NotifyPostNotifyEmailSigninIDOKStatusExpired
+		return nil
+	case NotifyPostNotifyEmailSigninIDOKStatusDeclined:
+		*s = NotifyPostNotifyEmailSigninIDOKStatusDeclined
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyEmailSigninIDReq struct {
+	// Google: the whole address the browser showed after approving.
+	URL OptString `json:"url"`
+}
+
+// GetURL returns the value of URL.
+func (s *NotifyPostNotifyEmailSigninIDReq) GetURL() OptString {
+	return s.URL
+}
+
+// SetURL sets the value of URL.
+func (s *NotifyPostNotifyEmailSigninIDReq) SetURL(val OptString) {
+	s.URL = val
+}
+
+type NotifyPostNotifyEmailSigninOK struct {
+	ConsentURL OptString `json:"consent_url"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	// Device: Microsoft device code, the box polls; paste: Google consent, the admin pastes the loopback
+	// address back.
+	Flow NotifyPostNotifyEmailSigninOKFlow `json:"flow"`
+	ID   string                            `json:"id"`
+	// Seconds between checks of a device sign-in.
+	Interval OptInt `json:"interval"`
+	// The account that signed in.
+	Mailbox         OptString                             `json:"mailbox"`
+	Provider        NotifyPostNotifyEmailSigninOKProvider `json:"provider"`
+	Status          NotifyPostNotifyEmailSigninOKStatus   `json:"status"`
+	UserCode        OptString                             `json:"user_code"`
+	VerificationURI OptString                             `json:"verification_uri"`
+}
+
+// GetConsentURL returns the value of ConsentURL.
+func (s *NotifyPostNotifyEmailSigninOK) GetConsentURL() OptString {
+	return s.ConsentURL
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *NotifyPostNotifyEmailSigninOK) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// GetFlow returns the value of Flow.
+func (s *NotifyPostNotifyEmailSigninOK) GetFlow() NotifyPostNotifyEmailSigninOKFlow {
+	return s.Flow
+}
+
+// GetID returns the value of ID.
+func (s *NotifyPostNotifyEmailSigninOK) GetID() string {
+	return s.ID
+}
+
+// GetInterval returns the value of Interval.
+func (s *NotifyPostNotifyEmailSigninOK) GetInterval() OptInt {
+	return s.Interval
+}
+
+// GetMailbox returns the value of Mailbox.
+func (s *NotifyPostNotifyEmailSigninOK) GetMailbox() OptString {
+	return s.Mailbox
+}
+
+// GetProvider returns the value of Provider.
+func (s *NotifyPostNotifyEmailSigninOK) GetProvider() NotifyPostNotifyEmailSigninOKProvider {
+	return s.Provider
+}
+
+// GetStatus returns the value of Status.
+func (s *NotifyPostNotifyEmailSigninOK) GetStatus() NotifyPostNotifyEmailSigninOKStatus {
+	return s.Status
+}
+
+// GetUserCode returns the value of UserCode.
+func (s *NotifyPostNotifyEmailSigninOK) GetUserCode() OptString {
+	return s.UserCode
+}
+
+// GetVerificationURI returns the value of VerificationURI.
+func (s *NotifyPostNotifyEmailSigninOK) GetVerificationURI() OptString {
+	return s.VerificationURI
+}
+
+// SetConsentURL sets the value of ConsentURL.
+func (s *NotifyPostNotifyEmailSigninOK) SetConsentURL(val OptString) {
+	s.ConsentURL = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *NotifyPostNotifyEmailSigninOK) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+// SetFlow sets the value of Flow.
+func (s *NotifyPostNotifyEmailSigninOK) SetFlow(val NotifyPostNotifyEmailSigninOKFlow) {
+	s.Flow = val
+}
+
+// SetID sets the value of ID.
+func (s *NotifyPostNotifyEmailSigninOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetInterval sets the value of Interval.
+func (s *NotifyPostNotifyEmailSigninOK) SetInterval(val OptInt) {
+	s.Interval = val
+}
+
+// SetMailbox sets the value of Mailbox.
+func (s *NotifyPostNotifyEmailSigninOK) SetMailbox(val OptString) {
+	s.Mailbox = val
+}
+
+// SetProvider sets the value of Provider.
+func (s *NotifyPostNotifyEmailSigninOK) SetProvider(val NotifyPostNotifyEmailSigninOKProvider) {
+	s.Provider = val
+}
+
+// SetStatus sets the value of Status.
+func (s *NotifyPostNotifyEmailSigninOK) SetStatus(val NotifyPostNotifyEmailSigninOKStatus) {
+	s.Status = val
+}
+
+// SetUserCode sets the value of UserCode.
+func (s *NotifyPostNotifyEmailSigninOK) SetUserCode(val OptString) {
+	s.UserCode = val
+}
+
+// SetVerificationURI sets the value of VerificationURI.
+func (s *NotifyPostNotifyEmailSigninOK) SetVerificationURI(val OptString) {
+	s.VerificationURI = val
+}
+
+// Device: Microsoft device code, the box polls; paste: Google consent, the admin pastes the loopback
+// address back.
+type NotifyPostNotifyEmailSigninOKFlow string
+
+const (
+	NotifyPostNotifyEmailSigninOKFlowDevice NotifyPostNotifyEmailSigninOKFlow = "device"
+	NotifyPostNotifyEmailSigninOKFlowPaste  NotifyPostNotifyEmailSigninOKFlow = "paste"
+)
+
+// AllValues returns all NotifyPostNotifyEmailSigninOKFlow values.
+func (NotifyPostNotifyEmailSigninOKFlow) AllValues() []NotifyPostNotifyEmailSigninOKFlow {
+	return []NotifyPostNotifyEmailSigninOKFlow{
+		NotifyPostNotifyEmailSigninOKFlowDevice,
+		NotifyPostNotifyEmailSigninOKFlowPaste,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyEmailSigninOKFlow) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyEmailSigninOKFlowDevice:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninOKFlowPaste:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyEmailSigninOKFlow) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyEmailSigninOKFlow(data) {
+	case NotifyPostNotifyEmailSigninOKFlowDevice:
+		*s = NotifyPostNotifyEmailSigninOKFlowDevice
+		return nil
+	case NotifyPostNotifyEmailSigninOKFlowPaste:
+		*s = NotifyPostNotifyEmailSigninOKFlowPaste
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyEmailSigninOKProvider string
+
+const (
+	NotifyPostNotifyEmailSigninOKProviderMicrosoft365User NotifyPostNotifyEmailSigninOKProvider = "microsoft365-user"
+	NotifyPostNotifyEmailSigninOKProviderOutlook          NotifyPostNotifyEmailSigninOKProvider = "outlook"
+	NotifyPostNotifyEmailSigninOKProviderGmailOAuth       NotifyPostNotifyEmailSigninOKProvider = "gmail-oauth"
+)
+
+// AllValues returns all NotifyPostNotifyEmailSigninOKProvider values.
+func (NotifyPostNotifyEmailSigninOKProvider) AllValues() []NotifyPostNotifyEmailSigninOKProvider {
+	return []NotifyPostNotifyEmailSigninOKProvider{
+		NotifyPostNotifyEmailSigninOKProviderMicrosoft365User,
+		NotifyPostNotifyEmailSigninOKProviderOutlook,
+		NotifyPostNotifyEmailSigninOKProviderGmailOAuth,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyEmailSigninOKProvider) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyEmailSigninOKProviderMicrosoft365User:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninOKProviderOutlook:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninOKProviderGmailOAuth:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyEmailSigninOKProvider) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyEmailSigninOKProvider(data) {
+	case NotifyPostNotifyEmailSigninOKProviderMicrosoft365User:
+		*s = NotifyPostNotifyEmailSigninOKProviderMicrosoft365User
+		return nil
+	case NotifyPostNotifyEmailSigninOKProviderOutlook:
+		*s = NotifyPostNotifyEmailSigninOKProviderOutlook
+		return nil
+	case NotifyPostNotifyEmailSigninOKProviderGmailOAuth:
+		*s = NotifyPostNotifyEmailSigninOKProviderGmailOAuth
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyEmailSigninOKStatus string
+
+const (
+	NotifyPostNotifyEmailSigninOKStatusWaiting  NotifyPostNotifyEmailSigninOKStatus = "waiting"
+	NotifyPostNotifyEmailSigninOKStatusSignedIn NotifyPostNotifyEmailSigninOKStatus = "signed_in"
+	NotifyPostNotifyEmailSigninOKStatusExpired  NotifyPostNotifyEmailSigninOKStatus = "expired"
+	NotifyPostNotifyEmailSigninOKStatusDeclined NotifyPostNotifyEmailSigninOKStatus = "declined"
+)
+
+// AllValues returns all NotifyPostNotifyEmailSigninOKStatus values.
+func (NotifyPostNotifyEmailSigninOKStatus) AllValues() []NotifyPostNotifyEmailSigninOKStatus {
+	return []NotifyPostNotifyEmailSigninOKStatus{
+		NotifyPostNotifyEmailSigninOKStatusWaiting,
+		NotifyPostNotifyEmailSigninOKStatusSignedIn,
+		NotifyPostNotifyEmailSigninOKStatusExpired,
+		NotifyPostNotifyEmailSigninOKStatusDeclined,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyEmailSigninOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyEmailSigninOKStatusWaiting:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninOKStatusSignedIn:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninOKStatusExpired:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninOKStatusDeclined:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyEmailSigninOKStatus) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyEmailSigninOKStatus(data) {
+	case NotifyPostNotifyEmailSigninOKStatusWaiting:
+		*s = NotifyPostNotifyEmailSigninOKStatusWaiting
+		return nil
+	case NotifyPostNotifyEmailSigninOKStatusSignedIn:
+		*s = NotifyPostNotifyEmailSigninOKStatusSignedIn
+		return nil
+	case NotifyPostNotifyEmailSigninOKStatusExpired:
+		*s = NotifyPostNotifyEmailSigninOKStatusExpired
+		return nil
+	case NotifyPostNotifyEmailSigninOKStatusDeclined:
+		*s = NotifyPostNotifyEmailSigninOKStatusDeclined
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyEmailSigninReq struct {
+	// The customer's own app registration (Microsoft, public client flows on) or Desktop OAuth client
+	// (Google).
+	ClientID string `json:"client_id"`
+	// Google Desktop client secret; never returned.
+	ClientSecret OptString                              `json:"client_secret"`
+	Provider     NotifyPostNotifyEmailSigninReqProvider `json:"provider"`
+	// Microsoft: Directory (tenant) ID, a domain, organizations, or consumers (Outlook.com).
+	TenantID OptString `json:"tenant_id"`
+}
+
+// GetClientID returns the value of ClientID.
+func (s *NotifyPostNotifyEmailSigninReq) GetClientID() string {
+	return s.ClientID
+}
+
+// GetClientSecret returns the value of ClientSecret.
+func (s *NotifyPostNotifyEmailSigninReq) GetClientSecret() OptString {
+	return s.ClientSecret
+}
+
+// GetProvider returns the value of Provider.
+func (s *NotifyPostNotifyEmailSigninReq) GetProvider() NotifyPostNotifyEmailSigninReqProvider {
+	return s.Provider
+}
+
+// GetTenantID returns the value of TenantID.
+func (s *NotifyPostNotifyEmailSigninReq) GetTenantID() OptString {
+	return s.TenantID
+}
+
+// SetClientID sets the value of ClientID.
+func (s *NotifyPostNotifyEmailSigninReq) SetClientID(val string) {
+	s.ClientID = val
+}
+
+// SetClientSecret sets the value of ClientSecret.
+func (s *NotifyPostNotifyEmailSigninReq) SetClientSecret(val OptString) {
+	s.ClientSecret = val
+}
+
+// SetProvider sets the value of Provider.
+func (s *NotifyPostNotifyEmailSigninReq) SetProvider(val NotifyPostNotifyEmailSigninReqProvider) {
+	s.Provider = val
+}
+
+// SetTenantID sets the value of TenantID.
+func (s *NotifyPostNotifyEmailSigninReq) SetTenantID(val OptString) {
+	s.TenantID = val
+}
+
+type NotifyPostNotifyEmailSigninReqProvider string
+
+const (
+	NotifyPostNotifyEmailSigninReqProviderMicrosoft365User NotifyPostNotifyEmailSigninReqProvider = "microsoft365-user"
+	NotifyPostNotifyEmailSigninReqProviderOutlook          NotifyPostNotifyEmailSigninReqProvider = "outlook"
+	NotifyPostNotifyEmailSigninReqProviderGmailOAuth       NotifyPostNotifyEmailSigninReqProvider = "gmail-oauth"
+)
+
+// AllValues returns all NotifyPostNotifyEmailSigninReqProvider values.
+func (NotifyPostNotifyEmailSigninReqProvider) AllValues() []NotifyPostNotifyEmailSigninReqProvider {
+	return []NotifyPostNotifyEmailSigninReqProvider{
+		NotifyPostNotifyEmailSigninReqProviderMicrosoft365User,
+		NotifyPostNotifyEmailSigninReqProviderOutlook,
+		NotifyPostNotifyEmailSigninReqProviderGmailOAuth,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyEmailSigninReqProvider) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyEmailSigninReqProviderMicrosoft365User:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninReqProviderOutlook:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninReqProviderGmailOAuth:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyEmailSigninReqProvider) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyEmailSigninReqProvider(data) {
+	case NotifyPostNotifyEmailSigninReqProviderMicrosoft365User:
+		*s = NotifyPostNotifyEmailSigninReqProviderMicrosoft365User
+		return nil
+	case NotifyPostNotifyEmailSigninReqProviderOutlook:
+		*s = NotifyPostNotifyEmailSigninReqProviderOutlook
+		return nil
+	case NotifyPostNotifyEmailSigninReqProviderGmailOAuth:
+		*s = NotifyPostNotifyEmailSigninReqProviderGmailOAuth
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type NotifyPostNotifyHistoryIDResendOK struct {
 	At      time.Time                                `json:"at"`
 	Channel NotifyPostNotifyHistoryIDResendOKChannel `json:"channel"`
@@ -93294,6 +94519,409 @@ func (s *NotifyPostNotifyHistoryIDResendOKKind) UnmarshalText(data []byte) error
 	}
 }
 
+type NotifyPostNotifyZaloApproversUserIDCodeOK struct {
+	Address string `json:"address"`
+	// The address is the box's own signed-in Zalo account (the QR sign-in proved it); only your own row
+	// with it skips the message.
+	BoxAccount bool `json:"box_account"`
+	// Not_sent: why (failed, expired, or no link made).
+	Error string `json:"error"`
+	// Only in the answer of POST …/code for your own row with the box's own account: the confirm page
+	// (/link/zalo?c=…) to open in this session; any other Zalo gets the link by message.
+	Link OptString `json:"link"`
+	Name string    `json:"name"`
+	// The administrator asking.
+	Self   bool                                           `json:"self"`
+	SentAt NilDateTime                                    `json:"sent_at"`
+	State  NotifyPostNotifyZaloApproversUserIDCodeOKState `json:"state"`
+	UserID string                                         `json:"user_id"`
+}
+
+// GetAddress returns the value of Address.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetAddress() string {
+	return s.Address
+}
+
+// GetBoxAccount returns the value of BoxAccount.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetBoxAccount() bool {
+	return s.BoxAccount
+}
+
+// GetError returns the value of Error.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetError() string {
+	return s.Error
+}
+
+// GetLink returns the value of Link.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetLink() OptString {
+	return s.Link
+}
+
+// GetName returns the value of Name.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetName() string {
+	return s.Name
+}
+
+// GetSelf returns the value of Self.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetSelf() bool {
+	return s.Self
+}
+
+// GetSentAt returns the value of SentAt.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetSentAt() NilDateTime {
+	return s.SentAt
+}
+
+// GetState returns the value of State.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetState() NotifyPostNotifyZaloApproversUserIDCodeOKState {
+	return s.State
+}
+
+// GetUserID returns the value of UserID.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetUserID() string {
+	return s.UserID
+}
+
+// SetAddress sets the value of Address.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetBoxAccount sets the value of BoxAccount.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) SetBoxAccount(val bool) {
+	s.BoxAccount = val
+}
+
+// SetError sets the value of Error.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) SetError(val string) {
+	s.Error = val
+}
+
+// SetLink sets the value of Link.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) SetLink(val OptString) {
+	s.Link = val
+}
+
+// SetName sets the value of Name.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) SetName(val string) {
+	s.Name = val
+}
+
+// SetSelf sets the value of Self.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) SetSelf(val bool) {
+	s.Self = val
+}
+
+// SetSentAt sets the value of SentAt.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) SetSentAt(val NilDateTime) {
+	s.SentAt = val
+}
+
+// SetState sets the value of State.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) SetState(val NotifyPostNotifyZaloApproversUserIDCodeOKState) {
+	s.State = val
+}
+
+// SetUserID sets the value of UserID.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) SetUserID(val string) {
+	s.UserID = val
+}
+
+type NotifyPostNotifyZaloApproversUserIDCodeOKState string
+
+const (
+	NotifyPostNotifyZaloApproversUserIDCodeOKStateLinked  NotifyPostNotifyZaloApproversUserIDCodeOKState = "linked"
+	NotifyPostNotifyZaloApproversUserIDCodeOKStateSending NotifyPostNotifyZaloApproversUserIDCodeOKState = "sending"
+	NotifyPostNotifyZaloApproversUserIDCodeOKStateWaiting NotifyPostNotifyZaloApproversUserIDCodeOKState = "waiting"
+	NotifyPostNotifyZaloApproversUserIDCodeOKStateNotSent NotifyPostNotifyZaloApproversUserIDCodeOKState = "not_sent"
+)
+
+// AllValues returns all NotifyPostNotifyZaloApproversUserIDCodeOKState values.
+func (NotifyPostNotifyZaloApproversUserIDCodeOKState) AllValues() []NotifyPostNotifyZaloApproversUserIDCodeOKState {
+	return []NotifyPostNotifyZaloApproversUserIDCodeOKState{
+		NotifyPostNotifyZaloApproversUserIDCodeOKStateLinked,
+		NotifyPostNotifyZaloApproversUserIDCodeOKStateSending,
+		NotifyPostNotifyZaloApproversUserIDCodeOKStateWaiting,
+		NotifyPostNotifyZaloApproversUserIDCodeOKStateNotSent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyZaloApproversUserIDCodeOKState) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyZaloApproversUserIDCodeOKStateLinked:
+		return []byte(s), nil
+	case NotifyPostNotifyZaloApproversUserIDCodeOKStateSending:
+		return []byte(s), nil
+	case NotifyPostNotifyZaloApproversUserIDCodeOKStateWaiting:
+		return []byte(s), nil
+	case NotifyPostNotifyZaloApproversUserIDCodeOKStateNotSent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOKState) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyZaloApproversUserIDCodeOKState(data) {
+	case NotifyPostNotifyZaloApproversUserIDCodeOKStateLinked:
+		*s = NotifyPostNotifyZaloApproversUserIDCodeOKStateLinked
+		return nil
+	case NotifyPostNotifyZaloApproversUserIDCodeOKStateSending:
+		*s = NotifyPostNotifyZaloApproversUserIDCodeOKStateSending
+		return nil
+	case NotifyPostNotifyZaloApproversUserIDCodeOKStateWaiting:
+		*s = NotifyPostNotifyZaloApproversUserIDCodeOKStateWaiting
+		return nil
+	case NotifyPostNotifyZaloApproversUserIDCodeOKStateNotSent:
+		*s = NotifyPostNotifyZaloApproversUserIDCodeOKStateNotSent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyZaloLoginOK struct {
+	// Failed: why.
+	Error string `json:"error"`
+	// When the QR code expires (waiting, scanned).
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// Scanned: the name the Zalo app shows for who scanned; signed_in: the signed-in account's display
+	// name.
+	Name string `json:"name"`
+	// Set while waiting or scanned.
+	Qr    NilNotifyPostNotifyZaloLoginOKQr `json:"qr"`
+	State NotifyPostNotifyZaloLoginOKState `json:"state"`
+}
+
+// GetError returns the value of Error.
+func (s *NotifyPostNotifyZaloLoginOK) GetError() string {
+	return s.Error
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *NotifyPostNotifyZaloLoginOK) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetName returns the value of Name.
+func (s *NotifyPostNotifyZaloLoginOK) GetName() string {
+	return s.Name
+}
+
+// GetQr returns the value of Qr.
+func (s *NotifyPostNotifyZaloLoginOK) GetQr() NilNotifyPostNotifyZaloLoginOKQr {
+	return s.Qr
+}
+
+// GetState returns the value of State.
+func (s *NotifyPostNotifyZaloLoginOK) GetState() NotifyPostNotifyZaloLoginOKState {
+	return s.State
+}
+
+// SetError sets the value of Error.
+func (s *NotifyPostNotifyZaloLoginOK) SetError(val string) {
+	s.Error = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *NotifyPostNotifyZaloLoginOK) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetName sets the value of Name.
+func (s *NotifyPostNotifyZaloLoginOK) SetName(val string) {
+	s.Name = val
+}
+
+// SetQr sets the value of Qr.
+func (s *NotifyPostNotifyZaloLoginOK) SetQr(val NilNotifyPostNotifyZaloLoginOKQr) {
+	s.Qr = val
+}
+
+// SetState sets the value of State.
+func (s *NotifyPostNotifyZaloLoginOK) SetState(val NotifyPostNotifyZaloLoginOKState) {
+	s.State = val
+}
+
+type NotifyPostNotifyZaloLoginOKQr struct {
+	// SVG path of the dark cells, redrawn by the box from Zalo's image.
+	Path string `json:"path"`
+	// Side of the square view box, quiet zone included.
+	Size int `json:"size"`
+}
+
+// GetPath returns the value of Path.
+func (s *NotifyPostNotifyZaloLoginOKQr) GetPath() string {
+	return s.Path
+}
+
+// GetSize returns the value of Size.
+func (s *NotifyPostNotifyZaloLoginOKQr) GetSize() int {
+	return s.Size
+}
+
+// SetPath sets the value of Path.
+func (s *NotifyPostNotifyZaloLoginOKQr) SetPath(val string) {
+	s.Path = val
+}
+
+// SetSize sets the value of Size.
+func (s *NotifyPostNotifyZaloLoginOKQr) SetSize(val int) {
+	s.Size = val
+}
+
+type NotifyPostNotifyZaloLoginOKState string
+
+const (
+	NotifyPostNotifyZaloLoginOKStateNone     NotifyPostNotifyZaloLoginOKState = "none"
+	NotifyPostNotifyZaloLoginOKStateWaiting  NotifyPostNotifyZaloLoginOKState = "waiting"
+	NotifyPostNotifyZaloLoginOKStateScanned  NotifyPostNotifyZaloLoginOKState = "scanned"
+	NotifyPostNotifyZaloLoginOKStateSignedIn NotifyPostNotifyZaloLoginOKState = "signed_in"
+	NotifyPostNotifyZaloLoginOKStateExpired  NotifyPostNotifyZaloLoginOKState = "expired"
+	NotifyPostNotifyZaloLoginOKStateDeclined NotifyPostNotifyZaloLoginOKState = "declined"
+	NotifyPostNotifyZaloLoginOKStateFailed   NotifyPostNotifyZaloLoginOKState = "failed"
+)
+
+// AllValues returns all NotifyPostNotifyZaloLoginOKState values.
+func (NotifyPostNotifyZaloLoginOKState) AllValues() []NotifyPostNotifyZaloLoginOKState {
+	return []NotifyPostNotifyZaloLoginOKState{
+		NotifyPostNotifyZaloLoginOKStateNone,
+		NotifyPostNotifyZaloLoginOKStateWaiting,
+		NotifyPostNotifyZaloLoginOKStateScanned,
+		NotifyPostNotifyZaloLoginOKStateSignedIn,
+		NotifyPostNotifyZaloLoginOKStateExpired,
+		NotifyPostNotifyZaloLoginOKStateDeclined,
+		NotifyPostNotifyZaloLoginOKStateFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyZaloLoginOKState) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyZaloLoginOKStateNone:
+		return []byte(s), nil
+	case NotifyPostNotifyZaloLoginOKStateWaiting:
+		return []byte(s), nil
+	case NotifyPostNotifyZaloLoginOKStateScanned:
+		return []byte(s), nil
+	case NotifyPostNotifyZaloLoginOKStateSignedIn:
+		return []byte(s), nil
+	case NotifyPostNotifyZaloLoginOKStateExpired:
+		return []byte(s), nil
+	case NotifyPostNotifyZaloLoginOKStateDeclined:
+		return []byte(s), nil
+	case NotifyPostNotifyZaloLoginOKStateFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyZaloLoginOKState) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyZaloLoginOKState(data) {
+	case NotifyPostNotifyZaloLoginOKStateNone:
+		*s = NotifyPostNotifyZaloLoginOKStateNone
+		return nil
+	case NotifyPostNotifyZaloLoginOKStateWaiting:
+		*s = NotifyPostNotifyZaloLoginOKStateWaiting
+		return nil
+	case NotifyPostNotifyZaloLoginOKStateScanned:
+		*s = NotifyPostNotifyZaloLoginOKStateScanned
+		return nil
+	case NotifyPostNotifyZaloLoginOKStateSignedIn:
+		*s = NotifyPostNotifyZaloLoginOKStateSignedIn
+		return nil
+	case NotifyPostNotifyZaloLoginOKStateExpired:
+		*s = NotifyPostNotifyZaloLoginOKStateExpired
+		return nil
+	case NotifyPostNotifyZaloLoginOKStateDeclined:
+		*s = NotifyPostNotifyZaloLoginOKStateDeclined
+		return nil
+	case NotifyPostNotifyZaloLoginOKStateFailed:
+		*s = NotifyPostNotifyZaloLoginOKStateFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyZaloResolveOK struct {
+	Group bool   `json:"group"`
+	ID    string `json:"id"`
+	// False: a group the signed-in account is not a member of (messages would not reach it).
+	Member bool `json:"member"`
+	// Group size; 0 when not given.
+	Members int    `json:"members"`
+	Name    string `json:"name"`
+}
+
+// GetGroup returns the value of Group.
+func (s *NotifyPostNotifyZaloResolveOK) GetGroup() bool {
+	return s.Group
+}
+
+// GetID returns the value of ID.
+func (s *NotifyPostNotifyZaloResolveOK) GetID() string {
+	return s.ID
+}
+
+// GetMember returns the value of Member.
+func (s *NotifyPostNotifyZaloResolveOK) GetMember() bool {
+	return s.Member
+}
+
+// GetMembers returns the value of Members.
+func (s *NotifyPostNotifyZaloResolveOK) GetMembers() int {
+	return s.Members
+}
+
+// GetName returns the value of Name.
+func (s *NotifyPostNotifyZaloResolveOK) GetName() string {
+	return s.Name
+}
+
+// SetGroup sets the value of Group.
+func (s *NotifyPostNotifyZaloResolveOK) SetGroup(val bool) {
+	s.Group = val
+}
+
+// SetID sets the value of ID.
+func (s *NotifyPostNotifyZaloResolveOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetMember sets the value of Member.
+func (s *NotifyPostNotifyZaloResolveOK) SetMember(val bool) {
+	s.Member = val
+}
+
+// SetMembers sets the value of Members.
+func (s *NotifyPostNotifyZaloResolveOK) SetMembers(val int) {
+	s.Members = val
+}
+
+// SetName sets the value of Name.
+func (s *NotifyPostNotifyZaloResolveOK) SetName(val string) {
+	s.Name = val
+}
+
+type NotifyPostNotifyZaloResolveReq struct {
+	Query string `json:"query"`
+}
+
+// GetQuery returns the value of Query.
+func (s *NotifyPostNotifyZaloResolveReq) GetQuery() string {
+	return s.Query
+}
+
+// SetQuery sets the value of Query.
+func (s *NotifyPostNotifyZaloResolveReq) SetQuery(val string) {
+	s.Query = val
+}
+
 type NotifyPutNotifyChannelsTypeOK struct {
 	// Slack Socket Mode tokens (xapp-, xoxb-): only the last 4 characters are returned.
 	ApprovalLast4 NotifyPutNotifyChannelsTypeOKApprovalLast4 `json:"approval_last4"`
@@ -93304,10 +94932,18 @@ type NotifyPutNotifyChannelsTypeOK struct {
 	Configured bool                                         `json:"configured"`
 	Enabled    bool                                         `json:"enabled"`
 	// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-	// or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-	// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
-	// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
-	// (optional), channel_id (approvals only).
+	// or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
+	// the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
+	// email provider (preset, D-449:
+	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
+	// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
+	// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
+	// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
+	// microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by
+	// the box: the sign-in method, server and port the saved secret is for; changing one needs the secret
+	// again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its
+	// last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
+	// channel_id (approvals only).
 	Fields      NotifyPutNotifyChannelsTypeOKFields      `json:"fields"`
 	LastTest    NilNotifyPutNotifyChannelsTypeOKLastTest `json:"last_test"`
 	MinSeverity NotifyPutNotifyChannelsTypeOKMinSeverity `json:"min_severity"`
@@ -93446,12 +95082,19 @@ type NotifyPutNotifyChannelsTypeOKApproversItem struct {
 	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number);
 	// unique per channel.
 	Address string `json:"address"`
-	UserID  string `json:"user_id"`
+	// Zalo personal: the shown name of the approver's Zalo account, from the picker (D-447).
+	Name   OptString `json:"name"`
+	UserID string    `json:"user_id"`
 }
 
 // GetAddress returns the value of Address.
 func (s *NotifyPutNotifyChannelsTypeOKApproversItem) GetAddress() string {
 	return s.Address
+}
+
+// GetName returns the value of Name.
+func (s *NotifyPutNotifyChannelsTypeOKApproversItem) GetName() OptString {
+	return s.Name
 }
 
 // GetUserID returns the value of UserID.
@@ -93464,16 +95107,29 @@ func (s *NotifyPutNotifyChannelsTypeOKApproversItem) SetAddress(val string) {
 	s.Address = val
 }
 
+// SetName sets the value of Name.
+func (s *NotifyPutNotifyChannelsTypeOKApproversItem) SetName(val OptString) {
+	s.Name = val
+}
+
 // SetUserID sets the value of UserID.
 func (s *NotifyPutNotifyChannelsTypeOKApproversItem) SetUserID(val string) {
 	s.UserID = val
 }
 
 // Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-// or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
-// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
-// (optional), channel_id (approvals only).
+// or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
+// the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
+// email provider (preset, D-449:
+// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
+// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
+// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
+// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
+// microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by
+// the box: the sign-in method, server and port the saved secret is for; changing one needs the secret
+// again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its
+// last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
+// channel_id (approvals only).
 type NotifyPutNotifyChannelsTypeOKFields map[string]string
 
 func (s *NotifyPutNotifyChannelsTypeOKFields) init() NotifyPutNotifyChannelsTypeOKFields {
@@ -93657,8 +95313,16 @@ type NotifyPutNotifyChannelsTypeReq struct {
 	Enabled     bool                                      `json:"enabled"`
 	Fields      NotifyPutNotifyChannelsTypeReqFields      `json:"fields"`
 	MinSeverity NotifyPutNotifyChannelsTypeReqMinSeverity `json:"min_severity"`
-	// Leave blank to keep the saved secret.
+	// Leave blank to keep the saved secret (email: only while the sign-in method of the provider stays the
+	// same). Email: password, app password or API key; the Microsoft 365 client secret; the Google
+	// Workspace service account key file (JSON).
 	Secret OptString `json:"secret"`
+	// Email user sign-in (D-480): the id of a finished sign-in of the same admin; its refresh token
+	// becomes the secret and its mailbox the username.
+	Signin OptString `json:"signin"`
+	// Zalo personal: save the session of your finished QR sign-in (D-447); without it the saved session is
+	// kept. The session is never sent by the client.
+	ZaloLogin OptBool `json:"zalo_login"`
 }
 
 // GetAppToken returns the value of AppToken.
@@ -93701,6 +95365,16 @@ func (s *NotifyPutNotifyChannelsTypeReq) GetSecret() OptString {
 	return s.Secret
 }
 
+// GetSignin returns the value of Signin.
+func (s *NotifyPutNotifyChannelsTypeReq) GetSignin() OptString {
+	return s.Signin
+}
+
+// GetZaloLogin returns the value of ZaloLogin.
+func (s *NotifyPutNotifyChannelsTypeReq) GetZaloLogin() OptBool {
+	return s.ZaloLogin
+}
+
 // SetAppToken sets the value of AppToken.
 func (s *NotifyPutNotifyChannelsTypeReq) SetAppToken(val OptString) {
 	s.AppToken = val
@@ -93741,16 +95415,33 @@ func (s *NotifyPutNotifyChannelsTypeReq) SetSecret(val OptString) {
 	s.Secret = val
 }
 
+// SetSignin sets the value of Signin.
+func (s *NotifyPutNotifyChannelsTypeReq) SetSignin(val OptString) {
+	s.Signin = val
+}
+
+// SetZaloLogin sets the value of ZaloLogin.
+func (s *NotifyPutNotifyChannelsTypeReq) SetZaloLogin(val OptBool) {
+	s.ZaloLogin = val
+}
+
 type NotifyPutNotifyChannelsTypeReqApproversItem struct {
 	// Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number);
 	// unique per channel.
 	Address string `json:"address"`
-	UserID  string `json:"user_id"`
+	// Zalo personal: the shown name of the approver's Zalo account, from the picker (D-447).
+	Name   OptString `json:"name"`
+	UserID string    `json:"user_id"`
 }
 
 // GetAddress returns the value of Address.
 func (s *NotifyPutNotifyChannelsTypeReqApproversItem) GetAddress() string {
 	return s.Address
+}
+
+// GetName returns the value of Name.
+func (s *NotifyPutNotifyChannelsTypeReqApproversItem) GetName() OptString {
+	return s.Name
 }
 
 // GetUserID returns the value of UserID.
@@ -93761,6 +95452,11 @@ func (s *NotifyPutNotifyChannelsTypeReqApproversItem) GetUserID() string {
 // SetAddress sets the value of Address.
 func (s *NotifyPutNotifyChannelsTypeReqApproversItem) SetAddress(val string) {
 	s.Address = val
+}
+
+// SetName sets the value of Name.
+func (s *NotifyPutNotifyChannelsTypeReqApproversItem) SetName(val OptString) {
+	s.Name = val
 }
 
 // SetUserID sets the value of UserID.
@@ -108185,10 +109881,12 @@ type ResponseGetResponseMeIdentitiesOKItemsItem struct {
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
 	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
-	// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
-	// cannot answer privately yet, so it cannot be linked (approve in Vedette).
+	// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
+	// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
+	// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
 	Method ResponseGetResponseMeIdentitiesOKItemsItemMethod `json:"method"`
+	// The shown name of that address where the channel knows it (Zalo personal, D-447).
+	Name OptString `json:"name"`
 }
 
 // GetAddress returns the value of Address.
@@ -108226,6 +109924,11 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItem) GetMethod() ResponseGetResp
 	return s.Method
 }
 
+// GetName returns the value of Name.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) GetName() OptString {
+	return s.Name
+}
+
 // SetAddress sets the value of Address.
 func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetAddress(val string) {
 	s.Address = val
@@ -108261,10 +109964,15 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetMethod(val ResponseGetRe
 	s.Method = val
 }
 
+// SetName sets the value of Name.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetName(val OptString) {
+	s.Name = val
+}
+
 // Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
-// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
-// cannot answer privately yet, so it cannot be linked (approve in Vedette).
+// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
+// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
+// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
 type ResponseGetResponseMeIdentitiesOKItemsItemMethod string
 
 const (
@@ -125626,10 +127334,12 @@ type ResponsePostResponseMeIdentitiesChannelConfirmOK struct {
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
 	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
-	// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
-	// cannot answer privately yet, so it cannot be linked (approve in Vedette).
+	// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
+	// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
+	// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
 	Method ResponsePostResponseMeIdentitiesChannelConfirmOKMethod `json:"method"`
+	// The shown name of that address where the channel knows it (Zalo personal, D-447).
+	Name OptString `json:"name"`
 }
 
 // GetAddress returns the value of Address.
@@ -125667,6 +127377,11 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) GetMethod() ResponseP
 	return s.Method
 }
 
+// GetName returns the value of Name.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) GetName() OptString {
+	return s.Name
+}
+
 // SetAddress sets the value of Address.
 func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetAddress(val string) {
 	s.Address = val
@@ -125702,10 +127417,15 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetMethod(val Respons
 	s.Method = val
 }
 
+// SetName sets the value of Name.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetName(val OptString) {
+	s.Name = val
+}
+
 // Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
-// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
-// cannot answer privately yet, so it cannot be linked (approve in Vedette).
+// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
+// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
+// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
 type ResponsePostResponseMeIdentitiesChannelConfirmOKMethod string
 
 const (

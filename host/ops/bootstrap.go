@@ -198,6 +198,7 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 
 	// 1. Verify everything and decide every refusal, before the first write of any kind.
 	steps := make([]*bsStep, 0, len(svcs))
+	idxSigner := ""
 	for _, svc := range svcs {
 		pa := api.ContainerPullArgs{
 			Service: svc, Version: head.Version, Source: api.PullSourceRegistry,
@@ -220,6 +221,12 @@ func (o *Ops) Bootstrap(ctx context.Context, a BootstrapArgs, logf func(string))
 		}
 		steps = append(steps, st)
 		logf(fmt.Sprintf("verified %s %s (index sequence %d, signed by %s)", svc, plan.version, plan.idx.Sequence, plan.keyID))
+		idxSigner = plan.idx.KeyID
+	}
+	// An index signed with the offline backup key is a rescue release or a key revocation (D-108, D-259). The WARN "release
+	// index stored" (backup_signed) goes to the journal; the person at the terminal reads it in words (N100).
+	if tr, err := o.trust(); err == nil && idxSigner != "" && idxSigner == tr.Backup.KeyID() {
+		logf("the release index is signed with Vedette's offline backup key, which signs only a rescue release (the everyday signing key was replaced) or a key revocation; the release notes say which")
 	}
 	// A subset must not sit beside services that run another release: the units of one install are one release.
 	for _, other := range unitServices {

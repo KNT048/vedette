@@ -6740,6 +6740,71 @@ func decodeNotifyPostNotifyChannelsTypeTestParams(args [1]string, argsEscaped bo
 	return params, nil
 }
 
+// NotifyPostNotifyEmailSigninIDParams is parameters of notify_post_notify_email_signin_id operation.
+type NotifyPostNotifyEmailSigninIDParams struct {
+	ID string
+}
+
+func unpackNotifyPostNotifyEmailSigninIDParams(packed middleware.Parameters) (params NotifyPostNotifyEmailSigninIDParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeNotifyPostNotifyEmailSigninIDParams(args [1]string, argsEscaped bool, r *http.Request) (params NotifyPostNotifyEmailSigninIDParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // NotifyPostNotifyHistoryIDResendParams is parameters of notify_post_notify_history_id_resend operation.
 type NotifyPostNotifyHistoryIDResendParams struct {
 	ID string
@@ -6798,6 +6863,71 @@ func decodeNotifyPostNotifyHistoryIDResendParams(args [1]string, argsEscaped boo
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// NotifyPostNotifyZaloApproversUserIDCodeParams is parameters of notify_post_notify_zalo_approvers_user_id_code operation.
+type NotifyPostNotifyZaloApproversUserIDCodeParams struct {
+	UserID string
+}
+
+func unpackNotifyPostNotifyZaloApproversUserIDCodeParams(packed middleware.Parameters) (params NotifyPostNotifyZaloApproversUserIDCodeParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "user_id",
+			In:   "path",
+		}
+		params.UserID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeNotifyPostNotifyZaloApproversUserIDCodeParams(args [1]string, argsEscaped bool, r *http.Request) (params NotifyPostNotifyZaloApproversUserIDCodeParams, _ error) {
+	// Decode path: user_id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "user_id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.UserID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "user_id",
 			In:   "path",
 			Err:  err,
 		}

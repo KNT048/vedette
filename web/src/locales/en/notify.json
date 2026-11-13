@@ -97,9 +97,87 @@
         }
       },
       "email": {
+        "provider": {
+          "label": "Provider",
+          "hint": "Choosing a provider fills in the server, the port and the encryption. You can still change them.",
+          "group": {
+            "password": "Mailbox with a password or app password",
+            "service": "Email sending service",
+            "oauth": "Sign in with OAuth (no password)"
+          },
+          "name": {
+            "custom": "Custom SMTP (your own mail server)",
+            "gmail": "Gmail (personal account)",
+            "yahoo": "Yahoo Mail",
+            "icloud": "iCloud Mail",
+            "zoho": "Zoho Mail",
+            "fastmail": "Fastmail",
+            "sendgrid": "SendGrid",
+            "mailgun": "Mailgun",
+            "ses": "Amazon SES",
+            "postmark": "Postmark",
+            "brevo": "Brevo",
+            "microsoft365-user": "Microsoft 365 (sign in as the user)",
+            "outlook": "Outlook.com (personal Microsoft account)",
+            "gmail-oauth": "Gmail (sign in with your own Google client)",
+            "microsoft365": "Microsoft 365 (app permission, admin)",
+            "google-workspace": "Google Workspace (service account)"
+          },
+          "help": {
+            "gmail": "Gmail needs an app password: turn on 2-Step Verification for the Google account, create an app password, and paste it below. The normal Gmail password does not work.",
+            "yahoo": "Yahoo needs an app password: generate one in your Yahoo account under Account security. The username is your full Yahoo address.",
+            "icloud": "iCloud needs an app-specific password, made at account.apple.com under Sign-In and Security. The username is your full iCloud address.",
+            "zoho": "Use your Zoho address and password, or an app-specific password if two-factor sign-in is on. Paid organization domains use smtppro.zoho.com; accounts in another data center use the server shown in Zoho Mail settings.",
+            "fastmail": "Fastmail needs an app password with SMTP access (Settings, Privacy & Security, App passwords). The username is your full Fastmail address.",
+            "sendgrid": "The username is always apikey and the password is an API key with Mail Send permission. Send from a sender or domain verified in SendGrid.",
+            "mailgun": "Use the SMTP credentials of your sending domain (Sending, Domain settings, SMTP credentials), not the API key. Domains in the EU region use smtp.eu.mailgun.org.",
+            "ses": "Use Amazon SES SMTP credentials, not your AWS access keys. Change us-east-1 in the server name to your SES region: the credentials work in that region only.",
+            "postmark": "Paste the Server API token from the server's API Tokens tab. Postmark uses it as both username and password, so there is no username field.",
+            "brevo": "The username is the SMTP login shown in Brevo under SMTP & API, and the password is an SMTP key (not an API key). Send from a domain authenticated in Brevo.",
+            "microsoft365": "Vedette signs in as an app with OAuth2, without a user password. The box also contacts login.microsoftonline.com to get a sign-in token. Your Microsoft 365 administrator does this once:",
+            "google-workspace": "Vedette signs in as a service account with OAuth2, without a user password. The box also contacts oauth2.googleapis.com to get a sign-in token. A Google Workspace super administrator does this once:",
+            "microsoft365-user": "Vedette signs in once as the mailbox's user with a code (no password is stored; Microsoft is ending passwords for SMTP). You need your own app registration; nobody else's client ID is used. The box contacts login.microsoftonline.com for the code and the tokens. Once:",
+            "outlook": "Vedette signs in once as your Outlook.com account with a code, through your own app registration (no password is stored). The box contacts login.microsoftonline.com for the code and the tokens. Once:",
+            "gmail-oauth": "Instead of an app password, sign in once with your own Google OAuth client (Desktop app). Google sends the browser back to http://127.0.0.1, which does not load: you paste that address into Vedette. The box contacts oauth2.googleapis.com to get the tokens. Once:"
+          },
+          "steps": {
+            "microsoft365": {
+              "s1": "In Microsoft Entra, register an app. Under API permissions add Office 365 Exchange Online, application permission SMTP.SendAsApp, and grant admin consent.",
+              "s2": "Under Certificates & secrets create a client secret, and copy its Value.",
+              "s3": "In Exchange Online PowerShell, register the app: New-ServicePrincipal with the Application ID and the Object ID of the Enterprise application (not of the app registration).",
+              "s4": "Give it the mailbox: Add-MailboxPermission -Identity <mailbox> -User <service principal ID> -AccessRights FullAccess, and keep SMTP AUTH on for that mailbox."
+            },
+            "google-workspace": {
+              "s1": "In the Google Cloud console create a service account, then under Keys add a JSON key and download it.",
+              "s2": "In the Google Admin console open Security, Access and data control, API controls, Manage Domain Wide Delegation, and add the service account's client ID with the scope https://mail.google.com/.",
+              "s3": "The mailbox below must be a user of that Google Workspace domain; the service account sends as that user."
+            },
+            "microsoft365-user": {
+              "s1": "In the Microsoft Entra admin center open App registrations, New registration. Supported accounts: this organization only (or any organization).",
+              "s2": "Under Authentication, Advanced settings, set Allow public client flows to Yes. The device code sign-in needs it; no redirect URI is needed.",
+              "s3": "Under API permissions add Microsoft Graph, Delegated, SMTP.Send (and keep offline_access). No admin consent is needed unless your tenant asks for it.",
+              "s4": "Copy the Application (client) ID and the Directory (tenant) ID into the fields below, and make sure SMTP AUTH is on for the mailbox.",
+              "s5": "Press Sign in with Microsoft, open microsoft.com/devicelogin on any device, enter the code and sign in as the mailbox."
+            },
+            "outlook": {
+              "s1": "In the Microsoft Entra admin center (or Azure portal) open App registrations, New registration, with personal Microsoft accounts among the supported accounts.",
+              "s2": "Under Authentication, Advanced settings, set Allow public client flows to Yes.",
+              "s3": "Under API permissions add Microsoft Graph, Delegated, SMTP.Send.",
+              "s4": "Copy the Application (client) ID below, press Sign in with Microsoft, open the address shown, enter the code and sign in with your Outlook.com account."
+            },
+            "gmail-oauth": {
+              "s1": "In the Google Cloud console open Google Auth Platform and set it up: Audience External (Internal for a Workspace domain), with your address as a test user.",
+              "s2": "Under Data access add the scope https://mail.google.com/. Then under Audience press Publish app (In production): an app left in Testing loses its sign-ins after 7 days. For your own use, Google shows an unverified-app warning that you can pass.",
+              "s3": "Under Clients create a client of type Desktop app, and copy its client ID and client secret below.",
+              "s4": "Press Sign in with Google, open Google's page, approve. The browser then fails to open http://127.0.0.1:…: copy the whole address from the address bar and paste it here."
+            }
+          },
+          "doc": "Read {{name}}'s instructions"
+        },
         "host": {
           "label": "SMTP server",
-          "hint": "For example smtp.company.com."
+          "hint": "For example smtp.company.com.",
+          "hint_oauth": "Fixed for this sign-in: Vedette sends the token to the provider's own server only."
         },
         "port": {
           "label": "Port",
@@ -113,7 +191,26 @@
         },
         "username": {
           "label": "Username",
-          "hint": "Usually the sending email address."
+          "hint": "Usually the sending email address.",
+          "hint_oauth": "The mailbox Vedette sends as, for example alerts@company.com. Send from must be this address or one it may send as.",
+          "label_oauth": "Mailbox to send as",
+          "hint_sendgrid": "Always apikey for SendGrid.",
+          "hint_mailgun": "The SMTP login of the domain, for example postmaster@mg.company.com.",
+          "hint_ses": "The SMTP user name from the SES console, not an AWS access key.",
+          "hint_brevo": "The SMTP login from Brevo, for example 8a1b2c001@smtp-brevo.com.",
+          "hint_mailbox": "Your full email address.",
+          "label_user": "Mailbox",
+          "hint_user": "Filled in by the sign-in: Vedette sends as the account that signed in."
+        },
+        "tenant_id": {
+          "label": "Tenant ID",
+          "hint": "The Directory (tenant) ID on the app registration's Overview page.",
+          "hint_microsoft365-user": "The Directory (tenant) ID, your domain, or organizations for any work or school account."
+        },
+        "client_id": {
+          "label": "Client ID",
+          "hint": "The Application (client) ID on the same page.",
+          "hint_gmail-oauth": "The client ID of your Desktop OAuth client, ending with .apps.googleusercontent.com."
         },
         "from": {
           "label": "Send from",
@@ -125,7 +222,19 @@
         },
         "secret": {
           "label": "SMTP password",
-          "hint": "Gmail and Microsoft 365 require an app password instead of the normal password. Prefer a dedicated account for Vedette."
+          "hint": "The password of the account on your mail server. Prefer a dedicated account for Vedette.",
+          "label_app": "App password",
+          "label_zoho": "Password or app password",
+          "label_sendgrid": "API key",
+          "label_postmark": "Server API token",
+          "label_brevo": "SMTP key",
+          "label_microsoft_oauth": "Client secret",
+          "label_google_oauth": "Service account key (JSON file)",
+          "hint_service": "Stays on this box, encrypted. Only the last 4 characters show after saving.",
+          "hint_microsoft_oauth": "The Value of a client secret of the app registration (not its Secret ID). Client secrets expire: make a new one before then.",
+          "hint_google_oauth": "Choose the JSON key file you downloaded. It stays on this box, encrypted; Vedette never sends the key itself, only a token request signed with it.",
+          "loaded": "Key of {{email}} chosen. Save to keep it.",
+          "notKey": "This file is not a service account key file from Google Cloud."
         }
       },
       "webhook": {
@@ -158,16 +267,6 @@
         "bot_token": {
           "label": "Bot token (xoxb-…)",
           "hint": "Slack app, OAuth & Permissions, after installing the app to your workspace. Needs the chat:write scope."
-        }
-      },
-      "zalo-personal": {
-        "user_id": {
-          "label": "Recipient (user or group ID)",
-          "hint": "The numeric Zalo ID of the person or group that receives alerts. Check how your Zalo client shows IDs, or the community node documentation."
-        },
-        "secret": {
-          "label": "Session",
-          "hint": "Created by scanning the QR code below."
         }
       }
     },
@@ -214,20 +313,18 @@
     "address": {
       "slack": "Slack member ID",
       "telegram": "Telegram user ID",
-      "email": "Sign-in email",
-      "zalo-personal": "Zalo user ID"
+      "email": "Sign-in email"
     },
     "placeholder": {
       "slack": "U04ABCD1234",
       "telegram": "123456789",
-      "email": "name@company.com",
-      "zalo-personal": "2938475610293847561"
+      "email": "name@company.com"
     },
     "hint": {
       "slack": "Approval requests show Approve and Reject buttons in Slack. This uses Slack Socket Mode: the box opens the connection outward to Slack, so you open no inbound port and need no public address.",
       "telegram": "Approval requests show inline Approve and Reject buttons in the chat. This uses the bot above with long polling: the box asks Telegram for new button presses, so you open no inbound port.",
       "email": "Each approver receives an email with an Approve button that opens a confirmation page on Vedette.",
-      "zalo-personal": "Each approver gets a private message from this Zalo account with two codes of their own: one to approve, one to reject. Replying with a code from their own Zalo account decides; each code works once and ends with the request. High-risk actions are approved only in Vedette. Enter the Zalo user ID of each approver, not a phone number."
+      "zalo-personal": "Add each approver with their Zalo account: pick a friend of this account or find them by phone number. When you save, this account sends each of them a confirm link; they are linked once they open it and confirm while signed in to Vedette as themselves (your own Zalo you confirm here). Then each approval request reaches them privately with two codes of their own, one to approve and one to reject. High-risk actions are approved only in Vedette."
     },
     "email": {
       "p1": "The link is single-use, valid for 30 minutes, and bound to that one action and that one approver.",
@@ -238,15 +335,59 @@
     "linkOnly": "This channel cannot take approvals. Messages sent here carry a link that opens Vedette, where an operator or administrator approves."
   },
   "zp": {
-    "warning": "Unofficial: uses Zalo's personal web protocol, not an official API. Zalo may lock the account. Use a dedicated account, not your personal one.",
-    "login": "Zalo login",
-    "none": "Not signed in yet.",
-    "ready": "Signed in. The session is saved when you press Save.",
-    "show": "Show QR code",
+    "warning": "Unofficial channel: Zalo may lock the account it signs in with, so use a separate Zalo account, not your own.",
+    "login": "Zalo sign-in",
+    "none": "Not signed in yet. Sign in with the Zalo account that will send the alerts.",
+    "show": "Sign in with a QR code",
     "relogin": "Sign in again",
-    "qrAlt": "QR code placeholder for Zalo login",
-    "scan": "Scan with the Zalo app on a dedicated phone.",
-    "scanned": "I scanned it"
+    "qrAlt": "QR code to sign in to Zalo",
+    "scan": "On the phone of that Zalo account, open Zalo, tap the QR scanner and scan this code. It expires at {{time}}.",
+    "sessionSaved": "A Zalo session is saved.",
+    "signedSaved": "Signed in as {{name}}.",
+    "signedNew": "Signed in as {{name}}. Press Save to keep this sign-in.",
+    "newQr": "New QR code",
+    "scannedBy": "Scanned by {{name}}. Confirm the sign-in on the phone.",
+    "scannedConfirm": "Scanned. Confirm the sign-in on the phone.",
+    "state": {
+      "expired": "The QR code expired before it was confirmed.",
+      "declined": "The sign-in was declined on the phone."
+    },
+    "recipient": "Who receives alerts",
+    "noRecipient": "No recipient yet. Pick a group or a friend, or find one.",
+    "toGroup": "Alerts go to the group {{name}} (ID {{id}}).",
+    "toPerson": "Alerts go to {{name}} (ID {{id}}).",
+    "pick": "Group or friend",
+    "pickHint": "Groups and friends of the signed-in Zalo account.",
+    "choose": "Choose…",
+    "loading": "Loading the list from Zalo…",
+    "groups": "Groups",
+    "friends": "Friends",
+    "groupOption": "{{name}} ({{count}} members)",
+    "signInToPick": "Sign in to pick from the account's groups and friends, or find one below.",
+    "find": "Find",
+    "findLabel": "Or find by invite link, phone number or ID",
+    "findHint": "A group invite link looks like https://zalo.me/g/abcdef123; a phone number like 0912345678.",
+    "notMember": "The signed-in account is not a member of {{name}}. Join the group with that account in the Zalo app, or alerts will not arrive.",
+    "notAGroup": "An approver is a person, not a group.",
+    "approverIs": "Zalo: {{name}} (ID {{id}})",
+    "approverNone": "No Zalo account yet.",
+    "approverPick": "Zalo friend",
+    "approverFind": "Or find by phone number",
+    "approverFindHint": "The phone number of their Zalo account, for example 0912345678.",
+    "codesSent": "Each new approver gets a confirm link from this Zalo account. They are linked once they open it and confirm while signed in to Vedette.",
+    "link": {
+      "unsaved": "Save to send this person a confirm link on Zalo (your own Zalo too, unless it is this box's signed-in account: that one you confirm here).",
+      "linked": "Linked",
+      "sending": "Sending the link",
+      "waiting": "Waiting",
+      "not_sent": "Not linked",
+      "waitingFor": "Waiting for {{name}} to open the link sent at {{time}} and confirm it while signed in to Vedette.",
+      "again": "Send again",
+      "sentToast": "A new confirm link was sent to {{name}}. The old one no longer works.",
+      "yours": "This is the box's own Zalo account, which you signed in with: link it to your Vedette account now.",
+      "mine": "Link my Zalo now"
+    },
+    "signOutHint": "Zalo has no sign-out for this kind of session: a sign-in you cancel, replace or do not save stays signed in on Zalo until it expires or you log it out of the account's devices in the Zalo app."
   },
   "incidents": {
     "title_one": "{{count}} new incident",
@@ -389,5 +530,45 @@
     "resendOk": "Sent again via {{channel}}.",
     "emptyTitle": "Nothing sent yet",
     "emptyBody": "Messages appear here once a channel is on and something worth telling you happens. Test messages are not listed here; each channel shows its last test."
+  },
+  "signin": {
+    "microsoft": "Microsoft",
+    "google": "Google",
+    "title": "Sign in with {{who}}",
+    "none": "Not signed in yet. Sign in with {{who}} as the mailbox that sends.",
+    "saved": "Signed in as {{mailbox}}.",
+    "start": "Sign in with {{who}}",
+    "again": "Sign in again",
+    "status": {
+      "waiting": "Waiting for you to finish the sign-in with {{who}}.",
+      "signed_in": "Signed in as {{mailbox}}. Save to keep this sign-in.",
+      "expired": "The sign-in expired before it was finished. Sign in again.",
+      "declined": "The sign-in was declined. Sign in again and approve."
+    },
+    "deviceOpen": "On any device, open",
+    "deviceCode": "and enter the code",
+    "codeLabel": "Sign-in code",
+    "checkNow": "I have signed in, check now",
+    "pasteOpen": "Open Google's consent page and approve",
+    "pasteStep2": "The browser then fails to open http://127.0.0.1:… That is expected.",
+    "pasteStep3": "Copy the whole address from the address bar and paste it below.",
+    "pasteLabel": "Address from the browser",
+    "finish": "Finish sign-in",
+    "clientSecret": "Client secret of the Desktop client",
+    "clientSecretHint": "Used to sign in and kept on this box, encrypted. Enter it again when you sign in again."
+  },
+  "zl": {
+    "title": "Link your Zalo account",
+    "account": "Zalo ID {{id}}",
+    "thisAccount": "This Zalo account",
+    "noToken": "This link is not complete. Open it again from the Zalo message.",
+    "question": "Link this Zalo account to your account, {{who}}?",
+    "explain": "An administrator listed this Zalo account as yours for approving actions, and Vedette sent you this link. Confirm only if this Zalo account is yours: approval replies from it will then count as you.",
+    "confirm": "Confirm",
+    "linked": "Linked. {{zalo}} now counts as you when you reply to approval messages.",
+    "already": "{{zalo}} is already linked to your account.",
+    "toAccount": "Open My account",
+    "idLabel": "Zalo ID",
+    "namedBy": "Named \"{{name}}\" by your administrator."
   }
 }

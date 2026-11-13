@@ -21,6 +21,14 @@ export type IncidentsResponse = z.infer<typeof C.IncidentsResponse>
 export type HistoryItem = z.infer<typeof C.HistoryItem>
 export type HistoryResponse = z.infer<typeof C.HistoryResponse>
 export type FindingNotices = z.infer<typeof C.FindingNotices>
+export type EmailSignin = z.infer<typeof C.EmailSignin>
+export type EmailSigninStart = z.infer<typeof C.EmailSigninStart>
+export type ZaloLogin = z.infer<typeof C.ZaloLogin>
+export type ZaloContact = z.infer<typeof C.ZaloContact>
+export type ZaloContacts = z.infer<typeof C.ZaloContacts>
+export type ZaloFound = z.infer<typeof C.ZaloFound>
+export type ZaloApprover = z.infer<typeof C.ZaloApprover>
+export type ZaloApprovers = z.infer<typeof C.ZaloApprovers>
 
 export const CHANNEL_TYPES: ChannelType[] = ['telegram', 'slack', 'zalo', 'zalo-personal', 'email', 'webhook']
 export const ROUTE_SEVERITIES: RouteSeverity[] = ['critical', 'high', 'medium', 'low']
@@ -32,7 +40,7 @@ export const FIELDS: Record<ChannelType, string[]> = {
   slack: ['label'], // channel_id chỉ hiện khi bật duyệt trong chat
   zalo: ['oa_id', 'user_id'],
   'zalo-personal': ['user_id'],
-  email: ['host', 'port', 'security', 'username', 'from', 'to'],
+  email: ['provider', 'host', 'port', 'security', 'username', 'tenant_id', 'client_id', 'from', 'to'], // provider: preset (D-449); tenant_id, client_id: Microsoft 365 only
   webhook: ['url'],
 }
 

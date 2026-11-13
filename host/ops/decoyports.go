@@ -146,6 +146,9 @@ type nftTable struct {
 	found, dormant bool
 	chains         map[string]*nftChain
 	sets           map[string]*nftSet
+	// foreign counts the other tables of the namespace's ruleset: the host loads it whole ("flush ruleset"), so any other
+	// table is one the host did not write, and the ruleset is not the one it wants.
+	foreign int
 }
 
 func nftNorm(s string) string {
@@ -179,6 +182,9 @@ func parseHPTable(out []byte) nftTable {
 		case strings.HasPrefix(line, "table ") && strings.HasSuffix(line, "{"):
 			inTable, chain, set = nftNorm(line) == "tableinetvedette_hp", nil, nil
 			t.found = t.found || inTable
+			if !inTable {
+				t.foreign++
+			}
 		case !inTable:
 		case strings.HasPrefix(line, "chain ") && strings.HasSuffix(line, "{"):
 			name := strings.TrimPrefix(nftNorm(line), "chain")
@@ -322,12 +328,13 @@ func (t nftTable) inputOK() bool {
 func hasEgressDrop(out []byte) bool { return parseHPTable(out).egressOK() }
 
 // rulesetIs reports whether the printed ruleset is the one the host wants for list: the egress part,
-// the input chain, the two sets with exactly the wanted elements, and no other chain or set in the
-// table (one could hold a hook of its own).
+// the input chain, the two sets with exactly the wanted elements (so every address it names is a
+// decoy's), no other chain or set in the table (one could hold a hook of its own), and no other table
+// in the namespace.
 func rulesetIs(out []byte, list []decoyEntry) bool {
 	t := parseHPTable(out)
 	open, allow := wantedSets(list)
-	return t.egressOK() && t.inputOK() && len(t.chains) == 3 && len(t.sets) == 2 &&
+	return t.foreign == 0 && t.egressOK() && t.inputOK() && len(t.chains) == 3 && len(t.sets) == 2 &&
 		setIs(t.sets["open"], hpOpenType, open, false) && setIs(t.sets["allow"], hpAllowType, allow, true)
 }
 

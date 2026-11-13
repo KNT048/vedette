@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -132,29 +133,33 @@ table inet vedette_hp {
 
 func TestRulesetIsReadsTheRealListing(t *testing.T) {
 	t.Parallel()
-	if !rulesetIs([]byte(realListing), entries()) {
+	ours := realListing[strings.Index(realListing, "table inet vedette_hp"):]
+	if !rulesetIs([]byte(ours), entries()) {
 		t.Fatal("the real listing (wrapped elements, numeric protocol) is not recognised")
+	}
+	if rulesetIs([]byte(realListing), entries()) {
+		t.Fatal("a namespace ruleset with another table was taken for the one the host loaded")
 	}
 	if !hasEgressDrop([]byte(realListing)) {
 		t.Fatal("the egress part of a table with sets is not recognised")
 	}
 	for name, in := range map[string]string{
-		"missing element":   strings.Replace(realListing, "192.168.1.100 . tcp . 445,\n\t\t\t     ", "", 1),
-		"extra element":     strings.Replace(realListing, "192.168.1.101 }", "192.168.1.101, 192.168.1.102 }", 1),
-		"other port":        strings.Replace(realListing, ". 6 . 3389", ". 6 . 3390", 1),
-		"udp for tcp":       strings.Replace(realListing, ". tcp . 445", ". udp . 445", 1),
-		"service name":      strings.Replace(realListing, ". tcp . 445", ". tcp . microsoft-ds", 1),
-		"open has allowed":  strings.Replace(realListing, "{ 192.168.1.101 }", "{ 192.168.1.100, 192.168.1.101 }", 1),
-		"no input chain":    realListing[:strings.Index(realListing, "\tchain input")] + realListing[strings.Index(realListing, "\tchain output"):],
-		"input accepts all": strings.Replace(realListing, "\t\tiif \"lo\" accept\n", "\t\taccept\n\t\tiif \"lo\" accept\n", 1),
-		"no tcp reject":     strings.Replace(realListing, "\t\tmeta l4proto tcp reject with tcp reset\n", "", 1),
-		"input policy drop": strings.Replace(realListing, "hook input priority filter; policy accept;\n\t\tiif", "hook input priority filter; policy drop;\n\t\tiif", 1),
-		"set flags":         strings.Replace(realListing, "\t\ttype ipv4_addr\n", "\t\ttype ipv4_addr\n\t\tflags interval\n", 1),
-		"set type":          strings.Replace(realListing, "type ipv4_addr\n", "type ipv4_addr . inet_service\n", 1),
-		"extra chain":       strings.Replace(realListing, "\tchain forward {", "\tchain prerouting {\n\t\ttype filter hook prerouting priority filter; policy accept;\n\t}\n\tchain forward {", 1),
-		"extra set":         strings.Replace(realListing, "\tset allow {", "\tset more {\n\t\ttype ipv4_addr\n\t}\n\tset allow {", 1),
-		"dormant":           strings.Replace(realListing, "table inet vedette_hp {\n", "table inet vedette_hp {\n\tflags dormant\n", 1),
-		"egress gone":       strings.Replace(realListing, "\t\tct state new drop\n", "", 1),
+		"missing element":   strings.Replace(ours, "192.168.1.100 . tcp . 445,\n\t\t\t     ", "", 1),
+		"extra element":     strings.Replace(ours, "192.168.1.101 }", "192.168.1.101, 192.168.1.102 }", 1),
+		"other port":        strings.Replace(ours, ". 6 . 3389", ". 6 . 3390", 1),
+		"udp for tcp":       strings.Replace(ours, ". tcp . 445", ". udp . 445", 1),
+		"service name":      strings.Replace(ours, ". tcp . 445", ". tcp . microsoft-ds", 1),
+		"open has allowed":  strings.Replace(ours, "{ 192.168.1.101 }", "{ 192.168.1.100, 192.168.1.101 }", 1),
+		"no input chain":    ours[:strings.Index(ours, "\tchain input")] + ours[strings.Index(ours, "\tchain output"):],
+		"input accepts all": strings.Replace(ours, "\t\tiif \"lo\" accept\n", "\t\taccept\n\t\tiif \"lo\" accept\n", 1),
+		"no tcp reject":     strings.Replace(ours, "\t\tmeta l4proto tcp reject with tcp reset\n", "", 1),
+		"input policy drop": strings.Replace(ours, "hook input priority filter; policy accept;\n\t\tiif", "hook input priority filter; policy drop;\n\t\tiif", 1),
+		"set flags":         strings.Replace(ours, "\t\ttype ipv4_addr\n", "\t\ttype ipv4_addr\n\t\tflags interval\n", 1),
+		"set type":          strings.Replace(ours, "type ipv4_addr\n", "type ipv4_addr . inet_service\n", 1),
+		"extra chain":       strings.Replace(ours, "\tchain forward {", "\tchain prerouting {\n\t\ttype filter hook prerouting priority filter; policy accept;\n\t}\n\tchain forward {", 1),
+		"extra set":         strings.Replace(ours, "\tset allow {", "\tset more {\n\t\ttype ipv4_addr\n\t}\n\tset allow {", 1),
+		"dormant":           strings.Replace(ours, "table inet vedette_hp {\n", "table inet vedette_hp {\n\tflags dormant\n", 1),
+		"egress gone":       strings.Replace(ours, "\t\tct state new drop\n", "", 1),
 	} {
 		if rulesetIs([]byte(in), entries()) {
 			t.Errorf("%s accepted", name)
@@ -204,5 +209,55 @@ func TestSameSets(t *testing.T) {
 	}
 	if !sameEntry(a[0], entries()[0]) || sameEntry(a[0], b[0]) || sameEntry(a[1], a[2]) {
 		t.Fatal("sameEntry")
+	}
+}
+
+// kien's N100 rule (B2): the decoys never touch the box's network. The ruleset the host loads names one table, inet
+// vedette_hp; it is loaded and listed only inside the namespace vedette-hp (its "flush ruleset" empties that namespace's
+// ruleset, never the box's own firewall); every address in it is a decoy's; it names no interface but lo and hooks only
+// input, output and forward of that namespace (no NAT, no prerouting). The effect check refuses a listing with any other
+// table in the namespace.
+func TestTheRulesetTouchesOnlyItsOwnTableAndTheDecoys(t *testing.T) {
+	t.Parallel()
+	list := entries()
+	text := renderRuleset(list)
+	decoys := map[string]bool{}
+	for _, e := range list {
+		decoys[e.IP] = true
+	}
+	tables := regexp.MustCompile(`(?m)^\s*table\s+(.*?)\s*\{`).FindAllStringSubmatch(text, -1)
+	if len(tables) != 1 || tables[0][1] != "inet vedette_hp" {
+		t.Fatalf("tables in the ruleset: %q", tables)
+	}
+	for _, l := range strings.Split(text, "\n") {
+		if top := strings.TrimSpace(l); l == top && top != "" && top != "}" && top != "flush ruleset" && top != "table inet vedette_hp {" {
+			t.Errorf("a top-level statement other than the flush and the table: %q", top)
+		}
+	}
+	for _, a := range regexp.MustCompile(`\b\d{1,3}(?:\.\d{1,3}){3}\b`).FindAllString(text, -1) {
+		if !decoys[a] {
+			t.Errorf("the ruleset names %s, which is no decoy", a)
+		}
+	}
+	for _, w := range []string{"iifname", "oifname", "eth0", "nat", "prerouting", "postrouting", "ingress", "masquerade", "dnat", "snat", "redirect"} {
+		if strings.Contains(text, w) {
+			t.Errorf("the ruleset mentions %q", w)
+		}
+	}
+	if !regexp.MustCompile(`(?m)^\s*iif lo accept$`).MatchString(text) || strings.Count(text, " lo ") != 2 {
+		t.Errorf("the only interface named must be lo:\n%s", text)
+	}
+	for _, a := range [][]string{argvNftLoad(), argvNftList()} {
+		if !slices.Equal(a[:3], []string{"netns", "exec", hpNS}) || hpNS != "vedette-hp" {
+			t.Errorf("nft runs outside the namespace: %q", a)
+		}
+	}
+	listed := printed(text)
+	if !rulesetIs([]byte(listed), list) {
+		t.Fatalf("the effect check refuses the ruleset the host loads:\n%s", listed)
+	}
+	other := "table inet filter {\n\tchain input {\n\t\ttype filter hook input priority filter; policy accept;\n\t}\n}\n" + listed
+	if rulesetIs([]byte(other), list) {
+		t.Fatal("the effect check accepted a namespace ruleset with a table the host did not write")
 	}
 }

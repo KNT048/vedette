@@ -37,7 +37,7 @@ func TestFixedIn_Golden(t *testing.T) {
 		{"no version: the fix of every line named by its start, newest first (the highest where a line has two); the 5.x lines that end at an affected version are counted, not given a fix", dev(fortiGate(vulns, "")), "CVE-2022-42475",
 			&FixedIn{Kind: "branches", NoFix: 4, Branches: []br{{"7.2", "7.2.3"}, {"7.0", "7.0.9"}, {"6.4", "6.4.11"}, {"6.2", "6.2.12"}, {"6.0", "6.0.16"}}}},
 		{"no version: the iOS lines, a range with only an end bound included", dev(iPhone(vulns, "")), "CVE-2025-24200",
-			&FixedIn{Kind: "branches", Branches: []br{{"17.0", "18.3.1"}, {"16.0", "16.7.11"}, {"", "15.8.4"}}}},
+			&FixedIn{Kind: "branches", Branches: []br{{"17.x", "18.3.1"}, {"16.x", "16.7.11"}, {"", "15.8.4"}}}},
 		{"a version outside every range gives nothing", dev(fortiGate(vulns, "7.4.8")), "CVE-2024-21762", nil},
 		{"only exact versions or no end bound: nothing is invented", dev(fortiGate(vulns, "6.2.0")), "CVE-2019-6693", nil},
 	}
@@ -114,12 +114,37 @@ func TestFixedIn_ReviewCases(t *testing.T) {
 			t.Errorf("two rows: %+v, want fixed 7.2.7", f)
 		}
 	}
-	// M3: a distribution's package is fixed by its security updates, never by an upstream number.
-	for _, cve := range []string{"CVE-2026-123158", "CVE-2026-46300"} {
-		a := Asset{ID: "a", Name: "byn", OS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}
-		if f := FixedInFor(a, vuln(cve)); f == nil || f.Kind != "distro" || f.Fixed != "" || len(f.Branches) != 0 {
-			t.Errorf("ubuntu %s: %+v, want kind distro with no number", cve, f)
+	// M3 (round 2): inventory does not say where a row came from, so a plain version on a distribution keeps the
+	// upstream number and carries the distribution for the page's condition; only a distribution-marked version is
+	// told to take the distribution's security updates, with no number.
+	conf := Software{ID: "s-c", Display: "Confluence", Vendor: "Atlassian", Product: "Confluence", Version: "8.2.0", KevKeys: []string{"atlassian|confluence"}}
+	cv := Vuln{CVE: "CVE-2024-0002", Vendor: "Atlassian", Product: "Confluence", Affected: []Affected{{CPE: "cpe:2.3:a:atlassian:confluence:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "8.0.0", EndExcl: "8.3.3"}}}}
+	if f := FixedInFor(Asset{ID: "a", Name: "wiki", OS: "Ubuntu 22.04.4 LTS", Software: []Software{conf}}, cv); f == nil || f.Kind != "fixed" || f.Fixed != "8.3.3" || f.Distro != "Ubuntu" {
+		t.Errorf("Confluence on Ubuntu: %+v, want fixed 8.3.3 with distro Ubuntu", f)
+	}
+	if f := FixedInFor(Asset{ID: "a", Name: "wiki", Software: []Software{conf}}, cv); f == nil || f.Kind != "fixed" || f.Distro != "" {
+		t.Errorf("Confluence with no known distribution: %+v", f)
+	}
+	jenkins := Software{ID: "s-j", Display: "Jenkins", Vendor: "Jenkins", Product: "Jenkins", Version: "2.426.1", KevKeys: []string{"jenkins|jenkins"}}
+	jv := Vuln{CVE: "CVE-2024-0003", Vendor: "Jenkins", Product: "Jenkins", Affected: []Affected{{CPE: "cpe:2.3:a:jenkins:jenkins:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "2.0", EndExcl: "2.442"}}}}
+	if f := FixedInFor(Asset{ID: "a", Name: "ci", OS: "Ubuntu 22.04.4 LTS", Software: []Software{jenkins}}, jv); f == nil || f.Kind != "fixed" || f.Fixed != "2.442" {
+		t.Errorf("Jenkins from the vendor repo: %+v, want fixed 2.442", f)
+	}
+	for _, ver := range []string{"2.426.1-1ubuntu2", "2.426.1-1+deb12u2", "2.426.1-3.el9"} {
+		jenkins.Version = ver
+		if f := FixedInFor(Asset{ID: "a", Name: "ci", OS: "Ubuntu 22.04.4 LTS", Software: []Software{jenkins}}, jv); f == nil || f.Kind != "distro" || f.Fixed != "" || f.Distro != "Ubuntu" {
+			t.Errorf("version %q: %+v, want kind distro with no number", ver, f)
 		}
+	}
+	jenkins.Version = "2.426.1"
+	// Ubuntu kernel and OpenSSH rows from the agent carry upstream numbers: the number plus the condition.
+	ub := Asset{ID: "a", Name: "byn", OS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}
+	if f := FixedInFor(ub, vuln("CVE-2026-46300")); f == nil || f.Kind != "fixed" || f.Fixed != "7.0.10" || f.Distro != "Ubuntu" {
+		t.Errorf("ubuntu kernel: %+v, want fixed 7.0.10 with distro Ubuntu", f)
+	}
+	// OpenSSH: the same entry also lists 10.6p1 as affected, so 10.6 is not clean ground to name: nothing is said.
+	if f := FixedInFor(ub, vuln("CVE-2026-123158")); f != nil {
+		t.Errorf("ubuntu OpenSSH: %+v, want nil", f)
 	}
 	// M4: the range the evidence quotes and the fix come from the same range (iPad 17.7.2, CVE-2025-24200).
 	a := dev(iPhone(vulns, "17.7.2"))

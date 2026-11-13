@@ -179,7 +179,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
 
   it('D-488: "What to do" nói phiên bản vá cho đúng thiết bị, đúng nhánh, và không bịa khi NVD không cho', () => {
     const note = (fixed_in: FindingDetail['fixed_in']) => render(<FixedInNote finding={{ asset: { name: 'FortiGate-60F' }, fixed_in } as FindingDetail} />)
-    const src = { source: 'NVD affected versions', more: 0, no_fix: 0, branches: [] }
+    const src = { source: 'NVD affected versions', more: 0, no_fix: 0, distro: '', branches: [] }
     const a = note({ ...src, kind: 'fixed', version: '7.4.1', fixed: '7.4.3' })
     expect(screen.getByText('Fixed in 7.4.3: upgrade FortiGate-60F from 7.4.1 to 7.4.3 or later.')).toBeInTheDocument()
     expect(screen.getByText(/Source: NVD affected versions/)).toBeInTheDocument()
@@ -191,10 +191,14 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     const c = note({ ...src, kind: 'branches', version: '', fixed: '', more: 3, branches: [{ branch: '7.4', fixed: '7.4.3' }, { branch: '7.2', fixed: '7.2.7' }, { branch: '', fixed: '22.4R2' }] })
     expect(screen.getByText(/7\.4 \u2192 7\.4\.3, 7\.2 \u2192 7\.2\.7, 22\.4R2, and 3 more/)).toBeInTheDocument()
     c.unmount()
-    const d = note({ ...src, kind: 'distro', version: '7.0.0', fixed: '' })
-    expect(screen.getByText(/package of your distribution: install its security updates/)).toBeInTheDocument()
+    const d = note({ ...src, kind: 'distro', version: '1.9.4-1ubuntu2', fixed: '', distro: 'Ubuntu' })
+    expect(screen.getByText(/It is a Ubuntu package: install its security updates/)).toBeInTheDocument()
     expect(screen.queryByText(/Fixed in/)).not.toBeInTheDocument()
     d.unmount()
+    const g = note({ ...src, kind: 'fixed', version: '8.2.0', fixed: '8.3.3', distro: 'Ubuntu' })
+    expect(screen.getByText('Fixed in 8.3.3: upgrade FortiGate-60F from 8.2.0 to 8.3.3 or later.')).toBeInTheDocument()
+    expect(screen.getByText(/If you installed .* from Ubuntu's packages, install its security updates instead/)).toBeInTheDocument()
+    g.unmount()
     const e = note({ ...src, kind: 'branches', version: '7.0.x', fixed: '', no_fix: 4, branches: [{ branch: '7.0', fixed: '7.0.9' }] })
     expect(screen.getByText(/cannot read the version "7\.0\.x" of FortiGate-60F.*7\.0 \u2192 7\.0\.9, NVD names no fixed release for 4 more line\(s\)/)).toBeInTheDocument()
     expect(screen.queryByText(/has no version yet/)).not.toBeInTheDocument()

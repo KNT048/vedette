@@ -27554,7 +27554,7 @@
                                 "branches",
                                 "distro"
                               ],
-                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a distribution package, no number is named"
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no number is named"
                             },
                             "version": {
                               "type": "string",
@@ -27597,6 +27597,10 @@
                               "maximum": 9007199254740991,
                               "description": "Release lines NVD gives no fixed release for (a range that ends at an affected version)"
                             },
+                            "distro": {
+                              "type": "string",
+                              "description": "\"Ubuntu\" or \"Debian\" when the device runs one and the version has no distribution marker: the page adds \"if you installed it from the distribution's packages, install its security updates instead\"; empty otherwise"
+                            },
                             "source": {
                               "type": "string",
                               "description": "Where the versions come from: \"NVD affected versions\""
@@ -27609,6 +27613,7 @@
                             "branches",
                             "more",
                             "no_fix",
+                            "distro",
                             "source"
                           ],
                           "additionalProperties": false
@@ -28600,7 +28605,7 @@
                                 "branches",
                                 "distro"
                               ],
-                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a distribution package, no number is named"
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no number is named"
                             },
                             "version": {
                               "type": "string",
@@ -28643,6 +28648,10 @@
                               "maximum": 9007199254740991,
                               "description": "Release lines NVD gives no fixed release for (a range that ends at an affected version)"
                             },
+                            "distro": {
+                              "type": "string",
+                              "description": "\"Ubuntu\" or \"Debian\" when the device runs one and the version has no distribution marker: the page adds \"if you installed it from the distribution's packages, install its security updates instead\"; empty otherwise"
+                            },
                             "source": {
                               "type": "string",
                               "description": "Where the versions come from: \"NVD affected versions\""
@@ -28655,6 +28664,7 @@
                             "branches",
                             "more",
                             "no_fix",
+                            "distro",
                             "source"
                           ],
                           "additionalProperties": false
@@ -29648,7 +29658,7 @@
                                 "branches",
                                 "distro"
                               ],
-                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a distribution package, no number is named"
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no number is named"
                             },
                             "version": {
                               "type": "string",
@@ -29691,6 +29701,10 @@
                               "maximum": 9007199254740991,
                               "description": "Release lines NVD gives no fixed release for (a range that ends at an affected version)"
                             },
+                            "distro": {
+                              "type": "string",
+                              "description": "\"Ubuntu\" or \"Debian\" when the device runs one and the version has no distribution marker: the page adds \"if you installed it from the distribution's packages, install its security updates instead\"; empty otherwise"
+                            },
                             "source": {
                               "type": "string",
                               "description": "Where the versions come from: \"NVD affected versions\""
@@ -29703,6 +29717,7 @@
                             "branches",
                             "more",
                             "no_fix",
+                            "distro",
                             "source"
                           ],
                           "additionalProperties": false
@@ -30701,7 +30716,7 @@
                                 "branches",
                                 "distro"
                               ],
-                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a distribution package, no number is named"
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no number is named"
                             },
                             "version": {
                               "type": "string",
@@ -30744,6 +30759,10 @@
                               "maximum": 9007199254740991,
                               "description": "Release lines NVD gives no fixed release for (a range that ends at an affected version)"
                             },
+                            "distro": {
+                              "type": "string",
+                              "description": "\"Ubuntu\" or \"Debian\" when the device runs one and the version has no distribution marker: the page adds \"if you installed it from the distribution's packages, install its security updates instead\"; empty otherwise"
+                            },
                             "source": {
                               "type": "string",
                               "description": "Where the versions come from: \"NVD affected versions\""
@@ -30756,6 +30775,7 @@
                             "branches",
                             "more",
                             "no_fix",
+                            "distro",
                             "source"
                           ],
                           "additionalProperties": false

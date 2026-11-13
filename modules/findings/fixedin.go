@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -11,15 +12,20 @@ import (
 type FixedIn struct {
 	// Kind is "fixed" (the device's version is inside a range that ends before Fixed, and Fixed is outside every
 	// range that applies), "up_to" (inside a range that ends at Fixed, itself affected: NVD names no fixed release),
-	// "branches" (the version is not known, or not readable) or "distro" (a distribution's package: its security
-	// updates carry the fix under their own version numbers, so no number is named).
+	// "branches" (the version is not known, or not readable) or "distro" (the version carries a distribution marker,
+	// "2.4.52-1ubuntu4": a package of the distribution, whose security updates carry the fix under their own numbers,
+	// so no number is named).
 	Kind     string        `json:"kind"`
 	Version  string        `json:"version"` // the device's version; "" when it has none (branches), the unreadable text when it has one Vedette cannot read
 	Fixed    string        `json:"fixed"`   // fixed (kind fixed), last affected (kind up_to), "" otherwise
 	Branches []FixedBranch `json:"branches"`
 	More     int           `json:"more"`   // release lines with a fix left out of Branches
 	NoFix    int           `json:"no_fix"` // release lines NVD gives no fixed release for (a range ending at an affected version)
-	Source   string        `json:"source"` // always FixedInSource
+	// Distro is the distribution ("Ubuntu", "Debian") when the device runs one and the version has no distribution
+	// marker: inventory does not say whether the software came from the distribution's packages, so the page names the
+	// upstream number and adds "if you installed it from <distro>'s packages, install its security updates instead".
+	Distro string `json:"distro"`
+	Source string `json:"source"` // always FixedInSource
 }
 
 // FixedBranch is the fix of one release line, the line named by the start of its range ("7.4" -> "7.4.3"); Branch is
@@ -128,6 +134,9 @@ func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
 		return nil
 	}
 	f.Source = FixedInSource
+	if f.Kind != "distro" {
+		f.Distro = distroName(in)
+	}
 	if f.Branches == nil {
 		f.Branches = []FixedBranch{}
 	}
@@ -149,8 +158,8 @@ func fixedForVersion(in swInfo, usable []fixedEntry, outside func(string) bool) 
 	if len(excl)+len(incl) == 0 {
 		return nil // inside no range, or inside only ranges with no end
 	}
-	if in.osVer != "" && distroVendors[in.os.vendor] {
-		return &FixedIn{Kind: "distro", Version: clean(in.ver)} // apt/dnf fix it with backports under their own numbers
+	if distroMarked(in.ver) && distroName(in) != "" {
+		return &FixedIn{Kind: "distro", Version: clean(in.ver), Distro: distroName(in)} // apt/dnf fix it with backports under their own numbers
 	}
 	asc := func(l []string) []string {
 		slices.SortStableFunc(l, func(a, b string) int {
@@ -176,9 +185,6 @@ func fixedForVersion(in swInfo, usable []fixedEntry, outside func(string) bool) 
 // fixedBranches lists the fix of each release line (the line named by its range's start), for a device whose version
 // is missing or unreadable.
 func fixedBranches(in swInfo, usable []fixedEntry, outside func(string) bool) *FixedIn {
-	if in.osVer != "" && distroVendors[in.os.vendor] {
-		return nil
-	}
 	type line struct{ label, fixed string }
 	var fixes []line
 	noFix := map[string]bool{}
@@ -211,7 +217,7 @@ func fixedBranches(in swInfo, usable []fixedEntry, outside func(string) bool) *F
 	}
 	for _, l := range fixes {
 		if k := len(all) - 1; k >= 0 && all[k].Fixed == clean(l.fixed) {
-			if c, ok := compareBound(l.label, all[k].Branch); ok && c < 0 || all[k].Branch != "" && l.label == "" {
+			if c, ok := compareBound(strings.ReplaceAll(l.label, ".x", ".0"), strings.ReplaceAll(all[k].Branch, ".x", ".0")); ok && c < 0 || all[k].Branch != "" && l.label == "" {
 				all[k].Branch = l.label
 			}
 			continue
@@ -236,6 +242,25 @@ func fixedBranches(in swInfo, usable []fixedEntry, outside func(string) bool) *F
 	return f
 }
 
+// distroName is the distribution the device runs ("Ubuntu", "Debian"), "" when it runs none we know.
+func distroName(in swInfo) string {
+	if in.osVer == "" {
+		return ""
+	}
+	switch in.os.vendor {
+	case "canonical":
+		return "Ubuntu"
+	case "debian":
+		return "Debian"
+	}
+	return ""
+}
+
+var distroMark = regexp.MustCompile(`(?i)ubuntu|[+~.-]deb\d|\.(el|fc)\d`)
+
+// distroMarked says the version string is a distribution package's ("2.4.52-1ubuntu4", "1.1.1n-0+deb11u5", "1.2-3.el9").
+func distroMarked(v string) bool { return distroMark.MatchString(v) }
+
 // lineOf names the release line of a range by its start ("7.0.0" -> "7.0"), "" when it has none or it is not a plain
 // dotted version.
 func lineOf(r VersionRange) string {
@@ -251,6 +276,9 @@ func lineOf(r VersionRange) string {
 		if p == "" || strings.Trim(p, "0123456789") != "" {
 			return ""
 		}
+	}
+	if len(parts) == 2 && parts[1] == "0" {
+		return parts[0] + ".x" // "17.0" is the whole 17 line, not release 17.0
 	}
 	return parts[0] + "." + parts[1]
 }

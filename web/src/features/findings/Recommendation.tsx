@@ -59,7 +59,7 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
   let text: string
   if (f.kind === 'fixed') text = t('rec.fixedIn', { fixed: f.fixed, device, version: f.version })
   else if (f.kind === 'up_to') text = t('rec.fixedUpTo', { fixed: f.fixed, device, version: f.version })
-  else if (f.kind === 'distro') text = t('rec.fixedDistro', { device, version: f.version })
+  else if (f.kind === 'distro') text = t('rec.fixedDistro', { device, version: f.version, distro: f.distro })
   else {
     const list = f.branches.map((b) => (b.branch ? t('rec.fixedBranch', { branch: b.branch, fixed: b.fixed }) : t('rec.fixedBranchPlain', { fixed: b.fixed })))
     if (f.more > 0) list.push(t('rec.fixedMore', { count: f.more }))
@@ -69,6 +69,7 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
   return (
     <div className="grid max-w-3xl gap-1" data-testid="fixed-in">
       <p className="text-sm font-medium">{text}</p>
+      {f.distro && f.kind !== 'distro' ? <p className="text-[13px]">{t('rec.fixedIfDistro', { distro: f.distro, product: finding.kev?.display || t('rec.theSoftware') })}</p> : null}
       <p className="text-[12px] text-muted">{t('rec.fixedSource')}</p>
     </div>
   )

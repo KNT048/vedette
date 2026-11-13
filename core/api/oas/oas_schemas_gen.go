@@ -55588,12 +55588,17 @@ func (s *FindingsGetFindingsIDOKEvidence) SetTemplate(val OptString) {
 type FindingsGetFindingsIDOKFixedIn struct {
 	// At most 5, newest first.
 	Branches []FindingsGetFindingsIDOKFixedInBranchesItem `json:"branches"`
+	// "Ubuntu" or "Debian" when the device runs one and the version has no distribution marker: the page
+	// adds "if you installed it from the distribution's packages, install its security updates instead";
+	// empty otherwise.
+	Distro string `json:"distro"`
 	// The fixed release (fixed), the last affected release (up_to); empty for branches.
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = a distribution package, no number is named.
+	// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+	// number is named.
 	Kind FindingsGetFindingsIDOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -55608,6 +55613,11 @@ type FindingsGetFindingsIDOKFixedIn struct {
 // GetBranches returns the value of Branches.
 func (s *FindingsGetFindingsIDOKFixedIn) GetBranches() []FindingsGetFindingsIDOKFixedInBranchesItem {
 	return s.Branches
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsGetFindingsIDOKFixedIn) GetDistro() string {
+	return s.Distro
 }
 
 // GetFixed returns the value of Fixed.
@@ -55643,6 +55653,11 @@ func (s *FindingsGetFindingsIDOKFixedIn) GetVersion() string {
 // SetBranches sets the value of Branches.
 func (s *FindingsGetFindingsIDOKFixedIn) SetBranches(val []FindingsGetFindingsIDOKFixedInBranchesItem) {
 	s.Branches = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsGetFindingsIDOKFixedIn) SetDistro(val string) {
+	s.Distro = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -55704,7 +55719,8 @@ func (s *FindingsGetFindingsIDOKFixedInBranchesItem) SetFixed(val string) {
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 // named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = a distribution package, no number is named.
+// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+// number is named.
 type FindingsGetFindingsIDOKFixedInKind string
 
 const (
@@ -58938,12 +58954,17 @@ func (s *FindingsPostFindingsIDAiOKEvidence) SetTemplate(val OptString) {
 type FindingsPostFindingsIDAiOKFixedIn struct {
 	// At most 5, newest first.
 	Branches []FindingsPostFindingsIDAiOKFixedInBranchesItem `json:"branches"`
+	// "Ubuntu" or "Debian" when the device runs one and the version has no distribution marker: the page
+	// adds "if you installed it from the distribution's packages, install its security updates instead";
+	// empty otherwise.
+	Distro string `json:"distro"`
 	// The fixed release (fixed), the last affected release (up_to); empty for branches.
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = a distribution package, no number is named.
+	// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+	// number is named.
 	Kind FindingsPostFindingsIDAiOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -58958,6 +58979,11 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 // GetBranches returns the value of Branches.
 func (s *FindingsPostFindingsIDAiOKFixedIn) GetBranches() []FindingsPostFindingsIDAiOKFixedInBranchesItem {
 	return s.Branches
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetDistro() string {
+	return s.Distro
 }
 
 // GetFixed returns the value of Fixed.
@@ -58993,6 +59019,11 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) GetVersion() string {
 // SetBranches sets the value of Branches.
 func (s *FindingsPostFindingsIDAiOKFixedIn) SetBranches(val []FindingsPostFindingsIDAiOKFixedInBranchesItem) {
 	s.Branches = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetDistro(val string) {
+	s.Distro = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -59054,7 +59085,8 @@ func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) SetFixed(val string) {
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 // named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = a distribution package, no number is named.
+// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+// number is named.
 type FindingsPostFindingsIDAiOKFixedInKind string
 
 const (
@@ -61272,12 +61304,17 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) SetTemplate(val OptString) {
 type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	// At most 5, newest first.
 	Branches []FindingsPostFindingsIDAppliedOKFixedInBranchesItem `json:"branches"`
+	// "Ubuntu" or "Debian" when the device runs one and the version has no distribution marker: the page
+	// adds "if you installed it from the distribution's packages, install its security updates instead";
+	// empty otherwise.
+	Distro string `json:"distro"`
 	// The fixed release (fixed), the last affected release (up_to); empty for branches.
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = a distribution package, no number is named.
+	// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+	// number is named.
 	Kind FindingsPostFindingsIDAppliedOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -61292,6 +61329,11 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 // GetBranches returns the value of Branches.
 func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetBranches() []FindingsPostFindingsIDAppliedOKFixedInBranchesItem {
 	return s.Branches
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetDistro() string {
+	return s.Distro
 }
 
 // GetFixed returns the value of Fixed.
@@ -61327,6 +61369,11 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetVersion() string {
 // SetBranches sets the value of Branches.
 func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetBranches(val []FindingsPostFindingsIDAppliedOKFixedInBranchesItem) {
 	s.Branches = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetDistro(val string) {
+	s.Distro = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -61388,7 +61435,8 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) SetFixed(val string
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 // named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = a distribution package, no number is named.
+// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+// number is named.
 type FindingsPostFindingsIDAppliedOKFixedInKind string
 
 const (
@@ -63627,12 +63675,17 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) SetTemplate(val OptString) {
 type FindingsPostFindingsIDStatusOKFixedIn struct {
 	// At most 5, newest first.
 	Branches []FindingsPostFindingsIDStatusOKFixedInBranchesItem `json:"branches"`
+	// "Ubuntu" or "Debian" when the device runs one and the version has no distribution marker: the page
+	// adds "if you installed it from the distribution's packages, install its security updates instead";
+	// empty otherwise.
+	Distro string `json:"distro"`
 	// The fixed release (fixed), the last affected release (up_to); empty for branches.
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = a distribution package, no number is named.
+	// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+	// number is named.
 	Kind FindingsPostFindingsIDStatusOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -63647,6 +63700,11 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 // GetBranches returns the value of Branches.
 func (s *FindingsPostFindingsIDStatusOKFixedIn) GetBranches() []FindingsPostFindingsIDStatusOKFixedInBranchesItem {
 	return s.Branches
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetDistro() string {
+	return s.Distro
 }
 
 // GetFixed returns the value of Fixed.
@@ -63682,6 +63740,11 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) GetVersion() string {
 // SetBranches sets the value of Branches.
 func (s *FindingsPostFindingsIDStatusOKFixedIn) SetBranches(val []FindingsPostFindingsIDStatusOKFixedInBranchesItem) {
 	s.Branches = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetDistro(val string) {
+	s.Distro = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -63743,7 +63806,8 @@ func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) SetFixed(val string)
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 // named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = a distribution package, no number is named.
+// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+// number is named.
 type FindingsPostFindingsIDStatusOKFixedInKind string
 
 const (

@@ -582,3 +582,31 @@ func TestExpectedMACsAndSince(t *testing.T) {
 		t.Fatalf("since %v (now %v)", since, e.now)
 	}
 }
+
+// W6-4: a scan hit the host's attempts made first says the source may be forged; once the same source completes a real
+// connection to a Trap IP in that window, the note goes (its address answered a handshake, so it is not forged).
+func TestARealConnectionDropsTheForgedNote(t *testing.T) {
+	t.Parallel()
+	var list []honeypot.Touch
+	e := newEnv(t, func(e *env) { e.cfg.Host = touchHost{fakeHost: e.host, list: &list} })
+	e.now = t0.Add(5 * time.Minute)
+	e.setup()
+	e.addTrapIP("NAS-ARCHIVE", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	list = []honeypot.Touch{{Src: addr("192.168.10.107"), Dst: addr("192.168.10.240"), At: e.now.Add(-20 * time.Second)},
+		{Src: addr("192.168.10.107"), Dst: addr("192.168.10.241"), At: e.now.Add(-10 * time.Second)}}
+	if err := e.svc.PollTouches(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if scans := hitsOfKind(t, e, honeypot.KindScan); len(scans) != 1 || !strings.Contains(scans[0].Excerpt, "may be forged") {
+		t.Fatalf("scan hits from attempts: %+v", scans)
+	}
+	e.appendLog(sshNew("192.168.10.107", 50001, e.now.Add(-5*time.Second)).json())
+	e.poll()
+	scans := hitsOfKind(t, e, honeypot.KindScan)
+	if len(scans) != 1 || strings.Contains(scans[0].Excerpt, "forged") || !strings.Contains(scans[0].Excerpt, "Touched FILESRV-OLD") {
+		t.Fatalf("after a real connection: %+v", scans)
+	}
+}

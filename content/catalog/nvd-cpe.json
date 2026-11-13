@@ -2,6 +2,7 @@
  "_about": "D-500: the NVD CPE products (vendor:product) that name the same thing as a product of the inventory (its vendor|product, as the catalog and the osquery package map store it). Without this the version of an iPhone (Apple|iOS = apple:iphone_os) is never compared with the affected ranges. Only products with one version scheme are listed; a product NVD renamed lists its old name too (apple:mac_os_x before apple:macos, pulsesecure:pulse_connect_secure before ivanti:connect_secure). A trailing * matches a prefix. Read by modules/findings (aliases.go); checked by TestAliases_DataIsValid.",
  "Apple|iOS": ["apple:iphone_os", "apple:ipados"],
  "Apple|macOS": ["apple:macos", "apple:mac_os_x"],
+ "PHP Group|PHP": ["php:php"],
  "WatchGuard|Firebox": ["watchguard:fireware"],
  "Juniper|Junos OS": ["juniper:junos"],
  "Ivanti|Connect Secure": ["ivanti:connect_secure", "pulsesecure:pulse_connect_secure"],

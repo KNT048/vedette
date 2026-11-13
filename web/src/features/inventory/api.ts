@@ -51,6 +51,7 @@ export function useDeviceAction(id: string) {
     patch: useMutation({ mutationFn: (b: { kind?: AssetKind; fragile?: boolean; regular_scan?: RegularScan; notes?: string }) => api.patch(base, b), onSuccess: inv }),
     addSoftware: useMutation({ mutationFn: (b: Omit<AddDeviceInput, 'name' | 'ip'>) => api.post<{ kev_cves: number }>(`${base}/software`, b), onSuccess: inv }),
     removeSoftware: useMutation({ mutationFn: (sid: string) => api.del(`${base}/software/${encodeURIComponent(sid)}`), onSuccess: inv }),
+    setVersion: useMutation({ mutationFn: (b: { sid: string; version: string }) => api.patch(`${base}/software/${encodeURIComponent(b.sid)}`, { version: b.version }), onSuccess: inv }),
   }
 }
 export function useNotifyNew() {

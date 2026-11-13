@@ -302,7 +302,7 @@
       "file": "A .docx or .xlsx for a file share. It calls home when opened.",
       "credential": "A user and password for a password manager or a script. Any login attempt with them alerts.",
       "url": "A web link. Opening it alerts.",
-      "dns": "A hostname. Resolving it alerts."
+      "dns": "A hostname. It cannot alert yet: the box does not answer DNS lookups, so nothing records a lookup of this name."
     },
     "form": {
       "type": "Token type",
@@ -353,13 +353,13 @@
       "file": "someone opens the file in Word or Excel and it loads a hidden image from the box.",
       "credential": "anyone tries to sign in with this user name, from any machine.",
       "url": "anyone opens the link in a browser or a link scanner fetches it.",
-      "dns": "any machine looks the name up, for example a script or a malware config using it."
+      "dns": "nothing yet. The box does not answer DNS lookups, so this name cannot alert, even if your DNS server forwards vedette.internal to the box. Use a URL token or fake credentials for an alert you can count on."
     },
     "how": {
       "file": "Download {{value}} from this page and copy it to the share. In this preview there is no download: the real box generates the file with its call-home address inside, and you copy it to the share like any other document.",
       "credential": "Save the user and password as an entry in a password manager or a script config. Do not create the account in Active Directory: the box alerts on the failed login.",
-      "url": "Paste the link into a wiki page, a document or a note where an intruder reads about admin systems.",
-      "dns": "Use {{value}} as a server name in a config or script. Forward the vedette.internal zone to the box in your DNS server so lookups reach it."
+      "url": "Paste the link into a wiki page, a document or a note where an intruder reads about admin systems. Whoever opens it sees a plain \"404 page not found\", like a dead link, and the box records who opened it.",
+      "dns": "Do not plant {{value}} yet: a DNS token needs a DNS server on the box that answers the vedette.internal zone, and the box has none yet. Delete this token and use a URL token instead."
     }
   },
   "notHere": {
@@ -394,7 +394,7 @@
       },
       "documents": {
         "move": "Opening or following bait",
-        "how": "Decoy files, URL tokens and DNS tokens alert when touched."
+        "how": "Decoy files and URL tokens alert when opened."
       },
       "outbound": {
         "move": "Talking to known-bad addresses",

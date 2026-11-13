@@ -296,14 +296,23 @@ func (s *Service) hitEvent(ctx context.Context, data any) error {
 	if label == "" {
 		label = "honeypot"
 	}
+	title := src + " touched the " + label + " trap"
+	what := src + " connected to the trap " + label + ". Nobody uses this trap, so it usually means a machine is infected or someone is probing the network."
+	if e.Kind == "token" { // a honey token: the label is "URL token <name>", "File token <name>", ... (honeypot tokenLabel)
+		verb := "used"
+		if strings.HasPrefix(label, "URL token ") || strings.HasPrefix(label, "File token ") {
+			verb = "opened"
+		}
+		title = src + " " + verb + " the " + label
+		what = src + " " + verb + " the " + label + ". It is bait nobody has a reason to touch, so someone is reading where it was planted, or a machine there is infected."
+	}
 	var devs []Device // W1-13: the incident names the source device the inventory knew when the hit was stored
 	if id, name := clip(strings.TrimSpace(e.SrcAssetID), 64), clip(strings.TrimSpace(e.SrcName), 120); id != "" && name != "" {
 		devs = []Device{{ID: id, Name: name}}
 	}
 	at, _ := time.Parse(time.RFC3339, e.TS) // zero = now
 	in := IncidentInput{Kind: IncidentTrap, Source: src, Target: label + "|" + e.Service,
-		Title: src + " touched the " + label + " trap", Severity: Critical,
-		What:   src + " connected to the trap " + label + ". Nobody uses this trap, so it usually means a machine is infected or someone is probing the network.",
+		Title: title, Severity: Critical, What: what,
 		Action: "Take the machine off the network (unplug the cable, turn off Wi-Fi), then ask its user what they were doing. Do not change passwords from that machine.",
 		Link:   "/honeypot/hits/" + e.ID, Devices: devs, At: at}
 	if e.Kind == "scan" { // W1-13: one High incident per scanning source while it is open; the touches themselves stay Critical

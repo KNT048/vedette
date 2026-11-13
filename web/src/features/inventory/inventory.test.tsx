@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
@@ -56,13 +56,13 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await expectNoA11yViolations()
   })
 
-  it('filters Not approved / Fragile / Added by hand', async () => {
+  it('filters Approved in the last 24 h / Added by hand / Fragile (D-471, the filter lives in ?show=)', async () => {
     const user = userEvent.setup()
     renderApp('/devices')
     await deviceTable()
-    await user.click(screen.getByRole('button', { name: /^Not approved \(2\)$/ }))
+    await user.click(screen.getByRole('button', { name: /^Approved in the last 24 h \(0\)$/ }))
     let table = screen.getByRole('table', { name: DEVICE_TABLE })
-    expect(within(table).getAllByRole('row')).toHaveLength(3) // header + 2 devices
+    expect(within(table).getByText(/No device was approved in the last 24 hours/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /^Added by hand \(0\)$/ }))
     table = screen.getByRole('table', { name: DEVICE_TABLE })
     expect(within(table).getByText(/No device added by hand yet/)).toBeInTheDocument()
@@ -193,14 +193,36 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   })
 
   it('the viewer role cannot add; the operator role can', async () => {
-    renderApp('/devices', { role: 'viewer' })
-    await deviceTable()
-    expect(screen.getByRole('button', { name: 'Add a device' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Import CSV' })).toBeDisabled()
+    renderApp('/devices?tab=review', { role: 'viewer' })
+    await screen.findByText('2 new devices not approved', undefined, T)
+    expect(screen.getAllByRole('button', { name: 'Add a device' })[0]).toBeDisabled()
     expect(screen.queryByRole('link', { name: 'Scope, sensors and agents' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /sensors/ })).not.toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Approve' })[0]).toBeDisabled()
     expect(screen.getByRole('switch', { name: 'Notify me about new devices' })).toBeDisabled()
+  })
+
+  it('D-471: "Add devices" lists the five ways that exist, each with when to use it; setup links are for an admin', async () => {
+    enableModule('agent-intake', true)
+    renderApp('/devices?tab=add', { role: 'viewer' })
+    const ways = await screen.findByRole('region', { name: 'Add devices' }, T)
+    for (const title of ['Found on the network (automatic)', 'Add by hand', 'Import a CSV file', 'osquery agent on servers', 'Connect Wazuh']) {
+      expect(within(ways).getByRole('heading', { level: 2, name: title })).toBeInTheDocument()
+    }
+    expect(within(ways).queryByText(/SSH|API key/)).not.toBeInTheDocument()
+    expect(within(ways).getByRole('button', { name: 'Import CSV' })).toBeDisabled()
+    expect(within(ways).queryByRole('link')).not.toBeInTheDocument()
+    expect(within(ways).getAllByText(/An administrator sets this up/).length).toBe(3)
+  })
+
+  it('D-471: an admin\'s "Add devices" links osquery and Wazuh to the agents section of the setup page', async () => {
+    enableModule('agent-intake', true)
+    renderApp('/devices?tab=add')
+    const ways = await screen.findByRole('region', { name: 'Add devices' }, T)
+    expect(within(ways).getByRole('link', { name: 'Download osquery and create a token' })).toHaveAttribute('href', '/devices/setup#agents')
+    expect(within(ways).getByRole('link', { name: 'Connect Wazuh' })).toHaveAttribute('href', '/devices/setup#agents')
+    expect(within(ways).getByRole('link', { name: 'Set network ranges and sensors' })).toHaveAttribute('href', '/devices/setup')
+    await expectNoA11yViolations()
   })
 
   it('the operator role gets the add button enabled and the setup link hidden (admin only)', async () => {
@@ -229,21 +251,38 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
 
   it('S-INV-3: approve a pending device', async () => {
     const user = userEvent.setup()
-    renderApp('/devices')
+    renderApp('/devices?tab=review')
     await screen.findByText('2 new devices not approved', undefined, T)
+    const tab = screen.getByRole('tab', { name: /To review 2 waiting for your approval/ })
+    expect(tab).toHaveAttribute('aria-selected', 'true')
+    const pending = assetsStore.get().filter((a) => !a.approved).map((a) => a.id)
     await user.click(screen.getAllByRole('button', { name: 'Approve' })[0]!)
-    expect(await screen.findByText(/Approved /, undefined, T)).toBeInTheDocument()
+    // the toast's title (its description also says "Approved in the last 24 h"); other tests leave their toasts behind
+    const toast = (await screen.findByText(/^Approved .+\.$/, undefined, T)).closest<HTMLElement>('[data-sonner-toast]')!
     expect(assetsStore.get().filter((a) => !a.approved)).toHaveLength(1)
     expect(await screen.findByRole('heading', { level: 1, name: /1 not yet approved/ }, T)).toBeInTheDocument()
+    // D-471: the toast says where to find it again and opens the device
+    expect(within(toast).getByText(/Find it later under All devices → Approved in the last 24 h/)).toBeInTheDocument()
+    const approved = pending.find((id) => find(id).approved)!
+    fireEvent.click(within(toast).getByRole('button', { name: 'Open device' })) // no pointer events: sonner's swipe handler needs setPointerCapture, which jsdom lacks
+    expect(await screen.findByRole('link', { name: 'Device list' }, T)).toHaveAttribute('href', '/devices')
+    // ...and it is found again under All devices → Approved in the last 24 h (the KPI cell links there)
+    renderApp('/devices?tab=all&show=recent')
+    const table = await deviceTable()
+    const rows = within(table).getAllByRole('row')
+    expect(rows).toHaveLength(2) // header + the device just approved
+    expect(within(rows[1]!).getByRole('link')).toHaveAttribute('href', `/devices/${approved}`)
+    expect(screen.getByRole('link', { name: /1 approved in the last 24 h/ })).toHaveAttribute('href', '/devices?tab=all&show=recent')
+    expect(screen.getByRole('button', { name: 'Approved in the last 24 h (1)', pressed: true })).toBeInTheDocument()
   })
 
   it('S-INV-3: mark unknown, then remove the mark', async () => {
     const user = userEvent.setup()
-    renderApp('/devices')
+    renderApp('/devices?tab=review')
     await screen.findByText('2 new devices not approved', undefined, T)
     await user.click(screen.getAllByRole('button', { name: 'Mark unknown' })[0]!)
     expect(await screen.findByText(/as unknown\./, undefined, T)).toBeInTheDocument()
-    expect((await screen.findAllByText('Marked unknown', undefined, T)).length).toBeGreaterThan(1) // chip in the table + chip in the pending list
+    expect((await screen.findAllByText('Marked unknown', undefined, T)).length).toBeGreaterThan(0) // the chip in the To review list
     expect(find('a-unk01').approved).toBe(false)
     await user.click((await screen.findAllByRole('button', { name: 'Remove unknown mark' }, T))[0]!)
     expect(await screen.findByText(/Removed the unknown mark from/, undefined, T)).toBeInTheDocument()
@@ -252,7 +291,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   it('S-INV-3: removing a pending device asks for confirmation', async () => {
     const user = userEvent.setup()
     const before = assetsStore.get().length
-    renderApp('/devices')
+    renderApp('/devices?tab=review')
     await screen.findByText('2 new devices not approved', undefined, T)
     await user.click(screen.getAllByRole('button', { name: 'Remove' })[0]!)
     expect(assetsStore.get()).toHaveLength(before) // nothing removed before confirming
@@ -285,15 +324,16 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
 
   it('the "Notify me about new devices" switch saves, and says so when the Notifications module is off', async () => {
     const user = userEvent.setup()
-    renderApp('/devices')
+    renderApp('/devices?tab=review')
     const sw = await screen.findByRole('switch', { name: 'Notify me about new devices' }, T)
     expect(sw).toBeChecked()
     expect(screen.getByText(/Notifications go through the channels/)).toBeInTheDocument()
     await user.click(sw)
     await waitFor(() => expect(screen.getByRole('switch', { name: 'Notify me about new devices' })).not.toBeChecked(), T)
     await user.click(screen.getByRole('switch', { name: 'Notify me about new devices' }))
+    await waitFor(() => expect(screen.getByRole('switch', { name: 'Notify me about new devices' })).toBeChecked(), T)
     enableModule('notify', false)
-    renderApp('/devices')
+    renderApp('/devices?tab=review')
     expect((await screen.findAllByText(/The Notifications module is off/, undefined, T)).length).toBeGreaterThan(0)
   })
 
@@ -354,8 +394,8 @@ describe('inventory: CSV (S-INV-2)', () => {
   })
 
   async function importFile(user: ReturnType<typeof userEvent.setup>, content: string, name = 'devices.csv') {
-    renderApp('/devices')
-    await deviceTable()
+    renderApp('/devices?tab=add')
+    await screen.findByRole('region', { name: 'Add devices' }, T)
     await user.click(screen.getByRole('button', { name: 'Import CSV' }))
     const input = await screen.findByLabelText('Choose a CSV file', undefined, T)
     await user.upload(input, new File([content], name, { type: 'text/csv' }))
@@ -1888,5 +1928,52 @@ describe('inventory: merging observations follows the source priority (DATA_MODE
     const cur = (r.json!.observations as { field: string; source: string; current: boolean }[]).filter((o) => o.field === 'os' && o.current)
     expect(cur).toHaveLength(1)
     expect(cur[0]!.source).toBe(a!.os!.source)
+  })
+})
+
+describe('inventory: D-471 naming, versions, Software tab (S-INV-2)', () => {
+  const addOffice = async (body: Record<string, string> = {}) => {
+    asAdmin()
+    const r = await call('POST', '/devices', { vendor: 'Microsoft', product: 'Office', ...body })
+    expect(r.status).toBe(201)
+    return r.json!.id as string
+  }
+
+  it('a product added by hand with no name and no IP reads "<product> (no device)" on Devices and in the Software tab', async () => {
+    const user = userEvent.setup()
+    await addOffice()
+    renderApp('/devices')
+    const table = await deviceTable()
+    await user.type(screen.getByRole('textbox', { name: /Search by name, IP/ }), 'office')
+    expect(within(table).getByRole('link', { name: 'Microsoft Office (no device)' })).toBeInTheDocument()
+    renderApp('/devices?tab=software')
+    const sw = await screen.findByRole('table', { name: 'Software on all devices' }, T)
+    await user.type(screen.getByRole('textbox', { name: /Search by software, version or device/ }), 'office')
+    expect(within(sw).getByRole('link', { name: 'Microsoft Office (no device)' })).toBeInTheDocument()
+  })
+
+  it('a typed version that differs from the agent\'s shows the hint, and Use sets it (edit version)', async () => {
+    const user = userEvent.setup()
+    const id = await addOffice({ version: '2019', ip: '192.168.10.240' })
+    assetsStore.update((l) => l.map((a) => (a.id === id ? { ...a, software: [...a.software, { ...a.software[0]!, id: 'sw-agent-office', version: '2021', source: 'agent' as const, confidence: 0.95 }] } : a)))
+    renderApp(`/devices/${id}`)
+    expect(await screen.findByText('The device reports 2021 (Agent).', undefined, T)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Use version 2021 for Microsoft Office' }))
+    await waitFor(() => expect(find(id).software.find((s) => s.source === 'manual')!.version).toBe('2021'), T)
+    await waitFor(() => expect(screen.queryByText(/The device reports/)).not.toBeInTheDocument(), T)
+    expect(auditStore.get().some((e) => e.action === 'inventory.set_software_version')).toBe(true)
+  })
+
+  it('PATCH software version: manual only, version checked, empty removes it', async () => {
+    const id = await addOffice({ version: '2019' })
+    const sid = find(id).software[0]!.id
+    expect((await call('PATCH', `/devices/${id}/software/${sid}`, { version: '<b>' })).json!.error.code).toBe('bad_version')
+    expect((await call('PATCH', `/devices/${id}/software/${sid}`, { version: '2024' })).status).toBe(200)
+    expect(find(id).software[0]!.version).toBe('2024')
+    expect((await call('PATCH', `/devices/${id}/software/${sid}`, { version: '' })).status).toBe(200)
+    expect(find(id).software[0]!.version).toBeNull()
+    const agent = assetsStore.get().find((a) => a.software.some((s) => s.source !== 'manual'))!
+    const asid = agent.software.find((s) => s.source !== 'manual')!.id
+    expect((await call('PATCH', `/devices/${agent.id}/software/${asid}`, { version: '1' })).json!.error.code).toBe('not_manual')
   })
 })

@@ -56,6 +56,7 @@ type FindingRef struct {
 	AssetID string
 	CVE     string
 	Status  string // suspected, confirmed, mitigated, patched, false_positive, not_relevant
+	Basis   string // how it was matched: scan, version, product ("" = unknown)
 }
 
 // Evidence is what a confirming scan hands the findings module (S-SCAN-3): cleaned and capped already.

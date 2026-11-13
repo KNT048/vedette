@@ -146,6 +146,7 @@
   "PATCH /core/users/{id}": "core",
   "PATCH /honeypot/trap-ips/{id}": "honeypot",
   "PATCH /inventory/devices/{id}": "inventory",
+  "PATCH /inventory/devices/{id}/software/{sid}": "inventory",
   "PATCH /inventory/sensors/{id}": "sensor-passive",
   "PATCH /modules/{id}": "core",
   "PATCH /notify/incidents/{id}": "notify",

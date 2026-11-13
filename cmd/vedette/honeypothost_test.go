@@ -699,7 +699,9 @@ func TestHoneypotHostSendsNoPortsToAnOlderHost(t *testing.T) {
 // noInfoHost is a host whose GET /v1/info fails (not answering it yet).
 type noInfoHost struct{ hostAPI }
 
-func (noInfoHost) Info(context.Context) (api.Info, error) { return api.Info{}, errors.New("info: no answer") }
+func (noInfoHost) Info(context.Context) (api.Info, error) {
+	return api.Info{}, errors.New("info: no answer")
+}
 
 // B2 review: while the host's command list was never read, a Trap IP is not added without its ports (it would answer
 // every running service until the next Apply): the outcome is unknown, not a refusal, and nothing is asked of the host.

@@ -523,6 +523,17 @@ type check struct {
 	tpls    []pack.Template
 }
 
+// suspectedNote says how a finding without a template was matched, so a product-only match is not read as a version check.
+func suspectedNote(basis string) string {
+	switch basis {
+	case "version":
+		return "still suspected: the device's version is in the affected range."
+	case "product":
+		return "still suspected from the product alone; no version was checked."
+	}
+	return "still suspected; see the finding for how it was matched."
+}
+
 // plan chooses what a device is checked for: each CVE of its findings that has a template in the pack (at most
 // nucleiargv.MaxTemplates templates); a CVE without a template is a no_template row and sends nothing (INV-8).
 func (s *Service) plan(ctx context.Context, d Device, onlyCVEs []string) (checks []check, rows []RunRow, err error) {
@@ -545,7 +556,7 @@ func (s *Service) plan(ctx context.Context, d Device, onlyCVEs []string) (checks
 		seen[f.CVE] = true
 		tpls := s.cfg.Pack.ForCVE(f.CVE)
 		if len(tpls) == 0 {
-			rows = append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_template", FindingID: ptr(f.ID), Note: f.CVE + ": no safe scan template yet, still suspected by version."})
+			rows = append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_template", FindingID: ptr(f.ID), Note: f.CVE + ": no safe scan template yet, " + suspectedNote(f.Basis)})
 			continue
 		}
 		if n+len(tpls) > nucleiargv.MaxTemplates {

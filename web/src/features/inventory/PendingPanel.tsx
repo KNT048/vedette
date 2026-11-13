@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,7 @@ function PendingItem({ d }: { d: DeviceRow }) {
   const { t } = useTranslation('inventory')
   const can = useCan('operator')
   const act = useDeviceAction(d.id)
+  const navigate = useNavigate()
   const [del, setDel] = useState(false)
   const name = nameOf(d, t(`kind.${d.kind}`))
   const title = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
@@ -34,8 +35,9 @@ function PendingItem({ d }: { d: DeviceRow }) {
           {[d.ip, d.mac, t(`kind.${d.kind}`)].filter((x) => x && x !== '—').join(', ')}. {t('pending.firstSeen', { when: fmtRelative(d.first_seen) })}
         </p>
       </div>
+      {/* mutateAsync: the row leaves this list when the list reloads, which would drop a mutate() callback and its toast (D-471: the toast links the device). */}
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="primary" disabled={!can || busy} title={title} onClick={() => act.approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name })), onError: fail })}>{t('pending.approve')}</Button>
+        <Button size="sm" variant="primary" disabled={!can || busy} title={title} onClick={() => void act.approve.mutateAsync().then(() => toast.success(t('pending.approved', { name }), { description: t('pending.findLater'), action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${d.id}`) } }), fail)}>{t('pending.approve')}</Button>
         <Button size="sm" disabled={!can || busy} title={title} onClick={() => act.suspicious.mutate(!d.suspicious, { onSuccess: () => toast.success(d.suspicious ? t('pending.unmarked', { name }) : t('pending.marked', { name })), onError: fail })}>
           {d.suspicious ? t('pending.unmark') : t('pending.mark')}
         </Button>

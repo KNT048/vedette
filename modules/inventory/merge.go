@@ -1,6 +1,9 @@
 package inventory
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
 // sourceRank orders the sources (DATA_MODEL 5.1 (2)): manual > agent > snmp > nmap = scan > passive.
 // An unknown source ranks lowest; the database refuses one anyway.
@@ -30,9 +33,19 @@ type obs struct {
 	seenAt     string // fixed-width UTC ISO-8601: lexical order is time order
 }
 
+// uuidName is a host name that is only an identifier: a UUID (a Mac's mDNS service name
+// "fbaf5191-cc17-4626-a85b-812bc3d7b83b") or 32 hex digits. A person cannot tell the device from it.
+var uuidName = regexp.MustCompile(`^(?i:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{32})$`)
+
 // better reports whether a wins over b: source rank, then higher confidence, then newer seen_at, then the
-// smaller id, so the result is deterministic (DATA_MODEL 5.1 (2)).
+// smaller id, so the result is deterministic (DATA_MODEL 5.1 (2)). One exception before all that (M5-186, walk 1
+// W1-10): of two host names a readable one beats a UUID-looking one from any source but a person's.
 func better(a, b obs) bool {
+	if a.field == "hostname" && a.source != "manual" && b.source != "manual" {
+		if ua, ub := uuidName.MatchString(a.value), uuidName.MatchString(b.value); ua != ub {
+			return ub
+		}
+	}
 	if ra, rb := sourceRank(a.source), sourceRank(b.source); ra != rb {
 		return ra > rb
 	}

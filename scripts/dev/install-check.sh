@@ -322,8 +322,12 @@ EOT
 		fwd_table=1
 	fi
 	x 'dpkg -s ufw >/dev/null 2>&1 && dpkg -s iptables >/dev/null 2>&1' || { tail -20 "$work/un2.log" >&2; fail "H2: the uninstall removed ufw or the iptables it needs"; }
-	x '! dpkg -s podman >/dev/null 2>&1 && ! dpkg -s vedette-host >/dev/null 2>&1' || fail "H2: the uninstall left podman or vedette-host"
-	ok "H2: ufw (needs iptables) was installed after ours; --uninstall kept ufw and iptables and removed podman and vedette-host"
+	x '! dpkg -s vedette-host >/dev/null 2>&1' || fail "H2: the uninstall left vedette-host"
+	# W4-1, D-508: the image case left localhost/other-app in podman, which is not Vedette's: podman, its packages and its storage stay
+	# and the summary says why (the first uninstall above, with nothing else in podman, proved the purge of podman and its storage)
+	x 'dpkg -s podman >/dev/null 2>&1 && podman image exists localhost/other-app:1' || { tail -20 "$work/un2.log" >&2; fail "W4-1: the uninstall removed podman or the image localhost/other-app that is not Vedette's"; }
+	grep -qF "kept podman, the packages it runs with and /var/lib/containers: 1 image that is not Vedette's uses it (localhost/other-app)" "$work/un2.log" || { tail -20 "$work/un2.log" >&2; fail "W4-1: the uninstall did not say it kept podman for localhost/other-app"; }
+	ok "H2: ufw (needs iptables) was installed after ours; --uninstall kept ufw and iptables, removed vedette-host, and kept podman with the image localhost/other-app (W4-1)"
 	x 'DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends nftables >/dev/null 2>&1' || fail "cannot install nftables to look at the tables"
 	if [ -n "${fwd_table:-}" ]; then
 		grep -q "left the nft table ip filter" "$work/un2.log" || fail "D-267: the uninstall did not say it left the table of the fake Docker chain"
@@ -332,9 +336,13 @@ EOT
 	fi
 	[ -z "$(x 'nft list tables')" ] || { x 'nft list ruleset' >&2; fail "nft tables were left behind by the uninstall"; }
 	ok "no nft table is left behind by the uninstall (looked at with nft after it)"
-	# put the box back the way it was, by the names that were not there before, then it must equal the first snapshot
+	# put the box back the way it was, by the names that were not there before, then it must equal the first snapshot; the podman the
+	# uninstall kept goes as the summary tells the administrator (podman system reset, then apt), and so do the folders the uninstall
+	# removes when it purges podman itself (install.sh, D-463)
+	x 'podman system reset -f >/dev/null 2>&1' || fail "cannot reset the podman the uninstall kept"
 	# shellcheck disable=SC2046 # package names, one word each
 	x "DEBIAN_FRONTEND=noninteractive apt-get purge -y -q $(comm -13 <(before_pkgs) <(pkgnames) | tr '\n' ' ') >/dev/null 2>&1" || fail "cannot remove the test packages again"
+	x 'rm -rf /var/lib/containers /run/containers /root/.config/cni; for d in /etc/containers/networks /etc/containers/systemd/users /etc/containers/systemd /etc/containers/registries.conf.d /etc/containers /var/lib/cni/networks /var/lib/cni /root/.config; do if [ -d "$d" ] && ! dpkg-query -S "$d" >/dev/null 2>&1; then rmdir "$d" 2>/dev/null || true; fi; done'
 	snap_files "$work/$n.after2"
 	same "$work/$n.before" "$work/$n.after2" "after the H2 cycle and the removal of the test packages the box is not as before"
 	ok "the H2 cycle ends with the box as before (users, units, sockets, forwarding sysctl, packages, files)"
@@ -400,7 +408,9 @@ EOT
 	x 'sh /root/art/install.sh --uninstall --yes --keep-data' >"$work/kd-un.log" 2>&1 || { tail -40 "$work/kd-un.log" >&2; fail "--uninstall --yes --keep-data failed"; }
 	x '! test -e /etc/containers/systemd/vedette-core.container && ! dpkg -s vedette-host >/dev/null 2>&1 && ! systemctl is-active -q vedette-host.service' || fail "--uninstall --keep-data left core's unit, the package or a running vedette-host"
 	x 'test -s /var/lib/vedette/vedette.key && test -f /etc/vedette/host.conf && test -f /var/lib/vedette-host/containers/versions-core.json' || fail "--uninstall --keep-data did not keep the key, host.conf or the record of the release that ran"
-	ok "--uninstall --keep-data: Vedette is stopped and its units and package are gone; the key, host.conf and the record of the release that ran are kept"
+	x 'dpkg -s podman >/dev/null 2>&1 && test -d /var/lib/containers/storage' || fail "D-508: --uninstall --keep-data purged podman or its storage"
+	grep -qF -- "/var/lib/containers: --keep-data was given" "$work/kd-un.log" || { tail -20 "$work/kd-un.log" >&2; fail "D-508: --uninstall --keep-data did not say it kept podman"; }
+	ok "--uninstall --keep-data: Vedette is stopped and its units and package are gone; the key, host.conf, the record of the release that ran, podman and its storage are kept"
 	# an older release than the one that ran on the kept data is refused before any change (D-418): the record says 99.0.0 for a moment
 	x 'cp -p /var/lib/vedette-host/containers/versions-core.json /root/kd-versions.bak && sed -i "s/\"current\":{\"service\":\"core\",\"version\":\"[^\"]*\"/\"current\":{\"service\":\"core\",\"version\":\"99.0.0\"/" /var/lib/vedette-host/containers/versions-core.json'
 	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/o.txt" 2>&1 && fail "D-418: an install older than the release that ran on the kept data was accepted"
@@ -430,7 +440,10 @@ EOT
 	x 'rm -f /root/kd-setup.json /root/kd-setup.out /root/kd-login.json'
 	x 'sh /root/art/install.sh --uninstall --yes' >"$work/kd-un2.log" 2>&1 || { tail -40 "$work/kd-un2.log" >&2; fail "--uninstall --yes after the keep-data case failed"; }
 	x '! getent passwd vedette >/dev/null && ! test -e /var/lib/vedette && ! test -e /var/lib/vedette-host && ! test -e /etc/vedette' || fail "--uninstall --yes after the keep-data case left Vedette's users or data"
-	ok "keep-data case: a full --uninstall --yes afterwards removes the data and the users"
+	# D-508: the kept podman stayed on the installer's lists, so the full uninstall (nothing else in podman) still purges it
+	x '! dpkg -s podman >/dev/null 2>&1 && ! test -e /var/lib/containers' || fail "D-508: the full --uninstall after the keep-data case left podman or /var/lib/containers"
+	ok "keep-data case: a full --uninstall --yes afterwards removes the data, the users, podman and its storage"
+
 	"$c" rm -f -t 0 "$ctr" >/dev/null
 	"$c" volume rm -f "vic-$n-containers" >/dev/null 2>&1 || true
 	"$c" rmi -f "localhost/vedette-installcheck-$n:check" >/dev/null 2>&1 || true

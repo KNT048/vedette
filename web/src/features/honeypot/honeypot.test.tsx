@@ -344,10 +344,13 @@ describe('honeypot: Trap IP and honey token form matrix (docs/QA.md §2)', () =>
       { option: 'Decoy file', shown: ['File name', FILE, /Looks tempting/], hidden: ['User name', 'Label'] },
       { option: 'Fake credentials', shown: ['User name', /Looks like an old service account/], hidden: ['File name', FILE, 'Label'] },
       { option: 'URL token', shown: ['Label', /intranet wiki page/], hidden: ['File name', FILE, 'User name'] },
-      { option: 'DNS token', shown: ['Label', /backup script config/], hidden: ['File name', FILE, 'User name'] },
+      { option: 'DNS token', shown: ['Label', /backup script config/, /cannot alert yet/], hidden: ['File name', FILE, 'User name'] },
       { option: 'Decoy file', shown: ['File name', FILE], hidden: ['Label'] },
     ], pick('Token type'), form)
+    await pick('Token type')('DNS token') // D-507: the box answers no DNS, so a DNS token cannot be made
+    expect(within(form).getByRole('button', { name: 'Create token' })).toBeDisabled()
     await pick('Token type')('Decoy file')
+    expect(within(form).getByRole('button', { name: 'Create token' })).toBeEnabled()
     await userEvent.type(within(form).getByLabelText('File name'), 'Payroll-2026-Q4')
     await userEvent.type(within(form).getByLabelText('Where will you plant it?'), 'SRV-FILE-HR')
     await pick('Token type')('Fake credentials')

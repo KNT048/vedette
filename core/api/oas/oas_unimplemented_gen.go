@@ -1774,6 +1774,16 @@ func (UnimplementedHandler) InventoryPatchInventoryDevicesID(ctx context.Context
 	return r, ht.ErrNotImplemented
 }
 
+// InventoryPatchInventoryDevicesIDSoftwareSid implements inventory_patch_inventory_devices_id_software_sid operation.
+//
+// Change the version of manually declared software (400 not_manual for software a sensor or agent
+// saw); an empty version removes it; the device is matched again (D-471).
+//
+// PATCH /inventory/devices/{id}/software/{sid}
+func (UnimplementedHandler) InventoryPatchInventoryDevicesIDSoftwareSid(ctx context.Context, req *InventoryPatchInventoryDevicesIDSoftwareSidReq, params InventoryPatchInventoryDevicesIDSoftwareSidParams) (r *InventoryPatchInventoryDevicesIDSoftwareSidOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // InventoryPatchInventorySensorsID implements inventory_patch_inventory_sensors_id operation.
 //
 // Container-only install: choose the card the sensor reads (any card of its last heartbeat, with or

@@ -54,8 +54,8 @@ func openZaloInbox(ctx context.Context, snd channel.Sender) (zaloInbox, error) {
 	return c, nil
 }
 
-// zaloReady says whether the Zalo personal channel takes approvals now.
-func zaloReady(c channelRow) bool { return c.Configured && c.Enabled && c.Approvals }
+// approvalsReady says whether the Zalo personal channel takes approvals now.
+func approvalsReady(c channelRow) bool { return c.Configured && c.Enabled && c.Approvals }
 
 // listenZalo is the Run of the job "zalo-listen". It returns nil when nothing is to be read, the channel changed or ctx ended, and an
 // error (never with the session in it) when the connection could not be opened or ended badly. Between failed connections it waits
@@ -72,7 +72,7 @@ func (s *Service) listenZalo(ctx context.Context) error {
 		}
 		return fmt.Errorf("notify: zalo listener: %w", err)
 	}
-	if !zaloReady(c) || !s.zaloRetry.due(c.Rev, time.Now()) {
+	if !approvalsReady(c) || !s.zaloRetry.due(c.Rev, time.Now()) {
 		return nil
 	}
 	started := time.Now()
@@ -100,7 +100,7 @@ func (s *Service) serveZalo(ctx context.Context, c channelRow) error {
 	defer conn.Close()
 	cctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
-	go s.watchChannel(cctx, cancel, channel.ZaloPersonal, c.Rev, zaloReady, zaloWatchEvery, errZaloChanged)
+	go s.watchChannel(cctx, cancel, channel.ZaloPersonal, c.Rev, approvalsReady, zaloWatchEvery, errZaloChanged)
 	sem := make(chan struct{}, zaloWorkers)
 	var wg sync.WaitGroup
 	defer wg.Wait()
@@ -135,7 +135,7 @@ func (s *Service) takeZaloText(ctx context.Context, snd channel.Sender, c channe
 	}
 	// The channel may have been turned off or changed since the connection opened (the watcher looks every 30 s): decide nothing then.
 	now, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.ZaloPersonal)
-	if err != nil || !zaloReady(now) || now.Rev != c.Rev {
+	if err != nil || !approvalsReady(now) || now.Rev != c.Rev {
 		return
 	}
 	select {

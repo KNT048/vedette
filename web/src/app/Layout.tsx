@@ -82,7 +82,7 @@ function UserMenu() {
           <DropdownMenuRadioItem value="dark">{t('layout.themeDark')}</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => navigate('/account')}><UserCog />{t('layout.myAccount')}</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate('/settings/account')}><UserCog />{t('layout.myAccount')}</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => setBug(true)}><Bug />{t('layout.reportProblem')}</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => void logout()}><LogOut />{t('layout.logout')}</DropdownMenuItem>
       </DropdownMenuContent>
@@ -108,8 +108,8 @@ function usePageChrome() {
   const first = useRef(true)
   useEffect(() => {
     const p = loc.pathname
-    const item = p.startsWith('/settings') || p.startsWith('/account') ? null : [...navItems].sort((a, b) => b.to.length - a.to.length).find((n) => (n.to === '/' ? p === '/' : p === n.to || p.startsWith(`${n.to}/`)))
-    const label = item ? t(item.label) : p.startsWith('/account') ? t('layout.myAccount') : p.startsWith('/settings') ? t('layout.settings') : null
+    const item = p.startsWith('/settings') ? null : [...navItems].sort((a, b) => b.to.length - a.to.length).find((n) => (n.to === '/' ? p === '/' : p === n.to || p.startsWith(`${n.to}/`)))
+    const label = item ? t(item.label) : p.startsWith('/settings/account') ? t('layout.myAccount') : p.startsWith('/settings') ? t('layout.settings') : null
     document.title = label ? `${label} | Vedette` : 'Vedette'
     if (first.current) { first.current = false; return }
     document.getElementById('main')?.focus({ preventScroll: true })

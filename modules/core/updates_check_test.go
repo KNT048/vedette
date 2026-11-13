@@ -347,10 +347,10 @@ func TestUpdateCheckRefusesWhatDoesNotVerify(t *testing.T) {
 			e.srv.down = true
 			e.srv.mu.Unlock()
 		}},
-		// D-407 (walk 4): the source answers 404 for the index, as GitHub does while no release exists: not a network problem.
-		"not published": {502, core.CodeUpdateNotPublished, func(_ *testing.T, e *updEnv) {
+		// D-540 review: a missing signature next to a present index is never "nothing published".
+		"index signature 404": {503, core.CodeUpdateSourceUnreachable, func(_ *testing.T, e *updEnv) {
 			e.srv.mu.Lock()
-			delete(e.srv.files, "/index/index.json")
+			delete(e.srv.files, "/index/index.json.minisig")
 			e.srv.mu.Unlock()
 		}},
 		// A release the signed index names whose manifest is missing is a broken source, not "nothing published".
@@ -382,7 +382,7 @@ func TestUpdateCheckRefusesWhatDoesNotVerify(t *testing.T) {
 			if strings.Contains(g.Raw, "evil") || strings.Contains(g.Raw, "HTTP 404") || strings.Contains(g.Raw, "HTTP 503") {
 				t.Errorf("the state echoes remote details: %s", g.Raw)
 			}
-			if msg, _ := g.JSON["last_check_error"].(map[string]any)["message"].(string); (tc.code2 == core.CodeUpdateSourceUnreachable) != strings.Contains(msg, "reach github.com") {
+			if msg, _ := g.JSON["last_check_error"].(map[string]any)["message"].(string); (tc.code2 == core.CodeUpdateSourceUnreachable) != strings.HasPrefix(msg, "Could not reach the update source (") {
 				t.Errorf("message = %q: only a source that could not be reached asks about the network", msg)
 			}
 			e.wantNothingOffered(t, g)
@@ -393,6 +393,45 @@ func TestUpdateCheckRefusesWhatDoesNotVerify(t *testing.T) {
 				t.Errorf("a failed check has no audit row: %v", acts)
 			}
 		})
+	}
+}
+
+// M5-181, D-540: a source that answers 404 for the index publishes no release, so nothing is newer than this build:
+// 200, last_check moves, an earlier failure is cleared, nothing offered. A source that is down still says why (503).
+func TestUpdateCheckNothingPublishedIsUpToDate(t *testing.T) {
+	t.Parallel()
+	e := newUpdEnv(t, osOpts{noHost: true})
+	e.srv.mu.Lock()
+	e.srv.down = true
+	e.srv.mu.Unlock()
+	r := e.oper.post("/core/updates/check", nil)
+	wantStatus(t, r, 503, core.CodeUpdateSourceUnreachable)
+	if msg, _ := r.JSON["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "it had a server error. Try again later") {
+		t.Errorf("unreachable message = %q, want the reason in fixed words", msg)
+	}
+	e.srv.mu.Lock()
+	e.srv.down = false
+	e.srv.mu.Unlock() // no index published at all
+	r = e.oper.post("/core/updates/check", nil)
+	wantOK(t, r, 200)
+	if r.JSON["last_check"] == nil || r.JSON["last_check_error"] != nil {
+		t.Errorf("last_check = %v, last_check_error = %v: want a good check that clears the failure", r.JSON["last_check"], r.JSON["last_check_error"])
+	}
+	e.wantNothingOffered(t, r)
+	if acts := e.actions(); !slices.Contains(acts, "update.check") {
+		t.Errorf("the check has no audit row: %v", acts)
+	}
+	// Once an index was stored, a 404 for it is a broken or withdrawn source: 503, last_check stays (D-540 review).
+	e.srv.standard(t, 5)
+	good := e.oper.post("/core/updates/check", nil)
+	wantOK(t, good, 200)
+	e.srv.mu.Lock()
+	delete(e.srv.files, "/index/index.json")
+	e.srv.mu.Unlock()
+	e.clock.Advance(time.Hour)
+	wantStatus(t, e.oper.post("/core/updates/check", nil), 503, core.CodeUpdateSourceUnreachable)
+	if g := e.viewer.get("/core/updates"); g.JSON["last_check"] != good.JSON["last_check"] || g.JSON["last_check_error"] == nil {
+		t.Errorf("after a 404 for a stored index: last_check %v (was %v), last_check_error %v", g.JSON["last_check"], good.JSON["last_check"], g.JSON["last_check_error"])
 	}
 }
 

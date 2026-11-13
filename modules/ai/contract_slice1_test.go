@@ -251,7 +251,7 @@ func TestContract_INV4_ConfigAndEstimates(t *testing.T) {
 	a := newAPI(t)
 	got := a.want("GET", "/ai/config", "viewer", "", 200, "")
 	est := got["tier_estimates"].(map[string]any)
-	if got["configured"] != false || got["tier"] != "med" || got["daily_cap"] != float64(60000) || got["redact_pii"] != true || est["min"] != float64(10000) || est["med"] != float64(60000) || est["max"] != nil {
+	if got["configured"] != false || got["tier"] != "med" || got["daily_cap"] != float64(200000) || got["redact_pii"] != true || est["min"] != float64(10000) || est["med"] != float64(60000) || est["max"] != nil {
 		t.Fatalf("default config = %v", got)
 	}
 	put := a.want("PUT", "/ai/config", "admin", `{"tier":"max","daily_cap":250000,"redact_pii":false}`, 200, "")

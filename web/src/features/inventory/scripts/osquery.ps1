@@ -4,7 +4,8 @@
 #   1. writes the Vedette box CA certificate (embedded below) to C:\Program Files\osquery\vedette-ca.pem
 #   2. downloads osquery @@VERSION@@ (MSI) and SHA256SUMS from the box (the box mirrors the official osquery release),
 #      checks the SHA-256 of the MSI, installs it silently with msiexec /qn
-#   3. writes the enroll secret and osquery.flags, sets the osqueryd service to Automatic and starts it
+#   3. writes the enroll secret and osquery.flags, sets the osqueryd service to Automatic and starts it; with a token this machine does
+#      not hold yet, it first removes osquery's database (osquery.db: the old node key and unsent results) so that it enrols under the new token
 #   4. waits until this machine has enrolled (not for its first report, due within about an hour) and exits 0
 param([string]$Token = '', [switch]$Uninstall)
 $ErrorActionPreference = 'Stop'
@@ -12,6 +13,8 @@ $Box = '@@BOX@@'
 $Version = '@@VERSION@@'
 $Dir = 'C:\Program Files\osquery'
 $Ca = Join-Path $Dir 'vedette-ca.pem'
+$Db = Join-Path $Dir 'osquery.db'   # osqueryd's default --database_path: its node key and its unsent results
+$Secret = Join-Path $Dir 'enroll.secret'
 $Curl = Join-Path $env:SystemRoot 'System32\curl.exe'   # ships with Windows Server 2019 and later; it can use our CA file with --cacert
 
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Run PowerShell as Administrator.' }
@@ -20,7 +23,8 @@ if ($Uninstall) {
   if (Get-Service osqueryd -ErrorAction SilentlyContinue) { Stop-Service osqueryd -Force -ErrorAction SilentlyContinue; sc.exe delete osqueryd | Out-Null }
   $p = Get-CimInstance Win32_Product -Filter "Name='osquery'" -ErrorAction SilentlyContinue
   if ($p) { Start-Process msiexec -ArgumentList '/x', $p.IdentifyingNumber, '/qn', '/norestart' -Wait }
-  Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $Dir 'osquery.flags'), (Join-Path $Dir 'enroll.secret'), $Ca
+  Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $Dir 'osquery.flags'), $Secret, $Ca
+  Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $Db
   Write-Host 'osquery and the Vedette settings were removed from this machine.'
   return
 }
@@ -47,11 +51,20 @@ try {
   if (-not $want -or $got -ne $want.ToUpper()) { throw "Checksum of $File does not match. Nothing was installed." }
   Start-Process msiexec -ArgumentList '/i', (Join-Path $Tmp $File), '/qn', '/norestart' -Wait
 
-  Set-Content -Path (Join-Path $Dir 'enroll.secret') -Value $Token -NoNewline -Encoding ascii
+  # osqueryd keeps the node key of its enrolment in its database and does not enrol again while the box accepts that key. Unless this
+  # machine already holds this very token (a repair keeps its key), its database is removed so that it enrols under this token (D-411).
+  $held = if (Test-Path $Secret) { Get-Content -Raw -Path $Secret } else { '' }
+  if ($held -cne $Token) {
+    if ($held) { Write-Host 'This machine was enrolled with another token; it enrols again under this one. The old token lists it until it has been silent for 90 days or you revoke that token in Vedette.' }
+    if (Get-Service osqueryd -ErrorAction SilentlyContinue) { Stop-Service osqueryd -Force }
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $Db
+    if (Test-Path $Db) { throw "Could not remove $Db (a file is still open). Stop the osqueryd service and run this command again." }
+  }
+  Set-Content -Path $Secret -Value $Token -NoNewline -Encoding ascii
   $hostPort = $Box -replace '^https://', ''
   @(
     '--config_plugin=tls', '--logger_plugin=tls', '--host_identifier=specified', "--specified_identifier=$hostId",
-    "--enroll_secret_path=$Dir\enroll.secret", "--tls_server_certs=$Ca", "--tls_hostname=$hostPort",
+    "--enroll_secret_path=$Secret", "--tls_server_certs=$Ca", "--tls_hostname=$hostPort",
     '--enroll_tls_endpoint=/api/v1/intake/osquery/enroll', '--config_tls_endpoint=/api/v1/intake/osquery/config', '--logger_tls_endpoint=/api/v1/intake/osquery/log'
   ) | Set-Content -Path (Join-Path $Dir 'osquery.flags') -Encoding ascii
   if (-not (Test-Path (Join-Path $Dir 'osquery.conf'))) { '{}' | Set-Content -Path (Join-Path $Dir 'osquery.conf') -Encoding ascii }

@@ -609,8 +609,9 @@ func (e *Engine) handleSSDP(f frame, ip ipv4, b []byte, now time.Time) {
 	if !f.src.usable() {
 		return
 	}
-	if v, ok := cleanText(m.server, 200); ok {
-		e.add(now, f.src, ip.src, observe.Model, v, ConfSSDPModel)
+	// Only a model read from a known layout, never the header itself (ssdp.go, D-411).
+	if model := parseSSDPServer(m.server); model != "" {
+		e.add(now, f.src, ip.src, observe.Model, model, ConfSSDPModel)
 	}
 	if strings.Contains(m.nt, "InternetGatewayDevice") {
 		e.add(now, f.src, ip.src, observe.Kind, "router", ConfSSDPKind)

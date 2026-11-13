@@ -16,11 +16,11 @@ import (
 
 // machineSources are the places the machine's addresses come from. Each is a field so a test can fake it; a nil one adds nothing.
 type machineSources struct {
-	host    func() ([]netip.Addr, bool) // what vedette-host reports for the appliance (notifyBoxAddrs), with its known flag
-	gateway func() (netip.Addr, bool)   // the container's default gateway: the machine on every install
-	hosts   []string                    // -hosts (VEDETTE_HOSTS): its IP literals are the machine's addresses the browser uses
-	bindIP  string                      // VEDETTE_BIND_IP of the container-only compose: the machine's address 8443 is published on
-	aliases func() []netip.Addr         // what host.docker.internal and host.containers.internal resolve to
+	host     func() ([]netip.Addr, bool) // what vedette-host reports for the appliance (notifyBoxAddrs), with its known flag
+	gateways func() []netip.Addr         // the container's default gateways (IPv4, IPv6): the machine on every install
+	hosts    []string                    // -hosts (VEDETTE_HOSTS): its IP literals are the machine's addresses the browser uses
+	bindIP   string                      // VEDETTE_BIND_IP of the container-only compose: the machine's address 8443 is published on
+	aliases  func() []netip.Addr         // what host.docker.internal and host.containers.internal resolve to
 }
 
 // addrs is the union of every source; known is the host's flag (true without a host).
@@ -30,10 +30,8 @@ func (m machineSources) addrs() ([]netip.Addr, bool) {
 	if m.host != nil {
 		out, known = m.host()
 	}
-	if m.gateway != nil {
-		if g, ok := m.gateway(); ok {
-			out = append(out, g)
-		}
+	if m.gateways != nil {
+		out = append(out, m.gateways()...)
 	}
 	for _, h := range append(slices.Clone(m.hosts), m.bindIP) {
 		if a, err := netip.ParseAddr(strings.Trim(strings.TrimSpace(h), "[]")); err == nil && !a.IsUnspecified() {
@@ -51,7 +49,7 @@ func (m machineSources) addrs() ([]netip.Addr, bool) {
 // compose file as an environment variable, which an older image ignores) and the host-alias names stand in for them: without them
 // https://<LAN IP>:8443 would reach core's own API through the published port.
 func machineAddrs(d *deps) func() ([]netip.Addr, bool) {
-	return machineSources{host: notifyBoxAddrs(d.HostNet), gateway: procGateway, hosts: d.Hosts, bindIP: os.Getenv("VEDETTE_BIND_IP"), aliases: hostAliases.get}.addrs
+	return machineSources{host: notifyBoxAddrs(d.HostNet), gateways: procGateways, hosts: d.Hosts, bindIP: os.Getenv("VEDETTE_BIND_IP"), aliases: hostAliases.get}.addrs
 }
 
 // vedetteSelf is Config.SelfAddrs of feeds, notify, logs and ai: the honeypot's decoys, Vedette itself on every port (a webhook to a

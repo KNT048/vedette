@@ -18,12 +18,15 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/knt048/vedette/core/netguard"
 )
 
 // webhook_call: a generic HTTPS POST of a short text (a ticket system, an automation tool). Same guard as the webhook
-// channel of notify: no loopback, link-local, multicast, unspecified or box address, checked on the resolved address at
-// connect time (so a name that resolves to one, or rebinds to one, is refused too), no redirects, no proxy, timeouts and
-// size caps. Nothing on the customer's network changes (INV-1: a box action), and the URL is a secret that never reaches
+// channel of notify, from core/netguard (D-411): never Vedette itself (loopback, core's container, the decoys; the machine's
+// addresses on Vedette's own ports, D-446), never link-local, multicast, unspecified or cloud metadata, in any transition form,
+// checked on the resolved address at connect time (so a name that resolves to one, or rebinds to one, is refused too), no
+// redirects, no proxy, timeouts and size caps. Nothing on the customer's network changes (INV-1: a box action), and the URL is a secret that never reaches
 // the log or the API.
 
 const (
@@ -35,41 +38,73 @@ const (
 
 var (
 	numericLabelRE   = regexp.MustCompile(`^(0x[0-9a-f]+|[0-9]+)$`)
-	errForbiddenDial = errors.New("response: webhook: refusing to connect to a loopback, link-local, multicast, unspecified or box address")
+	errForbiddenDial = errors.New("response: webhook: refusing to connect to Vedette itself or to a link-local, multicast, unspecified or cloud metadata address")
 )
 
-// forbiddenAddr reports whether a webhook may never connect to a. allowLoopback is for the package tests only.
-func forbiddenAddr(a netip.Addr, allowLoopback bool, box []netip.Addr) bool {
-	a = a.Unmap()
-	switch {
-	case a.IsUnspecified(), a.IsMulticast(), a.IsLinkLocalUnicast(), a.IsLinkLocalMulticast():
-		return true
-	case a.IsLoopback() && !allowLoopback:
-		return true
-	}
-	for _, b := range box {
-		if allowLoopback && b.Unmap().IsLoopback() {
-			continue // tests only: the interface list holds 127.0.0.1
-		}
-		if b.Unmap() == a {
+// forbiddenAddr reports whether a webhook may never connect to a whatever the box: link-local, multicast, unspecified, broadcast or a
+// cloud metadata endpoint, in any transition form (core/netguard). Loopback is Vedette itself (webhookOwn); allowLoopback is for the
+// package tests only.
+func forbiddenAddr(a netip.Addr, allowLoopback bool) bool {
+	for _, f := range netguard.Forms(a) {
+		if netguard.Always(f) && (!allowLoopback || !f.IsLoopback()) {
 			return true
 		}
 	}
 	return false
 }
 
-func dialControl(allowLoopback bool, box func() ([]netip.Addr, error)) func(network, address string, c syscall.RawConn) error {
+// webhookOwn is Vedette itself for the webhook (D-446, core/netguard): the machine's addresses (Config.MachineAddrs) on Vedette's own
+// ports, and on every port the addresses of core's own container (its interfaces, read at every check) and Config.SelfAddrs (the
+// honeypot's decoys). An interface list or a decoy record that cannot be read is an error: the webhook is refused, not checked against less.
+func (s *Service) webhookOwn() (netguard.Own, error) {
+	own := netguard.Own{Known: true}
+	if s.cfg.MachineAddrs != nil {
+		own.Machine, own.Known = s.cfg.MachineAddrs()
+	}
+	ifs, err := s.interfaces()
+	if err != nil {
+		return netguard.Own{}, err
+	}
+	for _, a := range ifs {
+		if !a.Unmap().IsLoopback() { // loopback is judged apart, so the tests' allowLoopback still works
+			own.Self = append(own.Self, a)
+		}
+	}
+	if s.cfg.SelfAddrs != nil {
+		more, err := s.cfg.SelfAddrs()
+		if err != nil {
+			return netguard.Own{}, err
+		}
+		own.Self = append(own.Self, more...)
+	}
+	return own, nil
+}
+
+// refusedTarget is the sentence for a webhook target a at port, "" when it may be used. The machine's addresses not known yet (vedette-host
+// has not answered since the start) refuses every target: the webhook fails closed (#157).
+func (s *Service) refusedTarget(a netip.Addr, port uint16) string {
+	own, err := s.webhookOwn()
+	switch {
+	case err != nil || !own.Known:
+		return "This box's own addresses are not known yet, so the webhook address cannot be checked. Nothing was sent."
+	case own.Refuses(a, port, s.allowLoopback):
+		return netguard.OwnText
+	case forbiddenAddr(a, s.allowLoopback):
+		return blockedWebhook
+	}
+	return ""
+}
+
+// dialControl runs on the resolved address about to be dialled, so a name that resolves (or rebinds) to a refused address is refused too.
+func dialControl(refused func(netip.Addr, uint16) string) func(network, address string, c syscall.RawConn) error {
 	return func(_, address string, _ syscall.RawConn) error {
-		host, _, err := net.SplitHostPort(address)
+		host, port, err := net.SplitHostPort(address)
 		if err != nil {
 			return errForbiddenDial
 		}
 		a, err := netip.ParseAddr(host)
-		if err != nil {
-			return errForbiddenDial
-		}
-		list, err := box()
-		if err != nil || forbiddenAddr(a, allowLoopback, list) { // the box addresses cannot be read: refuse, do not guess
+		n, perr := strconv.ParseUint(port, 10, 16)
+		if err != nil || perr != nil || refused(a, uint16(n)) != "" {
 			return errForbiddenDial
 		}
 		return nil
@@ -85,7 +120,7 @@ func (s *Service) guardedClient() *http.Client {
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		Transport: &http.Transport{
 			Proxy:                 nil, // never an environment proxy: it would see the signed body
-			DialContext:           (&net.Dialer{Timeout: 10 * time.Second, Control: dialControl(s.allowLoopback, s.boxAddrs)}).DialContext,
+			DialContext:           (&net.Dialer{Timeout: 10 * time.Second, Control: dialControl(s.refusedTarget)}).DialContext,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ResponseHeaderTimeout: webhookTimeout,
 			DisableKeepAlives:     true,
@@ -93,7 +128,10 @@ func (s *Service) guardedClient() *http.Client {
 	}
 }
 
-// checkWebhookURL accepts an https URL without credentials whose host is not a number in disguise or a local name.
+const blockedWebhook = "The webhook cannot point at a link-local or multicast address, a cloud metadata service, or an unspecified address."
+
+// checkWebhookURL accepts an https URL without credentials whose host is not a number in disguise, a local name, a metadata name, or an
+// address refusedTarget refuses at the URL's port.
 func (s *Service) checkWebhookURL(raw string) (*url.URL, error) {
 	bad := shown("The webhook address must start with https:// and name a host on your network or the Internet.")
 	raw = strings.TrimSpace(raw)
@@ -106,14 +144,18 @@ func (s *Service) checkWebhookURL(raw string) (*url.URL, error) {
 			return nil, bad
 		}
 	}
+	port := uint16(443)
+	if p := u.Port(); p != "" {
+		n, err := strconv.ParseUint(p, 10, 16)
+		if err != nil || n == 0 {
+			return nil, bad
+		}
+		port = uint16(n)
+	}
 	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
 	if a, err := netip.ParseAddr(host); err == nil {
-		box, err := s.boxAddrs()
-		if err != nil {
-			return nil, shown("This box's own addresses could not be read, so the webhook address cannot be checked. Nothing was sent.")
-		}
-		if forbiddenAddr(a, s.allowLoopback, box) {
-			return nil, shown("The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.")
+		if why := s.refusedTarget(a, port); why != "" {
+			return nil, shown(why)
 		}
 		return u, nil
 	}
@@ -121,8 +163,11 @@ func (s *Service) checkWebhookURL(raw string) (*url.URL, error) {
 	if numericLabelRE.MatchString(labels[len(labels)-1]) {
 		return nil, bad // a number-like host is an IP in disguise
 	}
-	if !s.allowLoopback && (host == "localhost" || strings.HasSuffix(host, ".localhost")) {
-		return nil, shown("The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.")
+	switch {
+	case !s.allowLoopback && (host == "localhost" || strings.HasSuffix(host, ".localhost")):
+		return nil, shown(netguard.OwnText)
+	case netguard.MetadataName(host):
+		return nil, shown(blockedWebhook)
 	}
 	return u, nil
 }

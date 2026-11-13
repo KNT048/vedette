@@ -108,7 +108,7 @@ const P = (id: string, name: string, kind: AiProfile['kind'], api_style: AiProfi
 export const aiProfilesStore = collection<AiProfile[]>('ai_profiles', () => [
   P('p-haiku', 'Claude Haiku', 'anthropic', 'anthropic', 'https://api.anthropic.com', 'claude-haiku-5-5', '7Qk2', 'cloud', 60000),
   P('p-sonnet', 'Claude Sonnet', 'anthropic', 'anthropic', 'https://api.anthropic.com', 'claude-sonnet-5-5', '7Qk2', 'cloud', 30000),
-  P('p-ollama', 'Company Ollama server', 'openai-compatible', 'openai', 'http://localhost:11434/v1', 'qwen3:8b', null, 'internal', 300000),
+  P('p-ollama', 'Company Ollama server', 'openai-compatible', 'openai', 'http://192.168.10.40:11434/v1', 'qwen3:8b', null, 'internal', 300000),
 ], () => [])
 export type AiAssign = Record<AiJob, { primary: string | null; fallback: string | null }>
 const noAssign = (): AiAssign => Object.fromEntries(AI_JOBS.map((j) => [j.id, { primary: null, fallback: null }])) as AiAssign

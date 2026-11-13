@@ -15,10 +15,10 @@ import (
 func TestD446_MachineSourcesOfAContainerOnlyInstall(t *testing.T) {
 	t.Parallel()
 	m := machineSources{
-		gateway: func() (netip.Addr, bool) { return netip.MustParseAddr("172.18.0.1"), true },
-		hosts:   []string{"vedette.lan", "192.168.18.141", "[fd00::141]", "0.0.0.0"},
-		bindIP:  "192.168.18.142",
-		aliases: func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("192.168.65.254")} },
+		gateways: func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("172.18.0.1")} },
+		hosts:    []string{"vedette.lan", "192.168.18.141", "[fd00::141]", "0.0.0.0"},
+		bindIP:   "192.168.18.142",
+		aliases:  func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("192.168.65.254")} },
 	}
 	got, known := m.addrs()
 	want := []string{"172.18.0.1", "192.168.18.141", "fd00::141", "192.168.18.142", "192.168.65.254"}

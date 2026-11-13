@@ -16,7 +16,7 @@ export interface Dev {
 export interface DevList { items: Dev[]; counts: { all: number; pending: number }; notify_new: boolean }
 
 /** What lan-discovery.pcap holds (read from a real run of the sensor; the sweep fixture adds 192.168.10.2 and .5). */
-export const ROUTER = { ip: '192.168.10.1', mac: 'aa:bb:cc:00:00:13', model: 'Linux/5.4 UPnP/1.0 MiniUPnPd/2.2' }
+export const ROUTER = { ip: '192.168.10.1', mac: 'aa:bb:cc:00:00:13', model: 'FRITZ!Box 7590' }
 export const PC = { ip: '192.168.10.21', mac: 'aa:bb:cc:00:00:11', hostname: 'PC-ACCOUNTING-01' }
 /** Every MAC and every address a sensor of this slice can make a device of: they must not exist when a file starts, and they are removed when it ends. */
 export const MACS = [ROUTER.mac, PC.mac, 'aa:bb:cc:00:00:02', 'aa:bb:cc:00:00:05']

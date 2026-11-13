@@ -269,6 +269,12 @@ type Config struct {
 	// means the set is not known (a configured host that has never answered, an unreadable honeypot record): the callers fail closed
 	// (errNeverTouchUnread: nothing is requested or run) instead of checking against a smaller set (D-179 (8)).
 	BoxAddrs func() ([]netip.Addr, error)
+	// MachineAddrs are the addresses of the machine Vedette runs on (D-446: vedette-host's report, the container's gateways, -hosts,
+	// VEDETTE_BIND_IP, the host aliases) with a known flag; webhook_call refuses them on Vedette's own ports only, and every target while
+	// they are not known. nil = none, known. SelfAddrs are more addresses that are Vedette itself (the honeypot's decoys), refused by
+	// webhook_call on every port; nil = none. Neither changes never-touch (BoxAddrs).
+	MachineAddrs func() ([]netip.Addr, bool)
+	SelfAddrs    func() ([]netip.Addr, error) // an error (an unreadable decoy record) refuses every webhook: a decoy must never be a target (D-179 (8))
 	// BoxMACs adds to the MAC addresses of the network interfaces, which count as never-touch too: the decoys of the honeypot (macvlan links with
 	// MACs of their own) and the cards of the appliance. An error is as for BoxAddrs.
 	BoxMACs func() ([]string, error)

@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/conn/cliban"
 	"github.com/knt048/vedette/core/conn/internal/transport"
+	"github.com/knt048/vedette/core/netguard"
 	"github.com/knt048/vedette/core/secrets"
 )
 
@@ -316,6 +317,9 @@ func refusedHost(raw string, box []netip.Prefix) string {
 	if h == "localhost" || strings.HasSuffix(h, ".localhost") {
 		return "a loopback address"
 	}
+	if netguard.MetadataName(h) { // D-411: the metadata service's names, before any lookup
+		return "a cloud metadata service"
+	}
 	if strings.Contains(h, ":") {
 		a, err := netip.ParseAddr(h)
 		if err != nil {
@@ -340,10 +344,10 @@ func refusedHost(raw string, box []netip.Prefix) string {
 // embeddedWhy is the reason for an IPv6 address that carries an IPv4 address; it is the whole sentence of the message.
 const embeddedWhy = "Vedette does not connect to IPv6 addresses that carry an IPv4 address; use the IPv4 address."
 
-// embeddedV4 are the IPv6 forms that carry an IPv4 address: IPv4-mapped (checked with Is4In6), NAT64, 6to4, IPv4-compatible,
-// IPv4-translated and Teredo. Writing 127.0.0.1 or 169.254.169.254 in one of them must not get past the address policy.
+// embeddedV4 are the IPv6 forms that carry an IPv4 address: IPv4-mapped (checked with Is4In6), NAT64 (the well-known 64:ff9b::/96 and
+// the local-use 64:ff9b:1::/48 of RFC 8215, D-411), 6to4, IPv4-compatible, IPv4-translated and Teredo. Writing 127.0.0.1 or 169.254.169.254 in one of them must not get past the address policy.
 var embeddedV4 = []netip.Prefix{
-	netip.MustParsePrefix("64:ff9b::/96"), netip.MustParsePrefix("2002::/16"), netip.MustParsePrefix("::/96"),
+	netip.MustParsePrefix("64:ff9b::/96"), netip.MustParsePrefix("64:ff9b:1::/48"), netip.MustParsePrefix("2002::/16"), netip.MustParsePrefix("::/96"),
 	netip.MustParsePrefix("::ffff:0:0:0/96"), netip.MustParsePrefix("2001::/32"),
 }
 
@@ -380,6 +384,8 @@ func refusedAddr(a netip.Addr, box []netip.Prefix) string {
 		return "a link-local address"
 	case a.IsMulticast() || a.IsLinkLocalMulticast():
 		return "a multicast address"
+	case netguard.Metadata(a): // D-411: the endpoints that are not link-local (Alibaba, Oracle, AWS and Google over IPv6)
+		return "a cloud metadata service"
 	}
 	for _, b := range box {
 		if b.Contains(a) || b.Contains(a.Unmap()) {

@@ -5,7 +5,8 @@
 #   1. writes the Vedette box CA certificate (embedded below) to /etc/osquery/vedette-ca.pem
 #   2. downloads osquery @@VERSION@@ and SHA256SUMS from the box (the box mirrors the official osquery release; servers need no Internet),
 #      checks the SHA-256 of the package, installs it with dpkg or rpm
-#   3. writes the enroll secret (mode 600) and /etc/osquery/osquery.flags
+#   3. writes the enroll secret (mode 600) and /etc/osquery/osquery.flags; with a token this machine does not hold yet, it first removes
+#      osquery's database (/var/osquery/osquery.db: the old node key and unsent results) so that the machine enrols under the new token
 #   4. enables and starts the osqueryd service, then waits until this machine has enrolled (not for its first report, due within about an hour) and exits 0
 set -eu
 BOX='@@BOX@@'
@@ -22,11 +23,13 @@ done
 [ "$(id -u)" -eq 0 ] || { echo "Run as root (for example: sudo sh $0 ...)." >&2; exit 1; }
 DIR=/etc/osquery
 CA=$DIR/vedette-ca.pem
+DB=/var/osquery/osquery.db # osqueryd's default --database_path: its node key and its unsent results
 
 if [ "$ACTION" = uninstall ]; then
   systemctl disable --now osqueryd 2>/dev/null || true
   if command -v dpkg >/dev/null 2>&1; then dpkg -r osquery 2>/dev/null || true; else rpm -e osquery 2>/dev/null || true; fi
   rm -f "$DIR/osquery.flags" "$DIR/enroll.secret" "$CA"
+  rm -rf "$DB"
   echo "osquery and the Vedette settings were removed from this machine."
   exit 0
 fi
@@ -67,6 +70,14 @@ curl -fsS --cacert "$CA" "$BOX/api/v1/install/osquery/$FILE" -o "$TMP/$FILE"
 ( cd "$TMP" && grep " $FILE\$" SHA256SUMS | sha256sum -c - ) || { echo "Checksum of $FILE does not match. Nothing was installed." >&2; exit 1; }
 if [ "$FMT" = deb ]; then dpkg -i "$TMP/$FILE"; else rpm -Uvh --replacepkgs "$TMP/$FILE"; fi
 
+# osqueryd keeps the node key of its enrolment in its database and does not enrol again while the box accepts that key. Unless this
+# machine already holds this very token (a repair keeps its key), its database is removed so that it enrols under this token (D-411).
+if [ "$(cat "$DIR/enroll.secret" 2>/dev/null || true)" != "$TOKEN" ]; then
+  [ ! -s "$DIR/enroll.secret" ] || echo "This machine was enrolled with another token; it enrols again under this one. The old token lists it until it has been silent for 90 days or you revoke that token in Vedette."
+  # stopped whenever the unit exists (also while it is activating or restarting); a failed stop ends the script: a running osqueryd keeps its key
+  if systemctl cat osqueryd >/dev/null 2>&1; then systemctl stop osqueryd; fi
+  rm -rf "$DB"
+fi
 ( umask 077; printf '%s' "$TOKEN" > "$DIR/enroll.secret" )
 [ -f "$DIR/osquery.conf" ] || echo '{}' > "$DIR/osquery.conf"
 HOSTPORT=${BOX#https://}

@@ -49,6 +49,7 @@ func TestIPv6FormsThatCarryAnIPv4AddressAreRefused(t *testing.T) {
 	t.Parallel()
 	for _, h := range []string{
 		"[64:ff9b::7f00:1]", "[64:ff9b::a9fe:a9fe]", "[64:ff9b::192.168.10.1]", // NAT64
+		"[64:ff9b:1::a9fe:a9fe]", "[64:ff9b:1::6464:64c8]", "[64:ff9b:1::7f00:1]", "[64:ff9b:1:a9fe:a9:fe00::]", // local-use NAT64 (RFC 8215, D-411)
 		"[2002:7f00:1::]", "[2002:c0a8:a01::1]", // 6to4
 		"[::7f00:1]", "[::c0a8:a01]", "[::192.168.10.1]", // IPv4-compatible
 		"[::ffff:0:7f00:1]", "[::ffff:0:0:0]", // IPv4-translated
@@ -71,6 +72,19 @@ func TestIPv6FormsThatCarryAnIPv4AddressAreRefused(t *testing.T) {
 		if e := checkTarget(ok, false, nil); e != nil {
 			t.Errorf("%s was refused: %v", ok, e)
 		}
+	}
+}
+
+// D-411: the cloud metadata endpoints that are not link-local and the metadata names are refused at save and at dial (core/netguard).
+func TestMetadataIsRefused(t *testing.T) {
+	t.Parallel()
+	for _, target := range []string{"https://100.100.100.200", "https://192.0.0.192", "https://[fd00:ec2::254]", "https://[fd20:ce::254]", "https://metadata.google.internal", "https://Metadata.Goog."} {
+		if e := checkTarget(target, false, nil); e == nil || !strings.Contains(e.Message, "a cloud metadata service") {
+			t.Errorf("%s: %v", target, e)
+		}
+	}
+	if why := RefusedAddr(netip.MustParseAddr("100.100.100.200"), nil); why != "a cloud metadata service" {
+		t.Errorf("RefusedAddr = %q", why)
 	}
 }
 

@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
 	"net/netip"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,7 +33,7 @@ func newConn(d *deps) (*conn.Service, error) {
 			return d.Response.ChangesInForce(ctx, id)
 		},
 		BoxAddrs: (&boxSources{
-			ifaces: containerAddrs, gateway: procGateway, hosts: d.Hosts, hostCache: d.HostNet, now: d.Clock,
+			ifaces: containerAddrs, gateways: procGateways, hosts: d.Hosts, hostCache: d.HostNet, now: d.Clock,
 			decoys: func(ctx context.Context) []netip.Addr {
 				if d.Honeypot == nil {
 					return nil
@@ -57,8 +59,8 @@ type boxSources struct {
 	// ifaces are the container's own interface addresses with their masks. Each is refused with its whole subnet: nothing
 	// legitimate lives in the bridge network of the container.
 	ifaces func() []netip.Prefix
-	// gateway is the container's default gateway, which is the appliance host.
-	gateway func() (netip.Addr, bool)
+	// gateways are the container's default gateways (IPv4 and IPv6), which are the appliance host.
+	gateways func() []netip.Addr
 	// hosts are the names and addresses the box answers to (-hosts); the IP literals among them are the box.
 	hosts []string
 	// hostCache is the shared provider of the addresses vedette-host reports for every interface of the appliance and for its
@@ -103,8 +105,8 @@ func (b *boxSources) BoxAddrs(ctx context.Context) []netip.Prefix {
 			}
 		}
 	}
-	if b.gateway != nil {
-		if g, ok := b.gateway(); ok {
+	if b.gateways != nil {
+		for _, g := range b.gateways() {
 			one(g)
 		}
 	}
@@ -156,13 +158,43 @@ func defaultGateway(route io.Reader) (netip.Addr, bool) {
 	return netip.Addr{}, false
 }
 
-func procGateway() (netip.Addr, bool) {
-	f, err := os.Open("/proc/net/route")
-	if err != nil {
-		return netip.Addr{}, false // not Linux, or no procfs: no gateway to add
+// defaultGateway6 reads the default route of a /proc/net/ipv6_route table (Linux): the next hop of the lines whose destination is ::/0
+// (fields: destination, prefix length, source, source prefix length, next hop, ...; addresses as 32 hex digits), :: left out (a
+// route without a next hop). Several default routes give several gateways.
+func defaultGateway6(route io.Reader) []netip.Addr {
+	var out []netip.Addr
+	sc := bufio.NewScanner(route)
+	for sc.Scan() {
+		f := strings.Fields(sc.Text())
+		if len(f) < 5 || f[0] != strings.Repeat("0", 32) || f[1] != "00" || len(f[4]) != 32 {
+			continue
+		}
+		b, err := hex.DecodeString(f[4])
+		if err != nil {
+			continue
+		}
+		if a := netip.AddrFrom16([16]byte(b)); !a.IsUnspecified() && !slices.Contains(out, a) {
+			out = append(out, a)
+		}
 	}
-	defer func() { _ = f.Close() }()
-	return defaultGateway(f)
+	return out
+}
+
+// procGateways are the container's default gateways: IPv4 from /proc/net/route, IPv6 from /proc/net/ipv6_route (when IPv6 is on in
+// the container network). Not Linux, or no procfs: none.
+func procGateways() []netip.Addr {
+	var out []netip.Addr
+	if f, err := os.Open("/proc/net/route"); err == nil {
+		if g, ok := defaultGateway(f); ok {
+			out = append(out, g)
+		}
+		_ = f.Close()
+	}
+	if f, err := os.Open("/proc/net/ipv6_route"); err == nil {
+		out = append(out, defaultGateway6(f)...)
+		_ = f.Close()
+	}
+	return out
 }
 
 // responseConnections is response's view of the connections (response.Connections): who exists, which write tools are on,

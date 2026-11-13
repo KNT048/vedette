@@ -54,7 +54,8 @@ type Software struct {
 type Asset struct {
 	ID       string
 	Name     string // hostname, or the IP when there is none
-	OS       string // current operating system as inventory folds it ("Ubuntu 26.04.1 LTS"); "" when unknown
+	OS       string // current operating system as inventory folds it ("Ubuntu 26.04.1 LTS", LLDP "JUNOS 15.1R7.9"); "" when unknown
+	Model    string // the model the device states ("EX4200-48T"); "" when unknown (D-510: Juniper series)
 	Software []Software
 }
 
@@ -69,6 +70,7 @@ type Vuln struct {
 	CVE        string
 	Vendor     string // KEV vendorProject
 	Product    string // KEV product
+	Name       string // KEV vulnerabilityName: it names the Juniper series a Junos flaw is about (D-510)
 	Ransomware bool
 	EPSS       float64   // 0 when unknown
 	DateAdded  time.Time // when CISA added the entry to KEV; zero when unknown (Reconcile treats that as backlog)
@@ -186,8 +188,9 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 	var res MatchResult
 	seen := make(map[string]bool, len(vulns))
 	need := map[string]int{} // software id -> index in res.NeedVersion
-	infos := make([]swInfo, len(a.Software))
-	for i, s := range a.Software {
+	sws := deviceSoftware(a) // its rows, and the network OS it states with its version (D-510)
+	infos := make([]swInfo, len(sws))
+	for i, s := range sws {
 		infos[i] = newSWInfo(s, a.OS)
 	}
 	for _, v := range vulns {
@@ -199,7 +202,7 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		unproved := false    // a software of this product with a No that proves nothing, or one that needs a version
 		othersOnly := true   // every software keyed to the entry is one NVD's list leaves out (D-506)
 		var unnamed []string // their names, for the D-506 sentence
-		for i, s := range a.Software {
+		for i, s := range sws {
 			m, out := matchOne(a, s, infos[i], v, now)
 			if out != outNone && (out != outRuledOut || m.Evidence.Summary == "") {
 				othersOnly = false
@@ -243,7 +246,7 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				res.NotAffected = append(res.NotAffected, *proved)
 			case unlisted != nil:
 				res.Unlisted = append(res.Unlisted, *unlisted)
-				if othersOnly && settled(v, now) {
+				if othersOnly && isMultiProduct(v.Product) && settled(v, now) { // D-506 is about "Multiple Products" only (not D-510's series)
 					r := *unlisted
 					r.Evidence.Summary = fmt.Sprintf("Closed by Vedette: CISA lists %s for several %s products; NVD names %s, not %s (settled: CISA added it over a year ago). Vedette checks it again whenever NVD's data for it changes.",
 						v.CVE, clean(v.Vendor), nvdProducts(v.Vendor, v.Affected), orList(unnamed))
@@ -339,6 +342,10 @@ func keyedTo(s Software, v Vuln) bool {
 func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outcome) {
 	if !keyedTo(s, v) {
 		return Match{}, outNone
+	}
+	if named, out := otherSeries(a.Model, v); out { // D-510: CISA names other Juniper series than the device's model; no proof about the version
+		note := fmt.Sprintf("CISA lists %s for Juniper %s only; this device's model is %s. Check the vendor advisory and close it if it does not apply.", v.CVE, orList(named), clean(a.Model))
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outRuledOut
 	}
 	multi := isMultiProduct(v.Product)
 	tri, within, every, proof := decide(in, v, multi)
@@ -517,6 +524,9 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 	if !applicable || undecidable && result == No {
 		return Unknown, VersionRange{}, every, proofNone
 	}
+	if _, jok := junosParse(in.ver); result == No && jok {
+		return No, VersionRange{}, every, proofRange // a Junos version the scheme reads (D-510)
+	}
 	if pv, ok := parseVersion(in.ver); result == No && ok && !isPlaceholder(in.ver) && pv.q.class >= 0 {
 		return No, VersionRange{}, every, proofRange // a pre-release ("2.0.0-rc1") near a bound proves nothing (review L5)
 	}
@@ -613,6 +623,12 @@ func versionGiven(ver string) bool {
 // pinned update, edition, language or target the software does not carry) can
 // only lower Yes to Unknown, never produce No.
 func evalAffected(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) (Tri, VersionRange) {
+	if t, jr, ok := junosEval(c, r, ver); ok { // D-510: "15.1R7.9" is 15.1R7, an X train is a release of its own
+		if t = pinnedAttrs(c, sw, hasSW, t); t == No {
+			return No, r
+		}
+		return t, jr
+	}
 	exact := false
 	if r.IsZero() {
 		switch c.Version.Kind {

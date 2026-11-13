@@ -152,7 +152,7 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 	if err != nil || !ok {
 		return findings.Asset{}, false, err
 	}
-	out := findings.Asset{ID: d.ID, Name: d.Name, OS: d.OS, Software: make([]findings.Software, len(d.Software))}
+	out := findings.Asset{ID: d.ID, Name: d.Name, OS: d.OS, Model: d.Model, Software: make([]findings.Software, len(d.Software))}
 	if d.Name == d.ID { // no hostname and no IP (hand-added, LLDP only): the evidence names it as the Devices page does, never by its id (D-484)
 		names, err := a.inv.Names(ctx)
 		if err != nil {
@@ -234,7 +234,7 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	}
 	out := make([]findings.Vuln, len(rows))
 	for i, v := range rows {
-		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Ransomware: v.Ransomware}
+		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware}
 		for _, r := range affected[v.CVE] {
 			out[i].Affected = append(out[i].Affected, findings.Affected{CPE: r.CPE,
 				Range: findings.VersionRange{StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}})
@@ -416,6 +416,21 @@ func subscribe(d deps) {
 		}
 		return err
 	}))
+	// D-510: a device's OS or model can decide its findings by itself (an LLDP switch stating "JUNOS 15.1R7.9" has no
+	// software row), so a new device and a change of its fields match it again, as a software change does.
+	for _, name := range []string{inventory.EventAssetDiscovered, inventory.EventAssetUpdated} {
+		d.Bus.Subscribe(name, on("findings", func(ctx context.Context, data any) error {
+			ev, ok := data.(inventory.AssetEvent)
+			if !ok {
+				return fmt.Errorf("unexpected payload %T", data)
+			}
+			_, err := d.Findings.OnMatchChanged(ctx, ev.AssetID)
+			if errors.Is(err, findings.ErrUnknownAsset) {
+				return nil // the device was deleted after the event went out
+			}
+			return err
+		}))
+	}
 	d.Bus.Subscribe(inventory.EventAssetDeleted, on("findings", func(ctx context.Context, data any) error {
 		ev, ok := data.(inventory.AssetEvent)
 		if !ok {

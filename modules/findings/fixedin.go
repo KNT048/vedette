@@ -67,7 +67,7 @@ func FixedInFor(a Asset, v Vuln) *FixedIn {
 		}
 		return 1
 	}
-	for _, s := range a.Software {
+	for _, s := range deviceSoftware(a) {
 		if !keyedTo(s, v) {
 			continue
 		}
@@ -314,7 +314,7 @@ type GroupFix struct {
 // an end is not in it. A CVE that matches several software rows takes the group that closes the most.
 func FixedInForAll(a Asset, vulns []Vuln) map[string]*GroupFix {
 	out := map[string]*GroupFix{}
-	for _, s := range a.Software {
+	for _, s := range deviceSoftware(a) {
 		in := newSWInfo(s, a.OS)
 		if !in.given || !versionKnown(in.ver) {
 			continue

@@ -1,0 +1,4 @@
+# Deferred — fix/junos-ex-findings (W1-32, D-510)
+
+- [ ] 2026-11-13 — Other network OSes a device states over LLDP/SNMP (Cisco IOS / IOS XE, MikroTik RouterOS, ArubaOS-Switch) are not yet matched from the OS field — vì sao để sau: IOS "15.2(4)M3" cannot be ordered (a flood of medium product findings) and there is no N100 feed data to test RouterOS/Aruba rows — ở đâu: `modules/findings/junos.go` `deviceOSes` (one row each, with real feed data)
+- [ ] 2026-11-13 — A new CISA entry for Junos reaches a device known only by its OS at the next hourly reconcile, not at once (`Inventory.RematchCVE`/`RematchAll` announce only devices with a software row keyed to the entry) — vì sao để sau: ≤ 1 h meets S-ALERT-1; making inventory know the OS→key table means sharing `deviceOSes` across modules — ở đâu: `modules/inventory/wiring.go` `RematchCVE`, `modules/findings/junos.go`

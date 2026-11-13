@@ -159,3 +159,51 @@ func TestContract_D503_OldTokenSaysItsMakerIsUnknown(t *testing.T) {
 		t.Fatalf("detail %q", detail)
 	}
 }
+
+// D-503, review #665 (HIGH): DHCP gave the address of an old machine to a new one and no sensor has seen the move yet, so the agent's
+// address still resolves to the old machine's row. The agent's MAC observation makes the agent's MAC that row's MAC (agent outranks
+// passive), so a check of the MAC column alone would pass; the old MAC's observation is what says it is another machine. The row is
+// not approved in the token maker's name, the node does not try again at every report, and the server log says why.
+func TestContract_D503_AnAddressDHCPReusedApprovesNothing(t *testing.T) {
+	w := newWorld(t)
+	const oldMAC = "52:54:00:00:00:99"
+	if err := w.inv.Record(t.Context(), []observe.Observation{{AssetHint: observe.AssetHint{MAC: oldMAC, IP: netip.MustParseAddr(peerA)}, Field: observe.Hostname, Value: "old-laptop", Source: observe.Passive, Confidence: 0.6}}); err != nil {
+		t.Fatal(err)
+	}
+	_, secret := w.token("srv", 7)
+	key := w.enroll(secret, "srv-1", peerA)
+	w.post("/intake/osquery/log", peerA, fullLog(key))
+	d, ok := w.device(peerA)
+	if !ok || d.MAC == nil || *d.MAC != macA {
+		t.Fatalf("setup: the agent's report should have landed on the old row and taken its MAC column: %+v", d.AssetCore)
+	}
+	if d.Approved {
+		t.Fatal("the enrolment approved a row seen with another machine's MAC")
+	}
+	if w.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.approve_enrolled'`) != 0 || w.count(`SELECT count(*) FROM intake_osquery_nodes WHERE approved_at IS NOT NULL`) != 1 {
+		t.Fatal("approved, or the node will try again at every report")
+	}
+	if !strings.Contains(w.logs.String(), "seen with another MAC") {
+		t.Fatalf("no log line says why: %s", w.logs.String())
+	}
+}
+
+// D-503, review #665 (LOW 3): the 5-minute window of package lists is per source address, not per node. A list the window dropped was
+// not taken from this node, so its first hour keeps asking for it; the next list after the window counts.
+func TestContract_D503_APackageListTheWindowDroppedIsAskedAgain(t *testing.T) {
+	w := newWorld(t)
+	_, secret := w.token("srv", 7)
+	first := w.enroll(secret, "srv-1", peerA)
+	w.post("/intake/osquery/log", peerA, fullLog(first))
+	second := w.enroll(secret, "srv-1-again", peerA) // a second node on the same machine
+	w.clock.Advance(time.Minute)
+	w.post("/intake/osquery/log", peerA, fullLog(second))
+	if got := w.intervals(second)["deb_packages"]; got != 60 {
+		t.Fatalf("a dropped list counted as taken: deb_packages every %v s", got)
+	}
+	w.clock.Advance(5 * time.Minute)
+	w.post("/intake/osquery/log", peerA, fullLog(second))
+	if got := w.intervals(second)["deb_packages"]; got != 3600 {
+		t.Fatalf("the list after the window was not taken: deb_packages every %v s", got)
+	}
+}

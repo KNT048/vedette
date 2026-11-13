@@ -46,15 +46,16 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 	if err != nil {
 		return err
 	}
-	return s.firstReport(ctx, n, hint, taken)
+	return s.firstReport(ctx, n, hint, mac, taken)
 }
 
 // answers is the fixed order of the first report's answers (schedule.go firstReport), so the stored list is canonical.
 var answers = []string{"os_version", "system_info", "interfaces", "packages"}
 
 // firstReport records which answers of the first report the inventory took from this node (the config stops asking for them every
-// minute), and approves the device in the name of the token's maker once per node, as soon as the inventory has it (D-503).
-func (s *Service) firstReport(ctx context.Context, n nodeRow, hint observe.AssetHint, taken []string) error {
+// minute), and approves the device in the name of the token's maker once per node, as soon as the inventory has it (D-503). mac is the
+// node's card on the hint's address: the inventory approves the row only when it was never seen with another MAC (DHCP reuse).
+func (s *Service) firstReport(ctx context.Context, n nodeRow, hint observe.AssetHint, mac string, taken []string) error {
 	var list []string
 	for _, a := range answers {
 		if hasAnswer(n.reported, a) || slices.Contains(taken, a) {
@@ -68,7 +69,7 @@ func (s *Service) firstReport(ctx context.Context, n nodeRow, hint observe.Asset
 		if err != nil {
 			return err
 		}
-		found, err := s.cfg.Approver.ApproveEnrolled(ctx, hint, reason)
+		found, err := s.cfg.Approver.ApproveEnrolled(ctx, hint, mac, reason)
 		switch {
 		case err != nil && transient(err):
 			return fmt.Errorf("agentintake: approve: %w", err)
@@ -76,7 +77,9 @@ func (s *Service) firstReport(ctx context.Context, n nodeRow, hint observe.Asset
 			s.cfg.Log.ErrorContext(ctx, "agent-intake: the inventory refused the enrolment's approval", "node", n.id, "error", err.Error())
 			approved = true
 		default:
-			approved = found // no device yet (only the interfaces arrived): the next report tries again
+			// no device yet (only the interfaces arrived): the next report tries again. A row seen with another MAC (DHCP gave this
+			// address to a new machine and no sensor saw the move yet) is found and left for a person: done once, like a suspicious one.
+			approved = found
 		}
 	}
 	if reported == n.reported && !approved {
@@ -201,7 +204,8 @@ func (s *Service) markResult(ctx context.Context, n nodeRow, ip netip.Addr, mac 
 // deliver hands the device facts and the package list to the inventory. An empty package list never replaces the stored one
 // (POST-2 of the plan): a node whose package table failed or is empty must not wipe what was known. taken is the answers of the first
 // report this request gave (schedule.go firstReport): the interfaces matched (deliver runs only then), os_version or system_info
-// with a row, a package list that was not empty.
+// with a row, a package list that was not empty and that the 5-minute window let through (the window is per source address, not per
+// node: a list it dropped was not taken from this node, so the first hour keeps asking for it).
 func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.AssetHint, mac, node string, in logIn) (taken []string, err error) {
 	if _, ok := in.snaps["interfaces"]; ok {
 		taken = append(taken, "interfaces")
@@ -226,10 +230,10 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 		}
 		return taken, nil
 	}
-	taken = append(taken, "packages") // a list dropped by the 5-minute window below means one was taken just before
 	if !s.allowReplace(ctx, src, node) {
 		return taken, nil
 	}
+	taken = append(taken, "packages")
 	if err := s.cfg.Software.ReplaceSoftware(ctx, hint, observe.Agent, items); err != nil {
 		if transient(err) {
 			return nil, fmt.Errorf("agentintake: software: %w", err)

@@ -1,7 +1,7 @@
 # Inventory — Change Impact Map
 
 ## Modifying: `inventory.Service.ApproveEnrolled` (`core/observe.Approver`, D-503, INV-25)
-- **agent-intake** (người gọi duy nhất, `ingest.go` `firstReport`; nối ở `cmd/vedette/wiring.go` `Approver: d.Inventory`): đánh dấu node đã duyệt (`approved_at`) khi `found=true`, nên trả `found=true` mà không duyệt (đáng ngờ, hộp) là cố ý: không thử lại ở mỗi lần báo. Đổi cách tìm thiết bị phải giữ giống `resolve` (MAC rồi IP), nếu không máy được duyệt có thể là hàng khác với hàng nhận gói.
+- **agent-intake** (người gọi duy nhất, `ingest.go` `firstReport`; nối ở `cmd/vedette/wiring.go` `Approver: d.Inventory`): đánh dấu node đã duyệt (`approved_at`) khi `found=true`, nên trả `found=true` mà không duyệt (đáng ngờ, hộp, hàng từng có MAC khác `mac` của agent) là cố ý: không thử lại ở mỗi lần báo; địa chỉ hộp trả lời trả `found=false` (agent-intake thử lại, rẻ). Luật MAC đọc `inv_observation` (mọi nguồn): đổi cách `Record`/`pruneObs` giữ quan sát `mac` (INV-16, 32 dòng mỗi chuỗi) là đổi điều kiện duyệt. Đổi cách tìm thiết bị phải giữ giống `resolve` (MAC rồi IP), nếu không máy được duyệt có thể là hàng khác với hàng nhận gói.
 - **GUI/audit**: nhãn `inventory.approve_enrolled` trong `web/src/locales/en/core.json` (`TestEveryAuditActionHasALabel`).
 
 ## Modifying: `core/observe` (`Observation`, `AssetHint`, `Source`, `Field`, `Sink`, `Software`, `SoftwareSink`, `Service`, `ServiceSink`) và `inventory.Service.Record`, `RecordObservation`, `ReplaceSoftware`, `UpsertSoftware`, `ReplaceServices`

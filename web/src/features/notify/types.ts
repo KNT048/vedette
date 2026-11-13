@@ -92,3 +92,4 @@ export const forbiddenHost = (host: string) => {
   const meta = x.slice(2, 7).every((v) => v === 0) && x[7] === 0x254 && ((x[0] === 0xfd00 && x[1] === 0xec2) || (x[0] === 0xfd20 && x[1] === 0xce)) // AWS, Google Cloud
   return meta || (zero7 && (x[7] === 0 || x[7] === 1)) || (x[0]! & 0xffc0) === 0xfe80 || x[0]! >> 8 === 0xff
 }
+export type TelegramChat = z.infer<typeof C.TelegramChat>

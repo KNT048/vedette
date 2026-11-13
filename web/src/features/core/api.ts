@@ -216,5 +216,6 @@ export function useNetworkActions() {
     ntp: useMutation({ mutationFn: (b: NtpConfig) => api.put<NetworkState>('/core/network/ntp', b), onSuccess: done }),
     // D-465: the block list URL (Response) and the agent install commands (Devices) carry the Box address.
     boxAddress: useMutation({ mutationFn: (address: string) => api.put<NetworkState>('/core/network/box-address', { address }), onSuccess: (d: NetworkState) => { done(d); void qc.invalidateQueries({ queryKey: ['response'] }) } }),
+    forgetBoxAddress: useMutation({ mutationFn: (address: string) => api.post<NetworkState>('/core/network/box-address/forget', { address }), onSuccess: done }),
   }
 }

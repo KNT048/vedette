@@ -179,6 +179,7 @@
   "POST /core/data/purge": "core",
   "POST /core/data/restore": "core",
   "POST /core/mcp/tokens": "mcp-server",
+  "POST /core/network/box-address/forget": "host",
   "POST /core/network/management/confirm": "host",
   "POST /core/network/management/revert": "host",
   "POST /core/oidc/test": "auth-oidc",

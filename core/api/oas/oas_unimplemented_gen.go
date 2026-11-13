@@ -945,6 +945,16 @@ func (UnimplementedHandler) CorePostCoreMcpTokens(ctx context.Context, req *Core
 	return r, ht.ErrNotImplemented
 }
 
+// CorePostCoreNetworkBoxAddressForget implements core_post_core_network_box_address_forget operation.
+//
+// Stop answering to an earlier Box address (D-465): it leaves the Host allowlist at once and the
+// certificate at its next re-issue. 404 not_found when the box does not answer to it.
+//
+// POST /core/network/box-address/forget
+func (UnimplementedHandler) CorePostCoreNetworkBoxAddressForget(ctx context.Context, req *CorePostCoreNetworkBoxAddressForgetReq) (r *CorePostCoreNetworkBoxAddressForgetOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CorePostCoreNetworkManagementConfirm implements core_post_core_network_management_confirm operation.
 //
 // Confirm the pending management change from the new address (409 when none is pending or it expired).

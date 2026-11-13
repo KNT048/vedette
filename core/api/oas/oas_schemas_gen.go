@@ -14189,6 +14189,15 @@ type CoreGetCoreNetworkOKBoxAddress struct {
 	Address NilString `json:"address"`
 	// The management IPv4 address the box reports; null while it has none.
 	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
 }
 
 // GetAddress returns the value of Address.
@@ -14201,6 +14210,21 @@ func (s *CoreGetCoreNetworkOKBoxAddress) GetDefault() NilString {
 	return s.Default
 }
 
+// GetLinkBase returns the value of LinkBase.
+func (s *CoreGetCoreNetworkOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CoreGetCoreNetworkOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CoreGetCoreNetworkOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
 // SetAddress sets the value of Address.
 func (s *CoreGetCoreNetworkOKBoxAddress) SetAddress(val NilString) {
 	s.Address = val
@@ -14209,6 +14233,21 @@ func (s *CoreGetCoreNetworkOKBoxAddress) SetAddress(val NilString) {
 // SetDefault sets the value of Default.
 func (s *CoreGetCoreNetworkOKBoxAddress) SetDefault(val NilString) {
 	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CoreGetCoreNetworkOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CoreGetCoreNetworkOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CoreGetCoreNetworkOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
 }
 
 type CoreGetCoreNetworkOKInterfacesItem struct {
@@ -25061,6 +25100,853 @@ func (s *CorePostCoreMcpTokensReq) SetScopes(val []string) {
 	s.Scopes = val
 }
 
+type CorePostCoreNetworkBoxAddressForgetOK struct {
+	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	BoxAddress CorePostCoreNetworkBoxAddressForgetOKBoxAddress       `json:"box_address"`
+	DecoyIps   []string                                              `json:"decoy_ips"`
+	DefaultNtp string                                                `json:"default_ntp"`
+	Interfaces []CorePostCoreNetworkBoxAddressForgetOKInterfacesItem `json:"interfaces"`
+	Management CorePostCoreNetworkBoxAddressForgetOKManagement       `json:"management"`
+	Ntp        CorePostCoreNetworkBoxAddressForgetOKNtp              `json:"ntp"`
+	// A management address change waiting for confirmation from the new address; the box reverts at
+	// expires_at.
+	Pending    NilCorePostCoreNetworkBoxAddressForgetOKPending `json:"pending"`
+	Span       CorePostCoreNetworkBoxAddressForgetOKSpan       `json:"span"`
+	SpanStatus CorePostCoreNetworkBoxAddressForgetOKSpanStatus `json:"span_status"`
+}
+
+// GetBoxAddress returns the value of BoxAddress.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetBoxAddress() CorePostCoreNetworkBoxAddressForgetOKBoxAddress {
+	return s.BoxAddress
+}
+
+// GetDecoyIps returns the value of DecoyIps.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetDecoyIps() []string {
+	return s.DecoyIps
+}
+
+// GetDefaultNtp returns the value of DefaultNtp.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetDefaultNtp() string {
+	return s.DefaultNtp
+}
+
+// GetInterfaces returns the value of Interfaces.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetInterfaces() []CorePostCoreNetworkBoxAddressForgetOKInterfacesItem {
+	return s.Interfaces
+}
+
+// GetManagement returns the value of Management.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetManagement() CorePostCoreNetworkBoxAddressForgetOKManagement {
+	return s.Management
+}
+
+// GetNtp returns the value of Ntp.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetNtp() CorePostCoreNetworkBoxAddressForgetOKNtp {
+	return s.Ntp
+}
+
+// GetPending returns the value of Pending.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetPending() NilCorePostCoreNetworkBoxAddressForgetOKPending {
+	return s.Pending
+}
+
+// GetSpan returns the value of Span.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetSpan() CorePostCoreNetworkBoxAddressForgetOKSpan {
+	return s.Span
+}
+
+// GetSpanStatus returns the value of SpanStatus.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetSpanStatus() CorePostCoreNetworkBoxAddressForgetOKSpanStatus {
+	return s.SpanStatus
+}
+
+// SetBoxAddress sets the value of BoxAddress.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetBoxAddress(val CorePostCoreNetworkBoxAddressForgetOKBoxAddress) {
+	s.BoxAddress = val
+}
+
+// SetDecoyIps sets the value of DecoyIps.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetDecoyIps(val []string) {
+	s.DecoyIps = val
+}
+
+// SetDefaultNtp sets the value of DefaultNtp.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetDefaultNtp(val string) {
+	s.DefaultNtp = val
+}
+
+// SetInterfaces sets the value of Interfaces.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetInterfaces(val []CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) {
+	s.Interfaces = val
+}
+
+// SetManagement sets the value of Management.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetManagement(val CorePostCoreNetworkBoxAddressForgetOKManagement) {
+	s.Management = val
+}
+
+// SetNtp sets the value of Ntp.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetNtp(val CorePostCoreNetworkBoxAddressForgetOKNtp) {
+	s.Ntp = val
+}
+
+// SetPending sets the value of Pending.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetPending(val NilCorePostCoreNetworkBoxAddressForgetOKPending) {
+	s.Pending = val
+}
+
+// SetSpan sets the value of Span.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetSpan(val CorePostCoreNetworkBoxAddressForgetOKSpan) {
+	s.Span = val
+}
+
+// SetSpanStatus sets the value of SpanStatus.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetSpanStatus(val CorePostCoreNetworkBoxAddressForgetOKSpanStatus) {
+	s.SpanStatus = val
+}
+
+// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+type CorePostCoreNetworkBoxAddressForgetOKBoxAddress struct {
+	// The host name or IPv4 address an administrator saved; null = the default is used.
+	Address NilString `json:"address"`
+	// The management IPv4 address the box reports; null while it has none.
+	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) GetAddress() NilString {
+	return s.Address
+}
+
+// GetDefault returns the value of Default.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) GetDefault() NilString {
+	return s.Default
+}
+
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetDefault sets the value of Default.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) SetDefault(val NilString) {
+	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKInterfacesItem struct {
+	// Address/prefix, only on the management interface.
+	Address NilString                                               `json:"address"`
+	Link    bool                                                    `json:"link"`
+	MAC     string                                                  `json:"mac"`
+	Name    string                                                  `json:"name"`
+	Role    CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole `json:"role"`
+	Speed   NilString                                               `json:"speed"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) GetAddress() NilString {
+	return s.Address
+}
+
+// GetLink returns the value of Link.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) GetLink() bool {
+	return s.Link
+}
+
+// GetMAC returns the value of MAC.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) GetMAC() string {
+	return s.MAC
+}
+
+// GetName returns the value of Name.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) GetName() string {
+	return s.Name
+}
+
+// GetRole returns the value of Role.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) GetRole() CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole {
+	return s.Role
+}
+
+// GetSpeed returns the value of Speed.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) GetSpeed() NilString {
+	return s.Speed
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetLink sets the value of Link.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) SetLink(val bool) {
+	s.Link = val
+}
+
+// SetMAC sets the value of MAC.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) SetMAC(val string) {
+	s.MAC = val
+}
+
+// SetName sets the value of Name.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetRole sets the value of Role.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) SetRole(val CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole) {
+	s.Role = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) SetSpeed(val NilString) {
+	s.Speed = val
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole string
+
+const (
+	CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleManagement CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole = "management"
+	CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleSpan       CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole = "span"
+	CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleUnused     CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole = "unused"
+)
+
+// AllValues returns all CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole values.
+func (CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole) AllValues() []CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole {
+	return []CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole{
+		CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleManagement,
+		CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleSpan,
+		CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleUnused,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleManagement:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleSpan:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleUnused:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole) UnmarshalText(data []byte) error {
+	switch CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole(data) {
+	case CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleManagement:
+		*s = CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleManagement
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleSpan:
+		*s = CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleSpan
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleUnused:
+		*s = CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleUnused
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKManagement struct {
+	Address NilString                                           `json:"address"`
+	DNS     []string                                            `json:"dns"`
+	Gateway NilString                                           `json:"gateway"`
+	Mode    CorePostCoreNetworkBoxAddressForgetOKManagementMode `json:"mode"`
+	Prefix  NilInt                                              `json:"prefix"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) GetAddress() NilString {
+	return s.Address
+}
+
+// GetDNS returns the value of DNS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) GetDNS() []string {
+	return s.DNS
+}
+
+// GetGateway returns the value of Gateway.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) GetGateway() NilString {
+	return s.Gateway
+}
+
+// GetMode returns the value of Mode.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) GetMode() CorePostCoreNetworkBoxAddressForgetOKManagementMode {
+	return s.Mode
+}
+
+// GetPrefix returns the value of Prefix.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) GetPrefix() NilInt {
+	return s.Prefix
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetDNS sets the value of DNS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) SetDNS(val []string) {
+	s.DNS = val
+}
+
+// SetGateway sets the value of Gateway.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) SetGateway(val NilString) {
+	s.Gateway = val
+}
+
+// SetMode sets the value of Mode.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) SetMode(val CorePostCoreNetworkBoxAddressForgetOKManagementMode) {
+	s.Mode = val
+}
+
+// SetPrefix sets the value of Prefix.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) SetPrefix(val NilInt) {
+	s.Prefix = val
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKManagementMode string
+
+const (
+	CorePostCoreNetworkBoxAddressForgetOKManagementModeDhcp   CorePostCoreNetworkBoxAddressForgetOKManagementMode = "dhcp"
+	CorePostCoreNetworkBoxAddressForgetOKManagementModeStatic CorePostCoreNetworkBoxAddressForgetOKManagementMode = "static"
+)
+
+// AllValues returns all CorePostCoreNetworkBoxAddressForgetOKManagementMode values.
+func (CorePostCoreNetworkBoxAddressForgetOKManagementMode) AllValues() []CorePostCoreNetworkBoxAddressForgetOKManagementMode {
+	return []CorePostCoreNetworkBoxAddressForgetOKManagementMode{
+		CorePostCoreNetworkBoxAddressForgetOKManagementModeDhcp,
+		CorePostCoreNetworkBoxAddressForgetOKManagementModeStatic,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreNetworkBoxAddressForgetOKManagementMode) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreNetworkBoxAddressForgetOKManagementModeDhcp:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKManagementModeStatic:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagementMode) UnmarshalText(data []byte) error {
+	switch CorePostCoreNetworkBoxAddressForgetOKManagementMode(data) {
+	case CorePostCoreNetworkBoxAddressForgetOKManagementModeDhcp:
+		*s = CorePostCoreNetworkBoxAddressForgetOKManagementModeDhcp
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKManagementModeStatic:
+		*s = CorePostCoreNetworkBoxAddressForgetOKManagementModeStatic
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKNtp struct {
+	Mode CorePostCoreNetworkBoxAddressForgetOKNtpMode `json:"mode"`
+	// Only for mode custom; empty for the default pool.
+	Servers []string `json:"servers"`
+}
+
+// GetMode returns the value of Mode.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtp) GetMode() CorePostCoreNetworkBoxAddressForgetOKNtpMode {
+	return s.Mode
+}
+
+// GetServers returns the value of Servers.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtp) GetServers() []string {
+	return s.Servers
+}
+
+// SetMode sets the value of Mode.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtp) SetMode(val CorePostCoreNetworkBoxAddressForgetOKNtpMode) {
+	s.Mode = val
+}
+
+// SetServers sets the value of Servers.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtp) SetServers(val []string) {
+	s.Servers = val
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKNtpMode string
+
+const (
+	CorePostCoreNetworkBoxAddressForgetOKNtpModeDefault CorePostCoreNetworkBoxAddressForgetOKNtpMode = "default"
+	CorePostCoreNetworkBoxAddressForgetOKNtpModeCustom  CorePostCoreNetworkBoxAddressForgetOKNtpMode = "custom"
+)
+
+// AllValues returns all CorePostCoreNetworkBoxAddressForgetOKNtpMode values.
+func (CorePostCoreNetworkBoxAddressForgetOKNtpMode) AllValues() []CorePostCoreNetworkBoxAddressForgetOKNtpMode {
+	return []CorePostCoreNetworkBoxAddressForgetOKNtpMode{
+		CorePostCoreNetworkBoxAddressForgetOKNtpModeDefault,
+		CorePostCoreNetworkBoxAddressForgetOKNtpModeCustom,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreNetworkBoxAddressForgetOKNtpMode) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreNetworkBoxAddressForgetOKNtpModeDefault:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKNtpModeCustom:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtpMode) UnmarshalText(data []byte) error {
+	switch CorePostCoreNetworkBoxAddressForgetOKNtpMode(data) {
+	case CorePostCoreNetworkBoxAddressForgetOKNtpModeDefault:
+		*s = CorePostCoreNetworkBoxAddressForgetOKNtpModeDefault
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKNtpModeCustom:
+		*s = CorePostCoreNetworkBoxAddressForgetOKNtpModeCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKPending struct {
+	ExpiresAt       time.Time `json:"expires_at"`
+	PreviousAddress NilString `json:"previous_address"`
+	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
+	// saved settings on disk are the old ones (D-100).
+	RebootAt NilDateTime `json:"reboot_at"`
+	// Seconds the box waits for the confirmation (the whole window, not what is left).
+	WindowS int `json:"window_s"`
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// GetPreviousAddress returns the value of PreviousAddress.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) GetPreviousAddress() NilString {
+	return s.PreviousAddress
+}
+
+// GetRebootAt returns the value of RebootAt.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) GetRebootAt() NilDateTime {
+	return s.RebootAt
+}
+
+// GetWindowS returns the value of WindowS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) GetWindowS() int {
+	return s.WindowS
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+// SetPreviousAddress sets the value of PreviousAddress.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) SetPreviousAddress(val NilString) {
+	s.PreviousAddress = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) SetRebootAt(val NilDateTime) {
+	s.RebootAt = val
+}
+
+// SetWindowS sets the value of WindowS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) SetWindowS(val int) {
+	s.WindowS = val
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKSpan struct {
+	CPUPercent int  `json:"cpu_percent"`
+	Enabled    bool `json:"enabled"`
+	// What is read from mirrored traffic. Packet contents are never stored.
+	Extract   CorePostCoreNetworkBoxAddressForgetOKSpanExtract       `json:"extract"`
+	Filters   []CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem `json:"filters"`
+	Interface NilString                                              `json:"interface"`
+	MemoryMB  int                                                    `json:"memory_mb"`
+}
+
+// GetCPUPercent returns the value of CPUPercent.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) GetCPUPercent() int {
+	return s.CPUPercent
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetExtract returns the value of Extract.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) GetExtract() CorePostCoreNetworkBoxAddressForgetOKSpanExtract {
+	return s.Extract
+}
+
+// GetFilters returns the value of Filters.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) GetFilters() []CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem {
+	return s.Filters
+}
+
+// GetInterface returns the value of Interface.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) GetInterface() NilString {
+	return s.Interface
+}
+
+// GetMemoryMB returns the value of MemoryMB.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) GetMemoryMB() int {
+	return s.MemoryMB
+}
+
+// SetCPUPercent sets the value of CPUPercent.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) SetCPUPercent(val int) {
+	s.CPUPercent = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetExtract sets the value of Extract.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) SetExtract(val CorePostCoreNetworkBoxAddressForgetOKSpanExtract) {
+	s.Extract = val
+}
+
+// SetFilters sets the value of Filters.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) SetFilters(val []CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) {
+	s.Filters = val
+}
+
+// SetInterface sets the value of Interface.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) SetInterface(val NilString) {
+	s.Interface = val
+}
+
+// SetMemoryMB sets the value of MemoryMB.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) SetMemoryMB(val int) {
+	s.MemoryMB = val
+}
+
+// What is read from mirrored traffic. Packet contents are never stored.
+type CorePostCoreNetworkBoxAddressForgetOKSpanExtract struct {
+	DNS      bool `json:"dns"`
+	Flows    bool `json:"flows"`
+	HTTPHost bool `json:"http_host"`
+	TLSSni   bool `json:"tls_sni"`
+}
+
+// GetDNS returns the value of DNS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) GetDNS() bool {
+	return s.DNS
+}
+
+// GetFlows returns the value of Flows.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) GetFlows() bool {
+	return s.Flows
+}
+
+// GetHTTPHost returns the value of HTTPHost.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) GetHTTPHost() bool {
+	return s.HTTPHost
+}
+
+// GetTLSSni returns the value of TLSSni.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) GetTLSSni() bool {
+	return s.TLSSni
+}
+
+// SetDNS sets the value of DNS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) SetDNS(val bool) {
+	s.DNS = val
+}
+
+// SetFlows sets the value of Flows.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) SetFlows(val bool) {
+	s.Flows = val
+}
+
+// SetHTTPHost sets the value of HTTPHost.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) SetHTTPHost(val bool) {
+	s.HTTPHost = val
+}
+
+// SetTLSSni sets the value of TLSSni.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) SetTLSSni(val bool) {
+	s.TLSSni = val
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem struct {
+	Type  CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType `json:"type"`
+	Value string                                                   `json:"value"`
+}
+
+// GetType returns the value of Type.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) GetType() CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType {
+	return s.Type
+}
+
+// GetValue returns the value of Value.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) GetValue() string {
+	return s.Value
+}
+
+// SetType sets the value of Type.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) SetType(val CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType) {
+	s.Type = val
+}
+
+// SetValue sets the value of Value.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) SetValue(val string) {
+	s.Value = val
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType string
+
+const (
+	CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeCidr CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType = "cidr"
+	CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeHost CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType = "host"
+	CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypePort CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType = "port"
+)
+
+// AllValues returns all CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType values.
+func (CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType) AllValues() []CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType {
+	return []CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType{
+		CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeCidr,
+		CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeHost,
+		CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypePort,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeCidr:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeHost:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypePort:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType) UnmarshalText(data []byte) error {
+	switch CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType(data) {
+	case CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeCidr:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeCidr
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeHost:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeHost
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypePort:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypePort
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKSpanStatus struct {
+	Interface    NilString   `json:"interface"`
+	LastPacketAt NilDateTime `json:"last_packet_at"`
+	// Distinct source MAC addresses other than the box's own.
+	OtherMacs   int `json:"other_macs"`
+	PacketsPerS int `json:"packets_per_s"`
+	// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+	// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+	// nothing arrives; no_link = no cable signal.
+	Verdict CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict `json:"verdict"`
+}
+
+// GetInterface returns the value of Interface.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) GetInterface() NilString {
+	return s.Interface
+}
+
+// GetLastPacketAt returns the value of LastPacketAt.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) GetLastPacketAt() NilDateTime {
+	return s.LastPacketAt
+}
+
+// GetOtherMacs returns the value of OtherMacs.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) GetOtherMacs() int {
+	return s.OtherMacs
+}
+
+// GetPacketsPerS returns the value of PacketsPerS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) GetPacketsPerS() int {
+	return s.PacketsPerS
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) GetVerdict() CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict {
+	return s.Verdict
+}
+
+// SetInterface sets the value of Interface.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) SetInterface(val NilString) {
+	s.Interface = val
+}
+
+// SetLastPacketAt sets the value of LastPacketAt.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) SetLastPacketAt(val NilDateTime) {
+	s.LastPacketAt = val
+}
+
+// SetOtherMacs sets the value of OtherMacs.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) SetOtherMacs(val int) {
+	s.OtherMacs = val
+}
+
+// SetPacketsPerS sets the value of PacketsPerS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) SetPacketsPerS(val int) {
+	s.PacketsPerS = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) SetVerdict(val CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict) {
+	s.Verdict = val
+}
+
+// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+// nothing arrives; no_link = no cable signal.
+type CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict string
+
+const (
+	CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOff               CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict = "off"
+	CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOk                CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict = "ok"
+	CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOwnOnly           CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict = "own_only"
+	CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoTraffic         CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict = "no_traffic"
+	CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoLink            CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict = "no_link"
+	CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictSensorUnreachable CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict = "sensor_unreachable"
+)
+
+// AllValues returns all CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict values.
+func (CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict) AllValues() []CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict {
+	return []CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict{
+		CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOff,
+		CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOk,
+		CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOwnOnly,
+		CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoTraffic,
+		CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoLink,
+		CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictSensorUnreachable,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOff:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOk:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOwnOnly:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoTraffic:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoLink:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictSensorUnreachable:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict) UnmarshalText(data []byte) error {
+	switch CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict(data) {
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOff:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOff
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOk:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOk
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOwnOnly:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOwnOnly
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoTraffic:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoTraffic
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoLink:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoLink
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictSensorUnreachable:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictSensorUnreachable
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreNetworkBoxAddressForgetReq struct {
+	Address string `json:"address"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetReq) GetAddress() string {
+	return s.Address
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetReq) SetAddress(val string) {
+	s.Address = val
+}
+
 type CorePostCoreNetworkManagementConfirmOK struct {
 	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
 	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
@@ -25174,6 +26060,15 @@ type CorePostCoreNetworkManagementConfirmOKBoxAddress struct {
 	Address NilString `json:"address"`
 	// The management IPv4 address the box reports; null while it has none.
 	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
 }
 
 // GetAddress returns the value of Address.
@@ -25186,6 +26081,21 @@ func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) GetDefault() NilStrin
 	return s.Default
 }
 
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
 // SetAddress sets the value of Address.
 func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) SetAddress(val NilString) {
 	s.Address = val
@@ -25194,6 +26104,21 @@ func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) SetAddress(val NilStr
 // SetDefault sets the value of Default.
 func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) SetDefault(val NilString) {
 	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
 }
 
 type CorePostCoreNetworkManagementConfirmOKInterfacesItem struct {
@@ -25968,6 +26893,15 @@ type CorePostCoreNetworkManagementRevertOKBoxAddress struct {
 	Address NilString `json:"address"`
 	// The management IPv4 address the box reports; null while it has none.
 	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
 }
 
 // GetAddress returns the value of Address.
@@ -25980,6 +26914,21 @@ func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) GetDefault() NilString
 	return s.Default
 }
 
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
 // SetAddress sets the value of Address.
 func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) SetAddress(val NilString) {
 	s.Address = val
@@ -25988,6 +26937,21 @@ func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) SetAddress(val NilStri
 // SetDefault sets the value of Default.
 func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) SetDefault(val NilString) {
 	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
 }
 
 type CorePostCoreNetworkManagementRevertOKInterfacesItem struct {
@@ -35962,6 +36926,15 @@ type CorePutCoreNetworkBoxAddressOKBoxAddress struct {
 	Address NilString `json:"address"`
 	// The management IPv4 address the box reports; null while it has none.
 	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
 }
 
 // GetAddress returns the value of Address.
@@ -35974,6 +36947,21 @@ func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) GetDefault() NilString {
 	return s.Default
 }
 
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
 // SetAddress sets the value of Address.
 func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) SetAddress(val NilString) {
 	s.Address = val
@@ -35982,6 +36970,21 @@ func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) SetAddress(val NilString) {
 // SetDefault sets the value of Default.
 func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) SetDefault(val NilString) {
 	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
 }
 
 type CorePutCoreNetworkBoxAddressOKInterfacesItem struct {
@@ -36772,6 +37775,15 @@ type CorePutCoreNetworkInterfacesOKBoxAddress struct {
 	Address NilString `json:"address"`
 	// The management IPv4 address the box reports; null while it has none.
 	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
 }
 
 // GetAddress returns the value of Address.
@@ -36784,6 +37796,21 @@ func (s *CorePutCoreNetworkInterfacesOKBoxAddress) GetDefault() NilString {
 	return s.Default
 }
 
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
 // SetAddress sets the value of Address.
 func (s *CorePutCoreNetworkInterfacesOKBoxAddress) SetAddress(val NilString) {
 	s.Address = val
@@ -36792,6 +37819,21 @@ func (s *CorePutCoreNetworkInterfacesOKBoxAddress) SetAddress(val NilString) {
 // SetDefault sets the value of Default.
 func (s *CorePutCoreNetworkInterfacesOKBoxAddress) SetDefault(val NilString) {
 	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
 }
 
 type CorePutCoreNetworkInterfacesOKInterfacesItem struct {
@@ -37639,6 +38681,15 @@ type CorePutCoreNetworkManagementOKBoxAddress struct {
 	Address NilString `json:"address"`
 	// The management IPv4 address the box reports; null while it has none.
 	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
 }
 
 // GetAddress returns the value of Address.
@@ -37651,6 +38702,21 @@ func (s *CorePutCoreNetworkManagementOKBoxAddress) GetDefault() NilString {
 	return s.Default
 }
 
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
 // SetAddress sets the value of Address.
 func (s *CorePutCoreNetworkManagementOKBoxAddress) SetAddress(val NilString) {
 	s.Address = val
@@ -37659,6 +38725,21 @@ func (s *CorePutCoreNetworkManagementOKBoxAddress) SetAddress(val NilString) {
 // SetDefault sets the value of Default.
 func (s *CorePutCoreNetworkManagementOKBoxAddress) SetDefault(val NilString) {
 	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
 }
 
 type CorePutCoreNetworkManagementOKInterfacesItem struct {
@@ -38546,6 +39627,15 @@ type CorePutCoreNetworkNtpOKBoxAddress struct {
 	Address NilString `json:"address"`
 	// The management IPv4 address the box reports; null while it has none.
 	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
 }
 
 // GetAddress returns the value of Address.
@@ -38558,6 +39648,21 @@ func (s *CorePutCoreNetworkNtpOKBoxAddress) GetDefault() NilString {
 	return s.Default
 }
 
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
 // SetAddress sets the value of Address.
 func (s *CorePutCoreNetworkNtpOKBoxAddress) SetAddress(val NilString) {
 	s.Address = val
@@ -38566,6 +39671,21 @@ func (s *CorePutCoreNetworkNtpOKBoxAddress) SetAddress(val NilString) {
 // SetDefault sets the value of Default.
 func (s *CorePutCoreNetworkNtpOKBoxAddress) SetDefault(val NilString) {
 	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
 }
 
 type CorePutCoreNetworkNtpOKInterfacesItem struct {
@@ -39407,6 +40527,15 @@ type CorePutCoreNetworkSpanOKBoxAddress struct {
 	Address NilString `json:"address"`
 	// The management IPv4 address the box reports; null while it has none.
 	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
 }
 
 // GetAddress returns the value of Address.
@@ -39419,6 +40548,21 @@ func (s *CorePutCoreNetworkSpanOKBoxAddress) GetDefault() NilString {
 	return s.Default
 }
 
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
 // SetAddress sets the value of Address.
 func (s *CorePutCoreNetworkSpanOKBoxAddress) SetAddress(val NilString) {
 	s.Address = val
@@ -39427,6 +40571,21 @@ func (s *CorePutCoreNetworkSpanOKBoxAddress) SetAddress(val NilString) {
 // SetDefault sets the value of Default.
 func (s *CorePutCoreNetworkSpanOKBoxAddress) SetDefault(val NilString) {
 	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
 }
 
 type CorePutCoreNetworkSpanOKInterfacesItem struct {
@@ -80208,6 +81367,51 @@ func (o NilCorePostCoreConnectionsIDTestOKConnectorPin) Get() (v CorePostCoreCon
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCorePostCoreConnectionsIDTestOKConnectorPin) Or(d CorePostCoreConnectionsIDTestOKConnectorPin) CorePostCoreConnectionsIDTestOKConnectorPin {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreNetworkBoxAddressForgetOKPending returns new NilCorePostCoreNetworkBoxAddressForgetOKPending with value set to v.
+func NewNilCorePostCoreNetworkBoxAddressForgetOKPending(v CorePostCoreNetworkBoxAddressForgetOKPending) NilCorePostCoreNetworkBoxAddressForgetOKPending {
+	return NilCorePostCoreNetworkBoxAddressForgetOKPending{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreNetworkBoxAddressForgetOKPending is nullable CorePostCoreNetworkBoxAddressForgetOKPending.
+type NilCorePostCoreNetworkBoxAddressForgetOKPending struct {
+	Value CorePostCoreNetworkBoxAddressForgetOKPending
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreNetworkBoxAddressForgetOKPending) SetTo(v CorePostCoreNetworkBoxAddressForgetOKPending) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreNetworkBoxAddressForgetOKPending) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreNetworkBoxAddressForgetOKPending) SetToNull() {
+	o.Null = true
+	var v CorePostCoreNetworkBoxAddressForgetOKPending
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreNetworkBoxAddressForgetOKPending) Get() (v CorePostCoreNetworkBoxAddressForgetOKPending, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreNetworkBoxAddressForgetOKPending) Or(d CorePostCoreNetworkBoxAddressForgetOKPending) CorePostCoreNetworkBoxAddressForgetOKPending {
 	if v, ok := o.Get(); ok {
 		return v
 	}

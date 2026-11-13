@@ -219,11 +219,15 @@ function NtpForm({ d }: { d: NetworkState }) {
 function BoxAddressForm({ d }: { d: NetworkState }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
-  const { boxAddress } = useNetworkActions()
-  const [value, setValue] = useState(d.box_address.address ?? '')
+  const { boxAddress, forgetBoxAddress } = useNetworkActions()
+  const b = d.box_address
+  const [value, setValue] = useState(b.address ?? '')
   const [error, setError] = useState<string | null>(null)
-  const inUse = d.box_address.address ?? d.box_address.default
-  const port = window.location.port && window.location.port !== '443' ? `:${window.location.port}` : ''
+  const [ask, setAsk] = useState<string | null>(null) // the new address waiting for the confirm of review M1
+  const save = (v: string) => boxAddress.mutate(v, {
+    onSuccess: (n) => { setAsk(null); toast.success(t(v ? (n.box_address.self_signed ? 'network.boxAddress.saved' : 'network.boxAddress.savedOwnCert') : 'network.boxAddress.reset')) },
+    onError: (er) => { setAsk(null); setError(errMsg(er, t)) },
+  })
   return (
     <form className="grid max-w-xl gap-4" noValidate onSubmit={(e) => {
       e.preventDefault()
@@ -231,15 +235,41 @@ function BoxAddressForm({ d }: { d: NetworkState }) {
       const problem = boxAddressProblem(v)
       setError(problem)
       if (problem) return
-      boxAddress.mutate(v, { onSuccess: () => toast.success(t(v ? 'network.boxAddress.saved' : 'network.boxAddress.reset')), onError: (er) => setError(errMsg(er, t)) })
+      // Review M1: the address in use now keeps answering after the change; say so before anything is saved.
+      if (b.address && v !== b.address) setAsk(v)
+      else save(v)
     }}>
       <Field label={t('network.boxAddress.label')} htmlFor="box-address-input" error={error ?? undefined} hint={t('network.boxAddress.hint')}>
         <Input id="box-address-input" autoComplete="off" spellCheck={false} value={value} disabled={gate.disabled} aria-invalid={error ? true : undefined} aria-describedby={error ? 'box-address-input-error' : 'box-address-input-hint'}
           onChange={(e) => { setValue(e.target.value); setError(null) }} />
       </Field>
-      <p className="text-[13px] text-muted">{d.box_address.default ? t('network.boxAddress.default', { address: d.box_address.default }) : t('network.boxAddress.noDefault')}</p>
-      {inUse ? <p className="text-[13px]">{t('network.boxAddress.links', { url: `https://${inUse}${port}` })}</p> : null}
+      <p className="text-[13px] text-muted">{b.default ? t('network.boxAddress.default', { address: b.default }) : t('network.boxAddress.noDefault')}</p>
+      {b.link_base ? <p className="text-[13px]">{t('network.boxAddress.links', { url: b.link_base })}</p> : <p className="text-[13px]">{t('network.boxAddress.noLinks')}</p>}
+      {b.previous.length ? (
+        <ul aria-label={t('network.boxAddress.previousLabel')} className="grid gap-2">
+          {b.previous.map((p) => (
+            <li key={p} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
+              <span>{t('network.boxAddress.previous', { address: p })}</span>
+              <Button type="button" size="sm" disabled={gate.disabled || forgetBoxAddress.isPending} title={gate.title}
+                onClick={() => forgetBoxAddress.mutate(p, { onSuccess: () => toast.success(t('network.boxAddress.forgotten', { address: p })), onError: (er) => toast.error(errMsg(er, t)) })}>
+                {t('network.boxAddress.forget', { address: p })}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <div><Button type="submit" variant="primary" disabled={gate.disabled || boxAddress.isPending} title={gate.title}>{t('common:save')}</Button></div>
+      {ask !== null && b.address ? (
+        <Dialog open onOpenChange={(o) => { if (!o) setAsk(null) }}>
+          <DialogContent title={t('network.boxAddress.confirm.title')} description={t(ask ? 'network.boxAddress.confirm.body' : 'network.boxAddress.confirm.bodyDefault', { from: b.address, to: ask, def: b.default ?? '' })}>
+            <p className="text-sm">{t('network.boxAddress.confirm.keeps', { from: b.address })}</p>
+            <DialogFooter>
+              <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
+              <Button variant="primary" disabled={boxAddress.isPending} onClick={() => save(ask)}>{t('network.boxAddress.confirm.go')}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </form>
   )
 }

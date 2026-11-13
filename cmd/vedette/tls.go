@@ -280,8 +280,9 @@ type selfSignedRenewer struct {
 	// box is the box's name for the certificate (certBoxName): "" while vedette-host has not answered since start. nil: no name is
 	// looked at (tests of other things).
 	box func(ctx context.Context) string
-	// addr is the Box address (D-465, boxAddr.Host): a name of the certificate, added when it lacks it; "" or nil: none.
-	addr  func(ctx context.Context) string
+	// addrs are the Box address and the earlier ones the box still answers to (D-465, boxAddr.Names): names of the certificate, added
+	// when it lacks one; nil: none.
+	addrs func(ctx context.Context) []string
 	local func() []string // localNames; a test gives another
 	kick  chan struct{}
 	gap   time.Duration // between two address checks started by Kick; 0 = addrSyncGap
@@ -461,13 +462,14 @@ func (r *selfSignedRenewer) Check(ctx context.Context, log *slog.Logger) error {
 	// error that never goes away cannot keep the box from renewing.
 	ca, caErr := r.ca.ensure(ctx, r.now(), log, leaf.NotAfter.Sub(r.now()) <= selfSignedRenewBefore)
 	hosts := append([]string(nil), r.hosts...)
-	// The Box address (D-465): every link carries it, so the certificate names it; one it lacks (a name or address an administrator
-	// just saved) re-issues it. Unknown ("") changes nothing.
+	// The Box address (D-465): every link carries it, so the certificate names it, and the earlier ones the box still answers to (agents
+	// and firewalls set up with them, review M1); one it lacks (a name or address an administrator just saved) re-issues it. A forgotten
+	// one leaves at the next re-issue. Unknown (none) changes nothing.
 	boxChange := false
-	if r.addr != nil {
-		if a := r.addr(ctx); a != "" {
-			hosts = append(hosts, a)
-			boxChange = len(uncoveredHosts(leaf, []string{a})) > 0
+	if r.addrs != nil {
+		if names := r.addrs(ctx); len(names) > 0 {
+			hosts = append(hosts, names...)
+			boxChange = len(uncoveredHosts(leaf, names)) > 0
 		}
 	}
 	addrChange := false

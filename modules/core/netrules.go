@@ -251,7 +251,8 @@ func checkBoxAddress(s string) (string, *apierr.Error) {
 		}
 		return s, nil
 	}
-	if !hostName(s) {
+	// localhost and *.localhost always mean the machine itself (RFC 6761 6.3): another machine can never reach the box by them.
+	if !hostName(s) || s == "localhost" || strings.HasSuffix(s, ".localhost") {
 		return "", invalid(CodeBadBoxAddress, msgBadBoxAddress)
 	}
 	return s, nil

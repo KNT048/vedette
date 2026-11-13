@@ -427,6 +427,12 @@
     "description": "An agent tells Vedette exactly which software runs on a server, so alerts say \"confirmed\" instead of \"suspected\".",
     "recommendation": "Use osquery on your Linux and Windows servers. Already run Wazuh? Connect its API instead.",
     "serverOnly": "Vedette supports server operating systems only: Linux and Windows Server.",
+    "boxAddress": {
+      "uses": "Install commands use {{url}}.",
+      "change": "Change it in Settings → Box network",
+      "container": "It is the first name in VEDETTE_HOSTS.",
+      "otherHost": "You opened Vedette at {{here}}, but agents will use {{box}}."
+    },
     "off": "Agent intake is off. Turn this module on to create osquery tokens and connect Wazuh.",
     "osquery": {
       "title": "osquery on your servers",

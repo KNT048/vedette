@@ -1195,7 +1195,8 @@ describe('inventory: agents (S-INV-4)', () => {
     const dialog = await screen.findByRole('dialog', undefined, T)
     for (const platform of ['Linux', 'Windows Server']) {
       await user.click(within(dialog).getByRole('button', { name: platform }))
-      const text = dialog.textContent ?? ''
+      // the D-465 note may name the page's own host (jsdom: localhost) to say agents will NOT use it; every command and script must not
+      const text = (dialog.textContent ?? '').replace(/You opened Vedette at [^,]+, but agents will use [^.]+\./, '')
       expect(text).toContain(`${BOX}/api/v1/install/osquery.${platform === 'Linux' ? 'sh' : 'ps1'}`)
       expect(text, platform).not.toMatch(/localhost|127\.0\.0\.1/)
       expect(text.replace(/https:\/\//g, ''), `${platform}: only https`).not.toMatch(/http:\/\//)

@@ -238,6 +238,9 @@ export const PendingManagement = z.object({ expires_at: ts, previous_address: z.
 export const BoxAddress = z.object({
   address: z.string().nullable().describe('The host name or IPv4 address an administrator saved; null = the default is used'),
   default: z.string().nullable().describe('The management IPv4 address the box reports; null while it has none'),
+  previous: z.array(z.string()).describe('Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops it: agents, firewalls and links set up with them keep working'),
+  link_base: z.string().nullable().describe('How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no links (no address known)'),
+  self_signed: z.boolean().describe('The box issues its own certificate (it adds the Box address within seconds); false: the owner\'s certificate, which must include it'),
 }).describe('D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail, block list URL, URL honey tokens, agent install commands); also a name of the box\'s own certificate')
 export const BoxAddressBody = z.object({ address: z.string().describe('A host name (vedette.office.lan) or an IPv4 address; no scheme, port or path. Empty = go back to the default') })
 export const NetworkState = z.object({
@@ -336,4 +339,5 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/core/network/span/status', summary: 'Live mirrored-traffic status: packets/s, other MACs, last packet, health verdict', stories: ['S-CORE-8', 'S-INV-1'], role: 'viewer', response: SpanStatus },
   { method: 'put', path: '/core/network/ntp', summary: 'NTP servers: default pool or your own (1 to 4)', stories: ['S-CORE-8'], role: 'admin', body: NtpConfig, response: NetworkState },
   { method: 'put', path: '/core/network/box-address', summary: 'Box address (D-465): the host name or IPv4 address the LAN reaches the box at, used by every link the box makes; empty goes back to the management address. 400 bad_box_address for a URL, a port, a path or anything that is not a host name or IPv4 address. The box re-issues its own certificate with it', stories: ['S-CORE-8', 'S-NOT-1', 'S-RESP-3'], role: 'admin', body: BoxAddressBody, response: NetworkState },
+  { method: 'post', path: '/core/network/box-address/forget', summary: 'Stop answering to an earlier Box address (D-465): it leaves the Host allowlist at once and the certificate at its next re-issue. 404 not_found when the box does not answer to it', stories: ['S-CORE-8'], role: 'admin', body: z.object({ address: z.string() }), response: NetworkState },
 ])

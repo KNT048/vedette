@@ -3,7 +3,7 @@ import { http, HttpResponse } from 'msw'
 import { API, audit, body, fail, guard } from '@/mocks/http'
 import { assetsStore } from '@/mocks/stores'
 import { dataMode, peek } from '@/mocks/db'
-import { CONFIRM_SECONDS, networkStore, SILENT_DEVICES, settlePending, spanStatusOf, type IfaceRole, type Management, type NetStore, type SpanConfig } from '@/mocks/network'
+import { boxAddress, CONFIRM_SECONDS, networkStore, SILENT_DEVICES, settlePending, spanStatusOf, type IfaceRole, type Management, type NetStore, type SpanConfig } from '@/mocks/network'
 import { boxAddressProblem, filterProblem, normaliseBoxAddress, normaliseFilter, ntpProblem, staticProblem, type FilterType } from './networkRules'
 
 const ROLES: IfaceRole[] = ['management', 'span', 'unused']
@@ -18,12 +18,15 @@ function decoyIps(): string[] {
   return [main, ...more].filter((x): x is string => !!x)
 }
 
+/** How every link of the box starts (the box: its Box address and -listen port, 8443 on an appliance); null when it knows no address. */
+const linkBase = () => { const a = boxAddress(); return a ? `https://${a}:8443` : null }
+
 export function networkView() {
   const s = networkStore.get()
   const m = s.mgmt
   return {
     interfaces: s.ifaces.map(({ hears: _h, ...i }) => ({ ...i, address: i.role === 'management' && m.address && m.prefix ? `${m.address}/${m.prefix}` : null })),
-    management: m, box_address: { address: s.box_address || null, default: m.address }, span: s.span, span_status: spanStatusOf(s), ntp: s.ntp, default_ntp: 'pool.ntp.org', decoy_ips: decoyIps(),
+    management: m, box_address: { address: s.box_address || null, default: m.address, previous: s.box_previous ?? [], link_base: linkBase(), self_signed: true }, span: s.span, span_status: spanStatusOf(s), ntp: s.ntp, default_ntp: 'pool.ntp.org', decoy_ips: decoyIps(),
     pending: s.pending ? { expires_at: s.pending.expires_at, previous_address: s.pending.previous.address, window_s: CONFIRM_SECONDS, reboot_at: s.pending.reboot_at ?? null } : null,
   }
 }
@@ -154,14 +157,33 @@ export const networkHandlers = [
   }),
 
   // D-465: the host name or IPv4 address every link of the box carries; '' = the management address. The real box re-issues its certificate with it.
+  // Review M1: the saved address a change replaces stays answering (previous) until "forget"; at most 8, the oldest goes.
   http.put(`${API}/core/network/box-address`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
     const b = await body<{ address?: unknown }>(request)
-    const address = typeof b.address === 'string' ? normaliseBoxAddress(b.address) : 'missing address'
+    if (typeof b.address !== 'string') return fail(400, 'invalid', 'The field "address" is missing or has a value that is not allowed. Fix it and try again.') // the schema's answer, as the box gives it
+    const address = normaliseBoxAddress(b.address)
     const p = boxAddressProblem(address)
     if (p) return fail(400, 'bad_box_address', p)
-    networkStore.update((s) => ({ ...s, box_address: address || null }))
+    networkStore.update((s) => {
+      const old = s.box_address || ''
+      let previous = [...(s.box_previous ?? [])]
+      if (old && old !== address && !previous.includes(old)) previous.push(old)
+      previous = previous.filter((x) => x !== address).slice(-8)
+      return { ...s, box_address: address || null, box_previous: previous }
+    })
     audit('network.box_address', 'box address', address || 'default (the management address)')
+    return ok()
+  }),
+
+  http.post(`${API}/core/network/box-address/forget`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<{ address?: unknown }>(request)
+    const address = typeof b.address === 'string' ? normaliseBoxAddress(b.address) : ''
+    const s = networkStore.get()
+    if (!(s.box_previous ?? []).includes(address)) return fail(404, 'not_found', 'The box does not answer to that earlier address.')
+    networkStore.set({ ...s, box_previous: (s.box_previous ?? []).filter((x) => x !== address) })
+    audit('network.box_address_forget', 'box address', address)
     return ok()
   }),
 ]

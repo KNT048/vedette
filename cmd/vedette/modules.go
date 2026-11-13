@@ -63,7 +63,9 @@ type deps struct {
 	// on loopback and while the box knows no address (see baseURL). nil: no address (tests). BoxAddr is what it reads; nil in tests.
 	BaseURL func() string
 	BoxAddr *boxAddr
-	Conn    *conn.Service // connections to devices (core/conn, D-93): core's handlers, response and the Privacy page share it
+	// SelfSigned: the box serves its own certificate (no -tls-cert), so it adds the Box address itself; the Box network page says so.
+	SelfSigned bool
+	Conn       *conn.Service // connections to devices (core/conn, D-93): core's handlers, response and the Privacy page share it
 	// ConnReader lists and calls the read tools of the connections (core/conn/read, D-93 (3)). The ai module (WP-25) is given this and nothing
 	// else of core/conn: not the *conn.Service and not the writer, which only response gets. nil when there is no Conn.
 	ConnReader *read.Reader

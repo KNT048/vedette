@@ -360,8 +360,9 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	flagHosts, _ := parseHosts(o.hosts)                      // checked at the start of run
 	wireBoxAddr(&d, o.hostSocket != "", flagHosts, o.listen) //nolint:contextcheck // links are made with no context (notify, response); Host bounds each read (boxAddrTimeout)
 	if renew != nil {
-		renew.addr = d.BoxAddr.Host
+		renew.addrs = d.BoxAddr.Names
 	}
+	d.SelfSigned = renew != nil                                   // the Box network page says who must put the Box address in the certificate
 	listed := server.HostMatcher(hosts, boxOwnAddress(d.HostNet)) //nolint:contextcheck // the Host check runs per request, with no context to pass
 	hostAllowed := func(h string) bool { return listed(h) || d.BoxAddr.Allows(h) }
 	d.TrustAnchor, d.HostAllowed, d.OsqueryDir = trustAnchor(o, intakeTrustAnchor(tlsCfg, boxCAs, renew)), hostAllowed, o.osqueryDir //nolint:contextcheck // agent-intake reads them when it is built; the Host check runs per request, with no context to pass
@@ -372,7 +373,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err := buildServices(ctx, &d); err != nil {
 		return err
 	}
-	d.BoxAddr.Invalidate() //nolint:contextcheck // the read runs in the background, outliving no request: the Box address is readable now, know it before the first request (Allows)
+	d.BoxAddr.Invalidate() //nolint:contextcheck // one bounded read (boxAddrTimeout) before the listener serves: a saved name is answered to from the first request (review L2)
 	defer d.OS.Close()
 	defer d.Response.Close()     // ends the approval requests still being sent before the database closes
 	defer scanService(d).Close() // stop a live scan and wait for it before the database closes (scan review M4)

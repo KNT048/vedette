@@ -10099,11 +10099,32 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "previous": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops it: agents, firewalls and links set up with them keep working"
+                        },
+                        "link_base": {
+                          "description": "How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no links (no address known)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "self_signed": {
+                          "type": "boolean",
+                          "description": "The box issues its own certificate (it adds the Box address within seconds); false: the owner's certificate, which must include it"
                         }
                       },
                       "required": [
                         "address",
-                        "default"
+                        "default",
+                        "previous",
+                        "link_base",
+                        "self_signed"
                       ],
                       "additionalProperties": false,
                       "description": "D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail, block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate"
@@ -10511,11 +10532,462 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "previous": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops it: agents, firewalls and links set up with them keep working"
+                        },
+                        "link_base": {
+                          "description": "How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no links (no address known)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "self_signed": {
+                          "type": "boolean",
+                          "description": "The box issues its own certificate (it adds the Box address within seconds); false: the owner's certificate, which must include it"
                         }
                       },
                       "required": [
                         "address",
-                        "default"
+                        "default",
+                        "previous",
+                        "link_base",
+                        "self_signed"
+                      ],
+                      "additionalProperties": false,
+                      "description": "D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail, block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate"
+                    },
+                    "span": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "extract": {
+                          "type": "object",
+                          "properties": {
+                            "dns": {
+                              "type": "boolean"
+                            },
+                            "tls_sni": {
+                              "type": "boolean"
+                            },
+                            "http_host": {
+                              "type": "boolean"
+                            },
+                            "flows": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "dns",
+                            "tls_sni",
+                            "http_host",
+                            "flows"
+                          ],
+                          "additionalProperties": false,
+                          "description": "What is read from mirrored traffic. Packet contents are never stored."
+                        },
+                        "filters": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "cidr",
+                                  "host",
+                                  "port"
+                                ]
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "cpu_percent": {
+                          "type": "integer",
+                          "minimum": 5,
+                          "maximum": 50
+                        },
+                        "memory_mb": {
+                          "type": "integer",
+                          "minimum": 128,
+                          "maximum": 2048
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "interface",
+                        "extract",
+                        "filters",
+                        "cpu_percent",
+                        "memory_mb"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "span_status": {
+                      "type": "object",
+                      "properties": {
+                        "verdict": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "ok",
+                            "own_only",
+                            "no_traffic",
+                            "no_link",
+                            "sensor_unreachable"
+                          ],
+                          "description": "sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up, nothing arrives; no_link = no cable signal"
+                        },
+                        "interface": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "packets_per_s": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "other_macs": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Distinct source MAC addresses other than the box's own"
+                        },
+                        "last_packet_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "verdict",
+                        "interface",
+                        "packets_per_s",
+                        "other_macs",
+                        "last_packet_at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "ntp": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "default",
+                            "custom"
+                          ]
+                        },
+                        "servers": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Only for mode custom; empty for the default pool"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "servers"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "default_ntp": {
+                      "type": "string"
+                    },
+                    "decoy_ips": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "pending": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "expires_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "previous_address": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "window_s": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "description": "Seconds the box waits for the confirmation (the whole window, not what is left)"
+                            },
+                            "reboot_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Set when the box could not go back to the old settings by itself: it restarts at this time, and the saved settings on disk are the old ones (D-100)"
+                            }
+                          },
+                          "required": [
+                            "expires_at",
+                            "previous_address",
+                            "window_s",
+                            "reboot_at"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "A management address change waiting for confirmation from the new address; the box reverts at expires_at"
+                    }
+                  },
+                  "required": [
+                    "interfaces",
+                    "management",
+                    "box_address",
+                    "span",
+                    "span_status",
+                    "ntp",
+                    "default_ntp",
+                    "decoy_ips",
+                    "pending"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/network/box-address/forget": {
+      "post": {
+        "operationId": "core_post_core_network_box_address_forget",
+        "summary": "Stop answering to an earlier Box address (D-465): it leaves the Host allowlist at once and the certificate at its next re-issue. 404 not_found when the box does not answer to it",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-8"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "address"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "interfaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "management",
+                              "span",
+                              "unused"
+                            ]
+                          },
+                          "link": {
+                            "type": "boolean"
+                          },
+                          "speed": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "mac": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "description": "address/prefix, only on the management interface",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "role",
+                          "link",
+                          "speed",
+                          "mac",
+                          "address"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "management": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "dhcp",
+                            "static"
+                          ]
+                        },
+                        "address": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "prefix": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "gateway": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "dns": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "address",
+                        "prefix",
+                        "gateway",
+                        "dns"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "box_address": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "description": "The host name or IPv4 address an administrator saved; null = the default is used",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "default": {
+                          "description": "The management IPv4 address the box reports; null while it has none",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "previous": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops it: agents, firewalls and links set up with them keep working"
+                        },
+                        "link_base": {
+                          "description": "How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no links (no address known)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "self_signed": {
+                          "type": "boolean",
+                          "description": "The box issues its own certificate (it adds the Box address within seconds); false: the owner's certificate, which must include it"
+                        }
+                      },
+                      "required": [
+                        "address",
+                        "default",
+                        "previous",
+                        "link_base",
+                        "self_signed"
                       ],
                       "additionalProperties": false,
                       "description": "D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail, block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate"
@@ -10931,11 +11403,32 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "previous": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops it: agents, firewalls and links set up with them keep working"
+                        },
+                        "link_base": {
+                          "description": "How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no links (no address known)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "self_signed": {
+                          "type": "boolean",
+                          "description": "The box issues its own certificate (it adds the Box address within seconds); false: the owner's certificate, which must include it"
                         }
                       },
                       "required": [
                         "address",
-                        "default"
+                        "default",
+                        "previous",
+                        "link_base",
+                        "self_signed"
                       ],
                       "additionalProperties": false,
                       "description": "D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail, block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate"
@@ -11365,11 +11858,32 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "previous": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops it: agents, firewalls and links set up with them keep working"
+                        },
+                        "link_base": {
+                          "description": "How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no links (no address known)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "self_signed": {
+                          "type": "boolean",
+                          "description": "The box issues its own certificate (it adds the Box address within seconds); false: the owner's certificate, which must include it"
                         }
                       },
                       "required": [
                         "address",
-                        "default"
+                        "default",
+                        "previous",
+                        "link_base",
+                        "self_signed"
                       ],
                       "additionalProperties": false,
                       "description": "D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail, block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate"
@@ -11755,11 +12269,32 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "previous": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops it: agents, firewalls and links set up with them keep working"
+                        },
+                        "link_base": {
+                          "description": "How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no links (no address known)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "self_signed": {
+                          "type": "boolean",
+                          "description": "The box issues its own certificate (it adds the Box address within seconds); false: the owner's certificate, which must include it"
                         }
                       },
                       "required": [
                         "address",
-                        "default"
+                        "default",
+                        "previous",
+                        "link_base",
+                        "self_signed"
                       ],
                       "additionalProperties": false,
                       "description": "D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail, block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate"
@@ -12145,11 +12680,32 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "previous": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops it: agents, firewalls and links set up with them keep working"
+                        },
+                        "link_base": {
+                          "description": "How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no links (no address known)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "self_signed": {
+                          "type": "boolean",
+                          "description": "The box issues its own certificate (it adds the Box address within seconds); false: the owner's certificate, which must include it"
                         }
                       },
                       "required": [
                         "address",
-                        "default"
+                        "default",
+                        "previous",
+                        "link_base",
+                        "self_signed"
                       ],
                       "additionalProperties": false,
                       "description": "D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail, block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate"
@@ -12566,11 +13122,32 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "previous": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops it: agents, firewalls and links set up with them keep working"
+                        },
+                        "link_base": {
+                          "description": "How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no links (no address known)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "self_signed": {
+                          "type": "boolean",
+                          "description": "The box issues its own certificate (it adds the Box address within seconds); false: the owner's certificate, which must include it"
                         }
                       },
                       "required": [
                         "address",
-                        "default"
+                        "default",
+                        "previous",
+                        "link_base",
+                        "self_signed"
                       ],
                       "additionalProperties": false,
                       "description": "D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail, block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate"
@@ -13047,11 +13624,32 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "previous": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops it: agents, firewalls and links set up with them keep working"
+                        },
+                        "link_base": {
+                          "description": "How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no links (no address known)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "self_signed": {
+                          "type": "boolean",
+                          "description": "The box issues its own certificate (it adds the Box address within seconds); false: the owner's certificate, which must include it"
                         }
                       },
                       "required": [
                         "address",
-                        "default"
+                        "default",
+                        "previous",
+                        "link_base",
+                        "self_signed"
                       ],
                       "additionalProperties": false,
                       "description": "D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail, block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate"

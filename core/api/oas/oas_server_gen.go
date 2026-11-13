@@ -643,6 +643,13 @@ type Handler interface {
 	//
 	// POST /core/mcp/tokens
 	CorePostCoreMcpTokens(ctx context.Context, req *CorePostCoreMcpTokensReq) (*CorePostCoreMcpTokensCreated, error)
+	// CorePostCoreNetworkBoxAddressForget implements core_post_core_network_box_address_forget operation.
+	//
+	// Stop answering to an earlier Box address (D-465): it leaves the Host allowlist at once and the
+	// certificate at its next re-issue. 404 not_found when the box does not answer to it.
+	//
+	// POST /core/network/box-address/forget
+	CorePostCoreNetworkBoxAddressForget(ctx context.Context, req *CorePostCoreNetworkBoxAddressForgetReq) (*CorePostCoreNetworkBoxAddressForgetOK, error)
 	// CorePostCoreNetworkManagementConfirm implements core_post_core_network_management_confirm operation.
 	//
 	// Confirm the pending management change from the new address (409 when none is pending or it expired).

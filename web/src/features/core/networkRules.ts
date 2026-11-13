@@ -60,7 +60,8 @@ export const normaliseBoxAddress = (v: string) => v.trim().toLowerCase().replace
 export function boxAddressProblem(v: string): string | null {
   if (v === '') return null
   const numeric = v.split('.').every((l) => /^(\d+|0[xX][0-9a-fA-F]*)$/.test(l))
-  if (isBareIp(v) ? !isUnicast(v) : (!HOST_RE.test(v) || numeric)) return 'Enter a host name like vedette.office.lan or an IPv4 address like 192.168.1.10, without https:// and without a port.'
+  // localhost and *.localhost always mean the machine itself (RFC 6761): another machine can never reach the box by them.
+  if (isBareIp(v) ? !isUnicast(v) : (!HOST_RE.test(v) || numeric || v === 'localhost' || v.endsWith('.localhost'))) return 'Enter a host name like vedette.office.lan or an IPv4 address like 192.168.1.10, without https:// and without a port.'
   return null
 }
 

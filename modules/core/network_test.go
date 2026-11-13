@@ -493,6 +493,7 @@ func TestNetworkRolesAreEnforced(t *testing.T) {
 		{"PUT", "/core/network/span", spanBody(nil)},
 		{"PUT", "/core/network/ntp", map[string]any{"mode": "default", "servers": []any{}}},
 		{"PUT", "/core/network/box-address", map[string]any{"address": "vedette.office.lan"}},
+		{"POST", "/core/network/box-address/forget", map[string]any{"address": "vedette.office.lan"}},
 	}
 	for _, w := range writes {
 		for _, c := range []*client{e.viewer, e.oper} {
@@ -1511,61 +1512,105 @@ func TestNetworkManagementLANForSetup(t *testing.T) {
 
 // TestNetworkBoxAddress pins D-465: the Box address defaults to the management IPv4 the host reports, an administrator may set a host
 // name or an IPv4 address (normal form: lower case, no trailing dot), anything that is not one (a URL, a port, a path, a space, IPv6,
-// loopback, an all-number name) is 400 bad_box_address with nothing saved or audited, a save is audited and tells cmd/vedette
-// (AddressesChanged), and an empty address goes back to the default.
+// loopback, localhost, an all-number name) is 400 bad_box_address with nothing saved or audited (a body without address: the generic 400
+// invalid of the schema), a save is audited and tells cmd/vedette (AddressesChanged), and an empty address goes back to the default.
+// Review M1: the saved address a change replaces stays in previous (the box keeps answering to it) until "forget", which is audited;
+// saving a previous address again takes it out of the list; previous survives a restart of core (it is the setting).
 func TestNetworkBoxAddress(t *testing.T) {
 	t.Parallel()
 	e := newNetEnv(t, netOpts{})
 	ctx := t.Context()
+	box := func() (string, []string) {
+		t.Helper()
+		a, prev, err := e.nh.BoxAddress(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return a, prev
+	}
 	r := e.viewer.get("/core/network")
 	wantOK(t, r, 200)
-	if jval(r, "box_address", "address") != nil || jstr(r, "box_address", "default") != "192.168.1.50" {
+	if jval(r, "box_address", "address") != nil || jstr(r, "box_address", "default") != "192.168.1.50" || len(getArr(r, "box_address", "previous")) != 0 || jval(r, "box_address", "link_base") != nil {
 		t.Fatalf("fresh box_address = %v", jval(r, "box_address"))
 	}
-	if a, err := e.nh.BoxAddress(ctx); err != nil || a != "192.168.1.50" {
-		t.Fatalf("BoxAddress on a fresh box = %q, %v; want the management address", a, err)
+	if a, prev := box(); a != "192.168.1.50" || len(prev) != 0 {
+		t.Fatalf("BoxAddress on a fresh box = %q %v; want the management address", a, prev)
 	}
-	for _, bad := range []string{"https://box.lan", "box.lan:8443", "box lan", "box.lan/x", "192.168.1.0/24", "fe80::1", "127.0.0.1", "0.0.0.0", "224.0.0.1", "1.2.3", "-box.lan", "box_lan", strings.Repeat("a", 65)} {
+	for _, bad := range []string{"https://box.lan", "box.lan:8443", "box lan", "box.lan/x", "192.168.1.0/24", "fe80::1", "127.0.0.1", "0.0.0.0", "224.0.0.1", "1.2.3", "-box.lan", "box_lan", "localhost", "vedette.localhost", strings.Repeat("a", 65)} {
 		wantStatus(t, e.admin.put("/core/network/box-address", map[string]any{"address": bad}), 400, "bad_box_address")
 	}
+	wantStatus(t, e.admin.put("/core/network/box-address", map[string]any{}), 400, "invalid")
 	if len(e.actions()) != 0 {
 		t.Fatalf("a refused Box address left audit rows: %v", e.actions())
 	}
 	before := e.changed.Load()
 	r = e.admin.put("/core/network/box-address", map[string]any{"address": "  Vedette.Office.LAN. "})
 	wantOK(t, r, 200)
-	if jstr(r, "box_address", "address") != "vedette.office.lan" || jstr(r, "box_address", "default") != "192.168.1.50" {
+	if jstr(r, "box_address", "address") != "vedette.office.lan" || jstr(r, "box_address", "default") != "192.168.1.50" || len(getArr(r, "box_address", "previous")) != 0 {
 		t.Fatalf("after save: %v", jval(r, "box_address"))
 	}
 	if e.changed.Load() == before {
 		t.Error("saving the Box address did not tell cmd/vedette (AddressesChanged)")
 	}
-	if a, err := e.nh.BoxAddress(ctx); err != nil || a != "vedette.office.lan" {
-		t.Fatalf("BoxAddress after save = %q, %v", a, err)
+	if a, _ := box(); a != "vedette.office.lan" {
+		t.Fatalf("BoxAddress after save = %q", a)
 	}
 	wantOK(t, e.admin.put("/core/network/box-address", map[string]any{"address": "192.168.1.9"}), 200)
-	if a, _ := e.nh.BoxAddress(ctx); a != "192.168.1.9" {
-		t.Fatalf("an IPv4 Box address = %q", a)
+	if a, prev := box(); a != "192.168.1.9" || !slices.Equal(prev, []string{"vedette.office.lan"}) {
+		t.Fatalf("an IPv4 Box address = %q, previous %v; want the name kept answering", a, prev)
 	}
 	r = e.admin.put("/core/network/box-address", map[string]any{"address": ""})
 	wantOK(t, r, 200)
-	if jval(r, "box_address", "address") != nil {
-		t.Fatalf("an empty Box address must go back to the default: %v", jval(r, "box_address"))
+	if jval(r, "box_address", "address") != nil || fmt.Sprint(getArr(r, "box_address", "previous")) != "[vedette.office.lan 192.168.1.9]" {
+		t.Fatalf("an empty Box address must go back to the default and keep the earlier ones: %v", jval(r, "box_address"))
 	}
-	if a, _ := e.nh.BoxAddress(ctx); a != "192.168.1.50" {
+	if a, _ := box(); a != "192.168.1.50" {
 		t.Fatalf("BoxAddress after reset = %q", a)
 	}
-	if got := e.actions(); len(got) != 3 || slices.ContainsFunc(got, func(a string) bool { return a != "network.box_address" }) {
-		t.Errorf("audit = %v, want three network.box_address rows", got)
+	// a restart of core keeps them (the setting), saving one again takes it out of previous, forget removes one (audited, AddressesChanged)
+	e.nh = e.newHandlers(t, e.opts)
+	wantOK(t, e.admin.put("/core/network/box-address", map[string]any{"address": "VEDETTE.office.lan"}), 200)
+	if a, prev := box(); a != "vedette.office.lan" || !slices.Equal(prev, []string{"192.168.1.9"}) {
+		t.Fatalf("saved again: %q %v", a, prev)
+	}
+	wantStatus(t, e.admin.post("/core/network/box-address/forget", map[string]any{"address": "nas.office.lan"}), 404, "not_found")
+	before = e.changed.Load()
+	r = e.admin.post("/core/network/box-address/forget", map[string]any{"address": "192.168.1.9"})
+	wantOK(t, r, 200)
+	if _, prev := box(); len(prev) != 0 || len(getArr(r, "box_address", "previous")) != 0 || e.changed.Load() == before {
+		t.Fatalf("after forget: previous %v, view %v", prev, jval(r, "box_address"))
+	}
+	if got, want := e.actions(), []string{"network.box_address", "network.box_address", "network.box_address", "network.box_address", "network.box_address_forget"}; !slices.Equal(got, want) {
+		t.Errorf("audit = %v, want %v", got, want)
 	}
 
 	nh := newNetEnv(t, netOpts{noHost: true})
 	wantStatus(t, nh.admin.put("/core/network/box-address", map[string]any{"address": "box.lan"}), 409, "not_appliance")
-	if a, err := nh.nh.BoxAddress(ctx); a != "" || err != nil {
-		t.Errorf("BoxAddress without a host = %q, %v", a, err)
+	if a, prev, err := nh.nh.BoxAddress(ctx); a != "" || prev != nil || err != nil {
+		t.Errorf("BoxAddress without a host = %q %v, %v", a, prev, err)
 	}
 	var none *core.NetworkHandlers
-	if a, err := none.BoxAddress(ctx); a != "" || err != nil {
+	if a, _, err := none.BoxAddress(ctx); a != "" || err != nil {
 		t.Errorf("BoxAddress on nil = %q, %v", a, err)
+	}
+}
+
+// TestNetworkBoxAddressLinks: the page shows how links start and who issues the certificate, as cmd/vedette says (NetworkConfig.BoxLinks).
+func TestNetworkBoxAddressLinks(t *testing.T) {
+	t.Parallel()
+	e := newNetEnv(t, netOpts{})
+	nh, err := core.NewNetworkHandlers(core.NetworkConfig{DB: e.env.DB, Auth: e.env.Svc, Audit: e.env.Audit, Log: e.logger(), Host: e.fault,
+		BoxLinks: func(context.Context) core.BoxLinks {
+			return core.BoxLinks{Base: "https://192.168.1.50:8443", SelfSigned: true}
+		}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := nh.CoreGetCoreNetwork(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, ok := r.BoxAddress.LinkBase.Get(); !ok || v != "https://192.168.1.50:8443" || !r.BoxAddress.SelfSigned {
+		t.Fatalf("box_address = %+v", r.BoxAddress)
 	}
 }

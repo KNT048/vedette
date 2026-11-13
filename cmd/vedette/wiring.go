@@ -521,6 +521,13 @@ func newNetworkHandlers(d *deps, sensor core.SpanSensor) (*core.NetworkHandlers,
 		},
 		// AddressesChanged: the cached addresses are dropped and the box's certificate follows its management address (D-139) and its
 		// Box address (D-465: a save, or a new management address that is its default).
+		BoxLinks: func(context.Context) core.BoxLinks {
+			var base string
+			if d.BaseURL != nil {
+				base = d.BaseURL()
+			}
+			return core.BoxLinks{Base: base, SelfSigned: d.SelfSigned}
+		},
 		AddressesChanged: func() {
 			d.HostNet.Invalidate()
 			d.BoxAddr.Invalidate()

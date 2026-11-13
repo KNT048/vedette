@@ -105,6 +105,7 @@ const (
 	CorePostCoreDataPurgeOperation                          OperationName = "CorePostCoreDataPurge"
 	CorePostCoreDataRestoreOperation                        OperationName = "CorePostCoreDataRestore"
 	CorePostCoreMcpTokensOperation                          OperationName = "CorePostCoreMcpTokens"
+	CorePostCoreNetworkBoxAddressForgetOperation            OperationName = "CorePostCoreNetworkBoxAddressForget"
 	CorePostCoreNetworkManagementConfirmOperation           OperationName = "CorePostCoreNetworkManagementConfirm"
 	CorePostCoreNetworkManagementRevertOperation            OperationName = "CorePostCoreNetworkManagementRevert"
 	CorePostCoreOidcTestOperation                           OperationName = "CorePostCoreOidcTest"

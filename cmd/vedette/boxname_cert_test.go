@@ -259,25 +259,26 @@ func TestLinksCarryTheBoxAddressNeverTheCertificateName(t *testing.T) {
 	if !server.HostMatcher(hosts, nil)("vedette:8443") {
 		t.Fatalf("an old bookmark of https://vedette:8443 is refused (allowlist %v)", hosts)
 	}
-	mgmt := newBoxAddr(func(context.Context) (string, error) { return "192.168.18.141", nil }, flagAddress(nil))
+	mgmt := newBoxAddr(func(context.Context) (string, []string, error) { return "192.168.18.141", nil, nil }, flagAddress(nil))
 	if got := mgmt.URL(t.Context(), "0.0.0.0:8443"); got != "https://192.168.18.141:8443" {
 		t.Fatalf("default Box address: links start %q, want the management address", got)
 	}
 	// no Box address and no -hosts (an appliance whose host has not answered): no link at all, never one from the certificate's names
-	unknown := newBoxAddr(func(context.Context) (string, error) { return "", nil }, flagAddress(nil))
+	unknown := newBoxAddr(func(context.Context) (string, []string, error) { return "", nil, nil }, flagAddress(nil))
 	if got := unknown.URL(t.Context(), "0.0.0.0:8443"); got != "" {
 		t.Fatalf("no Box address known: links start %q, want none", got)
 	}
 }
 
 // D-465: the Box address is a name of the box's own certificate. A saved name or address the certificate lacks re-issues it at the next
-// Check (a save kicks one); a later change re-issues it again with the new one; an unknown address ("") changes nothing.
+// Check (a save kicks one); a later change re-issues it again with the new one and keeps the earlier one the box still answers to (review
+// M1); an unknown address (none) changes nothing.
 func TestCertCoversTheBoxAddress(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	_, renew := boxTransport(t, dir, testCA(t, dir), newBoxHostNameFrom((&fakeInfo{name: "office-box"}).Info, time.Now))
-	addr := ""
-	renew.addr = func(context.Context) string { return addr }
+	var names []string
+	renew.addrs = func(context.Context) []string { return names }
 	if err := renew.Check(t.Context(), nil); err != nil {
 		t.Fatal(err)
 	}
@@ -288,55 +289,99 @@ func TestCertCoversTheBoxAddress(t *testing.T) {
 	if servedLeaf(t, renew).SerialNumber.Cmp(before) != 0 {
 		t.Fatal("an unknown Box address re-issued the certificate")
 	}
+	prev := []string{}
 	for _, a := range []string{"vedette.office.lan", "box2.office.lan", "10.9.9.9"} {
-		addr = a
+		names = append([]string{a}, prev...)
 		if err := renew.Check(t.Context(), nil); err != nil {
 			t.Fatal(err)
 		}
-		if l := servedLeaf(t, renew); l.VerifyHostname(a) != nil {
-			t.Fatalf("after saving %s the certificate names %v %v", a, l.DNSNames, l.IPAddresses)
+		l := servedLeaf(t, renew)
+		for _, n := range names {
+			if l.VerifyHostname(n) != nil {
+				t.Fatalf("after saving %s the certificate lacks %s: %v %v", a, n, l.DNSNames, l.IPAddresses)
+			}
 		}
+		prev = append(prev, a)
 	}
 }
 
-// D-465: a Box address an administrator saves is a name the box answers to (Allows), at once after Invalidate; the Box address in
-// memory survives a failed read; the flag address (-hosts without a host) is used only while core gives none.
+// D-465: a Box address an administrator saves is a name the box answers to (Allows), at once after Invalidate (which waits for its read),
+// and so are the earlier ones (review M1) until they are forgotten; the answer in memory survives a failed read; the flag address (-hosts
+// without a host) is used only while core gives none. Review L2: no lock is held across a read, so the Host test and the links go on with
+// the last answer while a slow read runs, and a read that started before an Invalidate never replaces the newer answer.
 func TestBoxAddrReadsCoreAndKeepsTheLastAnswer(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
-	answer, fail := "vedette.office.lan", false
-	b := newBoxAddr(func(context.Context) (string, error) {
+	answer, previous, fail := "vedette.office.lan", []string(nil), false
+	var hold chan struct{} // when set, the next read waits for it
+	b := newBoxAddr(func(context.Context) (string, []string, error) {
 		mu.Lock()
-		defer mu.Unlock()
-		if fail {
-			return "", errors.New("host down")
+		h := hold
+		hold = nil
+		a, p, f := answer, previous, fail
+		mu.Unlock()
+		if h != nil {
+			<-h
 		}
-		return answer, nil
+		if f {
+			return "", nil, errors.New("host down")
+		}
+		return a, p, nil
 	}, "box.corp.example")
+	var clockMu sync.Mutex
 	now := time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)
-	b.now = func() time.Time { return now }
+	b.now = func() time.Time { clockMu.Lock(); defer clockMu.Unlock(); return now }
+	advance := func(d time.Duration) { clockMu.Lock(); now = now.Add(d); clockMu.Unlock() }
 	if b.Allows("vedette.office.lan") {
 		t.Fatal("Allows before any read")
 	}
 	if got := b.Host(t.Context()); got != "vedette.office.lan" || !b.Allows("Vedette.Office.LAN:8443") || b.Allows("evil.example") {
 		t.Fatalf("Host %q, Allows wrong", got)
 	}
+	// a save: the new address and the earlier one both answered, at once after Invalidate
+	mu.Lock()
+	answer, previous = "box2.office.lan", []string{"vedette.office.lan"}
+	mu.Unlock()
+	b.Invalidate()
+	if got := b.Host(t.Context()); got != "box2.office.lan" || !b.Allows("box2.office.lan") || !b.Allows("vedette.office.lan:8443") {
+		t.Fatalf("after Invalidate: %q", got)
+	}
+	if got := b.Names(t.Context()); !slices.Equal(got, []string{"box2.office.lan", "vedette.office.lan"}) {
+		t.Fatalf("Names = %v", got)
+	}
+	// a slow read: the Host test and Host go on with the last answer meanwhile
+	release := make(chan struct{})
+	mu.Lock()
+	hold = release
+	mu.Unlock()
+	advance(boxAddrTTL)
+	done := make(chan string)
+	go func() { done <- b.Host(context.Background()) }()
+	if !b.Allows("box2.office.lan") || b.pick() != "box2.office.lan" {
+		t.Fatal("the Host test waited for a read, or lost the last answer")
+	}
+	close(release)
+	if got := <-done; got != "box2.office.lan" {
+		t.Fatalf("after the slow read: %q", got)
+	}
+	// a failed read keeps the answer
 	mu.Lock()
 	fail = true
 	mu.Unlock()
-	now = now.Add(boxAddrTTL)
-	if got := b.Host(t.Context()); got != "vedette.office.lan" {
+	advance(boxAddrTTL)
+	if got := b.Host(t.Context()); got != "box2.office.lan" {
 		t.Fatalf("a failed read dropped the address: %q", got)
 	}
+	// no address from core and the earlier one forgotten: the -hosts address, and neither name is answered to
 	mu.Lock()
-	fail, answer = false, ""
+	fail, answer, previous = false, "", nil
 	mu.Unlock()
-	now = now.Add(boxAddrRetry)
-	if got := b.Host(t.Context()); got != "box.corp.example" || b.Allows("vedette.office.lan") {
-		t.Fatalf("no Box address from core: %q, want the -hosts address and the old name no longer answered", got)
+	advance(boxAddrRetry)
+	if got := b.Host(t.Context()); got != "box.corp.example" || b.Allows("vedette.office.lan") || b.Allows("box2.office.lan") {
+		t.Fatalf("no Box address from core: %q, want the -hosts address and the old names no longer answered", got)
 	}
 	var none *boxAddr
-	if none.Host(t.Context()) != "" || none.Allows("x") || none.URL(t.Context(), ":8443") != "" {
+	if none.Host(t.Context()) != "" || none.Allows("x") || none.URL(t.Context(), ":8443") != "" || none.Names(t.Context()) != nil {
 		t.Fatal("nil boxAddr")
 	}
 	none.Invalidate()

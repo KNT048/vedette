@@ -235,8 +235,11 @@ var _ observe.Approver = (*Service)(nil)
 // row's MAC (agent outranks passive), so the column alone proves nothing: the old MAC's observations do. Such a row is found but
 // left waiting for a person, with a log line. A device a person marked suspicious keeps waiting (a person's flag wins); the box and
 // an approved device are left as they are. One audit row inventory.approve_enrolled by "system", reason naming the token and its
-// maker, only when the flag changes.
-func (s *Service) ApproveEnrolled(ctx context.Context, hint observe.AssetHint, nodeMAC, reason string) (bool, error) {
+// maker, only when the flag changes. On the same row (not the box, not one seen with another MAC) an agent OS stored with no agent kind
+// gives the device its kind (typeFromAgentOS), approved or not: a node enrolled before agents sent a kind is typed without a new report.
+// With agentSaw (a caller not answering a live report: agent-intake's approve-enrolled job) a row counts as found only when it holds an
+// agent mac observation equal to nodeMAC; any other row is "not found" and left as it is.
+func (s *Service) ApproveEnrolled(ctx context.Context, hint observe.AssetHint, nodeMAC, reason string, agentSaw bool) (bool, error) {
 	ip, mac, err := checkHint(hint)
 	if err != nil {
 		return false, err
@@ -266,6 +269,16 @@ func (s *Service) ApproveEnrolled(ctx context.Context, hint observe.AssetHint, n
 		} else if err != nil {
 			return fmt.Errorf("inventory: find enrolled device: %w", err)
 		}
+		if agentSaw { // not a live report: the agent must once have reported this MAC on this very row (review #673 H1)
+			var n int
+			if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM inv_observation WHERE asset_id = ? AND field = 'mac' AND source = 'agent' AND value = ?`,
+				id, nodeMAC).Scan(&n); err != nil {
+				return fmt.Errorf("inventory: check the agent's MAC: %w", err)
+			}
+			if n == 0 || nodeMAC == "" {
+				return nil
+			}
+		}
 		found = true
 		var other sql.NullString
 		err = tx.QueryRowContext(ctx, `SELECT value FROM inv_observation WHERE asset_id = ? AND field = 'mac' AND value <> ? LIMIT 1`, id, nodeMAC).Scan(&other)
@@ -281,13 +294,51 @@ func (s *Service) ApproveEnrolled(ctx context.Context, hint observe.AssetHint, n
 		if err != nil {
 			return fmt.Errorf("inventory: approve enrolled device: %w", err)
 		}
-		if n, _ := res.RowsAffected(); n == 0 {
+		approved, _ := res.RowsAffected()
+		typed, err := s.typeFromAgentOS(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		if approved+typed == 0 {
 			return nil
 		}
 		o.add(EventAssetUpdated, AssetEvent{AssetID: id})
+		if approved == 0 {
+			return nil
+		}
 		return s.auditTx(ctx, tx, systemActor, "inventory.approve_enrolled", deviceName(ctx, tx, id), reason)
 	})
 	return found, err
+}
+
+// typeFromAgentOS gives the device the kind of the OS its agent reported, for an OS stored before agents sent a kind (D-503, the upgrade
+// path): when the device has an agent os observation and no agent kind observation, it adds the kind of core/observe AgentKindOfOS as an
+// agent observation with that OS's confidence and time, and recomputes the device. A person's kind still wins (manual outranks agent);
+// the box is left as it is. It returns 1 when the device changed.
+func (s *Service) typeFromAgentOS(ctx context.Context, tx *sql.Tx, id string) (int64, error) {
+	var os, seen string
+	var conf float64
+	err := tx.QueryRowContext(ctx, `SELECT o.value, o.confidence, o.seen_at FROM inv_observation o JOIN inv_asset a ON a.id = o.asset_id
+		WHERE o.asset_id = ? AND o.field = 'os' AND o.source = 'agent' AND a.is_box = 0
+		AND NOT EXISTS (SELECT 1 FROM inv_observation k WHERE k.asset_id = o.asset_id AND k.field = 'kind' AND k.source = 'agent')
+		ORDER BY o.seen_at DESC, o.id DESC LIMIT 1`, id).Scan(&os, &conf, &seen)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	} else if err != nil {
+		return 0, fmt.Errorf("inventory: read the agent's OS: %w", err)
+	}
+	kind := observe.AgentKindOfOS(os)
+	if kind == "" {
+		return 0, nil
+	}
+	if err := insertPruned(ctx, tx, id, "kind", kind, string(observe.Agent), conf, seen); err != nil {
+		return 0, err
+	}
+	changed, err := s.RecomputeAsset(ctx, tx, id)
+	if changed {
+		return 1, err
+	}
+	return 0, err
 }
 
 // target names the device a hint points to, for the audit row.

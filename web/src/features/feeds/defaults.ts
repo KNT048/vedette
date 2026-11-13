@@ -59,11 +59,16 @@ export function checkFeedUrl(raw: string): 'ok' | 'url' | 'https' {
 }
 
 /** The pull's sentence for an address Vedette never pulls from (modules/feeds blockedText, D-208, D-420). */
-export const BLOCKED_TEXT = 'Vedette does not pull feeds from itself or from loopback, link-local or cloud metadata addresses.'
+export const BLOCKED_TEXT = 'Vedette does not pull feeds from link-local, multicast, unspecified or cloud metadata addresses.'
 
-const v4Blocked = (a: number, b: number, c: number, d: number) =>
-  a === 127 || (a === 0 && b === 0 && c === 0 && d === 0) || (a === 169 && b === 254) || (a >= 224 && a <= 239) ||
-  (a === 100 && b === 100 && c === 100 && d === 200) || (a === 192 && b === 0 && c === 0 && d === 192)
+/** The sentence for Vedette itself (modules/feeds ownText, D-446): the same in feeds, notify, logs and ai. */
+export const OWN_TEXT = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
+
+type Refusal = false | 'blocked' | 'own'
+
+const v4Blocked = (a: number, b: number, c: number, d: number): Refusal =>
+  a === 127 ? 'own' : ((a === 0 && b === 0 && c === 0 && d === 0) || (a === 169 && b === 254) || (a >= 224 && a <= 239) ||
+  (a === 100 && b === 100 && c === 100 && d === 200) || (a === 192 && b === 0 && c === 0 && d === 192)) && 'blocked'
 
 /** The 8 hextets of an IPv6 literal as URL writes it (compressed, no zone); null when it is not one. */
 function hextets(h: string): number[] | null {
@@ -77,14 +82,15 @@ function hextets(h: string): number[] | null {
 }
 
 /**
- * The save-time half of the pull's address rule (modules/feeds CheckDest, D-420 (1)): a literal IP that is loopback, link-local,
- * cloud metadata, unspecified or multicast (also inside an IPv4-mapped, NAT64, 6to4 or IPv4-compatible IPv6 address) and the names
- * localhost and *.localhost. Other names are not resolved: the box judges what they resolve to at every pull.
+ * The save-time half of the pull's address rule (modules/feeds CheckDest, D-420 (1), D-446): 'blocked' for a literal IP that is
+ * link-local, cloud metadata, unspecified or multicast, 'own' (Vedette itself) for loopback and the names localhost and *.localhost,
+ * also inside an IPv4-mapped, NAT64, 6to4 or IPv4-compatible IPv6 address. The machine's own addresses are the box's to judge (the
+ * page does not know them). Other names are not resolved: the box judges what they resolve to at every pull.
  */
-export function blockedFeedHost(raw: string): boolean {
+export function blockedFeedHost(raw: string): Refusal {
   let host: string
   try { host = new URL(raw.trim()).hostname.toLowerCase().replace(/\.$/, '') } catch { return false }
-  if (host === 'localhost' || host.endsWith('.localhost')) return true
+  if (host === 'localhost' || host.endsWith('.localhost')) return 'own'
   const v4 = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(host)
   if (v4) return v4Blocked(Number(v4[1]), Number(v4[2]), Number(v4[3]), Number(v4[4]))
   if (!host.startsWith('[')) return false
@@ -92,9 +98,10 @@ export function blockedFeedHost(raw: string): boolean {
   if (!x) return false
   const embedded = (hi: number, lo: number) => v4Blocked(hi >> 8, hi & 255, lo >> 8, lo & 255)
   const zero = (n: number) => x.slice(0, n).every((v) => v === 0)
-  if (zero(8) || (zero(7) && x[7] === 1)) return true // :: and ::1
-  if ((x[0]! & 0xffc0) === 0xfe80 || x[0]! >> 8 === 0xff) return true // link-local, multicast
-  if (x[0] === 0xfd00 && x[1] === 0xec2 && x.slice(2, 7).every((v) => v === 0) && x[7] === 0x254) return true // AWS metadata over IPv6
+  if (zero(8)) return 'blocked' // ::
+  if (zero(7) && x[7] === 1) return 'own' // ::1
+  if ((x[0]! & 0xffc0) === 0xfe80 || x[0]! >> 8 === 0xff) return 'blocked' // link-local, multicast
+  if (x[0] === 0xfd00 && x[1] === 0xec2 && x.slice(2, 7).every((v) => v === 0) && x[7] === 0x254) return 'blocked' // AWS metadata over IPv6
   if (zero(5) && x[5] === 0xffff) return embedded(x[6]!, x[7]!) // IPv4-mapped
   if (zero(6)) return embedded(x[6]!, x[7]!) // IPv4-compatible
   if (x[0] === 0x64 && x[1] === 0xff9b && x.slice(2, 6).every((v) => v === 0)) return embedded(x[6]!, x[7]!) // NAT64

@@ -137,18 +137,24 @@ const NUMERIC_LABEL_RE = /^(0x[0-9a-f]+|[0-9]+)$/
 const SIEM_METADATA = ['100.100.100.200', '192.0.0.192', 'fd00:ec2::254'] // cloud metadata endpoints that are not link-local
 const BAD_HOST = 'The SIEM server must be an IP address or a domain name, for example 192.168.10.50 or siem.company.com.'
 const BAD_URL = 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://siem.company.com/hooks/vedette.'
-// SYS-7: loopback, link-local, multicast, unspecified, broadcast, a metadata endpoint and the box's own address are never a destination; a name
-// that is an address in disguise (2130706433, 0x7f.1) is not a host name, and localhost is loopback. Names are resolved only on the box's socket.
-function siemHostProblem(raw: string) {
+// SYS-7: link-local, multicast, unspecified, broadcast and a metadata endpoint are never a destination; nor is Vedette itself (D-446): loopback
+// and localhost on every port, the box's own address on Vedette's own ports. A name that is an address in disguise (2130706433, 0x7f.1) is
+// not a host name. Names are resolved only on the box's socket.
+const VEDETTE_PORTS = [514, 6514, 8443, 8444, 8765]
+const OWN_TEXT = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
+function siemHostProblem(raw: string, port: number) {
   const host = raw.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '')
-  const blocked = fail(400, 'blocked_host', 'The SIEM cannot be this machine, a link-local, multicast or unspecified address, or an address of this box.')
+  const blocked = fail(400, 'blocked_host', 'The SIEM cannot be a link-local, multicast or unspecified address, or a cloud metadata service.')
+  const own = fail(400, 'blocked_host', OWN_TEXT)
   if (IPV4_RE.test(host)) {
     const [a = 0, b = 0] = host.split('.').map(Number)
-    return a === 127 || host === '0.0.0.0' || (a >= 224 && a <= 239) || (a === 169 && b === 254) || host === '255.255.255.255' || SIEM_METADATA.includes(host) || host === boxInfo().ip ? blocked : null
+    if (a === 127 || (host === boxInfo().ip && VEDETTE_PORTS.includes(port))) return own
+    return host === '0.0.0.0' || (a >= 224 && a <= 239) || (a === 169 && b === 254) || host === '255.255.255.255' || SIEM_METADATA.includes(host) ? blocked : null
   }
-  if (host.includes(':')) return host === '::1' || host === '::' || /^fe[89ab]/.test(host) || /^ff/.test(host) || SIEM_METADATA.includes(host) ? blocked : null
+  if (host === '::1') return own
+  if (host.includes(':')) return host === '::' || /^fe[89ab]/.test(host) || /^ff/.test(host) || SIEM_METADATA.includes(host) ? blocked : null
   if (NUMERIC_LABEL_RE.test(host.split('.').at(-1) ?? '')) return fail(400, 'bad_host', BAD_HOST)
-  return host === 'localhost' || host.endsWith('.localhost') ? blocked : null
+  return host === 'localhost' || host.endsWith('.localhost') ? own : null
 }
 function validateSiem(b: Partial<SiemInput>, saved: { secret: string }) {
   if (!['syslog', 'cef', 'json'].includes(String(b.format))) return fail(400, 'bad_format', 'Choose a format: syslog, CEF or JSON webhook.')
@@ -158,13 +164,13 @@ function validateSiem(b: Partial<SiemInput>, saved: { secret: string }) {
     try { u = new URL(raw) } catch { /* not a URL */ }
     // eslint-disable-next-line no-control-regex
     if (!u || raw.length > 2048 || !/^https?:$/.test(u.protocol) || u.hostname === '' || u.username || u.password || u.hash || u.port === '0' || /[^\x21-\x7e]/.test(raw)) return fail(400, 'bad_url', BAD_URL)
-    const problem = siemHostProblem(u.hostname); if (problem) return problem
+    const problem = siemHostProblem(u.hostname, Number(u.port || (u.protocol === 'http:' ? 80 : 443))); if (problem) return problem
   } else {
     const host = String(b.host ?? '').trim()
     if (host.length > 253 || !(IPV4_RE.test(host) || SIEM_HOST_RE.test(host))) return fail(400, 'bad_host', BAD_HOST)
     if (!Number.isInteger(b.port) || b.port! < 1 || b.port! > 65535) return fail(400, 'bad_port', 'The port must be a number from 1 to 65535.')
     if (!['udp', 'tcp', 'tls'].includes(String(b.proto))) return fail(400, 'bad_proto', 'Choose UDP, TCP or TLS.')
-    const problem = siemHostProblem(host); if (problem) return problem
+    const problem = siemHostProblem(host, b.port!); if (problem) return problem
   }
   const ev = Array.isArray(b.events) ? b.events : []
   if (ev.length === 0 || ev.length > SIEM_EVENTS.length || ev.some((e) => !SIEM_EVENTS.includes(e)) || new Set(ev).size !== ev.length) return fail(400, 'bad_events', 'Choose at least one event type to forward.')

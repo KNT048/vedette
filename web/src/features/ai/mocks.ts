@@ -130,6 +130,9 @@ function runJob(job: AiJob, tin: number, tout: number, target?: string, act: Act
 
 // ---- Hồ sơ
 const KIND_STYLE: Record<string, ProfileInput['api_style']> = { anthropic: 'anthropic', openai: 'openai', gemini: 'gemini', 'openai-compatible': 'openai' }
+/** The box's sentence for Vedette itself (provider.OwnText, D-446): the same in feeds, notify, logs and ai. */
+const AI_OWN_TEXT = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
+
 function checkProfile(b: Partial<ProfileInput>, existing?: StoredProfile): Response | { name: string; url: URL; key: string | null; keepOld: boolean; style: ProfileInput['api_style'] } {
   const name = String(b.name ?? '').trim()
   if (!b.kind || !['anthropic', 'openai', 'gemini', 'openai-compatible', 'custom'].includes(b.kind)) return fail(400, 'invalid_kind', 'Pick a provider type: Anthropic, OpenAI, Gemini, OpenAI-compatible or Custom.')
@@ -141,9 +144,13 @@ function checkProfile(b: Partial<ProfileInput>, existing?: StoredProfile): Respo
   if (location !== 'internal' && location !== 'cloud') return fail(400, 'invalid_location', 'Say where the model runs: inside the company network or in the cloud.')
   if (['anthropic', 'openai', 'gemini'].includes(b.kind) && location === 'internal') return fail(400, 'invalid_location', 'Anthropic, OpenAI and Gemini run in the cloud. Use OpenAI-compatible or Custom for a server on your own network.')
   let url: URL
-  try { url = new URL(String(b.base_url ?? '').trim()) } catch { return fail(400, 'invalid_base_url', 'The server address is not valid. Enter it in full, for example https://api.anthropic.com or http://localhost:11434/v1.') }
+  try { url = new URL(String(b.base_url ?? '').trim()) } catch { return fail(400, 'invalid_base_url', 'The server address is not valid. Enter it in full, for example https://api.anthropic.com or http://192.168.1.20:11434/v1.') }
   if (url.username || url.password) return fail(400, 'invalid_base_url', 'The address must not contain a user name or password. Enter the API key in its own field.')
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && location === 'internal')) return fail(400, 'invalid_base_url', 'The address must start with https://. Only a server inside your own network may use http://.')
+  // D-446: Vedette itself (loopback, localhost: in the container that is core) is never an AI server; the box also refuses Vedette's own ports
+  // on the machine's address, which the mock does not know
+  const host = url.hostname.toLowerCase().replace(/\.$/, '')
+  if (host === 'localhost' || host.endsWith('.localhost') || /^127\./.test(host) || host === '[::1]' || /^\[::ffff:7f[0-9a-f]{2}:/.test(host)) return fail(400, 'invalid_base_url', AI_OWN_TEXT)
   if (!/^[\w.:/-]{1,80}$/.test(String(b.model ?? ''))) return fail(400, 'invalid_model', 'The model name may only contain letters, digits, dots, dashes, colons and slashes (80 characters at most), for example claude-haiku-5-5.')
   const key = b.api_key === undefined || b.api_key === '' ? null : String(b.api_key)
   if (key !== null && (key.length < 8 || /\s/.test(key))) return fail(400, 'invalid_key', 'The API key is too short or contains spaces. Copy the whole key again from the provider\'s console.')

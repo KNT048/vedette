@@ -18,7 +18,7 @@ import { useUsers } from '@/features/core/api'
 import { checkFeedUrl } from '@/features/feeds/defaults'
 import History from './History'
 import { useChannels, useRemoveChannel, useSaveChannel, useSaveRules, useTestChannel } from './api'
-import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES, forbiddenHost } from './types'
+import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
 import type { Approver, Channel, Grouping, Quiet, RouteSeverity } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
@@ -89,7 +89,7 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
     const url = (fields.url ?? '').trim()
     const u = url ? checkFeedUrl(url) : channel.fields.url ? 'ok' : 'url' // empty keeps the saved URL
     // A forbidden target gets the box's precise sentence before the http rule, as the box checks it (webhook.go, walk 3 G13).
-    if (u !== 'url' && url && forbiddenHost(new URL(url).hostname)) errs.url = t('channels.err.blockedUrl')
+    if (u !== 'url' && url && forbiddenHost(new URL(url).hostname)) errs.url = t(ownHost(new URL(url).hostname) ? 'channels.err.ownUrl' : 'channels.err.blockedUrl') // D-446
     else if (u !== 'ok') errs.url = t(u === 'https' ? 'channels.err.insecureUrl' : 'channels.err.badUrl')
     if (secret ? secret.length < 16 : !channel.secret_last4) errs.secret = t(secret ? 'channels.err.shortKey' : 'channels.err.noKey')
     return errs

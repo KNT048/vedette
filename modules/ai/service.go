@@ -69,8 +69,12 @@ type Config struct {
 	// Zone returns the IANA name of the box time zone (core_org.timezone). The meter reads it once when the service starts: a
 	// change of zone applies after a restart. nil or empty or unknown = DefaultTimeZone.
 	Zone func(context.Context) string
-	// Factory builds the client of a profile; nil = Profile.Provider. Tests inject fakes: no test calls a real provider.
+	// Factory builds the client of a profile; nil = Profile.Provider with BoxAddrs. Tests inject fakes: no test calls a real provider.
 	Factory func(Profile) (provider.Provider, error)
+	// BoxAddrs is the machine's addresses (vedette-host, the container's gateway): no profile reaches Vedette's own ports there, at
+	// save and at every connection (D-446; loopback and core's own interfaces are refused on every port). known=false or nil:
+	// those ports are refused on every address.
+	BoxAddrs func() (addrs []netip.Addr, known bool)
 	// Facts is what the box knows about a CVE and the devices it matches (feeds, findings, inventory), read through the ports of
 	// those modules. nil = explaining a CVE answers 409 ai_unavailable.
 	Facts Facts
@@ -266,7 +270,11 @@ func (s *Service) build(sn *snapshot, loc *time.Location) error {
 	if err != nil {
 		return err
 	}
-	router, err := NewRouter(RouterConfig{Profiles: sn.libProfiles(), Assignments: sn.assign, Meter: meter, Factory: s.cfg.Factory})
+	factory := s.cfg.Factory
+	if factory == nil {
+		factory = func(p Profile) (provider.Provider, error) { return p.provider(s.cfg.BoxAddrs) }
+	}
+	router, err := NewRouter(RouterConfig{Profiles: sn.libProfiles(), Assignments: sn.assign, Meter: meter, Factory: factory})
 	if err != nil {
 		return fmt.Errorf("saved settings: %w", err)
 	}

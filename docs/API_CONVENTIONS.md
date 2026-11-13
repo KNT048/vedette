@@ -183,7 +183,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_allow` | 400 | The allow-list holds up to 30 entries of 200 characters each, one per line. Also: Each allow-list entry must be an address under ${target}, for example ${target}/api/. | `POST /core/connections`; `PUT /core/connections/{id}` |
 | `invalid_auth` | 400 | Pick how the box signs in: none, token, user and password, or SSH key. | `POST /core/connections`; `PUT /core/connections/{id}`; module feeds (validator dùng chung) |
 | `invalid_auto` | 400 | Automatic security updates are on or off. | `PATCH /core/updates/os/settings` |
-| `invalid_base_url` | 400 | The server address is not valid. Enter it in full, for example https://api.anthropic.com or http://localhost:11434/v1. | module ai (validator dùng chung) |
+| `invalid_base_url` | 400 | The server address is not valid. Enter it in full, for example https://api.anthropic.com or http://192.168.1.20:11434/v1. | module ai (validator dùng chung) |
 | `invalid_body` | 400 | Check the values and try again. | 4 endpoint (/feeds) |
 | `invalid_bundle` | 400 | Choose a module bundle: smb, mid or custom. | `POST /core/setup` |
 | `invalid_cap` | 400 | The profile\ | `PUT /ai/config` |
@@ -328,7 +328,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_limit` | 400 | The CPU cap must be a whole number from 5 to 50 percent. (backend: giản đồ OpenAPI từ chối trước, mã chung `invalid`) | `PUT /core/network/span` |
 | `default_no_servers` | 400 | The default pool takes no server list. Choose "your own servers" to enter some. | `PUT /core/network/ntp` |
 | `bad_ntp` | 400 | Give 1 to 4 NTP servers. (cùng nhóm: tên hoặc IPv4 sai, trùng; backend: tên chỉ gồm số như `1.2.3` bị từ chối, host cũng từ chối) | `PUT /core/network/ntp` |
-| `blocked_host` | 400 | Vedette does not pull feeds from itself or from loopback, link-local or cloud metadata addresses. Also: The SIEM cannot be this machine, a link-local, multicast or unspecified address, or an address of this box. | `POST /feeds/custom`; `PUT /feeds/custom/{id}`; `PUT /feeds/sources/{id}`; `PUT /logs/siem` |
+| `blocked_host` | 400 | Vedette does not pull feeds from link-local, multicast, unspecified or cloud metadata addresses. Also, for Vedette itself in every module (D-446): That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port. | `POST /feeds/custom`; `PUT /feeds/custom/{id}`; `PUT /feeds/sources/{id}`; `PUT /logs/siem` |
 | `duplicate_url` | 400 | The feed "Tor exit list" already uses this address. | `POST /feeds/custom`; `PUT /feeds/custom/{id}` |
 
 #### HTTP 401 (3 mã)

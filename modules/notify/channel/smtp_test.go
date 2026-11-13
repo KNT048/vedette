@@ -66,8 +66,8 @@ func TestContract_INV8_SMTPConfig(t *testing.T) {
 		"metadata name":    {func(c *EmailConfig) { c.Host = "metadata.google.internal" }, "bad_host"},
 		"unspecified":      {func(c *EmailConfig) { c.Host = "0.0.0.0" }, "bad_host"},
 		"multicast":        {func(c *EmailConfig) { c.Host = "224.0.0.1" }, "bad_host"},
-		"box address":      {func(c *EmailConfig) { c.Host = "192.168.1.9" }, "bad_host"},
-		"box address late": {func(c *EmailConfig) { c.Host = "10.0.0.7" }, "bad_host"},
+		"box address":      {func(c *EmailConfig) { c.Host, c.Port, c.Security = "192.168.1.9", 8443, SecuritySSL }, "bad_host"}, // D-446: Vedette's own port
+		"box address late": {func(c *EmailConfig) { c.Host, c.Port, c.Security = "10.0.0.7", 514, SecuritySSL }, "bad_host"},
 	} {
 		cfg := ok
 		c.mod(&cfg)
@@ -363,4 +363,28 @@ func FuzzBuildMIME(f *testing.F) {
 			t.Fatal("bare CR or LF in message")
 		}
 	})
+}
+
+// D-446 (walk 4): a mail server on the machine that runs Vedette, at the machine's LAN address and the mail port, is accepted; loopback
+// and Vedette's own ports there get the one sentence for Vedette itself, which no longer points at the address it refused.
+func TestD446_SMTPOnTheMachine(t *testing.T) {
+	t.Parallel()
+	machine := func() ([]netip.Addr, bool) { return []netip.Addr{netip.MustParseAddr("10.123.45.67")}, true }
+	base := EmailConfig{Host: "10.123.45.67", Port: 587, Security: SecurityStartTLS, Username: "alerts@acme.example", Password: secrets.NewValue("pw-1234"),
+		From: "alerts@acme.example", To: []string{"it@acme.example"}, BoxAddrsFunc: machine}
+	if _, err := NewEmail(base); err != nil {
+		t.Fatalf("the machine's LAN address on 587: %v", err)
+	}
+	for _, c := range []struct {
+		host string
+		port int
+	}{{"10.123.45.67", 6514}, {"127.0.0.1", 587}, {"mail.localhost", 25}} {
+		cfg := base
+		cfg.Host, cfg.Port, cfg.Security = c.host, c.port, SecuritySSL
+		_, err := NewEmail(cfg)
+		var ce *ConfigError
+		if !errors.As(err, &ce) || ce.Code != "bad_host" || ce.Msg != OwnText {
+			t.Errorf("%s:%d: %v", c.host, c.port, err)
+		}
+	}
 }

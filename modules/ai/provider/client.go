@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -36,9 +37,12 @@ type Config struct {
 	// CompatMode sends max_tokens instead of max_completion_tokens (Ollama, vLLM, gateways). OpenAI style only.
 	CompatMode bool
 	// InternalOnly marks a profile with location=internal: the connection may only reach private addresses
-	// (loopback, RFC 1918, link-local, unique-local, CGNAT), checked on the resolved address at dial time, and
+	// (RFC 1918, unique-local, CGNAT), checked on the resolved address at dial time, and
 	// the environment proxy is not used. This is what makes "internal" more than a label (INV-3).
 	InternalOnly bool
+	// Machine is the machine's addresses (vedette-host, the container's gateway), asked at every connection: no profile reaches
+	// Vedette's own ports there (D-446, Own). nil, or known=false, refuses those ports on every address.
+	Machine func() (addrs []netip.Addr, known bool)
 	// AnthropicVersion overrides the anthropic-version header. Empty = DefaultAnthropicVersion.
 	AnthropicVersion string
 	// Timeout bounds one call. Zero = 60 s. The caller's context can only make it shorter.
@@ -103,7 +107,7 @@ func New(c Config) (Provider, error) {
 	h := &httpClient{
 		base: base, key: c.APIKey, timeout: c.Timeout, maxBody: c.MaxResponseBytes,
 		// Never follow redirects: a custom header such as x-api-key would travel to the new host.
-		c: &http.Client{Transport: newTransport(c.InternalOnly, base), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
+		c: &http.Client{Transport: newTransport(c.InternalOnly, base, c.Machine), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 	switch c.Style {
 	case StyleAnthropic:
@@ -191,6 +195,9 @@ func (h *httpClient) transportErr(ctx context.Context, err error) error {
 	var ne net.Error
 	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()) {
 		return newErr(ErrTimeout, 0, "", h.key)
+	}
+	if errors.Is(err, errOwnDestination) {
+		return newErr(ErrOwnAddress, 0, "", h.key)
 	}
 	if errors.Is(err, errForbiddenDestination) {
 		return newErr(ErrNetwork, 0, "the server is at an address no profile may use (a metadata service, link-local, multicast or unspecified address); check the address", h.key)
@@ -290,7 +297,83 @@ var (
 	errPublicDestination    = errors.New("destination is not an internal address")
 	errForbiddenDestination = errors.New("destination is an address no profile may use")
 	errPrivateForCloud      = errors.New("destination is a private address, but the profile is cloud")
+	errOwnDestination       = errors.New("destination is Vedette itself")
 )
+
+// OwnText is the sentence for Vedette itself (D-446): the same in feeds, notify, logs and ai.
+const OwnText = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
+
+// vedettePorts are the ports Vedette itself answers on at the machine's addresses (D-446): the interface 8443, the sensor link 8444,
+// MCP 8765, syslog 514 and syslog over TLS 6514 (install.sh preflight, the core unit's PublishPort lines, the container-only compose).
+// Same list in feeds, notify and logs.
+var vedettePorts = []uint16{514, 6514, 8443, 8444, 8765}
+
+// ownMayDialLoopback lets the tests of this package dial httptest servers on loopback. It is unexported and set only from test code.
+var ownMayDialLoopback = false
+
+// Own reports whether ip at port is Vedette itself (D-446): loopback (in the shipped container, core: a local Ollama is reached at
+// the machine's address, D-226), an address of core's own container on every port, or one of machine on a port of vedettePorts;
+// while the machine's addresses are not known (known false), those ports on every address (no AI server listens on them).
+// IPv4-mapped IPv6 is treated as the IPv4 address; the other forms that carry an IPv4 address are Forbidden already.
+func Own(ip netip.Addr, port uint16, machine []netip.Addr, known bool) bool {
+	ip = ip.Unmap().WithZone("")
+	if ip.IsLoopback() {
+		return !ownMayDialLoopback
+	}
+	if slices.Contains(selfAddrs(), ip) {
+		return true
+	}
+	if !slices.Contains(vedettePorts, port) {
+		return false
+	}
+	if !known {
+		return true
+	}
+	for _, m := range machine {
+		if m.Unmap().WithZone("") == ip {
+			return true
+		}
+	}
+	return false
+}
+
+// selfAddrs are the addresses of this process's own interfaces (in the shipped container: core itself), loopback left out.
+func selfAddrs() []netip.Addr {
+	var out []netip.Addr
+	if ifs, err := net.InterfaceAddrs(); err == nil {
+		for _, a := range ifs {
+			if p, ok := a.(*net.IPNet); ok {
+				if ip, ok := netip.AddrFromSlice(p.IP); ok && !ip.Unmap().IsLoopback() {
+					out = append(out, ip.Unmap().WithZone(""))
+				}
+			}
+		}
+	}
+	return out
+}
+
+// ownControl wraps a dialer Control with Own, on the resolved address and port (DNS rebinding included).
+func ownControl(machine func() ([]netip.Addr, bool), next func(network, address string, c syscall.RawConn) error) func(network, address string, c syscall.RawConn) error {
+	return func(network, address string, c syscall.RawConn) error {
+		host, port, err := net.SplitHostPort(address)
+		if err != nil {
+			return next(network, address, c)
+		}
+		ip, ierr := netip.ParseAddr(host)
+		n, perr := strconv.ParseUint(port, 10, 16)
+		if ierr == nil && perr == nil {
+			var addrs []netip.Addr
+			known := false
+			if machine != nil {
+				addrs, known = machine()
+			}
+			if Own(ip, uint16(n), addrs, known) {
+				return errOwnDestination
+			}
+		}
+		return next(network, address, c)
+	}
+}
 
 var (
 	cgnat       = netip.MustParsePrefix("100.64.0.0/10")
@@ -377,8 +460,8 @@ func cloudControlFor(proxied bool) func(network, address string, c syscall.RawCo
 
 // newTransport returns the HTTP transport of one provider. An internal profile gets no proxy and a dialer that refuses public
 // addresses; a cloud profile keeps the environment proxy and a dialer that refuses private ones (unless a proxy is in the way).
-// Both refuse the Forbidden addresses.
-func newTransport(internal bool, base *url.URL) *http.Transport {
+// Both refuse the Forbidden addresses and Vedette itself (Own; behind a proxy the dial goes to the proxy, the operator's).
+func newTransport(internal bool, base *url.URL, machine func() ([]netip.Addr, bool)) *http.Transport {
 	if !internal {
 		t := http.DefaultTransport.(*http.Transport).Clone() //nolint:forcetypeassert // the default transport is an *http.Transport
 		proxied := false
@@ -387,10 +470,14 @@ func newTransport(internal bool, base *url.URL) *http.Transport {
 				proxied = true
 			}
 		}
-		t.DialContext = (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second, Control: cloudControlFor(proxied)}).DialContext
+		ctl := cloudControlFor(proxied)
+		if !proxied {
+			ctl = ownControl(machine, ctl)
+		}
+		t.DialContext = (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second, Control: ctl}).DialContext
 		return t
 	}
-	d := &net.Dialer{Timeout: 10 * time.Second, Control: internalOnlyControl}
+	d := &net.Dialer{Timeout: 10 * time.Second, Control: ownControl(machine, internalOnlyControl)}
 	return &http.Transport{
 		Proxy: nil, DialContext: d.DialContext, MaxIdleConns: 4, IdleConnTimeout: 30 * time.Second, TLSHandshakeTimeout: 10 * time.Second,
 	}

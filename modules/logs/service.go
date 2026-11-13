@@ -59,8 +59,9 @@ type Config struct {
 	NeverCount func(ctx context.Context) ([]netip.Addr, error)
 	// Secrets seals the SIEM signing key (SYS-4). Required to save or read the SIEM configuration.
 	Secrets *secrets.Store
-	// BoxAddrs is the box's own addresses, which no SIEM may be at (SYS-7); known=false means the box does not know them yet, and then
-	// no connection is made (fail closed). Nil: no address is excluded (tests).
+	// BoxAddrs is the machine's addresses (vedette-host, the container's gateway): no SIEM on Vedette's own ports there (D-446; loopback
+	// and the container's own interfaces are refused on every port, read at every check); known=false means the box does not know them
+	// yet, and then no connection is made (fail closed). Nil: none (tests).
 	BoxAddrs func() (addrs []netip.Addr, known bool)
 	// Hostname is the box's name, the HOSTNAME of every syslog record, the dvchost of every CEF record (sent with no syslog header) and
 	// the "box" of every JSON record sent to the SIEM (#471). Wiring passes the OS host name vedette-host reports (core runs in a container, whose own name is not the machine's),

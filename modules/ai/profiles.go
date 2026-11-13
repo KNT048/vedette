@@ -163,6 +163,9 @@ func (s *Service) AddProfile(ctx context.Context, who string, in ProfileInput) (
 	if err := p.Validate(); err != nil {
 		return ProfileView{}, mapErr(err)
 	}
+	if err := p.checkOwn(s.cfg.BoxAddrs); err != nil { // D-446
+		return ProfileView{}, mapErr(err)
+	}
 	if len(cur.profiles) >= MaxProfiles {
 		return ProfileView{}, apierr.New(http.StatusBadRequest, "too_many", fmt.Sprintf("A box holds up to %d AI profiles. Remove one you no longer use.", MaxProfiles))
 	}
@@ -244,6 +247,9 @@ func (s *Service) EditProfile(ctx context.Context, who, id string, in ProfileInp
 	}
 	p := buildProfile(in, id, key)
 	if err := p.Validate(); err != nil {
+		return ProfileView{}, mapErr(err)
+	}
+	if err := p.checkOwn(s.cfg.BoxAddrs); err != nil { // D-446
 		return ProfileView{}, mapErr(err)
 	}
 	if cur.nameTaken(p.Name, id) {
@@ -445,6 +451,9 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 	if err := p.Validate(); err != nil {
 		return TestResult{}, mapErr(err)
 	}
+	if err := p.checkOwn(s.cfg.BoxAddrs); err != nil { // D-446
+		return TestResult{}, mapErr(err)
+	}
 	if old, ok := cur.find(in.ID); ok && sameConnection(old.Profile, p) {
 		saved = &old.Profile
 	}
@@ -572,6 +581,8 @@ func probeFailure(err error, baseURL string) error {
 		return bad("This Anthropic key is not tied to a workspace. Create the API key inside a workspace in the Anthropic console and use that key.")
 	case errors.Is(err, provider.ErrRateLimited):
 		return bad(fmt.Sprintf("%s is rate-limiting this key; try again later.", host))
+	case errors.Is(err, provider.ErrOwnAddress): // a name that resolves to Vedette itself (D-446)
+		return apierr.New(http.StatusBadGateway, "unreachable", provider.OwnText)
 	case errors.Is(err, provider.ErrNetwork), errors.Is(err, provider.ErrTimeout):
 		return apierr.New(http.StatusBadGateway, "unreachable", fmt.Sprintf("Could not connect to %s. Check the address, the box's network and the firewall.", host))
 	}

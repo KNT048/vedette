@@ -26,7 +26,8 @@ import (
 func newAI(ctx context.Context, d *deps, facts ai.Facts, data ai.Data) (*ai.Service, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	cfg := ai.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Log: d.Log, Clock: d.Clock, Zone: orgZone(d), Facts: facts, ChainPruner: aiChainPruner{}, Data: data}
+	cfg := ai.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Log: d.Log, Clock: d.Clock, Zone: orgZone(d), Facts: facts, ChainPruner: aiChainPruner{}, Data: data,
+		BoxAddrs: machineAddrs(d.HostNet)} // D-446: no profile on Vedette itself
 	if d.ConnReader != nil { // the read tools of the connections (core/conn/read, D-127); a nil *read.Reader in the interface would not compare equal to nil
 		cfg.Conns = d.ConnReader
 		cfg.ConnTargets = func(ctx context.Context) (map[string]string, error) {

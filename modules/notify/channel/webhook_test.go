@@ -74,7 +74,8 @@ func TestContract_INV8_WebhookSchemeRules(t *testing.T) {
 		"https://[::]/x":              "blocked_host",
 		"https://224.0.0.251/x":       "blocked_host",
 		"https://[ff02::1]/x":         "blocked_host",
-		"https://192.168.10.2/x":      "blocked_host", // the box itself
+		"https://192.168.10.2:8443/x": "blocked_host", // Vedette's own port on the machine (D-446)
+		"https://192.168.10.2:9000/x": "",             // another program on the machine
 		"https://2130706433/x":        "bad_url",      // 127.0.0.1 spelled as one number
 		"https://0x7f.1/x":            "bad_url",
 		"https://127.1/x":             "bad_url",
@@ -85,7 +86,8 @@ func TestContract_INV8_WebhookSchemeRules(t *testing.T) {
 		"http://0.0.0.0/x":              "blocked_host",
 		"http://224.0.0.1/x":            "blocked_host",
 		"http://[fe80::1]/x":            "blocked_host",
-		"http://192.168.10.2/x":         "blocked_host",
+		"http://192.168.10.2:8765/x":    "blocked_host",
+		"http://192.168.10.2/x":         "",
 		"http://2130706433/x":           "bad_url",
 	} {
 		c := wh(in)
@@ -127,16 +129,16 @@ func TestWebhookBoxAddrsFuncIsAskedAgain(t *testing.T) {
 	var box []netip.Addr
 	get := func() ([]netip.Addr, bool) { mu.Lock(); defer mu.Unlock(); return box, true }
 	ctl := dialControl(false, get)
-	if err := ctl("tcp", "192.168.10.77:443", nil); err != nil {
+	if err := ctl("tcp", "192.168.10.77:8443", nil); err != nil {
 		t.Fatalf("before: %v", err)
 	}
 	mu.Lock()
 	box = []netip.Addr{netip.MustParseAddr("192.168.10.77")}
 	mu.Unlock()
-	if err := ctl("tcp", "192.168.10.77:443", nil); err == nil {
-		t.Error("an address the box got later was not refused")
+	if err := ctl("tcp", "192.168.10.77:8443", nil); !errors.Is(err, errOwnDial) {
+		t.Errorf("an address the box got later was not refused: %v", err)
 	}
-	_, err := NewWebhook(WebhookConfig{URL: secrets.NewValue("https://192.168.10.77/x"), SigningKey: secrets.NewValue(whKey), BoxAddrsFunc: get})
+	_, err := NewWebhook(WebhookConfig{URL: secrets.NewValue("https://192.168.10.77:8443/x"), SigningKey: secrets.NewValue(whKey), BoxAddrsFunc: get})
 	var ce *ConfigError
 	if !errors.As(err, &ce) || ce.Code != "blocked_host" {
 		t.Errorf("BoxAddrsFunc at config time: %v", err)
@@ -178,7 +180,7 @@ func TestWebhookDialGuardRefusesResolvedAddresses(t *testing.T) {
 	box := []netip.Addr{netip.MustParseAddr("192.168.10.2")}
 	for addr, wantErr := range map[string]bool{
 		"127.0.0.1:443": true, "169.254.169.254:80": true, "0.0.0.0:80": true, "[::1]:443": true, "224.0.0.1:80": true,
-		"192.168.10.2:443": true, "[fd00:ec2::254]:80": true, "100.100.100.200:443": true, "192.0.0.192:80": true, "[64:ff9b::6464:64c8]:443": true, "[fd20:ce::254]:80": true, "192.168.10.9:443": false, "8.8.8.8:443": false, "not-an-address": true, "example.com:443": true,
+		"192.168.10.2:8443": true, "192.168.10.2:6514": true, "192.168.10.2:443": false, "[fd00:ec2::254]:80": true, "100.100.100.200:443": true, "192.0.0.192:80": true, "[64:ff9b::6464:64c8]:443": true, "[fd20:ce::254]:80": true, "192.168.10.9:443": false, "8.8.8.8:443": false, "not-an-address": true, "example.com:443": true,
 	} {
 		if err := dialControl(false, func() ([]netip.Addr, bool) { return box, true })("tcp", addr, nil); (err != nil) != wantErr {
 			t.Errorf("https %s: err = %v", addr, err)

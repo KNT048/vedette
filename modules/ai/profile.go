@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -73,7 +74,7 @@ func (p Profile) Validate() error {
 	}
 	u, err := url.Parse(strings.TrimSpace(p.BaseURL))
 	if err != nil || u.Host == "" {
-		return perr("invalid_base_url", "The server address is not valid. Enter it in full, for example https://api.anthropic.com or http://localhost:11434/v1.")
+		return perr("invalid_base_url", "The server address is not valid. Enter it in full, for example https://api.anthropic.com or http://192.168.1.20:11434/v1.")
 	}
 	if _, err := provider.ParseBaseURL(p.BaseURL); err != nil {
 		return perr("invalid_base_url", "The address must be http(s)://host[/path] with no user name, password, query or fragment. Enter the API key in its own field.")
@@ -117,13 +118,51 @@ func (p Profile) Validate() error {
 	return nil
 }
 
+// checkOwn is the save-time half of D-446, after Validate: a base URL whose host is a literal address that is Vedette itself
+// (provider.Own: loopback, core's own container, Vedette's own ports on the machine's addresses) or a localhost name is refused. It
+// is not part of Validate, which also checks the saved profiles at start: a profile saved before D-446 stays loaded and its calls are
+// refused by the dialer with the same sentence. Other names are judged on the resolved address at every connection.
+func (p Profile) checkOwn(machine func() ([]netip.Addr, bool)) error {
+	u, err := url.Parse(strings.TrimSpace(p.BaseURL))
+	if err != nil {
+		return nil // Validate refused it already
+	}
+	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return perr("invalid_base_url", provider.OwnText)
+	}
+	ip, err := netip.ParseAddr(host)
+	if err != nil {
+		return nil
+	}
+	port := uint16(443)
+	if n, e := strconv.ParseUint(u.Port(), 10, 16); e == nil {
+		port = uint16(n)
+	} else if u.Scheme == "http" {
+		port = 80
+	}
+	var addrs []netip.Addr
+	known := false
+	if machine != nil {
+		addrs, known = machine()
+	}
+	if provider.Own(ip, port, addrs, known) {
+		return perr("invalid_base_url", provider.OwnText)
+	}
+	return nil
+}
+
 // Usable reports whether the profile can be assigned and called: it has a key, or runs inside the network
 // where a key may be optional (INV-1).
 func (p Profile) Usable() bool { return p.APIKey.IsSet() || p.Location == LocationInternal }
 
 // Provider builds the client for this profile. http base URLs are only reachable here for internal profiles
-// because Validate refuses them otherwise.
-func (p Profile) Provider() (provider.Provider, error) {
+// because Validate refuses them otherwise. It does not know the machine's addresses, so Vedette's own ports are refused on every
+// address (provider.Own); the service builds its clients with them (Config.BoxAddrs).
+func (p Profile) Provider() (provider.Provider, error) { return p.provider(nil) }
+
+// provider is Provider with the machine's addresses for the D-446 rule (nil: unknown).
+func (p Profile) provider(machine func() ([]netip.Addr, bool)) (provider.Provider, error) {
 	style, err := provider.StyleForKind(p.Kind, p.APIStyle)
 	if err != nil {
 		return nil, fmt.Errorf("ai: profile %q: %w", p.Name, err)
@@ -131,6 +170,7 @@ func (p Profile) Provider() (provider.Provider, error) {
 	pr, err := provider.New(provider.Config{
 		Style: style, BaseURL: p.BaseURL, Model: p.Model, APIKey: p.APIKey,
 		CompatMode: style == provider.StyleOpenAI && p.Kind != "openai", InternalOnly: p.Location == LocationInternal, AnthropicVersion: p.AnthropicVersion,
+		Machine: machine,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ai: profile %q: %w", p.Name, err)

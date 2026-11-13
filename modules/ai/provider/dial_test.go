@@ -11,8 +11,45 @@ import (
 
 func init() {
 	// The existing tests dial httptest servers on loopback for profiles that are not internal: that is allowed here only, from the
-	// test code of this package. TestCloudDialRefusesPrivateAndLoopback switches it off.
+	// test code of this package. TestCloudDialRefusesPrivateAndLoopback switches it off. Loopback is Vedette itself (D-446) except
+	// for the httptest servers of these tests; TestOwnAddresses switches that off.
 	cloudMayDialPrivate = true
+	ownMayDialLoopback = true
+}
+
+// D-446: Vedette itself is never a provider: loopback, the process's own interfaces, Vedette's own ports on the machine's
+// addresses (on every address while those are unknown). Another program on the machine, at its own port, is a normal server.
+func TestOwnAddresses(t *testing.T) { //nolint:paralleltest // switches ownMayDialLoopback
+	ownMayDialLoopback = false
+	t.Cleanup(func() { ownMayDialLoopback = true })
+	machine := []netip.Addr{netip.MustParseAddr("10.77.0.9")}
+	for _, c := range []struct {
+		ip    string
+		port  uint16
+		known bool
+		own   bool
+	}{
+		{"127.0.0.1", 11434, true, true}, {"::1", 80, true, true}, {"::ffff:127.0.0.1", 8000, true, true},
+		{"10.77.0.9", 8443, true, true}, {"10.77.0.9", 514, true, true}, {"::ffff:10.77.0.9", 8765, true, true},
+		{"10.77.0.9", 11434, true, false}, {"10.77.0.9", 18080, false, false}, {"10.77.0.8", 8443, true, false},
+		{"10.77.0.8", 8444, false, true}, // the machine's addresses not known yet: Vedette's ports on every address
+	} {
+		if got := Own(netip.MustParseAddr(c.ip), c.port, machine, c.known); got != c.own {
+			t.Errorf("Own(%s, %d, known=%v) = %v, want %v", c.ip, c.port, c.known, got, c.own)
+		}
+	}
+	m := func() ([]netip.Addr, bool) { return machine, true }
+	next := func(string, string, syscall.RawConn) error { return nil }
+	for addr, own := range map[string]bool{"127.0.0.1:11434": true, "10.77.0.9:8443": true, "10.77.0.9:11434": false, "192.168.1.5:8443": false} {
+		if err := ownControl(m, next)("tcp", addr, nil); errors.Is(err, errOwnDestination) != own {
+			t.Errorf("ownControl(%s) = %v, want own=%v", addr, err, own)
+		}
+	}
+	// end to end: the dial is refused before a packet, as ErrOwnAddress, a kind of ErrNetwork (Test answers it with OwnText)
+	_, err := must(t, Config{Style: StyleOpenAI, BaseURL: "http://127.0.0.1:11434/v1", Model: "m", InternalOnly: true}).Complete(context.Background(), simpleReq)
+	if !errors.Is(err, ErrOwnAddress) || !errors.Is(err, ErrNetwork) {
+		t.Errorf("internal profile on loopback: %v", err)
+	}
 }
 
 // L1 of the review of slice 1: no profile, internal or cloud, may reach a metadata service, a link-local, multicast or

@@ -40,7 +40,8 @@
 ### `modules/ai/provider`
 - `New(Config) (Provider, error)`, `Provider.Complete(ctx, Request) (Response, error)`, `Probe(ctx, p, now) (ProbeResult, error)`, `StyleForKind`, `DefaultBaseURL`, `ParseBaseURL`, `Secret` (`NewSecret`, `Reveal`, `Last4`, `IsSet`).
 - Đổi `Request`/`Response` → router, `RunJob`, kế hoạch `response-plan`. Đổi nơi đặt khoá (header) hoặc thông điệp lỗi → có thể lộ khoá (INV-1): `TestContract_INV1_KeyNeverLeaks` phải xanh. Thêm kiểu API mới = thêm adapter + fake httptest + fuzz bộ giải mã.
-- Lỗi: `ErrAuth`, `ErrRateLimited`, `ErrServer`, `ErrTimeout`, `ErrRequest`, `ErrTooLarge`, `ErrBadResponse`, `ErrNetwork` (đều không chứa khoá hay URL). Router chuyển dự phòng với mọi lỗi này, trừ khi ngữ cảnh của người gọi đã bị huỷ.
+- Lỗi: `ErrAuth`, `ErrRateLimited`, `ErrServer`, `ErrTimeout`, `ErrRequest`, `ErrTooLarge`, `ErrBadResponse`, `ErrNetwork`, `ErrOwnAddress` (bọc `ErrNetwork`, D-446) (đều không chứa khoá hay URL).
+- D-446: `Config.Machine`, `Own(ip, port, machine, known)`, `OwnText`: chính Vedette (loopback, giao diện container của core, cổng 8443/8444/8765/514/6514 trên địa chỉ máy; chưa biết máy → các cổng đó trên mọi địa chỉ) bị từ chối ở bộ quay số của mọi hồ sơ (trừ khi đi qua proxy môi trường). Cùng luật và câu với feeds, notify, logs: đổi danh sách cổng là đổi cả bốn bản sao. `ai.Config.BoxAddrs` (cmd/vedette `machineAddrs`) cấp địa chỉ máy; `Profile.Provider()` không có chúng nên từ chối các cổng đó trên mọi địa chỉ. Router chuyển dự phòng với mọi lỗi này, trừ khi ngữ cảnh của người gọi đã bị huỷ.
 
 ### `modules/ai` — định tuyến và đồng hồ
 - `Profile.Validate`, `Profile.Usable`, `Profile.Provider`; `Assignments.Validate(profiles)`, `Assignments.Allowed(job, p)` (**điểm duy nhất quyết định INV-3**); `NewRouter(RouterConfig)`, `Router.Candidates(job)`, `Router.Call(ctx, job, req) (CallResult, error)`; `ErrUnavailable` (409 `ai_unavailable`), `ErrCapped` (429 `daily_cap`).

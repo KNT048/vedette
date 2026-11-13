@@ -40,8 +40,8 @@ type EmailConfig struct {
 	To       []string       // recipients, at least one; see ParseRecipients
 	RootCAs  *x509.CertPool // nil = system roots; tests add their own CA
 	Now      func() time.Time
-	// BoxAddrsFunc lists this box's own addresses, asked at save and at every connection: the server is never one of them, as
-	// for a webhook. known=false only leaves that list out (loopback, link-local, multicast and unspecified are refused all the
+	// BoxAddrsFunc lists the machine's addresses, asked at save and at every connection: the server is never on Vedette's own ports
+	// there (D-446), as for a webhook. known=false only leaves that list out (loopback, link-local, multicast and unspecified are refused all the
 	// same): the email channel also carries the two-step sign-in codes, which must not stop while the host has not answered (#157).
 	BoxAddrsFunc func() (addrs []netip.Addr, known bool)
 	// AllowLoopback is for tests only (the fake SMTP servers of the notify and cmd/vedette tests listen on 127.0.0.1); production
@@ -109,15 +109,20 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 		addrs, _ := cfg.BoxAddrsFunc()
 		return addrs, true
 	}
-	// The webhook's rule (forbiddenAddr): in a container 127.0.0.1 is core itself, and link-local holds the cloud metadata service.
-	// A name that resolves to such an address is refused when connecting (dialControl).
-	host := strings.TrimSuffix(strings.ToLower(cfg.Host), ".")
-	boxAddrs, _ := box()
-	if a, err := netip.ParseAddr(host); (err == nil && forbiddenAddr(a, cfg.AllowLoopback, boxAddrs)) || (!cfg.AllowLoopback && strings.HasSuffix(host, ".localhost")) || metadataName(host) {
-		return nil, cfgErr("bad_host", "The SMTP server cannot be this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address. For a mail server on the computer that runs Vedette, enter that computer's LAN address.")
-	}
 	if cfg.Port < 1 || cfg.Port > 65535 {
 		return nil, cfgErr("bad_port", "The SMTP port is a number from 1 to 65535 (usually 587 or 465).")
+	}
+	// The webhook's rule: Vedette itself (ownAddr, D-446: loopback, core's own container, Vedette's ports on the machine) and
+	// link-local, which holds the cloud metadata service (forbiddenAddr). A name that resolves to such an address is refused when
+	// connecting (dialControl).
+	host := strings.TrimSuffix(strings.ToLower(cfg.Host), ".")
+	boxAddrs, _ := box()
+	a, aerr := netip.ParseAddr(host)
+	if (aerr == nil && ownAddr(a, uint16(cfg.Port), cfg.AllowLoopback, boxAddrs)) || (!cfg.AllowLoopback && (host == "localhost" || strings.HasSuffix(host, ".localhost"))) {
+		return nil, cfgErr("bad_host", OwnText)
+	}
+	if (aerr == nil && forbiddenAddr(a, cfg.AllowLoopback, nil)) || metadataName(host) {
+		return nil, cfgErr("bad_host", "The SMTP server cannot be a link-local or multicast address, a cloud metadata service, or an unspecified address.")
 	}
 	switch cfg.Security {
 	case SecurityStartTLS, SecuritySSL, SecurityNone:

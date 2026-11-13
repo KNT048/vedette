@@ -56,34 +56,62 @@ func TestD208_LoopbackRefusedForHTTPAndHTTPS(t *testing.T) {
 	}
 }
 
-func TestD208_BoxAddressAndNameResolvingToItAreRefused(t *testing.T) {
+func TestD446_MachineAddressRefusedOnVedettePortsOnly(t *testing.T) {
 	t.Parallel()
-	var calls atomic.Int32
+	var calls, dialled atomic.Int32
 	c := newClient(2*time.Second, fixedResolver(&calls, map[string][]string{"api.lan": {"10.9.9.9"}, "v6.lan": {"fd00::9"}, "mapped.lan": {"::ffff:10.9.9.9"}}))
-	f := Fetcher{Client: c, BoxAddrs: boxOf("10.9.9.9", "fd00::9")}
-	for _, u := range []string{"http://10.9.9.9:8443/", "http://api.lan:8443/", "https://[fd00::9]:8444/", "http://v6.lan:80/", "http://mapped.lan/", "https://10.9.9.9/"} {
-		start := time.Now()
-		if _, err := f.Fetch(context.Background(), Request{URL: u}); !errors.Is(err, ErrBlockedAddress) {
+	f := Fetcher{Client: c, BoxAddrs: boxOf("10.9.9.9", "fd00::9"), dialOverride: func(context.Context, string, string) (net.Conn, error) {
+		dialled.Add(1)
+		return nil, errors.New("dialled")
+	}}
+	for _, u := range []string{"http://10.9.9.9:8443/", "http://api.lan:8443/", "https://[fd00::9]:8444/", "http://v6.lan:8765/", "http://mapped.lan:514/", "https://10.9.9.9:6514/"} {
+		if _, err := f.Fetch(context.Background(), Request{URL: u}); !errors.Is(err, ErrOwnAddress) {
 			t.Errorf("%s: %v", u, err)
 		}
-		if time.Since(start) > time.Second {
-			t.Errorf("%s: refusal took a connect attempt", u)
+	}
+	if dialled.Load() != 0 {
+		t.Fatalf("a Vedette port was dialled %d times", dialled.Load())
+	}
+	// another program on the machine: the guard lets it through to the connect
+	for _, u := range []string{"http://10.9.9.9:18070/ioc.txt", "http://api.lan/", "https://[fd00::9]/", "http://mapped.lan:8080/"} {
+		if _, err := f.Fetch(context.Background(), Request{URL: u}); errors.Is(err, ErrBlockedAddress) {
+			t.Errorf("%s refused: %v", u, err)
 		}
+	}
+	if dialled.Load() != 4 {
+		t.Errorf("dialled %d of 4 programs on the machine", dialled.Load())
 	}
 }
 
-func TestD208_LANAddressOnTheBoxSubnetIsStillAllowed(t *testing.T) {
+func TestD446_LoopbackAndOwnInterfacesOnEveryPort(t *testing.T) {
 	t.Parallel()
 	g := &destGuard{}
-	box := []netip.Addr{netip.MustParseAddr("192.168.1.10")} // the box's /32, not its 192.168.1.0/24
-	for ip, want := range map[string]bool{"192.168.1.10": true, "192.168.1.11": false, "192.168.1.1": false, "127.0.0.1": true, "127.5.5.5": true, "::1": true, "8.8.8.8": false} {
-		if got := g.refused(netip.MustParseAddr(ip), box); got != want {
-			t.Errorf("refused(%s) = %v, want %v", ip, got, want)
+	own := ownAddrs{self: []netip.Addr{netip.MustParseAddr("10.89.0.5")}, machine: []netip.Addr{netip.MustParseAddr("192.168.18.141")}}
+	for _, c := range []struct {
+		ip   string
+		port uint16
+		want bool
+	}{
+		{"127.0.0.1", 11434, true}, {"::1", 80, true}, {"10.89.0.5", 18070, true}, {"::ffff:10.89.0.5", 443, true}, {"64:ff9b::a59:5", 80, true},
+		{"192.168.18.141", 8443, true}, {"192.168.18.141", 514, true}, {"192.168.18.141", 18070, false}, {"192.168.18.142", 8443, false},
+	} {
+		if got := g.refused(netip.MustParseAddr(c.ip), c.port, own); got != c.want {
+			t.Errorf("refused(%s, %d) = %v, want %v", c.ip, c.port, got, c.want)
 		}
-		if ip == "192.168.1.11" || ip == "192.168.1.1" {
-			if !dialAllowed(netip.MustParseAddr(ip), "http") {
-				t.Errorf("http to LAN %s no longer allowed", ip)
+	}
+	for raw, want := range map[string]string{
+		"http://192.168.18.141:18070/ioc.txt": "", "http://192.168.18.141:8443/x": ownText, "https://192.168.18.141:8444/": ownText,
+		"http://localhost:18070/": ownText, "http://10.89.0.5/": ownText, "http://169.254.169.254/": blockedText, "https://192.168.18.141/": "",
+	} {
+		err := CheckDest(raw, own)
+		var fe *Error
+		if got := ""; err != nil && errors.As(err, &fe) {
+			got = fe.Detail
+			if got != want {
+				t.Errorf("CheckDest(%s) = %q, want %q", raw, got, want)
 			}
+		} else if want != "" {
+			t.Errorf("CheckDest(%s) = %v, want %q", raw, err, want)
 		}
 	}
 }
@@ -262,12 +290,12 @@ func TestD208_ColdStartPullsPublicFeedsAndWaitsForLANOnes(t *testing.T) {
 func TestD208_TransitionFormsAreCheckedByTheirIPv4(t *testing.T) {
 	t.Parallel()
 	g := &destGuard{}
-	box := []netip.Addr{netip.MustParseAddr("10.9.9.9")}
+	box := ownAddrs{machine: []netip.Addr{netip.MustParseAddr("10.9.9.9")}}
 	for ip, want := range map[string]bool{
 		"64:ff9b::7f00:1": true, "64:ff9b::a09:909": true, "64:ff9b::808:808": false, "64:ff9b:1::7f:0:1": false,
 		"2002:7f00:1::": true, "2002:a09:909::1": true, "2002:808:808::1": false, "::127.0.0.1": true, "::10.9.9.9": true, "::8.8.8.8": false,
 	} {
-		if got := g.refused(netip.MustParseAddr(ip), box); got != want {
+		if got := g.refused(netip.MustParseAddr(ip), 8444, box); got != want {
 			t.Errorf("refused(%s) = %v, want %v", ip, got, want)
 		}
 	}
@@ -284,21 +312,23 @@ func TestD208_TransitionFormsAreCheckedByTheirIPv4(t *testing.T) {
 	}
 }
 
-func TestD208_GatewayIsTheBoxAndRefusedPullsHaveAPlainMessage(t *testing.T) {
+func TestD446_GatewayIsTheMachineAndRefusedPullsHaveOneMessage(t *testing.T) {
 	t.Parallel()
 	var calls atomic.Int32
 	c := newClient(2*time.Second, fixedResolver(&calls, map[string][]string{"gw.lan": {"172.17.0.1"}}))
 	f := Fetcher{Client: c, Gateway: func() (netip.Addr, bool) { return netip.MustParseAddr("172.17.0.1"), true }}
-	_, err := f.Fetch(context.Background(), Request{URL: "http://gw.lan/"})
+	_, err := f.Fetch(context.Background(), Request{URL: "http://gw.lan:8443/"})
 	if !errors.Is(err, ErrBlockedAddress) || !errors.Is(err, ErrOwnAddress) {
 		t.Fatalf("%v", err)
 	}
-	// D-420 (7): the gateway is the machine Docker runs on; the message says so instead of claiming loopback
-	if msg := userError(err, "http://gw.lan/"); !strings.HasPrefix(msg, "This address is the machine Vedette runs on") {
-		t.Errorf("message = %q", msg)
+	// D-446: one sentence for Vedette itself, loopback included; it points at the machine's LAN address
+	for _, e := range []error{err, ErrOwnAddress} {
+		if msg := userError(e, "http://gw.lan/"); msg != ownText || !strings.Contains(msg, "enter the machine's LAN address") {
+			t.Errorf("message = %q", msg)
+		}
 	}
-	if msg := userError(ErrBlockedAddress, "http://x/"); !strings.HasPrefix(msg, "Vedette does not pull feeds from itself") {
-		t.Errorf("loopback message = %q", msg)
+	if msg := userError(ErrBlockedAddress, "http://x/"); msg != blockedText {
+		t.Errorf("blocked message = %q", msg)
 	}
 }
 

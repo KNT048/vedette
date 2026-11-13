@@ -38,6 +38,7 @@ const (
 	routeStateNet
 	routeStateContainers
 	routeStateHost
+	routeStatePackages
 	routeBackupContent
 	routeExportContent
 )
@@ -61,6 +62,8 @@ func route(method, path string) (kind routeKind, arg string) {
 		return routeStateContainers, ""
 	case method == http.MethodGet && path == "/v1/state/host":
 		return routeStateHost, ""
+	case method == http.MethodGet && path == "/v1/state/packages":
+		return routeStatePackages, ""
 	case method == http.MethodGet && strings.HasPrefix(path, "/v1/backups/"):
 		if id, ok := strings.CutSuffix(strings.TrimPrefix(path, "/v1/backups/"), "/content"); ok && !strings.Contains(id, "/") {
 			return routeBackupContent, id
@@ -168,7 +171,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleEvents(w, r, arg)
 	case routeAudit:
 		s.handleAudit(w, r)
-	case routeStateOS, routeStateBackups, routeStateNet, routeStateContainers, routeStateHost, routeBackupContent, routeExportContent:
+	case routeStateOS, routeStateBackups, routeStateNet, routeStateContainers, routeStateHost, routeStatePackages, routeBackupContent, routeExportContent:
 		s.serveRead(w, r, kind, arg)
 	case routeNone, routeCommand:
 		// handled above
@@ -189,6 +192,8 @@ func (s *Server) readerAvailable(kind routeKind) bool {
 		return rd.Containers != nil
 	case routeStateHost:
 		return rd.Host != nil
+	case routeStatePackages:
+		return rd.Packages != nil
 	case routeBackupContent:
 		return rd.BackupContent != nil
 	case routeExportContent:

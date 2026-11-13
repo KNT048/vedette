@@ -125,7 +125,7 @@ func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 	}
 	out := make([]scan.Device, 0, len(list.Items))
 	for _, d := range list.Items {
-		sd := scan.Device{ID: d.ID, Label: deviceLabel(d.AssetCore), IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, LastSeen: d.LastSeen}
+		sd := scan.Device{ID: d.ID, Label: deviceLabel(d.AssetCore), IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, LastSeen: d.LastSeen, Box: d.IsBox}
 		if d.MAC != nil {
 			sd.MAC = *d.MAC
 		}

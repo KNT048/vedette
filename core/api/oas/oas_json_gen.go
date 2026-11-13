@@ -259860,6 +259860,10 @@ func (s *ScanGetScansTargetsOKItemsItem) encodeFields(e *jx.Encoder) {
 		e.Bool(s.Approved)
 	}
 	{
+		e.FieldStart("box")
+		e.Bool(s.Box)
+	}
+	{
 		e.FieldStart("device_kind")
 		s.DeviceKind.Encode(e)
 	}
@@ -259913,21 +259917,22 @@ func (s *ScanGetScansTargetsOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanGetScansTargetsOKItemsItem = [14]string{
+var jsonFieldsNameOfScanGetScansTargetsOKItemsItem = [15]string{
 	0:  "approved",
-	1:  "device_kind",
-	2:  "findings",
-	3:  "fragile",
-	4:  "id",
-	5:  "ip",
-	6:  "kind",
-	7:  "label",
-	8:  "last_seen",
-	9:  "mac",
-	10: "pick_only",
-	11: "reason",
-	12: "selectable",
-	13: "vendor",
+	1:  "box",
+	2:  "device_kind",
+	3:  "findings",
+	4:  "fragile",
+	5:  "id",
+	6:  "ip",
+	7:  "kind",
+	8:  "label",
+	9:  "last_seen",
+	10: "mac",
+	11: "pick_only",
+	12: "reason",
+	13: "selectable",
+	14: "vendor",
 }
 
 // Decode decodes ScanGetScansTargetsOKItemsItem from json.
@@ -259951,8 +259956,20 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"approved\"")
 			}
-		case "device_kind":
+		case "box":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.Box = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box\"")
+			}
+		case "device_kind":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.DeviceKind.Decode(d); err != nil {
 					return err
@@ -259962,7 +259979,7 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"device_kind\"")
 			}
 		case "findings":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Findings = int(v)
@@ -259974,7 +259991,7 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"findings\"")
 			}
 		case "fragile":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.Fragile = bool(v)
@@ -259986,7 +260003,7 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"fragile\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -259998,7 +260015,7 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "ip":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.IP = string(v)
@@ -260010,7 +260027,7 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -260020,7 +260037,7 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "label":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Label = string(v)
@@ -260032,7 +260049,7 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"label\"")
 			}
 		case "last_seen":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.LastSeen.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -260042,7 +260059,7 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
 		case "mac":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.MAC.Decode(d); err != nil {
 					return err
@@ -260052,7 +260069,7 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"mac\"")
 			}
 		case "pick_only":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.PickOnly = bool(v)
@@ -260064,7 +260081,7 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"pick_only\"")
 			}
 		case "reason":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Reason.Decode(d); err != nil {
 					return err
@@ -260074,7 +260091,7 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"reason\"")
 			}
 		case "selectable":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Bool()
 				s.Selectable = bool(v)
@@ -260086,7 +260103,7 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"selectable\"")
 			}
 		case "vendor":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				if err := s.Vendor.Decode(d); err != nil {
 					return err
@@ -260106,7 +260123,7 @@ func (s *ScanGetScansTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -260278,8 +260295,6 @@ func (s *ScanGetScansTargetsOKItemsItemReason) Decode(d *jx.Decoder) error {
 		*s = ScanGetScansTargetsOKItemsItemReasonOutOfScope
 	case ScanGetScansTargetsOKItemsItemReasonNoIP:
 		*s = ScanGetScansTargetsOKItemsItemReasonNoIP
-	case ScanGetScansTargetsOKItemsItemReasonBox:
-		*s = ScanGetScansTargetsOKItemsItemReasonBox
 	case ScanGetScansTargetsOKItemsItemReasonRegularScanNever:
 		*s = ScanGetScansTargetsOKItemsItemReasonRegularScanNever
 	case ScanGetScansTargetsOKItemsItemReasonUnverified:

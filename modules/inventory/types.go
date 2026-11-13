@@ -92,8 +92,9 @@ type KEV interface {
 	CVEs(ctx context.Context, keys []string) ([]string, error)
 }
 
-// BoxPackages lists the packages installed on the box itself (dpkg, confidence 1.0; D-53). vedette-host
-// (WP-07) implements it; until then nothing is reported.
+// BoxPackages lists the packages installed on the box itself (dpkg, confidence 1.0; D-53, D-470). cmd/vedette implements it
+// with vedette-host's GET /v1/state/packages on an appliance; a container-only install has none. A nil list means "no list
+// from this host" (kept as is), never "no packages".
 type BoxPackages interface {
 	Packages(ctx context.Context) ([]SoftwareItem, error)
 }

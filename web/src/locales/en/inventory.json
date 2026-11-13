@@ -607,7 +607,7 @@
     "badge": "This box",
     "title": "This is the Vedette box itself",
     "lead": "It is always the first device.",
-    "packagesAppliance": "Its packages are read from the box (dpkg), so the version list is exact.",
+    "packagesAppliance": "Its packages are read from the box (dpkg) every hour and right after an OS update, so the version list is exact. No osquery agent is needed on the box.",
     "packagesContainer": "The package list of this machine is not available in a container-only install.",
     "matched": "It is matched against exploited vulnerabilities like any other device.",
     "fix": "Fix by updating the operating system",

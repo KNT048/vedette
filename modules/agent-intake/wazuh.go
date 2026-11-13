@@ -612,7 +612,7 @@ func (s *Service) pullAgent(ctx context.Context, c *wazuhClient, a wzAgent) (int
 			return 0, err
 		}
 	}
-	items, dropped := mapPackages(wazuhSnaps(pkgs))
+	items, dropped := mapPackages(wazuhSnaps(pkgs), maxRows)
 	if dropped > 0 {
 		s.cfg.Log.InfoContext(ctx, "agent-intake: wazuh rows dropped", "agent", a.ID, "rows_not_fitting", dropped)
 	}

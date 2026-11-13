@@ -147,7 +147,7 @@ func FuzzParseLog(f *testing.F) {
 				t.Fatalf("interface mac %q", i.mac)
 			}
 		}
-		items, _ := mapPackages(in.snaps)
+		items, _ := mapPackages(in.snaps, maxRows)
 		if len(items) > maxRows {
 			t.Fatalf("%d software items", len(items))
 		}

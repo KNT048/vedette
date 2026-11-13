@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -230,6 +231,26 @@ func writeConf(t *testing.T, body string) string {
 	return p
 }
 
+// boundNotListening holds a loopback TCP port that refuses connections for the whole test: bound, never listened on.
+// Closing a listener and reusing its port raced with the package's other parallel listeners, which the kernel could
+// hand the same port (CI flake on #663, #687).
+func boundNotListening(t *testing.T) int {
+	t.Helper()
+	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = syscall.Close(fd) })
+	if err := syscall.Bind(fd, &syscall.SockaddrInet4{Addr: [4]byte{127, 0, 0, 1}}); err != nil {
+		t.Fatal(err)
+	}
+	sa, err := syscall.Getsockname(fd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sa.(*syscall.SockaddrInet4).Port
+}
+
 func TestHoneypotHealthcheck(t *testing.T) {
 	t.Parallel()
 	port := listenLoopback(t)
@@ -250,12 +271,7 @@ func TestHoneypotHealthcheck(t *testing.T) {
 	})
 	t.Run("the port is closed", func(t *testing.T) {
 		t.Parallel()
-		ln, err := listenTCP(t)
-		if err != nil {
-			t.Fatal(err)
-		}
-		closed := ln.Addr().(*net.TCPAddr).Port
-		_ = ln.Close()
+		closed := boundNotListening(t)
 		conf := writeConf(t, `{"rdp.enabled": true, "rdp.port": `+strconv.Itoa(closed)+`}`)
 		if err := honeypotHealthcheck(t.Context(), conf, time.Second); err == nil {
 			t.Fatal("a closed port is unhealthy")

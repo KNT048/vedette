@@ -286,7 +286,7 @@ func TestZaloDigestNamesOnlyTheLinesThatFit(t *testing.T) {
 		mu.Unlock()
 		return &http.Response{StatusCode: 200, Header: http.Header{}, Request: r, Body: io.NopCloser(strings.NewReader(`{"error":0,"message":"Success"}`))}, nil
 	}))
-	e.save(channel.Zalo, notify.ChannelInput{Enabled: true, MinSeverity: notify.Low, Secret: "zalo-access-token-0123456789-abcdef",
+	e.save(channel.Zalo, notify.ChannelInput{Enabled: true, MinSeverity: notify.Low, Secret: "zalo-access-token-0123456789-abcdef", //nolint:gosec // fake test token
 		Fields: map[string]string{"oa_id": "1234567890", "user_id": "987654321"}})
 	e.plain()
 	device := strings.Repeat("WORKSTATION-OF-THE-ACCOUNTING-DEPARTMENT-", 3)

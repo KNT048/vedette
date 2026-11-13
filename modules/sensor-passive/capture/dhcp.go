@@ -3,6 +3,7 @@ package capture
 import (
 	"encoding/binary"
 	"net/netip"
+	"strings"
 )
 
 const maxDHCP = 2048 // bytes read from one DHCP message
@@ -85,6 +86,31 @@ func parseDHCP(b []byte) (dhcpMessage, error) {
 		i += 2 + n
 	}
 	return m, nil
+}
+
+// dhcpOS reads the OS family from the vendor class (option 60) of a DHCP client whose format is known (D-501): Windows ("MSFT 5.0"),
+// Android ("android-dhcp-13"), dhcpcd ("dhcpcd-9.4.1:Linux-6.1.21:aarch64:..."), BusyBox udhcpc ("udhcp 1.36.1"). Option 60 names
+// the DHCP client, so it says the operating system, not who made the device or which version runs: a hint, never a version to
+// match. Anything else gives "".
+func dhcpOS(vc string) string {
+	switch {
+	case strings.HasPrefix(vc, "MSFT "):
+		return "Microsoft Windows"
+	case strings.HasPrefix(vc, "android-dhcp-"):
+		if n := strings.TrimPrefix(vc, "android-dhcp-"); n != "" && len(n) <= 3 && strings.Trim(n, "0123456789") == "" {
+			return "Android " + n
+		}
+		return "Android"
+	case strings.HasPrefix(vc, "dhcpcd-"):
+		_, rest, _ := strings.Cut(vc, ":")
+		switch name, _, _ := strings.Cut(rest, "-"); name {
+		case "Linux", "NetBSD", "FreeBSD", "OpenBSD", "DragonFly":
+			return name
+		}
+	case strings.HasPrefix(vc, "udhcp "):
+		return "Linux (BusyBox)"
+	}
+	return ""
 }
 
 // trimNUL drops the trailing NULs some clients add to option 12.

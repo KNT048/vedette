@@ -105,6 +105,23 @@ type Software struct {
 	CPE        string // optional
 	KevKeys    []string
 	Confidence float64
+	// Guess marks software a sensor only guessed (an OS from nmap's fingerprint, D-501): it is stored and shown, but gets no KEV match
+	// keys, so it raises no finding until a person adds it with its version. A Windows release a device named in its NTLM answer is
+	// one too, with a version but no patch level (D-504).
+	Guess bool
+}
+
+// Approver accepts the device an enrolled agent reports on (D-503): the person who made the enrolment token and ran the install
+// vouched for the machine. mac is the MAC of the agent's card that holds hint.IP ("" when it reported none): the device is approved
+// only when it was never seen with another MAC, so an address DHCP gave to a new machine never approves the old machine's row.
+// found says the hint points to a device at all; a device a person marked suspicious, the box, one already approved or one seen with
+// another MAC is left as it is. On that same machine's row (not the box) an OS the agent reported before agents sent a kind gives the
+// device its kind (AgentKindOfOS, agent rank). reason is the audit detail (which token, made by whom). agentSaw is for a caller that
+// is not answering a report from the machine right now (agent-intake's job after an upgrade): the device counts as found only when
+// the agent itself once reported mac on it (an agent mac observation of that value), so a stored address another machine took since,
+// seen with no MAC, is never approved.
+type Approver interface {
+	ApproveEnrolled(ctx context.Context, hint AssetHint, mac, reason string, agentSaw bool) (found bool, err error)
 }
 
 // SoftwareSink receives the full software list of one device from one source. The list replaces the

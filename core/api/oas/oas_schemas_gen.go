@@ -707,7 +707,7 @@ type AiGetAiAsksOKItemsItem struct {
 	AskedAt    time.Time                             `json:"asked_at"`
 	Citations  []AiGetAiAsksOKItemsItemCitationsItem `json:"citations"`
 	Downgraded NilAiGetAiAsksOKItemsItemDowngraded   `json:"downgraded"`
-	// Hooks that acted on this question, answer or tool call; empty when none did.
+	// Hooks that acted on this question, a tool call, a tool result or the answer; empty when none did.
 	Hooks []AiGetAiAsksOKItemsItemHooksItem `json:"hooks"`
 	ID    string                            `json:"id"`
 	// Memories the AI suggested with this answer (0 when read back); they wait for an administrator
@@ -1004,6 +1004,11 @@ type AiGetAiAsksOKItemsItemHooksItem struct {
 	Kind    AiGetAiAsksOKItemsItemHooksItemKind   `json:"kind"`
 	Message string                                `json:"message"`
 	Name    string                                `json:"name"`
+	// Which step the hook acted on: the question (blocked = the AI was not asked), a tool call the AI
+	// made, a tool result before it went to the AI, or the answer.
+	Step AiGetAiAsksOKItemsItemHooksItemStep `json:"step"`
+	// The tool of a tool_call or tool_result step.
+	Tool OptString `json:"tool"`
 	// Before_ai = on the text sent to the AI, after_ai = on the AI answer, before_tool = on a tool call
 	// the AI wants to make.
 	When AiGetAiAsksOKItemsItemHooksItemWhen `json:"when"`
@@ -1034,6 +1039,16 @@ func (s *AiGetAiAsksOKItemsItemHooksItem) GetName() string {
 	return s.Name
 }
 
+// GetStep returns the value of Step.
+func (s *AiGetAiAsksOKItemsItemHooksItem) GetStep() AiGetAiAsksOKItemsItemHooksItemStep {
+	return s.Step
+}
+
+// GetTool returns the value of Tool.
+func (s *AiGetAiAsksOKItemsItemHooksItem) GetTool() OptString {
+	return s.Tool
+}
+
 // GetWhen returns the value of When.
 func (s *AiGetAiAsksOKItemsItemHooksItem) GetWhen() AiGetAiAsksOKItemsItemHooksItemWhen {
 	return s.When
@@ -1062,6 +1077,16 @@ func (s *AiGetAiAsksOKItemsItemHooksItem) SetMessage(val string) {
 // SetName sets the value of Name.
 func (s *AiGetAiAsksOKItemsItemHooksItem) SetName(val string) {
 	s.Name = val
+}
+
+// SetStep sets the value of Step.
+func (s *AiGetAiAsksOKItemsItemHooksItem) SetStep(val AiGetAiAsksOKItemsItemHooksItemStep) {
+	s.Step = val
+}
+
+// SetTool sets the value of Tool.
+func (s *AiGetAiAsksOKItemsItemHooksItem) SetTool(val OptString) {
+	s.Tool = val
 }
 
 // SetWhen sets the value of When.
@@ -1153,6 +1178,63 @@ func (s *AiGetAiAsksOKItemsItemHooksItemKind) UnmarshalText(data []byte) error {
 		return nil
 	case AiGetAiAsksOKItemsItemHooksItemKindCustom:
 		*s = AiGetAiAsksOKItemsItemHooksItemKindCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Which step the hook acted on: the question (blocked = the AI was not asked), a tool call the AI
+// made, a tool result before it went to the AI, or the answer.
+type AiGetAiAsksOKItemsItemHooksItemStep string
+
+const (
+	AiGetAiAsksOKItemsItemHooksItemStepQuestion   AiGetAiAsksOKItemsItemHooksItemStep = "question"
+	AiGetAiAsksOKItemsItemHooksItemStepToolCall   AiGetAiAsksOKItemsItemHooksItemStep = "tool_call"
+	AiGetAiAsksOKItemsItemHooksItemStepToolResult AiGetAiAsksOKItemsItemHooksItemStep = "tool_result"
+	AiGetAiAsksOKItemsItemHooksItemStepAnswer     AiGetAiAsksOKItemsItemHooksItemStep = "answer"
+)
+
+// AllValues returns all AiGetAiAsksOKItemsItemHooksItemStep values.
+func (AiGetAiAsksOKItemsItemHooksItemStep) AllValues() []AiGetAiAsksOKItemsItemHooksItemStep {
+	return []AiGetAiAsksOKItemsItemHooksItemStep{
+		AiGetAiAsksOKItemsItemHooksItemStepQuestion,
+		AiGetAiAsksOKItemsItemHooksItemStepToolCall,
+		AiGetAiAsksOKItemsItemHooksItemStepToolResult,
+		AiGetAiAsksOKItemsItemHooksItemStepAnswer,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AiGetAiAsksOKItemsItemHooksItemStep) MarshalText() ([]byte, error) {
+	switch s {
+	case AiGetAiAsksOKItemsItemHooksItemStepQuestion:
+		return []byte(s), nil
+	case AiGetAiAsksOKItemsItemHooksItemStepToolCall:
+		return []byte(s), nil
+	case AiGetAiAsksOKItemsItemHooksItemStepToolResult:
+		return []byte(s), nil
+	case AiGetAiAsksOKItemsItemHooksItemStepAnswer:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AiGetAiAsksOKItemsItemHooksItemStep) UnmarshalText(data []byte) error {
+	switch AiGetAiAsksOKItemsItemHooksItemStep(data) {
+	case AiGetAiAsksOKItemsItemHooksItemStepQuestion:
+		*s = AiGetAiAsksOKItemsItemHooksItemStepQuestion
+		return nil
+	case AiGetAiAsksOKItemsItemHooksItemStepToolCall:
+		*s = AiGetAiAsksOKItemsItemHooksItemStepToolCall
+		return nil
+	case AiGetAiAsksOKItemsItemHooksItemStepToolResult:
+		*s = AiGetAiAsksOKItemsItemHooksItemStepToolResult
+		return nil
+	case AiGetAiAsksOKItemsItemHooksItemStepAnswer:
+		*s = AiGetAiAsksOKItemsItemHooksItemStepAnswer
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -4594,7 +4676,7 @@ type AiPostAiAskOK struct {
 	AskedAt    time.Time                    `json:"asked_at"`
 	Citations  []AiPostAiAskOKCitationsItem `json:"citations"`
 	Downgraded NilAiPostAiAskOKDowngraded   `json:"downgraded"`
-	// Hooks that acted on this question, answer or tool call; empty when none did.
+	// Hooks that acted on this question, a tool call, a tool result or the answer; empty when none did.
 	Hooks []AiPostAiAskOKHooksItem `json:"hooks"`
 	ID    string                   `json:"id"`
 	// Memories the AI suggested with this answer (0 when read back); they wait for an administrator
@@ -4891,6 +4973,11 @@ type AiPostAiAskOKHooksItem struct {
 	Kind    AiPostAiAskOKHooksItemKind   `json:"kind"`
 	Message string                       `json:"message"`
 	Name    string                       `json:"name"`
+	// Which step the hook acted on: the question (blocked = the AI was not asked), a tool call the AI
+	// made, a tool result before it went to the AI, or the answer.
+	Step AiPostAiAskOKHooksItemStep `json:"step"`
+	// The tool of a tool_call or tool_result step.
+	Tool OptString `json:"tool"`
 	// Before_ai = on the text sent to the AI, after_ai = on the AI answer, before_tool = on a tool call
 	// the AI wants to make.
 	When AiPostAiAskOKHooksItemWhen `json:"when"`
@@ -4921,6 +5008,16 @@ func (s *AiPostAiAskOKHooksItem) GetName() string {
 	return s.Name
 }
 
+// GetStep returns the value of Step.
+func (s *AiPostAiAskOKHooksItem) GetStep() AiPostAiAskOKHooksItemStep {
+	return s.Step
+}
+
+// GetTool returns the value of Tool.
+func (s *AiPostAiAskOKHooksItem) GetTool() OptString {
+	return s.Tool
+}
+
 // GetWhen returns the value of When.
 func (s *AiPostAiAskOKHooksItem) GetWhen() AiPostAiAskOKHooksItemWhen {
 	return s.When
@@ -4949,6 +5046,16 @@ func (s *AiPostAiAskOKHooksItem) SetMessage(val string) {
 // SetName sets the value of Name.
 func (s *AiPostAiAskOKHooksItem) SetName(val string) {
 	s.Name = val
+}
+
+// SetStep sets the value of Step.
+func (s *AiPostAiAskOKHooksItem) SetStep(val AiPostAiAskOKHooksItemStep) {
+	s.Step = val
+}
+
+// SetTool sets the value of Tool.
+func (s *AiPostAiAskOKHooksItem) SetTool(val OptString) {
+	s.Tool = val
 }
 
 // SetWhen sets the value of When.
@@ -5040,6 +5147,63 @@ func (s *AiPostAiAskOKHooksItemKind) UnmarshalText(data []byte) error {
 		return nil
 	case AiPostAiAskOKHooksItemKindCustom:
 		*s = AiPostAiAskOKHooksItemKindCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Which step the hook acted on: the question (blocked = the AI was not asked), a tool call the AI
+// made, a tool result before it went to the AI, or the answer.
+type AiPostAiAskOKHooksItemStep string
+
+const (
+	AiPostAiAskOKHooksItemStepQuestion   AiPostAiAskOKHooksItemStep = "question"
+	AiPostAiAskOKHooksItemStepToolCall   AiPostAiAskOKHooksItemStep = "tool_call"
+	AiPostAiAskOKHooksItemStepToolResult AiPostAiAskOKHooksItemStep = "tool_result"
+	AiPostAiAskOKHooksItemStepAnswer     AiPostAiAskOKHooksItemStep = "answer"
+)
+
+// AllValues returns all AiPostAiAskOKHooksItemStep values.
+func (AiPostAiAskOKHooksItemStep) AllValues() []AiPostAiAskOKHooksItemStep {
+	return []AiPostAiAskOKHooksItemStep{
+		AiPostAiAskOKHooksItemStepQuestion,
+		AiPostAiAskOKHooksItemStepToolCall,
+		AiPostAiAskOKHooksItemStepToolResult,
+		AiPostAiAskOKHooksItemStepAnswer,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AiPostAiAskOKHooksItemStep) MarshalText() ([]byte, error) {
+	switch s {
+	case AiPostAiAskOKHooksItemStepQuestion:
+		return []byte(s), nil
+	case AiPostAiAskOKHooksItemStepToolCall:
+		return []byte(s), nil
+	case AiPostAiAskOKHooksItemStepToolResult:
+		return []byte(s), nil
+	case AiPostAiAskOKHooksItemStepAnswer:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AiPostAiAskOKHooksItemStep) UnmarshalText(data []byte) error {
+	switch AiPostAiAskOKHooksItemStep(data) {
+	case AiPostAiAskOKHooksItemStepQuestion:
+		*s = AiPostAiAskOKHooksItemStepQuestion
+		return nil
+	case AiPostAiAskOKHooksItemStepToolCall:
+		*s = AiPostAiAskOKHooksItemStepToolCall
+		return nil
+	case AiPostAiAskOKHooksItemStepToolResult:
+		*s = AiPostAiAskOKHooksItemStepToolResult
+		return nil
+	case AiPostAiAskOKHooksItemStepAnswer:
+		*s = AiPostAiAskOKHooksItemStepAnswer
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -12798,6 +12962,78 @@ func (s *CoreGetCoreAccountOKUserTwofaMethod) UnmarshalText(data []byte) error {
 	}
 }
 
+// People: leave out the automatic lines (user "system" or "system:"), so what people and tools did
+// stands out (D-416).
+type CoreGetCoreAuditActor string
+
+const (
+	CoreGetCoreAuditActorPeople CoreGetCoreAuditActor = "people"
+)
+
+// AllValues returns all CoreGetCoreAuditActor values.
+func (CoreGetCoreAuditActor) AllValues() []CoreGetCoreAuditActor {
+	return []CoreGetCoreAuditActor{
+		CoreGetCoreAuditActorPeople,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreAuditActor) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreAuditActorPeople:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreAuditActor) UnmarshalText(data []byte) error {
+	switch CoreGetCoreAuditActor(data) {
+	case CoreGetCoreAuditActorPeople:
+		*s = CoreGetCoreAuditActorPeople
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// People: leave out the automatic lines (user "system" or "system:"), so what people and tools did
+// stands out (D-416).
+type CoreGetCoreAuditExportActor string
+
+const (
+	CoreGetCoreAuditExportActorPeople CoreGetCoreAuditExportActor = "people"
+)
+
+// AllValues returns all CoreGetCoreAuditExportActor values.
+func (CoreGetCoreAuditExportActor) AllValues() []CoreGetCoreAuditExportActor {
+	return []CoreGetCoreAuditExportActor{
+		CoreGetCoreAuditExportActorPeople,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreAuditExportActor) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreAuditExportActorPeople:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreAuditExportActor) UnmarshalText(data []byte) error {
+	switch CoreGetCoreAuditExportActor(data) {
+	case CoreGetCoreAuditExportActorPeople:
+		*s = CoreGetCoreAuditExportActorPeople
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CoreGetCoreAuditExportOK struct {
 	Data io.Reader
 }
@@ -12815,8 +13051,11 @@ func (s CoreGetCoreAuditExportOK) Read(p []byte) (n int, err error) {
 type CoreGetCoreAuditOK struct {
 	Groups []string                      `json:"groups"`
 	Items  []CoreGetCoreAuditOKItemsItem `json:"items"`
-	Total  float64                       `json:"total"`
-	Users  []string                      `json:"users"`
+	// Display names of the devices and findings whose ids appear in the target or detail of these rows (id
+	// to name); an id the box no longer has is left out (D-416).
+	Names CoreGetCoreAuditOKNames `json:"names"`
+	Total float64                 `json:"total"`
+	Users []string                `json:"users"`
 }
 
 // GetGroups returns the value of Groups.
@@ -12827,6 +13066,11 @@ func (s *CoreGetCoreAuditOK) GetGroups() []string {
 // GetItems returns the value of Items.
 func (s *CoreGetCoreAuditOK) GetItems() []CoreGetCoreAuditOKItemsItem {
 	return s.Items
+}
+
+// GetNames returns the value of Names.
+func (s *CoreGetCoreAuditOK) GetNames() CoreGetCoreAuditOKNames {
+	return s.Names
 }
 
 // GetTotal returns the value of Total.
@@ -12847,6 +13091,11 @@ func (s *CoreGetCoreAuditOK) SetGroups(val []string) {
 // SetItems sets the value of Items.
 func (s *CoreGetCoreAuditOK) SetItems(val []CoreGetCoreAuditOKItemsItem) {
 	s.Items = val
+}
+
+// SetNames sets the value of Names.
+func (s *CoreGetCoreAuditOK) SetNames(val CoreGetCoreAuditOKNames) {
+	s.Names = val
 }
 
 // SetTotal sets the value of Total.
@@ -12926,6 +13175,19 @@ func (s *CoreGetCoreAuditOKItemsItem) SetTs(val time.Time) {
 // SetUser sets the value of User.
 func (s *CoreGetCoreAuditOKItemsItem) SetUser(val string) {
 	s.User = val
+}
+
+// Display names of the devices and findings whose ids appear in the target or detail of these rows (id
+// to name); an id the box no longer has is left out (D-416).
+type CoreGetCoreAuditOKNames map[string]string
+
+func (s *CoreGetCoreAuditOKNames) init() CoreGetCoreAuditOKNames {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type CoreGetCoreAuthOptionsOK struct {
@@ -14077,6 +14339,9 @@ func (s *CoreGetCoreMcpOKToolsItem) SetScope(val string) {
 }
 
 type CoreGetCoreNetworkOK struct {
+	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	BoxAddress CoreGetCoreNetworkOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                             `json:"decoy_ips"`
 	DefaultNtp string                               `json:"default_ntp"`
 	Interfaces []CoreGetCoreNetworkOKInterfacesItem `json:"interfaces"`
@@ -14087,6 +14352,11 @@ type CoreGetCoreNetworkOK struct {
 	Pending    NilCoreGetCoreNetworkOKPending `json:"pending"`
 	Span       CoreGetCoreNetworkOKSpan       `json:"span"`
 	SpanStatus CoreGetCoreNetworkOKSpanStatus `json:"span_status"`
+}
+
+// GetBoxAddress returns the value of BoxAddress.
+func (s *CoreGetCoreNetworkOK) GetBoxAddress() CoreGetCoreNetworkOKBoxAddress {
+	return s.BoxAddress
 }
 
 // GetDecoyIps returns the value of DecoyIps.
@@ -14129,6 +14399,11 @@ func (s *CoreGetCoreNetworkOK) GetSpanStatus() CoreGetCoreNetworkOKSpanStatus {
 	return s.SpanStatus
 }
 
+// SetBoxAddress sets the value of BoxAddress.
+func (s *CoreGetCoreNetworkOK) SetBoxAddress(val CoreGetCoreNetworkOKBoxAddress) {
+	s.BoxAddress = val
+}
+
 // SetDecoyIps sets the value of DecoyIps.
 func (s *CoreGetCoreNetworkOK) SetDecoyIps(val []string) {
 	s.DecoyIps = val
@@ -14167,6 +14442,74 @@ func (s *CoreGetCoreNetworkOK) SetSpan(val CoreGetCoreNetworkOKSpan) {
 // SetSpanStatus sets the value of SpanStatus.
 func (s *CoreGetCoreNetworkOK) SetSpanStatus(val CoreGetCoreNetworkOKSpanStatus) {
 	s.SpanStatus = val
+}
+
+// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+type CoreGetCoreNetworkOKBoxAddress struct {
+	// The host name or IPv4 address an administrator saved; null = the default is used.
+	Address NilString `json:"address"`
+	// The management IPv4 address the box reports; null while it has none.
+	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CoreGetCoreNetworkOKBoxAddress) GetAddress() NilString {
+	return s.Address
+}
+
+// GetDefault returns the value of Default.
+func (s *CoreGetCoreNetworkOKBoxAddress) GetDefault() NilString {
+	return s.Default
+}
+
+// GetLinkBase returns the value of LinkBase.
+func (s *CoreGetCoreNetworkOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CoreGetCoreNetworkOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CoreGetCoreNetworkOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
+// SetAddress sets the value of Address.
+func (s *CoreGetCoreNetworkOKBoxAddress) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetDefault sets the value of Default.
+func (s *CoreGetCoreNetworkOKBoxAddress) SetDefault(val NilString) {
+	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CoreGetCoreNetworkOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CoreGetCoreNetworkOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CoreGetCoreNetworkOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
 }
 
 type CoreGetCoreNetworkOKInterfacesItem struct {
@@ -25019,7 +25362,857 @@ func (s *CorePostCoreMcpTokensReq) SetScopes(val []string) {
 	s.Scopes = val
 }
 
+type CorePostCoreNetworkBoxAddressForgetOK struct {
+	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	BoxAddress CorePostCoreNetworkBoxAddressForgetOKBoxAddress       `json:"box_address"`
+	DecoyIps   []string                                              `json:"decoy_ips"`
+	DefaultNtp string                                                `json:"default_ntp"`
+	Interfaces []CorePostCoreNetworkBoxAddressForgetOKInterfacesItem `json:"interfaces"`
+	Management CorePostCoreNetworkBoxAddressForgetOKManagement       `json:"management"`
+	Ntp        CorePostCoreNetworkBoxAddressForgetOKNtp              `json:"ntp"`
+	// A management address change waiting for confirmation from the new address; the box reverts at
+	// expires_at.
+	Pending    NilCorePostCoreNetworkBoxAddressForgetOKPending `json:"pending"`
+	Span       CorePostCoreNetworkBoxAddressForgetOKSpan       `json:"span"`
+	SpanStatus CorePostCoreNetworkBoxAddressForgetOKSpanStatus `json:"span_status"`
+}
+
+// GetBoxAddress returns the value of BoxAddress.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetBoxAddress() CorePostCoreNetworkBoxAddressForgetOKBoxAddress {
+	return s.BoxAddress
+}
+
+// GetDecoyIps returns the value of DecoyIps.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetDecoyIps() []string {
+	return s.DecoyIps
+}
+
+// GetDefaultNtp returns the value of DefaultNtp.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetDefaultNtp() string {
+	return s.DefaultNtp
+}
+
+// GetInterfaces returns the value of Interfaces.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetInterfaces() []CorePostCoreNetworkBoxAddressForgetOKInterfacesItem {
+	return s.Interfaces
+}
+
+// GetManagement returns the value of Management.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetManagement() CorePostCoreNetworkBoxAddressForgetOKManagement {
+	return s.Management
+}
+
+// GetNtp returns the value of Ntp.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetNtp() CorePostCoreNetworkBoxAddressForgetOKNtp {
+	return s.Ntp
+}
+
+// GetPending returns the value of Pending.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetPending() NilCorePostCoreNetworkBoxAddressForgetOKPending {
+	return s.Pending
+}
+
+// GetSpan returns the value of Span.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetSpan() CorePostCoreNetworkBoxAddressForgetOKSpan {
+	return s.Span
+}
+
+// GetSpanStatus returns the value of SpanStatus.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) GetSpanStatus() CorePostCoreNetworkBoxAddressForgetOKSpanStatus {
+	return s.SpanStatus
+}
+
+// SetBoxAddress sets the value of BoxAddress.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetBoxAddress(val CorePostCoreNetworkBoxAddressForgetOKBoxAddress) {
+	s.BoxAddress = val
+}
+
+// SetDecoyIps sets the value of DecoyIps.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetDecoyIps(val []string) {
+	s.DecoyIps = val
+}
+
+// SetDefaultNtp sets the value of DefaultNtp.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetDefaultNtp(val string) {
+	s.DefaultNtp = val
+}
+
+// SetInterfaces sets the value of Interfaces.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetInterfaces(val []CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) {
+	s.Interfaces = val
+}
+
+// SetManagement sets the value of Management.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetManagement(val CorePostCoreNetworkBoxAddressForgetOKManagement) {
+	s.Management = val
+}
+
+// SetNtp sets the value of Ntp.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetNtp(val CorePostCoreNetworkBoxAddressForgetOKNtp) {
+	s.Ntp = val
+}
+
+// SetPending sets the value of Pending.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetPending(val NilCorePostCoreNetworkBoxAddressForgetOKPending) {
+	s.Pending = val
+}
+
+// SetSpan sets the value of Span.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetSpan(val CorePostCoreNetworkBoxAddressForgetOKSpan) {
+	s.Span = val
+}
+
+// SetSpanStatus sets the value of SpanStatus.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) SetSpanStatus(val CorePostCoreNetworkBoxAddressForgetOKSpanStatus) {
+	s.SpanStatus = val
+}
+
+// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+type CorePostCoreNetworkBoxAddressForgetOKBoxAddress struct {
+	// The host name or IPv4 address an administrator saved; null = the default is used.
+	Address NilString `json:"address"`
+	// The management IPv4 address the box reports; null while it has none.
+	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) GetAddress() NilString {
+	return s.Address
+}
+
+// GetDefault returns the value of Default.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) GetDefault() NilString {
+	return s.Default
+}
+
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetDefault sets the value of Default.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) SetDefault(val NilString) {
+	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKInterfacesItem struct {
+	// Address/prefix, only on the management interface.
+	Address NilString                                               `json:"address"`
+	Link    bool                                                    `json:"link"`
+	MAC     string                                                  `json:"mac"`
+	Name    string                                                  `json:"name"`
+	Role    CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole `json:"role"`
+	Speed   NilString                                               `json:"speed"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) GetAddress() NilString {
+	return s.Address
+}
+
+// GetLink returns the value of Link.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) GetLink() bool {
+	return s.Link
+}
+
+// GetMAC returns the value of MAC.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) GetMAC() string {
+	return s.MAC
+}
+
+// GetName returns the value of Name.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) GetName() string {
+	return s.Name
+}
+
+// GetRole returns the value of Role.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) GetRole() CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole {
+	return s.Role
+}
+
+// GetSpeed returns the value of Speed.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) GetSpeed() NilString {
+	return s.Speed
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetLink sets the value of Link.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) SetLink(val bool) {
+	s.Link = val
+}
+
+// SetMAC sets the value of MAC.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) SetMAC(val string) {
+	s.MAC = val
+}
+
+// SetName sets the value of Name.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetRole sets the value of Role.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) SetRole(val CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole) {
+	s.Role = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) SetSpeed(val NilString) {
+	s.Speed = val
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole string
+
+const (
+	CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleManagement CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole = "management"
+	CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleSpan       CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole = "span"
+	CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleUnused     CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole = "unused"
+)
+
+// AllValues returns all CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole values.
+func (CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole) AllValues() []CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole {
+	return []CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole{
+		CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleManagement,
+		CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleSpan,
+		CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleUnused,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleManagement:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleSpan:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleUnused:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole) UnmarshalText(data []byte) error {
+	switch CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole(data) {
+	case CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleManagement:
+		*s = CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleManagement
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleSpan:
+		*s = CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleSpan
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleUnused:
+		*s = CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleUnused
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKManagement struct {
+	Address NilString                                           `json:"address"`
+	DNS     []string                                            `json:"dns"`
+	Gateway NilString                                           `json:"gateway"`
+	Mode    CorePostCoreNetworkBoxAddressForgetOKManagementMode `json:"mode"`
+	Prefix  NilInt                                              `json:"prefix"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) GetAddress() NilString {
+	return s.Address
+}
+
+// GetDNS returns the value of DNS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) GetDNS() []string {
+	return s.DNS
+}
+
+// GetGateway returns the value of Gateway.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) GetGateway() NilString {
+	return s.Gateway
+}
+
+// GetMode returns the value of Mode.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) GetMode() CorePostCoreNetworkBoxAddressForgetOKManagementMode {
+	return s.Mode
+}
+
+// GetPrefix returns the value of Prefix.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) GetPrefix() NilInt {
+	return s.Prefix
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetDNS sets the value of DNS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) SetDNS(val []string) {
+	s.DNS = val
+}
+
+// SetGateway sets the value of Gateway.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) SetGateway(val NilString) {
+	s.Gateway = val
+}
+
+// SetMode sets the value of Mode.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) SetMode(val CorePostCoreNetworkBoxAddressForgetOKManagementMode) {
+	s.Mode = val
+}
+
+// SetPrefix sets the value of Prefix.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) SetPrefix(val NilInt) {
+	s.Prefix = val
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKManagementMode string
+
+const (
+	CorePostCoreNetworkBoxAddressForgetOKManagementModeDhcp   CorePostCoreNetworkBoxAddressForgetOKManagementMode = "dhcp"
+	CorePostCoreNetworkBoxAddressForgetOKManagementModeStatic CorePostCoreNetworkBoxAddressForgetOKManagementMode = "static"
+)
+
+// AllValues returns all CorePostCoreNetworkBoxAddressForgetOKManagementMode values.
+func (CorePostCoreNetworkBoxAddressForgetOKManagementMode) AllValues() []CorePostCoreNetworkBoxAddressForgetOKManagementMode {
+	return []CorePostCoreNetworkBoxAddressForgetOKManagementMode{
+		CorePostCoreNetworkBoxAddressForgetOKManagementModeDhcp,
+		CorePostCoreNetworkBoxAddressForgetOKManagementModeStatic,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreNetworkBoxAddressForgetOKManagementMode) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreNetworkBoxAddressForgetOKManagementModeDhcp:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKManagementModeStatic:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagementMode) UnmarshalText(data []byte) error {
+	switch CorePostCoreNetworkBoxAddressForgetOKManagementMode(data) {
+	case CorePostCoreNetworkBoxAddressForgetOKManagementModeDhcp:
+		*s = CorePostCoreNetworkBoxAddressForgetOKManagementModeDhcp
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKManagementModeStatic:
+		*s = CorePostCoreNetworkBoxAddressForgetOKManagementModeStatic
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKNtp struct {
+	Mode CorePostCoreNetworkBoxAddressForgetOKNtpMode `json:"mode"`
+	// Only for mode custom; empty for the default pool.
+	Servers []string `json:"servers"`
+}
+
+// GetMode returns the value of Mode.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtp) GetMode() CorePostCoreNetworkBoxAddressForgetOKNtpMode {
+	return s.Mode
+}
+
+// GetServers returns the value of Servers.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtp) GetServers() []string {
+	return s.Servers
+}
+
+// SetMode sets the value of Mode.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtp) SetMode(val CorePostCoreNetworkBoxAddressForgetOKNtpMode) {
+	s.Mode = val
+}
+
+// SetServers sets the value of Servers.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtp) SetServers(val []string) {
+	s.Servers = val
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKNtpMode string
+
+const (
+	CorePostCoreNetworkBoxAddressForgetOKNtpModeDefault CorePostCoreNetworkBoxAddressForgetOKNtpMode = "default"
+	CorePostCoreNetworkBoxAddressForgetOKNtpModeCustom  CorePostCoreNetworkBoxAddressForgetOKNtpMode = "custom"
+)
+
+// AllValues returns all CorePostCoreNetworkBoxAddressForgetOKNtpMode values.
+func (CorePostCoreNetworkBoxAddressForgetOKNtpMode) AllValues() []CorePostCoreNetworkBoxAddressForgetOKNtpMode {
+	return []CorePostCoreNetworkBoxAddressForgetOKNtpMode{
+		CorePostCoreNetworkBoxAddressForgetOKNtpModeDefault,
+		CorePostCoreNetworkBoxAddressForgetOKNtpModeCustom,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreNetworkBoxAddressForgetOKNtpMode) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreNetworkBoxAddressForgetOKNtpModeDefault:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKNtpModeCustom:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtpMode) UnmarshalText(data []byte) error {
+	switch CorePostCoreNetworkBoxAddressForgetOKNtpMode(data) {
+	case CorePostCoreNetworkBoxAddressForgetOKNtpModeDefault:
+		*s = CorePostCoreNetworkBoxAddressForgetOKNtpModeDefault
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKNtpModeCustom:
+		*s = CorePostCoreNetworkBoxAddressForgetOKNtpModeCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKPending struct {
+	ExpiresAt       time.Time `json:"expires_at"`
+	PreviousAddress NilString `json:"previous_address"`
+	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
+	// saved settings on disk are the old ones (D-100).
+	RebootAt NilDateTime `json:"reboot_at"`
+	// Seconds the box waits for the confirmation (the whole window, not what is left).
+	WindowS int `json:"window_s"`
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// GetPreviousAddress returns the value of PreviousAddress.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) GetPreviousAddress() NilString {
+	return s.PreviousAddress
+}
+
+// GetRebootAt returns the value of RebootAt.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) GetRebootAt() NilDateTime {
+	return s.RebootAt
+}
+
+// GetWindowS returns the value of WindowS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) GetWindowS() int {
+	return s.WindowS
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+// SetPreviousAddress sets the value of PreviousAddress.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) SetPreviousAddress(val NilString) {
+	s.PreviousAddress = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) SetRebootAt(val NilDateTime) {
+	s.RebootAt = val
+}
+
+// SetWindowS sets the value of WindowS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) SetWindowS(val int) {
+	s.WindowS = val
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKSpan struct {
+	CPUPercent int  `json:"cpu_percent"`
+	Enabled    bool `json:"enabled"`
+	// What is read from mirrored traffic. Packet contents are never stored.
+	Extract   CorePostCoreNetworkBoxAddressForgetOKSpanExtract       `json:"extract"`
+	Filters   []CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem `json:"filters"`
+	Interface NilString                                              `json:"interface"`
+	MemoryMB  int                                                    `json:"memory_mb"`
+}
+
+// GetCPUPercent returns the value of CPUPercent.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) GetCPUPercent() int {
+	return s.CPUPercent
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetExtract returns the value of Extract.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) GetExtract() CorePostCoreNetworkBoxAddressForgetOKSpanExtract {
+	return s.Extract
+}
+
+// GetFilters returns the value of Filters.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) GetFilters() []CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem {
+	return s.Filters
+}
+
+// GetInterface returns the value of Interface.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) GetInterface() NilString {
+	return s.Interface
+}
+
+// GetMemoryMB returns the value of MemoryMB.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) GetMemoryMB() int {
+	return s.MemoryMB
+}
+
+// SetCPUPercent sets the value of CPUPercent.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) SetCPUPercent(val int) {
+	s.CPUPercent = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetExtract sets the value of Extract.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) SetExtract(val CorePostCoreNetworkBoxAddressForgetOKSpanExtract) {
+	s.Extract = val
+}
+
+// SetFilters sets the value of Filters.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) SetFilters(val []CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) {
+	s.Filters = val
+}
+
+// SetInterface sets the value of Interface.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) SetInterface(val NilString) {
+	s.Interface = val
+}
+
+// SetMemoryMB sets the value of MemoryMB.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) SetMemoryMB(val int) {
+	s.MemoryMB = val
+}
+
+// What is read from mirrored traffic. Packet contents are never stored.
+type CorePostCoreNetworkBoxAddressForgetOKSpanExtract struct {
+	DNS      bool `json:"dns"`
+	Flows    bool `json:"flows"`
+	HTTPHost bool `json:"http_host"`
+	TLSSni   bool `json:"tls_sni"`
+}
+
+// GetDNS returns the value of DNS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) GetDNS() bool {
+	return s.DNS
+}
+
+// GetFlows returns the value of Flows.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) GetFlows() bool {
+	return s.Flows
+}
+
+// GetHTTPHost returns the value of HTTPHost.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) GetHTTPHost() bool {
+	return s.HTTPHost
+}
+
+// GetTLSSni returns the value of TLSSni.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) GetTLSSni() bool {
+	return s.TLSSni
+}
+
+// SetDNS sets the value of DNS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) SetDNS(val bool) {
+	s.DNS = val
+}
+
+// SetFlows sets the value of Flows.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) SetFlows(val bool) {
+	s.Flows = val
+}
+
+// SetHTTPHost sets the value of HTTPHost.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) SetHTTPHost(val bool) {
+	s.HTTPHost = val
+}
+
+// SetTLSSni sets the value of TLSSni.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) SetTLSSni(val bool) {
+	s.TLSSni = val
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem struct {
+	Type  CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType `json:"type"`
+	Value string                                                   `json:"value"`
+}
+
+// GetType returns the value of Type.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) GetType() CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType {
+	return s.Type
+}
+
+// GetValue returns the value of Value.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) GetValue() string {
+	return s.Value
+}
+
+// SetType sets the value of Type.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) SetType(val CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType) {
+	s.Type = val
+}
+
+// SetValue sets the value of Value.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) SetValue(val string) {
+	s.Value = val
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType string
+
+const (
+	CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeCidr CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType = "cidr"
+	CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeHost CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType = "host"
+	CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypePort CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType = "port"
+)
+
+// AllValues returns all CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType values.
+func (CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType) AllValues() []CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType {
+	return []CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType{
+		CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeCidr,
+		CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeHost,
+		CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypePort,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeCidr:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeHost:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypePort:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType) UnmarshalText(data []byte) error {
+	switch CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType(data) {
+	case CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeCidr:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeCidr
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeHost:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeHost
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypePort:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypePort
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreNetworkBoxAddressForgetOKSpanStatus struct {
+	Interface    NilString   `json:"interface"`
+	LastPacketAt NilDateTime `json:"last_packet_at"`
+	// Distinct source MAC addresses other than the box's own.
+	OtherMacs   int `json:"other_macs"`
+	PacketsPerS int `json:"packets_per_s"`
+	// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+	// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+	// nothing arrives; no_link = no cable signal.
+	Verdict CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict `json:"verdict"`
+}
+
+// GetInterface returns the value of Interface.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) GetInterface() NilString {
+	return s.Interface
+}
+
+// GetLastPacketAt returns the value of LastPacketAt.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) GetLastPacketAt() NilDateTime {
+	return s.LastPacketAt
+}
+
+// GetOtherMacs returns the value of OtherMacs.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) GetOtherMacs() int {
+	return s.OtherMacs
+}
+
+// GetPacketsPerS returns the value of PacketsPerS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) GetPacketsPerS() int {
+	return s.PacketsPerS
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) GetVerdict() CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict {
+	return s.Verdict
+}
+
+// SetInterface sets the value of Interface.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) SetInterface(val NilString) {
+	s.Interface = val
+}
+
+// SetLastPacketAt sets the value of LastPacketAt.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) SetLastPacketAt(val NilDateTime) {
+	s.LastPacketAt = val
+}
+
+// SetOtherMacs sets the value of OtherMacs.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) SetOtherMacs(val int) {
+	s.OtherMacs = val
+}
+
+// SetPacketsPerS sets the value of PacketsPerS.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) SetPacketsPerS(val int) {
+	s.PacketsPerS = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) SetVerdict(val CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict) {
+	s.Verdict = val
+}
+
+// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+// nothing arrives; no_link = no cable signal.
+type CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict string
+
+const (
+	CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOff               CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict = "off"
+	CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOk                CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict = "ok"
+	CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOwnOnly           CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict = "own_only"
+	CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoTraffic         CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict = "no_traffic"
+	CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoLink            CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict = "no_link"
+	CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictSensorUnreachable CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict = "sensor_unreachable"
+)
+
+// AllValues returns all CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict values.
+func (CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict) AllValues() []CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict {
+	return []CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict{
+		CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOff,
+		CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOk,
+		CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOwnOnly,
+		CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoTraffic,
+		CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoLink,
+		CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictSensorUnreachable,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOff:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOk:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOwnOnly:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoTraffic:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoLink:
+		return []byte(s), nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictSensorUnreachable:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict) UnmarshalText(data []byte) error {
+	switch CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict(data) {
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOff:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOff
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOk:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOk
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOwnOnly:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOwnOnly
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoTraffic:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoTraffic
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoLink:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoLink
+		return nil
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictSensorUnreachable:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictSensorUnreachable
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreNetworkBoxAddressForgetReq struct {
+	Address string `json:"address"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetReq) GetAddress() string {
+	return s.Address
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePostCoreNetworkBoxAddressForgetReq) SetAddress(val string) {
+	s.Address = val
+}
+
 type CorePostCoreNetworkManagementConfirmOK struct {
+	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	BoxAddress CorePostCoreNetworkManagementConfirmOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                                               `json:"decoy_ips"`
 	DefaultNtp string                                                 `json:"default_ntp"`
 	Interfaces []CorePostCoreNetworkManagementConfirmOKInterfacesItem `json:"interfaces"`
@@ -25030,6 +26223,11 @@ type CorePostCoreNetworkManagementConfirmOK struct {
 	Pending    NilCorePostCoreNetworkManagementConfirmOKPending `json:"pending"`
 	Span       CorePostCoreNetworkManagementConfirmOKSpan       `json:"span"`
 	SpanStatus CorePostCoreNetworkManagementConfirmOKSpanStatus `json:"span_status"`
+}
+
+// GetBoxAddress returns the value of BoxAddress.
+func (s *CorePostCoreNetworkManagementConfirmOK) GetBoxAddress() CorePostCoreNetworkManagementConfirmOKBoxAddress {
+	return s.BoxAddress
 }
 
 // GetDecoyIps returns the value of DecoyIps.
@@ -25072,6 +26270,11 @@ func (s *CorePostCoreNetworkManagementConfirmOK) GetSpanStatus() CorePostCoreNet
 	return s.SpanStatus
 }
 
+// SetBoxAddress sets the value of BoxAddress.
+func (s *CorePostCoreNetworkManagementConfirmOK) SetBoxAddress(val CorePostCoreNetworkManagementConfirmOKBoxAddress) {
+	s.BoxAddress = val
+}
+
 // SetDecoyIps sets the value of DecoyIps.
 func (s *CorePostCoreNetworkManagementConfirmOK) SetDecoyIps(val []string) {
 	s.DecoyIps = val
@@ -25110,6 +26313,74 @@ func (s *CorePostCoreNetworkManagementConfirmOK) SetSpan(val CorePostCoreNetwork
 // SetSpanStatus sets the value of SpanStatus.
 func (s *CorePostCoreNetworkManagementConfirmOK) SetSpanStatus(val CorePostCoreNetworkManagementConfirmOKSpanStatus) {
 	s.SpanStatus = val
+}
+
+// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+type CorePostCoreNetworkManagementConfirmOKBoxAddress struct {
+	// The host name or IPv4 address an administrator saved; null = the default is used.
+	Address NilString `json:"address"`
+	// The management IPv4 address the box reports; null while it has none.
+	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) GetAddress() NilString {
+	return s.Address
+}
+
+// GetDefault returns the value of Default.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) GetDefault() NilString {
+	return s.Default
+}
+
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetDefault sets the value of Default.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) SetDefault(val NilString) {
+	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
 }
 
 type CorePostCoreNetworkManagementConfirmOKInterfacesItem struct {
@@ -25772,6 +27043,9 @@ func (s *CorePostCoreNetworkManagementConfirmOKSpanStatusVerdict) UnmarshalText(
 }
 
 type CorePostCoreNetworkManagementRevertOK struct {
+	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	BoxAddress CorePostCoreNetworkManagementRevertOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                                              `json:"decoy_ips"`
 	DefaultNtp string                                                `json:"default_ntp"`
 	Interfaces []CorePostCoreNetworkManagementRevertOKInterfacesItem `json:"interfaces"`
@@ -25782,6 +27056,11 @@ type CorePostCoreNetworkManagementRevertOK struct {
 	Pending    NilCorePostCoreNetworkManagementRevertOKPending `json:"pending"`
 	Span       CorePostCoreNetworkManagementRevertOKSpan       `json:"span"`
 	SpanStatus CorePostCoreNetworkManagementRevertOKSpanStatus `json:"span_status"`
+}
+
+// GetBoxAddress returns the value of BoxAddress.
+func (s *CorePostCoreNetworkManagementRevertOK) GetBoxAddress() CorePostCoreNetworkManagementRevertOKBoxAddress {
+	return s.BoxAddress
 }
 
 // GetDecoyIps returns the value of DecoyIps.
@@ -25824,6 +27103,11 @@ func (s *CorePostCoreNetworkManagementRevertOK) GetSpanStatus() CorePostCoreNetw
 	return s.SpanStatus
 }
 
+// SetBoxAddress sets the value of BoxAddress.
+func (s *CorePostCoreNetworkManagementRevertOK) SetBoxAddress(val CorePostCoreNetworkManagementRevertOKBoxAddress) {
+	s.BoxAddress = val
+}
+
 // SetDecoyIps sets the value of DecoyIps.
 func (s *CorePostCoreNetworkManagementRevertOK) SetDecoyIps(val []string) {
 	s.DecoyIps = val
@@ -25862,6 +27146,74 @@ func (s *CorePostCoreNetworkManagementRevertOK) SetSpan(val CorePostCoreNetworkM
 // SetSpanStatus sets the value of SpanStatus.
 func (s *CorePostCoreNetworkManagementRevertOK) SetSpanStatus(val CorePostCoreNetworkManagementRevertOKSpanStatus) {
 	s.SpanStatus = val
+}
+
+// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+type CorePostCoreNetworkManagementRevertOKBoxAddress struct {
+	// The host name or IPv4 address an administrator saved; null = the default is used.
+	Address NilString `json:"address"`
+	// The management IPv4 address the box reports; null while it has none.
+	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) GetAddress() NilString {
+	return s.Address
+}
+
+// GetDefault returns the value of Default.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) GetDefault() NilString {
+	return s.Default
+}
+
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetDefault sets the value of Default.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) SetDefault(val NilString) {
+	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
 }
 
 type CorePostCoreNetworkManagementRevertOKInterfacesItem struct {
@@ -35723,7 +37075,859 @@ func (s *CorePutCoreGeneralReq) SetTimezone(val string) {
 	s.Timezone = val
 }
 
+type CorePutCoreNetworkBoxAddressOK struct {
+	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	BoxAddress CorePutCoreNetworkBoxAddressOKBoxAddress       `json:"box_address"`
+	DecoyIps   []string                                       `json:"decoy_ips"`
+	DefaultNtp string                                         `json:"default_ntp"`
+	Interfaces []CorePutCoreNetworkBoxAddressOKInterfacesItem `json:"interfaces"`
+	Management CorePutCoreNetworkBoxAddressOKManagement       `json:"management"`
+	Ntp        CorePutCoreNetworkBoxAddressOKNtp              `json:"ntp"`
+	// A management address change waiting for confirmation from the new address; the box reverts at
+	// expires_at.
+	Pending    NilCorePutCoreNetworkBoxAddressOKPending `json:"pending"`
+	Span       CorePutCoreNetworkBoxAddressOKSpan       `json:"span"`
+	SpanStatus CorePutCoreNetworkBoxAddressOKSpanStatus `json:"span_status"`
+}
+
+// GetBoxAddress returns the value of BoxAddress.
+func (s *CorePutCoreNetworkBoxAddressOK) GetBoxAddress() CorePutCoreNetworkBoxAddressOKBoxAddress {
+	return s.BoxAddress
+}
+
+// GetDecoyIps returns the value of DecoyIps.
+func (s *CorePutCoreNetworkBoxAddressOK) GetDecoyIps() []string {
+	return s.DecoyIps
+}
+
+// GetDefaultNtp returns the value of DefaultNtp.
+func (s *CorePutCoreNetworkBoxAddressOK) GetDefaultNtp() string {
+	return s.DefaultNtp
+}
+
+// GetInterfaces returns the value of Interfaces.
+func (s *CorePutCoreNetworkBoxAddressOK) GetInterfaces() []CorePutCoreNetworkBoxAddressOKInterfacesItem {
+	return s.Interfaces
+}
+
+// GetManagement returns the value of Management.
+func (s *CorePutCoreNetworkBoxAddressOK) GetManagement() CorePutCoreNetworkBoxAddressOKManagement {
+	return s.Management
+}
+
+// GetNtp returns the value of Ntp.
+func (s *CorePutCoreNetworkBoxAddressOK) GetNtp() CorePutCoreNetworkBoxAddressOKNtp {
+	return s.Ntp
+}
+
+// GetPending returns the value of Pending.
+func (s *CorePutCoreNetworkBoxAddressOK) GetPending() NilCorePutCoreNetworkBoxAddressOKPending {
+	return s.Pending
+}
+
+// GetSpan returns the value of Span.
+func (s *CorePutCoreNetworkBoxAddressOK) GetSpan() CorePutCoreNetworkBoxAddressOKSpan {
+	return s.Span
+}
+
+// GetSpanStatus returns the value of SpanStatus.
+func (s *CorePutCoreNetworkBoxAddressOK) GetSpanStatus() CorePutCoreNetworkBoxAddressOKSpanStatus {
+	return s.SpanStatus
+}
+
+// SetBoxAddress sets the value of BoxAddress.
+func (s *CorePutCoreNetworkBoxAddressOK) SetBoxAddress(val CorePutCoreNetworkBoxAddressOKBoxAddress) {
+	s.BoxAddress = val
+}
+
+// SetDecoyIps sets the value of DecoyIps.
+func (s *CorePutCoreNetworkBoxAddressOK) SetDecoyIps(val []string) {
+	s.DecoyIps = val
+}
+
+// SetDefaultNtp sets the value of DefaultNtp.
+func (s *CorePutCoreNetworkBoxAddressOK) SetDefaultNtp(val string) {
+	s.DefaultNtp = val
+}
+
+// SetInterfaces sets the value of Interfaces.
+func (s *CorePutCoreNetworkBoxAddressOK) SetInterfaces(val []CorePutCoreNetworkBoxAddressOKInterfacesItem) {
+	s.Interfaces = val
+}
+
+// SetManagement sets the value of Management.
+func (s *CorePutCoreNetworkBoxAddressOK) SetManagement(val CorePutCoreNetworkBoxAddressOKManagement) {
+	s.Management = val
+}
+
+// SetNtp sets the value of Ntp.
+func (s *CorePutCoreNetworkBoxAddressOK) SetNtp(val CorePutCoreNetworkBoxAddressOKNtp) {
+	s.Ntp = val
+}
+
+// SetPending sets the value of Pending.
+func (s *CorePutCoreNetworkBoxAddressOK) SetPending(val NilCorePutCoreNetworkBoxAddressOKPending) {
+	s.Pending = val
+}
+
+// SetSpan sets the value of Span.
+func (s *CorePutCoreNetworkBoxAddressOK) SetSpan(val CorePutCoreNetworkBoxAddressOKSpan) {
+	s.Span = val
+}
+
+// SetSpanStatus sets the value of SpanStatus.
+func (s *CorePutCoreNetworkBoxAddressOK) SetSpanStatus(val CorePutCoreNetworkBoxAddressOKSpanStatus) {
+	s.SpanStatus = val
+}
+
+// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+type CorePutCoreNetworkBoxAddressOKBoxAddress struct {
+	// The host name or IPv4 address an administrator saved; null = the default is used.
+	Address NilString `json:"address"`
+	// The management IPv4 address the box reports; null while it has none.
+	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) GetAddress() NilString {
+	return s.Address
+}
+
+// GetDefault returns the value of Default.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) GetDefault() NilString {
+	return s.Default
+}
+
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetDefault sets the value of Default.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) SetDefault(val NilString) {
+	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
+}
+
+type CorePutCoreNetworkBoxAddressOKInterfacesItem struct {
+	// Address/prefix, only on the management interface.
+	Address NilString                                        `json:"address"`
+	Link    bool                                             `json:"link"`
+	MAC     string                                           `json:"mac"`
+	Name    string                                           `json:"name"`
+	Role    CorePutCoreNetworkBoxAddressOKInterfacesItemRole `json:"role"`
+	Speed   NilString                                        `json:"speed"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) GetAddress() NilString {
+	return s.Address
+}
+
+// GetLink returns the value of Link.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) GetLink() bool {
+	return s.Link
+}
+
+// GetMAC returns the value of MAC.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) GetMAC() string {
+	return s.MAC
+}
+
+// GetName returns the value of Name.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) GetName() string {
+	return s.Name
+}
+
+// GetRole returns the value of Role.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) GetRole() CorePutCoreNetworkBoxAddressOKInterfacesItemRole {
+	return s.Role
+}
+
+// GetSpeed returns the value of Speed.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) GetSpeed() NilString {
+	return s.Speed
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetLink sets the value of Link.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) SetLink(val bool) {
+	s.Link = val
+}
+
+// SetMAC sets the value of MAC.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) SetMAC(val string) {
+	s.MAC = val
+}
+
+// SetName sets the value of Name.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetRole sets the value of Role.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) SetRole(val CorePutCoreNetworkBoxAddressOKInterfacesItemRole) {
+	s.Role = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) SetSpeed(val NilString) {
+	s.Speed = val
+}
+
+type CorePutCoreNetworkBoxAddressOKInterfacesItemRole string
+
+const (
+	CorePutCoreNetworkBoxAddressOKInterfacesItemRoleManagement CorePutCoreNetworkBoxAddressOKInterfacesItemRole = "management"
+	CorePutCoreNetworkBoxAddressOKInterfacesItemRoleSpan       CorePutCoreNetworkBoxAddressOKInterfacesItemRole = "span"
+	CorePutCoreNetworkBoxAddressOKInterfacesItemRoleUnused     CorePutCoreNetworkBoxAddressOKInterfacesItemRole = "unused"
+)
+
+// AllValues returns all CorePutCoreNetworkBoxAddressOKInterfacesItemRole values.
+func (CorePutCoreNetworkBoxAddressOKInterfacesItemRole) AllValues() []CorePutCoreNetworkBoxAddressOKInterfacesItemRole {
+	return []CorePutCoreNetworkBoxAddressOKInterfacesItemRole{
+		CorePutCoreNetworkBoxAddressOKInterfacesItemRoleManagement,
+		CorePutCoreNetworkBoxAddressOKInterfacesItemRoleSpan,
+		CorePutCoreNetworkBoxAddressOKInterfacesItemRoleUnused,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreNetworkBoxAddressOKInterfacesItemRole) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreNetworkBoxAddressOKInterfacesItemRoleManagement:
+		return []byte(s), nil
+	case CorePutCoreNetworkBoxAddressOKInterfacesItemRoleSpan:
+		return []byte(s), nil
+	case CorePutCoreNetworkBoxAddressOKInterfacesItemRoleUnused:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItemRole) UnmarshalText(data []byte) error {
+	switch CorePutCoreNetworkBoxAddressOKInterfacesItemRole(data) {
+	case CorePutCoreNetworkBoxAddressOKInterfacesItemRoleManagement:
+		*s = CorePutCoreNetworkBoxAddressOKInterfacesItemRoleManagement
+		return nil
+	case CorePutCoreNetworkBoxAddressOKInterfacesItemRoleSpan:
+		*s = CorePutCoreNetworkBoxAddressOKInterfacesItemRoleSpan
+		return nil
+	case CorePutCoreNetworkBoxAddressOKInterfacesItemRoleUnused:
+		*s = CorePutCoreNetworkBoxAddressOKInterfacesItemRoleUnused
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePutCoreNetworkBoxAddressOKManagement struct {
+	Address NilString                                    `json:"address"`
+	DNS     []string                                     `json:"dns"`
+	Gateway NilString                                    `json:"gateway"`
+	Mode    CorePutCoreNetworkBoxAddressOKManagementMode `json:"mode"`
+	Prefix  NilInt                                       `json:"prefix"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePutCoreNetworkBoxAddressOKManagement) GetAddress() NilString {
+	return s.Address
+}
+
+// GetDNS returns the value of DNS.
+func (s *CorePutCoreNetworkBoxAddressOKManagement) GetDNS() []string {
+	return s.DNS
+}
+
+// GetGateway returns the value of Gateway.
+func (s *CorePutCoreNetworkBoxAddressOKManagement) GetGateway() NilString {
+	return s.Gateway
+}
+
+// GetMode returns the value of Mode.
+func (s *CorePutCoreNetworkBoxAddressOKManagement) GetMode() CorePutCoreNetworkBoxAddressOKManagementMode {
+	return s.Mode
+}
+
+// GetPrefix returns the value of Prefix.
+func (s *CorePutCoreNetworkBoxAddressOKManagement) GetPrefix() NilInt {
+	return s.Prefix
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePutCoreNetworkBoxAddressOKManagement) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetDNS sets the value of DNS.
+func (s *CorePutCoreNetworkBoxAddressOKManagement) SetDNS(val []string) {
+	s.DNS = val
+}
+
+// SetGateway sets the value of Gateway.
+func (s *CorePutCoreNetworkBoxAddressOKManagement) SetGateway(val NilString) {
+	s.Gateway = val
+}
+
+// SetMode sets the value of Mode.
+func (s *CorePutCoreNetworkBoxAddressOKManagement) SetMode(val CorePutCoreNetworkBoxAddressOKManagementMode) {
+	s.Mode = val
+}
+
+// SetPrefix sets the value of Prefix.
+func (s *CorePutCoreNetworkBoxAddressOKManagement) SetPrefix(val NilInt) {
+	s.Prefix = val
+}
+
+type CorePutCoreNetworkBoxAddressOKManagementMode string
+
+const (
+	CorePutCoreNetworkBoxAddressOKManagementModeDhcp   CorePutCoreNetworkBoxAddressOKManagementMode = "dhcp"
+	CorePutCoreNetworkBoxAddressOKManagementModeStatic CorePutCoreNetworkBoxAddressOKManagementMode = "static"
+)
+
+// AllValues returns all CorePutCoreNetworkBoxAddressOKManagementMode values.
+func (CorePutCoreNetworkBoxAddressOKManagementMode) AllValues() []CorePutCoreNetworkBoxAddressOKManagementMode {
+	return []CorePutCoreNetworkBoxAddressOKManagementMode{
+		CorePutCoreNetworkBoxAddressOKManagementModeDhcp,
+		CorePutCoreNetworkBoxAddressOKManagementModeStatic,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreNetworkBoxAddressOKManagementMode) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreNetworkBoxAddressOKManagementModeDhcp:
+		return []byte(s), nil
+	case CorePutCoreNetworkBoxAddressOKManagementModeStatic:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKManagementMode) UnmarshalText(data []byte) error {
+	switch CorePutCoreNetworkBoxAddressOKManagementMode(data) {
+	case CorePutCoreNetworkBoxAddressOKManagementModeDhcp:
+		*s = CorePutCoreNetworkBoxAddressOKManagementModeDhcp
+		return nil
+	case CorePutCoreNetworkBoxAddressOKManagementModeStatic:
+		*s = CorePutCoreNetworkBoxAddressOKManagementModeStatic
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePutCoreNetworkBoxAddressOKNtp struct {
+	Mode CorePutCoreNetworkBoxAddressOKNtpMode `json:"mode"`
+	// Only for mode custom; empty for the default pool.
+	Servers []string `json:"servers"`
+}
+
+// GetMode returns the value of Mode.
+func (s *CorePutCoreNetworkBoxAddressOKNtp) GetMode() CorePutCoreNetworkBoxAddressOKNtpMode {
+	return s.Mode
+}
+
+// GetServers returns the value of Servers.
+func (s *CorePutCoreNetworkBoxAddressOKNtp) GetServers() []string {
+	return s.Servers
+}
+
+// SetMode sets the value of Mode.
+func (s *CorePutCoreNetworkBoxAddressOKNtp) SetMode(val CorePutCoreNetworkBoxAddressOKNtpMode) {
+	s.Mode = val
+}
+
+// SetServers sets the value of Servers.
+func (s *CorePutCoreNetworkBoxAddressOKNtp) SetServers(val []string) {
+	s.Servers = val
+}
+
+type CorePutCoreNetworkBoxAddressOKNtpMode string
+
+const (
+	CorePutCoreNetworkBoxAddressOKNtpModeDefault CorePutCoreNetworkBoxAddressOKNtpMode = "default"
+	CorePutCoreNetworkBoxAddressOKNtpModeCustom  CorePutCoreNetworkBoxAddressOKNtpMode = "custom"
+)
+
+// AllValues returns all CorePutCoreNetworkBoxAddressOKNtpMode values.
+func (CorePutCoreNetworkBoxAddressOKNtpMode) AllValues() []CorePutCoreNetworkBoxAddressOKNtpMode {
+	return []CorePutCoreNetworkBoxAddressOKNtpMode{
+		CorePutCoreNetworkBoxAddressOKNtpModeDefault,
+		CorePutCoreNetworkBoxAddressOKNtpModeCustom,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreNetworkBoxAddressOKNtpMode) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreNetworkBoxAddressOKNtpModeDefault:
+		return []byte(s), nil
+	case CorePutCoreNetworkBoxAddressOKNtpModeCustom:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKNtpMode) UnmarshalText(data []byte) error {
+	switch CorePutCoreNetworkBoxAddressOKNtpMode(data) {
+	case CorePutCoreNetworkBoxAddressOKNtpModeDefault:
+		*s = CorePutCoreNetworkBoxAddressOKNtpModeDefault
+		return nil
+	case CorePutCoreNetworkBoxAddressOKNtpModeCustom:
+		*s = CorePutCoreNetworkBoxAddressOKNtpModeCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePutCoreNetworkBoxAddressOKPending struct {
+	ExpiresAt       time.Time `json:"expires_at"`
+	PreviousAddress NilString `json:"previous_address"`
+	// Set when the box could not go back to the old settings by itself: it restarts at this time, and the
+	// saved settings on disk are the old ones (D-100).
+	RebootAt NilDateTime `json:"reboot_at"`
+	// Seconds the box waits for the confirmation (the whole window, not what is left).
+	WindowS int `json:"window_s"`
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *CorePutCoreNetworkBoxAddressOKPending) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// GetPreviousAddress returns the value of PreviousAddress.
+func (s *CorePutCoreNetworkBoxAddressOKPending) GetPreviousAddress() NilString {
+	return s.PreviousAddress
+}
+
+// GetRebootAt returns the value of RebootAt.
+func (s *CorePutCoreNetworkBoxAddressOKPending) GetRebootAt() NilDateTime {
+	return s.RebootAt
+}
+
+// GetWindowS returns the value of WindowS.
+func (s *CorePutCoreNetworkBoxAddressOKPending) GetWindowS() int {
+	return s.WindowS
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *CorePutCoreNetworkBoxAddressOKPending) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+// SetPreviousAddress sets the value of PreviousAddress.
+func (s *CorePutCoreNetworkBoxAddressOKPending) SetPreviousAddress(val NilString) {
+	s.PreviousAddress = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CorePutCoreNetworkBoxAddressOKPending) SetRebootAt(val NilDateTime) {
+	s.RebootAt = val
+}
+
+// SetWindowS sets the value of WindowS.
+func (s *CorePutCoreNetworkBoxAddressOKPending) SetWindowS(val int) {
+	s.WindowS = val
+}
+
+type CorePutCoreNetworkBoxAddressOKSpan struct {
+	CPUPercent int  `json:"cpu_percent"`
+	Enabled    bool `json:"enabled"`
+	// What is read from mirrored traffic. Packet contents are never stored.
+	Extract   CorePutCoreNetworkBoxAddressOKSpanExtract       `json:"extract"`
+	Filters   []CorePutCoreNetworkBoxAddressOKSpanFiltersItem `json:"filters"`
+	Interface NilString                                       `json:"interface"`
+	MemoryMB  int                                             `json:"memory_mb"`
+}
+
+// GetCPUPercent returns the value of CPUPercent.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) GetCPUPercent() int {
+	return s.CPUPercent
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetExtract returns the value of Extract.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) GetExtract() CorePutCoreNetworkBoxAddressOKSpanExtract {
+	return s.Extract
+}
+
+// GetFilters returns the value of Filters.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) GetFilters() []CorePutCoreNetworkBoxAddressOKSpanFiltersItem {
+	return s.Filters
+}
+
+// GetInterface returns the value of Interface.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) GetInterface() NilString {
+	return s.Interface
+}
+
+// GetMemoryMB returns the value of MemoryMB.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) GetMemoryMB() int {
+	return s.MemoryMB
+}
+
+// SetCPUPercent sets the value of CPUPercent.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) SetCPUPercent(val int) {
+	s.CPUPercent = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetExtract sets the value of Extract.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) SetExtract(val CorePutCoreNetworkBoxAddressOKSpanExtract) {
+	s.Extract = val
+}
+
+// SetFilters sets the value of Filters.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) SetFilters(val []CorePutCoreNetworkBoxAddressOKSpanFiltersItem) {
+	s.Filters = val
+}
+
+// SetInterface sets the value of Interface.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) SetInterface(val NilString) {
+	s.Interface = val
+}
+
+// SetMemoryMB sets the value of MemoryMB.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) SetMemoryMB(val int) {
+	s.MemoryMB = val
+}
+
+// What is read from mirrored traffic. Packet contents are never stored.
+type CorePutCoreNetworkBoxAddressOKSpanExtract struct {
+	DNS      bool `json:"dns"`
+	Flows    bool `json:"flows"`
+	HTTPHost bool `json:"http_host"`
+	TLSSni   bool `json:"tls_sni"`
+}
+
+// GetDNS returns the value of DNS.
+func (s *CorePutCoreNetworkBoxAddressOKSpanExtract) GetDNS() bool {
+	return s.DNS
+}
+
+// GetFlows returns the value of Flows.
+func (s *CorePutCoreNetworkBoxAddressOKSpanExtract) GetFlows() bool {
+	return s.Flows
+}
+
+// GetHTTPHost returns the value of HTTPHost.
+func (s *CorePutCoreNetworkBoxAddressOKSpanExtract) GetHTTPHost() bool {
+	return s.HTTPHost
+}
+
+// GetTLSSni returns the value of TLSSni.
+func (s *CorePutCoreNetworkBoxAddressOKSpanExtract) GetTLSSni() bool {
+	return s.TLSSni
+}
+
+// SetDNS sets the value of DNS.
+func (s *CorePutCoreNetworkBoxAddressOKSpanExtract) SetDNS(val bool) {
+	s.DNS = val
+}
+
+// SetFlows sets the value of Flows.
+func (s *CorePutCoreNetworkBoxAddressOKSpanExtract) SetFlows(val bool) {
+	s.Flows = val
+}
+
+// SetHTTPHost sets the value of HTTPHost.
+func (s *CorePutCoreNetworkBoxAddressOKSpanExtract) SetHTTPHost(val bool) {
+	s.HTTPHost = val
+}
+
+// SetTLSSni sets the value of TLSSni.
+func (s *CorePutCoreNetworkBoxAddressOKSpanExtract) SetTLSSni(val bool) {
+	s.TLSSni = val
+}
+
+type CorePutCoreNetworkBoxAddressOKSpanFiltersItem struct {
+	Type  CorePutCoreNetworkBoxAddressOKSpanFiltersItemType `json:"type"`
+	Value string                                            `json:"value"`
+}
+
+// GetType returns the value of Type.
+func (s *CorePutCoreNetworkBoxAddressOKSpanFiltersItem) GetType() CorePutCoreNetworkBoxAddressOKSpanFiltersItemType {
+	return s.Type
+}
+
+// GetValue returns the value of Value.
+func (s *CorePutCoreNetworkBoxAddressOKSpanFiltersItem) GetValue() string {
+	return s.Value
+}
+
+// SetType sets the value of Type.
+func (s *CorePutCoreNetworkBoxAddressOKSpanFiltersItem) SetType(val CorePutCoreNetworkBoxAddressOKSpanFiltersItemType) {
+	s.Type = val
+}
+
+// SetValue sets the value of Value.
+func (s *CorePutCoreNetworkBoxAddressOKSpanFiltersItem) SetValue(val string) {
+	s.Value = val
+}
+
+type CorePutCoreNetworkBoxAddressOKSpanFiltersItemType string
+
+const (
+	CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypeCidr CorePutCoreNetworkBoxAddressOKSpanFiltersItemType = "cidr"
+	CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypeHost CorePutCoreNetworkBoxAddressOKSpanFiltersItemType = "host"
+	CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypePort CorePutCoreNetworkBoxAddressOKSpanFiltersItemType = "port"
+)
+
+// AllValues returns all CorePutCoreNetworkBoxAddressOKSpanFiltersItemType values.
+func (CorePutCoreNetworkBoxAddressOKSpanFiltersItemType) AllValues() []CorePutCoreNetworkBoxAddressOKSpanFiltersItemType {
+	return []CorePutCoreNetworkBoxAddressOKSpanFiltersItemType{
+		CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypeCidr,
+		CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypeHost,
+		CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypePort,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreNetworkBoxAddressOKSpanFiltersItemType) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypeCidr:
+		return []byte(s), nil
+	case CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypeHost:
+		return []byte(s), nil
+	case CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypePort:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpanFiltersItemType) UnmarshalText(data []byte) error {
+	switch CorePutCoreNetworkBoxAddressOKSpanFiltersItemType(data) {
+	case CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypeCidr:
+		*s = CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypeCidr
+		return nil
+	case CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypeHost:
+		*s = CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypeHost
+		return nil
+	case CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypePort:
+		*s = CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypePort
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePutCoreNetworkBoxAddressOKSpanStatus struct {
+	Interface    NilString   `json:"interface"`
+	LastPacketAt NilDateTime `json:"last_packet_at"`
+	// Distinct source MAC addresses other than the box's own.
+	OtherMacs   int `json:"other_macs"`
+	PacketsPerS int `json:"packets_per_s"`
+	// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+	// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+	// nothing arrives; no_link = no cable signal.
+	Verdict CorePutCoreNetworkBoxAddressOKSpanStatusVerdict `json:"verdict"`
+}
+
+// GetInterface returns the value of Interface.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatus) GetInterface() NilString {
+	return s.Interface
+}
+
+// GetLastPacketAt returns the value of LastPacketAt.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatus) GetLastPacketAt() NilDateTime {
+	return s.LastPacketAt
+}
+
+// GetOtherMacs returns the value of OtherMacs.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatus) GetOtherMacs() int {
+	return s.OtherMacs
+}
+
+// GetPacketsPerS returns the value of PacketsPerS.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatus) GetPacketsPerS() int {
+	return s.PacketsPerS
+}
+
+// GetVerdict returns the value of Verdict.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatus) GetVerdict() CorePutCoreNetworkBoxAddressOKSpanStatusVerdict {
+	return s.Verdict
+}
+
+// SetInterface sets the value of Interface.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatus) SetInterface(val NilString) {
+	s.Interface = val
+}
+
+// SetLastPacketAt sets the value of LastPacketAt.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatus) SetLastPacketAt(val NilDateTime) {
+	s.LastPacketAt = val
+}
+
+// SetOtherMacs sets the value of OtherMacs.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatus) SetOtherMacs(val int) {
+	s.OtherMacs = val
+}
+
+// SetPacketsPerS sets the value of PacketsPerS.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatus) SetPacketsPerS(val int) {
+	s.PacketsPerS = val
+}
+
+// SetVerdict sets the value of Verdict.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatus) SetVerdict(val CorePutCoreNetworkBoxAddressOKSpanStatusVerdict) {
+	s.Verdict = val
+}
+
+// Sensor_unreachable = the box could not tell the passive sensor which port to listen on (it is
+// retried at every look); own_only = packets arrive but only the box's own; no_traffic = link up,
+// nothing arrives; no_link = no cable signal.
+type CorePutCoreNetworkBoxAddressOKSpanStatusVerdict string
+
+const (
+	CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOff               CorePutCoreNetworkBoxAddressOKSpanStatusVerdict = "off"
+	CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOk                CorePutCoreNetworkBoxAddressOKSpanStatusVerdict = "ok"
+	CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOwnOnly           CorePutCoreNetworkBoxAddressOKSpanStatusVerdict = "own_only"
+	CorePutCoreNetworkBoxAddressOKSpanStatusVerdictNoTraffic         CorePutCoreNetworkBoxAddressOKSpanStatusVerdict = "no_traffic"
+	CorePutCoreNetworkBoxAddressOKSpanStatusVerdictNoLink            CorePutCoreNetworkBoxAddressOKSpanStatusVerdict = "no_link"
+	CorePutCoreNetworkBoxAddressOKSpanStatusVerdictSensorUnreachable CorePutCoreNetworkBoxAddressOKSpanStatusVerdict = "sensor_unreachable"
+)
+
+// AllValues returns all CorePutCoreNetworkBoxAddressOKSpanStatusVerdict values.
+func (CorePutCoreNetworkBoxAddressOKSpanStatusVerdict) AllValues() []CorePutCoreNetworkBoxAddressOKSpanStatusVerdict {
+	return []CorePutCoreNetworkBoxAddressOKSpanStatusVerdict{
+		CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOff,
+		CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOk,
+		CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOwnOnly,
+		CorePutCoreNetworkBoxAddressOKSpanStatusVerdictNoTraffic,
+		CorePutCoreNetworkBoxAddressOKSpanStatusVerdictNoLink,
+		CorePutCoreNetworkBoxAddressOKSpanStatusVerdictSensorUnreachable,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreNetworkBoxAddressOKSpanStatusVerdict) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOff:
+		return []byte(s), nil
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOk:
+		return []byte(s), nil
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOwnOnly:
+		return []byte(s), nil
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictNoTraffic:
+		return []byte(s), nil
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictNoLink:
+		return []byte(s), nil
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictSensorUnreachable:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatusVerdict) UnmarshalText(data []byte) error {
+	switch CorePutCoreNetworkBoxAddressOKSpanStatusVerdict(data) {
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOff:
+		*s = CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOff
+		return nil
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOk:
+		*s = CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOk
+		return nil
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOwnOnly:
+		*s = CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOwnOnly
+		return nil
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictNoTraffic:
+		*s = CorePutCoreNetworkBoxAddressOKSpanStatusVerdictNoTraffic
+		return nil
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictNoLink:
+		*s = CorePutCoreNetworkBoxAddressOKSpanStatusVerdictNoLink
+		return nil
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictSensorUnreachable:
+		*s = CorePutCoreNetworkBoxAddressOKSpanStatusVerdictSensorUnreachable
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePutCoreNetworkBoxAddressReq struct {
+	// A host name (vedette.office.lan) or an IPv4 address; no scheme, port or path. Empty = go back to the
+	// default.
+	Address string `json:"address"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePutCoreNetworkBoxAddressReq) GetAddress() string {
+	return s.Address
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePutCoreNetworkBoxAddressReq) SetAddress(val string) {
+	s.Address = val
+}
+
 type CorePutCoreNetworkInterfacesOK struct {
+	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	BoxAddress CorePutCoreNetworkInterfacesOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                                       `json:"decoy_ips"`
 	DefaultNtp string                                         `json:"default_ntp"`
 	Interfaces []CorePutCoreNetworkInterfacesOKInterfacesItem `json:"interfaces"`
@@ -35734,6 +37938,11 @@ type CorePutCoreNetworkInterfacesOK struct {
 	Pending    NilCorePutCoreNetworkInterfacesOKPending `json:"pending"`
 	Span       CorePutCoreNetworkInterfacesOKSpan       `json:"span"`
 	SpanStatus CorePutCoreNetworkInterfacesOKSpanStatus `json:"span_status"`
+}
+
+// GetBoxAddress returns the value of BoxAddress.
+func (s *CorePutCoreNetworkInterfacesOK) GetBoxAddress() CorePutCoreNetworkInterfacesOKBoxAddress {
+	return s.BoxAddress
 }
 
 // GetDecoyIps returns the value of DecoyIps.
@@ -35776,6 +37985,11 @@ func (s *CorePutCoreNetworkInterfacesOK) GetSpanStatus() CorePutCoreNetworkInter
 	return s.SpanStatus
 }
 
+// SetBoxAddress sets the value of BoxAddress.
+func (s *CorePutCoreNetworkInterfacesOK) SetBoxAddress(val CorePutCoreNetworkInterfacesOKBoxAddress) {
+	s.BoxAddress = val
+}
+
 // SetDecoyIps sets the value of DecoyIps.
 func (s *CorePutCoreNetworkInterfacesOK) SetDecoyIps(val []string) {
 	s.DecoyIps = val
@@ -35814,6 +38028,74 @@ func (s *CorePutCoreNetworkInterfacesOK) SetSpan(val CorePutCoreNetworkInterface
 // SetSpanStatus sets the value of SpanStatus.
 func (s *CorePutCoreNetworkInterfacesOK) SetSpanStatus(val CorePutCoreNetworkInterfacesOKSpanStatus) {
 	s.SpanStatus = val
+}
+
+// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+type CorePutCoreNetworkInterfacesOKBoxAddress struct {
+	// The host name or IPv4 address an administrator saved; null = the default is used.
+	Address NilString `json:"address"`
+	// The management IPv4 address the box reports; null while it has none.
+	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) GetAddress() NilString {
+	return s.Address
+}
+
+// GetDefault returns the value of Default.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) GetDefault() NilString {
+	return s.Default
+}
+
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetDefault sets the value of Default.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) SetDefault(val NilString) {
+	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
 }
 
 type CorePutCoreNetworkInterfacesOKInterfacesItem struct {
@@ -36549,6 +38831,9 @@ func (s *CorePutCoreNetworkInterfacesReqRolesItem) UnmarshalText(data []byte) er
 }
 
 type CorePutCoreNetworkManagementOK struct {
+	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	BoxAddress CorePutCoreNetworkManagementOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                                       `json:"decoy_ips"`
 	DefaultNtp string                                         `json:"default_ntp"`
 	Interfaces []CorePutCoreNetworkManagementOKInterfacesItem `json:"interfaces"`
@@ -36559,6 +38844,11 @@ type CorePutCoreNetworkManagementOK struct {
 	Pending    NilCorePutCoreNetworkManagementOKPending `json:"pending"`
 	Span       CorePutCoreNetworkManagementOKSpan       `json:"span"`
 	SpanStatus CorePutCoreNetworkManagementOKSpanStatus `json:"span_status"`
+}
+
+// GetBoxAddress returns the value of BoxAddress.
+func (s *CorePutCoreNetworkManagementOK) GetBoxAddress() CorePutCoreNetworkManagementOKBoxAddress {
+	return s.BoxAddress
 }
 
 // GetDecoyIps returns the value of DecoyIps.
@@ -36601,6 +38891,11 @@ func (s *CorePutCoreNetworkManagementOK) GetSpanStatus() CorePutCoreNetworkManag
 	return s.SpanStatus
 }
 
+// SetBoxAddress sets the value of BoxAddress.
+func (s *CorePutCoreNetworkManagementOK) SetBoxAddress(val CorePutCoreNetworkManagementOKBoxAddress) {
+	s.BoxAddress = val
+}
+
 // SetDecoyIps sets the value of DecoyIps.
 func (s *CorePutCoreNetworkManagementOK) SetDecoyIps(val []string) {
 	s.DecoyIps = val
@@ -36639,6 +38934,74 @@ func (s *CorePutCoreNetworkManagementOK) SetSpan(val CorePutCoreNetworkManagemen
 // SetSpanStatus sets the value of SpanStatus.
 func (s *CorePutCoreNetworkManagementOK) SetSpanStatus(val CorePutCoreNetworkManagementOKSpanStatus) {
 	s.SpanStatus = val
+}
+
+// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+type CorePutCoreNetworkManagementOKBoxAddress struct {
+	// The host name or IPv4 address an administrator saved; null = the default is used.
+	Address NilString `json:"address"`
+	// The management IPv4 address the box reports; null while it has none.
+	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) GetAddress() NilString {
+	return s.Address
+}
+
+// GetDefault returns the value of Default.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) GetDefault() NilString {
+	return s.Default
+}
+
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetDefault sets the value of Default.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) SetDefault(val NilString) {
+	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
 }
 
 type CorePutCoreNetworkManagementOKInterfacesItem struct {
@@ -37414,6 +39777,9 @@ func (s *CorePutCoreNetworkManagementReqMode) UnmarshalText(data []byte) error {
 }
 
 type CorePutCoreNetworkNtpOK struct {
+	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	BoxAddress CorePutCoreNetworkNtpOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                                `json:"decoy_ips"`
 	DefaultNtp string                                  `json:"default_ntp"`
 	Interfaces []CorePutCoreNetworkNtpOKInterfacesItem `json:"interfaces"`
@@ -37424,6 +39790,11 @@ type CorePutCoreNetworkNtpOK struct {
 	Pending    NilCorePutCoreNetworkNtpOKPending `json:"pending"`
 	Span       CorePutCoreNetworkNtpOKSpan       `json:"span"`
 	SpanStatus CorePutCoreNetworkNtpOKSpanStatus `json:"span_status"`
+}
+
+// GetBoxAddress returns the value of BoxAddress.
+func (s *CorePutCoreNetworkNtpOK) GetBoxAddress() CorePutCoreNetworkNtpOKBoxAddress {
+	return s.BoxAddress
 }
 
 // GetDecoyIps returns the value of DecoyIps.
@@ -37466,6 +39837,11 @@ func (s *CorePutCoreNetworkNtpOK) GetSpanStatus() CorePutCoreNetworkNtpOKSpanSta
 	return s.SpanStatus
 }
 
+// SetBoxAddress sets the value of BoxAddress.
+func (s *CorePutCoreNetworkNtpOK) SetBoxAddress(val CorePutCoreNetworkNtpOKBoxAddress) {
+	s.BoxAddress = val
+}
+
 // SetDecoyIps sets the value of DecoyIps.
 func (s *CorePutCoreNetworkNtpOK) SetDecoyIps(val []string) {
 	s.DecoyIps = val
@@ -37504,6 +39880,74 @@ func (s *CorePutCoreNetworkNtpOK) SetSpan(val CorePutCoreNetworkNtpOKSpan) {
 // SetSpanStatus sets the value of SpanStatus.
 func (s *CorePutCoreNetworkNtpOK) SetSpanStatus(val CorePutCoreNetworkNtpOKSpanStatus) {
 	s.SpanStatus = val
+}
+
+// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+type CorePutCoreNetworkNtpOKBoxAddress struct {
+	// The host name or IPv4 address an administrator saved; null = the default is used.
+	Address NilString `json:"address"`
+	// The management IPv4 address the box reports; null while it has none.
+	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) GetAddress() NilString {
+	return s.Address
+}
+
+// GetDefault returns the value of Default.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) GetDefault() NilString {
+	return s.Default
+}
+
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetDefault sets the value of Default.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) SetDefault(val NilString) {
+	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
 }
 
 type CorePutCoreNetworkNtpOKInterfacesItem struct {
@@ -38233,6 +40677,9 @@ func (s *CorePutCoreNetworkNtpReqMode) UnmarshalText(data []byte) error {
 }
 
 type CorePutCoreNetworkSpanOK struct {
+	// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+	// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+	BoxAddress CorePutCoreNetworkSpanOKBoxAddress       `json:"box_address"`
 	DecoyIps   []string                                 `json:"decoy_ips"`
 	DefaultNtp string                                   `json:"default_ntp"`
 	Interfaces []CorePutCoreNetworkSpanOKInterfacesItem `json:"interfaces"`
@@ -38243,6 +40690,11 @@ type CorePutCoreNetworkSpanOK struct {
 	Pending    NilCorePutCoreNetworkSpanOKPending `json:"pending"`
 	Span       CorePutCoreNetworkSpanOKSpan       `json:"span"`
 	SpanStatus CorePutCoreNetworkSpanOKSpanStatus `json:"span_status"`
+}
+
+// GetBoxAddress returns the value of BoxAddress.
+func (s *CorePutCoreNetworkSpanOK) GetBoxAddress() CorePutCoreNetworkSpanOKBoxAddress {
+	return s.BoxAddress
 }
 
 // GetDecoyIps returns the value of DecoyIps.
@@ -38285,6 +40737,11 @@ func (s *CorePutCoreNetworkSpanOK) GetSpanStatus() CorePutCoreNetworkSpanOKSpanS
 	return s.SpanStatus
 }
 
+// SetBoxAddress sets the value of BoxAddress.
+func (s *CorePutCoreNetworkSpanOK) SetBoxAddress(val CorePutCoreNetworkSpanOKBoxAddress) {
+	s.BoxAddress = val
+}
+
 // SetDecoyIps sets the value of DecoyIps.
 func (s *CorePutCoreNetworkSpanOK) SetDecoyIps(val []string) {
 	s.DecoyIps = val
@@ -38323,6 +40780,74 @@ func (s *CorePutCoreNetworkSpanOK) SetSpan(val CorePutCoreNetworkSpanOKSpan) {
 // SetSpanStatus sets the value of SpanStatus.
 func (s *CorePutCoreNetworkSpanOK) SetSpanStatus(val CorePutCoreNetworkSpanOKSpanStatus) {
 	s.SpanStatus = val
+}
+
+// D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail,
+// block list URL, URL honey tokens, agent install commands); also a name of the box's own certificate.
+type CorePutCoreNetworkSpanOKBoxAddress struct {
+	// The host name or IPv4 address an administrator saved; null = the default is used.
+	Address NilString `json:"address"`
+	// The management IPv4 address the box reports; null while it has none.
+	Default NilString `json:"default"`
+	// How every link of the box starts now, e.g. https://192.168.1.10:8443; null when the box makes no
+	// links (no address known).
+	LinkBase NilString `json:"link_base"`
+	// Earlier Box addresses the box still answers to (Host and certificate) until an administrator stops
+	// it: agents, firewalls and links set up with them keep working.
+	Previous []string `json:"previous"`
+	// The box issues its own certificate (it adds the Box address within seconds); false: the owner's
+	// certificate, which must include it.
+	SelfSigned bool `json:"self_signed"`
+}
+
+// GetAddress returns the value of Address.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) GetAddress() NilString {
+	return s.Address
+}
+
+// GetDefault returns the value of Default.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) GetDefault() NilString {
+	return s.Default
+}
+
+// GetLinkBase returns the value of LinkBase.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) GetLinkBase() NilString {
+	return s.LinkBase
+}
+
+// GetPrevious returns the value of Previous.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) GetPrevious() []string {
+	return s.Previous
+}
+
+// GetSelfSigned returns the value of SelfSigned.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) GetSelfSigned() bool {
+	return s.SelfSigned
+}
+
+// SetAddress sets the value of Address.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) SetAddress(val NilString) {
+	s.Address = val
+}
+
+// SetDefault sets the value of Default.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) SetDefault(val NilString) {
+	s.Default = val
+}
+
+// SetLinkBase sets the value of LinkBase.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) SetLinkBase(val NilString) {
+	s.LinkBase = val
+}
+
+// SetPrevious sets the value of Previous.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) SetPrevious(val []string) {
+	s.Previous = val
+}
+
+// SetSelfSigned sets the value of SelfSigned.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) SetSelfSigned(val bool) {
+	s.SelfSigned = val
 }
 
 type CorePutCoreNetworkSpanOKInterfacesItem struct {
@@ -40209,7 +42734,10 @@ type ExposureGetExposureTargetsIDOK struct {
 	LastScanAt NilDateTime                                `json:"last_scan_at"`
 	Latest     NilExposureGetExposureTargetsIDOKLatest    `json:"latest"`
 	Method     NilExposureGetExposureTargetsIDOKMethod    `json:"method"`
-	Scannable  bool                                       `json:"scannable"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposureGetExposureTargetsIDOKOpenPortsItem `json:"open_ports"`
+	Scannable bool                                          `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsIDOKStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
@@ -40271,6 +42799,11 @@ func (s *ExposureGetExposureTargetsIDOK) GetLatest() NilExposureGetExposureTarge
 // GetMethod returns the value of Method.
 func (s *ExposureGetExposureTargetsIDOK) GetMethod() NilExposureGetExposureTargetsIDOKMethod {
 	return s.Method
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposureGetExposureTargetsIDOK) GetOpenPorts() []ExposureGetExposureTargetsIDOKOpenPortsItem {
+	return s.OpenPorts
 }
 
 // GetScannable returns the value of Scannable.
@@ -40351,6 +42884,11 @@ func (s *ExposureGetExposureTargetsIDOK) SetLatest(val NilExposureGetExposureTar
 // SetMethod sets the value of Method.
 func (s *ExposureGetExposureTargetsIDOK) SetMethod(val NilExposureGetExposureTargetsIDOKMethod) {
 	s.Method = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposureGetExposureTargetsIDOK) SetOpenPorts(val []ExposureGetExposureTargetsIDOKOpenPortsItem) {
+	s.OpenPorts = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -40644,6 +43182,53 @@ func (s *ExposureGetExposureTargetsIDOKMethod) UnmarshalText(data []byte) error 
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposureGetExposureTargetsIDOKOpenPortsItem struct {
+	IP      string    `json:"ip"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetPort returns the value of Port.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetService returns the value of Service.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetService(val string) {
+	s.Service = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -41398,7 +43983,10 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	LastScanAt NilDateTime                                       `json:"last_scan_at"`
 	Latest     NilExposureGetExposureTargetsOKItemsItemLatest    `json:"latest"`
 	Method     NilExposureGetExposureTargetsOKItemsItemMethod    `json:"method"`
-	Scannable  bool                                              `json:"scannable"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposureGetExposureTargetsOKItemsItemOpenPortsItem `json:"open_ports"`
+	Scannable bool                                                 `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsOKItemsItemStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
@@ -41460,6 +44048,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) GetLatest() NilExposureGetExposu
 // GetMethod returns the value of Method.
 func (s *ExposureGetExposureTargetsOKItemsItem) GetMethod() NilExposureGetExposureTargetsOKItemsItemMethod {
 	return s.Method
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetOpenPorts() []ExposureGetExposureTargetsOKItemsItemOpenPortsItem {
+	return s.OpenPorts
 }
 
 // GetScannable returns the value of Scannable.
@@ -41540,6 +44133,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) SetLatest(val NilExposureGetExpo
 // SetMethod sets the value of Method.
 func (s *ExposureGetExposureTargetsOKItemsItem) SetMethod(val NilExposureGetExposureTargetsOKItemsItemMethod) {
 	s.Method = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetOpenPorts(val []ExposureGetExposureTargetsOKItemsItemOpenPortsItem) {
+	s.OpenPorts = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -41835,6 +44433,53 @@ func (s *ExposureGetExposureTargetsOKItemsItemMethod) UnmarshalText(data []byte)
 	}
 }
 
+type ExposureGetExposureTargetsOKItemsItemOpenPortsItem struct {
+	IP      string    `json:"ip"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetPort returns the value of Port.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetService returns the value of Service.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetService(val string) {
+	s.Service = val
+}
+
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 type ExposureGetExposureTargetsOKItemsItemStatus string
 
@@ -41974,7 +44619,10 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	LastScanAt NilDateTime                                            `json:"last_scan_at"`
 	Latest     NilExposurePostExposureBoxIPVerifyOKItemsItemLatest    `json:"latest"`
 	Method     NilExposurePostExposureBoxIPVerifyOKItemsItemMethod    `json:"method"`
-	Scannable  bool                                                   `json:"scannable"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem `json:"open_ports"`
+	Scannable bool                                                      `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureBoxIPVerifyOKItemsItemStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
@@ -42036,6 +44684,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetLatest() NilExposurePost
 // GetMethod returns the value of Method.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetMethod() NilExposurePostExposureBoxIPVerifyOKItemsItemMethod {
 	return s.Method
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetOpenPorts() []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem {
+	return s.OpenPorts
 }
 
 // GetScannable returns the value of Scannable.
@@ -42116,6 +44769,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetLatest(val NilExposurePo
 // SetMethod sets the value of Method.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetMethod(val NilExposurePostExposureBoxIPVerifyOKItemsItemMethod) {
 	s.Method = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetOpenPorts(val []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) {
+	s.OpenPorts = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -42411,6 +45069,53 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemMethod) UnmarshalText(data []
 	}
 }
 
+type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem struct {
+	IP      string    `json:"ip"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
+}
+
+// GetIP returns the value of IP.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetPort returns the value of Port.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetService returns the value of Service.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// SetIP sets the value of IP.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetService(val string) {
+	s.Service = val
+}
+
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 type ExposurePostExposureBoxIPVerifyOKItemsItemStatus string
 
@@ -42524,7 +45229,10 @@ type ExposurePostExposureTargetsCreated struct {
 	LastScanAt NilDateTime                                    `json:"last_scan_at"`
 	Latest     NilExposurePostExposureTargetsCreatedLatest    `json:"latest"`
 	Method     NilExposurePostExposureTargetsCreatedMethod    `json:"method"`
-	Scannable  bool                                           `json:"scannable"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposurePostExposureTargetsCreatedOpenPortsItem `json:"open_ports"`
+	Scannable bool                                              `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsCreatedStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
@@ -42586,6 +45294,11 @@ func (s *ExposurePostExposureTargetsCreated) GetLatest() NilExposurePostExposure
 // GetMethod returns the value of Method.
 func (s *ExposurePostExposureTargetsCreated) GetMethod() NilExposurePostExposureTargetsCreatedMethod {
 	return s.Method
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposurePostExposureTargetsCreated) GetOpenPorts() []ExposurePostExposureTargetsCreatedOpenPortsItem {
+	return s.OpenPorts
 }
 
 // GetScannable returns the value of Scannable.
@@ -42666,6 +45379,11 @@ func (s *ExposurePostExposureTargetsCreated) SetLatest(val NilExposurePostExposu
 // SetMethod sets the value of Method.
 func (s *ExposurePostExposureTargetsCreated) SetMethod(val NilExposurePostExposureTargetsCreatedMethod) {
 	s.Method = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposurePostExposureTargetsCreated) SetOpenPorts(val []ExposurePostExposureTargetsCreatedOpenPortsItem) {
+	s.OpenPorts = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -42961,6 +45679,53 @@ func (s *ExposurePostExposureTargetsCreatedMethod) UnmarshalText(data []byte) er
 	}
 }
 
+type ExposurePostExposureTargetsCreatedOpenPortsItem struct {
+	IP      string    `json:"ip"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
+}
+
+// GetIP returns the value of IP.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetPort returns the value of Port.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetService returns the value of Service.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// SetIP sets the value of IP.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetService(val string) {
+	s.Service = val
+}
+
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 type ExposurePostExposureTargetsCreatedStatus string
 
@@ -43074,7 +45839,10 @@ type ExposurePostExposureTargetsIDCommitmentOK struct {
 	LastScanAt NilDateTime                                           `json:"last_scan_at"`
 	Latest     NilExposurePostExposureTargetsIDCommitmentOKLatest    `json:"latest"`
 	Method     NilExposurePostExposureTargetsIDCommitmentOKMethod    `json:"method"`
-	Scannable  bool                                                  `json:"scannable"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem `json:"open_ports"`
+	Scannable bool                                                     `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsIDCommitmentOKStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
@@ -43136,6 +45904,11 @@ func (s *ExposurePostExposureTargetsIDCommitmentOK) GetLatest() NilExposurePostE
 // GetMethod returns the value of Method.
 func (s *ExposurePostExposureTargetsIDCommitmentOK) GetMethod() NilExposurePostExposureTargetsIDCommitmentOKMethod {
 	return s.Method
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposurePostExposureTargetsIDCommitmentOK) GetOpenPorts() []ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem {
+	return s.OpenPorts
 }
 
 // GetScannable returns the value of Scannable.
@@ -43216,6 +45989,11 @@ func (s *ExposurePostExposureTargetsIDCommitmentOK) SetLatest(val NilExposurePos
 // SetMethod sets the value of Method.
 func (s *ExposurePostExposureTargetsIDCommitmentOK) SetMethod(val NilExposurePostExposureTargetsIDCommitmentOKMethod) {
 	s.Method = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposurePostExposureTargetsIDCommitmentOK) SetOpenPorts(val []ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) {
+	s.OpenPorts = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -43509,6 +46287,53 @@ func (s *ExposurePostExposureTargetsIDCommitmentOKMethod) UnmarshalText(data []b
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem struct {
+	IP      string    `json:"ip"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
+}
+
+// GetIP returns the value of IP.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetPort returns the value of Port.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetService returns the value of Service.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// SetIP sets the value of IP.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposurePostExposureTargetsIDCommitmentOKOpenPortsItem) SetService(val string) {
+	s.Service = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -44030,7 +46855,10 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	LastScanAt NilDateTime                                             `json:"last_scan_at"`
 	Latest     NilExposurePostExposureTargetsIDVerifyOKTargetLatest    `json:"latest"`
 	Method     NilExposurePostExposureTargetsIDVerifyOKTargetMethod    `json:"method"`
-	Scannable  bool                                                    `json:"scannable"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem `json:"open_ports"`
+	Scannable bool                                                       `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsIDVerifyOKTargetStatus `json:"status"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
@@ -44092,6 +46920,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetLatest() NilExposurePos
 // GetMethod returns the value of Method.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetMethod() NilExposurePostExposureTargetsIDVerifyOKTargetMethod {
 	return s.Method
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetOpenPorts() []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem {
+	return s.OpenPorts
 }
 
 // GetScannable returns the value of Scannable.
@@ -44172,6 +47005,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetLatest(val NilExposureP
 // SetMethod sets the value of Method.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetMethod(val NilExposurePostExposureTargetsIDVerifyOKTargetMethod) {
 	s.Method = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetOpenPorts(val []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) {
+	s.OpenPorts = val
 }
 
 // SetScannable sets the value of Scannable.
@@ -44465,6 +47303,53 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetMethod) UnmarshalText(data [
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem struct {
+	IP      string    `json:"ip"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
+}
+
+// GetIP returns the value of IP.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetPort returns the value of Port.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetService returns the value of Service.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// SetIP sets the value of IP.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetService(val string) {
+	s.Service = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -51538,8 +54423,11 @@ type FindingsGetFindingsIDOK struct {
 	Cve        string                               `json:"cve"`
 	Evidence   NilFindingsGetFindingsIDOKEvidence   `json:"evidence"`
 	FirstSeen  time.Time                            `json:"first_seen"`
-	History    []FindingsGetFindingsIDOKHistoryItem `json:"history"`
-	ID         string                               `json:"id"`
+	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
+	// NVD gives none, the page shows CISA and the vendor advisory only.
+	FixedIn NilFindingsGetFindingsIDOKFixedIn    `json:"fixed_in"`
+	History []FindingsGetFindingsIDOKHistoryItem `json:"history"`
+	ID      string                               `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
 	Kev      NilFindingsGetFindingsIDOKKev `json:"kev"`
 	LastSeen time.Time                     `json:"last_seen"`
@@ -51606,6 +54494,11 @@ func (s *FindingsGetFindingsIDOK) GetEvidence() NilFindingsGetFindingsIDOKEviden
 // GetFirstSeen returns the value of FirstSeen.
 func (s *FindingsGetFindingsIDOK) GetFirstSeen() time.Time {
 	return s.FirstSeen
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsGetFindingsIDOK) GetFixedIn() NilFindingsGetFindingsIDOKFixedIn {
+	return s.FixedIn
 }
 
 // GetHistory returns the value of History.
@@ -51716,6 +54609,11 @@ func (s *FindingsGetFindingsIDOK) SetEvidence(val NilFindingsGetFindingsIDOKEvid
 // SetFirstSeen sets the value of FirstSeen.
 func (s *FindingsGetFindingsIDOK) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsGetFindingsIDOK) SetFixedIn(val NilFindingsGetFindingsIDOKFixedIn) {
+	s.FixedIn = val
 }
 
 // SetHistory sets the value of History.
@@ -52227,11 +55125,15 @@ func (s *FindingsGetFindingsIDOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsGetFindingsIDOKAsset struct {
-	Display  string                           `json:"display"`
-	Hostname NilString                        `json:"hostname"`
-	ID       string                           `json:"id"`
-	IP       string                           `json:"ip"`
-	Kind     FindingsGetFindingsIDOKAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                           `json:"ip"`
+	Kind FindingsGetFindingsIDOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -52259,6 +55161,11 @@ func (s *FindingsGetFindingsIDOKAsset) GetKind() FindingsGetFindingsIDOKAssetKin
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsIDOKAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsGetFindingsIDOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -52282,6 +55189,11 @@ func (s *FindingsGetFindingsIDOKAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsIDOKAsset) SetKind(val FindingsGetFindingsIDOKAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsIDOKAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsGetFindingsIDOKAssetKind string
@@ -52671,6 +55583,197 @@ func (s *FindingsGetFindingsIDOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsGetFindingsIDOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+type FindingsGetFindingsIDOKFixedIn struct {
+	// At most 5, newest first.
+	Branches []FindingsGetFindingsIDOKFixedInBranchesItem `json:"branches"`
+	// "Ubuntu" or "Debian" when the device runs one and the version has no distribution marker: the page
+	// adds "if you installed it from the distribution's packages, install its security updates instead";
+	// empty otherwise.
+	Distro string `json:"distro"`
+	// The fixed release (fixed), the last affected release (up_to); empty for branches.
+	Fixed string `json:"fixed"`
+	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+	// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+	// number is named.
+	Kind FindingsGetFindingsIDOKFixedInKind `json:"kind"`
+	// Release lines with a fix left out of branches.
+	More int `json:"more"`
+	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
+	NoFix int `json:"no_fix"`
+	// Where the versions come from: "NVD affected versions".
+	Source string `json:"source"`
+	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
+	Version string `json:"version"`
+}
+
+// GetBranches returns the value of Branches.
+func (s *FindingsGetFindingsIDOKFixedIn) GetBranches() []FindingsGetFindingsIDOKFixedInBranchesItem {
+	return s.Branches
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsGetFindingsIDOKFixedIn) GetDistro() string {
+	return s.Distro
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsGetFindingsIDOKFixedIn) GetFixed() string {
+	return s.Fixed
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsIDOKFixedIn) GetKind() FindingsGetFindingsIDOKFixedInKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *FindingsGetFindingsIDOKFixedIn) GetMore() int {
+	return s.More
+}
+
+// GetNoFix returns the value of NoFix.
+func (s *FindingsGetFindingsIDOKFixedIn) GetNoFix() int {
+	return s.NoFix
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsIDOKFixedIn) GetSource() string {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsIDOKFixedIn) GetVersion() string {
+	return s.Version
+}
+
+// SetBranches sets the value of Branches.
+func (s *FindingsGetFindingsIDOKFixedIn) SetBranches(val []FindingsGetFindingsIDOKFixedInBranchesItem) {
+	s.Branches = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsGetFindingsIDOKFixedIn) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsGetFindingsIDOKFixedIn) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsIDOKFixedIn) SetKind(val FindingsGetFindingsIDOKFixedInKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *FindingsGetFindingsIDOKFixedIn) SetMore(val int) {
+	s.More = val
+}
+
+// SetNoFix sets the value of NoFix.
+func (s *FindingsGetFindingsIDOKFixedIn) SetNoFix(val int) {
+	s.NoFix = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsIDOKFixedIn) SetSource(val string) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsIDOKFixedIn) SetVersion(val string) {
+	s.Version = val
+}
+
+type FindingsGetFindingsIDOKFixedInBranchesItem struct {
+	// Release line such as 7.4; empty when it cannot be told.
+	Branch string `json:"branch"`
+	Fixed  string `json:"fixed"`
+}
+
+// GetBranch returns the value of Branch.
+func (s *FindingsGetFindingsIDOKFixedInBranchesItem) GetBranch() string {
+	return s.Branch
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsGetFindingsIDOKFixedInBranchesItem) GetFixed() string {
+	return s.Fixed
+}
+
+// SetBranch sets the value of Branch.
+func (s *FindingsGetFindingsIDOKFixedInBranchesItem) SetBranch(val string) {
+	s.Branch = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsGetFindingsIDOKFixedInBranchesItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+// number is named.
+type FindingsGetFindingsIDOKFixedInKind string
+
+const (
+	FindingsGetFindingsIDOKFixedInKindFixed    FindingsGetFindingsIDOKFixedInKind = "fixed"
+	FindingsGetFindingsIDOKFixedInKindUpTo     FindingsGetFindingsIDOKFixedInKind = "up_to"
+	FindingsGetFindingsIDOKFixedInKindBranches FindingsGetFindingsIDOKFixedInKind = "branches"
+	FindingsGetFindingsIDOKFixedInKindDistro   FindingsGetFindingsIDOKFixedInKind = "distro"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKFixedInKind values.
+func (FindingsGetFindingsIDOKFixedInKind) AllValues() []FindingsGetFindingsIDOKFixedInKind {
+	return []FindingsGetFindingsIDOKFixedInKind{
+		FindingsGetFindingsIDOKFixedInKindFixed,
+		FindingsGetFindingsIDOKFixedInKindUpTo,
+		FindingsGetFindingsIDOKFixedInKindBranches,
+		FindingsGetFindingsIDOKFixedInKindDistro,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKFixedInKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKFixedInKindFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKFixedInKindBranches:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKFixedInKindDistro:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKFixedInKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKFixedInKind(data) {
+	case FindingsGetFindingsIDOKFixedInKindFixed:
+		*s = FindingsGetFindingsIDOKFixedInKindFixed
+		return nil
+	case FindingsGetFindingsIDOKFixedInKindUpTo:
+		*s = FindingsGetFindingsIDOKFixedInKindUpTo
+		return nil
+	case FindingsGetFindingsIDOKFixedInKindBranches:
+		*s = FindingsGetFindingsIDOKFixedInKindBranches
+		return nil
+	case FindingsGetFindingsIDOKFixedInKindDistro:
+		*s = FindingsGetFindingsIDOKFixedInKindDistro
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsGetFindingsIDOKHistoryItem struct {
@@ -53601,7 +56704,8 @@ func (s *FindingsGetFindingsIDOKStatus) UnmarshalText(data []byte) error {
 }
 
 type FindingsGetFindingsOK struct {
-	Items []FindingsGetFindingsOKItemsItem `json:"items"`
+	Items         []FindingsGetFindingsOKItemsItem         `json:"items"`
+	VersionNeeded []FindingsGetFindingsOKVersionNeededItem `json:"version_needed"`
 }
 
 // GetItems returns the value of Items.
@@ -53609,9 +56713,19 @@ func (s *FindingsGetFindingsOK) GetItems() []FindingsGetFindingsOKItemsItem {
 	return s.Items
 }
 
+// GetVersionNeeded returns the value of VersionNeeded.
+func (s *FindingsGetFindingsOK) GetVersionNeeded() []FindingsGetFindingsOKVersionNeededItem {
+	return s.VersionNeeded
+}
+
 // SetItems sets the value of Items.
 func (s *FindingsGetFindingsOK) SetItems(val []FindingsGetFindingsOKItemsItem) {
 	s.Items = val
+}
+
+// SetVersionNeeded sets the value of VersionNeeded.
+func (s *FindingsGetFindingsOK) SetVersionNeeded(val []FindingsGetFindingsOKVersionNeededItem) {
+	s.VersionNeeded = val
 }
 
 type FindingsGetFindingsOKItemsItem struct {
@@ -53797,11 +56911,15 @@ func (s *FindingsGetFindingsOKItemsItem) SetStatus(val FindingsGetFindingsOKItem
 }
 
 type FindingsGetFindingsOKItemsItemAsset struct {
-	Display  string                                  `json:"display"`
-	Hostname NilString                               `json:"hostname"`
-	ID       string                                  `json:"id"`
-	IP       string                                  `json:"ip"`
-	Kind     FindingsGetFindingsOKItemsItemAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                  `json:"ip"`
+	Kind FindingsGetFindingsOKItemsItemAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -53829,6 +56947,11 @@ func (s *FindingsGetFindingsOKItemsItemAsset) GetKind() FindingsGetFindingsOKIte
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsOKItemsItemAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsGetFindingsOKItemsItemAsset) SetDisplay(val string) {
 	s.Display = val
@@ -53852,6 +56975,11 @@ func (s *FindingsGetFindingsOKItemsItemAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsOKItemsItemAsset) SetKind(val FindingsGetFindingsOKItemsItemAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsOKItemsItemAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsGetFindingsOKItemsItemAssetKind string
@@ -54382,6 +57510,270 @@ func (s *FindingsGetFindingsOKItemsItemStatus) UnmarshalText(data []byte) error 
 	}
 }
 
+// D-500: a software on the exploited list without a usable version is ONE item, not one finding per
+// CVE.
+type FindingsGetFindingsOKVersionNeededItem struct {
+	Asset   NilFindingsGetFindingsOKVersionNeededItemAsset `json:"asset"`
+	AssetID string                                         `json:"asset_id"`
+	// Exploited CVEs of this product that the version would decide.
+	Cves int `json:"cves"`
+	// Display name of the software.
+	Software   string `json:"software"`
+	SoftwareID string `json:"software_id"`
+	// Null = no version; otherwise the version as entered, which Vedette cannot read.
+	Version NilString `json:"version"`
+}
+
+// GetAsset returns the value of Asset.
+func (s *FindingsGetFindingsOKVersionNeededItem) GetAsset() NilFindingsGetFindingsOKVersionNeededItemAsset {
+	return s.Asset
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *FindingsGetFindingsOKVersionNeededItem) GetAssetID() string {
+	return s.AssetID
+}
+
+// GetCves returns the value of Cves.
+func (s *FindingsGetFindingsOKVersionNeededItem) GetCves() int {
+	return s.Cves
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsGetFindingsOKVersionNeededItem) GetSoftware() string {
+	return s.Software
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsGetFindingsOKVersionNeededItem) GetSoftwareID() string {
+	return s.SoftwareID
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsOKVersionNeededItem) GetVersion() NilString {
+	return s.Version
+}
+
+// SetAsset sets the value of Asset.
+func (s *FindingsGetFindingsOKVersionNeededItem) SetAsset(val NilFindingsGetFindingsOKVersionNeededItemAsset) {
+	s.Asset = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *FindingsGetFindingsOKVersionNeededItem) SetAssetID(val string) {
+	s.AssetID = val
+}
+
+// SetCves sets the value of Cves.
+func (s *FindingsGetFindingsOKVersionNeededItem) SetCves(val int) {
+	s.Cves = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsGetFindingsOKVersionNeededItem) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsGetFindingsOKVersionNeededItem) SetSoftwareID(val string) {
+	s.SoftwareID = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsOKVersionNeededItem) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type FindingsGetFindingsOKVersionNeededItemAsset struct {
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                          `json:"ip"`
+	Kind FindingsGetFindingsOKVersionNeededItemAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
+}
+
+// GetDisplay returns the value of Display.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetDisplay() string {
+	return s.Display
+}
+
+// GetHostname returns the value of Hostname.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetHostname() NilString {
+	return s.Hostname
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetID() string {
+	return s.ID
+}
+
+// GetIP returns the value of IP.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetIP() string {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetKind() FindingsGetFindingsOKVersionNeededItemAssetKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetName() string {
+	return s.Name
+}
+
+// SetDisplay sets the value of Display.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetHostname sets the value of Hostname.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetHostname(val NilString) {
+	s.Hostname = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetID(val string) {
+	s.ID = val
+}
+
+// SetIP sets the value of IP.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetIP(val string) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetKind(val FindingsGetFindingsOKVersionNeededItemAssetKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetName(val string) {
+	s.Name = val
+}
+
+type FindingsGetFindingsOKVersionNeededItemAssetKind string
+
+const (
+	FindingsGetFindingsOKVersionNeededItemAssetKindFirewall FindingsGetFindingsOKVersionNeededItemAssetKind = "firewall"
+	FindingsGetFindingsOKVersionNeededItemAssetKindRouter   FindingsGetFindingsOKVersionNeededItemAssetKind = "router"
+	FindingsGetFindingsOKVersionNeededItemAssetKindSwitch   FindingsGetFindingsOKVersionNeededItemAssetKind = "switch"
+	FindingsGetFindingsOKVersionNeededItemAssetKindAp       FindingsGetFindingsOKVersionNeededItemAssetKind = "ap"
+	FindingsGetFindingsOKVersionNeededItemAssetKindNas      FindingsGetFindingsOKVersionNeededItemAssetKind = "nas"
+	FindingsGetFindingsOKVersionNeededItemAssetKindServer   FindingsGetFindingsOKVersionNeededItemAssetKind = "server"
+	FindingsGetFindingsOKVersionNeededItemAssetKindPc       FindingsGetFindingsOKVersionNeededItemAssetKind = "pc"
+	FindingsGetFindingsOKVersionNeededItemAssetKindPrinter  FindingsGetFindingsOKVersionNeededItemAssetKind = "printer"
+	FindingsGetFindingsOKVersionNeededItemAssetKindCamera   FindingsGetFindingsOKVersionNeededItemAssetKind = "camera"
+	FindingsGetFindingsOKVersionNeededItemAssetKindNvr      FindingsGetFindingsOKVersionNeededItemAssetKind = "nvr"
+	FindingsGetFindingsOKVersionNeededItemAssetKindIot      FindingsGetFindingsOKVersionNeededItemAssetKind = "iot"
+	FindingsGetFindingsOKVersionNeededItemAssetKindWeb      FindingsGetFindingsOKVersionNeededItemAssetKind = "web"
+	FindingsGetFindingsOKVersionNeededItemAssetKindUnknown  FindingsGetFindingsOKVersionNeededItemAssetKind = "unknown"
+)
+
+// AllValues returns all FindingsGetFindingsOKVersionNeededItemAssetKind values.
+func (FindingsGetFindingsOKVersionNeededItemAssetKind) AllValues() []FindingsGetFindingsOKVersionNeededItemAssetKind {
+	return []FindingsGetFindingsOKVersionNeededItemAssetKind{
+		FindingsGetFindingsOKVersionNeededItemAssetKindFirewall,
+		FindingsGetFindingsOKVersionNeededItemAssetKindRouter,
+		FindingsGetFindingsOKVersionNeededItemAssetKindSwitch,
+		FindingsGetFindingsOKVersionNeededItemAssetKindAp,
+		FindingsGetFindingsOKVersionNeededItemAssetKindNas,
+		FindingsGetFindingsOKVersionNeededItemAssetKindServer,
+		FindingsGetFindingsOKVersionNeededItemAssetKindPc,
+		FindingsGetFindingsOKVersionNeededItemAssetKindPrinter,
+		FindingsGetFindingsOKVersionNeededItemAssetKindCamera,
+		FindingsGetFindingsOKVersionNeededItemAssetKindNvr,
+		FindingsGetFindingsOKVersionNeededItemAssetKindIot,
+		FindingsGetFindingsOKVersionNeededItemAssetKindWeb,
+		FindingsGetFindingsOKVersionNeededItemAssetKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOKVersionNeededItemAssetKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOKVersionNeededItemAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindRouter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindAp:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindNas:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindServer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPc:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindCamera:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindNvr:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindIot:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindWeb:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOKVersionNeededItemAssetKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOKVersionNeededItemAssetKind(data) {
+	case FindingsGetFindingsOKVersionNeededItemAssetKindFirewall:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindFirewall
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindRouter:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindRouter
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSwitch:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindSwitch
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindAp:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindAp
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindNas:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindNas
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindServer:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindServer
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPc:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindPc
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPrinter:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindPrinter
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindCamera:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindCamera
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindNvr:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindNvr
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindIot:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindIot
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindWeb:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindWeb
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindUnknown:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type FindingsPostFindingsIDAiOK struct {
 	Ai FindingsPostFindingsIDAiOKAi `json:"ai"`
 	// Whether an AI profile is assigned and allowed for each job (D-29).
@@ -54397,8 +57789,11 @@ type FindingsPostFindingsIDAiOK struct {
 	Cve        string                                  `json:"cve"`
 	Evidence   NilFindingsPostFindingsIDAiOKEvidence   `json:"evidence"`
 	FirstSeen  time.Time                               `json:"first_seen"`
-	History    []FindingsPostFindingsIDAiOKHistoryItem `json:"history"`
-	ID         string                                  `json:"id"`
+	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
+	// NVD gives none, the page shows CISA and the vendor advisory only.
+	FixedIn NilFindingsPostFindingsIDAiOKFixedIn    `json:"fixed_in"`
+	History []FindingsPostFindingsIDAiOKHistoryItem `json:"history"`
+	ID      string                                  `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
 	Kev      NilFindingsPostFindingsIDAiOKKev `json:"kev"`
 	LastSeen time.Time                        `json:"last_seen"`
@@ -54465,6 +57860,11 @@ func (s *FindingsPostFindingsIDAiOK) GetEvidence() NilFindingsPostFindingsIDAiOK
 // GetFirstSeen returns the value of FirstSeen.
 func (s *FindingsPostFindingsIDAiOK) GetFirstSeen() time.Time {
 	return s.FirstSeen
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDAiOK) GetFixedIn() NilFindingsPostFindingsIDAiOKFixedIn {
+	return s.FixedIn
 }
 
 // GetHistory returns the value of History.
@@ -54575,6 +57975,11 @@ func (s *FindingsPostFindingsIDAiOK) SetEvidence(val NilFindingsPostFindingsIDAi
 // SetFirstSeen sets the value of FirstSeen.
 func (s *FindingsPostFindingsIDAiOK) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDAiOK) SetFixedIn(val NilFindingsPostFindingsIDAiOKFixedIn) {
+	s.FixedIn = val
 }
 
 // SetHistory sets the value of History.
@@ -55086,11 +58491,15 @@ func (s *FindingsPostFindingsIDAiOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDAiOKAsset struct {
-	Display  string                              `json:"display"`
-	Hostname NilString                           `json:"hostname"`
-	ID       string                              `json:"id"`
-	IP       string                              `json:"ip"`
-	Kind     FindingsPostFindingsIDAiOKAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                              `json:"ip"`
+	Kind FindingsPostFindingsIDAiOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -55118,6 +58527,11 @@ func (s *FindingsPostFindingsIDAiOKAsset) GetKind() FindingsPostFindingsIDAiOKAs
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDAiOKAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsPostFindingsIDAiOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -55141,6 +58555,11 @@ func (s *FindingsPostFindingsIDAiOKAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsPostFindingsIDAiOKAsset) SetKind(val FindingsPostFindingsIDAiOKAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDAiOKAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsPostFindingsIDAiOKAssetKind string
@@ -55530,6 +58949,197 @@ func (s *FindingsPostFindingsIDAiOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsPostFindingsIDAiOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+type FindingsPostFindingsIDAiOKFixedIn struct {
+	// At most 5, newest first.
+	Branches []FindingsPostFindingsIDAiOKFixedInBranchesItem `json:"branches"`
+	// "Ubuntu" or "Debian" when the device runs one and the version has no distribution marker: the page
+	// adds "if you installed it from the distribution's packages, install its security updates instead";
+	// empty otherwise.
+	Distro string `json:"distro"`
+	// The fixed release (fixed), the last affected release (up_to); empty for branches.
+	Fixed string `json:"fixed"`
+	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+	// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+	// number is named.
+	Kind FindingsPostFindingsIDAiOKFixedInKind `json:"kind"`
+	// Release lines with a fix left out of branches.
+	More int `json:"more"`
+	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
+	NoFix int `json:"no_fix"`
+	// Where the versions come from: "NVD affected versions".
+	Source string `json:"source"`
+	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
+	Version string `json:"version"`
+}
+
+// GetBranches returns the value of Branches.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetBranches() []FindingsPostFindingsIDAiOKFixedInBranchesItem {
+	return s.Branches
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetDistro() string {
+	return s.Distro
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetFixed() string {
+	return s.Fixed
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetKind() FindingsPostFindingsIDAiOKFixedInKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetMore() int {
+	return s.More
+}
+
+// GetNoFix returns the value of NoFix.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetNoFix() int {
+	return s.NoFix
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetSource() string {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetVersion() string {
+	return s.Version
+}
+
+// SetBranches sets the value of Branches.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetBranches(val []FindingsPostFindingsIDAiOKFixedInBranchesItem) {
+	s.Branches = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetKind(val FindingsPostFindingsIDAiOKFixedInKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetMore(val int) {
+	s.More = val
+}
+
+// SetNoFix sets the value of NoFix.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetNoFix(val int) {
+	s.NoFix = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetSource(val string) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetVersion(val string) {
+	s.Version = val
+}
+
+type FindingsPostFindingsIDAiOKFixedInBranchesItem struct {
+	// Release line such as 7.4; empty when it cannot be told.
+	Branch string `json:"branch"`
+	Fixed  string `json:"fixed"`
+}
+
+// GetBranch returns the value of Branch.
+func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) GetBranch() string {
+	return s.Branch
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) GetFixed() string {
+	return s.Fixed
+}
+
+// SetBranch sets the value of Branch.
+func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) SetBranch(val string) {
+	s.Branch = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+// number is named.
+type FindingsPostFindingsIDAiOKFixedInKind string
+
+const (
+	FindingsPostFindingsIDAiOKFixedInKindFixed    FindingsPostFindingsIDAiOKFixedInKind = "fixed"
+	FindingsPostFindingsIDAiOKFixedInKindUpTo     FindingsPostFindingsIDAiOKFixedInKind = "up_to"
+	FindingsPostFindingsIDAiOKFixedInKindBranches FindingsPostFindingsIDAiOKFixedInKind = "branches"
+	FindingsPostFindingsIDAiOKFixedInKindDistro   FindingsPostFindingsIDAiOKFixedInKind = "distro"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKFixedInKind values.
+func (FindingsPostFindingsIDAiOKFixedInKind) AllValues() []FindingsPostFindingsIDAiOKFixedInKind {
+	return []FindingsPostFindingsIDAiOKFixedInKind{
+		FindingsPostFindingsIDAiOKFixedInKindFixed,
+		FindingsPostFindingsIDAiOKFixedInKindUpTo,
+		FindingsPostFindingsIDAiOKFixedInKindBranches,
+		FindingsPostFindingsIDAiOKFixedInKindDistro,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKFixedInKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKFixedInKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKFixedInKindBranches:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKFixedInKindDistro:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKFixedInKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKFixedInKind(data) {
+	case FindingsPostFindingsIDAiOKFixedInKindFixed:
+		*s = FindingsPostFindingsIDAiOKFixedInKindFixed
+		return nil
+	case FindingsPostFindingsIDAiOKFixedInKindUpTo:
+		*s = FindingsPostFindingsIDAiOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDAiOKFixedInKindBranches:
+		*s = FindingsPostFindingsIDAiOKFixedInKindBranches
+		return nil
+	case FindingsPostFindingsIDAiOKFixedInKindDistro:
+		*s = FindingsPostFindingsIDAiOKFixedInKindDistro
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAiOKHistoryItem struct {
@@ -56529,8 +60139,11 @@ type FindingsPostFindingsIDAppliedOK struct {
 	Cve        string                                       `json:"cve"`
 	Evidence   NilFindingsPostFindingsIDAppliedOKEvidence   `json:"evidence"`
 	FirstSeen  time.Time                                    `json:"first_seen"`
-	History    []FindingsPostFindingsIDAppliedOKHistoryItem `json:"history"`
-	ID         string                                       `json:"id"`
+	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
+	// NVD gives none, the page shows CISA and the vendor advisory only.
+	FixedIn NilFindingsPostFindingsIDAppliedOKFixedIn    `json:"fixed_in"`
+	History []FindingsPostFindingsIDAppliedOKHistoryItem `json:"history"`
+	ID      string                                       `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
 	Kev      NilFindingsPostFindingsIDAppliedOKKev `json:"kev"`
 	LastSeen time.Time                             `json:"last_seen"`
@@ -56597,6 +60210,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetEvidence() NilFindingsPostFindingsI
 // GetFirstSeen returns the value of FirstSeen.
 func (s *FindingsPostFindingsIDAppliedOK) GetFirstSeen() time.Time {
 	return s.FirstSeen
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDAppliedOK) GetFixedIn() NilFindingsPostFindingsIDAppliedOKFixedIn {
+	return s.FixedIn
 }
 
 // GetHistory returns the value of History.
@@ -56707,6 +60325,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetEvidence(val NilFindingsPostFinding
 // SetFirstSeen sets the value of FirstSeen.
 func (s *FindingsPostFindingsIDAppliedOK) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDAppliedOK) SetFixedIn(val NilFindingsPostFindingsIDAppliedOKFixedIn) {
+	s.FixedIn = val
 }
 
 // SetHistory sets the value of History.
@@ -57218,11 +60841,15 @@ func (s *FindingsPostFindingsIDAppliedOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDAppliedOKAsset struct {
-	Display  string                                   `json:"display"`
-	Hostname NilString                                `json:"hostname"`
-	ID       string                                   `json:"id"`
-	IP       string                                   `json:"ip"`
-	Kind     FindingsPostFindingsIDAppliedOKAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                   `json:"ip"`
+	Kind FindingsPostFindingsIDAppliedOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -57250,6 +60877,11 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) GetKind() FindingsPostFindingsIDA
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDAppliedOKAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsPostFindingsIDAppliedOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -57273,6 +60905,11 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsPostFindingsIDAppliedOKAsset) SetKind(val FindingsPostFindingsIDAppliedOKAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDAppliedOKAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsPostFindingsIDAppliedOKAssetKind string
@@ -57662,6 +61299,197 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsPostFindingsIDAppliedOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+type FindingsPostFindingsIDAppliedOKFixedIn struct {
+	// At most 5, newest first.
+	Branches []FindingsPostFindingsIDAppliedOKFixedInBranchesItem `json:"branches"`
+	// "Ubuntu" or "Debian" when the device runs one and the version has no distribution marker: the page
+	// adds "if you installed it from the distribution's packages, install its security updates instead";
+	// empty otherwise.
+	Distro string `json:"distro"`
+	// The fixed release (fixed), the last affected release (up_to); empty for branches.
+	Fixed string `json:"fixed"`
+	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+	// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+	// number is named.
+	Kind FindingsPostFindingsIDAppliedOKFixedInKind `json:"kind"`
+	// Release lines with a fix left out of branches.
+	More int `json:"more"`
+	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
+	NoFix int `json:"no_fix"`
+	// Where the versions come from: "NVD affected versions".
+	Source string `json:"source"`
+	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
+	Version string `json:"version"`
+}
+
+// GetBranches returns the value of Branches.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetBranches() []FindingsPostFindingsIDAppliedOKFixedInBranchesItem {
+	return s.Branches
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetDistro() string {
+	return s.Distro
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetFixed() string {
+	return s.Fixed
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetKind() FindingsPostFindingsIDAppliedOKFixedInKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetMore() int {
+	return s.More
+}
+
+// GetNoFix returns the value of NoFix.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetNoFix() int {
+	return s.NoFix
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetSource() string {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetVersion() string {
+	return s.Version
+}
+
+// SetBranches sets the value of Branches.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetBranches(val []FindingsPostFindingsIDAppliedOKFixedInBranchesItem) {
+	s.Branches = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetKind(val FindingsPostFindingsIDAppliedOKFixedInKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetMore(val int) {
+	s.More = val
+}
+
+// SetNoFix sets the value of NoFix.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetNoFix(val int) {
+	s.NoFix = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetSource(val string) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetVersion(val string) {
+	s.Version = val
+}
+
+type FindingsPostFindingsIDAppliedOKFixedInBranchesItem struct {
+	// Release line such as 7.4; empty when it cannot be told.
+	Branch string `json:"branch"`
+	Fixed  string `json:"fixed"`
+}
+
+// GetBranch returns the value of Branch.
+func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) GetBranch() string {
+	return s.Branch
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) GetFixed() string {
+	return s.Fixed
+}
+
+// SetBranch sets the value of Branch.
+func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) SetBranch(val string) {
+	s.Branch = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+// number is named.
+type FindingsPostFindingsIDAppliedOKFixedInKind string
+
+const (
+	FindingsPostFindingsIDAppliedOKFixedInKindFixed    FindingsPostFindingsIDAppliedOKFixedInKind = "fixed"
+	FindingsPostFindingsIDAppliedOKFixedInKindUpTo     FindingsPostFindingsIDAppliedOKFixedInKind = "up_to"
+	FindingsPostFindingsIDAppliedOKFixedInKindBranches FindingsPostFindingsIDAppliedOKFixedInKind = "branches"
+	FindingsPostFindingsIDAppliedOKFixedInKindDistro   FindingsPostFindingsIDAppliedOKFixedInKind = "distro"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKFixedInKind values.
+func (FindingsPostFindingsIDAppliedOKFixedInKind) AllValues() []FindingsPostFindingsIDAppliedOKFixedInKind {
+	return []FindingsPostFindingsIDAppliedOKFixedInKind{
+		FindingsPostFindingsIDAppliedOKFixedInKindFixed,
+		FindingsPostFindingsIDAppliedOKFixedInKindUpTo,
+		FindingsPostFindingsIDAppliedOKFixedInKindBranches,
+		FindingsPostFindingsIDAppliedOKFixedInKindDistro,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKFixedInKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKFixedInKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindBranches:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindDistro:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKFixedInKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKFixedInKind(data) {
+	case FindingsPostFindingsIDAppliedOKFixedInKindFixed:
+		*s = FindingsPostFindingsIDAppliedOKFixedInKindFixed
+		return nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindUpTo:
+		*s = FindingsPostFindingsIDAppliedOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindBranches:
+		*s = FindingsPostFindingsIDAppliedOKFixedInKindBranches
+		return nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindDistro:
+		*s = FindingsPostFindingsIDAppliedOKFixedInKindDistro
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAppliedOKHistoryItem struct {
@@ -58682,8 +62510,11 @@ type FindingsPostFindingsIDStatusOK struct {
 	Cve        string                                      `json:"cve"`
 	Evidence   NilFindingsPostFindingsIDStatusOKEvidence   `json:"evidence"`
 	FirstSeen  time.Time                                   `json:"first_seen"`
-	History    []FindingsPostFindingsIDStatusOKHistoryItem `json:"history"`
-	ID         string                                      `json:"id"`
+	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
+	// NVD gives none, the page shows CISA and the vendor advisory only.
+	FixedIn NilFindingsPostFindingsIDStatusOKFixedIn    `json:"fixed_in"`
+	History []FindingsPostFindingsIDStatusOKHistoryItem `json:"history"`
+	ID      string                                      `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
 	Kev      NilFindingsPostFindingsIDStatusOKKev `json:"kev"`
 	LastSeen time.Time                            `json:"last_seen"`
@@ -58750,6 +62581,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetEvidence() NilFindingsPostFindingsID
 // GetFirstSeen returns the value of FirstSeen.
 func (s *FindingsPostFindingsIDStatusOK) GetFirstSeen() time.Time {
 	return s.FirstSeen
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDStatusOK) GetFixedIn() NilFindingsPostFindingsIDStatusOKFixedIn {
+	return s.FixedIn
 }
 
 // GetHistory returns the value of History.
@@ -58860,6 +62696,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetEvidence(val NilFindingsPostFindings
 // SetFirstSeen sets the value of FirstSeen.
 func (s *FindingsPostFindingsIDStatusOK) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDStatusOK) SetFixedIn(val NilFindingsPostFindingsIDStatusOKFixedIn) {
+	s.FixedIn = val
 }
 
 // SetHistory sets the value of History.
@@ -59371,11 +63212,15 @@ func (s *FindingsPostFindingsIDStatusOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDStatusOKAsset struct {
-	Display  string                                  `json:"display"`
-	Hostname NilString                               `json:"hostname"`
-	ID       string                                  `json:"id"`
-	IP       string                                  `json:"ip"`
-	Kind     FindingsPostFindingsIDStatusOKAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                  `json:"ip"`
+	Kind FindingsPostFindingsIDStatusOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -59403,6 +63248,11 @@ func (s *FindingsPostFindingsIDStatusOKAsset) GetKind() FindingsPostFindingsIDSt
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDStatusOKAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsPostFindingsIDStatusOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -59426,6 +63276,11 @@ func (s *FindingsPostFindingsIDStatusOKAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsPostFindingsIDStatusOKAsset) SetKind(val FindingsPostFindingsIDStatusOKAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDStatusOKAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsPostFindingsIDStatusOKAssetKind string
@@ -59815,6 +63670,197 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsPostFindingsIDStatusOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+type FindingsPostFindingsIDStatusOKFixedIn struct {
+	// At most 5, newest first.
+	Branches []FindingsPostFindingsIDStatusOKFixedInBranchesItem `json:"branches"`
+	// "Ubuntu" or "Debian" when the device runs one and the version has no distribution marker: the page
+	// adds "if you installed it from the distribution's packages, install its security updates instead";
+	// empty otherwise.
+	Distro string `json:"distro"`
+	// The fixed release (fixed), the last affected release (up_to); empty for branches.
+	Fixed string `json:"fixed"`
+	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+	// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+	// number is named.
+	Kind FindingsPostFindingsIDStatusOKFixedInKind `json:"kind"`
+	// Release lines with a fix left out of branches.
+	More int `json:"more"`
+	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
+	NoFix int `json:"no_fix"`
+	// Where the versions come from: "NVD affected versions".
+	Source string `json:"source"`
+	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
+	Version string `json:"version"`
+}
+
+// GetBranches returns the value of Branches.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetBranches() []FindingsPostFindingsIDStatusOKFixedInBranchesItem {
+	return s.Branches
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetDistro() string {
+	return s.Distro
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetFixed() string {
+	return s.Fixed
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetKind() FindingsPostFindingsIDStatusOKFixedInKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetMore() int {
+	return s.More
+}
+
+// GetNoFix returns the value of NoFix.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetNoFix() int {
+	return s.NoFix
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetSource() string {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetVersion() string {
+	return s.Version
+}
+
+// SetBranches sets the value of Branches.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetBranches(val []FindingsPostFindingsIDStatusOKFixedInBranchesItem) {
+	s.Branches = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetKind(val FindingsPostFindingsIDStatusOKFixedInKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetMore(val int) {
+	s.More = val
+}
+
+// SetNoFix sets the value of NoFix.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetNoFix(val int) {
+	s.NoFix = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetSource(val string) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetVersion(val string) {
+	s.Version = val
+}
+
+type FindingsPostFindingsIDStatusOKFixedInBranchesItem struct {
+	// Release line such as 7.4; empty when it cannot be told.
+	Branch string `json:"branch"`
+	Fixed  string `json:"fixed"`
+}
+
+// GetBranch returns the value of Branch.
+func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) GetBranch() string {
+	return s.Branch
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) GetFixed() string {
+	return s.Fixed
+}
+
+// SetBranch sets the value of Branch.
+func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) SetBranch(val string) {
+	s.Branch = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
+// number is named.
+type FindingsPostFindingsIDStatusOKFixedInKind string
+
+const (
+	FindingsPostFindingsIDStatusOKFixedInKindFixed    FindingsPostFindingsIDStatusOKFixedInKind = "fixed"
+	FindingsPostFindingsIDStatusOKFixedInKindUpTo     FindingsPostFindingsIDStatusOKFixedInKind = "up_to"
+	FindingsPostFindingsIDStatusOKFixedInKindBranches FindingsPostFindingsIDStatusOKFixedInKind = "branches"
+	FindingsPostFindingsIDStatusOKFixedInKindDistro   FindingsPostFindingsIDStatusOKFixedInKind = "distro"
+)
+
+// AllValues returns all FindingsPostFindingsIDStatusOKFixedInKind values.
+func (FindingsPostFindingsIDStatusOKFixedInKind) AllValues() []FindingsPostFindingsIDStatusOKFixedInKind {
+	return []FindingsPostFindingsIDStatusOKFixedInKind{
+		FindingsPostFindingsIDStatusOKFixedInKindFixed,
+		FindingsPostFindingsIDStatusOKFixedInKindUpTo,
+		FindingsPostFindingsIDStatusOKFixedInKindBranches,
+		FindingsPostFindingsIDStatusOKFixedInKindDistro,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDStatusOKFixedInKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDStatusOKFixedInKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKFixedInKindBranches:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKFixedInKindDistro:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDStatusOKFixedInKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDStatusOKFixedInKind(data) {
+	case FindingsPostFindingsIDStatusOKFixedInKindFixed:
+		*s = FindingsPostFindingsIDStatusOKFixedInKindFixed
+		return nil
+	case FindingsPostFindingsIDStatusOKFixedInKindUpTo:
+		*s = FindingsPostFindingsIDStatusOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDStatusOKFixedInKindBranches:
+		*s = FindingsPostFindingsIDStatusOKFixedInKindBranches
+		return nil
+	case FindingsPostFindingsIDStatusOKFixedInKindDistro:
+		*s = FindingsPostFindingsIDStatusOKFixedInKindDistro
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDStatusOKHistoryItem struct {
@@ -60825,6 +64871,124 @@ func (s *FindingsPostFindingsIDStatusReqAction) UnmarshalText(data []byte) error
 		return nil
 	case FindingsPostFindingsIDStatusReqActionReopen:
 		*s = FindingsPostFindingsIDStatusReqActionReopen
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsStatusOK struct {
+	// Findings already closed, left as they were.
+	Skipped int `json:"skipped"`
+	// Open findings changed.
+	Updated int `json:"updated"`
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *FindingsPostFindingsStatusOK) GetSkipped() int {
+	return s.Skipped
+}
+
+// GetUpdated returns the value of Updated.
+func (s *FindingsPostFindingsStatusOK) GetUpdated() int {
+	return s.Updated
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *FindingsPostFindingsStatusOK) SetSkipped(val int) {
+	s.Skipped = val
+}
+
+// SetUpdated sets the value of Updated.
+func (s *FindingsPostFindingsStatusOK) SetUpdated(val int) {
+	s.Updated = val
+}
+
+type FindingsPostFindingsStatusReq struct {
+	Action FindingsPostFindingsStatusReqAction `json:"action"`
+	Ids    []string                            `json:"ids"`
+	Note   string                              `json:"note"`
+}
+
+// GetAction returns the value of Action.
+func (s *FindingsPostFindingsStatusReq) GetAction() FindingsPostFindingsStatusReqAction {
+	return s.Action
+}
+
+// GetIds returns the value of Ids.
+func (s *FindingsPostFindingsStatusReq) GetIds() []string {
+	return s.Ids
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsStatusReq) GetNote() string {
+	return s.Note
+}
+
+// SetAction sets the value of Action.
+func (s *FindingsPostFindingsStatusReq) SetAction(val FindingsPostFindingsStatusReqAction) {
+	s.Action = val
+}
+
+// SetIds sets the value of Ids.
+func (s *FindingsPostFindingsStatusReq) SetIds(val []string) {
+	s.Ids = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsStatusReq) SetNote(val string) {
+	s.Note = val
+}
+
+type FindingsPostFindingsStatusReqAction string
+
+const (
+	FindingsPostFindingsStatusReqActionPatched       FindingsPostFindingsStatusReqAction = "patched"
+	FindingsPostFindingsStatusReqActionMitigated     FindingsPostFindingsStatusReqAction = "mitigated"
+	FindingsPostFindingsStatusReqActionFalsePositive FindingsPostFindingsStatusReqAction = "false_positive"
+	FindingsPostFindingsStatusReqActionNotRelevant   FindingsPostFindingsStatusReqAction = "not_relevant"
+)
+
+// AllValues returns all FindingsPostFindingsStatusReqAction values.
+func (FindingsPostFindingsStatusReqAction) AllValues() []FindingsPostFindingsStatusReqAction {
+	return []FindingsPostFindingsStatusReqAction{
+		FindingsPostFindingsStatusReqActionPatched,
+		FindingsPostFindingsStatusReqActionMitigated,
+		FindingsPostFindingsStatusReqActionFalsePositive,
+		FindingsPostFindingsStatusReqActionNotRelevant,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsStatusReqAction) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsStatusReqActionPatched:
+		return []byte(s), nil
+	case FindingsPostFindingsStatusReqActionMitigated:
+		return []byte(s), nil
+	case FindingsPostFindingsStatusReqActionFalsePositive:
+		return []byte(s), nil
+	case FindingsPostFindingsStatusReqActionNotRelevant:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsStatusReqAction) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsStatusReqAction(data) {
+	case FindingsPostFindingsStatusReqActionPatched:
+		*s = FindingsPostFindingsStatusReqActionPatched
+		return nil
+	case FindingsPostFindingsStatusReqActionMitigated:
+		*s = FindingsPostFindingsStatusReqActionMitigated
+		return nil
+	case FindingsPostFindingsStatusReqActionFalsePositive:
+		*s = FindingsPostFindingsStatusReqActionFalsePositive
+		return nil
+	case FindingsPostFindingsStatusReqActionNotRelevant:
+		*s = FindingsPostFindingsStatusReqActionNotRelevant
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -69884,7 +74048,10 @@ type InventoryGetInventorySensorsOKSensorsItem struct {
 	// Live mirrored-traffic health, the same as Settings → Box network.
 	SpanStatus InventoryGetInventorySensorsOKSensorsItemSpanStatus `json:"span_status"`
 	// Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
-	// never_connected: no heartbeat ever (D-387).
+	// never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the
+	// sensor container (an appliance after setup or after the module is turned on: the start is being
+	// retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A
+	// container-only install never says starting: the customer starts it.
 	Status  InventoryGetInventorySensorsOKSensorsItemStatus `json:"status"`
 	Version NilString                                       `json:"version"`
 }
@@ -70164,13 +74331,17 @@ func (s *InventoryGetInventorySensorsOKSensorsItemSpanStatusVerdict) UnmarshalTe
 }
 
 // Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
-// never_connected: no heartbeat ever (D-387).
+// never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the
+// sensor container (an appliance after setup or after the module is turned on: the start is being
+// retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A
+// container-only install never says starting: the customer starts it.
 type InventoryGetInventorySensorsOKSensorsItemStatus string
 
 const (
 	InventoryGetInventorySensorsOKSensorsItemStatusOnline         InventoryGetInventorySensorsOKSensorsItemStatus = "online"
 	InventoryGetInventorySensorsOKSensorsItemStatusOffline        InventoryGetInventorySensorsOKSensorsItemStatus = "offline"
 	InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected InventoryGetInventorySensorsOKSensorsItemStatus = "never_connected"
+	InventoryGetInventorySensorsOKSensorsItemStatusStarting       InventoryGetInventorySensorsOKSensorsItemStatus = "starting"
 )
 
 // AllValues returns all InventoryGetInventorySensorsOKSensorsItemStatus values.
@@ -70179,6 +74350,7 @@ func (InventoryGetInventorySensorsOKSensorsItemStatus) AllValues() []InventoryGe
 		InventoryGetInventorySensorsOKSensorsItemStatusOnline,
 		InventoryGetInventorySensorsOKSensorsItemStatusOffline,
 		InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected,
+		InventoryGetInventorySensorsOKSensorsItemStatusStarting,
 	}
 }
 
@@ -70190,6 +74362,8 @@ func (s InventoryGetInventorySensorsOKSensorsItemStatus) MarshalText() ([]byte, 
 	case InventoryGetInventorySensorsOKSensorsItemStatusOffline:
 		return []byte(s), nil
 	case InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected:
+		return []byte(s), nil
+	case InventoryGetInventorySensorsOKSensorsItemStatusStarting:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -70207,6 +74381,9 @@ func (s *InventoryGetInventorySensorsOKSensorsItemStatus) UnmarshalText(data []b
 		return nil
 	case InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected:
 		*s = InventoryGetInventorySensorsOKSensorsItemStatusNeverConnected
+		return nil
+	case InventoryGetInventorySensorsOKSensorsItemStatusStarting:
+		*s = InventoryGetInventorySensorsOKSensorsItemStatusStarting
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -70849,7 +75026,10 @@ type InventoryPatchInventorySensorsIDOK struct {
 	// Live mirrored-traffic health, the same as Settings → Box network.
 	SpanStatus InventoryPatchInventorySensorsIDOKSpanStatus `json:"span_status"`
 	// Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
-	// never_connected: no heartbeat ever (D-387).
+	// never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the
+	// sensor container (an appliance after setup or after the module is turned on: the start is being
+	// retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A
+	// container-only install never says starting: the customer starts it.
 	Status  InventoryPatchInventorySensorsIDOKStatus `json:"status"`
 	Version NilString                                `json:"version"`
 }
@@ -71129,13 +75309,17 @@ func (s *InventoryPatchInventorySensorsIDOKSpanStatusVerdict) UnmarshalText(data
 }
 
 // Online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s;
-// never_connected: no heartbeat ever (D-387).
+// never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the
+// sensor container (an appliance after setup or after the module is turned on: the start is being
+// retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A
+// container-only install never says starting: the customer starts it.
 type InventoryPatchInventorySensorsIDOKStatus string
 
 const (
 	InventoryPatchInventorySensorsIDOKStatusOnline         InventoryPatchInventorySensorsIDOKStatus = "online"
 	InventoryPatchInventorySensorsIDOKStatusOffline        InventoryPatchInventorySensorsIDOKStatus = "offline"
 	InventoryPatchInventorySensorsIDOKStatusNeverConnected InventoryPatchInventorySensorsIDOKStatus = "never_connected"
+	InventoryPatchInventorySensorsIDOKStatusStarting       InventoryPatchInventorySensorsIDOKStatus = "starting"
 )
 
 // AllValues returns all InventoryPatchInventorySensorsIDOKStatus values.
@@ -71144,6 +75328,7 @@ func (InventoryPatchInventorySensorsIDOKStatus) AllValues() []InventoryPatchInve
 		InventoryPatchInventorySensorsIDOKStatusOnline,
 		InventoryPatchInventorySensorsIDOKStatusOffline,
 		InventoryPatchInventorySensorsIDOKStatusNeverConnected,
+		InventoryPatchInventorySensorsIDOKStatusStarting,
 	}
 }
 
@@ -71155,6 +75340,8 @@ func (s InventoryPatchInventorySensorsIDOKStatus) MarshalText() ([]byte, error) 
 	case InventoryPatchInventorySensorsIDOKStatusOffline:
 		return []byte(s), nil
 	case InventoryPatchInventorySensorsIDOKStatusNeverConnected:
+		return []byte(s), nil
+	case InventoryPatchInventorySensorsIDOKStatusStarting:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -71172,6 +75359,9 @@ func (s *InventoryPatchInventorySensorsIDOKStatus) UnmarshalText(data []byte) er
 		return nil
 	case InventoryPatchInventorySensorsIDOKStatusNeverConnected:
 		*s = InventoryPatchInventorySensorsIDOKStatusNeverConnected
+		return nil
+	case InventoryPatchInventorySensorsIDOKStatusStarting:
+		*s = InventoryPatchInventorySensorsIDOKStatusStarting
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -73860,11 +78050,29 @@ func (s *LogsGetLogsEventsOK) SetTotal(val int) {
 }
 
 type LogsGetLogsEventsOKEventsItem struct {
-	ID         string    `json:"id"`
-	Line       string    `json:"line"`
+	// The program the header names (sshd, CRON, …); null when it does not say.
+	App NilString `json:"app"`
+	// The sending host the syslog header names (RFC 5424 or 3164); null when it does not say (W1-22,
+	// D-485).
+	Host NilString `json:"host"`
+	ID   string    `json:"id"`
+	// The line as stored: what search and evidence use.
+	Line string `json:"line"`
+	// The line without its syslog header (no "<38>Nov 13 …"); the whole line when it has none.
+	Message    string    `json:"message"`
 	SourceID   string    `json:"source_id"`
 	SourceName string    `json:"source_name"`
 	Ts         time.Time `json:"ts"`
+}
+
+// GetApp returns the value of App.
+func (s *LogsGetLogsEventsOKEventsItem) GetApp() NilString {
+	return s.App
+}
+
+// GetHost returns the value of Host.
+func (s *LogsGetLogsEventsOKEventsItem) GetHost() NilString {
+	return s.Host
 }
 
 // GetID returns the value of ID.
@@ -73875,6 +78083,11 @@ func (s *LogsGetLogsEventsOKEventsItem) GetID() string {
 // GetLine returns the value of Line.
 func (s *LogsGetLogsEventsOKEventsItem) GetLine() string {
 	return s.Line
+}
+
+// GetMessage returns the value of Message.
+func (s *LogsGetLogsEventsOKEventsItem) GetMessage() string {
+	return s.Message
 }
 
 // GetSourceID returns the value of SourceID.
@@ -73892,6 +78105,16 @@ func (s *LogsGetLogsEventsOKEventsItem) GetTs() time.Time {
 	return s.Ts
 }
 
+// SetApp sets the value of App.
+func (s *LogsGetLogsEventsOKEventsItem) SetApp(val NilString) {
+	s.App = val
+}
+
+// SetHost sets the value of Host.
+func (s *LogsGetLogsEventsOKEventsItem) SetHost(val NilString) {
+	s.Host = val
+}
+
 // SetID sets the value of ID.
 func (s *LogsGetLogsEventsOKEventsItem) SetID(val string) {
 	s.ID = val
@@ -73900,6 +78123,11 @@ func (s *LogsGetLogsEventsOKEventsItem) SetID(val string) {
 // SetLine sets the value of Line.
 func (s *LogsGetLogsEventsOKEventsItem) SetLine(val string) {
 	s.Line = val
+}
+
+// SetMessage sets the value of Message.
+func (s *LogsGetLogsEventsOKEventsItem) SetMessage(val string) {
+	s.Message = val
 }
 
 // SetSourceID sets the value of SourceID.
@@ -79721,6 +83949,51 @@ func (o NilCorePostCoreConnectionsIDTestOKConnectorPin) Or(d CorePostCoreConnect
 	return d
 }
 
+// NewNilCorePostCoreNetworkBoxAddressForgetOKPending returns new NilCorePostCoreNetworkBoxAddressForgetOKPending with value set to v.
+func NewNilCorePostCoreNetworkBoxAddressForgetOKPending(v CorePostCoreNetworkBoxAddressForgetOKPending) NilCorePostCoreNetworkBoxAddressForgetOKPending {
+	return NilCorePostCoreNetworkBoxAddressForgetOKPending{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreNetworkBoxAddressForgetOKPending is nullable CorePostCoreNetworkBoxAddressForgetOKPending.
+type NilCorePostCoreNetworkBoxAddressForgetOKPending struct {
+	Value CorePostCoreNetworkBoxAddressForgetOKPending
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreNetworkBoxAddressForgetOKPending) SetTo(v CorePostCoreNetworkBoxAddressForgetOKPending) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreNetworkBoxAddressForgetOKPending) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreNetworkBoxAddressForgetOKPending) SetToNull() {
+	o.Null = true
+	var v CorePostCoreNetworkBoxAddressForgetOKPending
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreNetworkBoxAddressForgetOKPending) Get() (v CorePostCoreNetworkBoxAddressForgetOKPending, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreNetworkBoxAddressForgetOKPending) Or(d CorePostCoreNetworkBoxAddressForgetOKPending) CorePostCoreNetworkBoxAddressForgetOKPending {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCorePostCoreNetworkManagementConfirmOKPending returns new NilCorePostCoreNetworkManagementConfirmOKPending with value set to v.
 func NewNilCorePostCoreNetworkManagementConfirmOKPending(v CorePostCoreNetworkManagementConfirmOKPending) NilCorePostCoreNetworkManagementConfirmOKPending {
 	return NilCorePostCoreNetworkManagementConfirmOKPending{
@@ -80840,6 +85113,51 @@ func (o NilCorePutCoreConnectionsIDOKPin) Get() (v CorePutCoreConnectionsIDOKPin
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCorePutCoreConnectionsIDOKPin) Or(d CorePutCoreConnectionsIDOKPin) CorePutCoreConnectionsIDOKPin {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePutCoreNetworkBoxAddressOKPending returns new NilCorePutCoreNetworkBoxAddressOKPending with value set to v.
+func NewNilCorePutCoreNetworkBoxAddressOKPending(v CorePutCoreNetworkBoxAddressOKPending) NilCorePutCoreNetworkBoxAddressOKPending {
+	return NilCorePutCoreNetworkBoxAddressOKPending{
+		Value: v,
+	}
+}
+
+// NilCorePutCoreNetworkBoxAddressOKPending is nullable CorePutCoreNetworkBoxAddressOKPending.
+type NilCorePutCoreNetworkBoxAddressOKPending struct {
+	Value CorePutCoreNetworkBoxAddressOKPending
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePutCoreNetworkBoxAddressOKPending) SetTo(v CorePutCoreNetworkBoxAddressOKPending) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePutCoreNetworkBoxAddressOKPending) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePutCoreNetworkBoxAddressOKPending) SetToNull() {
+	o.Null = true
+	var v CorePutCoreNetworkBoxAddressOKPending
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePutCoreNetworkBoxAddressOKPending) Get() (v CorePutCoreNetworkBoxAddressOKPending, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePutCoreNetworkBoxAddressOKPending) Or(d CorePutCoreNetworkBoxAddressOKPending) CorePutCoreNetworkBoxAddressOKPending {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -83546,6 +87864,51 @@ func (o NilFindingsGetFindingsIDOKEvidence) Or(d FindingsGetFindingsIDOKEvidence
 	return d
 }
 
+// NewNilFindingsGetFindingsIDOKFixedIn returns new NilFindingsGetFindingsIDOKFixedIn with value set to v.
+func NewNilFindingsGetFindingsIDOKFixedIn(v FindingsGetFindingsIDOKFixedIn) NilFindingsGetFindingsIDOKFixedIn {
+	return NilFindingsGetFindingsIDOKFixedIn{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsIDOKFixedIn is nullable FindingsGetFindingsIDOKFixedIn.
+type NilFindingsGetFindingsIDOKFixedIn struct {
+	Value FindingsGetFindingsIDOKFixedIn
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsIDOKFixedIn) SetTo(v FindingsGetFindingsIDOKFixedIn) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsIDOKFixedIn) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsIDOKFixedIn) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsIDOKFixedIn
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsIDOKFixedIn) Get() (v FindingsGetFindingsIDOKFixedIn, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsIDOKFixedIn) Or(d FindingsGetFindingsIDOKFixedIn) FindingsGetFindingsIDOKFixedIn {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsIDOKKev returns new NilFindingsGetFindingsIDOKKev with value set to v.
 func NewNilFindingsGetFindingsIDOKKev(v FindingsGetFindingsIDOKKev) NilFindingsGetFindingsIDOKKev {
 	return NilFindingsGetFindingsIDOKKev{
@@ -83771,6 +88134,51 @@ func (o NilFindingsGetFindingsOKItemsItemKev) Or(d FindingsGetFindingsOKItemsIte
 	return d
 }
 
+// NewNilFindingsGetFindingsOKVersionNeededItemAsset returns new NilFindingsGetFindingsOKVersionNeededItemAsset with value set to v.
+func NewNilFindingsGetFindingsOKVersionNeededItemAsset(v FindingsGetFindingsOKVersionNeededItemAsset) NilFindingsGetFindingsOKVersionNeededItemAsset {
+	return NilFindingsGetFindingsOKVersionNeededItemAsset{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsOKVersionNeededItemAsset is nullable FindingsGetFindingsOKVersionNeededItemAsset.
+type NilFindingsGetFindingsOKVersionNeededItemAsset struct {
+	Value FindingsGetFindingsOKVersionNeededItemAsset
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsOKVersionNeededItemAsset) SetTo(v FindingsGetFindingsOKVersionNeededItemAsset) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsOKVersionNeededItemAsset) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsOKVersionNeededItemAsset) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsOKVersionNeededItemAsset
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsOKVersionNeededItemAsset) Get() (v FindingsGetFindingsOKVersionNeededItemAsset, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsOKVersionNeededItemAsset) Or(d FindingsGetFindingsOKVersionNeededItemAsset) FindingsGetFindingsOKVersionNeededItemAsset {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAiOKAiConfig returns new NilFindingsPostFindingsIDAiOKAiConfig with value set to v.
 func NewNilFindingsPostFindingsIDAiOKAiConfig(v FindingsPostFindingsIDAiOKAiConfig) NilFindingsPostFindingsIDAiOKAiConfig {
 	return NilFindingsPostFindingsIDAiOKAiConfig{
@@ -83990,6 +88398,51 @@ func (o NilFindingsPostFindingsIDAiOKEvidence) Get() (v FindingsPostFindingsIDAi
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsPostFindingsIDAiOKEvidence) Or(d FindingsPostFindingsIDAiOKEvidence) FindingsPostFindingsIDAiOKEvidence {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDAiOKFixedIn returns new NilFindingsPostFindingsIDAiOKFixedIn with value set to v.
+func NewNilFindingsPostFindingsIDAiOKFixedIn(v FindingsPostFindingsIDAiOKFixedIn) NilFindingsPostFindingsIDAiOKFixedIn {
+	return NilFindingsPostFindingsIDAiOKFixedIn{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDAiOKFixedIn is nullable FindingsPostFindingsIDAiOKFixedIn.
+type NilFindingsPostFindingsIDAiOKFixedIn struct {
+	Value FindingsPostFindingsIDAiOKFixedIn
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDAiOKFixedIn) SetTo(v FindingsPostFindingsIDAiOKFixedIn) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDAiOKFixedIn) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDAiOKFixedIn) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDAiOKFixedIn
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDAiOKFixedIn) Get() (v FindingsPostFindingsIDAiOKFixedIn, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDAiOKFixedIn) Or(d FindingsPostFindingsIDAiOKFixedIn) FindingsPostFindingsIDAiOKFixedIn {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -84311,6 +88764,51 @@ func (o NilFindingsPostFindingsIDAppliedOKEvidence) Or(d FindingsPostFindingsIDA
 	return d
 }
 
+// NewNilFindingsPostFindingsIDAppliedOKFixedIn returns new NilFindingsPostFindingsIDAppliedOKFixedIn with value set to v.
+func NewNilFindingsPostFindingsIDAppliedOKFixedIn(v FindingsPostFindingsIDAppliedOKFixedIn) NilFindingsPostFindingsIDAppliedOKFixedIn {
+	return NilFindingsPostFindingsIDAppliedOKFixedIn{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDAppliedOKFixedIn is nullable FindingsPostFindingsIDAppliedOKFixedIn.
+type NilFindingsPostFindingsIDAppliedOKFixedIn struct {
+	Value FindingsPostFindingsIDAppliedOKFixedIn
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDAppliedOKFixedIn) SetTo(v FindingsPostFindingsIDAppliedOKFixedIn) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDAppliedOKFixedIn) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDAppliedOKFixedIn) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDAppliedOKFixedIn
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDAppliedOKFixedIn) Get() (v FindingsPostFindingsIDAppliedOKFixedIn, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDAppliedOKFixedIn) Or(d FindingsPostFindingsIDAppliedOKFixedIn) FindingsPostFindingsIDAppliedOKFixedIn {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAppliedOKKev returns new NilFindingsPostFindingsIDAppliedOKKev with value set to v.
 func NewNilFindingsPostFindingsIDAppliedOKKev(v FindingsPostFindingsIDAppliedOKKev) NilFindingsPostFindingsIDAppliedOKKev {
 	return NilFindingsPostFindingsIDAppliedOKKev{
@@ -84620,6 +89118,51 @@ func (o NilFindingsPostFindingsIDStatusOKEvidence) Get() (v FindingsPostFindings
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsPostFindingsIDStatusOKEvidence) Or(d FindingsPostFindingsIDStatusOKEvidence) FindingsPostFindingsIDStatusOKEvidence {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDStatusOKFixedIn returns new NilFindingsPostFindingsIDStatusOKFixedIn with value set to v.
+func NewNilFindingsPostFindingsIDStatusOKFixedIn(v FindingsPostFindingsIDStatusOKFixedIn) NilFindingsPostFindingsIDStatusOKFixedIn {
+	return NilFindingsPostFindingsIDStatusOKFixedIn{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDStatusOKFixedIn is nullable FindingsPostFindingsIDStatusOKFixedIn.
+type NilFindingsPostFindingsIDStatusOKFixedIn struct {
+	Value FindingsPostFindingsIDStatusOKFixedIn
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDStatusOKFixedIn) SetTo(v FindingsPostFindingsIDStatusOKFixedIn) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDStatusOKFixedIn) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDStatusOKFixedIn) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDStatusOKFixedIn
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDStatusOKFixedIn) Get() (v FindingsPostFindingsIDStatusOKFixedIn, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDStatusOKFixedIn) Or(d FindingsPostFindingsIDStatusOKFixedIn) FindingsPostFindingsIDStatusOKFixedIn {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -89424,6 +93967,51 @@ func (o NilScanGetScansRunsOKItemsItemCurrent) Or(d ScanGetScansRunsOKItemsItemC
 	return d
 }
 
+// NewNilScanGetScansRunsOKItemsItemIdentificationItemReason returns new NilScanGetScansRunsOKItemsItemIdentificationItemReason with value set to v.
+func NewNilScanGetScansRunsOKItemsItemIdentificationItemReason(v ScanGetScansRunsOKItemsItemIdentificationItemReason) NilScanGetScansRunsOKItemsItemIdentificationItemReason {
+	return NilScanGetScansRunsOKItemsItemIdentificationItemReason{
+		Value: v,
+	}
+}
+
+// NilScanGetScansRunsOKItemsItemIdentificationItemReason is nullable ScanGetScansRunsOKItemsItemIdentificationItemReason.
+type NilScanGetScansRunsOKItemsItemIdentificationItemReason struct {
+	Value ScanGetScansRunsOKItemsItemIdentificationItemReason
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanGetScansRunsOKItemsItemIdentificationItemReason) SetTo(v ScanGetScansRunsOKItemsItemIdentificationItemReason) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanGetScansRunsOKItemsItemIdentificationItemReason) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanGetScansRunsOKItemsItemIdentificationItemReason) SetToNull() {
+	o.Null = true
+	var v ScanGetScansRunsOKItemsItemIdentificationItemReason
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanGetScansRunsOKItemsItemIdentificationItemReason) Get() (v ScanGetScansRunsOKItemsItemIdentificationItemReason, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanGetScansRunsOKItemsItemIdentificationItemReason) Or(d ScanGetScansRunsOKItemsItemIdentificationItemReason) ScanGetScansRunsOKItemsItemIdentificationItemReason {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilScanGetScansTargetsOKItemsItemDeviceKind returns new NilScanGetScansTargetsOKItemsItemDeviceKind with value set to v.
 func NewNilScanGetScansTargetsOKItemsItemDeviceKind(v ScanGetScansTargetsOKItemsItemDeviceKind) NilScanGetScansTargetsOKItemsItemDeviceKind {
 	return NilScanGetScansTargetsOKItemsItemDeviceKind{
@@ -89649,6 +94237,51 @@ func (o NilScanPostScansRunsCreatedCurrent) Or(d ScanPostScansRunsCreatedCurrent
 	return d
 }
 
+// NewNilScanPostScansRunsCreatedIdentificationItemReason returns new NilScanPostScansRunsCreatedIdentificationItemReason with value set to v.
+func NewNilScanPostScansRunsCreatedIdentificationItemReason(v ScanPostScansRunsCreatedIdentificationItemReason) NilScanPostScansRunsCreatedIdentificationItemReason {
+	return NilScanPostScansRunsCreatedIdentificationItemReason{
+		Value: v,
+	}
+}
+
+// NilScanPostScansRunsCreatedIdentificationItemReason is nullable ScanPostScansRunsCreatedIdentificationItemReason.
+type NilScanPostScansRunsCreatedIdentificationItemReason struct {
+	Value ScanPostScansRunsCreatedIdentificationItemReason
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanPostScansRunsCreatedIdentificationItemReason) SetTo(v ScanPostScansRunsCreatedIdentificationItemReason) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanPostScansRunsCreatedIdentificationItemReason) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanPostScansRunsCreatedIdentificationItemReason) SetToNull() {
+	o.Null = true
+	var v ScanPostScansRunsCreatedIdentificationItemReason
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanPostScansRunsCreatedIdentificationItemReason) Get() (v ScanPostScansRunsCreatedIdentificationItemReason, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanPostScansRunsCreatedIdentificationItemReason) Or(d ScanPostScansRunsCreatedIdentificationItemReason) ScanPostScansRunsCreatedIdentificationItemReason {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilScanPostScansRunsIDStopOKCurrent returns new NilScanPostScansRunsIDStopOKCurrent with value set to v.
 func NewNilScanPostScansRunsIDStopOKCurrent(v ScanPostScansRunsIDStopOKCurrent) NilScanPostScansRunsIDStopOKCurrent {
 	return NilScanPostScansRunsIDStopOKCurrent{
@@ -89688,6 +94321,51 @@ func (o NilScanPostScansRunsIDStopOKCurrent) Get() (v ScanPostScansRunsIDStopOKC
 
 // Or returns value if set, or given parameter if does not.
 func (o NilScanPostScansRunsIDStopOKCurrent) Or(d ScanPostScansRunsIDStopOKCurrent) ScanPostScansRunsIDStopOKCurrent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanPostScansRunsIDStopOKIdentificationItemReason returns new NilScanPostScansRunsIDStopOKIdentificationItemReason with value set to v.
+func NewNilScanPostScansRunsIDStopOKIdentificationItemReason(v ScanPostScansRunsIDStopOKIdentificationItemReason) NilScanPostScansRunsIDStopOKIdentificationItemReason {
+	return NilScanPostScansRunsIDStopOKIdentificationItemReason{
+		Value: v,
+	}
+}
+
+// NilScanPostScansRunsIDStopOKIdentificationItemReason is nullable ScanPostScansRunsIDStopOKIdentificationItemReason.
+type NilScanPostScansRunsIDStopOKIdentificationItemReason struct {
+	Value ScanPostScansRunsIDStopOKIdentificationItemReason
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanPostScansRunsIDStopOKIdentificationItemReason) SetTo(v ScanPostScansRunsIDStopOKIdentificationItemReason) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanPostScansRunsIDStopOKIdentificationItemReason) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanPostScansRunsIDStopOKIdentificationItemReason) SetToNull() {
+	o.Null = true
+	var v ScanPostScansRunsIDStopOKIdentificationItemReason
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanPostScansRunsIDStopOKIdentificationItemReason) Get() (v ScanPostScansRunsIDStopOKIdentificationItemReason, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanPostScansRunsIDStopOKIdentificationItemReason) Or(d ScanPostScansRunsIDStopOKIdentificationItemReason) ScanPostScansRunsIDStopOKIdentificationItemReason {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -89931,10 +94609,11 @@ type NotifyGetNotifyChannelsOKChannelsItem struct {
 	Approvers  []NotifyGetNotifyChannelsOKChannelsItemApproversItem `json:"approvers"`
 	Configured bool                                                 `json:"configured"`
 	Enabled    bool                                                 `json:"enabled"`
-	// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-	// or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
-	// the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
-	// email provider (preset, D-449:
+	// Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the
+	// refresh-token flow, D-483; absent for a channel with only an access token) · zalo-personal user_id
+	// (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
+	// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the
+	// session is the secret) · email provider (preset, D-449:
 	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
 	// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
 	// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
@@ -90117,10 +94796,11 @@ func (s *NotifyGetNotifyChannelsOKChannelsItemApproversItem) SetUserID(val strin
 	s.UserID = val
 }
 
-// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-// or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
-// the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
-// email provider (preset, D-449:
+// Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the
+// refresh-token flow, D-483; absent for a channel with only an access token) · zalo-personal user_id
+// (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
+// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the
+// session is the secret) · email provider (preset, D-449:
 // custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
 // D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
 // host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
@@ -90407,10 +95087,13 @@ func (s *NotifyGetNotifyFindingsIDNoticesOK) SetSends(val []NotifyGetNotifyFindi
 type NotifyGetNotifyFindingsIDNoticesOKSendsItem struct {
 	At      time.Time                                          `json:"at"`
 	Channel NotifyGetNotifyFindingsIDNoticesOKSendsItemChannel `json:"channel"`
-	Error   OptString                                          `json:"error"`
-	ID      string                                             `json:"id"`
-	Ok      bool                                               `json:"ok"`
-	To      string                                             `json:"to"`
+	// The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent
+	// again by itself; not a failure, no Resend (D-483).
+	Delayed bool      `json:"delayed"`
+	Error   OptString `json:"error"`
+	ID      string    `json:"id"`
+	Ok      bool      `json:"ok"`
+	To      string    `json:"to"`
 }
 
 // GetAt returns the value of At.
@@ -90421,6 +95104,11 @@ func (s *NotifyGetNotifyFindingsIDNoticesOKSendsItem) GetAt() time.Time {
 // GetChannel returns the value of Channel.
 func (s *NotifyGetNotifyFindingsIDNoticesOKSendsItem) GetChannel() NotifyGetNotifyFindingsIDNoticesOKSendsItemChannel {
 	return s.Channel
+}
+
+// GetDelayed returns the value of Delayed.
+func (s *NotifyGetNotifyFindingsIDNoticesOKSendsItem) GetDelayed() bool {
+	return s.Delayed
 }
 
 // GetError returns the value of Error.
@@ -90451,6 +95139,11 @@ func (s *NotifyGetNotifyFindingsIDNoticesOKSendsItem) SetAt(val time.Time) {
 // SetChannel sets the value of Channel.
 func (s *NotifyGetNotifyFindingsIDNoticesOKSendsItem) SetChannel(val NotifyGetNotifyFindingsIDNoticesOKSendsItemChannel) {
 	s.Channel = val
+}
+
+// SetDelayed sets the value of Delayed.
+func (s *NotifyGetNotifyFindingsIDNoticesOKSendsItem) SetDelayed(val bool) {
+	s.Delayed = val
 }
 
 // SetError sets the value of Error.
@@ -90570,13 +95263,16 @@ func (s *NotifyGetNotifyHistoryOK) SetSuppressed(val NotifyGetNotifyHistoryOKSup
 type NotifyGetNotifyHistoryOKItemsItem struct {
 	At      time.Time                                `json:"at"`
 	Channel NotifyGetNotifyHistoryOKItemsItemChannel `json:"channel"`
-	Error   OptString                                `json:"error"`
-	ID      string                                   `json:"id"`
-	Kind    NotifyGetNotifyHistoryOKItemsItemKind    `json:"kind"`
-	Link    string                                   `json:"link"`
-	Ok      bool                                     `json:"ok"`
-	To      string                                   `json:"to"`
-	What    string                                   `json:"what"`
+	// A "Delayed (rate limited)" row: the message is sent again by itself after the wait the provider
+	// asked for (D-483).
+	Delayed bool                                  `json:"delayed"`
+	Error   OptString                             `json:"error"`
+	ID      string                                `json:"id"`
+	Kind    NotifyGetNotifyHistoryOKItemsItemKind `json:"kind"`
+	Link    string                                `json:"link"`
+	Ok      bool                                  `json:"ok"`
+	To      string                                `json:"to"`
+	What    string                                `json:"what"`
 }
 
 // GetAt returns the value of At.
@@ -90587,6 +95283,11 @@ func (s *NotifyGetNotifyHistoryOKItemsItem) GetAt() time.Time {
 // GetChannel returns the value of Channel.
 func (s *NotifyGetNotifyHistoryOKItemsItem) GetChannel() NotifyGetNotifyHistoryOKItemsItemChannel {
 	return s.Channel
+}
+
+// GetDelayed returns the value of Delayed.
+func (s *NotifyGetNotifyHistoryOKItemsItem) GetDelayed() bool {
+	return s.Delayed
 }
 
 // GetError returns the value of Error.
@@ -90632,6 +95333,11 @@ func (s *NotifyGetNotifyHistoryOKItemsItem) SetAt(val time.Time) {
 // SetChannel sets the value of Channel.
 func (s *NotifyGetNotifyHistoryOKItemsItem) SetChannel(val NotifyGetNotifyHistoryOKItemsItemChannel) {
 	s.Channel = val
+}
+
+// SetDelayed sets the value of Delayed.
+func (s *NotifyGetNotifyHistoryOKItemsItem) SetDelayed(val bool) {
+	s.Delayed = val
 }
 
 // SetError sets the value of Error.
@@ -91116,10 +95822,13 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentKind) UnmarshalText(data []byte) er
 type NotifyGetNotifyIncidentsIDOKIncidentSendsItem struct {
 	At      time.Time                                            `json:"at"`
 	Channel NotifyGetNotifyIncidentsIDOKIncidentSendsItemChannel `json:"channel"`
-	Error   OptString                                            `json:"error"`
-	ID      string                                               `json:"id"`
-	Ok      bool                                                 `json:"ok"`
-	To      string                                               `json:"to"`
+	// The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent
+	// again by itself; not a failure, no Resend (D-483).
+	Delayed bool      `json:"delayed"`
+	Error   OptString `json:"error"`
+	ID      string    `json:"id"`
+	Ok      bool      `json:"ok"`
+	To      string    `json:"to"`
 }
 
 // GetAt returns the value of At.
@@ -91130,6 +95839,11 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentSendsItem) GetAt() time.Time {
 // GetChannel returns the value of Channel.
 func (s *NotifyGetNotifyIncidentsIDOKIncidentSendsItem) GetChannel() NotifyGetNotifyIncidentsIDOKIncidentSendsItemChannel {
 	return s.Channel
+}
+
+// GetDelayed returns the value of Delayed.
+func (s *NotifyGetNotifyIncidentsIDOKIncidentSendsItem) GetDelayed() bool {
+	return s.Delayed
 }
 
 // GetError returns the value of Error.
@@ -91160,6 +95874,11 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentSendsItem) SetAt(val time.Time) {
 // SetChannel sets the value of Channel.
 func (s *NotifyGetNotifyIncidentsIDOKIncidentSendsItem) SetChannel(val NotifyGetNotifyIncidentsIDOKIncidentSendsItemChannel) {
 	s.Channel = val
+}
+
+// SetDelayed sets the value of Delayed.
+func (s *NotifyGetNotifyIncidentsIDOKIncidentSendsItem) SetDelayed(val bool) {
+	s.Delayed = val
 }
 
 // SetError sets the value of Error.
@@ -91760,10 +96479,13 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemKind) UnmarshalText(data []byte)
 type NotifyGetNotifyIncidentsOKIncidentsItemSendsItem struct {
 	At      time.Time                                               `json:"at"`
 	Channel NotifyGetNotifyIncidentsOKIncidentsItemSendsItemChannel `json:"channel"`
-	Error   OptString                                               `json:"error"`
-	ID      string                                                  `json:"id"`
-	Ok      bool                                                    `json:"ok"`
-	To      string                                                  `json:"to"`
+	// The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent
+	// again by itself; not a failure, no Resend (D-483).
+	Delayed bool      `json:"delayed"`
+	Error   OptString `json:"error"`
+	ID      string    `json:"id"`
+	Ok      bool      `json:"ok"`
+	To      string    `json:"to"`
 }
 
 // GetAt returns the value of At.
@@ -91774,6 +96496,11 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemSendsItem) GetAt() time.Time {
 // GetChannel returns the value of Channel.
 func (s *NotifyGetNotifyIncidentsOKIncidentsItemSendsItem) GetChannel() NotifyGetNotifyIncidentsOKIncidentsItemSendsItemChannel {
 	return s.Channel
+}
+
+// GetDelayed returns the value of Delayed.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItemSendsItem) GetDelayed() bool {
+	return s.Delayed
 }
 
 // GetError returns the value of Error.
@@ -91804,6 +96531,11 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemSendsItem) SetAt(val time.Time) 
 // SetChannel sets the value of Channel.
 func (s *NotifyGetNotifyIncidentsOKIncidentsItemSendsItem) SetChannel(val NotifyGetNotifyIncidentsOKIncidentsItemSendsItemChannel) {
 	s.Channel = val
+}
+
+// SetDelayed sets the value of Delayed.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItemSendsItem) SetDelayed(val bool) {
+	s.Delayed = val
 }
 
 // SetError sets the value of Error.
@@ -91999,6 +96731,183 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemStatus) UnmarshalText(data []byt
 		return nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemStatusResolved:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemStatusResolved
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyGetNotifyTelegramApproversOK struct {
+	Items []NotifyGetNotifyTelegramApproversOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *NotifyGetNotifyTelegramApproversOK) GetItems() []NotifyGetNotifyTelegramApproversOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *NotifyGetNotifyTelegramApproversOK) SetItems(val []NotifyGetNotifyTelegramApproversOKItemsItem) {
+	s.Items = val
+}
+
+type NotifyGetNotifyTelegramApproversOKItemsItem struct {
+	Address string `json:"address"`
+	// The address is the box's own signed-in Zalo account (the QR sign-in proved it); only your own row
+	// with it skips the message.
+	BoxAccount bool `json:"box_account"`
+	// Not_sent: why (failed, expired, or no link made).
+	Error string `json:"error"`
+	// Only in the answer of POST …/code for your own row with the box's own account: the confirm page
+	// (/link/zalo?c=…) to open in this session; any other Zalo gets the link by message.
+	Link OptString `json:"link"`
+	Name string    `json:"name"`
+	// The administrator asking.
+	Self   bool                                             `json:"self"`
+	SentAt NilDateTime                                      `json:"sent_at"`
+	State  NotifyGetNotifyTelegramApproversOKItemsItemState `json:"state"`
+	UserID string                                           `json:"user_id"`
+}
+
+// GetAddress returns the value of Address.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetAddress() string {
+	return s.Address
+}
+
+// GetBoxAccount returns the value of BoxAccount.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetBoxAccount() bool {
+	return s.BoxAccount
+}
+
+// GetError returns the value of Error.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetError() string {
+	return s.Error
+}
+
+// GetLink returns the value of Link.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetLink() OptString {
+	return s.Link
+}
+
+// GetName returns the value of Name.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetName() string {
+	return s.Name
+}
+
+// GetSelf returns the value of Self.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetSelf() bool {
+	return s.Self
+}
+
+// GetSentAt returns the value of SentAt.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetSentAt() NilDateTime {
+	return s.SentAt
+}
+
+// GetState returns the value of State.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetState() NotifyGetNotifyTelegramApproversOKItemsItemState {
+	return s.State
+}
+
+// GetUserID returns the value of UserID.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetUserID() string {
+	return s.UserID
+}
+
+// SetAddress sets the value of Address.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetBoxAccount sets the value of BoxAccount.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetBoxAccount(val bool) {
+	s.BoxAccount = val
+}
+
+// SetError sets the value of Error.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetError(val string) {
+	s.Error = val
+}
+
+// SetLink sets the value of Link.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetLink(val OptString) {
+	s.Link = val
+}
+
+// SetName sets the value of Name.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetSelf sets the value of Self.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetSelf(val bool) {
+	s.Self = val
+}
+
+// SetSentAt sets the value of SentAt.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetSentAt(val NilDateTime) {
+	s.SentAt = val
+}
+
+// SetState sets the value of State.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetState(val NotifyGetNotifyTelegramApproversOKItemsItemState) {
+	s.State = val
+}
+
+// SetUserID sets the value of UserID.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetUserID(val string) {
+	s.UserID = val
+}
+
+type NotifyGetNotifyTelegramApproversOKItemsItemState string
+
+const (
+	NotifyGetNotifyTelegramApproversOKItemsItemStateLinked  NotifyGetNotifyTelegramApproversOKItemsItemState = "linked"
+	NotifyGetNotifyTelegramApproversOKItemsItemStateSending NotifyGetNotifyTelegramApproversOKItemsItemState = "sending"
+	NotifyGetNotifyTelegramApproversOKItemsItemStateWaiting NotifyGetNotifyTelegramApproversOKItemsItemState = "waiting"
+	NotifyGetNotifyTelegramApproversOKItemsItemStateNotSent NotifyGetNotifyTelegramApproversOKItemsItemState = "not_sent"
+)
+
+// AllValues returns all NotifyGetNotifyTelegramApproversOKItemsItemState values.
+func (NotifyGetNotifyTelegramApproversOKItemsItemState) AllValues() []NotifyGetNotifyTelegramApproversOKItemsItemState {
+	return []NotifyGetNotifyTelegramApproversOKItemsItemState{
+		NotifyGetNotifyTelegramApproversOKItemsItemStateLinked,
+		NotifyGetNotifyTelegramApproversOKItemsItemStateSending,
+		NotifyGetNotifyTelegramApproversOKItemsItemStateWaiting,
+		NotifyGetNotifyTelegramApproversOKItemsItemStateNotSent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyGetNotifyTelegramApproversOKItemsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateLinked:
+		return []byte(s), nil
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateSending:
+		return []byte(s), nil
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateWaiting:
+		return []byte(s), nil
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateNotSent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItemState) UnmarshalText(data []byte) error {
+	switch NotifyGetNotifyTelegramApproversOKItemsItemState(data) {
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateLinked:
+		*s = NotifyGetNotifyTelegramApproversOKItemsItemStateLinked
+		return nil
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateSending:
+		*s = NotifyGetNotifyTelegramApproversOKItemsItemStateSending
+		return nil
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateWaiting:
+		*s = NotifyGetNotifyTelegramApproversOKItemsItemStateWaiting
+		return nil
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateNotSent:
+		*s = NotifyGetNotifyTelegramApproversOKItemsItemStateNotSent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -92774,10 +97683,13 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentKind) UnmarshalText(data []byte) 
 type NotifyPatchNotifyIncidentsIDOKIncidentSendsItem struct {
 	At      time.Time                                              `json:"at"`
 	Channel NotifyPatchNotifyIncidentsIDOKIncidentSendsItemChannel `json:"channel"`
-	Error   OptString                                              `json:"error"`
-	ID      string                                                 `json:"id"`
-	Ok      bool                                                   `json:"ok"`
-	To      string                                                 `json:"to"`
+	// The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent
+	// again by itself; not a failure, no Resend (D-483).
+	Delayed bool      `json:"delayed"`
+	Error   OptString `json:"error"`
+	ID      string    `json:"id"`
+	Ok      bool      `json:"ok"`
+	To      string    `json:"to"`
 }
 
 // GetAt returns the value of At.
@@ -92788,6 +97700,11 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentSendsItem) GetAt() time.Time {
 // GetChannel returns the value of Channel.
 func (s *NotifyPatchNotifyIncidentsIDOKIncidentSendsItem) GetChannel() NotifyPatchNotifyIncidentsIDOKIncidentSendsItemChannel {
 	return s.Channel
+}
+
+// GetDelayed returns the value of Delayed.
+func (s *NotifyPatchNotifyIncidentsIDOKIncidentSendsItem) GetDelayed() bool {
+	return s.Delayed
 }
 
 // GetError returns the value of Error.
@@ -92818,6 +97735,11 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentSendsItem) SetAt(val time.Time) {
 // SetChannel sets the value of Channel.
 func (s *NotifyPatchNotifyIncidentsIDOKIncidentSendsItem) SetChannel(val NotifyPatchNotifyIncidentsIDOKIncidentSendsItemChannel) {
 	s.Channel = val
+}
+
+// SetDelayed sets the value of Delayed.
+func (s *NotifyPatchNotifyIncidentsIDOKIncidentSendsItem) SetDelayed(val bool) {
+	s.Delayed = val
 }
 
 // SetError sets the value of Error.
@@ -93945,13 +98867,16 @@ func (s *NotifyPostNotifyEmailSigninReqProvider) UnmarshalText(data []byte) erro
 type NotifyPostNotifyHistoryIDResendOK struct {
 	At      time.Time                                `json:"at"`
 	Channel NotifyPostNotifyHistoryIDResendOKChannel `json:"channel"`
-	Error   OptString                                `json:"error"`
-	ID      string                                   `json:"id"`
-	Kind    NotifyPostNotifyHistoryIDResendOKKind    `json:"kind"`
-	Link    string                                   `json:"link"`
-	Ok      bool                                     `json:"ok"`
-	To      string                                   `json:"to"`
-	What    string                                   `json:"what"`
+	// A "Delayed (rate limited)" row: the message is sent again by itself after the wait the provider
+	// asked for (D-483).
+	Delayed bool                                  `json:"delayed"`
+	Error   OptString                             `json:"error"`
+	ID      string                                `json:"id"`
+	Kind    NotifyPostNotifyHistoryIDResendOKKind `json:"kind"`
+	Link    string                                `json:"link"`
+	Ok      bool                                  `json:"ok"`
+	To      string                                `json:"to"`
+	What    string                                `json:"what"`
 }
 
 // GetAt returns the value of At.
@@ -93962,6 +98887,11 @@ func (s *NotifyPostNotifyHistoryIDResendOK) GetAt() time.Time {
 // GetChannel returns the value of Channel.
 func (s *NotifyPostNotifyHistoryIDResendOK) GetChannel() NotifyPostNotifyHistoryIDResendOKChannel {
 	return s.Channel
+}
+
+// GetDelayed returns the value of Delayed.
+func (s *NotifyPostNotifyHistoryIDResendOK) GetDelayed() bool {
+	return s.Delayed
 }
 
 // GetError returns the value of Error.
@@ -94007,6 +98937,11 @@ func (s *NotifyPostNotifyHistoryIDResendOK) SetAt(val time.Time) {
 // SetChannel sets the value of Channel.
 func (s *NotifyPostNotifyHistoryIDResendOK) SetChannel(val NotifyPostNotifyHistoryIDResendOKChannel) {
 	s.Channel = val
+}
+
+// SetDelayed sets the value of Delayed.
+func (s *NotifyPostNotifyHistoryIDResendOK) SetDelayed(val bool) {
+	s.Delayed = val
 }
 
 // SetError sets the value of Error.
@@ -94159,6 +99094,317 @@ func (s *NotifyPostNotifyHistoryIDResendOKKind) UnmarshalText(data []byte) error
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type NotifyPostNotifyTelegramApproversUserIDCodeOK struct {
+	Address string `json:"address"`
+	// The address is the box's own signed-in Zalo account (the QR sign-in proved it); only your own row
+	// with it skips the message.
+	BoxAccount bool `json:"box_account"`
+	// Not_sent: why (failed, expired, or no link made).
+	Error string `json:"error"`
+	// Only in the answer of POST …/code for your own row with the box's own account: the confirm page
+	// (/link/zalo?c=…) to open in this session; any other Zalo gets the link by message.
+	Link OptString `json:"link"`
+	Name string    `json:"name"`
+	// The administrator asking.
+	Self   bool                                               `json:"self"`
+	SentAt NilDateTime                                        `json:"sent_at"`
+	State  NotifyPostNotifyTelegramApproversUserIDCodeOKState `json:"state"`
+	UserID string                                             `json:"user_id"`
+}
+
+// GetAddress returns the value of Address.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetAddress() string {
+	return s.Address
+}
+
+// GetBoxAccount returns the value of BoxAccount.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetBoxAccount() bool {
+	return s.BoxAccount
+}
+
+// GetError returns the value of Error.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetError() string {
+	return s.Error
+}
+
+// GetLink returns the value of Link.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetLink() OptString {
+	return s.Link
+}
+
+// GetName returns the value of Name.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetName() string {
+	return s.Name
+}
+
+// GetSelf returns the value of Self.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetSelf() bool {
+	return s.Self
+}
+
+// GetSentAt returns the value of SentAt.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetSentAt() NilDateTime {
+	return s.SentAt
+}
+
+// GetState returns the value of State.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetState() NotifyPostNotifyTelegramApproversUserIDCodeOKState {
+	return s.State
+}
+
+// GetUserID returns the value of UserID.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetUserID() string {
+	return s.UserID
+}
+
+// SetAddress sets the value of Address.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetBoxAccount sets the value of BoxAccount.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetBoxAccount(val bool) {
+	s.BoxAccount = val
+}
+
+// SetError sets the value of Error.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetError(val string) {
+	s.Error = val
+}
+
+// SetLink sets the value of Link.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetLink(val OptString) {
+	s.Link = val
+}
+
+// SetName sets the value of Name.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetName(val string) {
+	s.Name = val
+}
+
+// SetSelf sets the value of Self.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetSelf(val bool) {
+	s.Self = val
+}
+
+// SetSentAt sets the value of SentAt.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetSentAt(val NilDateTime) {
+	s.SentAt = val
+}
+
+// SetState sets the value of State.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetState(val NotifyPostNotifyTelegramApproversUserIDCodeOKState) {
+	s.State = val
+}
+
+// SetUserID sets the value of UserID.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetUserID(val string) {
+	s.UserID = val
+}
+
+type NotifyPostNotifyTelegramApproversUserIDCodeOKState string
+
+const (
+	NotifyPostNotifyTelegramApproversUserIDCodeOKStateLinked  NotifyPostNotifyTelegramApproversUserIDCodeOKState = "linked"
+	NotifyPostNotifyTelegramApproversUserIDCodeOKStateSending NotifyPostNotifyTelegramApproversUserIDCodeOKState = "sending"
+	NotifyPostNotifyTelegramApproversUserIDCodeOKStateWaiting NotifyPostNotifyTelegramApproversUserIDCodeOKState = "waiting"
+	NotifyPostNotifyTelegramApproversUserIDCodeOKStateNotSent NotifyPostNotifyTelegramApproversUserIDCodeOKState = "not_sent"
+)
+
+// AllValues returns all NotifyPostNotifyTelegramApproversUserIDCodeOKState values.
+func (NotifyPostNotifyTelegramApproversUserIDCodeOKState) AllValues() []NotifyPostNotifyTelegramApproversUserIDCodeOKState {
+	return []NotifyPostNotifyTelegramApproversUserIDCodeOKState{
+		NotifyPostNotifyTelegramApproversUserIDCodeOKStateLinked,
+		NotifyPostNotifyTelegramApproversUserIDCodeOKStateSending,
+		NotifyPostNotifyTelegramApproversUserIDCodeOKStateWaiting,
+		NotifyPostNotifyTelegramApproversUserIDCodeOKStateNotSent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyTelegramApproversUserIDCodeOKState) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateLinked:
+		return []byte(s), nil
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateSending:
+		return []byte(s), nil
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateWaiting:
+		return []byte(s), nil
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateNotSent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOKState) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyTelegramApproversUserIDCodeOKState(data) {
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateLinked:
+		*s = NotifyPostNotifyTelegramApproversUserIDCodeOKStateLinked
+		return nil
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateSending:
+		*s = NotifyPostNotifyTelegramApproversUserIDCodeOKStateSending
+		return nil
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateWaiting:
+		*s = NotifyPostNotifyTelegramApproversUserIDCodeOKStateWaiting
+		return nil
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateNotSent:
+		*s = NotifyPostNotifyTelegramApproversUserIDCodeOKStateNotSent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyTelegramChatsOK struct {
+	// Empty answer only: this Find just set the bot's update filter, so a message sent earlier may not
+	// have been kept; ask the person to send it again.
+	Fresh bool `json:"fresh"`
+	// Chats the bot has seen, newest first, at most 10; empty when no message has reached it yet.
+	Items []NotifyPostNotifyTelegramChatsOKItemsItem `json:"items"`
+}
+
+// GetFresh returns the value of Fresh.
+func (s *NotifyPostNotifyTelegramChatsOK) GetFresh() bool {
+	return s.Fresh
+}
+
+// GetItems returns the value of Items.
+func (s *NotifyPostNotifyTelegramChatsOK) GetItems() []NotifyPostNotifyTelegramChatsOKItemsItem {
+	return s.Items
+}
+
+// SetFresh sets the value of Fresh.
+func (s *NotifyPostNotifyTelegramChatsOK) SetFresh(val bool) {
+	s.Fresh = val
+}
+
+// SetItems sets the value of Items.
+func (s *NotifyPostNotifyTelegramChatsOK) SetItems(val []NotifyPostNotifyTelegramChatsOKItemsItem) {
+	s.Items = val
+}
+
+type NotifyPostNotifyTelegramChatsOKItemsItem struct {
+	// Chat ID as Telegram writes it: a person is positive, a group negative (-100…).
+	ID   string                                       `json:"id"`
+	Kind NotifyPostNotifyTelegramChatsOKItemsItemKind `json:"kind"`
+	// The person's name or the group's title, cleaned and shortened.
+	Name string `json:"name"`
+	// Public name without @; empty when none.
+	Username string `json:"username"`
+}
+
+// GetID returns the value of ID.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) GetKind() NotifyPostNotifyTelegramChatsOKItemsItemKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) GetName() string {
+	return s.Name
+}
+
+// GetUsername returns the value of Username.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) GetUsername() string {
+	return s.Username
+}
+
+// SetID sets the value of ID.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) SetKind(val NotifyPostNotifyTelegramChatsOKItemsItemKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetUsername sets the value of Username.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) SetUsername(val string) {
+	s.Username = val
+}
+
+type NotifyPostNotifyTelegramChatsOKItemsItemKind string
+
+const (
+	NotifyPostNotifyTelegramChatsOKItemsItemKindPrivate    NotifyPostNotifyTelegramChatsOKItemsItemKind = "private"
+	NotifyPostNotifyTelegramChatsOKItemsItemKindGroup      NotifyPostNotifyTelegramChatsOKItemsItemKind = "group"
+	NotifyPostNotifyTelegramChatsOKItemsItemKindSupergroup NotifyPostNotifyTelegramChatsOKItemsItemKind = "supergroup"
+	NotifyPostNotifyTelegramChatsOKItemsItemKindChannel    NotifyPostNotifyTelegramChatsOKItemsItemKind = "channel"
+)
+
+// AllValues returns all NotifyPostNotifyTelegramChatsOKItemsItemKind values.
+func (NotifyPostNotifyTelegramChatsOKItemsItemKind) AllValues() []NotifyPostNotifyTelegramChatsOKItemsItemKind {
+	return []NotifyPostNotifyTelegramChatsOKItemsItemKind{
+		NotifyPostNotifyTelegramChatsOKItemsItemKindPrivate,
+		NotifyPostNotifyTelegramChatsOKItemsItemKindGroup,
+		NotifyPostNotifyTelegramChatsOKItemsItemKindSupergroup,
+		NotifyPostNotifyTelegramChatsOKItemsItemKindChannel,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyTelegramChatsOKItemsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindPrivate:
+		return []byte(s), nil
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindGroup:
+		return []byte(s), nil
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindSupergroup:
+		return []byte(s), nil
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindChannel:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyTelegramChatsOKItemsItemKind) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyTelegramChatsOKItemsItemKind(data) {
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindPrivate:
+		*s = NotifyPostNotifyTelegramChatsOKItemsItemKindPrivate
+		return nil
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindGroup:
+		*s = NotifyPostNotifyTelegramChatsOKItemsItemKindGroup
+		return nil
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindSupergroup:
+		*s = NotifyPostNotifyTelegramChatsOKItemsItemKindSupergroup
+		return nil
+	case NotifyPostNotifyTelegramChatsOKItemsItemKindChannel:
+		*s = NotifyPostNotifyTelegramChatsOKItemsItemKindChannel
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyTelegramChatsReq struct {
+	// Bot token from the form; empty or absent uses the saved channel's token, which never leaves the box.
+	Token OptString `json:"token"`
+}
+
+// GetToken returns the value of Token.
+func (s *NotifyPostNotifyTelegramChatsReq) GetToken() OptString {
+	return s.Token
+}
+
+// SetToken sets the value of Token.
+func (s *NotifyPostNotifyTelegramChatsReq) SetToken(val OptString) {
+	s.Token = val
 }
 
 type NotifyPostNotifyZaloApproversUserIDCodeOK struct {
@@ -94573,10 +99819,11 @@ type NotifyPutNotifyChannelsTypeOK struct {
 	Approvers  []NotifyPutNotifyChannelsTypeOKApproversItem `json:"approvers"`
 	Configured bool                                         `json:"configured"`
 	Enabled    bool                                         `json:"enabled"`
-	// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-	// or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
-	// the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
-	// email provider (preset, D-449:
+	// Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the
+	// refresh-token flow, D-483; absent for a channel with only an access token) · zalo-personal user_id
+	// (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
+	// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the
+	// session is the secret) · email provider (preset, D-449:
 	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
 	// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
 	// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
@@ -94759,10 +100006,11 @@ func (s *NotifyPutNotifyChannelsTypeOKApproversItem) SetUserID(val string) {
 	s.UserID = val
 }
 
-// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-// or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
-// the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
-// email provider (preset, D-449:
+// Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the
+// refresh-token flow, D-483; absent for a channel with only an access token) · zalo-personal user_id
+// (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
+// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the
+// session is the secret) · email provider (preset, D-449:
 // custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
 // D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
 // host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
@@ -94955,10 +100203,16 @@ type NotifyPutNotifyChannelsTypeReq struct {
 	Enabled     bool                                      `json:"enabled"`
 	Fields      NotifyPutNotifyChannelsTypeReqFields      `json:"fields"`
 	MinSeverity NotifyPutNotifyChannelsTypeReqMinSeverity `json:"min_severity"`
+	// Zalo OA (D-483): the OA refresh token (about 3 months, single use; the box refreshes the access
+	// token and keeps the rotated refresh token); leave blank to keep the saved one. With it, secret is
+	// the current access token, optional.
+	RefreshToken OptString `json:"refresh_token"`
 	// Leave blank to keep the saved secret (email: only while the sign-in method of the provider stays the
 	// same). Email: password, app password or API key; the Microsoft 365 client secret; the Google
 	// Workspace service account key file (JSON).
 	Secret OptString `json:"secret"`
+	// Zalo OA (D-483): the Secret key of the Zalo app; leave blank to keep the saved one.
+	SecretKey OptString `json:"secret_key"`
 	// Email user sign-in (D-480): the id of a finished sign-in of the same admin; its refresh token
 	// becomes the secret and its mailbox the username.
 	Signin OptString `json:"signin"`
@@ -95002,9 +100256,19 @@ func (s *NotifyPutNotifyChannelsTypeReq) GetMinSeverity() NotifyPutNotifyChannel
 	return s.MinSeverity
 }
 
+// GetRefreshToken returns the value of RefreshToken.
+func (s *NotifyPutNotifyChannelsTypeReq) GetRefreshToken() OptString {
+	return s.RefreshToken
+}
+
 // GetSecret returns the value of Secret.
 func (s *NotifyPutNotifyChannelsTypeReq) GetSecret() OptString {
 	return s.Secret
+}
+
+// GetSecretKey returns the value of SecretKey.
+func (s *NotifyPutNotifyChannelsTypeReq) GetSecretKey() OptString {
+	return s.SecretKey
 }
 
 // GetSignin returns the value of Signin.
@@ -95052,9 +100316,19 @@ func (s *NotifyPutNotifyChannelsTypeReq) SetMinSeverity(val NotifyPutNotifyChann
 	s.MinSeverity = val
 }
 
+// SetRefreshToken sets the value of RefreshToken.
+func (s *NotifyPutNotifyChannelsTypeReq) SetRefreshToken(val OptString) {
+	s.RefreshToken = val
+}
+
 // SetSecret sets the value of Secret.
 func (s *NotifyPutNotifyChannelsTypeReq) SetSecret(val OptString) {
 	s.Secret = val
+}
+
+// SetSecretKey sets the value of SecretKey.
+func (s *NotifyPutNotifyChannelsTypeReq) SetSecretKey(val OptString) {
+	s.SecretKey = val
 }
 
 // SetSignin sets the value of Signin.
@@ -95601,6 +100875,98 @@ func (o OptBool) Get() (v bool, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCoreGetCoreAuditActor returns new OptCoreGetCoreAuditActor with value set to v.
+func NewOptCoreGetCoreAuditActor(v CoreGetCoreAuditActor) OptCoreGetCoreAuditActor {
+	return OptCoreGetCoreAuditActor{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCoreGetCoreAuditActor is optional CoreGetCoreAuditActor.
+type OptCoreGetCoreAuditActor struct {
+	Value CoreGetCoreAuditActor
+	Set   bool
+}
+
+// IsSet returns true if OptCoreGetCoreAuditActor was set.
+func (o OptCoreGetCoreAuditActor) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCoreGetCoreAuditActor) Reset() {
+	var v CoreGetCoreAuditActor
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCoreGetCoreAuditActor) SetTo(v CoreGetCoreAuditActor) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCoreGetCoreAuditActor) Get() (v CoreGetCoreAuditActor, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCoreGetCoreAuditActor) Or(d CoreGetCoreAuditActor) CoreGetCoreAuditActor {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCoreGetCoreAuditExportActor returns new OptCoreGetCoreAuditExportActor with value set to v.
+func NewOptCoreGetCoreAuditExportActor(v CoreGetCoreAuditExportActor) OptCoreGetCoreAuditExportActor {
+	return OptCoreGetCoreAuditExportActor{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCoreGetCoreAuditExportActor is optional CoreGetCoreAuditExportActor.
+type OptCoreGetCoreAuditExportActor struct {
+	Value CoreGetCoreAuditExportActor
+	Set   bool
+}
+
+// IsSet returns true if OptCoreGetCoreAuditExportActor was set.
+func (o OptCoreGetCoreAuditExportActor) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCoreGetCoreAuditExportActor) Reset() {
+	var v CoreGetCoreAuditExportActor
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCoreGetCoreAuditExportActor) SetTo(v CoreGetCoreAuditExportActor) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCoreGetCoreAuditExportActor) Get() (v CoreGetCoreAuditExportActor, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCoreGetCoreAuditExportActor) Or(d CoreGetCoreAuditExportActor) CoreGetCoreAuditExportActor {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -96681,6 +102047,142 @@ func (o OptNilLogsGetLogsSourcesOKBoxTLS) Get() (v LogsGetLogsSourcesOKBoxTLS, o
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilLogsGetLogsSourcesOKBoxTLS) Or(d LogsGetLogsSourcesOKBoxTLS) LogsGetLogsSourcesOKBoxTLS {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilReportsGetReportsWeeklyHistoryIDOKReportHappened returns new OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened with value set to v.
+func NewOptNilReportsGetReportsWeeklyHistoryIDOKReportHappened(v ReportsGetReportsWeeklyHistoryIDOKReportHappened) OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened {
+	return OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened is optional nullable ReportsGetReportsWeeklyHistoryIDOKReportHappened.
+type OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened struct {
+	Value ReportsGetReportsWeeklyHistoryIDOKReportHappened
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened was set.
+func (o OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) Reset() {
+	var v ReportsGetReportsWeeklyHistoryIDOKReportHappened
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) SetTo(v ReportsGetReportsWeeklyHistoryIDOKReportHappened) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v ReportsGetReportsWeeklyHistoryIDOKReportHappened
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) Get() (v ReportsGetReportsWeeklyHistoryIDOKReportHappened, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) Or(d ReportsGetReportsWeeklyHistoryIDOKReportHappened) ReportsGetReportsWeeklyHistoryIDOKReportHappened {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilReportsGetReportsWeeklyPreviewOKReportHappened returns new OptNilReportsGetReportsWeeklyPreviewOKReportHappened with value set to v.
+func NewOptNilReportsGetReportsWeeklyPreviewOKReportHappened(v ReportsGetReportsWeeklyPreviewOKReportHappened) OptNilReportsGetReportsWeeklyPreviewOKReportHappened {
+	return OptNilReportsGetReportsWeeklyPreviewOKReportHappened{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilReportsGetReportsWeeklyPreviewOKReportHappened is optional nullable ReportsGetReportsWeeklyPreviewOKReportHappened.
+type OptNilReportsGetReportsWeeklyPreviewOKReportHappened struct {
+	Value ReportsGetReportsWeeklyPreviewOKReportHappened
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilReportsGetReportsWeeklyPreviewOKReportHappened was set.
+func (o OptNilReportsGetReportsWeeklyPreviewOKReportHappened) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilReportsGetReportsWeeklyPreviewOKReportHappened) Reset() {
+	var v ReportsGetReportsWeeklyPreviewOKReportHappened
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilReportsGetReportsWeeklyPreviewOKReportHappened) SetTo(v ReportsGetReportsWeeklyPreviewOKReportHappened) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilReportsGetReportsWeeklyPreviewOKReportHappened) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilReportsGetReportsWeeklyPreviewOKReportHappened) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v ReportsGetReportsWeeklyPreviewOKReportHappened
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilReportsGetReportsWeeklyPreviewOKReportHappened) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilReportsGetReportsWeeklyPreviewOKReportHappened) Get() (v ReportsGetReportsWeeklyPreviewOKReportHappened, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilReportsGetReportsWeeklyPreviewOKReportHappened) Or(d ReportsGetReportsWeeklyPreviewOKReportHappened) ReportsGetReportsWeeklyPreviewOKReportHappened {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -98808,7 +104310,9 @@ func (s *ReportsGetReportsPdplOKReportOrgSize) UnmarshalText(data []byte) error 
 }
 
 type ReportsGetReportsPdplOKReportRisksItem struct {
-	AssetID  string                                         `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                      `json:"by"`
 	Cve      string                                         `json:"cve"`
 	Device   string                                         `json:"device"`
 	ID       string                                         `json:"id"`
@@ -98821,6 +104325,11 @@ type ReportsGetReportsPdplOKReportRisksItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsGetReportsPdplOKReportRisksItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsPdplOKReportRisksItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -98861,6 +104370,11 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) GetStatus() ReportsGetReportsPd
 // SetAssetID sets the value of AssetID.
 func (s *ReportsGetReportsPdplOKReportRisksItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsPdplOKReportRisksItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.
@@ -99088,12 +104602,23 @@ func (s *ReportsGetReportsScheduleOK) SetRecipients(val []string) {
 	s.Recipients = val
 }
 
+// Since D-485 one top risk: product and count (its open findings) are set; cve and finding_id are its
+// worst finding.
 // Ref: #/components/schemas/reports_get_reports_weekly_history_id_1_fix
 type ReportsGetReportsWeeklyHistoryID1Fix struct {
-	Cve       string `json:"cve"`
-	Device    string `json:"device"`
-	FindingID string `json:"finding_id"`
-	Kind      string `json:"kind"`
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+	// Since D-490 the sentence of the top risk action.
+	Text OptString `json:"text"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID1Fix) GetCount() OptInt {
+	return s.Count
 }
 
 // GetCve returns the value of Cve.
@@ -99116,6 +104641,21 @@ func (s *ReportsGetReportsWeeklyHistoryID1Fix) GetKind() string {
 	return s.Kind
 }
 
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID1Fix) GetProduct() OptString {
+	return s.Product
+}
+
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID1Fix) GetText() OptString {
+	return s.Text
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID1Fix) SetCount(val OptInt) {
+	s.Count = val
+}
+
 // SetCve sets the value of Cve.
 func (s *ReportsGetReportsWeeklyHistoryID1Fix) SetCve(val string) {
 	s.Cve = val
@@ -99134,6 +104674,16 @@ func (s *ReportsGetReportsWeeklyHistoryID1Fix) SetFindingID(val string) {
 // SetKind sets the value of Kind.
 func (s *ReportsGetReportsWeeklyHistoryID1Fix) SetKind(val string) {
 	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID1Fix) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID1Fix) SetText(val OptString) {
+	s.Text = val
 }
 
 // Ref: #/components/schemas/reports_get_reports_weekly_history_id_1_plan_os
@@ -99190,10 +104740,18 @@ func (s *ReportsGetReportsWeeklyHistoryID1ReviewDevices) SetKind(val string) {
 
 // Ref: #/components/schemas/reports_get_reports_weekly_history_id_1_verify
 type ReportsGetReportsWeeklyHistoryID1Verify struct {
-	Cve       string `json:"cve"`
-	Device    string `json:"device"`
-	FindingID string `json:"finding_id"`
-	Kind      string `json:"kind"`
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+	Text      OptString `json:"text"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID1Verify) GetCount() OptInt {
+	return s.Count
 }
 
 // GetCve returns the value of Cve.
@@ -99216,6 +104774,21 @@ func (s *ReportsGetReportsWeeklyHistoryID1Verify) GetKind() string {
 	return s.Kind
 }
 
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID1Verify) GetProduct() OptString {
+	return s.Product
+}
+
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID1Verify) GetText() OptString {
+	return s.Text
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetCount(val OptInt) {
+	s.Count = val
+}
+
 // SetCve sets the value of Cve.
 func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetCve(val string) {
 	s.Cve = val
@@ -99234,6 +104807,16 @@ func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetFindingID(val string) {
 // SetKind sets the value of Kind.
 func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetKind(val string) {
 	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetText(val OptString) {
+	s.Text = val
 }
 
 type ReportsGetReportsWeeklyHistoryIDOK struct {
@@ -99317,17 +104900,20 @@ func (s *ReportsGetReportsWeeklyHistoryIDOK) SetTs(val time.Time) {
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReport struct {
-	Actions     []ReportsGetReportsWeeklyHistoryIDOKReportActionsItem     `json:"actions"`
-	AiSummary   NilReportsGetReportsWeeklyHistoryIDOKReportAiSummary      `json:"ai_summary"`
-	Counts      ReportsGetReportsWeeklyHistoryIDOKReportCounts            `json:"counts"`
-	GeneratedAt time.Time                                                 `json:"generated_at"`
+	Actions     []ReportsGetReportsWeeklyHistoryIDOKReportActionsItem `json:"actions"`
+	AiSummary   NilReportsGetReportsWeeklyHistoryIDOKReportAiSummary  `json:"ai_summary"`
+	Counts      ReportsGetReportsWeeklyHistoryIDOKReportCounts        `json:"counts"`
+	GeneratedAt time.Time                                             `json:"generated_at"`
+	// Absent or null when notify is off, or in reports sent before D-490.
+	Happened    OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened    `json:"happened"`
 	NewFindings []ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem `json:"new_findings"`
 	Open        []ReportsGetReportsWeeklyHistoryIDOKReportOpenItem        `json:"open"`
 	Period      ReportsGetReportsWeeklyHistoryIDOKReportPeriod            `json:"period"`
 	Resolved    []ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem    `json:"resolved"`
-	// Sources of the figures in the report; honeypot hits and anomalous logs are not included because the
-	// honeypot/logs modules do not share data yet.
+	// Sources of the figures in the report; incidents only when notify is on (D-490).
 	Sources []ReportsGetReportsWeeklyHistoryIDOKReportSourcesItem `json:"sources"`
+	// The three biggest open risks, by product (D-485); absent in reports sent before it.
+	TopRisks []ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem `json:"top_risks"`
 }
 
 // GetActions returns the value of Actions.
@@ -99348,6 +104934,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetCounts() ReportsGetReports
 // GetGeneratedAt returns the value of GeneratedAt.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetGeneratedAt() time.Time {
 	return s.GeneratedAt
+}
+
+// GetHappened returns the value of Happened.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetHappened() OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened {
+	return s.Happened
 }
 
 // GetNewFindings returns the value of NewFindings.
@@ -99375,6 +104966,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetSources() []ReportsGetRepo
 	return s.Sources
 }
 
+// GetTopRisks returns the value of TopRisks.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetTopRisks() []ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem {
+	return s.TopRisks
+}
+
 // SetActions sets the value of Actions.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetActions(val []ReportsGetReportsWeeklyHistoryIDOKReportActionsItem) {
 	s.Actions = val
@@ -99393,6 +104989,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetCounts(val ReportsGetRepor
 // SetGeneratedAt sets the value of GeneratedAt.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetGeneratedAt(val time.Time) {
 	s.GeneratedAt = val
+}
+
+// SetHappened sets the value of Happened.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetHappened(val OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) {
+	s.Happened = val
 }
 
 // SetNewFindings sets the value of NewFindings.
@@ -99418,6 +105019,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetResolved(val []ReportsGetR
 // SetSources sets the value of Sources.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetSources(val []ReportsGetReportsWeeklyHistoryIDOKReportSourcesItem) {
 	s.Sources = val
+}
+
+// SetTopRisks sets the value of TopRisks.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetTopRisks(val []ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) {
+	s.TopRisks = val
 }
 
 // ReportsGetReportsWeeklyHistoryIDOKReportActionsItem represents sum type.
@@ -99630,15 +105236,18 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportAiSummaryTokens) SetOutput(val 
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportCounts struct {
+	// Devices as the Devices page counts them, this box included.
 	Devices           float64 `json:"devices"`
 	DevicesNew        float64 `json:"devices_new"`
 	DevicesUnapproved float64 `json:"devices_unapproved"`
-	KevMatched        float64 `json:"kev_matched"`
-	KevNew            float64 `json:"kev_new"`
-	NewFindings       float64 `json:"new_findings"`
-	OpenConfirmed     float64 `json:"open_confirmed"`
-	OpenSuspected     float64 `json:"open_suspected"`
-	Resolved          float64 `json:"resolved"`
+	// Products you use among them, as Home counts them (D-485; earlier reports: their CVEs on a device).
+	KevMatched float64 `json:"kev_matched"`
+	// Vulnerabilities newly exploited in the last 7 days, as Home counts them (D-485).
+	KevNew        float64 `json:"kev_new"`
+	NewFindings   float64 `json:"new_findings"`
+	OpenConfirmed float64 `json:"open_confirmed"`
+	OpenSuspected float64 `json:"open_suspected"`
+	Resolved      float64 `json:"resolved"`
 }
 
 // GetDevices returns the value of Devices.
@@ -99731,8 +105340,264 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetResolved(val float64
 	s.Resolved = val
 }
 
+// Incidents of the week from notify (D-490): counts per kind and the few that matter.
+type ReportsGetReportsWeeklyHistoryIDOKReportHappened struct {
+	AcceptedLogins int `json:"accepted_logins"`
+	BadConnections int `json:"bad_connections"`
+	FailedLogins   int `json:"failed_logins"`
+	Other          int `json:"other"`
+	// The one sentence the page and the email say.
+	Summary string                                                    `json:"summary"`
+	Top     []ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem `json:"top"`
+	Traps   int                                                       `json:"traps"`
+}
+
+// GetAcceptedLogins returns the value of AcceptedLogins.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) GetAcceptedLogins() int {
+	return s.AcceptedLogins
+}
+
+// GetBadConnections returns the value of BadConnections.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) GetBadConnections() int {
+	return s.BadConnections
+}
+
+// GetFailedLogins returns the value of FailedLogins.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) GetFailedLogins() int {
+	return s.FailedLogins
+}
+
+// GetOther returns the value of Other.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) GetOther() int {
+	return s.Other
+}
+
+// GetSummary returns the value of Summary.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) GetSummary() string {
+	return s.Summary
+}
+
+// GetTop returns the value of Top.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) GetTop() []ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem {
+	return s.Top
+}
+
+// GetTraps returns the value of Traps.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) GetTraps() int {
+	return s.Traps
+}
+
+// SetAcceptedLogins sets the value of AcceptedLogins.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) SetAcceptedLogins(val int) {
+	s.AcceptedLogins = val
+}
+
+// SetBadConnections sets the value of BadConnections.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) SetBadConnections(val int) {
+	s.BadConnections = val
+}
+
+// SetFailedLogins sets the value of FailedLogins.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) SetFailedLogins(val int) {
+	s.FailedLogins = val
+}
+
+// SetOther sets the value of Other.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) SetOther(val int) {
+	s.Other = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetTop sets the value of Top.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) SetTop(val []ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) {
+	s.Top = val
+}
+
+// SetTraps sets the value of Traps.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) SetTraps(val int) {
+	s.Traps = val
+}
+
+type ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem struct {
+	// Last seen.
+	At       time.Time                                                       `json:"at"`
+	Kind     ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind     `json:"kind"`
+	Severity ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity `json:"severity"`
+	Title    string                                                          `json:"title"`
+}
+
+// GetAt returns the value of At.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) GetAt() time.Time {
+	return s.At
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) GetKind() ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind {
+	return s.Kind
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) GetSeverity() ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity {
+	return s.Severity
+}
+
+// GetTitle returns the value of Title.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) GetTitle() string {
+	return s.Title
+}
+
+// SetAt sets the value of At.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) SetKind(val ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind) {
+	s.Kind = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) SetSeverity(val ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity) {
+	s.Severity = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind string
+
+const (
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindLoginAccepted ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind = "login_accepted"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindTrap          ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind = "trap"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindFailedLogins  ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind = "failed_logins"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindBadConnection ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind = "bad_connection"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindAnomaly       ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind = "anomaly"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind values.
+func (ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind) AllValues() []ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind {
+	return []ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind{
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindLoginAccepted,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindTrap,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindFailedLogins,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindBadConnection,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindAnomaly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindLoginAccepted:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindTrap:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindFailedLogins:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindBadConnection:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindAnomaly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind(data) {
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindLoginAccepted:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindLoginAccepted
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindTrap:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindTrap
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindFailedLogins:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindFailedLogins
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindBadConnection:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindBadConnection
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindAnomaly:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindAnomaly
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity string
+
+const (
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityCritical ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity = "critical"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityHigh     ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity = "high"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityMedium   ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity = "medium"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityLow      ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity = "low"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityInfo     ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity values.
+func (ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity) AllValues() []ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity {
+	return []ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity{
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityCritical,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityHigh,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityMedium,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityLow,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity(data) {
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityCritical:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityCritical
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityHigh:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityHigh
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityMedium:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityMedium
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityLow:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityLow
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityInfo:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem struct {
-	AssetID  string                                                          `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                                       `json:"by"`
 	Cve      string                                                          `json:"cve"`
 	Device   string                                                          `json:"device"`
 	ID       string                                                          `json:"id"`
@@ -99745,6 +105610,11 @@ type ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -99785,6 +105655,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) GetStatus() Re
 // SetAssetID sets the value of AssetID.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.
@@ -99954,7 +105829,9 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus) Unmarsha
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportOpenItem struct {
-	AssetID  string                                                   `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                                `json:"by"`
 	Cve      string                                                   `json:"cve"`
 	Device   string                                                   `json:"device"`
 	ID       string                                                   `json:"id"`
@@ -99967,6 +105844,11 @@ type ReportsGetReportsWeeklyHistoryIDOKReportOpenItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -100007,6 +105889,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) GetStatus() ReportsGe
 // SetAssetID sets the value of AssetID.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.
@@ -100201,7 +106088,9 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportPeriod) SetTo(val time.Time) {
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem struct {
-	AssetID  string                                                       `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                                    `json:"by"`
 	Cve      string                                                       `json:"cve"`
 	Device   string                                                       `json:"device"`
 	ID       string                                                       `json:"id"`
@@ -100214,6 +106103,11 @@ type ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -100254,6 +106148,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) GetStatus() Repor
 // SetAssetID sets the value of AssetID.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.
@@ -100453,6 +106352,7 @@ const (
 	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDInventory ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "inventory"
 	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings  ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "findings"
 	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev       ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "kev"
+	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "incidents"
 )
 
 // AllValues returns all ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID values.
@@ -100461,6 +106361,7 @@ func (ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) AllValues() []Repor
 		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDInventory,
 		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings,
 		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev,
+		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents,
 	}
 }
 
@@ -100472,6 +106373,8 @@ func (s ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) MarshalText() ([]
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -100489,6 +106392,181 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) UnmarshalText(da
 		return nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem struct {
+	// What to do this week, one sentence naming the device(s) and the fixed version when NVD says (D-490);
+	// absent in reports sent before it.
+	Action OptString `json:"action"`
+	// Open findings a scan confirmed.
+	Confirmed int    `json:"confirmed"`
+	Cve       string `json:"cve"`
+	// The device, or the first names and how many more.
+	Device  string `json:"device"`
+	Devices int    `json:"devices"`
+	// Its worst finding.
+	FindingID string `json:"finding_id"`
+	Open      int    `json:"open"`
+	// The product as Findings names it.
+	Product string `json:"product"`
+	// The worst severity.
+	Severity ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity `json:"severity"`
+}
+
+// GetAction returns the value of Action.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetAction() OptString {
+	return s.Action
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetConfirmed() int {
+	return s.Confirmed
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetDevice() string {
+	return s.Device
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetDevices() int {
+	return s.Devices
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetOpen() int {
+	return s.Open
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetSeverity() ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity {
+	return s.Severity
+}
+
+// SetAction sets the value of Action.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetAction(val OptString) {
+	s.Action = val
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetConfirmed(val int) {
+	s.Confirmed = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetOpen(val int) {
+	s.Open = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetSeverity(val ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity) {
+	s.Severity = val
+}
+
+// The worst severity.
+type ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity string
+
+const (
+	ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityCritical ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity = "critical"
+	ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityHigh     ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity = "high"
+	ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityMedium   ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity = "medium"
+	ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityLow      ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity = "low"
+	ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityInfo     ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity values.
+func (ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity) AllValues() []ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity {
+	return []ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity{
+		ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityCritical,
+		ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityHigh,
+		ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityMedium,
+		ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityLow,
+		ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity(data) {
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityCritical:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityCritical
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityHigh:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityHigh
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityMedium:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityMedium
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityLow:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityLow
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityInfo:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverityInfo
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -100742,12 +106820,23 @@ func (s *ReportsGetReportsWeeklyHistoryOKItemsItemTrigger) UnmarshalText(data []
 	}
 }
 
+// Since D-485 one top risk: product and count (its open findings) are set; cve and finding_id are its
+// worst finding.
 // Ref: #/components/schemas/reports_get_reports_weekly_preview_1_fix
 type ReportsGetReportsWeeklyPreview1Fix struct {
-	Cve       string `json:"cve"`
-	Device    string `json:"device"`
-	FindingID string `json:"finding_id"`
-	Kind      string `json:"kind"`
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+	// Since D-490 the sentence of the top risk action.
+	Text OptString `json:"text"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyPreview1Fix) GetCount() OptInt {
+	return s.Count
 }
 
 // GetCve returns the value of Cve.
@@ -100770,6 +106859,21 @@ func (s *ReportsGetReportsWeeklyPreview1Fix) GetKind() string {
 	return s.Kind
 }
 
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyPreview1Fix) GetProduct() OptString {
+	return s.Product
+}
+
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyPreview1Fix) GetText() OptString {
+	return s.Text
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyPreview1Fix) SetCount(val OptInt) {
+	s.Count = val
+}
+
 // SetCve sets the value of Cve.
 func (s *ReportsGetReportsWeeklyPreview1Fix) SetCve(val string) {
 	s.Cve = val
@@ -100788,6 +106892,16 @@ func (s *ReportsGetReportsWeeklyPreview1Fix) SetFindingID(val string) {
 // SetKind sets the value of Kind.
 func (s *ReportsGetReportsWeeklyPreview1Fix) SetKind(val string) {
 	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyPreview1Fix) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyPreview1Fix) SetText(val OptString) {
+	s.Text = val
 }
 
 // Ref: #/components/schemas/reports_get_reports_weekly_preview_1_plan_os
@@ -100844,10 +106958,18 @@ func (s *ReportsGetReportsWeeklyPreview1ReviewDevices) SetKind(val string) {
 
 // Ref: #/components/schemas/reports_get_reports_weekly_preview_1_verify
 type ReportsGetReportsWeeklyPreview1Verify struct {
-	Cve       string `json:"cve"`
-	Device    string `json:"device"`
-	FindingID string `json:"finding_id"`
-	Kind      string `json:"kind"`
+	Count     OptInt    `json:"count"`
+	Cve       string    `json:"cve"`
+	Device    string    `json:"device"`
+	FindingID string    `json:"finding_id"`
+	Kind      string    `json:"kind"`
+	Product   OptString `json:"product"`
+	Text      OptString `json:"text"`
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyPreview1Verify) GetCount() OptInt {
+	return s.Count
 }
 
 // GetCve returns the value of Cve.
@@ -100870,6 +106992,21 @@ func (s *ReportsGetReportsWeeklyPreview1Verify) GetKind() string {
 	return s.Kind
 }
 
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyPreview1Verify) GetProduct() OptString {
+	return s.Product
+}
+
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyPreview1Verify) GetText() OptString {
+	return s.Text
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyPreview1Verify) SetCount(val OptInt) {
+	s.Count = val
+}
+
 // SetCve sets the value of Cve.
 func (s *ReportsGetReportsWeeklyPreview1Verify) SetCve(val string) {
 	s.Cve = val
@@ -100888,6 +107025,16 @@ func (s *ReportsGetReportsWeeklyPreview1Verify) SetFindingID(val string) {
 // SetKind sets the value of Kind.
 func (s *ReportsGetReportsWeeklyPreview1Verify) SetKind(val string) {
 	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyPreview1Verify) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyPreview1Verify) SetText(val OptString) {
+	s.Text = val
 }
 
 type ReportsGetReportsWeeklyPreviewOK struct {
@@ -100916,17 +107063,20 @@ func (s *ReportsGetReportsWeeklyPreviewOK) SetReport(val ReportsGetReportsWeekly
 }
 
 type ReportsGetReportsWeeklyPreviewOKReport struct {
-	Actions     []ReportsGetReportsWeeklyPreviewOKReportActionsItem     `json:"actions"`
-	AiSummary   NilReportsGetReportsWeeklyPreviewOKReportAiSummary      `json:"ai_summary"`
-	Counts      ReportsGetReportsWeeklyPreviewOKReportCounts            `json:"counts"`
-	GeneratedAt time.Time                                               `json:"generated_at"`
+	Actions     []ReportsGetReportsWeeklyPreviewOKReportActionsItem `json:"actions"`
+	AiSummary   NilReportsGetReportsWeeklyPreviewOKReportAiSummary  `json:"ai_summary"`
+	Counts      ReportsGetReportsWeeklyPreviewOKReportCounts        `json:"counts"`
+	GeneratedAt time.Time                                           `json:"generated_at"`
+	// Absent or null when notify is off, or in reports sent before D-490.
+	Happened    OptNilReportsGetReportsWeeklyPreviewOKReportHappened    `json:"happened"`
 	NewFindings []ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem `json:"new_findings"`
 	Open        []ReportsGetReportsWeeklyPreviewOKReportOpenItem        `json:"open"`
 	Period      ReportsGetReportsWeeklyPreviewOKReportPeriod            `json:"period"`
 	Resolved    []ReportsGetReportsWeeklyPreviewOKReportResolvedItem    `json:"resolved"`
-	// Sources of the figures in the report; honeypot hits and anomalous logs are not included because the
-	// honeypot/logs modules do not share data yet.
+	// Sources of the figures in the report; incidents only when notify is on (D-490).
 	Sources []ReportsGetReportsWeeklyPreviewOKReportSourcesItem `json:"sources"`
+	// The three biggest open risks, by product (D-485); absent in reports sent before it.
+	TopRisks []ReportsGetReportsWeeklyPreviewOKReportTopRisksItem `json:"top_risks"`
 }
 
 // GetActions returns the value of Actions.
@@ -100947,6 +107097,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) GetCounts() ReportsGetReportsWe
 // GetGeneratedAt returns the value of GeneratedAt.
 func (s *ReportsGetReportsWeeklyPreviewOKReport) GetGeneratedAt() time.Time {
 	return s.GeneratedAt
+}
+
+// GetHappened returns the value of Happened.
+func (s *ReportsGetReportsWeeklyPreviewOKReport) GetHappened() OptNilReportsGetReportsWeeklyPreviewOKReportHappened {
+	return s.Happened
 }
 
 // GetNewFindings returns the value of NewFindings.
@@ -100974,6 +107129,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) GetSources() []ReportsGetReport
 	return s.Sources
 }
 
+// GetTopRisks returns the value of TopRisks.
+func (s *ReportsGetReportsWeeklyPreviewOKReport) GetTopRisks() []ReportsGetReportsWeeklyPreviewOKReportTopRisksItem {
+	return s.TopRisks
+}
+
 // SetActions sets the value of Actions.
 func (s *ReportsGetReportsWeeklyPreviewOKReport) SetActions(val []ReportsGetReportsWeeklyPreviewOKReportActionsItem) {
 	s.Actions = val
@@ -100992,6 +107152,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) SetCounts(val ReportsGetReports
 // SetGeneratedAt sets the value of GeneratedAt.
 func (s *ReportsGetReportsWeeklyPreviewOKReport) SetGeneratedAt(val time.Time) {
 	s.GeneratedAt = val
+}
+
+// SetHappened sets the value of Happened.
+func (s *ReportsGetReportsWeeklyPreviewOKReport) SetHappened(val OptNilReportsGetReportsWeeklyPreviewOKReportHappened) {
+	s.Happened = val
 }
 
 // SetNewFindings sets the value of NewFindings.
@@ -101017,6 +107182,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) SetResolved(val []ReportsGetRep
 // SetSources sets the value of Sources.
 func (s *ReportsGetReportsWeeklyPreviewOKReport) SetSources(val []ReportsGetReportsWeeklyPreviewOKReportSourcesItem) {
 	s.Sources = val
+}
+
+// SetTopRisks sets the value of TopRisks.
+func (s *ReportsGetReportsWeeklyPreviewOKReport) SetTopRisks(val []ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) {
+	s.TopRisks = val
 }
 
 // ReportsGetReportsWeeklyPreviewOKReportActionsItem represents sum type.
@@ -101229,15 +107399,18 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportAiSummaryTokens) SetOutput(val fl
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportCounts struct {
+	// Devices as the Devices page counts them, this box included.
 	Devices           float64 `json:"devices"`
 	DevicesNew        float64 `json:"devices_new"`
 	DevicesUnapproved float64 `json:"devices_unapproved"`
-	KevMatched        float64 `json:"kev_matched"`
-	KevNew            float64 `json:"kev_new"`
-	NewFindings       float64 `json:"new_findings"`
-	OpenConfirmed     float64 `json:"open_confirmed"`
-	OpenSuspected     float64 `json:"open_suspected"`
-	Resolved          float64 `json:"resolved"`
+	// Products you use among them, as Home counts them (D-485; earlier reports: their CVEs on a device).
+	KevMatched float64 `json:"kev_matched"`
+	// Vulnerabilities newly exploited in the last 7 days, as Home counts them (D-485).
+	KevNew        float64 `json:"kev_new"`
+	NewFindings   float64 `json:"new_findings"`
+	OpenConfirmed float64 `json:"open_confirmed"`
+	OpenSuspected float64 `json:"open_suspected"`
+	Resolved      float64 `json:"resolved"`
 }
 
 // GetDevices returns the value of Devices.
@@ -101330,8 +107503,264 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetResolved(val float64) 
 	s.Resolved = val
 }
 
+// Incidents of the week from notify (D-490): counts per kind and the few that matter.
+type ReportsGetReportsWeeklyPreviewOKReportHappened struct {
+	AcceptedLogins int `json:"accepted_logins"`
+	BadConnections int `json:"bad_connections"`
+	FailedLogins   int `json:"failed_logins"`
+	Other          int `json:"other"`
+	// The one sentence the page and the email say.
+	Summary string                                                  `json:"summary"`
+	Top     []ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem `json:"top"`
+	Traps   int                                                     `json:"traps"`
+}
+
+// GetAcceptedLogins returns the value of AcceptedLogins.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) GetAcceptedLogins() int {
+	return s.AcceptedLogins
+}
+
+// GetBadConnections returns the value of BadConnections.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) GetBadConnections() int {
+	return s.BadConnections
+}
+
+// GetFailedLogins returns the value of FailedLogins.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) GetFailedLogins() int {
+	return s.FailedLogins
+}
+
+// GetOther returns the value of Other.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) GetOther() int {
+	return s.Other
+}
+
+// GetSummary returns the value of Summary.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) GetSummary() string {
+	return s.Summary
+}
+
+// GetTop returns the value of Top.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) GetTop() []ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem {
+	return s.Top
+}
+
+// GetTraps returns the value of Traps.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) GetTraps() int {
+	return s.Traps
+}
+
+// SetAcceptedLogins sets the value of AcceptedLogins.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) SetAcceptedLogins(val int) {
+	s.AcceptedLogins = val
+}
+
+// SetBadConnections sets the value of BadConnections.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) SetBadConnections(val int) {
+	s.BadConnections = val
+}
+
+// SetFailedLogins sets the value of FailedLogins.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) SetFailedLogins(val int) {
+	s.FailedLogins = val
+}
+
+// SetOther sets the value of Other.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) SetOther(val int) {
+	s.Other = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetTop sets the value of Top.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) SetTop(val []ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) {
+	s.Top = val
+}
+
+// SetTraps sets the value of Traps.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) SetTraps(val int) {
+	s.Traps = val
+}
+
+type ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem struct {
+	// Last seen.
+	At       time.Time                                                     `json:"at"`
+	Kind     ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind     `json:"kind"`
+	Severity ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity `json:"severity"`
+	Title    string                                                        `json:"title"`
+}
+
+// GetAt returns the value of At.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) GetAt() time.Time {
+	return s.At
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) GetKind() ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind {
+	return s.Kind
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) GetSeverity() ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity {
+	return s.Severity
+}
+
+// GetTitle returns the value of Title.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) GetTitle() string {
+	return s.Title
+}
+
+// SetAt sets the value of At.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) SetKind(val ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind) {
+	s.Kind = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) SetSeverity(val ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity) {
+	s.Severity = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind string
+
+const (
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindLoginAccepted ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind = "login_accepted"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindTrap          ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind = "trap"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindFailedLogins  ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind = "failed_logins"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindBadConnection ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind = "bad_connection"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindAnomaly       ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind = "anomaly"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind values.
+func (ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind) AllValues() []ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind {
+	return []ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind{
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindLoginAccepted,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindTrap,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindFailedLogins,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindBadConnection,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindAnomaly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindLoginAccepted:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindTrap:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindFailedLogins:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindBadConnection:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindAnomaly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind(data) {
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindLoginAccepted:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindLoginAccepted
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindTrap:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindTrap
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindFailedLogins:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindFailedLogins
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindBadConnection:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindBadConnection
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindAnomaly:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindAnomaly
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity string
+
+const (
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityCritical ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity = "critical"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityHigh     ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity = "high"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityMedium   ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity = "medium"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityLow      ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity = "low"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityInfo     ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity values.
+func (ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity) AllValues() []ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity {
+	return []ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity{
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityCritical,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityHigh,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityMedium,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityLow,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity(data) {
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityCritical:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityCritical
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityHigh:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityHigh
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityMedium:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityMedium
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityLow:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityLow
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityInfo:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem struct {
-	AssetID  string                                                        `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                                     `json:"by"`
 	Cve      string                                                        `json:"cve"`
 	Device   string                                                        `json:"device"`
 	ID       string                                                        `json:"id"`
@@ -101344,6 +107773,11 @@ type ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -101384,6 +107818,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) GetStatus() Repo
 // SetAssetID sets the value of AssetID.
 func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.
@@ -101553,7 +107992,9 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus) UnmarshalT
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportOpenItem struct {
-	AssetID  string                                                 `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                              `json:"by"`
 	Cve      string                                                 `json:"cve"`
 	Device   string                                                 `json:"device"`
 	ID       string                                                 `json:"id"`
@@ -101566,6 +108007,11 @@ type ReportsGetReportsWeeklyPreviewOKReportOpenItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -101606,6 +108052,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) GetStatus() ReportsGetR
 // SetAssetID sets the value of AssetID.
 func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.
@@ -101800,7 +108251,9 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportPeriod) SetTo(val time.Time) {
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportResolvedItem struct {
-	AssetID  string                                                     `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                                  `json:"by"`
 	Cve      string                                                     `json:"cve"`
 	Device   string                                                     `json:"device"`
 	ID       string                                                     `json:"id"`
@@ -101813,6 +108266,11 @@ type ReportsGetReportsWeeklyPreviewOKReportResolvedItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -101853,6 +108311,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) GetStatus() Reports
 // SetAssetID sets the value of AssetID.
 func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.
@@ -102052,6 +108515,7 @@ const (
 	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDInventory ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "inventory"
 	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings  ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "findings"
 	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev       ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "kev"
+	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "incidents"
 )
 
 // AllValues returns all ReportsGetReportsWeeklyPreviewOKReportSourcesItemID values.
@@ -102060,6 +108524,7 @@ func (ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) AllValues() []Reports
 		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDInventory,
 		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings,
 		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev,
+		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents,
 	}
 }
 
@@ -102071,6 +108536,8 @@ func (s ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) MarshalText() ([]by
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -102088,6 +108555,181 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) UnmarshalText(data
 		return nil
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev:
 		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents:
+		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsWeeklyPreviewOKReportTopRisksItem struct {
+	// What to do this week, one sentence naming the device(s) and the fixed version when NVD says (D-490);
+	// absent in reports sent before it.
+	Action OptString `json:"action"`
+	// Open findings a scan confirmed.
+	Confirmed int    `json:"confirmed"`
+	Cve       string `json:"cve"`
+	// The device, or the first names and how many more.
+	Device  string `json:"device"`
+	Devices int    `json:"devices"`
+	// Its worst finding.
+	FindingID string `json:"finding_id"`
+	Open      int    `json:"open"`
+	// The product as Findings names it.
+	Product string `json:"product"`
+	// The worst severity.
+	Severity ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity `json:"severity"`
+}
+
+// GetAction returns the value of Action.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetAction() OptString {
+	return s.Action
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetConfirmed() int {
+	return s.Confirmed
+}
+
+// GetCve returns the value of Cve.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetCve() string {
+	return s.Cve
+}
+
+// GetDevice returns the value of Device.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetDevice() string {
+	return s.Device
+}
+
+// GetDevices returns the value of Devices.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetDevices() int {
+	return s.Devices
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetOpen() int {
+	return s.Open
+}
+
+// GetProduct returns the value of Product.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetSeverity() ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity {
+	return s.Severity
+}
+
+// SetAction sets the value of Action.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetAction(val OptString) {
+	s.Action = val
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetConfirmed(val int) {
+	s.Confirmed = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetOpen(val int) {
+	s.Open = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetSeverity(val ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity) {
+	s.Severity = val
+}
+
+// The worst severity.
+type ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity string
+
+const (
+	ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityCritical ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity = "critical"
+	ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityHigh     ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity = "high"
+	ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityMedium   ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity = "medium"
+	ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityLow      ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity = "low"
+	ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityInfo     ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity values.
+func (ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity) AllValues() []ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity {
+	return []ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity{
+		ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityCritical,
+		ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityHigh,
+		ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityMedium,
+		ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityLow,
+		ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity(data) {
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityCritical:
+		*s = ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityCritical
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityHigh:
+		*s = ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityHigh
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityMedium:
+		*s = ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityMedium
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityLow:
+		*s = ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityLow
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityInfo:
+		*s = ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverityInfo
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -103301,7 +109943,9 @@ func (s *ReportsPostReportsPdplGenerateOKOrgSize) UnmarshalText(data []byte) err
 }
 
 type ReportsPostReportsPdplGenerateOKRisksItem struct {
-	AssetID  string                                            `json:"asset_id"`
+	AssetID string `json:"asset_id"`
+	// Who closed it (rows of what was done).
+	By       OptString                                         `json:"by"`
 	Cve      string                                            `json:"cve"`
 	Device   string                                            `json:"device"`
 	ID       string                                            `json:"id"`
@@ -103314,6 +109958,11 @@ type ReportsPostReportsPdplGenerateOKRisksItem struct {
 // GetAssetID returns the value of AssetID.
 func (s *ReportsPostReportsPdplGenerateOKRisksItem) GetAssetID() string {
 	return s.AssetID
+}
+
+// GetBy returns the value of By.
+func (s *ReportsPostReportsPdplGenerateOKRisksItem) GetBy() OptString {
+	return s.By
 }
 
 // GetCve returns the value of Cve.
@@ -103354,6 +110003,11 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) GetStatus() ReportsPostRepor
 // SetAssetID sets the value of AssetID.
 func (s *ReportsPostReportsPdplGenerateOKRisksItem) SetAssetID(val string) {
 	s.AssetID = val
+}
+
+// SetBy sets the value of By.
+func (s *ReportsPostReportsPdplGenerateOKRisksItem) SetBy(val OptString) {
+	s.By = val
 }
 
 // SetCve sets the value of Cve.
@@ -109516,16 +116170,15 @@ type ResponseGetResponseMeIdentitiesOKItemsItem struct {
 	// The address or ID on the approver list of the channel, as an administrator saved it.
 	Address string `json:"address"`
 	Channel string `json:"channel"`
-	// A code was sent or shown and can be entered now.
+	// A code or confirm link was sent and can be used now.
 	CodeWaiting bool   `json:"code_waiting"`
 	Label       string `json:"label"`
 	// Proved by this person for exactly this address; a changed address or sign-in email is not linked.
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
-	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
-	// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
-	// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
+	// Email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that
+	// chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414);
+	// Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
 	Method ResponseGetResponseMeIdentitiesOKItemsItemMethod `json:"method"`
 	// The shown name of that address where the channel knows it (Zalo personal, D-447).
 	Name OptString `json:"name"`
@@ -109611,15 +116264,13 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetName(val OptString) {
 	s.Name = val
 }
 
-// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
-// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
-// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
+// Email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that
+// chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414);
+// Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
 type ResponseGetResponseMeIdentitiesOKItemsItemMethod string
 
 const (
 	ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode   ResponseGetResponseMeIdentitiesOKItemsItemMethod = "email_code"
-	ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode    ResponseGetResponseMeIdentitiesOKItemsItemMethod = "chat_code"
 	ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode    ResponseGetResponseMeIdentitiesOKItemsItemMethod = "send_code"
 	ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable ResponseGetResponseMeIdentitiesOKItemsItemMethod = "unavailable"
 )
@@ -109628,7 +116279,6 @@ const (
 func (ResponseGetResponseMeIdentitiesOKItemsItemMethod) AllValues() []ResponseGetResponseMeIdentitiesOKItemsItemMethod {
 	return []ResponseGetResponseMeIdentitiesOKItemsItemMethod{
 		ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode,
-		ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode,
 		ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode,
 		ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable,
 	}
@@ -109638,8 +116288,6 @@ func (ResponseGetResponseMeIdentitiesOKItemsItemMethod) AllValues() []ResponseGe
 func (s ResponseGetResponseMeIdentitiesOKItemsItemMethod) MarshalText() ([]byte, error) {
 	switch s {
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode:
-		return []byte(s), nil
-	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
 		return []byte(s), nil
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode:
 		return []byte(s), nil
@@ -109655,9 +116303,6 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItemMethod) UnmarshalText(data []
 	switch ResponseGetResponseMeIdentitiesOKItemsItemMethod(data) {
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode:
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode
-		return nil
-	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
-		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode
 		return nil
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode:
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode
@@ -110301,7 +116946,8 @@ type ResponseGetResponsePlansOKItemsItemStepsItemProposal struct {
 	ID          string                                                     `json:"id"`
 	// Open (pending) or executed request for this proposal.
 	RequestID NilString `json:"request_id"`
-	// Ready = a request can be made now; the others say what blocks it.
+	// Ready = a request can be made now; the others say what blocks it (not_publishable: a block list
+	// action on an address the list never publishes, D-469).
 	State ResponseGetResponsePlansOKItemsItemStepsItemProposalState `json:"state"`
 	Title string                                                    `json:"title"`
 	Tool  string                                                    `json:"tool"`
@@ -110817,7 +117463,8 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestM
 	}
 }
 
-// Ready = a request can be made now; the others say what blocks it.
+// Ready = a request can be made now; the others say what blocks it (not_publishable: a block list
+// action on an address the list never publishes, D-469).
 type ResponseGetResponsePlansOKItemsItemStepsItemProposalState string
 
 const (
@@ -110825,6 +117472,7 @@ const (
 	ResponseGetResponsePlansOKItemsItemStepsItemProposalStateExecutionOff    ResponseGetResponsePlansOKItemsItemStepsItemProposalState = "execution_off"
 	ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolNotAllowed  ResponseGetResponsePlansOKItemsItemStepsItemProposalState = "tool_not_allowed"
 	ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolUnavailable ResponseGetResponsePlansOKItemsItemStepsItemProposalState = "tool_unavailable"
+	ResponseGetResponsePlansOKItemsItemStepsItemProposalStateNotPublishable  ResponseGetResponsePlansOKItemsItemStepsItemProposalState = "not_publishable"
 )
 
 // AllValues returns all ResponseGetResponsePlansOKItemsItemStepsItemProposalState values.
@@ -110834,6 +117482,7 @@ func (ResponseGetResponsePlansOKItemsItemStepsItemProposalState) AllValues() []R
 		ResponseGetResponsePlansOKItemsItemStepsItemProposalStateExecutionOff,
 		ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolNotAllowed,
 		ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolUnavailable,
+		ResponseGetResponsePlansOKItemsItemStepsItemProposalStateNotPublishable,
 	}
 }
 
@@ -110847,6 +117496,8 @@ func (s ResponseGetResponsePlansOKItemsItemStepsItemProposalState) MarshalText()
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolNotAllowed:
 		return []byte(s), nil
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolUnavailable:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKItemsItemStepsItemProposalStateNotPublishable:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -110867,6 +117518,9 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalState) UnmarshalTex
 		return nil
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolUnavailable:
 		*s = ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolUnavailable
+		return nil
+	case ResponseGetResponsePlansOKItemsItemStepsItemProposalStateNotPublishable:
+		*s = ResponseGetResponsePlansOKItemsItemStepsItemProposalStateNotPublishable
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -126915,9 +133569,9 @@ func (s *ResponsePostResponseExecutionReq) SetPhrase(val OptString) {
 }
 
 type ResponsePostResponseMeIdentitiesChannelCodeOK struct {
-	// Send_code channels only: the code to send from your own chat account to the box account (sent_to is
-	// that account ID); it proves nothing until it arrives from there.
-	Code OptString `json:"code"`
+	// Send_code channels only, when nothing was sent because you confirm in this session (your own row
+	// with the box's own Zalo account): the confirm page to open.
+	Link OptString `json:"link"`
 	// Preview build only; never sent by a real box.
 	PreviewCode OptString `json:"preview_code"`
 	ResendAfter int       `json:"resend_after"`
@@ -126925,9 +133579,9 @@ type ResponsePostResponseMeIdentitiesChannelCodeOK struct {
 	SentTo string `json:"sent_to"`
 }
 
-// GetCode returns the value of Code.
-func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) GetCode() OptString {
-	return s.Code
+// GetLink returns the value of Link.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) GetLink() OptString {
+	return s.Link
 }
 
 // GetPreviewCode returns the value of PreviewCode.
@@ -126945,9 +133599,9 @@ func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) GetSentTo() string {
 	return s.SentTo
 }
 
-// SetCode sets the value of Code.
-func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) SetCode(val OptString) {
-	s.Code = val
+// SetLink sets the value of Link.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) SetLink(val OptString) {
+	s.Link = val
 }
 
 // SetPreviewCode sets the value of PreviewCode.
@@ -126969,16 +133623,15 @@ type ResponsePostResponseMeIdentitiesChannelConfirmOK struct {
 	// The address or ID on the approver list of the channel, as an administrator saved it.
 	Address string `json:"address"`
 	Channel string `json:"channel"`
-	// A code was sent or shown and can be entered now.
+	// A code or confirm link was sent and can be used now.
 	CodeWaiting bool   `json:"code_waiting"`
 	Label       string `json:"label"`
 	// Proved by this person for exactly this address; a changed address or sign-in email is not linked.
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
-	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
-	// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
-	// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
+	// Email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that
+	// chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414);
+	// Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
 	Method ResponsePostResponseMeIdentitiesChannelConfirmOKMethod `json:"method"`
 	// The shown name of that address where the channel knows it (Zalo personal, D-447).
 	Name OptString `json:"name"`
@@ -127064,15 +133717,13 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetName(val OptString
 	s.Name = val
 }
 
-// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
-// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
-// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
+// Email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that
+// chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414);
+// Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
 type ResponsePostResponseMeIdentitiesChannelConfirmOKMethod string
 
 const (
 	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode   ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "email_code"
-	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode    ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "chat_code"
 	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode    ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "send_code"
 	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "unavailable"
 )
@@ -127081,7 +133732,6 @@ const (
 func (ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) AllValues() []ResponsePostResponseMeIdentitiesChannelConfirmOKMethod {
 	return []ResponsePostResponseMeIdentitiesChannelConfirmOKMethod{
 		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode,
-		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode,
 		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode,
 		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable,
 	}
@@ -127091,8 +133741,6 @@ func (ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) AllValues() []Resp
 func (s ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) MarshalText() ([]byte, error) {
 	switch s {
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode:
-		return []byte(s), nil
-	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
 		return []byte(s), nil
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode:
 		return []byte(s), nil
@@ -127108,9 +133756,6 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) UnmarshalText(d
 	switch ResponsePostResponseMeIdentitiesChannelConfirmOKMethod(data) {
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode:
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode
-		return nil
-	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
-		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode
 		return nil
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode:
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode
@@ -136088,19 +142733,22 @@ func (s *ScanGetScansRunsOK) SetItems(val []ScanGetScansRunsOKItemsItem) {
 }
 
 type ScanGetScansRunsOKItemsItem struct {
-	Current     NilScanGetScansRunsOKItemsItemCurrent    `json:"current"`
-	Done        int                                      `json:"done"`
-	EndedAt     NilDateTime                              `json:"ended_at"`
-	ID          string                                   `json:"id"`
-	Matched     int                                      `json:"matched"`
-	Results     []ScanGetScansRunsOKItemsItemResultsItem `json:"results"`
-	StartedAt   time.Time                                `json:"started_at"`
-	StartedBy   string                                   `json:"started_by"`
-	Status      ScanGetScansRunsOKItemsItemStatus        `json:"status"`
-	StopReason  NilString                                `json:"stop_reason"`
-	Total       int                                      `json:"total"`
-	Trigger     ScanGetScansRunsOKItemsItemTrigger       `json:"trigger"`
-	TriggerNote NilString                                `json:"trigger_note"`
+	Current NilScanGetScansRunsOKItemsItemCurrent `json:"current"`
+	Done    int                                   `json:"done"`
+	EndedAt NilDateTime                           `json:"ended_at"`
+	ID      string                                `json:"id"`
+	// One row per device of a Scan now run: what nmap identified first, or exactly why nothing was
+	// (D-501). Empty for scheduled scans and KEV rescans, and while the run is going.
+	Identification []ScanGetScansRunsOKItemsItemIdentificationItem `json:"identification"`
+	Matched        int                                             `json:"matched"`
+	Results        []ScanGetScansRunsOKItemsItemResultsItem        `json:"results"`
+	StartedAt      time.Time                                       `json:"started_at"`
+	StartedBy      string                                          `json:"started_by"`
+	Status         ScanGetScansRunsOKItemsItemStatus               `json:"status"`
+	StopReason     NilString                                       `json:"stop_reason"`
+	Total          int                                             `json:"total"`
+	Trigger        ScanGetScansRunsOKItemsItemTrigger              `json:"trigger"`
+	TriggerNote    NilString                                       `json:"trigger_note"`
 }
 
 // GetCurrent returns the value of Current.
@@ -136121,6 +142769,11 @@ func (s *ScanGetScansRunsOKItemsItem) GetEndedAt() NilDateTime {
 // GetID returns the value of ID.
 func (s *ScanGetScansRunsOKItemsItem) GetID() string {
 	return s.ID
+}
+
+// GetIdentification returns the value of Identification.
+func (s *ScanGetScansRunsOKItemsItem) GetIdentification() []ScanGetScansRunsOKItemsItemIdentificationItem {
+	return s.Identification
 }
 
 // GetMatched returns the value of Matched.
@@ -136186,6 +142839,11 @@ func (s *ScanGetScansRunsOKItemsItem) SetEndedAt(val NilDateTime) {
 // SetID sets the value of ID.
 func (s *ScanGetScansRunsOKItemsItem) SetID(val string) {
 	s.ID = val
+}
+
+// SetIdentification sets the value of Identification.
+func (s *ScanGetScansRunsOKItemsItem) SetIdentification(val []ScanGetScansRunsOKItemsItemIdentificationItem) {
+	s.Identification = val
 }
 
 // SetMatched sets the value of Matched.
@@ -136256,6 +142914,253 @@ func (s *ScanGetScansRunsOKItemsItemCurrent) SetIP(val string) {
 // SetLabel sets the value of Label.
 func (s *ScanGetScansRunsOKItemsItemCurrent) SetLabel(val string) {
 	s.Label = val
+}
+
+type ScanGetScansRunsOKItemsItemIdentificationItem struct {
+	// What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …".
+	Found []string `json:"found"`
+	IP    string   `json:"ip"`
+	Label string   `json:"label"`
+	// The box's sentence for the reason, shown as is.
+	Note string `json:"note"`
+	// Null: software with a version was recorded and compared with the KEV list. Otherwise why nothing
+	// was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version
+	// (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until
+	// a person adds the OS with its version), os_no_patch_level (the device named its Windows release and
+	// build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it
+	// with its full version, D-504), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the
+	// box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out, busy
+	// (discovery was running nmap), unavailable (nmap not available or Active discovery off),
+	// declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
+	Reason   NilScanGetScansRunsOKItemsItemIdentificationItemReason `json:"reason"`
+	TargetID string                                                 `json:"target_id"`
+}
+
+// GetFound returns the value of Found.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) GetFound() []string {
+	return s.Found
+}
+
+// GetIP returns the value of IP.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) GetIP() string {
+	return s.IP
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) GetLabel() string {
+	return s.Label
+}
+
+// GetNote returns the value of Note.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) GetNote() string {
+	return s.Note
+}
+
+// GetReason returns the value of Reason.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) GetReason() NilScanGetScansRunsOKItemsItemIdentificationItemReason {
+	return s.Reason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// SetFound sets the value of Found.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) SetFound(val []string) {
+	s.Found = val
+}
+
+// SetIP sets the value of IP.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetNote sets the value of Note.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) SetReason(val NilScanGetScansRunsOKItemsItemIdentificationItemReason) {
+	s.Reason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+type ScanGetScansRunsOKItemsItemIdentificationItemReason string
+
+const (
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonHostDown          ScanGetScansRunsOKItemsItemIdentificationItemReason = "host_down"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonNoOpenPorts       ScanGetScansRunsOKItemsItemIdentificationItemReason = "no_open_ports"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered          ScanGetScansRunsOKItemsItemIdentificationItemReason = "filtered"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion         ScanGetScansRunsOKItemsItemIdentificationItemReason = "no_version"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed     ScanGetScansRunsOKItemsItemIdentificationItemReason = "os_unconfirmed"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel    ScanGetScansRunsOKItemsItemIdentificationItemReason = "os_no_patch_level"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence   ScanGetScansRunsOKItemsItemIdentificationItemReason = "os_low_confidence"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly        ScanGetScansRunsOKItemsItemIdentificationItemReason = "gentle_only"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut          ScanGetScansRunsOKItemsItemIdentificationItemReason = "timed_out"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonBusy              ScanGetScansRunsOKItemsItemIdentificationItemReason = "busy"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonUnavailable       ScanGetScansRunsOKItemsItemIdentificationItemReason = "unavailable"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonDeclaredByHand    ScanGetScansRunsOKItemsItemIdentificationItemReason = "declared_by_hand"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonScanningOff       ScanGetScansRunsOKItemsItemIdentificationItemReason = "scanning_off"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved       ScanGetScansRunsOKItemsItemIdentificationItemReason = "not_approved"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope        ScanGetScansRunsOKItemsItemIdentificationItemReason = "out_of_scope"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonScopeNotConfirmed ScanGetScansRunsOKItemsItemIdentificationItemReason = "scope_not_confirmed"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonBox               ScanGetScansRunsOKItemsItemIdentificationItemReason = "box"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonRegularScanNever  ScanGetScansRunsOKItemsItemIdentificationItemReason = "regular_scan_never"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP              ScanGetScansRunsOKItemsItemIdentificationItemReason = "no_ip"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned        ScanGetScansRunsOKItemsItemIdentificationItemReason = "not_scanned"
+)
+
+// AllValues returns all ScanGetScansRunsOKItemsItemIdentificationItemReason values.
+func (ScanGetScansRunsOKItemsItemIdentificationItemReason) AllValues() []ScanGetScansRunsOKItemsItemIdentificationItemReason {
+	return []ScanGetScansRunsOKItemsItemIdentificationItemReason{
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonHostDown,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonNoOpenPorts,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonBusy,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonUnavailable,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonDeclaredByHand,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonScanningOff,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonScopeNotConfirmed,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonBox,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonRegularScanNever,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanGetScansRunsOKItemsItemIdentificationItemReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonHostDown:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoOpenPorts:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonBusy:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonUnavailable:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonDeclaredByHand:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonScanningOff:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonScopeNotConfirmed:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonBox:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonRegularScanNever:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanGetScansRunsOKItemsItemIdentificationItemReason) UnmarshalText(data []byte) error {
+	switch ScanGetScansRunsOKItemsItemIdentificationItemReason(data) {
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonHostDown:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonHostDown
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoOpenPorts:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNoOpenPorts
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonBusy:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonBusy
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonUnavailable:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonUnavailable
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonDeclaredByHand:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonDeclaredByHand
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonScanningOff:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonScanningOff
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonScopeNotConfirmed:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonScopeNotConfirmed
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonBox:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonBox
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonRegularScanNever:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonRegularScanNever
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ScanGetScansRunsOKItemsItemResultsItem struct {
@@ -136532,6 +143437,11 @@ func (s *ScanGetScansTargetsOK) SetItems(val []ScanGetScansTargetsOKItemsItem) {
 }
 
 type ScanGetScansTargetsOKItemsItem struct {
+	// Approved in the inventory (picker filter, D-472); false for external targets.
+	Approved bool `json:"approved"`
+	// The Vedette box itself (D-470): pick_only, so it is scanned only when a person ticks it; sweeps,
+	// schedules, KEV rescans and Select all never include it.
+	Box bool `json:"box"`
 	// Device type in the inventory; null for external targets.
 	DeviceKind NilScanGetScansTargetsOKItemsItemDeviceKind `json:"device_kind"`
 	Findings   int                                         `json:"findings"`
@@ -136543,14 +143453,30 @@ type ScanGetScansTargetsOKItemsItem struct {
 	IP    string                             `json:"ip"`
 	Kind  ScanGetScansTargetsOKItemsItemKind `json:"kind"`
 	Label string                             `json:"label"`
+	// When the inventory last saw the device (picker filter, D-472); null for external targets.
+	LastSeen NilDateTime `json:"last_seen"`
+	// For the picker search (D-472); null when unknown and for external targets.
+	MAC NilString `json:"mac"`
 	// Fragile, unclassified or added by hand: scanned only when a person ticks it in Scan now (D-126 (2)).
 	// The page never ticks it for you: not by default, not with Select all, not from a link.
 	PickOnly bool `json:"pick_only"`
-	// Null when the target can be scanned by picking it. box: the Vedette box itself is never scanned.
-	// regular_scan_never: a person set "never scan" on the device (D-126). not_supported: external targets
-	// are not scanned by this version yet.
+	// Null when the target can be scanned by picking it. no_ip: the device has no IP address in the
+	// inventory (D-484). regular_scan_never: a person set "never scan" on the device (D-126).
+	// not_supported: external targets are not scanned by this version yet.
 	Reason     NilScanGetScansTargetsOKItemsItemReason `json:"reason"`
 	Selectable bool                                    `json:"selectable"`
+	// For the picker search (D-472); null when unknown and for external targets.
+	Vendor NilString `json:"vendor"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *ScanGetScansTargetsOKItemsItem) GetApproved() bool {
+	return s.Approved
+}
+
+// GetBox returns the value of Box.
+func (s *ScanGetScansTargetsOKItemsItem) GetBox() bool {
+	return s.Box
 }
 
 // GetDeviceKind returns the value of DeviceKind.
@@ -136588,6 +143514,16 @@ func (s *ScanGetScansTargetsOKItemsItem) GetLabel() string {
 	return s.Label
 }
 
+// GetLastSeen returns the value of LastSeen.
+func (s *ScanGetScansTargetsOKItemsItem) GetLastSeen() NilDateTime {
+	return s.LastSeen
+}
+
+// GetMAC returns the value of MAC.
+func (s *ScanGetScansTargetsOKItemsItem) GetMAC() NilString {
+	return s.MAC
+}
+
 // GetPickOnly returns the value of PickOnly.
 func (s *ScanGetScansTargetsOKItemsItem) GetPickOnly() bool {
 	return s.PickOnly
@@ -136601,6 +143537,21 @@ func (s *ScanGetScansTargetsOKItemsItem) GetReason() NilScanGetScansTargetsOKIte
 // GetSelectable returns the value of Selectable.
 func (s *ScanGetScansTargetsOKItemsItem) GetSelectable() bool {
 	return s.Selectable
+}
+
+// GetVendor returns the value of Vendor.
+func (s *ScanGetScansTargetsOKItemsItem) GetVendor() NilString {
+	return s.Vendor
+}
+
+// SetApproved sets the value of Approved.
+func (s *ScanGetScansTargetsOKItemsItem) SetApproved(val bool) {
+	s.Approved = val
+}
+
+// SetBox sets the value of Box.
+func (s *ScanGetScansTargetsOKItemsItem) SetBox(val bool) {
+	s.Box = val
 }
 
 // SetDeviceKind sets the value of DeviceKind.
@@ -136638,6 +143589,16 @@ func (s *ScanGetScansTargetsOKItemsItem) SetLabel(val string) {
 	s.Label = val
 }
 
+// SetLastSeen sets the value of LastSeen.
+func (s *ScanGetScansTargetsOKItemsItem) SetLastSeen(val NilDateTime) {
+	s.LastSeen = val
+}
+
+// SetMAC sets the value of MAC.
+func (s *ScanGetScansTargetsOKItemsItem) SetMAC(val NilString) {
+	s.MAC = val
+}
+
 // SetPickOnly sets the value of PickOnly.
 func (s *ScanGetScansTargetsOKItemsItem) SetPickOnly(val bool) {
 	s.PickOnly = val
@@ -136651,6 +143612,11 @@ func (s *ScanGetScansTargetsOKItemsItem) SetReason(val NilScanGetScansTargetsOKI
 // SetSelectable sets the value of Selectable.
 func (s *ScanGetScansTargetsOKItemsItem) SetSelectable(val bool) {
 	s.Selectable = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *ScanGetScansTargetsOKItemsItem) SetVendor(val NilString) {
+	s.Vendor = val
 }
 
 type ScanGetScansTargetsOKItemsItemDeviceKind string
@@ -136818,7 +143784,7 @@ const (
 	ScanGetScansTargetsOKItemsItemReasonUnapproved       ScanGetScansTargetsOKItemsItemReason = "unapproved"
 	ScanGetScansTargetsOKItemsItemReasonExcluded         ScanGetScansTargetsOKItemsItemReason = "excluded"
 	ScanGetScansTargetsOKItemsItemReasonOutOfScope       ScanGetScansTargetsOKItemsItemReason = "out_of_scope"
-	ScanGetScansTargetsOKItemsItemReasonBox              ScanGetScansTargetsOKItemsItemReason = "box"
+	ScanGetScansTargetsOKItemsItemReasonNoIP             ScanGetScansTargetsOKItemsItemReason = "no_ip"
 	ScanGetScansTargetsOKItemsItemReasonRegularScanNever ScanGetScansTargetsOKItemsItemReason = "regular_scan_never"
 	ScanGetScansTargetsOKItemsItemReasonUnverified       ScanGetScansTargetsOKItemsItemReason = "unverified"
 	ScanGetScansTargetsOKItemsItemReasonExpired          ScanGetScansTargetsOKItemsItemReason = "expired"
@@ -136831,7 +143797,7 @@ func (ScanGetScansTargetsOKItemsItemReason) AllValues() []ScanGetScansTargetsOKI
 		ScanGetScansTargetsOKItemsItemReasonUnapproved,
 		ScanGetScansTargetsOKItemsItemReasonExcluded,
 		ScanGetScansTargetsOKItemsItemReasonOutOfScope,
-		ScanGetScansTargetsOKItemsItemReasonBox,
+		ScanGetScansTargetsOKItemsItemReasonNoIP,
 		ScanGetScansTargetsOKItemsItemReasonRegularScanNever,
 		ScanGetScansTargetsOKItemsItemReasonUnverified,
 		ScanGetScansTargetsOKItemsItemReasonExpired,
@@ -136848,7 +143814,7 @@ func (s ScanGetScansTargetsOKItemsItemReason) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemReasonOutOfScope:
 		return []byte(s), nil
-	case ScanGetScansTargetsOKItemsItemReasonBox:
+	case ScanGetScansTargetsOKItemsItemReasonNoIP:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemReasonRegularScanNever:
 		return []byte(s), nil
@@ -136875,8 +143841,8 @@ func (s *ScanGetScansTargetsOKItemsItemReason) UnmarshalText(data []byte) error 
 	case ScanGetScansTargetsOKItemsItemReasonOutOfScope:
 		*s = ScanGetScansTargetsOKItemsItemReasonOutOfScope
 		return nil
-	case ScanGetScansTargetsOKItemsItemReasonBox:
-		*s = ScanGetScansTargetsOKItemsItemReasonBox
+	case ScanGetScansTargetsOKItemsItemReasonNoIP:
+		*s = ScanGetScansTargetsOKItemsItemReasonNoIP
 		return nil
 	case ScanGetScansTargetsOKItemsItemReasonRegularScanNever:
 		*s = ScanGetScansTargetsOKItemsItemReasonRegularScanNever
@@ -137223,19 +144189,22 @@ func (s *ScanPostScansCredentialedReq) SetUsername(val string) {
 }
 
 type ScanPostScansRunsCreated struct {
-	Current     NilScanPostScansRunsCreatedCurrent    `json:"current"`
-	Done        int                                   `json:"done"`
-	EndedAt     NilDateTime                           `json:"ended_at"`
-	ID          string                                `json:"id"`
-	Matched     int                                   `json:"matched"`
-	Results     []ScanPostScansRunsCreatedResultsItem `json:"results"`
-	StartedAt   time.Time                             `json:"started_at"`
-	StartedBy   string                                `json:"started_by"`
-	Status      ScanPostScansRunsCreatedStatus        `json:"status"`
-	StopReason  NilString                             `json:"stop_reason"`
-	Total       int                                   `json:"total"`
-	Trigger     ScanPostScansRunsCreatedTrigger       `json:"trigger"`
-	TriggerNote NilString                             `json:"trigger_note"`
+	Current NilScanPostScansRunsCreatedCurrent `json:"current"`
+	Done    int                                `json:"done"`
+	EndedAt NilDateTime                        `json:"ended_at"`
+	ID      string                             `json:"id"`
+	// One row per device of a Scan now run: what nmap identified first, or exactly why nothing was
+	// (D-501). Empty for scheduled scans and KEV rescans, and while the run is going.
+	Identification []ScanPostScansRunsCreatedIdentificationItem `json:"identification"`
+	Matched        int                                          `json:"matched"`
+	Results        []ScanPostScansRunsCreatedResultsItem        `json:"results"`
+	StartedAt      time.Time                                    `json:"started_at"`
+	StartedBy      string                                       `json:"started_by"`
+	Status         ScanPostScansRunsCreatedStatus               `json:"status"`
+	StopReason     NilString                                    `json:"stop_reason"`
+	Total          int                                          `json:"total"`
+	Trigger        ScanPostScansRunsCreatedTrigger              `json:"trigger"`
+	TriggerNote    NilString                                    `json:"trigger_note"`
 }
 
 // GetCurrent returns the value of Current.
@@ -137256,6 +144225,11 @@ func (s *ScanPostScansRunsCreated) GetEndedAt() NilDateTime {
 // GetID returns the value of ID.
 func (s *ScanPostScansRunsCreated) GetID() string {
 	return s.ID
+}
+
+// GetIdentification returns the value of Identification.
+func (s *ScanPostScansRunsCreated) GetIdentification() []ScanPostScansRunsCreatedIdentificationItem {
+	return s.Identification
 }
 
 // GetMatched returns the value of Matched.
@@ -137321,6 +144295,11 @@ func (s *ScanPostScansRunsCreated) SetEndedAt(val NilDateTime) {
 // SetID sets the value of ID.
 func (s *ScanPostScansRunsCreated) SetID(val string) {
 	s.ID = val
+}
+
+// SetIdentification sets the value of Identification.
+func (s *ScanPostScansRunsCreated) SetIdentification(val []ScanPostScansRunsCreatedIdentificationItem) {
+	s.Identification = val
 }
 
 // SetMatched sets the value of Matched.
@@ -137391,6 +144370,253 @@ func (s *ScanPostScansRunsCreatedCurrent) SetIP(val string) {
 // SetLabel sets the value of Label.
 func (s *ScanPostScansRunsCreatedCurrent) SetLabel(val string) {
 	s.Label = val
+}
+
+type ScanPostScansRunsCreatedIdentificationItem struct {
+	// What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …".
+	Found []string `json:"found"`
+	IP    string   `json:"ip"`
+	Label string   `json:"label"`
+	// The box's sentence for the reason, shown as is.
+	Note string `json:"note"`
+	// Null: software with a version was recorded and compared with the KEV list. Otherwise why nothing
+	// was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version
+	// (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until
+	// a person adds the OS with its version), os_no_patch_level (the device named its Windows release and
+	// build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it
+	// with its full version, D-504), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the
+	// box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out, busy
+	// (discovery was running nmap), unavailable (nmap not available or Active discovery off),
+	// declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
+	Reason   NilScanPostScansRunsCreatedIdentificationItemReason `json:"reason"`
+	TargetID string                                              `json:"target_id"`
+}
+
+// GetFound returns the value of Found.
+func (s *ScanPostScansRunsCreatedIdentificationItem) GetFound() []string {
+	return s.Found
+}
+
+// GetIP returns the value of IP.
+func (s *ScanPostScansRunsCreatedIdentificationItem) GetIP() string {
+	return s.IP
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanPostScansRunsCreatedIdentificationItem) GetLabel() string {
+	return s.Label
+}
+
+// GetNote returns the value of Note.
+func (s *ScanPostScansRunsCreatedIdentificationItem) GetNote() string {
+	return s.Note
+}
+
+// GetReason returns the value of Reason.
+func (s *ScanPostScansRunsCreatedIdentificationItem) GetReason() NilScanPostScansRunsCreatedIdentificationItemReason {
+	return s.Reason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ScanPostScansRunsCreatedIdentificationItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// SetFound sets the value of Found.
+func (s *ScanPostScansRunsCreatedIdentificationItem) SetFound(val []string) {
+	s.Found = val
+}
+
+// SetIP sets the value of IP.
+func (s *ScanPostScansRunsCreatedIdentificationItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanPostScansRunsCreatedIdentificationItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetNote sets the value of Note.
+func (s *ScanPostScansRunsCreatedIdentificationItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ScanPostScansRunsCreatedIdentificationItem) SetReason(val NilScanPostScansRunsCreatedIdentificationItemReason) {
+	s.Reason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ScanPostScansRunsCreatedIdentificationItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+type ScanPostScansRunsCreatedIdentificationItemReason string
+
+const (
+	ScanPostScansRunsCreatedIdentificationItemReasonHostDown          ScanPostScansRunsCreatedIdentificationItemReason = "host_down"
+	ScanPostScansRunsCreatedIdentificationItemReasonNoOpenPorts       ScanPostScansRunsCreatedIdentificationItemReason = "no_open_ports"
+	ScanPostScansRunsCreatedIdentificationItemReasonFiltered          ScanPostScansRunsCreatedIdentificationItemReason = "filtered"
+	ScanPostScansRunsCreatedIdentificationItemReasonNoVersion         ScanPostScansRunsCreatedIdentificationItemReason = "no_version"
+	ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed     ScanPostScansRunsCreatedIdentificationItemReason = "os_unconfirmed"
+	ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel    ScanPostScansRunsCreatedIdentificationItemReason = "os_no_patch_level"
+	ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence   ScanPostScansRunsCreatedIdentificationItemReason = "os_low_confidence"
+	ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly        ScanPostScansRunsCreatedIdentificationItemReason = "gentle_only"
+	ScanPostScansRunsCreatedIdentificationItemReasonTimedOut          ScanPostScansRunsCreatedIdentificationItemReason = "timed_out"
+	ScanPostScansRunsCreatedIdentificationItemReasonBusy              ScanPostScansRunsCreatedIdentificationItemReason = "busy"
+	ScanPostScansRunsCreatedIdentificationItemReasonUnavailable       ScanPostScansRunsCreatedIdentificationItemReason = "unavailable"
+	ScanPostScansRunsCreatedIdentificationItemReasonDeclaredByHand    ScanPostScansRunsCreatedIdentificationItemReason = "declared_by_hand"
+	ScanPostScansRunsCreatedIdentificationItemReasonScanningOff       ScanPostScansRunsCreatedIdentificationItemReason = "scanning_off"
+	ScanPostScansRunsCreatedIdentificationItemReasonNotApproved       ScanPostScansRunsCreatedIdentificationItemReason = "not_approved"
+	ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope        ScanPostScansRunsCreatedIdentificationItemReason = "out_of_scope"
+	ScanPostScansRunsCreatedIdentificationItemReasonScopeNotConfirmed ScanPostScansRunsCreatedIdentificationItemReason = "scope_not_confirmed"
+	ScanPostScansRunsCreatedIdentificationItemReasonBox               ScanPostScansRunsCreatedIdentificationItemReason = "box"
+	ScanPostScansRunsCreatedIdentificationItemReasonRegularScanNever  ScanPostScansRunsCreatedIdentificationItemReason = "regular_scan_never"
+	ScanPostScansRunsCreatedIdentificationItemReasonNoIP              ScanPostScansRunsCreatedIdentificationItemReason = "no_ip"
+	ScanPostScansRunsCreatedIdentificationItemReasonNotScanned        ScanPostScansRunsCreatedIdentificationItemReason = "not_scanned"
+)
+
+// AllValues returns all ScanPostScansRunsCreatedIdentificationItemReason values.
+func (ScanPostScansRunsCreatedIdentificationItemReason) AllValues() []ScanPostScansRunsCreatedIdentificationItemReason {
+	return []ScanPostScansRunsCreatedIdentificationItemReason{
+		ScanPostScansRunsCreatedIdentificationItemReasonHostDown,
+		ScanPostScansRunsCreatedIdentificationItemReasonNoOpenPorts,
+		ScanPostScansRunsCreatedIdentificationItemReasonFiltered,
+		ScanPostScansRunsCreatedIdentificationItemReasonNoVersion,
+		ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed,
+		ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel,
+		ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence,
+		ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly,
+		ScanPostScansRunsCreatedIdentificationItemReasonTimedOut,
+		ScanPostScansRunsCreatedIdentificationItemReasonBusy,
+		ScanPostScansRunsCreatedIdentificationItemReasonUnavailable,
+		ScanPostScansRunsCreatedIdentificationItemReasonDeclaredByHand,
+		ScanPostScansRunsCreatedIdentificationItemReasonScanningOff,
+		ScanPostScansRunsCreatedIdentificationItemReasonNotApproved,
+		ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope,
+		ScanPostScansRunsCreatedIdentificationItemReasonScopeNotConfirmed,
+		ScanPostScansRunsCreatedIdentificationItemReasonBox,
+		ScanPostScansRunsCreatedIdentificationItemReasonRegularScanNever,
+		ScanPostScansRunsCreatedIdentificationItemReasonNoIP,
+		ScanPostScansRunsCreatedIdentificationItemReasonNotScanned,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanPostScansRunsCreatedIdentificationItemReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanPostScansRunsCreatedIdentificationItemReasonHostDown:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNoOpenPorts:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonFiltered:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNoVersion:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonTimedOut:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonBusy:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonUnavailable:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonDeclaredByHand:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonScanningOff:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNotApproved:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonScopeNotConfirmed:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonBox:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonRegularScanNever:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNoIP:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNotScanned:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanPostScansRunsCreatedIdentificationItemReason) UnmarshalText(data []byte) error {
+	switch ScanPostScansRunsCreatedIdentificationItemReason(data) {
+	case ScanPostScansRunsCreatedIdentificationItemReasonHostDown:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonHostDown
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNoOpenPorts:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonNoOpenPorts
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonFiltered:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonFiltered
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNoVersion:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonNoVersion
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonTimedOut:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonTimedOut
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonBusy:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonBusy
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonUnavailable:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonUnavailable
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonDeclaredByHand:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonDeclaredByHand
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonScanningOff:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonScanningOff
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNotApproved:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonNotApproved
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonScopeNotConfirmed:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonScopeNotConfirmed
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonBox:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonBox
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonRegularScanNever:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonRegularScanNever
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNoIP:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonNoIP
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonNotScanned:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonNotScanned
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ScanPostScansRunsCreatedResultsItem struct {
@@ -137653,19 +144879,22 @@ func (s *ScanPostScansRunsCreatedTrigger) UnmarshalText(data []byte) error {
 }
 
 type ScanPostScansRunsIDStopOK struct {
-	Current     NilScanPostScansRunsIDStopOKCurrent    `json:"current"`
-	Done        int                                    `json:"done"`
-	EndedAt     NilDateTime                            `json:"ended_at"`
-	ID          string                                 `json:"id"`
-	Matched     int                                    `json:"matched"`
-	Results     []ScanPostScansRunsIDStopOKResultsItem `json:"results"`
-	StartedAt   time.Time                              `json:"started_at"`
-	StartedBy   string                                 `json:"started_by"`
-	Status      ScanPostScansRunsIDStopOKStatus        `json:"status"`
-	StopReason  NilString                              `json:"stop_reason"`
-	Total       int                                    `json:"total"`
-	Trigger     ScanPostScansRunsIDStopOKTrigger       `json:"trigger"`
-	TriggerNote NilString                              `json:"trigger_note"`
+	Current NilScanPostScansRunsIDStopOKCurrent `json:"current"`
+	Done    int                                 `json:"done"`
+	EndedAt NilDateTime                         `json:"ended_at"`
+	ID      string                              `json:"id"`
+	// One row per device of a Scan now run: what nmap identified first, or exactly why nothing was
+	// (D-501). Empty for scheduled scans and KEV rescans, and while the run is going.
+	Identification []ScanPostScansRunsIDStopOKIdentificationItem `json:"identification"`
+	Matched        int                                           `json:"matched"`
+	Results        []ScanPostScansRunsIDStopOKResultsItem        `json:"results"`
+	StartedAt      time.Time                                     `json:"started_at"`
+	StartedBy      string                                        `json:"started_by"`
+	Status         ScanPostScansRunsIDStopOKStatus               `json:"status"`
+	StopReason     NilString                                     `json:"stop_reason"`
+	Total          int                                           `json:"total"`
+	Trigger        ScanPostScansRunsIDStopOKTrigger              `json:"trigger"`
+	TriggerNote    NilString                                     `json:"trigger_note"`
 }
 
 // GetCurrent returns the value of Current.
@@ -137686,6 +144915,11 @@ func (s *ScanPostScansRunsIDStopOK) GetEndedAt() NilDateTime {
 // GetID returns the value of ID.
 func (s *ScanPostScansRunsIDStopOK) GetID() string {
 	return s.ID
+}
+
+// GetIdentification returns the value of Identification.
+func (s *ScanPostScansRunsIDStopOK) GetIdentification() []ScanPostScansRunsIDStopOKIdentificationItem {
+	return s.Identification
 }
 
 // GetMatched returns the value of Matched.
@@ -137751,6 +144985,11 @@ func (s *ScanPostScansRunsIDStopOK) SetEndedAt(val NilDateTime) {
 // SetID sets the value of ID.
 func (s *ScanPostScansRunsIDStopOK) SetID(val string) {
 	s.ID = val
+}
+
+// SetIdentification sets the value of Identification.
+func (s *ScanPostScansRunsIDStopOK) SetIdentification(val []ScanPostScansRunsIDStopOKIdentificationItem) {
+	s.Identification = val
 }
 
 // SetMatched sets the value of Matched.
@@ -137821,6 +145060,253 @@ func (s *ScanPostScansRunsIDStopOKCurrent) SetIP(val string) {
 // SetLabel sets the value of Label.
 func (s *ScanPostScansRunsIDStopOKCurrent) SetLabel(val string) {
 	s.Label = val
+}
+
+type ScanPostScansRunsIDStopOKIdentificationItem struct {
+	// What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …".
+	Found []string `json:"found"`
+	IP    string   `json:"ip"`
+	Label string   `json:"label"`
+	// The box's sentence for the reason, shown as is.
+	Note string `json:"note"`
+	// Null: software with a version was recorded and compared with the KEV list. Otherwise why nothing
+	// was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version
+	// (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until
+	// a person adds the OS with its version), os_no_patch_level (the device named its Windows release and
+	// build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it
+	// with its full version, D-504), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the
+	// box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out, busy
+	// (discovery was running nmap), unavailable (nmap not available or Active discovery off),
+	// declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
+	Reason   NilScanPostScansRunsIDStopOKIdentificationItemReason `json:"reason"`
+	TargetID string                                               `json:"target_id"`
+}
+
+// GetFound returns the value of Found.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) GetFound() []string {
+	return s.Found
+}
+
+// GetIP returns the value of IP.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) GetIP() string {
+	return s.IP
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) GetLabel() string {
+	return s.Label
+}
+
+// GetNote returns the value of Note.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) GetNote() string {
+	return s.Note
+}
+
+// GetReason returns the value of Reason.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) GetReason() NilScanPostScansRunsIDStopOKIdentificationItemReason {
+	return s.Reason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// SetFound sets the value of Found.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) SetFound(val []string) {
+	s.Found = val
+}
+
+// SetIP sets the value of IP.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetNote sets the value of Note.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) SetNote(val string) {
+	s.Note = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) SetReason(val NilScanPostScansRunsIDStopOKIdentificationItemReason) {
+	s.Reason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ScanPostScansRunsIDStopOKIdentificationItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+type ScanPostScansRunsIDStopOKIdentificationItemReason string
+
+const (
+	ScanPostScansRunsIDStopOKIdentificationItemReasonHostDown          ScanPostScansRunsIDStopOKIdentificationItemReason = "host_down"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonNoOpenPorts       ScanPostScansRunsIDStopOKIdentificationItemReason = "no_open_ports"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered          ScanPostScansRunsIDStopOKIdentificationItemReason = "filtered"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion         ScanPostScansRunsIDStopOKIdentificationItemReason = "no_version"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed     ScanPostScansRunsIDStopOKIdentificationItemReason = "os_unconfirmed"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel    ScanPostScansRunsIDStopOKIdentificationItemReason = "os_no_patch_level"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence   ScanPostScansRunsIDStopOKIdentificationItemReason = "os_low_confidence"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly        ScanPostScansRunsIDStopOKIdentificationItemReason = "gentle_only"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut          ScanPostScansRunsIDStopOKIdentificationItemReason = "timed_out"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonBusy              ScanPostScansRunsIDStopOKIdentificationItemReason = "busy"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonUnavailable       ScanPostScansRunsIDStopOKIdentificationItemReason = "unavailable"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonDeclaredByHand    ScanPostScansRunsIDStopOKIdentificationItemReason = "declared_by_hand"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonScanningOff       ScanPostScansRunsIDStopOKIdentificationItemReason = "scanning_off"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved       ScanPostScansRunsIDStopOKIdentificationItemReason = "not_approved"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope        ScanPostScansRunsIDStopOKIdentificationItemReason = "out_of_scope"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonScopeNotConfirmed ScanPostScansRunsIDStopOKIdentificationItemReason = "scope_not_confirmed"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonBox               ScanPostScansRunsIDStopOKIdentificationItemReason = "box"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonRegularScanNever  ScanPostScansRunsIDStopOKIdentificationItemReason = "regular_scan_never"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP              ScanPostScansRunsIDStopOKIdentificationItemReason = "no_ip"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned        ScanPostScansRunsIDStopOKIdentificationItemReason = "not_scanned"
+)
+
+// AllValues returns all ScanPostScansRunsIDStopOKIdentificationItemReason values.
+func (ScanPostScansRunsIDStopOKIdentificationItemReason) AllValues() []ScanPostScansRunsIDStopOKIdentificationItemReason {
+	return []ScanPostScansRunsIDStopOKIdentificationItemReason{
+		ScanPostScansRunsIDStopOKIdentificationItemReasonHostDown,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonNoOpenPorts,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonBusy,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonUnavailable,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonDeclaredByHand,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonScanningOff,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonScopeNotConfirmed,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonBox,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonRegularScanNever,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanPostScansRunsIDStopOKIdentificationItemReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonHostDown:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoOpenPorts:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonBusy:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonUnavailable:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonDeclaredByHand:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonScanningOff:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonScopeNotConfirmed:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonBox:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonRegularScanNever:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanPostScansRunsIDStopOKIdentificationItemReason) UnmarshalText(data []byte) error {
+	switch ScanPostScansRunsIDStopOKIdentificationItemReason(data) {
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonHostDown:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonHostDown
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoOpenPorts:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNoOpenPorts
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonBusy:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonBusy
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonUnavailable:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonUnavailable
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonDeclaredByHand:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonDeclaredByHand
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonScanningOff:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonScanningOff
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonScopeNotConfirmed:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonScopeNotConfirmed
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonBox:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonBox
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonRegularScanNever:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonRegularScanNever
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ScanPostScansRunsIDStopOKResultsItem struct {

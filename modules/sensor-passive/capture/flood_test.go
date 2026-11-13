@@ -189,7 +189,7 @@ func TestEngineBoundsTheAddressesOfOneMAC(t *testing.T) {
 // L1: the kinds a parser emits, each capped at the highest confidence a parser gives it.
 func TestMaxConfidenceKnowsOnlyTheKindsTheParsersEmit(t *testing.T) {
 	t.Parallel()
-	for kind, want := range map[string]float64{"ap": 0.6, "switch": 0.6, "router": 0.6, "printer": 0.5, "iot": 0.3} {
+	for kind, want := range map[string]float64{"ap": 0.6, "switch": 0.6, "router": 0.6, "printer": 0.5, "iot": 0.6} { // iot 0.6: the LLDP Telephone bit (D-501)
 		if got, ok := MaxConfidence(observe.Kind, kind); !ok || got != want {
 			t.Errorf("kind %s: %v %v, want %v", kind, got, ok, want)
 		}

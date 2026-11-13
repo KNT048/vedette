@@ -26,6 +26,7 @@ const (
 	maxCPEs         = 8
 	maxText         = 200 // longest stored string, in runes
 	maxCPELen       = 300
+	maxElemLen      = 256 // longest <elem> text of an NTLM script that is read; a longer one is dropped
 )
 
 var (
@@ -43,6 +44,53 @@ type host struct {
 	ports    []portInfo // open ports only
 	matches  []osMatch
 	timedOut bool // nmap gave up on the host (--host-timeout): it printed no port table, so ports says nothing
+	// closed and filtered count the ports nmap found in those states (listed ports and <extraports>): with no open port they
+	// say whether the device refused the probes (closed) or something dropped them (filtered), D-501.
+	closed, filtered int
+	ntlm             ntlmInfo // what the device said about itself in an NTLM challenge (D-504); zero when no script answered
+}
+
+// ntlmInfo is the part of an NTLM CHALLENGE that nmap's rdp-ntlm-info or http-ntlm-info printed (nmapargv.Scripts, D-504): the
+// Windows version and build the device itself put in the challenge, and its computer name. Only values of the expected form are kept.
+type ntlmInfo struct {
+	version string // Product_Version, "10.0.22631": major.minor.build, without the monthly update revision
+	port    int    // the port whose script gave version
+	dnsName string // DNS_Computer_Name
+	nbName  string // NetBIOS_Computer_Name
+}
+
+// name is the device's own name: its DNS name, else its NetBIOS name.
+func (n ntlmInfo) name() string {
+	if n.dnsName != "" {
+		return n.dnsName
+	}
+	return n.nbName
+}
+
+// ntlmScripts are the scripts whose output is read; any other <script> is ignored.
+var ntlmScripts = map[string]bool{"rdp-ntlm-info": true, "http-ntlm-info": true}
+
+var (
+	ntlmVersionRE = regexp.MustCompile(`^(?:[1-9]|10)\.[0-9]{1,2}\.[0-9]{3,5}$`)
+	ntlmNameRE    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`)
+)
+
+// setNTLM keeps one <elem> of an NTLM script: the first well-formed value of each field wins (a host with RDP and HTTP answers twice).
+func (h *host) setNTLM(port int, key, value string) {
+	switch key {
+	case "Product_Version":
+		if h.ntlm.version == "" && ntlmVersionRE.MatchString(value) {
+			h.ntlm.version, h.ntlm.port = value, port
+		}
+	case "DNS_Computer_Name":
+		if h.ntlm.dnsName == "" && ntlmNameRE.MatchString(value) {
+			h.ntlm.dnsName = value
+		}
+	case "NetBIOS_Computer_Name":
+		if h.ntlm.nbName == "" && ntlmNameRE.MatchString(value) {
+			h.ntlm.nbName = value
+		}
+	}
 }
 
 type portInfo struct {
@@ -95,6 +143,17 @@ func cpeText(s string) string {
 	return s
 }
 
+// countState adds n ports of a state nmap printed: "closed", or any state with "filtered" in it (filtered, open|filtered,
+// closed|filtered). Open ports are in ports; the counts are capped so a forged count cannot overflow.
+func (h *host) countState(state string, n int) {
+	switch {
+	case state == "closed":
+		h.closed = min(h.closed+n, 1<<20)
+	case strings.Contains(state, "filtered"):
+		h.filtered = min(h.filtered+n, 1<<20)
+	}
+}
+
 func attrs(el xml.StartElement) map[string]string {
 	m := make(map[string]string, len(el.Attr))
 	for _, a := range el.Attr {
@@ -124,17 +183,20 @@ func parseNmapXML(data []byte) ([]host, error) {
 	dec := xml.NewDecoder(bytes.NewReader(data))
 	dec.Strict = true // an unknown entity is an error; charsets other than UTF-8 are refused (no CharsetReader)
 	var (
-		path   []string
-		hosts  []host
-		cur    *host
-		up     bool
-		port   *portInfo
-		portOK bool
-		match  *osMatch
-		class  *osClass
-		cpeDst *[]string
-		cpeBuf strings.Builder
-		closed bool
+		path    []string
+		hosts   []host
+		cur     *host
+		up      bool
+		port    *portInfo
+		portOK  bool
+		match   *osMatch
+		class   *osClass
+		cpeDst  *[]string
+		cpeBuf  strings.Builder
+		closed  bool
+		ntlm    bool   // inside the <script> of an NTLM script of an open port
+		elemKey string // key of the <elem> being read; "" when none
+		elemBuf strings.Builder
 	)
 	for tokens := 0; ; tokens++ {
 		if tokens > maxXMLTokens {
@@ -204,8 +266,15 @@ func parseNmapXML(data []byte) ([]host, error) {
 					return nil, fmt.Errorf("%w: too many ports", errXMLInvalid)
 				}
 				port, portOK = &portInfo{number: num(a["portid"], 65535), proto: text(a["protocol"])}, false
+			case "nmaprun/host/ports/extraports":
+				if cur != nil {
+					cur.countState(a["state"], num(a["count"], 65535))
+				}
 			case "nmaprun/host/ports/port/state":
 				portOK = port != nil && a["state"] == "open"
+				if cur != nil && port != nil {
+					cur.countState(a["state"], 1)
+				}
 			case "nmaprun/host/ports/port/service":
 				if port != nil {
 					port.name, port.product, port.version, port.info = text(a["name"]), text(a["product"]), text(a["version"]), text(a["extrainfo"])
@@ -215,6 +284,13 @@ func parseNmapXML(data []byte) ([]host, error) {
 				if port != nil && len(port.cpes) < maxCPEs {
 					cpeDst = &port.cpes
 					cpeBuf.Reset()
+				}
+			case "nmaprun/host/ports/port/script":
+				ntlm = cur != nil && port != nil && ntlmScripts[a["id"]]
+			case "nmaprun/host/ports/port/script/elem":
+				if ntlm {
+					elemKey = a["key"]
+					elemBuf.Reset()
 				}
 			case "nmaprun/host/os/osmatch":
 				if cur != nil && len(cur.matches) < maxOSMatches {
@@ -240,6 +316,9 @@ func parseNmapXML(data []byte) ([]host, error) {
 			if cpeDst != nil && cpeBuf.Len() <= maxCPELen {
 				cpeBuf.Write(t)
 			}
+			if elemKey != "" && elemBuf.Len() <= maxElemLen {
+				elemBuf.Write(t)
+			}
 		case xml.EndElement:
 			switch strings.Join(path, "/") {
 			case "nmaprun":
@@ -254,6 +333,14 @@ func parseNmapXML(data []byte) ([]host, error) {
 					cur.ports = append(cur.ports, *port)
 				}
 				port = nil
+			case "nmaprun/host/ports/port/script":
+				ntlm = false
+			case "nmaprun/host/ports/port/script/elem":
+				// The challenge is read only from an open port; a value longer than maxElemLen or of another form is dropped.
+				if elemKey != "" && cur != nil && portOK && elemBuf.Len() <= maxElemLen {
+					cur.setNTLM(port.number, elemKey, text(strings.TrimSpace(elemBuf.String())))
+				}
+				elemKey = ""
 			case "nmaprun/host/ports/port/service/cpe", "nmaprun/host/os/osmatch/osclass/cpe":
 				if cpeDst != nil {
 					if c := cpeText(strings.TrimSpace(cpeBuf.String())); c != "" {

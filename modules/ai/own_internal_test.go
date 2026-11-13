@@ -20,6 +20,7 @@ func TestD446_ProfileOnTheMachine(t *testing.T) {
 		"http://10.77.0.9:18080/v1": false, "http://10.77.0.9:11434/v1": false, "https://10.77.0.9/v1": false, "http://ollama.lan:11434/v1": false,
 		"https://10.77.0.9:8443/v1": true, "http://10.77.0.9:8765/v1": true, "http://127.0.0.1:11434/v1": true, "http://localhost:11434/v1": true,
 		"http://ollama.localhost/v1": true, "http://10.89.0.5:11434/v1": true, "http://10.89.0.5:8443/v1": true,
+		"http://host.containers.internal:8443/v1": true, "https://HOST.docker.internal:8765/v1": true, "http://host.containers.internal:11434/v1": false,
 	} {
 		p := Profile{ID: "x", Name: "Local", Kind: "openai-compatible", BaseURL: base, Model: "qwen3:8b", Location: LocationInternal, DailyCap: 10_000}
 		err := p.checkOwn(own)

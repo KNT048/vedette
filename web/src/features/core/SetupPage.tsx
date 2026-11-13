@@ -12,6 +12,7 @@ import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { saveInventoryScope, useSetupModules, useSetupStatus, useSubmitSetup } from './api'
 import { BUNDLES, closure, without } from './bundles'
+import { CREDENTIALED_IN_UI } from '@/lib/credentialed'
 import { errMsg } from './parts'
 import { EMAIL_RE, isBareIp, isPrivateCidr, MIN_PASSWORD, normaliseCidr } from './util'
 import type { BundleId, SetupPayload } from './types'
@@ -207,7 +208,7 @@ export default function SetupPage() {
                 <Checkbox id="s-commit" checked={s.commitment} onCheckedChange={(v) => set({ commitment: v === true })} className="mt-0.5" />
                 <label htmlFor="s-commit" className="text-sm">{t('setup.network.commitment')}</label>
               </div>
-              {s.commitment ? null : <p className="text-[13px] text-muted">{t('setup.network.passiveOnly')}</p>}
+              <p className="text-[13px] text-muted">{t(s.commitment ? 'setup.network.firstPass' : 'setup.network.passiveOnly')}</p>{/* D-501 */}
               <p className="text-[13px] text-muted">{t('setup.network.license')}</p>
             </div>
           </div>
@@ -218,7 +219,8 @@ export default function SetupPage() {
         {formError ? <p role="alert" className="mt-4 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{formError}</p> : null}
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
-          <Button onClick={() => { setErrors({}); setStep(STEPS[idx - 1] ?? step) }} disabled={idx === 0 || finished}>{t('setup.back')}</Button>
+          {/* W2-8: the first step has nowhere to go back to, so it has no Back (the span keeps Continue on the right). */}
+          {idx === 0 ? <span /> : <Button onClick={() => { setErrors({}); setStep(STEPS[idx - 1] ?? step) }} disabled={finished}>{t('setup.back')}</Button>}
           {/* Different keys: Continue and Finish are separate buttons. A click that is the 2nd or 3rd of a double/triple click
               (detail > 1, counted by the browser whichever button is under the pointer) never submits, so a double-click on
               Continue cannot skip a step or finish setup with the default bundle. Keyboard submits have detail 0. */}
@@ -239,7 +241,7 @@ function ModulesStep({ s, set, error }: { s: State; set: (p: Partial<State>) => 
   const name = (id: ModuleId) => t(`modules.${id}.name`, { ns: 'common' })
   if (q.isPending) return <Loading />
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
-  const all = q.data.modules
+  const all = q.data.modules.filter((m) => CREDENTIALED_IN_UI || m.id !== 'scan-credentialed') // D-417: not offered in this build
   // D-381: a bundle leaves out what this install cannot run (the honeypot on a container-only install), as the box does.
   const here = (id: ModuleId) => all.find((m) => m.id === id)?.available !== false
   const bundle = (b: Exclude<BundleId, 'custom'>) => BUNDLES[b].filter(here)

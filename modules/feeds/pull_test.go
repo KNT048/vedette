@@ -613,3 +613,30 @@ func TestNote_ShowsOneRejectedValue(t *testing.T) {
 		t.Errorf("all rejected: %v", all)
 	}
 }
+
+// D-485: the CISA list is pulled every hour and each good pull brings EPSS while EPSS has no record; a failing EPSS still
+// waits out its own back-off (5 minutes after the first failure) instead of being asked on every pull of the list.
+func TestEPSSAfterTheListKeepsItsBackoff(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.only("cisa-kev", "first-epss")
+	e.mirror("cisa-kev", o.url("/kev.json"))
+	e.mirror("first-epss", o.url("/epss"))
+	o.body("/kev.json", `"v1"`, testFile(t, "kev.json"))
+	o.serve("/epss", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusBadGateway) })
+	e.fetch("cisa-kev") // the list loads, EPSS is asked and fails
+	asked := o.count("/epss")
+	if asked == 0 || e.feed("first-epss").Failures != 1 {
+		t.Fatalf("EPSS asked %d times, failures %d", asked, e.feed("first-epss").Failures)
+	}
+	e.setNow(e.clock().Add(2 * time.Minute)) // inside the back-off: the list is a 304, EPSS is left alone
+	e.fetch("cisa-kev")
+	if n := o.count("/epss"); n != asked {
+		t.Errorf("EPSS asked %d more times inside its back-off", n-asked)
+	}
+	e.setNow(e.clock().Add(4 * time.Minute)) // past it
+	e.fetch("cisa-kev")
+	if n := o.count("/epss"); n == asked {
+		t.Error("EPSS not asked after its back-off")
+	}
+}

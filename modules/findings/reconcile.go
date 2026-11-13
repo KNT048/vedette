@@ -22,6 +22,8 @@ const RecentKEV = 7 * 24 * time.Hour
 type ReconcileResult struct {
 	Devices int // devices matched
 	Created int // findings created that an event had not created
+	Closed  int // findings Vedette closed by itself: version proved outside every range (D-530)
+	Retired int // old product findings of settled "Multiple Products" entries NVD's list leaves out, closed (D-506)
 	Orphans int // findings removed because their device no longer exists
 }
 
@@ -76,7 +78,7 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		if !ok {
 			continue // deleted since the list was read; it is in live, so the orphan pass leaves it and the next run removes its findings
 		}
-		created, err := s.upsertSplit(ctx, a, backlog, recent)
+		up, err := s.upsertSplit(ctx, a, backlog, recent)
 		if err != nil {
 			if err := skip(id, err); err != nil {
 				return res, err
@@ -84,7 +86,9 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 			continue
 		}
 		res.Devices++
-		res.Created += created
+		res.Created += len(up.Created)
+		res.Closed += up.Closed
+		res.Retired += up.Retired
 	}
 	orphans, err := s.orphanAssets(ctx, live)
 	if err != nil {
@@ -113,6 +117,9 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 		}
 		res.Orphans += n
 	}
+	// One line per run, so a box's log shows the pass ran and what it changed (walk 3: the job's own line is debug).
+	s.cfg.Log.InfoContext(ctx, "findings: reconcile pass done", "devices", res.Devices, "created", res.Created,
+		"closed_not_affected", res.Closed, "closed_multiple_products", res.Retired, "removed_with_device", res.Orphans)
 	return res, errors.Join(failed...)
 }
 
@@ -133,25 +140,26 @@ func (s *Service) splitByNews(vulns []Vuln) (backlog, recent []Vuln) {
 	return backlog, recent
 }
 
-// upsertSplit matches one device against both lists, one write each, the backlog under the Backlog mark. It returns how
-// many findings it created.
-func (s *Service) upsertSplit(ctx context.Context, a Asset, backlog, recent []Vuln) (int, error) {
-	created := 0
+// upsertSplit matches one device against both lists, one write each, the backlog under the Backlog mark. It returns what
+// both writes did together.
+func (s *Service) upsertSplit(ctx context.Context, a Asset, backlog, recent []Vuln) (UpsertResult, error) {
+	var sum UpsertResult
+	add := func(wctx context.Context, vulns []Vuln) error {
+		if len(vulns) == 0 {
+			return nil
+		}
+		r, err := s.upsertWithin(wctx, a, vulns)
+		sum.Created = append(sum.Created, r.Created...)
+		sum.Closed += r.Closed
+		sum.Retired += r.Retired
+		return err
+	}
 	if len(backlog) > 0 {
-		r, err := s.upsertWithin(s.cfg.Backlog(ctx), a, backlog)
-		if err != nil {
-			return created, err
+		if err := add(s.cfg.Backlog(ctx), backlog); err != nil {
+			return sum, err
 		}
-		created += len(r.Created)
 	}
-	if len(recent) > 0 {
-		r, err := s.upsertWithin(ctx, a, recent)
-		if err != nil {
-			return created, err
-		}
-		created += len(r.Created)
-	}
-	return created, nil
+	return sum, add(ctx, recent)
 }
 
 func (s *Service) upsertWithin(ctx context.Context, a Asset, vulns []Vuln) (UpsertResult, error) {
@@ -166,9 +174,9 @@ func (s *Service) deleteWithin(ctx context.Context, id string) (int, error) {
 	return s.deleteAsset(ctx, id)
 }
 
-// orphanAssets lists the devices that have findings but are not in live, in id order.
+// orphanAssets lists the devices that have findings or "add the version" items but are not in live, in id order.
 func (s *Service) orphanAssets(ctx context.Context, live map[string]bool) ([]string, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT DISTINCT asset_id FROM fnd_finding ORDER BY asset_id`)
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT asset_id FROM fnd_finding UNION SELECT asset_id FROM fnd_version_needed ORDER BY asset_id`)
 	if err != nil {
 		return nil, fmt.Errorf("findings: reconcile: reading the devices with findings: %w", err)
 	}

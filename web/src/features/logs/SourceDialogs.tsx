@@ -42,7 +42,7 @@ function KindPicker({ find, setFind, onPick }: { find: string; setFind: (v: stri
                   <li key={e.id}>
                     <button type="button" onClick={() => onPick(e.id)} className="flex min-h-9 w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-sm hover:bg-sunken focus-visible:bg-sunken">
                       <span>{e.name}</span>
-                      <span className="shrink-0 text-[12px] text-muted">{e.reads === 'parsed' ? t('config.parsed') : t('config.stored')}</span>
+                      <span className="shrink-0 text-[12px] text-muted">{e.reads === 'parsed' ? t('config.parsed') : e.logins ? t('config.logins') : t('config.stored')}</span>
                     </button>
                   </li>
                 ))}

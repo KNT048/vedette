@@ -109,7 +109,8 @@ func (p responsePlanner) Plan(ctx context.Context, a response.PlanAsk) (response
 		// The catalog is data, not Task: the before-AI hooks look at every data block, and they do not look at Task.
 		Data: []ai.DataBlock{{Kind: ai.DataFeed, Source: "exploited list entry " + t.CVE, Text: p.factsOf(ctx, t.CVE)}, {Kind: "inventory", Source: "the device of the finding", Text: dev},
 			{Kind: ai.DataDocument, Source: "actions you may propose", Text: cat.String()}, {Kind: ai.DataDocument, Source: "reads the box made in the last 24 hours", Text: reads}},
-		Schema: &provider.Schema{Name: "response_plan", JSON: json.RawMessage(planSchema)}, MaxTokens: 1500,
+		// a plan with its steps and actions is about 1,500 tokens; the rest is room for what the model thinks first
+		Schema: &provider.Schema{Name: "response_plan", JSON: json.RawMessage(planSchema)}, MaxTokens: 6000,
 		Summary: "Response plan for " + t.CVE,
 		Check: func(text string) error {
 			var perr error
@@ -171,8 +172,8 @@ func aiConfigRead(svc *ai.Service) func(ctx context.Context, id string) (respons
 }
 
 // planError sorts a failure of RunJob. The AI is unavailable (the run stops) when no profile can run the job (ready != nil) or the daily cap
-// is spent. Anything else, though it also arrives as 409 ai_unavailable (a format failure, a hook that stopped the answer, a provider
-// that did not answer), is about this finding only: the caller backs the finding off and goes on.
+// is spent. Anything else (ai_cut_off, ai_bad_format, blocked_by_hook, provider_error, unreachable, ai_timeout) is about this finding
+// only: the caller backs the finding off and goes on.
 func planError(err, ready error) error {
 	if ae, ok := apierr.As(err); ok && (ready != nil || ae.Code == "daily_cap") {
 		return fmt.Errorf("%w: %s", response.ErrPlanUnavailable, ae.Message)

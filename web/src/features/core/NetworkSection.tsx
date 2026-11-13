@@ -14,6 +14,7 @@ import { useNetwork, useNetworkActions } from './api'
 import { ContainerNetwork, InstallPending } from './ContainerOnly'
 import { useInstallKind } from '@/lib/modules'
 import { SPAN_IN_UI } from '@/lib/span'
+import { boxAddressProblem, normaliseBoxAddress } from './networkRules'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
 import { SpanCard } from './SpanCard'
 import { SpanGuides } from './SpanGuides'
@@ -40,14 +41,19 @@ function Interfaces({ d }: { d: NetworkState }) {
     setError(null)
     roles.mutate(Object.fromEntries(d.interfaces.map((i) => [i.name, i.name === name ? role : i.role])), { onError: (e) => setError(errMsg(e, t)), onSuccess: () => toast.success(t('network.interfaces.saved')) })
   }
-  const roleControl = (row: { original: NetInterface }) => row.original.role === 'management'
-      ? <span title={t('network.interfaces.mgmtLocked')}><Chip tone="accent">{t('network.role.management')}</Chip></span>
-      : (
-        <Select aria-label={t('network.interfaces.roleOf', { name: row.original.name })} value={row.original.role} disabled={gate.disabled || roles.isPending} title={gate.title} className="w-44" onChange={(e) => setRole(row.original.name, e.target.value as IfaceRole)}>
-          {/* D-403: SPAN is offered only as the role a card already has, so it can be set back to Unused. */}
-          {(['management', 'span', 'unused'] as const).filter((r) => SPAN_IN_UI || r !== 'span' || row.original.role === 'span').map((r) => <option key={r} value={r}>{t(`network.role.${r}`)}</option>)}
-        </Select>
-      )
+  // One role per row (customer walk 2, W2-7): the management port is fixed here (409 management_fixed / management_count), so another
+  // card is never offered Management; with SPAN hidden (D-403) a card that is not the SPAN port has one possible role, shown as text.
+  const roleControl = (row: { original: NetInterface }) => {
+    const r = row.original.role
+    if (r === 'management') return <span title={t('network.interfaces.mgmtLocked')}><Chip tone="accent">{t('network.role.management')}</Chip></span>
+    if (!SPAN_IN_UI && r !== 'span') return <Chip tone="off">{t('network.role.unused')}</Chip>
+    return (
+      <Select aria-label={t('network.interfaces.roleOf', { name: row.original.name })} value={r} disabled={gate.disabled || roles.isPending} title={gate.title} className="w-44" onChange={(e) => setRole(row.original.name, e.target.value as IfaceRole)}>
+        {/* D-403: while SPAN is hidden it is offered only as the role a card already has, so it can be set back to Unused. */}
+        {(['span', 'unused'] as const).map((o) => <option key={o} value={o}>{t(`network.role.${o}`)}</option>)}
+      </Select>
+    )
+  }
   const columns: ColumnDef<NetInterface>[] = [
     { id: 'name', header: t('network.interfaces.col.name'), accessorFn: (i) => i.name, cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
     { id: 'role', header: t('network.interfaces.col.role'), accessorFn: (i) => i.role, cell: ({ row }) => roleControl(row) },
@@ -214,6 +220,65 @@ function NtpForm({ d }: { d: NetworkState }) {
   )
 }
 
+/** D-465: the address every link of the box carries. Empty = the management address; checked here with the box's own rule before saving. */
+function BoxAddressForm({ d }: { d: NetworkState }) {
+  const { t } = useTranslation('core')
+  const gate = useGate('admin')
+  const { boxAddress, forgetBoxAddress } = useNetworkActions()
+  const b = d.box_address
+  const [value, setValue] = useState(b.address ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const [ask, setAsk] = useState<string | null>(null) // the new address waiting for the confirm of review M1
+  const save = (v: string) => boxAddress.mutate(v, {
+    onSuccess: (n) => { setAsk(null); toast.success(t(v ? (n.box_address.self_signed ? 'network.boxAddress.saved' : 'network.boxAddress.savedOwnCert') : 'network.boxAddress.reset')) },
+    onError: (er) => { setAsk(null); setError(errMsg(er, t)) },
+  })
+  return (
+    <form className="grid max-w-xl gap-4" noValidate onSubmit={(e) => {
+      e.preventDefault()
+      const v = normaliseBoxAddress(value)
+      const problem = boxAddressProblem(v)
+      setError(problem)
+      if (problem) return
+      // Review M1: the address in use now keeps answering after the change; say so before anything is saved.
+      if (b.address && v !== b.address) setAsk(v)
+      else save(v)
+    }}>
+      <Field label={t('network.boxAddress.label')} htmlFor="box-address-input" error={error ?? undefined} hint={t('network.boxAddress.hint')}>
+        <Input id="box-address-input" autoComplete="off" spellCheck={false} value={value} disabled={gate.disabled} aria-invalid={error ? true : undefined} aria-describedby={error ? 'box-address-input-error' : 'box-address-input-hint'}
+          onChange={(e) => { setValue(e.target.value); setError(null) }} />
+      </Field>
+      <p className="text-[13px] text-muted">{b.default ? t('network.boxAddress.default', { address: b.default }) : t('network.boxAddress.noDefault')}</p>
+      {b.link_base ? <p className="text-[13px]">{t('network.boxAddress.links', { url: b.link_base })}</p> : <p className="text-[13px]">{t('network.boxAddress.noLinks')}</p>}
+      {b.previous.length ? (
+        <ul aria-label={t('network.boxAddress.previousLabel')} className="grid gap-2">
+          {b.previous.map((p) => (
+            <li key={p} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
+              <span>{t('network.boxAddress.previous', { address: p })}</span>
+              <Button type="button" size="sm" disabled={gate.disabled || forgetBoxAddress.isPending} title={gate.title}
+                onClick={() => forgetBoxAddress.mutate(p, { onSuccess: () => toast.success(t('network.boxAddress.forgotten', { address: p })), onError: (er) => toast.error(errMsg(er, t)) })}>
+                {t('network.boxAddress.forget', { address: p })}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <div><Button type="submit" variant="primary" disabled={gate.disabled || boxAddress.isPending} title={gate.title}>{t('common:save')}</Button></div>
+      {ask !== null && b.address ? (
+        <Dialog open onOpenChange={(o) => { if (!o) setAsk(null) }}>
+          <DialogContent title={t('network.boxAddress.confirm.title')} description={t(ask ? 'network.boxAddress.confirm.body' : 'network.boxAddress.confirm.bodyDefault', { from: b.address, to: ask, def: b.default ?? '' })}>
+            <p className="text-sm">{t('network.boxAddress.confirm.keeps', { from: b.address })}</p>
+            <DialogFooter>
+              <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
+              <Button variant="primary" disabled={boxAddress.isPending} onClick={() => save(ask)}>{t('network.boxAddress.confirm.go')}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+    </form>
+  )
+}
+
 /** D-403: a box with SPAN on keeps seeing it (read-only, with Turn off) while the GUI does not offer it. A card left in the SPAN role
  *  with SPAN off keeps "SPAN capture" among its role options, which is its way out. */
 const spanSetUp = (d: NetworkState) => d.span.enabled
@@ -228,6 +293,9 @@ function Body({ d }: { d: NetworkState }) {
       <Section id="management" title={t('network.management.title')} description={t('network.management.desc')} stories={['S-CORE-8']}>
         <Pending d={d} />
         <ManagementForm key={JSON.stringify(d.management) + String(!!d.pending)} d={d} />
+      </Section>
+      <Section id="box-address" title={t('network.boxAddress.title')} description={t('network.boxAddress.desc')} stories={['S-CORE-8', 'S-NOT-1', 'S-RESP-3']}>
+        <BoxAddressForm key={d.box_address.address ?? ''} d={d} />
       </Section>
       {SPAN_IN_UI || spanSetUp(d) ? <SpanCard key={JSON.stringify(d.span)} d={d} readOnly={!SPAN_IN_UI} /> : null}
       {SPAN_IN_UI ? <SpanGuides spanPort={d.span.interface ?? d.interfaces.find((i) => i.role === 'span')?.name ?? 'eth1'} /> : null}

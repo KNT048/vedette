@@ -28,6 +28,8 @@ const STATE_TONE = { receiving: 'ok', silent: 'warn', never: 'off' } as const
 // S-LOG-1: syslog the box dropped because its sender is not a source (or is one, declared with another protocol). Operators and admins see the
 // addresses; a viewer does not get them from the API. The usual trap: on a container install, syslog from the machine that runs the
 // containers arrives from the container network's gateway, not from the address the source was declared with (QA walk 3).
+// What the box keeps from a source (the form's hint): a UDP source's TCP lines too, a TCP or TLS source only its own (UDP is easy to forge).
+const protoLabel = (s: { proto: Proto }) => (s.proto === 'udp' ? 'UDP and TCP' : s.proto.toUpperCase())
 const PROTOS = new Intl.ListFormat('en', { type: 'conjunction' })
 
 function UnknownSenders({ data, isAdmin, onAdd, onEdit }: { data: SourcesResponse; isAdmin: boolean; onAdd: (u: { ip: string; proto: Proto }) => void; onEdit: (s: LogSource) => void }) {
@@ -99,7 +101,7 @@ function SourcesSection() {
               </div>
             ) },
             { id: 'ip', header: t('sources.col.ip'), accessorFn: (r) => r.sender_ip, cell: ({ row }) => <span className="whitespace-nowrap">{row.original.sender_ip}</span> },
-            { id: 'proto', header: t('sources.col.proto'), accessorFn: (r) => r.proto, cell: ({ row }) => <span className="whitespace-nowrap">{row.original.proto.toUpperCase()} {row.original.port}</span> },
+            { id: 'proto', header: t('sources.col.proto'), accessorFn: (r) => r.proto, cell: ({ row }) => <span className="whitespace-nowrap">{protoLabel(row.original)} {row.original.port}</span> },
             { id: 'state', header: t('sources.col.state'), accessorFn: (r) => r.state, cell: ({ row }) => <Chip tone={STATE_TONE[row.original.state]}>{t(`sources.state.${row.original.state}`)}</Chip> },
             { id: 'last', header: t('sources.col.last'), accessorFn: (r) => r.last_received ?? '', cell: ({ row }) => (row.original.last_received ? <span title={fmtDateTime(row.original.last_received)}>{fmtRelative(row.original.last_received)}</span> : <span className="text-muted">{t('sources.never')}</span>) },
             { id: 'rate', header: t('sources.col.rate'), accessorFn: (r) => r.lines_per_hour, cell: ({ row }) => fmtNumber(row.original.lines_per_hour) },
@@ -127,7 +129,7 @@ function SourcesSection() {
                         </div>
                         <Chip tone={STATE_TONE[r.state]}>{t(`sources.state.${r.state}`)}</Chip>
                       </div>
-                      <p className="text-[13px] text-muted">{r.sender_ip}, {r.proto.toUpperCase()} {r.port}, {r.last_received ? fmtRelative(r.last_received) : t('sources.never')}</p>
+                      <p className="text-[13px] text-muted">{r.sender_ip}, {protoLabel(r)} {r.port}, {r.last_received ? fmtRelative(r.last_received) : t('sources.never')}</p>
                       <div className="flex flex-wrap gap-1">
                         <Button size="sm" onClick={() => setGuide(r)} aria-label={t('sources.guideFor', { name: r.name })}>{t('sources.guide')}</Button>
                         <Button size="sm" variant="ghost" disabled={!isAdmin} title={need} onClick={() => setEditing(r)} aria-label={t('sources.editFor', { name: r.name })}>{t('sources.edit')}</Button>
@@ -235,8 +237,8 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
   }
   const columns: ColumnDef<LogEvent>[] = [
     { id: 'time', header: t('events.col.time'), accessorFn: (r) => r.ts, cell: ({ row }) => <span className="whitespace-nowrap">{fmtDateTime(row.original.ts)}</span> },
-    { id: 'source', header: t('events.col.source'), accessorFn: (r) => r.source_name },
-    { id: 'line', header: t('events.col.line'), accessorFn: (r) => r.line, enableSorting: false, cell: ({ row }) => <span className="break-all font-mono text-[12px]">{row.original.line}</span> },
+    { id: 'source', header: t('events.col.source'), accessorFn: (r) => r.source_name, cell: ({ row }) => <span className="grid">{row.original.source_name}{row.original.host && row.original.host !== row.original.source_name ? <span className="text-[12px] text-muted">{row.original.host}</span> : null}</span> },
+    { id: 'line', header: t('events.col.message'), accessorFn: (r) => r.message, enableSorting: false, cell: ({ row }) => <Message e={row.original} /> },
   ]
   return (
     <Section id="events" title={t('events.title')} description={t('events.description')}>
@@ -262,7 +264,7 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
               <p className="mb-2 text-[13px] text-muted">{kw.trim() ? t('events.found', { count: rows.length }) : t('events.count', { shown: d.events.length, total: d.total })} {!kw.trim() && d.total > d.events.length ? t('events.capped') : ''}</p>
             )}
             <DataTable key={`${win}-${source}-${text}`} caption={t('events.caption')} data={rows} columns={columns} pageSize={25} mobileRow={(r) => (
-              <div className="grid gap-1"><p className="text-[12px] text-muted">{fmtDateTime(r.ts)}, {r.source_name}</p><p className="break-all font-mono text-[12px]">{r.line}</p></div>
+              <div className="grid gap-1"><p className="text-[12px] text-muted">{fmtDateTime(r.ts)}, {r.source_name}{r.host && r.host !== r.source_name ? ` (${r.host})` : ''}</p><Message e={r} /></div>
             )} empty={!text.trim() && !source ? t('events.emptyNone') : t('events.empty')} />
           </>
           )
@@ -270,6 +272,11 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
       </QueryState>
     </Section>
   )
+}
+
+/** The line without its syslog header (W1-22, D-485): the program, then the message; the stored line is the tooltip. */
+function Message({ e }: { e: LogEvent }) {
+  return <span className="break-all font-mono text-[12px]" title={e.line}>{e.app ? <span className="text-muted">{e.app}: </span> : null}{e.message}</span>
 }
 
 function RetentionSection({ days, linesPerHour }: { days: number; linesPerHour: number }) {

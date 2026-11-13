@@ -142,6 +142,8 @@ type channelBody struct {
 	BotToken    string            `json:"bot_token"`
 	Signin      string            `json:"signin"`
 	ZaloLogin   bool              `json:"zalo_login"`
+	SecretKey   string            `json:"secret_key"`
+	Refresh     string            `json:"refresh_token"`
 }
 
 // NotifyPutNotifyChannelsType implements PUT /notify/channels/{type} (admin).
@@ -155,7 +157,8 @@ func (h *NotifyHandlers) NotifyPutNotifyChannelsType(ctx context.Context, req *o
 		return nil, err
 	}
 	c, err := h.svc.SaveChannel(ctx, who, channel.Type(params.Type), ChannelInput{Enabled: b.Enabled, Fields: b.Fields, Secret: b.Secret, MinSeverity: b.MinSeverity,
-		Approvals: b.Approvals, Approvers: b.Approvers, AppToken: b.AppToken, BotToken: b.BotToken, Signin: b.Signin, ZaloLogin: b.ZaloLogin})
+		Approvals: b.Approvals, Approvers: b.Approvers, AppToken: b.AppToken, BotToken: b.BotToken, Signin: b.Signin, ZaloLogin: b.ZaloLogin,
+		SecretKey: b.SecretKey, RefreshToken: b.Refresh})
 	if err != nil {
 		return nil, err
 	}
@@ -319,4 +322,50 @@ func (h *NotifyHandlers) NotifyPostNotifyZaloApproversUserIDCode(ctx context.Con
 		return nil, err
 	}
 	return convert[oas.NotifyPostNotifyZaloApproversUserIDCodeOK](v)
+}
+
+// NotifyGetNotifyTelegramApprovers implements GET /notify/telegram/approvers (admin, D-414).
+func (h *NotifyHandlers) NotifyGetNotifyTelegramApprovers(ctx context.Context) (*oas.NotifyGetNotifyTelegramApproversOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	l, err := h.svc.TelegramApprovers(ctx, who)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.NotifyGetNotifyTelegramApproversOK](struct {
+		Items []ZaloApprover `json:"items"`
+	}{l})
+}
+
+// NotifyPostNotifyTelegramApproversUserIDCode implements POST /notify/telegram/approvers/{user_id}/code (admin, D-414).
+func (h *NotifyHandlers) NotifyPostNotifyTelegramApproversUserIDCode(ctx context.Context, params oas.NotifyPostNotifyTelegramApproversUserIDCodeParams) (*oas.NotifyPostNotifyTelegramApproversUserIDCodeOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.SendTelegramLink(ctx, who, params.UserID)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.NotifyPostNotifyTelegramApproversUserIDCodeOK](v)
+}
+
+// NotifyPostNotifyTelegramChats implements POST /notify/telegram/chats (admin, D-491).
+func (h *NotifyHandlers) NotifyPostNotifyTelegramChats(ctx context.Context, req *oas.NotifyPostNotifyTelegramChatsReq) (*oas.NotifyPostNotifyTelegramChatsOK, error) {
+	if _, err := actor(ctx); err != nil {
+		return nil, err
+	}
+	chats, fresh, err := h.svc.TelegramChats(ctx, req.Token.Or(""))
+	if err != nil {
+		return nil, err
+	}
+	if chats == nil {
+		chats = []channel.TelegramChat{}
+	}
+	return convert[oas.NotifyPostNotifyTelegramChatsOK](struct {
+		Items []channel.TelegramChat `json:"items"`
+		Fresh bool                   `json:"fresh"`
+	}{chats, fresh})
 }

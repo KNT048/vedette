@@ -643,6 +643,13 @@ type Handler interface {
 	//
 	// POST /core/mcp/tokens
 	CorePostCoreMcpTokens(ctx context.Context, req *CorePostCoreMcpTokensReq) (*CorePostCoreMcpTokensCreated, error)
+	// CorePostCoreNetworkBoxAddressForget implements core_post_core_network_box_address_forget operation.
+	//
+	// Stop answering to an earlier Box address (D-465): it leaves the Host allowlist at once and the
+	// certificate at its next re-issue. 404 not_found when the box does not answer to it.
+	//
+	// POST /core/network/box-address/forget
+	CorePostCoreNetworkBoxAddressForget(ctx context.Context, req *CorePostCoreNetworkBoxAddressForgetReq) (*CorePostCoreNetworkBoxAddressForgetOK, error)
 	// CorePostCoreNetworkManagementConfirm implements core_post_core_network_management_confirm operation.
 	//
 	// Confirm the pending management change from the new address (409 when none is pending or it expired).
@@ -749,6 +756,15 @@ type Handler interface {
 	//
 	// PUT /core/general
 	CorePutCoreGeneral(ctx context.Context, req *CorePutCoreGeneralReq) (*CorePutCoreGeneralOK, error)
+	// CorePutCoreNetworkBoxAddress implements core_put_core_network_box_address operation.
+	//
+	// Box address (D-465): the host name or IPv4 address the LAN reaches the box at, used by every link
+	// the box makes; empty goes back to the management address. 400 bad_box_address for a URL, a port, a
+	// path or anything that is not a host name or IPv4 address. The box re-issues its own certificate with
+	// it.
+	//
+	// PUT /core/network/box-address
+	CorePutCoreNetworkBoxAddress(ctx context.Context, req *CorePutCoreNetworkBoxAddressReq) (*CorePutCoreNetworkBoxAddressOK, error)
 	// CorePutCoreNetworkInterfaces implements core_put_core_network_interfaces operation.
 	//
 	// Set the role of every interface (management / SPAN capture / unused). Exactly one management
@@ -994,6 +1010,13 @@ type Handler interface {
 	//
 	// POST /findings/{id}/status
 	FindingsPostFindingsIDStatus(ctx context.Context, req *FindingsPostFindingsIDStatusReq, params FindingsPostFindingsIDStatusParams) (*FindingsPostFindingsIDStatusOK, error)
+	// FindingsPostFindingsStatus implements findings_post_findings_status operation.
+	//
+	// Change the status of the open findings among the ids (at most 500) with one note; one history and
+	// audit row per finding, all or nothing; closed findings are skipped.
+	//
+	// POST /findings/status
+	FindingsPostFindingsStatus(ctx context.Context, req *FindingsPostFindingsStatusReq) (*FindingsPostFindingsStatusOK, error)
 	// HoneypotDeleteHoneypotTokensID implements honeypot_delete_honeypot_tokens_id operation.
 	//
 	// Delete a honey token; the planted copy stops alerting.
@@ -1418,6 +1441,13 @@ type Handler interface {
 	//
 	// GET /notify/incidents/{id}
 	NotifyGetNotifyIncidentsID(ctx context.Context, params NotifyGetNotifyIncidentsIDParams) (*NotifyGetNotifyIncidentsIDOK, error)
+	// NotifyGetNotifyTelegramApprovers implements notify_get_notify_telegram_approvers operation.
+	//
+	// Approvers of the Telegram channel and whether each confirmed the link the bot sent them while signed
+	// in as themself (linked); box_account is always false (D-414).
+	//
+	// GET /notify/telegram/approvers
+	NotifyGetNotifyTelegramApprovers(ctx context.Context) (*NotifyGetNotifyTelegramApproversOK, error)
 	// NotifyGetNotifyZaloApprovers implements notify_get_notify_zalo_approvers operation.
 	//
 	// Approvers of the Zalo personal channel and whether each confirmed the link sent to their Zalo while
@@ -1469,6 +1499,22 @@ type Handler interface {
 	//
 	// POST /notify/history/{id}/resend
 	NotifyPostNotifyHistoryIDResend(ctx context.Context, params NotifyPostNotifyHistoryIDResendParams) (*NotifyPostNotifyHistoryIDResendOK, error)
+	// NotifyPostNotifyTelegramApproversUserIDCode implements notify_post_notify_telegram_approvers_user_id_code operation.
+	//
+	// Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately
+	// to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the
+	// link in the approval chat asks them to press Start (D-414).
+	//
+	// POST /notify/telegram/approvers/{user_id}/code
+	NotifyPostNotifyTelegramApproversUserIDCode(ctx context.Context, params NotifyPostNotifyTelegramApproversUserIDCodeParams) (*NotifyPostNotifyTelegramApproversUserIDCodeOK, error)
+	// NotifyPostNotifyTelegramChats implements notify_post_notify_telegram_chats operation.
+	//
+	// Find the chats a Telegram bot has seen, for the Chat ID picker (D-491): the token in the body, or
+	// the saved one when empty; asks Telegram once without confirming any update. 400 bad_token (not
+	// valid), 409 telegram_busy (approval buttons on, a webhook or another reader), 502 telegram_failed.
+	//
+	// POST /notify/telegram/chats
+	NotifyPostNotifyTelegramChats(ctx context.Context, req *NotifyPostNotifyTelegramChatsReq) (*NotifyPostNotifyTelegramChatsOK, error)
 	// NotifyPostNotifyZaloApproversUserIDCode implements notify_post_notify_zalo_approvers_user_id_code operation.
 	//
 	// Send an approver a new confirm link to their Zalo (the old one stops working); for your own row,
@@ -1777,9 +1823,9 @@ type Handler interface {
 	ResponsePostResponseExecution(ctx context.Context, req *ResponsePostResponseExecutionReq) (*ResponsePostResponseExecutionOK, error)
 	// ResponsePostResponseMeIdentitiesChannelCode implements response_post_response_me_identities_channel_code operation.
 	//
-	// Mail a 6-digit link code to my address on the email approval channel (my sign-in email). 10 minutes,
-	// one at a time, a new one after 60 seconds, 5 an hour. Chat channels get their code by pressing a
-	// button on an approval message.
+	// Email: mail a 6-digit link code to my address on the email approval channel (my sign-in email).
+	// Telegram and Zalo personal (send_code): send a new confirm link to my listed chat ID (D-414; sent_to
+	// names it). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour.
 	//
 	// POST /response/me/identities/{channel}/code
 	ResponsePostResponseMeIdentitiesChannelCode(ctx context.Context, params ResponsePostResponseMeIdentitiesChannelCodeParams) (*ResponsePostResponseMeIdentitiesChannelCodeOK, error)

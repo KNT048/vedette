@@ -28,6 +28,8 @@ fail() { echo "install-artifacts: $*" >&2; exit 1; }
 say() { echo "install-artifacts: $*"; }
 
 [ "$c" = podman ] || fail "CONTAINER must be podman (the export uses podman manifest push)"
+# shellcheck source=scripts/dev/podman-oci.sh
+. scripts/dev/podman-oci.sh # the export to an OCI layout, also through a podman machine (macOS)
 printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-test\.[0-9A-Za-z.-]{1,24}$' || fail "VERSION must be a SemVer prerelease that starts with test. and has no v (0.0.1-test.1): a test release must never look like a real one (D-166 M3), got '$version'"
 case $arch in amd64 | arm64) ;; *) fail "ARCH must be amd64 or arm64" ;; esac
 [ "$arch" = "$native" ] || say "note: ARCH=$arch is not this machine ($native): the images cross-compile, install-check cannot run them here"
@@ -117,9 +119,9 @@ images=()
 for s in $services; do
 	ref=localhost/${localname[$s]}:$version
 	if "$c" manifest exists "$ref" 2>/dev/null; then
-		"$c" manifest push --all --format oci "$ref" "oci:$work/lay-$s" >/dev/null
+		podman_oci_push "$c" manifest push --all -q --format oci "$ref" "oci:$work/lay-$s" >/dev/null
 	else
-		"$c" push --format oci "$ref" "oci:$work/lay-$s" >/dev/null
+		podman_oci_push "$c" push -q --format oci "$ref" "oci:$work/lay-$s" >/dev/null
 	fi
 	digest=$(sed -n 's/.*"digest":"\(sha256:[0-9a-f]\{64\}\)".*/\1/p' "$work/lay-$s/index.json" | head -n 1)
 	[ -n "$digest" ] || fail "no digest in the layout of $s"

@@ -75,7 +75,7 @@
       "telegram": {
         "chat_id": {
           "label": "Chat ID",
-          "hint": "Number of the chat or group that receives messages. To find it: send the bot a message (or add the bot to a group and post a message there), open https://api.telegram.org/bot<TOKEN>/getUpdates in a browser and read the number in \"chat\":{\"id\":…}. Groups usually look like -1001234567890; for a public channel enter @channelname."
+          "hint": "Number of the chat or group that receives messages. Easiest: type the bot token below, send any message to the bot (or add the bot to a group and post there), then press Find my chat and pick the chat. By hand: open https://api.telegram.org/bot<TOKEN>/getUpdates in a browser and read the number in \"chat\":{\"id\":…}. Groups usually look like -1001234567890; for a public channel enter @channelname."
         },
         "secret": {
           "label": "Bot token",
@@ -88,13 +88,29 @@
           "hint": "The Official Account ID number, shown in the OA management page or your app in Zalo Developers."
         },
         "secret": {
-          "label": "Access token",
-          "hint": "The OA access token issued in Zalo Developers. Zalo tokens live about 25 hours and are renewed with a refresh token: when it expires, sending reports an error so you can paste a new token. Check the Zalo Developers documentation."
+          "label": "Access token (optional)",
+          "hint": "The current OA access token, if you have one. Leave it empty: Vedette gets one with the refresh token.",
+          "hintGrant": "Leave it empty: Vedette gets a new access token with the refresh token before the old one ends (about 25 hours)."
         },
         "user_id": {
           "label": "Recipient ID (user_id)",
           "hint": "The Zalo ID of the person who receives alerts. They must have followed or messaged the OA, and Zalo only lets an OA send consultation messages within about 48 hours of their last interaction. Check the Zalo Developers documentation."
-        }
+        },
+        "app_id": {
+          "label": "App ID",
+          "hint": "The number of your Zalo app, shown in Zalo Developers next to the app name. The app must be linked to the OA."
+        },
+        "secret_key": {
+          "label": "Secret key",
+          "hint": "The Secret key of the Zalo app (Zalo Developers, your app, Settings). It stays on the box, encrypted."
+        },
+        "refresh_token": {
+          "label": "Refresh token",
+          "hint": "The OA refresh token from Zalo Developers (API Explorer, OA access token). It lasts about 3 months and works once: Vedette renews the access token by itself every day and keeps the new refresh token it gets back."
+        },
+        "helpTitle": "Zalo OA tokens",
+        "help": "Vedette renews the Zalo access token by itself with the refresh token, the App ID and the Secret key, so you set this up once, not every day. Get the OA's refresh token once in Zalo Developers; only if Vedette cannot reach Zalo for about 3 months does it run out, and then you save a new one.",
+        "doc": "Zalo's guide to OA access and refresh tokens"
       },
       "email": {
         "provider": {
@@ -274,7 +290,8 @@
     "emailCodes_other": "{{count}} users sign in with email codes. They will not be able to sign in until this channel is back on or an administrator resets their two-step sign-in.",
     "turnOffTitle": "Turn off the email channel?",
     "turnOffConfirm": "Turn off anyway",
-    "keepEditing": "Keep editing"
+    "keepEditing": "Keep editing",
+    "keepSaved": "Saved. Leave empty to keep it."
   },
   "rules": {
     "quiet": {
@@ -322,7 +339,7 @@
     },
     "hint": {
       "slack": "Approval requests show Approve and Reject buttons in Slack. This uses Slack Socket Mode: the box opens the connection outward to Slack, so you open no inbound port and need no public address.",
-      "telegram": "Approval requests show inline Approve and Reject buttons in the chat. This uses the bot above with long polling: the box asks Telegram for new button presses, so you open no inbound port.",
+      "telegram": "Approval requests show inline Approve and Reject buttons in the chat. This uses the bot above with long polling: the box asks Telegram for new button presses, so you open no inbound port. When you save, the bot sends each approver a confirm link; their presses count once they open it and confirm while signed in to Vedette as themselves.",
       "email": "Each approver receives an email with an Approve button that opens a confirmation page on Vedette.",
       "zalo-personal": "Add each approver with their Zalo account: pick a friend of this account or find them by phone number. When you save, this account sends each of them a confirm link; they are linked once they open it and confirm while signed in to Vedette as themselves (your own Zalo you confirm here). Then each approval request reaches them privately with two codes of their own, one to approve and one to reject. High-risk actions are approved only in Vedette."
     },
@@ -443,7 +460,8 @@
     "emptyAllTitle": "No incidents yet",
     "emptyBody": "When a trap is touched, a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
     "emptyBodyNoTraps": "When a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
-    "setupChannels": "Set up alert channels"
+    "setupChannels": "Set up alert channels",
+    "sentDelayed": "{{channel}} delayed"
   },
   "detail": {
     "meta": "First seen {{time}}.",
@@ -498,7 +516,8 @@
     "notified": "Notified: {{list}}",
     "entry": "{{channel}} {{time}}",
     "entryFailed": "{{channel}} (failed: {{reason}})",
-    "history": "All sent messages"
+    "history": "All sent messages",
+    "notDelivered": "Not delivered: {{list}}"
   },
   "history": {
     "via": "{{channel}} to {{to}}",
@@ -529,7 +548,8 @@
     "resendFor": "Send again via {{channel}}",
     "resendOk": "Sent again via {{channel}}.",
     "emptyTitle": "Nothing sent yet",
-    "emptyBody": "Messages appear here once a channel is on and something worth telling you happens. Test messages are not listed here; each channel shows its last test."
+    "emptyBody": "Messages appear here once a channel is on and something worth telling you happens. Test messages are not listed here; each channel shows its last test.",
+    "delayed": "Delayed"
   },
   "signin": {
     "microsoft": "Microsoft",
@@ -557,18 +577,16 @@
     "clientSecret": "Client secret of the Desktop client",
     "clientSecretHint": "Used to sign in and kept on this box, encrypted. Enter it again when you sign in again."
   },
-  "zl": {
-    "title": "Link your Zalo account",
-    "account": "Zalo ID {{id}}",
-    "thisAccount": "This Zalo account",
-    "noToken": "This link is not complete. Open it again from the Zalo message.",
-    "question": "Link this Zalo account to your account, {{who}}?",
-    "explain": "An administrator listed this Zalo account as yours for approving actions, and Vedette sent you this link. Confirm only if this Zalo account is yours: approval replies from it will then count as you.",
-    "confirm": "Confirm",
-    "linked": "Linked. {{zalo}} now counts as you when you reply to approval messages.",
-    "already": "{{zalo}} is already linked to your account.",
-    "toAccount": "Open My account",
-    "idLabel": "Zalo ID",
-    "namedBy": "Named \"{{name}}\" by your administrator."
+  "tgFind": {
+    "button": "Find my chat",
+    "needToken": "Enter the bot token first.",
+    "none": "No message yet: send any message to your bot (or post in the group after adding the bot), then press Find my chat again.",
+    "fresh": "Vedette has just told Telegram to keep this bot's messages. If you sent yours earlier, send it again now, then press Find my chat again.",
+    "pick": "Chats your bot has seen, newest first",
+    "option": "{{name}} - {{kind}}, ID {{id}}",
+    "kind": { "private": "private chat", "group": "group", "supergroup": "group", "channel": "channel" }
+  },
+  "tg": {
+    "unsaved": "Save to send this person a confirm link on Telegram, privately. The bot can write to them only after they press Start once in a private chat with the bot; otherwise a note in this chat asks them to. They confirm the link while signed in to Vedette as themselves."
   }
 }

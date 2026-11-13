@@ -128,6 +128,10 @@ func badRecipient(a string) error {
 // with an OAuth2 token for Microsoft 365 and Google Workspace (smtpauth.go).
 func NewEmail(cfg EmailConfig) (Sender, error) {
 	cfg.Host = strings.TrimSpace(cfg.Host)
+	// localhost has no dot, so validHost refuses it: name it as Vedette itself first, as 127.0.0.1 is (and as every other module does).
+	if lh := strings.TrimSuffix(strings.ToLower(cfg.Host), "."); !cfg.AllowLoopback && (lh == "localhost" || strings.HasSuffix(lh, ".localhost")) {
+		return nil, cfgErr("bad_host", OwnText)
+	}
 	if !validHost(cfg.Host) {
 		return nil, cfgErr("bad_host", "The SMTP server must be a domain name or an IP address, for example smtp.company.com.")
 	}

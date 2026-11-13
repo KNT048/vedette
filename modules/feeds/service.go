@@ -32,12 +32,21 @@ type Publisher interface {
 
 // Event names and payloads (CONTRACT "Events"). Consumers: inventory, scan, notify.
 const (
-	EventNewKEV       = "feeds.vuln.new_kev"
-	EventVulnUpdated  = "feeds.vuln.updated"
-	EventIOCUpdated   = "feeds.ioc.updated"
-	EventFetchFailed  = "feeds.fetch.failed"
-	EventSyncBaseline = "feeds.sync.baseline"
+	EventNewKEV        = "feeds.vuln.new_kev"
+	EventVulnUpdated   = "feeds.vuln.updated"
+	EventIOCUpdated    = "feeds.ioc.updated"
+	EventFetchFailed   = "feeds.fetch.failed"
+	EventSyncBaseline  = "feeds.sync.baseline"
+	EventRangesUpdated = "feeds.ranges.updated"
 )
+
+// RangesUpdatedEvent is published after a pull of the NVD affected versions (nvd-kev, D-500) changed the entries of
+// some CVEs: findings must match the devices again. First is true when the table was empty before (the first fill:
+// like the baseline of D-78, nothing it causes is news).
+type RangesUpdatedEvent struct {
+	CVEs  []string `json:"cves"`
+	First bool     `json:"first"`
+}
 
 // SyncBaselineEvent is published once, instead of one NewKEVEvent per CVE, when the first pull of the CISA list
 // fills an empty database (D-78). Subscribers recompute everything once; notify sends nothing for it.
@@ -108,6 +117,11 @@ type Service struct {
 	unknownLogged atomic.Bool // the "waiting for the box's addresses" debug line is written once (D-208)
 
 	afterChunk func(chunk int) // tests: runs after each chunk of an indicator list has committed
+
+	nvdMu sync.Mutex
+	nvd   *nvdRun // the NVD pull running now, or paused to go on later (W3-1); nil when none
+
+	wait func(ctx context.Context, d time.Duration) error // tests: replaces the real waits of the NVD pull
 }
 
 // NewService checks the dependencies.
@@ -142,37 +156,61 @@ func (s *Service) publish(ctx context.Context, name string, payload any) {
 	}
 }
 
-// feedGate serialises the pulls of one feed; refs counts the pulls holding or waiting for it, so the entry can
-// be dropped when the last one is done.
+// feedGate is the pull of one feed: done is open while a pull runs (closed when it ends, so the callers that joined
+// it go on); refs counts the pulls holding or waiting for it, so the entry can be dropped when the last one is done.
 type feedGate struct {
-	ch   chan struct{}
+	done chan struct{}
 	refs int
 }
 
-// lockFeed waits for the pull lock of a feed or for ctx, whichever comes first. The returned func releases it.
-func (s *Service) lockFeed(ctx context.Context, id string) (func(), error) {
+// lockFeed takes the pull lock of a feed. When another pull of the feed holds it, the caller joins that pull: it
+// waits for it to end (or for ctx) and gets joined true without the lock, so a second "Fetch now" or a job tick
+// during a pull never starts a second pull (W3-1: two NVD pulls 0.3 s apart got HTTP 503). The returned func
+// releases the lock.
+func (s *Service) lockFeed(ctx context.Context, id string) (release func(), joined bool, err error) {
 	s.mu.Lock()
 	g := s.locks[id]
 	if g == nil {
-		g = &feedGate{ch: make(chan struct{}, 1)}
+		g = &feedGate{}
 		s.locks[id] = g
 	}
 	g.refs++
-	s.mu.Unlock()
-	drop := func() {
-		s.mu.Lock()
-		defer s.mu.Unlock()
+	drop := func() { // under s.mu
 		if g.refs--; g.refs == 0 {
 			delete(s.locks, id)
 		}
 	}
-	select {
-	case g.ch <- struct{}{}:
-		return func() { <-g.ch; drop() }, nil
-	case <-ctx.Done():
-		drop()
-		return nil, ctx.Err()
+	if g.done == nil {
+		g.done = make(chan struct{})
+		s.mu.Unlock()
+		return func() {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			close(g.done)
+			g.done = nil
+			drop()
+		}, false, nil
 	}
+	done := g.done
+	s.mu.Unlock()
+	select {
+	case <-done:
+		joined = true
+	case <-ctx.Done():
+		err = ctx.Err()
+	}
+	s.mu.Lock()
+	drop()
+	s.mu.Unlock()
+	return nil, joined, err
+}
+
+// busy reports whether a pull of the feed is running now.
+func (s *Service) busy(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	g := s.locks[id]
+	return g != nil && g.done != nil
 }
 
 // ready seeds the built-in feeds the first time a request or a pull needs them (once, with the caller context), so
@@ -217,14 +255,26 @@ func (s *Service) writeDeclaring(ctx context.Context, fn func(tx *sql.Tx) error)
 	return err
 }
 
-// declareDevice asks the inventory for the manual device of "I have it" (S-FEED-2, INV-14) inside tx.
+// declareDevice asks the inventory for the manual device of "I have it" (S-FEED-2, INV-14) inside tx and records the
+// device's id on the answer, once (D-484: the "I have this" scope is that device's only).
 func (s *Service) declareDevice(ctx context.Context, tx *sql.Tx, actor, key string, v VulnRow) error {
 	d := ManualDevice{Kind: KindOf(key), Vendor: v.Vendor, Product: v.Product, Display: DisplayOf(v.Vendor, v.Product), Key: key}
-	if err := s.Inventory.AddManualDevice(ctx, tx, actor, d); err != nil {
+	id, err := s.Inventory.AddManualDevice(ctx, tx, actor, d)
+	if err != nil {
 		return fmt.Errorf("feeds: add manual device: %w", err)
+	}
+	if id == "" {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE feeds_weekly_answer SET device_id = ? WHERE key = ? AND device_id IS NULL`, id, key); err != nil {
+		return fmt.Errorf("feeds: record the declared device: %w", err)
 	}
 	return nil
 }
+
+// HaveWindow is how far before the answered entry "I have this" reaches back: the 7 days of "This week" on Home, so the
+// other entries of that product the same week also become findings (D-484).
+const HaveWindow = 7 * 24 * time.Hour
 
 // reconcileDevices adds the "I have it" devices that were answered while the inventory was off, once it is on
 // (INV-14). Called by every pull tick. A product no longer in the CISA list waits.

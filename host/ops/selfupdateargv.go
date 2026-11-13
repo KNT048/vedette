@@ -83,8 +83,17 @@ func validateDpkgDeb(stateDir string) func([]string) error {
 	}
 }
 
+// validateDpkgQuery is the applier's dpkg-query: only the look at vedette-host.
 func validateDpkgQuery(args []string) error {
 	if !slices.Equal(args, argsDpkgQueryHost) {
+		return errors.New("not the fixed dpkg-query command line")
+	}
+	return nil
+}
+
+// validateHostDpkgQuery is the host runner's: the look at vedette-host, and the package list of the box (D-470).
+func validateHostDpkgQuery(args []string) error {
+	if validateDpkgQuery(args) != nil && !slices.Equal(args, argsDpkgQueryList) {
 		return errors.New("not the fixed dpkg-query command line")
 	}
 	return nil

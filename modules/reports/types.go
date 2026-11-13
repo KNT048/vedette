@@ -16,15 +16,55 @@ type FindingRow struct {
 	Status   string `json:"status"`
 	Severity string `json:"severity"`
 	Since    string `json:"since"`
+	By       string `json:"by,omitempty"` // who closed it, on the rows of what was done
 }
 
-// ActionItem is one line of "what is left". Kind is fix, verify, review_devices or plan_os.
+// TopRisk is one of the biggest open risks of the week (W1-24, D-485): the open findings of one product, as Findings names it.
+// Device is the device's name, or the first names and how many more; FindingID is its worst finding.
+type TopRisk struct {
+	Product   string `json:"product"`
+	Device    string `json:"device"`
+	Devices   int    `json:"devices"`
+	Open      int    `json:"open"`
+	Confirmed int    `json:"confirmed"`
+	Severity  string `json:"severity"`
+	CVE       string `json:"cve"`
+	FindingID string `json:"finding_id"`
+	// Action is what to do this week, one sentence naming the device(s) and, when NVD's ranges say, the fixed version (D-490).
+	// Empty in a report sent before D-490.
+	Action string `json:"action,omitempty"`
+}
+
+// ActionItem is one line of "what is left". Kind is fix, verify, review_devices or plan_os. Since D-485 fix and verify are about
+// one top risk: Product and Count (its open findings) are set, CVE and FindingID are its worst finding.
 type ActionItem struct {
 	Kind      string `json:"kind"`
 	CVE       string `json:"cve,omitempty"`
 	Device    string `json:"device,omitempty"`
 	FindingID string `json:"finding_id,omitempty"`
+	Product   string `json:"product,omitempty"`
 	Count     int    `json:"count,omitempty"`
+	Text      string `json:"text,omitempty"` // fix and verify: the sentence of the top risk's Action (D-490)
+}
+
+// HappenedLine is one incident of the week that matters.
+type HappenedLine struct {
+	Kind     string `json:"kind"` // login_accepted, trap, failed_logins, bad_connection or anomaly
+	Title    string `json:"title"`
+	Severity string `json:"severity"`
+	At       string `json:"at"` // last seen
+}
+
+// Happened is "what happened this week" from the incidents of notify (D-490): counts of incidents seen in the week, per kind,
+// and the few that matter most. Summary is the one sentence the page and the email both say.
+type Happened struct {
+	Traps          int            `json:"traps"`
+	FailedLogins   int            `json:"failed_logins"`
+	AcceptedLogins int            `json:"accepted_logins"`
+	BadConnections int            `json:"bad_connections"`
+	Other          int            `json:"other"`
+	Summary        string         `json:"summary"`
+	Top            []HappenedLine `json:"top"`
 }
 
 // Tokens is what an AI call cost.
@@ -57,8 +97,8 @@ type Counts struct {
 	Devices          int `json:"devices"`
 	DevicesUnapprove int `json:"devices_unapproved"`
 	DevicesNew       int `json:"devices_new"`
-	KevNew           int `json:"kev_new"`
-	KevMatched       int `json:"kev_matched"`
+	KevNew           int `json:"kev_new"`     // newly exploited in the last 7 days, as Home counts them (D-485)
+	KevMatched       int `json:"kev_matched"` // their products in use, as Home counts them (D-485; before it, CVEs on a device)
 }
 
 // Source says where a group of figures came from and when (INV-1).
@@ -72,10 +112,12 @@ type WeeklyReport struct {
 	Period      Period       `json:"period"`
 	GeneratedAt string       `json:"generated_at"`
 	Counts      Counts       `json:"counts"`
+	TopRisks    []TopRisk    `json:"top_risks"`
 	NewFindings []FindingRow `json:"new_findings"`
 	Resolved    []FindingRow `json:"resolved"`
 	Open        []FindingRow `json:"open"`
 	Actions     []ActionItem `json:"actions"`
+	Happened    *Happened    `json:"happened"` // nil when notify is off or the report was sent before D-490
 	Sources     []Source     `json:"sources"`
 	AISummary   *AiSummary   `json:"ai_summary"`
 }

@@ -55,11 +55,11 @@ export const Change = z.object({
 })
 
 // ---- AI proposals from plans (S-RESP-1) ----
-export const ProposalState = z.enum(['ready', 'execution_off', 'tool_not_allowed', 'tool_unavailable'])
+export const ProposalState = z.enum(['ready', 'execution_off', 'tool_not_allowed', 'tool_unavailable', 'not_publishable'])
 export const Proposal = z.object({
   id, title: z.string(), tool_key: z.string().describe('connection id / tool name'), tool: z.string(),
   connector_id: z.string(), connection: z.string(), asset_id: z.string(), asset_name: z.string(), change: Change,
-  state: ProposalState.describe('ready = a request can be made now; the others say what blocks it'),
+  state: ProposalState.describe('ready = a request can be made now; the others say what blocks it (not_publishable: a block list action on an address the list never publishes, D-469)'),
   request_id: z.string().nullable().describe('Open (pending) or executed request for this proposal'),
 })
 export const PlanStep = z.object({ kind: z.enum(['contain', 'check', 'patch']), title: z.string(), detail: z.string(), proposal: Proposal.nullable() })
@@ -133,16 +133,16 @@ export const SettingsView = Settings.extend({
 })
 
 // ---- Approver identities (S-RESP-2, D-191): each approver proves the address or ID an administrator typed for them ----
-export const IdentityMethod = z.enum(['email_code', 'chat_code', 'send_code', 'unavailable'])
+export const IdentityMethod = z.enum(['email_code', 'send_code', 'unavailable'])
 export const Identity = z.object({
   channel: z.string(), label: z.string(), address: z.string().describe('The address or ID on the approver list of the channel, as an administrator saved it'),
   name: z.string().optional().describe('The shown name of that address where the channel knows it (Zalo personal, D-447)'),
   linked: z.boolean().describe('Proved by this person for exactly this address; a changed address or sign-in email is not linked'), linked_at: iso.nullable(),
-  method: IdentityMethod.describe('email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: the box sends a confirm link to that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)'),
-  code_waiting: z.boolean().describe('A code was sent or shown and can be entered now'),
+  method: IdentityMethod.describe('email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414); Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette)'),
+  code_waiting: z.boolean().describe('A code or confirm link was sent and can be used now'),
 })
 export const IdentityList = z.object({ items: z.array(Identity) })
-export const CodeSent = z.object({ sent_to: z.string().describe('The address, masked'), resend_after: z.number().int(), preview_code: z.string().optional().describe('Preview build only; never sent by a real box'), code: z.string().optional().describe('send_code channels only: the code to send from your own chat account to the box account (sent_to is that account ID); it proves nothing until it arrives from there') })
+export const CodeSent = z.object({ sent_to: z.string().describe('The address, masked'), resend_after: z.number().int(), preview_code: z.string().optional().describe('Preview build only; never sent by a real box'), link: z.string().optional().describe('send_code channels only, when nothing was sent because you confirm in this session (your own row with the box\'s own Zalo account): the confirm page to open') })
 export const SettingsInput = z.object({
   max_per_hour: z.number().int(), expiry_min: z.number().int(), approval_channels: z.array(z.string()),
   breaker_max_per_hour: z.number().int(), multi_target_max: z.number().int(), maintenance: z.array(Window),
@@ -279,7 +279,7 @@ export const endpoints = defineEndpoints([
   R({ method: 'post', path: '/response/approve/{token}', summary: 'Public: approve or reject through an emailed link. The token is single-use, valid 30 minutes and bound to one request and one approver', stories: ['S-RESP-2'], role: 'public',
     params: tokenParams, body: z.object({ decision: z.enum(['approve', 'reject']) }), response: ActionRequest }),
   R({ method: 'get', path: '/response/me/identities', summary: 'My approver identities: each approval channel whose approver list names me, with the address, whether I linked it myself and how to link it (D-191)', stories: ['S-RESP-2'], role: 'operator', response: IdentityList }),
-  R({ method: 'post', path: '/response/me/identities/{channel}/code', summary: 'Mail a 6-digit link code to my address on the email approval channel (my sign-in email). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour. Chat channels get their code by pressing a button on an approval message', stories: ['S-RESP-2'], role: 'operator',
+  R({ method: 'post', path: '/response/me/identities/{channel}/code', summary: 'Email: mail a 6-digit link code to my address on the email approval channel (my sign-in email). Telegram and Zalo personal (send_code): send a new confirm link to my listed chat ID (D-414; sent_to names it). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour', stories: ['S-RESP-2'], role: 'operator',
     params: chanParams, response: CodeSent }),
   R({ method: 'post', path: '/response/me/identities/{channel}/confirm', summary: 'Link my address on a channel with the code it received. Single use; 5 wrong codes cancel it', stories: ['S-RESP-2'], role: 'operator',
     params: chanParams, body: z.object({ code: z.string() }), response: Identity }),

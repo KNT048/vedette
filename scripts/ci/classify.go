@@ -1,9 +1,15 @@
 // Package main is the CI helper (D-140): `ci changes` decides which of the go and web jobs a pull request needs,
-// `ci shard I N` prints the I-th of N stable, disjoint, complete package shards for `go test`.
+// `ci shard I N` prints the I-th of N stable, disjoint, complete package shards for `go test` (on a pull request only the
+// shard's packages the change reaches, D-413).
 // Classification is fail-safe: a path no rule names runs everything.
 package main
 
-import "strings"
+import (
+	"maps"
+	"path"
+	"slices"
+	"strings"
+)
 
 // Result says which suites a set of changed paths can affect.
 type Result struct{ Go, Web bool }
@@ -34,6 +40,7 @@ var rules = []rule{
 	{"web/src/features/inventory/scripts/osquery.sh", Result{true, true}},  // the same test renders the GUI template
 	{"web/src/features/inventory/scripts/osquery.ps1", Result{true, true}}, // the same
 	{"web/src/locales/en/core.json", Result{true, true}},                   // modules/core/auditlabels_test.go: every audit action has a label
+	{"web/src/locales/en/common.json", Result{true, true}},                 // modules/manifests_test.go: every module has a display name (W1-25)
 	{"THIRD_PARTY_NOTICES.md", Result{Go: true}},                           // make notices-check (verify-go-static) holds it to go list and web/package.json (D-159)
 	{"web/package.json", Result{true, true}},                               // the same check reads the web production dependencies
 
@@ -101,24 +108,66 @@ func ClassifyAll(paths []string) Result {
 	return out
 }
 
-// Outputs are the job switches CI reads: Go is go-static, go-lint and go-release, Tests is go-test.
-type Outputs struct{ Go, Tests, Web, Vuln, Audit bool }
+// Outputs are the job switches CI reads: Go is go-static, go-lint and go-release, Tests is go-test. WebAll is false only
+// for a pull request whose web-side paths all lie under web/: then web-verify runs only the tests vitest --changed reaches.
+type Outputs struct{ Go, Tests, Web, WebAll, Vuln, Audit bool }
 
 // Decide maps the event and the changed paths to job switches. diffOK is false when the diff could not be
-// computed; then everything runs. A pull request is narrowed by its paths. A push to main runs the Go jobs but no
-// vulnerability scan and no web (D-365, D-372): the merge queue already ran every job on that exact tree, and the push run
-// is what saves main's Go caches (go-test's, go-static's, golangci-lint's), the only caches pull requests and the queue can restore. The daily schedule runs everything, uncached and shuffled
-// (ci.yml passes -count=2 -shuffle=on), plus both vulnerability scans. workflow_dispatch, merge_group and any unknown event run everything.
+// computed; then everything runs. A pull request is narrowed by its paths, and go-test and web-verify run only the packages
+// and tests the change reaches (D-413; Affected, WebAll). A push to main runs the full suite, Go and web (D-413: there is
+// no merge queue, so the push run is the first full run of the merged tree), without the vulnerability scans the pull
+// request ran; it also saves main's Go caches (go-test's, go-static's, golangci-lint's), the only caches pull requests can
+// restore (D-365, D-372). The daily schedule runs everything, uncached and shuffled (ci.yml passes -count=2 -shuffle=on and
+// -race), plus both vulnerability scans. workflow_dispatch and any unknown event run everything.
 func Decide(event string, changed []string, diffOK bool) Outputs {
 	switch {
 	case event == "schedule":
-		return Outputs{Go: true, Tests: true, Web: true, Vuln: true, Audit: true}
+		return Outputs{Go: true, Tests: true, Web: true, WebAll: true, Vuln: true, Audit: true}
 	case event == "push":
-		return Outputs{Go: true, Tests: true}
+		return Outputs{Go: true, Tests: true, Web: true, WebAll: true}
 	case event == "pull_request" && diffOK:
 		c := ClassifyAll(changed)
-		return Outputs{Go: c.Go, Tests: c.Go, Web: c.Web, Vuln: c.Go}
+		webAll := len(changed) == 0
+		for _, p := range changed {
+			webAll = webAll || (Classify(p).Web && !strings.HasPrefix(strings.TrimPrefix(p, "./"), "web/"))
+		}
+		return Outputs{Go: c.Go, Tests: c.Go, Web: c.Web, WebAll: c.Web && webAll, Vuln: c.Go}
 	default:
-		return Outputs{Go: true, Tests: true, Web: true, Vuln: true}
+		return Outputs{Go: true, Tests: true, Web: true, WebAll: true, Vuln: true}
 	}
+}
+
+// Affected says which Go packages a pull request's go-test runs (D-413): every package holding a changed file the Go side
+// reads, and every package that imports one of those directly (tests included). dirs maps a package directory (repo
+// relative, slash separated) to its import path; imports maps an import path to what it and its tests import. A non-Go file
+// belongs to the nearest package directory above it (testdata, migrations, embedded files). all is true when a changed path
+// the Go side reads lies in no package directory (go.mod, the Makefile, scripts, docs or web files a test reads, a deleted
+// or new package): then every package runs. ponytail: a test that reads another package's files runs on main's full push
+// run after the merge, not on the pull request; upgrade path: feed guard_test.go's goReads into this function.
+func Affected(changed []string, dirs map[string]string, imports map[string][]string) (pkgs map[string]bool, all bool) {
+	changedPkgs := map[string]bool{}
+	for _, p := range changed {
+		p = strings.TrimPrefix(p, "./")
+		if !Classify(p).Go {
+			continue
+		}
+		ip, found := "", false
+		for d := path.Dir(p); d != "." && d != "/" && !found; d = path.Dir(d) {
+			ip, found = dirs[d]
+			if strings.HasSuffix(p, ".go") {
+				break // a .go file belongs to its own directory only
+			}
+		}
+		if !found {
+			return nil, true
+		}
+		changedPkgs[ip] = true
+	}
+	pkgs = maps.Clone(changedPkgs)
+	for ip, imps := range imports {
+		if slices.ContainsFunc(imps, func(imp string) bool { return changedPkgs[imp] }) {
+			pkgs[ip] = true
+		}
+	}
+	return pkgs, false
 }

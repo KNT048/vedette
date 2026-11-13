@@ -8,19 +8,41 @@ export const FindingRow = z.object({
   id: z.string(), cve: z.string(), device: z.string(), asset_id: z.string(), product: z.string(),
   status: z.enum(['confirmed', 'suspected', 'mitigated', 'patched', 'false_positive', 'not_relevant']),
   severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), since: iso,
+  by: z.string().optional().describe('Who closed it (rows of what was done)'),
+})
+export const TopRisk = z.object({
+  product: z.string().describe('The product as Findings names it'), device: z.string().describe('The device, or the first names and how many more'),
+  devices: z.number().int(), open: z.number().int(), confirmed: z.number().int().describe('Open findings a scan confirmed'),
+  severity: z.enum(['critical', 'high', 'medium', 'low', 'info']).describe('The worst severity'), cve: z.string(), finding_id: z.string().describe('Its worst finding'),
+  action: z.string().optional().describe('What to do this week, one sentence naming the device(s) and the fixed version when NVD says (D-490); absent in reports sent before it'),
 })
 export const ActionItem = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('fix'), cve: z.string(), device: z.string(), finding_id: z.string() }),
-  z.object({ kind: z.literal('verify'), cve: z.string(), device: z.string(), finding_id: z.string() }),
+  z.object({ kind: z.literal('fix'), cve: z.string(), device: z.string(), finding_id: z.string(), product: z.string().optional(), count: z.number().int().optional(), text: z.string().optional().describe('Since D-490 the sentence of the top risk action') }).describe('Since D-485 one top risk: product and count (its open findings) are set; cve and finding_id are its worst finding'),
+  z.object({ kind: z.literal('verify'), cve: z.string(), device: z.string(), finding_id: z.string(), product: z.string().optional(), count: z.number().int().optional(), text: z.string().optional() }),
   z.object({ kind: z.literal('review_devices'), count: z.number().int() }),
   z.object({ kind: z.literal('plan_os'), count: z.number().int() }),
 ])
+export const Happened = z.object({
+  traps: z.number().int(), failed_logins: z.number().int(), accepted_logins: z.number().int(), bad_connections: z.number().int(), other: z.number().int(),
+  summary: z.string().describe('The one sentence the page and the email say'),
+  top: z.array(z.object({
+    kind: z.enum(['login_accepted', 'trap', 'failed_logins', 'bad_connection', 'anomaly']), title: z.string(), severity: z.enum(['critical', 'high', 'medium', 'low', 'info']),
+    at: iso.describe('Last seen'),
+  })).max(3),
+}).describe('Incidents of the week from notify (D-490): counts per kind and the few that matter')
 export const AiSummary = z.object({ paragraphs: z.array(z.string()), model: z.string(), profile: z.string().optional().describe('AI profile that answered'), tokens: z.object({ input: z.number(), output: z.number() }), generated_at: iso })
 export const WeeklyReport = z.object({
   period: z.object({ from: iso, to: iso }), generated_at: iso,
-  counts: z.object({ new_findings: z.number(), resolved: z.number(), open_confirmed: z.number(), open_suspected: z.number(), devices: z.number(), devices_unapproved: z.number(), devices_new: z.number(), kev_new: z.number(), kev_matched: z.number() }),
+  counts: z.object({
+    new_findings: z.number(), resolved: z.number(), open_confirmed: z.number(), open_suspected: z.number(),
+    devices: z.number().describe('Devices as the Devices page counts them, this box included'), devices_unapproved: z.number(), devices_new: z.number(),
+    kev_new: z.number().describe('Vulnerabilities newly exploited in the last 7 days, as Home counts them (D-485)'),
+    kev_matched: z.number().describe('Products you use among them, as Home counts them (D-485; earlier reports: their CVEs on a device)'),
+  }),
+  top_risks: z.array(TopRisk).max(3).optional().describe('The three biggest open risks, by product (D-485); absent in reports sent before it'),
   new_findings: z.array(FindingRow), resolved: z.array(FindingRow), open: z.array(FindingRow), actions: z.array(ActionItem),
-  sources: z.array(z.object({ id: z.enum(['inventory', 'findings', 'kev']), at: iso })).describe('Sources of the figures in the report; honeypot hits and anomalous logs are not included because the honeypot/logs modules do not share data yet'),
+  happened: Happened.nullable().optional().describe('Absent or null when notify is off, or in reports sent before D-490'),
+  sources: z.array(z.object({ id: z.enum(['inventory', 'findings', 'kev', 'incidents']), at: iso })).describe('Sources of the figures in the report; incidents only when notify is on (D-490)'),
   ai_summary: AiSummary.nullable(),
 })
 export const WeeklyPreview = z.object({ report: WeeklyReport, ai_available: z.boolean() })

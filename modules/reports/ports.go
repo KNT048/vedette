@@ -19,6 +19,7 @@ type Device struct {
 	FirstSeen time.Time
 	Ports     []int    // open TCP/UDP service ports
 	KevKeys   []string // inventory KEV keys of the software on the device ("vendor|product")
+	Box       bool     // this Vedette box: listed on the Devices page, so counted in the weekly report; not in the PDPL inventory
 	Sources   []string // the source of each of vendor, model and OS that is known
 }
 
@@ -34,6 +35,7 @@ type Finding struct {
 	Status, Severity string
 	FirstSeen        time.Time
 	ResolvedAt       time.Time // zero = not closed
+	ResolvedBy       string    // who closed it ("" = open)
 }
 
 // Findings lists every finding.
@@ -41,16 +43,54 @@ type Findings interface {
 	All(ctx context.Context) ([]Finding, error)
 }
 
+// Fix is what NVD's ranges say about the one release that closes an installed software on a device (findings.FixedInForAll, D-490):
+// the same for every finding of that software, with Closed telling whether it closes this finding. Group is the software it is about
+// (CISA gives one phone's CVEs several product names; the software is one). Kind is "fixed" (Fixed is a release outside the affected
+// range of every finding of the software; Version is the device's), "none" (NVD's ranges name no release that clears them all),
+// "up_to" (NVD names no fixed release, Fixed is the last affected one) or "distro" (the distribution's security updates carry it).
+// Distro names the distribution the device runs ("" = none we know).
+type Fix struct {
+	Kind, Group, Version, Fixed, Distro string
+	Closed                              bool
+}
+
+// Remedies says the Fix of open findings, by finding id; a finding it cannot say anything about is not in the map.
+type Remedies interface {
+	Fixes(ctx context.Context, fs []Finding) (map[string]Fix, error)
+}
+
+// Incident is an incident of notify as the report names it. Kind is login_accepted, trap, failed_logins, bad_connection or anomaly
+// (notify reads it; a new-device incident is not here: Devices counts those).
+type Incident struct {
+	Kind, Severity, Title string
+	LastSeen              time.Time
+}
+
+// IncidentWeek is the incidents last seen in the window: how many of each kind (all of them, however many) and the few that matter most.
+type IncidentWeek struct {
+	Traps, FailedLogins, AcceptedLogins, BadConnections, Other int
+	Top                                                        []Incident
+}
+
+// Incidents reads the incidents last seen since the given time (notify.IncidentsSince). ok is false when notify is off: the report
+// then has no section.
+type Incidents interface {
+	Week(ctx context.Context, since time.Time, top int) (week IncidentWeek, ok bool, err error)
+}
+
 // KEVEntry is one entry of the exploited-vulnerability list.
 type KEVEntry struct {
 	CVE, Vendor, Product string
+	Display              string    // the product name Findings shows (feeds.DisplayOf); "" = "<vendor> <product>"
 	Key                  string    // the key inventory uses to match software ("vendor|product")
 	DateAdded            time.Time // a day, midnight UTC
 }
 
-// KEV lists the exploited-vulnerability list and says when it was last pulled (zero = never).
+// KEV lists the exploited-vulnerability list and says when it was last pulled (zero = never). NewlyExploited is the Home
+// headline as numbers (W1-24, D-485): the CVEs newly exploited in the last 7 days and how many of their products are in use.
 type KEV interface {
 	Entries(ctx context.Context) (entries []KEVEntry, pulledAt time.Time, err error)
+	NewlyExploited(ctx context.Context) (cves, productsInUse int, err error)
 }
 
 // Mail is the digest sent by email. Path is the page of Vedette the mail links to.

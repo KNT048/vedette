@@ -193,7 +193,7 @@ func TestContract_INV5_BadAnswersAreDiscarded(t *testing.T) {
 		"missing a section": `{"why":"x"}`,
 	} {
 		a.fake.setAnswer(answer)
-		m := a.explain("CVE-2022-27593", 409, "ai_unavailable")
+		m := a.explain("CVE-2022-27593", 502, "ai_bad_format")
 		if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "not in the format") {
 			t.Errorf("%s: message = %q", name, msg)
 		}
@@ -266,9 +266,9 @@ func TestContract_INV17_OneActivityRowPerCallAndTheChain(t *testing.T) {
 	a.facts.mu.Lock()
 	a.facts.assets["CVE-2022-27593"][0].Name = "NAS-3"
 	a.facts.mu.Unlock()
-	m := a.explain("CVE-2022-27593", 409, "ai_unavailable")
+	m := a.explain("CVE-2022-27593", 502, "provider_error")
 	msg := m["error"].(map[string]any)["message"].(string)
-	if !strings.Contains(msg, "Claude: provider server error") || !strings.Contains(msg, "Backup: provider rejected the credentials") || strings.Contains(msg, "sk-live") || strings.Contains(msg, "boom") {
+	if !strings.Contains(msg, "Claude: provider server error (HTTP 500): boom") || !strings.Contains(msg, "Backup: provider rejected the credentials (HTTP 401)") || strings.Contains(msg, "sk-live") {
 		t.Fatalf("message = %q", msg)
 	}
 	rows = a.activity()
@@ -320,7 +320,7 @@ func TestContract_INV12_PersonalDataStopsTheCall(t *testing.T) {
 	f.Description += " Reported by citizen 123456789012."
 	a.facts.cves["CVE-2022-27593"] = f
 	a.facts.mu.Unlock()
-	m := a.explain("CVE-2022-27593", 409, "ai_unavailable")
+	m := a.explain("CVE-2022-27593", 409, "blocked_by_hook")
 	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "not asked") {
 		t.Fatalf("message = %q", msg)
 	}
@@ -371,7 +371,7 @@ func TestContract_INV3_ExplainNeverGoesToCloudUnderTheRule(t *testing.T) {
 	all["explain-finding"] = [2]string{local, ""}
 	a.want("PUT", "/ai/assignments", "admin", assignBody(true, all), 200, "")
 	a.fake.failWith("Local", &provider.Error{Kind: provider.ErrNetwork})
-	m := a.explain("CVE-2022-27593", 409, "ai_unavailable") // the internal profile is down: no switch to the cloud
+	m := a.explain("CVE-2022-27593", 502, "unreachable") // the internal profile is down: no switch to the cloud
 	if a.fake.called("Claude") != 0 || m == nil {
 		t.Fatalf("the cloud profile %s was called", c)
 	}
@@ -696,7 +696,7 @@ func TestBriefForTheMitigationDoor(t *testing.T) {
 	a.fake.setAnswer(`{"paragraphs":[],"steps":["x"]}`)
 	_, err = svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobMitigationConfig, Actor: "it@acme.example", Question: "Draft."})
 	var ae *apierr.Error
-	if !asAPI(err, &ae) || ae.Code != "ai_unavailable" {
+	if !asAPI(err, &ae) || ae.Code != "ai_bad_format" {
 		t.Fatalf("a bad answer = %v", err)
 	}
 	// no profile for the job: not available, and Brief says so in the API's words

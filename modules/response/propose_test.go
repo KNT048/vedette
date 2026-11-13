@@ -480,9 +480,9 @@ func TestPropose_EvidenceIsLookedUpNeverTrusted(t *testing.T) {
 	})
 	t.Run("addresses compare in their canonical spelling", func(t *testing.T) {
 		e, _, ev := propEnv(t, true)
-		ev.add("ioc-v6", "2001:DB8::0:1")
+		ev.add("ioc-v6", "2606:4700::0:A1") // a public IPv6 address (2001:db8::/32 is never published, D-469), upper-case hex and a zero group
 		b := iocBody("ioc-v6")
-		b.Params = map[string]string{"ip": "2001:db8::1"}
+		b.Params = map[string]string{"ip": "2606:4700::a1"}
 		if r := e.mustPropose(b); r.Outcome != "request" {
 			t.Fatalf("%+v", r)
 		}

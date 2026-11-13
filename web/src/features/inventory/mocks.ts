@@ -6,7 +6,7 @@ import { API, audit, body, CIDR_RE, currentUser, fail, guard, IPV4_RE } from '@/
 import { assetsStore, boxInfo, installStore, isOn, findingsStore } from '@/mocks/stores'
 import { matchAssetToKev } from '@/mocks/match'
 import { collection, dataMode, daysAgo, newId, nowIso } from '@/mocks/db'
-import { networkStore, spanStatusOf } from '@/mocks/network'
+import { boxAddress, networkStore, spanStatusOf } from '@/mocks/network'
 import type { Asset, AssetKind, ObsSource, Software } from '@/lib/types'
 import { OSQUERY_SCHEDULE } from './agentConfig'
 import { linuxInstallScript, NO_BOX_ADDRESS, OSQUERY_VERSION, windowsInstallScript } from './installScripts'
@@ -20,7 +20,7 @@ import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
 
 // Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
-const serverUrl = () => `https://${boxInfo().ip ?? NO_BOX_ADDRESS}:8443`
+const serverUrl = () => `https://${boxAddress() ?? NO_BOX_ADDRESS}:8443` // D-465: the Box address
 const noBoxAddress = () => fail(404, 'no_box_address', "This box knows no address that other machines can reach, so an install script would point nowhere. Open Vedette at its network address; on a container-only install first set VEDETTE_BIND_IP to this machine's LAN address and VEDETTE_HOSTS to that address or a name for it. Then copy the command again.")
 const FIELD_ORDER: ObsField[] = ['kind', 'hostname', 'mac', 'vendor', 'model', 'os']
 
@@ -35,19 +35,19 @@ const obsStore = collection<Record<string, StoredObs[]>>('inv_obs', () => ({}))
 const notifyStore = collection<{ enabled: boolean }>('inv_notify', () => ({ enabled: true }))
 const settingsStore = collection<InventorySettings>('inv_settings', () => ({
   lan_ranges: ['192.168.10.0/24', '192.168.20.0/24'],
-  active: { enabled: true, days: [1, 2, 3, 4, 5, 6, 7], from: '23:00', to: '05:00', rate: 50, exclusions: [] },
+  active: { enabled: true, days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00', rate: 50, exclusions: [] },
   fragile_kinds: ['printer', 'camera', 'nvr', 'nas', 'ap', 'iot'], regular_scan_kinds: [],
   scope_confirmed_at: daysAgo(36), scope_confirmed_by: 'admin@acme.example',
 }), () => ({
   // Cài sạch: chưa có dải mạng nào, chưa xác nhận phạm vi nên chưa quét chủ động. Người quản trị khai ở trang Phạm vi quét.
   lan_ranges: [],
-  active: { enabled: false, days: [1, 2, 3, 4, 5, 6, 7], from: '23:00', to: '05:00', rate: 50, exclusions: [] },
+  active: { enabled: false, days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00', rate: 50, exclusions: [] },
   fragile_kinds: ['printer', 'camera', 'nvr', 'nas', 'ap', 'iot'], regular_scan_kinds: [],
   scope_confirmed_at: null, scope_confirmed_by: null,
 }))
 // Chỉ cảm biến của chính hộp này (đa site chưa hỗ trợ — chủ dự án, D-28).
 type StoredSensor = Omit<Sensor, 'interface' | 'interfaces' | 'span' | 'chosen' | 'span_status' | 'capture_error'>
-const sensorsStore = collection<StoredSensor[]>('sp_sensor', () => [
+export const sensorsStore = collection<StoredSensor[]>('sp_sensor', () => [
   { id: 'sn-local', name: 'vedette-hq', status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 30 },
 ], () => [
   // Cài sạch: cảm biến của chính hộp, chưa thấy thiết bị nào.
@@ -225,7 +225,7 @@ function summaryOf(a: Asset): DeviceRow['summary'] {
   return { source: top.source, confidence: Math.min(...f.map((x) => x.confidence)) }
 }
 const findingsOf = (id: string) => findingsStore.get().filter((f) => f.asset_id === id).length
-/** D-45, D-84: one gentle scan right after a fragile device, a device of unknown kind or one set to "never" is first seen (lowest speed, no service/OS detection); devices declared by hand and the box itself are never scanned. */
+/** D-45, D-84: one gentle scan right after a fragile device, a device of unknown kind or one set to "never" is first seen (lowest speed, no service/OS detection); discovery never scans devices declared by hand or the box itself. */
 const scanInfo = (a: Asset) => ({
   is_box: a.id === BOX_ID,
   first_scan_at: a.origin === 'discovered' && a.id !== BOX_ID && (a.fragile || a.kind === 'unknown' || metaStore.get()[a.id]?.regular_scan === 'never') ? new Date(new Date(a.first_seen).getTime() + 4 * 60_000).toISOString() : null,

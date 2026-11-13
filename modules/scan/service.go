@@ -29,6 +29,9 @@ type Inventory interface {
 	Devices(ctx context.Context) ([]Device, error)
 	// VulnScanPolicy is inventory.VulnScanPolicy (D-126): explicit is true for a device a person picked in Scan now.
 	VulnScanPolicy(ctx context.Context, assetID string, explicit bool) (Decision, error)
+	// VulnScanPolicies is VulnScanPolicy for many devices in one inventory read (D-472). A device that no longer
+	// exists is absent from the map.
+	VulnScanPolicies(ctx context.Context, assetIDs []string, explicit bool) (map[string]Decision, error)
 }
 
 // Config is what NewService needs. Only DB, Audit, Inventory and Log are required.
@@ -39,6 +42,7 @@ type Config struct {
 	Engine    Engine                                   // nil: the scanner is unavailable (INV-2), nothing is ever sent
 	Pack      *pack.Index                              // the safe template pack of the scan image (D-125 (4)); nil: the scanner is unavailable
 	Findings  Findings                                 // nil: results stay in the run, nothing is confirmed
+	Identify  Identifier                               // nil: Scan now does not identify devices first; each says why (D-501)
 	External  External                                 // nil: the list has no external targets
 	Publisher Publisher                                // nil: no events
 	KEV       KEVFeed                                  // nil: no catch-up of missed new_kev (D-144)
@@ -151,7 +155,11 @@ func (s *Service) view(ctx context.Context, c Settings) (ConfigView, error) {
 		}
 	}
 	if loc, ok := s.loc(ctx); ok { // the zone unknown: no next run is shown, as none would start
-		if t := c.NextRun(s.now(), loc); t != nil {
+		first, err := firstPending(ctx, s.cfg.DB.Reader()) // the rule RunSchedule uses (W3-9)
+		if err != nil {
+			return ConfigView{}, err
+		}
+		if t := c.NextRun(s.now(), loc, first); t != nil {
 			ts := store.FormatTS(*t)
 			v.NextRun = &ts
 		}

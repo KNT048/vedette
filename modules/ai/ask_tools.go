@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -53,13 +54,15 @@ type toolImpl struct {
 	run      func(ctx context.Context, args map[string]any) (toolOut, error)
 }
 
-// Limits of the result of one call (D-211).
+// Limits of the result of one call (D-211, D-482). Every turn of a question sends the whole conversation again, so a result is paid for
+// once per turn that follows it: the lists are summaries (counts over everything that matched, then the first rows) and small.
 const (
-	askResultBytes = 12 << 10 // what one call returns to the model
-	askTotalBytes  = 48 << 10 // what all calls of one question return
-	askRowsDefault = 15
+	askResultBytes = 4 << 10  // what one call returns to the model
+	askTotalBytes  = 12 << 10 // what all calls of one question return
+	askRowsDefault = 10
 	askRowsMax     = 50
 	askMaxArgs     = 4 << 10 // the arguments of one call, encoded
+	askTopDevices  = 8       // devices in the per-device counts of list_findings
 )
 
 // argSpec is one argument of a tool.
@@ -167,14 +170,52 @@ func plural(n int, one, many string) string {
 	return fmt.Sprintf("%d %s", n, many)
 }
 
-// rowsJSON writes {"<count>":total, "shown":n, "<key>":[rows]} with as many rows as fit the byte cap, and says how many that is.
-func rowsJSON(key string, total int, rows []map[string]any) (string, int) {
-	for n := len(rows); ; n-- {
-		b, err := json.Marshal(map[string]any{"matches": total, "shown": n, key: rows[:n]})
-		if err == nil && (len(b) <= askResultBytes || n == 0) {
-			return string(b), n
+// fit returns the JSON of build(rows, extra) with as many rows, and then as many extra entries (the per-device counts), as fit the
+// byte cap. build puts the totals and the note first (a struct, whose fields keep their order), so they are never what gets cut, and a
+// result whose totals alone are over the cap still starts with them (W1-27: a model read the first page as the whole and reported 39
+// findings of 126).
+func fit(rows, extra int, build func(rows, extra int) any) (string, int) {
+	for {
+		b, err := json.Marshal(build(rows, extra))
+		if err == nil && len(b) <= askResultBytes {
+			return string(b), rows
+		}
+		switch {
+		case rows > 0:
+			rows--
+		case extra > 0:
+			extra--
+		default:
+			return string(b), 0
 		}
 	}
+}
+
+func shownNote(what string, total, shown int) string {
+	switch {
+	case total == 0:
+		return fmt.Sprintf("No %s match.", what)
+	case shown >= total:
+		return fmt.Sprintf("All %d matching %s are listed.", total, what)
+	}
+	return fmt.Sprintf("%d %s match and only the first %d are listed. The total and every count here cover all %d: say \"%d %s (showing %d)\", never the number of rows listed as the total. Ask with a filter to see others.",
+		total, what, shown, total, total, what, shown)
+}
+
+// put sets m[k] only when v says something: empty text and empty lists are left out, which is most of what a device of a small
+// network does not have.
+func put(m map[string]any, k string, v any) {
+	switch x := v.(type) {
+	case string:
+		if x == "" {
+			return
+		}
+	case []string:
+		if len(x) == 0 {
+			return
+		}
+	}
+	m[k] = v
 }
 
 func clip(s string, n int) string { return cleanLine(s, n) }
@@ -182,15 +223,15 @@ func clip(s string, n int) string { return cleanLine(s, n) }
 // ---------- the tools of the box
 
 const (
-	searchAssetsDesc = "Search the devices in the inventory. All arguments are optional filters that are combined: free text (words must all appear in the name, IP, vendor, model, operating system, services or software), the device kind, an open TCP/UDP port, whether the device is approved, a word of the operating system. Returns the matching devices, at most limit of them."
-	listFindingsDesc = "List findings: devices matched to an exploited vulnerability. Filters: status (open = confirmed or suspected, the default; any; or one status), severity, CVE id, asset_id of one device. Returns at most limit findings."
+	searchAssetsDesc = "Search the devices in the inventory. All arguments are optional filters that are combined: free text (words must all appear in the name, IP, vendor, model, operating system, services or software), the device kind, an open TCP/UDP port, whether the device is approved, a word of the operating system. Returns how many devices match and the first limit of them (default 10) with vendor, model, operating system, open ports and software; detail=true adds when each was first and last seen, how it was added (found on the network or added by hand) and which source saw it."
+	listFindingsDesc = "List findings: devices matched to an exploited vulnerability. Filters: status (open = confirmed or suspected, the default; any; or one status), severity, CVE id, asset_id of one device. Returns how many findings match, counts by severity, status and basis and per device (the devices with the most first), then the riskiest first limit findings (default 10). Use get_finding for the evidence of one."
 	getFindingDesc   = "Get one finding by its id, with the scan evidence if a scan confirmed it."
 	lookupCVEDesc    = "Look a CVE up on the exploited-vulnerabilities list this box holds, and list the devices of this network that it matches."
 	lookupIOCDesc    = "Check whether an IP address or a domain name is listed by the threat feeds this box pulls."
 )
 
 const (
-	searchAssetsSchema = `{"type":"object","properties":{"text":{"type":"string","maxLength":80},"kind":{"type":"string","maxLength":32},"port":{"type":"integer","minimum":1,"maximum":65535},"approved":{"type":"boolean"},"os_contains":{"type":"string","maxLength":40},"limit":{"type":"integer","minimum":1,"maximum":50}},"additionalProperties":false}`
+	searchAssetsSchema = `{"type":"object","properties":{"text":{"type":"string","maxLength":80},"kind":{"type":"string","maxLength":32},"port":{"type":"integer","minimum":1,"maximum":65535},"approved":{"type":"boolean"},"os_contains":{"type":"string","maxLength":40},"limit":{"type":"integer","minimum":1,"maximum":50},"detail":{"type":"boolean"}},"additionalProperties":false}`
 	listFindingsSchema = `{"type":"object","properties":{"status":{"type":"string","enum":["open","any","confirmed","suspected","mitigated","patched","false_positive","not_relevant"]},"severity":{"type":"string","enum":["critical","high","medium","low","info"]},"cve":{"type":"string","maxLength":24},"asset_id":{"type":"string","maxLength":96},"limit":{"type":"integer","minimum":1,"maximum":50}},"additionalProperties":false}`
 	getFindingSchema   = `{"type":"object","properties":{"id":{"type":"string","maxLength":96}},"required":["id"],"additionalProperties":false}`
 	lookupCVESchema    = `{"type":"object","properties":{"cve":{"type":"string","maxLength":24}},"required":["cve"],"additionalProperties":false}`
@@ -199,7 +240,7 @@ const (
 
 var (
 	searchAssetsArgs = map[string]argSpec{"text": {kind: "string", max: 80}, "kind": {kind: "string", re: kindArgRE, max: 32}, "port": {kind: "int", min: 1, max: 65535},
-		"approved": {kind: "bool"}, "os_contains": {kind: "string", max: 40}, "limit": {kind: "int", min: 1, max: askRowsMax}}
+		"approved": {kind: "bool"}, "os_contains": {kind: "string", max: 40}, "limit": {kind: "int", min: 1, max: askRowsMax}, "detail": {kind: "bool"}}
 	listFindingsArgs = map[string]argSpec{"status": {kind: "string", enum: statusEnum}, "severity": {kind: "string", enum: sevEnum}, "cve": {kind: "string", re: cveArgRE, max: 24},
 		"asset_id": {kind: "string", re: idArgRE, max: 96}, "limit": {kind: "int", min: 1, max: askRowsMax}}
 )
@@ -306,37 +347,48 @@ func toolSearchAssets(ctx context.Context, d Data, raw map[string]any) (toolOut,
 	if err != nil {
 		return toolOut{}, readFailed(err)
 	}
-	var hit []AssetRow
-	for _, a := range all {
-		if a.matches(raw) {
-			hit = append(hit, a)
-		}
-	}
-	limit := limitOf(raw)
-	if len(hit) > limit {
-		hit = hit[:limit]
-	}
-	rows := make([]map[string]any, len(hit))
-	for i, a := range hit {
-		sw := a.Software
-		if len(sw) > 8 {
-			sw = sw[:8]
-		}
-		ports := a.Ports
-		if len(ports) > 12 {
-			ports = ports[:12]
-		}
-		rows[i] = map[string]any{"id": clip(a.ID, 96), "name": clip(a.Name, 80), "ip": clip(a.IP, 45), "kind": clip(a.Kind, 32), "vendor": clip(a.Vendor, 60), "model": clip(a.Model, 60),
-			"os": clip(a.OS, 80), "approved": a.Approved, "last_seen": clip(a.LastSeen, 32), "ports": cleanAll(ports, 40), "software": cleanAll(sw, 80)}
-	}
 	var matched []AssetRow
 	for _, a := range all {
 		if a.matches(raw) {
 			matched = append(matched, a)
 		}
 	}
+	hit := matched
+	if limit := limitOf(raw); len(hit) > limit {
+		hit = hit[:limit]
+	}
+	detail, _ := raw["detail"].(bool)
+	rows := make([]map[string]any, len(hit))
+	for i, a := range hit {
+		nPorts, nSw := 6, 4
+		if detail {
+			nPorts, nSw = 12, 8
+		}
+		r := map[string]any{"id": clip(a.ID, 96), "name": clip(a.Name, 80), "approved": a.Approved}
+		put(r, "ip", clip(a.IP, 45))
+		put(r, "kind", clip(a.Kind, 32))
+		put(r, "vendor", clip(a.Vendor, 60))
+		put(r, "model", clip(a.Model, 60))
+		put(r, "os", clip(a.OS, 80))
+		put(r, "ports", cleanAll(a.Ports[:min(len(a.Ports), nPorts)], 40))
+		put(r, "software", cleanAll(a.Software[:min(len(a.Software), nSw)], 80))
+		if detail {
+			put(r, "first_seen", clip(a.FirstSeen, 32))
+			put(r, "last_seen", clip(a.LastSeen, 32))
+			put(r, "added", addedHow(a.Origin))
+			put(r, "seen_by", clip(a.SeenBy, 32))
+		}
+		rows[i] = r
+	}
 	total := len(matched)
-	text, shown := rowsJSON("devices", total, rows)
+	text, shown := fit(len(rows), 0, func(n, _ int) any {
+		return struct {
+			MatchingDevices int              `json:"matching_devices"`
+			Shown           int              `json:"shown"`
+			Note            string           `json:"note"`
+			Devices         []map[string]any `json:"devices"`
+		}{total, n, shownNote("devices", total, n), rows[:n]}
+	})
 	t := &AskTable{Columns: []string{"Device", "IP", "Type", "Operating system"}, Rows: []AskRow{}}
 	for _, a := range hit[:shown] {
 		os := clip(a.OS, 80)
@@ -352,6 +404,17 @@ func toolSearchAssets(ctx context.Context, d Data, raw map[string]any) (toolOut,
 	return out, nil
 }
 
+// addedHow says how a device came into the inventory, in words the model repeats as they are.
+func addedHow(origin string) string {
+	switch origin {
+	case "manual":
+		return "added by hand"
+	case "discovered":
+		return "found on the network"
+	}
+	return "unknown"
+}
+
 func cleanAll(in []string, n int) []string {
 	out := make([]string, 0, len(in))
 	for _, s := range in {
@@ -363,6 +426,35 @@ func cleanAll(in []string, n int) []string {
 func findingMap(f FindingRow) map[string]any {
 	return map[string]any{"id": clip(f.ID, 96), "device": clip(f.Asset, 80), "device_ip": clip(f.AssetIP, 45), "asset_id": clip(f.AssetID, 96), "cve": clip(f.CVE, 24), "status": clip(f.Status, 20),
 		"severity": clip(f.Severity, 12), "basis": clip(f.Basis, 12), "confidence": f.Confidence, "first_seen": clip(f.FirstSeen, 32), "last_seen": clip(f.LastSeen, 32)}
+}
+
+// riskRank orders findings riskiest first: confirmed, then suspected, then closed ones (status=any), then severity, then how the match was made (a scan, the version, the
+// product name only), then confidence. Equal ones keep the box's order (newest first).
+func riskRank(f FindingRow) [4]int {
+	sev := map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3}
+	basis := map[string]int{"scan": 0, "version": 1}
+	s, ok := sev[f.Severity]
+	if !ok {
+		s = 4
+	}
+	b, ok := basis[f.Basis]
+	if !ok {
+		b = 2
+	}
+	st := map[string]int{"confirmed": 0, "suspected": 1}[f.Status] // open ones first: a closed critical one is not the risk now
+	if f.Status != "confirmed" && f.Status != "suspected" {
+		st = 2
+	}
+	return [4]int{st, s, b, -int(f.Confidence * 100)}
+}
+
+func lessRank(a, b [4]int) bool {
+	for i := range a {
+		if a[i] != b[i] {
+			return a[i] < b[i]
+		}
+	}
+	return false
 }
 
 func toolListFindings(ctx context.Context, d Data, raw map[string]any) (toolOut, error) {
@@ -386,17 +478,85 @@ func toolListFindings(ctx context.Context, d Data, raw map[string]any) (toolOut,
 		}
 		hit = append(hit, f)
 	}
+	sort.SliceStable(hit, func(i, j int) bool { return lessRank(riskRank(hit[i]), riskRank(hit[j])) })
 	total := len(hit)
-	if limit := limitOf(raw); len(hit) > limit {
-		hit = hit[:limit]
+	// the counts cover every match, so the model never has to count rows (and cannot mistake the first rows for the whole)
+	count := func(key func(FindingRow) string) map[string]int {
+		m := map[string]int{}
+		for _, f := range hit {
+			m[clip(key(f), 20)]++
+		}
+		return m
 	}
-	rows := make([]map[string]any, len(hit))
+	type dev struct {
+		row           map[string]any
+		n, crit, sure int
+		first         int // position of its riskiest finding
+	}
+	devs := map[string]*dev{}
+	var order []string
 	for i, f := range hit {
-		rows[i] = findingMap(f)
+		v, ok := devs[f.AssetID]
+		if !ok {
+			v = &dev{row: map[string]any{"asset_id": clip(f.AssetID, 96), "device": clip(f.Asset, 80)}, first: i}
+			put(v.row, "ip", clip(f.AssetIP, 45))
+			devs[f.AssetID] = v
+			order = append(order, f.AssetID)
+		}
+		v.n++
+		if f.Severity == "critical" {
+			v.crit++
+		}
+		if f.Status == "confirmed" {
+			v.sure++
+		}
 	}
-	text, shown := rowsJSON("findings", total, rows)
+	sort.SliceStable(order, func(i, j int) bool {
+		a, b := devs[order[i]], devs[order[j]]
+		if a.sure != b.sure {
+			return a.sure > b.sure
+		}
+		if a.n != b.n {
+			return a.n > b.n
+		}
+		return a.first < b.first
+	})
+	byDevice := []map[string]any{}
+	for _, id := range order[:min(len(order), askTopDevices)] {
+		v := devs[id]
+		v.row["findings"], v.row["critical"], v.row["confirmed"] = v.n, v.crit, v.sure
+		byDevice = append(byDevice, v.row)
+	}
+	bySev, byStatus, byBasis := count(func(f FindingRow) string { return f.Severity }), count(func(f FindingRow) string { return f.Status }), count(func(f FindingRow) string { return f.Basis })
+	list := hit
+	if limit := limitOf(raw); len(list) > limit {
+		list = list[:limit]
+	}
+	rows := make([]map[string]any, len(list))
+	for i, f := range list {
+		r := map[string]any{"id": clip(f.ID, 96), "cve": clip(f.CVE, 24), "status": clip(f.Status, 20), "severity": clip(f.Severity, 12), "basis": clip(f.Basis, 12)}
+		put(r, "device", clip(f.Asset, 80))
+		rows[i] = r
+	}
+	text, shown := fit(len(rows), len(byDevice), func(n, k int) any {
+		note := shownNote("findings", total, n)
+		if k < len(order) {
+			note += fmt.Sprintf(" by_device lists the top %d of %d devices by count.", k, len(order))
+		}
+		return struct {
+			MatchingFindings    int              `json:"matching_findings"`
+			Shown               int              `json:"shown"`
+			Note                string           `json:"note"`
+			DevicesWithFindings int              `json:"devices_with_findings"`
+			BySeverity          map[string]int   `json:"by_severity"`
+			ByStatus            map[string]int   `json:"by_status"`
+			ByBasis             map[string]int   `json:"by_basis"`
+			ByDevice            []map[string]any `json:"by_device"`
+			Findings            []map[string]any `json:"findings"`
+		}{total, n, note, len(order), bySev, byStatus, byBasis, byDevice[:k], rows[:n]}
+	})
 	t := &AskTable{Columns: []string{"Device", "CVE", "Status", "Severity"}, Rows: []AskRow{}}
-	for _, f := range hit[:shown] {
+	for _, f := range list[:shown] {
 		t.Rows = append(t.Rows, AskRow{Href: "/findings/" + clip(f.ID, 96), Cells: []string{clip(f.Asset, 80), clip(f.CVE, 24), clip(f.Status, 20), clip(f.Severity, 12)}})
 	}
 	out := toolOut{Text: text, Summary: plural(total, "finding", "findings"), Cite: "Findings: " + plural(len(all), "record", "records") + " searched"}
@@ -443,22 +603,29 @@ func toolLookupCVE(ctx context.Context, f Facts, raw map[string]any) (toolOut, e
 		}
 	}
 	devs := []map[string]any{}
-	for _, a := range assets {
-		if len(devs) < askRowsMax {
-			devs = append(devs, map[string]any{"name": clip(a.Name, 80), "ip": clip(a.IP, 45), "kind": clip(a.Kind, 32), "matched_by": clip(a.Basis, 12), "finding_status": clip(a.Status, 20)})
-		}
+	for _, a := range assets[:min(len(assets), 20)] {
+		devs = append(devs, map[string]any{"name": clip(a.Name, 80), "ip": clip(a.IP, 45), "kind": clip(a.Kind, 32), "matched_by": clip(a.Basis, 12), "finding_status": clip(a.Status, 20)})
 	}
-	m := map[string]any{"found": true, "cve": clip(facts.CVE, 24), "vendor": clip(facts.Vendor, 80), "product": clip(facts.Product, 80), "name": clip(facts.Name, 160),
-		"description": clip(facts.Description, 800), "required_action": clip(facts.RequiredAction, 400), "date_added": clip(facts.DateAdded, 20), "ransomware": facts.Ransomware,
-		"links": links, "matching_devices": devs}
-	b, _ := json.Marshal(m)
-	text := string(b)
-	for len(text) > askResultBytes && len(devs) > 0 { // the description is capped, so only a flood of devices can be too long
-		devs = devs[:len(devs)/2]
-		m["matching_devices"] = devs
-		b, _ = json.Marshal(m)
-		text = string(b)
-	}
+	total := len(assets)
+	text, _ := fit(len(devs), 0, func(n, _ int) any {
+		return struct {
+			Found                bool             `json:"found"`
+			CVE                  string           `json:"cve"`
+			MatchingDevicesTotal int              `json:"matching_devices_total"`
+			Shown                int              `json:"shown"`
+			Note                 string           `json:"note"`
+			Vendor               string           `json:"vendor"`
+			Product              string           `json:"product"`
+			Name                 string           `json:"name"`
+			Description          string           `json:"description"`
+			RequiredAction       string           `json:"required_action"`
+			DateAdded            string           `json:"date_added"`
+			Ransomware           bool             `json:"ransomware"`
+			Links                []string         `json:"links"`
+			MatchingDevices      []map[string]any `json:"matching_devices"`
+		}{true, clip(facts.CVE, 24), total, n, shownNote("devices", total, n), clip(facts.Vendor, 80), clip(facts.Product, 80), clip(facts.Name, 160),
+			clip(facts.Description, 800), clip(facts.RequiredAction, 400), clip(facts.DateAdded, 20), facts.Ransomware, links, devs[:n]}
+	})
 	return toolOut{Text: text, Summary: "on the list, " + plural(len(assets), "device", "devices"), Cite: "Exploited list: " + id}, nil
 }
 

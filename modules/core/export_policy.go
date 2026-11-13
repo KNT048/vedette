@@ -36,7 +36,7 @@ const tblCoreConnection = "core_" + "connection"
 
 // exportPolicy is keyed by table name.
 var exportPolicy = map[string]tablePolicy{
-	"ai_activity":            {export: "seq id ts job profile profile_id model trigger input_hash output_hash summary tokens_in tokens_out result outcome prev_hash hash", json: "hooks tools links"},
+	"ai_activity":            {export: "seq id ts job profile profile_id model trigger input_hash output_hash summary tokens_in tokens_out result outcome stop retried prev_hash hash", json: "hooks tools links"},
 	"ai_downgrade":           {export: "id ts from_tier to_tier reason"},
 	"ai_hook":                {export: "id name name_key when match_type pattern action message enabled created_at updated_at"},
 	"ai_hook_state":          {export: "builtin_id enabled"},
@@ -73,15 +73,18 @@ var exportPolicy = map[string]tablePolicy{
 	"exp_setting":            {export: "id auto interval_min last_run_at last_run_ok last_run_message last_deep_at last_full_ok_at"},
 	"exp_snapshot":           {export: "id target_id date scanned_at", json: "hosts ports admin_panels certs counts"},
 	"exp_target":             {export: "id kind value method verified_at commitment_by commitment_at created_at last_scan_at", json: "last_check", skip: "token"},
+	"feeds_affected":         {export: "cve cpe start_incl start_excl end_incl end_excl"}, // D-500: public NVD data
+	"feeds_affected_cve":     {export: "cve updated_at"},
 	"feeds_fetch_log":        {export: "id source_id started_at finished_at status records_accepted records_rejected error bytes etag last_modified", json: "reject_reasons"},
 	"feeds_ioc":              {export: "id type value first_seen last_seen"},
 	"feeds_ioc_source":       {export: "ioc_id source_id last_seen confidence seen"},
-	"feeds_source":           {export: "id builtin name kind format enabled interval_hours auth_type auth_header_name auth_username secret_last4 license created_at last_fetch last_success failures records status error etag last_modified catalog_version rev answered_by", json: "parser", url: "url default_url", skip: "secret_id"},
+	"feeds_source":           {export: "id builtin name kind format enabled interval_hours auth_type auth_header_name auth_username secret_last4 license created_at last_fetch last_success failures records status error etag last_modified mirror_etag mirror_last_modified catalog_version rev answered_by", json: "parser", url: "url default_url", skip: "secret_id"},
 	"feeds_template":         {export: "cve"},
 	"feeds_vuln":             {export: "cve vendor product product_key name description required_action date_added due_date ransomware epss epss_7d_ago has_template source_id updated_at kev_announced_at", json: "links"},
-	"feeds_weekly_answer":    {export: "key answer user_id answered_at device_added"},
-	"fnd_finding":            {export: "id asset_id cve status severity confidence basis first_seen last_seen resolved_by resolved_at resolution_note", json: "evidence"},
+	"feeds_weekly_answer":    {export: "key answer user_id answered_at device_added device_id have_since"},
+	"fnd_finding":            {export: "id asset_id cve status severity confidence basis first_seen last_seen resolved_by resolved_at resolution_note resolution_reason", json: "evidence"},
 	"fnd_finding_history":    {export: "id finding_id ts user action note"},
+	"fnd_version_needed":     {export: "asset_id software_id software version cves updated_at"}, // D-500
 	"hp_config":              {export: "key updated_at updated_by", json: "value"},
 	"hp_decoys":              {export: "id personality name ip enabled created_at"},
 	"hp_hits":                {export: "id ts kind service label port src_ip is_test excerpt trap_ip trap_hostname token_id conn_key conn_count", json: "events"},
@@ -107,14 +110,15 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_kev":             {export: "cve seen_at matched"},
 	"notify_notice":          {export: "id created_at product", json: "cves"},
 	"notify_notice_finding":  {export: "notice_id finding_id"},
-	"notify_pending":         {export: "id channel notice_id reason due_at state claimed_at created_at", json: "notice"},
-	"notify_send":            {export: "id kind ref_id channel at ok error what link recipient", json: "message", url: "to"},
-	"intake_agent_tokens":    {export: "id name kind last4 created_at expires_at last_received", skip: "token_hash"},                                                                                                                              // the hash never leaves (agent-intake INV-3)
+	"notify_pending":         {export: "id channel notice_id reason due_at state claimed_at created_at attempts", json: "notice"},
+	"notify_send":            {export: "id kind ref_id channel at ok error what link recipient delayed", json: "message", url: "to"},
+	"intake_agent_tokens":    {export: "id name kind last4 created_at expires_at last_received created_by", skip: "token_hash"},                                                                                                                   // the hash never leaves (agent-intake INV-3)
 	"intake_wazuh":           {export: "id username password_last4 interval_minutes tls_pin tls_pin_first_seen generation status last_sync next_pull agents packages error resume_after pass_packages updated_at", url: "url", skip: "secret_id"}, // the password stays in core_secret (agent-intake INV-6)
-	"intake_osquery_nodes":   {export: "id token_id host_identifier hostname platform osquery_version enrolled_at last_seen last_result_at bound_ip bound_mac", skip: "node_key_hash"},                                                            // the key hash never leaves
+	"intake_osquery_nodes":   {export: "id token_id host_identifier hostname platform osquery_version enrolled_at last_seen last_result_at bound_ip bound_mac reported approved_at", skip: "node_key_hash"},                                       // the key hash never leaves
 	"intake_prune_clock":     {export: "id last_run"},                                                                                                                                                                                             // when node-prune last ran (agent-intake POST-4)
 	"mcp_tokens":             {export: "id name last4 created_at last_used", json: "scopes", skip: "token_hash"},                                                                                                                                  // the hash never leaves (mcp-server INV-3)
 	"notify_send_notice":     {export: "send_id notice_id"},
+	"notify_box":             {export: "id first_run_at discovery_told_at discovery_told_count"}, // when notify first ran (D-483 first-discovery window)
 	"notify_setting":         {export: "key updated_at updated_by", json: "value"},
 	"notify_tg_button":       {skipAll: true, skip: "request_id nonce_hash expires_at message_id chat_id state tries"},
 	"notify_slack_button":    {skipAll: true, skip: "request_id channel_id ts expires_at state outcome tries"},
@@ -147,9 +151,10 @@ var exportPolicy = map[string]tablePolicy{
 	"sa_probe":               {export: "id time job_id shape rate hosts flags targets result"},
 	"sa_queue":               {export: "asset_id queued_at reason attempts"},
 	"sa_sweep":               {export: "id cursor updated_at"},
+	"sa_first_pass":          {export: "id started_at"},
 	"scan_event":             {export: "id ts cve product latency_min run_id result", json: "devices"},
 	"scan_probe":             {export: "id ts run_id ip label template request result"},
-	"scan_run":               {export: "id trigger trigger_note started_at started_by ended_at status total done stop_reason stop_requested_at matched", json: "picked target_ids current results"},
+	"scan_run":               {export: "id trigger trigger_note started_at started_by ended_at status total done stop_reason stop_requested_at matched", json: "picked target_ids current results identification"},
 	"scan_setting":           {export: "id win_from win_to rate stop_on_unresponsive unresponsive_after auto_rescan sched_enabled sched_frequency sched_weekday sched_at updated_at updated_by sched_last kev_read_at kev_read_cve", json: "days exclusions"},
 	"sp_sensor":              {export: "id name interface span version last_seen devices_seen"},
 	"sp_seq":                 {export: "sensor_id epoch last_seq"},

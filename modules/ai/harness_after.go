@@ -35,7 +35,7 @@ func afterHooks(ctx context.Context, hooks *HookRunner, structured bool, text st
 				return nil, false, err
 			}
 			for _, h := range r.Hits {
-				res.note(hookDef{id: h.ID, name: h.Name, kind: h.Kind, when: h.When, action: h.Action, message: h.Message})
+				res.note(hookDef{id: h.ID, name: h.Name, kind: h.Kind, when: h.When, action: h.Action, message: h.Message, what: h.What})
 			}
 			switch r.Outcome {
 			case OutcomeBlocked, OutcomeHeld:

@@ -45,8 +45,9 @@ func (s *Service) hookTimeout() time.Duration {
 	return 5 * time.Second
 }
 
-// DefaultSettings is what a fresh box starts with (the mock's defaults).
-func DefaultSettings() Settings { return Settings{Tier: TierMed, DailyCap: 60_000, RedactPII: true} }
+// DefaultSettings is what a fresh box starts with. The cap is 200,000 tokens a day (D-482): a few cents with a Haiku-class model, well
+// under a dollar with a Sonnet-class one, and room for a day of questions and scheduled jobs; 60,000 was two questions of the old loop.
+func DefaultSettings() Settings { return Settings{Tier: TierMed, DailyCap: 200_000, RedactPII: true} }
 
 func (s Settings) validate() error {
 	if !s.Tier.Valid() {

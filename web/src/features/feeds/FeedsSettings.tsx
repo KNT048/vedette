@@ -60,7 +60,11 @@ function Tables({ items }: { items: Feed[] }) {
 
   function runFetch(f: Feed) {
     fetchNow.mutate(f.id, {
-      onSuccess: (r) => (r.status === 'ok' ? toast.success(t('row.fetched', { name: r.name, count: r.records ?? 0 })) : toast.error(`${r.name}: ${r.error ?? t('row.failed')}`)),
+      onSuccess: (r) => {
+        if (r.status === 'error') toast.error(`${r.name}: ${r.error ?? t('row.failed')}`)
+        else if (r.status === 'ok' && !r.error) toast.success(t('row.fetched', { name: r.name, count: r.records ?? 0 }))
+        else toast.info(`${r.name}: ${r.error ?? t('row.firstFetch')}`) // a pull still loading (S-FEED-4, W3-1) or a note: not a failure
+      },
       onError: (e) => toast.error(e instanceof Error ? e.message : String(e)),
     })
   }
@@ -69,7 +73,7 @@ function Tables({ items }: { items: Feed[] }) {
       <span><Chip tone={f.status === 'ok' ? 'ok' : f.status === 'error' ? 'danger' : 'off'}>{t(`status.${f.status}`)}</Chip></span>
       {f.answered_by ? <span className="text-[12px] text-muted">{t('row.answeredBy', { source: f.answered_by })}</span> : null}
       {f.error ? <span className="max-w-64 text-[12px] text-muted">{f.error}</span> : null}
-      {f.status === 'never' && f.enabled ? <span className="max-w-64 text-[12px] text-muted">{t('row.firstFetch')}</span> : null}
+      {f.status === 'never' && f.enabled && !f.error ? <span className="max-w-64 text-[12px] text-muted">{t('row.firstFetch')}</span> : null}
     </span>
   )
   const toggle = (f: Feed) => (

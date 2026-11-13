@@ -54,6 +54,17 @@ export function filterProblem(type: unknown, value: unknown): string | null {
 }
 export const normaliseFilter = (type: FilterType, value: string) => (type === 'cidr' ? (normaliseCidr(value.trim())?.value ?? value.trim()) : type === 'host' ? value.trim().toLowerCase() : String(Number(value.trim())))
 
+/** The Box address in its normal form (D-465): trimmed, lower case, no trailing dot; '' = use the default. */
+export const normaliseBoxAddress = (v: string) => v.trim().toLowerCase().replace(/\.$/, '')
+/** The Box address (D-465): a host name (the NTP rule) or a unicast IPv4 address; no URL, port, path or space. Takes the normal form. */
+export function boxAddressProblem(v: string): string | null {
+  if (v === '') return null
+  const numeric = v.split('.').every((l) => /^(\d+|0[xX][0-9a-fA-F]*)$/.test(l))
+  // localhost and *.localhost always mean the machine itself (RFC 6761): another machine can never reach the box by them.
+  if (isBareIp(v) ? !isUnicast(v) : (!HOST_RE.test(v) || numeric || v === 'localhost' || v.endsWith('.localhost'))) return 'Enter a host name like vedette.office.lan or an IPv4 address like 192.168.1.10, without https:// and without a port.'
+  return null
+}
+
 /** NTP servers: 1 to 4 hostnames or IPv4 addresses. */
 export function ntpProblem(servers: unknown): string | null {
   if (!Array.isArray(servers) || servers.length < 1 || servers.length > 4) return 'Give 1 to 4 NTP servers.'

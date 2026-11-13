@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -26,7 +27,7 @@ func TestMatchAsset_ProductBasisTextsMatchMock(t *testing.T) {
 		t.Fatalf("result = %+v", res)
 	}
 	m := res.New[0]
-	if m.Basis != BasisProduct || m.Confidence != 0.5 || m.Severity != SeverityHigh || !m.Evidence.CheckedAt.Equal(t0) {
+	if m.Basis != BasisProduct || m.Confidence != 0.5 || m.Severity != SeverityMedium || !m.Evidence.CheckedAt.Equal(t0) {
 		t.Fatalf("match = %+v", m)
 	}
 	want := "nas01 runs Photo Station 6.1.2. Vedette has not checked whether this version is in the affected range; compare it with the vendor advisory or run a scan."
@@ -35,18 +36,27 @@ func TestMatchAsset_ProductBasisTextsMatchMock(t *testing.T) {
 	}
 }
 
-func TestMatchAsset_NoVersionOmitsVersionInText(t *testing.T) {
+func TestMatchAsset_NoVersionIsOneItemNotAFinding(t *testing.T) {
 	t.Parallel()
-	m := MatchAsset(nas(""), []Vuln{qnapVuln()}, nil, t0).New[0]
-	if !strings.HasPrefix(m.Evidence.Summary, "nas01 runs Photo Station. Vedette has not") {
-		t.Fatalf("summary = %q", m.Evidence.Summary)
+	res := MatchAsset(nas(""), []Vuln{qnapVuln(), {CVE: "CVE-2023-0001", Vendor: "QNAP", Product: "Photo Station"}}, nil, t0)
+	if len(res.New)+len(res.Existing) != 0 || len(res.NeedVersion) != 1 {
+		t.Fatalf("result = %+v", res)
+	}
+	if n := res.NeedVersion[0]; n.SoftwareID != "s-1" || n.Software != "Photo Station" || !slices.Equal(n.CVEs, []string{"CVE-2022-27593", "CVE-2023-0001"}) {
+		t.Fatalf("item = %+v", n)
 	}
 }
 
+// D-505: a "Multiple Products" entry is keyed by the vendor, but only NVD can tie it to the software: no NVD data gives no
+// finding (a vendor-wide guess), and an NVD entry that may name the software (product ANY) gives a product finding.
 func TestMatchAsset_MultipleProductsMatchesVendor(t *testing.T) {
 	t.Parallel()
 	a := Asset{ID: "a", Name: "fw", Software: []Software{{ID: "s", Display: "FortiOS", Version: "7.0.1", KevKeys: []string{"fortinet|fortios"}}}}
 	v := Vuln{CVE: "CVE-2023-0001", Vendor: "Fortinet", Product: "Multiple Products", EPSS: 0.1}
+	if r := MatchAsset(a, []Vuln{v}, nil, t0); len(r.New) != 0 {
+		t.Fatalf("no NVD data yet, but a finding: %+v", r)
+	}
+	v.Affected = []Affected{{CPE: "cpe:2.3:o:fortinet:*:*:*:*:*:*:*:*:*"}}
 	m := MatchAsset(a, []Vuln{v}, nil, t0).New[0]
 	if m.Basis != BasisProduct || m.Confidence != 0.3 {
 		t.Fatalf("match = %+v", m)
@@ -93,10 +103,15 @@ func TestMatchAsset_Severity(t *testing.T) {
 		{false, 0, SeverityHigh}, {false, 0.49, SeverityHigh}, {false, 0.5, SeverityCritical}, {true, 0, SeverityCritical},
 	}
 	for _, tt := range tests {
-		v := qnapVuln()
+		v := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "2"}})
 		v.Ransomware, v.EPSS = tt.ransom, tt.epss
 		if got := MatchAsset(nas("1"), []Vuln{v}, nil, t0).New[0].Severity; got != tt.want {
 			t.Errorf("ransom=%v epss=%v: severity %s, want %s", tt.ransom, tt.epss, got, tt.want)
+		}
+		// a version that could not be compared is never more than medium (D-500)
+		v.Affected = nil
+		if got := MatchAsset(nas("1"), []Vuln{v}, nil, t0).New[0].Severity; got != SeverityMedium {
+			t.Errorf("ransom=%v epss=%v, no range: severity %s, want medium", tt.ransom, tt.epss, got)
 		}
 	}
 }
@@ -120,8 +135,11 @@ func TestMatchAsset_VersionRanges(t *testing.T) {
 		{"fixed version", "6.1.2", []Affected{{CPE: qnapCPE, Range: r}}, "", 0},
 		{"below range", "5.9", []Affected{{CPE: qnapCPE, Range: r}}, "", 0},
 		{"vendor string inside", "6.1.1 build 2020", []Affected{{CPE: qnapCPE, Range: r}}, BasisVersion, 0.7},
-		{"version unknown", "", []Affected{{CPE: qnapCPE, Range: r}}, BasisProduct, 0.5},
-		{"version not comparable", "latest", []Affected{{CPE: qnapCPE, Range: r}}, BasisProduct, 0.5},
+		{"version unknown", "", []Affected{{CPE: qnapCPE, Range: r}}, needVersion, 0},
+		{"version not comparable", "latest", []Affected{{CPE: qnapCPE, Range: r}}, needVersion, 0},
+		{"build of the start release", "6.0-1234", []Affected{{CPE: qnapCPE, Range: VersionRange{StartIncl: "6.0", EndExcl: "6.0-2000"}}}, BasisVersion, 0.7},
+		{"same text as an exact unordered version", "15.2(4)M3", []Affected{{CPE: `cpe:2.3:a:qnap:photo_station:15.2\(4\)m3:*:*:*:*:*:*:*`}}, BasisVersion, 0.7},
+		{"year against a small number is not compared", "16.0.1", []Affected{{CPE: `cpe:2.3:a:qnap:photo_station:2016:*:*:*:*:*:*:*`}}, BasisProduct, 0.5},
 		{"no configs", "9.9", nil, BasisProduct, 0.5},
 		{"all versions affected", "9.9", []Affected{{CPE: qnapCPE}}, BasisVersion, 0.7},
 		{"second config hits", "7.1", []Affected{{CPE: qnapCPE, Range: r}, {CPE: qnapCPE, Range: VersionRange{StartIncl: "7.0", EndExcl: "7.2"}}}, BasisVersion, 0.7},
@@ -131,15 +149,16 @@ func TestMatchAsset_VersionRanges(t *testing.T) {
 		{"malformed config ignored", "1.0", []Affected{{CPE: "garbage", Range: r}}, BasisProduct, 0.5},
 		{"NA version in cpe is not decidable", "1.0", []Affected{{CPE: `cpe:2.3:a:qnap:photo_station:-:*:*:*:*:*:*:*`}}, BasisProduct, 0.5},
 		{"unknown beats no", "6.5", []Affected{{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1"}}, {CPE: qnapCPE, Range: VersionRange{EndExcl: "next"}}}, BasisProduct, 0.5},
-		{"update-pinned config cannot say yes", "6.1.0", []Affected{{CPE: `cpe:2.3:a:qnap:photo_station:6.1.0:beta1:*:*:*:*:*:*`}}, BasisProduct, 0.5},
+		{"plain release is not the pinned beta (D-500)", "6.1.0", []Affected{{CPE: `cpe:2.3:a:qnap:photo_station:6.1.0:beta1:*:*:*:*:*:*`}}, "", 0},
+		{"update-pinned config cannot say yes", "6.1.0", []Affected{{CPE: `cpe:2.3:a:qnap:photo_station:6.1.0:p1:*:*:*:*:*:*`}}, BasisProduct, 0.5},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			res := MatchAsset(nas(tt.version), []Vuln{qnapVuln(tt.af...)}, nil, t0)
-			if tt.want == "" {
-				if len(res.New) != 0 {
-					t.Fatalf("expected no finding, got %+v", res.New)
+			if tt.want == "" || tt.want == needVersion {
+				if len(res.New) != 0 || (len(res.NeedVersion) == 1) != (tt.want == needVersion) {
+					t.Fatalf("expected no finding (%s), got %+v", tt.want, res)
 				}
 				return
 			}
@@ -221,12 +240,20 @@ func TestMatchAsset_SkipsInvalidCVE(t *testing.T) {
 
 func TestMatchAsset_EvidenceTextIsCleaned(t *testing.T) {
 	t.Parallel()
-	a := nas("1\x00.\n2")
+	a := nas("1.2")
 	a.Name = "evil\x1b[31m" + strings.Repeat("x", 300)
+	a.Software[0].Display = "Photo\x00 Station\n"
 	m := MatchAsset(a, []Vuln{qnapVuln()}, nil, t0).New[0]
 	for _, r := range m.Evidence.Summary {
 		if unicode.IsControl(r) {
 			t.Fatalf("control character in summary %q", m.Evidence.Summary)
+		}
+	}
+	a.Software[0].Version = "n/a\x00\n" // no number: the add-the-version item (a version with a number is a product finding, H1)
+	n := MatchAsset(a, []Vuln{qnapVuln()}, nil, t0).NeedVersion[0]
+	for _, r := range n.Software + n.Version {
+		if unicode.IsControl(r) {
+			t.Fatalf("control character in item %+v", n)
 		}
 	}
 	if len(m.Evidence.Summary) > 700 {
@@ -254,20 +281,21 @@ func FuzzMatchAsset(f *testing.F) {
 			t.Fatalf("more than one match for one CVE: %+v", all)
 		}
 		// Oracle (review): a KEV-key match is never dropped when the version is empty,
-		// unreadable or a placeholder, or when an Affected entry cannot be read.
+		// unreadable or a placeholder, or when an Affected entry cannot be read: it is a
+		// finding or, without a usable version, the software's "add the version" item (D-500).
 		eff := version
 		sc, scErr := ParseCPE(cpe)
 		if eff == "" && scErr == nil {
 			eff, _ = sc.Version.Literal()
 		}
-		if ValidCVE(cve) && !strings.Contains(vendor+product, "|") && (!versionKnown(eff) || scErr != nil) && len(all) != 1 {
+		if ValidCVE(cve) && !strings.Contains(vendor+product, "|") && (!versionKnown(eff) || scErr != nil) && len(all)+len(res.NeedVersion) != 1 {
 			t.Fatalf("undecidable input dropped a KEV match: version=%q cpe=%q -> %+v", version, cpe, res)
 		}
 		for _, m := range all {
 			if !ValidCVE(m.CVE) || m.Confidence <= 0 || m.Confidence > 1 || rank(m.Basis) == 0 || m.Basis == BasisScan {
 				t.Fatalf("bad match %+v", m)
 			}
-			if m.Severity != SeverityHigh && m.Severity != SeverityCritical {
+			if m.Severity != SeverityHigh && m.Severity != SeverityCritical && m.Severity != SeverityMedium {
 				t.Fatalf("bad severity %+v", m)
 			}
 			if nf, _ := NewFinding(m, t0); nf.Validate() != nil {
@@ -295,10 +323,16 @@ func basisOf(t *testing.T, res MatchResult) Basis {
 	t.Helper()
 	all := append(append([]Match{}, res.New...), res.Existing...)
 	if len(all) == 0 {
+		if len(res.NeedVersion) > 0 {
+			return needVersion
+		}
 		return ""
 	}
 	return all[0].Basis
 }
+
+// needVersion is what basisOf reports for no finding but an "add the version" item (D-500).
+const needVersion Basis = "need-version"
 
 // Regression: a configuration pinned to an update must not drop a software whose
 // version string carries that update (review bug 2).
@@ -311,14 +345,15 @@ func TestMatchAsset_UpdatePinnedConfig(t *testing.T) {
 		want                 Basis // "" = dropped
 	}{
 		{"8.9p1 against 8.9:p1", "8.9p1", "", pinned, BasisVersion},
-		{"8.9p2 against 8.9:p1 is undecided", "8.9p2", "", pinned, BasisProduct},
+		{"8.9p2 against 8.9:p1 is another release (review H1: h1 is not h2)", "8.9p2", "", pinned, ""},
 		{"8.8p1 is outside", "8.8p1", "", pinned, ""},
 		{"plain 8.9 does not say which update", "8.9", "", pinned, BasisProduct},
 		{"update from the software CPE", "8.9", `cpe:2.3:a:openssh:openssh:8.9:p1:*:*:*:*:*:*`, pinned, BasisVersion},
 		{"other update in the software CPE", "8.9", `cpe:2.3:a:openssh:openssh:8.9:p2:*:*:*:*:*:*`, pinned, ""},
 		{"beta1 against 2.0:beta1", "2.0-beta1", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, BasisVersion},
-		{"plain 2.0 against 2.0:beta1", "2.0", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, BasisProduct},
-		{"beta2 against 2.0:beta1 is undecided", "2.0-beta2", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, BasisProduct},
+		{"plain 2.0 against 2.0:beta1 is the release, not the beta (D-500)", "2.0", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, ""},
+		{"beta2 against 2.0:beta1 is another release", "2.0-beta2", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, ""},
+		{"beta against 2.0:beta1 is undecided (no number)", "2.0-beta", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, BasisProduct},
 		{"rc against 2.0:beta1 differs", "2.0-rc1", "", `cpe:2.3:a:openssh:openssh:2.0:beta1:*:*:*:*:*:*`, ""},
 		{"wildcard update (bug 7)", "2.0", `cpe:2.3:a:openssh:openssh:2.0:beta2:*:*:*:*:*:*`, `cpe:2.3:a:openssh:openssh:2.0:beta*:*:*:*:*:*:*`, BasisVersion},
 		{"wildcard update other prefix", "2.0", `cpe:2.3:a:openssh:openssh:2.0:rc2:*:*:*:*:*:*`, `cpe:2.3:a:openssh:openssh:2.0:beta*:*:*:*:*:*:*`, ""},
@@ -372,8 +407,8 @@ func TestMatchAsset_PlaceholderVersionIsNotEvidence(t *testing.T) {
 	for _, v := range []string{"0", "0.0.0", "0.0.0.0"} {
 		for _, r := range []VersionRange{{StartIncl: "6.0", EndExcl: "6.1.2"}, {EndExcl: "6.1.2"}} {
 			res := MatchAsset(nas(v), []Vuln{qnapVuln(Affected{CPE: qnapCPE, Range: r})}, nil, t0)
-			if got := basisOf(t, res); got != BasisProduct {
-				t.Errorf("version %q range %+v: basis = %q, want product", v, r, got)
+			if got := basisOf(t, res); got != needVersion {
+				t.Errorf("version %q range %+v: basis = %q, want the add-the-version item", v, r, got)
 			}
 		}
 	}
@@ -413,13 +448,14 @@ func TestMatchAsset_PinnedAttributesNeedSoftwareSupport(t *testing.T) {
 }
 
 // Regression: an unknown version is not a version match even when every version
-// is affected (review nit).
+// is affected (review nit); review M4: it is a product finding, not "add the
+// version", because the answer does not depend on the version.
 func TestMatchAsset_AllVersionsWithUnknownVersionIsProduct(t *testing.T) {
 	t.Parallel()
 	for _, v := range []string{"", "latest"} {
 		res := MatchAsset(nas(v), []Vuln{qnapVuln(Affected{CPE: qnapCPE})}, nil, t0)
-		if got := basisOf(t, res); got != BasisProduct {
-			t.Errorf("version %q: basis = %q, want product", v, got)
+		if got := basisOf(t, res); got != BasisProduct || len(res.NeedVersion) != 0 {
+			t.Errorf("version %q: basis = %q (need %d), want a product finding", v, got, len(res.NeedVersion))
 		}
 	}
 	if got := basisOf(t, MatchAsset(nas("2.1"), []Vuln{qnapVuln(Affected{CPE: qnapCPE})}, nil, t0)); got != BasisVersion {
@@ -440,5 +476,27 @@ func TestMatchAsset_BuildTailAtBoundaryIsNotDropped(t *testing.T) {
 	a.Software[0].Version = "13.1-49.15"
 	if got := basisOf(t, MatchAsset(a, []Vuln{v}, nil, t0)); got != "" {
 		t.Fatalf("the fixed build matched: %q", got)
+	}
+}
+
+// TestMatchAsset_KevKeyAloneProvesNothing: review N1 of #663. A software found only by its KEV key (its own name is
+// something else) with a version outside the range keeps a product finding and is never closed: the version may be of
+// another thing than the product the range is about.
+func TestMatchAsset_KevKeyAloneProvesNothing(t *testing.T) {
+	t.Parallel()
+	a := Asset{ID: "a-1", Name: "nas01", Software: []Software{
+		{ID: "s-1", Display: "QNAP NAS", Vendor: "QNAP", Product: "QTS", Version: "6.2.0", KevKeys: []string{"qnap|photo station"}},
+	}}
+	v := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})
+	for _, have := range []map[string]bool{nil, {v.CVE: true}} {
+		res := MatchAsset(a, []Vuln{v}, have, t0)
+		got := append(slices.Clone(res.New), res.Existing...)
+		if len(got) != 1 || got[0].Basis != BasisProduct || got[0].Severity != SeverityMedium || len(res.NotAffected) != 0 {
+			t.Fatalf("have %v: result = %+v", have, res)
+		}
+	}
+	a.Software[0].Product = "Photo Station" // its own name: now the range proves it
+	if res := MatchAsset(a, []Vuln{v}, map[string]bool{v.CVE: true}, t0); len(res.NotAffected) != 1 {
+		t.Fatalf("own name: result = %+v", res)
 	}
 }

@@ -45,7 +45,14 @@ type weeklyInput struct {
 	findings []Finding
 	kev      []KEVEntry
 	kevAt    time.Time
+	kevNew   int // KEV.NewlyExploited: the Home headline
+	kevInUse int
 	now      time.Time
+
+	fixes       map[string]Fix                    // by finding id; nil = none known
+	fixesFor    func(fs []Finding) map[string]Fix // reads the fixes of the findings it is given (Service.fill); asked only for the top products
+	week        IncidentWeek
+	incidentsOn bool // notify answered: the report has a "what happened" section even when it is empty
 }
 
 // buildWeekly computes the weekly report (INV-1) at in.now. No AI text is in it.
@@ -58,7 +65,11 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 	}
 	products := make(map[string]string, len(in.kev))
 	for _, k := range in.kev {
-		products[k.CVE] = clip(k.Vendor+" "+k.Product, 80)
+		name := k.Display // the name Findings shows (D-485)
+		if name == "" {
+			name = k.Vendor + " " + k.Product
+		}
+		products[k.CVE] = clip(name, 80)
 	}
 	row := func(f Finding, status string) FindingRow {
 		dev, ok := names[f.AssetID]
@@ -94,7 +105,9 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 			newRows = append(newRows, row(f, f.Status))
 		}
 		if inWeek(f.ResolvedAt) {
-			resolvedRows = append(resolvedRows, row(f, f.Status))
+			r := row(f, f.Status)
+			r.By = clip(f.ResolvedBy, 80)
+			resolvedRows = append(resolvedRows, r)
 		}
 		switch f.Status {
 		case "confirmed":
@@ -109,7 +122,6 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 	newRows, resolvedRows, openRows = capRows(order(newRows)), capRows(order(resolvedRows)), order(openRows)
 
 	var unapproved, eol, devicesNew int
-	have := map[string]bool{}
 	for _, d := range in.devices {
 		if !d.Approved {
 			unapproved++
@@ -120,31 +132,37 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 		if inWeek(d.FirstSeen) {
 			devicesNew++
 		}
-		for _, k := range d.KevKeys {
-			have[k] = true
-		}
-	}
-	var kevNew, kevMatched int
-	for _, k := range in.kev {
-		// KEV dates are days: the last seven calendar days up to today count, today's entries included.
-		if k.DateAdded.After(now.Truncate(day).Add(-7*day)) && !k.DateAdded.After(now) {
-			kevNew++
-			if have[k.Key] {
-				kevMatched++
-			}
-		}
 	}
 
-	var actions []ActionItem
-	for _, r := range openRows {
-		if r.Status == "confirmed" {
-			actions = append(actions, ActionItem{Kind: "fix", CVE: r.CVE, Device: r.Device, FindingID: r.ID})
+	fixes := in.fixes
+	if fixes == nil && in.fixesFor != nil { // the release is read only for the products the page names, never for a whole large estate
+		top, _ := topRisks(openRows, nil)
+		named := map[string]bool{}
+		for _, r := range top {
+			named[r.Product] = true
 		}
+		byID := make(map[string]Finding, len(in.findings))
+		for _, f := range in.findings {
+			byID[f.ID] = f
+		}
+		devs := map[string]bool{} // every open finding of those devices: a phone's CVEs carry several product names and one release must clear them all
+		for _, r := range openRows {
+			if named[r.Product] {
+				devs[r.AssetID] = true
+			}
+		}
+		var ask []Finding
+		for _, r := range openRows {
+			if devs[r.AssetID] {
+				ask = append(ask, byID[r.ID])
+			}
+		}
+		fixes = in.fixesFor(ask)
 	}
-	for _, r := range openRows {
-		if r.Status == "suspected" {
-			actions = append(actions, ActionItem{Kind: "verify", CVE: r.CVE, Device: r.Device, FindingID: r.ID})
-		}
+	risks, kinds := topRisks(openRows, fixes)
+	var actions []ActionItem
+	for i, r := range risks {
+		actions = append(actions, ActionItem{Kind: kinds[i], CVE: r.CVE, Device: r.Device, FindingID: r.FindingID, Product: r.Product, Count: r.Open, Text: r.Action})
 	}
 	if unapproved > 0 {
 		actions = append(actions, ActionItem{Kind: "review_devices", Count: unapproved})
@@ -152,21 +170,24 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 	if eol > 0 {
 		actions = append(actions, ActionItem{Kind: "plan_os", Count: eol})
 	}
-	if len(actions) > 6 {
-		actions = actions[:6]
-	}
 	openRows = capRows(openRows)
 
 	kevAt := in.kevAt
 	if kevAt.IsZero() {
 		kevAt = now
 	}
+	sources := []Source{{ID: "inventory", At: ts(now)}, {ID: "findings", At: ts(now)}, {ID: "kev", At: ts(kevAt)}}
+	var happened *Happened
+	if in.incidentsOn {
+		happened = buildHappened(in.week)
+		sources = append(sources, Source{ID: "incidents", At: ts(now)})
+	}
 	return WeeklyReport{
 		Period: Period{From: ts(from), To: ts(now)}, GeneratedAt: ts(now),
 		Counts: Counts{NewFindings: newN, Resolved: resolvedN, OpenConfirmed: openConfirmed, OpenSuspected: openSuspected,
-			Devices: len(in.devices), DevicesUnapprove: unapproved, DevicesNew: devicesNew, KevNew: kevNew, KevMatched: kevMatched},
-		NewFindings: nonNil(newRows), Resolved: nonNil(resolvedRows), Open: nonNil(openRows), Actions: nonNilA(actions),
-		Sources: []Source{{ID: "inventory", At: ts(now)}, {ID: "findings", At: ts(now)}, {ID: "kev", At: ts(kevAt)}},
+			Devices: len(in.devices), DevicesUnapprove: unapproved, DevicesNew: devicesNew, KevNew: in.kevNew, KevMatched: in.kevInUse},
+		TopRisks: risks, NewFindings: nonNil(newRows), Resolved: nonNil(resolvedRows), Open: nonNil(openRows), Actions: nonNilA(actions),
+		Happened: happened, Sources: sources,
 	}
 }
 

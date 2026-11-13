@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
+	"github.com/knt048/vedette/core/observe"
 )
 
 // catalogKeys is every lower(vendor)|lower(product) the inventory can match: the KEV pairs and the curated products and match keys.
@@ -98,7 +99,7 @@ func TestMapPackagesGolden(t *testing.T) {
 			{"name": "Mystery Tool", "version": "1.0"},
 		},
 	}
-	items, dropped := mapPackages(snaps)
+	items, dropped := mapPackages(snaps, maxRows)
 	if dropped != 0 {
 		t.Fatalf("dropped %d", dropped)
 	}
@@ -157,7 +158,7 @@ func TestDebUpstream(t *testing.T) {
 
 func TestMapPackagesBoundsAndKeyLength(t *testing.T) {
 	long := strings.Repeat("x", 200)
-	items, dropped := mapPackages(map[string][]row{"deb_packages": {{"name": long, "version": "1"}, {"name": "ok", "version": strings.Repeat("9", 101)}, {"name": "", "version": "1"}}})
+	items, dropped := mapPackages(map[string][]row{"deb_packages": {{"name": long, "version": "1"}, {"name": "ok", "version": strings.Repeat("9", 101)}, {"name": "", "version": "1"}}}, maxRows)
 	if len(items) != 0 || dropped != 3 { // a 200+200+1 byte key is over the inventory's 400, so the row is dropped, not the list
 		t.Fatalf("%d items, %d dropped", len(items), dropped)
 	}
@@ -165,8 +166,31 @@ func TestMapPackagesBoundsAndKeyLength(t *testing.T) {
 	for i := range many {
 		many[i] = row{"name": "p" + strings.Repeat("a", i%50) + string(rune('a'+i%26)) + strings.Repeat("b", i/50), "version": "1"}
 	}
-	items, _ = mapPackages(map[string][]row{"deb_packages": many})
+	items, _ = mapPackages(map[string][]row{"deb_packages": many}, maxRows)
 	if len(items) > maxRows {
 		t.Fatalf("%d items over the cap", len(items))
+	}
+}
+
+// D-503 (W2-12): the kind comes from the OS and stays within the inventory's kind list; an unknown platform gives none.
+func TestKindFromTheOS(t *testing.T) {
+	for _, c := range []struct{ platform, name, want string }{
+		{"ubuntu", "Ubuntu", "server"},
+		{"rhel", "Red Hat Enterprise Linux", "server"},
+		{"rocky", "Rocky Linux", "server"},
+		{"windows", "Microsoft Windows Server 2022 Datacenter", "server"},
+		{"windows", "Microsoft Windows 11 Pro", "pc"},
+		{"darwin", "macOS", "pc"},
+		{"Ubuntu", "Ubuntu", "server"},
+		{"linuxmint", "Linux Mint", ""},
+		{"", "", ""},
+	} {
+		if got := kindOf(row{"platform": c.platform, "name": c.name}); got != c.want {
+			t.Errorf("%s %q: %q, want %q", c.platform, c.name, got, c.want)
+		}
+	}
+	obs := observations(observe.AssetHint{}, map[string][]row{"os_version": {{"name": "Ubuntu", "version": "26.04.1 LTS", "platform": "ubuntu"}}}, "")
+	if len(obs) != 2 || obs[1].Field != observe.Kind || obs[1].Value != "server" || obs[1].Source != observe.Agent {
+		t.Fatalf("observations %+v", obs)
 	}
 }

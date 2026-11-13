@@ -32,6 +32,8 @@ type Config struct {
 	Inventory Inventory
 	Findings  Findings
 	KEV       KEV
+	Remedies  Remedies  // optional: without it the actions name no fixed version
+	Incidents Incidents // optional: without it the report has no "what happened" section
 	Mail      Mailer
 	AI        AI
 	Modules   Modules
@@ -93,7 +95,32 @@ func (s *Service) weeklyInput(ctx context.Context, now time.Time) (weeklyInput, 
 	if err != nil {
 		return weeklyInput{}, fmt.Errorf("reports: reading the exploited list: %w", err)
 	}
-	return weeklyInput{devices: devs, findings: fs, kev: kev, kevAt: at, now: now}, nil
+	kevNew, kevInUse, err := s.cfg.KEV.NewlyExploited(ctx)
+	if err != nil {
+		return weeklyInput{}, fmt.Errorf("reports: reading the exploited list: %w", err)
+	}
+	return weeklyInput{devices: devs, findings: fs, kev: kev, kevAt: at, kevNew: kevNew, kevInUse: kevInUse, now: now}, nil
+}
+
+// fill adds what the weekly report reads beyond the figures: the way to read the fixed releases and the week's incidents. Both only
+// inform the text, so a failed read is logged and the report goes on without it (an honest "check the vendor advisory").
+func (s *Service) fill(ctx context.Context, in *weeklyInput) {
+	if s.cfg.Remedies != nil {
+		in.fixesFor = func(fs []Finding) map[string]Fix {
+			fx, err := s.cfg.Remedies.Fixes(ctx, fs)
+			if err != nil {
+				s.cfg.Log.WarnContext(ctx, "reports: the fixed releases could not be read", "error", err)
+			}
+			return fx
+		}
+	}
+	if s.cfg.Incidents != nil {
+		w, ok, err := s.cfg.Incidents.Week(ctx, in.now.Add(-7*day), maxHappened)
+		if err != nil {
+			s.cfg.Log.WarnContext(ctx, "reports: the incidents could not be read", "error", err)
+		}
+		in.week, in.incidentsOn = w, ok && err == nil
+	}
 }
 
 // Weekly computes the report now (INV-1) and attaches the last AI commentary when it is from this week.
@@ -102,6 +129,7 @@ func (s *Service) Weekly(ctx context.Context) (WeeklyReport, error) {
 	if err != nil {
 		return WeeklyReport{}, err
 	}
+	s.fill(ctx, &in)
 	r := buildWeekly(in)
 	sum, err := s.loadWeeklyAI(ctx)
 	if err != nil {
@@ -147,8 +175,12 @@ func (s *Service) loadWeeklyAI(ctx context.Context) (*AiSummary, error) {
 func weeklyFacts(r WeeklyReport) string {
 	var b strings.Builder
 	c := r.Counts
-	fmt.Fprintf(&b, "Period: %s to %s\nNew findings: %d\nResolved: %d\nOpen confirmed: %d\nOpen suspected: %d\nDevices: %d (%d not approved, %d new)\nNew exploited-list entries: %d, matching a device: %d\n",
+	fmt.Fprintf(&b, "Period: %s to %s\nNew findings: %d\nResolved: %d\nOpen confirmed: %d\nOpen suspected: %d\nDevices: %d (%d not approved, %d new)\nNewly exploited in the last 7 days: %d, products in use among them: %d\n",
 		r.Period.From, r.Period.To, c.NewFindings, c.Resolved, c.OpenConfirmed, c.OpenSuspected, c.Devices, c.DevicesUnapprove, c.DevicesNew, c.KevNew, c.KevMatched)
+	b.WriteString("Top risks (product, number of devices, open findings, confirmed by a scan, worst severity):\n")
+	for _, r := range r.TopRisks { // no device names in the prompt
+		fmt.Fprintf(&b, "- %s | %d | %d | %d | %s\n", r.Product, r.Devices, r.Open, r.Confirmed, r.Severity)
+	}
 	b.WriteString("Open findings (CVE, product, status, severity):\n")
 	for i, f := range r.Open {
 		if i == 20 {
@@ -450,31 +482,41 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 	return err
 }
 
-// digest is the email: a short summary and the things left to do, with a link to the full page. Names come from the network, so
-// they were cleaned by buildWeekly and notify cleans them again.
+// digest is the email: it leads with what to do this week (the same actions as page 1) and what happened (the same sentence), then
+// the figures, with a link to the full page. Names come from the network, so they were cleaned by buildWeekly and notify cleans
+// them again.
 func digest(r WeeklyReport) Mail {
 	c := r.Counts
-	m := Mail{
-		Title: fmt.Sprintf("Weekly report: %d new, %d resolved, %d open", c.NewFindings, c.Resolved, c.OpenConfirmed+c.OpenSuspected),
-		What: fmt.Sprintf("%d devices, %d not approved. %d new exploited vulnerabilities were listed this week, %d of them match your devices.",
-			c.Devices, c.DevicesUnapprove, c.KevNew, c.KevMatched),
-		Path: "/reports",
-	}
-	for _, a := range r.Actions {
-		switch a.Kind {
-		case "fix":
-			m.Items = append(m.Items, fmt.Sprintf("Fix %s on %s", a.CVE, a.Device))
-		case "verify":
-			m.Items = append(m.Items, fmt.Sprintf("Check whether %s on %s is real", a.CVE, a.Device))
-		case "review_devices":
-			m.Items = append(m.Items, fmt.Sprintf("Review %d devices waiting for approval", a.Count))
-		case "plan_os":
-			m.Items = append(m.Items, fmt.Sprintf("Plan to replace %d devices on an operating system that is no longer updated", a.Count))
+	m := Mail{Path: "/reports"}
+	var what []string
+	if r.Happened != nil {
+		what = append(what, r.Happened.Summary)
+		for _, h := range r.Happened.Top {
+			what = append(what, h.Title)
 		}
 	}
-	if len(m.Items) > 0 {
-		m.Action = m.Items[0]
+	what = append(what, fmt.Sprintf("%d devices, %d not approved. %d vulnerabilities newly exploited in the last 7 days; products you use among them: %d.",
+		c.Devices, c.DevicesUnapprove, c.KevNew, c.KevMatched))
+	m.What = strings.Join(what, "\n")
+	var items []string
+	for _, a := range r.Actions {
+		switch a.Kind {
+		case "fix", "verify":
+			t := a.Text
+			if t == "" { // a report built before D-490
+				t = fmt.Sprintf("Check %s on %s (%d open, first %s)", a.Product, a.Device, a.Count, a.CVE)
+			}
+			items = append(items, t)
+		case "review_devices":
+			items = append(items, fmt.Sprintf("Review %d devices waiting for approval", a.Count))
+		case "plan_os":
+			items = append(items, fmt.Sprintf("Plan to replace %d devices on an operating system that is no longer updated", a.Count))
+		}
 	}
+	if len(items) > 0 {
+		m.Action, m.Items = items[0], items[1:]
+	}
+	m.Title = fmt.Sprintf("Weekly report: %s this week, %d open findings", plural(len(items), "thing to do", "things to do"), c.OpenConfirmed+c.OpenSuspected)
 	return m
 }
 
@@ -553,7 +595,13 @@ func (s *Service) GeneratePdpl(ctx context.Context, actor string) (PdplReport, e
 	if err != nil {
 		return PdplReport{}, err
 	}
-	rep := buildPdpl(pdplInput{devices: in.devices, findings: in.findings, kev: in.kev, modules: s.cfg.Modules, org: *org, id: store.NewID("pdpl"), now: in.now})
+	var devs []Device // the PDPL inventory is the customer's network: this box is not in it
+	for _, d := range in.devices {
+		if !d.Box {
+			devs = append(devs, d)
+		}
+	}
+	rep := buildPdpl(pdplInput{devices: devs, findings: in.findings, kev: in.kev, modules: s.cfg.Modules, org: *org, id: store.NewID("pdpl"), now: in.now})
 	raw, _ := json.Marshal(rep)
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `UPDATE rep_pdpl SET report = ? WHERE id = 1`, string(raw)); err != nil {

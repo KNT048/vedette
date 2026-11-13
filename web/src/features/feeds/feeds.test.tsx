@@ -23,7 +23,7 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     renderApp('/')
     const buttons = await screen.findAllByRole('button', { name: 'I have this' })
     await userEvent.click(buttons[0]!)
-    expect(await screen.findByText('Added to your devices')).toBeInTheDocument()
+    expect(await screen.findByText('Alerts on for this product')).toBeInTheDocument()
     expect(assetsStore.get().length).toBe(before + 1)
     expect(assetsStore.get()[0]!.origin).toBe('manual')
   })
@@ -331,6 +331,19 @@ describe('feeds: which address answered the CISA list (D-91)', () => {
     cleanup()
     renderApp('/settings/feeds')
     expect(await screen.findByText('Answered by CISA GitHub mirror')).toBeInTheDocument()
+  })
+
+  it('W3-1: the NVD versions still loading say how far they got, not "fetched at the next check"; Fetch now shows it as progress', async () => {
+    const line = 'Loading version ranges from NVD: page 8 of 18. NVD was busy (HTTP 503); trying page 8 again in 30 s.'
+    const feed = { id: 'nvd-kev', builtin: true, name: 'NVD affected versions', kind: 'vulnerabilities', format: 'json', url: 'https://services.nvd.nist.gov/rest/json/cves/2.0', default_url: 'https://services.nvd.nist.gov/rest/json/cves/2.0', enabled: true, interval_hours: 24,
+      auth: { type: 'none', header_name: null, username: null, secret_last4: null }, parser: null, last_fetch: null, records: null, status: 'never', error: line, license: null, answered_by: null }
+    server.use(http.get('*/api/v1/feeds/sources', () => HttpResponse.json({ items: [feed] })))
+    server.use(http.post('*/api/v1/feeds/sources/nvd-kev/fetch', () => HttpResponse.json(feed)))
+    renderApp('/settings/feeds')
+    expect((await screen.findAllByText(line)).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Fetched at the next scheduled check/)).toBeNull()
+    await userEvent.click(screen.getAllByRole('button', { name: /Fetch now/ })[0]!)
+    expect(await screen.findByText(`NVD affected versions: ${line}`)).toBeInTheDocument()
   })
 })
 

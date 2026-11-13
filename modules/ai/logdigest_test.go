@@ -190,7 +190,7 @@ func TestLogDigestTextIsBoundedAndCheckedByTheHooks(t *testing.T) {
 	a.addBlockHook("No Tor", "before_ai", "tor-exit")
 	calls := a.fake.total()
 	a.logs.set(someDigest())
-	a.digest("POST", "operator", 409, "ai_unavailable")
+	a.digest("POST", "operator", 409, "blocked_by_hook")
 	if a.fake.total() != calls {
 		t.Fatalf("the provider was asked after a block")
 	}
@@ -248,7 +248,7 @@ func TestLogDigestBadAnswersAreDiscarded(t *testing.T) {
 		"empty summary": `{"summary":" ","items":[]}`,
 	} {
 		a.fake.setAnswer(ans)
-		a.digest("POST", "operator", 409, "ai_unavailable")
+		a.digest("POST", "operator", 502, "ai_bad_format")
 		if got := a.digest("GET", "viewer", 200, ""); got["digest"] != nil {
 			t.Errorf("%s: a bad answer was stored: %v", name, got)
 		}
@@ -280,7 +280,7 @@ func TestLogDigestAnswerGoesThroughTheAfterAIHooks(t *testing.T) {
 	a.logs.set(someDigest())
 	a.addBlockHook("No mail", "after_ai", "boss@example.com")
 	a.fake.setAnswer(strings.Replace(goodDigest, "Isolate the device and scan it.", "Mail the report to boss@example.com now.", 1))
-	a.digest("POST", "operator", 409, "ai_unavailable")
+	a.digest("POST", "operator", 409, "blocked_by_hook")
 	if got := a.digest("GET", "viewer", 200, ""); got["digest"] != nil {
 		t.Fatalf("a blocked answer was stored: %v", got)
 	}
@@ -391,7 +391,7 @@ func TestLogInvestigateAtMaxChecksPointsWithReadTools(t *testing.T) {
 	next.Lines24h++
 	a.logs.set(next)
 	a.fake.play(turn{text: "```json\n" + strings.Replace(goodDigest, "Look at PC-ACCOUNTS-03 first.", `Look at the p\u0061yroll server first.`, 1) + "\n```"})
-	a.digest("POST", "operator", 409, "ai_unavailable")
+	a.digest("POST", "operator", 409, "blocked_by_hook")
 	// Log investigation that cannot run (its skill off): the plain digest, and the level says why no tool was used
 	a.want("PUT", "/ai/skills/log-investigate", "admin", `{"enabled":false}`, 200, "")
 	a.fake.setAnswer(goodDigest)

@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -49,14 +50,14 @@ func (f *fakeInv) MatchProducts(_ context.Context, ps []Product) (map[string][]M
 	return out, nil
 }
 
-func (f *fakeInv) AddManualDevice(_ context.Context, tx *sql.Tx, _ string, d ManualDevice) error {
+func (f *fakeInv) AddManualDevice(_ context.Context, tx *sql.Tx, _ string, d ManualDevice) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if tx == nil {
-		return errors.New("no transaction")
+		return "", errors.New("no transaction")
 	}
 	f.added = append(f.added, d)
-	return nil
+	return fmt.Sprintf("a-declared-%d", len(f.added)), nil
 }
 
 type published struct {
@@ -111,6 +112,15 @@ type env struct {
 	pub  *fakePub
 	mu   sync.Mutex
 	now  time.Time
+
+	waits []time.Duration // the waits of the NVD pull, which never wait for real here (Service.wait)
+}
+
+// waited returns the waits the NVD pull asked for that were not zero.
+func (e *env) waited() []time.Duration {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return slices.Clone(e.waits)
 }
 
 func (e *env) clock() time.Time {
@@ -147,6 +157,14 @@ func newEnvFetcher(t *testing.T, f Fetcher) *env {
 		Fetcher: f})
 	if err != nil {
 		t.Fatal(err)
+	}
+	e.svc.wait = func(ctx context.Context, d time.Duration) error {
+		if d > 0 {
+			e.mu.Lock()
+			e.waits = append(e.waits, d)
+			e.mu.Unlock()
+		}
+		return ctx.Err()
 	}
 	if err := e.svc.Seed(t.Context()); err != nil {
 		t.Fatal(err)
@@ -301,6 +319,10 @@ func TestContract_POST2_HotBoardOrderAndInventory(t *testing.T) {
 	}
 	if at(b, "latest", "cve") != "CVE-2026-10001" || at(b, "latest", "display") != "Synology NAS (DSM)" {
 		t.Errorf("latest: %v", at(b, "latest"))
+	}
+	// the weekly report reads the same board (W1-24, D-485): Home's three CVEs, one product in use ("maybe" is not in use)
+	if cves, inUse, err := e.svc.NewlyExploited(t.Context()); err != nil || cves != 3 || inUse != 1 {
+		t.Errorf("NewlyExploited = %d, %d, %v; want 3, 1", cves, inUse, err)
 	}
 	// the 24 h window, counted from the clock
 	e.setNow(time.Date(2026, 11, 4, 0, 0, 0, 0, time.UTC))
@@ -520,12 +542,12 @@ func TestStatusAndSourcesListing(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	c, b := e.get("/feeds/sources")
-	if c != 200 || at(b, "items", 7, "id") != "hagezi-tif" || at(b, "items", 8) != nil {
+	if c != 200 || at(b, "items", 8, "id") != "hagezi-tif" || at(b, "items", 9) != nil {
 		t.Fatalf("%d %v", c, b)
 	}
 	f := at(b, "items", 0)
 	if at(f, "id") != "cisa-kev" || at(f, "builtin") != true || at(f, "status") != "never" || at(f, "last_fetch") != nil || at(f, "records") != nil || at(f, "parser") != nil ||
-		at(f, "default_url") != at(f, "url") || at(f, "interval_hours") != 24.0 || at(f, "auth", "type") != "none" || at(f, "license") != "CC0" || at(b, "items", 3, "interval_hours") != 6.0 {
+		at(f, "default_url") != at(f, "url") || at(f, "interval_hours") != 1.0 || at(f, "auth", "type") != "none" || at(f, "license") != "CC0" || at(b, "items", 4, "interval_hours") != 6.0 {
 		t.Errorf("feed: %v", f)
 	}
 	_, s := e.get("/feeds/status")
@@ -921,5 +943,23 @@ func TestG10_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
 	}
 	if got, b, _ := e.do("PUT", "/feeds/custom/"+id, "admin", withURL("Fine 1", "http://192.168.77.10:8444/x")); got != 400 || code(b) != "blocked_host" {
 		t.Errorf("edit onto the box: %d %v", got, b)
+	}
+}
+
+// D-485: Home's "newly exploited in the last 7 days" (and the weekly report, which reads the same function): the day counts
+// until its last second, the eighth day back is out, and an entry dated after now is not counted (the store already turns a feed's
+// future date into the day of the pull; this is the box clock set back after a pull).
+func TestNewlyExploitedWindowIsHomes(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t) // now: 2026-11-05 12:00 UTC
+	// pulled a day ahead (a clock that was later set back): the store keeps a date up to the day of the pull, so 2026-11-06 stays
+	applyV(t, e.db, e.clock().Add(24*time.Hour), "cisa-kev", []Vuln{
+		vuln("CVE-2026-0001", "Acme", "A", "2026-11-05"), // today: in
+		vuln("CVE-2026-0002", "Acme", "A", "2026-10-29"), // the day 7 days ago, until its last second: in
+		vuln("CVE-2026-0003", "Acme", "A", "2026-10-28"), // out
+		vuln("CVE-2026-0004", "Acme", "A", "2026-11-06"), // tomorrow: out
+	}, false)
+	if n, _, err := e.svc.NewlyExploited(t.Context()); err != nil || n != 2 {
+		t.Errorf("NewlyExploited = %d, %v; want 2", n, err)
 	}
 }

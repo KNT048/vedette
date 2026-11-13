@@ -26,7 +26,7 @@ export type OidcStart = z.infer<typeof C.OidcStart>
 
 export type AuditRow = z.infer<typeof C.AuditRow>
 export type AuditResult = z.infer<typeof C.AuditResult>
-export type AuditQuery = { q: string; user: string; group: string; from: string; to: string }
+export type AuditQuery = { q: string; user: string; group: string; from: string; to: string; actor: '' | 'people' }
 
 export type UpdateChannel = z.infer<typeof C.UpdateChannel>
 export type UpdateComponent = z.infer<typeof C.UpdateComponent>

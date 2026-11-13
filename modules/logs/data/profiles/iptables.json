@@ -1,0 +1,56 @@
+{
+  "id": "iptables",
+  "title": "Linux netfilter LOG lines (UFW, EdgeOS and UniFi rule-set prefixes) from the kernel",
+  "kinds": [
+    "ubiquiti",
+    "linux-rsyslog",
+    "linux-journald"
+  ],
+  "rule": {
+    "type": "template",
+    "apps": [
+      "kernel"
+    ],
+    "facilities": [
+      0
+    ],
+    "prefix": "^(?:\\[ *[0-9]{1,10}\\.[0-9]{1,8}\\] ?)?(?P<head>\\[UFW (?:BLOCK|ALLOW|AUDIT|LIMIT BLOCK)\\]|\\[[A-Za-z0-9_-]{1,40}-(?:[0-9]{1,5}|default)-[ADR]\\])",
+    "conn_patterns": [
+      {
+        "pattern": "^(?:\\[ *[0-9]{1,10}\\.[0-9]{1,8}\\] ?)?\\[UFW (?:BLOCK|LIMIT BLOCK)\\] ?IN=[A-Za-z0-9_.-]{0,16} OUT=[A-Za-z0-9_.-]{0,16} (?:PHYS(?:IN|OUT)=[A-Za-z0-9_.-]{0,16} ){0,2}(?:MAC=[0-9a-fA-F:]{0,120} )?SRC=(?P<local>\\d{1,3}(?:\\.\\d{1,3}){3}) DST=(?P<dest>\\d{1,3}(?:\\.\\d{1,3}){3}) LEN=",
+        "blocked": true
+      },
+      {
+        "pattern": "^(?:\\[ *[0-9]{1,10}\\.[0-9]{1,8}\\] ?)?\\[UFW ALLOW\\] ?IN=[A-Za-z0-9_.-]{0,16} OUT=[A-Za-z0-9_.-]{0,16} (?:PHYS(?:IN|OUT)=[A-Za-z0-9_.-]{0,16} ){0,2}(?:MAC=[0-9a-fA-F:]{0,120} )?SRC=(?P<local>\\d{1,3}(?:\\.\\d{1,3}){3}) DST=(?P<dest>\\d{1,3}(?:\\.\\d{1,3}){3}) LEN="
+      },
+      {
+        "pattern": "^(?:\\[ *[0-9]{1,10}\\.[0-9]{1,8}\\] ?)?\\[[A-Za-z0-9_-]{1,40}-(?:[0-9]{1,5}|default)-[DR]\\] ?IN=[A-Za-z0-9_.-]{0,16} OUT=[A-Za-z0-9_.-]{0,16} (?:PHYS(?:IN|OUT)=[A-Za-z0-9_.-]{0,16} ){0,2}(?:MAC=[0-9a-fA-F:]{0,120} )?SRC=(?P<local>\\d{1,3}(?:\\.\\d{1,3}){3}) DST=(?P<dest>\\d{1,3}(?:\\.\\d{1,3}){3}) LEN=",
+        "blocked": true
+      },
+      {
+        "pattern": "^(?:\\[ *[0-9]{1,10}\\.[0-9]{1,8}\\] ?)?\\[[A-Za-z0-9_-]{1,40}-(?:[0-9]{1,5}|default)-A\\] ?IN=[A-Za-z0-9_.-]{0,16} OUT=[A-Za-z0-9_.-]{0,16} (?:PHYS(?:IN|OUT)=[A-Za-z0-9_.-]{0,16} ){0,2}(?:MAC=[0-9a-fA-F:]{0,120} )?SRC=(?P<local>\\d{1,3}(?:\\.\\d{1,3}){3}) DST=(?P<dest>\\d{1,3}(?:\\.\\d{1,3}){3}) LEN="
+      }
+    ]
+  },
+  "samples": [
+    {
+      "line": "<4>Nov  9 10:00:00 gw kernel: [UFW BLOCK] IN=eth0 OUT=eth1 MAC=00:11:22:33:44:55:66:77:88:99:aa:bb:08:00 SRC=192.168.10.113 DST=185.220.101.47 LEN=60 TOS=0x00 PREC=0x00 TTL=63 ID=1 DF PROTO=TCP SPT=51234 DPT=23 WINDOW=64240 RES=0x00 SYN URGP=0",
+      "signature": "[UFW BLOCK]: IN=<v> OUT=<v> MAC=<hex> SRC=<v> DST=<v> LEN=<n> TOS=<hex> PREC=<hex> TTL=<n> ID=<n> DF PROTO=TCP SPT=<n> DPT=<n> WINDOW=<n> RES=<hex> SYN URGP=<n>",
+      "blocked": true,
+      "remote": "192.168.10.113",
+      "local": "192.168.10.113",
+      "dests": [
+        "ip:185.220.101.47"
+      ]
+    },
+    {
+      "line": "<4>Nov  9 10:00:01 ubnt kernel: [LAN_IN-10-A]IN=eth1 OUT=eth0 MAC=00:11:22:33:44:55:66:77:88:99:aa:bb:08:00 SRC=192.168.10.113 DST=185.220.101.47 LEN=60 TOS=0x00 PREC=0x00 TTL=63 ID=2 DF PROTO=TCP SPT=51235 DPT=443 WINDOW=64240 RES=0x00 SYN URGP=0",
+      "signature": "[LAN_IN-10-A]: IN=<v> OUT=<v> MAC=<hex> SRC=<v> DST=<v> LEN=<n> TOS=<hex> PREC=<hex> TTL=<n> ID=<n> DF PROTO=TCP SPT=<n> DPT=<n> WINDOW=<n> RES=<hex> SYN URGP=<n>",
+      "remote": "192.168.10.113",
+      "local": "192.168.10.113",
+      "dests": [
+        "ip:185.220.101.47"
+      ]
+    }
+  ]
+}

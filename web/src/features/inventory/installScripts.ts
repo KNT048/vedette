@@ -23,13 +23,17 @@ const fill = (t: string, box: string, ca: string) => t.replaceAll('@@BOX@@', box
 export const linuxInstallScript = (box: string, ca: string) => fill(BASH, box, ca)
 export const windowsInstallScript = (box: string, ca: string) => fill(PWSH, box, ca)
 
-/** Một dòng lệnh cài: tải từ hộp, đối chiếu SHA-256 đã hiện trong giao diện, rồi chạy với token. Token đi qua tham số, không nằm trong URL. */
+/** Một dòng lệnh cài: tải từ hộp, đối chiếu SHA-256 đã hiện trong giao diện, rồi chạy với token. Token đi qua tham số, không nằm trong URL.
+ *  Script tải vào một tệp mktemp mới mỗi lần rồi xoá: một đường cố định trong /tmp do người dùng khác để lại không ghi đè được
+ *  (fs.protected_regular=2 của Ubuntu; lượt đi thật 2, W2-3). */
 export function linuxOneLiner(box: string, sha256: string, token: string, action: 'install' | 'uninstall' = 'install') {
   const arg = action === 'install' ? `--token ${token}` : '--uninstall'
-  return `curl -fsSLk ${box}/api/v1/install/osquery.sh -o /tmp/vedette-osquery.sh && echo "${sha256}  /tmp/vedette-osquery.sh" | sha256sum -c - && sudo sh /tmp/vedette-osquery.sh ${arg}`
+  // In a subshell, so the exit status of the download, the check or the install survives the cleanup and `exit` never closes the admin's terminal.
+  return `(f=$(mktemp) && curl -fsSLk ${box}/api/v1/install/osquery.sh -o "$f" && echo "${sha256}  $f" | sha256sum -c - && sudo sh "$f" ${arg}; r=$?; rm -f "$f"; exit $r)`
 }
-/** Windows PowerShell 5.1: không có -SkipCertificateCheck, nên chỉ lần tải script đầu tiên dùng curl.exe -k (chưa có CA); script đã nhúng CA và dùng --cacert cho mọi lần tải sau. */
+/** Windows PowerShell 5.1: không có -SkipCertificateCheck, nên chỉ lần tải script đầu tiên dùng curl.exe -k (chưa có CA); script đã nhúng CA và dùng --cacert cho mọi lần tải sau.
+ *  Tên tệp mới mỗi lần (GUID, đuôi .ps1 vì -File cần nó) và xoá sau khi chạy, như bản Linux. */
 export function windowsOneLiner(box: string, sha256: string, token: string, action: 'install' | 'uninstall' = 'install') {
   const arg = action === 'install' ? `-Token '${token}'` : '-Uninstall'
-  return `$f="$env:TEMP\\vedette-osquery.ps1"; curl.exe -fsSLk ${box}/api/v1/install/osquery.ps1 -o $f; if ((Get-FileHash $f -Algorithm SHA256).Hash -ieq '${sha256}') { powershell -NoProfile -ExecutionPolicy Bypass -File $f ${arg} } else { throw 'Checksum mismatch: do not run this file' }`
+  return `$f=Join-Path $env:TEMP ('vedette-osquery-'+[guid]::NewGuid()+'.ps1'); curl.exe -fsSLk ${box}/api/v1/install/osquery.ps1 -o $f; if ((Get-FileHash $f -Algorithm SHA256).Hash -ieq '${sha256}') { powershell -NoProfile -ExecutionPolicy Bypass -File $f ${arg}; Remove-Item -Force $f } else { Remove-Item -Force $f; throw 'Checksum mismatch: do not run this file' }`
 }

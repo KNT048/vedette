@@ -182,6 +182,7 @@ var contractRoutes = map[string][]string{
 	"findings": {
 		"GET /findings",
 		"GET /findings/{id}",
+		"POST /findings/status",
 		"POST /findings/{id}/status",
 	},
 	"honeypot": {
@@ -204,8 +205,10 @@ var contractRoutes = map[string][]string{
 	"host": {
 		"GET /core/network",
 		"GET /core/network/span/status",
+		"POST /core/network/box-address/forget",
 		"POST /core/network/management/confirm",
 		"POST /core/network/management/revert",
+		"PUT /core/network/box-address",
 		"PUT /core/network/interfaces",
 		"PUT /core/network/management",
 		"PUT /core/network/ntp",
@@ -260,6 +263,7 @@ var contractRoutes = map[string][]string{
 		"GET /notify/history",
 		"GET /notify/incidents",
 		"GET /notify/incidents/{id}",
+		"GET /notify/telegram/approvers",
 		"GET /notify/zalo/approvers",
 		"GET /notify/zalo/contacts",
 		"GET /notify/zalo/login",
@@ -268,6 +272,8 @@ var contractRoutes = map[string][]string{
 		"POST /notify/email-signin",
 		"POST /notify/email-signin/{id}",
 		"POST /notify/history/{id}/resend",
+		"POST /notify/telegram/approvers/{user_id}/code",
+		"POST /notify/telegram/chats",
 		"POST /notify/zalo/approvers/{user_id}/code",
 		"POST /notify/zalo/login",
 		"POST /notify/zalo/resolve",

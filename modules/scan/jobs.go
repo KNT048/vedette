@@ -384,24 +384,35 @@ func (s *Service) affected(ctx context.Context, st Settings, cve string) (ids, n
 	if err != nil {
 		return nil, nil, nil, Current{}, err
 	}
+	var cands []Device // in the order of the findings, each device once
+	seen := map[string]bool{}
 	for _, f := range fs {
-		if f.CVE != cve || (f.Status != "suspected" && f.Status != "confirmed") || slices.Contains(ids, f.AssetID) {
+		if f.CVE != cve || (f.Status != "suspected" && f.Status != "confirmed") || seen[f.AssetID] {
 			continue
 		}
-		d, ok := devs[f.AssetID]
-		if !ok {
-			continue
+		if d, ok := devs[f.AssetID]; ok {
+			seen[f.AssetID] = true
+			cands = append(cands, d)
 		}
-		why, _, err := s.consent(ctx, st, d, false)
-		if err != nil {
-			return nil, nil, nil, Current{}, err
+	}
+	// One batch read per decision kind (D-472); a KEV of a common product matches hundreds of devices.
+	auto, err := s.policies(ctx, cands, false)
+	if err != nil {
+		return nil, nil, nil, Current{}, err
+	}
+	var refused []Device
+	for _, d := range cands {
+		if why, _ := fold(st, d, auto[d.ID]); why != "" {
+			refused = append(refused, d)
 		}
-		if why != "" {
-			picked, _, err := s.consent(ctx, st, d, true)
-			if err != nil {
-				return nil, nil, nil, Current{}, err
-			}
-			if picked == "" && !slices.Contains(pickOnly, d.Label) {
+	}
+	byPick, err := s.policies(ctx, refused, true)
+	if err != nil {
+		return nil, nil, nil, Current{}, err
+	}
+	for _, d := range cands {
+		if why, _ := fold(st, d, auto[d.ID]); why != "" {
+			if picked, _ := fold(st, d, byPick[d.ID]); picked == "" && !slices.Contains(pickOnly, d.Label) {
 				pickOnly = append(pickOnly, d.Label)
 			}
 			continue
@@ -428,7 +439,11 @@ func (s *Service) startAuto(ctx context.Context, trigger string, note *string, i
 // RunSchedule starts the scheduled run of the latest slot while that slot's own window is open (S-SCAN-4, POST-3);
 // the run stops when that window ends. A slot that found a scan running, or the scanner not ready, is tried again at
 // the next tick while its window is open; once the window has closed the slot is recorded as missed, never run late
-// in a later window (#164 review M1). A slot starts at most one run.
+// in a later window (#164 review M1). A slot starts at most one run. Until a first scheduled run has started (firstPending, W3-9;
+// not sched_last, which a missed or empty slot also records) the slots are those of every window day (slotOK first, W3-6); such an extra slot (not on the weekly weekday) that closed or had nothing to
+// scan is not recorded, so a new box's first scheduled run is the next window that scans something, not the next weekday. An extra
+// slot counts only when the schedule was saved and the scope confirmed before it (review M4, as missSlot judges "due"): a box set up
+// inside an open window waits for the next one instead of starting at once.
 func (s *Service) RunSchedule(ctx context.Context) error {
 	var last, saved sql.NullString
 	row := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT sched_last, updated_at FROM scan_setting WHERE id = 1`)
@@ -444,12 +459,23 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 	if !ok { // the zone unknown: the tick is skipped, the slot stays open (fail closed)
 		return nil
 	}
-	slot := st.lastSlot(now, loc)
+	never, err := firstPending(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		return err
+	}
+	slot := st.lastSlot(now, loc, never)
 	if slot == nil || (last.Valid && last.String >= store.FormatTS(*slot)) {
+		return nil
+	}
+	extra := never && !st.slotOK(*slot, false) // a slot only because no first run happened yet: never recorded as missed or empty
+	if extra && saved.Valid && saved.String >= store.FormatTS(*slot) {
 		return nil
 	}
 	end, _ := st.slotWindowEnd(*slot)
 	if !now.Before(end) {
+		if extra {
+			return nil
+		}
 		// A slot from before the schedule was last saved (turned on, moved) was never due: it is passed over quietly.
 		return s.missSlot(ctx, *slot, !saved.Valid || saved.String < store.FormatTS(*slot))
 	}
@@ -457,18 +483,21 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 	if err != nil || sc.ConfirmedAt == "" || s.liveRun() != "" || !s.scannerReady(ctx) {
 		return err
 	}
+	if c, err := time.Parse(time.RFC3339Nano, sc.ConfirmedAt); extra && (err != nil || !c.Before(*slot)) {
+		return nil
+	}
 	devs, err := s.cfg.Inventory.Devices(ctx)
+	if err != nil {
+		return err
+	}
+	auto, err := s.policies(ctx, devs, false) // one batch read (D-472)
 	if err != nil {
 		return err
 	}
 	var ids []string
 	var first Current
 	for _, d := range devs {
-		why, _, err := s.consent(ctx, st, d, false)
-		if err != nil {
-			return err
-		}
-		if why != "" || len(ids) == MaxRunTargets {
+		if why, _ := fold(st, d, auto[d.ID]); why != "" || len(ids) == MaxRunTargets {
 			continue
 		}
 		if len(ids) == 0 {
@@ -477,6 +506,9 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 		ids = append(ids, d.ID)
 	}
 	if len(ids) == 0 { // nothing may be scanned without a pick: the slot is done
+		if extra {
+			return nil
+		}
 		return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return markSlot(ctx, tx, *slot) })
 	}
 	// The slot is recorded in the transaction that writes its run (#164 review L4): a failure leaves neither, so a slot
@@ -487,6 +519,19 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+// firstPending says whether the box's first scheduled run is still to come: no run with trigger schedule ever started (W3-9).
+// sched_last cannot say it: a weekday slot that was missed or had nothing to scan is recorded without a run, and on a box that
+// was off or empty that first Sunday the first-run rule never applied. Run rows are never deleted, so the answer does not go back.
+func firstPending(ctx context.Context, q interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}) (bool, error) {
+	var ran bool
+	if err := q.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM scan_run WHERE trigger = 'schedule')`).Scan(&ran); err != nil {
+		return false, fmt.Errorf("scan: reading the scheduled runs: %w", err)
+	}
+	return !ran, nil
 }
 
 func markSlot(ctx context.Context, tx *sql.Tx, slot time.Time) error {
@@ -509,8 +554,9 @@ func (s *Service) missSlot(ctx context.Context, slot time.Time, due bool) error 
 	})
 }
 
-// lastSlot is the latest slot of the schedule at or before now (within eight days), or nil when the schedule is off.
-func (c Settings) lastSlot(now time.Time, loc *time.Location) *time.Time {
+// lastSlot is the latest slot of the schedule at or before now (within eight days), or nil when the schedule is off; first as in
+// slotOK.
+func (c Settings) lastSlot(now time.Time, loc *time.Location, first bool) *time.Time {
 	if !c.Schedule.Enabled || !hhmmRE.MatchString(c.Schedule.At) {
 		return nil
 	}
@@ -518,7 +564,7 @@ func (c Settings) lastSlot(now time.Time, loc *time.Location) *time.Time {
 	local := now.In(loc)
 	for i := range 8 {
 		d := time.Date(local.Year(), local.Month(), local.Day()-i, at/60, at%60, 0, 0, loc)
-		if !d.After(now) && c.slotOK(d) {
+		if !d.After(now) && c.slotOK(d, first) {
 			return &d
 		}
 	}

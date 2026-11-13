@@ -97,6 +97,7 @@ type HookHit struct {
 	When     HookWhen
 	Action   HookAction
 	Message  string
+	What     string // the kind of data it found, in words ("an ID number"), for a message about a step other than the question
 }
 
 // HookResult is the text after the hooks ran (masked text, or the refusal message) and what happened.
@@ -199,7 +200,7 @@ func (h CustomHook) compile() (hookDef, error) {
 	if n := utf8.RuneCountInString(h.Match.Pattern); n < 1 || n > 200 {
 		return hookDef{}, herr("invalid_pattern", "The pattern must be 1 to 200 characters.")
 	}
-	d := hookDef{id: h.ID, name: h.Name, kind: KindCustom, when: h.When, action: h.Action, message: h.Message}
+	d := hookDef{id: h.ID, name: h.Name, kind: KindCustom, when: h.When, action: h.Action, message: h.Message, what: fmt.Sprintf("text that matches the hook %q", h.Name)}
 	switch h.Match.Type {
 	case MatchKeywords:
 		var words []string
@@ -378,7 +379,7 @@ func (r *HookRunner) run(ctx context.Context, text string, use func(hookDef) boo
 func (r *HookRunner) CheckTool(ctx context.Context, access Access, args string) (HookResult, error) {
 	if access != AccessRead {
 		info := builtinInfo[2]
-		hit := HookHit{ID: info.ID, Name: info.Name, Kind: KindBuiltin, When: BeforeTool, Action: ActionApprove,
+		hit := HookHit{ID: info.ID, Name: info.Name, Kind: KindBuiltin, When: BeforeTool, Action: ActionApprove, What: "a change",
 			Message: "This tool changes something. It runs only through an action a person approves in the AI response module."}
 		return HookResult{Text: hit.Message, Outcome: OutcomeHeld, Hits: []HookHit{hit}}, nil
 	}
@@ -386,7 +387,7 @@ func (r *HookRunner) CheckTool(ctx context.Context, access Access, args string) 
 }
 
 func (r *HookResult) note(d hookDef) {
-	h := HookHit{ID: d.id, Name: d.name, Kind: d.kind, When: d.when, Action: d.action, Message: d.message}
+	h := HookHit{ID: d.id, Name: d.name, Kind: d.kind, When: d.when, Action: d.action, Message: d.message, What: d.what}
 	for _, x := range r.Hits {
 		if x == h {
 			return
@@ -399,25 +400,26 @@ func (r *HookResult) note(d hookDef) {
 
 type hookDef struct {
 	id, name, message string
+	what              string // HookHit.What
 	kind              HookKind
 	when              HookWhen
 	action            HookAction
 	find              func(context.Context, *scanText) ([]span, error)
 }
 
-func piiDef(action HookAction, message string, find func(context.Context, *scanText) ([]span, error)) hookDef {
-	return hookDef{id: HookBlockPII, name: builtinInfo[0].Name, kind: KindBuiltin, when: BeforeAI, action: action, message: message, find: find}
+func piiDef(action HookAction, what, message string, find func(context.Context, *scanText) ([]span, error)) hookDef {
+	return hookDef{id: HookBlockPII, name: builtinInfo[0].Name, kind: KindBuiltin, when: BeforeAI, action: action, what: what, message: message, find: find}
 }
 
 // Blocking first, then masking: an ID number stops the text at once instead of being masked piecemeal.
 var piiDefs = []hookDef{
-	piiDef(ActionBlock, "The text contains an ID number. It was not sent to the AI. Remove the number and ask again.", plain(findIDNumbers)),
-	piiDef(ActionMask, "A device secret (a password, hash, SNMP community or key) was masked before the text went to the AI.", plainCtx(scanDeviceSecrets)),
-	piiDef(ActionMask, "An email address was masked before the text went to the AI.", plain(findEmails)),
-	piiDef(ActionMask, "A phone number was masked before the text went to the AI.", plain(findPhones)),
-	piiDef(ActionMask, "A person name next to an account was masked before the text went to the AI.", plain(findAccountNames)),
+	piiDef(ActionBlock, "an ID number", "The text contains an ID number. It was not sent to the AI. Remove the number and ask again.", plain(findIDNumbers)),
+	piiDef(ActionMask, "a device secret", "A device secret (a password, hash, SNMP community or key) was masked before the text went to the AI.", plainCtx(scanDeviceSecrets)),
+	piiDef(ActionMask, "an email address", "An email address was masked before the text went to the AI.", plain(findEmails)),
+	piiDef(ActionMask, "a phone number", "A phone number was masked before the text went to the AI.", plain(findPhones)),
+	piiDef(ActionMask, "a person's name next to an account", "A person name next to an account was masked before the text went to the AI.", plain(findAccountNames)),
 }
 
-var offTopicDef = hookDef{id: HookSecurityOnly, name: builtinInfo[1].Name, kind: KindBuiltin, when: BeforeAI, action: ActionBlock,
+var offTopicDef = hookDef{id: HookSecurityOnly, name: builtinInfo[1].Name, kind: KindBuiltin, when: BeforeAI, action: ActionBlock, what: "a request that is not about network security",
 	message: "This box's AI only helps with the security of this network, so it did not take this request. Ask about your devices, findings, logs or exposure.",
 	find:    plain(findOffTopic)}

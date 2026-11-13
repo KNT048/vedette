@@ -36,11 +36,14 @@ func (t Tri) String() string {
 
 // qual orders the part of a version after the numeric release: pre-releases
 // (class -1) < plain release (0) < post-releases (1). build metadata and
-// distribution revisions are ignored (they parse as a plain release).
+// distribution revisions are ignored (they parse as a plain release). num2 is the
+// second number of a release qualifier: Junos "R2-S1" (service release 1 of R2) and
+// Ivanti "R2.4" order after "R2" (D-500).
 type qual struct {
 	class int
 	sub   int
 	num   uint64
+	num2  uint64
 }
 
 type version struct {
@@ -54,7 +57,7 @@ var preRelease = map[string]int{
 }
 
 var postRelease = map[string]bool{
-	"p": true, "pl": true, "patch": true, "sp": true, "update": true, "u": true, "hotfix": true, "hf": true, "rev": true, "r": true,
+	"p": true, "pl": true, "patch": true, "sp": true, "update": true, "u": true, "hotfix": true, "hf": true, "h": true, "rev": true, "r": true,
 }
 
 var releaseWord = map[string]bool{
@@ -67,7 +70,8 @@ func isLower(b byte) bool { return b >= 'a' && b <= 'z' }
 const sepChars = " -_+~."
 
 // parseVersion understands real vendor strings: "7.2.4", "v2.4.57", "1.1.1w",
-// "7.0.0 build 1234", "10.0.19045.3693", "DSM 7.1.1-42962", "8.9p1", "1.0-rc1".
+// "7.0.0 build 1234", "10.0.19045.3693", "DSM 7.1.1-42962", "8.9p1", "1.0-rc1",
+// PAN-OS "10.2.9-h1", Junos "22.4R2-S1", Ivanti "22.7R2.4".
 // ok is false when the string has no usable numeric release or an unknown
 // qualifier, so callers get "unknown" instead of a guess.
 func parseVersion(s string) (version, bool) {
@@ -171,20 +175,46 @@ func parseQual(tail string) (qual, string, bool) {
 		if w == "b" {
 			rank = 3
 		}
-		return withTail(qual{-1, rank, n}, left, ok)
+		return withTail(qual{class: -1, sub: rank, num: n}, left, ok)
 	case preRelease[w] != 0:
 		n, left, ok := num()
-		return withTail(qual{-1, preRelease[w], n}, left, ok)
+		return withTail(qual{class: -1, sub: preRelease[w], num: n}, left, ok)
 	case len(w) == 1 && sep == 0 && after == "": // OpenSSL style 1.1.1w
-		return qual{1, 1, uint64(w[0]-'a') + 1}, "", true
+		return qual{class: 1, sub: 1, num: uint64(w[0]-'a') + 1}, "", true
 	case postRelease[w]:
 		n, left, ok := num()
-		return withTail(qual{1, 0, n}, left, ok)
+		q := qual{class: 1, num: n}
+		if w == "r" && ok && n > 0 { // Junos "R2-S1" (service release), Ivanti "R2.4": a second number
+			q.num2, left, ok = releaseSub(left)
+		}
+		return withTail(q, left, ok)
 	case w == "build" || releaseWord[w]:
 		t, ok := tailOK(after)
 		return qual{}, w + t, ok
 	}
 	return qual{}, "", false
+}
+
+// releaseSub reads the second number of an "R" release: "-S1" or "S1" (Junos service release) or ".4" (Ivanti).
+// Anything else is left as it was, with 0.
+func releaseSub(left string) (uint64, string, bool) {
+	s := strings.TrimPrefix(left, "-")
+	if strings.HasPrefix(s, "s") && len(s) > 1 && isDigit(s[1]) {
+		s = s[1:]
+	} else if strings.HasPrefix(left, ".") && len(left) > 1 && isDigit(left[1]) {
+		s = left[1:]
+	} else {
+		return 0, left, true
+	}
+	j := 0
+	for j < len(s) && isDigit(s[j]) {
+		j++
+	}
+	if j > maxSegDigits {
+		return 0, "", false
+	}
+	n, err := strconv.ParseUint(s[:j], 10, 64)
+	return n, s[j:], err == nil
 }
 
 // tailOK accepts what may follow a qualifier: nothing, build metadata, a number
@@ -262,7 +292,10 @@ func (v version) compare(o version) int {
 	if c := cmp.Compare(v.q.sub, o.q.sub); c != 0 {
 		return c
 	}
-	return cmp.Compare(v.q.num, o.q.num)
+	if c := cmp.Compare(v.q.num, o.q.num); c != 0 {
+		return c
+	}
+	return cmp.Compare(v.q.num2, o.q.num2)
 }
 
 // CompareVersions orders two vendor version strings (-1, 0, 1). ok is false when either
@@ -291,6 +324,15 @@ func compareBound(a, b string) (int, bool) {
 		return c, true
 	}
 	return compareTail(va.tail, vb.tail)
+}
+
+// buildOfRelease reports whether v is a build of exactly the release named by bound: the same release and
+// qualifier, v with a build tail and bound with none ("13.1-49.13" and "13.1", "7.0.0 build 1234" and "7.0.0").
+// Only a lower inclusive bound may use it: whether such a build is before an upper bound "13.1" is unclear.
+func buildOfRelease(v, bound string) bool {
+	vv, okV := parseVersion(v)
+	vb, okB := parseVersion(bound)
+	return okV && okB && vv.compare(vb) == 0 && vb.tail == "" && vv.tail != ""
 }
 
 // isPlaceholder reports whether s is an all-zero version ("0", "0.0.0"): agents
@@ -349,6 +391,9 @@ func (r VersionRange) Contains(v string) Tri {
 			return true
 		}
 		return ok(c)
+	}
+	if r.StartIncl != "" && buildOfRelease(v, r.StartIncl) {
+		r.StartIncl = "" // "13.1-49.13" is a build of the 13.1 release, so it is "13.1 or later" (D-500)
 	}
 	if !check(r.StartIncl, func(c int) bool { return c >= 0 }) ||
 		!check(r.StartExcl, func(c int) bool { return c > 0 }) ||

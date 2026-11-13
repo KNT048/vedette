@@ -260,6 +260,7 @@ type Config struct {
 	TwoStep     TwoStep     // nil = no code can be checked: a high-risk AI request cannot be approved (403 twofa_required)
 	Planner     Planner     // nil = no plan is ever written; ai_available is false (13b-11)
 	Mailer      LinkMailer  // nil = no link code can be mailed: an email approver cannot link (503 email_not_ready), D-191
+	LinkSender  LinkSender  // nil = My account cannot ask for a new confirm link on a chat channel (400 chat_channel), D-414
 	// Critical lists the open critical findings with their device, for the plan job. nil = no plan is asked for.
 	Critical func(ctx context.Context) ([]PlanTarget, error)
 	Evidence EvidencePorts // a nil port means no such evidence exists: an AI proposal naming it is refused (422 evidence_invalid)
@@ -284,9 +285,9 @@ type Config struct {
 	// an automated ban on the gateway or the resolver would cut the box off with the rest of the network. An error is as for BoxAddrs
 	// (fail closed). nil = none known (no host: a container-only box, whose own route is the container bridge).
 	HostInfra func() ([]HostInfra, error)
-	// BaseURL is the address people open Vedette at (https://192.168.10.2:8443). It is the start of the block list address;
-	// empty = the address is shown from /api/v1 on.
-	BaseURL string
+	// BaseURL is the address people open Vedette at (https://192.168.10.2:8443), asked at every use (D-465: the Box address of
+	// Settings → Box network). It is the start of the block list address; nil or "" = the address is shown from /api/v1 on.
+	BaseURL func() string
 }
 
 // HostInfra is one address of the network the box depends on (Config.HostInfra).
@@ -446,6 +447,9 @@ func (s *Service) ensureSeeded(ctx context.Context) error {
 	}
 	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.seedCatalog(ctx, tx) }); err != nil {
 		return fmt.Errorf("response: seed the catalog: %w", err)
+	}
+	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.dropUnpublishable(ctx, tx) }); err != nil { // D-469, once per start
+		return fmt.Errorf("response: clean the block list: %w", err)
 	}
 	s.seeded = true
 	return nil

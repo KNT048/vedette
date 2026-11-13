@@ -7,13 +7,13 @@ Mitigation là phần **"What to do"** của một finding: gói giảm thiểu 
 ## Invariants
 - **INV-1**: "Đã áp dụng" chỉ ghi nhận cho CVE có gói đã xác nhận (400 `no_pack`), thêm `AppliedEntry {item, ts, user}` (mỗi item một lần), **không** đổi `status` của finding. (test ở WP-21, cần DB)
 - **INV-2**: Gói đáng tin (D-21): chỉ hiện "Vedette confirmed" khi gói có `status: confirmed`, `confirmed_by`, `confirmed_at`, `drafted_with`, `sources[]` và chữ ký hợp lệ của bản cập nhật; bộ nạp từ chối gói `draft` hoặc không ký. CVE không có gói ⇒ `pack:null` và UI hiện "no confirmed recommendation yet" + thông tin gốc KEV + nút "Ask my AI" chỉ khi AI dùng được.
-- **INV-3**: Kết quả AI luôn mang nhãn "AI generated", ghi `model`, `profile`, `tokens`, `citations`; không bao giờ hiện như khuyến nghị đã xác nhận (S-AI-6). `POST /findings/{id}/ai` khi chưa gán hồ sơ AI cho việc đó hoặc `ai` tắt → 409 `ai_unavailable`. `mitigation` không có công cụ ghi cho AI (SYS-8).
+- **INV-3**: Kết quả AI luôn mang nhãn "AI generated", ghi `model`, `profile`, `tokens`, `citations`; không bao giờ hiện như khuyến nghị đã xác nhận (S-AI-6). `POST /findings/{id}/ai` khi chưa gán hồ sơ AI cho việc đó hoặc `ai` tắt → 409 `ai_unavailable`; lỗi của chính lời gọi AI (`ai_cut_off`, `ai_bad_format`, `blocked_by_hook`, `provider_error`, `unreachable`, `ai_timeout`, `daily_cap`) được trả nguyên như module `ai` nói (D-481; trước đó mọi lỗi thành "No AI profile is assigned", beta 0.1.0-beta.1). `mitigation` không có công cụ ghi cho AI (SYS-8).
 - **INV-4**: Mỗi `CodeStep` có `side_effect` phải hiện trước khi người dùng sao chép lệnh; `{IP}`/`{HOST}` thay bằng giá trị thiết bị, đã escape (giá trị thiết bị là dữ liệu không tin cậy).
 - **INV-5**: `firewall[].detected=true` khi `inventory` có thiết bị của hãng đó.
 - **INV-6**: Dấu hiệu "Tôi đã bị chưa?" và lệnh kiểm tra chỉ là văn bản từ nội dung ký; Vedette không bao giờ chạy chúng.
 
 ## Preconditions / Postconditions
-- **PRE-1** (`Guidance(finding)`, nguồn của phần "What to do" trong `GET /findings/{id}`): finding tồn tại (do `findings` kiểm). **POST-1**: trả `pack`, `compromise`, `recheck`, `ai`, `ai_available {explain, config}`, `applied`; thiết bị thay vào `{IP}`/`{HOST}` theo INV-4.
+- **PRE-1** (`Guidance(finding)`, nguồn của phần "What to do" trong `GET /findings/{id}`): finding tồn tại (do `findings` kiểm). **POST-1**: trả `pack`, `compromise`, `recheck`, `ai`, `ai_available {explain, config}`, `applied`; thiết bị thay vào `{IP}`/`{HOST}` theo INV-4. `recheck` chung (gói không có) gọi thiết bị bằng `AssetView.Name` (không bao giờ id), không giả định trang quản trị, và chỉ nhắc "Rescan this device" khi thiết bị có IP (D-484, W1-32).
 - **PRE-2** (`POST /findings/{id}/applied`, `…/ai`): `operator`. **POST-2**: trả `FindingDetail` mới; thất bại không đổi gì.
 
 ## Forbidden

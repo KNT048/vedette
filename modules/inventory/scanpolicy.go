@@ -20,6 +20,10 @@ type ScanDecision struct {
 	// side). IP: the address the decision was made for, from the same read; zero when the decision is a refusal.
 	Careful bool
 	IP      netip.Addr
+	// Fragile, Unclassified and Never are set by ScanPolicy only, for every device that passed origin, address and scope: the device
+	// is fragile, its kind is still unknown, a person set regular_scan=never. sensor-active's identification for Scan now picks its
+	// scan shape from them, and refuses Never (D-501).
+	Fragile, Unclassified, Never bool
 }
 
 // Reasons of a ScanDecision.
@@ -36,7 +40,8 @@ const (
 	// fragile; nothing heavier than the gentle scan until passive data, the gentle scan's results or a person
 	// set its kind (D-84 (H1)).
 	ReasonUnclassifiedPassiveOnly = "unclassified_passive_only"
-	// ReasonBox: the machine Vedette runs on is never scanned (the sweep skips it too).
+	// ReasonBox: the machine Vedette runs on is not scanned on its own: never by sensor-active (discovery, sweeps) nor by a
+	// schedule or a KEV rescan; only a person's pick in Scan now scans it (VulnScanPolicy explicit, D-470).
 	ReasonBox = "box"
 	// ReasonRegularScanNever: a person chose "never" for this device, for any kind: after the one gentle scan
 	// it is passive only (conservative, like a per-asset "do not scan" in OT scanners; D-74).
@@ -67,15 +72,19 @@ func (s *Service) ScanPolicy(ctx context.Context, assetID string) (ScanDecision,
 	case !st.InScope(f.addr):
 		return deny(ReasonOutOfScope), nil
 	}
-	return afterScope(st, f.kind, f.fragile, f.regular, f.firstScan), nil
+	d := afterScope(st, f.kind, f.fragile, f.regular, f.firstScan)
+	d.Fragile, d.Unclassified, d.Never = f.fragile, f.kind == "unknown", f.regular == "never"
+	return d, nil
 }
 
 // VulnScanPolicy decides whether the vulnerability scanner (module scan) may probe a device (D-126). It is
 // ScanPolicy without the sensor-active switch (scan has its own) and with one more input: explicit, true when a
 // person picked this very device in "Scan now" (that pick is the consent, audited by the caller).
 //
-// Always refused: the box, no IP, scope not confirmed, outside lan_ranges or inside the exclusions, and
+// Always refused: no IP, scope not confirmed, outside lan_ranges or inside the exclusions, and
 // regular_scan=never (absolute here, even with explicit; the person changes the setting first).
+// The box itself is refused unless explicit (D-470): a person may scan it, nothing automatic does; picked, it goes through
+// the same checks as any device and runs at the normal rate.
 // A fragile device, an unclassified one (kind unknown) and one declared by hand are refused for schedules and the
 // KEV rescan (explicit=false), and allowed when explicit. Fragile and unclassified ones run at a quarter of the
 // configured rate (Active.Rate, packets per second, at least 1); a hand-declared one that is neither runs at the
@@ -131,7 +140,7 @@ func (s *Service) VulnScanPolicies(ctx context.Context, assetIDs []string, expli
 
 func decideVuln(f scanFacts, st Settings, explicit bool) ScanDecision {
 	switch {
-	case f.isBox:
+	case f.isBox && !explicit:
 		return deny(ReasonBox)
 	case !f.addr.IsValid():
 		return deny(ReasonNoIP)

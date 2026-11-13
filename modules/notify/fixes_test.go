@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"net/netip"
@@ -60,10 +61,19 @@ func (e *env) critical(id, product, cve string) {
 	}
 }
 
+// incident queues an incident notice: incidents stay one message each, vulnerability notices due together become one digest (D-483).
+func (e *env) incident(id string, sev notify.Severity) {
+	e.t.Helper()
+	if err := e.svc.Publish(e.ctx(), notify.Notice{ID: id, Kind: notify.KindIncident, IncidentKind: "trap", Severity: sev, Title: "192.168.10.107 touched the trap " + id,
+		What: "w", Action: "a", Link: "https://box.example:8443/incidents/" + id, At: e.clock.Now()}); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
 // ---- BaseURL ----
 
 func TestNoBaseURLMessagesCarryNoInventedLink(t *testing.T) {
-	e := newEnv(t, func(c *notify.Config) { c.BaseURL = "" })
+	e := newEnv(t, func(c *notify.Config) { c.BaseURL = nil })
 	e.telegram(notify.Low)
 	e.plain()
 	if _, _, err := e.svc.OpenIncident(e.ctx(), notify.IncidentInput{Kind: notify.IncidentTrap, Source: "s", Target: "t", Title: "x touched the trap", Severity: notify.Critical, Link: "/honeypot/hits/h1"}); err != nil {
@@ -87,7 +97,7 @@ func TestNoBaseURLMessagesCarryNoInventedLink(t *testing.T) {
 }
 
 func TestContract_PRE4_NoBaseURLNoApprovalRequest(t *testing.T) {
-	e := newEnv(t, func(c *notify.Config) { c.BaseURL = "" })
+	e := newEnv(t, func(c *notify.Config) { c.BaseURL = func() string { return "" } })
 	s := newFakeSMTP(t)
 	e.email(s, func(in *notify.ChannelInput) {
 		in.Approvals = true
@@ -267,8 +277,8 @@ func TestContract_INV6_CancelledRunKeepsItsRecordAndReturnsTheUnattempted(t *tes
 	}))
 	e.telegram(notify.Low)
 	e.plain()
-	e.critical("c1", "WordPress", "CVE-2026-31")
-	e.critical("c2", "QNAP", "CVE-2026-32")
+	e.incident("c1", notify.Critical)
+	e.incident("c2", notify.Critical)
 	ctx, c := context.WithCancel(e.ctx())
 	cancel = c
 	if err := e.svc.Flush(ctx); err == nil {
@@ -476,11 +486,9 @@ func TestDeliveryCriticalFirstAndBoundedPerRun(t *testing.T) {
 	e.telegram(notify.Low)
 	e.plain()
 	for i := range 25 {
-		if err := e.svc.Publish(e.ctx(), e.vulnNotice(fmt.Sprintf("h%d", i), fmt.Sprintf("Product%d", i), fmt.Sprintf("CVE-2026-9%02d", i), notify.High, "NAS-01")); err != nil {
-			t.Fatal(err)
-		}
+		e.incident(fmt.Sprintf("h%d", i), notify.High)
 	}
-	e.critical("late-critical", "Late", "CVE-2026-999")
+	e.incident("late-critical", notify.Critical)
 	e.flush()
 	calls := e.net.to("api.telegram.org")
 	if len(calls) != 20 || !strings.Contains(calls[0].Body, "Critical:") {
@@ -551,8 +559,8 @@ func TestSuppressedCountFollowsKEVAndFindingEvents(t *testing.T) {
 	}
 	e.clock.Add(4 * time.Minute)
 	e.flush()
-	if n := e.count(`SELECT COUNT(*) FROM notify_send WHERE kind = 'vuln'`); n != 2 {
-		t.Fatalf("vuln messages = %d (the finding and its confirmation)", n)
+	if n := e.count(`SELECT COUNT(*) FROM notify_send WHERE kind = 'vuln'`); n != 1 {
+		t.Fatalf("vuln messages = %d (the finding and its confirmation, due in the same run: one message, D-483)", n)
 	}
 }
 
@@ -693,5 +701,42 @@ func TestIncidentsListIsCappedAndEachHasItsOwnChildren(t *testing.T) {
 	})
 	if l, err = e.svc.Incidents(e.ctx()); err != nil || len(l) != 500 {
 		t.Fatalf("incidents = %d, %v", len(l), err)
+	}
+}
+
+// The weekly report counts a busy week whole (D-490 review M2: the incident list is capped at 500) and tells the failed-login
+// incidents apart; a "failed logins" incident of severity high had a login accepted in it.
+func TestIncidentsSinceCountsEveryClassBeyondTheListCap(t *testing.T) {
+	e := newEnv(t)
+	now := e.clock.Now()
+	add := func(id, kind, title, sev string, at time.Time) {
+		e.write(func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(e.ctx(), `INSERT INTO notify_incident (id, kind, title, link, severity, what, action, first_seen, last_seen, dedupe_key) VALUES (?, ?, ?, '/logs', ?, '', '', ?, ?, ?)`,
+				id, kind, title, sev, store.FormatTS(at), store.FormatTS(at), fmt.Sprintf("%064s", id))
+			return err
+		})
+	}
+	for i := range 600 {
+		add(fmt.Sprintf("bad-%d", i), "bad_address", "pc reached a known-bad address", "low", now.Add(-time.Hour))
+	}
+	add("t1", "trap", "Someone touched the SSH trap", "high", now.Add(-48*time.Hour))
+	add("f1", "log_anomaly", "5 failed logins from 45.1.1.1 on web in 10 minutes", "medium", now.Add(-2*time.Hour))
+	add("f2", "log_anomaly", "6 failed logins from 45.1.1.2 on web in 10 minutes", "high", now.Add(-3*time.Hour)) // a login got in
+	add("a1", "log_anomaly", "A login from 45.1.1.3 was ACCEPTED after 6 failed attempts on web", "high", now.Add(-4*time.Hour))
+	add("b1", "log_anomaly", "web: the certificate was ACCEPTED after renegotiation", "high", now.Add(-5*time.Hour)) // not the failed-login rule
+	add("b2", "log_anomaly", "A login from 45.1.1.9 was accepted after 3 failed attempts", "high", now.Add(-5*time.Hour))
+	add("b3", "log_anomaly", "web saw 5 failed logins from the app itself", "medium", now.Add(-5*time.Hour))
+	add("u1", "unknown_device", "A new unknown device appeared: cam", "medium", now.Add(-time.Hour))
+	add("old", "trap", "last month", "high", now.Add(-30*24*time.Hour))
+	w, err := e.svc.IncidentsSince(e.ctx(), now.Add(-7*24*time.Hour), 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]int{"bad_connection": 600, "trap": 1, "failed_logins": 1, "login_accepted": 2, "anomaly": 3}
+	if !maps.Equal(w.Counts, want) {
+		t.Fatalf("counts = %v, want %v", w.Counts, want)
+	}
+	if len(w.Top) != 3 || w.Top[0].Class != "login_accepted" || w.Top[1].Class != "login_accepted" || w.Top[2].Class != "trap" {
+		t.Fatalf("top = %+v", w.Top)
 	}
 }

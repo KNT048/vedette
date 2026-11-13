@@ -220,7 +220,7 @@ describe('box network: the page', () => {
   })
 
   describe('form matrix: interface role selector', () => {
-    it('each role shows only what belongs to it, and two management ports are refused', async () => {
+    it('each role shows only what belongs to it; another card is never offered Management (W2-7)', async () => {
       const u = user()
       await open()
       const table = screen.getByRole('table', { name: 'Network interfaces of the box' })
@@ -228,9 +228,9 @@ describe('box network: the page', () => {
       await eachOption([
         { option: 'unused', hidden: [/Exactly one interface must be/], shown: [/Listen only|No IP address \(listen only\)/] }, // eth1 is still the SPAN port
         { option: 'span', shown: ['No IP address (listen only)', 'Capture port'], hidden: [/Exactly one interface/] },
-        { option: 'management', shown: [/Exactly one interface must be the management interface; you set 2/], hidden: [] },
         { option: 'unused', hidden: [/Exactly one interface must be/] },
       ], async (o) => { await u.selectOptions(eth2(), o) })
+      expect(within(eth2()).getAllByRole('option').map((o) => o.textContent)).toEqual(['SPAN capture', 'Unused'])
       expect((await get()).interfaces.find((i: { name: string }) => i.name === 'eth2').role).toBe('unused')
       // the management row has no selector at all
       expect(within(table).queryByRole('combobox', { name: 'Role of eth0' })).not.toBeInTheDocument()
@@ -544,7 +544,11 @@ describe('box network: SPAN hidden for v1 (D-403)', () => {
     expect(screen.getByText('Where the box sits on your network: its ports, management address, Trap IPs and time source.')).toBeInTheDocument()
     expect(document.getElementById('span')).toBeNull()
     expect(document.getElementById('guides')).toBeNull()
-    for (const n of ['eth1', 'eth2']) expect(within(screen.getByRole('combobox', { name: `Role of ${n}` })).getAllByRole('option').map((o) => o.textContent)).toEqual(['Management', 'Unused'])
+    // W2-7: one clear role per row: Management for the management port, Unused as text for the others (no select reading "Management Unused")
+    const table = screen.getByRole('table', { name: 'Network interfaces of the box' })
+    expect(within(table).queryAllByRole('combobox')).toHaveLength(0)
+    for (const n of ['eth1', 'eth2']) expect(within(table).getByText(n).closest('tr')!.textContent).toMatch(/Unused/)
+    for (const n of ['eth1', 'eth2']) expect(within(table).getByText(n).closest('tr')!.textContent).not.toMatch(/Management/)
     expect(main().textContent).not.toMatch(/SPAN|mirror/i)
     await expectNoA11yViolations()
   })
@@ -562,13 +566,18 @@ describe('box network: SPAN hidden for v1 (D-403)', () => {
     expect(sec.queryByRole('button', { name: 'Save SPAN settings' })).toBeNull()
     expect(document.getElementById('guides')).toBeNull()
     const role = (n: string) => screen.getByRole('combobox', { name: `Role of ${n}` })
-    expect(within(role('eth1')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Management', 'SPAN capture', 'Unused'])
-    expect(within(role('eth2')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Management', 'Unused'])
+    expect(within(role('eth1')).getAllByRole('option').map((o) => o.textContent)).toEqual(['SPAN capture', 'Unused'])
+    // W2-7: a card that is not the SPAN port has one possible role, shown as text (no select whose options read "Management Unused")
+    const rowOf = (n: string) => within(screen.getByRole('table', { name: 'Network interfaces of the box' })).getByText(n).closest('tr')!
+    expect(screen.queryByRole('combobox', { name: 'Role of eth2' })).toBeNull()
+    expect(within(rowOf('eth2')).getByText('Unused')).toBeInTheDocument()
+    expect(rowOf('eth2').textContent).not.toContain('Management')
     await expectNoA11yViolations()
     await u.selectOptions(role('eth1'), 'unused')
     await waitFor(() => expect(document.getElementById('span')).toBeNull(), T)
     expect((await get()).span).toMatchObject({ enabled: false, interface: null })
-    expect(within(role('eth1')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Management', 'Unused'])
+    expect(screen.queryByRole('combobox', { name: 'Role of eth1' })).toBeNull()
+    expect(within(rowOf('eth1')).getByText('Unused')).toBeInTheDocument()
     expect(main().textContent).not.toMatch(/SPAN|mirror/i)
   })
 

@@ -16,11 +16,16 @@ import (
 // The tool loop (S-AI-5, INV-14, INV-21, D-211). The model is offered read tools only (ForModel); a call by any other name is refused
 // by Offered and nothing runs. Each call goes through the before_tool hooks on its arguments, runs under a deadline, and its result is
 // capped, run through the before-AI hooks on its own (a result a hook stops is replaced by a short note and the call goes on, as for
-// memory and knowledge pieces) and sent back as fenced data (WrapToolResult). The loop is bounded in turns, calls, bytes and time.
+// memory and knowledge pieces) and sent back as fenced data (WrapToolResult). The loop is bounded in turns, calls, bytes, input tokens
+// and time (D-211, D-482).
 const (
-	askMaxRounds       = 6                // turns in which tools run; the two after that only take an answer
-	askMaxTurns        = askMaxRounds + 2 // model turns in all
-	askMaxCalls        = 12               // tool calls of one question
+	askMaxRounds = 4                // turns in which tools run; the two after that only take an answer
+	askMaxTurns  = askMaxRounds + 2 // model turns in all
+	askMaxCalls  = 8                // tool calls of one question
+	// askInputBudget: every turn sends the whole conversation again, so the input of a question grows with each turn. After the first
+	// turn, the tools of a turn run only while the input spent so far plus twice that turn's own input (the next turn costs at least as
+	// much, and the answer after it as much again) stays within this; otherwise the model is told to answer from what it has.
+	askInputBudget     = 16_000
 	askMaxCallsPerTurn = 4
 	askMaxRecorded     = 24              // calls written to the activity row and the answer
 	askDefaultTimeout  = 2 * time.Minute // the whole question: every model turn and every tool
@@ -38,13 +43,15 @@ type toolSession struct {
 	// outcomes, read by the caller after the loop
 	calls []AskToolCall
 	acts  []ActivityTool
-	hits  []HookHit
+	hits  []AskHook // labelled with the step (tool call or tool result) and the tool
 	names []string
 	table *AskTable
 	cites []Citation
 	// bookkeeping
 	n         int // calls so far, refused ones too
 	bytesSent int
+	spent     bool // the input budget of the question allows no further tool turn (askInputBudget)
+	leftOut   bool // a call did not run, or its result was not sent, to keep within the budget of the question (tokens or bytes)
 }
 
 func (s *Service) newToolSession(ctx context.Context, job Job) *toolSession {
@@ -78,8 +85,8 @@ func (ts *toolSession) cite(title string) {
 	ts.cites = append(ts.cites, Citation{Title: title})
 }
 
-func (ts *toolSession) addHits(r HookResult) {
-	ts.hits = append(ts.hits, r.Hits...)
+func (ts *toolSession) addHits(r HookResult, step, tool string) {
+	ts.hits = append(ts.hits, stepHooks(step, tool, r.Hits)...)
 	ts.names = append(ts.names, r.Names()...)
 }
 
@@ -125,7 +132,8 @@ func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Pr
 	act := func(outcome string) *ActivityTool {
 		return &ActivityTool{Name: t.Name, Access: AccessRead, Args: argsNote(shownArgs, outcome)}
 	}
-	if turn >= askMaxRounds || ts.n > askMaxCalls || inTurn >= askMaxCallsPerTurn {
+	if turn >= askMaxRounds || ts.n > askMaxCalls || inTurn >= askMaxCallsPerTurn || ts.spent {
+		ts.leftOut = ts.leftOut || ts.spent
 		record("limit reached", act("skipped"))
 		return fail(refusedLimit)
 	}
@@ -154,7 +162,7 @@ func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Pr
 	}
 	cancel()
 	for _, r := range []HookResult{pii, pre} {
-		ts.addHits(r)
+		ts.addHits(r, StepToolCall, t.Name)
 	}
 	stopped := pii
 	if pii.Outcome != OutcomeBlocked && pii.Outcome != OutcomeHeld {
@@ -220,10 +228,10 @@ func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Pr
 	case err != nil:
 		return ts.withheld(res, record, act, "could not be checked in time", "the hooks")
 	case chk.Outcome == OutcomeBlocked || chk.Outcome == OutcomeHeld:
-		ts.addHits(chk)
+		ts.addHits(chk, StepToolResult, t.Name)
 		return ts.withheld(res, record, act, "was stopped by a rule of the company", hookNameList(chk))
 	case chk.Outcome == OutcomeMasked:
-		ts.addHits(chk)
+		ts.addHits(chk, StepToolResult, t.Name)
 		outcome, summary = "masked", out.Summary+" (masked by a hook)"
 		text = chk.Text
 	}
@@ -231,11 +239,12 @@ func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Pr
 	wrapped, wr, err := WrapToolResult(hctx, hooks, prompt, t.Name, text)
 	cancel()
 	if err != nil || wr.Outcome == OutcomeBlocked || wr.Outcome == OutcomeHeld {
-		ts.addHits(wr)
+		ts.addHits(wr, StepToolResult, t.Name)
 		return ts.withheld(res, record, act, "could not be passed on safely", "the hooks")
 	}
-	ts.addHits(wr)
+	ts.addHits(wr, StepToolResult, t.Name)
 	if ts.bytesSent+len(wrapped) > askTotalBytes {
+		ts.leftOut = true
 		record("size limit reached", act("skipped"))
 		return fail("The total size of tool results for this question was reached, so this result was not sent. Answer from what you have.")
 	}
@@ -339,6 +348,9 @@ func (s *Service) converse(ctx context.Context, spec JobSpec, hooks *HookRunner,
 		res, err := s.router.Call(lctx, spec.Job, req)
 		attempts, down = append(attempts, res.Attempts...), firstDowngrade(down, res.Downgrade)
 		if err != nil {
+			// a turn cut at the limit whose retry could not be made still spent its tokens
+			usage.InputTokens += res.Response.Usage.InputTokens
+			usage.OutputTokens += res.Response.Usage.OutputTokens
 			if lctx.Err() != nil && ctx.Err() == nil {
 				err = errAskDeadline
 			}
@@ -348,12 +360,16 @@ func (s *Service) converse(ctx context.Context, spec JobSpec, hooks *HookRunner,
 		usage.OutputTokens += res.Response.Usage.OutputTokens
 		last = res
 		calls := res.Response.ToolCalls
+		if res.Response.Stop == provider.StopMaxTokens { // cut at the output limit even after the router's retry: the calls in it may be
+			return merged(), nil // half written, so none runs; RunJob names the cut answer
+		}
 		if len(calls) == 0 || (turn >= askMaxTurns-1 && strings.TrimSpace(res.Response.Text) != "") {
 			return merged(), nil
 		}
 		if turn == askMaxTurns-1 {
 			return merged(), ErrBadOutput // the last turn still asks for tools and says nothing
 		}
+		ts.spent = turn > 0 && usage.InputTokens+2*res.Response.Usage.InputTokens > askInputBudget
 		msgs = append(msgs, provider.Message{Role: provider.RoleAssistant, Text: res.Response.Text, ToolCalls: calls, Raw: res.Response.Raw})
 		results := make([]provider.ToolResult, 0, len(calls))
 		for i, tc := range calls {

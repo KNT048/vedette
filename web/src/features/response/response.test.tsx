@@ -20,6 +20,7 @@ import { RequestCard } from './RequestCard'
 import { RuleDialog } from './RuleEditor'
 import { actionsStore, buildChange, catalogStore, identityStore } from './state'
 import { newLinkToken } from './identity'
+import { telegramMessagesForTest } from '@/features/notify/mocks'
 
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
 const PROPOSAL = 'pr-f-1-nas-photo-443'
@@ -437,22 +438,24 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     return (await request()).json.id
   }
 
-  it('a press from a listed ID that is not linked decides nothing and answers a private code; the person links it in My account', async () => {
+  it('Telegram: a press from a listed ID that is not linked decides nothing and holds no code; the person confirms the link signed in (D-414)', async () => {
     const id = await unlinkedChat()
     const r = await tg(id, '555')
     expect(r.status).toBe(403)
     expect(r.code).toBe('approver_not_linked')
-    const code = codeOf(r.json.error!.message)!
-    expect(code).toMatch(/^\d{6}$/)
+    expect(codeOf(r.json.error!.message)).toBeUndefined()
+    expect(r.json.error!.message).toMatch(/Open the link Vedette sent/)
     expect((await getAction(id)).approvals).toHaveLength(0)
     expect((await getAction(id)).status).toBe('pending')
-    expect((await logList()).map((l) => l.detail).join('\n')).not.toContain(code) // the log never holds the code
-    expect((await ids('operator')).find((r) => r.channel === 'telegram')).toEqual(expect.objectContaining({ address: '555', linked: false, method: 'chat_code', code_waiting: true }))
-    expect((await confirm('admin', 'telegram', code)).code).toBe('no_code') // the code is bound to the listed person, not to whoever types it
-    expect((await confirm('operator', 'telegram', code)).status).toBe(200)
+    expect((await ids('operator')).find((r) => r.channel === 'telegram')).toEqual(expect.objectContaining({ address: '555', linked: false, method: 'send_code' }))
+    const made = newLinkToken('u-op', 'telegram', '555')
+    if (!('token' in made)) throw new Error(made.message)
+    expect((await confirm('admin', 'telegram', made.token)).code).toBe('other_account') // another signed-in person: refused, the link stays good
+    expect(auditActions()).toContain('response.identity_link_refused')
+    expect((await confirm('operator', 'telegram', made.token)).status).toBe(200)
     expect(auditActions()).toContain('response.identity_link')
     expect((await ids('operator')).find((r) => r.channel === 'telegram')).toMatchObject({ linked: true, code_waiting: false })
-    expect((await confirm('operator', 'telegram', code)).code).toBe('no_code') // single use
+    expect((await confirm('operator', 'telegram', made.token)).code).toBe('no_code') // single use
     const ok = await tg(id, '555')
     expect(ok.status).toBe(200)
     expect(ok.json.approvals[0]!.via).toBe('telegram')
@@ -465,9 +468,8 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     renderApp('/account', { role: 'operator' })
     const card = await screen.findByRole('region', { name: 'Approval channels' })
     const row = (await within(card).findByText('2938475610293847561')).closest('li')!
-    expect(within(row).queryByLabelText('Code')).toBeNull()
-    expect(within(row).queryByRole('button')).toBeNull() // status only: the link comes to the Zalo account when an administrator saves
-    expect((await call('operator', 'POST', '/response/me/identities/zalo-personal/code')).code).toBe('chat_channel')
+    expect(within(row).queryByLabelText('Code')).toBeNull() // status and Send again only: the link comes to the Zalo account (D-414)
+    expect(within(row).getByRole('button', { name: 'Send again' })).toBeInTheDocument()
     const made = newLinkToken('u-op', 'zalo-personal', '2938475610293847561')
     if (!('token' in made)) throw new Error(made.message)
     expect((await confirm('admin', 'zalo-personal', made.token)).code).toBe('other_account') // another signed-in person: the link stays good
@@ -484,23 +486,32 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     expect(codeOf(r.json.error!.message)).toBeUndefined()
   })
 
-  it('five wrong codes cancel it; a new press replaces it; at most 5 codes an hour', async () => {
-    const id = await unlinkedChat()
-    const first = codeOf((await tg(id, '555')).json.error!.message)!
-    const wrong = first === '000000' ? '111111' : '000000'
-    for (let i = 0; i < 4; i++) expect((await confirm('operator', 'telegram', wrong)).code).toBe('wrong_code')
-    expect((await confirm('operator', 'telegram', 'abc')).code).toBe('invalid_code')
-    expect((await confirm('operator', 'telegram', wrong)).code).toBe('too_many_tries')
-    expect((await confirm('operator', 'telegram', first)).code).toBe('no_code')
-    for (let i = 0; i < 4; i++) expect(codeOf((await tg(id, '555')).json.error!.message)).toMatch(/^\d{6}$/)
-    const capped = await tg(id, '555')
-    expect(capped.code).toBe('approver_not_linked')
-    expect(codeOf(capped.json.error!.message)).toBeUndefined()
+  it('Telegram: My account shows Not linked and Send again; the bot sends a new link; the confirm page links it (D-414)', async () => {
+    await unlinkedChat()
+    renderApp('/account', { role: 'operator' })
+    const card = await screen.findByRole('region', { name: 'Approval channels' })
+    const row = (await within(card).findByText('555')).closest('li')!
+    expect(within(row).getByText('Not linked')).toBeInTheDocument()
+    expect(within(row).queryByLabelText('Code')).toBeNull()
+    expect(within(row).queryByRole('alert')).toBeNull() // no red error before anything is done
+    const before = telegramMessagesForTest().length
+    await userEvent.click(within(row).getByRole('button', { name: 'Send again' }))
+    expect(await within(row).findByText('Waiting')).toBeInTheDocument()
+    const msg = telegramMessagesForTest()[before]!
+    expect(msg.to).toBe('555')
+    const path = /https:\/\/[^/]+(\/link\/telegram\?c=\S+)/.exec(msg.text)![1]!
+    expect(auditActions()).toContain('notify.telegram_link_code')
+    renderApp(path, { role: 'operator' })
+    expect(await screen.findByText(/^Link Telegram account 555 to your Vedette user /)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    expect(await screen.findByText(/Linked\. Telegram user ID 555 now counts as you/)).toBeInTheDocument()
   })
 
   it('a changed ID or an unlink drops the proof', async () => {
     const id = await unlinkedChat()
-    await confirm('operator', 'telegram', codeOf((await tg(id, '555')).json.error!.message)!)
+    const made = newLinkToken('u-op', 'telegram', '555')
+    if (!('token' in made)) throw new Error(made.message)
+    expect((await confirm('operator', 'telegram', made.token)).status).toBe(200)
     collection<unknown>('notify_channels', () => []).set(TG('556')) // the administrator changed the ID; the stored proof is still for 555
     expect((await tg(id, '556')).code).toBe('approver_not_linked')
     collection<unknown>('notify_channels', () => []).set(TG())
@@ -536,10 +547,12 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     expect((await call('operator', 'POST', '/response/me/identities/email/code')).code).toBe('address_mismatch')
   })
 
-  it('a channel that is off lists nobody; chat channels have no send button; viewers have no identities', async () => {
+  it('a channel that is off lists nobody; Send again on a chat channel sends a new confirm link (D-414); viewers have no identities', async () => {
     setChannels([{ type: 'email', configured: true, enabled: false, approvals: true, approvers: [{ user_id: 'u-op', address: 'it@acme.example' }] }, { type: 'telegram', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: '42' }] }], false)
     expect((await call('operator', 'POST', '/response/me/identities/email/code')).code).toBe('not_listed')
-    expect((await call('operator', 'POST', '/response/me/identities/telegram/code')).code).toBe('chat_channel')
+    const again = await call<{ sent_to: string }>('operator', 'POST', '/response/me/identities/telegram/code')
+    expect(again.json.sent_to).toBe('Telegram 42')
+    expect((await call('operator', 'POST', '/response/me/identities/telegram/code')).code).toBe('resend_too_soon')
     expect((await call('viewer', 'GET', '/response/me/identities')).status).toBe(403)
   })
 
@@ -547,20 +560,6 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     await turnOn(); mapChat(); identityStore.set([])
     const v = await call<SettingsView>('admin', 'GET', '/response/settings')
     expect(v.json.channels.find((c) => c.type === 'slack')).toMatchObject({ approvers: 2, linked: 0, unlinked: ['IT Operator', expect.any(String)] })
-  })
-
-  it('My account: an operator links a chat ID with the code from the press', async () => {
-    const id = await unlinkedChat()
-    const code = codeOf((await tg(id, '555')).json.error!.message)!
-    const u = userEvent.setup()
-    renderApp('/account', { role: 'operator' })
-    const card = await screen.findByRole('region', { name: 'Approval channels' })
-    const row = (await within(card).findByText('555')).closest('li')!
-    expect(within(row).getByText('Not linked')).toBeTruthy()
-    await u.type(within(row).getByLabelText('Code'), code)
-    await u.click(within(row).getByRole('button', { name: 'Link' }))
-    expect(await within(row).findByText('Linked')).toBeTruthy()
-    expect(within(row).getByRole('button', { name: 'Unlink' })).toBeTruthy()
   })
 
   it('My account: no card for a viewer', async () => {
@@ -889,11 +888,11 @@ describe('response: AI requests, server-side gates (D-51)', () => {
 
   it('only open findings count as evidence', async () => {
     await setup()
-    expect((await propose({ trigger: 'finding', params: { ip: '192.168.10.21' }, evidence: [{ kind: 'finding', id: 'f-1' }] })).status).toBe(201)
+    expect((await propose({ trigger: 'finding', action_id: 'fgt_addrgrp_add', params: { ip: '192.168.10.21' }, evidence: [{ kind: 'finding', id: 'f-1' }] })).status).toBe(201)
     await call('operator', 'POST', `/response/actions/${(await pendingOf())[0]!.id}/reject`, { reason: 'x' })
     const { findingsStore } = await import('@/mocks/stores')
     findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'false_positive' as const } : f)))
-    expect((await propose({ trigger: 'finding', params: { ip: '192.168.10.21' }, evidence: [{ kind: 'finding', id: 'f-1' }] })).code).toBe('evidence_invalid')
+    expect((await propose({ trigger: 'finding', action_id: 'fgt_addrgrp_add', params: { ip: '192.168.10.21' }, evidence: [{ kind: 'finding', id: 'f-1' }] })).code).toBe('evidence_invalid')
   })
 
   it('a never-touch address is refused for the device of every cited finding; a port action needs a finding for its subject (D-119)', async () => {
@@ -1277,6 +1276,35 @@ describe('response: block list (pull)', () => {
     await call('admin', 'POST', '/response/blocklist/token')
     expect((await fetch(`${location.origin}${path}`)).status).toBe(404)
   })
+
+  it('a block on an address the list never publishes is refused when it is planned, with not_publishable and a refused line (D-469)', async () => {
+    iocHits(['192.168.1.5'])
+    const priv = { action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 60 }
+    const tell = { action_id: 'msg_send', params: { text: 'Bad connection from {{trigger.device}}' }, ttl_min: null }
+    // a fixed private address is refused when the rule is saved (or simulated); a trigger field only when it runs
+    const fixed = { ...RULE, actions: [{ ...priv, params: { ip: '192.168.1.5' } }] }
+    expect([(await addRule(fixed)).code, (await call('operator', 'POST', '/response/rules/simulate', { rule: fixed })).code]).toEqual(['not_publishable', 'not_publishable'])
+    const sim = await call<Simulation>('operator', 'POST', '/response/rules/simulate', { rule: { ...RULE, actions: [priv] } })
+    expect(sim.status).toBe(200)
+    expect(sim.json.steps[0]!.error).toMatch(/^192\.168\.1\.5 is not a public address .*Nothing was changed\.$/)
+    // a live rule "block + tell": the block is dropped with its refused line, the message is still asked for
+    const rule = await liveRule({ conditions: [{ field: 'dest_kind', op: 'eq', value: 'ip', n: null, window_min: null }], actions: [priv, tell] })
+    await onlyRule(rule.id)
+    const sum = await run()
+    expect(sum.refused).toBeGreaterThan(0)
+    const mine = (await list<ActionRequest>('operator', '/response/actions')).filter((a) => a.rule_id === rule.id)
+    expect(mine.length).toBeGreaterThan(0)
+    expect(mine.flatMap((a) => a.items.map((i) => i.action_id))).toEqual(mine.map(() => 'msg_send'))
+    expect((await logList()).some((e) => e.kind === 'refused' && /^not_publishable: .*192\.168\.1\.5 is not a public address/.test(e.detail))).toBe(true)
+    // an AI proposal, for the ranges the box's type check lets through to this gate; a public one still passes it
+    await saveSettings({ ai: { triggers: ['ioc_connection', 'finding'], budget_hour: 20, budget_day: 100 } })
+    for (const ip of ['10.0.0.5', '172.16.4.4', '100.64.0.1', '192.0.0.8', '198.18.0.1']) {
+      const r = await propose({ params: { ip } })
+      expect([r.status, r.code], ip).toEqual([409, 'not_publishable'])
+    }
+    expect((await propose({ params: { ip: '100.128.0.1' } })).code).not.toBe('not_publishable')
+    expect((await call<Blocklist>('admin', 'GET', '/response/blocklist')).json.entries.map((e) => e.value)).not.toContain('192.168.1.5')
+  })
 })
 
 describe('response: tamper-evident log (D-48)', () => {
@@ -1359,6 +1387,15 @@ describe('response: screens', () => {
     expect(screen.getAllByText('Pre-approved, no person').length).toBeGreaterThan(0)
   })
 
+  it('the high-risk banner counts the waiting requests in words, never a raw {{count}} (walk-1 W1-17)', async () => {
+    await turnOn()
+    const pending = (await list<ActionRequest>('admin', '/response/actions')).filter((a) => a.status === 'pending').length
+    renderApp('/response')
+    const banner = (await screen.findByText('High-risk mode is on')).parentElement!
+    expect(banner.textContent).not.toContain('{{')
+    expect(banner).toHaveTextContent(pending === 1 ? '1 request is waiting.' : `${pending} requests are waiting.`)
+  })
+
   it('Requests tab: pending bundled request with pick boxes, AI request with evidence, and the AI plan with its off-state message', async () => {
     renderApp('/response#requests')
     expect(await screen.findByText('Block 91.92.240.12 and tell the team')).toBeInTheDocument()
@@ -1416,6 +1453,19 @@ describe('response: screens', () => {
     expect(screen.getByRole('button', { name: 'Regenerate token' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('tab', { name: 'Log' }))
     expect(await screen.findByText('Chain verified')).toBeInTheDocument()
+  })
+
+  it('an empty Block list says what fills it, that it holds public addresses only, and links to the template that is off (D-469)', async () => {
+    actionsDb.set([])
+    renderApp('/response#blocklist')
+    expect(await screen.findByText('Nothing is blocked right now.')).toBeInTheDocument()
+    expect(screen.getByText(/^Only approved "block" actions add addresses here/)).toBeInTheDocument()
+    expect(screen.getByText(/^Only public addresses are published\. A block on a private or reserved address/)).toBeInTheDocument()
+    expect(screen.getByText(/"Known-bad connection: add the destination to the block list" ships switched off/)).toBeInTheDocument()
+    expect((await screen.findAllByText(/:8443\/api\/v1\/response\/blocklist\//)).length).toBeGreaterThan(0) // the address row stays, so the firewall can be set up first
+    await userEvent.click(screen.getByRole('link', { name: 'Turn it on: Rules, Template gallery' }))
+    expect(await screen.findByRole('heading', { name: 'Template gallery' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Rules', selected: true })).toBeInTheDocument()
   })
 
   it('finding page shows the response plan through the slot', async () => {

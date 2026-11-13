@@ -249,7 +249,7 @@ func TestSchedule_Slots(t *testing.T) {
 	t.Parallel()
 	c := Settings{Window: Window{Days: []int{1, 2, 3, 4, 5}, From: "22:00", To: "05:00"}, Schedule: Schedule{Enabled: true, Frequency: "weekly", Weekday: 5, At: "23:00"}}
 	mon := time.Date(2026, 11, 16, 1, 0, 0, 0, time.UTC) // Monday 01:00
-	if s := c.lastSlot(mon, time.UTC); s == nil || !s.Equal(time.Date(2026, 11, 13, 23, 0, 0, 0, time.UTC)) {
+	if s := c.lastSlot(mon, time.UTC, false); s == nil || !s.Equal(time.Date(2026, 11, 13, 23, 0, 0, 0, time.UTC)) {
 		t.Fatalf("last weekly slot: %v", s)
 	}
 	// the Friday 23:00 slot belongs to Friday's window, which closes on Saturday 05:00

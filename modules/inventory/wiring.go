@@ -73,6 +73,7 @@ type MatchSoftware struct {
 type MatchDevice struct {
 	ID       string
 	Name     string // hostname, else the IP, else the id
+	OS       string // the current operating system ("Ubuntu 26.04.1 LTS"), "" when unknown (D-500: OS-level NVD entries)
 	Software []MatchSoftware
 }
 
@@ -84,6 +85,11 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 		return MatchDevice{}, false, err
 	}
 	d = MatchDevice{ID: id, Name: deviceName(ctx, q, id), Software: []MatchSoftware{}}
+	var osName sql.NullString
+	if err := q.QueryRowContext(ctx, `SELECT os FROM inv_asset WHERE id = ?`, id).Scan(&osName); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return MatchDevice{}, false, fmt.Errorf("inventory: read device OS: %w", err)
+	}
+	d.OS = osName.String
 	rows, err := q.QueryContext(ctx, `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.version, ''), ifnull(s.cpe, ''), k.kev_key
 		FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id WHERE s.asset_id = ? ORDER BY s.display, s.id, k.kev_key`, id)
 	if err != nil {
@@ -464,8 +470,10 @@ func (s *Service) Settle(ctx context.Context, tx *sql.Tx, committed bool) {
 	s.publish(ctx, events)
 }
 
-// RematchAll announces inventory.match.changed for every device and CVE that match now (D-78: after a baseline
-// pull, or when matching must be recomputed from scratch). It returns how many events it published.
+// RematchAll announces inventory.match.changed once for every device with software keyed to a CISA entry (D-78: after
+// a baseline pull, or when matching must be recomputed from scratch, e.g. the first NVD fill of D-500). The event names
+// the device's first CVE; findings matches the whole device on it (review H3: one event per device, not per device and
+// CVE, so a rematch of hundreds of devices fits its deadline). It returns how many events it published.
 func (s *Service) RematchAll(ctx context.Context) (int, error) {
 	if s.kev == nil {
 		return 0, nil
@@ -500,12 +508,54 @@ func (s *Service) RematchAll(ctx context.Context) (int, error) {
 		if err != nil {
 			return n, err
 		}
-		for _, cve := range slices.Compact(slices.Sorted(slices.Values(cves))) {
-			s.publish(ctx, []Event{{Name: EventMatchChanged, Data: MatchEvent{AssetID: id, CVE: cve, Basis: "product"}}})
-			n++
+		if len(cves) == 0 {
+			continue
 		}
+		s.publish(ctx, []Event{{Name: EventMatchChanged, Data: MatchEvent{AssetID: id, CVE: slices.Min(cves), Basis: "product"}}})
+		n++
 	}
 	return n, nil
+}
+
+// KevRef names a CISA entry by its CVE and its vendor and product.
+type KevRef struct{ CVE, Vendor, Product string }
+
+// RematchMany announces inventory.match.changed once for every device that runs the product of one of refs (a
+// "Multiple products" entry: any product of its vendor), naming the first such CVE. D-500 review H3: after an NVD
+// update of a few CVEs only their devices are matched again, each once. It returns how many events it published.
+func (s *Service) RematchMany(ctx context.Context, refs []KevRef) (int, error) {
+	if s.kev == nil {
+		return 0, nil
+	}
+	first := map[string]string{}
+	var order []string
+	for _, r := range refs {
+		ids, err := s.devicesOf(ctx, r.Vendor, r.Product)
+		if err != nil {
+			return 0, err
+		}
+		for _, id := range ids {
+			if c, ok := first[id]; !ok || r.CVE < c {
+				if !ok {
+					order = append(order, id)
+				}
+				first[id] = r.CVE
+			}
+		}
+	}
+	for _, id := range order {
+		s.publish(ctx, []Event{{Name: EventMatchChanged, Data: MatchEvent{AssetID: id, CVE: first[id], Basis: "product"}}})
+	}
+	return len(order), nil
+}
+
+// devicesOf lists the devices with software keyed to vendor|product, or to any product of vendor for "Multiple products".
+func (s *Service) devicesOf(ctx context.Context, vendor, product string) ([]string, error) {
+	vendor, product = strings.ToLower(vendor), strings.ToLower(product)
+	prefix := vendor + "|"
+	multi := strings.TrimSpace(product) == multiProducts
+	return s.assetIDs(ctx, `SELECT DISTINCT s.asset_id FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id
+		WHERE k.kev_key = ? OR k.kev_key = ? OR (? = 1 AND substr(k.kev_key, 1, ?) = ?)`, prefix+product, prefix+multiProducts, boolInt(multi), len(prefix), prefix)
 }
 
 // RematchCVE announces inventory.match.changed for the devices that run the product of a CVE feeds has just
@@ -522,11 +572,7 @@ func (s *Service) RematchCVEExcept(ctx context.Context, cve, vendor, product str
 	if s.kev == nil {
 		return 0, nil
 	}
-	vendor, product = strings.ToLower(vendor), strings.ToLower(product)
-	prefix := vendor + "|"
-	multi := strings.TrimSpace(product) == multiProducts
-	ids, err := s.assetIDs(ctx, `SELECT DISTINCT s.asset_id FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id
-		WHERE k.kev_key = ? OR k.kev_key = ? OR (? = 1 AND substr(k.kev_key, 1, ?) = ?)`, prefix+product, prefix+multiProducts, boolInt(multi), len(prefix), prefix)
+	ids, err := s.devicesOf(ctx, vendor, product)
 	if err != nil {
 		return 0, err
 	}

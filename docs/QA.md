@@ -57,5 +57,30 @@ Lần kiểm độc lập 2026-11-09 còn thêm ba lỗi chung: hộp thoại đ
 | Settings → Box network → Hướng dẫn mirror (ẩn trong v1, D-403) | hãng switch (8 mục) | 2026-11-12, người kiểm độc lập (AI-Mlee QA): đủ 8 mục, mỗi mục có chip mức kiểm chứng, lệnh / bước và tên cổng SPAN thật (eth1); liên kết nguồn mở tab mới (TAP không có nguồn, đúng); về "Choose your switch" hiện lại lời nhắc; viewer vẫn xem được; không cuộn ngang trên điện thoại; tối đạt Lần kiểm trước: 2026-11-09, như trên. |
 | Devices → Scope and sensors → Sensor on this box | hộp thoại chỉ đọc: trạng thái SPAN + liên kết sang Box network | 2026-11-12, người kiểm độc lập (AI-Mlee QA): hộp thoại chỉ đọc (không ô nhập), SPAN đang nhận / tắt hiện đúng, liên kết sang Box network đóng hộp thoại; nút đóng 40 px trên điện thoại. Nhỏ: nút và tiêu đề "Configure" cho một hộp thoại không cấu hình được gì Lần kiểm trước: 2026-11-09, như trên. |
 
-## 5. Tốc độ không bỏ được bước 2–3
-Khi kien muốn ship nhanh: được bỏ chạy lại toàn bộ E2E, được bỏ test hồi quy rộng; **không** được bỏ ma trận form và kịch bản cho màn hình vừa làm.
+## 5. Kiểm như khách (customer walk, D-413)
+Lập 2026-11-13: trong một giờ dùng bản beta kien tìm ra khoảng 26 lỗi mà các bước 1–4 bỏ lọt. Lý do: ta kiểm **màn hình theo spec**, không kiểm **mục tiêu theo kết quả** (form "Explain" đạt ma trận nhưng với khoá thật mọi câu trả lời bị cắt); mock và giả khắp nơi (AI, Zalo, Telegram, kéo firewall, OAuth), hộp thật đi với AI tắt; người kiểm có mã và spec nên biết chỗ giấu và chấp nhận luồng "đúng thiết kế" mà khách không dùng được; dữ liệu rỗng hoặc rất nhỏ; một thông báo "thành thật" được tính là đạt dù khách không nhận được gì; mỗi agent chỉ kiểm phần của mình, không ai đi trọn đường cài → giá trị. Bước này bổ sung, không thay các bước 1–4. Một tính năng chỉ **xong** khi hành trình của nó đạt ở đây (`.claude/rules/local-checks.md`).
+
+- **Ở đâu**: một hộp thật trên một mạng LAN thật (hộp thử N100 của dự án), cài bằng đúng dòng `curl` cho khách của bản release candidate. Tích hợp thật với tài khoản thử: khoá AI thử của kien (model rẻ; agent không bao giờ in khoá), bot/chat Telegram thử, hộp thư SMTP thử; Zalo và OAuth chỉ khi kien có mặt.
+- **Ai**: một agent **không có repo, không có spec**: chỉ trình duyệt (Playwright từ máy Mac) + README/INSTALL công khai. Vai: quản trị IT của một công ty Việt Nam 50 người, không chuyên bảo mật, thiếu kiên nhẫn. Người làm ≠ người đi.
+- **Đi gì**: hành trình lấy từ **khái niệm sản phẩm**, không từ màn hình: mọi khả năng ta quảng cáo đều có hành trình; khách tới với nhu cầu đó, tự tìm tính năng và thử dùng. Danh mục dựng từ `docs/PRODUCT.md`, `docs/MODULES.md` và phần tóm tắt `MANIFEST.yaml` của từng module: **mỗi module tính năng ít nhất một hành trình "Tôi muốn …"**, kèm các bước khách sẽ thử và một phép kiểm **kết quả ngoài giao diện** khi làm được. Danh mục khởi đầu:
+  - inventory + sensor-passive: thấy mọi thiết bị trong LAN, biết mỗi cái là gì (loại, hãng, model, firmware);
+  - sensor-active / scan / scan-credentialed: "quét lỗ hổng thiết bị của tôi" → tìm ra phần mềm/firmware thật, CVE đúng với phiên bản thật, không có CVE mà bản hiện tại không thể có;
+  - findings + mitigation: hiểu phát hiện rủi ro nhất và xử lý nó; dọn phát hiện sau khi vá (hàng loạt);
+  - feeds: thấy CVE đang bị khai thác khớp thiết bị của tôi, từ nguồn tôi xem/thêm được;
+  - exposure: "quét IP/tên miền công khai của tôi" → dịch vụ, phiên bản, lỗ hổng thật, không chỉ cổng;
+  - honeypot: dựng IP bẫy trông như thật, chạm vào nó từ laptop → incident + cảnh báo; honey token;
+  - response: để quy tắc/AI đề xuất hành động, duyệt, hành động xảy ra thật (danh sách chặn trên firewall, hành động đẩy);
+  - notify: Telegram / Slack / email (SMTP + OAuth) / Zalo OA / Zalo cá nhân / webhook: cảnh báo tới nơi thật; người duyệt được liên kết và duyệt được;
+  - logs: gửi syslog từ một thiết bị, thấy nó, nhận bất thường/bản tóm tắt;
+  - ai: thêm hồ sơ (OpenCode, Claude, local), giải thích một phát hiện, hỏi về mạng của tôi, AI đề xuất phản ứng;
+  - agent-intake: cài osquery lên một máy chủ (tìm bản tải, một lệnh) → danh sách phần mềm; nối Wazuh;
+  - reports: báo cáo tuần tới nơi và có nghĩa; mcp-server: dùng Vedette từ một MCP client;
+  - core/auth/auth-oidc: cài đặt lần đầu, người dùng và vai trò, 2FA bằng Google Authenticator, đăng nhập SSO;
+  - host/updates: mạng của hộp, kiểm cập nhật, sao lưu/khôi phục, gỡ cài đặt để hộp sạch.
+- **Ghi gì**: ghi **kết quả**, không ghi màn hình. Mỗi mục tiêu: xong/chưa xong, số phút, mọi đường cụt, chữ khó hiểu, chờ > 2 phút, thông báo "chưa có", số sai, chữ giữ chỗ; ảnh chụp + thời điểm. Mục tiêu kết thúc bằng một câu "không có sẵn" thành thật **không** phải là đạt.
+- **Rà sức khoẻ sau lượt đi** (chỉ đọc, trên hộp): dòng nhật ký chạy AI báo sai định dạng/lỗi; tin notify "Not sent"; mục danh sách chặn; incident so với thiết bị; "—"/unknown trong bảng; ERROR/WARN trong journal của core/host; container khởi động lại; đĩa/RAM. Mỗi chỗ trúng là một phát hiện.
+- **Lượt quy mô**: một bản cài container được nạp 500 thiết bị và phát hiện giống thật: danh sách, chọn tất cả, bộ lọc, thao tác hàng loạt, phân trang, tốc độ.
+- **Khi nào**: mỗi release candidate và sau mỗi đợt sửa; phát hiện gom thành lô gửi supervisor, supervisor chia nhóm; người làm ≠ người đi.
+
+## 6. Tốc độ không bỏ được bước 2–3 và 5
+Khi kien muốn ship nhanh: được bỏ chạy lại toàn bộ E2E, được bỏ test hồi quy rộng; **không** được bỏ ma trận form và kịch bản cho màn hình vừa làm, và không được bỏ lượt kiểm như khách trước một release candidate.

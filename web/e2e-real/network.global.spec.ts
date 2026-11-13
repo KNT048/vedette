@@ -85,7 +85,7 @@ test('a viewer and an operator read the page and cannot change it', async ({ bro
     const page = await ctx.newPage()
     await page.goto('/settings/network')
     await expect(save(page)).toBeDisabled()
-    await expect(page.getByRole('combobox', { name: 'Role of eth1' })).toBeDisabled()
+    if (SPAN_IN_UI) await expect(page.getByRole('combobox', { name: 'Role of eth1' })).toBeDisabled() // v1 (D-403): an unused card's role is text, W2-7
     await ctx.close()
     await c.dispose()
   }

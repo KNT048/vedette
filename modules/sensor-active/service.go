@@ -81,6 +81,25 @@ type Service struct {
 
 	mu  sync.Mutex
 	cur *running // the job holding runMu, for SettingsChanged
+	// firstUntil is set while the first pass of a new box runs (firstPass, D-501): until then the window counts as open. Zero otherwise.
+	firstUntil time.Time
+}
+
+// firstPassFor bounds the first pass: it may run outside the window for at most this long; a sweep it did not finish goes on from
+// its cursor in the next window.
+const firstPassFor = time.Hour
+
+// windowNow is the window rule of every automatic run (INV-3): whether the window is open now, and when it ends. While the
+// first pass of a new box runs it is open until firstUntil (D-501).
+func (s *Service) windowNow(st Settings) (end time.Time, ok bool) {
+	s.mu.Lock()
+	until := s.firstUntil
+	s.mu.Unlock()
+	if s.clock().Before(until) {
+		return until, true
+	}
+	_, end, ok = st.window(s.local())
+	return end, ok
 }
 
 type running struct {
@@ -90,6 +109,9 @@ type running struct {
 	deadline time.Time    // when the run in progress stops by itself: the end of the window it was checked against, or maxRun
 	asset    string       // the device a device run is for ("" for a sweep), set before its policy is read
 	gentle   bool         // the run is the one gentle scan
+	// picked: the identification of a device a person picked in Scan now (IdentifyDevice, D-501). Like the vulnerability scan
+	// it is part of, it runs at once: the window does not apply (its deadline is maxRun). Every other rule does.
+	picked bool
 }
 
 // New returns the service.
@@ -193,7 +215,7 @@ func (s *Service) permit(ctx context.Context) (Settings, error) {
 	if err := st.allowed(); err != nil {
 		return st, err
 	}
-	if _, _, ok := st.window(s.local()); !ok {
+	if _, ok := s.windowNow(st); !ok {
 		return st, ErrOutsideWindow
 	}
 	if err := s.available(ctx); err != nil {
@@ -306,8 +328,9 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 	if err != nil {
 		return nil, s.stopFor(err)
 	}
-	_, end, ok := st.window(s.local())
-	if !ok {
+	picked := s.isPicked()
+	end, ok := s.windowNow(st)
+	if !ok && !picked {
 		return nil, ErrStopped
 	}
 	sc := newScope(st)
@@ -319,7 +342,10 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 	if err != nil {
 		return nil, err
 	}
-	timeout := min(end.Sub(s.clock()), maxRun)
+	timeout := maxRun // a picked identification is not bound to the window (D-501)
+	if !picked {
+		timeout = min(end.Sub(s.clock()), maxRun)
+	}
 	if timeout <= 0 || ctx.Err() != nil {
 		return nil, ErrStopped
 	}
@@ -388,6 +414,12 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 const (
 	reasonScanningOff       = "scanning_off"
 	reasonScopeNotConfirmed = "scope_not_confirmed"
+	// Reasons of a device that discovery leaves to the passive sensors after its one gentle scan; a pick in Scan now still
+	// identifies it (pickedPlan, D-501).
+	reasonFragilePassive      = "fragile_passive_only"
+	reasonUnclassifiedPassive = "unclassified_passive_only"
+	reasonNever               = "regular_scan_never"
+	reasonBox                 = "box"
 )
 
 const stoppedText = "stopped: the window closed, the scope changed or the module was turned off"
@@ -407,6 +439,24 @@ func (s *Service) setTargets(t []netip.Addr, rate int) {
 	if s.cur != nil {
 		s.cur.targets, s.cur.rate = t, rate
 	}
+}
+
+// Stop cancels the run in progress, whatever it is: the module was turned off (SYS-5). The scheduler stops the jobs it runs; an
+// identification for Scan now runs on the scan module's goroutine, so only this reaches it (D-501, review L3).
+func (s *Service) Stop() {
+	s.mu.Lock()
+	cur := s.cur
+	s.mu.Unlock()
+	if cur != nil {
+		cur.cancel()
+	}
+}
+
+// isPicked says the registered run is an identification a person asked for (running.picked).
+func (s *Service) isPicked() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cur != nil && s.cur.picked
 }
 
 func (s *Service) setDeadline(t time.Time) {
@@ -655,7 +705,7 @@ loop:
 			status, firstErr = StatusStopped, "stopped: "+err.Error()
 			break
 		}
-		if _, _, ok := st.window(s.local()); !ok {
+		if _, ok := s.windowNow(st); !ok {
 			status, firstErr = StatusStopped, "stopped: the window closed"
 			break
 		}
@@ -905,8 +955,8 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 
 // recordDevice stores what a service scan found about ip. A host that did not answer changes nothing. A host that hit the host
 // timeout keeps its software and services: nmap printed no port table for it, so an empty list would wrongly remove them. Only a
-// normal scan (top 1000 ports, -sV) replaces the device's nmap services; a gentle one (top 100, no -sV) only adds the ports it
-// saw, so it never wipes what a normal scan found (D-350 (5)).
+// normal scan (top 1000 ports, -sV) replaces the device's nmap services and software; a gentle one (top 100, no -sV) only adds the
+// ports it saw and leaves the software alone, so it never wipes what a normal scan found (D-350 (5), D-501).
 func (s *Service) recordDevice(ctx context.Context, ip netip.Addr, hosts []host, kind nmapargv.Kind) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
@@ -915,7 +965,7 @@ func (s *Service) recordDevice(ctx context.Context, ip netip.Addr, hosts []host,
 		return nil
 	}
 	h := hosts[i]
-	if obs := deviceObservations(h); len(obs) > 0 {
+	if obs := deviceObservations(h, kind); len(obs) > 0 {
 		if err := s.obs.Record(ctx, obs); err != nil {
 			return fmt.Errorf("sensoractive: recording observations: %w", err)
 		}
@@ -923,12 +973,16 @@ func (s *Service) recordDevice(ctx context.Context, ip netip.Addr, hosts []host,
 	if h.timedOut {
 		return nil
 	}
-	if err := s.sw.ReplaceSoftware(ctx, observe.AssetHint{IP: ip}, observe.Nmap, softwareOf(h)); err != nil {
-		return fmt.Errorf("sensoractive: recording software: %w", err)
+	// A gentle scan has no -sV and no -O, so it says nothing about software: replacing the list with its empty one would remove what
+	// a normal scan found, an OS that findings were matched on among them (D-501).
+	if kind != nmapargv.Gentle {
+		if err := s.sw.ReplaceSoftware(ctx, observe.AssetHint{IP: ip}, observe.Nmap, softwareOf(h)); err != nil {
+			return fmt.Errorf("sensoractive: recording software: %w", err)
+		}
 	}
 	if s.svc != nil {
 		write := s.svc.AddServices
-		if kind == nmapargv.Normal {
+		if kind == nmapargv.Normal || kind == nmapargv.Versions { // both read the top 1000 ports with -sV
 			write = s.svc.ReplaceServices
 		}
 		if err := write(ctx, observe.AssetHint{IP: ip}, observe.Nmap, servicesOf(h)); err != nil {
@@ -936,6 +990,167 @@ func (s *Service) recordDevice(ctx context.Context, ip netip.Addr, hosts []host,
 		}
 	}
 	return nil
+}
+
+// ---- identification for Scan now (D-501) ----
+
+// Identification is what IdentifyDevice found: Found says in words what was recorded (type, operating system, software), Why says
+// why no software was recorded ("" when some was). Without software a vulnerability scan has nothing to compare with the KEV list.
+type Identification struct {
+	Found []string
+	Why   string // a Why* code, or the inventory's refusal reason
+}
+
+// pickedPlan is the scan a device a person picked in Scan now gets for identification (D-501), from the inventory's discovery
+// policy: a device discovery may scan normally gets the normal scan at the policy's rate; a fragile one only the gentle scan
+// (D-45); one whose kind is still unknown the versions scan (-sV, no -O) at a quarter of the rate, since the pick is the consent
+// (D-126 (2)) and only -sV can tell what runs on it, while OS detection is the riskiest probe for an OT stack (review M4);
+// regular_scan=never is refused (review M1). why is the inventory's reason when nothing may run.
+func pickedPlan(dec Decision, rate int) (kind nmapargv.Kind, r int, why string) {
+	switch {
+	case dec.Never: // "never scan" set by a person is absolute here too (D-126 (1)), even before its one gentle scan
+		return 0, 0, reasonNever
+	case dec.Allowed && !dec.FirstGentle:
+		return nmapargv.Normal, dec.Rate, ""
+	case dec.Fragile && (dec.FirstGentle || dec.Reason == reasonFragilePassive):
+		return nmapargv.Gentle, 1, ""
+	case dec.Unclassified && (dec.FirstGentle || dec.Reason == reasonUnclassifiedPassive):
+		return nmapargv.Versions, max(1, rate/4), "" // -sV without -O: OS detection is the riskiest probe for an OT stack
+	case dec.FirstGentle:
+		return nmapargv.Gentle, 1, ""
+	}
+	return 0, 0, dec.Reason
+}
+
+// busyWait is how long an identification waits for discovery's nmap run to end: the scan of one device, or a small sweep, ends
+// within it; between the devices of its queue, discovery lets go of the lock.
+const busyWait = 2 * time.Minute
+
+// lockWithin takes runMu, trying every half second for at most d; false when it could not (or ctx ended).
+func (s *Service) lockWithin(ctx context.Context, d time.Duration) bool {
+	if s.runMu.TryLock() {
+		return true
+	}
+	give := time.NewTimer(d)
+	defer give.Stop()
+	tick := time.NewTicker(500 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		case <-give.C:
+			return s.runMu.TryLock()
+		case <-tick.C:
+			if s.runMu.TryLock() {
+				return true
+			}
+		}
+	}
+}
+
+// IdentifyDevice identifies one device for the vulnerability scan a person started with Scan now (D-501): the same nmap device
+// scan and recording as ScanDevice, with the scan shape of pickedPlan, and at once (the window does not apply, as for Scan now
+// itself). Every other rule of a device scan holds: scanning on, scope confirmed, the device's address in scope right before the
+// command line is built (INV-1), the probe log (INV-9), one nmap at a time, the stop on a change of settings or of the device.
+// A refusal publishes sensor.scan.blocked and sends nothing. The result says what was recorded, or why nothing was; err is
+// ErrStopped when the run was stopped, ErrNotFound for an unknown device, or a failure of nmap, the worker or storage.
+func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identification, error) {
+	if !s.lockWithin(ctx, busyWait) { // discovery is running nmap: Scan now does not wait for a sweep that may last the whole window
+		if ctx.Err() != nil {
+			return Identification{}, ErrStopped
+		}
+		return Identification{Why: WhyBusy}, nil
+	}
+	defer s.runMu.Unlock()
+	jctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	s.setCur(&running{cancel: cancel, asset: assetID, picked: true})
+	defer s.setCur(nil)
+	stopped := func(err error) error {
+		if jctx.Err() != nil {
+			return ErrStopped
+		}
+		return err
+	}
+	refuse := func(why string) (Identification, error) {
+		s.blocked(ctx, assetID, why)
+		return Identification{Why: why}, nil
+	}
+	dec, err := s.inv.ScanPolicy(jctx, assetID)
+	if err != nil {
+		return Identification{}, stopped(err)
+	}
+	st, err := s.inv.Settings(jctx)
+	if err != nil {
+		return Identification{}, stopped(err)
+	}
+	switch err := st.allowed(); {
+	case errors.Is(err, ErrScanningOff):
+		return refuse(reasonScanningOff)
+	case errors.Is(err, ErrScopeNotConfirmed):
+		return refuse(reasonScopeNotConfirmed)
+	case err != nil:
+		return refuse("out_of_scope")
+	}
+	kind, rate, why := pickedPlan(dec, st.Rate)
+	if why != "" {
+		return refuse(why)
+	}
+	if err := s.available(jctx); err != nil {
+		return Identification{Why: WhyUnavailable}, nil
+	}
+	asset, err := s.inv.Asset(jctx, assetID)
+	if err != nil {
+		return Identification{}, stopped(err)
+	}
+	if !asset.IP.IsValid() {
+		return refuse("no_ip")
+	}
+	s.setTargets([]netip.Addr{asset.IP}, rate)
+	if in, err := s.inv.InScope(jctx, asset.IP); err != nil {
+		return Identification{}, stopped(err)
+	} else if !in {
+		return refuse("out_of_scope")
+	}
+	// The box's own addresses and its decoys are never probed (review L1). The list also holds devices discovery leaves to the
+	// passive sensors after their gentle scan, which a pick may identify: only those are let through.
+	protected, err := s.inv.ProtectedIPs(jctx)
+	if err != nil {
+		return Identification{}, stopped(err)
+	}
+	if slices.Contains(protected, asset.IP) && dec.Reason != reasonFragilePassive && dec.Reason != reasonUnclassifiedPassive {
+		return refuse(reasonBox)
+	}
+	s.setGentle(kind == nmapargv.Gentle)
+	id, err := s.startJob(ctx, KindDevice, "scan_now", 1)
+	if err != nil {
+		return Identification{}, err
+	}
+	hosts, err := s.probe(jctx, id, kind, rate, []netip.Addr{asset.IP})
+	s.setAsset("")
+	if err == nil {
+		var markErr error
+		if dec.FirstGentle && kind == nmapargv.Gentle {
+			markErr = s.inv.MarkFirstScan(context.WithoutCancel(ctx), assetID)
+		}
+		err = errors.Join(markErr, s.recordDevice(ctx, asset.IP, hosts, kind))
+	}
+	switch {
+	case err == nil:
+		s.finishJob(ctx, id, StatusDone, 1, 0, "")
+	case errors.Is(err, ErrStopped):
+		s.finishJob(ctx, id, StatusStopped, 0, 0, stoppedText)
+		return Identification{}, ErrStopped
+	default:
+		s.finishJob(ctx, id, StatusFailed, 0, 0, err.Error())
+		if errors.Is(err, ErrUnavailable) {
+			return Identification{Why: WhyUnavailable}, nil
+		}
+		return Identification{}, err
+	}
+	found, why := identified(hosts, asset.IP, kind)
+	return Identification{Found: found, Why: why}, nil
 }
 
 // ---- the queue and the schedule ----
@@ -1018,9 +1233,16 @@ func (s *Service) Tick(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	start, _, ok := st.window(s.local())
-	if st.allowed() != nil || !ok {
+	if st.allowed() != nil {
 		return nil
+	}
+	start, _, ok := st.window(s.local())
+	if !ok {
+		due, err := s.firstPassDue(ctx)
+		if err != nil || !due {
+			return err
+		}
+		return s.firstPass(ctx)
 	}
 	if err := s.available(ctx); err != nil {
 		return err
@@ -1034,6 +1256,62 @@ func (s *Service) Tick(ctx context.Context) error {
 		if _, err := s.DiscoverRanges(ctx); err != nil && !errors.Is(err, ErrStopped) && !errors.Is(err, ErrOutsideWindow) {
 			s.log.WarnContext(ctx, "sensoractive: the sweep did not run", "error", err)
 		}
+	}
+	return s.drain(ctx)
+}
+
+// firstPassDue says the first pass has never started (no sa_first_pass row) and no sweep ever finished on this box (a box from
+// before D-501 that has swept has had its first look). It runs exactly once: a pass that was stopped or cut by its deadline is not
+// run again; its sweep goes on from the cursor in the next window.
+func (s *Service) firstPassDue(ctx context.Context) (bool, error) {
+	var n int
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT (SELECT count(*) FROM sa_first_pass) + (SELECT count(*) FROM sa_job WHERE kind = 'sweep' AND status IN ('done', 'failed'))`).Scan(&n)
+	if err != nil {
+		return false, fmt.Errorf("sensoractive: read the first pass: %w", err)
+	}
+	return n == 0, nil
+}
+
+// markFirstPass records that the first pass starts; false when another call recorded it first.
+func (s *Service) markFirstPass(ctx context.Context) (bool, error) {
+	var n int64
+	err := s.db.Write(ctx, func(tx *sql.Tx) error {
+		r, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO sa_first_pass (id, started_at) VALUES (1, ?)`, s.now())
+		if err != nil {
+			return err
+		}
+		n, err = r.RowsAffected()
+		return err
+	})
+	if err != nil {
+		return false, fmt.Errorf("sensoractive: record the first pass: %w", err)
+	}
+	return n == 1, nil
+}
+
+// firstPass is the one discovery pass of a box that has never swept, run at once instead of at the next window (D-501, walk 1
+// W1-6: a box set up at 11:00 identified nothing until 23:00). It is the window's own work, a sweep and then the queued devices'
+// scans (gentle first for fragile and unclassified ones, D-84 (1)), with the window counted open for at most firstPassFor. Every
+// other rule holds: scanning on, scope confirmed, exclusions, rate, the probe log, the stop on a change of settings. It runs once:
+// sa_first_pass is written before the sweep starts.
+func (s *Service) firstPass(ctx context.Context) error {
+	if err := s.available(ctx); err != nil {
+		return err // not started: the next Tick tries again
+	}
+	if first, err := s.markFirstPass(ctx); err != nil || !first {
+		return err
+	}
+	s.mu.Lock()
+	s.firstUntil = s.clock().Add(firstPassFor)
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		s.firstUntil = time.Time{}
+		s.mu.Unlock()
+	}()
+	s.log.InfoContext(ctx, "sensoractive: first pass of a new box, outside the window", "for", firstPassFor.String())
+	if _, err := s.DiscoverRanges(ctx); err != nil && !errors.Is(err, ErrStopped) && !errors.Is(err, ErrOutsideWindow) {
+		s.log.WarnContext(ctx, "sensoractive: the first sweep did not run", "error", err)
 	}
 	return s.drain(ctx)
 }
@@ -1076,8 +1354,9 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 	var targets []netip.Addr
 	var rate int
 	var deadline time.Time
+	var picked bool
 	if cur != nil {
-		targets, rate, deadline = slices.Clone(cur.targets), cur.rate, cur.deadline
+		targets, rate, deadline, picked = slices.Clone(cur.targets), cur.rate, cur.deadline, cur.picked
 	}
 	s.mu.Unlock()
 	if cur == nil {
@@ -1088,9 +1367,10 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 		cur.cancel() // fail closed
 		return err
 	}
-	// A window shortened under a run in progress ends it: the run's deadline came from the old end (INV-3).
-	_, end, ok := st.window(s.local())
-	if !ok || st.Rate < rate || (!deadline.IsZero() && end.Before(deadline)) {
+	// A window shortened under a run in progress ends it: the run's deadline came from the old end (INV-3). A picked
+	// identification is not bound to the window (D-501); the rate and the scope still bind it.
+	end, ok := s.windowNow(st)
+	if (!ok && !picked) || st.Rate < rate || (!picked && !deadline.IsZero() && end.Before(deadline)) {
 		cur.cancel()
 		return nil
 	}
@@ -1108,17 +1388,25 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 func (s *Service) AssetChanged(ctx context.Context, assetID string) error {
 	s.mu.Lock()
 	cur := s.cur
-	var gentle bool
+	var gentle, picked bool
 	var rate int
 	match := cur != nil && cur.asset == assetID
 	if match {
-		gentle, rate = cur.gentle, cur.rate
+		gentle, rate, picked = cur.gentle, cur.rate, cur.picked
 	}
 	s.mu.Unlock()
 	if !match {
 		return nil
 	}
 	dec, err := s.inv.ScanPolicy(ctx, assetID)
+	if picked && err == nil { // a picked identification is held to its own plan (D-501): refused now, or gentler or slower than it runs
+		st, serr := s.inv.Settings(ctx)
+		kind, r, why := pickedPlan(dec, st.Rate)
+		if serr != nil || why != "" || (kind == nmapargv.Gentle && !gentle) || r < rate {
+			cur.cancel()
+		}
+		return serr
+	}
 	if err != nil || !dec.Allowed || (dec.FirstGentle && !gentle) || (dec.Rate > 0 && dec.Rate < rate) {
 		cur.cancel() // fail closed
 		if errors.Is(err, ErrNotFound) {

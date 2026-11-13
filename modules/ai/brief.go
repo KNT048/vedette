@@ -47,6 +47,12 @@ const (
 	briefConfigTask  = `Draft a recommendation for one finding that has no confirmed recommendation yet: how to reduce the risk of an exploited vulnerability on this device until it is patched. Use only the facts in the data blocks. In "paragraphs" write at most 3 short paragraphs of plain English that say what the configuration change is for and what side effects it can have. In "steps" write the configuration steps, one action per step, for the firewall or device type named in the data. Do not invent version numbers, product names or links that are not in the data. Reply with one JSON object only.`
 )
 
+// briefMaxTokens is the output limit of a brief. The answer itself (4 paragraphs and a list of steps, as JSON) runs to about 900
+// tokens, but the limit also covers what a model thinks before it answers (Claude Haiku 5.5 thinks by default; OpenAI reasoning
+// models and Gemini count it the same way), which can be a few thousand. The meter counts what is really used, not this limit; a cut
+// answer is asked again once with twice the limit (Router.retryCut).
+const briefMaxTokens = 6000
+
 func parseBrief(text string) (briefBody, error) {
 	var b briefBody
 	dec := json.NewDecoder(bytes.NewReader([]byte(strings.TrimSpace(text))))
@@ -89,7 +95,7 @@ func (s *Service) Brief(ctx context.Context, r BriefRequest) (BriefAnswer, error
 	var body briefBody
 	res, err := s.RunJob(ctx, JobSpec{
 		Job: r.Job, Actor: r.Actor, Task: task, Question: r.Question, Data: r.Data,
-		Schema: &provider.Schema{Name: "finding_brief", JSON: json.RawMessage(briefSchema)}, MaxTokens: 1000,
+		Schema: &provider.Schema{Name: "finding_brief", JSON: json.RawMessage(briefSchema)}, MaxTokens: briefMaxTokens,
 		Summary: fmt.Sprintf("%s for %s", strings.ToUpper(r.Job.Name()[:1])+r.Job.Name()[1:], clipRunes(cleanLine(r.Target, 40), 40)),
 		Check: func(text string) error {
 			var perr error

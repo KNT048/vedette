@@ -1,12 +1,15 @@
 import type { ComponentProps } from 'react'
 import { Checkbox as CheckboxPrimitive, RadioGroup as RadioPrimitive } from 'radix-ui'
-import { Check } from 'lucide-react'
+import { Check, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function Checkbox({ className, ...props }: ComponentProps<typeof CheckboxPrimitive.Root>) {
   return (
-    <CheckboxPrimitive.Root className={cn('relative grid size-4 shrink-0 place-items-center rounded-[4px] after:absolute after:-inset-2.5 after:content-[""] border border-muted bg-surface data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=checked]:text-accent-ink disabled:opacity-50', className)} {...props}>
-      <CheckboxPrimitive.Indicator><Check className="size-3" strokeWidth={3} /></CheckboxPrimitive.Indicator>
+    <CheckboxPrimitive.Root className={cn('group relative grid size-4 shrink-0 place-items-center rounded-[4px] after:absolute after:-inset-2.5 after:content-[""] border border-muted bg-surface data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=checked]:text-accent-ink data-[state=indeterminate]:border-accent data-[state=indeterminate]:bg-accent data-[state=indeterminate]:text-accent-ink disabled:opacity-50', className)} {...props}>
+      <CheckboxPrimitive.Indicator>
+        <Check className="size-3 group-data-[state=indeterminate]:hidden" strokeWidth={3} />
+        <Minus className="hidden size-3 group-data-[state=indeterminate]:block" strokeWidth={3} />
+      </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   )
 }

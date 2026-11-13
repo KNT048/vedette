@@ -15,7 +15,12 @@ type Device struct {
 	Kind     string // inventory kind; "unknown" until classified
 	Approved bool
 	Fragile  bool
+	Box      bool // the Vedette box itself: scanned only when a person picks it (D-470)
 	Services []OpenPort
+	// For the picker's search and filters only (D-472): never part of a policy decision.
+	MAC      string // "" when unknown
+	Vendor   string // "" when unknown
+	LastSeen string // ISO time; "" when unknown
 }
 
 // OpenPort is an open port the inventory knows on a device.
@@ -42,6 +47,7 @@ const (
 	reasonNever      = "regular_scan_never"
 	reasonOutOfScope = "out_of_scope"
 	reasonNoScope    = "scope_not_confirmed"
+	reasonNoIP       = "no_ip" // a device in the inventory with no address (hand-added, LLDP only) is not "outside the scope" (D-484)
 )
 
 // FindingRef is a finding of a device: the CVEs scan may confirm or clear on it.

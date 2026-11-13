@@ -272,6 +272,11 @@ func redactKeyRuns(msg, key string) string {
 	return b.String()
 }
 
+// Scrub cleans a provider message for a person to read when the key is not at hand: anything key-shaped is removed, control
+// characters become spaces, and the text is cut to 200 characters. Error.Message is already scrubbed with the key; this is the second
+// pass of a caller that shows it.
+func Scrub(msg string) string { return scrub(msg, Secret{}) }
+
 // scrub removes the key, any fragment of it and anything key-shaped from a provider message, then shortens it.
 // The whole text is scrubbed before it is cut, so a key that starts late in a long body cannot survive the cut.
 func scrub(msg string, key Secret) string {

@@ -12,6 +12,24 @@
 ## Modifying: `findings.Service.UpsertFromMatch(ctx, Asset, []Vuln)` và `OnMatchChanged(ctx, assetID)`
 - **inventory** (sự kiện `inventory.match.changed`; phải cài `findings.Inventory{Assets, MatchInput}`), **feeds** (phải cài `findings.Feeds{KevInfo, Vulns}`; `cmd/vedette/wiring.go` cài từ `feeds.Store.KevVulns/KevVulnsByCVE`, chỉ hàng `cisa-kev`, chưa có khoảng bị ảnh hưởng nên chỉ `basis=product`; `findings.Inventory` từ `inventory.DeviceRefs/MatchInput`), **core/jobs** (khớp lại sau `feeds.vuln.new_kev`). Interface do `findings` định nghĩa, `cmd/vedette` nối cài đặt thật. Đổi quy tắc khớp/tạo/độ nghiêm trọng đổi số finding và tin `notify`.
 
+## Modifying: khoảng phiên bản và mục "add the version" (D-500)
+- **feeds** (feed `nvd-kev`, `Store.KevAffected`) → `cmd/vedette` `findingsFeeds.Vulns` điền `Vuln.Affected`; sự kiện `feeds.ranges.updated` → `Inventory.RematchAll` (lần đầu trong ngữ cảnh baseline của notify, D-78).
+- **inventory**: `MatchDevice.OS` → `findings.Asset.OS` (loại trừ CVE chỉ nêu bản phát hành OS). Đổi cách gấp OS (`inv_asset.os`) làm lệch `osIdentity` (Ubuntu/Debian).
+- **content/catalog/nvd-cpe.json**: khoá là vendor|product của danh mục và của `agent-intake/pkgmap.json`; đổi tên sản phẩm ở hai nơi đó phải đổi khoá ở đây (`TestAliases_DataIsValid`, `TestGolden_*`).
+- **GUI/contract**: `FindingList.version_needed` (`contract.ts`, mock `web/src/mocks/match.ts` `versionNeeded`, `FindingsPage` khối "Add the version"); mock không có khoảng nên phần mềm có phiên bản → `medium` theo sản phẩm.
+- **GUI/contract (D-488)**: `FindingDetail.fixed_in` (`contract.ts` `FixedIn`, `Recommendation.tsx` `FixedInNote` trong `NoPack` và `PackView`, mock luôn `null`). Đổi `FixedIn` phải sửa `contract.ts`, `api/openapi.json`, `core/api/oas` (`make generate-api`). `FixedInFor` đọc cùng `swInfo`/`appliesTo`/`evalAffected` với bộ khớp: đổi cách khớp (INV-4a) phải chạy `TestFixedIn_*`. Mỗi lần GET một finding mở đọc `Inventory.MatchInput` và `Feeds.Vulns` (đã cache theo `MatchStamp`).
+- **notify**: finding theo sản phẩm nay `medium` (trước `high/critical`); quy tắc báo theo mức nghiêm trọng nhận ít tin hơn cho khớp không so được phiên bản.
+- **core export** (`export_policy.go`): `fnd_version_needed` được xuất.
+- **D-530 tự đóng/mở lại** (`autoResolve`, `Finding.AutoResolve/ReopenOnMatch`, cột `resolution_reason`, migration `0004_resolution_reason.sql`): **GUI** thấy `not_relevant` với `resolved_by=system` và ghi chú bắt đầu "Not affected:" (bộ lọc Unresolved mặc định ẩn nó; API không đổi hình); **logs/SIEM** nhận `finding.status_changed` suspected→not_relevant và ngược lại (trường `reason` = `not_affected_version` / `matches_again`); **notify** bỏ qua status_changed không phải `confirmed` (không tin nào khi tự đóng/mở lại cho tới khi notify dùng `reason`); **reports**/đếm finding mở giảm; **core export** xuất `resolution_reason`; nhãn audit `findings.auto_resolved` trong `locales/en/core.json`. `updateRecord` nay ghi cả `severity`.
+
+## Modifying: "Multiple Products" theo NVD và hạ mức finding không còn khớp (D-505, walk 3 W3-7/W3-8)
+- **notify/GUI**: mục CISA "<hãng> | Multiple Products" không còn cho finding đoán theo hãng: chưa có dữ liệu NVD hay NVD chỉ nêu sản phẩm khác ⇒ không finding (bớt finding và tin). Finding cũ của mục CISA thêm chưa tới một năm **không** tự đóng (danh sách NVD có thể chậm hơn advisory của hãng, review H1 của #671; mục cũ hơn: D-506 dưới đây): nó mở, hạ về `medium` (audit `findings.regraded`) và nhận dòng `no_longer_matches` "NVD lists … for <CVE>, not <phần mềm>; check the vendor advisory…" (người đóng, hoặc đóng hàng loạt). Dòng `no_longer_matches` nay được ghi lại khi câu lý do khác câu của dòng cuối (một lần mỗi lý do).
+- **content/catalog/nvd-cpe.json**: bí danh thiếu làm một mục "Multiple Products" nêu đúng sản phẩm bị coi là "sản phẩm khác" ⇒ không finding (không đóng gì); thêm bí danh là sửa.
+- **cmd/vedette** (`boxname.go` `boxOS`, job `box`): hộp mang OS từ `GET /v1/info` của vedette-host ("Ubuntu 26.04") nên `osRulesOut` áp cho hộp như máy có agent (W3-8). Đổi cách ghi OS phải giữ dạng `osIdentity` đọc được.
+- **D-506** (`MatchResult.Retired`, `SettledKEV`, `autoResolve(…, retired)`): finding sản phẩm cũ của mục "Multiple Products" CISA thêm ≥ 365 ngày mà NVD không nêu phần mềm nào của thiết bị mang khoá hãng đó **tự đóng** (`not_relevant`, system, `resolution_reason=not_affected_version`, ghi chú "Closed by Vedette: CISA lists … (settled: CISA added it over a year ago)…"). **GUI**: các finding đó rời Unresolved; trang finding hiện ghi chú đó. **logs/SIEM**: `status_changed` suspected→not_relevant `reason: not_affected_version` (cùng lý do với D-530; phân biệt bằng ghi chú và audit `findings.auto_resolved` có "D-506"). **notify**: không tin khi đóng; mở lại khi NVD sau này nêu phần mềm cũng không tin (chỉ `confirmed` ra tin; `.ai/deferred/fix-multi-products-old-rows-close.md`). **feeds/cmd/vedette**: cần `Vuln.DateAdded` (adapter `findingsFeeds.Vulns` điền từ `date_added`); ngày trống thì không bao giờ đóng. **reports**/đếm finding mở giảm. Rủi ro còn lại: sản phẩm hãng thêm vào advisory mà NVD không bao giờ thêm (ví dụ review H1 của #671: FortiWeb, CVE-2024-23113) thì finding cũ đóng; thiết bị mới cũng không có finding đó (D-505), nên không phải lỗ hổng mới. Đổi `SettledKEV` là đổi số finding tự đóng.
+- **Reconcile ghi log**: mỗi lượt một dòng info "findings: reconcile pass done" (`devices`, `created`, `closed_not_affected`, `closed_multiple_products`, `removed_with_device`); `ReconcileResult` có thêm `Closed`, `Retired`; `UpsertResult` thêm `Closed`, `Retired`.
+- Mock GUI (`web/src/mocks/match.ts`) vẫn khớp "Multiple products" theo hãng như trước D-500 (mock không có khoảng NVD); chỉ ảnh hưởng dữ liệu mẫu.
+
 ## Modifying: `findings.Service.Reconcile(ctx)` và `findings.Jobs(svc)` (job `reconcile`, mỗi giờ)
 - **inventory**: phải cài `findings.Inventory.AssetIDs` (mọi id thiết bị, không giới hạn dòng, lỗi đọc là lỗi, không bao giờ trả danh sách ngắn: reconcile coi finding của thiết bị vắng là mồ côi và xoá sau khi hỏi lại `Assets`). Sửa `DevicesOfKind` hay `Kinds` (loại thiết bị mới) thì sửa adapter ở `cmd/vedette/wiring.go`, nếu không thiết bị loại mới không được khớp lại và finding của nó bị coi là mồ côi chỉ khi `Assets` cũng không thấy.
 - **cmd/vedette**: `wiredModules` có `Jobs: findingsJobs` cho `findings`; job chạy khi module bật rồi mỗi `ReconcileEvery`. Tắt module = job dừng, dữ liệu giữ.
@@ -31,14 +49,24 @@
 ## Modifying: `findings.Service.SetStatus(ctx, id, action, note, user)`
 - **SPA** (`POST /findings/{id}/status`, mã lỗi `note_required`, `already_open`, `bad_action`, `note_too_long`), **notify** (sự kiện `status_changed`), **response**/**reports** (đếm finding mở). Đổi bảng chuyển trạng thái = đổi hành vi nút trên trang finding.
 
+## Modifying: `findings.Service.SetStatusMany(ctx, ids, action, note, user)` (D-484, INV-10)
+- **SPA** (`POST /findings/status`: thanh chọn của danh sách Findings; `{updated, skipped}`), **notify** (một `status_changed` mỗi finding), **core_audit** (một dòng mỗi finding: 500 dòng một lần; trần nhật ký kiểm toán là W1-34). Đổi `MaxBulk` = đổi `MAX_BULK` trong `findings/contract.ts`.
+
+## Modifying: `ServiceConfig.HaveSince` và `haveScope` (D-484, INV-11)
+- **feeds** (`Store.HaveSince`, đọc `feeds_weekly_answer.device_id/have_since`), **cmd/vedette** (`findingsHave` trong `wiring.go`; `feedsInventory.AddManualDevice` phải trả id thiết bị thì phạm vi mới bật), **inventory** (id thiết bị khai tay). Đổi luật = đổi số finding (và tin `notify`) của sản phẩm khách bấm "I have this" trên Home; text Home (`feeds.json` `weekly.*`) nói luật này.
+
+## Modifying: `AssetView.Name` / `HasIP` (D-484, INV-12)
+- **cmd/vedette** (`findingsInventory.Assets` điền `Name` từ `inventory.Names`; `MatchInput` dùng tên đó khi thiết bị không có tên máy lẫn IP), **mitigation** (`genericRecheck` dùng `Name`, chỉ nhắc "Rescan this device" khi `HasIP`), SPA (`findings/basis.ts` `deviceName`, `hasIp`).
+
 ## Modifying: `findings.Service.CountByAsset(ctx) (map[string]int, error)`
 - **inventory** (`FindingCounter`, `findings_count` ở danh sách và trang thiết bị, hộp thoại xoá): một lần đọc gộp theo `asset_id`, **mọi trạng thái** (đúng số bị xoá cùng thiết bị, INV-11 của inventory). Nối ở `cmd/vedette` `findingCounts`; module findings tắt → 0 (khi tắt không gì xoá chúng cùng thiết bị). Đổi nghĩa (ví dụ chỉ đếm finding mở) là đổi câu "deleting the device also deletes these findings" của `inventory/contract.ts`.
 
 ## Modifying: `findings.Findings` (đọc: `List(filter)`, `Get(id)`, `ByAsset(id)`)
 - **mitigation** (gói theo finding), **notify** (`vuln` tin + panel `GET /notify/findings/{id}/notices`), **response** (đề xuất cho Critical), **reports**, **ai** (explain), **mcp-server** (`get_finding`), SPA Devices (`device.panels`). Đổi `FindingRow` phải sửa `findings/contract.ts` (nguồn OpenAPI).
 
-## Modifying: sự kiện `findings.finding.created|status_changed`
-- **notify** (tin lỗ hổng, `min_severity`), **response** (trigger finding). Đổi tên/trường = người nhận im lặng, không lỗi biên dịch.
+## Modifying: sự kiện `findings.finding.created|status_changed|severity_raised`
+- **notify** (tin lỗ hổng, `min_severity`), **response** (trigger finding), **logs** (SIEM). Đổi tên/trường = người nhận im lặng, không lỗi biên dịch.
+- `severity_raised` (review M-a của #663) thay cho `status_changed` `from = to` kèm `severity` của review H2: **notify** và **logs** chưa nghe nó (module của nhóm khác); tới lúc đó việc nâng mức không ra tin và không ra SIEM. Dòng trong `.ai/deferred/fix-cve-version-ranges.md`.
 
 ## Disabling this module
 - Mất trang Findings và panel finding ở Devices; không finding mới; `notify` mất tin lỗ hổng; `scan` không nối được `finding_id`; `response` không có phát hiện Critical để đề xuất; `reports` thiếu mục lỗ hổng; `mitigation` mất đầu vào.

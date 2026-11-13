@@ -28,7 +28,12 @@ func HostAllowlist(allowed []string, next http.Handler) http.Handler {
 // opens the box at the new one, which the list fixed at start cannot know; names stay pinned to the list. A DNS
 // rebinding page is reached by name, never by one of the box's own addresses. own may be nil.
 func HostAllowlistWith(allowed []string, own func(netip.Addr) bool, next http.Handler) http.Handler {
-	allowedHost := HostMatcher(allowed, own)
+	return HostAllowlistFunc(HostMatcher(allowed, own), next)
+}
+
+// HostAllowlistFunc is HostAllowlist with the test given as a function: HostMatcher's, or one that also accepts a name the box learns
+// while it runs (cmd/vedette: the Box address an administrator saves, D-465).
+func HostAllowlistFunc(allowedHost func(host string) bool, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !allowedHost(r.Host) {
 			apierr.Write(w, apierr.New(http.StatusMisdirectedRequest, apierr.CodeMisdirected, "This address is not one Vedette answers to. Open it with the name or address it was set up with."))

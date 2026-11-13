@@ -5,17 +5,18 @@ import { toast } from 'sonner'
 import { Check, Circle, OctagonX, Play } from 'lucide-react'
 import { Section, Panel } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { useRowSelection } from '@/components/common/Selection'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { isLive, useRuns, useScanConfig, useStartRun, useStopRun, useTargets } from './api'
 import { errMsg } from './errors'
 import { ResultChip, RunStatusChip } from './shared'
-import type { RunResultRow, ScanConfigResponse, ScanRun, ScanTarget } from './types'
+import { TargetPicker } from './TargetPicker'
+import type { RunIdentRow, RunResultRow, ScanConfigResponse, ScanRun, ScanTarget } from './types'
 
 function Progress({ run }: { run: ScanRun }) {
   const { t } = useTranslation('scan')
@@ -41,27 +42,13 @@ function Progress({ run }: { run: ScanRun }) {
   )
 }
 
-function TargetRow({ t: target, checked, onChange }: { t: ScanTarget; checked: boolean; onChange: (v: boolean) => void }) {
-  const { t } = useTranslation('scan')
-  const id = `tg-${target.id}`
-  return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
-      <Checkbox id={id} checked={checked} disabled={!target.selectable} onCheckedChange={(v) => onChange(v === true)} />
-      <label htmlFor={id} className={target.selectable ? 'text-sm' : 'text-sm text-muted'}>
-        <span className="font-medium">{target.label}</span> <span className="text-muted">{target.ip}</span>
-      </label>
-      {target.findings > 0 ? <Chip tone="warn">{t('start.findings', { count: target.findings })}</Chip> : null}
-      {target.fragile && target.selectable ? <Chip tone="off" title={t('start.fragileHint')}>{t('start.fragile')}</Chip> : null}
-      {target.pick_only ? <span className="text-[13px] text-muted">{t(target.device_kind === 'unknown' ? 'start.pickUnknown' : target.fragile ? 'start.pickFragile' : 'start.pickManual')}</span> : null}
-      {target.reason ? <span className="text-[13px] text-muted">{t(`reason.${target.reason}`)}</span> : null}
-    </li>
-  )
-}
+/** The most targets of one run (contract.ts POST /scans/runs, scan errTooMany). */
+const MAX_TARGETS = 200
 
 function Setup({ cfg, internal }: { cfg: ScanConfigResponse; internal: ScanTarget[] }) {
   const { t } = useTranslation('scan')
   const scopeOk = cfg.can_scan && cfg.scope.networks.length > 0
-  const devOk = internal.some((x) => x.selectable)
+  const devOk = internal.some((x) => x.selectable && !x.box) // the box alone does not finish setup: it is pick-only (D-470)
   if (scopeOk && devOk) return null
   const steps = [
     { key: 'scope', ok: scopeOk, title: t('start.stepScope'), help: t('start.stepScopeHelp'), to: '/devices/setup', cta: t('start.openSetup') },
@@ -96,26 +83,28 @@ function StartPanel({ targets, cfg, live, engineBusy }: { targets: ScanTarget[];
   const can = useCan('operator')
   const start = useStartRun()
   const [params] = useSearchParams()
-  const bulk = targets.filter((x) => x.selectable && !x.pick_only)
-  const [raw, setRaw] = useState<Set<string>>(() => {
+  const [raw, rawOps] = useRowSelection(() => {
+    const bulk = targets.filter((x) => x.selectable && !x.pick_only)
     const want = params.get('target')
     // D-126 (2): only a person's own tick picks a fragile, unclassified or hand-declared device; the page never ticks one for them.
-    const hit = want ? targets.find((x) => x.id === want && x.selectable && !x.pick_only) : undefined
-    if (want) return new Set(hit ? [hit.id] : []) // came for one device: tick nothing else
-    return new Set(bulk.filter((x) => x.findings > 0).map((x) => x.id))
+    const hit = want ? bulk.find((x) => x.id === want) : undefined
+    if (want) return hit ? [hit.id] : [] // came for one device: tick nothing else
+    return bulk.filter((x) => x.findings > 0).map((x) => x.id)
   })
   const internal = targets.filter((x) => x.kind === 'internal')
-  const external = targets.filter((x) => x.kind === 'external')
-  // The ids the person ticked by hand: the only way a pick-only device gets in (D-126 (2)).
-  const [picks, setPicks] = useState<Set<string>>(() => new Set())
-  const flip = (s: Set<string>, id: string, v: boolean) => { const n = new Set(s); if (v) n.add(id); else n.delete(id); return n }
-  const toggle = (id: string, v: boolean) => { setRaw((s) => flip(s, id, v)); setPicks((s) => flip(s, id, v)) }
+  // The ids the person ticked by hand: the only way a pick-only device gets in (D-126 (2)). Bulk actions never add here.
+  const [picks, pickOps] = useRowSelection()
+  const toggle = (id: string, v: boolean) => { rawOps.toggle(id, v); pickOps.toggle(id, v) }
   // Security review M1: whenever the list refreshes, a device that became pick-only leaves a selection it entered without a tick.
-  const sel = useMemo(() => new Set([...raw].filter((id) => {
-    const x = targets.find((y) => y.id === id)
-    return !!x && x.selectable && (!x.pick_only || picks.has(id))
-  })), [raw, picks, targets])
-  const blocked = !cfg.can_scan ? cfg.block_reason : live ? t('start.busy') : engineBusy ? t('start.engineBusy') : !can ? t('common:needRole', { role: t('common:role.operator') }) : sel.size === 0 ? t('start.none') : null
+  const sel = useMemo(() => {
+    const byId = new Map(targets.map((x) => [x.id, x]))
+    return new Set([...raw].filter((id) => {
+      const x = byId.get(id)
+      return !!x && x.selectable && (!x.pick_only || picks.has(id))
+    }))
+  }, [raw, picks, targets])
+  const blocked = !cfg.can_scan ? cfg.block_reason : live ? t('start.busy') : engineBusy ? t('start.engineBusy') : !can ? t('common:needRole', { role: t('common:role.operator') })
+    : sel.size === 0 ? t('start.none') : sel.size > MAX_TARGETS ? t('start.tooMany', { max: MAX_TARGETS, count: sel.size }) : null
   const c = cfg.config
   return (
     <div className="grid gap-4">
@@ -129,25 +118,8 @@ function StartPanel({ targets, cfg, live, engineBusy }: { targets: ScanTarget[];
         <p className="text-muted">{t('start.manualNote', { from: c.window.from, to: c.window.to, rate: c.rate })}</p>
         <p className="text-muted">{t('start.safeNote')}</p>
       </Panel>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={() => setRaw(new Set(bulk.map((x) => x.id)))}>{t('start.selectAll')}</Button>
-        <Button size="sm" onClick={() => setRaw(new Set(bulk.filter((x) => x.findings > 0).map((x) => x.id)))}>{t('start.selectFindings')}</Button>
-        <Button size="sm" onClick={() => { setRaw(new Set()); setPicks(new Set()) }}>{t('start.selectNone')}</Button>
-        <span className="text-[13px] text-muted" aria-live="polite">{t('start.selected', { count: sel.size })}</span>
-      </div>
-      <div className="max-h-96 overflow-y-auto rounded-md border border-rule bg-surface">
-        <fieldset>
-          <legend className="sticky top-0 w-full border-b border-rule bg-sunken px-3 py-1.5 text-[12px] font-medium text-muted">{t('start.internal')}</legend>
-          {internal.length ? <ul className="divide-y divide-rule">{internal.map((x) => <TargetRow key={x.id} t={x} checked={sel.has(x.id)} onChange={(v) => toggle(x.id, v)} />)}</ul> : <p className="px-3 py-3 text-sm text-muted">{t('start.noInternal')}</p>}
-        </fieldset>
-        <fieldset>
-          <legend className="sticky top-0 w-full border-y border-rule bg-sunken px-3 py-1.5 text-[12px] font-medium text-muted">{t('start.external')}</legend>
-          {external.length ? <ul className="divide-y divide-rule">{external.map((x) => <TargetRow key={x.id} t={x} checked={sel.has(x.id)} onChange={(v) => toggle(x.id, v)} />)}</ul> : (
-            <p className="px-3 py-3 text-sm text-muted">{t('start.noExternal')}</p>
-          )}
-          <p className="border-t border-rule px-3 py-2 text-[13px] text-muted">{t('start.externalHint')} <Link to="/exposure" className="text-accent underline underline-offset-4">{t('start.openExposure')}</Link></p>
-        </fieldset>
-      </div>
+      <TargetPicker targets={targets} sel={sel} onToggle={toggle} onAdd={rawOps.add} onReplace={rawOps.replace}
+        onRemove={(ids) => { rawOps.remove(ids); pickOps.remove(ids) }} onClear={() => { rawOps.clear(); pickOps.clear() }} />
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="primary" disabled={!!blocked || start.isPending}
           onClick={() => start.mutate([...sel], { onSuccess: () => toast.success(t('start.started')), onError: (e) => toast.error(errMsg(e)) })}>
@@ -156,6 +128,30 @@ function StartPanel({ targets, cfg, live, engineBusy }: { targets: ScanTarget[];
         {blocked ? <span className="text-[13px] text-muted">{blocked}</span> : null}
       </div>
     </div>
+  )
+}
+
+/** D-501: what Scan now identified on each device before checking it, or exactly why it could not (the box's own sentence). */
+function Identification({ rows }: { rows: RunIdentRow[] }) {
+  const { t } = useTranslation('scan')
+  if (!rows.length) return null
+  return (
+    <section aria-labelledby="ident-title" className="grid gap-2">
+      <h3 id="ident-title" className="text-sm font-semibold">{t('res.identTitle')}</h3>
+      <ul className="divide-y divide-rule rounded-md border border-rule">
+        {rows.map((r) => (
+          <li key={r.target_id} className="grid gap-1 px-3 py-2 text-[13px]">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Link to={`/devices/${r.target_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.label}</Link>
+              <span className="text-muted">{r.ip}</span>
+              {r.reason ? <Chip tone={r.reason === 'not_scanned' ? 'off' : 'warn'}>{t(`ident.${r.reason}`)}</Chip> : <Chip tone="ok">{t('ident.identified')}</Chip>}
+            </div>
+            {r.found.length ? <span>{r.found.join(' · ')}</span> : null}
+            <span className="text-muted">{r.note}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -178,6 +174,7 @@ function ResultDialog({ run, onClose, opener }: { run: ScanRun | null; onClose: 
       {shown ? (
         <DialogContent wide title={t('res.title', { time: fmtDateTime(shown.started_at) })} description={t('res.description', { done: shown.done, total: shown.total })} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
           {shown.stop_reason ? <p role="note" className="rounded-md border border-dashed border-warn bg-warn-soft/60 px-3 py-2 text-sm">{shown.stop_reason}</p> : null}
+          <Identification rows={shown.identification} />
           <DataTable caption={t('res.caption')} data={shown.results} columns={columns} pageSize={20} empty={t('res.empty')} />
         </DialogContent>
       ) : null}

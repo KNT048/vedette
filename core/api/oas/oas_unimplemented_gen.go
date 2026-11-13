@@ -945,6 +945,16 @@ func (UnimplementedHandler) CorePostCoreMcpTokens(ctx context.Context, req *Core
 	return r, ht.ErrNotImplemented
 }
 
+// CorePostCoreNetworkBoxAddressForget implements core_post_core_network_box_address_forget operation.
+//
+// Stop answering to an earlier Box address (D-465): it leaves the Host allowlist at once and the
+// certificate at its next re-issue. 404 not_found when the box does not answer to it.
+//
+// POST /core/network/box-address/forget
+func (UnimplementedHandler) CorePostCoreNetworkBoxAddressForget(ctx context.Context, req *CorePostCoreNetworkBoxAddressForgetReq) (r *CorePostCoreNetworkBoxAddressForgetOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CorePostCoreNetworkManagementConfirm implements core_post_core_network_management_confirm operation.
 //
 // Confirm the pending management change from the new address (409 when none is pending or it expired).
@@ -1096,6 +1106,18 @@ func (UnimplementedHandler) CorePutCoreConnectionsID(ctx context.Context, req *C
 //
 // PUT /core/general
 func (UnimplementedHandler) CorePutCoreGeneral(ctx context.Context, req *CorePutCoreGeneralReq) (r *CorePutCoreGeneralOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CorePutCoreNetworkBoxAddress implements core_put_core_network_box_address operation.
+//
+// Box address (D-465): the host name or IPv4 address the LAN reaches the box at, used by every link
+// the box makes; empty goes back to the management address. 400 bad_box_address for a URL, a port, a
+// path or anything that is not a host name or IPv4 address. The box re-issues its own certificate with
+// it.
+//
+// PUT /core/network/box-address
+func (UnimplementedHandler) CorePutCoreNetworkBoxAddress(ctx context.Context, req *CorePutCoreNetworkBoxAddressReq) (r *CorePutCoreNetworkBoxAddressOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1449,6 +1471,16 @@ func (UnimplementedHandler) FindingsPostFindingsIDApplied(ctx context.Context, r
 //
 // POST /findings/{id}/status
 func (UnimplementedHandler) FindingsPostFindingsIDStatus(ctx context.Context, req *FindingsPostFindingsIDStatusReq, params FindingsPostFindingsIDStatusParams) (r *FindingsPostFindingsIDStatusOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsPostFindingsStatus implements findings_post_findings_status operation.
+//
+// Change the status of the open findings among the ids (at most 500) with one note; one history and
+// audit row per finding, all or nothing; closed findings are skipped.
+//
+// POST /findings/status
+func (UnimplementedHandler) FindingsPostFindingsStatus(ctx context.Context, req *FindingsPostFindingsStatusReq) (r *FindingsPostFindingsStatusOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2077,6 +2109,16 @@ func (UnimplementedHandler) NotifyGetNotifyIncidentsID(ctx context.Context, para
 	return r, ht.ErrNotImplemented
 }
 
+// NotifyGetNotifyTelegramApprovers implements notify_get_notify_telegram_approvers operation.
+//
+// Approvers of the Telegram channel and whether each confirmed the link the bot sent them while signed
+// in as themself (linked); box_account is always false (D-414).
+//
+// GET /notify/telegram/approvers
+func (UnimplementedHandler) NotifyGetNotifyTelegramApprovers(ctx context.Context) (r *NotifyGetNotifyTelegramApproversOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // NotifyGetNotifyZaloApprovers implements notify_get_notify_zalo_approvers operation.
 //
 // Approvers of the Zalo personal channel and whether each confirmed the link sent to their Zalo while
@@ -2149,6 +2191,28 @@ func (UnimplementedHandler) NotifyPostNotifyEmailSigninID(ctx context.Context, r
 //
 // POST /notify/history/{id}/resend
 func (UnimplementedHandler) NotifyPostNotifyHistoryIDResend(ctx context.Context, params NotifyPostNotifyHistoryIDResendParams) (r *NotifyPostNotifyHistoryIDResendOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// NotifyPostNotifyTelegramApproversUserIDCode implements notify_post_notify_telegram_approvers_user_id_code operation.
+//
+// Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately
+// to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the
+// link in the approval chat asks them to press Start (D-414).
+//
+// POST /notify/telegram/approvers/{user_id}/code
+func (UnimplementedHandler) NotifyPostNotifyTelegramApproversUserIDCode(ctx context.Context, params NotifyPostNotifyTelegramApproversUserIDCodeParams) (r *NotifyPostNotifyTelegramApproversUserIDCodeOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// NotifyPostNotifyTelegramChats implements notify_post_notify_telegram_chats operation.
+//
+// Find the chats a Telegram bot has seen, for the Chat ID picker (D-491): the token in the body, or
+// the saved one when empty; asks Telegram once without confirming any update. 400 bad_token (not
+// valid), 409 telegram_busy (approval buttons on, a webhook or another reader), 502 telegram_failed.
+//
+// POST /notify/telegram/chats
+func (UnimplementedHandler) NotifyPostNotifyTelegramChats(ctx context.Context, req *NotifyPostNotifyTelegramChatsReq) (r *NotifyPostNotifyTelegramChatsOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2601,9 +2665,9 @@ func (UnimplementedHandler) ResponsePostResponseExecution(ctx context.Context, r
 
 // ResponsePostResponseMeIdentitiesChannelCode implements response_post_response_me_identities_channel_code operation.
 //
-// Mail a 6-digit link code to my address on the email approval channel (my sign-in email). 10 minutes,
-// one at a time, a new one after 60 seconds, 5 an hour. Chat channels get their code by pressing a
-// button on an approval message.
+// Email: mail a 6-digit link code to my address on the email approval channel (my sign-in email).
+// Telegram and Zalo personal (send_code): send a new confirm link to my listed chat ID (D-414; sent_to
+// names it). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour.
 //
 // POST /response/me/identities/{channel}/code
 func (UnimplementedHandler) ResponsePostResponseMeIdentitiesChannelCode(ctx context.Context, params ResponsePostResponseMeIdentitiesChannelCodeParams) (r *ResponsePostResponseMeIdentitiesChannelCodeOK, _ error) {

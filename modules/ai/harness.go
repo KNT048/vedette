@@ -716,7 +716,7 @@ func (s *Service) TestHook(ctx context.Context, in HookTestInput) (HookTestResul
 	}
 	out := HookTestResult{Outcome: res.Outcome, Output: res.Text, Hits: []HookHitView{}}
 	for _, h := range res.Hits {
-		out.Hits = append(out.Hits, HookHitView(h))
+		out.Hits = append(out.Hits, HookHitView{ID: h.ID, Name: h.Name, Kind: h.Kind, When: h.When, Action: h.Action, Message: h.Message})
 	}
 	return out, nil
 }

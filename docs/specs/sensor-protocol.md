@@ -202,7 +202,7 @@ Heartbeat không có trong 90 s không xoá dữ liệu nào; chỉ đổi trạ
 | query `running` | id các job worker đang chạy, cách nhau bằng dấu phẩy: rỗng, một id, hoặc hai id (một nmap, một nuclei; bản 2), mỗi id 32 hex, không trùng; khác → `400` |
 | `jobs` | 0, 1 hoặc 2 phần tử, **tối đa một job mỗi loại** |
 | `jobs[].kind` | `nmap` \| `nuclei` (bản 2). Thiếu `kind` = `nmap`. Loại lạ: giải mã chỉ lấy `id` và `kind`, worker trả `refused` (`invalid_job`) mà không làm hỏng cả poll |
-| `jobs[].shape` | (nmap) `sweep` \| `normal` \| `gentle` (ba mẫu của D-84 (7)) |
+| `jobs[].shape` | (nmap) `sweep` \| `normal` \| `gentle` (ba mẫu của D-84 (7)) \| `versions` (`-sV` không `-O`, D-501: lượt chọn tay thiết bị chưa rõ loại; worker cũ không biết mẫu này từ chối job `invalid_job`, nhận dạng báo `unavailable`). `normal` và `versions` mang đúng `--script rdp-ntlm-info,http-ntlm-info` (D-504, `nmapargv.Scripts`: hai script NTLM type 1, không thông tin đăng nhập); tên mẫu không đổi nên không tăng proto: worker của bản cũ dựng hai mẫu đó không script (chỉ trong lúc cập nhật; `sa_probe.flags` khi đó ghi thừa script, không bao giờ thiếu) |
 | `jobs[].rate` | (nmap) 1 … 1000; `gentle` luôn `1` |
 | `jobs[].targets` | (nmap) 1 … 64 IPv4 riêng (RFC 1918 hoặc dải chung RFC 6598 100.64/10, `core/localnet.Addr`, D-461), chính tắc, không trùng (văn phạm `ValidateNmapArgs`) |
 | `jobs[].timeout_s` | nmap: 1 … 7200 = min(hết cửa sổ, 2 giờ); nuclei: 1 … 3600 = min(hạn của ngữ cảnh probe, 1 giờ); do `core` tính lúc giao |

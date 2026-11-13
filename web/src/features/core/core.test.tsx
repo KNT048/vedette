@@ -21,6 +21,9 @@ import { nav, compareVersion, toBase64 } from './util'
 // offered; one test runs the v1 page.
 const bundleFlag = vi.hoisted(() => ({ BUNDLE_IN_UI: true }))
 vi.mock('@/lib/bundle', () => bundleFlag)
+// D-417: same for the credentialed scan: this file lists it as offered (the deps dialog uses it); one test runs the v1 list.
+const credFlag = vi.hoisted(() => ({ CREDENTIALED_IN_UI: true }))
+vi.mock('@/lib/credentialed', () => credFlag)
 
 const setModule = (id: string, enabled: boolean) => modulesStore.update((l) => l.map((m) => (m.id === id ? { ...m, enabled } : m)))
 const user = () => userEvent.setup()
@@ -322,6 +325,19 @@ describe('core: cài đặt ban đầu', () => {
     ])
   })
 
+  it('W2-8: a box not set up never asks /me (its 401 would be logged by the browser) and step 1 has no Back', async () => {
+    const asked: string[] = []
+    const seen = ({ request }: { request: Request }) => { asked.push(new URL(request.url).pathname) }
+    server.events.on('request:start', seen)
+    try {
+      renderApp('/', { role: null, setupComplete: false })
+      expect(await screen.findByLabelText('Setup code')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Back' })).toBeNull()
+      expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
+      expect(asked.some((p) => p.endsWith('/me'))).toBe(false)
+    } finally { server.events.removeListener('request:start', seen) }
+  })
+
   it('đã cài xong thì /setup chuyển về đăng nhập', async () => {
     renderApp('/setup', { role: null })
     expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument()
@@ -389,6 +405,16 @@ describe('core: module (S-CORE-1)', () => {
     await u.click(within(dlg).getByRole('button', { name: 'Turn on together' }))
     await waitFor(() => expect(modulesStore.get().find((m) => m.id === 'scan-credentialed')!.enabled).toBe(true))
     expect(modulesStore.get().find((m) => m.id === 'scan')!.enabled).toBe(true)
+  })
+
+  it('v1 does not list the credentialed scan, which has no backend in this build (D-417, walk-1 W1-36)', async () => {
+    credFlag.CREDENTIALED_IN_UI = false
+    try {
+      renderApp('/settings/modules')
+      expect(await screen.findByRole('switch', { name: /module Vulnerability scan$/ })).toBeInTheDocument()
+      expect(screen.queryByText('Credentialed scan')).toBeNull()
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(`of ${modulesStore.get().length - 1} modules`)
+    } finally { credFlag.CREDENTIALED_IN_UI = true }
   })
 
   it('tắt module: liệt kê module bị ảnh hưởng và nói dữ liệu được giữ', async () => {
@@ -996,11 +1022,32 @@ describe('core: nhật ký (S-CORE-3)', () => {
     renderApp('/settings/audit')
     expect(await screen.findByText('2 log lines match the filters', { exact: false })).toBeInTheDocument()
     await u.selectOptions(screen.getByLabelText('Kind of action'), 'user')
-    expect(await screen.findByRole('heading', { level: 1, name: /^1 log lines/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /^1 log line matches/ })).toBeInTheDocument()
     const table = screen.getByRole('table', { name: 'Audit log' })
     expect(within(table).getByText('Create user')).toBeInTheDocument()
     await u.type(screen.getByLabelText('Search text'), 'khong-co-gi')
     expect((await screen.findAllByText(/No line matches the filters/)).length).toBeGreaterThan(0)
+    await expectNoA11yViolations()
+  })
+
+  it('names devices and findings by name with the id below, says the retention, and hides automatic lines on request (D-416)', async () => {
+    const u = user()
+    const asset = assetsStore.get().find((a) => a.hostname)!
+    auditStore.set([
+      { id: 'a1', ts: new Date().toISOString(), user: 'system', action: 'findings.created', target: 'f-gone', detail: `CVE-2026-0001 on ${asset.id}, basis product, high`, ...NOHASH },
+      { id: 'a2', ts: new Date().toISOString(), user: 'admin@acme.example', action: 'inventory.update', target: asset.id, detail: null, ...NOHASH },
+    ])
+    renderApp('/settings/audit')
+    expect(await screen.findByText(/keeps the lines of the last 365 days, at most 200,000/)).toBeInTheDocument()
+    const table = await screen.findByRole('table', { name: 'Audit log' })
+    await within(table).findByText(asset.hostname!)
+    expect(within(table).getByText(asset.hostname!)).toBeInTheDocument() // the target, by name
+    expect(within(table).getAllByText(asset.id).length).toBeGreaterThan(0) // the id, below it
+    expect(within(table).getByText(`CVE-2026-0001 on ${asset.hostname}, basis product, high`)).toBeInTheDocument()
+    expect(within(table).getByText('f-gone')).toBeInTheDocument() // an id the box no longer has stays as it is
+    await u.selectOptions(screen.getByLabelText('Who'), 'Not the system (people and tools)')
+    expect(await screen.findByRole('heading', { level: 1, name: /^1 log line matches/ })).toBeInTheDocument()
+    expect(within(screen.getByRole('table', { name: 'Audit log' })).queryByText('Finding created')).toBeNull()
     await expectNoA11yViolations()
   })
 
@@ -1303,6 +1350,11 @@ describe('core: tài khoản', () => {
     expect(Math.min(...xs.map(([x]) => x))).toBeGreaterThanOrEqual(4)
     expect(Math.max(...xs.map(([x, y]) => Math.max(x, y)))).toBeLessThanOrEqual(size + 3)
     expect(screen.getByText('Scan this QR code with your authenticator app, or enter the key by hand.')).toBeInTheDocument()
+    // D-414: three steps recommending Google Authenticator, with both stores
+    expect(screen.getByRole('link', { name: 'App Store (iPhone)' })).toHaveAttribute('href', 'https://apps.apple.com/app/google-authenticator/id388497605')
+    expect(screen.getByRole('link', { name: 'Google Play (Android)' })).toHaveAttribute('href', 'https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2')
+    expect(screen.getByText(/tap \+ and choose Scan a QR code/)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull() // no error before anything is typed
     await u.type(screen.getByLabelText('6-digit code'), '000000')
     await u.click(screen.getByRole('button', { name: 'Confirm and turn on' }))
     expect(await screen.findByText(/Wrong code/)).toBeInTheDocument()

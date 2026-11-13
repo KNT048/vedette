@@ -8,7 +8,7 @@
   "title_other": "{{count}} unresolved findings, {{confirmed}} confirmed",
   "intro": "A finding is an actively exploited vulnerability (CISA KEV) that matches one of your devices. Confirmed means a safe scan template saw the vulnerability; suspected means it only matches by version or product.",
   "caption": "Findings list",
-  "filter": "Filter by device, CVE, product",
+  "filter": "Search device, CVE, product",
   "filterLabel": "Filter by status",
   "filters": {
     "open": "Unresolved",
@@ -16,6 +16,15 @@
     "suspected": "Suspected",
     "resolved": "Resolved",
     "all": "All"
+  },
+  "versionNeeded": {
+    "title_one": "Add the version of 1 software to check it",
+    "title_other": "Add the version of {{count}} software to check them",
+    "help": "Vedette compares the version with the versions each exploited CVE affects. Without a version it cannot tell, so it lists the product here once instead of one finding per CVE. Open the device and add the version.",
+    "missing_one": "{{software}} has no version: adding it checks 1 exploited CVE.",
+    "missing_other": "{{software}} has no version: adding it checks {{count}} exploited CVEs.",
+    "unreadable_one": "{{software}} version \"{{version}}\" cannot be compared: enter it as numbers (for example 7.2.5) to check 1 exploited CVE.",
+    "unreadable_other": "{{software}} version \"{{version}}\" cannot be compared: enter it as numbers (for example 7.2.5) to check {{count}} exploited CVEs."
   },
   "clearCve": "Clear {{cve}} filter",
   "emptyCve": "No findings for {{cve}} in this filter.",
@@ -56,7 +65,8 @@
     "title": "Findings on this device",
     "description": "Exploited vulnerabilities that match this device.",
     "none": "No findings for this device yet.",
-    "lastSeen": "Seen {{time}}"
+    "lastSeen": "Seen {{time}}",
+    "handleAll": "Select and handle these findings in the Findings list"
   },
   "status": {
     "mark": "Mark as handled",
@@ -92,7 +102,9 @@
     "response": "Response (shortened)",
     "recheck": "How to check it yourself",
     "recheckCode": "Run from a machine on the internal network",
-    "rescan": "Rescan this device"
+    "rescan": "Rescan this device",
+    "noIpScan": "This device has no IP address in your inventory, so Vedette cannot scan it. Add its IP on the device page to scan it.",
+    "openDevice": "Open the device"
   },
   "rec": {
     "title": "What to do",
@@ -119,12 +131,37 @@
     "checklistTitle": "4. Checklist",
     "checklistHint": "Tick as you finish ({{done}}/{{total}}). Only for tracking on this screen; not saved.",
     "noPack": "No confirmed recommendation yet",
-    "noPackBody": "Vedette maintainers have not confirmed a mitigation pack for this CVE. Below is source information from CISA and the vendor, not a Vedette recommendation. You can ask your own AI; its answer always carries the AI-generated label.",
-    "sourceTitle": "Source information",
+    "noPackBody": "Vedette maintainers have not confirmed a step-by-step pack for this CVE yet. Below is everything this box knows: what CISA requires, where the vendor's fix is, and how to check your device. It is source information, not a Vedette recommendation. Your own AI can draft more; its answer always carries the AI-generated label.",
     "sourceHint": "CISA's required action when it added this vulnerability on {{date}} (original English).",
-    "dueDate": "CISA due date: {{date}}.",
+    "dueDate": "CISA's deadline for US federal agencies: {{date}}. Use it as your own deadline.",
     "askTitle": "Ask your AI",
-    "askAi": "Ask my AI"
+    "askAi": "Ask my AI",
+    "cisaTitle": "What CISA requires",
+    "ransomware": "Ransomware groups have used this flaw, so handle it before the deadline.",
+    "fixTitle": "Fixed version and vendor advisory",
+    "noFixedVersion": "Vedette does not have the fixed version for this CVE yet. The vendor advisory says which version fixes it.",
+    "fixedIn": "Fixed in {{fixed}}: upgrade {{device}} from {{version}} to {{fixed}} or later.",
+    "fixedUpTo": "Versions up to {{fixed}} are affected, and {{device}} runs {{version}}: upgrade to a release after {{fixed}}. NVD does not name it; the vendor advisory does.",
+    "fixedBranches": "{{device}} has no version yet, so Vedette lists the fix of each release line: {{list}}. Add the version to see the one for this device.",
+    "fixedUnreadable": "Vedette cannot read the version \"{{version}}\" of {{device}}, so it lists the fix of each release line: {{list}}. Correct the version on the Devices page to see the one for this device.",
+    "fixedDistro": "{{device}} runs {{version}}, which is in the affected range. It is a {{distro}} package: install its security updates (for example apt upgrade) and check {{distro}}'s notice for this CVE; the upstream version number does not apply.",
+    "fixedIfDistro": "If you installed {{product}} from {{distro}}'s packages, install its security updates instead (for example apt upgrade): {{distro}} backports the fix under its own version number, so the number above may never appear.",
+    "fixedNoFix": "NVD names no fixed release for {{count}} more line(s)",
+    "fixedBranch": "{{branch}} \u2192 {{fixed}}",
+    "fixedBranchPlain": "{{fixed}}",
+    "fixedMore": "and {{count}} more",
+    "fixedSource": "Source: NVD affected versions. Check the vendor advisory before you upgrade.",
+    "vendorLink": "Vendor advisory ({{host}})",
+    "noVendorLink": "CISA lists no vendor link for this flaw. Search the vendor's security advisories for {{cve}} ({{product}}).",
+    "nvdLink": "NVD entry (affected versions)",
+    "cisaLink": "CISA notice",
+    "stepsTitle": "Steps you can take now",
+    "step1": "Find which version of {{product}} {{device}} runs, and add it to the device on the Devices page so Vedette can compare it.",
+    "step2Due": "If it is older than the fixed version in the advisory, update it by {{date}}.",
+    "step2": "If it is older than the fixed version in the advisory, update it.",
+    "step3": "Then mark this finding as Patched. If the version is already fixed, mark it as False positive and write the version in the note.",
+    "theSoftware": "the software",
+    "noKev": "This CVE is not on the CISA list this box holds, so there is no source information to show."
   },
   "compromise": {
     "title": "Have I been hit?",
@@ -172,5 +209,41 @@
     "unavailable": "The AI assistant is off, or no AI profile is assigned to this job.",
     "openSettings": "Open AI assistant settings",
     "privacy": "Sent to the AI provider you configured, with your key. Data level is set in Settings, AI assistant."
+  },
+  "noIp": "No IP address",
+  "removedDevice": "A removed device",
+  "deviceFilter": "Filter by device",
+  "allDevices": "All devices",
+  "productFilter": "Filter by product",
+  "allProducts": "All products",
+  "certainty": {
+    "label": "Filter by certainty",
+    "all": "Any certainty",
+    "likely": "Confirmed or by version",
+    "unverified": "Unverified"
+  },
+  "risk": {
+    "unverifiedChip": "{{severity}}, unverified",
+    "unverifiedHint": "Unverified: product match only. Vedette knows the product but not its version, so this may not apply to you. Add the version on the device page, or run a scan, to check.",
+    "unverifiedLine": "Unverified: product match only. The severity applies only if the version on this device is affected."
+  },
+  "bulk": {
+    "region": "Selected findings",
+    "select": "Select {{cve}} on {{device}}",
+    "selectAll": "Select all {{count}} findings shown",
+    "selected_one": "{{count}} finding selected",
+    "selected_other": "{{count}} findings selected",
+    "tooMany": "At most {{max}} at a time. Narrow the filter.",
+    "clear": "Clear selection",
+    "title_one": "Mark {{count}} finding as handled",
+    "title_other": "Mark {{count}} findings as handled",
+    "description": "One status and one note for every selected open finding. Findings already closed keep their status and note. Each finding keeps its own history line, so others can see who changed it and why.",
+    "noteHint": "The same note is saved on each finding.",
+    "submit_one": "Save status for {{count}} finding",
+    "submit_other": "Save status for {{count}} findings",
+    "done_one": "Status saved for {{count}} finding",
+    "done_other": "Status saved for {{count}} findings",
+    "skipped_one": "{{count}} was already closed and kept its status.",
+    "skipped_other": "{{count}} were already closed and kept their status."
   }
 }

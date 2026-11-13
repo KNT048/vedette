@@ -188,16 +188,25 @@ func TestRematch(t *testing.T) {
 	e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.30.5"})
 	e.ev.reset()
 	n, err := e.svc.RematchAll(e.ctx())
-	if err != nil || n != 3 {
-		t.Fatalf("RematchAll = %d, %v; want 3", n, err)
+	if err != nil || n != 2 {
+		t.Fatalf("RematchAll = %d, %v; want 2 (one per matching device, review H3)", n, err)
 	}
 	got := map[string][]string{}
 	for _, ev := range e.ev.named(inventory.EventMatchChanged) {
 		m := ev.Data.(inventory.MatchEvent)
 		got[m.AssetID] = append(got[m.AssetID], m.CVE)
 	}
-	if !slices.Equal(got[fg], []string{"CVE-2024-0001", "CVE-2024-0002"}) || !slices.Equal(got[rt], []string{"CVE-2024-0003"}) || len(got) != 2 {
+	if !slices.Equal(got[fg], []string{"CVE-2024-0001"}) || !slices.Equal(got[rt], []string{"CVE-2024-0003"}) || len(got) != 2 {
 		t.Errorf("events %v", got)
+	}
+	// review H3: an NVD update of a few CVEs reaches only their devices, each once
+	e.ev.reset()
+	refs := []inventory.KevRef{{CVE: "CVE-2024-0002", Vendor: "Fortinet", Product: "FortiOS"}, {CVE: "CVE-2024-0001", Vendor: "Fortinet", Product: "FortiOS"}, {CVE: "CVE-2024-0099", Vendor: "Nobody", Product: "Nothing"}}
+	if n, err = e.svc.RematchMany(e.ctx(), refs); err != nil || n != 1 {
+		t.Fatalf("RematchMany = %d, %v", n, err)
+	}
+	if ev := e.ev.named(inventory.EventMatchChanged); len(ev) != 1 || ev[0].Data.(inventory.MatchEvent) != (inventory.MatchEvent{AssetID: fg, CVE: "CVE-2024-0001", Basis: "product"}) {
+		t.Errorf("events %v", ev)
 	}
 	// one new CVE of FortiOS reaches the devices that run it only
 	e.ev.reset()
@@ -444,8 +453,11 @@ func TestSetupScopeBecomesTheScanScope(t *testing.T) {
 		st.ScopeConfirmedBy == nil || *st.ScopeConfirmedBy != "ann@acme.example" {
 		t.Fatalf("settings after setup: %+v", st)
 	}
-	if !slices.Equal(st.FragileKinds, before.FragileKinds) || st.Active.Enabled || st.Active.Rate != before.Active.Rate {
+	if !slices.Equal(st.FragileKinds, before.FragileKinds) || st.Active.Rate != before.Active.Rate || st.Active.From != before.Active.From {
 		t.Errorf("the other settings changed: %+v, before %+v", st, before)
+	}
+	if before.Active.Enabled || !st.Active.Enabled { // D-501 (walk 2 W2-4): the commitment ticked at setup turns active scanning on
+		t.Errorf("active scanning %v before setup and %v after a confirmed one, want off then on", before.Active.Enabled, st.Active.Enabled)
 	}
 	if ok, err := e.svc.InScope(e.ctx(), netip.MustParseAddr("192.168.10.7")); err != nil || !ok {
 		t.Errorf("an address of the setup range is not in scope: %v %v", ok, err)
@@ -461,7 +473,7 @@ func TestSetupScopeBecomesTheScanScope(t *testing.T) {
 	if err := e2.setupScope([]string{"192.168.10.0/24"}, false, false); err != nil {
 		t.Fatal(err)
 	}
-	if st, err := e2.svc.Settings(e2.ctx()); err != nil || st.ScopeConfirmedAt != nil || st.ScopeConfirmedBy != nil || len(st.LANRanges) != 1 {
+	if st, err := e2.svc.Settings(e2.ctx()); err != nil || st.ScopeConfirmedAt != nil || st.ScopeConfirmedBy != nil || len(st.LANRanges) != 1 || st.Active.Enabled {
 		t.Errorf("unconfirmed setup scope: %+v %v", st, err)
 	}
 }

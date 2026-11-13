@@ -13,7 +13,7 @@ import type { CveDetail, FeedStatus, HotRow, IocHit, MatchedAsset, SearchResult,
 
 const data = kev as { generated_at: string; kev_catalog_version: string; sources: FeedStatus['sources']; vulns: Vuln[] }
 const ref = new Date(data.generated_at).getTime()
-const inWindow = (v: Vuln, hours: number) => new Date(`${v.date_added}T23:59:59Z`).getTime() >= ref - hours * 36e5
+const inWindow = (v: Vuln, hours: number, end: number) => new Date(`${v.date_added}T23:59:59Z`).getTime() >= end - hours * 36e5 && new Date(`${v.date_added}T00:00:00Z`).getTime() <= end // a date after now is not counted (D-485)
 
 const weeklyAnswers = collection<Record<string, 'have' | 'not_relevant'>>('feeds_weekly_answers', () => ({}))
 
@@ -56,11 +56,12 @@ function matchAssets(vendor: string, product: string): MatchedAsset[] {
   return out
 }
 
-function hotRows(hours: number): HotRow[] {
+/** The newly exploited board (Home, S-FEED-1); the weekly report mock counts from it too (D-485). `end` moves the window back for older weeks. */
+export function hotRows(hours: number, end = ref): HotRow[] {
   const youHave = (matched: MatchedAsset[]): YouHave => (matched.some((m) => m.how === 'yes') ? 'yes' : matched.length ? 'maybe' : 'no')
   const inv = isOn('inventory')
   const groups = new Map<string, Vuln[]>()
-  for (const v of data.vulns.filter((x) => inWindow(x, hours))) {
+  for (const v of data.vulns.filter((x) => inWindow(x, hours, end))) {
     const k = keyOf(v.vendor, v.product)
     groups.set(k, [...(groups.get(k) ?? []), v])
   }

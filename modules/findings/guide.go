@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -223,6 +224,7 @@ type historyDoc struct {
 type Detail struct {
 	Row
 	Guide
+	FixedIn *FixedIn `json:"fixed_in"` // null when NVD's ranges do not say which release fixes it (D-488)
 }
 
 func newRow(r Record, a *AssetView, k *KevInfo) Row {
@@ -254,10 +256,24 @@ func newRow(r Record, a *AssetView, k *KevInfo) Row {
 		}
 		row.Kev = &kk
 	}
-	if a != nil && !validKind(a.Kind) {
+	if a != nil {
 		aa := *a
-		aa.Kind = "unknown"
+		if !validKind(aa.Kind) {
+			aa.Kind = "unknown"
+		}
+		if aa.Name == "" || aa.Name == aa.ID { // never show an internal id (D-484): the software it runs, else the kind
+			aa.Name = aa.Display
+			if aa.Name == "" {
+				aa.Name = aa.Kind
+			}
+		}
 		row.Asset = &aa
+		// Findings created before D-484 named a device without hostname or IP by its id in the evidence.
+		if row.Evidence != nil && r.AssetID != "" && strings.Contains(row.Evidence.Summary, r.AssetID) {
+			ev := *row.Evidence
+			ev.Summary = strings.ReplaceAll(ev.Summary, r.AssetID, aa.Name)
+			row.Evidence = &ev
+		}
 	}
 	return row
 }

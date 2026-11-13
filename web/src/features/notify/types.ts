@@ -38,7 +38,7 @@ export const INCIDENT_KINDS: IncidentKind[] = ['trap', 'bad_address', 'log_anoma
 export const FIELDS: Record<ChannelType, string[]> = {
   telegram: ['chat_id'],
   slack: ['label'], // channel_id chỉ hiện khi bật duyệt trong chat
-  zalo: ['oa_id', 'user_id'],
+  zalo: ['oa_id', 'user_id', 'app_id'], // app_id: the refresh-token flow (D-483); secret key and refresh token are secrets
   'zalo-personal': ['user_id'],
   email: ['provider', 'host', 'port', 'security', 'username', 'tenant_id', 'client_id', 'from', 'to'], // provider: preset (D-449); tenant_id, client_id: Microsoft 365 only
   webhook: ['url'],
@@ -92,3 +92,4 @@ export const forbiddenHost = (host: string) => {
   const meta = x.slice(2, 7).every((v) => v === 0) && x[7] === 0x254 && ((x[0] === 0xfd00 && x[1] === 0xec2) || (x[0] === 0xfd20 && x[1] === 0xce)) // AWS, Google Cloud
   return meta || (zero7 && (x[7] === 0 || x[7] === 1)) || (x[0]! & 0xffc0) === 0xfe80 || x[0]! >> 8 === 0xff
 }
+export type TelegramChat = z.infer<typeof C.TelegramChat>

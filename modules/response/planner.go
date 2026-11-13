@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/netip"
 	"regexp"
 	"slices"
 	"time"
@@ -149,7 +150,7 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 		}
 		asked++
 		s.planCall(true)
-		d, err := s.cfg.Planner.Plan(ctx, PlanAsk{Target: t, Actions: actions})
+		d, err := s.cfg.Planner.Plan(ctx, PlanAsk{Target: t, Actions: offeredFor(actions, t)})
 		if errors.Is(err, ErrPlanUnavailable) {
 			return saved, nil
 		}
@@ -168,12 +169,22 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 		}
 		saved++
 		if send {
-			if err := s.sendPlan(ctx, t, d, steps, actions); err != nil {
+			if err := s.sendPlan(ctx, t, d, steps, offeredFor(actions, t)); err != nil {
 				return saved, err
 			}
 		}
 	}
 	return saved, nil
+}
+
+// offeredFor is the actions offered for one target: the block list action only when the device's address is one the list can publish
+// (D-469). A plan for a LAN device that proposed it would be refused whole (not_publishable), cost the plan and back the finding off.
+func offeredFor(actions []AIAction, t PlanTarget) []AIAction {
+	a, err := netip.ParseAddr(t.AssetIP)
+	if err == nil && publishable(a) {
+		return actions
+	}
+	return slices.DeleteFunc(slices.Clone(actions), func(x AIAction) bool { return x.ID == "blocklist_add" })
 }
 
 // sendPlan sends each proposal of a plan just stored through Propose, as the AI (ai:response, D-310): the trigger is the finding, the

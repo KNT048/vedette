@@ -493,17 +493,17 @@ func TestE2EBox(t *testing.T) {
 // derivation (loopback without a seam answers "", a public name gets https), and the seam is forgotten when the box stops.
 func TestE2EBaseURLSeam(t *testing.T) {
 	forget := e2eBaseURL("127.0.0.1:41999", "http://127.0.0.1:41999")
-	if got := boxBaseURL([]string{"box.corp.example"}, "127.0.0.1:41999"); got != "http://127.0.0.1:41999" {
+	if got := boxBaseURL("box.corp.example", "127.0.0.1:41999"); got != "http://127.0.0.1:41999" {
 		t.Fatalf("registered listen = %q", got)
 	}
-	if got := boxBaseURL([]string{"box.corp.example"}, "127.0.0.1:41998"); got != "" {
+	if got := boxBaseURL("box.corp.example", "127.0.0.1:41998"); got != "" {
 		t.Fatalf("another loopback listen = %q, want the production answer \"\"", got)
 	}
-	if got := boxBaseURL([]string{"box.corp.example"}, "10.0.0.5:8443"); got != "https://box.corp.example:8443" {
+	if got := boxBaseURL("box.corp.example", "10.0.0.5:8443"); got != "https://box.corp.example:8443" {
 		t.Fatalf("a LAN listen = %q", got)
 	}
 	forget()
-	if got := boxBaseURL([]string{"box.corp.example"}, "127.0.0.1:41999"); got != "" {
+	if got := boxBaseURL("box.corp.example", "127.0.0.1:41999"); got != "" {
 		t.Fatalf("after the box stopped = %q", got)
 	}
 }

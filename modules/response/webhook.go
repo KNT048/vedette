@@ -18,12 +18,14 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/knt048/vedette/core/netguard"
 )
 
 // webhook_call: a generic HTTPS POST of a short text (a ticket system, an automation tool). Same guard as the webhook
-// channel of notify: no loopback, link-local, multicast, unspecified or box address, checked on the resolved address at
-// connect time (so a name that resolves to one, or rebinds to one, is refused too), no redirects, no proxy, timeouts and
-// size caps. Nothing on the customer's network changes (INV-1: a box action), and the URL is a secret that never reaches
+// channel of notify: no loopback, link-local, multicast, unspecified, cloud metadata or box address, in any transition form
+// (core/netguard, shared with the other outbound guards, D-411), checked on the resolved address at connect time (so a name that
+// resolves to one, or rebinds to one, is refused too), no redirects, no proxy, timeouts and size caps. Nothing on the customer's network changes (INV-1: a box action), and the URL is a secret that never reaches
 // the log or the API.
 
 const (
@@ -35,24 +37,27 @@ const (
 
 var (
 	numericLabelRE   = regexp.MustCompile(`^(0x[0-9a-f]+|[0-9]+)$`)
-	errForbiddenDial = errors.New("response: webhook: refusing to connect to a loopback, link-local, multicast, unspecified or box address")
+	errForbiddenDial = errors.New("response: webhook: refusing to connect to a loopback, link-local, multicast, unspecified, cloud metadata or box address")
 )
 
-// forbiddenAddr reports whether a webhook may never connect to a. allowLoopback is for the package tests only.
+// forbiddenAddr reports whether a webhook may never connect to a: each of its forms (the address and the IPv4 address a NAT64, 6to4
+// or IPv4-compatible form carries) is judged. allowLoopback is for the package tests only.
 func forbiddenAddr(a netip.Addr, allowLoopback bool, box []netip.Addr) bool {
-	a = a.Unmap()
-	switch {
-	case a.IsUnspecified(), a.IsMulticast(), a.IsLinkLocalUnicast(), a.IsLinkLocalMulticast():
-		return true
-	case a.IsLoopback() && !allowLoopback:
-		return true
-	}
-	for _, b := range box {
-		if allowLoopback && b.Unmap().IsLoopback() {
-			continue // tests only: the interface list holds 127.0.0.1
-		}
-		if b.Unmap() == a {
+	for _, f := range netguard.Forms(a) {
+		if f.IsLoopback() {
+			if !allowLoopback {
+				return true
+			}
+		} else if netguard.Always(f) {
 			return true
+		}
+		for _, b := range box {
+			if allowLoopback && b.Unmap().IsLoopback() {
+				continue // tests only: the interface list holds 127.0.0.1
+			}
+			if b.Unmap().WithZone("") == f {
+				return true
+			}
 		}
 	}
 	return false
@@ -93,6 +98,8 @@ func (s *Service) guardedClient() *http.Client {
 	}
 }
 
+const blockedWebhook = "The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address."
+
 // checkWebhookURL accepts an https URL without credentials whose host is not a number in disguise or a local name.
 func (s *Service) checkWebhookURL(raw string) (*url.URL, error) {
 	bad := shown("The webhook address must start with https:// and name a host on your network or the Internet.")
@@ -113,7 +120,7 @@ func (s *Service) checkWebhookURL(raw string) (*url.URL, error) {
 			return nil, shown("This box's own addresses could not be read, so the webhook address cannot be checked. Nothing was sent.")
 		}
 		if forbiddenAddr(a, s.allowLoopback, box) {
-			return nil, shown("The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.")
+			return nil, shown(blockedWebhook)
 		}
 		return u, nil
 	}
@@ -121,8 +128,8 @@ func (s *Service) checkWebhookURL(raw string) (*url.URL, error) {
 	if numericLabelRE.MatchString(labels[len(labels)-1]) {
 		return nil, bad // a number-like host is an IP in disguise
 	}
-	if !s.allowLoopback && (host == "localhost" || strings.HasSuffix(host, ".localhost")) {
-		return nil, shown("The webhook cannot point at this machine, a link-local or multicast address, or an unspecified address.")
+	if !s.allowLoopback && (host == "localhost" || strings.HasSuffix(host, ".localhost")) || netguard.MetadataName(host) {
+		return nil, shown(blockedWebhook)
 	}
 	return u, nil
 }

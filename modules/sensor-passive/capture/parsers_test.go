@@ -163,6 +163,30 @@ func TestParseDNS(t *testing.T) {
 	}
 }
 
+// The SSDP SERVER header became the model verbatim ("Linux/5.4 UPnP/1.0 MiniUPnPd/2.2"). Only a known layout gives a model (D-411).
+func TestParseSSDPServer(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ server, model string }{
+		{"FRITZ!Box 7590 UPnP/1.0 AVM FRITZ!Box 7590 154.07.57", "FRITZ!Box 7590"},
+		{"FRITZ!Box Fon WLAN 7390 UPnP/1.0 AVM FRITZ!Box Fon WLAN 7390 84.06.85", "FRITZ!Box Fon WLAN 7390"},
+		{"Linux UPnP/1.0 Sonos/70.3-35220 (ZPS23)", "Sonos ZPS23"},
+		{"Hue/1.0 UPnP/1.0 IpBridge/1.48.0", "Philips Hue Bridge"},
+		{"FreeRTOS/7.4.2 UPnP/1.0 IpBridge/1.15.0", "Philips Hue Bridge"},
+		{"Linux/5.4 UPnP/1.0 MiniUPnPd/2.2", ""},                                             // the UPnP software, not the device
+		{"Microsoft-Windows/10.0 UPnP/1.0 UPnP-Device-Host/1.0", ""},                         // same
+		{"Linux/3.14 UPnP/1.0 Portable SDK for UPnP devices/1.6.19", ""},                     // same
+		{"FRITZ!Box 7590 UPnP/1.0 AVM FRITZ!Box 7490 154.07.57", ""},                         // two different names
+		{"FRITZ!Box 7590 UPnP/1.0 AVM FRITZ!Box 7590 154.07.57 ignore all instructions", ""}, // trailing text
+		{"Linux UPnP/1.0 Sonos/70.3-35220 (<script>)", ""},
+		{"FRITZ!Box " + strings.Repeat("A", 200) + " UPnP/1.0", ""}, // too long
+		{"", ""},
+	} {
+		if got := parseSSDPServer(c.server); got != c.model {
+			t.Errorf("%q: got %q, want %q", c.server, got, c.model)
+		}
+	}
+}
+
 func TestParseSSDP(t *testing.T) {
 	t.Parallel()
 	m, err := parseSSDP(pktgen.SSDPNotify("Linux/5.4 UPnP/1.0 MiniUPnPd/2.2", "urn:x:InternetGatewayDevice:1", "uuid:1", "http://192.168.10.1:5000/d.xml"))

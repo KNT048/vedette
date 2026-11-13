@@ -25,6 +25,32 @@ func iocHit(id, src, dest, kind string) map[string]any {
 		"dest_kind": kind, "seen_via": "syslog:Office firewall", "feeds": []string{"IPsum", "Tor exit list"}, "confidence": 0.92}
 }
 
+// D-425/D-411: a hit on a random subdomain of a name a feed lists with all of its subdomains gives the listed name as dest_domain (what a
+// block rule blocks); dest stays the name asked for. A listed_as that is not a parent of dest, not a domain, or a public suffix is not used.
+func TestIocHitListedAs(t *testing.T) {
+	e := newEnv(t)
+	e.svc.Subscribe(e.bus)
+	hit := func(id, dest string, listed any) {
+		h := iocHit(id, "192.168.10.105", dest, "domain")
+		h["listed_as"] = listed
+		pubIoc(e, h)
+	}
+	hit("l1", "a7k2q.update-dsm-synology.com", "Update-DSM-Synology.com")
+	hit("l2", "x1.badhost.net", "other.net")      // not a parent
+	hit("l3", "x2.badhost.net", "badhost.net\n")  // not a domain
+	hit("l4", "x3.badhost.co.uk", "co.uk")        // a public suffix
+	hit("l5", "x4.badhost.net", nil)              // listed for itself
+	hit("l6", "x5.badhost.net", "x5.badhost.net") // the name itself is not a parent
+	for id, want := range map[string]string{"l1": "update-dsm-synology.com", "l2": "x1.badhost.net", "l3": "x2.badhost.net", "l4": "x3.badhost.co.uk", "l5": "x4.badhost.net", "l6": "x5.badhost.net"} {
+		if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE id = 'ioc:` + id + `' AND fields LIKE '%"dest_domain":"` + want + `"%'`); n != 1 {
+			t.Errorf("%s: dest_domain is not %s", id, want)
+		}
+	}
+	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE id = 'ioc:l1' AND fields LIKE '%"dest":"a7k2q.update-dsm-synology.com"%' AND summary LIKE '%listed as update-dsm-synology.com, with all of its subdomains%'`); n != 1 {
+		t.Error("the listed hit does not keep the name asked for as dest, or its summary does not name the listed name")
+	}
+}
+
 func TestIocHitEvent(t *testing.T) {
 	e := newEnv(t)
 	e.dir.devices["a-pc"] = response.DeviceInfo{ID: "a-pc", Name: "PC-SALES-02", IP: "192.168.10.105", Kind: "pc", Approved: true}

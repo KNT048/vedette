@@ -230,6 +230,32 @@ func TestInstall_ExitsZeroWhenEnrolledNotWhenFirstReportArrives(t *testing.T) {
 	}
 }
 
+// osqueryd keeps the node key of its enrolment in its database and never enrols again while the box accepts the key, so a run with a token
+// this machine does not hold (another token, or none after --uninstall) stops osqueryd and removes the database before the new secret is
+// written and the service restarted; a run with the same token keeps the key (D-411). --uninstall removes the database too.
+// ponytail: text checks (module tests may not run a shell, SYS-1); the behaviour was run under dash against stubs for the PR.
+func TestInstall_NewTokenEnrolsAgain(t *testing.T) {
+	sh, ps1 := readFile(t, "scripts/osquery.sh"), readFile(t, "scripts/osquery.ps1")
+	inOrder := func(name, body string, parts ...string) {
+		t.Helper()
+		at := 0
+		for _, p := range parts {
+			i := strings.Index(body[at:], p)
+			if i < 0 {
+				t.Errorf("%s: %q is missing or out of order", name, p)
+				return
+			}
+			at += i + len(p)
+		}
+	}
+	inOrder("sh", sh, `DB=/var/osquery/osquery.db`, `if [ "$ACTION" = uninstall ]`, `rm -rf "$DB"`, `exit 0`,
+		`if [ "$(cat "$DIR/enroll.secret" 2>/dev/null || true)" != "$TOKEN" ]; then`, `systemctl stop osqueryd`, `rm -rf "$DB"`, `fi`,
+		`printf '%s' "$TOKEN" > "$DIR/enroll.secret"`, `systemctl restart osqueryd`)
+	inOrder("ps1", ps1, `$Db = Join-Path $Dir 'osquery.db'`, `if ($Uninstall)`, `Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $Db`, `return`,
+		`if ($held -cne $Token) {`, `Stop-Service osqueryd -Force`, `Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $Db`, `}`,
+		`Set-Content -Path $Secret -Value $Token`, `Restart-Service osqueryd`)
+}
+
 // An arbitrary Host header is never put into a script: only a name the server's allow-list lets in, rebuilt from validated parts, or the
 // configured address, or the placeholder.
 func TestInstall_HostIsNeverReflected(t *testing.T) {

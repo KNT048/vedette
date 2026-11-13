@@ -78,7 +78,7 @@ func TestLANDiscoveryFixture(t *testing.T) {
 		printer + " hostname=hp-laser-3f @192.168.10.22 0.6",
 		printer + " kind=printer @192.168.10.22 0.5",
 		printer + " model=HP LaserJet Pro M404 @192.168.10.22 0.5",
-		router + " model=Linux/5.4 UPnP/1.0 MiniUPnPd/2.2 @192.168.10.1 0.5",
+		router + " model=FRITZ!Box 7590 @192.168.10.1 0.5", // from a known SERVER layout, never the header itself (D-411)
 		router + " kind=router @192.168.10.1 0.5",
 		sw + " mac=" + sw + " @ 0.9",
 		sw + " hostname=SW-CORE-01 @ 0.7",

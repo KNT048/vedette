@@ -131,7 +131,9 @@ func TestLibraryMatchesTheMockExceptForShellCharacters(t *testing.T) {
 func TestForbiddenAddr(t *testing.T) {
 	t.Parallel()
 	box := []netip.Addr{netip.MustParseAddr("192.168.10.2")}
-	for _, a := range []string{"127.0.0.1", "::1", "0.0.0.0", "::", "169.254.169.254", "fe80::1", "224.0.0.1", "ff02::1", "192.168.10.2", "::ffff:127.0.0.1"} {
+	for _, a := range []string{"127.0.0.1", "::1", "0.0.0.0", "::", "169.254.169.254", "fe80::1", "224.0.0.1", "ff02::1", "192.168.10.2", "::ffff:127.0.0.1",
+		// D-411: the cloud metadata endpoints that are not link-local, and transition forms of a forbidden or box address (core/netguard)
+		"100.100.100.200", "192.0.0.192", "fd00:ec2::254", "fd20:ce::254", "64:ff9b::a9fe:a9fe", "2002:6464:64c8::1", "64:ff9b::c0a8:a02", "255.255.255.255"} {
 		if !forbiddenAddr(netip.MustParseAddr(a), false, box) {
 			t.Errorf("%s is allowed", a)
 		}
@@ -143,6 +145,23 @@ func TestForbiddenAddr(t *testing.T) {
 	}
 	if !forbiddenAddr(netip.MustParseAddr("127.0.0.1"), false, nil) || forbiddenAddr(netip.MustParseAddr("127.0.0.1"), true, nil) {
 		t.Error("the loopback switch is wrong")
+	}
+	if !forbiddenAddr(netip.MustParseAddr("100.100.100.200"), true, nil) {
+		t.Error("the loopback switch opens the metadata endpoints")
+	}
+}
+
+// D-411: a webhook URL naming a cloud metadata service or endpoint is refused at save, before any lookup.
+func TestCheckWebhookURLRefusesMetadata(t *testing.T) {
+	t.Parallel()
+	s := &Service{} // the box addresses are this machine's interfaces
+	for _, u := range []string{"https://metadata.google.internal/computeMetadata/v1/", "https://metadata/", "https://METADATA.GOOG./x", "https://100.100.100.200/latest", "https://[fd00:ec2::254]/latest", "https://[64:ff9b::a9fe:a9fe]/"} {
+		if _, err := s.checkWebhookURL(u); err == nil || !strings.Contains(err.Error(), "cloud metadata") {
+			t.Errorf("%s: %v", u, err)
+		}
+	}
+	if _, err := s.checkWebhookURL("https://hooks.example.com/x"); err != nil {
+		t.Errorf("a public name is refused: %v", err)
 	}
 }
 

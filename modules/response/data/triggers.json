@@ -92,7 +92,7 @@
     },
     {
      "key": "dest_domain",
-     "label": "Destination domain (empty for an IP)",
+     "label": "Destination domain, as the feed lists it (empty for an IP)",
      "type": "domain",
      "example": "cdn-update.badhost.example",
      "choices": []

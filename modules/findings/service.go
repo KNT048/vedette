@@ -199,7 +199,7 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 				return err
 			}
 			if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.created", Target: r.ID,
-				Detail: fmt.Sprintf("%s on %s, basis %s, %s", r.CVE, r.AssetID, r.Basis, r.Severity)}); err != nil {
+				Detail: createdDetail(r, a)}); err != nil {
 				return err
 			}
 			emit(EventCreated, CreatedEvent{FindingID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Severity: r.Severity, Basis: r.Basis})
@@ -723,4 +723,14 @@ func haveSet(cves []string) map[string]bool {
 		m[c] = true
 	}
 	return m
+}
+
+// createdDetail is the audit text of a new finding. It names the device, not its id: the audit page replaces an id with
+// the name and prints the stored text under it, so an id here showed every line twice (W2-13).
+func createdDetail(r Record, a Asset) string {
+	dev := clean(a.Name)
+	if dev == "" {
+		dev = r.AssetID
+	}
+	return fmt.Sprintf("%s on %s, basis %s, %s", r.CVE, dev, r.Basis, r.Severity)
 }

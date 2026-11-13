@@ -203,6 +203,10 @@ func TestContract_POST1_UpsertCreatesFindingWithHistoryAuditAndEvent(t *testing.
 	if got := e.auditActions(); len(got) != 1 || got[0] != "findings.created" {
 		t.Fatalf("audit = %v", got)
 	}
+	var detail string // the audit page prints the stored text under the named one: an id in it showed each line twice (W2-13)
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT detail FROM core_audit WHERE action = 'findings.created'`).Scan(&detail); err != nil || detail != "CVE-2022-27593 on nas01, basis product, medium" {
+		t.Fatalf("detail = %q err=%v", detail, err)
+	}
 }
 
 func TestOnMatchChangedUnknownAsset(t *testing.T) {

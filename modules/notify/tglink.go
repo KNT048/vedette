@@ -25,12 +25,12 @@ func telegramLinkPath(token string) string { return "/link/telegram?c=" + url.Qu
 
 // TelegramApprovers is GET /notify/telegram/approvers: each saved approver of the Telegram channel and whether their Telegram is linked;
 // who is the administrator asking (their own row is Self).
-func (s *Service) TelegramApprovers(ctx context.Context, who string) ([]ZaloApprover, error) {
+func (s *Service) TelegramApprovers(ctx context.Context, who string) ([]LinkApprover, error) {
 	list, err := loadApprovers(ctx, s.cfg.DB.Reader(), channel.Telegram)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]ZaloApprover, 0, len(list))
+	out := make([]LinkApprover, 0, len(list))
 	for _, a := range list {
 		out = append(out, s.approverState(ctx, channel.Telegram, a, who, ""))
 	}
@@ -39,24 +39,24 @@ func (s *Service) TelegramApprovers(ctx context.Context, who string) ([]ZaloAppr
 
 // SendTelegramLink is POST /notify/telegram/approvers/{user_id}/code: a new confirm link for that approver (the old one stops working),
 // sent privately by the bot. An administrator's own row gets the message like everyone's; they confirm it in their session.
-func (s *Service) SendTelegramLink(ctx context.Context, actor, userID string) (ZaloApprover, error) {
+func (s *Service) SendTelegramLink(ctx context.Context, actor, userID string) (LinkApprover, error) {
 	c, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.Telegram)
 	if err != nil {
-		return ZaloApprover{}, err
+		return LinkApprover{}, err
 	}
-	if !zaloReady(c) {
-		return ZaloApprover{}, apierr.New(http.StatusConflict, "channel_not_ready", `Save the Telegram channel turned on, with "Approve actions from this channel", first.`)
+	if !approvalsReady(c) {
+		return LinkApprover{}, apierr.New(http.StatusConflict, "channel_not_ready", `Save the Telegram channel turned on, with "Approve actions from this channel", first.`)
 	}
 	list, err := loadApprovers(ctx, s.cfg.DB.Reader(), channel.Telegram)
 	if err != nil {
-		return ZaloApprover{}, err
+		return LinkApprover{}, err
 	}
 	i := slices.IndexFunc(list, func(a Approver) bool { return a.UserID == userID })
 	if i < 0 {
-		return ZaloApprover{}, apierr.New(http.StatusNotFound, "not_listed", "This person is not an approver on the Telegram channel. Save the channel first.")
+		return LinkApprover{}, apierr.New(http.StatusNotFound, "not_listed", "This person is not an approver on the Telegram channel. Save the channel first.")
 	}
 	if err := s.sendTelegramLink(ctx, actor, c, list[i]); err != nil {
-		return ZaloApprover{}, err
+		return LinkApprover{}, err
 	}
 	return s.approverState(ctx, channel.Telegram, list[i], actor, ""), nil
 }

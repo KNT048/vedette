@@ -196,7 +196,7 @@ func (f scanFindings) List(ctx context.Context, assetID string) ([]scan.FindingR
 	}
 	out := make([]scan.FindingRef, 0, len(rs))
 	for _, r := range rs {
-		out = append(out, scan.FindingRef{ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status)})
+		out = append(out, scan.FindingRef{ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Basis: string(r.Basis)})
 	}
 	return out, nil
 }

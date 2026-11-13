@@ -307,7 +307,7 @@ func (h *NotifyHandlers) NotifyGetNotifyZaloApprovers(ctx context.Context) (*oas
 		return nil, err
 	}
 	return convert[oas.NotifyGetNotifyZaloApproversOK](struct {
-		Items []ZaloApprover `json:"items"`
+		Items []LinkApprover `json:"items"`
 	}{l})
 }
 
@@ -335,7 +335,7 @@ func (h *NotifyHandlers) NotifyGetNotifyTelegramApprovers(ctx context.Context) (
 		return nil, err
 	}
 	return convert[oas.NotifyGetNotifyTelegramApproversOK](struct {
-		Items []ZaloApprover `json:"items"`
+		Items []LinkApprover `json:"items"`
 	}{l})
 }
 

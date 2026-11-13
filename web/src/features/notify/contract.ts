@@ -103,6 +103,7 @@ export const ZaloLogin = z.object({
 export const ZaloContact = z.object({ id: z.string(), name: z.string(), group: z.boolean(), members: z.number().int().describe('Group size; 0 when not given') })
 export const ZaloContacts = z.object({ friends: z.array(ZaloContact), groups: z.array(ZaloContact) })
 export const ZaloFound = ZaloContact.extend({ member: z.boolean().describe('false: a group the signed-in account is not a member of (messages would not reach it)') })
+// The link state of an approver of a confirm-link channel: Zalo personal (D-447) and Telegram (D-414) share it.
 export const ZaloApproverState = z.enum(['linked', 'sending', 'waiting', 'not_sent'])
 export const ZaloApprover = z.object({ user_id: z.string(), address: z.string(), name: z.string(), state: ZaloApproverState, sent_at: iso.nullable(), error: z.string().describe('not_sent: why (failed, expired, or no link made)'),
   self: z.boolean().describe('The administrator asking'),
@@ -133,6 +134,8 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/notify/zalo/contacts', summary: 'Friends and groups of the Zalo account (your finished sign-in, else the saved session)', stories: ['S-NOT-1', 'S-RESP-2'], role: 'admin', response: ZaloContacts },
   { method: 'post', path: '/notify/zalo/resolve', summary: 'Find the group of a zalo.me/g/ invite link, the person of a phone number, or take a numeric Zalo ID', stories: ['S-NOT-1', 'S-RESP-2'], role: 'admin', body: z.object({ query: z.string().max(200) }), response: ZaloFound },
   { method: 'get', path: '/notify/zalo/approvers', summary: 'Approvers of the Zalo personal channel and whether each confirmed the link sent to their Zalo while signed in as themself (linked)', stories: ['S-RESP-2'], role: 'admin', response: ZaloApprovers },
+  { method: 'get', path: '/notify/telegram/approvers', summary: 'Approvers of the Telegram channel and whether each confirmed the link the bot sent them while signed in as themself (linked); box_account is always false (D-414)', stories: ['S-RESP-2'], role: 'admin', response: ZaloApprovers },
+  { method: 'post', path: '/notify/telegram/approvers/{user_id}/code', summary: 'Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the link in the approval chat asks them to press Start (D-414)', stories: ['S-RESP-2'], role: 'admin', params: z.object({ user_id: z.string() }), response: ZaloApprover, example: { params: { user_id: 'u-op' } } },
   { method: 'post', path: '/notify/zalo/approvers/{user_id}/code', summary: 'Send an approver a new confirm link to their Zalo (the old one stops working); for your own row, return the link to confirm now instead', stories: ['S-RESP-2'], role: 'admin', params: z.object({ user_id: z.string() }), response: ZaloApprover, example: { params: { user_id: 'u-op' } } },
   { method: 'put', path: '/notify/rules', summary: 'Save quiet hours and batching rules', stories: ['S-NOT-1'], role: 'admin', body: Rules, response: Rules },
 ])

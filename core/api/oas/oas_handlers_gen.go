@@ -29805,6 +29805,133 @@ func (s *Server) handleNotifyGetNotifyIncidentsIDRequest(args [1]string, argsEsc
 	}
 }
 
+// handleNotifyGetNotifyTelegramApproversRequest handles notify_get_notify_telegram_approvers operation.
+//
+// Approvers of the Telegram channel and whether each confirmed the link the bot sent them while signed
+// in as themself (linked); box_account is always false (D-414).
+//
+// GET /notify/telegram/approvers
+func (s *Server) handleNotifyGetNotifyTelegramApproversRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: NotifyGetNotifyTelegramApproversOperation,
+			ID:   "notify_get_notify_telegram_approvers",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, NotifyGetNotifyTelegramApproversOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response *NotifyGetNotifyTelegramApproversOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    NotifyGetNotifyTelegramApproversOperation,
+			OperationSummary: "Approvers of the Telegram channel and whether each confirmed the link the bot sent them while signed in as themself (linked); box_account is always false (D-414)",
+			OperationID:      "notify_get_notify_telegram_approvers",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *NotifyGetNotifyTelegramApproversOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.NotifyGetNotifyTelegramApprovers(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.NotifyGetNotifyTelegramApprovers(ctx)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeNotifyGetNotifyTelegramApproversResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleNotifyGetNotifyZaloApproversRequest handles notify_get_notify_zalo_approvers operation.
 //
 // Approvers of the Zalo personal channel and whether each confirmed the link sent to their Zalo while
@@ -30913,6 +31040,149 @@ func (s *Server) handleNotifyPostNotifyHistoryIDResendRequest(args [1]string, ar
 	}
 
 	if err := encodeNotifyPostNotifyHistoryIDResendResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleNotifyPostNotifyTelegramApproversUserIDCodeRequest handles notify_post_notify_telegram_approvers_user_id_code operation.
+//
+// Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately
+// to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the
+// link in the approval chat asks them to press Start (D-414).
+//
+// POST /notify/telegram/approvers/{user_id}/code
+func (s *Server) handleNotifyPostNotifyTelegramApproversUserIDCodeRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: NotifyPostNotifyTelegramApproversUserIDCodeOperation,
+			ID:   "notify_post_notify_telegram_approvers_user_id_code",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, NotifyPostNotifyTelegramApproversUserIDCodeOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeNotifyPostNotifyTelegramApproversUserIDCodeParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *NotifyPostNotifyTelegramApproversUserIDCodeOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    NotifyPostNotifyTelegramApproversUserIDCodeOperation,
+			OperationSummary: "Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the link in the approval chat asks them to press Start (D-414)",
+			OperationID:      "notify_post_notify_telegram_approvers_user_id_code",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "user_id",
+					In:   "path",
+				}: params.UserID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = NotifyPostNotifyTelegramApproversUserIDCodeParams
+			Response = *NotifyPostNotifyTelegramApproversUserIDCodeOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackNotifyPostNotifyTelegramApproversUserIDCodeParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.NotifyPostNotifyTelegramApproversUserIDCode(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.NotifyPostNotifyTelegramApproversUserIDCode(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeNotifyPostNotifyTelegramApproversUserIDCodeResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -37121,9 +37391,9 @@ func (s *Server) handleResponsePostResponseExecutionRequest(args [0]string, args
 
 // handleResponsePostResponseMeIdentitiesChannelCodeRequest handles response_post_response_me_identities_channel_code operation.
 //
-// Mail a 6-digit link code to my address on the email approval channel (my sign-in email). 10 minutes,
-// one at a time, a new one after 60 seconds, 5 an hour. Chat channels get their code by pressing a
-// button on an approval message.
+// Email: mail a 6-digit link code to my address on the email approval channel (my sign-in email).
+// Telegram and Zalo personal (send_code): send a new confirm link to my listed chat ID (D-414; sent_to
+// names it). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour.
 //
 // POST /response/me/identities/{channel}/code
 func (s *Server) handleResponsePostResponseMeIdentitiesChannelCodeRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -37202,7 +37472,7 @@ func (s *Server) handleResponsePostResponseMeIdentitiesChannelCodeRequest(args [
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ResponsePostResponseMeIdentitiesChannelCodeOperation,
-			OperationSummary: "Mail a 6-digit link code to my address on the email approval channel (my sign-in email). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour. Chat channels get their code by pressing a button on an approval message",
+			OperationSummary: "Email: mail a 6-digit link code to my address on the email approval channel (my sign-in email). Telegram and Zalo personal (send_code): send a new confirm link to my listed chat ID (D-414; sent_to names it). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour",
 			OperationID:      "response_post_response_me_identities_channel_code",
 			Body:             nil,
 			RawBody:          rawBody,

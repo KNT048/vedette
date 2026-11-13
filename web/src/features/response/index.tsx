@@ -13,7 +13,12 @@ const wrap = (C: ComponentType<Record<string, unknown>>): ComponentType<Record<s
 export const feature: Feature = {
   id: 'response',
   publicRoutes: [{ path: 'approve/:token', lazy: () => import('./ApprovePage').then((m) => ({ Component: m.default })) }],
-  routes: [{ path: 'response', lazy: () => import('./ResponsePage').then((m) => ({ Component: m.default })) }],
+  routes: [
+    { path: 'response', lazy: () => import('./ResponsePage').then((m) => ({ Component: m.default })) },
+    // the confirm link sent to a chat approver (D-447 Zalo, D-414 Telegram): one page, signed in as the person it names
+    { path: 'link/telegram', lazy: () => import('./ChatLinkPage').then((m) => ({ Component: m.default })) },
+    { path: 'link/zalo', lazy: () => import('./ChatLinkPage').then((m) => ({ Component: m.default })) },
+  ],
   nav: [{ to: '/response', label: 'response:nav.response', icon: Siren, module: 'response', group: 'detect', order: 30 }],
   settings: [{ id: 'response', label: 'response:settings.nav', module: 'response', minRole: 'admin', order: 45, element: <Suspense fallback={<Loading />}><ResponseSettings /></Suspense> }],
   slots: { 'finding.panels': wrap(FindingPanel) },

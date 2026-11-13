@@ -63,58 +63,54 @@ func unlinkedChat(t *testing.T) *chatEnv {
 	return c
 }
 
-func TestContract_D191_AnUnlinkedPressDecidesNothingAndAnswersAPrivateCode(t *testing.T) {
+// D-414: a Telegram approver is linked like a Zalo one, by the confirm link the box sends to their Telegram, opened and confirmed by that
+// person signed in to Vedette. A press before that decides nothing and its answer holds no code; another signed-in person is refused with
+// an audit row and the link stays good for its person.
+func TestContract_D414_TelegramIsLinkedByTheConfirmLinkNotByAPress(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)
 	a := c.pending()
 	_, err := c.button("telegram", tgOp, a.ID, true)
-	code := linkCodeOf(t, err)
-	if code == "" {
-		t.Fatalf("no code in the private answer: %v", err)
+	if code := linkCodeOf(t, err); code != "" || !strings.Contains(err.Error(), "Open the link Vedette sent") {
+		t.Fatalf("unlinked press = %v", err)
 	}
 	if got := c.only(); got.Status != response.StatusPending || len(got.Approvals) != 0 {
 		t.Fatalf("an unlinked press decided: %+v", got)
 	}
-	// Only the hash is kept, and no log or audit line holds the code.
-	if n := c.count(`SELECT COUNT(*) FROM resp_link_codes WHERE code_hash = ?`, code); n != 0 {
-		t.Fatal("the code is stored in clear")
-	}
-	if rows := c.dump(`SELECT detail FROM resp_log`) + c.dump(`SELECT detail FROM core_audit`); strings.Contains(rows, code) {
-		t.Fatalf("the code reached a log: %s", rows)
+	if c.count(`SELECT COUNT(*) FROM resp_link_codes`) != 0 {
+		t.Fatal("a press made a code")
 	}
 	if c.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'refused' AND detail LIKE 'approver_not_linked:%'`) != 1 {
 		t.Fatal("the refusal is not logged")
 	}
 	ids, err := c.svc.MyIdentities(c.ctx(), op)
 	c.must(err)
-	var tg response.Identity
-	for _, r := range ids {
-		if r.Channel == "telegram" {
-			tg = r
-		}
+	if r := rowOf(ids, "telegram"); r == nil || r.Linked || r.CodeWaiting || r.Method != "send_code" || r.Address != tgOp {
+		t.Fatalf("my telegram row = %+v", ids)
 	}
-	if tg.Linked || !tg.CodeWaiting || tg.Method != "chat_code" || tg.Address != tgOp {
-		t.Fatalf("my telegram row = %+v", tg)
-	}
-	// The code is held to the listed person: someone else signed in, with a code of their own waiting, cannot use it.
-	_, err = c.button("telegram", tgOp2, a.ID, true)
-	if linkCodeOf(t, err) == "" {
-		t.Fatal("no code for the second person")
-	}
-	if _, err := c.svc.ConfirmLink(c.ctx(), op2, "telegram", code); !isCode(err, "wrong_code") {
-		t.Fatalf("another person used the code: %v", err)
-	}
-	got, err := c.svc.ConfirmLink(c.ctx(), op, "telegram", code)
+	token, name, err := c.svc.ChatLinkToken(c.ctx(), "u-op", "telegram", tgOp)
 	c.must(err)
-	if !got.Linked || got.LinkedAt == nil {
+	if name != "IT Operator" || !regexp.MustCompile(`^[0-9a-f]{8}-[A-Za-z0-9_-]{22}$`).MatchString(token) {
+		t.Fatalf("token %q name %q", token, name)
+	}
+	_, err = c.svc.ConfirmLink(c.ctx(), op2, "telegram", token)
+	wantCode(t, err, 403, "other_account")
+	if c.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'response.identity_link_refused' AND user = 'it2@acme.example' AND target = 'telegram'`) != 1 {
+		t.Fatal("the refusal of another account is not audited")
+	}
+	got, err := c.svc.ConfirmLink(c.ctx(), op, "telegram", token)
+	c.must(err)
+	if !got.Linked || got.LinkedAt == nil || got.Address != tgOp {
 		t.Fatalf("confirm = %+v", got)
 	}
 	if c.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'response.identity_link' AND target = 'telegram'`) != 1 {
 		t.Fatal("no audit line for the link")
 	}
-	if _, err := c.svc.ConfirmLink(c.ctx(), op, "telegram", code); !isCode(err, "no_code") {
-		t.Fatalf("a code worked twice: %v", err)
+	if rows := c.dump(`SELECT detail FROM resp_log`) + c.dump(`SELECT detail FROM core_audit`); strings.Contains(rows, token[9:]) {
+		t.Fatal("the token reached a log")
 	}
+	_, err = c.svc.ConfirmLink(c.ctx(), op, "telegram", token)
+	wantCode(t, err, 400, "no_code")
 	out, err := c.button("telegram", tgOp, a.ID, true)
 	c.must(err)
 	if out.Status != "approved" {
@@ -122,45 +118,60 @@ func TestContract_D191_AnUnlinkedPressDecidesNothingAndAnswersAPrivateCode(t *te
 	}
 }
 
-func TestContract_D191_WrongCodesExpiryAndTheHourlyCap(t *testing.T) {
+func rowOf(ids []response.Identity, channel string) *response.Identity {
+	for i := range ids {
+		if ids[i].Channel == channel {
+			return &ids[i]
+		}
+	}
+	return nil
+}
+
+type fakeLinkSender struct {
+	mu    sync.Mutex
+	calls []string
+}
+
+func (f *fakeLinkSender) SendApproverLink(_ context.Context, actor, channel, userID string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, actor+"|"+channel+"|"+userID)
+	return "", nil
+}
+
+// D-414: Send again in My account asks notify to send the person's own listed chat ID a new confirm link; without notify it is refused.
+func TestContract_D414_SendAgainFromMyAccount(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)
-	a := c.pending()
-	_, err := c.button("telegram", tgOp, a.ID, true)
-	code := linkCodeOf(t, err)
-	wrong := "000000"
-	if code == wrong {
-		wrong = "111111"
+	_, err := c.svc.SendLinkCode(c.ctx(), op, "telegram")
+	wantCode(t, err, 400, "chat_channel")
+	ls := &fakeLinkSender{}
+	c.svc.SetLinkSenderForTest(ls)
+	sent, err := c.svc.SendLinkCode(c.ctx(), op, "telegram")
+	c.must(err)
+	if sent.SentTo != "Telegram "+tgOp || sent.Link != "" || len(ls.calls) != 1 || ls.calls[0] != "it@acme.example|telegram|u-op" {
+		t.Fatalf("sent = %+v calls = %v", sent, ls.calls)
 	}
-	for range 4 {
-		if _, err := c.svc.ConfirmLink(c.ctx(), op, "telegram", wrong); !isCode(err, "wrong_code") {
-			t.Fatalf("wrong code: %v", err)
-		}
-	}
-	if _, err := c.svc.ConfirmLink(c.ctx(), op, "telegram", "12a456"); !isCode(err, "invalid_code") {
-		t.Fatalf("not digits: %v", err)
-	}
-	if _, err := c.svc.ConfirmLink(c.ctx(), op, "telegram", wrong); !isCode(err, "too_many_tries") {
-		t.Fatalf("fifth wrong code: %v", err)
-	}
-	if _, err := c.svc.ConfirmLink(c.ctx(), op, "telegram", code); !isCode(err, "no_code") {
-		t.Fatalf("the right code after the code was cancelled: %v", err)
-	}
-	// A new press makes a new code; it ends after 10 minutes.
-	_, err = c.button("telegram", tgOp, a.ID, true)
-	code = linkCodeOf(t, err)
+	c.must(c.svc.LinkForTest(c.ctx(), "u-op", "telegram", tgOp))
+	_, err = c.svc.SendLinkCode(c.ctx(), op, "telegram")
+	wantCode(t, err, 409, "already_linked")
+}
+
+// A wrong, mangled or expired confirm link on Telegram does not link (the same rules as Zalo, D-447 tests below).
+func TestContract_D414_TelegramWrongAndExpiredLinks(t *testing.T) {
+	t.Parallel()
+	c := unlinkedChat(t)
+	token, _, err := c.svc.ChatLinkToken(c.ctx(), "u-op", "telegram", tgOp)
+	c.must(err)
+	_, err = c.svc.ConfirmLink(c.ctx(), op, "telegram", "123456")
+	wantCode(t, err, 400, "invalid_link")
+	_, err = c.svc.ConfirmLink(c.ctx(), op, "telegram", token[:9]+strings.Repeat("A", 22))
+	wantCode(t, err, 400, "wrong_code")
 	c.clock.Advance(10*time.Minute + time.Second)
-	if _, err := c.svc.ConfirmLink(c.ctx(), op, "telegram", code); !isCode(err, "code_expired") {
-		t.Fatalf("an ended code: %v", err)
-	}
-	// Two codes so far this hour; three more, then the answer holds none.
-	for range 3 {
-		if linkCodeOf(t, func() error { _, err := c.button("telegram", tgOp, a.ID, true); return err }()) == "" {
-			t.Fatal("a code was not made within the hourly cap")
-		}
-	}
-	if got := linkCodeOf(t, func() error { _, err := c.button("telegram", tgOp, a.ID, true); return err }()); got != "" {
-		t.Fatal("a sixth code in one hour")
+	_, err = c.svc.ConfirmLink(c.ctx(), op, "telegram", token)
+	wantCode(t, err, 400, "code_expired")
+	if c.count(`SELECT COUNT(*) FROM resp_identity`) != 0 {
+		t.Fatal("a proof was recorded")
 	}
 }
 
@@ -168,13 +179,11 @@ func TestContract_D191_AChangedAddressOrAnUnlinkDropsTheProof(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)
 	a := c.pending()
-	_, err := c.button("telegram", tgOp, a.ID, true)
-	_, err = c.svc.ConfirmLink(c.ctx(), op, "telegram", linkCodeOf(t, err))
-	c.must(err)
+	c.must(c.svc.LinkForTest(c.ctx(), "u-op", "telegram", tgOp))
 	c.note.mu.Lock()
 	c.note.approvers["telegram"] = []response.Approver{{UserID: "u-op", Address: "1009"}, {UserID: "u-op2", Address: tgOp2}}
 	c.note.mu.Unlock()
-	if _, err := c.button("telegram", "1009", a.ID, true); linkCodeOf(t, err) == "" {
+	if _, err := c.button("telegram", "1009", a.ID, true); !isCode(err, "approver_not_linked") {
 		t.Fatal("a new address counted on the proof of the old one")
 	}
 	c.note.mu.Lock()
@@ -184,7 +193,7 @@ func TestContract_D191_AChangedAddressOrAnUnlinkDropsTheProof(t *testing.T) {
 	if c.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'response.identity_unlink'`) != 1 {
 		t.Fatal("no audit line for the unlink")
 	}
-	if _, err := c.button("telegram", tgOp, a.ID, true); linkCodeOf(t, err) == "" {
+	if _, err := c.button("telegram", tgOp, a.ID, true); !isCode(err, "approver_not_linked") {
 		t.Fatal("an unlinked id still counts")
 	}
 	if err := c.svc.Unlink(c.ctx(), op, "telegram"); !isCode(err, "not_linked") {
@@ -263,9 +272,6 @@ func TestContract_D191_EmailIsLinkedByAMailedCodeAndLostWithTheSignInEmail(t *te
 func TestContract_D191_SendCodeRefusals(t *testing.T) {
 	t.Parallel()
 	e, m := emailEnv(t)
-	if _, err := e.svc.SendLinkCode(e.ctx(), op, "telegram"); !isCode(err, "chat_channel") {
-		t.Fatalf("telegram: %v", err)
-	}
 	if _, err := e.svc.SendLinkCode(e.ctx(), op, "slack"); !isCode(err, "not_listed") {
 		t.Fatalf("slack: %v", err)
 	}
@@ -331,14 +337,13 @@ func TestContract_D191_NoCodeWhereTheAnswerIsNotPrivate(t *testing.T) {
 func TestContract_D191_AListChangedAfterTheCodeDoesNotLink(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)
-	a := c.pending()
-	_, err := c.button("telegram", tgOp, a.ID, true)
-	code := linkCodeOf(t, err)
+	code, _, err := c.svc.ChatLinkToken(c.ctx(), "u-op", "telegram", tgOp)
+	c.must(err)
 	c.note.mu.Lock()
 	c.note.approvers["telegram"] = []response.Approver{{UserID: "u-op", Address: "1009"}}
 	c.note.mu.Unlock()
 	if _, err := c.svc.ConfirmLink(c.ctx(), op, "telegram", code); !isCode(err, "no_code") {
-		t.Fatalf("a code made for the old ID linked: %v", err)
+		t.Fatalf("a link made for the old ID linked: %v", err)
 	}
 	if c.count(`SELECT COUNT(*) FROM resp_identity`) != 0 {
 		t.Fatal("a proof was recorded")
@@ -465,7 +470,7 @@ func TestContract_D447_ZaloConfirmLinkReplacedExpiredWrong(t *testing.T) {
 	wantCode(t, err, 400, "no_code")
 	_, _, err = c.svc.ChatLinkToken(c.ctx(), "u-op", "zalo-personal", "9999999999")
 	wantCode(t, err, 404, "not_listed")
-	_, _, err = c.svc.ChatLinkToken(c.ctx(), "u-op", "telegram", tgOp)
+	_, _, err = c.svc.ChatLinkToken(c.ctx(), "u-op", "slack", slackOp)
 	wantCode(t, err, 400, "chat_channel")
 }
 

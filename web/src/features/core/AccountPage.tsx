@@ -148,6 +148,7 @@ function TwoFactor({ a }: { a: Account }) {
             <>
               <p className="text-sm">{t('account.twofa.app.scan')}</p>
               <QrCode value={setup.start.otpauth} label={t('account.twofa.app.qrLabel')} />
+              <AuthenticatorGuide />
               <CodeBlock label={t('account.twofa.key')} code={setup.start.secret} />
               <CodeBlock label={t('account.twofa.uri')} code={setup.start.otpauth} />
               <p className="text-sm">{t('account.twofa.app.enter')}</p>
@@ -201,6 +202,26 @@ function TwoFactor({ a }: { a: Account }) {
         </DialogContent>
       </Dialog>
     </Section>
+  )
+}
+
+// D-414: Google Authenticator first (as GitHub's and Google's own 2FA steps do), any TOTP app works. Plain links: nothing is loaded from them.
+const STORE = { ios: 'https://apps.apple.com/app/google-authenticator/id388497605', android: 'https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2' }
+
+/** Three steps under the QR code (S-CORE-3, D-414): install, + then Scan a QR code, type the 6-digit code. */
+function AuthenticatorGuide() {
+  const { t } = useTranslation('core')
+  const store = (href: string, label: string) => <a className="text-accent underline-offset-4 hover:underline" href={href} target="_blank" rel="noreferrer">{label}</a>
+  return (
+    <div className="grid gap-1.5 rounded-md border border-rule bg-sunken px-3 py-2">
+      <p className="text-sm font-medium">{t('account.twofa.guide.title')}</p>
+      <ol className="grid list-decimal gap-1 pl-5 text-[13px]">
+        <li>{t('account.twofa.guide.install')} {store(STORE.ios, t('account.twofa.guide.appStore'))} · {store(STORE.android, t('account.twofa.guide.googlePlay'))}</li>
+        <li>{t('account.twofa.guide.scan')}</li>
+        <li>{t('account.twofa.guide.type')}</li>
+      </ol>
+      <p className="text-[12px] text-muted">{t('account.twofa.guide.other')}</p>
+    </div>
   )
 }
 

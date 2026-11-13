@@ -320,7 +320,7 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 		}
 		return out
 	}
-	out := MatchResult{New: keep(m.New), Existing: keep(m.Existing), NeedVersion: m.NeedVersion, NotAffected: m.NotAffected}
+	out := MatchResult{New: keep(m.New), Existing: keep(m.Existing), NeedVersion: m.NeedVersion, NotAffected: m.NotAffected, Unlisted: m.Unlisted}
 	taken := map[string]bool{}
 	for _, x := range append(append([]Match{}, out.New...), out.Existing...) {
 		taken[x.CVE] = true
@@ -426,6 +426,10 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 			awaiting[c] = n.Software
 		}
 	}
+	unlisted := make(map[string]string, len(m.Unlisted)) // CVE -> why NVD's list does not name the software (D-505)
+	for _, x := range m.Unlisted {
+		unlisted[x.CVE] = x.Evidence.Summary
+	}
 	for _, cve := range open {
 		if !listed[cve] || matched[cve] {
 			continue
@@ -446,13 +450,15 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 			}
 			regraded++
 		}
-		if n := len(r.History); n > 0 && r.History[n-1].Action == "no_longer_matches" {
-			continue // said already
-		}
 		h := HistoryEntry{TS: now, User: SystemUser, Action: "no_longer_matches",
 			Note: "The device no longer matches this entry: its software or version changed, the version is outside the affected versions, or CISA changed the entry. Close it yourself if it does not apply."}
 		if sw, ok := awaiting[cve]; ok {
 			h.Note = clean(sw) + " on this device has no version Vedette can read, so this CVE is no longer listed on its own: it is counted in \"Add the version\". Add the version to check it, or close this yourself."
+		} else if note, ok := unlisted[cve]; ok {
+			h.Note = clipRunes(note, MaxNote)
+		}
+		if n := len(r.History); n > 0 && r.History[n-1].Action == "no_longer_matches" && r.History[n-1].Note == h.Note {
+			continue // said already (a new reason, such as NVD's product list for a "Multiple Products" entry, is said once more)
 		}
 		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
 			return regraded, err

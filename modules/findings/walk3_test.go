@@ -40,14 +40,14 @@ func openProductFindings(t *testing.T, e *env, a Asset, vulns []Vuln, cves []str
 }
 
 // W3-7, D-505: VMware Tools 13.0.10 gets nothing from the three "VMware Multiple Products" entries, whose real NVD lists
-// name Fusion, Horizon Client, Remote Console, Identity Manager, Workspace ONE Access, Cloud Foundation… but not Tools,
-// while NVD names "vmware:tools" in the Tools entry CVE-2023-20867 (which 13.0.10 is outside). The old open product
-// findings close by themselves (not_relevant, system), and a later NVD entry naming Tools would reopen them.
+// name Fusion, Horizon Client, Remote Console, Identity Manager, Workspace ONE Access, Cloud Foundation… but not Tools.
+// That proves nothing (NVD's list for such an entry can lag the vendor's advisory, review H1 of #671), so the old open
+// findings stay open for a person: they take the product severity (medium) once and say, once, which products NVD lists.
 func TestGolden_VMwareToolsMultipleProducts(t *testing.T) {
 	t.Parallel()
 	vulns := goldenVulns(t)
 	dev := walk3VMware()
-	if r := MatchAsset(dev, vulns, nil, t0); len(r.New) != 0 || len(r.NeedVersion) != 0 {
+	if r := MatchAsset(dev, vulns, nil, t0); len(r.New) != 0 || len(r.NeedVersion) != 0 || len(r.Unlisted) != 0 {
 		t.Fatalf("VMware Tools 13.0.10: %+v", r)
 	}
 	have := map[string]bool{}
@@ -55,79 +55,67 @@ func TestGolden_VMwareToolsMultipleProducts(t *testing.T) {
 		have[c] = true
 	}
 	r := MatchAsset(dev, vulns, have, t0)
-	var closed []string
-	for _, m := range r.NotAffected {
-		closed = append(closed, m.CVE)
-		if !strings.Contains(m.Evidence.Summary, "not VMware Tools") || !strings.Contains(m.Evidence.Summary, "several VMware products") {
-			t.Errorf("%s: %q", m.CVE, m.Evidence.Summary)
-		}
+	var unlisted []string
+	for _, m := range r.Unlisted {
+		unlisted = append(unlisted, m.CVE)
 	}
-	if slices.Sort(closed); !slices.Equal(closed, walk3Multi) || len(r.Existing) != 0 {
-		t.Fatalf("proved %v, kept %+v; want %v proved", closed, r.Existing, walk3Multi)
+	if slices.Sort(unlisted); !slices.Equal(unlisted, walk3Multi) || len(r.Existing)+len(r.NotAffected) != 0 {
+		t.Fatalf("unlisted %v, kept %+v, proved %+v; want %v unlisted, nothing proved", unlisted, r.Existing, r.NotAffected, walk3Multi)
 	}
-	if want := "Not affected: CISA lists CVE-2020-3950 for several VMware products, and NVD names other ones (fusion, horizon client, remote console), not VMware Tools. Vedette closed this by itself and reopens it if a later match says the device is affected."; !slices.ContainsFunc(r.NotAffected, func(m Match) bool { return m.Evidence.Summary == want }) {
-		t.Errorf("no sentence %q in %+v", want, r.NotAffected)
-	}
+	const want = "NVD lists fusion, horizon client, remote console for CVE-2020-3950, not VMware Tools; check the vendor advisory and close it if it does not apply."
 
 	e := newEnv(t)
 	openProductFindings(t, e, dev, vulns, walk3Multi)
+	// The N100 already said "no longer matches" in the generic words (no NVD data at the time): the reason is said once more.
+	var noNVD []Vuln
+	for _, v := range vulns {
+		if slices.Contains(walk3Multi, v.CVE) {
+			v.Affected = nil
+		}
+		noNVD = append(noNVD, v)
+	}
 	e.pub.take()
-	if _, err := e.svc.UpsertFromMatch(t.Context(), dev, vulns); err != nil {
-		t.Fatal(err)
+	for _, vs := range [][]Vuln{noNVD, vulns, vulns} {
+		res, err := e.svc.UpsertFromMatch(t.Context(), dev, vs)
+		if err != nil || len(res.Created) != 0 {
+			t.Fatalf("%+v %v", res, err)
+		}
 	}
 	for _, c := range walk3Multi {
 		f, err := loadByPair(t.Context(), e.db.Reader(), dev.ID, c)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if f.Status != StatusNotRelevant || f.ResolvedBy != SystemUser || f.ResolutionReason != ReasonNotAffectedVersion || !strings.Contains(f.ResolutionNote, "not VMware Tools") {
-			t.Errorf("%s still open: %+v", c, f.Finding)
+		last := f.History[len(f.History)-1]
+		if f.Status != StatusSuspected || f.Severity != SeverityMedium || last.Action != "no_longer_matches" || !strings.Contains(last.Note, "not VMware Tools; check the vendor advisory") {
+			t.Errorf("%s: %+v, last history %+v", c, f.Finding, last)
+		}
+		if c == "CVE-2020-3950" && last.Note != want {
+			t.Errorf("note %q, want %q", last.Note, want)
 		}
 	}
-	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.auto_resolved'`); n != len(walk3Multi) {
-		t.Errorf("auto_resolved rows %d", n)
+	for action, n := range map[string]int{"findings.regraded": 3, "findings.no_longer_matches": 6, "findings.auto_resolved": 0} {
+		if got := e.count(`SELECT count(*) FROM core_audit WHERE action = '` + action + `'`); got != n {
+			t.Errorf("%s rows %d, want %d", action, got, n)
+		}
 	}
-	if ev := e.pub.take(); len(ev) != len(walk3Multi) || ev[0].Name != EventStatusChanged {
+	if ev := e.pub.take(); len(ev) != 0 {
 		t.Errorf("events %+v", ev)
 	}
 }
 
-// D-505: when NVD has never named the software by its own identity (no single-product entry of it with NVD data), a
-// "Multiple Products" entry listing other products gives no finding but proves nothing: the old finding stays open (a
-// person decides), says once that it no longer matches, and takes the product severity (medium, W3-3).
-func TestMultipleProducts_NotNamedNeverCloses(t *testing.T) {
+// D-505, review L4 of #671: a "Multiple Products" entry with an NVD entry Vedette cannot tie to a product (vendor or
+// product ANY, or not a CPE) may be about the software: a product finding (medium), never a proof, never "unlisted".
+func TestMultipleProducts_UnreadableEntryIsNoProof(t *testing.T) {
 	t.Parallel()
-	var vulns []Vuln
-	for _, v := range goldenVulns(t) {
-		if slices.Contains(walk3Multi, v.CVE) {
-			vulns = append(vulns, v) // without CVE-2023-20867: nothing tells how NVD names VMware Tools
+	tools := Vuln{CVE: "CVE-2023-20867", Vendor: "VMware", Product: "Tools", Affected: []Affected{{CPE: "cpe:2.3:a:vmware:tools:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "10.3.0", EndExcl: "12.2.5"}}}}
+	for _, odd := range []string{"cpe:2.3:a:vmware:*:*:*:*:*:*:*:*:*", "not a cpe"} {
+		multi := Vuln{CVE: "CVE-2020-3950", Vendor: "VMware", Product: "Multiple Products", Affected: []Affected{
+			{CPE: "cpe:2.3:a:vmware:fusion:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "11.0.0", EndExcl: "11.5.2"}}, {CPE: odd}}}
+		r := MatchAsset(walk3VMware(), []Vuln{tools, multi}, map[string]bool{multi.CVE: true}, t0)
+		if len(r.NotAffected)+len(r.Unlisted) != 0 || len(r.Existing) != 1 || r.Existing[0].Basis != BasisProduct || r.Existing[0].Severity != SeverityMedium {
+			t.Errorf("%q: %+v", odd, r)
 		}
-	}
-	dev := walk3VMware()
-	if r := MatchAsset(dev, vulns, map[string]bool{walk3Multi[0]: true}, t0); len(r.New)+len(r.Existing)+len(r.NotAffected)+len(r.NeedVersion) != 0 {
-		t.Fatalf("%+v", r)
-	}
-	e := newEnv(t)
-	openProductFindings(t, e, dev, vulns, walk3Multi)
-	for range 2 { // the second pass changes nothing
-		if _, err := e.svc.UpsertFromMatch(t.Context(), dev, vulns); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for _, c := range walk3Multi {
-		f, err := loadByPair(t.Context(), e.db.Reader(), dev.ID, c)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if f.Status != StatusSuspected || f.Severity != SeverityMedium || f.History[len(f.History)-1].Action != "no_longer_matches" {
-			t.Errorf("%s: %+v, last history %+v", c, f.Finding, f.History[len(f.History)-1])
-		}
-	}
-	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.regraded'`); n != len(walk3Multi) {
-		t.Errorf("regraded rows %d, want one per finding", n)
-	}
-	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.no_longer_matches'`); n != len(walk3Multi) {
-		t.Errorf("no_longer_matches rows %d, want one per finding", n)
 	}
 }
 

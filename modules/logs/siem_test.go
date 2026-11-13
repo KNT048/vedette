@@ -557,6 +557,7 @@ func TestSiemQueuesOnlyWhatIsEnabledAndOnlyWhileTheJobRuns(t *testing.T) {
 		publish(t, bus, siemEventIncident, map[string]any{"id": "i-1", "kind": "trap", "severity": "high"})
 		publish(t, bus, siemEventBadAddress, map[string]any{"id": "b-1", "src_ip": "10.0.0.9", "dest": "evil.example", "dest_kind": "domain"})
 		publish(t, bus, siemEventFindingStatus, map[string]any{"finding_id": "f-1", "from": "open", "to": "confirmed"})
+		publish(t, bus, siemEventFindingRaised, map[string]any{"finding_id": "f-1", "asset_id": "a-1", "cve": "CVE-2022-27593", "from_severity": "medium", "to_severity": "critical", "basis": "version"})
 	}
 	queued := func() int { r, _ := e.svc.siemQ.peek(100); return len(r) }
 
@@ -577,7 +578,7 @@ func TestSiemQueuesOnlyWhatIsEnabledAndOnlyWhileTheJobRuns(t *testing.T) {
 	waitFor(t, func() bool { return e.svc.siemRunning.Load() && e.svc.siemCache.Load() != nil })
 	all()
 	var names []string
-	for len(names) < 3 {
+	for len(names) < 4 {
 		select {
 		case rs := <-sent:
 			for _, r := range rs {
@@ -587,7 +588,7 @@ func TestSiemQueuesOnlyWhatIsEnabledAndOnlyWhileTheJobRuns(t *testing.T) {
 			t.Fatalf("sent only %v", names)
 		}
 	}
-	if fmt.Sprint(names) != "[finding.created honeypot.hit finding.status_changed]" {
+	if fmt.Sprint(names) != "[finding.created honeypot.hit finding.status_changed finding.severity_raised]" {
 		t.Fatalf("forwarded %v", names)
 	}
 

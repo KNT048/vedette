@@ -90,7 +90,7 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 	// status page says whether the worker reports.
 	_, remote := prober.(*sensoractive.Dispatcher)
 	if h := svc.Health(ctx); !remote && h.Status != "ok" && d.Log != nil {
-		d.Log.Warn("sensor-active is unavailable", "reason", h.Message)
+		d.Log.WarnContext(ctx, "sensor-active is unavailable", "reason", h.Message)
 	}
 	if d.Reg != nil { // turning the module off stops the nmap run in progress, also an identification for Scan now (D-501)
 		d.Reg.OnChange(func(id string, enabled bool) {

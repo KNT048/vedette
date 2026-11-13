@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -101,22 +102,41 @@ func TestHostNetCacheSnapshotNeverWaits(t *testing.T) {
 	close(hung)
 }
 
-// notify's BoxAddrs is the Snapshot: a webhook connection or save never waits for vedette-host.
-func TestNotifyBoxAddrsNeverWaitsForTheHost(t *testing.T) {
+// D-408: notify's BoxAddrs waits for vedette-host only before its first answer, and then at most firstAnswerWait: the first webhook
+// save after a start is checked against that answer instead of being a 503; once the set is known a connection or save never waits.
+func TestNotifyBoxAddrsWaitsOnlyForTheFirstAnswer(t *testing.T) {
 	t.Parallel()
-	hung := make(chan struct{})
-	c := newHostNetCache(func(ctx context.Context) ([]netip.Prefix, error) {
-		select {
-		case <-hung:
-		case <-ctx.Done():
+	synctest.Test(t, func(t *testing.T) {
+		box := netip.MustParsePrefix("192.168.1.5/32")
+		var hang atomic.Bool
+		c := newHostNetCache(func(ctx context.Context) ([]netip.Prefix, error) {
+			if hang.Load() {
+				<-ctx.Done()
+				return nil, ctx.Err()
+			}
+			<-time.After(50 * time.Millisecond) // synctest time: the host's answer takes a moment
+			return []netip.Prefix{box}, nil
+		}, nil)
+		start := time.Now()
+		if got, known := notifyBoxAddrs(c)(); !known || len(got) != 1 || got[0] != box.Addr() || time.Since(start) != 50*time.Millisecond {
+			t.Fatalf("first BoxAddrs = %v known %v after %v: it must wait for the host's first answer", got, known, time.Since(start))
 		}
-		return nil, context.Canceled
-	}, nil)
-	defer close(hung)
-	start := time.Now()
-	if got, known := notifyBoxAddrs(c)(); len(got) != 0 || known || time.Since(start) > time.Second {
-		t.Fatalf("BoxAddrs = %v known %v after %v with a host that has never answered", got, known, time.Since(start))
-	}
+		hang.Store(true)
+		<-time.After(hostNetTTL + time.Second) // stale, and the host now hangs
+		start = time.Now()
+		if got, known := notifyBoxAddrs(c)(); !known || len(got) != 1 || time.Since(start) != 0 {
+			t.Fatalf("known set: BoxAddrs = %v known %v after %v, it must not wait", got, known, time.Since(start))
+		}
+		<-time.After(hostNetTimeout) // the background lookup on the hung host ends
+	})
+	synctest.Test(t, func(t *testing.T) {
+		c := newHostNetCache(func(ctx context.Context) ([]netip.Prefix, error) { <-ctx.Done(); return nil, ctx.Err() }, nil)
+		start := time.Now()
+		if got, known := notifyBoxAddrs(c)(); len(got) != 0 || known || time.Since(start) != firstAnswerWait {
+			t.Fatalf("BoxAddrs = %v known %v after %v with a host that never answers: unknown after %v", got, known, time.Since(start), firstAnswerWait)
+		}
+		<-time.After(hostNetTimeout)
+	})
 }
 
 // #157: the set is unknown only while a configured host has never answered; no host is known (container interfaces

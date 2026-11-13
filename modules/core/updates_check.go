@@ -549,7 +549,7 @@ func (h *OSHandlers) checkFailure(ctx context.Context, err error) error {
 		return apierr.New(502, CodeUpdateCheckFailed, "The update information this box stored earlier no longer verifies, so Vedette does not trust new information either. The details are in the box log.")
 	case errors.Is(err, release.ErrUnknownSchema):
 		h.log.WarnContext(ctx, "core: the update information has a newer schema", "error", err)
-		return apierr.New(502, CodeUpdateCheckFailed, "This version of Vedette cannot read the newer update information. Update it with an offline bundle or reinstall it.")
+		return apierr.New(502, CodeUpdateCheckFailed, "This version of Vedette cannot read the newer update information. Reinstall it with the installer of a newer release.")
 	}
 	h.log.ErrorContext(ctx, "core: the update information did not verify", "error", err)
 	return apierr.New(502, CodeUpdateCheckFailed, "The update information did not pass Vedette's signature checks, so nothing new is offered and nothing was installed. The details are in the box log.")
@@ -590,7 +590,7 @@ func (h *OSHandlers) check(ctx context.Context, c caller) error {
 		return err
 	}
 	if !on {
-		return apierr.New(409, CodeCheckOff, "Update checks are off under Privacy. Turn them on or import an offline bundle.")
+		return apierr.New(409, CodeCheckOff, "Update checks are off under Privacy. Turn them on to look for Vedette releases.")
 	}
 	leave, ok := h.gate.Enter()
 	if !ok {

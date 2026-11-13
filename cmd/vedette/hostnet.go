@@ -161,11 +161,20 @@ func (c *hostNetCache) Get(ctx context.Context) []netip.Prefix {
 		}
 		break // c.mu is still held: this caller starts the fetch
 	}
+	done, gen := c.begin()
+	c.mu.Unlock()
+	return c.run(ctx, done, gen)
+}
+
+// begin marks a host lookup in flight; c.mu is held. run does the lookup.
+func (c *hostNetCache) begin() (chan struct{}, uint64) {
 	done := make(chan struct{})
 	c.flight = done
-	gen := c.gen
-	c.mu.Unlock()
+	return done, c.gen
+}
 
+// run is the lookup begin marked, with c.mu not held: it asks the host and stores the answer.
+func (c *hostNetCache) run(ctx context.Context, done chan struct{}, gen uint64) []netip.Prefix {
 	// The lookup this caller started ends at this caller's deadline (or hostNetTimeout, whichever is first); callers that wait for it keep
 	// their own deadlines, and one that finds it cut short is served the last set.
 	cctx, cancel := context.WithTimeout(ctx, hostNetTimeout)
@@ -205,17 +214,47 @@ func (c *hostNetCache) SnapshotKnown() ([]netip.Prefix, bool) {
 	if c == nil {
 		return nil, true
 	}
+	last, known, _ := c.snapshot()
+	return last, known
+}
+
+// SnapshotKnownWithin is SnapshotKnown, except that while the set is still unknown it waits up to d for the lookup in flight
+// (the one it starts, or one already running): the first webhook save after core starts is checked against the host's first
+// answer instead of failing with 503 only because nothing had asked the host yet (D-408). Once the set is known it never
+// waits, and in the failure backoff there is no lookup to wait for. Safe on nil.
+func (c *hostNetCache) SnapshotKnownWithin(d time.Duration) ([]netip.Prefix, bool) {
+	if c == nil {
+		return nil, true
+	}
+	last, known, flight := c.snapshot()
+	if known || flight == nil {
+		return last, known
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-flight:
+	case <-t.C:
+		return last, known
+	}
 	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.last, c.answered
+}
+
+// snapshot reads the last set and whether it is known, starts a background lookup when the set is stale and none runs
+// (outside the failure backoff), and returns the lookup in flight (nil: none).
+func (c *hostNetCache) snapshot() ([]netip.Prefix, bool, chan struct{}) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	now := c.now()
-	last, known := c.last, c.answered
 	stale := c.okAt.IsZero() || now.Sub(c.okAt) >= hostNetTTL
 	backoff := !c.failedAt.IsZero() && now.Sub(c.failedAt) < hostNetBackoff
-	start := stale && !backoff && c.flight == nil
-	c.mu.Unlock()
-	if start {
-		go c.Get(c.bg)
+	if stale && !backoff && c.flight == nil {
+		done, gen := c.begin()
+		go c.run(c.bg, done, gen)
 	}
-	return last, known
+	return c.last, c.answered, c.flight
 }
 
 // hostIPv4s is the IPv4 addresses vedette-host reports for the box, best effort (nothing without a host).

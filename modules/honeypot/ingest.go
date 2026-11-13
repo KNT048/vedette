@@ -506,6 +506,10 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 // sweepWindow: one source that touches two or more Trap IPs within this time is scanning the network (W1-13, S-HP-2).
 const sweepWindow = time.Minute
 
+// connectedWindow: a completed connection from a source vouches for its address on scan hits this close to it, before or after (W6-4;
+// the window response uses to confirm a scan source, D-509).
+const connectedWindow = time.Hour
+
 // maxSweepSources bounds the memory of who touched what: past it the record starts over. ponytail: a flood of sources
 // can make a real sweep in that poll go unseen as a scan (each of its hits still alerts); the upgrade is an LRU.
 const maxSweepSources = 4096
@@ -514,6 +518,13 @@ const maxSweepSources = 4096
 // sweepWindow, stores one scan hit for src per hit window (later Trap IPs it touches in that window are added to the same
 // hit, not a new alert). The record is memory only: a sweep that a restart of core cuts in two is not seen as one.
 func (s *Service) sweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, src netip.Addr, trapIP string, ts time.Time) error {
+	from, to := store.FormatTS(ts.Add(-connectedWindow)), store.FormatTS(ts.Add(connectedWindow))
+	if !env.touch { // a real connection from src proves its address: no scan hit of src near it calls it forged, whichever came first (W6-4)
+		if _, err := tx.ExecContext(ctx, `UPDATE hp_hits SET excerpt = REPLACE(excerpt, ?, '') WHERE kind = 'scan' AND src_ip = ? AND ts BETWEEN ? AND ?`,
+			forgedNote, src.String(), from, to); err != nil {
+			return fmt.Errorf("honeypot: update scan hit: %w", err)
+		}
+	}
 	ip, err := netip.ParseAddr(trapIP)
 	if err != nil || env.at[ip] == nil {
 		return nil
@@ -551,8 +562,15 @@ func (s *Service) sweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, src net
 	line := src.String() + " touched " + env.nameAt(trapIP) + " (" + trapIP + ")"
 	key := connKey("sweep", src.String(), strconv.FormatInt(ts.Truncate(hitWindow).Unix(), 10))
 	note := ""
-	if env.touch {
-		note = forgedNote
+	if env.touch { // only attempts: forged unless src completed a connection near it (the rule response uses, SourceConnected, D-509)
+		var n int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM hp_hits WHERE src_ip = ? AND is_test = 0 AND kind = 'service' AND ts BETWEEN ? AND ?`,
+			src.String(), from, to).Scan(&n); err != nil {
+			return fmt.Errorf("honeypot: read the hits of a source: %w", err)
+		}
+		if n == 0 {
+			note = forgedNote
+		}
 	}
 	if err := s.upsert(ctx, tx, env, storedHit{
 		Hit: Hit{TS: tsText, Kind: KindScan, Label: "Scan across the Trap IPs", SrcIP: src.String(),
@@ -561,11 +579,6 @@ func (s *Service) sweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, src net
 		events:  []HitEvent{{TS: tsText, Source: "honeypot", Text: line, Mark: true}},
 	}, line, env.nameAt(trapIP)+" ("+trapIP+")"); err != nil {
 		return err
-	}
-	if !env.touch { // a real connection from src: its source is not forged, whichever of the two made the hit first (W6-4)
-		if _, err := tx.ExecContext(ctx, `UPDATE hp_hits SET excerpt = REPLACE(excerpt, ?, '') WHERE conn_key = ?`, forgedNote, key); err != nil {
-			return fmt.Errorf("honeypot: update scan hit: %w", err)
-		}
 	}
 	return s.widenSweep(ctx, tx, env, key, near)
 }

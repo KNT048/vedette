@@ -78,6 +78,10 @@ type sourceRow struct {
 	LastModified   *string
 	CatalogVersion *string
 	AnsweredBy     *string // D-91: "CISA" or "CISA GitHub mirror", only for the CISA list
+	// MirrorETag and MirrorLastModified are the validators of the CISA GitHub mirror (D-485): ETag and LastModified stay the
+	// validators of the feed's own address, so neither address is ever sent the other's (D-91).
+	MirrorETag         *string
+	MirrorLastModified *string
 }
 
 func (r sourceRow) state() State {
@@ -94,7 +98,7 @@ func (r sourceRow) state() State {
 
 const sourceCols = `id, builtin, name, kind, format, url, default_url, enabled, interval_hours, auth_type, auth_header_name,
 auth_username, secret_id, secret_last4, parser, license, created_at, last_fetch, last_success, failures, records, status,
-error, etag, last_modified, catalog_version, rev, answered_by`
+error, etag, last_modified, catalog_version, rev, answered_by, mirror_etag, mirror_last_modified`
 
 type scanner interface{ Scan(dest ...any) error }
 
@@ -107,7 +111,8 @@ func scanSource(r scanner) (sourceRow, error) {
 	)
 	err := r.Scan(&s.ID, &builtin, &s.Name, &kind, &format, &s.URL, &s.DefaultURL, &enabled, &s.IntervalHours, &auth,
 		&s.HeaderName, &s.Username, &s.SecretID, &s.SecretLast4, &parser, &s.License, &created, &lastFetch, &lastSuccess,
-		&s.Failures, &s.Records, &s.Status, &s.Error, &s.ETag, &s.LastModified, &s.CatalogVersion, &s.Rev, &s.AnsweredBy)
+		&s.Failures, &s.Records, &s.Status, &s.Error, &s.ETag, &s.LastModified, &s.CatalogVersion, &s.Rev, &s.AnsweredBy,
+		&s.MirrorETag, &s.MirrorLastModified)
 	if err != nil {
 		return sourceRow{}, err
 	}
@@ -304,7 +309,7 @@ func updateSettings(ctx context.Context, tx *sql.Tx, id string, enabled bool, ho
 	q := `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, enabled = ?, interval_hours = ? WHERE id = ?`
 	args := []any{boolInt(enabled), boolInt(enabled), hours, id}
 	if urlChanged {
-		q = `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, enabled = ?, interval_hours = ?, url = ?, etag = NULL, last_modified = NULL, answered_by = NULL WHERE id = ?`
+		q = `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, enabled = ?, interval_hours = ?, url = ?, etag = NULL, last_modified = NULL, answered_by = NULL, mirror_etag = NULL, mirror_last_modified = NULL WHERE id = ?`
 		args = []any{boolInt(enabled), boolInt(enabled), hours, url, id}
 	}
 	if _, err := tx.ExecContext(ctx, q, args...); err != nil {
@@ -950,6 +955,7 @@ type outcome struct {
 	ETag, LastModif   string
 	CatalogVersion    string
 	AnsweredBy        string // D-91: which address answered ("" leaves the stored answer as it is)
+	Mirror            bool   // ETag and LastModif are the CISA GitHub mirror's (D-485): they go to mirror_etag/mirror_last_modified
 }
 
 // recordOutcome writes the fetch log row and updates the pull state of the feed.
@@ -999,8 +1005,12 @@ reject_reasons, error, bytes, etag, last_modified) VALUES (?, ?, ?, ?, ?, ?, ?, 
 		if o.CatalogVersion != "" {
 			ver = o.CatalogVersion
 		}
+		validators := `etag = ?, last_modified = ?`
+		if o.Mirror { // the feed's own validators stay for its own address
+			validators = `mirror_etag = ?, mirror_last_modified = ?`
+		}
 		_, err = tx.ExecContext(ctx, `UPDATE feeds_source SET last_fetch = ?, last_success = ?, failures = 0, status = 'ok', error = ?,
-records = COALESCE(?, records), etag = ?, last_modified = ?, catalog_version = COALESCE(?, catalog_version), answered_by = COALESCE(?, answered_by) WHERE id = ?`,
+records = COALESCE(?, records), `+validators+`, catalog_version = COALESCE(?, catalog_version), answered_by = COALESCE(?, answered_by) WHERE id = ?`,
 			fin, fin, msg, records, etag, lm, ver, answered, id)
 	}
 	if err != nil {

@@ -42,7 +42,7 @@ Giới hạn free đo 2026-11-06: GitHub Actions không giới hạn cho repo pu
 
 | Nguồn | Cách kéo | Chu kỳ | Giấy phép | Tín hiệu |
 |---|---|---|---|---|
-| CISA KEV | JSON, ETag | 30 phút | CC0 | exploited, ransomware flag, dueDate |
+| CISA KEV | JSON, ETag + If-Modified-Since (304 khi không đổi) | 1 giờ (mặc định, D-485) | CC0 | exploited, ransomware flag, dueDate |
 | cisagov/vulnrichment | git | giờ | CC0 | SSVC, CWE, CPE bổ sung |
 | CVE.org cvelistV5 | git pull | giờ | public | bản ghi nhanh nhất, `affected[]` |
 | FIRST EPSS | CSV ngày | ngày | ghi nguồn | epss, Δ7 ngày |

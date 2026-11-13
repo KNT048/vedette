@@ -23,12 +23,28 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(within(fresh).getByText('CVE-2022-27593')).toBeInTheDocument()
     expect(within(doc).getAllByText('CVE-2022-27593')).toHaveLength(1)
     expect(within(doc).getByText(/^(Plus the new findings? listed above|Every unresolved finding is new this week|The new finding listed above)/)).toBeInTheDocument()
-    expect(within(doc).getByText(/Patch or apply a temporary fix for CVE-2022-27593 on NAS-PHOTOS \(confirmed\)/)).toBeInTheDocument()
+    expect(within(doc).getByText(/Update or apply the vendor's temporary fix to .+ on NAS-PHOTOS: a scan confirmed it \(CVE-2022-27593\)/)).toBeInTheDocument()
     expect(within(doc).queryByText(/Honeypot touches$/)).toBeNull() // không bịa số bẫy/log
     expect(within(doc).getByText(/are not part of this report yet/)).toBeInTheDocument()
     expect(within(doc).queryByText('AI-generated, needs human review')).toBeNull()
     expect(document.body.textContent).not.toMatch(DIACRITICS)
     await expectNoA11yViolations()
+  })
+
+  it('W1-24: page one names the top 3 risks by product and counts as Home and Devices do; the full list is an appendix', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const devices = await (await api('/inventory/devices')).json() as { counts: { all: number } } // first: the mock adds the box on this read
+    const rep = (await (await api('/reports/weekly/preview')).json()).report
+    const hot = await (await api('/feeds/hot?window=7d')).json() as { rows: { cves: unknown[]; you_have: string | null }[] }
+    expect(rep.counts.kev_new).toBe(hot.rows.reduce((n, r) => n + r.cves.length, 0)) // Home: "N vulnerabilities newly exploited in the last 7 days"
+    expect(rep.counts.kev_matched).toBe(hot.rows.filter((r) => r.you_have === 'yes').length) // Home: "Products you use among them"
+    expect(rep.counts.devices).toBe(devices.counts.all) // the Devices page, this box included
+    renderApp('/reports')
+    const doc = await screen.findByRole('article', { name: 'Weekly security report' })
+    const risks = within(doc).getByRole('region', { name: 'Top 3 risks' })
+    expect(within(risks).getAllByRole('listitem').length).toBeGreaterThan(0)
+    expect(within(risks).getAllByRole('listitem').length).toBeLessThanOrEqual(3)
+    expect(within(doc).getByRole('region', { name: 'Appendix: every finding of the week' })).toBeInTheDocument()
   })
 
   it('send history: 3 sample entries, a failed one says why, each can be opened for printing', async () => {

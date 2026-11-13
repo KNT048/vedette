@@ -93,7 +93,11 @@ func (s *Service) weeklyInput(ctx context.Context, now time.Time) (weeklyInput, 
 	if err != nil {
 		return weeklyInput{}, fmt.Errorf("reports: reading the exploited list: %w", err)
 	}
-	return weeklyInput{devices: devs, findings: fs, kev: kev, kevAt: at, now: now}, nil
+	kevNew, kevInUse, err := s.cfg.KEV.NewlyExploited(ctx)
+	if err != nil {
+		return weeklyInput{}, fmt.Errorf("reports: reading the exploited list: %w", err)
+	}
+	return weeklyInput{devices: devs, findings: fs, kev: kev, kevAt: at, kevNew: kevNew, kevInUse: kevInUse, now: now}, nil
 }
 
 // Weekly computes the report now (INV-1) and attaches the last AI commentary when it is from this week.
@@ -147,8 +151,12 @@ func (s *Service) loadWeeklyAI(ctx context.Context) (*AiSummary, error) {
 func weeklyFacts(r WeeklyReport) string {
 	var b strings.Builder
 	c := r.Counts
-	fmt.Fprintf(&b, "Period: %s to %s\nNew findings: %d\nResolved: %d\nOpen confirmed: %d\nOpen suspected: %d\nDevices: %d (%d not approved, %d new)\nNew exploited-list entries: %d, matching a device: %d\n",
+	fmt.Fprintf(&b, "Period: %s to %s\nNew findings: %d\nResolved: %d\nOpen confirmed: %d\nOpen suspected: %d\nDevices: %d (%d not approved, %d new)\nNewly exploited in the last 7 days: %d, products in use among them: %d\n",
 		r.Period.From, r.Period.To, c.NewFindings, c.Resolved, c.OpenConfirmed, c.OpenSuspected, c.Devices, c.DevicesUnapprove, c.DevicesNew, c.KevNew, c.KevMatched)
+	b.WriteString("Top risks (product, number of devices, open findings, confirmed by a scan, worst severity):\n")
+	for _, r := range r.TopRisks { // no device names in the prompt
+		fmt.Fprintf(&b, "- %s | %d | %d | %d | %s\n", r.Product, r.Devices, r.Open, r.Confirmed, r.Severity)
+	}
 	b.WriteString("Open findings (CVE, product, status, severity):\n")
 	for i, f := range r.Open {
 		if i == 20 {
@@ -456,16 +464,16 @@ func digest(r WeeklyReport) Mail {
 	c := r.Counts
 	m := Mail{
 		Title: fmt.Sprintf("Weekly report: %d new, %d resolved, %d open", c.NewFindings, c.Resolved, c.OpenConfirmed+c.OpenSuspected),
-		What: fmt.Sprintf("%d devices, %d not approved. %d new exploited vulnerabilities were listed this week, %d of them match your devices.",
+		What: fmt.Sprintf("%d devices, %d not approved. %d vulnerabilities newly exploited in the last 7 days; products you use among them: %d.",
 			c.Devices, c.DevicesUnapprove, c.KevNew, c.KevMatched),
 		Path: "/reports",
 	}
 	for _, a := range r.Actions {
 		switch a.Kind {
 		case "fix":
-			m.Items = append(m.Items, fmt.Sprintf("Fix %s on %s", a.CVE, a.Device))
+			m.Items = append(m.Items, fmt.Sprintf("Fix %s on %s (%d open, first %s)", a.Product, a.Device, a.Count, a.CVE))
 		case "verify":
-			m.Items = append(m.Items, fmt.Sprintf("Check whether %s on %s is real", a.CVE, a.Device))
+			m.Items = append(m.Items, fmt.Sprintf("Check whether %s on %s is really affected (%d open, first %s)", a.Product, a.Device, a.Count, a.CVE))
 		case "review_devices":
 			m.Items = append(m.Items, fmt.Sprintf("Review %d devices waiting for approval", a.Count))
 		case "plan_os":
@@ -553,7 +561,13 @@ func (s *Service) GeneratePdpl(ctx context.Context, actor string) (PdplReport, e
 	if err != nil {
 		return PdplReport{}, err
 	}
-	rep := buildPdpl(pdplInput{devices: in.devices, findings: in.findings, kev: in.kev, modules: s.cfg.Modules, org: *org, id: store.NewID("pdpl"), now: in.now})
+	var devs []Device // the PDPL inventory is the customer's network: this box is not in it
+	for _, d := range in.devices {
+		if !d.Box {
+			devs = append(devs, d)
+		}
+	}
+	rep := buildPdpl(pdplInput{devices: devs, findings: in.findings, kev: in.kev, modules: s.cfg.Modules, org: *org, id: store.NewID("pdpl"), now: in.now})
 	raw, _ := json.Marshal(rep)
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `UPDATE rep_pdpl SET report = ? WHERE id = 1`, string(raw)); err != nil {

@@ -123,25 +123,37 @@ func countTargets(ctx context.Context, q querier) (int, error) {
 	return n, nil
 }
 
-// latestCounts returns the counts of the newest snapshot of every target that has one.
-func latestCounts(ctx context.Context, q querier) (map[string]Counts, error) {
-	rows, err := q.QueryContext(ctx, `SELECT s.target_id, s.counts FROM exp_snapshot s
+// latestResult is what the target list shows of a target's newest snapshot: its counts and its first open ports.
+type latestResult struct {
+	Counts Counts
+	Ports  []PortRow
+}
+
+// latestResults returns the counts and the first MaxOpenPorts open ports of the newest snapshot of every target that has one.
+func latestResults(ctx context.Context, q querier) (map[string]latestResult, error) {
+	rows, err := q.QueryContext(ctx, `SELECT s.target_id, s.counts, s.ports FROM exp_snapshot s
 		WHERE s.date = (SELECT max(date) FROM exp_snapshot WHERE target_id = s.target_id)`)
 	if err != nil {
 		return nil, fmt.Errorf("latest counts: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
-	out := map[string]Counts{}
+	out := map[string]latestResult{}
 	for rows.Next() {
-		var id, doc string
-		var c Counts
-		if err := rows.Scan(&id, &doc); err != nil {
+		var id, doc, ports string
+		var r latestResult
+		if err := rows.Scan(&id, &doc, &ports); err != nil {
 			return nil, fmt.Errorf("latest counts: %w", err)
 		}
-		if err := json.Unmarshal([]byte(doc), &c); err != nil {
+		if err := json.Unmarshal([]byte(doc), &r.Counts); err != nil {
 			return nil, fmt.Errorf("latest counts of %s: %w", id, err)
 		}
-		out[id] = c
+		if err := json.Unmarshal([]byte(ports), &r.Ports); err != nil {
+			return nil, fmt.Errorf("latest ports of %s: %w", id, err)
+		}
+		if len(r.Ports) > MaxOpenPorts {
+			r.Ports = r.Ports[:MaxOpenPorts]
+		}
+		out[id] = r
 	}
 	return out, rows.Err()
 }

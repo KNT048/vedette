@@ -384,24 +384,35 @@ func (s *Service) affected(ctx context.Context, st Settings, cve string) (ids, n
 	if err != nil {
 		return nil, nil, nil, Current{}, err
 	}
+	var cands []Device // in the order of the findings, each device once
+	seen := map[string]bool{}
 	for _, f := range fs {
-		if f.CVE != cve || (f.Status != "suspected" && f.Status != "confirmed") || slices.Contains(ids, f.AssetID) {
+		if f.CVE != cve || (f.Status != "suspected" && f.Status != "confirmed") || seen[f.AssetID] {
 			continue
 		}
-		d, ok := devs[f.AssetID]
-		if !ok {
-			continue
+		if d, ok := devs[f.AssetID]; ok {
+			seen[f.AssetID] = true
+			cands = append(cands, d)
 		}
-		why, _, err := s.consent(ctx, st, d, false)
-		if err != nil {
-			return nil, nil, nil, Current{}, err
+	}
+	// One batch read per decision kind (D-472); a KEV of a common product matches hundreds of devices.
+	auto, err := s.policies(ctx, cands, false)
+	if err != nil {
+		return nil, nil, nil, Current{}, err
+	}
+	var refused []Device
+	for _, d := range cands {
+		if why, _ := fold(st, d, auto[d.ID]); why != "" {
+			refused = append(refused, d)
 		}
-		if why != "" {
-			picked, _, err := s.consent(ctx, st, d, true)
-			if err != nil {
-				return nil, nil, nil, Current{}, err
-			}
-			if picked == "" && !slices.Contains(pickOnly, d.Label) {
+	}
+	byPick, err := s.policies(ctx, refused, true)
+	if err != nil {
+		return nil, nil, nil, Current{}, err
+	}
+	for _, d := range cands {
+		if why, _ := fold(st, d, auto[d.ID]); why != "" {
+			if picked, _ := fold(st, d, byPick[d.ID]); picked == "" && !slices.Contains(pickOnly, d.Label) {
 				pickOnly = append(pickOnly, d.Label)
 			}
 			continue
@@ -461,14 +472,14 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	auto, err := s.policies(ctx, devs, false) // one batch read (D-472)
+	if err != nil {
+		return err
+	}
 	var ids []string
 	var first Current
 	for _, d := range devs {
-		why, _, err := s.consent(ctx, st, d, false)
-		if err != nil {
-			return err
-		}
-		if why != "" || len(ids) == MaxRunTargets {
+		if why, _ := fold(st, d, auto[d.ID]); why != "" || len(ids) == MaxRunTargets {
 			continue
 		}
 		if len(ids) == 0 {

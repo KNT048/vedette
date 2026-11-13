@@ -1,10 +1,11 @@
 # Reports Contract
 
-> Tier: tuỳ chọn (tắt mặc định) · Story: S-REP-1, S-REP-2 · Quyết định: D-18, D-23, D-29, D-235…D-239 · Last verified: 2026-11-11 (mã Go `modules/reports`, test `Contract`)
+> Tier: tuỳ chọn (tắt mặc định) · Story: S-REP-1, S-REP-2 · Quyết định: D-18, D-23, D-29, D-235…D-239 · Last verified: 2026-11-13 (fix/feeds-exposure-walk1-mlee: trang đầu cho lãnh đạo, số cùng định nghĩa với trang chủ/Devices, D-485) (2026-11-11 mã Go `modules/reports`, test `Contract`)
 > Nguồn hành vi thực tế: `web/src/features/reports/{contract,types,mocks,weekly,pdpl}.ts`. Nội dung pháp lý đã đối chiếu 2026-11-06 (D-23): Luật 91/2025/QH15, NĐ 356/2025/NĐ-CP.
 
 ## Invariants (luôn đúng)
 - **INV-1** Số liệu báo cáo tuần **tính khi mở** từ `inventory`, findings và KEV; `sources[]` nêu nguồn và thời điểm của từng nhóm số. Số liệu không do AI sinh.
+- **INV-13** (D-485, W1-24) Mỗi số của báo cáo tuần có cùng nguồn và định nghĩa với trang khác: `kev_new`/`kev_matched` = `KEV.NewlyExploited` (câu đầu trang chủ: CVE mới bị khai thác 7 ngày và số sản phẩm đang dùng trong đó, cùng bảng `GET /feeds/hot?window=7d`); `devices` = số của trang Devices (kể cả hộp Vedette: `Device.Box`; báo cáo PDPL bỏ hộp như trước); tên sản phẩm = `feeds.DisplayOf` như trang Findings (`KEVEntry.Display`). `resolved` là finding do người đóng trong 7 ngày, mỗi dòng có `by` (người đóng). `top_risks` (≤ `TopRiskCount` = 3) gom finding mở theo sản phẩm (`severity` là mức nặng nhất của nhóm, `cve`/`finding_id` là finding đã quét xác nhận nếu có): có xác nhận trước, rồi mức nặng nhất, rồi nhiều finding, rồi tên; `actions` fix/verify là một việc cho mỗi rủi ro đó (`product`, `count`), rồi `review_devices`, `plan_os`. Trang đầu là số liệu, Top 3 risks, Done this week (≤ 5 dòng), To do next week; danh sách đầy đủ là phụ lục. Báo cáo lưu trước D-485 (không `top_risks`) vẫn đọc được (INV-2). Lời nhắc AI có Top risks theo số thiết bị, không tên thiết bị (D-29).
 - **INV-2** Mục lịch sử gửi (`rep_history`) giữ **nguyên số liệu của tuần đó** (`HistoryEntry.report`); mở lại/in lại không tính lại.
 - **INV-3** Lịch: `day` ∈ 1..7 (1=Thứ Hai, D-57 (9)), `hour` 0..23, `recipients` ≤ 20 email, mỗi địa chỉ ≤ 120 ký tự và hợp lệ (kiểm ở biên, SYS-2); `next_run` tính từ lịch, `null` khi tắt. Trạng thái gửi ∈ {sent, failed}, `trigger` ∈ {manual, scheduled}, lỗi ghi rõ (`error`).
 - **INV-4** Gửi email chỉ qua kênh email của `notify` (SMTP của khách, PRIVACY luồng 5); không SMTP riêng của module.
@@ -61,7 +62,7 @@
 Không route `/reports/*`, không job gửi theo lịch. Trang Reports "module đang tắt". `rep_*` (lịch, lịch sử, thông tin tổ chức, báo cáo đã sinh) giữ nguyên; bật lại thì lịch tiếp tục, không gửi bù hàng loạt.
 
 ## Ports (cmd/vedette/reports.go)
-`Inventory.Devices` (không kể hộp), `Findings.All`, `KEV.Entries` (+ giờ kéo), `Mailer.Ready/Send` (notify), `AI.Available/Summarize` (ai: việc `weekly-report`, `pdpl-assessment`), `Modules.Enabled`. Reports không đọc bảng của module khác.
+`Inventory.Devices` (kể cả hộp, `Device.Box`; D-485), `Findings.All` (+ `ResolvedBy`), `KEV.Entries` (+ giờ kéo, `Display`), `KEV.NewlyExploited` (feeds, D-485), `Mailer.Ready/Send` (notify), `AI.Available/Summarize` (ai: việc `weekly-report`, `pdpl-assessment`), `Modules.Enabled`. Reports không đọc bảng của module khác.
 
 ## Dependencies
 - **DEPENDS ON**: `core` (jobs, audit), `inventory` (thiết bị, nguồn kiểm kê), `feeds` (KEV), `notify` (gửi, mềm nhưng cần để gửi), `ai` (nhận xét, mềm), `scan`/`logs`/`honeypot` (mềm, mở rộng số liệu).

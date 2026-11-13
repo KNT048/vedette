@@ -73,12 +73,15 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 	return info, true, nil
 }
 
-// plainText makes feed text safe to show: control characters and line breaks become spaces, runs of spaces
-// collapse, and the result is cut to max characters. Adapters render it as text, never as markup.
+// plainText makes feed text safe to show: control characters and line breaks become spaces, invisible format characters
+// (Unicode Cf) go, runs of spaces collapse, and the result is cut to max characters. Adapters render it as text, never as markup.
 func plainText(s string, limit int) string {
 	s = strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) || r == utf8.RuneError {
+		switch {
+		case unicode.IsControl(r) || r == utf8.RuneError:
 			return ' '
+		case unicode.Is(unicode.Cf, r): // invisible format characters: bidi overrides (U+202E), zero-width ones (D-552 review LOW-4)
+			return -1
 		}
 		return r
 	}, s)

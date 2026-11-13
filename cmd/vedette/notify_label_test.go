@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/modules/notify"
 )
 
-// Walk 4: new devices seen only by the passive sensor opened "A new unknown device appeared: switch". The label is the
-// IP, else the MAC, with the vendor; a host name stays as it is.
-func TestDeviceLabelOfANewDevice(t *testing.T) {
+// Walk 4 and D-552 (W8-2): a new-device incident names the device as the Devices page does (inventory's one naming rule: here the
+// vendor, else the IP), with its address (the IP, else the MAC) beside it, never the bare kind "switch".
+func TestDeviceStateOfANewDevice(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	ctx := t.Context()
@@ -25,17 +26,25 @@ func TestDeviceLabelOfANewDevice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]string{sw: sw + " (Juniper Networks)", cam: "192.168.18.254"}
+	want := map[string]notify.DeviceState{sw: {Name: "Juniper Networks", Address: sw}, cam: {Name: "192.168.18.254", Address: "192.168.18.254"}}
+	ids := map[string]string{}
 	for _, d := range l.Items {
-		if d.MAC == nil || want[*d.MAC] == "" {
-			continue
+		if d.MAC != nil && want[*d.MAC].Name != "" {
+			ids[*d.MAC] = d.ID
 		}
-		if got, ok, err := (notifyDevices{s.d.Inventory}).DeviceLabel(ctx, d.ID); err != nil || !ok || got != want[*d.MAC] {
-			t.Errorf("%s: label %q %v %v, want %q", *d.MAC, got, ok, err, want[*d.MAC])
-		}
-		delete(want, *d.MAC)
 	}
-	if len(want) != 0 {
-		t.Errorf("devices not listed: %v", want)
+	dir := notifyDevices{s.d.Inventory}
+	all, err := dir.DeviceStates(ctx, []string{ids[sw], ids[cam], "no-such-device"}) // the job's batch read
+	if err != nil || len(all) != 2 {
+		t.Fatalf("batch = %+v, %v", all, err)
+	}
+	for mac, w := range want {
+		one, err := dir.DeviceStates(ctx, []string{ids[mac]}) // the event's read of one device
+		if err != nil || one[ids[mac]] != w || all[ids[mac]] != w {
+			t.Errorf("%s: one %+v, batch %+v, %v; want %+v", mac, one[ids[mac]], all[ids[mac]], err, w)
+		}
+	}
+	if one, err := dir.DeviceStates(ctx, []string{"no-such-device"}); len(one) != 0 || err != nil {
+		t.Errorf("a device the inventory does not have: %+v %v", one, err)
 	}
 }

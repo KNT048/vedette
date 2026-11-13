@@ -21,10 +21,10 @@
     "title_one": "Add the version of 1 software to check it",
     "title_other": "Add the version of {{count}} software to check them",
     "help": "Vedette compares the version with the versions each exploited CVE affects. Without a version it cannot tell, so it lists the product here once instead of one finding per CVE. Open the device and add the version.",
-    "missing_one": "{{software}} has no version: adding it checks 1 exploited CVE.",
-    "missing_other": "{{software}} has no version: adding it checks {{count}} exploited CVEs.",
-    "unreadable_one": "{{software}} version \"{{version}}\" cannot be compared: enter it as numbers (for example 7.2.5) to check 1 exploited CVE.",
-    "unreadable_other": "{{software}} version \"{{version}}\" cannot be compared: enter it as numbers (for example 7.2.5) to check {{count}} exploited CVEs."
+    "missing_one": "<sw>{{software}}</sw> has no version: adding it checks 1 exploited CVE.",
+    "missing_other": "<sw>{{software}}</sw> has no version: adding it checks {{count}} exploited CVEs.",
+    "unreadable_one": "<sw>{{software}}</sw> version \"{{version}}\" cannot be compared: enter it as numbers (for example 7.2.5) to check 1 exploited CVE.",
+    "unreadable_other": "<sw>{{software}}</sw> version \"{{version}}\" cannot be compared: enter it as numbers (for example 7.2.5) to check {{count}} exploited CVEs."
   },
   "clearCve": "Clear {{cve}} filter",
   "emptyCve": "No findings for {{cve}} in this filter.",

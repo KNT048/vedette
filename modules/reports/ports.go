@@ -20,6 +20,7 @@ type Device struct {
 	Ports     []int    // open TCP/UDP service ports
 	KevKeys   []string // inventory KEV keys of the software on the device ("vendor|product")
 	Box       bool     // this Vedette box: listed on the Devices page, so counted in the weekly report; not in the PDPL inventory
+	NoDevice  bool     // a product added by hand with neither a name nor an IP: Name is the product and inventory.NoDevice (D-471)
 	Sources   []string // the source of each of vendor, model and OS that is known
 }
 

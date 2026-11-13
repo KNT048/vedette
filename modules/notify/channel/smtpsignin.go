@@ -54,7 +54,7 @@ type userGrant struct {
 }
 
 func (g userGrant) secret() secrets.Value {
-	b, _ := json.Marshal(g) // two strings: cannot fail
+	b, _ := json.Marshal(g) //nolint:gosec // G117: this JSON is the channel secret, sealed by core/secrets; it is never logged or returned
 	return secrets.NewValue(string(b))
 }
 

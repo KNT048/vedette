@@ -22,7 +22,7 @@ import (
 // but the user code, the addresses to open and the mailbox.
 
 const (
-	maxSignins = 8
+	maxSignIns = 8
 	signinLife = 15 * time.Minute
 )
 
@@ -70,7 +70,7 @@ func (e *emailSignin) view() EmailSignin {
 	return v
 }
 
-type signins struct {
+type signInSet struct {
 	mu sync.Mutex
 	m  map[string]*emailSignin
 }
@@ -119,27 +119,27 @@ func (s *Service) StartEmailSignin(ctx context.Context, actor string, in EmailSi
 		}
 		e.consent = g
 	}
-	s.signins.mu.Lock()
-	defer s.signins.mu.Unlock()
-	if s.signins.m == nil {
-		s.signins.m = map[string]*emailSignin{}
+	s.signIns.mu.Lock()
+	defer s.signIns.mu.Unlock()
+	if s.signIns.m == nil {
+		s.signIns.m = map[string]*emailSignin{}
 	}
-	for k, o := range s.signins.m {
+	for k, o := range s.signIns.m {
 		if !now.Before(o.expires) || o.by == actor { // one sign-in per admin: a new one replaces the last
-			delete(s.signins.m, k)
+			delete(s.signIns.m, k)
 		}
 	}
-	if len(s.signins.m) >= maxSignins {
+	if len(s.signIns.m) >= maxSignIns {
 		return EmailSignin{}, apierr.New(http.StatusTooManyRequests, "rate_limited", "Too many sign-ins are open. Wait a few minutes and try again.")
 	}
-	s.signins.m[e.id] = e
+	s.signIns.m[e.id] = e
 	return e.view(), nil
 }
 
 func (s *Service) signin(actor, id string) (*emailSignin, bool) {
-	s.signins.mu.Lock()
-	defer s.signins.mu.Unlock()
-	e, ok := s.signins.m[id]
+	s.signIns.mu.Lock()
+	defer s.signIns.mu.Unlock()
+	e, ok := s.signIns.m[id]
 	return e, ok && e.by == actor
 }
 
@@ -210,20 +210,21 @@ func (s *Service) takeSignin(actor, id string, fields map[string]string) (string
 
 // forgetSignin drops a sign-in once its secret is saved.
 func (s *Service) forgetSignin(id string) {
-	s.signins.mu.Lock()
-	delete(s.signins.m, id)
-	s.signins.mu.Unlock()
+	s.signIns.mu.Lock()
+	delete(s.signIns.m, id)
+	s.signIns.mu.Unlock()
 }
 
 // rotateEmailSecret keeps a refresh token the provider rotated (channel.EmailConfig.SaveSecret). It runs on its own goroutine: a send
 // may happen inside another module's write transaction, where a second DB.Write would wait for the one writer forever. It replaces
 // the saved secret only if it is still the one the sender started with (a save in between wins). Microsoft keeps the previous
 // refresh token valid, so a write that fails loses nothing but the newer token.
-func (s *Service) rotateEmailSecret(_ context.Context, old, next secrets.Value) error {
+func (s *Service) rotateEmailSecret(ctx context.Context, old, next secrets.Value) error {
 	s.rotations.Add(1)
+	ctx = context.WithoutCancel(ctx) // the send that rotated may end before the write
 	go func() {
 		defer s.rotations.Done()
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 			c, err := loadChannel(ctx, tx, channel.Email)

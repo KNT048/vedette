@@ -375,8 +375,8 @@ func postToken(ctx context.Context, client *http.Client, endpoint string, form u
 		}
 		return tokenAnswer{}, r
 	}
-	ok := func(s string, most int) bool { return s == "" || (len(s) <= most && accessRE.MatchString(s)) }
-	if jerr != nil || !ok(a.AccessToken, maxAccess) || !ok(a.RefreshToken, maxAccess) || !ok(a.IDToken, maxAccess) || !ok(a.DeviceCode, maxAccess) ||
+	ok := func(s string) bool { return s == "" || (len(s) <= maxAccess && accessRE.MatchString(s)) }
+	if jerr != nil || !ok(a.AccessToken) || !ok(a.RefreshToken) || !ok(a.IDToken) || !ok(a.DeviceCode) ||
 		(a.TokenType != "" && !strings.EqualFold(a.TokenType, "bearer")) {
 		return tokenAnswer{}, unreadable
 	}

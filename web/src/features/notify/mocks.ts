@@ -323,9 +323,10 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  // The box answers 409 no_session without a session; the page asks only once it has one (ZaloRecipient canLook), so the mock always
+  // answers the demo list (the contract test reads every GET of the module).
   http.get(`${API}/notify/zalo/contacts`, () => {
     const denied = guard('admin'); if (denied) return denied
-    if (!zaloSession()) return NO_SESSION()
     return HttpResponse.json({ friends: ZALO_FRIENDS, groups: ZALO_GROUPS })
   }),
 

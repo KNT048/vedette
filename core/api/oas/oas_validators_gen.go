@@ -7566,6 +7566,24 @@ func (s CoreGetCoreAccountOKUserTwofaMethod) Validate() error {
 	}
 }
 
+func (s CoreGetCoreAuditActor) Validate() error {
+	switch s {
+	case "people":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s CoreGetCoreAuditExportActor) Validate() error {
+	switch s {
+	case "people":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *CoreGetCoreAuditOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer

@@ -11,6 +11,7 @@ import { SafetyTab } from './SafetyTab'
 import { AutoTab } from './AutoTab'
 import { ProbesTab } from './ProbesTab'
 import { CredentialedTab } from './CredentialedTab'
+import { CREDENTIALED_IN_UI } from '@/lib/credentialed'
 
 function Shell() {
   const { t } = useTranslation('scan')
@@ -54,7 +55,7 @@ function Shell() {
         { id: 'safety', label: t('tabs.safety'), panel: <SafetyTab /> },
         { id: 'auto', label: t('tabs.auto'), panel: <AutoTab /> },
         { id: 'probes', label: t('tabs.probes'), panel: <ProbesTab /> },
-        { id: 'credentialed', label: t('tabs.credentialed'), panel: <CredentialedTab /> },
+        ...(CREDENTIALED_IN_UI ? [{ id: 'credentialed', label: t('tabs.credentialed'), panel: <CredentialedTab /> }] : []),
       ]} />
     </>
   )

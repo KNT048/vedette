@@ -7509,6 +7509,18 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "actor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "people: leave out the automatic lines (user \"system\" or \"system:<part>\"), so what people and tools did stands out (D-416)",
+              "type": "string",
+              "enum": [
+                "people"
+              ]
+            }
           }
         ],
         "responses": {
@@ -7569,13 +7581,24 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "names": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "Display names of the devices and findings whose ids appear in the target or detail of these rows (id to name); an id the box no longer has is left out (D-416)"
                     }
                   },
                   "required": [
                     "items",
                     "total",
                     "users",
-                    "groups"
+                    "groups",
+                    "names"
                   ],
                   "additionalProperties": false
                 }
@@ -7645,6 +7668,18 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "actor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "people: leave out the automatic lines (user \"system\" or \"system:<part>\"), so what people and tools did stands out (D-416)",
+              "type": "string",
+              "enum": [
+                "people"
+              ]
             }
           }
         ],

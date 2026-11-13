@@ -40,6 +40,7 @@ type APIHandlers struct {
 	log     *slog.Logger
 	now     func() time.Time
 	facts   PrivacyFacts  // nil: the answers of today (see PrivacyFacts)
+	names   AuditNamer    // nil: the audit rows carry no names
 	conns   *conn.Service // nil: the connection routes answer 501
 	logs    *logexport.Registry
 	logsDir string // where /core/logs/export spools its file ("" = os.TempDir())
@@ -80,8 +81,11 @@ type HandlersConfig struct {
 	Audit   *audit.Log
 	Secrets *secrets.Store
 	Log     *slog.Logger
-	Facts   PrivacyFacts  // optional
-	Conns   *conn.Service // optional: without it /core/connections answers 501 not_implemented
+	Facts   PrivacyFacts // optional
+	// Names gives GET /core/audit the display names of the devices and findings its rows name (D-416). Optional: without it the
+	// rows show their ids only. cmd/vedette reads them from inventory and findings, so core imports neither.
+	Names AuditNamer
+	Conns *conn.Service // optional: without it /core/connections answers 501 not_implemented
 	// SpoolDir is where /core/logs/export writes its temporary file: a directory on the data volume (cmd/vedette gives
 	// <data>/tmp/logs-export), created 0700 and swept of leftovers at startup. "" = os.TempDir() (tests).
 	SpoolDir string
@@ -164,7 +168,7 @@ func NewAPIHandlers(c HandlersConfig) (*APIHandlers, error) {
 		}
 		alsoKept = append(alsoKept, oas.CorePostCoreDataPurgeOKKeptItem(k))
 	}
-	h := &APIHandlers{scope: c.Scope, boxLAN: c.BoxLAN, freezes: c.AlsoFreeze, gate: c.Gate, alsoKept: alsoKept, keepRows: c.KeepRows, dataDir: c.DataDir, dataFiles: c.DataFiles, schema: c.Schema, restart: c.Restart, keyPath: c.KeyPath, purgeHost: c.Host, osBusy: c.OSBusy, beforeWipe: c.BeforeWipe, logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
+	h := &APIHandlers{scope: c.Scope, boxLAN: c.BoxLAN, freezes: c.AlsoFreeze, gate: c.Gate, alsoKept: alsoKept, keepRows: c.KeepRows, dataDir: c.DataDir, dataFiles: c.DataFiles, schema: c.Schema, restart: c.Restart, keyPath: c.KeyPath, purgeHost: c.Host, osBusy: c.OSBusy, beforeWipe: c.BeforeWipe, logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, names: c.Names, conns: c.Conns, logs: c.Logs}
 	c.Logs.Register("audit", h.exportAudit)
 	return h, nil
 }

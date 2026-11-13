@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/pki"
@@ -104,13 +105,19 @@ func (l *sensorLink) close() error { return l.srv.Close() }
 // renewEvery is how often the certificates are looked at: Renew replaces only what has a third of its life or less left (D-110 (3)).
 const renewEvery = 24 * time.Hour
 
-// coreJobs is the Jobs func of the core entry in wiredModules: the sign-in tables' retention, the software update check and
+// coreJobs is the Jobs func of the core entry in wiredModules: the sign-in tables' and the audit log's retention, the software update check and
 // automatic mode, and the daily renewal of the sensor certificates, when the link exists.
 func coreJobs(d deps) []jobs.Job {
 	var js []jobs.Job
 	if d.Auth != nil { // the sign-in tables' retention (core CONTRACT INV-30)
 		js = append(js, jobs.Job{Module: "core", Name: "auth-prune", Every: auth.PruneEvery, Run: func(ctx context.Context) error {
 			_, err := d.Auth.Prune(ctx)
+			return err
+		}})
+	}
+	if d.Audit != nil && d.DB != nil { // the audit log's retention: 365 days, at most 200,000 lines (core INV-37, D-416)
+		js = append(js, jobs.Job{Module: "core", Name: "audit-prune", Every: audit.PruneEvery, Run: func(ctx context.Context) error {
+			_, err := d.Audit.Prune(ctx, d.DB)
 			return err
 		}})
 	}

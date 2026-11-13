@@ -9,7 +9,8 @@
     "title": "Response",
     "meta": "Rules you build (WHEN, IF, THEN) and requests your AI sends. Every action needs approval by default, and nothing changes another device without the safety envelope below.",
     "onTitle": "High-risk mode is on",
-    "onBody": "Actions that change your network devices can run after a person approves them. {{count}} request(s) waiting. Use Emergency stop if something looks wrong.",
+    "onBody_one": "Actions that change your network devices can run after a person approves them. {{count}} request is waiting. Use Emergency stop if something looks wrong.",
+    "onBody_other": "Actions that change your network devices can run after a person approves them. {{count}} requests are waiting. Use Emergency stop if something looks wrong.",
     "breakerTitle": "Circuit breaker is open: all response is paused",
     "breakerBody": "More than {{max}} actions were requested in one hour, so rules and AI requests are paused and your channels were told.",
     "stoppedBody": "Someone pressed Emergency stop, so rules and AI requests are paused and no device step runs, an undo included, until an administrator resumes."

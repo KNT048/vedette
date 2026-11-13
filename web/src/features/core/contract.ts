@@ -83,8 +83,10 @@ export const OidcTest = z.object({ ok: z.literal(true), endpoints: z.record(z.st
 
 // ---- audit ----
 export const AuditRow = z.object({ id: z.string(), ts, user: z.string(), action: z.string(), target: z.string(), detail: z.string().optional() })
-export const AuditQuery = z.object({ q: z.string().optional(), user: z.string().optional(), group: z.string().optional(), from: z.string().optional(), to: z.string().optional() })
-export const AuditResult = z.object({ items: z.array(AuditRow), total: z.number(), users: z.array(z.string()), groups: z.array(z.string()) })
+export const AuditQuery = z.object({ q: z.string().optional(), user: z.string().optional(), group: z.string().optional(), from: z.string().optional(), to: z.string().optional(),
+  actor: z.enum(['people']).optional().describe('people: leave out the automatic lines (user "system" or "system:<part>"), so what people and tools did stands out (D-416)') })
+export const AuditResult = z.object({ items: z.array(AuditRow), total: z.number(), users: z.array(z.string()), groups: z.array(z.string()),
+  names: z.record(z.string(), z.string()).describe('Display names of the devices and findings whose ids appear in the target or detail of these rows (id to name); an id the box no longer has is left out (D-416)') })
 
 // ---- cập nhật ----
 export const UpdateChannel = z.enum(['stable', 'beta'])

@@ -201,8 +201,9 @@
     "redirectHint": "Set from the address you use now when you save. People must open Vedette at this address to sign in with SSO."
   },
   "audit": {
-    "title": "{{count}} log lines match the filters",
-    "meta": "Who did what, when, and to what. The box keeps the latest 1000 lines, and every configuration change has one.",
+    "title_one": "{{count}} log line matches the filters",
+    "title_other": "{{count}} log lines match the filters",
+    "meta": "Who did what, when, and to what. Every configuration change has a line. The box keeps the lines of the last 365 days, at most 200,000; the oldest go first.",
     "caption": "Audit log",
     "export": "Export CSV",
     "empty": "No log lines yet. Each configuration change adds one here.",
@@ -221,7 +222,9 @@
       "group": "Kind of action",
       "from": "From date",
       "to": "To date",
-      "any": "All"
+      "any": "All",
+      "people": "Not the system (people and tools)",
+      "users": "One user"
     },
     "group": {
       "auth": "Sign-in",
@@ -326,6 +329,7 @@
       "ai.activity_retention": "Change AI activity log retention",
       "ai.downgrade": "AI request used a different model",
       "audit.export": "Download audit log",
+      "audit.pruned": "Lines past the retention removed",
       "connection.create": "Add connection",
       "connection.update": "Change connection",
       "connection.delete": "Delete connection",

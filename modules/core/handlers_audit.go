@@ -54,8 +54,8 @@ var dateOnlyRE = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
 // auditFilter is the SQL form of the query of GET /core/audit and /core/audit/export: nil or a string each.
 type auditFilter struct {
-	from, to, who, grp, needle any
-	text                       string // the filters as typed, for the audit row of an export
+	from, to, who, grp, needle, people any
+	text                               string // the filters as typed, for the audit row of an export
 }
 
 // orgLocation is the time zone of the organization (a date in a filter is a day there).
@@ -99,9 +99,13 @@ func parseAuditBound(s string, loc *time.Location, end bool) (string, bool) {
 	return store.FormatTS(t), true
 }
 
-func (h *APIHandlers) auditFilter(ctx context.Context, q, user, group, from, to oas.OptString) (auditFilter, error) {
+func (h *APIHandlers) auditFilter(ctx context.Context, q, user, group, from, to oas.OptString, people bool) (auditFilter, error) {
 	var f auditFilter
 	var parts []string
+	if people { // D-416: leave out the automatic lines (user "system" or "system:<part>")
+		f.people = "1"
+		parts = append(parts, "actor=people")
+	}
 	set := func(name string, v oas.OptString) string {
 		s := strings.TrimSpace(v.Or(""))
 		if s != "" {
@@ -153,13 +157,13 @@ func (h *APIHandlers) auditFilter(ctx context.Context, q, user, group, from, to 
 }
 
 func (f auditFilter) list(ctx context.Context, q *coredb.Queries, before, limit int64) ([]coredb.ListAuditFilteredRow, error) {
-	return q.ListAuditFiltered(ctx, coredb.ListAuditFilteredParams{BeforeSeq: before, FromTs: f.from, ToTs: f.to, Who: f.who, Grp: f.grp, Needle: f.needle, MaxRows: limit})
+	return q.ListAuditFiltered(ctx, coredb.ListAuditFilteredParams{BeforeSeq: before, FromTs: f.from, ToTs: f.to, Who: f.who, Grp: f.grp, People: f.people, Needle: f.needle, MaxRows: limit})
 }
 
 // CoreGetCoreAudit implements GET /core/audit (admin): the newest rows that match, at most 200, with the
 // total number of matches and the users and groups present in the log (for the filter lists).
 func (h *APIHandlers) CoreGetCoreAudit(ctx context.Context, params oas.CoreGetCoreAuditParams) (*oas.CoreGetCoreAuditOK, error) {
-	f, err := h.auditFilter(ctx, params.Q, params.User, params.Group, params.From, params.To)
+	f, err := h.auditFilter(ctx, params.Q, params.User, params.Group, params.From, params.To, params.Actor.Set && params.Actor.Value == oas.CoreGetCoreAuditActorPeople)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +182,7 @@ func (h *APIHandlers) CoreGetCoreAudit(ctx context.Context, params oas.CoreGetCo
 	if err != nil {
 		return nil, fmt.Errorf("core: list audit: %w", err)
 	}
-	total, err := q.CountAuditFiltered(ctx, coredb.CountAuditFilteredParams{UptoSeq: top, FromTs: f.from, ToTs: f.to, Who: f.who, Grp: f.grp, Needle: f.needle})
+	total, err := q.CountAuditFiltered(ctx, coredb.CountAuditFilteredParams{UptoSeq: top, FromTs: f.from, ToTs: f.to, Who: f.who, Grp: f.grp, People: f.people, Needle: f.needle})
 	if err != nil {
 		return nil, fmt.Errorf("core: count audit: %w", err)
 	}
@@ -190,7 +194,7 @@ func (h *APIHandlers) CoreGetCoreAudit(ctx context.Context, params oas.CoreGetCo
 	if err != nil {
 		return nil, fmt.Errorf("core: audit groups: %w", err)
 	}
-	out := &oas.CoreGetCoreAuditOK{Items: make([]oas.CoreGetCoreAuditOKItemsItem, 0, len(rows)), Total: float64(total), Users: users, Groups: groups}
+	out := &oas.CoreGetCoreAuditOK{Items: make([]oas.CoreGetCoreAuditOKItemsItem, 0, len(rows)), Total: float64(total), Users: users, Groups: groups, Names: h.auditNames(ctx, rows)}
 	for _, r := range rows {
 		ts, perr := time.Parse(tsLayout, r.Ts)
 		if perr != nil {
@@ -214,7 +218,7 @@ func (h *APIHandlers) CoreGetCoreAuditExport(ctx context.Context, params oas.Cor
 	if err != nil {
 		return oas.CoreGetCoreAuditExportOK{}, err
 	}
-	f, err := h.auditFilter(ctx, params.Q, params.User, params.Group, params.From, params.To)
+	f, err := h.auditFilter(ctx, params.Q, params.User, params.Group, params.From, params.To, params.Actor.Set && params.Actor.Value == oas.CoreGetCoreAuditExportActorPeople)
 	if err != nil {
 		return oas.CoreGetCoreAuditExportOK{}, err
 	}
@@ -370,4 +374,51 @@ func (h *APIHandlers) CorePutCoreGeneral(ctx context.Context, req *oas.CorePutCo
 		return nil, err
 	}
 	return &oas.CorePutCoreGeneralOK{Name: name, Timezone: req.Timezone}, nil
+}
+
+// AuditNamer names the devices and findings that audit rows refer to by id (D-416): a device by its host name, else its IP, else what
+// the box knows of it; a finding as "<CVE> on <device>". Ids it does not know are left out. cmd/vedette implements it over inventory and
+// findings, so core imports neither module (rules/modules.md).
+type AuditNamer interface {
+	AuditNames(ctx context.Context, ids []string) (map[string]string, error)
+}
+
+// auditIDRE finds device (a-…) and finding (f-…) ids in a target or detail: store.NewID's lowercase base32 after the prefix.
+var auditIDRE = regexp.MustCompile(`\b[af]-[a-z0-9]{1,64}\b`)
+
+// auditNames returns the names of the ids in these rows' targets and details. The names are a help to read the page: when the namer is
+// missing or fails, the page still answers, with ids only (the failure is logged).
+func (h *APIHandlers) auditNames(ctx context.Context, rows []coredb.ListAuditFilteredRow) oas.CoreGetCoreAuditOKNames {
+	out := oas.CoreGetCoreAuditOKNames{}
+	if h.names == nil {
+		return out
+	}
+	seen := map[string]bool{}
+	var ids []string
+	for _, r := range rows {
+		text := r.Target
+		if r.Detail != nil {
+			text += " " + *r.Detail
+		}
+		for _, id := range auditIDRE.FindAllString(text, -1) {
+			if !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+	}
+	if len(ids) == 0 {
+		return out
+	}
+	names, err := h.names.AuditNames(ctx, ids)
+	if err != nil {
+		h.log.WarnContext(ctx, "audit: names of devices and findings", "err", err)
+		return out
+	}
+	for id, n := range names {
+		if seen[id] && n != "" {
+			out[id] = n
+		}
+	}
+	return out
 }

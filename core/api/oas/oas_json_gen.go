@@ -26687,6 +26687,10 @@ func (s *CoreGetCoreAuditOK) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("names")
+		s.Names.Encode(e)
+	}
+	{
 		e.FieldStart("total")
 		e.Float64(s.Total)
 	}
@@ -26700,11 +26704,12 @@ func (s *CoreGetCoreAuditOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCoreGetCoreAuditOK = [4]string{
+var jsonFieldsNameOfCoreGetCoreAuditOK = [5]string{
 	0: "groups",
 	1: "items",
-	2: "total",
-	3: "users",
+	2: "names",
+	3: "total",
+	4: "users",
 }
 
 // Decode decodes CoreGetCoreAuditOK from json.
@@ -26754,8 +26759,18 @@ func (s *CoreGetCoreAuditOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"items\"")
 			}
-		case "total":
+		case "names":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Names.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"names\"")
+			}
+		case "total":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Float64()
 				s.Total = float64(v)
@@ -26767,7 +26782,7 @@ func (s *CoreGetCoreAuditOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "users":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Users = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -26796,7 +26811,7 @@ func (s *CoreGetCoreAuditOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -27019,6 +27034,62 @@ func (s *CoreGetCoreAuditOKItemsItem) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CoreGetCoreAuditOKItemsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s CoreGetCoreAuditOKNames) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s CoreGetCoreAuditOKNames) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes CoreGetCoreAuditOKNames from json.
+func (s *CoreGetCoreAuditOKNames) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetCoreAuditOKNames to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CoreGetCoreAuditOKNames")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CoreGetCoreAuditOKNames) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetCoreAuditOKNames) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

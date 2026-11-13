@@ -1388,6 +1388,15 @@ describe('response: screens', () => {
     expect(screen.getAllByText('Pre-approved, no person').length).toBeGreaterThan(0)
   })
 
+  it('the high-risk banner counts the waiting requests in words, never a raw {{count}} (walk-1 W1-17)', async () => {
+    await turnOn()
+    const pending = (await list<ActionRequest>('admin', '/response/actions')).filter((a) => a.status === 'pending').length
+    renderApp('/response')
+    const banner = (await screen.findByText('High-risk mode is on')).parentElement!
+    expect(banner.textContent).not.toContain('{{')
+    expect(banner).toHaveTextContent(pending === 1 ? '1 request is waiting.' : `${pending} requests are waiting.`)
+  })
+
   it('Requests tab: pending bundled request with pick boxes, AI request with evidence, and the AI plan with its off-state message', async () => {
     renderApp('/response#requests')
     expect(await screen.findByText('Block 91.92.240.12 and tell the team')).toBeInTheDocument()

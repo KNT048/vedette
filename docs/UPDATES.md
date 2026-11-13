@@ -36,7 +36,7 @@ Mọi kênh: chữ ký bắt buộc, khoá công khai trong binary (2 khoá: `bu
 
 ## 3. Trang Cập nhật (S-CORE-2)
 
-Hiện: phiên bản phần mềm/dữ liệu/gói nội dung, "cập nhật lúc", kênh, lịch sử 20 lần gần nhất, trạng thái chữ ký, nút kiểm tra ngay, nút rollback từng kênh, chế độ tự động/tay, **bundle offline** (`vedette bundle export/import` cho mạng cách ly), tình trạng advisory sản phẩm.
+Hiện: phiên bản phần mềm/dữ liệu/gói nội dung, "cập nhật lúc", kênh, lịch sử 20 lần gần nhất, trạng thái chữ ký, nút kiểm tra ngay, nút rollback từng kênh, chế độ tự động/tay, **bundle offline** (hoãn sau v1, D-408: GUI không đưa ra, `/core/updates/bundle` trả 501) (`vedette bundle export/import` cho mạng cách ly), tình trạng advisory sản phẩm.
 
 ## 4. Quy trình phát hành (CI, GitHub Actions)
 

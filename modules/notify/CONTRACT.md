@@ -1,6 +1,6 @@
 # Notify Contract
 
-> Tier: standard · Story: S-NOT-1, S-NOT-2, S-ALERT-1, S-ALERT-3, S-RESP-2 (phần kênh duyệt) · Last verified: 2026-11-13 (D-446: one rule for Vedette itself) (2026-11-12 walk 3: `attempt`, quy tắc địa chỉ SMTP; WP-22: dịch vụ, endpoint, job, sự kiện đã nối vào cmd/vedette; người dùng, mã 2FA email, `BaseURL`, múi giờ tổ chức và tên thiết bị đã nối ở wiring-2 (#62), xem IMPACT; `Findings` nối ở notify-findings; `BoxAddrs` nối ở SP-5a (D-141): bản đọc cuối cùng của cache địa chỉ host, không bao giờ chờ host, rỗng khi host chưa từng trả lời; còn thiếu `Tokens`; 2026-11-10: listener nút Telegram, 13b-8 lát 1)
+> Tier: standard · Story: S-NOT-1, S-NOT-2, S-ALERT-1, S-ALERT-3, S-RESP-2 (phần kênh duyệt) · Last verified: 2026-11-13 (D-446: one rule for Vedette itself) (2026-11-12 walk 3: `attempt`, quy tắc địa chỉ SMTP; WP-22: dịch vụ, endpoint, job, sự kiện đã nối vào cmd/vedette; người dùng, mã 2FA email, `BaseURL`, múi giờ tổ chức và tên thiết bị đã nối ở wiring-2 (#62), xem IMPACT; `Findings` nối ở notify-findings; `BoxAddrs` nối ở SP-5a (D-141): bản đọc cuối cùng của cache địa chỉ host, không chờ host trừ tối đa 2 s cho câu trả lời đầu tiên (D-408), "chưa biết" khi host chưa từng trả lời; còn thiếu `Tokens`; 2026-11-10: listener nút Telegram, 13b-8 lát 1)
 
 Nguồn hành vi: `web/src/features/notify/{contract,mocks}.ts`. Luồng dữ liệu: `PRIVACY.md` luồng 5.
 

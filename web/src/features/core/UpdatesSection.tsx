@@ -18,6 +18,7 @@ import { OsBlock } from './OsUpdates'
 import { ContainerUpdates, InstallPending } from './ContainerOnly'
 import { UpdateNotices } from './UpdateSignals'
 import { useInstallKind } from '@/lib/modules'
+import { BUNDLE_IN_UI } from '@/lib/bundle'
 import { Band, errMsg, ReadOnlyNote, useGate } from './parts'
 import { MAX_UPLOAD, sha256Hex, toBase64 } from './util'
 import type { ManagedPackage, UpdateAvailable, UpdateComponent, UpdateHistory, UpdateRun, UpdatesState } from './types'
@@ -248,9 +249,10 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
             </li>
           ))}
         </ul>
-        ) : <p className="max-w-3xl text-sm text-muted">{t(isNever(s.last_check) ? 'updates.advisoriesNotYet' : 'updates.advisoriesNone')}</p>}
+        ) : <p className="max-w-3xl text-sm text-muted">{t(isNever(s.last_check) ? 'updates.advisoriesNotYet' : s.stale_since ? 'updates.advisoriesStale' : 'updates.advisoriesNone')}</p>}
       </Section>
 
+      {BUNDLE_IN_UI ? (
       <Section title={t('updates.bundle.title')} description={t('updates.bundle.desc')}>
         <div className="flex flex-wrap items-center gap-2">
           <Button disabled={operator.disabled} title={operator.title} onClick={() => void download('/core/updates/bundle', 'vedette-bundle.json').catch((e) => toast.error(errMsg(e, t)))}><Download />{t('updates.bundle.export')}</Button>
@@ -258,6 +260,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
           <Button disabled={admin.disabled || m.importBundle.isPending || running} title={admin.title} onClick={() => file.current?.click()}><Upload />{t('updates.bundle.import')}</Button>
         </div>
       </Section>
+      ) : null}
 
       <Section title={t('updates.history')} description={t('updates.historyDesc')}>
         <DataTable data={s.history} columns={hist} caption={t('updates.history')} pageSize={20} empty={t('updates.historyEmpty')}

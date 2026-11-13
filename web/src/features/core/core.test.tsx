@@ -17,6 +17,11 @@ import { saveSsoFlow, takeSsoFlow } from './ssoFlow'
 import type { Role } from '@/lib/session'
 import { nav, compareVersion, toBase64 } from './util'
 
+// D-408: the offline bundle is hidden in the GUI for v1 (BUNDLE_IN_UI false) but its code is kept, so this file runs the bundle as
+// offered; one test runs the v1 page.
+const bundleFlag = vi.hoisted(() => ({ BUNDLE_IN_UI: true }))
+vi.mock('@/lib/bundle', () => bundleFlag)
+
 const setModule = (id: string, enabled: boolean) => modulesStore.update((l) => l.map((m) => (m.id === id ? { ...m, enabled } : m)))
 const user = () => userEvent.setup()
 
@@ -1077,6 +1082,18 @@ describe('core: cập nhật (S-CORE-2)', () => {
     const good = JSON.stringify({ format: 'vedette-bundle/1', created_at, items, signature: mockSign(JSON.stringify(items) + created_at) })
     await u.upload(input, new File([good], 'good.json', { type: 'application/json' }))
     expect(await screen.findByText('Bundle imported, 1 new items installed.')).toBeInTheDocument()
+  })
+
+  it('v1 (D-408): no offline bundle on the Updates page, and no sentence that points to one', async () => {
+    bundleFlag.BUNDLE_IN_UI = false
+    try {
+      renderApp('/settings/updates')
+      await screen.findByRole('table', { name: 'Versions in use' })
+      expect(screen.queryByRole('heading', { name: 'Bundle for air-gapped networks' })).toBeNull()
+      expect(screen.queryByRole('button', { name: /bundle/i })).toBeNull()
+      expect(screen.queryByLabelText('Bundle file')).toBeNull()
+      expect(screen.getByRole('main')).not.toHaveTextContent(/bundle/i) // toasts of earlier tests sit outside main
+    } finally { bundleFlag.BUNDLE_IN_UI = true }
   })
 
   it('chỉ xem: không cập nhật được', async () => {

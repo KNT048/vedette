@@ -110,15 +110,19 @@ func ValidTemplatePath(p string) bool {
 
 // validHost accepts only a canonical private IPv4 literal (RFC 1918 or RFC 6598, localnet.Addr, D-461) that is not the
 // network or broadcast address of a /24: the same fence as nmapargv. No domain (it could resolve to loopback or the
-// metadata address), no public IP.
+// metadata address), no public IP, and never the Alibaba Cloud metadata address 100.100.100.200, which lies in 100.64/10
+// (nuclei keeps up to 4 KB of an answer as evidence, which can reach an AI provider; D-461 (5)). nmap may still probe it.
 func validHost(h string) bool {
 	a, err := netip.ParseAddr(h)
-	if err != nil || a.String() != h || !localnet.Addr(a) {
+	if err != nil || a.String() != h || !localnet.Addr(a) || a == metadataV4 {
 		return false
 	}
 	last := a.As4()[3]
 	return last != 0 && last != 255
 }
+
+// metadataV4 is the cloud metadata endpoint inside the local networks (core/netguard lists it too; this leaf may not import it).
+var metadataV4 = netip.AddrFrom4([4]byte{100, 100, 100, 200})
 
 func (t Target) valid() bool {
 	return validHost(t.Host) && t.Port >= 1 && t.Port <= 65535 && (t.Scheme == "" || t.Scheme == "http" || t.Scheme == "https")

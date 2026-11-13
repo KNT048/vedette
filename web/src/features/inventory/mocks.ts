@@ -338,7 +338,7 @@ function rowShapeProblem(cells: string[], columns: number, delim: string): strin
 /** Như ipNote của Go: IP công cộng hoặc ngoài các dải đã lưu vẫn được thêm nhưng kèm ghi chú (Vedette không quét nó). */
 function ipNote(ip: string, ranges: string[]): string {
   const [a, b] = ip.split('.').map(Number) as [number, number]
-  const priv = a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254) || a === 127
+  const priv = isPrivateCidr(`${ip}/32`) || (a === 169 && b === 254) || a === 127 // local networks incl. 100.64/10 (D-461), link-local, loopback
   if (ranges.some((r) => { const c = cidrRange(r); const n = ip.split('.').reduce((x, y) => x * 256 + Number(y), 0); return n >= c.base && n < c.base + c.size })) return ''
   if (!priv) return `IP ${ip} is a public address. The device was added, but Vedette only scans your own network ranges.`
   if (ranges.length) return `IP ${ip} is outside your saved network ranges. The device was added, but Vedette will not scan it.`

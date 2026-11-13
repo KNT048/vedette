@@ -434,6 +434,12 @@ describe('inventory: CSV (S-INV-2)', () => {
     expect(r.notes).toHaveLength(2)
     expect(r.notes[0].message).toContain('public address')
     expect(r.notes[1].message).toContain('outside your saved network ranges')
+    // D-461, like import_test.go: a 100.64/10 device is on a local network (outside the saved ranges here), a 100.128 one is public
+    const c = (await call('POST', '/import', { text: 'name,ip\ncgnat,100.65.254.7\npub100,100.128.0.7\n' })).json!
+    expect(c.created).toBe(2)
+    expect(c.notes).toHaveLength(2)
+    expect(c.notes[0].message).toContain('outside your saved network ranges')
+    expect(c.notes[1].message).toContain('public address')
   })
 
   it('an oversized file is blocked in the browser and never sent', async () => {

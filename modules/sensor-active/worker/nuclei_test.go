@@ -154,6 +154,9 @@ func TestNucleiRefusesWhatTheGrammarForbids(t *testing.T) {
 		"100/8 outside RFC 6598 (D-461)": func(j *sensorlink.Job) {
 			j.Nuclei.Targets = []sensorlink.NucleiTarget{target("100.128.0.1", 80, "http")}
 		},
+		"Alibaba metadata inside 100.64/10 (D-461)": func(j *sensorlink.Job) {
+			j.Nuclei.Targets = []sensorlink.NucleiTarget{target("100.100.100.200", 80, "http")}
+		},
 		"benchmark": func(j *sensorlink.Job) {
 			j.Nuclei.Targets = []sensorlink.NucleiTarget{target("198.18.0.1", 80, "http")}
 		},

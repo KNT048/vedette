@@ -120,14 +120,13 @@ func TestExposureMatcher_NmapServicesAgainstKEV(t *testing.T) {
 		t.Fatalf("2.4.51: %+v %v", got, err)
 	}
 
-	// The catalog seam (inventory.Service.KevKeysForCPE) adds keys the NVD data of the list does not give.
+	// The catalog seam (inventory.Service.KevKeysByCPE) adds keys the NVD data of the list does not give.
 	m.vulns = func(context.Context) ([]findings.Vuln, error) {
 		return []findings.Vuln{{CVE: "CVE-2021-41773", Vendor: "Apache", Product: "HTTP Server"}}, nil // no NVD data: product only
 	}
 	var asked []string
-	m.catalog = func(_ context.Context, cpe string) []string {
-		asked = append(asked, cpe)
-		return []string{"apache|http server"}
+	m.catalog = func(context.Context) func(string) []string {
+		return func(cpe string) []string { asked = append(asked, cpe); return []string{"apache|http server"} }
 	}
 	got, err = m.Match(t.Context(), exposureFixtureServices[2:])
 	if err != nil || len(got.Vulns) != 1 || got.Vulns[0].Basis != "product" || !slices.Equal(asked, []string{"cpe:/a:apache:http_server:2.4.49"}) {
@@ -154,23 +153,28 @@ func TestExposureMatcher_CPE23(t *testing.T) {
 }
 
 // Item 24 slice a: the wiring's hook is inventory's curated catalog. With no NVD data in the list, Apache's CPE reaches the "apache|http
-// server" key through curated.json, so the service is compared by product (an unlisted CPE, nginx under nmap's vendor name, now too).
+// server" key through curated.json, so the service is compared by product. nginx and OpenSSH are in the catalog but no entry of the
+// list carries their keys, so they stay "not compared" (INV-20).
 func TestExposureMatcher_CuratedCatalogKevKeys(t *testing.T) {
 	t.Parallel()
 	inv, err := inventory.New(inventory.Config{DB: &store.DB{}, Audit: &audit.Log{}}) // Catalog reads neither
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := exposureMatcher{catalog: inv.KevKeysForCPE, now: time.Now, vulns: func(context.Context) ([]findings.Vuln, error) {
+	m := exposureMatcher{catalog: inv.KevKeysByCPE, now: time.Now, vulns: func(context.Context) ([]findings.Vuln, error) {
 		return []findings.Vuln{{CVE: "CVE-2021-41773", Vendor: "Apache", Product: "HTTP Server"}}, nil
 	}}
-	got, err := m.Match(t.Context(), exposureFixtureServices[2:])
+	svcs := append(slices.Clone(exposureFixtureServices[2:]),
+		exposure.ServiceRow{IP: "203.0.113.10", Port: 443, Name: "http", Product: "nginx", Version: "1.24.0", CPE: "cpe:/a:igor_sysoev:nginx:1.24.0"},
+		exposure.ServiceRow{IP: "203.0.113.10", Port: 22, Name: "ssh", Product: "OpenSSH", Version: "9.6", CPE: "cpe:/a:openbsd:openssh:9.6"})
+	got, err := m.Match(t.Context(), svcs)
 	if err != nil || got.Compared != 1 || len(got.Vulns) != 1 || got.Vulns[0].CVE != "CVE-2021-41773" || got.Vulns[0].Basis != "product" {
 		t.Fatalf("apache: %+v %v", got, err)
 	}
-	for cpe, want := range map[string]string{"cpe:/a:igor_sysoev:nginx": "f5|nginx", "cpe:/a:openbsd:openssh:9.6": "openbsd|openssh"} {
-		if k := inv.KevKeysForCPE(t.Context(), cpe); !slices.Equal(k, []string{want}) {
-			t.Errorf("%s -> %v, want %s", cpe, k, want)
-		}
+	if !slices.Equal(got.Unlisted, []string{"nginx (igor_sysoev:nginx)", "OpenSSH (openbsd:openssh)"}) {
+		t.Fatalf("unlisted = %v", got.Unlisted)
+	}
+	if k := inv.KevKeysByCPE(t.Context())("cpe:/a:igor_sysoev:nginx"); !slices.Equal(k, []string{"f5|nginx"}) {
+		t.Errorf("nginx keys = %v", k)
 	}
 }

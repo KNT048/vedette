@@ -19,7 +19,7 @@ func TestNmapCPEGetsTheCatalogKEVKeys(t *testing.T) {
 		{Display: "Apple iOS 15", Vendor: "apple", Product: "iphone os", Version: "15", CPE: "cpe:/o:apple:iphone_os:15", Confidence: 0.9},
 		{Display: "Windows 10 1607", Vendor: "microsoft", Product: "windows 10", Version: "1607", CPE: "cpe:/o:microsoft:windows_10:1607", Confidence: 0.9},
 		{Display: "FortiOS 7.2", Vendor: "fortinet", Product: "fortios", Version: "7.2", CPE: "cpe:/o:fortinet:fortios:7.2", Confidence: 0.9},
-		{Display: "OpenSSH 8.9p1", Vendor: "openbsd", Product: "openssh", Version: "8.9p1", CPE: "cpe:/a:openbsd:openssh:8.9p1", Confidence: 0.9},
+		{Display: "Dropbear 2022.83", Vendor: "matt_johnston", Product: "dropbear_ssh_server", Version: "2022.83", CPE: "cpe:/a:matt_johnston:dropbear_ssh_server:2022.83", Confidence: 0.9},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -50,8 +50,8 @@ func TestNmapCPEGetsTheCatalogKEVKeys(t *testing.T) {
 	if k := keys("fortios"); !slices.Contains(k, "fortinet|fortios") || !slices.Contains(k, "fortinet|multiple products") {
 		t.Errorf("FortiOS keys = %v", k)
 	}
-	if k := keys("openssh"); !slices.Equal(k, []string{"openbsd|openssh"}) {
-		t.Errorf("OpenSSH keys = %v, want its own vendor|product key", k)
+	if k := keys("dropbear_ssh_server"); !slices.Equal(k, []string{"matt_johnston|dropbear_ssh_server"}) {
+		t.Errorf("Dropbear keys = %v, want its own vendor|product key", k)
 	}
 	// Review H1: an OS nmap only guessed is stored and shown, with no key at all: it raises no finding.
 	guess := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.41")}

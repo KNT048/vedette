@@ -301,7 +301,7 @@ func lineOf(r VersionRange) string {
 // "distro" (the distribution's security updates carry the fix). Software is the id of the software row it is about.
 type GroupFix struct {
 	Kind, Software, Version, Fixed, Distro string
-	// Closed holds the CVEs the device is affected by through a range that has an end: the ones the release closes.
+	// Closed holds the CVEs the release closes: for kind fixed every vulnerability of the software (the release is outside all their ranges); otherwise those the device is affected by through a range that has an end.
 	Closed map[string]bool
 }
 
@@ -386,8 +386,11 @@ func groupFixOf(in swInfo, vulns []Vuln) *GroupFix {
 		for _, p := range parts {
 			clears = clears && p.outside(x)
 		}
-		if clears {
+		if clears { // it is outside the ranges of all of them, so it closes each, whether or not the device was inside the range yet
 			g.Kind, g.Fixed = "fixed", clean(x)
+			for _, v := range vulns {
+				g.Closed[v.CVE] = true
+			}
 			return g
 		}
 	}

@@ -39,7 +39,7 @@ func TestTopRisksCarryTheDistroCaveatAndTheNoReleaseFallback(t *testing.T) {
 	if want := "Upgrade OpenSSH on web from 8.9p1 to 9.3p2 or later — fixes 1 exploited vulnerability (if you installed it from Ubuntu's packages, install its security updates instead)"; got[1].Action != want {
 		t.Fatalf("action = %q", got[1].Action)
 	}
-	if want := "NVD names no single release that fixes all 1 exploited vulnerabilities of FortiGate on gw: check the vendor advisory"; got[0].Action != want {
+	if want := "NVD names no single release that fixes all 1 exploited vulnerability of FortiGate on gw: check the vendor advisory"; got[0].Action != want {
 		t.Fatalf("action = %q", got[0].Action)
 	}
 }
@@ -115,5 +115,44 @@ func TestWeeklyAsksTheFixesOfWholeDevices(t *testing.T) {
 	buildWeekly(in)
 	if !slices.Contains(asked, "f9") || !slices.Contains(asked, "f1") {
 		t.Fatalf("asked %v", asked)
+	}
+}
+
+// One phone whose CVEs carry three CISA names is one line with all of its findings, and ranks as one product (review round 3, M-a).
+func TestTopRisksMergeTheCISANamesOfOneSoftware(t *testing.T) {
+	t.Parallel()
+	g := func(id, product string) (FindingRow, Fix) {
+		return fixRow(id, "ph", "iPhone-CEO", product, "confirmed"), Fix{Kind: "fixed", Group: "s-ios", Version: "18.2", Fixed: "26.7.1", Closed: true}
+	}
+	var open []FindingRow
+	fx := map[string]Fix{}
+	for _, c := range [][2]string{{"1", "Apple devices (iPhone, iPad, Mac)"}, {"2", "Apple devices (iPhone, iPad, Mac)"}, {"3", "Apple iOS and iPadOS"}, {"4", "Apple iOS, iPadOS, and macOS"}} {
+		r, f := g(c[0], c[1])
+		open, fx[c[0]] = append(open, r), f
+	}
+	open = append(open, fixRow("w1", "pc", "pc-1", "Microsoft Windows", "confirmed"))
+	got, _ := topRisks(open, fx)
+	if len(got) != 2 {
+		t.Fatalf("risks = %+v", got)
+	}
+	if want := "Upgrade Apple devices (iPhone, iPad, Mac) on iPhone-CEO from 18.2 to 26.7.1 or later — fixes 4 exploited vulnerabilities"; got[0].Action != want || got[0].Open != 4 {
+		t.Fatalf("action = %q open %d", got[0].Action, got[0].Open)
+	}
+	t.Logf("PAGE 1 top risks:\n1. %s\n2. %s", got[0].Action, got[1].Action)
+}
+
+// The same firewall with a finding no software row covers is not "1 more device", and the line that names a release leads on a tie
+// (review round 3, M-b); two software rows on one device are one device.
+func TestTopRisksCountDevicesOnceAndPreferTheNamedRelease(t *testing.T) {
+	t.Parallel()
+	open := []FindingRow{fixRow("1", "fw", "fw-1", "FortiGate", "confirmed"), fixRow("2", "fw", "fw-1", "FortiGate", "confirmed")}
+	fx := map[string]Fix{"1": {Kind: "fixed", Group: "s1", Version: "7.2.5", Fixed: "7.4.11", Closed: true}}
+	got, _ := topRisks(open, fx)
+	if want := "Upgrade FortiGate on fw-1 from 7.2.5 to 7.4.11 or later — fixes 1 exploited vulnerability"; got[0].Action != want {
+		t.Fatalf("action = %q", got[0].Action)
+	}
+	fx["2"] = Fix{Kind: "fixed", Group: "s2", Version: "7.0.1", Fixed: "7.0.9", Closed: true} // a second software row, same device
+	if got, _ := topRisks(open, fx); strings.Contains(got[0].Action, "more device") || got[0].Devices != 1 {
+		t.Fatalf("action = %q, devices %d", got[0].Action, got[0].Devices)
 	}
 }

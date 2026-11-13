@@ -9,9 +9,11 @@ import (
 // TopRiskCount is how many risks the management page names (W1-24, D-485).
 const TopRiskCount = 3
 
-// deviceRisk is the open findings of one product on one device: the unit of an upgrade.
+// deviceRisk is the open findings of one installed software on one device (their CISA product names merged: one phone is one
+// group whatever CISA calls its CVEs), or of one product name when no software row is known: the unit of an upgrade.
 type deviceRisk struct {
-	device                string
+	asset, device, label  string
+	names                 map[string]int // findings by the CISA product name they carry; the label is the biggest
 	open, confirmed       int
 	severity              string
 	first, firstConfirmed int // index in the ordered list of open findings
@@ -43,34 +45,26 @@ type product struct {
 // newest first. kinds is "fix" or "verify" for each risk. fixes says the release for each finding (may be nil).
 func topRisks(open []FindingRow, fixes map[string]Fix) (out []TopRisk, kinds []string) {
 	byDev := map[string]*deviceRisk{}
-	byProd := map[string]*product{}
-	var prods []*product
+	var devs []*deviceRisk
 	for i, f := range open {
-		p := byProd[f.Product]
-		if p == nil {
-			p = &product{name: f.Product, severity: f.Severity, first: i, firstC: -1}
-			byProd[f.Product] = p
-			prods = append(prods, p)
-		}
 		fx := fixes[f.ID]
-		k := f.AssetID + "\x00" + f.Product + "\x00" + fx.Group // one installed software is one group, whatever CISA calls the product
+		k := f.AssetID + "\x00" + fx.Group
+		if fx.Group == "" {
+			k = f.AssetID + "\x00p:" + f.Product
+		}
 		g := byDev[k]
 		if g == nil {
-			g = &deviceRisk{device: f.Device, severity: f.Severity, first: i, firstConfirmed: -1}
+			g = &deviceRisk{asset: f.AssetID, device: f.Device, names: map[string]int{}, severity: f.Severity, first: i, firstConfirmed: -1}
 			byDev[k] = g
-			p.devs = append(p.devs, g)
+			devs = append(devs, g)
 		}
-		p.open++
+		g.names[f.Product]++
 		g.open++
 		if f.Status == "confirmed" {
-			if p.confirmed == 0 {
-				p.firstC = i
+			if g.confirmed == 0 {
+				g.firstConfirmed = i
 			}
-			p.confirmed++
 			g.confirmed++
-		}
-		if severityRank[f.Severity] < severityRank[p.severity] {
-			p.severity = f.Severity
 		}
 		if severityRank[f.Severity] < severityRank[g.severity] {
 			g.severity = f.Severity
@@ -80,6 +74,28 @@ func topRisks(open []FindingRow, fixes map[string]Fix) (out []TopRisk, kinds []s
 			if fx.Closed {
 				g.closed++
 			}
+		}
+	}
+	// Rank products as D-485: the product of a group is the name most of its findings carry.
+	byProd := map[string]*product{}
+	var prods []*product
+	for _, g := range devs {
+		g.label = g.productName()
+		p := byProd[g.label]
+		if p == nil {
+			p = &product{name: g.label, severity: g.severity, first: g.first, firstC: -1}
+			byProd[g.label] = p
+			prods = append(prods, p)
+		}
+		p.devs = append(p.devs, g)
+		p.open += g.open
+		p.confirmed += g.confirmed
+		p.first = min(p.first, g.first)
+		if g.firstConfirmed >= 0 && (p.firstC < 0 || g.firstConfirmed < p.firstC) {
+			p.firstC = g.firstConfirmed
+		}
+		if severityRank[g.severity] < severityRank[p.severity] {
+			p.severity = g.severity
 		}
 	}
 	sort.SliceStable(prods, func(i, j int) bool {
@@ -105,20 +121,17 @@ func topRisks(open []FindingRow, fixes map[string]Fix) (out []TopRisk, kinds []s
 		if p.firstC >= 0 { // the finding named is one a scan confirmed; severity stays the worst of the product
 			w = open[p.firstC]
 		}
-		var names []string
-		for _, g := range p.devs {
-			names = append(names, g.device)
-		}
 		lead := lines[0]
+		all := distinctDevices(p.devs)
 		sentence := lead.sentence(p.name)
-		if more := len(p.devs) - len(lead.devs); more > 0 {
+		if more := len(all) - len(distinctDevices(lead.devs)); more > 0 {
 			if more == 1 {
 				sentence += "; 1 more device needs another step"
 			} else {
 				sentence += fmt.Sprintf("; %d more devices need another step", more)
 			}
 		}
-		out = append(out, TopRisk{Product: p.name, Device: nameList(names), Devices: len(names), Open: p.open, Confirmed: p.confirmed,
+		out = append(out, TopRisk{Product: p.name, Device: nameList(all), Devices: len(all), Open: p.open, Confirmed: p.confirmed,
 			Severity: p.severity, CVE: w.CVE, FindingID: w.ID, Action: sentence})
 		kind := "verify"
 		if p.confirmed > 0 || strings.HasPrefix(lead.class, "fixed") {
@@ -127,6 +140,30 @@ func topRisks(open []FindingRow, fixes map[string]Fix) (out []TopRisk, kinds []s
 		kinds = append(kinds, kind)
 	}
 	return out, kinds
+}
+
+// productName is the CISA name most findings of the group carry (the worst-ranked name on a tie, then the alphabetical one).
+func (g *deviceRisk) productName() string {
+	best := ""
+	for n, c := range g.names {
+		if best == "" || c > g.names[best] || c == g.names[best] && n < best {
+			best = n
+		}
+	}
+	return best
+}
+
+// distinctDevices lists the device names once each, in order: two software rows on one device are one device.
+func distinctDevices(gs []*deviceRisk) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, g := range gs {
+		if !seen[g.asset] {
+			seen[g.asset] = true
+			out = append(out, g.device)
+		}
+	}
+	return out
 }
 
 // lines merges the product's device risks by class, the biggest line first (confirmed, then open findings, then class).
@@ -152,6 +189,9 @@ func (p *product) lines() []*line {
 		}
 		if a.open != b.open {
 			return a.open > b.open
+		}
+		if fa, fb := strings.HasPrefix(a.class, "fixed"), strings.HasPrefix(b.class, "fixed"); fa != fb {
+			return fa // on a tie the line that names a release leads
 		}
 		return a.class < b.class
 	})
@@ -200,12 +240,11 @@ func plural(n int, one, many string) string {
 // advisory, or the version to check. A distribution caveat is carried: a package of the distribution is fixed by its own updates.
 func (l *line) sentence(product string) string {
 	first := l.devs[0]
-	var names []string
 	closed := 0
 	for _, g := range l.devs {
-		names = append(names, g.device)
 		closed += g.closed
 	}
+	names := distinctDevices(l.devs)
 	dev := nameList(names)
 	fx := first.fix
 	switch fx.Kind {
@@ -215,7 +254,7 @@ func (l *line) sentence(product string) string {
 			what = fmt.Sprintf("%d of %d exploited vulnerabilities", closed, l.open)
 		}
 		var s string
-		if len(l.devs) == 1 {
+		if len(names) == 1 {
 			from := ""
 			if v := clip(fx.Version, 40); v != "" {
 				from = " from " + v
@@ -229,7 +268,7 @@ func (l *line) sentence(product string) string {
 		}
 		return s
 	case "none":
-		return fmt.Sprintf("NVD names no single release that fixes all %d exploited vulnerabilities of %s on %s: check the vendor advisory", l.open, product, dev)
+		return fmt.Sprintf("NVD names no single release that fixes all %s of %s on %s: check the vendor advisory", plural(l.open, "exploited vulnerability", "exploited vulnerabilities"), product, dev)
 	case "distro":
 		who := "your distribution's"
 		if d := clip(fx.Distro, 40); d != "" {

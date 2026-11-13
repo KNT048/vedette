@@ -692,3 +692,23 @@ func TestHoneypotHostSendsNoPortsToAnOlderHost(t *testing.T) {
 		t.Fatalf("an older host was sent ports: %+v", d)
 	}
 }
+
+// noInfoHost is a host whose GET /v1/info fails (not answering it yet).
+type noInfoHost struct{ hostAPI }
+
+func (noInfoHost) Info(context.Context) (api.Info, error) { return api.Info{}, errors.New("info: no answer") }
+
+// B2 review: while the host's command list was never read, a Trap IP is not added without its ports (it would answer
+// every running service until the next Apply): the outcome is unknown, not a refusal, and nothing is asked of the host.
+func TestHoneypotHostAddsNothingWhileItsCommandListIsUnknown(t *testing.T) {
+	t.Parallel()
+	e := startHPHost(t, false)
+	a := &honeypotHost{api: noInfoHost{e.h.Client}, log: testLogger(), poll: time.Second, runFor: 30 * time.Second}
+	err := a.AddDecoyIP(t.Context(), netip.MustParseAddr("192.168.10.242"), honeypot.DecoySpec{Ports: []honeypot.Port{{Proto: "tcp", Port: 22}}})
+	if err == nil || errors.Is(err, honeypot.ErrRefused) || !errors.Is(err, errNoCommandList) {
+		t.Fatalf("add with no command list: %v", err)
+	}
+	if links := e.decoyLinks(); len(links) != 0 {
+		t.Fatalf("the host was asked to add the address: %v", links)
+	}
+}

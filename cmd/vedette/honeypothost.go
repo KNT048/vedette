@@ -61,6 +61,7 @@ type honeypotHost struct {
 	// core send ports (host-api 6.6 compatibility, D-466).
 	infoAt   time.Time
 	setPorts bool
+	infoRead bool // an answer of GET /v1/info was read once in this process
 }
 
 // heldDecoy is one decoy as state/net lists it: its MAC (lower case) and allow-list (nil = none).
@@ -157,7 +158,7 @@ func (h *honeypotHost) setRunning(running bool) {
 // that lists decoy_ip.set_ports (KeepsPorts); an older host refuses the field, and its addresses answer every service.
 // A failed state/net read only costs a write (duplicate_decoy is success too).
 func (h *honeypotHost) AddDecoyIP(ctx context.Context, ip netip.Addr, spec honeypot.DecoySpec) error {
-	keeps := h.KeepsPorts(ctx)
+	keeps, known := h.keepsPorts(ctx)
 	var want *[]api.DecoyPort
 	if keeps {
 		p := apiPorts(spec.Ports)
@@ -171,7 +172,7 @@ func (h *honeypotHost) AddDecoyIP(ctx context.Context, ip netip.Addr, spec honey
 		held = false
 	}
 	if held {
-		if !keeps || samePorts(cur.ports, want) {
+		if !known || !keeps || samePorts(cur.ports, want) { // ports unknown: leave the address as it is until they are
 			return nil
 		}
 		err := h.do(ctx, api.CmdDecoySetPorts, api.DecoySetPortsArgs{IP: ip.String(), Ports: *want}, "")
@@ -186,6 +187,11 @@ func (h *honeypotHost) AddDecoyIP(ctx context.Context, ip netip.Addr, spec honey
 			return nil
 		}
 	}
+	if !known {
+		// Never add an address without its ports because the host's command list could not be read yet: it would
+		// answer every running service until the next Apply (B2 review). Unknown outcome, asked again next Apply.
+		return fmt.Errorf("honeypot: decoy address %s: %w", ip, errNoCommandList)
+	}
 	err := h.do(ctx, api.CmdDecoyAdd, api.DecoyAddArgs{IP: ip.String(), OUI: spec.OUI, Ports: want}, api.CodeDuplicateDecoy)
 	if err != nil {
 		h.forgetDecoys()
@@ -196,24 +202,34 @@ func (h *honeypotHost) AddDecoyIP(ctx context.Context, ip netip.Addr, spec honey
 }
 
 // KeepsPorts says whether the host keeps each decoy address to its own ports (it lists decoy_ip.set_ports, host-api 6.6);
-// the module tells the owner when it does not. A host whose info cannot be read is taken not to: no ports are sent.
+// the module tells the owner when it does not. A host whose info was never read is taken not to here (only the note);
+// AddDecoyIP adds nothing until it is read.
 func (h *honeypotHost) KeepsPorts(ctx context.Context) bool {
+	keeps, _ := h.keepsPorts(ctx)
+	return keeps
+}
+
+// errNoCommandList: the host's command list (GET /v1/info) has not been read yet, so whether it takes ports is unknown.
+var errNoCommandList = errors.New("the host's command list could not be read yet; will try again at the next apply")
+
+// keepsPorts is KeepsPorts with known: false while GET /v1/info was never read (a later failure keeps the last answer).
+func (h *honeypotHost) keepsPorts(ctx context.Context) (keeps, known bool) {
 	h.mu.Lock()
 	if !h.infoAt.IsZero() && time.Since(h.infoAt) < infoTTL {
 		defer h.mu.Unlock()
-		return h.setPorts
+		return h.setPorts, true
 	}
 	h.mu.Unlock()
 	info, err := h.api.Info(ctx)
 	if err != nil {
 		h.mu.Lock()
 		defer h.mu.Unlock()
-		return h.setPorts // the last answer stands until one is read
+		return h.setPorts, h.infoRead // the last answer stands until one is read
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.setPorts, h.infoAt = slices.Contains(info.Commands, api.CmdDecoySetPorts), time.Now()
-	return h.setPorts
+	h.setPorts, h.infoAt, h.infoRead = slices.Contains(info.Commands, api.CmdDecoySetPorts), time.Now(), true
+	return h.setPorts, true
 }
 
 // apiPorts is the allow-list of a spec in the host's order (protocol, then port), never nil: an empty list closes every port.

@@ -325,6 +325,9 @@ func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 	if err := errors.Join(srows.Err(), srows.Close()); err != nil {
 		return nil, fmt.Errorf("notify: read incident sends: %w", err)
 	}
+	if err := s.withNotSent(ctx, db, out); err != nil {
+		return nil, err
+	}
 	s.withConnections(ctx, out)
 	return out, nil
 }
@@ -393,6 +396,11 @@ func (s *Service) incidentDetail(ctx context.Context, q dbtx, id string) (Incide
 	if err := fillIncident(ctx, q, &i); err != nil {
 		return IncidentDetail{}, err
 	}
+	one := []Incident{i}
+	if err := s.withNotSent(ctx, q, one); err != nil {
+		return IncidentDetail{}, err
+	}
+	i = one[0]
 	names := make([]string, 0, len(i.Devices))
 	for _, d := range i.Devices {
 		names = append(names, d.Name)

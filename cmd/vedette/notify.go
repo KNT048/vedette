@@ -90,8 +90,10 @@ func (a notifyDevices) DeviceLabel(ctx context.Context, assetID string) (string,
 	if !ok {
 		return "", false, nil
 	}
-	if r.Hostname != nil && *r.Hostname != "" {
-		return *r.Hostname, true, nil
+	if r.Hostname != nil {
+		if h := plainText(*r.Hostname, 160); h != "" {
+			return h, true, nil
+		}
 	}
 	id := r.MAC
 	if _, err := netip.ParseAddr(r.IP); err == nil { // the inventory shows an em dash when the IP is unknown

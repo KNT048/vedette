@@ -147,7 +147,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
         <div className="flex items-start justify-between gap-3">
           <div className="grid min-w-0 gap-1">
             <span className="text-sm font-medium [overflow-wrap:anywhere]">{sw.display}{sw.version ? ` ${sw.version}` : ` (${t('software.noVersion')})`}</span>
-            {rawProductLine(sw.display, sw.vendor, sw.product) !== null ? <span className="text-[12px] text-muted">{`${sw.vendor} ${sw.product}`}</span> : null}
+            {rawProductLine(sw.display, sw.vendor, sw.product) ? <span className="text-[12px] text-muted">{rawProductLine(sw.display, sw.vendor, sw.product)}</span> : null}
             <div className="flex flex-wrap gap-x-2 text-[13px]">
               {sw.kev_cves.length ? sw.kev_cves.map((c) => <Link key={c} to={`/cve/${c}`} className="whitespace-nowrap text-accent underline-offset-4 hover:underline">{c}</Link>) : <span className="text-muted">{t('software.noKev')}</span>}
             </div>

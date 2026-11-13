@@ -50,12 +50,9 @@ export function useSaveBoxIpSettings() {
   const inv = useInvalidate()
   return useMutation({ mutationFn: (s: Pick<BoxIpSettings, 'auto' | 'interval_min'>) => api.put<BoxIpSettings>('/exposure/box-ip/settings', s), onSuccess: inv })
 }
-export function useCommit() {
-  const inv = useInvalidate()
-  return useMutation({ mutationFn: (id: string) => api.post<Target>(`/exposure/targets/${encodeURIComponent(id)}/commitment`, { confirm: true }), onSuccess: inv })
-}
 export function useScan() {
   const inv = useInvalidate()
   // onError too: a refused scan may have found the IP paused, and the page must then show it (the answer is a state of the target).
-  return useMutation({ mutationFn: (id: string) => api.post<Snapshot>(`/exposure/targets/${encodeURIComponent(id)}/scan`), onSuccess: inv, onError: inv })
+  return useMutation({ // noticeVersion: the version of the sentence shown next to the button; the server records it with the first scan of a target (D-473).
+    mutationFn: ({ id, noticeVersion }: { id: string; noticeVersion?: string }) => api.post<Snapshot>(`/exposure/targets/${encodeURIComponent(id)}/scan`, noticeVersion ? { notice_version: noticeVersion } : undefined), onSuccess: inv, onError: inv })
 }

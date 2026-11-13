@@ -72,7 +72,7 @@ var exportPolicy = map[string]tablePolicy{
 	"exp_ignored":            {export: "value ignored_by ignored_at"},
 	"exp_setting":            {export: "id auto interval_min last_run_at last_run_ok last_run_message last_deep_at last_full_ok_at"},
 	"exp_snapshot":           {export: "id target_id date scanned_at", json: "hosts ports admin_panels certs counts"},
-	"exp_target":             {export: "id kind value method verified_at commitment_by commitment_at created_at last_scan_at", json: "last_check", skip: "token"},
+	"exp_target":             {export: "id kind value method verified_at commitment_by commitment_at commitment_version commitment_sentence commitment_user_id commitment_method created_at last_scan_at", json: "last_check", skip: "token"},
 	"feeds_affected":         {export: "cve cpe start_incl start_excl end_incl end_excl"}, // D-500: public NVD data
 	"feeds_affected_cve":     {export: "cve updated_at"},
 	"feeds_fetch_log":        {export: "id source_id started_at finished_at status records_accepted records_rejected error bytes etag last_modified", json: "reject_reasons"},

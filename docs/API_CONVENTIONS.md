@@ -264,7 +264,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `locked` | 400 | "Write tools need approval" is always on. A tool that changes something can only run through an action a person approves | `PUT /ai/hooks/builtin/{id}` |
 | `missing_dependencies` | 400/409 | Module ${id} also needs: ${lacking.join(', ')}. | `PATCH /modules/{id}`; `POST /core/setup` |
 | `no_code` | 400 | No code is waiting. Ask for a new code. | module core (validator dùng chung) |
-| `commitment_required` | 400 | You have not confirmed that your company owns ${t.value} and you are authorized to scan it. Confirm it first. | `POST /exposure/targets/{id}/scan`; `POST /scans/runs` |
+| `commitment_required` | 400 | (operator) ${t.value} has not been confirmed yet. An administrator must run the first scan: it records that your company owns ${t.value} and that the scan is authorized. (administrator, no `notice_version`) The first scan of ${t.value} records a confirmation, so the request must carry notice_version of the sentence shown next to Scan now. (`POST /scans/runs`: Vedette does not scan until the scope commitment is ticked. Do it under Devices, Scope and sensors.) | `POST /exposure/targets/{id}/scan` (D-473); `POST /scans/runs` |
 | `no_days` | 400 | Pick at least one day for the maintenance window. | `PATCH /core/updates/os/settings`; `PUT /inventory/settings` |
 | `no_index_profile` | 400 | Choose an AI profile for the index before adding documents. | `POST /ai/knowledge` |
 | `no_lan` | 400 | Add your LAN range first (Devices, Scope and sensors), so Vedette knows which network the box is on. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
@@ -278,7 +278,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `no_window` | 400 | There is no maintenance window yet. Set the days and hours first, or pick a time yourself. | `POST /core/updates/os/reboot` |
 | `not_bundle` | 400 | The file is not a Vedette bundle (content cannot be read). | `POST /core/updates/bundle` |
 | `not_configured` | 400 | Save the OIDC configuration before testing. | `POST /core/oidc/test`; `POST /logs/siem/test`; `POST /notify/channels/{type}/test` |
-| `not_confirmed` | 400 | Tick the box to confirm that your company owns this and you are authorized to scan it. | `POST /exposure/targets/{id}/commitment` |
+| `notice_changed` | 409 | The confirmation text changed since this page loaded. Read it again, then press Scan now again. | `POST /exposure/targets/{id}/scan` (an administrator's first scan sent an old `notice_version`; nothing is recorded, D-473) |
 | `not_manual` | 400/409 | Only manually declared software can be removed. Software seen by a sensor or agent updates on the next scan. | `DELETE /inventory/devices/{id}/software/{sid}`; `POST /response/rules/{id}/manual` |
 | `not_public` | 400 | The box reaches the Internet via ${ip}, which is a private, reserved or shared carrier (CGNAT) address. Scanning it coul | `POST /exposure/box-ip/verify` |
 | `not_server` | 400 | The target is not a server (credentialed scan is for servers only). | `POST /scans/credentialed` |
@@ -346,7 +346,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `key_rejected` | 502 | The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider. | `POST /ai/profiles/test` |
-| `twofa_required` | 401/403/409 | Turn on two-step sign-in for your account first (My account), then try again. | `POST /auth/login`; `POST /response/execution`; 403 từ `core/auth.VerifyTwoStep` khi người duyệt chưa bật hai bước (D-98) |
+| `twofa_required` | 401/403/409 | Turn on two-step sign-in for your account first (My account), then try again. | `POST /auth/login`; `POST /response/execution`; 403 từ `core/auth.VerifyTwoStep` khi người duyệt chưa bật hai bước (D-98); `POST /exposure/targets/{id}/scan` (D-473): an administrator's first scan of a target without two-step sign-in on the account: Turn on two-step sign-in for your account first (My account), then run the first scan again. The first scan records your confirmation that your company owns the target and that you are authorized to scan it. |
 | `unauthenticated` | 401 | Not signed in. | `GET /me`; mọi endpoint không công khai khi không có phiên, phiên hết hạn hoặc bị thu hồi; ở các thao tác ghi, phiên bị thu hồi **giữa chừng** cũng là 401 và không ghi gì: `/core/account/password`, `/core/account/2fa/{start,confirm,email/start,email/confirm,disable}`, `PATCH /core/account`, `POST /core/users`, `PATCH /core/users/{id}`, `/core/users/{id}/reset-password`, `/core/users/{id}/2fa/reset`, `PUT /core/general`, `GET /core/audit/export` |
 
 #### HTTP 403 (13 mã)
@@ -407,7 +407,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `email_in_use` | 409 | A Vedette account already uses ${email} and does not belong to this SSO identity. Use another email at the identity provider, or ask an administrator. | `POST /auth/oidc/callback` (D-195 (3)) |
 | `execution_off` | 409 | Execution is off (Settings, AI response). | `POST /response/actions/{id}/chat-decision`; `POST /response/proposals/{id}/request` |
 | `exists` | 409 | This target already has a scan account. | `POST /scans/credentialed` |
-| `expired` | 409 | Verification of ${t.value} has expired. Verify it again first. | `POST /exposure/targets/{id}/commitment`; `POST /exposure/targets/{id}/scan` |
+| `expired` | 409 | Verification of ${t.value} has expired. Verify it again first. | `POST /exposure/targets/{id}/scan` |
 | `feed_disabled` | 409 | Turn the feed on before fetching it. | `POST /feeds/sources/{id}/fetch` |
 | `finding_closed` | 409 | The finding is no longer an open critical finding. | `POST /response/proposals/{id}/request` |
 | `hostname_in_use` | 409 | The name ${hostname} belongs to device ${hostClash.ip} in the inventory. Pick another name. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
@@ -430,7 +430,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `not_on` | 409 | Two-step sign-in is already off for this user. | `POST /core/users/{id}/2fa/reset` |
 | `not_pending` | 409 | This request is already ${a.status.replace('_', ' ')}. One approval covers one request. | module response (validator dùng chung) |
 | `not_running` | 409 | This scan has already ended, so there is nothing to stop. | `POST /scans/runs/{id}/stop` |
-| `not_verified` | 409 | Verify ownership first; only then can you confirm the commitment for this target. | `POST /exposure/targets/{id}/commitment`; `POST /exposure/targets/{id}/scan` |
+| `not_verified` | 409 | Verify ownership first; only then can this target be scanned. | `POST /exposure/targets/{id}/scan` |
 | `nothing_scheduled` | 409 | No reboot is scheduled. | `DELETE /core/updates/os/reboot` |
 | `nothing_to_install` | 409 | There are no updates waiting to install. | `POST /core/updates/os/install` |
 | `org_required` | 409 | Fill in and save the organisation details first, then create the report. | `POST /reports/pdpl/generate` |

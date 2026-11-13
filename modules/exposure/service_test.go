@@ -32,7 +32,7 @@ func sampleContent() Content {
 func (e *env) committedDomain() TargetView {
 	e.t.Helper()
 	v := e.addVerifiedDomain()
-	v, err := e.svc.Commit(e.ctx(), "admin@acme.example", v.ID, true)
+	v, err := e.commit(v.ID)
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestContract_INV1_NoScanWithoutProof(t *testing.T) {
 	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan@acme.example", "ext:"+v.ID); ok || why != BlockedNoCommitment { // the scan module's id form
 		t.Fatalf("CheckScannable(ext:) = %v %v", ok, why)
 	}
-	if _, err := e.svc.Commit(e.ctx(), "admin@acme.example", v.ID, true); err != nil {
+	if _, err := e.commit(v.ID); err != nil {
 		t.Fatal(err)
 	}
 	before := e.dns.lookups()
@@ -106,7 +106,7 @@ func TestContract_INV1_NoScanWithoutProof(t *testing.T) {
 	ip := e.detect(ipA)[0]
 	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", ip.ID)
 	wantAPI(t, err, 400, "commitment_required")
-	if _, err := e.svc.Commit(e.ctx(), "admin@acme.example", ip.ID, true); err != nil {
+	if _, err := e.commit(ip.ID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", ip.ID); err != nil {
@@ -193,7 +193,7 @@ func TestContract_INV12_OneScanAtATimeAndNotTooOften(t *testing.T) {
 	other := e.detect(ipA)[0]
 	go func() { _, err := e.svc.Scan(e.ctx(), "operator@acme.example", v.ID); done <- err }()
 	<-run.in
-	if _, err := e.svc.Commit(e.ctx(), "admin@acme.example", other.ID, true); err != nil {
+	if _, err := e.commit(other.ID); err != nil {
 		t.Fatal(err)
 	}
 	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", other.ID)
@@ -242,7 +242,7 @@ func TestContract_INV12_ScannableIP(t *testing.T) {
 	if may(ipA) {
 		t.Fatal("an IP without the commitment may be port-scanned")
 	}
-	if _, err := e.svc.Commit(e.ctx(), "admin@acme.example", ip.ID, true); err != nil {
+	if _, err := e.commit(ip.ID); err != nil {
 		t.Fatal(err)
 	}
 	if !may(ipA) || !may("::ffff:"+ipA) {
@@ -364,7 +364,7 @@ func TestContract_INV4_RenewAndExpire(t *testing.T) {
 	if str(ip.VerifiedAt) != store.FormatTS(t0) || str(ip.ExpiresAt) != store.FormatTS(t0.Add(30*day)) || str(ip.Validity) != "valid" {
 		t.Fatalf("new IP = %+v", ip)
 	}
-	if _, err := e.svc.Commit(e.ctx(), "admin@acme.example", ip.ID, true); err != nil {
+	if _, err := e.commit(ip.ID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -512,26 +512,28 @@ func TestContract_INV7_Commitment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.svc.Commit(e.ctx(), "admin@acme.example", d.ID, true)
+	_, err = e.commit(d.ID)
 	wantAPI(t, err, 409, "not_verified")
 	e.dns.put("acme.example", txtRecord(d.Token))
 	if _, err := e.svc.Verify(e.ctx(), "operator@acme.example", d.ID); err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.svc.Commit(e.ctx(), "admin@acme.example", d.ID, false)
-	wantAPI(t, err, 400, "not_confirmed")
 	e.advance(time.Hour)
-	c, err := e.svc.Commit(e.ctx(), "admin@acme.example", d.ID, true)
+	c, err := e.commit(d.ID)
 	if err != nil || c.Commitment == nil || c.Commitment.By != "admin@acme.example" || c.Commitment.At != store.FormatTS(t0.Add(time.Hour)) || !c.Scannable {
 		t.Fatalf("commitment = %+v %v", c.Commitment, err)
 	}
 	if !slices.Contains(e.auditActions(), "exposure.commitment") {
-		t.Fatal("who ticked and when was not audited")
+		t.Fatal("who confirmed and when was not audited")
+	}
+	// the stored record is the sentence of the version, with this target in it (D-473)
+	if c.Commitment.Version == nil || *c.Commitment.Version != NoticeVersion || c.Commitment.Sentence == nil || *c.Commitment.Sentence != noticeFor("acme.example").Text || c.CommitmentNotice != nil {
+		t.Fatalf("stored notice = %+v, offered = %+v", c.Commitment, c.CommitmentNotice)
 	}
 	// an expired IP cannot be committed
 	ip := e.detect(ipA)[0]
 	e.advance(31 * day)
-	_, err = e.svc.Commit(e.ctx(), "admin@acme.example", ip.ID, true)
+	_, err = e.commit(ip.ID)
 	wantAPI(t, err, 409, "expired")
 	// deleting removes the snapshots and the commitment, not the audit log
 	e.svc.SetRunner(&fakeRunner{content: sampleContent()})
@@ -629,7 +631,7 @@ func TestContract_INV8_IPTargetCountsItsOwnAddress(t *testing.T) {
 	e := newEnv(t)
 	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{ipA, 443, "https", ""}}}})
 	ip := e.detect(ipA)[0]
-	if _, err := e.svc.Commit(e.ctx(), "admin@acme.example", ip.ID, true); err != nil {
+	if _, err := e.commit(ip.ID); err != nil {
 		t.Fatal(err)
 	}
 	s, err := e.svc.Scan(e.ctx(), "operator@acme.example", ip.ID)

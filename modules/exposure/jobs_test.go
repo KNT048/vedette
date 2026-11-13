@@ -212,7 +212,7 @@ func TestContract_INV11_RemovedIPComesBack(t *testing.T) {
 	e.runJob()
 	all, _ := e.svc.Targets(e.ctx())
 	gone := all[1]
-	if _, err := e.svc.Commit(e.ctx(), "admin@acme.example", gone.ID, true); err != nil {
+	if _, err := e.commit(gone.ID); err != nil {
 		t.Fatal(err)
 	}
 	if err := e.svc.Delete(e.ctx(), "admin@acme.example", gone.ID); err != nil {

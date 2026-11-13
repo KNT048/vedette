@@ -1,6 +1,7 @@
 package exposure
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -80,6 +81,7 @@ func TestContract_PRE4_Roles(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
 	d := e.addVerifiedDomain()
+	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil } // so an administrator's refusal is about the role only
 	cases := []struct {
 		method, path, body string
 		min                string // the lowest role that gets through
@@ -92,7 +94,6 @@ func TestContract_PRE4_Roles(t *testing.T) {
 		{"POST", "/exposure/targets", `{"value":"new.example"}`, "admin"},
 		{"POST", "/exposure/box-ip/verify", "", "admin"},
 		{"PUT", "/exposure/box-ip/settings", `{"auto":true,"interval_min":60}`, "admin"},
-		{"POST", "/exposure/targets/" + d.ID + "/commitment", `{"confirm":true}`, "admin"},
 		{"DELETE", "/exposure/box-ip/ignored/" + ipC, "", "admin"},
 		{"DELETE", "/exposure/targets/" + d.ID, "", "admin"},
 	}
@@ -173,19 +174,16 @@ func TestHandlers_FlowAndShapes(t *testing.T) {
 	if code, b = e.call("POST", "/exposure/targets/"+id+"/scan", "operator", ""); code != 400 || errCode(b) != "commitment_required" {
 		t.Fatalf("scan without commitment: %d %v", code, b)
 	}
-	if code, b = e.call("POST", "/exposure/targets/"+id+"/commitment", "admin", `{"confirm":false}`); code != 400 {
-		t.Fatalf("commitment false: %d %v", code, b)
-	}
-	if code, b = e.call("POST", "/exposure/targets/"+id+"/commitment", "admin", `{"confirm":true}`); code != 200 {
-		t.Fatalf("commitment: %d %v", code, b)
-	}
-	c, _ := b["commitment"].(map[string]any)
-	if c["by"] != "admin@acme.example" || b["scannable"] != true || b["blocked_reason"] != nil {
-		t.Fatalf("committed target: %v", b)
-	}
-	code, b = e.call("POST", "/exposure/targets/"+id+"/scan", "operator", "")
+	// an administrator's first Scan now is the confirmation (D-473): needs two-step sign-in and the version of the sentence
+	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
+	code, b = e.call("POST", "/exposure/targets/"+id+"/scan", "admin", `{"notice_version":"`+NoticeVersion+`"}`)
 	if code != 200 || len(list(b, "hosts")) != 3 || len(list(b, "certs")) != 2 || b["date"] != "2026-11-09" {
-		t.Fatalf("scan: %d %v", code, b)
+		t.Fatalf("first scan by an administrator: %d %v", code, b)
+	}
+	code, tb := e.call("GET", "/exposure/targets/"+id, "viewer", "")
+	c, _ := tb["commitment"].(map[string]any)
+	if code != 200 || c["by"] != "admin@acme.example" || c["version"] != NoticeVersion || c["sentence"] != noticeFor("acme.example").Text || tb["commitment_notice"] != nil {
+		t.Fatalf("committed target: %d %v", code, tb)
 	}
 	counts, _ := b["counts"].(map[string]any)
 	if counts["subdomains"] != float64(3) || counts["certs_expiring"] != float64(1) {

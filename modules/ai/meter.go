@@ -39,6 +39,13 @@ type Downgrade struct {
 // ErrProfileCapped means a profile has used its own monthly budget; the router moves on to the fallback.
 var ErrProfileCapped = errors.New("ai: the profile's monthly token budget is used up")
 
+// ErrBudgetHeld means the tokens already spent are below the shared budget but the holds of other calls in flight cover the rest: the
+// budget is not used up (Home shows less than 100 %), and a call a few seconds later, once those calls have settled, may go.
+var ErrBudgetHeld = errors.New("ai: other AI calls in flight are holding the rest of this month's AI budget")
+
+// ErrProfileHeld is ErrBudgetHeld for a profile's own budget; the router moves on to the fallback.
+var ErrProfileHeld = errors.New("ai: other AI calls in flight are holding the rest of the profile's monthly budget")
+
 // MeterConfig configures a Meter. Clock and Location are injected: the month starts at local midnight of its first day in Location,
 // the box time zone, so "this month" matches what the administrator sees on the wall clock.
 type MeterConfig struct {
@@ -173,6 +180,14 @@ func (m *Meter) UsedUp() bool {
 	return m.total >= m.cap
 }
 
+// Reached reports that the tokens already spent this month are at least pct % of the shared budget (holds not counted).
+func (m *Meter) Reached(pct int) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.roll()
+	return int64(m.total)*100 >= int64(m.cap)*int64(pct)
+}
+
 func (m *Meter) exhausted() bool { return satAdd(m.total, m.pending) >= m.cap }
 
 func satAdd(a, b int) int {
@@ -185,6 +200,7 @@ func satAdd(a, b int) int {
 // Reservation is the share of the budgets held for one call in flight. Settle it with the real usage or Cancel it.
 type Reservation struct {
 	m       *Meter
+	month   string // the month the hold was taken in: a hold that outlives it is not taken off the next month's holds
 	profile string
 	tokens  int
 	done    bool
@@ -193,21 +209,26 @@ type Reservation struct {
 // Reserve is the check before a call and the first half of metering. Under one lock it refuses the call when the shared budget is
 // used up (ErrCapped) or when the profile has used its own budget (ErrProfileCapped), counting calls already in flight, and otherwise
 // holds estimate tokens against both. N concurrent calls therefore cannot all pass the check: the first holds the tokens the next one
-// would need.
+// would need. When only the holds of calls in flight reach a budget, the refusal is ErrBudgetHeld or ErrProfileHeld: the budget is not
+// used up, and "used up" is said only of tokens really spent (review of #688).
 func (m *Meter) Reserve(profileID string, profileCap, estimate int) (*Reservation, error) {
 	estimate = max(estimate, 0)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.roll()
-	if m.exhausted() {
+	switch {
+	case m.total >= m.cap:
 		return nil, ErrCapped
-	}
-	if satAdd(m.byProf[profileID], m.pendProf[profileID]) >= profileCap {
+	case m.exhausted():
+		return nil, ErrBudgetHeld
+	case m.byProf[profileID] >= profileCap:
 		return nil, ErrProfileCapped
+	case satAdd(m.byProf[profileID], m.pendProf[profileID]) >= profileCap:
+		return nil, ErrProfileHeld
 	}
 	m.pending = satAdd(m.pending, estimate)
 	m.pendProf[profileID] = satAdd(m.pendProf[profileID], estimate)
-	return &Reservation{m: m, profile: profileID, tokens: estimate}, nil
+	return &Reservation{m: m, month: m.month, profile: profileID, tokens: estimate}, nil
 }
 
 // Settle releases the hold and counts what the call really used (also for a failed call whose usage is known, such as a refusal).
@@ -219,8 +240,11 @@ func (r *Reservation) Settle(tokensIn, tokensOut int) *Downgrade {
 		return nil
 	}
 	r.done = true
-	r.m.pending = max(r.m.pending-r.tokens, 0)
-	r.m.pendProf[r.profile] = max(r.m.pendProf[r.profile]-r.tokens, 0)
+	r.m.roll()
+	if r.month == r.m.month { // a new month started with no holds: this one is not among them
+		r.m.pending = max(r.m.pending-r.tokens, 0)
+		r.m.pendProf[r.profile] = max(r.m.pendProf[r.profile]-r.tokens, 0)
+	}
 	r.m.add(r.profile, tokensIn, tokensOut)
 	return nil
 }

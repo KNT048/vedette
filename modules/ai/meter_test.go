@@ -35,8 +35,11 @@ func TestContract_INV4_TokenMeterMonthlyBudget(t *testing.T) {
 	if _, err := m.Reserve("a", 5000, 500); err != nil { // 500 used, nothing held: allowed
 		t.Fatalf("under the budget: %v", err)
 	}
-	if _, err := m.Reserve("b", 5000, 10); !errors.Is(err, ErrCapped) { // 500 used + 500 held = the budget: calls in flight count
-		t.Fatalf("holds count against the budget: %v", err)
+	if _, err := m.Reserve("b", 5000, 10); !errors.Is(err, ErrBudgetHeld) { // 500 used + 500 held = the budget: calls in flight count
+		t.Fatalf("holds count against the budget, as held, not used up: %v", err)
+	}
+	if m.UsedUp() {
+		t.Fatal("holds alone made the budget used up")
 	}
 	m2 := newMeter(t, c, TierMax, 1000)
 	if d := m2.Record("a", 1000, 0); d != nil || m2.Tier() != TierMax {
@@ -77,6 +80,55 @@ func TestContract_INV4_TokenMeterMonthlyBudget(t *testing.T) {
 	}
 	if _, ok := TierMax.EstimatePerDay(); ok {
 		t.Error("max has no estimate")
+	}
+}
+
+// Review of #688: "used up" is said of tokens spent only. Holds of calls in flight refuse with ErrBudgetHeld / ErrProfileHeld while
+// the spent tokens are below the budget; a hold taken in one month and settled in the next does not lower the new month's holds.
+func TestMeterHoldsAreNotUsedUp(t *testing.T) {
+	t.Parallel()
+	c := startClock()
+	m := newMeter(t, c, TierMed, 100_000)
+	m.Record("a", 90_000, 0)
+	if !m.Reached(80) || m.Reached(91) || m.UsedUp() {
+		t.Fatalf("90 %% spent: reached80=%v reached91=%v usedUp=%v", m.Reached(80), m.Reached(91), m.UsedUp())
+	}
+	ask, err := m.Reserve("a", 1_000_000, 12_000) // an Ask in flight holds the last 10 %
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Reserve("b", 1_000_000, 10); !errors.Is(err, ErrBudgetHeld) {
+		t.Fatalf("held, not used up: %v", err)
+	}
+	ask.Settle(1000, 500)
+	if _, err := m.Reserve("b", 1_000_000, 10); err != nil {
+		t.Fatalf("after the Ask settled the next call may go: %v", err)
+	}
+	// a profile's own budget, the same way
+	p := newMeter(t, c, TierMed, 1_000_000)
+	p.Record("p", 500, 0)
+	h, _ := p.Reserve("p", 1000, 600)
+	if _, err := p.Reserve("p", 1000, 10); !errors.Is(err, ErrProfileHeld) {
+		t.Fatalf("profile held: %v", err)
+	}
+	h.Cancel()
+	p.Record("p", 600, 0)
+	if _, err := p.Reserve("p", 1000, 10); !errors.Is(err, ErrProfileCapped) {
+		t.Fatalf("profile used up: %v", err)
+	}
+
+	// month rollover: a hold from last month settled now counts its tokens but leaves this month's holds alone
+	r := newMeter(t, c, TierMed, 100_000)
+	old, _ := r.Reserve("a", 1_000_000, 5000)
+	c.t = c.t.Add(32 * 24 * time.Hour)
+	cur, _ := r.Reserve("a", 1_000_000, 99_950)
+	old.Settle(100, 0)
+	if _, err := r.Reserve("b", 1_000_000, 10); !errors.Is(err, ErrBudgetHeld) {
+		t.Fatalf("the old hold lowered this month's holds: %v", err)
+	}
+	cur.Cancel()
+	if r.Used() != 100 {
+		t.Fatalf("used = %d", r.Used())
 	}
 }
 

@@ -138,7 +138,7 @@
     },
     "tier": {
       "title": "Token level",
-      "intro": "The level decides how much one log digest sends and whether the AI may check points with read-only tools. Log digests, explanations, CVE news and report comments run only when someone clicks. Response plans, once you give them a profile, run by themselves (every 5 minutes, at most 3 findings a run); the level does not change them. There is no daily cap: the box spends up to the monthly budget below, warns on Home and through the alert channels at 80 %, and stops every AI job at 100 % until the budget renews or you raise it.",
+      "intro": "The level decides how much one log digest sends and whether the AI may check points with read-only tools. Log digests, explanations, CVE news and report comments run only when someone clicks. Response plans, once you give them a profile, run by themselves (every 5 minutes, at most 3 findings a run); the level does not change them. There is no daily cap: the box spends up to the monthly budget below, warns on Home and through the alert channels at 80 %, where response plans pause so questions and explanations keep the last 20 %, and stops every AI job at 100 % until the budget renews or you raise it.",
       "min": {
         "name": "Minimum",
         "sends": "Short log digests: at most 5 new kinds of line, 5 spikes and 5 bad connections."
@@ -171,7 +171,7 @@
     },
     "budgetNow": "Used this month:",
     "budgetRenews": "It renews on {{date}}.",
-    "budgetWarn": "Past 80 %: Home and the alert channels have been told. At 100 % every AI job stops until the budget renews or you raise it.",
+    "budgetWarn": "Past 80 %: Home shows a warning and an alert goes to the alert channels, if any is set up. Response plans pause, so questions and explanations keep the last 20 %. At 100 % every AI job stops until the budget renews or you raise it.",
     "budgetStop": "Used up: every AI job is stopped until the budget renews on {{date}} or you raise it here."
   },
   "cve": {
@@ -663,7 +663,7 @@
     "use": "{{used}} of {{budget}} tokens ({{pct}} %)",
     "home": {
       "boxWarnTitle": "This month's AI budget is at {{pct}} %",
-      "boxWarn": "{{used}} of {{budget}} tokens used. At 100 % every AI job (explanations, Ask your data, log digests, reports, response plans) stops until the budget renews on {{date}}.",
+      "boxWarn": "{{used}} of {{budget}} tokens used. Response plans are paused so questions and explanations keep the rest. At 100 % every AI job (explanations, Ask your data, log digests, reports) stops until the budget renews on {{date}}.",
       "boxStopTitle": "This month's AI budget is used up",
       "boxStop": "{{used}} of {{budget}} tokens used. Every AI job (explanations, Ask your data, log digests, reports, response plans) is stopped until the budget renews on {{date}}.",
       "profileWarnTitle": "The AI profile {{name}} is at {{pct}} % of its monthly budget",

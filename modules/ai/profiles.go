@@ -514,6 +514,9 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 	pctx, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
 	res, down, probeErr := s.router.Probe(pctx, p, s.cfg.Clock)
+	if errors.Is(probeErr, ErrBudgetHeld) || errors.Is(probeErr, ErrProfileHeld) {
+		return TestResult{}, s.budgetHeld("") // nothing was sent: busy for a moment, not used up
+	}
 	if errors.Is(probeErr, ErrCapped) || errors.Is(probeErr, ErrProfileCapped) {
 		// nothing was sent: no audit row is needed for a key that did not leave the box
 		return TestResult{}, s.capError(probeErr)
@@ -619,9 +622,9 @@ func clipRunes(s string, n int) string {
 // capError is the 429 of a test that the caps stopped.
 func (s *Service) capError(err error) error {
 	if errors.Is(err, ErrProfileCapped) {
-		return apierr.New(http.StatusTooManyRequests, "budget_reached", "This profile has used its own monthly budget. An administrator can raise it in Settings, AI assistant; it renews on "+s.renewDay()+".")
+		return s.budgetReached("This profile has used its own monthly budget. An administrator can raise it in Settings, AI assistant; it renews on " + s.renewDay() + ".")
 	}
-	return apierr.New(http.StatusTooManyRequests, "budget_reached", capitalize(s.budgetStop()))
+	return s.budgetReached(capitalize(s.budgetStop()))
 }
 
 // probeFailure maps a provider error to the API error. The text never repeats the provider's message, the URL or the key. A

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -21,10 +22,14 @@ import (
 // not a real workload, so the rest of that minute is refused and the trip is written to the audit log.
 
 const (
-	budgetWarnPct = 80              // the early warning
-	budgetWatch   = 5 * time.Minute // how often the alert job compares the meter with the budgets
-	fuseCalls     = 30              // calls of one job in one minute before the fuse trips: no person or schedule makes that many
-	fuseSpan      = time.Minute
+	budgetWarnPct = 80 // the early warning
+	// scheduledPausePct is where scheduled AI jobs (today the response plans, Actor "system") stop for the month, so one background
+	// job cannot drain the budget: questions, explanations and the other jobs a person starts keep the last 20 % (review of #688).
+	scheduledPausePct = 80
+	heldRetry         = 15              // seconds a call refused by the holds of calls in flight is told to wait (ErrBudgetHeld)
+	budgetWatch       = 5 * time.Minute // how often the alert job compares the meter with the budgets
+	fuseCalls         = 30              // calls of one job in one minute before the fuse trips: no person or schedule makes that many
+	fuseSpan          = time.Minute
 )
 
 // renewDay is the day the budget starts again, as people read it ("1 December 2026").
@@ -36,12 +41,57 @@ func (s *Service) budgetStop() string {
 		number(s.snap.Load().cfg.MonthlyBudget), s.renewDay())
 }
 
+// budgetReached is the 429 of a budget that is used up (or of the scheduled-job pause), with retry_after: the seconds until it renews.
+func (s *Service) budgetReached(msg string) error {
+	wait := max(int(math.Ceil(s.meter.Renews().Sub(s.cfg.Clock()).Seconds())), 1)
+	return apierr.New(http.StatusTooManyRequests, "budget_reached", msg).With("retry_after", wait)
+}
+
+// budgetHeld is the 429 of a call that the holds of other calls in flight refused: the budget is not used up, so it never says so. A
+// non-empty lead is what happened first ("The AI's answer was cut off …"); it is followed by ", and".
+func (s *Service) budgetHeld(lead string) error {
+	msg := "Other AI calls running now are holding the rest of this month's AI budget, so nothing was sent. Try again in a few seconds."
+	if lead != "" {
+		msg = lead + ", and other AI calls running now are holding the rest of this month's AI budget, so it was not asked again. Try again in a few seconds."
+	}
+	return apierr.New(http.StatusTooManyRequests, "rate_limited", msg).With("retry_after", heldRetry)
+}
+
+// scheduledPause stops a scheduled call (Actor "system") before anything is done or recorded: when the shared budget is used up (one
+// 429 budget_reached, no capped row every 5 minutes for the rest of the month) or past scheduledPausePct. The first stop of a month
+// writes one box log line; the rest are silent.
+func (s *Service) scheduledPause(ctx context.Context, job Job) error {
+	var msg, why string
+	switch {
+	case s.meter.UsedUp():
+		msg, why = capitalize(s.budgetStop()), "used up"
+	case s.meter.Reached(scheduledPausePct):
+		msg, why = fmt.Sprintf("Scheduled AI jobs such as response plans pause at %d %% of this month's AI budget, so questions and explanations keep the rest. They start again when the budget renews on %s or an administrator raises it in Settings, AI assistant.",
+			scheduledPausePct, s.renewDay()), "paused"
+	default:
+		return nil
+	}
+	key := s.cfg.Clock().In(s.loc).Format("2006-01") + " " + why
+	s.fuseMu.Lock()
+	note := s.pauseNoted != key
+	s.pauseNoted = key
+	s.fuseMu.Unlock()
+	if note {
+		s.cfg.Log.InfoContext(ctx, "ai: scheduled AI jobs stop for this month's budget", "job", string(job), "reason", why)
+	}
+	return s.budgetReached(msg)
+}
+
 func capitalize(s string) string {
 	if s == "" {
 		return s
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
 }
+
+// ErrAlertOff is what Config.Alert answers (wrapped) when the alert channels are switched off (the notify module is off): nothing can
+// be sent, which is no failure of the budget watch; it sends the notice once notify is on again, if the budget is still past it.
+var ErrAlertOff = errors.New("ai: the alert channels are off")
 
 // fuseWindow counts the calls of one job in the current minute.
 type fuseWindow struct {
@@ -130,8 +180,9 @@ func (s *Service) budgetJobs() []jobs.Job {
 	return []jobs.Job{{Module: "ai", Name: "budget-watch", Every: budgetWatch, Run: s.watchBudget}}
 }
 
-// watchBudget sends one notice per budget and threshold and month: medium at 80 %, high at 100 %. A notice that could not be sent
-// (notify off) is tried again at the next run; one that was sent is remembered in ai_setting, so a restart does not send it again.
+// watchBudget sends one notice per budget and threshold and month: medium at 80 %, high at 100 %. A notice that could not be sent is
+// tried again at the next run (notify off: quietly, ErrAlertOff); one that was sent is remembered in ai_setting, so a restart does not
+// send it again.
 func (s *Service) watchBudget(ctx context.Context) error {
 	month := s.cfg.Clock().In(s.loc).Format("2006-01")
 	var st budgetAlerts
@@ -166,7 +217,9 @@ func (s *Service) watchBudget(ctx context.Context) error {
 			}
 			title, text := budgetNotice(b, th, renew)
 			if err := s.cfg.Alert(ctx, "ai-budget-"+month+"-"+key, title, text, th >= 100); err != nil {
-				sendErr = err
+				if !errors.Is(err, ErrAlertOff) { // notify off: nothing to send, not an error of the job every 5 minutes
+					sendErr = err
+				}
 				break
 			}
 			st.Sent = append(st.Sent, key)
@@ -203,6 +256,9 @@ func budgetNotice(b BudgetView, th int, renew string) (title, text string) {
 			stop = "Jobs of this profile go to their fallback profile, or stop when they have none"
 		}
 		return what + " is used up", fmt.Sprintf("%s is used up: %s. %s until the budget renews on %s. An administrator can raise it in Settings, AI assistant.", what, use, stop, renew)
+	}
+	if b.Scope == "box" {
+		return what + " is at 80 %", fmt.Sprintf("%s is nearly used up: %s. Response plans are paused, so questions and explanations keep the rest; at 100 %% every AI job stops until the budget renews on %s. An administrator can raise it in Settings, AI assistant.", what, use, renew)
 	}
 	return what + " is at 80 %", fmt.Sprintf("%s is nearly used up: %s. At 100 %% AI jobs stop until the budget renews on %s. An administrator can raise it in Settings, AI assistant.", what, use, renew)
 }

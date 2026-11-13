@@ -239,13 +239,19 @@ func dedupe(in []string) []string {
 
 // RunJob runs one job call (S-AI-2, S-AI-6): hooks, prompt, routing, meter, hooks again on the answer, the format check, and one
 // activity row for the call, written with the result in one transaction. Errors that a person should see are *apierr.Error:
-// 409 ai_unavailable (also when a hook stopped the request or the answer was not usable) and 429 budget_reached (this month's budget, D-531) or rate_limited (the runaway fuse).
+// 409 ai_unavailable (also when a hook stopped the request or the answer was not usable) and 429 budget_reached (this month's budget,
+// D-531, or a scheduled job past scheduledPausePct) or rate_limited (the runaway fuse, or calls in flight holding the rest of the budget).
 func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	if !spec.Job.Valid() || spec.Actor == "" || spec.MaxTokens <= 0 {
 		return JobResult{}, fmt.Errorf("ai: run job: invalid spec")
 	}
 	if err := s.Ready(spec.Job); err != nil {
 		return JobResult{}, err // nothing was attempted: no activity row
+	}
+	if spec.Actor == "system" {
+		if err := s.scheduledPause(ctx, spec.Job); err != nil {
+			return JobResult{}, err // a scheduled job past its share of the budget: nothing attempted, no row
+		}
 	}
 	if err := s.checkFuse(ctx, spec.Job); err != nil {
 		return JobResult{}, err // the runaway fuse (D-531): nothing was attempted, the trip is in the audit log
@@ -484,6 +490,28 @@ func profileCappedLast(res CallResult) string {
 	return name
 }
 
+// profileHeldOnly reports that the last turn sent nothing and at least one of its profiles was skipped because calls in flight held the
+// rest of its own budget (errProfileHeldSkip), the others because their budget is used up or held: a retry in a few seconds may go.
+func profileHeldOnly(res CallResult) bool {
+	held := false
+	for i := len(res.Attempts) - 1; i >= 0; i-- {
+		a := res.Attempts[i]
+		if !a.Skipped {
+			if a.Err != nil {
+				return false // a request of the last turn was sent and failed: the provider's failure, not the budget
+			}
+			break
+		}
+		switch {
+		case errors.Is(a.Err, errProfileHeldSkip):
+			held = true
+		case !errors.Is(a.Err, errProfileCapSkip):
+			return false
+		}
+	}
+	return held
+}
+
 // capNote adds to the error of a call that failed after it spent tokens that this month's budget is now used up, when that call is what used
 // it up: the person reads what went wrong first, then why the AI is paused (W1-27). A refusal by the cap itself says so already.
 func (s *Service) capNote(err error, res CallResult) error {
@@ -562,6 +590,28 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 			return rerr
 		}
 		return apiUnavailable("The AI profile did not accept tool calls, which " + spec.Job.Name() + " needs. Use a model that supports tools; Settings, AI assistant shows what a connection test found.")
+	case errors.Is(err, ErrBudgetHeld):
+		// the budget is not used up: calls in flight hold the rest of it for a moment (review of #688). A call that sent nothing gets no
+		// row, as with the fuse; one whose earlier turns were sent keeps its row.
+		if spentTokens(res) > 0 {
+			s.nameLastProfile(&entry, res)
+			entry.Summary = fmt.Sprintf("Stopped partway through, after %s tokens: other AI calls were holding the rest of this month's AI budget; no answer.", number(spentTokens(res)))
+			if rerr := s.recordSpent(ctx, spec, entry, res); rerr != nil {
+				return rerr
+			}
+			return s.budgetHeld(fmt.Sprintf("The AI did not finish: this request used %s tokens", number(spentTokens(res))))
+		}
+		return s.budgetHeld("")
+	case errors.As(err, &ue) && profileHeldOnly(res):
+		// every profile left was refused because calls in flight hold the rest of its own budget: busy, not used up
+		if spentTokens(res) > 0 {
+			s.nameLastProfile(&entry, res)
+			entry.Summary = fmt.Sprintf("Stopped partway through, after %s tokens: other AI calls were holding the rest of the profile's monthly budget; no answer.", number(spentTokens(res)))
+			if rerr := s.recordSpent(ctx, spec, entry, res); rerr != nil {
+				return rerr
+			}
+		}
+		return s.budgetHeld("")
 	case errors.Is(err, ErrCapped) && spentTokens(res) > 0:
 		// earlier turns of this call were sent and pushed the meter over the cap, so the next one could not be: this call used the cap up,
 		// it did not find it used up (W1-27)
@@ -571,7 +621,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		if rerr := s.recordSpent(ctx, spec, entry, res); rerr != nil {
 			return rerr
 		}
-		return apierr.New(http.StatusTooManyRequests, "budget_reached", fmt.Sprintf("The AI did not finish: this request used %s tokens before it stopped, so there is no answer, and %s",
+		return s.budgetReached(fmt.Sprintf("The AI did not finish: this request used %s tokens before it stopped, so there is no answer, and %s",
 			number(spentTokens(res)), s.budgetStop()))
 	case errors.As(err, &ue) && spentTokens(res) > 0 && profileCappedLast(res) != "":
 		// the same with a profile's own cap: no other profile could take the next turn
@@ -582,14 +632,14 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		if rerr := s.recordSpent(ctx, spec, entry, res); rerr != nil {
 			return rerr
 		}
-		return apierr.New(http.StatusTooManyRequests, "budget_reached", fmt.Sprintf("The AI did not finish: the monthly budget of the profile %s ran out partway through (this request used %s tokens before it stopped), so there is no answer. An administrator can raise the profile's budget or add a fallback profile in Settings, AI assistant; it renews on %s.",
+		return s.budgetReached(fmt.Sprintf("The AI did not finish: the monthly budget of the profile %s ran out partway through (this request used %s tokens before it stopped), so there is no answer. An administrator can raise the profile's budget or add a fallback profile in Settings, AI assistant; it renews on %s.",
 			name, number(spentTokens(res)), s.renewDay()))
 	case errors.Is(err, ErrCapped):
 		entry.Summary, entry.Outcome = capSummary, OutcomeCapped
 		if rerr := s.record(ctx, entry); rerr != nil {
 			return rerr
 		}
-		return apierr.New(http.StatusTooManyRequests, "budget_reached", capitalize(s.budgetStop()))
+		return s.budgetReached(capitalize(s.budgetStop()))
 	case errors.As(err, &ue):
 		reasons := attemptReasons(res, ue)
 		if len(res.Attempts) == 0 { // never attempted (settings changed under us): no request, no row
@@ -609,7 +659,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		// is the budget's stop, not "not set up": the same 429 budget_reached as the shared budget, naming the profile, so the caller
 		// (the plan job) stops its run instead of counting it against a finding.
 		if name := profileCappedLast(res); name != "" && notSent(res) == OutcomeCapped {
-			return apierr.New(http.StatusTooManyRequests, "budget_reached", fmt.Sprintf("The monthly budget of the AI profile %s is used up and no other profile could take %s, so nothing was sent. An administrator can raise the profile's budget or add a fallback profile in Settings, AI assistant; it renews on %s.",
+			return s.budgetReached(fmt.Sprintf("The monthly budget of the AI profile %s is used up and no other profile could take %s, so nothing was sent. An administrator can raise the profile's budget or add a fallback profile in Settings, AI assistant; it renews on %s.",
 				name, spec.Job.Name(), s.renewDay()))
 		}
 		return s.unavailable(spec.Job, reasons)
@@ -644,12 +694,15 @@ func (s *Service) retryFailed(ctx context.Context, spec JobSpec, entry ActivityE
 	cut := fmt.Sprintf("The AI's answer was cut off at the output limit (%s tokens)", number(spec.MaxTokens))
 	var out error
 	switch {
+	case errors.Is(a.Err, ErrBudgetHeld), errors.Is(a.Err, ErrProfileHeld):
+		entry.Summary = "The answer was cut off at the output limit; other AI calls were holding the rest of the budget, so it was not asked again."
+		out = s.budgetHeld(cut)
 	case errors.Is(a.Err, ErrCapped):
 		entry.Summary = "The answer was cut off at the output limit; this month's AI budget left no room to ask again."
-		out = apierr.New(http.StatusTooManyRequests, "budget_reached", fmt.Sprintf("%s and was not asked again, because %s", cut, s.budgetStop()))
+		out = s.budgetReached(fmt.Sprintf("%s and was not asked again, because %s", cut, s.budgetStop()))
 	case errors.Is(a.Err, ErrProfileCapped):
 		entry.Summary = "The answer was cut off at the output limit; the profile's own monthly budget left no room to ask again."
-		out = apierr.New(http.StatusTooManyRequests, "budget_reached", fmt.Sprintf("%s, and the monthly budget of the profile %s is used up, so it was not asked again. An administrator can raise the profile's budget in Settings, AI assistant; it renews on %s.", cut, a.Profile, s.renewDay()))
+		out = s.budgetReached(fmt.Sprintf("%s, and the monthly budget of the profile %s is used up, so it was not asked again. An administrator can raise the profile's budget in Settings, AI assistant; it renews on %s.", cut, a.Profile, s.renewDay()))
 	default:
 		entry.Summary = "The answer was cut off at the output limit, and asking again with a higher limit failed."
 		out = providerFailure(spec.Job, CallResult{Attempts: []Attempt{a}})

@@ -170,7 +170,7 @@ func TestContract_INV4_ReservationStopsConcurrentOvershoot(t *testing.T) {
 			defer mu.Unlock()
 			if err == nil {
 				passed++
-			} else if errors.Is(err, ErrCapped) {
+			} else if errors.Is(err, ErrBudgetHeld) { // the holds of calls in flight refuse them: held, not used up
 				capped++
 			}
 		}()
@@ -186,7 +186,7 @@ func TestContract_INV4_ReservationStopsConcurrentOvershoot(t *testing.T) {
 	for range 10 {
 		if _, err := m.Reserve("p", 1000, 600); err == nil {
 			ok++
-		} else if !errors.Is(err, ErrProfileCapped) {
+		} else if !errors.Is(err, ErrProfileHeld) {
 			t.Fatal(err)
 		}
 	}

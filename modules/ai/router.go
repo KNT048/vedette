@@ -20,6 +20,10 @@ var ErrUnavailable = errors.New("ai: no AI profile is available for this job")
 // ErrProfileCapped); the run log reads such a call as capped (notSent).
 var errProfileCapSkip = errors.New("monthly budget reached")
 
+// errProfileHeldSkip is the reason of an attempt skipped because calls in flight hold the rest of the profile's own budget
+// (ErrProfileHeld): not used up, busy for a moment.
+var errProfileHeldSkip = errors.New("the rest of its monthly budget is held by AI calls in flight")
+
 // ErrCapped means this month's shared token budget is used up (D-531).
 var ErrCapped = errors.New("ai: this month's AI token budget is used up")
 
@@ -264,6 +268,13 @@ func (r *Router) Call(ctx context.Context, job Job, req provider.Request) (CallR
 		hold, err := r.meter.Reserve(p.ID, p.MonthlyBudget, est)
 		if errors.Is(err, ErrCapped) {
 			return res, fmt.Errorf("%w: raise the monthly budget in Settings, AI assistant, or wait for next month", ErrCapped)
+		}
+		if errors.Is(err, ErrBudgetHeld) {
+			return res, err
+		}
+		if errors.Is(err, ErrProfileHeld) {
+			skipErr(errProfileHeldSkip)
+			continue
 		}
 		if err != nil {
 			skipErr(errProfileCapSkip)

@@ -174263,6 +174263,385 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemStatus) UnmarshalJSON(data []byt
 }
 
 // Encode implements json.Marshaler.
+func (s *NotifyGetNotifyTelegramApproversOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *NotifyGetNotifyTelegramApproversOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("items")
+		e.ArrStart()
+		for _, elem := range s.Items {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfNotifyGetNotifyTelegramApproversOK = [1]string{
+	0: "items",
+}
+
+// Decode decodes NotifyGetNotifyTelegramApproversOK from json.
+func (s *NotifyGetNotifyTelegramApproversOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyGetNotifyTelegramApproversOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "items":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Items = make([]NotifyGetNotifyTelegramApproversOKItemsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem NotifyGetNotifyTelegramApproversOKItemsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Items = append(s.Items, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"items\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NotifyGetNotifyTelegramApproversOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfNotifyGetNotifyTelegramApproversOK) {
+					name = jsonFieldsNameOfNotifyGetNotifyTelegramApproversOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *NotifyGetNotifyTelegramApproversOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyGetNotifyTelegramApproversOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		e.Str(s.Address)
+	}
+	{
+		e.FieldStart("box_account")
+		e.Bool(s.BoxAccount)
+	}
+	{
+		e.FieldStart("error")
+		e.Str(s.Error)
+	}
+	{
+		if s.Link.Set {
+			e.FieldStart("link")
+			s.Link.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("self")
+		e.Bool(s.Self)
+	}
+	{
+		e.FieldStart("sent_at")
+		s.SentAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+	{
+		e.FieldStart("user_id")
+		e.Str(s.UserID)
+	}
+}
+
+var jsonFieldsNameOfNotifyGetNotifyTelegramApproversOKItemsItem = [9]string{
+	0: "address",
+	1: "box_account",
+	2: "error",
+	3: "link",
+	4: "name",
+	5: "self",
+	6: "sent_at",
+	7: "state",
+	8: "user_id",
+}
+
+// Decode decodes NotifyGetNotifyTelegramApproversOKItemsItem from json.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyGetNotifyTelegramApproversOKItemsItem to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Address = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "box_account":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.BoxAccount = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box_account\"")
+			}
+		case "error":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Error = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"error\"")
+			}
+		case "link":
+			if err := func() error {
+				s.Link.Reset()
+				if err := s.Link.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "self":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Bool()
+				s.Self = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"self\"")
+			}
+		case "sent_at":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.SentAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sent_at\"")
+			}
+		case "state":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "user_id":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.UserID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"user_id\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NotifyGetNotifyTelegramApproversOKItemsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11110111,
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfNotifyGetNotifyTelegramApproversOKItemsItem) {
+					name = jsonFieldsNameOfNotifyGetNotifyTelegramApproversOKItemsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NotifyGetNotifyTelegramApproversOKItemsItemState as json.
+func (s NotifyGetNotifyTelegramApproversOKItemsItemState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes NotifyGetNotifyTelegramApproversOKItemsItemState from json.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItemState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyGetNotifyTelegramApproversOKItemsItemState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch NotifyGetNotifyTelegramApproversOKItemsItemState(v) {
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateLinked:
+		*s = NotifyGetNotifyTelegramApproversOKItemsItemStateLinked
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateSending:
+		*s = NotifyGetNotifyTelegramApproversOKItemsItemStateSending
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateWaiting:
+		*s = NotifyGetNotifyTelegramApproversOKItemsItemStateWaiting
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateNotSent:
+		*s = NotifyGetNotifyTelegramApproversOKItemsItemStateNotSent
+	default:
+		*s = NotifyGetNotifyTelegramApproversOKItemsItemState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NotifyGetNotifyTelegramApproversOKItemsItemState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItemState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *NotifyGetNotifyZaloApproversOK) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -178158,6 +178537,279 @@ func (s NotifyPostNotifyHistoryIDResendOKKind) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NotifyPostNotifyHistoryIDResendOKKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		e.Str(s.Address)
+	}
+	{
+		e.FieldStart("box_account")
+		e.Bool(s.BoxAccount)
+	}
+	{
+		e.FieldStart("error")
+		e.Str(s.Error)
+	}
+	{
+		if s.Link.Set {
+			e.FieldStart("link")
+			s.Link.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("self")
+		e.Bool(s.Self)
+	}
+	{
+		e.FieldStart("sent_at")
+		s.SentAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+	{
+		e.FieldStart("user_id")
+		e.Str(s.UserID)
+	}
+}
+
+var jsonFieldsNameOfNotifyPostNotifyTelegramApproversUserIDCodeOK = [9]string{
+	0: "address",
+	1: "box_account",
+	2: "error",
+	3: "link",
+	4: "name",
+	5: "self",
+	6: "sent_at",
+	7: "state",
+	8: "user_id",
+}
+
+// Decode decodes NotifyPostNotifyTelegramApproversUserIDCodeOK from json.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyTelegramApproversUserIDCodeOK to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Address = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "box_account":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.BoxAccount = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box_account\"")
+			}
+		case "error":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Error = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"error\"")
+			}
+		case "link":
+			if err := func() error {
+				s.Link.Reset()
+				if err := s.Link.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "self":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Bool()
+				s.Self = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"self\"")
+			}
+		case "sent_at":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.SentAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sent_at\"")
+			}
+		case "state":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "user_id":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.UserID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"user_id\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NotifyPostNotifyTelegramApproversUserIDCodeOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11110111,
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfNotifyPostNotifyTelegramApproversUserIDCodeOK) {
+					name = jsonFieldsNameOfNotifyPostNotifyTelegramApproversUserIDCodeOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NotifyPostNotifyTelegramApproversUserIDCodeOKState as json.
+func (s NotifyPostNotifyTelegramApproversUserIDCodeOKState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes NotifyPostNotifyTelegramApproversUserIDCodeOKState from json.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOKState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyTelegramApproversUserIDCodeOKState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch NotifyPostNotifyTelegramApproversUserIDCodeOKState(v) {
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateLinked:
+		*s = NotifyPostNotifyTelegramApproversUserIDCodeOKStateLinked
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateSending:
+		*s = NotifyPostNotifyTelegramApproversUserIDCodeOKStateSending
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateWaiting:
+		*s = NotifyPostNotifyTelegramApproversUserIDCodeOKStateWaiting
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateNotSent:
+		*s = NotifyPostNotifyTelegramApproversUserIDCodeOKStateNotSent
+	default:
+		*s = NotifyPostNotifyTelegramApproversUserIDCodeOKState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NotifyPostNotifyTelegramApproversUserIDCodeOKState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOKState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -205928,8 +206580,6 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItemMethod) Decode(d *jx.Decoder)
 	switch ResponseGetResponseMeIdentitiesOKItemsItemMethod(v) {
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode:
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode
-	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
-		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode:
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable:
@@ -237975,9 +238625,9 @@ func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) encodeFields(e *jx.Encoder) {
 	{
-		if s.Code.Set {
-			e.FieldStart("code")
-			s.Code.Encode(e)
+		if s.Link.Set {
+			e.FieldStart("link")
+			s.Link.Encode(e)
 		}
 	}
 	{
@@ -237997,7 +238647,7 @@ func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) encodeFields(e *jx.Encod
 }
 
 var jsonFieldsNameOfResponsePostResponseMeIdentitiesChannelCodeOK = [4]string{
-	0: "code",
+	0: "link",
 	1: "preview_code",
 	2: "resend_after",
 	3: "sent_to",
@@ -238012,15 +238662,15 @@ func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) Decode(d *jx.Decoder) er
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "code":
+		case "link":
 			if err := func() error {
-				s.Code.Reset()
-				if err := s.Code.Decode(d); err != nil {
+				s.Link.Reset()
+				if err := s.Link.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"code\"")
+				return errors.Wrap(err, "decode field \"link\"")
 			}
 		case "preview_code":
 			if err := func() error {
@@ -238341,8 +238991,6 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) Decode(d *jx.De
 	switch ResponsePostResponseMeIdentitiesChannelConfirmOKMethod(v) {
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode:
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode
-	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
-		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode:
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable:

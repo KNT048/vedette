@@ -38,6 +38,8 @@ export const cancelZaloLogin = () => api.del<void>('/notify/zalo/login')
 export const useZaloContacts = (enabled: boolean) => useQuery({ queryKey: ['zalo-contacts'] /* not under 'notify': a save must not ask Zalo again */, queryFn: () => api.get<ZaloContacts>('/notify/zalo/contacts'), enabled, retry: false, staleTime: Infinity })
 export const useResolveZalo = () => useMutation({ mutationFn: (query: string) => api.post<ZaloFound>('/notify/zalo/resolve', { query }) })
 const WAITING: ZaloApprover['state'][] = ['sending', 'waiting']
-export const useZaloApprovers = (enabled: boolean) => useQuery({ queryKey: ['notify', 'zalo', 'approvers'], queryFn: () => api.get<ZaloApprovers>('/notify/zalo/approvers'), enabled,
+/** A channel whose approvers confirm a link sent to their chat account (Zalo personal D-447, Telegram D-414). */
+export type LinkKind = 'zalo' | 'telegram'
+export const useLinkApprovers = (kind: LinkKind, enabled: boolean) => useQuery({ queryKey: ['notify', kind, 'approvers'], queryFn: () => api.get<ZaloApprovers>(`/notify/${kind}/approvers`), enabled,
   refetchInterval: (q) => (q.state.data?.items.some((a) => WAITING.includes(a.state)) ? 3000 : false) })
-export const useSendZaloCode = () => useInvalidating((userId: string) => api.post<ZaloApprover>(`/notify/zalo/approvers/${encodeURIComponent(userId)}/code`))
+export const useSendLink = (kind: LinkKind) => useInvalidating((userId: string) => api.post<ZaloApprover>(`/notify/${kind}/approvers/${encodeURIComponent(userId)}/code`))

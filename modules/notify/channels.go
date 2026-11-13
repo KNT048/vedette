@@ -248,13 +248,18 @@ func configAPIError(err error) error {
 func badRequest(code, msg string) *apierr.Error { return apierr.New(http.StatusBadRequest, code, msg) }
 
 // newSender builds the adapter of type t from stored fields and the plain secret. toOverride replaces
-// the recipients of an email channel (two-step codes go to one person, not to the alert list).
+// the recipients of an email channel (two-step codes go to one person, not to the alert list), and the chat of
+// a Telegram channel (a confirm link sent privately to one approver's user ID, D-414).
 func (s *Service) newSender(t channel.Type, f map[string]string, secret string, toOverride []string) (channel.Sender, error) {
 	sv := secrets.NewValue(secret)
 	hc := s.cfg.HTTPClient
 	switch t {
 	case channel.Telegram:
-		return channel.NewTelegram(channel.TelegramConfig{Token: sv, ChatID: f["chat_id"], Client: hc})
+		chat := f["chat_id"]
+		if len(toOverride) == 1 {
+			chat = toOverride[0]
+		}
+		return channel.NewTelegram(channel.TelegramConfig{Token: sv, ChatID: chat, Client: hc})
 	case channel.Slack:
 		return channel.NewSlack(channel.SlackConfig{Webhook: sv, Label: f["label"], Client: hc})
 	case channel.Zalo:
@@ -732,7 +737,7 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			return err
 		}
 		for _, u := range unlinked {
-			if err := s.record(ctx, tx, actor, "notify.zalo_unlink", string(channel.ZaloPersonal), clip(u, 400)); err != nil {
+			if err := s.record(ctx, tx, actor, unlinkAction[t], string(t), clip(u, 400)); err != nil {
 				return err
 			}
 		}
@@ -754,23 +759,28 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		}
 	}
 	s.flush(ctx, ob)
-	if t == channel.ZaloPersonal {
-		if login != nil {
-			s.dropLogin(login)
+	if t == channel.ZaloPersonal && login != nil {
+		s.dropLogin(login)
+	}
+	for _, a := range dropped { // after the commit (response writes its own rows): the old address must not count again
+		if err := s.cfg.LinkCodes.DropChatLink(ctx, actor, a.UserID, t, a.Address); err != nil {
+			s.cfg.Log.WarnContext(ctx, "notify: an old approver proof could not be dropped", "channel", string(t), "user", a.UserID, "error", err.Error())
 		}
-		for _, a := range dropped { // after the commit (response writes its own rows): the old address must not count again
-			if err := s.cfg.LinkCodes.DropChatLink(ctx, actor, a.UserID, t, a.Address); err != nil {
-				s.cfg.Log.WarnContext(ctx, "notify: zalo-personal: an old approver proof could not be dropped", "user", a.UserID, "error", err.Error())
-			}
-		}
+	}
+	if _, ok := unlinkAction[t]; ok { // the confirm-link channels (D-447, D-414): new approvers get their link after the save
 		if c, err := loadChannel(ctx, s.cfg.DB.Reader(), t); err == nil && zaloReady(c) {
-			s.sendLinkCodesLater(ctx, actor, c, newZaloApprovers(before, out.Approvers))
+			if t == channel.ZaloPersonal {
+				s.sendLinkCodesLater(ctx, actor, c, newZaloApprovers(before, out.Approvers))
+			} else {
+				s.sendTelegramLinksLater(ctx, actor, c, newZaloApprovers(before, out.Approvers))
+			}
 		}
 	}
 	return out, nil
 }
 
-// newZaloApprovers lists the approvers of now who were not in before with the same Zalo: they get a link code after the save (D-447).
+// newZaloApprovers lists the approvers of now who were not in before with the same address: they get a confirm link after the save
+// (D-447, D-414).
 func newZaloApprovers(before, now []Approver) []Approver {
 	var out []Approver
 	for _, a := range now {
@@ -781,11 +791,17 @@ func newZaloApprovers(before, now []Approver) []Approver {
 	return out
 }
 
-// zaloUnlinked describes the linked Zalo approvers a save removes or gives another Zalo: each gets a "notify.zalo_unlink" audit row,
-// and their proof of the old address is dropped after the save (Config.LinkCodes), so naming that address again needs a new reply.
-// Asked before the save, outside its transaction.
+// unlinkAction is the audit action of a linked approver a save removes or re-addresses, per confirm-link channel (D-447, D-414).
+var unlinkAction = map[channel.Type]string{channel.ZaloPersonal: "notify.zalo_unlink", channel.Telegram: "notify.telegram_unlink"}
+
+// linkChannelName names a confirm-link channel in messages and audit rows.
+var linkChannelName = map[channel.Type]string{channel.ZaloPersonal: "Zalo", channel.Telegram: "Telegram"}
+
+// zaloUnlinked describes the linked approvers of a confirm-link channel (Zalo personal, Telegram) a save removes or gives another ID: each
+// gets an unlinkAction audit row, and their proof of the old address is dropped after the save (Config.LinkCodes), so naming that address
+// again needs a new confirm. Asked before the save, outside its transaction.
 func (s *Service) zaloUnlinked(ctx context.Context, t channel.Type, in ChannelInput) ([]string, []Approver, error) {
-	if t != channel.ZaloPersonal || s.cfg.ApproverLinks == nil {
+	if _, ok := unlinkAction[t]; !ok || s.cfg.ApproverLinks == nil {
 		return nil, nil, nil
 	}
 	before, err := loadApprovers(ctx, s.cfg.DB.Reader(), t)
@@ -805,7 +821,7 @@ func (s *Service) zaloUnlinked(ctx context.Context, t channel.Type, in ChannelIn
 		if u, found, err := s.cfg.Users.Lookup(ctx, b.UserID); err == nil && found {
 			who = u.Email
 		}
-		out = append(out, who+": Zalo "+b.Address+" is no longer their approver address; its link no longer counts")
+		out = append(out, who+": "+linkChannelName[t]+" "+b.Address+" is no longer their approver address; its link no longer counts")
 		if s.cfg.LinkCodes != nil {
 			dropped = append(dropped, b)
 		}

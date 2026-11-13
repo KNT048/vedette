@@ -21,7 +21,7 @@ import { EMAIL_PROVIDERS, OAUTH_HOST, emailBinding, emailProvider, isOAuth, isUs
 import { EmailSignin } from './EmailSignin'
 import { useChannels, useRemoveChannel, useSaveChannel, useSaveRules, useTestChannel } from './api'
 import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
-import { ZaloApproverField, ZaloRecipient, ZaloSignIn, ZaloWarning, type ZaloTarget } from './ZaloPersonal'
+import { ApproverLinkState, ZaloApproverField, ZaloRecipient, ZaloSignIn, ZaloWarning, type ZaloTarget } from './ZaloPersonal'
 import type { Approver, Channel, Grouping, Quiet, RouteSeverity } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
@@ -280,9 +280,13 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
                           {type === 'zalo-personal'
                             ? <ZaloApproverField approver={a} saved={channel.configured ? channel : null} canLook={zaloLook} onChange={(n) => setApprovers((l) => l.map((x) => (x.user_id === a.user_id ? n : x)))} />
                             : (
-                              <Field label={t(`approve.address.${type}`)} htmlFor={`ap-${type}-${a.user_id}`}>
-                                <Input id={`ap-${type}-${a.user_id}`} value={a.address} placeholder={t(`approve.placeholder.${type}`)} autoComplete="off" onChange={(e) => setApprovers((l) => l.map((x) => (x.user_id === a.user_id ? { ...x, address: e.target.value } : x)))} />
-                              </Field>
+                              <div className="grid gap-2">
+                                <Field label={t(`approve.address.${type}`)} htmlFor={`ap-${type}-${a.user_id}`}>
+                                  <Input id={`ap-${type}-${a.user_id}`} value={a.address} placeholder={t(`approve.placeholder.${type}`)} autoComplete="off" onChange={(e) => setApprovers((l) => l.map((x) => (x.user_id === a.user_id ? { ...x, address: e.target.value } : x)))} />
+                                </Field>
+                                {/* D-414: a Telegram approver confirms the link the bot sends them, signed in as themselves */}
+                                {type === 'telegram' ? (channel.configured ? <ApproverLinkState kind="telegram" approver={a} saved={channel} /> : a.address ? <p className="text-[13px] text-muted">{t('tg.unsaved')}</p> : null) : null}
+                              </div>
                             )}
                           <Button size="sm" variant="ghost" onClick={() => setApprovers((l) => l.filter((x) => x.user_id !== a.user_id))}><X /><span className="sr-only">{t('approve.remove', { who })}</span></Button>
                         </div>

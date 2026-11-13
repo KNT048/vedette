@@ -8,7 +8,7 @@ import { assetsStore, boxInfo, emailCodeUserCount, usersStore } from '@/mocks/st
 import { collection, daysAgo, newId, nowIso } from '@/mocks/db'
 import type { Severity } from '@/lib/types'
 import { isInternalHost } from '@/features/feeds/defaults'
-import { newLinkToken } from '@/features/response/identity'
+import { chatLinkSenders, newLinkToken } from '@/features/response/identity'
 import { identityStore, isLinked } from '@/features/response/state'
 import { CHANNEL_TYPES, FIELDS, OWN_TEXT, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
 import { OAUTH_HOST, emailBinding, emailProvider, isOAuth, isUserSignin, savedFor } from './emailProviders'
@@ -393,10 +393,28 @@ const zaloView = (): ZaloLogin => {
 const zaloSession = () => zaloSignedIn() !== null || !!channels.get().find((c) => c.type === 'zalo-personal' && c.configured && c.secret)
 const NO_SESSION = () => fail(409, 'no_session', 'Sign in with the QR code first: finding groups and people needs the Zalo account.')
 const BAD_QUERY = 'Enter a group invite link (https://zalo.me/g/…), a phone number such as 0912345678, or a Zalo ID.'
-function zaloApprover(a: Approver): ZaloApprover {
-  const rec = zaloCodes.get(a.user_id)
-  const base = { user_id: a.user_id, address: a.address, name: a.name ?? '', sent_at: rec?.address === a.address ? rec.at : null, error: '', self: a.user_id === currentUser()?.id, box_account: a.address === ZALO_BOX_UID }
-  if (isLinked(a.user_id, 'zalo-personal', a.address)) return { ...base, state: 'linked' }
+// Telegram approvers (D-414): the bot sends each a confirm link privately (made by the response mock, kept in tgMessages) and they are
+// linked once they confirm it signed in, as on Zalo. The mock's bot may always write to the person; the real box, when it may not, posts a
+// note without the link in the approval chat asking them to press Start, and answers send_failed.
+const tgCodes = new Map<string, { address: string; at: string; error: string }>()
+const tgMessages: { to: string; text: string }[] = []
+/** The messages the Telegram bot sent (tests read the confirm link from them). */
+export const telegramMessagesForTest = () => tgMessages
+function sendTelegramLink(a: Approver) {
+  const made = newLinkToken(a.user_id, 'telegram', a.address)
+  if (!('token' in made)) { tgCodes.set(a.user_id, { address: a.address, at: nowIso(), error: `No link was made: ${made.message}` }); return made }
+  const who = usersStore.get().find((u) => u.id === a.user_id)?.name ?? a.user_id
+  const link = `https://${boxInfo().ip ?? 'vedette.local'}/link/telegram?c=${encodeURIComponent(made.token)}`
+  tgMessages.push({ to: a.address, text: `Info: ${who}: open this link to link your Telegram account to Vedette.\nSign in to Vedette as ${who}, then press Confirm. It works once, within 10 minutes. If you are not ${who}, ignore this message.\nDetails: ${link}` })
+  tgCodes.set(a.user_id, { address: a.address, at: nowIso(), error: '' })
+  audit('notify.telegram_link_code', 'telegram', `a confirm link was sent to Telegram ${a.address} privately`)
+  return made
+}
+const zaloApprover = (a: Approver) => linkApprover('zalo-personal', a)
+function linkApprover(type: 'zalo-personal' | 'telegram', a: Approver): ZaloApprover {
+  const rec = (type === 'telegram' ? tgCodes : zaloCodes).get(a.user_id)
+  const base = { user_id: a.user_id, address: a.address, name: a.name ?? '', sent_at: rec?.address === a.address ? rec.at : null, error: '', self: a.user_id === currentUser()?.id, box_account: type === 'zalo-personal' && a.address === ZALO_BOX_UID }
+  if (isLinked(a.user_id, type, a.address)) return { ...base, state: 'linked' }
   if (!rec || rec.address !== a.address) return { ...base, state: 'not_sent' }
   if (rec.error) return { ...base, state: 'not_sent', error: rec.error }
   return Date.now() - new Date(rec.at).getTime() < 600_000 ? { ...base, state: 'waiting' } : { ...base, state: 'not_sent', error: 'The link expired. Send a new one.' }
@@ -470,6 +488,18 @@ export const handlers = [
     const made = sendZaloLink(a)
     if (!('token' in made)) return fail(made.status, made.code, made.message)
     return HttpResponse.json(zaloApprover(a))
+  }),
+
+  http.get(`${API}/notify/telegram/approvers`, () => {
+    const denied = guard('admin'); if (denied) return denied
+    const c = channels.get().find((x) => x.type === 'telegram')
+    return HttpResponse.json({ items: (c?.approvers ?? []).map((a) => linkApprover('telegram', a)) })
+  }),
+
+  http.post(`${API}/notify/telegram/approvers/:user_id/code`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const r = telegramLinkFor(String(params.user_id))
+    return 'status' in r ? fail(r.status, r.code, r.message) : HttpResponse.json(r)
   }),
 
   http.get(`${API}/notify/incidents`, () => {
@@ -581,14 +611,23 @@ export const handlers = [
     // email: the saved secret stays only for the method, server and port it was saved for; a save that needs none deletes it (D-449 review)
     const kept = type !== 'email' || savedFor(cur.fields) === emailBinding(fields) ? cur.secret : ''
     if (type === 'email' && (secret || kept)) fields.secret_for = emailBinding(fields)
-    const fresh = zalo ? approvers.filter((a) => !(cur.approvers ?? []).some((x) => x.user_id === a.user_id && x.address === a.address)) : []
+    const byLink = zalo || type === 'telegram' // the confirm-link channels (D-447, D-414)
+    const same = (a: Approver, x: Approver) => x.user_id === a.user_id && x.address === a.address
+    const fresh = byLink ? approvers.filter((a) => !(cur.approvers ?? []).some((x) => same(a, x))) : []
+    const gone = byLink ? (cur.approvers ?? []).filter((x) => !approvers.some((a) => same(a, x)) && isLinked(x.user_id, type, x.address)) : []
     const next: StoredChannel = { ...cur, configured: true, enabled: b.enabled === true, fields, secret: secret ? secret : kept, ...(type === 'webhook' ? { url: webhookUrl(b.fields ?? {}, cur) } : {}), min_severity: b.min_severity!, last_test: null, approvals, approvers,
       app_token: type === 'slack' ? (b.app_token?.trim() || cur.app_token) : undefined, bot_token: type === 'slack' ? (b.bot_token?.trim() || cur.bot_token) : undefined,
       ...(type === 'zalo' ? { secret_key: b.secret_key?.trim() || cur.secret_key, refresh_token: b.refresh_token?.trim() || cur.refresh_token } : {}) }
     if (type === 'zalo' && !next.refresh_token) delete next.fields.app_id // an access token only: no app to refresh with
     channels.update((l) => [...l.filter((c) => c.type !== type), next])
     // your own row with the box's own account confirms in your session; every other Zalo, yours too, gets the link by message
-    if (next.enabled && approvals) for (const a of fresh) if (!(a.user_id === currentUser()!.id && a.address === ZALO_BOX_UID)) sendZaloLink(a)
+    for (const g of gone) { // a linked approver removed or given another ID: the old proof ends, so naming it again needs a new confirm
+      identityStore.update((l) => l.filter((x) => !(x.channel === type && same(g, x))))
+      const who = usersStore.get().find((u) => u.id === g.user_id)?.email ?? g.user_id
+      audit(zalo ? 'notify.zalo_unlink' : 'notify.telegram_unlink', type, `${who}: ${zalo ? 'Zalo' : 'Telegram'} ${g.address} is no longer their approver address; its link no longer counts`)
+    }
+    if (next.enabled && approvals && zalo) for (const a of fresh) if (!(a.user_id === currentUser()!.id && a.address === ZALO_BOX_UID)) sendZaloLink(a)
+    if (next.enabled && approvals && type === 'telegram') for (const a of fresh) sendTelegramLink(a)
     audit('notify.channel_save', type, `${next.enabled ? 'on' : 'off'}${approvals ? `, approvals on (${approvers.length} approver${approvers.length === 1 ? '' : 's'})` : ''}`)
     return HttpResponse.json(pub(next))
   }),
@@ -670,3 +709,29 @@ export const handlers = [
     return HttpResponse.json(next)
   }),
 ]
+
+type Refusal = { status: number; code: string; message: string }
+/** Send again for a Telegram approver (the channel dialog, and My account through response, D-414). */
+function telegramLinkFor(userId: string): ZaloApprover | Refusal {
+  const c = channels.get().find((x) => x.type === 'telegram')
+  if (!c?.configured || !c.enabled || !c.approvals) return { status: 409, code: 'channel_not_ready', message: 'Save the Telegram channel turned on, with "Approve actions from this channel", first.' }
+  const a = (c.approvers ?? []).find((x) => x.user_id === userId)
+  if (!a) return { status: 404, code: 'not_listed', message: 'This person is not an approver on the Telegram channel. Save the channel first.' }
+  const made = sendTelegramLink(a)
+  return 'token' in made ? linkApprover('telegram', a) : made
+}
+// My account, Send again (response's Config.LinkSender on the real box): the same sends as the channel dialog.
+chatLinkSenders.telegram = (userId) => { const r = telegramLinkFor(userId); return 'status' in r ? r : {} }
+chatLinkSenders['zalo-personal'] = (userId) => {
+  const c = channels.get().find((x) => x.type === 'zalo-personal')
+  if (!c?.configured || !c.enabled || !c.approvals) return { status: 409, code: 'channel_not_ready', message: 'Save the Zalo (personal) channel turned on, with "Approve actions from this channel", first.' }
+  const a = (c.approvers ?? []).find((x) => x.user_id === userId)
+  if (!a) return { status: 404, code: 'not_listed', message: 'This person is not an approver on the Zalo channel. Save the channel first.' }
+  // your own row with the box's own account confirms in this session, for an administrator only (D-414 review: an operator never)
+  if (a.address === ZALO_BOX_UID && usersStore.get().find((u) => u.id === userId)?.role === 'admin') {
+    const made = newLinkToken(a.user_id, 'zalo-personal', a.address)
+    return 'token' in made ? { link: `/link/zalo?c=${encodeURIComponent(made.token)}` } : made
+  }
+  const made = sendZaloLink(a)
+  return 'token' in made ? {} : made
+}

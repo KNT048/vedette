@@ -89,6 +89,24 @@ function totp(secret: string, at = Date.now()) {
 }
 
 test.describe('first-run setup', () => {
+  test('D-462: a double-click on Continue moves one step; a double-click on Finish setup sends setup once', async ({ page }) => {
+    const errors = collectErrors(page)
+    let posts = 0
+    page.on('request', (r) => { if (r.method() === 'POST' && new URL(r.url()).pathname.endsWith('/core/setup')) posts++ })
+    await startClean(page)
+    await page.getByRole('button', { name: 'Continue' }).dblclick()
+    // the mock prefills Range 1 with the box's network (D-405), so a second submit here would pass: it must not happen
+    await expect(page.getByRole('heading', { level: 2, name: 'Network to watch' })).toBeVisible()
+    await page.getByRole('button', { name: 'Continue' }).dblclick()
+    await expect(page.getByRole('heading', { level: 2, name: 'Choose a module bundle' })).toBeVisible()
+    await page.waitForTimeout(300) // nothing is sent behind the step
+    expect(posts).toBe(0)
+    await page.getByRole('button', { name: 'Finish setup' }).dblclick()
+    await expect(h1(page)).toContainText('Today')
+    expect(posts).toBe(1)
+    noErrors(errors)
+  })
+
   test('mistakes at every step, fixes, finish; every page is empty with no sample data', async ({ page }) => {
     test.setTimeout(240_000)
     const errors = collectErrors(page)

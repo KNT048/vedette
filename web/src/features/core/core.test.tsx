@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
@@ -161,6 +161,84 @@ describe('core: cài đặt ban đầu', () => {
     await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
     expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
     expect(orgStore.get().setup_complete).toBe(true)
+  })
+
+  it('D-462 review: a double-click on Continue moves one step and never finishes setup; a repeated click on Finish setup does not submit', async () => {
+    const u = user()
+    let posts = 0
+    const seen = ({ request }: { request: Request }) => { if (request.method === 'POST' && new URL(request.url).pathname.endsWith('/core/setup')) posts++ }
+    server.events.on('request:start', seen)
+    try {
+      renderApp('/setup', { role: null, setupComplete: false })
+      await u.type(await screen.findByLabelText('Setup code'), MOCK_SETUP_CODE)
+      await u.type(screen.getByLabelText('Organization name'), 'XYZ Company')
+      await u.type(screen.getByLabelText('Administrator name'), 'Nam')
+      await u.type(screen.getByLabelText('Sign-in email'), 'nam@xyz.vn')
+      await u.type(screen.getByLabelText('Password'), 'mot-cau-mat-khau-dai')
+      await u.type(screen.getByLabelText('Repeat password'), 'mot-cau-mat-khau-dai')
+      await u.dblClick(screen.getByRole('button', { name: 'Continue' }))
+      // one step only: Network (its first row is prefilled with the box's network, so a second submit would pass)
+      expect(await screen.findByRole('heading', { level: 2, name: 'Network to watch' })).toBeInTheDocument()
+      await u.dblClick(screen.getByRole('button', { name: 'Continue' }))
+      expect(await screen.findByRole('heading', { level: 2, name: 'Choose a module bundle' })).toBeInTheDocument()
+      // the second click of a double-click (the browser counts it in `detail`, whatever button is now under the pointer) does not submit
+      fireEvent.click(screen.getByRole('button', { name: 'Finish setup' }), { detail: 2 })
+      fireEvent.click(screen.getByRole('button', { name: 'Finish setup' }), { detail: 3 })
+      await act(async () => {})
+      expect(posts).toBe(0)
+      expect(orgStore.get().setup_complete).toBe(false)
+      expect(screen.getByRole('heading', { level: 2, name: 'Choose a module bundle' })).toBeInTheDocument()
+      // a single click finishes; Finish and Back are off while it saves, so it cannot be sent twice
+      await u.click(screen.getByRole('button', { name: 'Finish setup' }))
+      expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
+      expect(posts).toBe(1)
+    } finally { server.events.removeListener('request:start', seen) }
+  })
+
+  it('D-462 review: Finish setup and Back are disabled while finishing', async () => {
+    const u = user()
+    let release!: () => void
+    const gate = new Promise<void>((r) => { release = r })
+    server.use(http.post('*/api/v1/core/setup', async () => { await gate; return HttpResponse.json({ error: { code: 'internal', message: 'Something failed on the box.' } }, { status: 500 }) }))
+    renderApp('/setup', { role: null, setupComplete: false })
+    await u.type(await screen.findByLabelText('Setup code'), MOCK_SETUP_CODE)
+    await u.type(screen.getByLabelText('Organization name'), 'XYZ Company')
+    await u.type(screen.getByLabelText('Administrator name'), 'Nam')
+    await u.type(screen.getByLabelText('Sign-in email'), 'nam@xyz.vn')
+    await u.type(screen.getByLabelText('Password'), 'mot-cau-mat-khau-dai')
+    await u.type(screen.getByLabelText('Repeat password'), 'mot-cau-mat-khau-dai')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    await u.click(await screen.findByRole('button', { name: 'Continue' }))
+    await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Finish setup' })).toBeDisabled())
+    expect(screen.getByRole('button', { name: 'Back' })).toBeDisabled()
+    release()
+    // a failure gives the buttons back, with the box's sentence
+    expect(await screen.findByText('Something failed on the box.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Finish setup' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Back' })).toBeEnabled()
+  })
+
+  it('D-462 review: ranges the box refuses on Finish send you back to the Network step with its sentence under the list', async () => {
+    const u = user()
+    renderApp('/setup', { role: null, setupComplete: false })
+    await u.type(await screen.findByLabelText('Setup code'), MOCK_SETUP_CODE)
+    await u.type(screen.getByLabelText('Organization name'), 'XYZ Company')
+    await u.type(screen.getByLabelText('Administrator name'), 'Nam')
+    await u.type(screen.getByLabelText('Sign-in email'), 'nam@xyz.vn')
+    await u.type(screen.getByLabelText('Password'), 'mot-cau-mat-khau-dai')
+    await u.type(screen.getByLabelText('Repeat password'), 'mot-cau-mat-khau-dai')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    await u.clear(await screen.findByLabelText('Range 1'))
+    await u.type(screen.getByLabelText('Range 1'), '192.168.0.0/16') // overlaps row 2: only the box checks that (overlap_range)
+    await u.click(screen.getByRole('button', { name: 'Add range' }))
+    await u.type(screen.getByLabelText('Range 2'), '192.168.18.0/24')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
+    expect(await screen.findByRole('heading', { level: 2, name: 'Network to watch' })).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(/Range 192.168.0.0\/16 overlaps 192.168.18.0\/24/)
+    expect(screen.getByLabelText('Range 2')).toHaveValue('192.168.18.0/24') // what was typed is kept
+    expect(orgStore.get().setup_complete).toBe(false)
   })
 
   it('D-75 API: the code is judged before every other field and never needed for the sample path', async () => {

@@ -25,6 +25,10 @@ interface State {
   lan: string[]; commitment: boolean; notes: { to: string; text: string }[]
   bundle: BundleId; picked: Set<ModuleId>
 }
+/** Server codes about the ranges (POST /core/setup): shown on the Network step. */
+const LAN_ERRORS = new Set(['invalid_lan', 'public_range', 'overlap_range'])
+const noRepeat = (e: React.MouseEvent) => { if (e.detail > 1) e.preventDefault() }
+
 const INIT: State = {
   org: '', name: '', email: '', password: '', again: '', code: '', lan: [''], commitment: false, notes: [],
   bundle: 'smb', picked: new Set<ModuleId>(['core']),
@@ -117,6 +121,8 @@ export default function SetupPage() {
       if (err instanceof ApiError && err.code === 'invalid_setup_code') { setErrors({ code: errMsg(err, t) }); setStep('account'); return }
       // So does a password the box refuses (D-389: too easy to guess), next to the password field.
       if (err instanceof ApiError && err.code === 'weak_password') { setErrors({ password: errMsg(err, t) }); setStep('account'); return }
+      // Ranges the box refuses belong on the Network step, under the list.
+      if (err instanceof ApiError && LAN_ERRORS.has(err.code)) { setErrors({ lanAll: errMsg(err, t) }); setStep('network'); return }
       setFormError(errMsg(err, t)); return
     }
     // Đã đăng nhập bằng tài khoản quản trị: ghi phạm vi quét vào module kiểm kê (nơi lưu xác nhận phạm vi và người xác nhận).
@@ -212,10 +218,13 @@ export default function SetupPage() {
         {formError ? <p role="alert" className="mt-4 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{formError}</p> : null}
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
-          <Button onClick={() => { setErrors({}); setStep(STEPS[idx - 1] ?? step) }} disabled={idx === 0 || submit.isPending}>{t('setup.back')}</Button>
+          <Button onClick={() => { setErrors({}); setStep(STEPS[idx - 1] ?? step) }} disabled={idx === 0 || finished}>{t('setup.back')}</Button>
+          {/* Different keys: Continue and Finish are separate buttons. A click that is the 2nd or 3rd of a double/triple click
+              (detail > 1, counted by the browser whichever button is under the pointer) never submits, so a double-click on
+              Continue cannot skip a step or finish setup with the default bundle. Keyboard submits have detail 0. */}
           {step === 'modules'
-            ? <Button type="submit" variant="primary" disabled={submit.isPending}>{t('setup.finish')}</Button>
-            : <Button type="submit" variant="primary">{t('setup.next')}</Button>}
+            ? <Button key="finish" type="submit" variant="primary" disabled={finished} onClick={noRepeat}>{t('setup.finish')}</Button>
+            : <Button key="next" type="submit" variant="primary" onClick={noRepeat}>{t('setup.next')}</Button>}
         </div>
         </form>
       </section>

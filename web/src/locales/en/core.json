@@ -1293,7 +1293,7 @@
   },
   "alertChannelPrompt": {
     "title": "No alert channel yet",
-    "body": "Until an alert channel is set up and switched on, Vedette can only show what it finds here: nobody is told when a device matches an exploited vulnerability. Telegram, Slack, Zalo, email or a webhook all work; have the bot token or mail server details at hand.",
+    "body": "Until an alert channel is set up and switched on, Vedette can only show what it finds here: nobody is told when a device matches an exploited vulnerability.",
     "go": "Set up an alert channel",
     "noAlerts": "Not using alerts? Switch off Notifications in Settings, Modules, and this goes away."
   },

@@ -51,6 +51,25 @@ describe('PageTabs (D-464)', () => {
     expect(await screen.findByRole('tab', { name: 'Third' })).toHaveAttribute('aria-selected', 'true')
   })
 
+  it('keyboard: arrows, Home and End change the tab and ?tab=, replacing the history entry', async () => {
+    const router = show('/page')
+    await userEvent.tab()
+    expect(screen.getByRole('tab', { name: 'First' })).toHaveFocus()
+    await userEvent.keyboard('{ArrowRight}')
+    expect(screen.getByRole('tab', { name: /^Second/ })).toHaveFocus()
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/page?tab=two'))
+    expect(screen.getByRole('tab', { name: /^Second/ })).toHaveAttribute('aria-selected', 'true')
+    await userEvent.keyboard('{End}')
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/page?tab=three'))
+    expect(screen.getByRole('tab', { name: 'Third' })).toHaveAttribute('aria-selected', 'true')
+    await userEvent.keyboard('{Home}')
+    expect(screen.getByRole('tab', { name: 'First' })).toHaveFocus()
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/page?tab=one'))
+    // three tab changes, still one history entry for the page: Back leaves it
+    await router.navigate(-1)
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/other$/))
+  })
+
   it('shows a count badge with a spoken label only when the count is above zero', () => {
     show('/page')
     // the name holds the visible text ("Second 3") so a voice user can say what they see (WCAG 2.5.3)
@@ -85,10 +104,13 @@ describe('KpiStrip (D-464)', () => {
     await expectNoA11yViolations()
   })
 
-  it('refuses more than four numbers', () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('more than four numbers: a console error while developing, the first four shown, the page keeps working', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
     const five = [...kpis, { value: 1, label: 'D', to: '/' }, { value: 1, label: 'E', to: '/' }]
-    expect(() => render(<KpiStrip label="x" items={five} />)).toThrow(/at most 4/)
+    render(<RouterProvider router={createMemoryRouter([{ path: '/', element: <KpiStrip label="Five" items={five} /> }])} />)
+    expect(screen.getByRole('list', { name: 'Five' }).querySelectorAll('li')).toHaveLength(4)
+    expect(screen.queryByRole('link', { name: '1 E' })).toBeNull()
+    expect(err).toHaveBeenCalledWith(expect.stringMatching(/at most 4 items/))
     vi.restoreAllMocks()
   })
 })

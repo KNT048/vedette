@@ -23,12 +23,12 @@ function Content() {
   const actions = useActions()
   const settings = useSettings(admin)
   // Liên kết cũ /response#requests (trước D-464) → /response?tab=requests; #ai là tên cũ của Requests.
-  if (hash) {
+  // Hash khác (ví dụ #main của liên kết "Skip to content") để nguyên.
+  const old = hash.slice(1) === 'ai' ? 'requests' : hash.slice(1)
+  if (OLD_HASH.includes(old)) {
     const p = new URLSearchParams(search)
-    const old = hash.slice(1) === 'ai' ? 'requests' : hash.slice(1)
-    if (OLD_HASH.includes(old)) p.set('tab', old)
-    const q = p.toString()
-    return <Navigate replace to={{ search: q ? `?${q}` : '', hash: '' }} />
+    p.set('tab', old)
+    return <Navigate replace to={{ search: `?${p}`, hash: '' }} />
   }
   if (plans.isPending || actions.isPending) return <Loading />
   if (plans.error || actions.error) return <ErrorState error={plans.error ?? actions.error} onRetry={() => { void plans.refetch(); void actions.refetch() }} />

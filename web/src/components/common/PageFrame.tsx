@@ -10,8 +10,10 @@ const COLS = ['', 'sm:grid-cols-1', 'sm:grid-cols-2', 'sm:grid-cols-3', 'sm:grid
 
 /** Tối đa 4 con số trả lời câu hỏi của trang (FRONTEND §3: số to chỉ khi là câu trả lời), mỗi số dẫn tới chỗ xem chi tiết.
  *  Một khung chia ô bằng đường kẻ (như một hàng bảng), không phải 4 card rời; điện thoại 2 × 2. */
-export function KpiStrip({ items, label }: { items: Kpi[]; label: string }) {
-  if (items.length > 4) throw new Error('KpiStrip: at most 4 items (D-464)')
+export function KpiStrip({ items: all, label }: { items: Kpi[]; label: string }) {
+  // Lỗi lập trình: báo khi phát triển, không làm vỡ trang của người dùng.
+  if (all.length > 4 && import.meta.env.DEV) console.error(`KpiStrip "${label}": at most 4 items (D-464), got ${all.length}; the rest are dropped`)
+  const items = all.slice(0, 4)
   return (
     <ul aria-label={label} className={`mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-rule bg-rule ${COLS[items.length]}`}>
       {items.map((k) => (
@@ -53,10 +55,11 @@ export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
       // replace: phím mũi tên đổi tab (WAI-ARIA tự kích hoạt); push sẽ bắt Back đi qua từng tab đã lướt.
       onValueChange={(v) => { const p = new URLSearchParams(params); p.set('tab', v); setParams(p, { replace: true }) }}
     >
-      {/* Đường kẻ dưới là bóng inset, không phải border: hàng tab cuộn ngang (overflow) sẽ cắt gạch chân -mb-px đè lên border. */}
-      <TabsList ref={list} aria-label={label} className="flex-nowrap overflow-x-auto overscroll-x-contain border-b-0 shadow-[inset_0_-1px_0_var(--color-rule)]">
+      {/* Hàng tab cuộn ngang (overflow) cắt mọi thứ vẽ ra ngoài nó, nên: đường kẻ dưới là bóng inset (không phải border mà gạch chân -mb-px đè lên),
+          viền focus vẽ vào trong tab (-outline-offset-2), thanh cuộn ẩn (mép tab bị cắt là dấu hiệu còn tab; mũi tên trái/phải tự cuộn tới tab). */}
+      <TabsList ref={list} aria-label={label} className="flex-nowrap overflow-x-auto overscroll-x-contain border-b-0 shadow-[inset_0_-1px_0_var(--color-rule)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((x) => (
-          <TabsTrigger key={x.id} value={x.id} className="mb-0 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+          <TabsTrigger key={x.id} value={x.id} className="mb-0 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap focus-visible:-outline-offset-2">
             {x.label}{' '}
             {x.badge && x.badge.count > 0 ? (
               <span className="rounded-full bg-danger px-1.5 text-[11px] font-semibold leading-[18px] text-paper tabular-nums">

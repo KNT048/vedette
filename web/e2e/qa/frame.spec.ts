@@ -59,6 +59,21 @@ test.describe('page frame (S-UI-1)', () => {
     await expect(page.getByRole('tab', { name: /^Requests/ })).toHaveAttribute('aria-selected', 'true')
   })
 
+  for (const theme of ['light', 'dark'] as const) {
+    test(`keyboard focus ring sits inside the tab, so the scrolling row does not clip it (${theme})`, async ({ page }) => {
+      await page.evaluate((v) => localStorage.setItem('vedette-theme', v), theme)
+      await page.goto('/scans')
+      await page.getByRole('tab', { name: 'Scans and history' }).click()
+      await page.keyboard.press('ArrowRight')
+      const tab = page.getByRole('tab', { name: 'Schedule and safety' })
+      await expect(tab).toBeFocused()
+      await expect(page).toHaveURL(/\?tab=safety$/)
+      const ring = await tab.evaluate((el) => { const s = getComputedStyle(el); return { style: s.outlineStyle, width: s.outlineWidth, offset: s.outlineOffset, scrollbar: getComputedStyle(el.parentElement!).scrollbarWidth } })
+      expect(ring).toEqual({ style: 'solid', width: '2px', offset: '-2px', scrollbar: 'none' })
+      await page.getByRole('tablist').screenshot({ path: `qa-shots/frame/focus-${theme}-${device(page)}.png` })
+    })
+  }
+
   test('phone: the Scans tab row scrolls inside itself and the deep-linked last tab is in view', async ({ page }) => {
     test.skip(device(page) !== 'phone', 'phone only')
     await page.goto('/scans?tab=credentialed')

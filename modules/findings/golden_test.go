@@ -296,3 +296,41 @@ func TestGolden_NoVersionIsOneItemPerSoftware(t *testing.T) {
 		t.Fatalf("placeholder version item = %+v", n)
 	}
 }
+
+// TestGolden_DistroRowNeverClosesKernelCVEs: review N1 of #663. The catalog's distribution rows ("Ubuntu Linux",
+// "Debian Linux", "CentOS / Rocky / AlmaLinux / RHEL") are keyed to the kernel and their version is the release. The
+// release is neither a kernel version nor proof about the kernel package, even where NVD lists releases of that
+// distribution: every kernel CVE stays a product finding at medium and none closes.
+func TestGolden_DistroRowNeverClosesKernelCVEs(t *testing.T) {
+	t.Parallel()
+	vulns := goldenVulns(t)
+	for _, tc := range []struct{ display, vendor, product, ver, os string }{
+		{"Ubuntu Linux", "Canonical", "Ubuntu Linux", "22.04", "Ubuntu 22.04.4 LTS"},
+		{"Debian Linux", "Debian", "Debian Linux", "12", ""},
+		{"CentOS / Rocky / AlmaLinux / RHEL", "Red Hat", "Enterprise Linux", "9.3", ""},
+	} {
+		sw := Software{ID: "s-os", Display: tc.display, Vendor: tc.vendor, Product: tc.product, Version: tc.ver, KevKeys: []string{"linux|kernel"}}
+		a := Asset{ID: "a", Name: "srv", OS: tc.os, Software: []Software{sw}}
+		flood := map[string]bool{}
+		for _, v := range vulns {
+			if keyedTo(sw, v) {
+				flood[v.CVE] = true
+			}
+		}
+		if len(flood) == 0 {
+			t.Fatalf("%s: no kernel CVE in the golden set", tc.display)
+		}
+		for name, have := range map[string]map[string]bool{"new": nil, "existing": flood} {
+			res := MatchAsset(a, vulns, have, t0)
+			got := append(slices.Clone(res.New), res.Existing...)
+			if len(res.NotAffected) != 0 || len(res.NeedVersion) != 0 || len(got) != len(flood) {
+				t.Fatalf("%s %s (%s): %d findings, %d closed, %d items; want %d findings, none closed", tc.display, tc.ver, name, len(got), len(res.NotAffected), len(res.NeedVersion), len(flood))
+			}
+			for _, m := range got {
+				if m.Basis != BasisProduct || m.Severity != SeverityMedium {
+					t.Errorf("%s %s (%s): %s basis %s severity %s, want product medium", tc.display, tc.ver, name, m.CVE, m.Basis, m.Severity)
+				}
+			}
+		}
+	}
+}

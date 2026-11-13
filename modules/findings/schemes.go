@@ -110,6 +110,13 @@ func osIdentity(os string) (identity, string) {
 // distroVendors publish operating-system releases; an NVD entry of theirs with part "o" names a release, not a program.
 var distroVendors = map[string]bool{"canonical": true, "debian": true, "redhat": true, "fedoraproject": true, "opensuse": true, "suse": true}
 
+// distroRelease reports whether configuration c names a release of an operating-system distribution
+// ("o:canonical:ubuntu_linux:22.04"), not a program.
+func distroRelease(c CPE) bool {
+	cv, ok := c.Vendor.Literal()
+	return ok && c.Part.Kind == Value && c.Part.Value == "o" && distroVendors[norm(cv)]
+}
+
 // osRulesOut reports whether an entry whose configurations are ALL operating-system releases (CVE-2021-3493 lists
 // only Ubuntu releases before 20.10 for a kernel bug) rules the device out: it lists releases of the device's own
 // distribution and its release is outside every one of them. An entry that lists only another distribution's

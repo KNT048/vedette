@@ -472,3 +472,25 @@ func TestMatchAsset_BuildTailAtBoundaryIsNotDropped(t *testing.T) {
 		t.Fatalf("the fixed build matched: %q", got)
 	}
 }
+
+// TestMatchAsset_KevKeyAloneProvesNothing: review N1 of #663. A software found only by its KEV key (its own name is
+// something else) with a version outside the range keeps a product finding and is never closed: the version may be of
+// another thing than the product the range is about.
+func TestMatchAsset_KevKeyAloneProvesNothing(t *testing.T) {
+	t.Parallel()
+	a := Asset{ID: "a-1", Name: "nas01", Software: []Software{
+		{ID: "s-1", Display: "QNAP NAS", Vendor: "QNAP", Product: "QTS", Version: "6.2.0", KevKeys: []string{"qnap|photo station"}},
+	}}
+	v := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})
+	for _, have := range []map[string]bool{nil, {v.CVE: true}} {
+		res := MatchAsset(a, []Vuln{v}, have, t0)
+		got := append(slices.Clone(res.New), res.Existing...)
+		if len(got) != 1 || got[0].Basis != BasisProduct || got[0].Severity != SeverityMedium || len(res.NotAffected) != 0 {
+			t.Fatalf("have %v: result = %+v", have, res)
+		}
+	}
+	a.Software[0].Product = "Photo Station" // its own name: now the range proves it
+	if res := MatchAsset(a, []Vuln{v}, map[string]bool{v.CVE: true}, t0); len(res.NotAffected) != 1 {
+		t.Fatalf("own name: result = %+v", res)
+	}
+}

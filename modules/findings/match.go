@@ -2,7 +2,6 @@ package findings
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -365,15 +364,18 @@ func newSWInfo(s Software, vulns []Vuln, osName string) swInfo {
 // version of the product (no range, version and update ANY, nothing pinned the software contradicts): then the answer
 // does not depend on the version, so a software without one is not sent to "add the version" (D-500).
 //
+// An entry applies when it names the software's own identity (its CPE, name or alias) or the KEV entry's own vendor
+// and product. Only the first can prove: a No on an entry found by the KEV key alone is Unknown, and so is any
+// answer from an entry that lists releases of a distribution the software itself is (a catalog "Ubuntu Linux 22.04"
+// row keyed to the kernel), because a release is not the version of the package the CVE is about (review N1).
+//
 // proof says what a No rests on (D-530): proofRange when every applicable entry rules the readable version out,
 // proofOS when the entry lists only releases of the device's own distribution and not its release, proofNone for the
 // "Multiple Products names other products only" rule, which depends on the alias list and proves nothing.
 func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bool, proof proofKind) {
-	ids := in.ids
-	if !multi {
-		if n := (identity{vendor: norm(v.Vendor), product: norm(v.Product)}); n.ok() {
-			ids = append(slices.Clip(ids), n)
-		}
+	var key []identity // the KEV entry's own vendor and product: it finds the entry, but a No on it alone proves nothing
+	if n := (identity{vendor: norm(v.Vendor), product: norm(v.Product)}); !multi && n.ok() {
+		key = []identity{n}
 	}
 	result := No
 	applicable, undecidable := false, false
@@ -383,8 +385,9 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 			undecidable = true // cannot tell which product this entry is about
 			continue
 		}
-		match, known := appliesTo(c, in.cpe, in.hasCPE, ids)
-		if !match {
+		own, known := appliesTo(c, in.cpe, in.hasCPE, in.ids)
+		byKey, _ := appliesTo(c, CPE{}, false, key)
+		if !own && !byKey {
 			undecidable = undecidable || !known
 			continue
 		}
@@ -392,6 +395,15 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 		t, r := evalAffected(c, af.Range, in.ver, in.cpe, in.hasCPE)
 		if t != No && af.Range.IsZero() && everyVersion(c) {
 			every = true
+		}
+		switch {
+		case !own && t == No:
+			t = Unknown // matched by the KEV key alone: the version may be of something else, so no proof (review N1)
+		case !byKey && distroRelease(c):
+			// The software is a distribution ("Ubuntu Linux 22.04", keyed to the kernel) and the entry lists releases
+			// of it that shipped an affected package: the release is not the version of that package, so it neither
+			// proves nor rules out (review N1; a kernel CVE stays a product finding, medium).
+			t = Unknown
 		}
 		switch t {
 		case Yes:

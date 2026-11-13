@@ -93,6 +93,21 @@ func (f Finding) AutoResolve(note string, now time.Time) (Finding, HistoryEntry,
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusNotRelevant), Note: note}, true
 }
 
+// reopenedByPerson reports whether a person reopened the finding after Vedette last closed it by itself (D-530,
+// review M-b of #663): the person overruled the proof, so the matcher never closes it again. hist is oldest first.
+func reopenedByPerson(hist []HistoryEntry) bool {
+	reopened := false
+	for i := len(hist) - 1; i >= 0; i-- {
+		switch h := hist[i]; {
+		case h.User == SystemUser && h.Action == string(StatusNotRelevant):
+			return reopened
+		case h.User != SystemUser && h.Action == "reopened":
+			reopened = true
+		}
+	}
+	return false
+}
+
 // ReopenOnMatch reopens a finding Vedette closed by itself when the matcher says the device matches again (D-530).
 func (f Finding) ReopenOnMatch(now time.Time) (Finding, HistoryEntry, bool) {
 	if !f.AutoResolved() {

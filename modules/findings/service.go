@@ -343,7 +343,8 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 // autoResolve closes the suspected findings the matcher proved not affected (D-530): status not_relevant by the system
 // user, reason not_affected_version, the matcher's sentence as note and history, audit findings.auto_resolved and a
 // findings.finding.status_changed event. Only a positive proof comes here (MatchResult.NotAffected): an unknown or
-// unreadable version, a scan-confirmed or a closed finding is never closed. Nothing is deleted.
+// unreadable version, a scan-confirmed or a closed finding is never closed, nor one a person reopened after Vedette
+// closed it. Nothing is deleted.
 func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, proved []Match, now time.Time, emit func(string, any)) error {
 	for _, p := range proved {
 		r, err := loadByPair(ctx, tx, assetID, p.CVE)
@@ -352,6 +353,9 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 		}
 		if err != nil {
 			return err
+		}
+		if reopenedByPerson(r.History) {
+			continue // a person reopened what Vedette closed: their call stands (review M-b)
 		}
 		was := r.Status
 		f, h, ok := r.AutoResolve(p.Evidence.Summary, now)

@@ -109,6 +109,32 @@ func TestContract_D530_OnlyAProofCloses(t *testing.T) {
 			t.Fatalf("%+v", r.Finding)
 		}
 	})
+	t.Run("a person's reopen of what Vedette closed stands (review M-b)", func(t *testing.T) {
+		t.Parallel()
+		e := newEnv(t)
+		for _, ver := range []string{"6.1.1", "6.2.0"} { // inside, then proved outside: Vedette closes it
+			if _, err := e.svc.UpsertFromMatch(t.Context(), nas(ver), ranged); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if r := open(t, e); !r.AutoResolved() {
+			t.Fatalf("not closed by Vedette: %+v", r.Finding)
+		}
+		if _, err := e.svc.SetStatus(t.Context(), open(t, e).ID, ActionReopen, "I think NVD is wrong", "admin@example.test"); err != nil {
+			t.Fatal(err)
+		}
+		for range 2 {
+			if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.2.0"), ranged); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if r := open(t, e); r.Status != StatusSuspected || r.ResolvedBy != "" {
+			t.Fatalf("closed again over the person's reopen: %+v", r.Finding)
+		}
+		if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.auto_resolved'`); n != 1 {
+			t.Fatalf("auto_resolved rows %d, want 1", n)
+		}
+	})
 	t.Run("a scan-confirmed finding is never closed by the version", func(t *testing.T) {
 		t.Parallel()
 		e := newEnv(t)

@@ -334,7 +334,8 @@
       },
       "outbound": {
         "move": "Talking to known-bad addresses",
-        "how": "Not a trap job: the Logs page matches SPAN metadata and syslog against the threat lists."
+        "how": "Not a trap job: the Logs page matches SPAN metadata and syslog against the threat lists.",
+        "howNoSpan": "Not a trap job: the Logs page matches syslog against the threat lists."
       },
       "endpoint": {
         "move": "Malware or tools running on a computer",

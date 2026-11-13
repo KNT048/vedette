@@ -118,6 +118,7 @@
     "bad": {
       "title": "Connections to bad IPs or domains",
       "description": "A device on your network connected to, or tried to reach, an address on a threat feed stored on the box. The box sees this in metadata from a SPAN or mirror port (DNS queries, TLS server names, HTTP host names, flows) or in syslog from a firewall, DNS server or proxy.",
+      "descriptionNoSpan": "A device on your network connected to, or tried to reach, an address on a threat feed stored on the box. The box sees this in syslog from a firewall, DNS server or proxy.",
       "caption": "Connections to bad IPs or domains",
       "col": {
         "last": "When",
@@ -143,7 +144,8 @@
         "span_flow": "SPAN: network flow",
         "syslog": "Syslog from {{name}}"
       },
-      "note": "SPAN rows come from metadata only: the box keeps names, addresses and counts, never the content of traffic. Add a mirror port under Devices, Scope and sensors."
+      "note": "SPAN rows come from metadata only: the box keeps names, addresses and counts, never the content of traffic. Add a mirror port under Devices, Scope and sensors.",
+      "noteKept": "SPAN rows come from metadata only: the box keeps names, addresses and counts, never the content of traffic."
     },
     "new": {
       "title": "New compared with {{days}} days ago",

@@ -17019,7 +17019,8 @@ type CoreGetCoreUpdatesOKRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that.
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+	// D-459).
 	Status CoreGetCoreUpdatesOKRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
@@ -17027,8 +17028,9 @@ type CoreGetCoreUpdatesOKRun struct {
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCoreGetCoreUpdatesOKRunStep `json:"step"`
 	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
-	// database), restart (a rollback never takes the helper back).
+	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
+	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
+	// takes the helper back).
 	Steps []CoreGetCoreUpdatesOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -17198,7 +17200,8 @@ func (s *CoreGetCoreUpdatesOKRunAction) UnmarshalText(data []byte) error {
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that.
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+// D-459).
 type CoreGetCoreUpdatesOKRunStatus string
 
 const (
@@ -20511,7 +20514,8 @@ type CorePatchCoreUpdatesOKRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that.
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+	// D-459).
 	Status CorePatchCoreUpdatesOKRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
@@ -20519,8 +20523,9 @@ type CorePatchCoreUpdatesOKRun struct {
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePatchCoreUpdatesOKRunStep `json:"step"`
 	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
-	// database), restart (a rollback never takes the helper back).
+	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
+	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
+	// takes the helper back).
 	Steps []CorePatchCoreUpdatesOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -20690,7 +20695,8 @@ func (s *CorePatchCoreUpdatesOKRunAction) UnmarshalText(data []byte) error {
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that.
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+// D-459).
 type CorePatchCoreUpdatesOKRunStatus string
 
 const (
@@ -27922,7 +27928,8 @@ type CorePostCoreUpdatesApplyOKRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that.
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+	// D-459).
 	Status CorePostCoreUpdatesApplyOKRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
@@ -27930,8 +27937,9 @@ type CorePostCoreUpdatesApplyOKRun struct {
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesApplyOKRunStep `json:"step"`
 	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
-	// database), restart (a rollback never takes the helper back).
+	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
+	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
+	// takes the helper back).
 	Steps []CorePostCoreUpdatesApplyOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -28101,7 +28109,8 @@ func (s *CorePostCoreUpdatesApplyOKRunAction) UnmarshalText(data []byte) error {
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that.
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+// D-459).
 type CorePostCoreUpdatesApplyOKRunStatus string
 
 const (
@@ -29477,7 +29486,8 @@ type CorePostCoreUpdatesBundleOKStateRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that.
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+	// D-459).
 	Status CorePostCoreUpdatesBundleOKStateRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
@@ -29485,8 +29495,9 @@ type CorePostCoreUpdatesBundleOKStateRun struct {
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesBundleOKStateRunStep `json:"step"`
 	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
-	// database), restart (a rollback never takes the helper back).
+	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
+	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
+	// takes the helper back).
 	Steps []CorePostCoreUpdatesBundleOKStateRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -29656,7 +29667,8 @@ func (s *CorePostCoreUpdatesBundleOKStateRunAction) UnmarshalText(data []byte) e
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that.
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+// D-459).
 type CorePostCoreUpdatesBundleOKStateRunStatus string
 
 const (
@@ -31053,7 +31065,8 @@ type CorePostCoreUpdatesCheckOKRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that.
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+	// D-459).
 	Status CorePostCoreUpdatesCheckOKRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
@@ -31061,8 +31074,9 @@ type CorePostCoreUpdatesCheckOKRun struct {
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesCheckOKRunStep `json:"step"`
 	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
-	// database), restart (a rollback never takes the helper back).
+	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
+	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
+	// takes the helper back).
 	Steps []CorePostCoreUpdatesCheckOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -31232,7 +31246,8 @@ func (s *CorePostCoreUpdatesCheckOKRunAction) UnmarshalText(data []byte) error {
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that.
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+// D-459).
 type CorePostCoreUpdatesCheckOKRunStatus string
 
 const (
@@ -33834,7 +33849,8 @@ type CorePostCoreUpdatesRollbackOKRun struct {
 	ID        string    `json:"id"`
 	StartedAt time.Time `json:"started_at"`
 	// Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-	// before or without that.
+	// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+	// D-459).
 	Status CorePostCoreUpdatesRollbackOKRunStatus `json:"status"`
 	// One of steps while running; null when ended. host: update the system helper vedette-host (Vedette
 	// keeps running; a step that does not succeed ends the run before any image changes); download: fetch
@@ -33842,8 +33858,9 @@ type CorePostCoreUpdatesRollbackOKRun struct {
 	// the update; restart: Vedette itself restarts (the page loses its connection for a moment).
 	Step NilCorePostCoreUpdatesRollbackOKRunStep `json:"step"`
 	// The steps of this run in order: update = host (only when the release brings a newer system helper,
-	// D-316), download, start, restart; rollback = start, then restore (only when it puts back the
-	// database), restart (a rollback never takes the helper back).
+	// D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459);
+	// rollback = start, then restore (only when it puts back the database), restart (a rollback never
+	// takes the helper back).
 	Steps []CorePostCoreUpdatesRollbackOKRunStepsItem `json:"steps"`
 	// Release the run installs (update) or goes back to (rollback).
 	To string `json:"to"`
@@ -34013,7 +34030,8 @@ func (s *CorePostCoreUpdatesRollbackOKRunAction) UnmarshalText(data []byte) erro
 }
 
 // Reverted: the target was not healthy and the box went back to "from" by itself; failed: it stopped
-// before or without that.
+// before or without that (an update that fails after Vedette itself switched leaves Vedette on "to",
+// D-459).
 type CorePostCoreUpdatesRollbackOKRunStatus string
 
 const (
@@ -65359,9 +65377,12 @@ func (s *InventoryGetInventoryAgentsOK) SetWazuh(val NilInventoryGetInventoryAge
 }
 
 type InventoryGetInventoryAgentsOKInstall struct {
-	Linux          InventoryGetInventoryAgentsOKInstallLinux   `json:"linux"`
-	OsqueryVersion string                                      `json:"osquery_version"`
-	Windows        InventoryGetInventoryAgentsOKInstallWindows `json:"windows"`
+	Linux          InventoryGetInventoryAgentsOKInstallLinux `json:"linux"`
+	OsqueryVersion string                                    `json:"osquery_version"`
+	// The osquery packages this box serves (D-404); empty when it has no copy (a development build without
+	// the mirror).
+	Packages []InventoryGetInventoryAgentsOKInstallPackagesItem `json:"packages"`
+	Windows  InventoryGetInventoryAgentsOKInstallWindows        `json:"windows"`
 }
 
 // GetLinux returns the value of Linux.
@@ -65372,6 +65393,11 @@ func (s *InventoryGetInventoryAgentsOKInstall) GetLinux() InventoryGetInventoryA
 // GetOsqueryVersion returns the value of OsqueryVersion.
 func (s *InventoryGetInventoryAgentsOKInstall) GetOsqueryVersion() string {
 	return s.OsqueryVersion
+}
+
+// GetPackages returns the value of Packages.
+func (s *InventoryGetInventoryAgentsOKInstall) GetPackages() []InventoryGetInventoryAgentsOKInstallPackagesItem {
+	return s.Packages
 }
 
 // GetWindows returns the value of Windows.
@@ -65387,6 +65413,11 @@ func (s *InventoryGetInventoryAgentsOKInstall) SetLinux(val InventoryGetInventor
 // SetOsqueryVersion sets the value of OsqueryVersion.
 func (s *InventoryGetInventoryAgentsOKInstall) SetOsqueryVersion(val string) {
 	s.OsqueryVersion = val
+}
+
+// SetPackages sets the value of Packages.
+func (s *InventoryGetInventoryAgentsOKInstall) SetPackages(val []InventoryGetInventoryAgentsOKInstallPackagesItem) {
+	s.Packages = val
 }
 
 // SetWindows sets the value of Windows.
@@ -65430,6 +65461,209 @@ func (s *InventoryGetInventoryAgentsOKInstallLinux) SetSHA256(val string) {
 // SetURL sets the value of URL.
 func (s *InventoryGetInventoryAgentsOKInstallLinux) SetURL(val string) {
 	s.URL = val
+}
+
+type InventoryGetInventoryAgentsOKInstallPackagesItem struct {
+	Arch InventoryGetInventoryAgentsOKInstallPackagesItemArch `json:"arch"`
+	// File name; the browser downloads it from /api/v1/install/osquery/{file} (D-404).
+	File     string                                                   `json:"file"`
+	Format   InventoryGetInventoryAgentsOKInstallPackagesItemFormat   `json:"format"`
+	Platform InventoryGetInventoryAgentsOKInstallPackagesItemPlatform `json:"platform"`
+	// SHA-256 (lowercase hex) from the box's SHA256SUMS, which the core build writes from
+	// deploy/osquery/PINS.
+	SHA256 string `json:"sha256"`
+	// Bytes.
+	Size int `json:"size"`
+}
+
+// GetArch returns the value of Arch.
+func (s *InventoryGetInventoryAgentsOKInstallPackagesItem) GetArch() InventoryGetInventoryAgentsOKInstallPackagesItemArch {
+	return s.Arch
+}
+
+// GetFile returns the value of File.
+func (s *InventoryGetInventoryAgentsOKInstallPackagesItem) GetFile() string {
+	return s.File
+}
+
+// GetFormat returns the value of Format.
+func (s *InventoryGetInventoryAgentsOKInstallPackagesItem) GetFormat() InventoryGetInventoryAgentsOKInstallPackagesItemFormat {
+	return s.Format
+}
+
+// GetPlatform returns the value of Platform.
+func (s *InventoryGetInventoryAgentsOKInstallPackagesItem) GetPlatform() InventoryGetInventoryAgentsOKInstallPackagesItemPlatform {
+	return s.Platform
+}
+
+// GetSHA256 returns the value of SHA256.
+func (s *InventoryGetInventoryAgentsOKInstallPackagesItem) GetSHA256() string {
+	return s.SHA256
+}
+
+// GetSize returns the value of Size.
+func (s *InventoryGetInventoryAgentsOKInstallPackagesItem) GetSize() int {
+	return s.Size
+}
+
+// SetArch sets the value of Arch.
+func (s *InventoryGetInventoryAgentsOKInstallPackagesItem) SetArch(val InventoryGetInventoryAgentsOKInstallPackagesItemArch) {
+	s.Arch = val
+}
+
+// SetFile sets the value of File.
+func (s *InventoryGetInventoryAgentsOKInstallPackagesItem) SetFile(val string) {
+	s.File = val
+}
+
+// SetFormat sets the value of Format.
+func (s *InventoryGetInventoryAgentsOKInstallPackagesItem) SetFormat(val InventoryGetInventoryAgentsOKInstallPackagesItemFormat) {
+	s.Format = val
+}
+
+// SetPlatform sets the value of Platform.
+func (s *InventoryGetInventoryAgentsOKInstallPackagesItem) SetPlatform(val InventoryGetInventoryAgentsOKInstallPackagesItemPlatform) {
+	s.Platform = val
+}
+
+// SetSHA256 sets the value of SHA256.
+func (s *InventoryGetInventoryAgentsOKInstallPackagesItem) SetSHA256(val string) {
+	s.SHA256 = val
+}
+
+// SetSize sets the value of Size.
+func (s *InventoryGetInventoryAgentsOKInstallPackagesItem) SetSize(val int) {
+	s.Size = val
+}
+
+type InventoryGetInventoryAgentsOKInstallPackagesItemArch string
+
+const (
+	InventoryGetInventoryAgentsOKInstallPackagesItemArchX8664 InventoryGetInventoryAgentsOKInstallPackagesItemArch = "x86_64"
+	InventoryGetInventoryAgentsOKInstallPackagesItemArchArm64 InventoryGetInventoryAgentsOKInstallPackagesItemArch = "arm64"
+)
+
+// AllValues returns all InventoryGetInventoryAgentsOKInstallPackagesItemArch values.
+func (InventoryGetInventoryAgentsOKInstallPackagesItemArch) AllValues() []InventoryGetInventoryAgentsOKInstallPackagesItemArch {
+	return []InventoryGetInventoryAgentsOKInstallPackagesItemArch{
+		InventoryGetInventoryAgentsOKInstallPackagesItemArchX8664,
+		InventoryGetInventoryAgentsOKInstallPackagesItemArchArm64,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryAgentsOKInstallPackagesItemArch) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryAgentsOKInstallPackagesItemArchX8664:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsOKInstallPackagesItemArchArm64:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryAgentsOKInstallPackagesItemArch) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryAgentsOKInstallPackagesItemArch(data) {
+	case InventoryGetInventoryAgentsOKInstallPackagesItemArchX8664:
+		*s = InventoryGetInventoryAgentsOKInstallPackagesItemArchX8664
+		return nil
+	case InventoryGetInventoryAgentsOKInstallPackagesItemArchArm64:
+		*s = InventoryGetInventoryAgentsOKInstallPackagesItemArchArm64
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryAgentsOKInstallPackagesItemFormat string
+
+const (
+	InventoryGetInventoryAgentsOKInstallPackagesItemFormatDeb InventoryGetInventoryAgentsOKInstallPackagesItemFormat = "deb"
+	InventoryGetInventoryAgentsOKInstallPackagesItemFormatRpm InventoryGetInventoryAgentsOKInstallPackagesItemFormat = "rpm"
+	InventoryGetInventoryAgentsOKInstallPackagesItemFormatMsi InventoryGetInventoryAgentsOKInstallPackagesItemFormat = "msi"
+)
+
+// AllValues returns all InventoryGetInventoryAgentsOKInstallPackagesItemFormat values.
+func (InventoryGetInventoryAgentsOKInstallPackagesItemFormat) AllValues() []InventoryGetInventoryAgentsOKInstallPackagesItemFormat {
+	return []InventoryGetInventoryAgentsOKInstallPackagesItemFormat{
+		InventoryGetInventoryAgentsOKInstallPackagesItemFormatDeb,
+		InventoryGetInventoryAgentsOKInstallPackagesItemFormatRpm,
+		InventoryGetInventoryAgentsOKInstallPackagesItemFormatMsi,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryAgentsOKInstallPackagesItemFormat) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryAgentsOKInstallPackagesItemFormatDeb:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsOKInstallPackagesItemFormatRpm:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsOKInstallPackagesItemFormatMsi:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryAgentsOKInstallPackagesItemFormat) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryAgentsOKInstallPackagesItemFormat(data) {
+	case InventoryGetInventoryAgentsOKInstallPackagesItemFormatDeb:
+		*s = InventoryGetInventoryAgentsOKInstallPackagesItemFormatDeb
+		return nil
+	case InventoryGetInventoryAgentsOKInstallPackagesItemFormatRpm:
+		*s = InventoryGetInventoryAgentsOKInstallPackagesItemFormatRpm
+		return nil
+	case InventoryGetInventoryAgentsOKInstallPackagesItemFormatMsi:
+		*s = InventoryGetInventoryAgentsOKInstallPackagesItemFormatMsi
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryAgentsOKInstallPackagesItemPlatform string
+
+const (
+	InventoryGetInventoryAgentsOKInstallPackagesItemPlatformLinux   InventoryGetInventoryAgentsOKInstallPackagesItemPlatform = "linux"
+	InventoryGetInventoryAgentsOKInstallPackagesItemPlatformWindows InventoryGetInventoryAgentsOKInstallPackagesItemPlatform = "windows"
+)
+
+// AllValues returns all InventoryGetInventoryAgentsOKInstallPackagesItemPlatform values.
+func (InventoryGetInventoryAgentsOKInstallPackagesItemPlatform) AllValues() []InventoryGetInventoryAgentsOKInstallPackagesItemPlatform {
+	return []InventoryGetInventoryAgentsOKInstallPackagesItemPlatform{
+		InventoryGetInventoryAgentsOKInstallPackagesItemPlatformLinux,
+		InventoryGetInventoryAgentsOKInstallPackagesItemPlatformWindows,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryAgentsOKInstallPackagesItemPlatform) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryAgentsOKInstallPackagesItemPlatformLinux:
+		return []byte(s), nil
+	case InventoryGetInventoryAgentsOKInstallPackagesItemPlatformWindows:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryAgentsOKInstallPackagesItemPlatform) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryAgentsOKInstallPackagesItemPlatform(data) {
+	case InventoryGetInventoryAgentsOKInstallPackagesItemPlatformLinux:
+		*s = InventoryGetInventoryAgentsOKInstallPackagesItemPlatformLinux
+		return nil
+	case InventoryGetInventoryAgentsOKInstallPackagesItemPlatformWindows:
+		*s = InventoryGetInventoryAgentsOKInstallPackagesItemPlatformWindows
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryGetInventoryAgentsOKInstallWindows struct {

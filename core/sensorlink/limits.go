@@ -12,7 +12,14 @@ import (
 const (
 	ProtoHeader  = "X-Vedette-Proto"
 	ProtoVersion = "4" // 4: capture_error in the passive heartbeat (D-399); 3: host_errors on a nuclei result (D-165); 2: nuclei jobs (D-133)
-	PathPrefix   = "/sensor/v1"
+	// ProtoPrevious is the one older protocol core still takes (D-459): a sensor or scan worker one protocol behind core, while
+	// an update runs (core switches first) and after a sensor's switch that went back by itself. Never a newer one, never two
+	// behind. A bump sets it to the old ProtoVersion (TestProtoPreviousIsOneBelow) and must keep core able to serve that peer:
+	// what the new protocol adds to a request is optional (absent = the old meaning). A bump that changes a reply core sends
+	// must first add what does not exist yet: the request's protocol passed to the handler and the old shape sent to a
+	// ProtoPrevious peer, with a test. 4 over 3 only added capture_error to a request, so nothing differs in core's replies.
+	ProtoPrevious = "3"
+	PathPrefix    = "/sensor/v1"
 
 	MaxObservationsBody = 1 << 20
 	MaxHeartbeatBody    = 64 << 10

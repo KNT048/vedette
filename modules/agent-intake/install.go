@@ -251,22 +251,104 @@ const (
 	mirrorMaxTime      = 10 * time.Minute // and none keeps a slot longer than this
 )
 
-type mirrorFile struct{ name, contentType string }
+// mirrorFile is one file of the mirror: its fixed name, the type it is served with (D-404: the IANA-registered type of a .deb, else
+// application/octet-stream; SHA256SUMS is text) and, for a package, what the agent dialog lists it as.
+type mirrorFile struct {
+	name, contentType string
+	platform          oas.InventoryGetInventoryAgentsOKInstallPackagesItemPlatform
+	format            oas.InventoryGetInventoryAgentsOKInstallPackagesItemFormat
+	arch              oas.InventoryGetInventoryAgentsOKInstallPackagesItemArch
+}
+
+const (
+	linux, windows = oas.InventoryGetInventoryAgentsOKInstallPackagesItemPlatformLinux, oas.InventoryGetInventoryAgentsOKInstallPackagesItemPlatformWindows
+	deb, rpm, msi  = oas.InventoryGetInventoryAgentsOKInstallPackagesItemFormatDeb, oas.InventoryGetInventoryAgentsOKInstallPackagesItemFormatRpm, oas.InventoryGetInventoryAgentsOKInstallPackagesItemFormatMsi
+	x8664, arm64   = oas.InventoryGetInventoryAgentsOKInstallPackagesItemArchX8664, oas.InventoryGetInventoryAgentsOKInstallPackagesItemArchArm64
+	debType        = "application/vnd.debian.binary-package"
+	binType        = "application/octet-stream"
+)
+
+// mirrorPackages are the five packages in the order the agent dialog lists them.
+var mirrorPackages = []mirrorFile{
+	{"osquery_" + OsqueryVersion + "-1.linux_amd64.deb", debType, linux, deb, x8664},
+	{"osquery_" + OsqueryVersion + "-1.linux_arm64.deb", debType, linux, deb, arm64}, // D-399
+	{"osquery-" + OsqueryVersion + "-1.linux.x86_64.rpm", binType, linux, rpm, x8664},
+	{"osquery-" + OsqueryVersion + "-1.linux.aarch64.rpm", binType, linux, rpm, arm64},
+	{"osquery-" + OsqueryVersion + ".msi", binType, windows, msi, x8664},
+}
 
 var mirrorFiles = func() map[string]mirrorFile {
-	m := map[string]mirrorFile{}
-	for _, f := range []mirrorFile{
-		{"osquery_" + OsqueryVersion + "-1.linux_amd64.deb", "application/octet-stream"},
-		{"osquery-" + OsqueryVersion + "-1.linux.x86_64.rpm", "application/octet-stream"},
-		{"osquery_" + OsqueryVersion + "-1.linux_arm64.deb", "application/octet-stream"}, // D-399
-		{"osquery-" + OsqueryVersion + "-1.linux.aarch64.rpm", "application/octet-stream"},
-		{"osquery-" + OsqueryVersion + ".msi", "application/octet-stream"},
-		{mirrorSums, "text/plain; charset=utf-8"},
-	} {
+	m := map[string]mirrorFile{mirrorSums: {name: mirrorSums, contentType: "text/plain; charset=utf-8"}}
+	for _, f := range mirrorPackages {
 		m[f.name] = f
 	}
 	return m
 }()
+
+// maxSums bounds the read of SHA256SUMS (five lines of about 100 bytes).
+const maxSums = 4 << 10
+
+// packages lists the packages the box can serve, for the agent dialog (D-404): each file of mirrorPackages that is in the folder and has a
+// line in the folder's SHA256SUMS, with its size and that SHA-256. The files are not hashed here (137 MB per page load): SHA256SUMS is
+// what the core build wrote from deploy/osquery/PINS after checking each file. A missing folder, SHA256SUMS or file leaves the package out
+// (empty list: the dialog says the box has no copy), with the mirror's once-a-minute WARN line.
+func (s *Service) packages(ctx context.Context) []oas.InventoryGetInventoryAgentsOKInstallPackagesItem {
+	out := []oas.InventoryGetInventoryAgentsOKInstallPackagesItem{}
+	if s.cfg.MirrorDir == "" {
+		return out
+	}
+	sums, err := readSums(s.cfg.MirrorDir)
+	if err != nil {
+		if s.warnDue(time.Minute, "mirror:sums") {
+			s.cfg.Log.WarnContext(ctx, "agent-intake: the osquery SHA256SUMS cannot be read; the agent dialog lists no package", "dir", s.cfg.MirrorDir, "error", err)
+		}
+		return out
+	}
+	for _, f := range mirrorPackages {
+		h, ok := sums[f.name]
+		size, err := statIn(s.cfg.MirrorDir, f.name)
+		if !ok || err != nil {
+			if s.warnDue(time.Minute, "mirror:package:"+f.name) {
+				s.cfg.Log.WarnContext(ctx, "agent-intake: an osquery package or its SHA256SUMS line is missing; the agent dialog leaves it out", "file", f.name, "in_sums", ok, "error", err)
+			}
+			continue
+		}
+		out = append(out, oas.InventoryGetInventoryAgentsOKInstallPackagesItem{File: f.name, Platform: f.platform, Format: f.format, Arch: f.arch, Size: int(size), SHA256: h})
+	}
+	return out
+}
+
+var sumLineRE = regexp.MustCompile(`^([0-9a-f]{64}) [ *](\S+)$`)
+
+// readSums reads SHA256SUMS of the folder (`sha256sum` format) into name → hash, keeping only well-formed lines; at most maxSums bytes.
+func readSums(dir string) (map[string]string, error) {
+	f, _, err := openIn(dir, mirrorSums)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = f.Close() }()
+	b, err := io.ReadAll(io.LimitReader(f, maxSums))
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", mirrorSums, err)
+	}
+	m := map[string]string{}
+	for line := range strings.SplitSeq(string(b), "\n") {
+		if g := sumLineRE.FindStringSubmatch(strings.TrimSuffix(line, "\r")); g != nil {
+			m[g[2]] = g[1]
+		}
+	}
+	return m, nil
+}
+
+// statIn is the size of the regular file name inside dir (os.Root: a link out of the folder is not followed).
+func statIn(dir, name string) (int64, error) {
+	f, size, err := openIn(dir, name)
+	if err != nil {
+		return 0, err
+	}
+	_ = f.Close()
+	return size, nil
+}
 
 // InventoryGetInstallOsqueryFile implements GET /install/osquery/{file}: one of the six files of the image, streamed with its length.
 func (h *InstallHandlers) InventoryGetInstallOsqueryFile(ctx context.Context, params oas.InventoryGetInstallOsqueryFileParams) (oas.InventoryGetInstallOsqueryFileOK, error) {
@@ -298,6 +380,7 @@ func (h *InstallHandlers) InventoryGetInstallOsqueryFile(ctx context.Context, pa
 	hd := x.W.Header()
 	hd.Set("Content-Length", strconv.FormatInt(size, 10))
 	hd.Set("Cache-Control", "public, max-age=3600")
+	hd.Set("Content-Disposition", `attachment; filename="`+f.name+`"`) // D-404: saved under its own name, never shown; f.name is a fixed table value
 	x.SetContentType(f.contentType)
 	return oas.InventoryGetInstallOsqueryFileOK{Data: &mirrorBody{f: file, rc: http.NewResponseController(x.W), start: time.Now(), release: release, chunkWait: s.chunkWait, maxTime: s.maxDownload}}, nil
 }
@@ -331,7 +414,7 @@ func (s *Service) takeMirrorSlot(key string) (release func(), ok bool) {
 }
 
 func missingMirror() *apierr.Error {
-	return apierr.New(404, "mirror_missing", "This box has no copy of the osquery packages (a development build, or an install without them). Update Vedette to the release, or install osquery with the manual steps.")
+	return apierr.New(404, "mirror_missing", "This box has no copy of the osquery packages (a development build, or an install without them). Update Vedette to the release.")
 }
 
 // openMirror opens the named file of the mirror folder inside the folder only (os.Root refuses a name that leaves it, a link included) and

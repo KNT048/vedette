@@ -6,17 +6,23 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
 	"debug/buildinfo"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/internal/jsonstrict"
 	"github.com/knt048/vedette/internal/release"
 )
 
@@ -43,7 +49,80 @@ type gatesOpts struct {
 	DebDir      string        // where make host-deb wrote the two packages
 	Repo        string        // git repository root
 	Rules       BinaryRules
-	Preflight   bool // only the version, floor and tree checks (make runs them before the long scans)
+	Preflight   bool   // only the version, floor and tree checks (make runs them before the long scans); writes nothing
+	Out         string // where the final run writes gates.json, the record push and in compare with (dist/release)
+	VulnDir     string // where make vuln-scan RELEASE=1 wrote the trivy reports <local>-<arch>.json (dist/vuln)
+	SBOMDir     string // where make sbom RELEASE=1 wrote <local>-<arch>.cdx.json (dist/sbom)
+}
+
+// checkVulnReport refuses a trivy JSON report (rel, inside dir) that is missing, not a regular file reached without a symlink, or not
+// of the image whose config digest is config: trivy's Metadata.ImageID, the value it also writes as the SBOM's
+// aquasecurity:trivy:ImageID (checkSBOM; measured there on an OCI layout as podman's image ID).
+func checkVulnReport(dir, rel, config string) error {
+	if err := noSymlinks(dir, rel); err != nil {
+		return fmt.Errorf("vulnerability report %s: %w", rel, err)
+	}
+	p := filepath.Join(dir, rel)
+	fi, err := os.Lstat(p)
+	if err != nil {
+		return fmt.Errorf("vulnerability report: %w (make vuln-scan RELEASE=1 IMAGE_TAG=<version> writes it)", err)
+	}
+	if !fi.Mode().IsRegular() {
+		return fmt.Errorf("vulnerability report %s is not a regular file", p)
+	}
+	raw, err := readSmall(p, maxSBOM)
+	if err != nil {
+		return err
+	}
+	var rep struct {
+		Metadata struct {
+			ImageID string `json:"ImageID"`
+		} `json:"Metadata"`
+	}
+	if err := json.Unmarshal(raw, &rep); err != nil {
+		return fmt.Errorf("vulnerability report %s is not trivy JSON: %w", p, err)
+	}
+	if rep.Metadata.ImageID != config {
+		return fmt.Errorf("vulnerability report %s is of image %q, not %s", p, rep.Metadata.ImageID, config)
+	}
+	return nil
+}
+
+// gatesFile is the record of a passed `release gates` run, next to images.json: what push and in ship must be what it names.
+const gatesFile = "gates.json"
+
+// GatesDoc is <out>/gates.json: exactly what the final `release gates` run checked. `release push` refuses a local list whose platform
+// images are not these, `release in` a .deb whose bytes are not these, so a make images / make host-deb run after step 3 is caught.
+type GatesDoc struct {
+	Version     string       `json:"version"`
+	MinSequence string       `json:"min_sequence"`
+	Debs        []GatedDeb   `json:"debs"`
+	Images      []GatedImage `json:"images"`
+}
+
+// GatedDeb is one package the gates checked: its file name then (nfpm's ~ spelling until release-deb-name renames it; the bytes are
+// what counts), SHA-256 (hex) and size.
+type GatedDeb struct {
+	Arch   string `json:"arch"`
+	File   string `json:"file"`
+	SHA256 string `json:"sha256"`
+	Size   int64  `json:"size"`
+}
+
+// GatedImage is one local list of publishedImages and the identity of each of its platform images.
+type GatedImage struct {
+	Service   string          `json:"service"`
+	Local     string          `json:"local"`
+	Platforms []GatedPlatform `json:"platforms"`
+}
+
+// GatedPlatform identifies a platform image by its config digest (podman's image ID, localPlatform.Config). Chosen over the local
+// manifest digest because it is the identity the rest of the chain already uses: push compares it with a list already in the
+// registry, images.json records it, and part C requires the SBOM's trivy ImageID to equal it. A re-read of the same local list gives
+// the same ID; a rebuild gives another one, except a bit-for-bit identical rebuild (same layers, same config), which is the same image.
+type GatedPlatform struct {
+	Platform string `json:"platform"`
+	Config   string `json:"config"`
 }
 
 // gatesPreflight refuses a version that is not a release, a floor that is not the sequence of the published index (0 only without
@@ -83,8 +162,17 @@ func gatesPreflight(ctx context.Context, run runFunc, o gatesOpts) error {
 
 // Gates runs, in order and stopping at the first failure: check-binaries -release on the vedette-host inside each .deb; the
 // version label of every platform of the four local lists (and core's floor label); the floor of each .deb, by building it again
-// from this tree with MinSequence and comparing the bytes (the .deb is reproducible: SOURCE_DATE_EPOCH, -trimpath).
+// from this tree with MinSequence and comparing the bytes (the .deb is reproducible: SOURCE_DATE_EPOCH, -trimpath). Only when all
+// passed does it write <Out>/gates.json (GatesDoc); a record left by an earlier run is removed first, so a failed run leaves none.
 func Gates(ctx context.Context, run runFunc, o gatesOpts, stdout io.Writer) error {
+	if !o.Preflight {
+		if o.Out == "" {
+			return errors.New("no -out: the directory of gates.json (dist/release)")
+		}
+		if err := os.Remove(filepath.Join(o.Out, gatesFile)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("remove the earlier gates record: %w", err)
+		}
+	}
 	if err := gatesPreflight(ctx, run, o); err != nil {
 		return err
 	}
@@ -92,6 +180,7 @@ func Gates(ctx context.Context, run runFunc, o gatesOpts, stdout io.Writer) erro
 		say(stdout, "ok: %s is a release version, the floor is %s and the tree is the clean tag v%s", o.Version, o.MinSequence, o.Version)
 		return nil
 	}
+	rec := &GatesDoc{Version: o.Version, MinSequence: o.MinSequence}
 	debs := make([]string, len(debArchs))
 	for i, arch := range debArchs {
 		deb, err := shippedDeb(o.DebDir, o.Version, arch)
@@ -114,23 +203,212 @@ func Gates(ctx context.Context, run runFunc, o gatesOpts, stdout io.Writer) erro
 		if err != nil {
 			return err
 		}
+		gi := GatedImage{Service: im.service, Local: im.local}
 		for _, p := range lp {
+			gi.Platforms = append(gi.Platforms, GatedPlatform{Platform: p.Platform, Config: p.Config})
 			if p.Version != o.Version {
 				return fmt.Errorf("%s %s has label %s=%q, not %s: build with make images IMAGE_TAG=%s IMAGE_VERSION=%s RELEASE_PREV_INDEX=<prev> (MIN_SEQUENCE=0 for the very first release only)", name, p.Platform, versionLabel, p.Version, o.Version, o.Version, o.Version)
 			}
 			if im.local == "core" && p.MinSequence != o.MinSequence {
 				return fmt.Errorf("%s %s was built with MIN_SEQUENCE %q (label %s), the release floor is %s: build the images again with make images IMAGE_TAG=%s IMAGE_VERSION=%s RELEASE_PREV_INDEX=<prev> (MIN_SEQUENCE=0 for the very first release only)", name, p.Platform, p.MinSequence, minSequenceLabel, o.MinSequence, o.Version, o.Version)
 			}
+			// vuln-scan and sbom read the lists minutes before this: the record names only images they scanned
+			base := im.local + "-" + strings.TrimPrefix(p.Platform, "linux/")
+			if err := checkVulnReport(o.VulnDir, base+".json", p.Config); err != nil {
+				return fmt.Errorf("%s %s: %w; run make release-gates again (the images changed during the scans?)", name, p.Platform, err)
+			}
+			if err := checkSBOM(o.SBOMDir, base+".cdx.json", p.Config); err != nil {
+				return fmt.Errorf("%s %s: %w; run make release-gates again (the images changed during the scans?)", name, p.Platform, err)
+			}
 		}
+		rec.Images = append(rec.Images, gi)
 		say(stdout, "ok: %s: %s=%s on %s%s", name, versionLabel, o.Version, strings.Join(o.Platforms, ", "), map[bool]string{true: ", floor " + o.MinSequence}[im.local == "core"])
 	}
 	for i, arch := range debArchs {
-		if err := sameAsRebuilt(ctx, run, o, arch, debs[i]); err != nil {
+		sum, size, err := sameAsRebuilt(ctx, run, o, arch, debs[i])
+		if err != nil {
 			return err
 		}
+		rec.Debs = append(rec.Debs, GatedDeb{Arch: arch, File: filepath.Base(debs[i]), SHA256: sum, Size: size})
 		say(stdout, "ok: %s is what this commit builds with MIN_SEQUENCE=%s", debs[i], o.MinSequence)
 	}
+	p, err := writeGates(o.Out, rec)
+	if err != nil {
+		return err
+	}
+	say(stdout, "wrote %s: release-push, release-in and release-manifest ship only these images and packages", p)
 	return nil
+}
+
+// writeGates writes the record atomically (a temporary file in dir, then rename), mode 0644 like images.json.
+func writeGates(dir string, g *GatesDoc) (string, error) {
+	b, err := marshal(g)
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil { //nolint:gosec // build output, not secret
+		return "", err
+	}
+	f, err := os.CreateTemp(dir, ".gates-*.json")
+	if err != nil {
+		return "", err
+	}
+	tmp := f.Name()
+	defer func() { _ = os.Remove(tmp) }() // nothing left after the rename
+	_, err = f.Write(b)
+	if err == nil {
+		err = f.Chmod(0o644)
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		return "", err
+	}
+	p := filepath.Join(dir, gatesFile)
+	return p, os.Rename(tmp, p)
+}
+
+// readGates reads the record strictly (like readImages): known fields only, both packages and every image of publishedImages
+// exactly once, well-formed digests. A missing record is refused: push and in ship only what the gates checked.
+func readGates(p string) (*GatesDoc, error) {
+	raw, err := readSmall(p, 64<<10)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("no gates record %s: run make release-gates (step 3) first; release-push, release-in and release-manifest ship only what it checked", p)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("gates record: %w", err)
+	}
+	var g GatesDoc
+	if err := jsonstrict.Decode(raw, &g); err != nil {
+		return nil, fmt.Errorf("%s: %w", p, err)
+	}
+	if _, err := release.CompareVersions(g.Version, g.Version); err != nil {
+		return nil, fmt.Errorf("%s: version %q is not SemVer", p, g.Version)
+	}
+	if n, err := strconv.ParseUint(g.MinSequence, 10, 64); err != nil || strconv.FormatUint(n, 10) != g.MinSequence {
+		return nil, fmt.Errorf("%s: min_sequence %q is not a plain decimal number", p, g.MinSequence)
+	}
+	if len(g.Debs) != len(debArchs) {
+		return nil, fmt.Errorf("%s lists %d packages, a release has %d", p, len(g.Debs), len(debArchs))
+	}
+	for _, d := range g.Debs {
+		if !slices.Contains(debArchs, d.Arch) {
+			return nil, fmt.Errorf("%s: unknown package arch %q", p, d.Arch)
+		}
+		if n := countFunc(g.Debs, func(o GatedDeb) bool { return o.Arch == d.Arch }); n != 1 {
+			return nil, fmt.Errorf("%s: package %s is listed %d times", p, d.Arch, n)
+		}
+		if d.File == "" || d.File != filepath.Base(d.File) || !sha256HexRE.MatchString(d.SHA256) || d.Size <= 0 {
+			return nil, fmt.Errorf("%s: package %s has a malformed file name, sha256 or size", p, d.Arch)
+		}
+	}
+	if len(g.Images) != len(publishedImages) {
+		return nil, fmt.Errorf("%s lists %d images, a release has %d", p, len(g.Images), len(publishedImages))
+	}
+	for _, im := range g.Images {
+		if localName(im.Service) == "" || localName(im.Service) != im.Local {
+			return nil, fmt.Errorf("%s: unknown image %q (local %q)", p, im.Service, im.Local)
+		}
+		if n := countFunc(g.Images, func(o GatedImage) bool { return o.Service == im.Service }); n != 1 {
+			return nil, fmt.Errorf("%s: image %s is listed %d times", p, im.Service, n)
+		}
+		if len(im.Platforms) == 0 {
+			return nil, fmt.Errorf("%s: image %s has no platform", p, im.Service)
+		}
+		for _, pl := range im.Platforms {
+			if !platformRE.MatchString(pl.Platform) || !serviceDigestRE.MatchString(pl.Config) {
+				return nil, fmt.Errorf("%s: %s has a malformed platform %q or config digest", p, im.Service, pl.Platform)
+			}
+			if n := countFunc(im.Platforms, func(o GatedPlatform) bool { return o.Platform == pl.Platform }); n != 1 {
+				return nil, fmt.Errorf("%s: %s lists platform %s %d times", p, im.Service, pl.Platform, n)
+			}
+		}
+	}
+	return &g, nil
+}
+
+func countFunc[T any](s []T, f func(T) bool) int {
+	n := 0
+	for _, x := range s {
+		if f(x) {
+			n++
+		}
+	}
+	return n
+}
+
+// gatesAgain is the remedy every refusal against the record names.
+func gatesAgain(version string) string {
+	return "run make release-gates VERSION=" + version + " again (it checks what is there now)"
+}
+
+// checkVersion refuses a record of another release.
+func (g *GatesDoc) checkVersion(version string) error {
+	if g.Version != version {
+		return fmt.Errorf("the gates record is of version %s, not %s: %s", g.Version, version, gatesAgain(version))
+	}
+	return nil
+}
+
+// checkImage refuses when the platform images of service (platform -> config digest, now) are not exactly the ones the gates
+// checked (readGates made sure the record has every service once). what names the list for the message.
+func (g *GatesDoc) checkImage(service, what string, now map[string]string) error {
+	rec := map[string]string{}
+	for _, im := range g.Images {
+		if im.Service == service {
+			for _, p := range im.Platforms {
+				rec[p.Platform] = p.Config
+			}
+		}
+	}
+	plats := slices.Sorted(maps.Keys(rec))
+	for _, p := range slices.Sorted(maps.Keys(now)) {
+		if _, ok := rec[p]; !ok {
+			plats = append(plats, p)
+		}
+	}
+	for _, p := range plats {
+		if now[p] != rec[p] {
+			return fmt.Errorf("%s %s is %s now, the gates checked %s: the images changed after the gates; %s", what, p, orNone(now[p]), orNone(rec[p]), gatesAgain(g.Version))
+		}
+	}
+	return nil
+}
+
+// checkDeb refuses a package of arch (at path) whose bytes are not the ones the gates checked.
+func (g *GatesDoc) checkDeb(arch, path, sum string, size int64) error {
+	for _, d := range g.Debs {
+		if d.Arch == arch && d.SHA256 == sum && d.Size == size {
+			return nil
+		}
+	}
+	var d GatedDeb
+	for _, x := range g.Debs {
+		if x.Arch == arch {
+			d = x
+		}
+	}
+	return fmt.Errorf("%s has sha256 %s (%d bytes) now, the gates checked %s (%s, %d bytes): it was built again after the gates; %s", path, sum, size, orNone(d.SHA256), d.File, d.Size, gatesAgain(g.Version))
+}
+
+// checkHost refuses host packages whose recorded hashes (h, as release-manifest or release-in computed them from paths, in the same
+// order) are not the bytes the gates checked.
+func (g *GatesDoc) checkHost(h *release.HostPart, paths []string) error {
+	for i, f := range h.Files {
+		_, arch, _ := release.ParseHostPackageName(f.Name) // buildHostPart parsed it
+		if err := g.checkDeb(arch, paths[i], f.SHA256, f.Size); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func orNone(s string) string {
+	if s == "" {
+		return "absent"
+	}
+	return s
 }
 
 // shippedDeb is the package of arch in dir: the SemVer name release-in reads, else nfpm's (a prerelease is spelled 1.0.0~rc.1 by
@@ -151,37 +429,39 @@ func shippedDeb(dir, version, arch string) (string, error) {
 
 // sameAsRebuilt builds the package of arch again with make host-deb, from this tree and with the release floor, into a temporary
 // directory, and refuses a shipped package whose bytes differ: it was built from another commit, another floor or another version.
-func sameAsRebuilt(ctx context.Context, run runFunc, o gatesOpts, arch, deb string) error {
+// It returns the SHA-256 (hex) and size of the bytes it compared: what the gates record.
+func sameAsRebuilt(ctx context.Context, run runFunc, o gatesOpts, arch, deb string) (string, int64, error) {
 	tmp, err := os.MkdirTemp("", "vedette-gates-")
 	if err != nil {
-		return err
+		return "", 0, err
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
 	if _, err := run(ctx, "make", "-C", o.Repo, "--no-print-directory", "host-deb", "VERSION="+o.Version, "ARCH="+arch, "MIN_SEQUENCE="+o.MinSequence, "DEB_OUT="+tmp); err != nil {
-		return fmt.Errorf("rebuild of the %s package: %w", arch, err)
+		return "", 0, fmt.Errorf("rebuild of the %s package: %w", arch, err)
 	}
 	built, err := filepath.Glob(filepath.Join(tmp, "*.deb"))
 	if err != nil || len(built) != 1 {
-		return fmt.Errorf("rebuild of the %s package: want one .deb in %s, got %v", arch, tmp, built)
+		return "", 0, fmt.Errorf("rebuild of the %s package: want one .deb in %s, got %v", arch, tmp, built)
 	}
 	a, err := readSmall(deb, maxBinary)
 	if err != nil {
-		return err
+		return "", 0, err
 	}
 	b, err := readSmall(built[0], maxBinary)
 	if err != nil {
-		return err
+		return "", 0, err
 	}
 	if bytes.Equal(a, b) {
-		return nil
+		sum := sha256.Sum256(a)
+		return hex.EncodeToString(sum[:]), int64(len(a)), nil
 	}
-	why := "built differently: another floor (MIN_SEQUENCE) or version, or GOFLAGS, GOAMD64/GOARM64, SOURCE_DATE_EPOCH or the Go toolchain set by hand for one of the two builds"
+	why := "built differently: another floor (MIN_SEQUENCE) or version, or GOFLAGS, SOURCE_DATE_EPOCH or the Go toolchain set by hand for one of the two builds (host-deb pins GOAMD64=v1, GOARM64=v8.0)"
 	if ra, rb := debRevision(a), debRevision(b); ra != rb {
 		why = fmt.Sprintf("its vedette-host is from commit %q, this tree is %q", ra, rb)
 	}
-	return fmt.Errorf("%s is not what this commit builds with MIN_SEQUENCE=%s (%s): build it again with make host-deb VERSION=%s ARCH=%s RELEASE_PREV_INDEX=<prev> (MIN_SEQUENCE=0 for the very first release only) from the clean tag, with GOFLAGS unset", deb, o.MinSequence, why, o.Version, arch)
+	return "", 0, fmt.Errorf("%s is not what this commit builds with MIN_SEQUENCE=%s (%s): build it again with make host-deb VERSION=%s ARCH=%s RELEASE_PREV_INDEX=<prev> (MIN_SEQUENCE=0 for the very first release only) from the clean tag, with GOFLAGS unset", deb, o.MinSequence, why, o.Version, arch)
 }
 
 // debRevision is the vcs.revision of the vedette-host inside a package, or "" when it cannot be read (only for the message).
@@ -277,11 +557,14 @@ func cmdGates(ctx context.Context, args []string, stdout io.Writer) error {
 	repo := fs.String("repo", ".", "repository root")
 	prev := fs.String("prev-index", "", "directory of the published index (RELEASE_PREV_INDEX); omit for the very first release only (then -min-sequence 0)")
 	keys := fs.String("keys-dir", "", "directory with the public keys -prev-index is verified with (default: the keys compiled in)")
-	pre := fs.Bool("preflight", false, "only the version, floor and tree checks (before the long scans)")
+	pre := fs.Bool("preflight", false, "only the version, floor and tree checks (before the long scans); writes nothing")
+	out := fs.String("out", "dist/release", "directory gates.json is written to when every check passed (release push, in and manifest read it)")
+	vulnDir := fs.String("vuln-dir", "dist/vuln", "the trivy reports of make vuln-scan RELEASE=1: each must be of the image recorded")
+	sbomDir := fs.String("sbom-dir", "dist/sbom", "the SBOMs of make sbom RELEASE=1: each must be of the image recorded")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	o := gatesOpts{Version: *version, MinSequence: *minSeq, Platforms: strings.Split(*plats, ","), PrevIndex: *prev, DebDir: *debDir, Repo: *repo, Preflight: *pre}
+	o := gatesOpts{Version: *version, MinSequence: *minSeq, Platforms: strings.Split(*plats, ","), PrevIndex: *prev, DebDir: *debDir, Repo: *repo, Preflight: *pre, Out: *out, VulnDir: *vulnDir, SBOMDir: *sbomDir}
 	if *prev != "" {
 		var err error
 		if o.Trust, err = LoadTrust(*keys); err != nil {

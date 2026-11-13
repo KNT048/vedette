@@ -110,7 +110,7 @@ Box: Docker 29 + Compose 2.40 and Podman 5.7 both present; builds use the pinned
   8. `compose.sensors.yaml` with the dev replay (as `dev-sensors-smoke`, reusing its device assertion); on Podman rootless only part 1-7.
   9. After slice 4: choose a card that exists only on the host (a dummy interface made by `ip link add` in a throwaway netns is not visible to core, so the test uses the card name the replay sensor reports in its heartbeat) and `PATCH /inventory/sensors/{id}` succeeds.
 - **Playwright**: nothing new in v1 (no screen). `web/e2e-real/bare-box.spec.ts` is extended in slice 5 for G1-G3 text only.
-- **Stays for the lab (WP-31)**: real SPAN card and port mirror, promiscuous on a USB card, syslog source IP through the real NAT, Docker Desktop on macOS/Windows (core only), Docker `-p` against UFW from another machine (`ss` is not proof: scan from the lab host), `podman compose` rootful with a real sensor on Ubuntu 24.04 (Podman 4.9), and a first run by a person who has never seen the product (kien or Mlee's box).
+- **Stays for the lab (WP-31)**: real SPAN card and port mirror (skipped for v1, D-403: SPAN hidden in the GUI), promiscuous on a USB card, syslog source IP through the real NAT, Docker Desktop on macOS/Windows (core only), Docker `-p` against UFW from another machine (`ss` is not proof: scan from the lab host), `podman compose` rootful with a real sensor on Ubuntu 24.04 (Podman 4.9), and a first run by a person who has never seen the product (kien or Mlee's box).
 
 ## 6. Top-tier
 

@@ -325,6 +325,19 @@ describe('core: cài đặt ban đầu', () => {
     ])
   })
 
+  it('W2-8: a box not set up never asks /me (its 401 would be logged by the browser) and step 1 has no Back', async () => {
+    const asked: string[] = []
+    const seen = ({ request }: { request: Request }) => { asked.push(new URL(request.url).pathname) }
+    server.events.on('request:start', seen)
+    try {
+      renderApp('/', { role: null, setupComplete: false })
+      expect(await screen.findByLabelText('Setup code')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Back' })).toBeNull()
+      expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
+      expect(asked.some((p) => p.endsWith('/me'))).toBe(false)
+    } finally { server.events.removeListener('request:start', seen) }
+  })
+
   it('đã cài xong thì /setup chuyển về đăng nhập', async () => {
     renderApp('/setup', { role: null })
     expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument()

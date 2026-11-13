@@ -373,9 +373,12 @@
     "status": {
       "online": "Reporting",
       "offline": "Lost contact",
-      "never_connected": "Not connected yet"
+      "never_connected": "Not connected yet",
+      "starting": "Starting…"
     },
     "startHint": "Start it with compose.sensors.yaml on this machine.",
+    "startingHint": "The box is starting the sensor (after setup or after you turned it on). This can take a few minutes; the row updates by itself.",
+    "notStartedHint": "The box could not get the sensor running. Turn Passive sensor off and on in Settings → Modules to try again now; on the box, journalctl -u vedette-sensor and journalctl -u vedette-core say why.",
     "capture": {
       "label": "Capture",
       "notCapturing": "Reporting, not capturing",

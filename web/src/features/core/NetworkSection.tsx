@@ -41,14 +41,19 @@ function Interfaces({ d }: { d: NetworkState }) {
     setError(null)
     roles.mutate(Object.fromEntries(d.interfaces.map((i) => [i.name, i.name === name ? role : i.role])), { onError: (e) => setError(errMsg(e, t)), onSuccess: () => toast.success(t('network.interfaces.saved')) })
   }
-  const roleControl = (row: { original: NetInterface }) => row.original.role === 'management'
-      ? <span title={t('network.interfaces.mgmtLocked')}><Chip tone="accent">{t('network.role.management')}</Chip></span>
-      : (
-        <Select aria-label={t('network.interfaces.roleOf', { name: row.original.name })} value={row.original.role} disabled={gate.disabled || roles.isPending} title={gate.title} className="w-44" onChange={(e) => setRole(row.original.name, e.target.value as IfaceRole)}>
-          {/* D-403: SPAN is offered only as the role a card already has, so it can be set back to Unused. */}
-          {(['management', 'span', 'unused'] as const).filter((r) => SPAN_IN_UI || r !== 'span' || row.original.role === 'span').map((r) => <option key={r} value={r}>{t(`network.role.${r}`)}</option>)}
-        </Select>
-      )
+  // One role per row (customer walk 2, W2-7): the management port is fixed here (409 management_fixed / management_count), so another
+  // card is never offered Management; with SPAN hidden (D-403) a card that is not the SPAN port has one possible role, shown as text.
+  const roleControl = (row: { original: NetInterface }) => {
+    const r = row.original.role
+    if (r === 'management') return <span title={t('network.interfaces.mgmtLocked')}><Chip tone="accent">{t('network.role.management')}</Chip></span>
+    if (!SPAN_IN_UI && r !== 'span') return <Chip tone="off">{t('network.role.unused')}</Chip>
+    return (
+      <Select aria-label={t('network.interfaces.roleOf', { name: row.original.name })} value={r} disabled={gate.disabled || roles.isPending} title={gate.title} className="w-44" onChange={(e) => setRole(row.original.name, e.target.value as IfaceRole)}>
+        {/* D-403: while SPAN is hidden it is offered only as the role a card already has, so it can be set back to Unused. */}
+        {(['span', 'unused'] as const).map((o) => <option key={o} value={o}>{t(`network.role.${o}`)}</option>)}
+      </Select>
+    )
+  }
   const columns: ColumnDef<NetInterface>[] = [
     { id: 'name', header: t('network.interfaces.col.name'), accessorFn: (i) => i.name, cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
     { id: 'role', header: t('network.interfaces.col.role'), accessorFn: (i) => i.role, cell: ({ row }) => roleControl(row) },

@@ -39964,6 +39964,8 @@ func (s InventoryGetInventorySensorsOKSensorsItemStatus) Validate() error {
 		return nil
 	case "never_connected":
 		return nil
+	case "starting":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -40573,6 +40575,8 @@ func (s InventoryPatchInventorySensorsIDOKStatus) Validate() error {
 	case "offline":
 		return nil
 	case "never_connected":
+		return nil
+	case "starting":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

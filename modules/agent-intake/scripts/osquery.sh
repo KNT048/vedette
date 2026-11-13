@@ -68,7 +68,11 @@ trap 'rm -rf "$TMP"' EXIT
 curl -fsS --cacert "$CA" "$BOX/api/v1/install/osquery/SHA256SUMS" -o "$TMP/SHA256SUMS"
 curl -fsS --cacert "$CA" "$BOX/api/v1/install/osquery/$FILE" -o "$TMP/$FILE"
 ( cd "$TMP" && grep " $FILE\$" SHA256SUMS | sha256sum -c - ) || { echo "Checksum of $FILE does not match. Nothing was installed." >&2; exit 1; }
-if [ "$FMT" = deb ]; then dpkg -i "$TMP/$FILE"; else rpm -Uvh --replacepkgs "$TMP/$FILE"; fi
+# The package manager's output (and whatever osquery's own package scripts print, such as a bare line of numbers) goes to a log shown
+# only when the install fails, so a normal run prints Vedette's lines only (customer walk 2, W2-2).
+echo "Installing osquery $OSQ_VERSION..."
+if [ "$FMT" = deb ]; then set -- dpkg -i "$TMP/$FILE"; else set -- rpm -Uvh --replacepkgs "$TMP/$FILE"; fi
+"$@" >"$TMP/install.log" 2>&1 || { cat "$TMP/install.log" >&2; echo "Installing $FILE failed (output above)." >&2; exit 1; }
 
 # osqueryd keeps the node key of its enrolment in its database and does not enrol again while the box accepts that key. Unless this
 # machine already holds this very token (a repair keeps its key), its database is removed so that it enrols under this token (D-411).
@@ -99,7 +103,7 @@ FLAGS
 vstatus() { curl -fsS --cacert "$CA" -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d "{\"host_identifier\":\"$HOSTID\"}" "$BOX/api/v1/intake/osquery/status" 2>/dev/null || true; }
 seen_of() { sed -n 's/.*"host_last_seen":"\([^"]*\)".*/\1/p'; }
 BASE=$(vstatus | seen_of)
-systemctl enable osqueryd
+systemctl enable --quiet osqueryd
 systemctl restart osqueryd
 
 echo "Waiting for this machine to enrol with Vedette (up to 2 minutes)..."

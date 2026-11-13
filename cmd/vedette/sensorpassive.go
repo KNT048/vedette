@@ -26,6 +26,9 @@ func newSensorPassive(d deps) (*sensorpassive.Service, error) {
 	if d.Reg != nil { // SYS-5: asked again under the lock of a batch, after the listener let it in
 		cfg.Enabled = func() bool { return d.Reg.Enabled("sensor-passive") }
 	}
+	if d.SensorStart != nil { // an appliance: the box starts the container, so it can say it is still doing so (W2-6)
+		cfg.Starting = d.SensorStart.Starting
+	}
 	if d.Inventory != nil { // the devices that exist do not count as new ones for the budget
 		cfg.KnownMACs = d.Inventory.KnownMACs // uncapped (D-178)
 	}

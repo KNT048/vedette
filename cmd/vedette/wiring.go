@@ -259,6 +259,9 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.Honeypot, err = newHoneypot(d); err != nil {
 		return fmt.Errorf("honeypot: %w", err)
 	}
+	if d.HostSocket != "" {
+		d.SensorStart = &startWatch{now: d.Clock}
+	}
 	sp, err := newSensorPassive(*d)
 	if err != nil {
 		return fmt.Errorf("sensor-passive: %w", err)

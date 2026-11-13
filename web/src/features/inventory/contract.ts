@@ -81,7 +81,7 @@ export const SettingsSaved = InventorySettings.extend({
   adjusted: z.array(z.object({ from: z.string(), to: z.string() })).describe('Ranges normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24'),
 })
 
-export const SensorStatus = z.enum(['online', 'offline', 'never_connected']).describe('online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever (D-387)')
+export const SensorStatus = z.enum(['online', 'offline', 'never_connected', 'starting']).describe('online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the sensor container (an appliance after setup or after the module is turned on: the start is being retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A container-only install never says starting: the customer starts it')
 /** Chỉ cảm biến của chính hộp này (chưa hỗ trợ nhiều site). */
 export const Sensor = z.object({
   id: z.string(), name: z.string(), interface: z.string().nullable().describe('The port the sensor listens on: the card chosen (the SPAN port when SPAN is on), else the default card, the management port (D-380); null: none. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387, D-393)'), interfaces: z.array(z.string()).describe('The cards the sensor reported in its last heartbeat'), span: z.boolean(),

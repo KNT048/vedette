@@ -405,3 +405,23 @@ func TestRecordOutcomeUpdatesPullState(t *testing.T) {
 		t.Errorf("%d log rows after pruning, want the newest ok row", n)
 	}
 }
+
+// Review H3: the stamp findings caches the list under changes with a pull of the three feeds and with the rows.
+func TestMatchStampChangesWithTheData(t *testing.T) {
+	t.Parallel()
+	s, db := newStore(t)
+	a, err := s.MatchStamp(t.Context())
+	if err != nil || a == "" {
+		t.Fatalf("%q %v", a, err)
+	}
+	if b, _ := s.MatchStamp(t.Context()); b != a {
+		t.Fatalf("stamp moved without a change: %q %q", a, b)
+	}
+	err = db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET last_fetch = '2026-11-13T09:00:00.000Z' WHERE id = 'nvd-kev'`)
+		return err
+	})
+	if b, _ := s.MatchStamp(t.Context()); err != nil || b == a {
+		t.Fatalf("a pull of nvd-kev did not move the stamp: %v", err)
+	}
+}

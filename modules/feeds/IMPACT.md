@@ -27,7 +27,7 @@
 
 - W3-1 (2026-11-13): `nvd_pull.go` (thử lại, tạm dừng/đi tiếp, dòng tiến độ `Service.live`), `Request.HeaderTimeout`/`slowHeaders` và `StatusError.RetryAfter` trong `fetch.go`, `lockFeed` gộp lượt kéo trùng (`busy`). Người đọc: `FeedsSettings.tsx` (feed `never` có `error` là dòng tiến độ: không kèm câu "Fetched at the next scheduled check"; Fetch now trả feed có `error` mà `status` không phải `error` ⇒ toast thông tin). Test: `nvd_pull_test.go`, `TestFeedLockIsContextAwareAndPruned`, `TestContract_INV8_*`, `feeds.test.tsx` W3-1.
 - **findings** (qua `cmd/vedette` `findingsFeeds.Vulns`): mọi quyết định theo phiên bản dựa vào các mục này; đổi hình `AffectedRow` hay bỏ mục ⇒ finding đổi (`modules/findings` `TestGolden_*`).
-- **cmd/vedette**: `feeds.ranges.updated` → `Inventory.RematchAll` (lần đầu trong `notify.WithBaseline`).
+- **cmd/vedette**: `feeds.ranges.updated` → `Inventory.RematchAll` lần đầu (trong `notify.WithBaseline`), sau đó `Inventory.RematchMany` với vendor/product của các CVE trong sự kiện (review H3); `findingsFeeds.Vulns` giữ danh sách theo `Store.MatchStamp` (đổi cách ghi `feeds_vuln`/`feeds_affected_cve` mà không đổi `last_fetch`, `updated_at` hay số hàng ⇒ findings đọc danh sách cũ).
 - **PRIVACY.md** luồng 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md`, `sourcesMock.ts` (danh sách có sẵn: 9), export policy (`feeds_affected*`).
 
 ## Modifying: `Fetcher.Fetch(ctx, Request)` (một GET tới đúng URL)

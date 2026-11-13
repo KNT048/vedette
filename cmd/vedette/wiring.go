@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/auth"
@@ -168,7 +169,18 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 	return out, true, nil
 }
 
-type findingsFeeds struct{ st *feeds.Store }
+type findingsFeeds struct {
+	st    *feeds.Store
+	cache *vulnCache // nil: read the list every time
+}
+
+// vulnCache keeps the last list for matching with the feeds stamp it was read under (review H3: a rematch of every
+// device read the 33k NVD rows once per device and ran out of time).
+type vulnCache struct {
+	mu    sync.Mutex
+	stamp string
+	vulns []findings.Vuln // read only once built: the matcher never changes it
+}
 
 func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]findings.KevInfo, error) {
 	rows, err := a.st.KevVulnsByCVE(ctx, cves)
@@ -190,6 +202,29 @@ func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]f
 // Vulns returns the CISA list for matching, each CVE with the NVD affected versions feeds pulled (nvd-kev, D-500).
 // A CVE NVD has not answered for has none, and findings then cannot decide by version.
 func (a findingsFeeds) Vulns(ctx context.Context) ([]findings.Vuln, error) {
+	stamp := ""
+	if a.cache != nil {
+		var err error
+		if stamp, err = a.st.MatchStamp(ctx); err != nil {
+			return nil, err
+		}
+		a.cache.mu.Lock()
+		v, ok := a.cache.vulns, a.cache.vulns != nil && a.cache.stamp == stamp
+		a.cache.mu.Unlock()
+		if ok {
+			return v, nil
+		}
+	}
+	out, err := a.readVulns(ctx)
+	if err == nil && a.cache != nil { // the stamp was read first: the list is at least as new as it
+		a.cache.mu.Lock()
+		a.cache.stamp, a.cache.vulns = stamp, out
+		a.cache.mu.Unlock()
+	}
+	return out, err
+}
+
+func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	rows, err := a.st.KevVulns(ctx)
 	if err != nil {
 		return nil, err
@@ -313,7 +348,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		return fmt.Errorf("feeds: %w", err)
 	}
 	inv := findingsInventory{d.Inventory}
-	feed := findingsFeeds{fs.Store()}
+	feed := findingsFeeds{st: fs.Store(), cache: &vulnCache{}}
 	// Backlog: findings the reconcile job creates for old KEV entries are D-78 backlog, silent for notify (findings does not import notify).
 	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Backlog: notify.WithBaseline,
 		HaveSince: findingsHave(fs.Store())} // "I have this" on Home scopes the one device it declared (D-484)
@@ -401,14 +436,28 @@ func subscribe(d deps) {
 	d.Bus.Subscribe(feeds.EventNewKEV, on("scan", onNewKEVForScan(d)))          // after inventory's: the findings of the new entry exist when the job looks
 	d.Bus.Subscribe(feeds.EventVulnUpdated, on("inventory", rematchUpdated(d))) // D-328: a CVE whose vendor or product changed
 	// D-500: new NVD affected versions decide findings again for every device; the first fill is backlog, like D-78.
+	// Review H3: one event per device; after a later update only the devices of the changed CVEs.
 	d.Bus.Subscribe(feeds.EventRangesUpdated, on("inventory", func(ctx context.Context, data any) error {
 		ev, _ := data.(feeds.RangesUpdatedEvent)
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
 		defer cancel()
-		if ev.First {
-			ctx = notify.WithBaseline(ctx)
+		st, ok := feedsKEV{&d}.store()
+		if ev.First || !ok {
+			if ev.First {
+				ctx = notify.WithBaseline(ctx)
+			}
+			_, err := d.Inventory.RematchAll(ctx)
+			return err
 		}
-		_, err := d.Inventory.RematchAll(ctx)
+		rows, err := st.KevVulnsByCVE(ctx, ev.CVEs)
+		if err != nil {
+			return err
+		}
+		refs := make([]inventory.KevRef, len(rows))
+		for i, r := range rows {
+			refs[i] = inventory.KevRef{CVE: r.CVE, Vendor: r.Vendor, Product: r.Product}
+		}
+		_, err = d.Inventory.RematchMany(ctx, refs)
 		return err
 	}))
 	d.Bus.Subscribe(feeds.EventSyncBaseline, on("inventory", func(ctx context.Context, _ any) error {

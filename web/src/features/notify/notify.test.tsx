@@ -12,7 +12,7 @@ import { eachOption } from '@/test/formMatrix'
 import { auditStore, installStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
 import ChannelsSettings from './ChannelsSettings'
-import { forbiddenHost } from './types'
+import { forbiddenHost, ownHost } from './types'
 
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
 function renderChannels(role: Role = 'admin') {
@@ -334,7 +334,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(to).toHaveAttribute('aria-invalid', 'true')
   })
 
-  it('SMTP email: the server cannot be this machine (in a container 127.0.0.1 is Vedette itself), as for a webhook (walk 3)', async () => {
+  it('SMTP email: the server cannot be Vedette itself (in a container 127.0.0.1 is Vedette), as for a webhook (walk 3, D-446)', async () => {
     renderChannels()
     await press('Edit Email')
     const dlg = await screen.findByRole('dialog', { name: 'Channel Email' })
@@ -342,7 +342,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     await userEvent.clear(host)
     await userEvent.type(host, '127.0.0.1')
     await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
-    await waitFor(() => expect(host).toHaveAccessibleDescription(/^The SMTP server cannot be this machine, a link-local or multicast address/))
+    await waitFor(() => expect(host).toHaveAccessibleDescription(/^That address is Vedette itself: .* enter the machine's LAN address and that program's port\.$/))
   })
 
   it('server refusals of the other types show under the field the code names; a code that fits several fields stays at the top (deferred walk 2)', async () => {
@@ -446,7 +446,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
   })
 
   it('webhook: a URL the box refuses (bad_url) shows under the URL field, not at the top', async () => {
-    const BLOCKED = 'The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.'
+    const BLOCKED = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
     server.use(http.put('*/api/v1/notify/channels/webhook', () => HttpResponse.json({ error: { code: 'bad_url', message: BLOCKED } }, { status: 400 })))
     renderChannels()
     await press('Set up Webhook')
@@ -472,7 +472,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     await userEvent.paste('http://169.254.169.254/latest')
     await userEvent.click(within(dlg).getByRole('button', { name: 'Generate random' }))
     await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
-    expect(url).toHaveAccessibleDescription('The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.')
+    expect(url).toHaveAccessibleDescription('The webhook cannot point at a link-local or multicast address, a cloud metadata service, or an unspecified address.')
     expect(puts).toBe(0)
   })
 
@@ -632,6 +632,9 @@ describe('notify: forbidden webhook hosts match the box (forbiddenAddr after Unm
       expect(forbiddenHost(host(u)), u).toBe(true)
     for (const u of ['https://224.alerts.example.com/hook', 'https://127.corp.example/x', 'https://169.254.example.net/', 'https://8.8.8.8/', 'https://10.0.0.5/', 'https://[2001:db8::1]/', 'https://[::ffff:10.0.0.1]/', 'https://hooks.company.com/', 'https://100.100.100.201/', 'https://[fd00:ec2::253]/', 'https://metadata.company.com/'])
       expect(forbiddenHost(host(u)), u).toBe(false)
+    // D-446: the page names Vedette itself apart (loopback, localhost names); everything else forbidden gets the other sentence
+    for (const u of ['https://127.0.0.1/x', 'https://127.8.9.10/x', 'https://[::1]/', 'http://[::ffff:127.0.0.1]/', 'https://localhost/', 'https://app.localhost./']) expect(ownHost(host(u)), u).toBe(true)
+    for (const u of ['http://169.254.169.254/latest', 'https://[::]/', 'https://[::ffff:169.254.1.1]/', 'https://10.0.0.5/', 'https://127.corp.example/x']) expect(ownHost(host(u)), u).toBe(false)
   })
 })
 

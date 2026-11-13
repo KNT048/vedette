@@ -30,7 +30,7 @@ func TestWebhookUnknownBoxAddrsFailClosed(t *testing.T) {
 	var mu sync.Mutex
 	known := false
 	get := func() ([]netip.Addr, bool) { mu.Lock(); defer mu.Unlock(); return nil, known }
-	ctl := dialControl(false, get)
+	ctl := dialControl(false, get, nil, true)
 	err = ctl("tcp", "192.168.10.9:443", nil)
 	if err == nil || !strings.Contains(err.Error(), "not known yet") {
 		t.Fatalf("a connection while the box addresses are unknown: %v", err)

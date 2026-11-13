@@ -66,8 +66,8 @@ func TestContract_INV8_SMTPConfig(t *testing.T) {
 		"metadata name":    {func(c *EmailConfig) { c.Host = "metadata.google.internal" }, "bad_host"},
 		"unspecified":      {func(c *EmailConfig) { c.Host = "0.0.0.0" }, "bad_host"},
 		"multicast":        {func(c *EmailConfig) { c.Host = "224.0.0.1" }, "bad_host"},
-		"box address":      {func(c *EmailConfig) { c.Host = "192.168.1.9" }, "bad_host"},
-		"box address late": {func(c *EmailConfig) { c.Host = "10.0.0.7" }, "bad_host"},
+		"box address":      {func(c *EmailConfig) { c.Host, c.Port, c.Security = "192.168.1.9", 8443, SecuritySSL }, "bad_host"}, // D-446: Vedette's own port
+		"box address late": {func(c *EmailConfig) { c.Host, c.Port, c.Security = "10.0.0.7", 514, SecuritySSL }, "bad_host"},
 	} {
 		cfg := ok
 		c.mod(&cfg)
@@ -363,4 +363,67 @@ func FuzzBuildMIME(f *testing.F) {
 			t.Fatal("bare CR or LF in message")
 		}
 	})
+}
+
+// D-446 (walk 4): a mail server on the machine that runs Vedette, at the machine's LAN address and the mail port, is accepted; loopback
+// and Vedette's own ports there get the one sentence for Vedette itself, which no longer points at the address it refused.
+func TestD446_SMTPOnTheMachine(t *testing.T) {
+	t.Parallel()
+	machine := func() ([]netip.Addr, bool) { return []netip.Addr{netip.MustParseAddr("10.123.45.67")}, true }
+	base := EmailConfig{Host: "10.123.45.67", Port: 587, Security: SecurityStartTLS, Username: "alerts@acme.example", Password: secrets.NewValue("pw-1234"),
+		From: "alerts@acme.example", To: []string{"it@acme.example"}, BoxAddrsFunc: machine}
+	if _, err := NewEmail(base); err != nil {
+		t.Fatalf("the machine's LAN address on 587: %v", err)
+	}
+	for _, c := range []struct {
+		host string
+		port int
+	}{{"10.123.45.67", 6514}, {"127.0.0.1", 587}, {"mail.localhost", 25}} {
+		cfg := base
+		cfg.Host, cfg.Port, cfg.Security = c.host, c.port, SecuritySSL
+		_, err := NewEmail(cfg)
+		var ce *ConfigError
+		if !errors.As(err, &ce) || ce.Code != "bad_host" || ce.Msg != OwnText {
+			t.Errorf("%s:%d: %v", c.host, c.port, err)
+		}
+	}
+}
+
+// D-446 review: a honeypot decoy is Vedette itself on every port (a webhook to a trap would loop: incident, webhook, trap hit), and
+// while the machine's addresses are unknown email refuses Vedette's own ports on every address and nothing else (#157: sign-in codes).
+func TestD446_DecoysAndTheUnknownWindow(t *testing.T) {
+	t.Parallel()
+	decoys := func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("10.123.45.200")} }
+	known := func() ([]netip.Addr, bool) { return nil, true }
+	for _, u := range []string{"https://10.123.45.200:8443/h", "http://10.123.45.200/h", "https://10.123.45.200:9000/h"} {
+		_, err := NewWebhook(WebhookConfig{URL: secrets.NewValue(u), SigningKey: secrets.NewValue(whKey), BoxAddrsFunc: known, SelfAddrsFunc: decoys})
+		var ce *ConfigError
+		if !errors.As(err, &ce) || ce.Code != "blocked_host" || ce.Msg != OwnText {
+			t.Errorf("webhook %s: %v", u, err)
+		}
+	}
+	for addr, refused := range map[string]bool{"10.123.45.200:80": true, "10.123.45.200:8443": true, "10.123.45.201:80": false} {
+		if err := dialControl(false, known, decoys, true)("tcp", addr, nil); errors.Is(err, errOwnDial) != refused {
+			t.Errorf("dial %s: %v", addr, err)
+		}
+	}
+	base := EmailConfig{Host: "10.123.45.200", Port: 587, Security: SecurityStartTLS, Username: "alerts@acme.example", Password: secrets.NewValue("pw-1234"),
+		From: "alerts@acme.example", To: []string{"it@acme.example"}, BoxAddrsFunc: known, SelfAddrsFunc: decoys}
+	if _, err := NewEmail(base); err == nil {
+		t.Error("SMTP on a decoy accepted")
+	}
+	unknown := func() ([]netip.Addr, bool) { return nil, false }
+	base.Host, base.SelfAddrsFunc, base.BoxAddrsFunc = "10.123.45.9", nil, unknown
+	if _, err := NewEmail(base); err != nil {
+		t.Errorf("unknown window, mail port: %v", err)
+	}
+	base.Port, base.Security = 6514, SecuritySSL
+	if _, err := NewEmail(base); err == nil {
+		t.Error("unknown window: Vedette's port 6514 accepted")
+	}
+	for addr, refused := range map[string]bool{"10.123.45.9:8443": true, "10.123.45.9:587": false} {
+		if err := dialControl(false, unknown, nil, false)("tcp", addr, nil); errors.Is(err, errOwnDial) != refused {
+			t.Errorf("email dial %s while unknown: %v", addr, err)
+		}
+	}
 }

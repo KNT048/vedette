@@ -36,12 +36,12 @@ func TestWebhookDialGuardAllowsPublicIPv4InEveryNAT64Layout(t *testing.T) {
 	t.Parallel()
 	box := []netip.Addr{netip.MustParseAddr("192.168.10.2")}
 	for _, a := range []string{"64:ff9b:1:808:8:800::", "64:ff9b:1:8:8:808::", "64:ff9b:1:0:8:808:800:0", "64:ff9b:1::808:808"} { // /48, /56, /64, /96
-		if err := dialControl(false, func() ([]netip.Addr, bool) { return box, true })("tcp", "["+a+"]:443", nil); err != nil {
+		if err := dialControl(false, func() ([]netip.Addr, bool) { return box, true }, nil, true)("tcp", "["+a+"]:443", nil); err != nil {
 			t.Errorf("%s: %v", a, err)
 		}
 	}
 	for _, a := range []string{"64:ff9b:1:6464:64:c800::", "64:ff9b:1::6464:64c8"} { // 100.100.100.200 in /48 and /96
-		if err := dialControl(false, func() ([]netip.Addr, bool) { return box, true })("tcp", "["+a+"]:443", nil); err == nil {
+		if err := dialControl(false, func() ([]netip.Addr, bool) { return box, true }, nil, true)("tcp", "["+a+"]:443", nil); err == nil {
 			t.Errorf("%s is allowed", a)
 		}
 	}

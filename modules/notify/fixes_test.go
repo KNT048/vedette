@@ -362,11 +362,12 @@ func TestWebhookCannotPointAtTheBoxOrLoopback(t *testing.T) {
 		c.HTTPClient = nil
 		c.BoxAddrs = func() ([]netip.Addr, bool) { return []netip.Addr{netip.MustParseAddr("10.9.9.9")}, true }
 	})
-	targets := []string{"http://127.0.0.1:8443/api/v1/core/updates/apply", "http://localhost:11434/api/generate", "https://127.0.0.1/x", "https://10.9.9.9/x"}
+	// D-446: loopback and the process's own interfaces on every port, the machine's addresses on Vedette's own ports
+	targets := []string{"http://127.0.0.1:8443/api/v1/core/updates/apply", "http://localhost:11434/api/generate", "https://127.0.0.1/x", "https://10.9.9.9:8443/x", "http://10.9.9.9:514/x"}
 	addrs, _ := net.InterfaceAddrs()
 	for _, a := range addrs {
 		if p, ok := a.(*net.IPNet); ok && p.IP.To4() != nil && !p.IP.IsLoopback() && !p.IP.IsLinkLocalUnicast() {
-			targets = append(targets, "https://"+p.IP.String()+":8443/x") // an address of this machine, read from its interfaces
+			targets = append(targets, "https://"+p.IP.String()+":9443/x") // an address of this process, read from its interfaces
 		}
 	}
 	for _, u := range targets {
@@ -374,6 +375,10 @@ func TestWebhookCannotPointAtTheBoxOrLoopback(t *testing.T) {
 		if s, c := apiCode(err); s != 400 || c != "bad_url" {
 			t.Errorf("webhook %s: %v", u, err)
 		}
+	}
+	// another program on the machine, at its own port, is a normal target
+	if _, err := e.svc.SaveChannel(e.ctx(), "admin@x", channel.Webhook, notify.ChannelInput{Enabled: true, Fields: map[string]string{"url": "https://10.9.9.9:9000/hook"}, Secret: "0123456789abcdef0123", MinSeverity: notify.Low}); err != nil {
+		t.Errorf("webhook on the machine at another port: %v", err)
 	}
 }
 

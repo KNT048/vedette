@@ -33,14 +33,13 @@ func TestAddrFormsNAT64LocalEveryLayout(t *testing.T) {
 // A public IPv4 address behind the local-use prefix is allowed in every layout; the metadata address is refused in each.
 func TestSiemForbiddenNAT64LocalPublicAllowedMetadataRefused(t *testing.T) {
 	t.Parallel()
-	box := []netip.Addr{netip.MustParseAddr("192.168.10.2")}
 	for _, a := range []string{"64:ff9b:1:808:8:800::", "64:ff9b:1:8:8:808::", "64:ff9b:1:0:8:808:800:0", "64:ff9b:1::808:808"} { // 8.8.8.8: /48, /56, /64, /96
-		if siemForbidden(netip.MustParseAddr(a), box, false) {
+		if siemForbidden(netip.MustParseAddr(a)) {
 			t.Errorf("%s is refused", a)
 		}
 	}
 	for _, a := range []string{"64:ff9b:1:6464:64:c800::", "64:ff9b:1::6464:64c8"} { // 100.100.100.200: /48, /96
-		if !siemForbidden(netip.MustParseAddr(a), box, false) {
+		if !siemForbidden(netip.MustParseAddr(a)) {
 			t.Errorf("%s is allowed", a)
 		}
 	}

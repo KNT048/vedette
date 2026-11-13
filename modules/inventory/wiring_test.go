@@ -243,6 +243,30 @@ func TestNeverTouchIsTheUnionOfTrustedKinds(t *testing.T) {
 	if d, ok := gateways()["192.168.10.50"]; !ok || d.Kind != "firewall" || d.KindSource != "snmp" {
 		t.Errorf("an approved device SNMP calls a firewall is not never-touch: %+v %v", d, ok)
 	}
+	// a person's explicit choice wins over older machine claims: an approved device SNMP calls a router, then a person sets printer:
+	// off the list; an SNMP router read after that choice puts it back
+	rec("192.168.10.70", "02:70:70:70:70:70", "router", observe.SNMP)
+	approve("192.168.10.70")
+	if _, ok := gateways()["192.168.10.70"]; !ok {
+		t.Fatal("an approved SNMP router is not never-touch")
+	}
+	addrs, err := e.svc.AddressMap(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Minute)
+	printer := "printer"
+	if err := e.svc.PatchDevice(e.ctx(), "emily@acme.example", addrs["192.168.10.70"], inventory.Patch{Kind: &printer}); err != nil {
+		t.Fatal(err)
+	}
+	if d, ok := gateways()["192.168.10.70"]; ok {
+		t.Errorf("a person set printer after the SNMP router and it is still never-touch: %+v", d)
+	}
+	e.tick(time.Minute)
+	rec("192.168.10.70", "02:70:70:70:70:70", "router", observe.SNMP)
+	if d, ok := gateways()["192.168.10.70"]; !ok || d.KindSource != "snmp" {
+		t.Errorf("an SNMP router read after the person's printer does not put it back: %+v %v", d, ok)
+	}
 	// an SNMP or nmap claim of a device nobody approved adds nothing
 	rec("192.168.10.60", "02:60:60:60:60:60", "pc", observe.Agent)
 	rec("192.168.10.60", "02:60:60:60:60:60", "router", observe.SNMP)

@@ -255,7 +255,9 @@ func (s *Service) DevicesOfKind(ctx context.Context, kinds []string) ([]KindDevi
 }
 
 // trustedKindUnion is the union guard of the never-touch list (D-512, INV-20): a device is listed as one of the kinds while ANY trusted
-// observation (manual, agent, or snmp or nmap on an approved device) says so, whatever its current kind. A source that ranks higher can
+// machine observation (agent, or snmp or nmap on an approved device) says so, whatever its current kind, except those older than a
+// person's latest kind: a person's explicit choice wins (it is the current kind, manual ranks first), so a person can take a wrongly
+// typed device off the list, and a machine observation seen after that choice puts it back (review #715 M4). A source that ranks higher can
 // change the current kind (SNMP outranks nmap, DATA_MODEL 5.1), but it can only ever add a device to the list, never take one off it: an
 // on-path host answering a router's SNMP read as a printer does not make the router blockable. A device whose current kind is in kinds
 // but not trusted gets the trusted observation's kind and source; a device whose current kind is another one is added with them.
@@ -265,8 +267,9 @@ func (s *Service) trustedKindUnion(ctx context.Context, kinds []string, out []Ki
 		args[i] = k
 	}
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.ip, a.mac, a.approved, o.value, o.source FROM inv_asset a JOIN inv_observation o ON o.asset_id = a.id
-		WHERE o.field = 'kind' AND o.value IN (?`+strings.Repeat(`, ?`, len(kinds)-1)+`) AND (o.source IN ('manual', 'agent') OR (o.source IN ('snmp', 'nmap') AND a.approved = 1))
-		ORDER BY a.id, CASE o.source WHEN 'manual' THEN 0 WHEN 'agent' THEN 1 WHEN 'snmp' THEN 2 ELSE 3 END, o.seen_at DESC`, args...) // only "?" placeholders are concatenated; the kinds are bound
+		WHERE o.field = 'kind' AND o.value IN (?`+strings.Repeat(`, ?`, len(kinds)-1)+`) AND (o.source = 'agent' OR (o.source IN ('snmp', 'nmap') AND a.approved = 1))
+		AND o.seen_at > coalesce((SELECT max(m.seen_at) FROM inv_observation m WHERE m.asset_id = a.id AND m.field = 'kind' AND m.source = 'manual'), '')
+		ORDER BY a.id, CASE o.source WHEN 'agent' THEN 1 WHEN 'snmp' THEN 2 ELSE 3 END, o.seen_at DESC`, args...) // only "?" placeholders are concatenated; the kinds are bound
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read trusted kinds: %w", err)
 	}

@@ -1044,8 +1044,12 @@ do_uninstall() {
 	fi
 	ip netns delete vedette-hp >/dev/null 2>&1 || true
 	rm -f /etc/containers/systemd/vedette-* "$MIRROR_FILE"
-	# a unit write of vedette-host cut short leaves .tmp-<16 hex> beside the units (host/ops writeAtomicIn)
-	find /etc/containers/systemd -maxdepth 1 -type f -name '.tmp-????????????????' -delete 2>/dev/null || true
+	# a unit write of vedette-host cut short leaves .tmp-<16 lowercase hex> beside the units (host/ops writeAtomicIn); a regular file only
+	for f in /etc/containers/systemd/.tmp-*; do
+		n=${f##*/.tmp-}
+		case $n in *[!0-9a-f]*) continue ;; esac
+		if [ "${#n}" -eq 16 ] && [ -f "$f" ] && [ ! -L "$f" ]; then rm -f "$f"; fi
+	done
 	systemctl daemon-reload >/dev/null 2>&1 || true
 	systemctl reset-failed >/dev/null 2>&1 || true
 	remove_forward_rules
@@ -1062,27 +1066,29 @@ do_uninstall() {
 	fi
 	# the purge of a package with an AppArmor profile (chrony) runs dh_apparmor's postrm, which also rmdirs the apparmor package's
 	# own folders when they are empty (/etc/apparmor.d/disable on a fresh Ubuntu 24.04): one that was there before is put back
+	# while the apparmor package is installed (a box without it had the folders only for the purged profiles, made by dpkg)
 	aa_dirs=
 	for d in /etc/apparmor.d /etc/apparmor.d/disable /etc/apparmor.d/force-complain /etc/apparmor.d/local; do
 		if [ -d "$d" ] && [ ! -L "$d" ]; then aa_dirs="$aa_dirs $(stat -c %a "$d"):$d"; fi
 	done
 	purge_added_packages
-	for e in $aa_dirs; do
-		[ -e "${e#*:}" ] || install -d -m "${e%%:*}" -o root -g root "${e#*:}" || warn "could not put back the folder ${e#*:}"
-	done
-	# what the packages this script asked for left behind (a purge keeps accounts, runtime files and podman's storage)
-	if grep -qx podman "$STATE/asked-packages" 2>/dev/null; then
+	if installed_pkg apparmor; then
+		for e in $aa_dirs; do
+			[ -e "${e#*:}" ] || install -d -m "${e%%:*}" -o root -g root "${e#*:}" || warn "could not put back the folder ${e#*:}"
+		done
+	fi
+	# what podman, when this script added it and apt then purged it, left behind: its storage and runtime files (a purge keeps them),
+	# and the folders the package (/etc/containers, its systemd/) and podman for vedette-int (networks/, /var/lib/cni) made. A podman
+	# that apt kept (another package needs it, or it is marked manual) is the administrator's: nothing of it is touched (D-463).
+	if grep -qx podman "$STATE/asked-packages" 2>/dev/null && ! installed_pkg podman; then
 		find /var/lib/containers -mindepth 1 -delete 2>/dev/null || true
 		rmdir /var/lib/containers 2>/dev/null || true
 		rm -rf /run/containers /root/.config/cni
-		# the folders the package (/etc/containers, its systemd/) and podman for vedette-int (networks/, /var/lib/cni) made, when podman
-		# is gone too: rmdir only, deepest first, so a folder with anything left in it is somebody else's and stays (N100)
-		if ! installed_pkg podman; then
-			for d in /etc/containers/networks /etc/containers/systemd/users /etc/containers/systemd /etc/containers/registries.conf.d /etc/containers /var/lib/cni/networks /var/lib/cni; do
-				rmdir "$d" 2>/dev/null || true
-			done
-		fi
-		rmdir /root/.config 2>/dev/null || true
+		# rmdir only, deepest first, and never a folder an installed package owns (buildah's containers-common): a folder with anything
+		# left in it is somebody else's and stays (N100)
+		for d in /etc/containers/networks /etc/containers/systemd/users /etc/containers/systemd /etc/containers/registries.conf.d /etc/containers /var/lib/cni/networks /var/lib/cni /root/.config; do
+			if [ -d "$d" ] && ! dpkg-query -S "$d" >/dev/null 2>&1; then rmdir "$d" 2>/dev/null || true; fi
+		done
 	fi
 	if grep -qx netplan.io "$STATE/asked-packages" 2>/dev/null; then
 		rm -f /run/systemd/system/netplan-ovs-cleanup.service /run/systemd/system/*.wants/netplan-ovs-cleanup.service

@@ -11,8 +11,9 @@ import (
 // (RUNBOOK 5.5): the JSON lines the daemon writes (the WARN "release index stored" among them) go to the system journal through
 // its syslog socket (/dev/log), identifier vedette-host, each at its own priority (journalctl -t vedette-host), and the terminal
 // gets only the errors, as readable key=value lines, beside the command's own progress (stdout) and its exit line (stderr). A
-// customer's installer output had raw JSON lines in it (N100). With no syslog socket every line stays on the terminal as the
-// daemon writes it, so no line is lost.
+// customer's installer output had raw JSON lines in it (N100). With no syslog socket when the command starts, every line stays
+// on the terminal as the daemon writes it. If the socket answers at the start and a write fails later (journald restarted
+// mid-run), that INFO or WARN line is lost; an ERROR line still reaches the terminal.
 func oneShotLogger(terminal io.Writer) *slog.Logger {
 	w, err := syslog.New(syslog.LOG_DAEMON|syslog.LOG_INFO, "vedette-host")
 	if err != nil {

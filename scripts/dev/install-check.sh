@@ -153,7 +153,8 @@ EOT
 	grep -q 'open:        https://' "$work/install.log" || fail "no address in the output"
 	# the JSON log lines of vedette-host -bootstrap go to the journal, not to the person's terminal (N100)
 	! grep -n '^{"time"' "$work/install.log" >&2 || fail "the installer output has raw log lines of vedette-host (above); they belong in the journal"
-	x 'journalctl -t vedette-host --no-pager -o cat | grep -q "\"msg\":\"release index stored\""' || fail "the WARN 'release index stored' of the bootstrap is not in the journal (journalctl -t vedette-host)"
+	# through the syslog socket: the bootstrap's own line, not one of the daemon (stdout of vedette-host.service)
+	x 'journalctl -t vedette-host _TRANSPORT=syslog --no-pager -o cat | grep -q "\"msg\":\"release index stored\""' || fail "the WARN 'release index stored' of the bootstrap is not in the journal (journalctl -t vedette-host _TRANSPORT=syslog)"
 	ok "installed; the output has the test warning, the address and a setup code, and no raw log line (the bootstrap's WARN is in the journal)"
 	[ "$(x 'systemctl is-active vedette-host.service')" = active ] || fail "vedette-host is not active"
 	x '[ "$(stat -c "%a %U:%G" /run/vedette)" = "750 root:vedette" ] && [ "$(stat -c "%a %U:%G" /run/vedette/host.sock)" = "660 root:vedette" ]' || fail "socket or its folder has the wrong mode or owner"

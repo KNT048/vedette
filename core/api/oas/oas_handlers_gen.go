@@ -29521,8 +29521,8 @@ func (s *Server) handleNotifyGetNotifyIncidentsIDRequest(args [1]string, argsEsc
 
 // handleNotifyGetNotifyZaloApproversRequest handles notify_get_notify_zalo_approvers operation.
 //
-// Approvers of the Zalo personal channel and whether each replied with the code sent to their Zalo
-// (linked).
+// Approvers of the Zalo personal channel and whether each confirmed the link sent to their Zalo while
+// signed in as themself (linked).
 //
 // GET /notify/zalo/approvers
 func (s *Server) handleNotifyGetNotifyZaloApproversRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29591,7 +29591,7 @@ func (s *Server) handleNotifyGetNotifyZaloApproversRequest(args [0]string, argsE
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    NotifyGetNotifyZaloApproversOperation,
-			OperationSummary: "Approvers of the Zalo personal channel and whether each replied with the code sent to their Zalo (linked)",
+			OperationSummary: "Approvers of the Zalo personal channel and whether each confirmed the link sent to their Zalo while signed in as themself (linked)",
 			OperationID:      "notify_get_notify_zalo_approvers",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -30338,7 +30338,8 @@ func (s *Server) handleNotifyPostNotifyHistoryIDResendRequest(args [1]string, ar
 
 // handleNotifyPostNotifyZaloApproversUserIDCodeRequest handles notify_post_notify_zalo_approvers_user_id_code operation.
 //
-// Send an approver a new code to their Zalo (the old one stops working).
+// Send an approver a new confirm link to their Zalo (the old one stops working); for your own row,
+// return the link to confirm now instead.
 //
 // POST /notify/zalo/approvers/{user_id}/code
 func (s *Server) handleNotifyPostNotifyZaloApproversUserIDCodeRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -30417,7 +30418,7 @@ func (s *Server) handleNotifyPostNotifyZaloApproversUserIDCodeRequest(args [1]st
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    NotifyPostNotifyZaloApproversUserIDCodeOperation,
-			OperationSummary: "Send an approver a new code to their Zalo (the old one stops working)",
+			OperationSummary: "Send an approver a new confirm link to their Zalo (the old one stops working); for your own row, return the link to confirm now instead",
 			OperationID:      "notify_post_notify_zalo_approvers_user_id_code",
 			Body:             nil,
 			RawBody:          rawBody,

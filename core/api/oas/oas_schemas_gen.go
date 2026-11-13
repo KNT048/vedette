@@ -91216,9 +91216,14 @@ func (s *NotifyGetNotifyZaloApproversOK) SetItems(val []NotifyGetNotifyZaloAppro
 
 type NotifyGetNotifyZaloApproversOKItemsItem struct {
 	Address string `json:"address"`
-	// Not_sent: why (failed, expired, or no code made).
-	Error  string                                       `json:"error"`
-	Name   string                                       `json:"name"`
+	// Not_sent: why (failed, expired, or no link made).
+	Error string `json:"error"`
+	// Only in the answer of POST …/code for your own row: the confirm page (/link/zalo?c=…) to open in
+	// this session.
+	Link OptString `json:"link"`
+	Name string    `json:"name"`
+	// The administrator asking: they confirm their own Zalo in their session, no message is sent.
+	Self   bool                                         `json:"self"`
 	SentAt NilDateTime                                  `json:"sent_at"`
 	State  NotifyGetNotifyZaloApproversOKItemsItemState `json:"state"`
 	UserID string                                       `json:"user_id"`
@@ -91234,9 +91239,19 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetError() string {
 	return s.Error
 }
 
+// GetLink returns the value of Link.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetLink() OptString {
+	return s.Link
+}
+
 // GetName returns the value of Name.
 func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetName() string {
 	return s.Name
+}
+
+// GetSelf returns the value of Self.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) GetSelf() bool {
+	return s.Self
 }
 
 // GetSentAt returns the value of SentAt.
@@ -91264,9 +91279,19 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) SetError(val string) {
 	s.Error = val
 }
 
+// SetLink sets the value of Link.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) SetLink(val OptString) {
+	s.Link = val
+}
+
 // SetName sets the value of Name.
 func (s *NotifyGetNotifyZaloApproversOKItemsItem) SetName(val string) {
 	s.Name = val
+}
+
+// SetSelf sets the value of Self.
+func (s *NotifyGetNotifyZaloApproversOKItemsItem) SetSelf(val bool) {
+	s.Self = val
 }
 
 // SetSentAt sets the value of SentAt.
@@ -92680,9 +92705,14 @@ func (s *NotifyPostNotifyHistoryIDResendOKKind) UnmarshalText(data []byte) error
 
 type NotifyPostNotifyZaloApproversUserIDCodeOK struct {
 	Address string `json:"address"`
-	// Not_sent: why (failed, expired, or no code made).
-	Error  string                                         `json:"error"`
-	Name   string                                         `json:"name"`
+	// Not_sent: why (failed, expired, or no link made).
+	Error string `json:"error"`
+	// Only in the answer of POST …/code for your own row: the confirm page (/link/zalo?c=…) to open in
+	// this session.
+	Link OptString `json:"link"`
+	Name string    `json:"name"`
+	// The administrator asking: they confirm their own Zalo in their session, no message is sent.
+	Self   bool                                           `json:"self"`
 	SentAt NilDateTime                                    `json:"sent_at"`
 	State  NotifyPostNotifyZaloApproversUserIDCodeOKState `json:"state"`
 	UserID string                                         `json:"user_id"`
@@ -92698,9 +92728,19 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetError() string {
 	return s.Error
 }
 
+// GetLink returns the value of Link.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetLink() OptString {
+	return s.Link
+}
+
 // GetName returns the value of Name.
 func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetName() string {
 	return s.Name
+}
+
+// GetSelf returns the value of Self.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) GetSelf() bool {
+	return s.Self
 }
 
 // GetSentAt returns the value of SentAt.
@@ -92728,9 +92768,19 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) SetError(val string) {
 	s.Error = val
 }
 
+// SetLink sets the value of Link.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) SetLink(val OptString) {
+	s.Link = val
+}
+
 // SetName sets the value of Name.
 func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) SetName(val string) {
 	s.Name = val
+}
+
+// SetSelf sets the value of Self.
+func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) SetSelf(val bool) {
+	s.Self = val
 }
 
 // SetSentAt sets the value of SentAt.
@@ -107973,10 +108023,12 @@ type ResponseGetResponseMeIdentitiesOKItemsItem struct {
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
 	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
-	// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
-	// cannot answer privately yet, so it cannot be linked (approve in Vedette).
+	// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
+	// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
+	// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
 	Method ResponseGetResponseMeIdentitiesOKItemsItemMethod `json:"method"`
+	// The shown name of that address where the channel knows it (Zalo personal, D-447).
+	Name OptString `json:"name"`
 }
 
 // GetAddress returns the value of Address.
@@ -108014,6 +108066,11 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItem) GetMethod() ResponseGetResp
 	return s.Method
 }
 
+// GetName returns the value of Name.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) GetName() OptString {
+	return s.Name
+}
+
 // SetAddress sets the value of Address.
 func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetAddress(val string) {
 	s.Address = val
@@ -108049,10 +108106,15 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetMethod(val ResponseGetRe
 	s.Method = val
 }
 
+// SetName sets the value of Name.
+func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetName(val OptString) {
+	s.Name = val
+}
+
 // Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
-// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
-// cannot answer privately yet, so it cannot be linked (approve in Vedette).
+// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
+// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
+// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
 type ResponseGetResponseMeIdentitiesOKItemsItemMethod string
 
 const (
@@ -125414,10 +125476,12 @@ type ResponsePostResponseMeIdentitiesChannelConfirmOK struct {
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
 	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
-	// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
-	// cannot answer privately yet, so it cannot be linked (approve in Vedette).
+	// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
+	// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
+	// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
 	Method ResponsePostResponseMeIdentitiesChannelConfirmOKMethod `json:"method"`
+	// The shown name of that address where the channel knows it (Zalo personal, D-447).
+	Name OptString `json:"name"`
 }
 
 // GetAddress returns the value of Address.
@@ -125455,6 +125519,11 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) GetMethod() ResponseP
 	return s.Method
 }
 
+// GetName returns the value of Name.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) GetName() OptString {
+	return s.Name
+}
+
 // SetAddress sets the value of Address.
 func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetAddress(val string) {
 	s.Address = val
@@ -125490,10 +125559,15 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetMethod(val Respons
 	s.Method = val
 }
 
+// SetName sets the value of Name.
+func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetName(val OptString) {
+	s.Name = val
+}
+
 // Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you
-// send it from that chat account to the account of the box (Zalo personal). unavailable: this channel
-// cannot answer privately yet, so it cannot be linked (approve in Vedette).
+// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
+// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
+// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
 type ResponsePostResponseMeIdentitiesChannelConfirmOKMethod string
 
 const (

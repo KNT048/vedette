@@ -2089,8 +2089,8 @@ func (UnimplementedHandler) NotifyGetNotifyIncidentsID(ctx context.Context, para
 
 // NotifyGetNotifyZaloApprovers implements notify_get_notify_zalo_approvers operation.
 //
-// Approvers of the Zalo personal channel and whether each replied with the code sent to their Zalo
-// (linked).
+// Approvers of the Zalo personal channel and whether each confirmed the link sent to their Zalo while
+// signed in as themself (linked).
 //
 // GET /notify/zalo/approvers
 func (UnimplementedHandler) NotifyGetNotifyZaloApprovers(ctx context.Context) (r *NotifyGetNotifyZaloApproversOK, _ error) {
@@ -2144,7 +2144,8 @@ func (UnimplementedHandler) NotifyPostNotifyHistoryIDResend(ctx context.Context,
 
 // NotifyPostNotifyZaloApproversUserIDCode implements notify_post_notify_zalo_approvers_user_id_code operation.
 //
-// Send an approver a new code to their Zalo (the old one stops working).
+// Send an approver a new confirm link to their Zalo (the old one stops working); for your own row,
+// return the link to confirm now instead.
 //
 // POST /notify/zalo/approvers/{user_id}/code
 func (UnimplementedHandler) NotifyPostNotifyZaloApproversUserIDCode(ctx context.Context, params NotifyPostNotifyZaloApproversUserIDCodeParams) (r *NotifyPostNotifyZaloApproversUserIDCodeOK, _ error) {

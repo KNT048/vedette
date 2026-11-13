@@ -18,8 +18,8 @@ import (
 // opens it OUT over the channel's session (no inbound port, FORBID-4) while the module is on, the Zalo personal channel is configured,
 // enabled and takes approvals, and the Decisions port and the token recorder are wired (the conditions under which codes are sent at
 // all, replycode.go; while it is disconnected or waiting, replies are not read). A direct text that has the form of a reply code goes
-// to Decisions with the sender's user ID; response matches the code against the records of that sender and keeps every gate. Six digits
-// from a listed approver are a link code shown in My account (Decisions.LinkChat, D-191: sending it from the account proves the ID).
+// to Decisions with the sender's user ID; response matches the code against the records of that sender and keeps every gate. Nothing
+// else a sender writes decides or links anything: a Zalo account becomes an approver's only through the confirm link (D-447).
 // notify answers privately, only a listed approver, and only a few times per approver.
 
 const (
@@ -36,8 +36,6 @@ const (
 	zaloNoteSenders  = 1000             // senders remembered for zaloNoteEvery
 	zaloAnswers      = 5                // private answers per approver per zaloAnswerEvery; more replies are not answered
 	zaloAnswerEvery  = 10 * time.Minute
-
-	answerLinkFailed = "Vedette could not check your code. Try again in a minute."
 )
 
 var errZaloChanged = errors.New("notify: zalo-personal: the channel changed")
@@ -129,8 +127,7 @@ func (s *Service) takeZaloText(ctx context.Context, snd channel.Sender, c channe
 		return
 	}
 	code, approve, isCode := normReplyCode(m.Text)
-	link, isLink := normLinkCode(m.Text)
-	if !isCode && (!isLink || !listed) {
+	if !isCode { // nothing else decides or links anything (D-447: a Zalo account is linked by a confirm link, never by a reply)
 		if !listed {
 			s.noteZaloStranger(ctx, m)
 		}
@@ -149,28 +146,8 @@ func (s *Service) takeZaloText(ctx context.Context, snd channel.Sender, c channe
 	}
 	wg.Go(func() {
 		defer func() { <-sem }()
-		if isCode {
-			s.decideZaloCode(ctx, snd, m.From, code, approve, listed)
-		} else {
-			s.linkZalo(ctx, snd, m.From, link)
-		}
+		s.decideZaloCode(ctx, snd, m.From, code, approve, listed)
 	})
-}
-
-// linkZalo hands a link code from a listed approver to response and answers them.
-func (s *Service) linkZalo(ctx context.Context, snd channel.Sender, from, code string) {
-	dctx, cancel := context.WithTimeout(ctx, decideBudget)
-	res, err := s.cfg.Decisions.LinkChat(dctx, Decision{Channel: channel.ZaloPersonal, ExternalID: from, Code: code})
-	cancel()
-	text := res.Message
-	switch {
-	case err != nil:
-		s.cfg.Log.WarnContext(ctx, "notify: zalo-personal: a link code could not be checked", "error", err.Error())
-		text = answerLinkFailed
-	case text == "":
-		text = answerRefused
-	}
-	s.answerZalo(ctx, snd, from, text, res.Status)
 }
 
 func (s *Service) decideZaloCode(ctx context.Context, snd channel.Sender, from, code string, approve, listed bool) {
@@ -235,15 +212,6 @@ func normReplyCode(s string) (code string, approve, ok bool) {
 		}
 	}
 	return string(b), b[0] == 'A', true
-}
-
-// normLinkCode reads a link code: 6 ASCII digits, ASCII white space trimmed at both ends.
-func normLinkCode(s string) (string, bool) {
-	s = strings.Trim(s, " \t\n\v\f\r")
-	if len(s) != 6 || strings.Trim(s, "0123456789") != "" {
-		return "", false
-	}
-	return s, true
 }
 
 // noteZaloStranger writes one audit row "notify.zalo_message" for a message from a sender who is not an approver on the channel: at

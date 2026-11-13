@@ -1,7 +1,9 @@
 // Zalo personal set-up in the channel dialog (S-NOT-1, S-RESP-2, D-447): a real QR sign-in, the recipient picked from the account's groups
-// and friends (or found from an invite link or a phone number), and approvers whose Zalo is proved by replying to a code the box sends.
+// and friends (or found from an invite link or a phone number), and approvers who confirm, signed in as themselves, the link the box sends
+// to their Zalo (your own Zalo: you confirm it now, in this session).
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { QrCode, TriangleAlert } from 'lucide-react'
@@ -155,16 +157,30 @@ export function ZaloApproverField({ approver, saved, onChange, canLook }: { appr
   )
 }
 
-/** Linked, or waiting for the reply to the code; Send again makes a new code (the old one stops working). Only for a saved approver. */
+/** Linked, or waiting for the person to confirm the link; Send again makes a new link (the old one stops working). Your own row: link it now.
+ * Only for a saved approver. */
 function ZaloLinkState({ approver, saved }: { approver: Approver; saved: Channel }) {
   const { t } = useTranslation('notify')
+  const navigate = useNavigate()
   const on = saved.configured && saved.approvals
   const states = useZaloApprovers(on)
   const send = useSendZaloCode()
   const s = states.data?.items.find((x) => x.user_id === approver.user_id && x.address === approver.address)
   if (!on || !s) return approver.address ? <p className="text-[13px] text-muted">{t('zp.link.unsaved')}</p> : null
   const who = s.name || s.address
-  const again = () => send.mutate(approver.user_id, { onSuccess: () => toast.success(t('zp.link.sentToast', { name: who })), onError: (e) => toast.error(errMsg(e)) })
+  const again = () => send.mutate(approver.user_id, {
+    onSuccess: (v) => { if (v.link) void navigate(v.link); else toast.success(t('zp.link.sentToast', { name: who })) },
+    onError: (e) => toast.error(errMsg(e)),
+  })
+  if (s.state !== 'linked' && s.self) {
+    return (
+      <div className="flex flex-wrap items-center gap-2 text-[13px]" role="status">
+        <Chip tone="warn">{t('zp.link.not_sent')}</Chip>
+        <span>{t('zp.link.yours')}</span>
+        <Button size="sm" variant="primary" disabled={send.isPending} onClick={again}>{t('zp.link.mine')}</Button>
+      </div>
+    )
+  }
   return (
     <div className="flex flex-wrap items-center gap-2 text-[13px]" role="status">
       {s.state === 'linked' ? <Chip tone="ok">{t('zp.link.linked')}</Chip> : <Chip tone="warn">{t(`zp.link.${s.state}`)}</Chip>}

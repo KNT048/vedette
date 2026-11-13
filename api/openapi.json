@@ -40199,7 +40199,7 @@
     "/notify/zalo/approvers": {
       "get": {
         "operationId": "notify_get_notify_zalo_approvers",
-        "summary": "Approvers of the Zalo personal channel and whether each replied with the code sent to their Zalo (linked)",
+        "summary": "Approvers of the Zalo personal channel and whether each confirmed the link sent to their Zalo while signed in as themself (linked)",
         "tags": [
           "notify"
         ],
@@ -40252,7 +40252,15 @@
                           },
                           "error": {
                             "type": "string",
-                            "description": "not_sent: why (failed, expired, or no code made)"
+                            "description": "not_sent: why (failed, expired, or no link made)"
+                          },
+                          "self": {
+                            "type": "boolean",
+                            "description": "The administrator asking: they confirm their own Zalo in their session, no message is sent"
+                          },
+                          "link": {
+                            "description": "Only in the answer of POST …/code for your own row: the confirm page (/link/zalo?c=…) to open in this session",
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -40261,7 +40269,8 @@
                           "name",
                           "state",
                           "sent_at",
-                          "error"
+                          "error",
+                          "self"
                         ],
                         "additionalProperties": false
                       }
@@ -40291,7 +40300,7 @@
     "/notify/zalo/approvers/{user_id}/code": {
       "post": {
         "operationId": "notify_post_notify_zalo_approvers_user_id_code",
-        "summary": "Send an approver a new code to their Zalo (the old one stops working)",
+        "summary": "Send an approver a new confirm link to their Zalo (the old one stops working); for your own row, return the link to confirm now instead",
         "tags": [
           "notify"
         ],
@@ -40349,7 +40358,15 @@
                     },
                     "error": {
                       "type": "string",
-                      "description": "not_sent: why (failed, expired, or no code made)"
+                      "description": "not_sent: why (failed, expired, or no link made)"
+                    },
+                    "self": {
+                      "type": "boolean",
+                      "description": "The administrator asking: they confirm their own Zalo in their session, no message is sent"
+                    },
+                    "link": {
+                      "description": "Only in the answer of POST …/code for your own row: the confirm page (/link/zalo?c=…) to open in this session",
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -40358,7 +40375,8 @@
                     "name",
                     "state",
                     "sent_at",
-                    "error"
+                    "error",
+                    "self"
                   ],
                   "additionalProperties": false
                 }
@@ -52882,6 +52900,10 @@
                             "type": "string",
                             "description": "The address or ID on the approver list of the channel, as an administrator saved it"
                           },
+                          "name": {
+                            "description": "The shown name of that address where the channel knows it (Zalo personal, D-447)",
+                            "type": "string"
+                          },
                           "linked": {
                             "type": "boolean",
                             "description": "Proved by this person for exactly this address; a changed address or sign-in email is not linked"
@@ -52906,7 +52928,7 @@
                               "send_code",
                               "unavailable"
                             ],
-                            "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you send it from that chat account to the account of the box (Zalo personal). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
+                            "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: the box sends a confirm link to that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
                           },
                           "code_waiting": {
                             "type": "boolean",
@@ -53115,6 +53137,10 @@
                       "type": "string",
                       "description": "The address or ID on the approver list of the channel, as an administrator saved it"
                     },
+                    "name": {
+                      "description": "The shown name of that address where the channel knows it (Zalo personal, D-447)",
+                      "type": "string"
+                    },
                     "linked": {
                       "type": "boolean",
                       "description": "Proved by this person for exactly this address; a changed address or sign-in email is not linked"
@@ -53139,7 +53165,7 @@
                         "send_code",
                         "unavailable"
                       ],
-                      "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you send it from that chat account to the account of the box (Zalo personal). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
+                      "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: the box sends a confirm link to that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
                     },
                     "code_waiting": {
                       "type": "boolean",

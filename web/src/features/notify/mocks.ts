@@ -8,6 +8,8 @@ import { assetsStore, boxInfo, emailCodeUserCount, usersStore } from '@/mocks/st
 import { collection, daysAgo, newId, nowIso } from '@/mocks/db'
 import type { Severity } from '@/lib/types'
 import { isInternalHost } from '@/features/feeds/defaults'
+import { newLinkToken } from '@/features/response/identity'
+import { isLinked } from '@/features/response/state'
 import { CHANNEL_TYPES, FIELDS, OWN_TEXT, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
 import type { Approver, Channel, ChannelInput, ChannelType, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult, ZaloApprover, ZaloContact, ZaloLogin } from './types'
 
@@ -274,10 +276,23 @@ const destOf = (c: StoredChannel) => (c.type === 'telegram' ? `chat ${c.fields.c
 const isType = (v: unknown): v is ChannelType => CHANNEL_TYPES.includes(v as ChannelType)
 
 // Zalo personal set-up (D-447): the QR sign-in walks one state per poll (waiting → scanned → signed in), the contact list is fixed, and an
-// approver who was sent a code shows waiting once, then linked (as if they replied). The box keeps one sign-in, per administrator.
+// approver is sent a confirm link (made by the response mock, kept in zaloMessages) and is linked once they confirm it signed in.
 const ZALO_QR = { size: 29, path: 'M4 4h7v1h-7zM4 5h1v1h-1zM10 5h1v1h-1zM4 6h1v1h-1zM6 6h3v1h-3zM10 6h1v1h-1zM4 7h1v1h-1zM6 7h3v1h-3zM10 7h1v1h-1zM4 8h1v1h-1zM6 8h3v1h-3zM10 8h1v1h-1zM4 9h1v1h-1zM10 9h1v1h-1zM4 10h7v1h-7zM14 14h1v1h-1z' }
 let zaloLogin: { owner: string; state: ZaloLogin['state']; polls: number } | null = null
-const zaloCodes = new Map<string, { address: string; at: string; polls: number }>()
+const zaloCodes = new Map<string, { address: string; at: string; error: string }>()
+const zaloMessages: { to: string; text: string }[] = []
+/** The messages the box's Zalo account sent (tests read the confirm link from them). */
+export const zaloMessagesForTest = () => zaloMessages
+function sendZaloLink(a: Approver) {
+  const made = newLinkToken(a.user_id, 'zalo-personal', a.address)
+  if (!('token' in made)) { zaloCodes.set(a.user_id, { address: a.address, at: nowIso(), error: `No link was made: ${made.message}` }); return made }
+  const who = usersStore.get().find((u) => u.id === a.user_id)?.name ?? a.user_id
+  const link = `https://${boxInfo().ip ?? 'vedette.local'}/link/zalo?c=${encodeURIComponent(made.token)}`
+  zaloMessages.push({ to: a.address, text: `Vedette: open this link and sign in to Vedette as ${who} to link this Zalo account to ${who}: ${link} It works once, within 10 minutes. If you are not ${who}, ignore this message.` })
+  zaloCodes.set(a.user_id, { address: a.address, at: nowIso(), error: '' })
+  audit('notify.zalo_link_code', 'zalo-personal', `a confirm link was sent to Zalo ${a.address}`)
+  return made
+}
 const zaloSignedIn = () => (zaloLogin?.state === 'signed_in' && zaloLogin.owner === currentUser()?.id ? 'Vedette Box' : null)
 const ZALO_GROUPS: ZaloContact[] = [{ id: '8000000001', name: 'IT team', group: true, members: 5 }, { id: '8000000002', name: 'Night shift', group: true, members: 12 }]
 const ZALO_FRIENDS: ZaloContact[] = [{ id: '3847561029384756102', name: 'Lan Pham', group: false, members: 0 }, { id: '2938475610293847561', name: 'Minh Tran', group: false, members: 0 }]
@@ -292,9 +307,11 @@ const NO_SESSION = () => fail(409, 'no_session', 'Sign in with the QR code first
 const BAD_QUERY = 'Enter a group invite link (https://zalo.me/g/…), a phone number such as 0912345678, or a Zalo ID.'
 function zaloApprover(a: Approver): ZaloApprover {
   const rec = zaloCodes.get(a.user_id)
-  const base = { user_id: a.user_id, address: a.address, name: a.name ?? '', sent_at: rec?.address === a.address ? rec.at : null, error: '' }
+  const base = { user_id: a.user_id, address: a.address, name: a.name ?? '', sent_at: rec?.address === a.address ? rec.at : null, error: '', self: a.user_id === currentUser()?.id }
+  if (isLinked(a.user_id, 'zalo-personal', a.address)) return { ...base, state: 'linked' }
   if (!rec || rec.address !== a.address) return { ...base, state: 'not_sent' }
-  return { ...base, state: rec.polls >= 1 ? 'linked' : 'waiting' }
+  if (rec.error) return { ...base, state: 'not_sent', error: rec.error }
+  return Date.now() - new Date(rec.at).getTime() < 600_000 ? { ...base, state: 'waiting' } : { ...base, state: 'not_sent', error: 'The link expired. Send a new one.' }
 }
 
 export const handlers = [
@@ -347,9 +364,7 @@ export const handlers = [
   http.get(`${API}/notify/zalo/approvers`, () => {
     const denied = guard('admin'); if (denied) return denied
     const c = channels.get().find((x) => x.type === 'zalo-personal')
-    const items = (c?.approvers ?? []).map(zaloApprover)
-    for (const a of c?.approvers ?? []) { const r = zaloCodes.get(a.user_id); if (r && r.address === a.address) r.polls++ }
-    return HttpResponse.json({ items })
+    return HttpResponse.json({ items: (c?.approvers ?? []).map(zaloApprover) })
   }),
 
   http.post(`${API}/notify/zalo/approvers/:user_id/code`, ({ params }) => {
@@ -358,8 +373,14 @@ export const handlers = [
     if (!c?.configured || !c.enabled || !c.approvals) return fail(409, 'channel_not_ready', 'Save the Zalo (personal) channel turned on, with "Approve actions from this channel", first.')
     const a = (c.approvers ?? []).find((x) => x.user_id === params.user_id)
     if (!a) return fail(404, 'not_listed', 'This person is not an approver on the Zalo channel. Save the channel first.')
-    zaloCodes.set(a.user_id, { address: a.address, at: nowIso(), polls: 0 })
-    audit('notify.zalo_link_code', 'zalo-personal', `a link code was sent to Zalo ${a.address}`)
+    if (a.user_id === currentUser()!.id) { // your own Zalo: no message, confirm it now in this session
+      const made = newLinkToken(a.user_id, 'zalo-personal', a.address)
+      if (!('token' in made)) return fail(made.status, made.code, made.message)
+      audit('notify.zalo_link_code', 'zalo-personal', `a confirm link was made for the administrator's own Zalo ${a.address} (no message sent)`)
+      return HttpResponse.json({ ...zaloApprover(a), link: `/link/zalo?c=${encodeURIComponent(made.token)}` })
+    }
+    const made = sendZaloLink(a)
+    if (!('token' in made)) return fail(made.status, made.code, made.message)
     return HttpResponse.json(zaloApprover(a))
   }),
 
@@ -452,10 +473,11 @@ export const handlers = [
     if (zalo && b.zalo_login === true) zaloLogin = null
     const approvals = b.approvals === true
     const approvers = approvals ? (b.approvers ?? []).map((a) => ({ user_id: a.user_id, address: a.address.trim(), ...(zalo && a.name ? { name: a.name } : {}) })) : []
-    if (zalo) for (const a of approvers) if (!(cur.approvers ?? []).some((x) => x.user_id === a.user_id && x.address === a.address)) zaloCodes.set(a.user_id, { address: a.address, at: nowIso(), polls: 0 })
+    const fresh = zalo ? approvers.filter((a) => !(cur.approvers ?? []).some((x) => x.user_id === a.user_id && x.address === a.address)) : []
     const next: StoredChannel = { ...cur, configured: true, enabled: b.enabled === true, fields, secret: secret ? secret : cur.secret, ...(type === 'webhook' ? { url: webhookUrl(b.fields ?? {}, cur) } : {}), min_severity: b.min_severity!, last_test: null, approvals, approvers,
       app_token: type === 'slack' ? (b.app_token?.trim() || cur.app_token) : undefined, bot_token: type === 'slack' ? (b.bot_token?.trim() || cur.bot_token) : undefined }
     channels.update((l) => [...l.filter((c) => c.type !== type), next])
+    if (next.enabled && approvals) for (const a of fresh) if (a.user_id !== currentUser()!.id) sendZaloLink(a) // you confirm your own Zalo in your session
     audit('notify.channel_save', type, `${next.enabled ? 'on' : 'off'}${approvals ? `, approvals on (${approvers.length} approver${approvers.length === 1 ? '' : 's'})` : ''}`)
     return HttpResponse.json(pub(next))
   }),

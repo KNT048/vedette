@@ -215,7 +215,7 @@
       "slack": "Approval requests show Approve and Reject buttons in Slack. This uses Slack Socket Mode: the box opens the connection outward to Slack, so you open no inbound port and need no public address.",
       "telegram": "Approval requests show inline Approve and Reject buttons in the chat. This uses the bot above with long polling: the box asks Telegram for new button presses, so you open no inbound port.",
       "email": "Each approver receives an email with an Approve button that opens a confirmation page on Vedette.",
-      "zalo-personal": "Add each approver with their Zalo account: pick a friend of this account or find them by phone number. When you save, this account sends them a code; they are linked once they reply with it from that Zalo account. Then each approval request reaches them privately with two codes of their own, one to approve and one to reject. High-risk actions are approved only in Vedette."
+      "zalo-personal": "Add each approver with their Zalo account: pick a friend of this account or find them by phone number. When you save, this account sends each of them a confirm link; they are linked once they open it and confirm while signed in to Vedette as themselves (your own Zalo you confirm here). Then each approval request reaches them privately with two codes of their own, one to approve and one to reject. High-risk actions are approved only in Vedette."
     },
     "email": {
       "p1": "The link is single-use, valid for 30 minutes, and bound to that one action and that one approver.",
@@ -265,16 +265,18 @@
     "approverPick": "Zalo friend",
     "approverFind": "Or find by phone number",
     "approverFindHint": "The phone number of their Zalo account, for example 0912345678.",
-    "codesSent": "Each new approver gets a code from this Zalo account. They are linked once they reply with it.",
+    "codesSent": "Each new approver gets a confirm link from this Zalo account. They are linked once they open it and confirm while signed in to Vedette.",
     "link": {
-      "unsaved": "Save to send this person a code on Zalo.",
+      "unsaved": "Save to send this person a confirm link on Zalo (your own Zalo: you confirm it here after saving).",
       "linked": "Linked",
-      "sending": "Sending the code",
+      "sending": "Sending the link",
       "waiting": "Waiting",
       "not_sent": "Not linked",
-      "waitingFor": "Waiting for {{name}} to reply with the code sent at {{time}}.",
+      "waitingFor": "Waiting for {{name}} to open the link sent at {{time}} and confirm it while signed in to Vedette.",
       "again": "Send again",
-      "sentToast": "A new code was sent to {{name}}. The old one no longer works."
+      "sentToast": "A new confirm link was sent to {{name}}. The old one no longer works.",
+      "yours": "This is your own Zalo account: link it to your Vedette account now.",
+      "mine": "Link my Zalo now"
     },
     "signOutHint": "Zalo has no sign-out for this kind of session: a sign-in you cancel, replace or do not save stays signed in on Zalo until it expires or you log it out of the account's devices in the Zalo app."
   },
@@ -419,5 +421,17 @@
     "resendOk": "Sent again via {{channel}}.",
     "emptyTitle": "Nothing sent yet",
     "emptyBody": "Messages appear here once a channel is on and something worth telling you happens. Test messages are not listed here; each channel shows its last test."
+  },
+  "zl": {
+    "title": "Link your Zalo account",
+    "account": "{{name}} (ID {{id}})",
+    "thisAccount": "this Zalo account",
+    "noToken": "This link is not complete. Open it again from the Zalo message.",
+    "question": "Link Zalo {{zalo}} to your account, {{who}}?",
+    "explain": "An administrator listed this Zalo account as yours for approving actions, and Vedette's Zalo account sent you this link. Confirm only if the Zalo account is yours: approval replies from it will then count as you.",
+    "confirm": "Confirm",
+    "linked": "Linked. Zalo {{zalo}} now counts as you when you reply to approval messages.",
+    "already": "Zalo {{zalo}} is already linked to your account.",
+    "toAccount": "Open My account"
   }
 }

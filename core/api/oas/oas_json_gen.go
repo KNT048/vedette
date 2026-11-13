@@ -168910,8 +168910,18 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.Error)
 	}
 	{
+		if s.Link.Set {
+			e.FieldStart("link")
+			s.Link.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("self")
+		e.Bool(s.Self)
 	}
 	{
 		e.FieldStart("sent_at")
@@ -168927,13 +168937,15 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfNotifyGetNotifyZaloApproversOKItemsItem = [6]string{
+var jsonFieldsNameOfNotifyGetNotifyZaloApproversOKItemsItem = [8]string{
 	0: "address",
 	1: "error",
-	2: "name",
-	3: "sent_at",
-	4: "state",
-	5: "user_id",
+	2: "link",
+	3: "name",
+	4: "self",
+	5: "sent_at",
+	6: "state",
+	7: "user_id",
 }
 
 // Decode decodes NotifyGetNotifyZaloApproversOKItemsItem from json.
@@ -168969,8 +168981,18 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"error\"")
 			}
+		case "link":
+			if err := func() error {
+				s.Link.Reset()
+				if err := s.Link.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link\"")
+			}
 		case "name":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -168981,8 +169003,20 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
+		case "self":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Self = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"self\"")
+			}
 		case "sent_at":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.SentAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -168992,7 +169026,7 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sent_at\"")
 			}
 		case "state":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -169002,7 +169036,7 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"state\"")
 			}
 		case "user_id":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.UserID = string(v)
@@ -169023,7 +169057,7 @@ func (s *NotifyGetNotifyZaloApproversOKItemsItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b11111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -171628,8 +171662,18 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) encodeFields(e *jx.Encoder) 
 		e.Str(s.Error)
 	}
 	{
+		if s.Link.Set {
+			e.FieldStart("link")
+			s.Link.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("self")
+		e.Bool(s.Self)
 	}
 	{
 		e.FieldStart("sent_at")
@@ -171645,13 +171689,15 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) encodeFields(e *jx.Encoder) 
 	}
 }
 
-var jsonFieldsNameOfNotifyPostNotifyZaloApproversUserIDCodeOK = [6]string{
+var jsonFieldsNameOfNotifyPostNotifyZaloApproversUserIDCodeOK = [8]string{
 	0: "address",
 	1: "error",
-	2: "name",
-	3: "sent_at",
-	4: "state",
-	5: "user_id",
+	2: "link",
+	3: "name",
+	4: "self",
+	5: "sent_at",
+	6: "state",
+	7: "user_id",
 }
 
 // Decode decodes NotifyPostNotifyZaloApproversUserIDCodeOK from json.
@@ -171687,8 +171733,18 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) Decode(d *jx.Decoder) error 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"error\"")
 			}
+		case "link":
+			if err := func() error {
+				s.Link.Reset()
+				if err := s.Link.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link\"")
+			}
 		case "name":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -171699,8 +171755,20 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) Decode(d *jx.Decoder) error 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
+		case "self":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Self = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"self\"")
+			}
 		case "sent_at":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.SentAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -171710,7 +171778,7 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"sent_at\"")
 			}
 		case "state":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -171720,7 +171788,7 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"state\"")
 			}
 		case "user_id":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.UserID = string(v)
@@ -171741,7 +171809,7 @@ func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) Decode(d *jx.Decoder) error 
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b11111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -199081,9 +199149,15 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItem) encodeFields(e *jx.Encoder)
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
+	{
+		if s.Name.Set {
+			e.FieldStart("name")
+			s.Name.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfResponseGetResponseMeIdentitiesOKItemsItem = [7]string{
+var jsonFieldsNameOfResponseGetResponseMeIdentitiesOKItemsItem = [8]string{
 	0: "address",
 	1: "channel",
 	2: "code_waiting",
@@ -199091,6 +199165,7 @@ var jsonFieldsNameOfResponseGetResponseMeIdentitiesOKItemsItem = [7]string{
 	4: "linked",
 	5: "linked_at",
 	6: "method",
+	7: "name",
 }
 
 // Decode decodes ResponseGetResponseMeIdentitiesOKItemsItem from json.
@@ -199181,6 +199256,16 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItem) Decode(d *jx.Decoder) error
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"method\"")
+			}
+		case "name":
+			if err := func() error {
+				s.Name.Reset()
+				if err := s.Name.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -231475,9 +231560,15 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) encodeFields(e *jx.En
 		e.FieldStart("method")
 		s.Method.Encode(e)
 	}
+	{
+		if s.Name.Set {
+			e.FieldStart("name")
+			s.Name.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfResponsePostResponseMeIdentitiesChannelConfirmOK = [7]string{
+var jsonFieldsNameOfResponsePostResponseMeIdentitiesChannelConfirmOK = [8]string{
 	0: "address",
 	1: "channel",
 	2: "code_waiting",
@@ -231485,6 +231576,7 @@ var jsonFieldsNameOfResponsePostResponseMeIdentitiesChannelConfirmOK = [7]string
 	4: "linked",
 	5: "linked_at",
 	6: "method",
+	7: "name",
 }
 
 // Decode decodes ResponsePostResponseMeIdentitiesChannelConfirmOK from json.
@@ -231575,6 +231667,16 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) Decode(d *jx.Decoder)
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"method\"")
+			}
+		case "name":
+			if err := func() error {
+				s.Name.Reset()
+				if err := s.Name.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)

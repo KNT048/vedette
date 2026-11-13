@@ -219,13 +219,13 @@ type ApproverLinks interface {
 	Linked(ctx context.Context, userID string, ch channel.Type, address string) (bool, error)
 }
 
-// LinkCodes makes the code that proves an approver's chat ID when the box sends it to that ID and the person replies with it from there
-// (Zalo personal, D-447; module response keeps the code and the proof, D-191). name is the Vedette user's name for the message. A
-// refusal is an *apierr.Error (not listed, already linked, a new code too soon, Response off): it goes to the administrator as it is.
-// DropChatLink ends the proof of one address when an administrator removes that approver or gives them another address, so the old
-// address never counts again without a new proof.
+// LinkCodes makes the token of the confirm link the box sends to an approver's chat ID (Zalo personal, D-447, option A; module response
+// keeps the token and the proof, D-191): only the person, signed in to Vedette as themself, confirms it, so no administrator links anyone.
+// name is the Vedette user's name for the message. A refusal is an *apierr.Error (not listed, already linked, a new link too soon,
+// Response off): it goes to the administrator as it is. DropChatLink ends the proof of one address when an administrator removes that
+// approver or gives them another address, so the old address never counts again without a new proof.
 type LinkCodes interface {
-	ChatLinkCode(ctx context.Context, userID string, ch channel.Type, address string) (code, name string, err error)
+	ChatLinkToken(ctx context.Context, userID string, ch channel.Type, address string) (token, name string, err error)
 	DropChatLink(ctx context.Context, actor, userID string, ch channel.Type, address string) error
 }
 
@@ -305,12 +305,10 @@ type DecisionResult struct {
 	RequestID string
 }
 
-// Decisions is the port of the response module that takes decisions made in chat (PRE-8). notify decides nothing itself.
-// LinkChat takes a link code an approver sent from their own chat account (Zalo personal, D-243): Code is the 6 digits, ExternalID
-// the sender; response links the ID when the code is the one My account showed the person listed with that ID (D-191).
+// Decisions is the port of the response module that takes decisions made in chat (PRE-8). notify decides nothing itself. Nothing a
+// chat account sends links it to a Vedette user (D-447): a Zalo personal approver is linked only by confirming a link while signed in.
 type Decisions interface {
 	Decide(ctx context.Context, d Decision) (DecisionResult, error)
-	LinkChat(ctx context.Context, d Decision) (DecisionResult, error)
 }
 
 // Errors of the service that are not API errors.

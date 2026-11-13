@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -57,8 +58,10 @@ type ZaloFound struct {
 	Member bool `json:"member"`
 }
 
-// ZaloApprover is the link state of one approver of the Zalo personal channel (GET /notify/zalo/approvers): linked, sending (the code
-// is on its way), waiting (sent, no reply yet), not_sent (never sent, failed, or expired; Error says which).
+// ZaloApprover is the link state of one approver of the Zalo personal channel (GET /notify/zalo/approvers): linked, sending (the confirm
+// link is on its way), waiting (sent, not confirmed yet), not_sent (never sent, failed, or expired; Error says which). Self marks the
+// administrator asking: they confirm their own Zalo in their session, without a message (Link, set only on that answer of
+// POST …/code, is the confirm page).
 type ZaloApprover struct {
 	UserID  string  `json:"user_id"`
 	Address string  `json:"address"`
@@ -66,6 +69,8 @@ type ZaloApprover struct {
 	State   string  `json:"state"`
 	SentAt  *string `json:"sent_at"`
 	Error   string  `json:"error"`
+	Self    bool    `json:"self"`
+	Link    string  `json:"link,omitempty"`
 }
 
 // zaloQRFlow is one QR sign-in (channel.ZaloQR); a test replaces how it starts (Service.zaloStartQR).
@@ -398,21 +403,28 @@ func (s *Service) ResolveZalo(ctx context.Context, who, query string) (ZaloFound
 	return ZaloFound{ZaloContact: p, Member: true}, nil
 }
 
-// ZaloApprovers is GET /notify/zalo/approvers: each saved approver of the Zalo personal channel and whether their Zalo is linked.
-func (s *Service) ZaloApprovers(ctx context.Context) ([]ZaloApprover, error) {
+// ZaloApprovers is GET /notify/zalo/approvers: each saved approver of the Zalo personal channel and whether their Zalo is linked; who is
+// the administrator asking (their own row is Self).
+func (s *Service) ZaloApprovers(ctx context.Context, who string) ([]ZaloApprover, error) {
 	list, err := loadApprovers(ctx, s.cfg.DB.Reader(), channel.ZaloPersonal)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]ZaloApprover, 0, len(list))
 	for _, a := range list {
-		out = append(out, s.approverState(ctx, a))
+		out = append(out, s.approverState(ctx, a, who))
 	}
 	return out, nil
 }
 
-func (s *Service) approverState(ctx context.Context, a Approver) ZaloApprover {
-	v := ZaloApprover{UserID: a.UserID, Address: a.Address, Name: a.Name, State: "not_sent"}
+// isUser says whether the user userID is the administrator who (an email); an error or no such user is no.
+func (s *Service) isUser(ctx context.Context, userID, who string) bool {
+	u, ok, err := s.cfg.Users.Lookup(ctx, userID)
+	return err == nil && ok && strings.EqualFold(u.Email, who)
+}
+
+func (s *Service) approverState(ctx context.Context, a Approver, who string) ZaloApprover {
+	v := ZaloApprover{UserID: a.UserID, Address: a.Address, Name: a.Name, State: "not_sent", Self: s.isUser(ctx, a.UserID, who)}
 	if s.cfg.ApproverLinks != nil {
 		if ok, err := s.cfg.ApproverLinks.Linked(ctx, a.UserID, channel.ZaloPersonal, a.Address); err == nil && ok {
 			v.State = "linked"
@@ -437,12 +449,14 @@ func (s *Service) approverState(ctx context.Context, a Approver) ZaloApprover {
 	case time.Since(rec.at) < zaloCodeLife:
 		v.State = "waiting"
 	default:
-		v.Error = "The code expired. Send a new one."
+		v.Error = "The link expired. Send a new one."
 	}
 	return v
 }
 
-// SendZaloCode is POST /notify/zalo/approvers/{user_id}/code: a new code for that approver (the old one stops working), sent to their Zalo.
+// SendZaloCode is POST /notify/zalo/approvers/{user_id}/code: a new confirm link for that approver (the old one stops working), sent to
+// their Zalo. For the administrator's own row nothing is sent: the answer carries the link (Link) and they confirm it in this session,
+// through the same page and the same check as anyone (D-447).
 func (s *Service) SendZaloCode(ctx context.Context, actor, userID string) (ZaloApprover, error) {
 	c, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.ZaloPersonal)
 	if err != nil {
@@ -459,38 +473,70 @@ func (s *Service) SendZaloCode(ctx context.Context, actor, userID string) (ZaloA
 	if i < 0 {
 		return ZaloApprover{}, apierr.New(http.StatusNotFound, "not_listed", "This person is not an approver on the Zalo channel. Save the channel first.")
 	}
-	if err := s.sendLinkCode(ctx, actor, c, list[i]); err != nil {
+	a := list[i]
+	if s.isUser(ctx, a.UserID, actor) {
+		token, err := s.linkToken(ctx, a)
+		if err != nil {
+			return ZaloApprover{}, err
+		}
+		if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+			return s.record(ctx, tx, actor, "notify.zalo_link_code", string(channel.ZaloPersonal), clip("a confirm link was made for the administrator's own Zalo "+a.Address+" (no message sent)", 400))
+		}); err != nil {
+			return ZaloApprover{}, err
+		}
+		v := s.approverState(ctx, a, actor)
+		v.Link = zaloLinkPath(token)
+		return v, nil
+	}
+	if err := s.sendLinkCode(ctx, actor, c, a); err != nil {
 		return ZaloApprover{}, err
 	}
-	return s.approverState(ctx, list[i]), nil
+	return s.approverState(ctx, a, actor), nil
 }
 
-// sendLinkCode asks response for a new code (D-191: single use, 10 minutes, five wrong tries; a new one replaces the old) and sends it to
-// the approver's Zalo from the channel's account. A refusal of response (a new code too soon, already linked) is returned as it is; a
-// failed send is kept as the approver's state. The code is never logged nor audited.
+func zaloLinkPath(token string) string { return "/link/zalo?c=" + url.QueryEscape(token) }
+
+// linkToken asks response for the token of a new confirm link (D-191: single use, 10 minutes, five wrong tries; a new one replaces the
+// old). A refusal of response (a new link too soon, already linked, Response off) is returned as it is.
+func (s *Service) linkToken(ctx context.Context, a Approver) (string, error) {
+	if s.cfg.LinkCodes == nil {
+		return "", apierr.New(http.StatusServiceUnavailable, "link_unavailable", "Approvers cannot be linked now: the Response module is off.")
+	}
+	token, _, err := s.cfg.LinkCodes.ChatLinkToken(ctx, a.UserID, channel.ZaloPersonal, a.Address)
+	return token, err
+}
+
+// sendLinkCode sends a new confirm link to the approver's Zalo from the channel's account: "open this link and sign in to Vedette as
+// <name>". Only that person, signed in, can confirm it (response ConfirmLink). The link needs the address people open Vedette at
+// (Config.BaseURL). A failed send is kept as the approver's state. The token is never logged nor audited.
 func (s *Service) sendLinkCode(ctx context.Context, actor string, c channelRow, a Approver) error {
 	if s.cfg.LinkCodes == nil {
 		return apierr.New(http.StatusServiceUnavailable, "link_unavailable", "Approvers cannot be linked now: the Response module is off.")
+	}
+	if s.cfg.BaseURL == "" {
+		err := apierr.New(http.StatusServiceUnavailable, "no_base_url", "Vedette does not know the address people open it at, so no confirm link can be sent.")
+		s.markCode(a, zaloCodeSent{address: a.Address, errText: err.Message})
+		return err
 	}
 	s.zalo.mu.Lock()
 	ok, wait := ration(&s.zalo.dms, s.now(), zaloCodeDMs, zaloLookupEvery)
 	s.zalo.mu.Unlock()
 	if !ok {
-		err := retryErr(http.StatusTooManyRequests, "too_many_codes", "Too many codes were sent from this Zalo account in a short time (Zalo may lock it). Send again in %d minutes.", wait)
+		err := retryErr(http.StatusTooManyRequests, "too_many_codes", "Too many links were sent from this Zalo account in a short time (Zalo may lock it). Send again in %d minutes.", wait)
 		s.markCode(a, zaloCodeSent{address: a.Address, errText: refusalText(err)})
 		return err
 	}
 	s.markCode(a, zaloCodeSent{address: a.Address, sending: true})
-	code, name, err := s.cfg.LinkCodes.ChatLinkCode(ctx, a.UserID, channel.ZaloPersonal, a.Address)
+	token, name, err := s.cfg.LinkCodes.ChatLinkToken(ctx, a.UserID, channel.ZaloPersonal, a.Address)
 	if err != nil {
-		s.markCode(a, zaloCodeSent{address: a.Address, errText: "No code was made: " + refusalText(err)})
+		s.markCode(a, zaloCodeSent{address: a.Address, errText: "No link was made: " + refusalText(err)})
 		return err
 	}
-	sent := s.deliverLinkCode(ctx, c, a, code, name)
+	sent := s.deliverLink(ctx, c, a, s.link(zaloLinkPath(token)), name)
 	s.markCode(a, sent)
-	detail := "a link code was sent to Zalo " + a.Address
+	detail := "a confirm link was sent to Zalo " + a.Address
 	if sent.errText != "" {
-		detail = "a link code could not be sent to Zalo " + a.Address + ": " + sent.errText
+		detail = "a confirm link could not be sent to Zalo " + a.Address + ": " + sent.errText
 	}
 	if u, ok, uerr := s.cfg.Users.Lookup(ctx, a.UserID); uerr == nil && ok {
 		detail += " (approver " + u.Email + ")"
@@ -500,14 +546,16 @@ func (s *Service) sendLinkCode(ctx context.Context, actor string, c channelRow, 
 	})
 }
 
-func (s *Service) deliverLinkCode(ctx context.Context, c channelRow, a Approver, code, name string) zaloCodeSent {
+func (s *Service) deliverLink(ctx context.Context, c channelRow, a Approver, link, name string) zaloCodeSent {
 	out := zaloCodeSent{address: a.Address, at: time.Now()}
 	snd, err := s.savedSender(ctx, c, nil)
 	if err == nil {
 		var d channel.Sender
 		if d, err = s.zaloTo(snd, a.Address); err == nil {
 			sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), zaloCodeSendWait)
-			text := "Vedette: reply with " + code + " to confirm that you are " + clip(name, 64) + " on Vedette. The code works once, within 10 minutes. If you did not expect this message, ignore it."
+			who := clip(name, 64)
+			text := "Vedette: open this link and sign in to Vedette as " + who + " to link this Zalo account to " + who + ": " + link +
+				" It works once, within 10 minutes. If you are not " + who + ", ignore this message."
 			_, err = d.Send(sctx, channel.Message{Kind: channel.KindReply, Severity: "info", Title: text})
 			cancel()
 		}
@@ -522,7 +570,7 @@ func refusalText(err error) string {
 	if ae, ok := apierr.As(err); ok {
 		return ae.Message
 	}
-	return "the code could not be made."
+	return "the link could not be made."
 }
 
 func (s *Service) markCode(a Approver, rec zaloCodeSent) {
@@ -538,6 +586,10 @@ func (s *Service) markCode(a Approver, rec zaloCodeSent) {
 // message from the account). The dialog shows them as sending until each is done.
 func (s *Service) sendLinkCodesLater(ctx context.Context, actor string, c channelRow, list []Approver) {
 	if len(list) == 0 || s.cfg.LinkCodes == nil {
+		return
+	}
+	list = slices.DeleteFunc(slices.Clone(list), func(a Approver) bool { return s.isUser(ctx, a.UserID, actor) }) // they confirm in their session
+	if len(list) == 0 {
 		return
 	}
 	for _, a := range list {

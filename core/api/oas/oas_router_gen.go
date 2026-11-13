@@ -14840,7 +14840,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = NotifyGetNotifyZaloApproversOperation
-								r.summary = "Approvers of the Zalo personal channel and whether each replied with the code sent to their Zalo (linked)"
+								r.summary = "Approvers of the Zalo personal channel and whether each confirmed the link sent to their Zalo while signed in as themself (linked)"
 								r.operationID = "notify_get_notify_zalo_approvers"
 								r.operationGroup = ""
 								r.pathPattern = "/notify/zalo/approvers"
@@ -14886,7 +14886,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = NotifyPostNotifyZaloApproversUserIDCodeOperation
-										r.summary = "Send an approver a new code to their Zalo (the old one stops working)"
+										r.summary = "Send an approver a new confirm link to their Zalo (the old one stops working); for your own row, return the link to confirm now instead"
 										r.operationID = "notify_post_notify_zalo_approvers_user_id_code"
 										r.operationGroup = ""
 										r.pathPattern = "/notify/zalo/approvers/{user_id}/code"

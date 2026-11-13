@@ -260,7 +260,11 @@ func (h *NotifyHandlers) NotifyPostNotifyZaloResolve(ctx context.Context, req *o
 
 // NotifyGetNotifyZaloApprovers implements GET /notify/zalo/approvers (admin).
 func (h *NotifyHandlers) NotifyGetNotifyZaloApprovers(ctx context.Context) (*oas.NotifyGetNotifyZaloApproversOK, error) {
-	l, err := h.svc.ZaloApprovers(ctx)
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	l, err := h.svc.ZaloApprovers(ctx, who)
 	if err != nil {
 		return nil, err
 	}

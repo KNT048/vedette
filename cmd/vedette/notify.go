@@ -185,12 +185,12 @@ func (l notifyApproverLinks) Linked(ctx context.Context, userID string, ch chann
 	return l.d.Response.Linked(ctx, userID, string(ch), address)
 }
 
-// ChatLinkCode is notify's Config.LinkCodes (D-447): response makes the code a Zalo personal approver replies with from their Zalo.
-func (l notifyApproverLinks) ChatLinkCode(ctx context.Context, userID string, ch channel.Type, address string) (code, name string, err error) {
+// ChatLinkToken is notify's Config.LinkCodes (D-447): response makes the token of the confirm link sent to a Zalo personal approver.
+func (l notifyApproverLinks) ChatLinkToken(ctx context.Context, userID string, ch channel.Type, address string) (token, name string, err error) {
 	if l.d.Response == nil {
 		return "", "", errResponseNotReady
 	}
-	return l.d.Response.ChatLinkCode(ctx, userID, string(ch), address)
+	return l.d.Response.ChatLinkToken(ctx, userID, string(ch), address)
 }
 
 // DropChatLink is the other half of notify's Config.LinkCodes (D-447): an approver removed or given another Zalo loses the old proof.

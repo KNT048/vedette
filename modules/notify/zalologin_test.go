@@ -214,16 +214,16 @@ func (f *fakeLinkCodes) DropChatLink(_ context.Context, actor, userID string, _ 
 	return nil
 }
 
-func (f *fakeLinkCodes) ChatLinkCode(_ context.Context, userID string, _ channel.Type, address string) (string, string, error) {
+func (f *fakeLinkCodes) ChatLinkToken(_ context.Context, userID string, _ channel.Type, address string) (string, string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.asked = append(f.asked, userID+"|"+address)
-	return "654321", "IT Operator", f.err
+	return "0a1b2c3d-tokenTOKENtoken0123456", "IT Operator", f.err
 }
 
-// D-447: saving a Zalo approver sends a code to that Zalo from the box's account; the dialog shows the approver waiting until the reply
-// links them (response's proof); Send again makes a new code; a refusal of response reaches the administrator; removing a linked
-// approver is audited. The code is never in the audit log.
+// D-447: saving a Zalo approver sends a confirm link to that Zalo from the box's account; the dialog shows the approver waiting until
+// they confirm it signed in (response's proof); Send again makes a new link; a refusal of response reaches the administrator; removing a
+// linked approver is audited. The token is never in the audit log.
 func TestContract_D447_ZaloApproverLinkCodes(t *testing.T) {
 	links := &fakeLinks{}
 	codes := &fakeLinkCodes{}
@@ -237,14 +237,14 @@ func TestContract_D447_ZaloApproverLinkCodes(t *testing.T) {
 	if len(c.Approvers) != 1 || c.Approvers[0].Name != "Op on Zalo" {
 		t.Errorf("approvers %+v", c.Approvers)
 	}
-	if len(z.sent) != 1 || z.sent[0].to != zaloOp || !strings.Contains(z.sent[0].msg.Title, "reply with 654321 to confirm that you are IT Operator on Vedette") {
+	if len(z.sent) != 1 || z.sent[0].to != zaloOp || !strings.Contains(z.sent[0].msg.Title, "open this link and sign in to Vedette as IT Operator to link this Zalo account to IT Operator: https://box.example:8443/link/zalo?c=0a1b2c3d-tokenTOKENtoken0123456 ") {
 		t.Fatalf("sent %+v", z.sent)
 	}
-	st, err := e.svc.ZaloApprovers(e.ctx())
+	st, err := e.svc.ZaloApprovers(e.ctx(), "admin@acme.example")
 	if err != nil || len(st) != 1 || st[0].State != "waiting" || st[0].SentAt == nil || st[0].Name != "Op on Zalo" {
 		t.Fatalf("approvers = %+v, %v", st, err)
 	}
-	if e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.zalo_link_code' AND detail LIKE '%it@acme.example%' AND detail NOT LIKE '%654321%'`) != 1 {
+	if e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.zalo_link_code' AND detail LIKE '%it@acme.example%' AND detail NOT LIKE '%tokenTOKEN%'`) != 1 {
 		t.Error("the code send is not audited (or the code is in it)")
 	}
 	e.save(channel.ZaloPersonal, in) // nothing changed for the approver: no second code
@@ -264,7 +264,7 @@ func TestContract_D447_ZaloApproverLinkCodes(t *testing.T) {
 	links.mu.Lock()
 	links.linked = true
 	links.mu.Unlock()
-	if st, _ := e.svc.ZaloApprovers(e.ctx()); st[0].State != "linked" {
+	if st, _ := e.svc.ZaloApprovers(e.ctx(), "admin@acme.example"); st[0].State != "linked" {
 		t.Errorf("after the reply: %+v", st)
 	}
 	in.Approvers = []notify.Approver{{UserID: "u-admin", Address: zaloAdmin}}
@@ -278,7 +278,7 @@ func TestContract_D447_ZaloApproverLinkCodes(t *testing.T) {
 	}
 }
 
-// One box sends at most 10 link-code messages in 10 minutes, however many approvers a save adds (review L3, D-46).
+// One box sends at most 10 confirm-link messages in 10 minutes, however many approvers a save adds (review L3, D-46).
 func TestZaloLinkCodeMessagesAreRationed(t *testing.T) {
 	codes := &fakeLinkCodes{}
 	e := newZaloEnv(t, func(c *notify.Config) { c.ApproverLinks, c.LinkCodes = &fakeLinks{}, codes })
@@ -298,11 +298,39 @@ func TestZaloLinkCodeMessagesAreRationed(t *testing.T) {
 	if len(z.sent) != 10 {
 		t.Errorf("%d messages sent", len(z.sent))
 	}
-	if st, _ := e.svc.ZaloApprovers(e.ctx()); st[0].State != "not_sent" || !strings.Contains(st[0].Error, "Too many codes") {
+	if st, _ := e.svc.ZaloApprovers(e.ctx(), "admin@acme.example"); st[0].State != "not_sent" || !strings.Contains(st[0].Error, "Too many links") {
 		t.Errorf("state after the ration %+v", st)
 	}
 	e.clock.Add(10 * time.Minute)
 	if _, err := e.svc.SendZaloCode(e.ctx(), "admin@acme.example", "u-op"); err != nil {
 		t.Errorf("after 10 minutes: %v", err)
+	}
+}
+
+// D-447: an administrator who lists their own Zalo is sent nothing: the answer carries the confirm page for this session, through the same
+// token and confirm step as anyone; nobody else's row gets a link back.
+func TestContract_D447_AdminConfirmsTheirOwnZaloInTheirSession(t *testing.T) {
+	codes := &fakeLinkCodes{}
+	e := newZaloEnv(t, func(c *notify.Config) { c.ApproverLinks, c.LinkCodes = &fakeLinks{}, codes })
+	z := &zaloRecorder{codes: func() int { return 0 }}
+	e.svc.SetZaloToForTest(z.direct)
+	e.save(channel.ZaloPersonal, notify.ChannelInput{Enabled: true, Fields: map[string]string{"user_id": "123456789"}, Secret: zaloSession, MinSeverity: notify.Low, Approvals: true,
+		Approvers: []notify.Approver{{UserID: "u-admin", Address: zaloAdmin}, {UserID: "u-op", Address: zaloOp}}})
+	e.svc.WaitZaloForTest()
+	if len(z.sent) != 1 || z.sent[0].to != zaloOp {
+		t.Fatalf("messages %+v: only the other approver gets one", z.sent)
+	}
+	st, err := e.svc.ZaloApprovers(e.ctx(), "admin@acme.example")
+	if err != nil || !st[0].Self || st[1].Self || st[0].State != "not_sent" {
+		t.Fatalf("states %+v, %v", st, err)
+	}
+	mine, err := e.svc.SendZaloCode(e.ctx(), "admin@acme.example", "u-admin")
+	if err != nil || mine.Link != "/link/zalo?c=0a1b2c3d-tokenTOKENtoken0123456" || len(z.sent) != 1 {
+		t.Fatalf("own link %+v, %v; messages %d", mine, err, len(z.sent))
+	}
+	e.clock.Add(time.Minute)
+	other, err := e.svc.SendZaloCode(e.ctx(), "admin@acme.example", "u-op")
+	if err != nil || other.Link != "" || len(z.sent) != 2 {
+		t.Fatalf("another approver's link came back %+v, %v", other, err)
 	}
 }

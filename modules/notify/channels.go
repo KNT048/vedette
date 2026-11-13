@@ -879,6 +879,11 @@ func (s *Service) DeleteChannel(ctx context.Context, actor string, t channel.Typ
 				return fmt.Errorf("notify: delete secret of %s: %w", t, err)
 			}
 		}
+		// what waited for this channel is not sent (INV-24): its incidents say so before the queue rows go
+		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET unsent = ?, unsent_floor = NULL, unsent_channel = ? WHERE id IN (SELECT notice_id FROM notify_pending WHERE channel = ?)`,
+			string(UnsentChannelGone), string(t), string(t)); err != nil {
+			return fmt.Errorf("notify: keep why incidents were not sent: %w", err)
+		}
 		for _, q := range []string{`DELETE FROM notify_approver WHERE channel_type = ?`, `DELETE FROM notify_pending WHERE channel = ?`} {
 			if _, err := tx.ExecContext(ctx, q, string(t)); err != nil {
 				return fmt.Errorf("notify: clear channel %s: %w", t, err)

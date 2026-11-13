@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// NotifyHandlers implements the 19 operations of the notify module. Embed it in the composite handler of
+// NotifyHandlers implements the 20 operations of the notify module. Embed it in the composite handler of
 // cmd/vedette. The role of each route comes from the route table, so nothing here checks roles.
 //
 // ogen generates a separate struct per operation for the same schema, so answers are built from the
@@ -77,6 +77,19 @@ func (h *NotifyHandlers) NotifyPatchNotifyIncidentsID(ctx context.Context, req *
 		return nil, err
 	}
 	return convert[oas.NotifyPatchNotifyIncidentsIDOK](d)
+}
+
+// NotifyPostNotifyIncidentsStatus implements POST /notify/incidents/status (operator, INV-25).
+func (h *NotifyHandlers) NotifyPostNotifyIncidentsStatus(ctx context.Context, req *oas.NotifyPostNotifyIncidentsStatusReq) (*oas.NotifyPostNotifyIncidentsStatusOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	r, err := h.svc.HandleIncidents(ctx, who, req.Ids, IncidentStatus(req.Status), req.Note.Or(""))
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.NotifyPostNotifyIncidentsStatusOK](r)
 }
 
 // NotifyGetNotifyHistory implements GET /notify/history (admin).

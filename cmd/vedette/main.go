@@ -536,7 +536,7 @@ func serveUntilDone(ctx context.Context, log *slog.Logger, srv *http.Server, ln 
 const containerDataDir = "/var/lib/vedette"
 
 // containerCredsDir is the -sensor-creds of the images and the appliance; its passive/ and active/ folders are the two creds volumes.
-const containerCredsDir = "/var/lib/vedette-creds"
+const containerCredsDir = "/var/lib/vedette-creds" //nolint:gosec // G101: a directory path, not a credential
 
 // tightenContainerDataDir is the call of serve: only the data directory of the images and, with the sensor link, the two role folders
 // of the credentials directory (the creds-* volumes, which hold the 0640 credential files; D-409), only when core is not root. The

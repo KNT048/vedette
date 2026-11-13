@@ -60,7 +60,7 @@ esac
 	if err != nil {
 		t.Fatalf("remove_images: %v\n%s", err, out)
 	}
-	calls, _ := os.ReadFile(filepath.Join(dir, "calls"))
+	calls, _ := os.ReadFile(filepath.Join(dir, "calls")) //nolint:gosec // G304: a file of the test's own temp dir
 	if got, want := string(calls), "rmi -f aaa\nrmi -f bbb\nrmi -f fff\n"; got != want {
 		t.Fatalf("rmi calls:\n%s\nwant:\n%s", got, want)
 	}
@@ -90,7 +90,7 @@ func TestInstallSh_ForwardCheckNeedsTheBridge(t *testing.T) {
 			if err != nil {
 				t.Fatalf("forward_check: %v\n%s", err, out)
 			}
-			ipArgs, _ := os.ReadFile(filepath.Join(dir, "ip.calls"))
+			ipArgs, _ := os.ReadFile(filepath.Join(dir, "ip.calls")) //nolint:gosec // G304: a file of the test's own temp dir
 			if string(ipArgs) != "-o link show dev vedette0\n" {
 				t.Fatalf("ip was called with %q", ipArgs)
 			}

@@ -588,7 +588,7 @@ func TestCoreImageOwnsItsVolumeDirectories(t *testing.T) {
 	if l := "COPY --from=build --chown=65532:65532 /out/dirs/var/lib/ /var/lib/\n"; !strings.Contains(final, l) {
 		t.Errorf("core/Containerfile: the final stage must contain %q (the directories are entries of the copy and keep 0750)", strings.TrimSpace(l))
 	}
-	if regexp.MustCompile(`chmod 07[0-4]0 [^\n]*/out/dirs/var/lib/vedette-creds( |;|$)`).MatchString(build) {
+	if regexp.MustCompile(`(?m)chmod 07[0-4]0 [^\n]*/out/dirs/var/lib/vedette-creds( |;|\\|$)`).MatchString(build) {
 		t.Error("core/Containerfile: /var/lib/vedette-creds must stay traversable (0755) for core_uid on the appliance (D-409)")
 	}
 	if strings.Contains(final, "--chmod=0750 /out/dirs/") {

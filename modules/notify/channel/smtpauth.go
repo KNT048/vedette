@@ -54,9 +54,9 @@ func EmailAuth(p string) (auth string, ok bool) {
 // name, checked by NewEmail), and the token_uri of a Google key file is never used, so no configuration sends a secret elsewhere.
 // Tests point an *http.Client at a fake (helpers_test.go rewrite).
 const (
-	microsoftTokenURL = "https://login.microsoftonline.com/%s/oauth2/v2.0/token"
+	microsoftTokenURL = "https://login.microsoftonline.com/%s/oauth2/v2.0/token" //nolint:gosec // G101: an endpoint, not a credential
 	microsoftScope    = "https://outlook.office365.com/.default"
-	googleTokenURL    = "https://oauth2.googleapis.com/token"
+	googleTokenURL    = "https://oauth2.googleapis.com/token" //nolint:gosec // G101: an endpoint, not a credential
 	googleScope       = "https://mail.google.com/"
 )
 
@@ -178,6 +178,7 @@ type cachedToken struct {
 
 const maxCachedTokens = 16
 
+// NewTokenCache returns an empty cache.
 func NewTokenCache() *TokenCache { return &TokenCache{m: map[[32]byte]cachedToken{}} }
 
 func (c *TokenCache) get(k [32]byte, now time.Time) (secrets.Value, bool) {

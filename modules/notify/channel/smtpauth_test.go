@@ -144,7 +144,7 @@ func TestSMTPPostmarkTokenIsUsernameAndPassword(t *testing.T) {
 // The token is cached until shortly before it expires, then fetched again (Now moves; no real clock).
 func TestSMTPMicrosoftOAuthTokenIsCachedUntilItExpires(t *testing.T) {
 	t.Parallel()
-	f := startFakeSMTP(t, &fakeSMTP{starttls: true, mechs: []string{"LOGIN", "XOAUTH2"}, user: "alerts@acme.example", token: "eyJ0eXAi.ms-token.1"})
+	f := startFakeSMTP(t, &fakeSMTP{starttls: true, mechs: []string{"LOGIN", "XOAUTH2"}, user: "alerts@acme.example", token: "eyJ0eXAi.ms-token.1"}) //nolint:gosec // a fake token
 	tokens := msTokens(t, "eyJ0eXAi.ms-token.1")
 	now := time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)
 	var mu sync.Mutex
@@ -307,7 +307,7 @@ var (
 	testRSAKey  *rsa.PrivateKey
 )
 
-func googleRSA(t *testing.T) *rsa.PrivateKey {
+func googleRSA() *rsa.PrivateKey {
 	testRSAOnce.Do(func() {
 		k, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
@@ -319,7 +319,7 @@ func googleRSA(t *testing.T) *rsa.PrivateKey {
 }
 
 func keyFile(t *testing.T, mod func(map[string]string)) string {
-	der, err := x509.MarshalPKCS8PrivateKey(googleRSA(t))
+	der, err := x509.MarshalPKCS8PrivateKey(googleRSA())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -358,7 +358,7 @@ func TestSMTPGoogleServiceAccountJWT(t *testing.T) {
 		_ = json.Unmarshal(hb, &head)
 		_ = json.Unmarshal(cb, &claims)
 		sum := sha256.Sum256([]byte(parts[0] + "." + parts[1]))
-		if rsa.VerifyPKCS1v15(&googleRSA(t).PublicKey, crypto.SHA256, sum[:], sig) != nil || head["alg"] != "RS256" || head["kid"] != "0123456789abcdef0123456789abcdef01234567" {
+		if rsa.VerifyPKCS1v15(&googleRSA().PublicKey, crypto.SHA256, sum[:], sig) != nil || head["alg"] != "RS256" || head["kid"] != "0123456789abcdef0123456789abcdef01234567" {
 			return 400, `{"error":"invalid_grant"}`
 		}
 		if claims["iss"] != "vedette@acme-alerts.iam.gserviceaccount.com" || claims["sub"] != "alerts@acme.example" || claims["scope"] != "https://mail.google.com/" ||
@@ -390,7 +390,7 @@ func TestSMTPProviderConfigRefusals(t *testing.T) {
 	t.Parallel()
 	ec, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	ecDER, _ := x509.MarshalPKCS8PrivateKey(ec)
-	small, _ := rsa.GenerateKey(rand.Reader, 1024)
+	small, _ := rsa.GenerateKey(rand.Reader, 1024) //nolint:gosec // the key the box must refuse
 	smallDER, _ := x509.MarshalPKCS8PrivateKey(small)
 	base := EmailConfig{Host: "smtp.office365.com", Port: 587, Security: SecurityStartTLS, Provider: "microsoft365", Username: "alerts@acme.example",
 		TenantID: testTenant, ClientID: testClient, Password: secrets.NewValue("Abc8Q~client.secret_value-123"), From: "alerts@acme.example", To: []string{"it@acme.example"}}

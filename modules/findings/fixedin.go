@@ -295,23 +295,25 @@ func lineOf(r VersionRange) string {
 	return parts[0] + "." + parts[1]
 }
 
-// GroupFix is the one release that closes every vulnerability of a product on a device (D-490, "one upgrade, one line").
-// Kind is "fixed" (Fixed closes Closes of them and is outside the affected ranges of ALL of the vulnerabilities given), "line" (the
-// ranges leave no such release: install the latest of the device's release line, Line, and read the advisory), "up_to" (NVD names
-// no fixed release, Fixed is the last affected one) or "distro" (the distribution's security updates carry the fix).
+// GroupFix is the one release that closes every vulnerability of one installed software on a device (D-490, "one upgrade, one line").
+// Kind is "fixed" (Fixed is outside the affected range of ALL the vulnerabilities of the software), "none" (NVD's ranges name no
+// release that clears them all: the advisory decides), "up_to" (NVD names no fixed release, Fixed is the last affected one) or
+// "distro" (the distribution's security updates carry the fix). Software is the id of the software row it is about.
 type GroupFix struct {
-	Kind, Version, Fixed, Line, Distro string
+	Kind, Software, Version, Fixed, Distro string
 	// Closed holds the CVEs the device is affected by through a range that has an end: the ones the release closes.
 	Closed map[string]bool
 }
 
-// FixedInForAll is FixedInFor for several vulnerabilities of one product on one device. It does not take the highest release
+// FixedInForAll is FixedInFor for the vulnerabilities of the software of one device. It does not take the highest release
 // FixedInFor names for each (a release that fixes one can still be inside the range of another: 26.3 for CVE A, in [26.0, 26.7.1) of
-// CVE B); it takes the nearest release that is outside the affected ranges of every one of vulns, which is, going up from the
-// device's version, the first end bound that passes. Of several software rows the one that closes most wins. nil when the device's
-// version is not known or inside no range with an end.
-func FixedInForAll(a Asset, vulns []Vuln) *GroupFix {
-	var best *GroupFix
+// CVE B), and it is not limited to the ranges the device is inside: it takes the nearest end bound ABOVE the device's version, of any
+// range of any of the vulnerabilities, that is outside the affected ranges of all of them (a phone on 18.2 is cleared by 26.7.1 when
+// every 18.x and 26.x before it is still inside some range). A vulnerability belongs to the software row it matches (keyedTo), so one
+// phone is one group whatever names CISA gives the CVEs. The map is by CVE; a CVE the device is not affected by through a range with
+// an end is not in it. A CVE that matches several software rows takes the group that closes the most.
+func FixedInForAll(a Asset, vulns []Vuln) map[string]*GroupFix {
+	out := map[string]*GroupFix{}
 	for _, s := range a.Software {
 		in := newSWInfo(s, a.OS)
 		if !in.given || !versionKnown(in.ver) {
@@ -323,16 +325,24 @@ func FixedInForAll(a Asset, vulns []Vuln) *GroupFix {
 				mine = append(mine, v)
 			}
 		}
-		if g := groupFixOf(in, mine); g != nil && (best == nil || len(g.Closed) > len(best.Closed)) {
-			best = g
+		g := groupFixOf(in, mine)
+		if g == nil {
+			continue
+		}
+		g.Software = s.ID
+		for cve := range g.Closed {
+			if o := out[cve]; o == nil || len(g.Closed) > len(o.Closed) {
+				out[cve] = g
+			}
 		}
 	}
-	return best
+	return out
 }
 
 func groupFixOf(in swInfo, vulns []Vuln) *GroupFix {
 	closed := map[string]bool{}
-	var excl, incl []string
+	var ends []string // every readable end bound of every applicable range: the releases a fix can be
+	haveExcl := false
 	var parts []fixedParts
 	for _, v := range vulns {
 		var key []identity
@@ -342,14 +352,14 @@ func groupFixOf(in swInfo, vulns []Vuln) *GroupFix {
 		p := fixedPartsOf(in, v, key)
 		parts = append(parts, p)
 		for _, e := range p.usable {
-			if t, _ := evalAffected(e.c, e.r, in.ver, in.cpe, in.hasCPE); t != Yes {
-				continue
+			for _, b := range []string{e.r.EndExcl, e.r.EndIncl} {
+				if b != "" {
+					ends = append(ends, b)
+				}
 			}
-			switch {
-			case e.r.EndExcl != "":
-				excl, closed[v.CVE] = append(excl, e.r.EndExcl), true
-			case e.r.EndIncl != "":
-				incl, closed[v.CVE] = append(incl, e.r.EndIncl), true
+			if t, _ := evalAffected(e.c, e.r, in.ver, in.cpe, in.hasCPE); t == Yes && (e.r.EndExcl != "" || e.r.EndIncl != "") {
+				closed[v.CVE] = true
+				haveExcl = haveExcl || e.r.EndExcl != ""
 			}
 		}
 	}
@@ -367,35 +377,24 @@ func groupFixOf(in swInfo, vulns []Vuln) *GroupFix {
 		}
 		return 0
 	}
-	slices.SortStableFunc(excl, cmp)
-	slices.SortStableFunc(incl, cmp)
-	for _, x := range excl {
-		ok := true
-		for _, p := range parts {
-			ok = ok && p.outside(x)
+	slices.SortStableFunc(ends, cmp)
+	for _, x := range ends {
+		if c, ok := compareBound(x, in.ver); !ok || c <= 0 {
+			continue // not above the device's version
 		}
-		if ok {
+		clears := true
+		for _, p := range parts {
+			clears = clears && p.outside(x)
+		}
+		if clears {
 			g.Kind, g.Fixed = "fixed", clean(x)
 			return g
 		}
 	}
-	if len(excl) == 0 { // only ranges that end at an affected release: NVD names no fix
-		g.Kind, g.Fixed = "up_to", clean(incl[len(incl)-1])
+	if !haveExcl { // only ranges that end at an affected release: NVD names no fix
+		g.Kind, g.Fixed = "up_to", clean(ends[len(ends)-1])
 		return g
 	}
-	g.Kind, g.Line = "line", releaseLine(in.ver)
+	g.Kind = "none"
 	return g
-}
-
-// releaseLine is the first two dotted numbers of a version ("8.9p1" -> "8.9", "18.2" -> "18.2", "7" -> "7").
-func releaseLine(v string) string {
-	n := 0
-	for i, r := range v {
-		if r == '.' {
-			if n++; n == 2 {
-				return clean(v[:i])
-			}
-		}
-	}
-	return clean(v)
 }

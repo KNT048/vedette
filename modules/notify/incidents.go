@@ -193,11 +193,11 @@ func fillIncident(ctx context.Context, q dbtx, i *Incident) error {
 }
 
 // incidentClass is the kind a weekly report names an incident by (D-490), read in SQL so a busy week is counted whole. The two log
-// anomalies of the failed-login rule (modules/logs/authfail.go) are told apart by their title; a "failed logins" one of severity
+// anomalies of the failed-login rule (modules/logs/authfail.go) are told apart by their title (GLOB: anchored and case-sensitive, so a log line that merely says "accepted" is not one); a "failed logins" one of severity
 // high had a login accepted in it, so it counts as accepted. A new-device incident has no class: Devices counts those.
 const incidentClass = `CASE kind WHEN 'trap' THEN 'trap' WHEN 'bad_address' THEN 'bad_connection' WHEN 'log_anomaly' THEN
-	CASE WHEN title LIKE '%was ACCEPTED after%' OR (title LIKE '% failed logins from %' AND severity = 'high') THEN 'login_accepted'
-	WHEN title LIKE '% failed logins from %' THEN 'failed_logins' ELSE 'anomaly' END END`
+	CASE WHEN title GLOB 'A login from * was ACCEPTED after *' OR (title GLOB '[0-9]* failed logins from * on *' AND severity = 'high') THEN 'login_accepted'
+	WHEN title GLOB '[0-9]* failed logins from * on *' THEN 'failed_logins' ELSE 'anomaly' END END`
 
 // IncidentBrief is one incident of an IncidentWindow.
 type IncidentBrief struct {

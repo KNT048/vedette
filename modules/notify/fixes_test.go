@@ -723,13 +723,16 @@ func TestIncidentsSinceCountsEveryClassBeyondTheListCap(t *testing.T) {
 	add("f1", "log_anomaly", "5 failed logins from 45.1.1.1 on web in 10 minutes", "medium", now.Add(-2*time.Hour))
 	add("f2", "log_anomaly", "6 failed logins from 45.1.1.2 on web in 10 minutes", "high", now.Add(-3*time.Hour)) // a login got in
 	add("a1", "log_anomaly", "A login from 45.1.1.3 was ACCEPTED after 6 failed attempts on web", "high", now.Add(-4*time.Hour))
+	add("b1", "log_anomaly", "web: the certificate was ACCEPTED after renegotiation", "high", now.Add(-5*time.Hour)) // not the failed-login rule
+	add("b2", "log_anomaly", "A login from 45.1.1.9 was accepted after 3 failed attempts", "high", now.Add(-5*time.Hour))
+	add("b3", "log_anomaly", "web saw 5 failed logins from the app itself", "medium", now.Add(-5*time.Hour))
 	add("u1", "unknown_device", "A new unknown device appeared: cam", "medium", now.Add(-time.Hour))
 	add("old", "trap", "last month", "high", now.Add(-30*24*time.Hour))
 	w, err := e.svc.IncidentsSince(e.ctx(), now.Add(-7*24*time.Hour), 3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]int{"bad_connection": 600, "trap": 1, "failed_logins": 1, "login_accepted": 2}
+	want := map[string]int{"bad_connection": 600, "trap": 1, "failed_logins": 1, "login_accepted": 2, "anomaly": 3}
 	if !maps.Equal(w.Counts, want) {
 		t.Fatalf("counts = %v, want %v", w.Counts, want)
 	}

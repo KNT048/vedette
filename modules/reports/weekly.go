@@ -145,9 +145,15 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 		for _, f := range in.findings {
 			byID[f.ID] = f
 		}
-		var ask []Finding
+		devs := map[string]bool{} // every open finding of those devices: a phone's CVEs carry several product names and one release must clear them all
 		for _, r := range openRows {
 			if named[r.Product] {
+				devs[r.AssetID] = true
+			}
+		}
+		var ask []Finding
+		for _, r := range openRows {
+			if devs[r.AssetID] {
 				ask = append(ask, byID[r.ID])
 			}
 		}

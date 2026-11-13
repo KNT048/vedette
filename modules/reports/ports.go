@@ -43,14 +43,15 @@ type Findings interface {
 	All(ctx context.Context) ([]Finding, error)
 }
 
-// Fix is what NVD's ranges say about the one release that closes a product on a device (findings.FixedInForAll, D-490): the same for
-// every finding of the device and product, with Closed telling whether it closes this finding. Kind is "fixed" (Fixed is a release
-// outside the affected range of every finding of the product; Version is the device's), "line" (no such release: install the latest of
-// the device's release line, Line), "up_to" (NVD names no fixed release, Fixed is the last affected one) or "distro" (the
-// distribution's security updates carry it). Distro names the distribution the device runs ("" = none we know).
+// Fix is what NVD's ranges say about the one release that closes an installed software on a device (findings.FixedInForAll, D-490):
+// the same for every finding of that software, with Closed telling whether it closes this finding. Group is the software it is about
+// (CISA gives one phone's CVEs several product names; the software is one). Kind is "fixed" (Fixed is a release outside the affected
+// range of every finding of the software; Version is the device's), "none" (NVD's ranges name no release that clears them all),
+// "up_to" (NVD names no fixed release, Fixed is the last affected one) or "distro" (the distribution's security updates carry it).
+// Distro names the distribution the device runs ("" = none we know).
 type Fix struct {
-	Kind, Version, Fixed, Line, Distro string
-	Closed                             bool
+	Kind, Group, Version, Fixed, Distro string
+	Closed                              bool
 }
 
 // Remedies says the Fix of open findings, by finding id; a finding it cannot say anything about is not in the map.

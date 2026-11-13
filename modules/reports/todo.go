@@ -52,7 +52,8 @@ func topRisks(open []FindingRow, fixes map[string]Fix) (out []TopRisk, kinds []s
 			byProd[f.Product] = p
 			prods = append(prods, p)
 		}
-		k := f.AssetID + "\x00" + f.Product
+		fx := fixes[f.ID]
+		k := f.AssetID + "\x00" + f.Product + "\x00" + fx.Group // one installed software is one group, whatever CISA calls the product
 		g := byDev[k]
 		if g == nil {
 			g = &deviceRisk{device: f.Device, severity: f.Severity, first: i, firstConfirmed: -1}
@@ -74,7 +75,7 @@ func topRisks(open []FindingRow, fixes map[string]Fix) (out []TopRisk, kinds []s
 		if severityRank[f.Severity] < severityRank[g.severity] {
 			g.severity = f.Severity
 		}
-		if fx, ok := fixes[f.ID]; ok && fx.Kind != "" {
+		if fx.Kind != "" {
 			g.fix = fx
 			if fx.Closed {
 				g.closed++
@@ -162,8 +163,8 @@ func (g *deviceRisk) class() string {
 	switch g.fix.Kind {
 	case "fixed":
 		return "fixed " + clip(g.fix.Fixed, 40) + "|" + clip(g.fix.Distro, 40)
-	case "line":
-		return "line " + clip(g.fix.Line, 40)
+	case "none":
+		return "none"
 	case "distro":
 		return "distro " + clip(g.fix.Distro, 40)
 	case "up_to":
@@ -227,9 +228,8 @@ func (l *line) sentence(product string) string {
 			s += fmt.Sprintf(" (if you installed it from %s's packages, install its security updates instead)", d)
 		}
 		return s
-	case "line":
-		return fmt.Sprintf("Install the latest release on your line (%s) of %s on %s — no single release in NVD's ranges clears every finding, so check the vendor advisory (%s)",
-			clip(fx.Line, 40), product, dev, plural(l.open, "open finding", "open findings"))
+	case "none":
+		return fmt.Sprintf("NVD names no single release that fixes all %d exploited vulnerabilities of %s on %s: check the vendor advisory", l.open, product, dev)
 	case "distro":
 		who := "your distribution's"
 		if d := clip(fx.Distro, 40); d != "" {

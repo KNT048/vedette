@@ -145,7 +145,7 @@ func (a reportsKEV) NewlyExploited(ctx context.Context) (int, int, error) {
 
 // ---- findings + inventory -> reports ----
 
-// reportsRemedies says the one release that closes each product on each device, with findings.FixedInForAll, the sibling of the
+// reportsRemedies says the one release that closes each installed software on each device, with findings.FixedInForAll, the sibling of the
 // function behind the "What to do" part of a finding page (D-488, D-490). It informs the text only: a device it cannot read is skipped.
 // The report asks only for the findings of the products its page names.
 type reportsRemedies struct {
@@ -171,41 +171,39 @@ func (a reportsRemedies) Fixes(ctx context.Context, fs []reports.Finding) (map[s
 	for _, v := range vulns {
 		byCVE[v.CVE] = v
 	}
-	type group struct {
-		asset string
+	inv := findingsInventory{a.d.Inventory}
+	type device struct {
 		vulns []findings.Vuln
 		ids   map[string]string // finding id -> CVE
 	}
-	groups := map[string]*group{} // by device and the product as the report names it
-	var order []*group
+	devs := map[string]*device{}
+	var order []string
 	for _, f := range fs {
 		v, ok := byCVE[f.CVE]
 		if !ok {
 			continue
 		}
-		k := f.AssetID + "\x00" + feeds.DisplayOf(v.Vendor, v.Product)
-		g := groups[k]
-		if g == nil {
-			g = &group{asset: f.AssetID, ids: map[string]string{}}
-			groups[k] = g
-			order = append(order, g)
+		d := devs[f.AssetID]
+		if d == nil {
+			d = &device{ids: map[string]string{}}
+			devs[f.AssetID] = d
+			order = append(order, f.AssetID)
 		}
-		g.vulns = append(g.vulns, v)
-		g.ids[f.ID] = f.CVE
+		d.vulns = append(d.vulns, v)
+		d.ids[f.ID] = f.CVE
 	}
-	inv := findingsInventory{a.d.Inventory}
 	out := map[string]reports.Fix{}
-	for _, g := range order {
-		as, ok, err := inv.MatchInput(ctx, g.asset)
+	for _, id := range order {
+		d := devs[id]
+		as, ok, err := inv.MatchInput(ctx, id)
 		if err != nil || !ok {
 			continue
 		}
-		gf := findings.FixedInForAll(as, g.vulns)
-		if gf == nil {
-			continue
-		}
-		for id, cve := range g.ids {
-			out[id] = reports.Fix{Kind: gf.Kind, Version: gf.Version, Fixed: gf.Fixed, Line: gf.Line, Distro: gf.Distro, Closed: gf.Closed[cve]}
+		groups := findings.FixedInForAll(as, d.vulns) // by CVE: one group per software of the device
+		for fid, cve := range d.ids {
+			if g := groups[cve]; g != nil {
+				out[fid] = reports.Fix{Kind: g.Kind, Group: g.Software, Version: g.Version, Fixed: g.Fixed, Distro: g.Distro, Closed: true}
+			}
 		}
 	}
 	return out, nil

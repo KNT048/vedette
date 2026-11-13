@@ -20,7 +20,10 @@ func TestFixedInForAllNamesAReleaseNoVulnerabilityStillAffects(t *testing.T) {
 	for name, s := range sets {
 		for _, ver := range s.vers {
 			a := Asset{ID: "a", Name: "dev", Software: []Software{s.f(vulns, ver)}}
-			g := FixedInForAll(a, vulns)
+			var g *GroupFix
+			for _, x := range FixedInForAll(a, vulns) {
+				g = x // one group: every CVE of the software row shares it
+			}
 			if g == nil || g.Kind != "fixed" {
 				continue
 			}
@@ -41,11 +44,37 @@ func TestFixedInForAllNamesAReleaseNoVulnerabilityStillAffects(t *testing.T) {
 	}
 }
 
-func TestReleaseLine(t *testing.T) {
-	t.Parallel()
-	for in, want := range map[string]string{"8.9p1": "8.9p1", "7.4.1": "7.4", "16.0.4266.1001": "16.0", "7": "7"} {
-		if got := releaseLine(in); got != want {
-			t.Errorf("releaseLine(%q) = %q, want %q", in, got, want)
+// One software row is one group, whatever CISA calls the products of its CVEs, and the release is not limited to the ranges the device
+// is inside (review round 2): every CVE of the phone gets the same release and nothing of the phone's feed is still affected by it.
+func TestFixedInForAllIsOneGroupPerSoftwareAndLooksAboveEveryRange(t *testing.T) {
+	vulns := goldenVulns(t)
+	for _, c := range []struct {
+		name string
+		f    func([]Vuln, string) Software
+		ver  string
+	}{{"iOS", iPhone, "18.2"}, {"FortiOS", fortiGate, "7.2.5"}, {"FortiOS", fortiGate, "7.0.6"}} {
+		a := Asset{ID: "a", Name: "dev", Software: []Software{c.f(vulns, c.ver)}}
+		m := FixedInForAll(a, vulns)
+		if len(m) < 3 {
+			t.Fatalf("%s %s: %d CVEs in the group", c.name, c.ver, len(m))
 		}
+		var g *GroupFix
+		for cve, x := range m {
+			if g != nil && x != g {
+				t.Fatalf("%s %s: %s is in another group", c.name, c.ver, cve)
+			}
+			g = x
+		}
+		if g.Kind != "fixed" {
+			t.Errorf("%s %s: kind %s, want a release that clears all %d", c.name, c.ver, g.Kind, len(m))
+			continue
+		}
+		b := Asset{ID: "a", Name: "dev", Software: []Software{c.f(vulns, g.Fixed)}}
+		for _, v := range vulns {
+			if f := FixedInFor(b, v); f != nil && (f.Kind == "fixed" || f.Kind == "up_to") {
+				t.Errorf("%s %s: %s is still affected by %s", c.name, c.ver, g.Fixed, v.CVE)
+			}
+		}
+		t.Logf("%s %s -> %s, closes %d", c.name, c.ver, g.Fixed, len(g.Closed))
 	}
 }

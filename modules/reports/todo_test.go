@@ -1,6 +1,7 @@
 package reports
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -29,16 +30,16 @@ func TestTopRisksOneUpgradeIsOneLineWithTheFixedVersion(t *testing.T) {
 	}
 }
 
-// A distribution caveat travels with the release (review M1); no single release in the ranges is "install the latest of your line".
-func TestTopRisksCarryTheDistroCaveatAndTheLineFallback(t *testing.T) {
+// A distribution caveat travels with the release (review M1); no single release in the ranges is the plain advisory fallback.
+func TestTopRisksCarryTheDistroCaveatAndTheNoReleaseFallback(t *testing.T) {
 	t.Parallel()
 	open := []FindingRow{fixRow("1", "a1", "web", "OpenSSH", "confirmed"), fixRow("2", "a2", "gw", "FortiGate", "confirmed")}
-	fx := map[string]Fix{"1": {Kind: "fixed", Version: "8.9p1", Fixed: "9.3p2", Distro: "Ubuntu", Closed: true}, "2": {Kind: "line", Version: "7.4.1", Line: "7.4", Closed: true}}
+	fx := map[string]Fix{"1": {Kind: "fixed", Version: "8.9p1", Fixed: "9.3p2", Distro: "Ubuntu", Closed: true}, "2": {Kind: "none", Version: "7.4.1", Closed: true}}
 	got, _ := topRisks(open, fx)
 	if want := "Upgrade OpenSSH on web from 8.9p1 to 9.3p2 or later — fixes 1 exploited vulnerability (if you installed it from Ubuntu's packages, install its security updates instead)"; got[1].Action != want {
 		t.Fatalf("action = %q", got[1].Action)
 	}
-	if !strings.HasPrefix(got[0].Action, "Install the latest release on your line (7.4) of FortiGate on gw") || !strings.Contains(got[0].Action, "check the vendor advisory") {
+	if want := "NVD names no single release that fixes all 1 exploited vulnerabilities of FortiGate on gw: check the vendor advisory"; got[0].Action != want {
 		t.Fatalf("action = %q", got[0].Action)
 	}
 }
@@ -96,4 +97,23 @@ func TestDigestLeadsWithActionsAndIncidents(t *testing.T) {
 		t.Fatalf("what = %q", m.What)
 	}
 	t.Logf("PAGE top risk: %s\nPAGE happened: %s\nEMAIL title: %s\nEMAIL what:\n%s\nEMAIL first: %s\nEMAIL items: %q", r.TopRisks[0].Action, r.Happened.Summary, m.Title, m.What, m.Action, m.Items)
+}
+
+// The release is asked for every open finding of the devices the page names, not only those of the named products: one phone's CVEs
+// carry several CISA product names and one release must clear them all (review round 2).
+func TestWeeklyAsksTheFixesOfWholeDevices(t *testing.T) {
+	t.Parallel()
+	in := sampleInput()
+	var asked []string
+	in.fixesFor = func(fs []Finding) map[string]Fix {
+		for _, f := range fs {
+			asked = append(asked, f.ID)
+		}
+		return map[string]Fix{"f1": {Kind: "fixed", Group: "s1", Version: "10.0.1", Fixed: "10.0.4", Closed: true}}
+	}
+	in.findings = append(in.findings, Finding{ID: "f9", AssetID: "a2", CVE: "CVE-2026-0009", Status: "confirmed", Severity: "low", FirstSeen: day0(20)}) // another product, same device
+	buildWeekly(in)
+	if !slices.Contains(asked, "f9") || !slices.Contains(asked, "f1") {
+		t.Fatalf("asked %v", asked)
+	}
 }

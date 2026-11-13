@@ -115,6 +115,28 @@ func (h *ResponseHandlers) ResponsePostResponseProposalsIDRequest(ctx context.Co
 	return convert[oas.ResponsePostResponseProposalsIDRequestCreated](r.masked(h.seesValues(ctx)))
 }
 
+// ResponseGetResponseIncidentsID implements GET /response/incidents/{id} (viewer, D-509).
+func (h *ResponseHandlers) ResponseGetResponseIncidentsID(ctx context.Context, params oas.ResponseGetResponseIncidentsIDParams) (*oas.ResponseGetResponseIncidentsIDOK, error) {
+	v, err := h.svc.IncidentPanel(ctx, params.ID)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.ResponseGetResponseIncidentsIDOK](v)
+}
+
+// ResponsePostResponseIncidentsIDRequest implements POST /response/incidents/{id}/request (operator, D-509).
+func (h *ResponseHandlers) ResponsePostResponseIncidentsIDRequest(ctx context.Context, req *oas.ResponsePostResponseIncidentsIDRequestReq, params oas.ResponsePostResponseIncidentsIDRequestParams) (*oas.ResponsePostResponseIncidentsIDRequestCreated, error) {
+	who, err := h.actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	r, err := h.svc.RequestFromIncident(ctx, who, params.ID, req.ActionID)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.ResponsePostResponseIncidentsIDRequestCreated](r.masked(h.seesValues(ctx)))
+}
+
 // ResponsePostResponseActionsIDApprove implements POST /response/actions/{id}/approve (operator).
 func (h *ResponseHandlers) ResponsePostResponseActionsIDApprove(ctx context.Context, req *oas.ResponsePostResponseActionsIDApproveReq, params oas.ResponsePostResponseActionsIDApproveParams) (*oas.ResponsePostResponseActionsIDApproveOK, error) {
 	who, err := h.actor(ctx)

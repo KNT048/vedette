@@ -11,6 +11,7 @@ import { RequestsTab } from './RequestsTab'
 import { BlocklistTab } from './BlocklistTab'
 import { LogTab } from './LogTab'
 import { MetricsTab } from './MetricsTab'
+import { IncidentRespond } from './IncidentRespond'
 
 const OLD_HASH = ['rules', 'requests', 'blocklist', 'log', 'metrics']
 
@@ -35,6 +36,7 @@ function Content() {
   const { execution } = plans.data
   const pending = actions.data.items.filter((a) => a.status === 'pending').length
   const s = settings.data
+  const incident = new URLSearchParams(search).get('incident') // Respond on an incident (D-509)
   return (
     <>
       <PageHeader title={t('page.title')} stories={['S-RESP-1', 'S-RESP-2', 'S-RESP-3', 'S-RESP-4']}
@@ -56,6 +58,7 @@ function Content() {
           {t('blocked.execution_off')} {admin ? <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link> : null}
         </p>
       )}
+      {incident ? <IncidentRespond id={incident} /> : null}
       <PageTabs label={t('tabs.label')} tabs={[
         { id: 'rules', label: t('tabs.rules'), panel: <RulesTab /> },
         { id: 'requests', label: t('tabs.requests'), panel: <RequestsTab />, badge: { count: pending, label: t('tabs.pending') } },

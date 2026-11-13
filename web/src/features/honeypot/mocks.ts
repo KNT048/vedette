@@ -254,6 +254,12 @@ function checkInput(b: Partial<TrapIPInput>, self?: string): Response | { name: 
   return { name, ip, preset, vendor, services: HP_SERVICES.filter((s) => raw.includes(s)) }
 }
 
+/** The source of a real hit, for Respond on a trap incident (response D-509); null for a test hit or an unknown id. */
+export function hitSource(id: string): { ip: string; asset_id: string | null } | null {
+  const h = hitsStore.get().find((x) => x.id === id)
+  return h && !h.is_test ? { ip: h.src_ip, asset_id: h.src_asset_id } : null
+}
+
 export const handlers = [
   http.get(`${API}/honeypot`, () => {
     const denied = guard('viewer'); if (denied) return denied

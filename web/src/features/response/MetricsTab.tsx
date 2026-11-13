@@ -111,7 +111,7 @@ export function MetricsTab() {
       <Section title={t('metrics.rejectedTitle')} description={t('metrics.rejectedDescription')} stories={['S-RESP-2']}>
         {m.data.rejected.length ? (
           <Panel><ul className="divide-y divide-rule">{m.data.rejected.map((r) => (
-            <li key={r.id} className="grid gap-0.5 px-3 py-2 text-sm"><span className="font-medium">{r.title} <Chip tone="off">{r.source === 'ai' ? t('action.fromAi') : t('action.fromRule')}</Chip></span><span className="text-muted">{r.reason} · {fmtDateTime(r.at)}</span></li>
+            <li key={r.id} className="grid gap-0.5 px-3 py-2 text-sm"><span className="font-medium">{r.title} <Chip tone="off">{r.source === 'ai' ? t('action.fromAi') : r.source === 'person' ? t('action.fromPerson') : t('action.fromRule')}</Chip></span><span className="text-muted">{r.reason} · {fmtDateTime(r.at)}</span></li>
           ))}</ul></Panel>
         ) : <p className="text-sm text-muted">{t('metrics.noneRejected')}</p>}
       </Section>

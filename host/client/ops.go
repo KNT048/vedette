@@ -117,6 +117,14 @@ func (c *Client) StatePackages(ctx context.Context) (api.PackagesState, error) {
 	return out, err
 }
 
+// StateHPTouches returns GET /v1/state/hp-touches: the sources that tried a new TCP or UDP connection to a decoy address in the
+// last two minutes (D-466, B2 review M2). A host older than it answers 404 unknown_command.
+func (c *Client) StateHPTouches(ctx context.Context) (api.HPTouchesState, error) {
+	var out api.HPTouchesState
+	err := c.getJSON(ctx, "/v1/state/hp-touches", &out)
+	return out, err
+}
+
 // StateContainers returns GET /v1/state/containers.
 func (c *Client) StateContainers(ctx context.Context) (api.ContainersState, error) {
 	var out api.ContainersState

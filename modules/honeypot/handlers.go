@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// HoneypotHandlers implements the 15 operations of the module. Embed it in the composite handler of cmd/vedette. The
+// HoneypotHandlers implements the 14 operations of the module. Embed it in the composite handler of cmd/vedette. The
 // role of each route comes from the route table, so nothing here checks roles. Answers are built from the domain types
 // (their JSON names are the wire names) and decoded into the generated ones, as notify does.
 //
@@ -50,32 +50,6 @@ func (h *HoneypotHandlers) HoneypotGetHoneypot(ctx context.Context) (*oas.Honeyp
 	return convert[oas.HoneypotGetHoneypotOK](o)
 }
 
-// HoneypotPutHoneypotConfig implements PUT /honeypot/config (admin).
-func (h *HoneypotHandlers) HoneypotPutHoneypotConfig(ctx context.Context, req *oas.HoneypotPutHoneypotConfigReq) (*oas.HoneypotPutHoneypotConfigOK, error) {
-	who, err := actor(ctx)
-	if err != nil {
-		return nil, err
-	}
-	o, err := h.svc.SetConfig(ctx, who, req.SecondaryIP, req.Hostname)
-	if err != nil {
-		return nil, err
-	}
-	return convert[oas.HoneypotPutHoneypotConfigOK](o)
-}
-
-// HoneypotPatchHoneypotTrapsService implements PATCH /honeypot/traps/{service} (admin).
-func (h *HoneypotHandlers) HoneypotPatchHoneypotTrapsService(ctx context.Context, req *oas.HoneypotPatchHoneypotTrapsServiceReq, params oas.HoneypotPatchHoneypotTrapsServiceParams) (*oas.HoneypotPatchHoneypotTrapsServiceOK, error) {
-	who, err := actor(ctx)
-	if err != nil {
-		return nil, err
-	}
-	o, err := h.svc.SetTrap(ctx, who, ServiceName(params.Service), req.Enabled)
-	if err != nil {
-		return nil, err
-	}
-	return convert[oas.HoneypotPatchHoneypotTrapsServiceOK](o)
-}
-
 // HoneypotGetHoneypotHits implements GET /honeypot/hits (viewer).
 func (h *HoneypotHandlers) HoneypotGetHoneypotHits(ctx context.Context, params oas.HoneypotGetHoneypotHitsParams) (*oas.HoneypotGetHoneypotHitsOK, error) {
 	l, err := h.svc.Hits(ctx, HitFilter{Asset: params.Asset.Or("")})
@@ -109,48 +83,70 @@ func (h *HoneypotHandlers) HoneypotPostHoneypotTestHit(ctx context.Context, req 
 	return convert[oas.HoneypotPostHoneypotTestHitOK](hit)
 }
 
-// HoneypotGetHoneypotDecoys implements GET /honeypot/decoys (viewer).
-func (h *HoneypotHandlers) HoneypotGetHoneypotDecoys(ctx context.Context) (*oas.HoneypotGetHoneypotDecoysOK, error) {
-	d, err := h.svc.Decoys(ctx)
+// HoneypotGetHoneypotTrapIps implements GET /honeypot/trap-ips (viewer).
+func (h *HoneypotHandlers) HoneypotGetHoneypotTrapIps(ctx context.Context) (*oas.HoneypotGetHoneypotTrapIpsOK, error) {
+	d, err := h.svc.TrapIPs(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return convert[oas.HoneypotGetHoneypotDecoysOK](d)
+	return convert[oas.HoneypotGetHoneypotTrapIpsOK](d)
 }
 
-// HoneypotPostHoneypotDecoys implements POST /honeypot/decoys (admin).
-func (h *HoneypotHandlers) HoneypotPostHoneypotDecoys(ctx context.Context, req *oas.HoneypotPostHoneypotDecoysReq) (*oas.HoneypotPostHoneypotDecoysCreated, error) {
+// HoneypotPostHoneypotTrapIps implements POST /honeypot/trap-ips (admin). The body passed the schema (SYS-2); the service
+// checks the values.
+func (h *HoneypotHandlers) HoneypotPostHoneypotTrapIps(ctx context.Context, req *oas.HoneypotPostHoneypotTrapIpsReq) (*oas.HoneypotPostHoneypotTrapIpsCreated, error) {
 	who, err := actor(ctx)
 	if err != nil {
 		return nil, err
 	}
-	d, err := h.svc.AddDecoy(ctx, who, DecoyInput{Personality: Personality(req.Personality), Name: req.Name, IP: req.IP})
+	in, err := convert[TrapIPInput](req)
 	if err != nil {
 		return nil, err
 	}
-	return convert[oas.HoneypotPostHoneypotDecoysCreated](d)
+	d, err := h.svc.AddTrapIP(ctx, who, *in)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.HoneypotPostHoneypotTrapIpsCreated](d)
 }
 
-// HoneypotPatchHoneypotDecoysID implements PATCH /honeypot/decoys/{id} (admin).
-func (h *HoneypotHandlers) HoneypotPatchHoneypotDecoysID(ctx context.Context, req *oas.HoneypotPatchHoneypotDecoysIDReq, params oas.HoneypotPatchHoneypotDecoysIDParams) (*oas.HoneypotPatchHoneypotDecoysIDOK, error) {
+// HoneypotPutHoneypotTrapIpsID implements PUT /honeypot/trap-ips/{id} (admin).
+func (h *HoneypotHandlers) HoneypotPutHoneypotTrapIpsID(ctx context.Context, req *oas.HoneypotPutHoneypotTrapIpsIDReq, params oas.HoneypotPutHoneypotTrapIpsIDParams) (*oas.HoneypotPutHoneypotTrapIpsIDOK, error) {
 	who, err := actor(ctx)
 	if err != nil {
 		return nil, err
 	}
-	d, err := h.svc.SetDecoyEnabled(ctx, who, params.ID, req.Enabled)
+	in, err := convert[TrapIPInput](req)
 	if err != nil {
 		return nil, err
 	}
-	return convert[oas.HoneypotPatchHoneypotDecoysIDOK](d)
+	d, err := h.svc.EditTrapIP(ctx, who, params.ID, *in)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.HoneypotPutHoneypotTrapIpsIDOK](d)
 }
 
-// HoneypotDeleteHoneypotDecoysID implements DELETE /honeypot/decoys/{id} (admin).
-func (h *HoneypotHandlers) HoneypotDeleteHoneypotDecoysID(ctx context.Context, params oas.HoneypotDeleteHoneypotDecoysIDParams) error {
+// HoneypotPatchHoneypotTrapIpsID implements PATCH /honeypot/trap-ips/{id} (admin).
+func (h *HoneypotHandlers) HoneypotPatchHoneypotTrapIpsID(ctx context.Context, req *oas.HoneypotPatchHoneypotTrapIpsIDReq, params oas.HoneypotPatchHoneypotTrapIpsIDParams) (*oas.HoneypotPatchHoneypotTrapIpsIDOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	d, err := h.svc.SetTrapIPEnabled(ctx, who, params.ID, req.Enabled)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.HoneypotPatchHoneypotTrapIpsIDOK](d)
+}
+
+// HoneypotDeleteHoneypotTrapIpsID implements DELETE /honeypot/trap-ips/{id} (admin).
+func (h *HoneypotHandlers) HoneypotDeleteHoneypotTrapIpsID(ctx context.Context, params oas.HoneypotDeleteHoneypotTrapIpsIDParams) error {
 	who, err := actor(ctx)
 	if err != nil {
 		return err
 	}
-	return h.svc.DeleteDecoy(ctx, who, params.ID)
+	return h.svc.DeleteTrapIP(ctx, who, params.ID)
 }
 
 // HoneypotPostHoneypotTestScan implements POST /honeypot/test-scan (operator).

@@ -23,6 +23,7 @@ const (
 	EventFindingStatusChanged = "findings.finding.status_changed"
 	EventFindingRaised        = "findings.finding.severity_raised"
 	EventAssetDiscovered      = "inventory.asset.discovered"
+	EventAssetDeleted         = "inventory.asset.deleted"
 	EventNewKEV               = "feeds.vuln.new_kev"
 	EventHoneypotHit          = "honeypot.hit.created"
 	EventLogAnomaly           = "logs.anomaly.detected"
@@ -60,6 +61,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventFindingRaised, s.findingRaised)
 	on(EventNewKEV, s.kevEvent)
 	on(EventAssetDiscovered, s.assetEvent)
+	on(EventAssetDeleted, s.assetDeleted)
 	on(EventHoneypotHit, s.hitEvent)
 	on(EventLogAnomaly, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentLogAnomaly) })
 	on(EventLogBadAddress, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentBadAddress) })
@@ -272,6 +274,78 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 	return err
 }
 
+// assetDeleted takes a device deleted in Devices off the open new-device incidents (W6-3, D-497): the first-discovery summary drops it
+// from its list and its count (and is resolved when no device is left), and the device's own "new unknown device" incident is
+// resolved, since there is nothing left to approve. Resolved incidents and the other kinds keep the device: they are history.
+func (s *Service) assetDeleted(ctx context.Context, data any) error {
+	var e struct {
+		AssetID string `json:"asset_id"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	if e.AssetID == "" {
+		return nil
+	}
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, `SELECT i.id, i.link, d.name FROM notify_incident i JOIN notify_incident_device d ON d.incident_id = i.id
+			WHERE i.kind = ? AND i.status <> 'resolved' AND d.asset_id = ?`, string(IncidentUnknownDevice), e.AssetID)
+		if err != nil {
+			return fmt.Errorf("notify: find the incidents of a deleted device: %w", err)
+		}
+		type open struct{ id, link, name string }
+		var list []open
+		for rows.Next() {
+			var o open
+			if err := rows.Scan(&o.id, &o.link, &o.name); err != nil {
+				_ = rows.Close()
+				return fmt.Errorf("notify: find the incidents of a deleted device: %w", err)
+			}
+			list = append(list, o)
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return fmt.Errorf("notify: find the incidents of a deleted device: %w", err)
+		}
+		at := store.FormatTS(s.now())
+		resolve := func(id, title, note string) error {
+			if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET status = 'resolved', handled_by = ?, handled_at = ?, note = ? WHERE id = ?`, systemUser, at, note, id); err != nil {
+				return fmt.Errorf("notify: resolve the incident of a deleted device: %w", err)
+			}
+			return s.record(ctx, tx, systemUser, "notify.incident_status", clip(title, 400), "resolved: "+note)
+		}
+		for _, o := range list {
+			if o.link != "/devices" { // the device's own incident: nothing is left to approve
+				if err := resolve(o.id, "A new unknown device appeared: "+o.name, "The device was deleted in Devices."); err != nil {
+					return err
+				}
+				continue
+			}
+			if _, err := tx.ExecContext(ctx, `DELETE FROM notify_incident_device WHERE incident_id = ? AND asset_id = ?`, o.id, e.AssetID); err != nil {
+				return fmt.Errorf("notify: take a deleted device off the summary: %w", err)
+			}
+			var n, count int // count can be above the listed rows: the list stops at maxDiscoveryDevices
+			if err := tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM notify_incident_device WHERE incident_id = ?), count FROM notify_incident WHERE id = ?`, o.id, o.id).Scan(&n, &count); err != nil {
+				return fmt.Errorf("notify: count discovered devices: %w", err)
+			}
+			n = max(n, count-1)
+			if n == 0 {
+				if err := resolve(o.id, "Devices found on your network", "Every device on it was deleted in Devices."); err != nil {
+					return err
+				}
+				continue
+			}
+			title := fmt.Sprintf("%d devices found on your network: approve them in Devices", n)
+			if n == 1 {
+				title = "1 device found on your network: approve it in Devices"
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET title = ?, count = ? WHERE id = ?`, title, n, o.id); err != nil {
+				return fmt.Errorf("notify: name discovered devices: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
 const (
 	// firstDiscoveryWindow is how long after notify first ran on the box new devices go into the one summary (D-483): the passive
 	// sensor finds most devices in the first hours, the active sensor (23:00-05:00 by default) the rest the first night.
@@ -371,12 +445,15 @@ func (s *Service) discoveryIncident(ctx context.Context, d Device) error {
 // network: it is cut to size and rendered as plain text by the adapters.
 func (s *Service) hitEvent(ctx context.Context, data any) error {
 	var e struct {
-		ID      string `json:"id"`
-		TS      string `json:"ts"`
-		Kind    string `json:"kind"`
-		Service string `json:"service"`
-		SrcIP   string `json:"src_ip"`
-		Label   string `json:"label"`
+		ID         string `json:"id"`
+		TS         string `json:"ts"`
+		Kind       string `json:"kind"`
+		Service    string `json:"service"`
+		SrcIP      string `json:"src_ip"`
+		Label      string `json:"label"`
+		Decoy      string `json:"decoy"`
+		SrcAssetID string `json:"src_asset_id"`
+		SrcName    string `json:"src_name"`
 	}
 	if err := decode(data, &e); err != nil {
 		return err
@@ -398,11 +475,22 @@ func (s *Service) hitEvent(ctx context.Context, data any) error {
 		title = src + " " + verb + " the " + label
 		what = src + " " + verb + " the " + label + ". It is bait nobody has a reason to touch, so someone is reading where it was planted, or a machine there is infected."
 	}
+	var devs []Device // W1-13: the incident names the source device the inventory knew when the hit was stored
+	if id, name := clip(strings.TrimSpace(e.SrcAssetID), 64), clip(strings.TrimSpace(e.SrcName), 120); id != "" && name != "" {
+		devs = []Device{{ID: id, Name: name}}
+	}
 	at, _ := time.Parse(time.RFC3339, e.TS) // zero = now
-	_, _, err := s.OpenIncident(ctx, IncidentInput{Kind: IncidentTrap, Source: src, Target: label + "|" + e.Service,
+	in := IncidentInput{Kind: IncidentTrap, Source: src, Target: label + "|" + e.Service,
 		Title: title, Severity: Critical, What: what,
 		Action: "Take the machine off the network (unplug the cable, turn off Wi-Fi), then ask its user what they were doing. Do not change passwords from that machine.",
-		Link:   "/honeypot/hits/" + e.ID, At: at})
+		Link:   "/honeypot/hits/" + e.ID, Devices: devs, At: at}
+	if e.Kind == "scan" { // W1-13: one High incident per scanning source while it is open; the touches themselves stay Critical
+		decoys := clip(strings.TrimSpace(e.Decoy), 120)
+		in.Target, in.Severity = "scan", High
+		in.Title = src + " scanned the Trap IPs"
+		in.What = src + " touched several Trap IPs within a minute (" + decoys + "). Nobody uses them, so a machine is mapping your network: often malware looking for its next target, or someone probing."
+	}
+	_, _, err := s.OpenIncident(ctx, in)
 	return err
 }
 

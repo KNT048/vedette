@@ -291,9 +291,7 @@ func TestApplyTreatsOnlyARefusalAsARefusal(t *testing.T) {
 	// clash: the traps are "failed" (the secondary IP is not up), even with a decoy placed and the container running.
 	e3 := newEnv(t)
 	e3.setup()
-	if _, err := e3.svc.AddDecoy(e3.ctx(), "admin@acme.example", honeypot.DecoyInput{Personality: honeypot.Linux, Name: "LNX-OLD", IP: "192.168.10.241"}); err != nil {
-		t.Fatal(err)
-	}
+	e3.addTrapIP("LNX-OLD", "192.168.10.241", honeypot.Linux, honeypot.HTTP)
 	e3.host.mu.Lock()
 	e3.host.failAdd = map[netip.Addr]error{sec: fmt.Errorf("the host could not do it (decoy_failed): %w %w", honeypot.ErrRefused, honeypot.ErrHostFailed)}
 	e3.host.mu.Unlock()
@@ -305,9 +303,13 @@ func TestApplyTreatsOnlyARefusalAsARefusal(t *testing.T) {
 		t.Fatalf("running=%v conflicts=%v", e3.host.isRunning(), e3.svc.TrapConflicts())
 	}
 	for _, tr := range overviewTraps(t, e3) {
-		if tr.Enabled != (tr.State == honeypot.StateFailed) { // no clash, but not listening either: the box says it could not set the address up
-			t.Fatalf("a secondary IP the host could not set up shows %s as %s", tr.Service, tr.State)
+		mine := tr.Service == honeypot.SSH || tr.Service == honeypot.SMB // the services only the refused Trap IP has
+		if mine != (tr.State == honeypot.StateFailed) {                  // no clash, but not listening either: the box says it could not set the address up
+			t.Fatalf("a Trap IP the host could not set up shows %s as %s", tr.Service, tr.State)
 		}
+	}
+	if d := e3.trapIP(e3.main); d.State != honeypot.StateFailed {
+		t.Fatalf("the Trap IP the host could not set up: %+v", d)
 	}
 }
 
@@ -316,9 +318,7 @@ func TestApplyStopsAskingAfterAnUnknownOutcome(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setup()
-	if _, err := e.svc.AddDecoy(e.ctx(), "admin@acme.example", honeypot.DecoyInput{Personality: honeypot.Linux, Name: "LNX-OLD", IP: "192.168.10.241"}); err != nil {
-		t.Fatal(err)
-	}
+	e.addTrapIP("LNX-OLD", "192.168.10.241", honeypot.Linux, honeypot.SSH)
 	busy := errors.New("the host is busy")
 	e.host.mu.Lock()
 	e.host.failAdd = map[netip.Addr]error{addr("192.168.10.240"): busy, addr("192.168.10.241"): busy}

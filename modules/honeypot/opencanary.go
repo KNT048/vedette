@@ -31,7 +31,7 @@ const (
 type ConfigInput struct {
 	Enabled   []ServiceName // services whose trap is on and may listen (INV-6, INV-7)
 	LogPath   string        // JSON-lines file the container writes (inside its writable log folder)
-	NASDecoy  bool          // a decoy with the NAS personality exists: the web trap shows a NAS login page
+	NASDecoy  bool          // the Trap IP that picks the box's one login page is a NAS (D-466 (4)): the web trap shows a NAS login page
 	FileNames []string      // names of the file tokens, for the container to plant in the share
 }
 
@@ -41,8 +41,9 @@ var unusedServices = []string{"ftp", "git", "httpproxy", "llmnr", "mysql", "ntp"
 // RenderConfig turns the state into opencanary.conf: a pure function, same input same bytes (golden test).
 //
 // OpenCanary has no per-service bind address (device.listen_addr is only read by git, rdp, redis and vnc), so the
-// services listen on every address of the container; the container has only the macvlan addresses of the secondary IP
-// and the enabled decoys, which the host assigns (D-90 (1)). The banners are fixed generic strings, never the box's own
+// services listen on every address of the container; the container has only the macvlan addresses of the enabled Trap
+// IPs, which the host assigns (D-90 (1)), and the host closes on each address the ports of the services that Trap IP does
+// not have (D-466). Enabled is the union of their services. The banners are fixed generic strings, never the box's own
 // (FORBID-2). Credential tokens are not written: the five services accept any login and log the user name, and core
 // recognises the bait name when it reads the log, so no password sits on the shared volume (D-90 (3)).
 func RenderConfig(in ConfigInput) ([]byte, error) {
@@ -84,15 +85,20 @@ func RenderConfig(in ConfigInput) ([]byte, error) {
 	return marshalStable(c)
 }
 
-// RenderTokens is honeytokens.json: the file names the container plants in the SMB share (names only).
-func RenderTokens(files []string) ([]byte, error) {
+// RenderTokens is honeytokens.json: the file names the container plants in the SMB share (names only) and the NetBIOS name
+// of the share (D-466 (4): the name of the first Trap IP with SMB; init.py writes it into Samba's include file, "" leaves the
+// image's default). Only an empty or valid NetBIOS name is written: it ends up in a Samba configuration line.
+func RenderTokens(files []string, netbiosName string) ([]byte, error) {
 	f := slices.Clone(files)
 	slices.Sort(f)
 	f = slices.Compact(f)
 	if f == nil {
 		f = []string{}
 	}
-	return marshalStable(map[string]any{"files": f})
+	if netbiosName != "" && !validHostname(netbiosName) {
+		return nil, errors.New("honeypot: render: the NetBIOS name is not valid")
+	}
+	return marshalStable(map[string]any{"files": f, "netbios_name": netbiosName})
 }
 
 func marshalStable(v any) ([]byte, error) {

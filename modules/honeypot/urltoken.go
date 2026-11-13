@@ -124,8 +124,8 @@ func (s *Service) OpenURLToken(ctx context.Context, o URLTokenOpen) error {
 		excerpt += " User-Agent: " + ua
 	}
 	h := storedHit{
-		Hit:    Hit{TS: ts, Kind: KindToken, Label: label, SrcIP: stored, Excerpt: excerpt},
-		trapIP: tok.Value, trapHostname: label, tokenID: tok.ID, connKey: key,
+		Hit:     Hit{TS: ts, Kind: KindToken, Label: label, SrcIP: stored, Excerpt: excerpt, TrapIP: tok.Value, TrapHostname: label},
+		tokenID: tok.ID, connKey: key,
 		events: []HitEvent{{TS: ts, Source: "honeypot", Text: line, Mark: true}},
 	}
 	wctx, cancel := context.WithTimeout(ctx, urlTokenWriteWait)

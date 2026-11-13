@@ -40,6 +40,11 @@ type Config struct {
 	// fresh asks for an answer newer than the cache (a decoy added a moment ago has a MAC the cached answer lacks); the provider
 	// bounds how often that reaches the host. A MAC the cached answer does not hold is asked again with fresh before it counts.
 	BoxOwnedMACs func(ctx context.Context, fresh bool) ([]string, error)
+	// BoxDecoyMACs says, per box-owned address, the MAC its decoy has or will have (vedette-host state/net, completed by the
+	// honeypot's ExpectedMACs); "" = being added, its MAC not known yet: any MAC there is the box for that moment (B2 lab: a Trap
+	// IP added a second ago became a device and then a conflict of itself). At a box-owned address only no MAC, a box MAC or this
+	// one is the box; any other MAC is a machine on the address. nil = not known: the rule of BoxOwnedMACs alone.
+	BoxDecoyMACs func(ctx context.Context, fresh bool) (map[netip.Addr]string, error)
 	Clock        func() time.Time
 	Log          *slog.Logger
 }
@@ -55,6 +60,7 @@ type Service struct {
 	modules  ModuleGate
 	boxOwned func(ctx context.Context) []netip.Addr
 	boxMACs  func(ctx context.Context, fresh bool) ([]string, error)
+	decoyMAC func(ctx context.Context, fresh bool) (map[netip.Addr]string, error)
 	ownedHit atomic.Int64 // observations ignored because their address is box-owned
 	clock    func() time.Time
 	log      *slog.Logger
@@ -72,7 +78,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Audit == nil {
 		return nil, errors.New("inventory: New needs DB and Audit")
 	}
-	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, findings: cfg.Findings, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, clock: cfg.Clock, log: cfg.Log}
+	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, findings: cfg.Findings, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, decoyMAC: cfg.BoxDecoyMACs, clock: cfg.Clock, log: cfg.Log}
 	if s.clock == nil {
 		s.clock = time.Now
 	}
@@ -106,9 +112,10 @@ func (s *Service) ownedFilter(ctx context.Context) func(ip netip.Addr, mac strin
 		return nil
 	}
 	var macs map[string]bool // nil = unknown; asked only when an observation is at a box-owned address
+	var decoys map[netip.Addr]string
 	asked, freshAsked := false, false
 	load := func(fresh bool) {
-		macs = nil
+		macs, decoys = nil, nil
 		if list, err := s.boxMACs(ctx, fresh); err == nil {
 			macs = map[string]bool{}
 			for _, m := range list {
@@ -117,8 +124,20 @@ func (s *Service) ownedFilter(ctx context.Context) func(ip netip.Addr, mac strin
 				}
 			}
 		}
+		if s.decoyMAC != nil {
+			if m, err := s.decoyMAC(ctx, fresh); err == nil {
+				decoys = m
+			}
+		}
 	}
 	return func(ip netip.Addr, mac string) bool {
+		if !ip.IsValid() && mac != "" && s.decoyMAC != nil { // a frame with a MAC and no IPv4 (B2 lab): a decoy's own MAC is the box
+			if !asked {
+				asked = true
+				load(false)
+			}
+			return isDecoyMAC(decoys, mac)
+		}
 		if !ip.IsValid() || !owned[ip] {
 			return false
 		}
@@ -133,8 +152,132 @@ func (s *Service) ownedFilter(ctx context.Context) func(ip netip.Addr, mac strin
 			freshAsked = true
 			load(true)
 		}
-		return macs == nil || macs[mac]
+		if macs == nil || macs[mac] {
+			return true
+		}
+		// The MAC the decoy at this address has or will have ("": being added, its MAC not known yet) is the box; any other MAC is a
+		// machine on the address, held by the host or not (a refused or failed Trap IP must not hide a real device; B2 review round 2).
+		if m, ok := decoys[ip]; ok && (m == "" || m == mac) {
+			return true
+		}
+		return false
 	}
+}
+
+func isDecoyMAC(decoys map[netip.Addr]string, mac string) bool {
+	for _, m := range decoys {
+		if n, ok := normMAC(m); ok && n == mac {
+			return true
+		}
+	}
+	return false
+}
+
+// ForgetBoxOwned deletes the device rows the sensors made of the box's own decoys (B2 lab): first seen after the Trap IP at that
+// address was switched on (since, from the honeypot: a row from before is a real machine and stays), unapproved, not added by
+// hand, not the box, and either at that address with no MAC or one of the box's MACs, or with no address and that decoy's MAC.
+// The condition is checked again in the deleting transaction, so a row approved in between stays. Each deletion is audited
+// ("inventory.delete" by "system") and announced as DeleteDevice does. It returns how many went.
+func (s *Service) ForgetBoxOwned(ctx context.Context, since map[netip.Addr]time.Time) (int, error) {
+	if len(since) == 0 || s.boxMACs == nil {
+		return 0, nil
+	}
+	type row struct {
+		id, mac string
+		ip      netip.Addr
+	}
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, ifnull(ip, ''), ifnull(mac, '') FROM inv_asset WHERE is_box = 0 AND approved = 0 AND origin != 'manual'`)
+	if err != nil {
+		return 0, fmt.Errorf("inventory: read devices: %w", err)
+	}
+	var cand []row // only these need the host's MACs: a read of them is skipped when there is none
+	for rows.Next() {
+		var r row
+		var ipS string
+		if err := rows.Scan(&r.id, &ipS, &r.mac); err != nil {
+			_ = rows.Close()
+			return 0, fmt.Errorf("inventory: read devices: %w", err)
+		}
+		r.ip, _ = netip.ParseAddr(ipS)
+		if _, trap := since[r.ip]; r.ip.IsValid() && trap || !r.ip.IsValid() && r.mac != "" {
+			cand = append(cand, r)
+		}
+	}
+	err = rows.Err()
+	_ = rows.Close()
+	if err != nil {
+		return 0, fmt.Errorf("inventory: read devices: %w", err)
+	}
+	if len(cand) == 0 {
+		return 0, nil
+	}
+	list, err := s.boxMACs(ctx, false)
+	if err != nil {
+		return 0, nil // unknown: nothing is a ghost yet
+	}
+	macs := map[string]bool{}
+	for _, m := range list {
+		if n, ok := normMAC(m); ok {
+			macs[n] = true
+		}
+	}
+	var decoys map[netip.Addr]string
+	if s.decoyMAC != nil {
+		decoys, _ = s.decoyMAC(ctx, false)
+	}
+	n := 0
+	for _, r := range cand {
+		var from time.Time
+		switch {
+		case r.ip.IsValid() && (r.mac == "" || macs[r.mac]):
+			from = since[r.ip]
+		case !r.ip.IsValid():
+			for ip, m := range decoys {
+				if t, trap := since[ip]; trap && m != "" && m == r.mac {
+					from = t
+				}
+			}
+		}
+		if from.IsZero() {
+			continue
+		}
+		gone, err := s.forgetGhost(ctx, r.id, store.FormatTS(from))
+		if err != nil {
+			return n, err
+		}
+		if gone {
+			n++
+		}
+	}
+	return n, nil
+}
+
+// forgetGhost deletes one row of ForgetBoxOwned when it is still unapproved, not by hand, not the box and first seen at or after
+// from, in the deleting transaction; false when it no longer is.
+func (s *Service) forgetGhost(ctx context.Context, id, from string) (bool, error) {
+	counts, err := s.findingCounts(ctx)
+	if err != nil {
+		return false, err
+	}
+	gone := false
+	err = s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+		name := deviceName(ctx, tx, id)
+		r, err := tx.ExecContext(ctx, `DELETE FROM inv_asset WHERE id = ? AND is_box = 0 AND approved = 0 AND origin != 'manual' AND first_seen >= ?`, id, from)
+		if err != nil {
+			return fmt.Errorf("inventory: delete device: %w", err)
+		}
+		if k, _ := r.RowsAffected(); k == 0 {
+			return nil
+		}
+		gone = true
+		detail := id + "; made of a Trap IP of the box itself"
+		if k := counts[id]; k > 0 {
+			detail = fmt.Sprintf("%s; removed %d findings of the device", detail, k)
+		}
+		o.add(EventAssetDeleted, AssetEvent{AssetID: id})
+		return s.auditTx(ctx, tx, "system", "inventory.delete", name, detail)
+	})
+	return gone, err
 }
 
 // BoxOwnedSkipped counts the observations ignored since start because they came from a box-owned address.

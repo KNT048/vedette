@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"slices"
 	"sort"
 	"time"
 
@@ -23,11 +24,9 @@ const maxEvents = 20
 
 type storedHit struct {
 	Hit
-	trapIP       string
-	trapHostname string
-	tokenID      string
-	events       []HitEvent
-	connKey      string
+	tokenID string
+	events  []HitEvent
+	connKey string
 }
 
 const hitCols = `id, ts, kind, service, label, port, src_ip, is_test, excerpt, trap_ip, trap_hostname, token_id, events`
@@ -37,7 +36,7 @@ func scanHit(sc interface{ Scan(...any) error }) (storedHit, error) {
 	var svc, tok sql.NullString
 	var port sql.NullInt64
 	var ev string
-	if err := sc.Scan(&h.ID, &h.TS, &h.Kind, &svc, &h.Label, &port, &h.SrcIP, &h.IsTest, &h.Excerpt, &h.trapIP, &h.trapHostname, &tok, &ev); err != nil {
+	if err := sc.Scan(&h.ID, &h.TS, &h.Kind, &svc, &h.Label, &port, &h.SrcIP, &h.IsTest, &h.Excerpt, &h.TrapIP, &h.TrapHostname, &tok, &ev); err != nil {
 		return storedHit{}, err
 	}
 	if svc.Valid {
@@ -119,7 +118,7 @@ func (s *Service) HitDetail(ctx context.Context, id string) (HitDetail, error) {
 	if err != nil {
 		return HitDetail{}, fmt.Errorf("honeypot: read hit: %w", err)
 	}
-	out := HitDetail{Hit: w.view(h), TrapIP: h.trapIP, TrapHostname: h.trapHostname, Events: h.events, WindowMinutes: WindowMinutes}
+	out := HitDetail{Hit: w.view(h), Events: h.events, WindowMinutes: WindowMinutes}
 	if !h.IsTest {
 		if d := w.byIP(h.SrcIP); d != nil {
 			out.Asset = &DetailAsset{ID: d.ID, Kind: d.Kind, IP: d.IP.String(), Approved: d.Approved}
@@ -164,7 +163,7 @@ func (s *Service) insertHit(ctx context.Context, tx *sql.Tx, h storedHit) error 
 		return err
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO hp_hits (`+hitCols+`, conn_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		h.ID, h.TS, string(h.Kind), svc, h.Label, port, h.SrcIP, h.IsTest, h.Excerpt, h.trapIP, h.trapHostname, tok, string(ev), conn)
+		h.ID, h.TS, string(h.Kind), svc, h.Label, port, h.SrcIP, h.IsTest, h.Excerpt, h.TrapIP, h.TrapHostname, tok, string(ev), conn)
 	if err != nil {
 		return fmt.Errorf("honeypot: store hit: %w", err)
 	}
@@ -194,8 +193,7 @@ func (s *Service) testHit(box Box, kind HitKind, svc *ServiceName, port *int, la
 	}
 	ts := store.FormatTS(s.now())
 	return storedHit{
-		Hit:    Hit{ID: store.NewID("hit"), TS: ts, Kind: kind, Service: svc, Label: label, Port: port, SrcIP: src, IsTest: true, Excerpt: excerpt},
-		trapIP: trapIP, trapHostname: trapHost,
+		Hit:    Hit{ID: store.NewID("hit"), TS: ts, Kind: kind, Service: svc, Label: label, Port: port, SrcIP: src, IsTest: true, Excerpt: excerpt, TrapIP: trapIP, TrapHostname: trapHost},
 		events: []HitEvent{{TS: ts, Source: "vedette", Text: eventText, Mark: true}},
 	}
 }
@@ -209,15 +207,24 @@ func (s *Service) TestHit(ctx context.Context, actor string, svc ServiceName) (H
 	if err != nil {
 		return Hit{}, err
 	}
-	if !w.traps[svc].enabled || !w.secIP.IsValid() {
-		return Hit{}, conflictErr("trap_off", fmt.Sprintf("The %s trap is off. Turn it on before testing.", svc.Label()))
+	// The first Trap IP that is on with this service (D-466); one whose address the box would not hand to the host cannot listen.
+	var on []trapIPRow
+	for _, d := range w.trapIPs {
+		if d.Enabled && d.has(svc) {
+			on = append(on, d)
+		}
 	}
-	if d := w.deviceAt(w.secIP); d != nil {
-		return Hit{}, conflictErr("ip_in_use", fmt.Sprintf("The secondary IP %s clashes with device %s, so the trap cannot listen. Change the secondary IP before testing.", w.secIP, d.Name))
+	if len(on) == 0 {
+		return Hit{}, conflictErr("trap_off", fmt.Sprintf("No Trap IP that is on has %s. Add %s to a Trap IP, or turn one on, before testing.", svc.Label(), svc.Label()))
 	}
+	i := slices.IndexFunc(on, func(d trapIPRow) bool { return w.ipProblem(d.ip) == "" })
+	if i < 0 {
+		return Hit{}, conflictErr("ip_in_use", fmt.Sprintf("Every Trap IP with %s clashes with a device or is outside the box's network, so the trap cannot listen. Change the address before testing.", svc.Label()))
+	}
+	t := on[i]
 	p := svc.Port()
 	h := s.testHit(w.box, KindService, &svc, &p, svc.Label(),
-		fmt.Sprintf("[test] The Vedette box connected to %s port %d itself to check the trap", svc.Label(), p), w.secIP.String(), w.cfg.Hostname,
+		fmt.Sprintf("[test] The Vedette box connected to %s port %d on %s itself to check the trap", svc.Label(), p, t.Name), t.IP, t.Name,
 		fmt.Sprintf(`Test started by a user selecting "Test trap" for %s. Not an attacker.`, svc.Label()))
 	return s.recordTest(ctx, actor, "honeypot.test_hit", svc.Label(), h)
 }
@@ -229,16 +236,13 @@ func (s *Service) TestScan(ctx context.Context, actor string) (Hit, error) {
 		return Hit{}, err
 	}
 	var ips []string
-	if w.secIP.IsValid() {
-		ips = append(ips, w.secIP.String())
-	}
-	for _, d := range w.decoys {
+	for _, d := range w.trapIPs {
 		if d.Enabled {
 			ips = append(ips, d.IP)
 		}
 	}
 	if len(ips) < 2 {
-		return Hit{}, conflictErr("need_decoys", "Scan detection needs at least two decoy IPs. Add a decoy first.")
+		return Hit{}, conflictErr("need_decoys", "Scan detection needs at least two Trap IPs that are on. Add a Trap IP first.")
 	}
 	n := len(ips)
 	h := s.testHit(w.box, KindScan, nil, nil, fmt.Sprintf("Port scan across %d decoy IPs", n),

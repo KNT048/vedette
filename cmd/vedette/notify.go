@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/netip"
@@ -148,6 +150,66 @@ func (l notifyApproverLinks) DropChatLink(ctx context.Context, actor, userID str
 	return l.d.Response.DropChatLink(ctx, actor, userID, string(ch), address)
 }
 
+// notifyHits implements notify.HitConnections over the honeypot's export of hits (the one public read that carries conn_count; honeypot
+// is built after notify, so it is read when asked). A hit is found by its time: the incident's first_seen is the hit's ts, so one
+// narrow window per hit (D-496).
+type notifyHits struct{ d *deps }
+
+func (h notifyHits) HitConnections(ctx context.Context, hits []notify.HitRef) (map[string]int, error) {
+	if h.d.Honeypot == nil {
+		return nil, errors.New("honeypot is not ready")
+	}
+	want := map[time.Time]map[string]bool{} // one export per distinct time, every id of that time in one pass
+	for _, r := range hits {
+		if want[r.At] == nil {
+			want[r.At] = map[string]bool{}
+		}
+		want[r.At][r.ID] = true
+	}
+	out := map[string]int{}
+	for at, ids := range want {
+		w := &hitRows{ids: ids, out: out}
+		if err := h.d.Honeypot.ExportHits(ctx, at, at, w); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// hitRows reads the JSON lines ExportHits writes as they come, keeping only id and conn_count of the wanted hits; no more than one
+// line is held at a time and a line over maxHitRow is refused.
+type hitRows struct {
+	ids  map[string]bool
+	out  map[string]int
+	part []byte
+}
+
+const maxHitRow = 1 << 20
+
+func (w *hitRows) Write(p []byte) (int, error) {
+	n := len(p)
+	for len(p) > 0 {
+		i := bytes.IndexByte(p, '\n')
+		if i < 0 {
+			if len(w.part)+len(p) > maxHitRow {
+				return 0, errors.New("honeypot hit row too long")
+			}
+			w.part = append(w.part, p...)
+			break
+		}
+		w.part = append(w.part, p[:i]...)
+		var row struct {
+			ID        string `json:"id"`
+			ConnCount int    `json:"conn_count"`
+		}
+		if json.Unmarshal(w.part, &row) == nil && w.ids[row.ID] {
+			w.out[row.ID] = row.ConnCount
+		}
+		w.part, p = w.part[:0], p[i+1:]
+	}
+	return n, nil
+}
+
 // newNotify builds the notify service once per database, so the handlers, the deliver job, the event
 // subscriptions and the code mailer share it (the Zalo personal adapter keeps its signed-in session and its
 // sign-in pause in memory). Events go to and come from deps.Bus. buildServices calls it first with the real
@@ -172,6 +234,7 @@ func newNotify(d *deps) *notify.Service {
 	if d.Inventory != nil {
 		c.Devices = notifyDevices{d.Inventory}
 	}
+	c.Hits = notifyHits{d}
 	c.Findings = notifyFindings{d} // d.Findings and the feeds store are built after notify: read when asked
 	if d.Reg != nil {              // a nil *modreg.Registry inside the interface would not compare equal to nil, and OnChange would panic
 		c.Modules = d.Reg

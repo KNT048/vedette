@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/netip"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -176,9 +177,17 @@ type ingestEnv struct {
 	files   map[string]Token // lower-case bait file name → token
 	now     time.Time
 	trapIPs map[netip.Addr]bool // the addresses the traps listen on now
-	perSrc  map[netip.Addr]int
-	pollNew int // new hits stored by this poll's earlier batches
-	hourNew int // new hits stored in this clock hour before this batch
+	// at is the Trap IP at each of those addresses and order the addresses in creation order (D-466: a hit carries the name
+	// of the Trap IP that was hit); openPorts says the host cannot keep an address to its own services (every address answers them all).
+	at        map[netip.Addr]*trapIPRow
+	order     []netip.Addr
+	openPorts bool
+	perSrc    map[netip.Addr]int
+	// touch: this batch is made of attempts the host recorded (PollTouches): new hits draw from touchLeft, not the listener caps.
+	touch     bool
+	touchLeft int
+	pollNew   int // new hits stored by this poll's earlier batches
+	hourNew   int // new hits stored in this clock hour before this batch
 	// of the batch in progress
 	newHits []HitEventData
 	ignored int
@@ -194,7 +203,8 @@ func (s *Service) newIngest(ctx context.Context) (*ingestEnv, error) {
 	if err != nil {
 		return nil, err
 	}
-	env := &ingestEnv{w: w, creds: map[string]Token{}, files: map[string]Token{}, now: s.now(), trapIPs: map[netip.Addr]bool{}, perSrc: map[netip.Addr]int{}}
+	env := &ingestEnv{w: w, creds: map[string]Token{}, files: map[string]Token{}, now: s.now(), trapIPs: map[netip.Addr]bool{}, at: map[netip.Addr]*trapIPRow{},
+		perSrc: map[netip.Addr]int{}, openPorts: s.hostView().openPorts}
 	for _, t := range toks {
 		switch t.Type {
 		case TokenCredential:
@@ -206,7 +216,9 @@ func (s *Service) newIngest(ctx context.Context) (*ingestEnv, error) {
 	ips, _, _ := w.desired()
 	for _, ip := range ips {
 		env.trapIPs[ip] = true
+		env.at[ip] = w.trapIPAt(ip)
 	}
+	env.order = ips
 	hour := env.now.Truncate(time.Hour)
 	s.mu.Lock()
 	if !s.hourStart.Equal(hour) {
@@ -238,11 +250,21 @@ func (s *Service) ingestBatch(ctx context.Context, env *ingestEnv, batch []tailI
 	if err != nil {
 		return err
 	}
+	s.afterBatch(ctx, env)
+	return nil
+}
+
+// afterBatch counts and publishes what a committed batch made (core/events: after the commit, a rolled-back hit is never announced).
+func (s *Service) afterBatch(ctx context.Context, env *ingestEnv) {
 	created := env.newHits
 	env.pollNew += len(created)
 	env.hourNew += len(created)
 	s.mu.Lock()
-	s.hourNew = env.hourNew
+	if env.touch {
+		s.touchHourNew += len(created) // their own budget: never the listener's (B2 review M2)
+	} else {
+		s.hourNew += len(created) // a delta: a URL token hit stored meanwhile is not lost (B2 review L3)
+	}
 	s.stats.Lines += env.st.Lines
 	s.stats.Ignored += env.st.Ignored
 	s.stats.Skipped += env.st.Skipped
@@ -261,7 +283,6 @@ func (s *Service) ingestBatch(ctx context.Context, env *ingestEnv, batch []tailI
 			}
 		}
 	}
-	return nil
 }
 
 // classify maps an OpenCanary logtype to the service (or scan) it belongs to.
@@ -337,12 +358,43 @@ func (env *ingestEnv) plausible(r Record, svc ServiceName, scan bool) bool {
 		return false
 	case r.Dst.IsValid() && !env.trapIPs[r.Dst]:
 		return false
-	case !scan && !w.traps[svc].enabled, scan && len(env.trapIPs) == 0:
+	case !scan && !env.serves(r.Dst, svc), scan && len(env.trapIPs) == 0:
 		return false
 	case !r.TS.IsZero() && (r.TS.Before(env.now.Add(-maxLineAge)) || r.TS.After(env.now.Add(maxLineFuture))):
 		return false
 	}
 	return true
+}
+
+// serves says whether a connection to svc on dst can be real: the Trap IP at dst has the service (the host closes the other
+// ports, D-466). A line without a target address needs some Trap IP with the service; a host that cannot close ports
+// (openPorts) lets every address answer every service that runs.
+func (env *ingestEnv) serves(dst netip.Addr, svc ServiceName) bool {
+	if dst.IsValid() && !env.openPorts {
+		d := env.at[dst]
+		return d != nil && d.has(svc)
+	}
+	return env.first(svc) != nil
+}
+
+// first is the oldest Trap IP handed to the host that has svc, nil when none has.
+func (env *ingestEnv) first(svc ServiceName) *trapIPRow {
+	for _, ip := range env.order {
+		if d := env.at[ip]; d != nil && d.has(svc) {
+			return d
+		}
+	}
+	return nil
+}
+
+// nameAt is the name of the Trap IP at the address of a hit ("" when none).
+func (env *ingestEnv) nameAt(ip string) string {
+	if a, err := netip.ParseAddr(ip); err == nil {
+		if d := env.at[a]; d != nil {
+			return d.Name
+		}
+	}
+	return ""
 }
 
 func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r Record) error {
@@ -386,8 +438,10 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 		from += ":" + strconv.Itoa(r.SrcPort)
 	}
 	trapIP := dst
-	if trapIP == "" {
-		trapIP = w.cfg.SecondaryIP
+	if trapIP == "" && !scan { // a line without the target address: the oldest Trap IP with that service
+		if d := env.first(svc); d != nil {
+			trapIP = d.IP
+		}
 	}
 	if scan {
 		label := "Port scan on decoy " + dst
@@ -396,8 +450,7 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 		}
 		line := label + " from " + from
 		return s.upsert(ctx, tx, env, storedHit{
-			Hit:    Hit{TS: tsText, Kind: KindScan, Label: label, SrcIP: src, Excerpt: "TCP probe of a decoy IP"},
-			trapIP: trapIP, trapHostname: "Decoy sweep",
+			Hit:     Hit{TS: tsText, Kind: KindScan, Label: label, SrcIP: src, Excerpt: "TCP probe of a decoy IP", TrapIP: trapIP, TrapHostname: "Decoy sweep"},
 			connKey: connKey("scan", src, dst, window),
 			events:  []HitEvent{{TS: tsText, Source: "honeypot", Text: line, Mark: true}},
 		}, line, "")
@@ -414,10 +467,13 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 	}
 	svcCopy := svc
 	if err := s.upsert(ctx, tx, env, storedHit{
-		Hit:    Hit{TS: tsText, Kind: KindService, Service: &svcCopy, Label: svc.Label(), Port: &port, SrcIP: src, Excerpt: det},
-		trapIP: trapIP, trapHostname: w.cfg.Hostname, connKey: connKey("service", string(svc), src, dst, strconv.Itoa(port), window),
-		events: []HitEvent{{TS: tsText, Source: "honeypot", Text: first, Mark: true}},
+		Hit:     Hit{TS: tsText, Kind: KindService, Service: &svcCopy, Label: svc.Label(), Port: &port, SrcIP: src, Excerpt: det, TrapIP: trapIP, TrapHostname: env.nameAt(trapIP)},
+		connKey: connKey("service", string(svc), src, dst, strconv.Itoa(port), window),
+		events:  []HitEvent{{TS: tsText, Source: "honeypot", Text: first, Mark: true}},
 	}, more, det); err != nil {
+		return err
+	}
+	if err := s.sweep(ctx, tx, env, r.Src, trapIP, ts); err != nil {
 		return err
 	}
 	// POST-2: a bait account or file touched. Only a token that still exists counts (INV-10).
@@ -440,11 +496,117 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 	}
 	line := label + " was used from " + from
 	return s.upsert(ctx, tx, env, storedHit{
-		Hit:    Hit{TS: tsText, Kind: KindToken, Label: label, SrcIP: src, Excerpt: ex},
-		trapIP: tok.Value, trapHostname: label, tokenID: tok.ID,
+		Hit:     Hit{TS: tsText, Kind: KindToken, Label: label, SrcIP: src, Excerpt: ex, TrapIP: tok.Value, TrapHostname: label},
+		tokenID: tok.ID,
 		connKey: connKey("token", tok.ID, src, window),
 		events:  []HitEvent{{TS: tsText, Source: "honeypot", Text: line, Mark: true}},
 	}, line, "")
+}
+
+// sweepWindow: one source that touches two or more Trap IPs within this time is scanning the network (W1-13, S-HP-2).
+const sweepWindow = time.Minute
+
+// maxSweepSources bounds the memory of who touched what: past it the record starts over. ponytail: a flood of sources
+// can make a real sweep in that poll go unseen as a scan (each of its hits still alerts); the upgrade is an LRU.
+const maxSweepSources = 4096
+
+// sweep records that src touched the Trap IP at trapIP at ts and, once src touched two or more Trap IPs within
+// sweepWindow, stores one scan hit for src per hit window (later Trap IPs it touches in that window are added to the same
+// hit, not a new alert). The record is memory only: a sweep that a restart of core cuts in two is not seen as one.
+func (s *Service) sweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, src netip.Addr, trapIP string, ts time.Time) error {
+	ip, err := netip.ParseAddr(trapIP)
+	if err != nil || env.at[ip] == nil {
+		return nil
+	}
+	if s.touches == nil || len(s.touches) > maxSweepSources {
+		s.touches = map[netip.Addr]map[netip.Addr]time.Time{}
+	}
+	seen := s.touches[src]
+	if seen == nil {
+		seen = map[netip.Addr]time.Time{}
+		s.touches[src] = seen
+	}
+	if old, ok := seen[ip]; !ok || ts.After(old) {
+		seen[ip] = ts
+	}
+	var near []netip.Addr
+	for a, at := range seen {
+		switch d := ts.Sub(at); {
+		case d > sweepWindow:
+			delete(seen, a) // too old for any later line (the log is in time order, give or take a second)
+		case d >= -sweepWindow:
+			near = append(near, a)
+		}
+	}
+	if len(near) < 2 {
+		return nil
+	}
+	slices.SortFunc(near, func(a, b netip.Addr) int { return a.Compare(b) })
+	var ips, names, both []string
+	for _, a := range near {
+		name := env.nameAt(a.String())
+		ips, names, both = append(ips, a.String()), append(names, name), append(both, name+" ("+a.String()+")")
+	}
+	tsText := store.FormatTS(ts)
+	line := src.String() + " touched " + env.nameAt(trapIP) + " (" + trapIP + ")"
+	key := connKey("sweep", src.String(), strconv.FormatInt(ts.Truncate(hitWindow).Unix(), 10))
+	note := ""
+	if env.touch {
+		note = forgedNote
+	}
+	if err := s.upsert(ctx, tx, env, storedHit{
+		Hit: Hit{TS: tsText, Kind: KindScan, Label: "Scan across the Trap IPs", SrcIP: src.String(),
+			Excerpt: "Touched " + strings.Join(both, ", ") + " within a minute" + note, TrapIP: joinMax(ips, maxTrapIPText), TrapHostname: joinMax(names, maxTrapNameText)},
+		connKey: key,
+		events:  []HitEvent{{TS: tsText, Source: "honeypot", Text: line, Mark: true}},
+	}, line, env.nameAt(trapIP)+" ("+trapIP+")"); err != nil {
+		return err
+	}
+	if !env.touch { // a real connection from src: its source is not forged, whichever of the two made the hit first (W6-4)
+		if _, err := tx.ExecContext(ctx, `UPDATE hp_hits SET excerpt = REPLACE(excerpt, ?, '') WHERE conn_key = ?`, forgedNote, key); err != nil {
+			return fmt.Errorf("honeypot: update scan hit: %w", err)
+		}
+	}
+	return s.widenSweep(ctx, tx, env, key, near)
+}
+
+// The column limits of hp_hits trap_ip and trap_hostname (migration 0001).
+const (
+	maxTrapIPText   = 400
+	maxTrapNameText = 200
+)
+
+// widenSweep keeps the Trap IP columns of a scan hit naming every Trap IP the source touched in its window: a Trap IP touched
+// later in the same window (a third, a fourth) joins the columns, not only the excerpt and the lines (B2 review).
+func (s *Service) widenSweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, key string, near []netip.Addr) error {
+	var have string
+	switch err := tx.QueryRowContext(ctx, `SELECT trap_ip FROM hp_hits WHERE conn_key = ?`, key).Scan(&have); {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil // over the flood cap: not stored
+	case err != nil:
+		return fmt.Errorf("honeypot: find scan hit: %w", err)
+	}
+	all := slices.Clone(near)
+	for _, part := range strings.Split(have, ", ") {
+		if a, err := netip.ParseAddr(part); err == nil && !slices.Contains(all, a) {
+			all = append(all, a)
+		}
+	}
+	slices.SortFunc(all, func(a, b netip.Addr) int { return a.Compare(b) })
+	ips, names := make([]string, 0, len(all)), make([]string, 0, len(all))
+	for _, a := range all {
+		name := env.nameAt(a.String())
+		if name == "" {
+			name = a.String()
+		}
+		ips, names = append(ips, a.String()), append(names, name)
+	}
+	if ipText := joinMax(ips, maxTrapIPText); ipText != have {
+		if _, err := tx.ExecContext(ctx, `UPDATE hp_hits SET trap_ip = ?, trap_hostname = ? WHERE conn_key = ?`, ipText, joinMax(names, maxTrapNameText), key); err != nil {
+			return fmt.Errorf("honeypot: update scan hit: %w", err)
+		}
+	}
+	return nil
 }
 
 func isBroadcast(lan netip.Prefix, a netip.Addr) bool {
@@ -473,7 +635,8 @@ func (s *Service) upsert(ctx context.Context, tx *sql.Tx, env *ingestEnv, h stor
 	err := tx.QueryRowContext(ctx, `SELECT id, excerpt, events FROM hp_hits WHERE conn_key = ?`, h.connKey).Scan(&id, &excerpt, &evJSON)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		if env.pollNew+len(env.newHits) >= maxNewPerPoll || env.hourNew+len(env.newHits) >= maxNewPerHour {
+		if env.touch && len(env.newHits) >= env.touchLeft ||
+			!env.touch && (env.pollNew+len(env.newHits) >= maxNewPerPoll || env.hourNew+len(env.newHits) >= maxNewPerHour) {
 			env.st.Suppressed++
 			return nil
 		}
@@ -488,12 +651,12 @@ func (s *Service) upsert(ctx context.Context, tx *sql.Tx, env *ingestEnv, h stor
 		if err := s.insertHit(ctx, tx, h); err != nil {
 			return err
 		}
-		d := HitEventData{ID: h.ID, TS: h.TS, Kind: h.Kind, SrcIP: h.SrcIP, Label: h.Label, Decoy: h.trapHostname}
+		d := HitEventData{ID: h.ID, TS: h.TS, Kind: h.Kind, SrcIP: h.SrcIP, Label: h.Label, Decoy: h.TrapHostname}
 		if d.Decoy == "" {
-			d.Decoy = h.trapIP
+			d.Decoy = h.TrapIP
 		}
 		if dev := env.w.byIP(h.SrcIP); dev != nil { // INV-8: the source device as the inventory knows it now
-			d.SrcAssetID = dev.ID
+			d.SrcAssetID, d.SrcName = dev.ID, clean(dev.Name, 120)
 		}
 		if h.Service != nil {
 			d.Service = string(*h.Service)
@@ -547,4 +710,107 @@ func (s *Service) Prune(ctx context.Context) (int, error) {
 		return nil
 	})
 	return int(n), err
+}
+
+// touchEvery is how often the host's record of connection attempts is read (B2 review M2). The host takes 60 reads a minute for
+// all of core; a sweep is judged on the attempts' own times, so a poll every 15 s still sees two Trap IPs within a minute.
+const touchEvery = 15 * time.Second
+
+// touchTTL is how long the host keeps a (source, Trap IP) attempt (host-api 6.6 set touched): the same attempt read again before it
+// expires is not fed twice.
+const touchTTL = 2 * time.Minute
+
+// maxTouchKeys bounds the memory of attempts already fed (the host's set holds at most 1024).
+const maxTouchKeys = 4096
+
+// maxTouchScansPerHour is the budget of new scan hits from attempts that completed no handshake (their source can be forged): a
+// flood of forged sources stops here, never drawing from maxNewPerHour, so the listener hits keep alerting (B2 review M2).
+const maxTouchScansPerHour = 20
+
+// forgedNote ends the excerpt of a scan hit made from attempts the host recorded.
+const forgedNote = " The handshake was not completed, so the source address may be forged."
+
+// PollTouches feeds the host's record of new TCP/UDP attempts to the Trap IPs into the sweep detection (B2 review M2: a SYN scan,
+// nmap's default, completes no connection, so OpenCanary logs nothing). Only the sweep: a single attempt is no hit (the listener
+// hits stay the per-touch alerts). The source must be plausible as for a log line (not the box, a Trap IP, loopback, the network
+// or a broadcast address) and the target a Trap IP handed to the host. Each attempt is fed once while the host keeps it.
+func (s *Service) PollTouches(ctx context.Context) error {
+	r, ok := s.cfg.Host.(touchReporter)
+	if !ok || !s.on() {
+		return nil
+	}
+	list, err := r.Touches(ctx)
+	if err != nil || len(list) == 0 {
+		return err
+	}
+	s.pollMu.Lock()
+	defer s.pollMu.Unlock()
+	now := s.now()
+	if s.fedTouches == nil || len(s.fedTouches) > maxTouchKeys {
+		s.fedTouches = map[string]time.Time{}
+	}
+	for k, until := range s.fedTouches {
+		if now.After(until) {
+			delete(s.fedTouches, k)
+		}
+	}
+	var fresh []Touch
+	for _, t := range list {
+		key := t.Src.String() + "|" + t.Dst.String()
+		if until, seen := s.fedTouches[key]; seen && now.Before(until) {
+			continue
+		}
+		s.fedTouches[key] = t.At.Add(touchTTL + touchEvery)
+		fresh = append(fresh, t)
+	}
+	if len(fresh) == 0 {
+		return nil
+	}
+	slices.SortFunc(fresh, func(a, b Touch) int { return a.At.Compare(b.At) }) // sweep reads them in time order, as log lines
+	env, err := s.newIngest(ctx)
+	if err != nil {
+		return err
+	}
+	hour := now.Truncate(time.Hour)
+	s.mu.Lock()
+	if !s.touchHourStart.Equal(hour) {
+		s.touchHourStart, s.touchHourNew = hour, 0
+	}
+	env.touch, env.touchLeft = true, maxTouchScansPerHour-s.touchHourNew
+	s.mu.Unlock()
+	err = s.db.Write(ctx, func(tx *sql.Tx) error {
+		env.newHits, env.ignored, env.st = nil, 0, Stats{}
+		for _, t := range fresh {
+			if !env.touchPlausible(t) { // the box, a Trap IP, broadcast...: not counted as an implausible log line (B2 review L2)
+				continue
+			}
+			if err := s.sweep(ctx, tx, env, t.Src, t.Dst.String(), t.At); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		for _, t := range fresh { // not stored: feed them again next time
+			delete(s.fedTouches, t.Src.String()+"|"+t.Dst.String())
+		}
+		return err
+	}
+	s.afterBatch(ctx, env)
+	return nil
+}
+
+// touchPlausible is plausible (ingest) for an attempt the host recorded: the source is not the box, a Trap IP, loopback, the
+// network or a broadcast address; the target is a Trap IP handed to the host; the time is within the host's record.
+func (env *ingestEnv) touchPlausible(t Touch) bool {
+	w := env.w
+	switch {
+	case !t.Src.Is4() || t.Src.IsLoopback() || t.Src.IsMulticast() || t.Src.IsUnspecified(), env.trapIPs[t.Src]:
+		return false
+	case w.box.IP.IsValid() && t.Src == w.box.IP, isBroadcast(w.lan, t.Src), w.lan.IsValid() && w.lan.Bits() < 31 && t.Src == w.lan.Masked().Addr():
+		return false
+	case !env.trapIPs[t.Dst]:
+		return false
+	}
+	return !t.At.Before(env.now.Add(-touchTTL-touchEvery)) && !t.At.After(env.now.Add(maxLineFuture))
 }

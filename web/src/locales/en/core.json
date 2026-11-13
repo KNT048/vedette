@@ -477,6 +477,11 @@
       "honeypot.config": "Change honeypot settings",
       "honeypot.decoy_add": "Add decoy",
       "honeypot.decoy_delete": "Delete decoy",
+      "honeypot.trap_ip_add": "Add Trap IP",
+      "honeypot.trap_ip_edit": "Change Trap IP",
+      "honeypot.trap_ip_enable": "Turn Trap IP on",
+      "honeypot.trap_ip_disable": "Turn Trap IP off",
+      "honeypot.trap_ip_delete": "Delete Trap IP",
       "honeypot.token_add": "Add canary token",
       "honeypot.token_delete": "Delete canary token",
       "inventory.add_manual": "Add device by hand",
@@ -1456,7 +1461,7 @@
   },
   "network": {
     "meta": "Where the box sits on your network and how it listens to a switch mirror.",
-    "metaNoSpan": "Where the box sits on your network: its ports, management address, decoy addresses and time source.",
+    "metaNoSpan": "Where the box sits on your network: its ports, management address, Trap IPs and time source.",
     "helper": "Changes here are applied by vedette-host, a small helper on the box that runs a fixed list of commands. The web app never runs shell commands.",
     "role": {
       "management": "Management",
@@ -1637,9 +1642,9 @@
       "after": "After the switch is set up, open SPAN capture above and check that {{port}} shows traffic from other devices."
     },
     "decoys": {
-      "title": "Decoy addresses",
+      "title": "Trap IPs",
       "desc": "Extra IP addresses the box answers on for the traps, besides its own. Read only here.",
-      "none": "No decoy addresses yet.",
+      "none": "No Trap IPs yet.",
       "link": "Change them in Internal traps"
     },
     "ntp": {

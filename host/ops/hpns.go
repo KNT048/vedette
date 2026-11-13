@@ -1,7 +1,6 @@
 package ops
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -128,26 +127,18 @@ func (o *Ops) ensureHP(ctx context.Context, configure bool) (err error) {
 		}
 		configure = true
 	}
-	if configure {
-		if err := o.configureHP(ctx); err != nil {
-			return err
-		}
+	want := o.wantedDecoys()
+	if configure { // configureHP loads and proves the ruleset (loadProven)
+		return o.configureHP(ctx, want)
 	}
-	ok, err := o.egressDropLoaded(ctx)
+	ok, err := o.rulesetLoaded(ctx, want)
 	if err != nil {
 		return err
 	}
-	if !ok && !configure {
-		if err := o.loadRuleset(ctx); err != nil {
-			return err
-		}
-		ok, err = o.egressDropLoaded(ctx)
-		if err != nil {
-			return err
-		}
-	}
 	if !ok {
-		return errors.New("ops: the egress drop rule is not loaded in vedette-hp")
+		if err := o.loadProven(ctx, want); err != nil {
+			return errors.Join(errors.New("ops: the ruleset of vedette-hp (egress drop, per-address ports) is not loaded"), err)
+		}
 	}
 	return nil
 }
@@ -180,7 +171,7 @@ func (o *Ops) failClosed(ctx context.Context) {
 	}
 }
 
-func (o *Ops) configureHP(ctx context.Context) error {
+func (o *Ops) configureHP(ctx context.Context, want []decoyEntry) error {
 	o.hpConfigured.Store(false)
 	if _, code, err := o.exec(ctx, binIP, argvSysctl()...); err != nil || code != 0 {
 		return fmt.Errorf("ops: setting the sysctls of vedette-hp failed (exit %d)", code)
@@ -191,7 +182,7 @@ func (o *Ops) configureHP(ctx context.Context) error {
 	if err := o.ipRun(ctx, argvLoUp()); err != nil {
 		return err
 	}
-	if err := o.loadRuleset(ctx); err != nil {
+	if err := o.loadProven(ctx, want); err != nil { // with the fallback without the touch part (B2 review round 2, L2)
 		return err
 	}
 	o.hpConfigured.Store(true)
@@ -216,78 +207,12 @@ func (o *Ops) verifySysctls(ctx context.Context) error {
 	return nil
 }
 
-func (o *Ops) loadRuleset(ctx context.Context) error {
-	_, code, err := o.execIn(ctx, binIP, strings.NewReader(hpRulesetText), argvNftLoad()...)
+// loadRuleset loads the ruleset rendered for list (renderRuleset, decoyports.go) in one nft
+// transaction: "flush ruleset" and the new table replace what was there at once.
+func (o *Ops) loadRuleset(ctx context.Context, list []decoyEntry) error {
+	_, code, err := o.execIn(ctx, binIP, strings.NewReader(renderRulesetMode(list, o.withTouch())), argvNftLoad()...)
 	if err != nil || code != 0 {
-		return fmt.Errorf("ops: loading the egress ruleset of vedette-hp failed (exit %d)", code)
+		return fmt.Errorf("ops: loading the ruleset of vedette-hp failed (exit %d)", code)
 	}
 	return nil
-}
-
-// egressDropLoaded lists the ruleset from inside the namespace and looks for the drop rule.
-func (o *Ops) egressDropLoaded(ctx context.Context) (bool, error) {
-	res, code, err := o.exec(ctx, binIP, argvNftList()...)
-	if err != nil || code != 0 {
-		return false, fmt.Errorf("ops: listing the ruleset of vedette-hp failed (exit %d)", code)
-	}
-	return hasEgressDrop(res.Stdout), nil
-}
-
-// hasEgressDrop reads the text of "nft list ruleset" and accepts only the ruleset of the host: a table
-// inet vedette_hp that is not dormant, whose chain of the output hook (policy accept) holds exactly
-// "ct state established,related accept", "oif lo accept", "ct state new drop" in that order (so no
-// broader accept comes before the drop), and whose forward chain has policy drop and no rule. The
-// text is compared without spaces, braces and quotes ("oif "lo"" is how nft prints the interface).
-func hasEgressDrop(out []byte) bool {
-	norm := func(s string) string {
-		return strings.NewReplacer(" ", "", "\t", "", "{", "", "}", "", `"`, "").Replace(s)
-	}
-	var (
-		inTable, outHdr, fwdHdr, sawOut, sawFwd bool
-		chain                                   string
-		outRules, fwdRules                      []string
-	)
-	for _, raw := range bytes.Split(out, []byte("\n")) {
-		t := strings.TrimSpace(string(raw))
-		line := norm(t)
-		switch {
-		case strings.HasPrefix(t, "table ") && strings.HasSuffix(t, "{"):
-			inTable, chain = line == "tableinetvedette_hp", ""
-		case !inTable:
-		case strings.HasPrefix(t, "chain ") && strings.HasSuffix(t, "{"):
-			chain = strings.TrimPrefix(line, "chain")
-		case t == "}":
-			if chain != "" {
-				chain = ""
-			} else {
-				inTable = false
-			}
-		case line == "flagsdormant" || strings.HasPrefix(line, "flagsdormant"):
-			return false
-		case chain == "output" && strings.HasPrefix(line, "type"):
-			sawOut = true
-			outHdr = strings.HasPrefix(line, "typefilterhookoutput") && strings.Contains(line, "policyaccept")
-		case chain == "forward" && strings.HasPrefix(line, "type"):
-			sawFwd = true
-			fwdHdr = strings.HasPrefix(line, "typefilterhookforward") && strings.Contains(line, "policydrop")
-		case chain == "output":
-			outRules = append(outRules, line)
-		case chain == "forward":
-			fwdRules = append(fwdRules, line)
-		}
-	}
-	want := []string{"ctstateestablished,relatedaccept", "oifloaccept", "ctstatenewdrop"}
-	return sawOut && sawFwd && outHdr && fwdHdr && len(fwdRules) == 0 && equalStrings(outRules, want)
-}
-
-func equalStrings(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }

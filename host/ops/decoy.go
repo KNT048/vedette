@@ -169,6 +169,9 @@ func decoyArgs(a api.DecoyAddArgs) (netip.Addr, *[3]byte, error) {
 	if err != nil {
 		return netip.Addr{}, nil, server.Invalid("oui", err.Error())
 	}
+	if _, err := portsArg(a.Ports); err != nil {
+		return netip.Addr{}, nil, err
+	}
 	if !has {
 		return ip, nil, nil
 	}
@@ -212,25 +215,60 @@ func (o *Ops) cmdDecoyRemove() server.Command {
 
 // addRefusal runs the refusals of decoy_ip.add in the order of spec 6.6 (after the arguments, which
 // Validate has checked): not_appliance, the subnet, network/broadcast/gateway/host, a duplicate, the
-// limit. The ARP probe is not here: it takes four seconds and belongs to the run.
-func (o *Ops) addRefusal(ctx context.Context, ip netip.Addr, list []decoyEntry) (mgmtNet, error) {
+// limit. The ARP probe is not here: it takes four seconds and belongs to the run. An address that is
+// in hp/decoys.json but whose link is not live (the namespace was closed, failClosed) is no
+// duplicate: the run builds its link again from the entry (rebuild is true, B2 review M1).
+func (o *Ops) addRefusal(ctx context.Context, ip netip.Addr, list []decoyEntry) (m mgmtNet, rebuild bool, err error) {
 	if _, err := o.platform(); err != nil {
-		return mgmtNet{}, err
+		return mgmtNet{}, false, err
 	}
-	m, err := o.mgmtNow(ctx, nil, false)
+	m, err = o.mgmtNow(ctx, nil, false)
 	if err != nil {
-		return mgmtNet{}, refuse412(api.CodeIPNotInMgmtSubnet, "The box has no management network yet, so there is no subnet for a decoy.")
+		return mgmtNet{}, false, refuse412(api.CodeIPNotInMgmtSubnet, "The box has no management network yet, so there is no subnet for a decoy.")
 	}
 	if code, msg := m.refusalFor(ip, o.hostAddrs()); code != "" {
-		return mgmtNet{}, refuse412(code, msg)
+		return mgmtNet{}, false, refuse412(code, msg)
 	}
-	if slices.ContainsFunc(list, func(e decoyEntry) bool { return e.IP == ip.String() }) {
-		return mgmtNet{}, refuse412(api.CodeDuplicateDecoy, "That address is already a decoy. Remove it first to change it.")
+	if i := slices.IndexFunc(list, func(e decoyEntry) bool { return e.IP == ip.String() }); i >= 0 {
+		if o.decoyLive(ctx, list[i], m) {
+			return mgmtNet{}, false, refuse412(api.CodeDuplicateDecoy, "That address is already a decoy. Remove it first to change it.")
+		}
+		return m, true, nil
 	}
 	if len(list) >= api.MaxDecoys {
-		return mgmtNet{}, refuse412(api.CodeLimitReached, fmt.Sprintf("The box holds %d decoy addresses already, the most it allows.", api.MaxDecoys))
+		return mgmtNet{}, false, refuse412(api.CodeLimitReached, fmt.Sprintf("The box holds %d decoy addresses already, the most it allows.", api.MaxDecoys))
 	}
-	return m, nil
+	return m, false, nil
+}
+
+// decoyLive says whether the decoy of an entry really answers: the namespace is proven and its link is
+// there with its MAC and address. A listing that fails counts as not live (the run then rebuilds,
+// which proves the namespace first).
+func (o *Ops) decoyLive(ctx context.Context, d decoyEntry, m mgmtNet) bool {
+	if !o.hpOK.Load() {
+		return false
+	}
+	links, err := o.listNS(ctx)
+	if err != nil {
+		return false
+	}
+	i := slices.IndexFunc(links, func(l nsLink) bool { return l.Name == linkName(d.addr()) })
+	return i >= 0 && links[i].matches(d, m)
+}
+
+// ensureHPLinks is ensureHP for a write command (hpMu held): when the namespace was not proven before
+// (closeUnproven, failClosed deleted every decoy link) and is proven now, the links of hp/decoys.json
+// are built again at once, so state/net never lists a decoy whose link is gone (B2 review M1).
+func (o *Ops) ensureHPLinks(ctx context.Context) error {
+	wasOK := o.hpOK.Load()
+	if err := o.ensureHP(ctx, false); err != nil {
+		return err
+	}
+	if !wasOK {
+		o.log.WarnContext(ctx, "the honeypot namespace is proven again; rebuilding the decoy links")
+		return o.reconcile(ctx, nil, true)
+	}
+	return nil
 }
 
 func (o *Ops) checkDecoyAdd(ctx context.Context, a api.DecoyAddArgs) error {
@@ -242,7 +280,7 @@ func (o *Ops) checkDecoyAdd(ctx context.Context, a api.DecoyAddArgs) error {
 		return nil // the run answers with hp_state_unusable
 	}
 	list, _ := o.readDecoys() // an invalid file is set aside by the run
-	_, err = o.addRefusal(ctx, ip, list)
+	_, _, err = o.addRefusal(ctx, ip, list)
 	return err
 }
 
@@ -260,9 +298,12 @@ func (o *Ops) runDecoyAdd(ctx context.Context, rc *server.RunContext, a api.Deco
 	if err != nil {
 		return nil, fail(api.CodeDecoysStateInvalid, "The decoy state file could not be read or set aside.")
 	}
-	m, err := o.addRefusal(ctx, ip, list)
+	m, rebuild, err := o.addRefusal(ctx, ip, list)
 	if err != nil {
 		return nil, err
+	}
+	if rebuild {
+		return o.rebuildDecoy(ctx, rc, ip)
 	}
 	rc.Log("Checking that " + ip.String() + " is free (ARP probe).")
 	res, err := o.d.Probe.Probe(ctx, m.Iface, ip)
@@ -286,9 +327,12 @@ func (o *Ops) runDecoyAdd(ctx context.Context, rc *server.RunContext, a api.Deco
 	if exists, err := o.hostHasLink(name); err != nil || exists {
 		return nil, refuse412(api.CodeLinkNameInUse, "A network link called "+name+" already exists on this machine and the host did not make it, so it is left alone.")
 	}
-	if err := o.ensureHP(ctx, false); err != nil {
+	if err := o.ensureHPLinks(ctx); err != nil {
 		o.log.ErrorContext(ctx, "the honeypot namespace is not usable", "error", err.Error())
 		return nil, fail(api.CodeHPNamespaceUnavailable, "The honeypot network namespace is not usable, so nothing was added.")
+	}
+	if list, err = o.loadDecoysNoted(); err != nil { // a rebuild may have dropped a decoy that no longer fits
+		return nil, fail(api.CodeDecoysStateInvalid, "The decoy state file could not be read or set aside.")
 	}
 	links, err := o.listNS(ctx)
 	if err != nil {
@@ -299,26 +343,69 @@ func (o *Ops) runDecoyAdd(ctx context.Context, rc *server.RunContext, a api.Deco
 	if !ok {
 		return nil, refuse412(api.CodeLimitReached, "No routing table is free.")
 	}
-	d := decoyEntry{IP: ip.String(), MAC: mac, Table: table, Iface: m.Iface}
+	ports, err := portsArg(a.Ports)
+	if err != nil {
+		return nil, err
+	}
+	d := decoyEntry{IP: ip.String(), MAC: mac, Table: table, Iface: m.Iface, Ports: ports}
+	next := append(slices.Clone(list), d)
 	rc.Log("Creating the link " + name + " in the honeypot namespace.")
 	if err := o.buildDecoy(ctx, d, m); err != nil {
 		o.log.ErrorContext(ctx, "could not build the decoy", fieldIP, d.IP, "error", err.Error())
 		return nil, fail(api.CodeDecoyFailed, "The decoy could not be created; nothing was kept.")
 	}
-	if err := o.saveDecoys(append(slices.Clone(list), d)); err != nil {
+	if err := o.saveDecoys(next); err != nil {
 		o.log.ErrorContext(ctx, "could not write hp/decoys.json", "error", err.Error())
 		o.removeDecoyNS(ctx, d)
 		return nil, fail(api.CodeDecoyFailed, "The decoy could not be recorded; it was removed again.")
 	}
-	if err := o.verifyDecoy(ctx, d, m); err != nil {
-		o.log.ErrorContext(ctx, "the decoy is not in the namespace as it should be", fieldIP, d.IP, "error", err.Error())
+	undo := func() {
 		o.removeDecoyNS(ctx, d)
 		if serr := o.saveDecoys(list); serr != nil {
 			o.log.ErrorContext(ctx, "could not take the decoy out of hp/decoys.json", "error", serr.Error())
 		}
+	}
+	if err := o.verifyDecoy(ctx, d, m); err != nil {
+		o.log.ErrorContext(ctx, "the decoy is not in the namespace as it should be", fieldIP, d.IP, "error", err.Error())
+		undo()
 		return nil, fail(api.CodeDecoyFailed, "The decoy was created but the link in the namespace does not have the right MAC and address; it was removed again.")
 	}
+	// The address answers only once the ruleset that lets it (its allow-list, or the open set) is in
+	// force and proven (D-466); until then the input chain refuses every port of it.
+	if err := o.applyRuleset(ctx, next); err != nil {
+		o.log.ErrorContext(ctx, "the ruleset with the new decoy could not be proven", fieldIP, d.IP, "error", err.Error())
+		undo()
+		if rerr := o.applyRuleset(ctx, list); rerr != nil {
+			o.closeUnproven(ctx, rerr)
+		}
+		return nil, fail(api.CodeDecoyFailed, "The ports of the decoy could not be put in force; it was removed again.")
+	}
 	return api.DecoyAddResult{IP: d.IP, MAC: d.MAC}, nil
+}
+
+// rebuildDecoy answers decoy_ip.add for an address that hp/decoys.json holds but whose link is gone:
+// the namespace is proven and every missing link of the file is built again (reconcile), then the
+// address is checked live. The entry's MAC and ports stay as they were; core changes them afterwards
+// (decoy_ip.set_ports, or remove and add for another OUI) when they differ from what it wants.
+func (o *Ops) rebuildDecoy(ctx context.Context, rc *server.RunContext, ip netip.Addr) (any, error) {
+	rc.Log(ip.String() + " is in the decoy list but its link is gone; building the decoy links again.")
+	if err := o.ensureHP(ctx, false); err != nil {
+		o.log.ErrorContext(ctx, "the honeypot namespace is not usable", "error", err.Error())
+		return nil, fail(api.CodeHPNamespaceUnavailable, "The honeypot network namespace is not usable, so nothing was added.")
+	}
+	if err := o.reconcile(ctx, nil, true); err != nil {
+		return nil, fail(api.CodeDecoyFailed, "The decoy links could not be built again.")
+	}
+	list, err := o.loadDecoysNoted()
+	if err != nil {
+		return nil, fail(api.CodeDecoysStateInvalid, "The decoy state file could not be read or set aside.")
+	}
+	i := slices.IndexFunc(list, func(e decoyEntry) bool { return e.IP == ip.String() })
+	m, merr := o.mgmtNow(ctx, nil, false)
+	if i < 0 || merr != nil || !o.decoyLive(ctx, list[i], m) {
+		return nil, fail(api.CodeDecoyFailed, "The decoy could not be built again; it is out of the list (see the audit log).")
+	}
+	return api.DecoyAddResult{IP: list[i].IP, MAC: list[i].MAC}, nil
 }
 
 func (o *Ops) runDecoyRemove(ctx context.Context, rc *server.RunContext, a api.DecoyRemoveArgs) (any, error) {
@@ -347,7 +434,8 @@ func (o *Ops) runDecoyRemove(ctx context.Context, rc *server.RunContext, a api.D
 	}
 	// The state first: a crash after it leaves a link no entry owns, which the next reconcile
 	// removes; the other order would bring a removed decoy back.
-	if err := o.saveDecoys(slices.Delete(slices.Clone(list), i, i+1)); err != nil {
+	rest := slices.Delete(slices.Clone(list), i, i+1)
+	if err := o.saveDecoys(rest); err != nil {
 		o.log.ErrorContext(ctx, "could not write hp/decoys.json", "error", err.Error())
 		return nil, fail(api.CodeDecoyFailed, "The decoy list could not be written; nothing was removed.")
 	}
@@ -357,6 +445,11 @@ func (o *Ops) runDecoyRemove(ctx context.Context, rc *server.RunContext, a api.D
 		links, err := o.listNS(ctx)
 		if err != nil || slices.ContainsFunc(links, func(l nsLink) bool { return l.Name == linkName(ip) }) {
 			return nil, fail(api.CodeDecoyFailed, "The decoy is out of the list but its link is still in the namespace; the next start removes it.")
+		}
+		// Its ports leave the ruleset too (D-466): the sets hold exactly the decoys of the state.
+		if err := o.applyRuleset(ctx, rest); err != nil {
+			o.closeUnproven(ctx, err)
+			return nil, fail(api.CodeDecoyFailed, "The decoy is removed but the ruleset of the honeypot namespace could not be proven; the decoys are off until the host proves it again.")
 		}
 	}
 	return api.DecoyRemoveResult{Removed: true}, nil
@@ -431,6 +524,18 @@ func stderrHead(b []byte) string {
 
 // buildDecoy makes the link, moves it into the namespace and configures it. It deletes only what
 // this call created: a failure of "link add" (the name taken by someone else) deletes nothing.
+// linkNoIPv6 switches IPv6 off on a decoy link in vedette-hp before it goes up and reads it back (argvLinkNoIPv6).
+func (o *Ops) linkNoIPv6(ctx context.Context, name string) error {
+	if _, code, err := o.exec(ctx, binIP, argvLinkNoIPv6(name)...); err != nil || code != 0 {
+		return fmt.Errorf("ops: switching IPv6 off on %s failed (exit %d)", name, code)
+	}
+	res, code, err := o.exec(ctx, binIP, argvLinkNoIPv6Read(name)...)
+	if err != nil || code != 0 || strings.TrimSpace(string(res.Stdout)) != "1" {
+		return fmt.Errorf("ops: IPv6 is not off on %s (exit %d)", name, code)
+	}
+	return nil
+}
+
 func (o *Ops) buildDecoy(ctx context.Context, d decoyEntry, m mgmtNet) error {
 	ip := d.addr()
 	name := linkName(ip)
@@ -439,6 +544,10 @@ func (o *Ops) buildDecoy(ctx context.Context, d decoyEntry, m mgmtNet) error {
 	}
 	if err := o.ipRun(ctx, argvLinkToNS(name)); err != nil {
 		_ = o.ipRun(ctx, argvHostLinkDel(name)) // we made it a moment ago and it never left
+		return err
+	}
+	if err := o.linkNoIPv6(ctx, name); err != nil {
+		o.removeDecoyNS(ctx, d)
 		return err
 	}
 	steps := [][]string{argvAddrAdd(netip.PrefixFrom(ip, m.Prefix.Bits()), name), argvUp(name)}
@@ -654,7 +763,8 @@ func (o *Ops) reconcile(ctx context.Context, hint *NetplanConfig, ensured bool) 
 		}
 		name := linkName(d.addr())
 		i := slices.IndexFunc(links, func(l nsLink) bool { return l.Name == name })
-		if i >= 0 && d.Iface == m.Iface && links[i].matches(d, m) && o.configureRouting(ctx, d, m) == nil {
+		// linkNoIPv6 too: a decoy built before the B2 lab fix still has IPv6 on (it is idempotent).
+		if i >= 0 && d.Iface == m.Iface && links[i].matches(d, m) && o.linkNoIPv6(ctx, name) == nil && o.configureRouting(ctx, d, m) == nil {
 			keep = append(keep, d)
 			continue
 		}
@@ -679,9 +789,15 @@ func (o *Ops) reconcile(ctx context.Context, hint *NetplanConfig, ensured bool) 
 	if cancelled() {
 		return nil
 	}
-	if len(dropped) > 0 || !slices.Equal(keep, list) {
+	if len(dropped) > 0 || !slices.EqualFunc(keep, list, sameEntry) {
 		if err := o.saveDecoys(keep); err != nil {
 			return err
+		}
+		// A dropped decoy leaves the sets of the ruleset as well (D-466).
+		if !sameSets(keep, list) {
+			if err := o.applyRuleset(ctx, keep); err != nil {
+				o.closeUnproven(ctx, err)
+			}
 		}
 	}
 	for _, x := range dropped {
@@ -780,7 +896,7 @@ func (o *Ops) readDecoyState() []api.NetDecoy {
 	}
 	slices.SortFunc(list, func(a, b decoyEntry) int { return a.addr().Compare(b.addr()) })
 	for _, e := range list {
-		out = append(out, api.NetDecoy{IP: e.IP, MAC: e.MAC})
+		out = append(out, api.NetDecoy{IP: e.IP, MAC: e.MAC, Ports: portsOf(e)})
 	}
 	return out
 }

@@ -33,7 +33,7 @@ func newInventory(d *deps) *inventory.Service {
 		if d.Honeypot == nil {
 			return nil
 		}
-		return d.Honeypot.DecoyIPs(ctx)
+		return append(d.Honeypot.DecoyIPs(ctx), d.Honeypot.TrapIPAddrs(ctx)...) // a Trap IP not handed over yet is the box's too (B2 lab)
 	}
 	cfg := inventory.Config{DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}, BoxOwnedIPs: owned,
 		Findings: findingCounts{d}}
@@ -47,6 +47,23 @@ func newInventory(d *deps) *inventory.Service {
 				return macs.Fresh(ctx)
 			}
 			return macs.Get(ctx)
+		}
+		// The host's decoys, completed by what the honeypot learned at its last Apply: the host answer the inventory holds can be up to a
+		// TTL old, older than a decoy added a moment ago (B2 lab).
+		cfg.BoxDecoyMACs = func(ctx context.Context, fresh bool) (map[netip.Addr]string, error) {
+			m, err := macs.Decoys(ctx, fresh)
+			if err != nil || d.Honeypot == nil {
+				return m, err
+			}
+			for ip, mac := range d.Honeypot.ExpectedMACs(ctx) {
+				if m == nil {
+					m = map[netip.Addr]string{}
+				}
+				// The honeypot's view wins: it is what the host said at the last Apply (or "": it is handing the address over right now,
+				// its MAC may be new), while the host answer here may be a cache older than a decoy re-made with another MAC (B2 lab).
+				m[ip] = mac
+			}
+			return m, nil
 		}
 	}
 	svc, err := inventory.New(cfg)

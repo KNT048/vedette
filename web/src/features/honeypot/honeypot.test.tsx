@@ -13,176 +13,193 @@ import { seedAssets } from '@/mocks/seed/assets'
 import DevicePanel from './DevicePanel'
 import { feature } from './index'
 
-const trapRow = (name: RegExp) => within(screen.getByRole('table', { name: 'Traps and their status' })).getByRole('row', { name })
+// D-466: the page is the D-464 frame with tabs in ?tab= (overview, trap-ips, services, tokens, hits).
+const svcRow = (name: RegExp) => within(screen.getByRole('table', { name: 'Services and their status' })).getByRole('row', { name })
+const trapIpList = () => screen.findByRole('list', { name: 'Trap IPs' })
+const details = (name: string) => screen.getByLabelText(`Details of Trap IP ${name}`)
+const itemOf = (name: string) => details(name).closest('li')!
 
 describe('honeypot: main page (S-HP-1)', () => {
-  it('first sentence gives the 7-day hit count and latest source; the hits table links to the device; axe clean', async () => {
-    renderApp('/honeypot')
-    expect(await screen.findByRole('heading', { level: 1, name: /Traps were hit 4 times in 7 days, last .* from PC-HR-01/ })).toBeInTheDocument()
+  it('first sentence gives the 7-day hit count and latest source; the hits table names the Trap IP and links to the device; axe clean', async () => {
+    renderApp('/honeypot?tab=hits')
+    expect(await screen.findByRole('heading', { level: 1, name: /Traps were hit 5 times in 7 days, last .* from PC-HR-01/ })).toBeInTheDocument()
     const hits = await screen.findByRole('table', { name: 'Trap hits' })
     expect(within(hits).getByRole('link', { name: 'PC-HR-01' })).toHaveAttribute('href', '/devices/a-pc07')
+    // W1-13: which Trap IP each hit went to, and the Trap IPs a scan touched.
+    const smb = within(hits).getByRole('link', { name: 'PC-HR-01' }).closest('tr')!
+    expect(within(smb).getByText('FILESRV-OLD')).toBeInTheDocument()
+    expect(within(smb).getByText('192.168.10.240')).toBeInTheDocument()
+    expect(within(hits).getByText('NAS-ARCHIVE')).toBeInTheDocument()
+    expect(within(hits).getByText('FILESRV-OLD, NAS-ARCHIVE, PRN-FLOOR2')).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
-  it('shows each trap state and the excluded Vedette scanner', async () => {
-    renderApp('/honeypot')
-    const traps = await screen.findByRole('table', { name: 'Traps and their status' })
+  it('shows each service state and the excluded Vedette scanner', async () => {
+    renderApp('/honeypot?tab=services')
+    const traps = await screen.findByRole('table', { name: 'Services and their status' })
     expect(within(traps).getAllByRole('row')).toHaveLength(6)
-    expect(within(trapRow(/SMB/)).getByText('Listening')).toBeInTheDocument()
-    expect(within(trapRow(/MSSQL/)).getByText('Off')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /Vedette's own scanner does not count as a trap hit/ })).toBeInTheDocument()
+    expect(within(svcRow(/SMB/)).getByText('Listening')).toBeInTheDocument()
+    expect(within(svcRow(/SMB/)).getByText('FILESRV-OLD, NAS-ARCHIVE')).toBeInTheDocument()
+    expect(within(svcRow(/MSSQL/)).getByText('On no Trap IP')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: /Overview/ }))
+    expect(await screen.findByRole('heading', { name: /Vedette's own scanner does not count as a trap hit/ })).toBeInTheDocument()
     expect(screen.getByText(/vedette-hq \(192\.168\.10\.250\)/)).toBeInTheDocument()
     expect(screen.getByText('Always excluded')).toBeInTheDocument()
     expect(screen.getByText('Ignored 14 connections from the box')).toBeInTheDocument()
   })
 
-  it('admin turns on the MSSQL trap and it is audited', async () => {
-    renderApp('/honeypot')
-    const sw = (await screen.findAllByRole('switch', { name: 'MSSQL (SQL Server) trap' }))[0]!
-    expect(sw).not.toBeDisabled()
-    await userEvent.click(sw)
-    expect(await screen.findByText('MSSQL (SQL Server) trap is on')).toBeInTheDocument()
-    expect(auditStore.get().some((a) => a.action === 'honeypot.trap_enable')).toBe(true)
-  })
-
   it('"Test trap" creates a hit labelled as a test and does not count it in the statistics', async () => {
-    renderApp('/honeypot')
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Test trap SSH' }))[0]!)
-    expect(await screen.findByText('Recorded a test hit on the SSH trap')).toBeInTheDocument()
-    // the toast comes after the refetch that holds the new row; look the table up again inside the wait so a re-rendered table cannot leave a stale one
+    renderApp('/honeypot?tab=services')
+    await userEvent.click(await screen.findByRole('button', { name: 'Test trap SMB (file sharing)' }))
+    expect(await screen.findByText('Recorded a test hit on the SMB (file sharing) trap')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: /Hits/ }))
     const testChip = await waitFor(() => within(screen.getByRole('table', { name: 'Trap hits' })).getByText('Test'))
-    const hits = within(testChip.closest('table')!)
-    expect(hits.getByText('Vedette box (test)')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/4 times in 7 days/)
+    const row = testChip.closest('tr')!
+    expect(within(row).getByText('Vedette box (test)')).toBeInTheDocument()
+    expect(within(row).getByText('FILESRV-OLD')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/5 times in 7 days/)
   })
 
-  it('cannot test a trap that is off', async () => {
-    renderApp('/honeypot')
-    const b = (await screen.findAllByRole('button', { name: 'Test trap HTTP (fake admin page)' }))[0]!
+  it('cannot test a service no Trap IP that is on has', async () => {
+    renderApp('/honeypot?tab=services')
+    const b = await screen.findByRole('button', { name: 'Test trap MSSQL (SQL Server)' })
     expect(b).toBeDisabled()
-    expect(b).toHaveAttribute('title', 'Turn this trap on before testing')
+    expect(b).toHaveAttribute('title', 'No Trap IP that is on has this service. Add it to a Trap IP first.')
+  })
+})
+
+describe('honeypot: Trap IPs (S-HP-1, S-HP-2, D-466)', () => {
+  it('each Trap IP shows where it lives: MAC and the vendor a scanner reads, open services, its link and card, last touch; axe clean', async () => {
+    renderApp('/honeypot?tab=trap-ips')
+    await trapIpList()
+    const file = details('FILESRV-OLD')
+    expect(file).toHaveTextContent('Windows file server · Dell')
+    expect(file).toHaveTextContent('f8:bc:12:a8:0a:f0, which a network scanner shows as Dell Inc.')
+    expect(file).toHaveTextContent('SMB (file sharing) 445, RDP (remote desktop) 3389')
+    expect(file).toHaveTextContent(/Its own network link vdhc0a80af0 \(macvlan, with its own MAC\) on the box card eth0/)
+    expect(file.querySelector('time')).toHaveAttribute('dateTime') // last touched: the SMB hit of yesterday
+    expect(details('PRN-FLOOR2')).toHaveTextContent(/Last touched\s*Never/)
+    // switched off: not on the network, answers nothing
+    const off = details('BUILD-SRV-02')
+    expect(off).toHaveTextContent('Given when the box holds the address')
+    expect(off).toHaveTextContent('Nothing while it does not listen')
+    expect(off).toHaveTextContent('Not on the network yet')
+    // the host could not set it up: its reason, not its switch
+    expect(within(itemOf('CAM-DOCK')).getByText('Error: not set up')).toBeInTheDocument()
+    expect(within(itemOf('CAM-DOCK')).getByText('the host could not do it')).toBeInTheDocument()
+    await expectNoA11yViolations()
   })
 
-  it('a secondary IP that matches an inventory device is rejected and names the device', async () => {
-    renderApp('/honeypot')
-    const ip = await screen.findByLabelText('Trap secondary IP')
-    await userEvent.clear(ip)
-    await userEvent.type(ip, '192.168.10.101')
-    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(await screen.findByText(/belongs to device PC-ACCOUNTS-01/)).toBeInTheDocument()
+  it('a Trap IP whose address a device took links to that device and needs attention', async () => {
+    assetsStore.update((l) => [{ ...seedAssets()[0]!, id: 'a-clash', ip: '192.168.10.242', hostname: 'NEW-PC' }, ...l])
+    renderApp('/honeypot?tab=trap-ips')
+    await trapIpList()
+    expect(within(itemOf('PRN-FLOOR2')).getByText('Error: IP clashes with a device')).toBeInTheDocument()
+    expect(within(details('PRN-FLOOR2')).getByRole('link', { name: /NEW-PC has this address/ })).toHaveAttribute('href', '/devices/a-clash')
+    expect(screen.getByRole('tab', { name: /Trap IPs 2 need attention/ })).toBeInTheDocument()
   })
 
-  it('rejects a malformed IP, an IP outside the network, the box IP and a duplicate hostname', async () => {
-    renderApp('/honeypot')
-    const ip = await screen.findByLabelText('Trap secondary IP')
-    const save = screen.getByRole('button', { name: 'Save' })
-    for (const [value, msg] of [['abc', /is not valid/], ['10.0.0.5', /must be inside the box's network/], ['192.168.10.250', /the Vedette box's own IP/]] as const) {
+  it('scan detection names the Trap IPs the last scan touched', async () => {
+    renderApp('/honeypot?tab=trap-ips')
+    expect(await screen.findByText(/Last scan .* touched FILESRV-OLD, NAS-ARCHIVE, PRN-FLOOR2\./)).toBeInTheDocument()
+    expect(screen.getByText(/touches two or more Trap IPs within a minute raises one High alert/)).toBeInTheDocument()
+  })
+
+  it('admin adds a Trap IP: errors sit under their own field, a valid one is added and audited', async () => {
+    renderApp('/honeypot?tab=trap-ips')
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a Trap IP' }))
+    const form = screen.getByLabelText('Looks like').closest('form')!
+    await userEvent.click(within(form).getByRole('button', { name: 'Add Trap IP' }))
+    expect(await within(form).findByText('Enter a name, for example FILESRV-OLD.')).toBeInTheDocument()
+    expect(within(form).getByText('Enter an address for the Trap IP.')).toBeInTheDocument()
+    expect(within(form).getByLabelText('Name')).toHaveFocus()
+    await userEvent.type(within(form).getByLabelText('Name'), 'FILESRV-02')
+    for (const [value, msg] of [['192.168.10.101', /belongs to device PC-ACCOUNTS-01/], ['10.0.0.5', /must be inside the box's network/], ['192.168.10.250', /the Vedette box's own IP/], ['192.168.10.241', /already another Trap IP/]] as const) {
+      const ip = within(form).getByLabelText('Address')
       await userEvent.clear(ip)
       await userEvent.type(ip, value)
-      await userEvent.click(save)
-      expect(await screen.findByText(msg)).toBeInTheDocument()
+      await userEvent.click(within(form).getByRole('button', { name: 'Add Trap IP' }))
+      expect(await within(form).findByText(msg)).toBeInTheDocument()
+      expect(ip).toBeInvalid()
     }
+    const ip = within(form).getByLabelText('Address')
     await userEvent.clear(ip)
-    await userEvent.type(ip, '192.168.10.241')
-    const host = screen.getByLabelText('Fake hostname')
-    await userEvent.clear(host)
-    await userEvent.type(host, 'srv-ad')
-    await userEvent.click(save)
-    expect(await screen.findByText(/The name srv-ad belongs to device 192\.168\.10\.10/)).toBeInTheDocument()
+    await userEvent.type(ip, '192.168.10.248')
+    await userEvent.click(within(form).getByRole('button', { name: 'Add Trap IP' }))
+    expect(await screen.findByText('Trap IP FILESRV-02 added')).toBeInTheDocument()
+    expect(auditStore.get().some((a) => a.action === 'honeypot.trap_ip_add' && a.target === '192.168.10.248')).toBe(true)
+    expect(await screen.findByLabelText('Details of Trap IP FILESRV-02')).toBeInTheDocument()
   })
 
-  it('saves a valid secondary IP and hostname', async () => {
-    renderApp('/honeypot')
-    const ip = await screen.findByLabelText('Trap secondary IP')
-    await userEvent.clear(ip)
-    await userEvent.type(ip, '192.168.10.241')
-    const host = screen.getByLabelText('Fake hostname')
-    await userEvent.clear(host)
-    await userEvent.type(host, 'BACKUP-OLD')
-    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(await screen.findByText('Decoy saved')).toBeInTheDocument()
-    expect(auditStore.get().some((a) => a.action === 'honeypot.config' && a.target === '192.168.10.241')).toBe(true)
-  })
-
-  it('warns when a new device uses the secondary IP', async () => {
-    assetsStore.update((l) => [{ ...seedAssets()[0]!, id: 'a-clash', ip: '192.168.10.240', hostname: 'NEW-PC' }, ...l])
-    renderApp('/honeypot')
-    expect(await screen.findByRole('alert')).toHaveTextContent(/Secondary IP 192\.168\.10\.240 clashes with a real device/)
-    expect(within(trapRow(/SMB/)).getByText('Error: IP clashes with a device')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open device' })).toHaveAttribute('href', '/devices/a-clash')
+  it('admin switches a Trap IP off; it is audited', async () => {
+    renderApp('/honeypot?tab=trap-ips')
+    await trapIpList()
+    await userEvent.click(screen.getByRole('switch', { name: 'Trap IP PRN-FLOOR2' }))
+    await waitFor(() => expect(auditStore.get().some((a) => a.action === 'honeypot.trap_ip_disable' && a.target === '192.168.10.242')).toBe(true))
   })
 })
 
 describe('honeypot: what the box reports (S-HP-1)', () => {
-  const trap = (service: string, port: number, state: string) => ({ service, port, enabled: true, state, since: null, hits_7d: 0, last_hit_at: null })
+  const trap = (service: string, port: number, state: string) => ({ service, port, enabled: true, state, trap_ips: ['FILESRV-OLD'], hits_7d: 0, last_hit_at: null })
   const overview = (state: string, problem: string | null) => ({
-    secondary_ip: '192.168.10.240', secondary_mac: '06:b7:36:4f:54:67', problem, hostname: 'FILESRV-OLD', lan: '192.168.10.0/24', box: { ip: '192.168.10.250', name: 'vedette-hq' }, ignored_7d: 0, conflict_asset: null,
+    problem, lan: '192.168.10.0/24', box: { ip: '192.168.10.250', name: 'vedette-hq' }, ignored_7d: 0,
+    trap_ips: { total: 1, enabled: 1, listening: 0, failing: state === 'failed' ? 1 : 0 }, smb_name: 'FILESRV-OLD', http_page: null,
     traps: [trap('smb', 445, state), trap('rdp', 3389, state), trap('ssh', 22, state), trap('mssql', 1433, state), trap('http', 80, state)],
     summary: { today: 0, week: 0, last_hit_at: null, last_src: null }, updated_at: new Date().toISOString(),
   })
 
-  it('a trap that is on but could not be set up shows an error with the host reason, not "Off" and not "No trap was hit"', async () => {
+  it('a Trap IP that is on but could not be set up shows an error with the host reason, not "Off" and not "No trap was hit"', async () => {
     server.use(http.get('*/api/v1/honeypot', () => HttpResponse.json(overview('failed', 'the honeypot container did not start'))))
-    renderApp('/honeypot')
-    expect(await screen.findByRole('heading', { level: 1, name: /A trap is on, but the box could not set up the decoy/ })).toBeInTheDocument()
+    renderApp('/honeypot?tab=services')
+    expect(await screen.findByRole('heading', { level: 1, name: 'A Trap IP is on, but the box could not set it up' })).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent('Reason from the box: the honeypot container did not start.')
-    expect(within(trapRow(/SSH/)).getByText('Error: not set up')).toBeInTheDocument()
-    expect(screen.getByText(/The box gave this address the MAC address 06:b7:36:4f:54:67/)).toBeInTheDocument()
+    expect(within(svcRow(/SSH/)).getByText('Error: not set up')).toBeInTheDocument()
   })
 
-  it('a trap that is coming up shows Starting', async () => {
+  it('Trap IPs that are coming up show Starting', async () => {
     server.use(http.get('*/api/v1/honeypot', () => HttpResponse.json(overview('starting', null))))
-    renderApp('/honeypot')
-    await screen.findByRole('table', { name: 'Traps and their status' })
-    expect(within(trapRow(/SSH/)).getByText('Starting')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1, name: 'Traps are starting. Nothing is listening yet.' })).toBeInTheDocument()
+    renderApp('/honeypot?tab=services')
+    await screen.findByRole('table', { name: 'Services and their status' })
+    expect(within(svcRow(/SSH/)).getByText('Starting')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Trap IPs are starting. Nothing is listening yet.' })).toBeInTheDocument()
   })
 
-  it('an extra decoy shows the state the host reports, with its reason and MAC, not its switch', async () => {
-    const base = { personality: 'nas', services: [{ name: 'SMB', port: 445 }], created_at: new Date().toISOString(), enabled: true }
-    server.use(http.get('*/api/v1/honeypot/decoys', () => HttpResponse.json({
-      items: [
-        { ...base, id: 'd1', name: 'NAS-A', ip: '192.168.10.241', state: 'failed', reason: 'the host could not do it (decoy_failed)', mac: null },
-        { ...base, id: 'd2', name: 'NAS-B', ip: '192.168.10.242', state: 'starting', reason: null, mac: null },
-        { ...base, id: 'd3', name: 'NAS-C', ip: '192.168.10.243', state: 'listening', reason: null, mac: '06:b7:36:0a:0b:0c' },
-      ],
+  it('an older host program: a listening Trap IP says it answers every service and why', async () => {
+    const base = { preset: 'printer', vendor: 'hp', services: ['http'], enabled: true, created_at: new Date().toISOString(), mac_vendor: 'Hewlett Packard', device_id: null, device_name: null, last_hit_at: null }
+    server.use(http.get('*/api/v1/honeypot/trap-ips', () => HttpResponse.json({
+      items: [{ ...base, id: 't1', name: 'PRN-A', ip: '192.168.10.241', state: 'listening', reason: 'the host program on this box is older', mac: '3c:d9:2b:0a:0b:0c',
+        attachment: { kind: 'macvlan', link: 'vdhc0a80af1', parent: '' }, open_services: ['smb', 'http'] }],
       suggestions: [], spare_ips: ['192.168.10.230'], spare_checked: false,
     })))
-    renderApp('/honeypot')
-    const list = await screen.findByRole('list', { name: 'Decoys' })
-    expect(within(list).getByText('Error: not set up')).toBeInTheDocument()
-    expect(within(list).getByText('the host could not do it (decoy_failed)')).toBeInTheDocument()
-    expect(within(list).getByText('Starting')).toBeInTheDocument()
-    expect(within(list).getByText('Listening')).toBeInTheDocument()
-    expect(within(list).getByText('06:b7:36:0a:0b:0c')).toBeInTheDocument()
-    expect(screen.getByText(/No devices discovered yet, so these are only guesses/)).toBeInTheDocument()
-  })
-
-  it('the decoy IP can be removed only while every trap is off', async () => {
-    renderApp('/honeypot')
-    const ip = await screen.findByLabelText('Trap secondary IP')
-    await userEvent.clear(ip)
-    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(await screen.findByText('Turn all traps off before removing the decoy IP.')).toBeInTheDocument()
+    renderApp('/honeypot?tab=trap-ips')
+    await trapIpList()
+    const d = details('PRN-A')
+    expect(d).toHaveTextContent('SMB (file sharing) 445, HTTP (fake admin page) 80')
+    expect(d).toHaveTextContent(/cannot keep each Trap IP to its own/)
+    expect(d).toHaveTextContent(/link vdhc0a80af1 \(macvlan, with its own MAC\) on the box's network card/)
   })
 })
 
 describe('honeypot: roles', () => {
-  it('viewer: switches, test buttons and Save are locked with a reason', async () => {
-    renderApp('/honeypot', { role: 'viewer' })
-    const sw = (await screen.findAllByRole('switch', { name: 'MSSQL (SQL Server) trap' }))[0]!
+  it('viewer: switches, Add and test buttons are locked with a reason', async () => {
+    renderApp('/honeypot?tab=trap-ips', { role: 'viewer' })
+    await trapIpList()
+    const sw = screen.getByRole('switch', { name: 'Trap IP FILESRV-OLD' })
     expect(sw).toBeDisabled()
     expect(sw).toHaveAttribute('title', 'Requires Admin role')
-    expect(screen.getAllByRole('button', { name: 'Test trap SMB (file sharing)' })[0]!).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
-    expect(screen.getByLabelText('Trap secondary IP')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Add a Trap IP' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Test scan' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('tab', { name: /Services/ }))
+    expect(await screen.findByRole('button', { name: 'Test trap SMB (file sharing)' })).toBeDisabled()
   })
 
-  it('operator can test traps but not switch them or change the secondary IP', async () => {
-    renderApp('/honeypot', { role: 'operator' })
-    expect((await screen.findAllByRole('switch', { name: 'MSSQL (SQL Server) trap' }))[0]!).toBeDisabled()
-    expect(screen.getAllByRole('button', { name: 'Test trap SMB (file sharing)' })[0]!).not.toBeDisabled()
-    expect(screen.getByLabelText('Trap secondary IP')).toBeDisabled()
+  it('operator can test traps but not switch or add Trap IPs', async () => {
+    renderApp('/honeypot?tab=trap-ips', { role: 'operator' })
+    await trapIpList()
+    expect(screen.getByRole('switch', { name: 'Trap IP FILESRV-OLD' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Add a Trap IP' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('tab', { name: /Services/ }))
+    expect(await screen.findByRole('button', { name: 'Test trap SMB (file sharing)' })).not.toBeDisabled()
   })
 
   it('API rejects a write from a viewer (403)', async () => {
@@ -217,8 +234,10 @@ describe('honeypot: hit detail', () => {
   })
 
   it('an opened test hit is labelled as a test and has no "What to do" section', async () => {
-    renderApp('/honeypot')
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Test trap RDP (remote desktop)' }))[0]!)
+    renderApp('/honeypot?tab=services')
+    await userEvent.click(await screen.findByRole('button', { name: 'Test trap RDP (remote desktop)' }))
+    await screen.findByText('Recorded a test hit on the RDP (remote desktop) trap')
+    await userEvent.click(screen.getByRole('tab', { name: /Hits/ }))
     const row = (await waitFor(() => within(screen.getByRole('table', { name: 'Trap hits' })).getByText('Test'))).closest('tr')!
     await userEvent.click(within(row).getAllByRole('link')[0]!)
     expect(await screen.findByRole('heading', { level: 1, name: /Test hit on the RDP/ })).toBeInTheDocument()
@@ -271,35 +290,37 @@ describe('honeypot: device.panels slot', () => {
   })
 })
 
-describe('honeypot: S-HP-2 decoys, tokens, scan, respond, coverage', () => {
+describe('honeypot: S-HP-2 suggestions, tokens, respond, coverage', () => {
   it('a viewer sees the bait password masked (last 4 only), an administrator sees it in full (D-189, L14)', async () => {
-    const { unmount } = renderApp('/honeypot', { role: 'viewer' })
+    const { unmount } = renderApp('/honeypot?tab=tokens', { role: 'viewer' })
     const list = await screen.findByRole('list', { name: 'Honey tokens' })
     await within(list).findByText('svc-backup-old')
-    expect(list.textContent).toContain('\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022-Lr9')
+    expect(list.textContent).toContain('••••••••-Lr9')
     expect(list.textContent).not.toContain('Bk!7mQ2xv')
     unmount()
-    renderApp('/honeypot', { role: 'admin' })
+    renderApp('/honeypot?tab=tokens', { role: 'admin' })
     const full = await screen.findByRole('list', { name: 'Honey tokens' })
     await within(full).findByText('svc-backup-old')
     expect(full.textContent).toContain('Bk!7mQ2xv-Lr9')
   })
 
-  it('suggests decoy types from the inventory, lists tokens with last triggered, links Respond, shows coverage', async () => {
-    renderApp('/honeypot')
+  it('suggests Trap IP types from the inventory, lists tokens with last triggered, links Respond, shows coverage', async () => {
+    renderApp('/honeypot?tab=trap-ips')
     expect(await screen.findByText(/You have \d+ Synology or QNAP NAS/)).toBeInTheDocument()
-    expect(await screen.findByText('NAS-ARCHIVE')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: /Tokens/ }))
     const tokens = await screen.findByRole('list', { name: 'Honey tokens' })
     expect(within(tokens).getByText('svc-backup-old')).toBeInTheDocument()
     expect(within(tokens).getAllByText(/Never triggered/).length).toBe(3)
+    await userEvent.click(screen.getByRole('tab', { name: /Hits/ }))
     const hits = await screen.findByRole('table', { name: 'Trap hits' })
-    expect(within(hits).getByText('Credential token svc-backup-old')).toBeInTheDocument()
+    expect(within(hits).getAllByText('Credential token svc-backup-old').length).toBeGreaterThan(0)
     expect(within(hits).getAllByRole('link', { name: /^Respond to the hit/ })[0]).toHaveAttribute('href', '/response')
-    expect(screen.getByRole('heading', { name: 'Is this enough?' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: /Overview/ }))
+    expect(await screen.findByRole('heading', { name: 'Is this enough?' })).toBeInTheDocument()
   })
 
   it('admin creates a URL token and a test trigger updates last triggered', async () => {
-    renderApp('/honeypot')
+    renderApp('/honeypot?tab=tokens')
     await userEvent.selectOptions(await screen.findByLabelText('Token type'), 'url')
     await userEvent.type(screen.getByLabelText('Label'), 'Wiki admin link')
     await userEvent.type(screen.getByLabelText('Where will you plant it?'), 'Intranet wiki')
@@ -310,12 +331,12 @@ describe('honeypot: S-HP-2 decoys, tokens, scan, respond, coverage', () => {
   })
 })
 
-describe('honeypot: decoy and honey token form matrix (docs/QA.md §2)', () => {
+describe('honeypot: Trap IP and honey token form matrix (docs/QA.md §2)', () => {
   const pick = (label: string) => async (o: string) => { const s = screen.getByLabelText(label); await userEvent.selectOptions(s, within(s).getByRole('option', { name: o })) }
   const formOf = (label: string) => screen.getByLabelText(label).closest('form')!
 
   it('honey token: each type has its own name label, hints and file type; switching drops the name and place typed for the previous type', async () => {
-    renderApp('/honeypot')
+    renderApp('/honeypot?tab=tokens')
     await screen.findByRole('list', { name: 'Honey tokens' })
     const FILE = 'File type'
     const form = formOf('Token type')
@@ -337,20 +358,29 @@ describe('honeypot: decoy and honey token form matrix (docs/QA.md §2)', () => {
     expect(within(form).getByLabelText('Where will you plant it?')).toHaveValue('')
   })
 
-  it('decoy: each look shows the services it opens; a refused spare IP is cleared when the look changes', async () => {
-    renderApp('/honeypot')
-    await screen.findByLabelText('Looks like')
-    await eachOption([
-      { option: 'Windows file server', shown: [/Opens: .*445/] },
-      { option: 'Office printer', shown: [/Opens: .*9100/], hidden: [/Opens: .*445/] },
-      { option: 'IP camera', shown: [/Opens: .*554/], hidden: [/Opens: .*9100/] },
-      { option: 'Windows file server', shown: [/Opens: .*445/], hidden: [/Opens: .*554/] },
-    ], pick('Looks like'), formOf('Looks like'))
-    await userEvent.type(screen.getByLabelText('Decoy name'), 'FILESRV2')
-    await userEvent.type(screen.getByLabelText('Decoy IP'), '192.168.10.1') // taken by the firewall
-    await userEvent.click(screen.getByRole('button', { name: 'Add decoy' }))
-    await waitFor(() => expect(screen.getByLabelText('Decoy IP')).toBeInvalid())
-    await pick('Looks like')('IP camera')
-    expect(screen.getByLabelText('Decoy IP')).toBeValid()
+  it('Trap IP: each preset fills its own services and vendor; Custom keeps what was picked', async () => {
+    renderApp('/honeypot?tab=trap-ips')
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a Trap IP' }))
+    const form = formOf('Looks like')
+    const checked = (name: RegExp) => within(form).getByRole('checkbox', { name })
+    await pick('Looks like')('Windows file server')
+    expect(checked(/SMB/)).toBeChecked()
+    expect(checked(/RDP/)).toBeChecked()
+    expect(checked(/HTTP/)).not.toBeChecked()
+    expect(within(form).getByText(/Its MAC address starts with F8:BC:12/)).toBeInTheDocument()
+    await pick('Looks like')('Office printer')
+    expect(checked(/HTTP/)).toBeChecked()
+    expect(checked(/SMB/)).not.toBeChecked()
+    expect(within(form).getByLabelText('Vendor (MAC prefix)')).toHaveValue('hp')
+    await pick('Looks like')('Linux server')
+    expect(checked(/SSH/)).toBeChecked()
+    expect(checked(/HTTP/)).not.toBeChecked()
+    await pick('Looks like')('Custom')
+    expect(checked(/SSH/)).toBeChecked()
+    await userEvent.click(checked(/SSH/))
+    await userEvent.type(within(form).getByLabelText('Name'), 'TRAP-9')
+    await userEvent.type(within(form).getByLabelText('Address'), '192.168.10.248')
+    await userEvent.click(within(form).getByRole('button', { name: 'Add Trap IP' }))
+    expect(await within(form).findByText('Pick at least one service.')).toBeInTheDocument()
   })
 })

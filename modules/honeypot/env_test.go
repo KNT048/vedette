@@ -81,13 +81,14 @@ type fakeHost struct {
 	failStart error
 	failStop  error
 	failRm    error
-	failAdd   map[netip.Addr]error // AddDecoyIP of these fails with the error (wrap honeypot.ErrRefused for a refusal)
-	addTook   bool                 // a failed add was done by the host all the same (the answer was lost)
-	onAdd     func()               // called after an address was accepted
+	specs     map[netip.Addr]honeypot.DecoySpec // the spec of the last AddDecoyIP of each address
+	failAdd   map[netip.Addr]error              // AddDecoyIP of these fails with the error (wrap honeypot.ErrRefused for a refusal)
+	addTook   bool                              // a failed add was done by the host all the same (the answer was lost)
+	onAdd     func()                            // called after an address was accepted
 }
 
 func newHost(available bool) *fakeHost {
-	return &fakeHost{status: honeypot.HostStatus{Available: available, Reason: "this machine is not an appliance"}, ips: map[netip.Addr]bool{}}
+	return &fakeHost{status: honeypot.HostStatus{Available: available, Reason: "this machine is not an appliance"}, ips: map[netip.Addr]bool{}, specs: map[netip.Addr]honeypot.DecoySpec{}}
 }
 
 func (h *fakeHost) Status(context.Context) (honeypot.HostStatus, error) {
@@ -96,10 +97,11 @@ func (h *fakeHost) Status(context.Context) (honeypot.HostStatus, error) {
 	return h.status, nil
 }
 
-func (h *fakeHost) AddDecoyIP(_ context.Context, ip netip.Addr) error {
+func (h *fakeHost) AddDecoyIP(_ context.Context, ip netip.Addr, spec honeypot.DecoySpec) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.calls = append(h.calls, "add "+ip.String())
+	h.specs[ip] = spec
 	if err := h.failAdd[ip]; err != nil {
 		if h.addTook {
 			h.ips[ip] = true // the host did it, the answer was lost
@@ -204,6 +206,7 @@ type env struct {
 	dir  string
 	now  time.Time
 	cfg  honeypot.Config
+	main string // the id of the Trap IP setup adds
 }
 
 type option func(*env)
@@ -249,16 +252,75 @@ func (e *env) confPath() string { return filepath.Join(e.dir, "config", honeypot
 
 func (e *env) logPath() string { return filepath.Join(e.dir, "log", "opencanary.jsonl") }
 
-// setup puts the usual state in: secondary IP, hostname, and the SSH and SMB traps on.
+// setup puts the usual state in: one Trap IP FILESRV-OLD on 192.168.10.240 with SSH and SMB (before D-466: the secondary IP
+// with hostname FILESRV-OLD and the SSH and SMB traps on).
 func (e *env) setup() {
 	e.t.Helper()
-	if _, err := e.svc.SetConfig(e.ctx(), "admin@acme.example", "192.168.10.240", "FILESRV-OLD"); err != nil {
+	e.main = e.addTrapIP("FILESRV-OLD", "192.168.10.240", honeypot.Custom, honeypot.SSH, honeypot.SMB).ID
+}
+
+// addTrapIP adds a Trap IP or fails the test.
+func (e *env) addTrapIP(name, ip string, preset honeypot.Preset, svcs ...honeypot.ServiceName) honeypot.TrapIP {
+	e.t.Helper()
+	d, err := e.tryAddTrapIP(name, ip, preset, svcs...)
+	if err != nil {
+		e.t.Fatalf("add trap IP %s %s: %v", name, ip, err)
+	}
+	return d
+}
+
+// tryAddTrapIP adds a Trap IP; the clock moves on a millisecond, so creation order (which decides the share name and the
+// fallback Trap IP of a line without a target) is the order of the calls, as it is with a real clock.
+func (e *env) tryAddTrapIP(name, ip string, preset honeypot.Preset, svcs ...honeypot.ServiceName) (honeypot.TrapIP, error) {
+	d, err := e.svc.AddTrapIP(e.ctx(), "admin@acme.example", honeypot.TrapIPInput{Name: name, IP: ip, Preset: preset, Services: svcs})
+	e.now = e.now.Add(time.Millisecond)
+	return d, err
+}
+
+// setServices changes the services of a Trap IP (what switching a trap on or off was before D-466).
+func (e *env) setServices(id string, svcs ...honeypot.ServiceName) error {
+	e.t.Helper()
+	r, err := e.svc.TrapIPs(e.ctx())
+	if err != nil {
 		e.t.Fatal(err)
 	}
-	for _, s := range []honeypot.ServiceName{honeypot.SSH, honeypot.SMB} {
-		if _, err := e.svc.SetTrap(e.ctx(), "admin@acme.example", s, true); err != nil {
-			e.t.Fatal(err)
+	for _, d := range r.Items {
+		if d.ID == id {
+			_, err := e.svc.EditTrapIP(e.ctx(), "admin@acme.example", id, honeypot.TrapIPInput{Name: d.Name, IP: d.IP, Preset: d.Preset, Vendor: d.Vendor, Services: svcs})
+			return err
 		}
+	}
+	e.t.Fatalf("no trap IP %s", id)
+	return nil
+}
+
+// enable switches a Trap IP on or off.
+func (e *env) enable(id string, on bool) error {
+	_, err := e.svc.SetTrapIPEnabled(e.ctx(), "admin@acme.example", id, on)
+	return err
+}
+
+// trapIP is the Trap IP with this id as GET /honeypot/trap-ips shows it.
+func (e *env) trapIP(id string) honeypot.TrapIP {
+	e.t.Helper()
+	r, err := e.svc.TrapIPs(e.ctx())
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	for _, d := range r.Items {
+		if d.ID == id {
+			return d
+		}
+	}
+	e.t.Fatalf("no trap IP %s", id)
+	return honeypot.TrapIP{}
+}
+
+// exec runs one statement on the database (rows an older version or a hand edit left).
+func (e *env) exec(q string, args ...any) {
+	e.t.Helper()
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error { _, err := tx.ExecContext(e.ctx(), q, args...); return err }); err != nil {
+		e.t.Fatalf("%s: %v", q, err)
 	}
 }
 
@@ -383,3 +445,12 @@ func eventOf(name string) events.Event {
 }
 
 type sqlTx = sql.Tx
+
+func ptr(s string) *string { return &s }
+
+func deref(s *string) string {
+	if s == nil {
+		return "<nil>"
+	}
+	return *s
+}

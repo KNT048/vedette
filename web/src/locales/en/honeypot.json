@@ -2,34 +2,35 @@
   "nav": "Internal traps",
   "titleLoading": "Internal traps",
   "title": {
-    "noTraps": "No traps are on. Turn on at least one service to learn when something probes your network.",
+    "noTraps": "No Trap IP is on. Add one to learn when something probes your network.",
     "today_one": "{{count}} trap hit today",
     "today_other": "{{count}} trap hits today",
     "week_one": "Traps were hit {{count}} time in 7 days, last {{when}} from {{src}}",
     "week_other": "Traps were hit {{count}} times in 7 days, last {{when}} from {{src}}",
     "quiet": "No trap was hit in the last 7 days",
-    "failed": "A trap is on, but the box could not set up the decoy",
-    "starting": "Traps are starting. Nothing is listening yet."
+    "failed": "A Trap IP is on, but the box could not set it up",
+    "starting": "Trap IPs are starting. Nothing is listening yet."
   },
   "meta": "Updated {{time}}. Traps only listen and log. They do not block or hit back.",
-  "needAdmin": "Only administrators can change the secondary IP or switch traps. Operators can still view and test traps.",
-  "conflict": {
-    "title": "Secondary IP {{ip}} clashes with a real device",
-    "body": "Device {{name}} already uses this address, so the trap cannot listen. Change the secondary IP to an unused address.",
-    "open": "Open device"
+  "needAdmin": "Only administrators can add, change or switch Trap IPs. Operators can still view and test traps.",
+  "problem": {
+    "title": "The traps are not up",
+    "body": "Reason from the box: {{reason}}."
   },
-  "decoy": {
-    "title": "Decoy machine",
-    "description": "The trap is a fake machine on {{lan}}. Nobody has a reason to connect to it, so every connection deserves a look.",
-    "ip": "Trap secondary IP",
-    "ipHint": "An address inside {{lan}} that no device uses, outside your router's DHCP pool (or reserved there), so the router never hands it to a new device. Vedette rejects an address that matches a device in the inventory, and the box checks the network (ARP) before it takes the address. To remove the decoy IP, turn all traps off, empty this field and save.",
-    "mac": "The box gave this address the MAC address {{mac}}.",
-    "removed": "Decoy IP removed",
-    "problemTitle": "The decoy is not up",
-    "problem": "Reason from the box: {{reason}}.",
-    "hostname": "Fake hostname",
-    "hostnameHint": "Pick a name that looks like a real server, such as FILESRV-OLD. Up to 15 characters.",
-    "saved": "Decoy saved"
+  "kpi": {
+    "label": "Trap summary",
+    "listening": "Trap IPs listening",
+    "today": "Hits today",
+    "week": "Hits in 7 days"
+  },
+  "tabs": {
+    "label": "Honeypot sections",
+    "overview": "Overview",
+    "trapIps": "Trap IPs",
+    "services": "Services",
+    "tokens": "Tokens",
+    "hits": "Hits",
+    "attention": "need attention"
   },
   "service": {
     "smb": "SMB (file sharing)",
@@ -48,35 +49,41 @@
   "state": {
     "listening": "Listening",
     "off": "Off",
-    "needIp": "Needs secondary IP",
+    "none": "On no Trap IP",
     "conflict": "Error: IP clashes with a device",
     "starting": "Starting",
     "stopping": "Turning off",
     "failed": "Error: not set up"
   },
   "traps": {
-    "title": "Traps by service",
-    "description": "Turn on each service so the decoy opens the matching port. A trap records what its service can see, listed under each service. A bare TCP connect that sends nothing is not recorded for SMB or MSSQL.",
-    "caption": "Traps and their status",
+    "title": "Services",
+    "description": "Which services the Trap IPs answer on. Each Trap IP answers only the services picked for it; its other ports are closed, as on a real machine. A trap records what its service can see, listed under each service. A bare TCP connect that sends nothing is not recorded for SMB or MSSQL.",
+    "caption": "Services and their status",
     "col": {
       "service": "Service",
       "port": "Port",
+      "trapIps": "On Trap IPs",
       "state": "Status",
       "hits": "Hits in 7 days",
-      "enabled": "On",
       "test": "Test"
     },
     "lastHit": "last {{when}}",
-    "needIpReason": "Set the decoy's secondary IP before turning a trap on",
-    "testOffReason": "Turn this trap on before testing",
-    "switchLabel": "{{service}} trap",
+    "noTrapIp": "None. Add this service to a Trap IP to open it.",
+    "testOffReason": "No Trap IP that is on has this service. Add it to a Trap IP first.",
     "testLabel": "Test trap {{service}}",
     "test": "Test trap",
-    "enabledToast": "{{service}} trap is on",
-    "disabledToast": "{{service}} trap is off",
     "testToast": "Recorded a test hit on the {{service}} trap",
     "testNote": "Test a trap to confirm it records hits. The test comes from the Vedette box itself, is labelled as a test, is not counted as a hit and sends no alert.",
-    "testConflictReason": "The secondary IP clashes with a real device. Change the secondary IP before testing."
+    "testConflictReason": "Every Trap IP with this service clashes with a real device. Change its address before testing.",
+    "limitsTitle": "One box, one share name and one login page",
+    "smbName": "Every Trap IP with SMB shows the same file share under the NetBIOS name {{name}}: the name of the first Trap IP with SMB. The other names are labels Vedette uses in alerts.",
+    "smbNone": "No Trap IP that is on has SMB.",
+    "httpPage": "Every Trap IP with HTTP shows the same {{page}}. It is the NAS login page when the first Trap IP with HTTP looks like a NAS.",
+    "httpNone": "No Trap IP that is on has HTTP.",
+    "page": {
+      "login": "admin login page",
+      "nas": "NAS login page"
+    }
   },
   "exclusion": {
     "title": "Vedette's own scanner does not count as a trap hit",
@@ -91,7 +98,7 @@
   },
   "hits": {
     "title": "Trap hits",
-    "description": "Newest first. Includes decoy connections, honey token use and port scans across the decoys. Select a time to see the hour of events around the hit.",
+    "description": "Newest first. Includes connections to Trap IPs, honey token use and port scans across the Trap IPs. Select a time to see the hour of events around the hit.",
     "caption": "Trap hits",
     "filter": "Filter by service, IP or device",
     "col": {
@@ -100,14 +107,15 @@
       "src": "Source IP",
       "device": "Source device",
       "excerpt": "Session excerpt",
-      "respond": "Respond"
+      "respond": "Respond",
+      "trapIp": "Trap IP"
     },
     "test": "Test",
     "deviceBox": "Vedette box (test)",
     "deviceUnknown": "Not in inventory",
     "emptyTitle": "No hits yet",
-    "emptyBody": "Nothing has connected to a trap yet. That is good news. To see that a trap is recording, select Test trap on it.",
-    "emptyBodyOff": "No trap is on yet, so there is nothing to record. Follow the steps above, then select Test trap to see that the trap is recording.",
+    "emptyBody": "Nothing has connected to a trap yet. That is good news. To see that a trap is recording, select Test trap on the Services tab.",
+    "emptyBodyOff": "No Trap IP is on yet, so there is nothing to record. Add one on the Trap IPs tab, then select Test trap on the Services tab to see that the trap is recording.",
     "respond": "Respond",
     "respondLabel": "Respond to the hit from {{src}} at {{time}}",
     "kind": {
@@ -121,7 +129,7 @@
     "facts": "What happened",
     "service": "Service",
     "port": "port {{port}}",
-    "trap": "Trap",
+    "trap": "Trap IP",
     "srcIp": "Source IP",
     "srcDevice": "Source device",
     "unapproved": "Not approved",
@@ -143,11 +151,11 @@
     "next2": "If they do not know, unplug the machine from the network and check for unknown software and running processes.",
     "next3": "Compare the firewall events after the hit: did this machine connect to any other server?",
     "title_service": "{{service}} was hit at {{time}} from {{src}}",
-    "meta_service": "Trap {{ip}} recorded this hit.",
+    "meta_service": "Trap IP {{ip}} recorded this hit.",
     "title_token": "{{service}} was triggered at {{time}} from {{src}}",
     "title_scan": "{{service}} at {{time}} from {{src}}",
     "meta_token": "Someone used bait you planted: {{ip}}.",
-    "meta_scan": "A sweep touched the decoy IPs: {{ip}}."
+    "meta_scan": "A sweep touched the Trap IPs: {{ip}}."
   },
   "eventSource": {
     "honeypot": "Trap",
@@ -179,51 +187,107 @@
   },
   "start": {
     "title": "Get started with internal traps in three steps",
-    "step1": "Give the decoy machine a secondary IP: an address in {{lan}} that no device uses, plus a decoy name, then select Save.",
-    "step2": "Turn on each trap service in the table below.",
-    "step3": "Select Test trap to make sure the trap is recording. From then on every connection to the decoy shows up here."
+    "step1": "On the Trap IPs tab, add a Trap IP: an address in {{lan}} that no device uses, a name, and what it should look like.",
+    "step2": "Check that its status says Listening.",
+    "step3": "On the Services tab, select Test trap to make sure the trap is recording. From then on every connection to a Trap IP shows up under Hits."
   },
   "lanUnknown": "your LAN (add it first under Devices, Scope and sensors)",
-  "personality": {
-    "title": "Decoy personalities",
-    "description": "Choose what each trap looks like to someone scanning the network. A decoy that matches a device you really have blends in. These decoys are in addition to the decoy machine above.",
+  "trapIp": {
+    "title": "Trap IPs",
+    "description": "Each Trap IP is a fake machine on {{lan}}: an address no device uses, a name, and the services it answers on. Nobody has a reason to connect to it, so every connection deserves a look.",
     "suggestTitle": "Suggested from your inventory",
     "suggestItem_one": "You have {{count}} {{type}} ({{names}}), so an attacker expects to find one.",
     "suggestItem_other": "You have {{count}} {{type}} devices ({{names}}), so an attacker expects to find them.",
     "useType": "Use {{type}}",
-    "type": {
-      "windows_fs": "Windows file server",
+    "preset": {
+      "file_server": "Windows file server",
       "nas": "Synology or QNAP NAS",
       "printer": "Office printer",
       "camera": "IP camera",
-      "linux": "Linux server"
+      "linux": "Linux server",
+      "database": "Database server (SQL Server)",
+      "custom": "Custom"
+    },
+    "vendor": {
+      "none": "None (random local MAC)",
+      "dell": "Dell",
+      "hp": "HP",
+      "vmware": "VMware (virtual machine)",
+      "hyperv": "Microsoft Hyper-V (virtual machine)",
+      "supermicro": "Supermicro",
+      "synology": "Synology",
+      "qnap": "QNAP",
+      "brother": "Brother",
+      "canon": "Canon",
+      "hikvision": "Hikvision",
+      "dahua": "Dahua",
+      "axis": "Axis"
     },
     "form": {
-      "type": "Looks like",
-      "typeHint": "Opens: {{services}}",
-      "name": "Decoy name",
-      "nameHint": "Up to 15 characters, for example {{example}}.",
-      "ip": "Decoy IP",
-      "ipHint": "Not seen by Vedette so far: {{ips}}. That is not proof they are free: before a decoy takes an address, the box checks the network (ARP) and stops if another device answers. Use an address outside your router's DHCP pool, or reserve it there.",
-      "ipHintUnchecked": "No devices discovered yet, so these are only guesses: {{ips}}. Before a decoy takes an address, the box checks the network (ARP) and stops if another device answers. Use an address outside your router's DHCP pool, or reserve it there.",
-      "ipHintNone": "An address in your LAN that no device uses, outside your router's DHCP pool. Before a decoy takes it, the box checks the network (ARP).",
-      "add": "Add decoy"
+      "addTitle": "Add a Trap IP",
+      "editTitle": "Change {{name}}",
+      "preset": "Looks like",
+      "presetHint": "Fills in the services and the vendor. You can change both.",
+      "name": "Name",
+      "nameHint": "The host name it claims, up to 15 characters: letters, digits and hyphens. It names this Trap IP in alerts.",
+      "namePlaceholder": "e.g. {{example}}",
+      "nameRequired": "Enter a name, for example {{example}}.",
+      "ip": "Address",
+      "ipPlaceholder": "e.g. {{ip}}",
+      "ipRequired": "Enter an address for the Trap IP.",
+      "ipHint": "Not seen by Vedette so far: {{ips}}. That is not proof they are free: before a Trap IP takes an address, the box checks the network (ARP) and stops if another device answers. Use an address outside your router's DHCP pool, or reserve it there.",
+      "ipHintUnchecked": "No devices discovered yet, so these are only guesses: {{ips}}. Before a Trap IP takes an address, the box checks the network (ARP) and stops if another device answers. Use an address outside your router's DHCP pool, or reserve it there.",
+      "ipHintNone": "An address in your LAN that no device uses, outside your router's DHCP pool. Before a Trap IP takes it, the box checks the network (ARP).",
+      "vendor": "Vendor (MAC prefix)",
+      "vendorHint": "Its MAC address starts with {{oui}}, so a scanner guesses a {{vendor}} device.",
+      "vendorHintNone": "It gets a random-looking local MAC address, as phones and virtual machines often have.",
+      "services": "Services",
+      "servicesHint": "It answers only on these ports; every other port is closed, as on a real machine. A box has one SMB share name and one HTTP login page for all its Trap IPs: see the Services tab.",
+      "servicesRequired": "Pick at least one service.",
+      "add": "Add Trap IP",
+      "save": "Save changes",
+      "cancel": "Cancel"
     },
-    "added": "Decoy added",
-    "listLabel": "Decoys",
-    "none": "No extra decoys yet. Add one on an address no device uses. Several decoys on different IPs also let Vedette spot a scan.",
-    "switchLabel": "Decoy {{name}}",
-    "deleteLabel": "Delete decoy {{name}}",
-    "deleted": "Decoy {{name}} deleted",
+    "add": "Add a Trap IP",
+    "added": "Trap IP {{name}} added",
+    "saved": "Trap IP {{name}} saved",
+    "listLabel": "Trap IPs",
+    "none": "No Trap IP yet. Add one on an address no device uses. Two or more Trap IPs also let Vedette spot a scan.",
+    "switchLabel": "Trap IP {{name}}",
+    "edit": "Edit",
+    "editLabel": "Edit Trap IP {{name}}",
+    "deleteLabel": "Delete Trap IP {{name}}",
+    "deleted": "Trap IP {{name}} deleted",
+    "mac": "MAC {{mac}}",
+    "smbName": "Its name is the NetBIOS name of the box's SMB share.",
     "scan": {
       "title": "Scan detection",
-      "body": "A device that touches two or more decoy IPs, or many ports on one decoy, within a minute raises one high-confidence alert that names the source device. Normal machines have no reason to do this.",
-      "last": "Last scan alert {{when}} from {{src}}.",
+      "body": "A device that touches two or more Trap IPs within a minute raises one High alert that names the source device. Normal machines have no reason to do this. Each touch is also a hit of its own.",
+      "last": "Last scan {{when}} from {{src}}: touched {{trapIps}}.",
       "never": "No scan has been seen.",
       "test": "Test scan",
       "testToast": "Recorded a test scan alert",
-      "needDecoys": "Add a decoy first. Detection needs at least two decoy IPs."
-    }
+      "needDecoys": "Turn on two or more Trap IPs first. Detection needs at least two Trap IPs."
+    },
+    "where": {
+      "looks": "Looks like",
+      "mac": "MAC address",
+      "macVendor": "{{mac}}, which a network scanner shows as {{vendor}}",
+      "macLocal": "{{mac}}, a locally administered address (no vendor)",
+      "macNone": "Given when the box holds the address",
+      "open": "Answers on",
+      "openNone": "Nothing while it does not listen",
+      "openAll": "Every service the box's Trap IPs use: the host program is older and cannot keep each Trap IP to its own",
+      "attached": "Lives on",
+      "attachedMacvlan": "Its own network link {{link}} (macvlan, with its own MAC) on the box card {{parent}}, inside the honeypot's isolated network. The box's own address, routes and firewall are not touched.",
+      "attachedMacvlanNoParent": "Its own network link {{link}} (macvlan, with its own MAC) on the box's network card, inside the honeypot's isolated network. The box's own address, routes and firewall are not touched.",
+      "attachedNone": "Not on the network yet",
+      "lastHit": "Last touched",
+      "lastHitNever": "Never",
+      "device": "In Devices",
+      "deviceLink": "{{name}} has this address: the Trap IP cannot listen until one of them moves"
+    },
+    "detailsLabel": "Details of Trap IP {{name}}"
   },
   "token": {
     "title": "Honey tokens",
@@ -301,13 +365,13 @@
   "notHere": {
     "page": "Honeypot",
     "title": "Traps need the appliance install",
-    "body": "This is a container-only install: there is no vedette-host to run the honeypot container and its decoy address, so no trap can listen here and nothing on this page would be covered. Use the appliance install to run traps.",
+    "body": "This is a container-only install: there is no vedette-host to run the honeypot container and its Trap IPs, so no trap can listen here and nothing on this page would be covered. Use the appliance install to run traps.",
     "modules": "Turn the module off in Settings, Modules"
   },
   "coverage": {
     "title": "Is this enough?",
     "description": "A guide to which common attacker moves traps and tokens can see. It is not a score.",
-    "notListening": "No trap is listening yet, so the traps and tokens see none of these moves. Turn a trap on and check that its status says Listening.",
+    "notListening": "No Trap IP is listening yet: only URL tokens can alert, because the box answers their links itself. The traps, fake credentials and decoy files see nothing until a Trap IP listens. Add a Trap IP and check that its status says Listening.",
     "listLabel": "Coverage by attacker move",
     "level": {
       "covered": "Covered",
@@ -318,7 +382,7 @@
     "row": {
       "lateral": {
         "move": "Moving sideways to file shares",
-        "how": "SMB decoys and decoy files on shares catch someone browsing for data."
+        "how": "Trap IPs with SMB and decoy files on shares catch someone browsing for data."
       },
       "credentials": {
         "move": "Using stolen or guessed credentials",
@@ -326,11 +390,12 @@
       },
       "scanning": {
         "move": "Scanning the network for targets",
-        "how": "A sweep across the decoy IPs raises one alert that names the source."
+        "how": "A sweep across the Trap IPs raises one alert that names the source."
       },
       "documents": {
         "move": "Opening or following bait",
-        "how": "Decoy files and URL tokens alert when opened."
+        "how": "Decoy files and URL tokens alert when opened.",
+        "howNoTrap": "URL tokens alert when opened. Decoy files need a listening Trap IP."
       },
       "outbound": {
         "move": "Talking to known-bad addresses",

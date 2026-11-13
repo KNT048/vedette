@@ -168,6 +168,7 @@ type Ops struct {
 	hpMu         sync.Mutex  // guards hp/decoys.json and the contents of the honeypot namespace
 	hpConfigured atomic.Bool // the sysctls, lo and ruleset were set and read back since this host started
 	hpOK         atomic.Bool // the last ensureHP proved the namespace (state/net lists decoys only then)
+	touchOff     atomic.Bool // the ruleset is loaded without the set touched: nft printed it in a form the check does not know (loadProven)
 	hpDirErr     error       // hp/ is not a usable directory: decoys are off (D-121)
 
 	// restorePending lists the services whose unit bytes Start put back and whose state AfterReady still
@@ -334,7 +335,7 @@ func (o *Ops) Commands() []server.Command {
 		o.cmdOSCheck(), o.cmdOSInstall(), o.cmdAutoSecurity(), o.cmdReboot(), o.cmdRebootCancel(),
 		o.cmdBackupCreate(), o.cmdBackupRestore(), o.cmdBackupPurge(), o.cmdLogsExport(),
 		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
-		o.cmdDecoyAdd(), o.cmdDecoyRemove(),
+		o.cmdDecoyAdd(), o.cmdDecoyRemove(), o.cmdDecoySetPorts(),
 		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(), o.cmdContainerRollback(),
 		o.cmdHostSelfUpdate(),
 	}
@@ -343,7 +344,7 @@ func (o *Ops) Commands() []server.Command {
 // Readers are the state endpoints of this part, for server.Options.Readers.
 func (o *Ops) Readers() server.Readers {
 	return server.Readers{
-		OS: o.readOS, Backups: o.readBackups, Net: o.readNet, Containers: o.readContainers, Host: o.readHost, Packages: o.readPackages,
+		OS: o.readOS, Backups: o.readBackups, Net: o.readNet, Containers: o.readContainers, Host: o.readHost, Packages: o.readPackages, HPTouches: o.readHPTouches,
 		BackupContent: o.backupContent, ExportContent: o.exportContent,
 	}
 }

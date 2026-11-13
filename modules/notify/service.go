@@ -42,7 +42,8 @@ type Config struct {
 	// ApproverLinks, when set, makes an approver whose address the user has not linked in My account a skipped approver
 	// (D-191); an error from it skips the approver too (fail closed). nil = no link check, as before.
 	ApproverLinks ApproverLinks
-	Decisions     Decisions // module response: takes decisions made in chat (13b-8); nil = chat decisions are not taken
+	Hits          HitConnections // trap incidents show the connections the trap saw (D-496); nil = notify's own count
+	Decisions     Decisions      // module response: takes decisions made in chat (13b-8); nil = chat decisions are not taken
 	// LinkCodes makes the code a Zalo personal approver replies with to prove their Zalo account (D-447); nil = no code is sent and the
 	// approver stays not linked.
 	LinkCodes LinkCodes

@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
@@ -93,7 +94,9 @@ var errNoHost = errors.New("honeypot: there is no vedette-host on this machine")
 func (notAnAppliance) Status(context.Context) (honeypot.HostStatus, error) {
 	return honeypot.HostStatus{Reason: notApplianceReason}, nil
 }
-func (notAnAppliance) AddDecoyIP(context.Context, netip.Addr) error    { return errNoHost }
+func (notAnAppliance) AddDecoyIP(context.Context, netip.Addr, honeypot.DecoySpec) error {
+	return errNoHost
+}
 func (notAnAppliance) RemoveDecoyIP(context.Context, netip.Addr) error { return errNoHost }
 func (notAnAppliance) StartContainer(context.Context, bool) error      { return errNoHost }
 func (notAnAppliance) StopContainer(context.Context) error             { return errNoHost }
@@ -124,12 +127,20 @@ func (a honeypotInventory) Devices(ctx context.Context) ([]honeypot.Device, erro
 		if d.OS != nil {
 			x.OS = d.OS.Value
 		}
+		if d.MAC != nil {
+			x.MAC = strings.ToLower(*d.MAC)
+		}
 		for _, s := range d.Services {
 			x.Ports = append(x.Ports, s.Port)
 		}
 		out = append(out, x)
 	}
 	return out, nil
+}
+
+// ForgetBoxOwned lets the honeypot have the inventory delete the device rows made of its own decoys (honeypot ghostForgetter).
+func (a honeypotInventory) ForgetBoxOwned(ctx context.Context, since map[netip.Addr]time.Time) (int, error) {
+	return a.inv.ForgetBoxOwned(ctx, since)
 }
 
 func (a honeypotInventory) LANRanges(ctx context.Context) ([]netip.Prefix, error) {

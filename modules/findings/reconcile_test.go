@@ -325,3 +325,32 @@ func TestReconcileRemovesNothingWhenAskingInventoryAboutADeviceFails(t *testing.
 		t.Fatal("a finding was removed without a confirmation from inventory")
 	}
 }
+
+// W6-1: Reconcile writes the backlog and the recent entries in two writes, and each one replaced the "add the version"
+// items with its own list: on the N100 the recent write (one Office entry CISA added this week) left "adding it checks 1
+// exploited CVE" for a Microsoft Office without a version, of 30. The item counts the whole list.
+func TestReconcileVersionNeededCountsBacklogAndRecentTogether(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.feeds.vulns = loadGolden(t, "testdata/kev-nvd-office-n22.json")
+	*e.clock = time.Date(2026, 11, 13, 16, 21, 0, 0, time.UTC) // CVE-2026-124194 (added 2026-11-10) is recent, the other 29 backlog
+	sw := Software{ID: "s-office", Display: "Microsoft Office", Vendor: "Microsoft", Product: "Office", KevKeys: []string{"microsoft|office"}}
+	e.inv.match = map[string]Asset{"a-office": {ID: "a-office", Name: "Microsoft Office", Software: []Software{sw}}}
+	e.inv.assets = map[string]AssetView{"a-office": {ID: "a-office", IP: "—", Kind: "pc", Display: "Microsoft Office"}}
+	svc := e.reconciler(&markPub{}, e.inv)
+	for range 2 { // the second run must not change it either
+		if _, err := svc.Reconcile(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		items, err := svc.ListVersionNeeded(t.Context(), "a-office")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(items) != 1 || items[0].SoftwareID != "s-office" || items[0].CVEs != 30 {
+			t.Fatalf("items = %+v, want one item of 30 CVEs", items)
+		}
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding`); n != 0 {
+		t.Fatalf("%d findings, want none (no version, no finding: D-500)", n)
+	}
+}

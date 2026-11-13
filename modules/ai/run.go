@@ -621,6 +621,16 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		if len(res.Attempts) == 0 { // never attempted (settings changed under us): no request, no row
 			return s.unavailable(spec.Job, reasons)
 		}
+		// D-531: nothing was sent because a profile's own monthly budget is used up and no other profile could take the call. That
+		// is the budget's stop, not "not set up": the same 429 budget_reached as the shared budget, naming the profile, so the caller
+		// (the plan job) stops its run instead of counting it against a finding.
+		name := profileCappedLast(res)
+		profileStop := name != "" && notSent(res) == OutcomeCapped
+		if profileStop && spec.Actor == "system" {
+			// a scheduled job is stopped like the shared budget stops it (scheduledPause): no row every 5 minutes for the rest of the month
+			s.noteScheduledStop(ctx, spec.Job, "profile "+name+" used up")
+			return s.budgetReached(s.profileBudgetStop(name, spec.Job))
+		}
 		entry.Summary = "No profile answered: " + strings.Join(reasons, "; ")
 		if out := notSent(res); out != "" { // every profile was skipped: no request left the box
 			entry.Summary, entry.Outcome = "Not sent: no AI profile could take the call: "+strings.Join(reasons, "; "), out
@@ -631,16 +641,18 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		if perr := providerFailure(spec.Job, res); perr != nil {
 			return perr
 		}
-		// D-531: nothing was sent because a profile's own monthly budget is used up and no other profile could take the call. That
-		// is the budget's stop, not "not set up": the same 429 budget_reached as the shared budget, naming the profile, so the caller
-		// (the plan job) stops its run instead of counting it against a finding.
-		if name := profileCappedLast(res); name != "" && notSent(res) == OutcomeCapped {
-			return s.budgetReached(fmt.Sprintf("The monthly budget of the AI profile %s is used up and no other profile could take %s, so nothing was sent. An administrator can raise the profile's budget or add a fallback profile in Settings, AI assistant; it renews on %s.",
-				name, spec.Job.Name(), s.renewDay()))
+		if profileStop {
+			return s.budgetReached(s.profileBudgetStop(name, spec.Job))
 		}
 		return s.unavailable(spec.Job, reasons)
 	}
 	return err
+}
+
+// profileBudgetStop is the 429 text of a call nothing could take because the profile's own monthly budget is used up and it has no fallback.
+func (s *Service) profileBudgetStop(name string, job Job) string {
+	return fmt.Sprintf("The monthly budget of the AI profile %s is used up and no other profile could take %s, so nothing was sent. An administrator can raise the profile's budget or add a fallback profile in Settings, AI assistant; it renews on %s.",
+		name, job.Name(), s.renewDay())
 }
 
 // retrySent reports whether a second request of a cut answer reached the provider (ai_activity.retried).

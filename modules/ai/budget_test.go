@@ -223,6 +223,36 @@ func TestScheduledJobsPauseAt80AndWriteNoRowWhenUsedUp(t *testing.T) {
 	}
 }
 
+// W5-4: a profile's own monthly budget that is used up (no fallback) stops a scheduled job like the shared budget does: 429
+// budget_reached, no provider call and no capped ai_activity row every 5 minutes for the rest of the month. A person's call still
+// gets its row.
+func TestScheduledJobsWriteNoRowWhenTheProfileBudgetIsUsedUp(t *testing.T) {
+	a := newAPI(t)
+	id := a.addProfile(strings.Replace(cloudBody("Claude", keyA), `"monthly_budget":60000`, `"monthly_budget":1000`, 1))["id"].(string)
+	a.fake.setAnswer(goodExplain)
+	a.want("PUT", "/ai/assignments", "admin", assignBody(false, map[string][2]string{"response-plan": {id, ""}, "explain-finding": {id, ""}}), 200, "")
+	a.fake.setUsage(1200, 300) // the first call passes the profile's own budget of 1,000 (the shared one is far off)
+	a.explain("CVE-2022-27593", 200, "")
+	rows, calls := len(a.activity()), a.fake.total()
+	for range 3 {
+		_, err := a.svc.RunJob(a.ctx(), ai.JobSpec{Job: ai.JobResponsePlan, Actor: "system", Task: "Write a plan.", Question: "Write the response plan.", MaxTokens: 100})
+		e, ok := apierr.As(err)
+		if !ok || e.Code != "budget_reached" || !strings.Contains(e.Message, "monthly budget of the AI profile Claude is used up") || e.Extra["retry_after"] == nil {
+			t.Fatalf("scheduled plan: %v", err)
+		}
+	}
+	if len(a.activity()) != rows || a.fake.total() != calls {
+		t.Fatalf("a stopped scheduled plan wrote a row or reached the provider: rows %d -> %d, calls %d -> %d", rows, len(a.activity()), calls, a.fake.total())
+	}
+	a.facts.mu.Lock()
+	a.facts.assets["CVE-2022-27593"][0].Name = "NAS-2" // a cache miss
+	a.facts.mu.Unlock()
+	a.explain("CVE-2022-27593", 429, "budget_reached")
+	if len(a.activity()) != rows+1 {
+		t.Fatalf("a person's call keeps its capped row: rows %d -> %d", rows, len(a.activity()))
+	}
+}
+
 // Review of #688: with the alert channels off (notify off) the budget watch is not an error every 5 minutes; it sends the notice once
 // they are on again.
 func TestBudgetWatchWaitsQuietlyWhileAlertsAreOff(t *testing.T) {

@@ -71,6 +71,12 @@ func (s *Service) scheduledPause(ctx context.Context, job Job) error {
 	default:
 		return nil
 	}
+	s.noteScheduledStop(ctx, job, why)
+	return s.budgetReached(msg)
+}
+
+// noteScheduledStop writes the one box log line a month per reason for a scheduled job that is stopped by a budget; the rest are silent.
+func (s *Service) noteScheduledStop(ctx context.Context, job Job, why string) {
 	key := s.cfg.Clock().In(s.loc).Format("2006-01") + " " + why
 	s.fuseMu.Lock()
 	note := s.pauseNoted != key
@@ -79,7 +85,6 @@ func (s *Service) scheduledPause(ctx context.Context, job Job) error {
 	if note {
 		s.cfg.Log.InfoContext(ctx, "ai: scheduled AI jobs stop for this month's budget", "job", string(job), "reason", why)
 	}
-	return s.budgetReached(msg)
 }
 
 func capitalize(s string) string {

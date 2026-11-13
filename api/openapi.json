@@ -35517,7 +35517,7 @@
                       "items": {
                         "type": "string"
                       },
-                      "description": "Internal IPv4 CIDR (RFC 1918)"
+                      "description": "Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461)"
                     },
                     "active": {
                       "type": "object",
@@ -35678,7 +35678,7 @@
                     "items": {
                       "type": "string"
                     },
-                    "description": "Internal IPv4 CIDR (RFC 1918)"
+                    "description": "Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461)"
                   },
                   "active": {
                     "type": "object",
@@ -35823,7 +35823,7 @@
                       "items": {
                         "type": "string"
                       },
-                      "description": "Internal IPv4 CIDR (RFC 1918)"
+                      "description": "Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461)"
                     },
                     "active": {
                       "type": "object",

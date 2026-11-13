@@ -1355,7 +1355,7 @@
       "lanEmpty": "Enter at least one range.",
       "lanBlank": "Fill in this range or remove the row.",
       "lanBad": "\"{{value}}\" is not a valid range. Write it like 192.168.10.0/24 (address, slash, prefix length 0 to 32).",
-      "lanPublic": "{{value}} is not a private range (10.0.0.0/8, 172.16.0.0/12 or 192.168.0.0/16). Add public addresses later under External exposure.",
+      "lanPublic": "{{value}} is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). Add public addresses later under External exposure.",
       "lanDup": "{{value}} is listed twice. Remove one of the rows.",
       "lanMany": "At most 16 ranges. Merge them into larger ranges.",
       "noteLabel": "Ranges adjusted",

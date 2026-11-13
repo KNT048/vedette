@@ -120,6 +120,10 @@ describe('core: cài đặt ban đầu', () => {
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByText(/0.0.0.0\/0 is not a private range/)).toBeInTheDocument()
     await u.clear(screen.getByLabelText('Range 1'))
+    await u.type(screen.getByLabelText('Range 1'), '100.128.0.0/24') // 100/8 outside RFC 6598 is public (D-461)
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(await screen.findByText('100.128.0.0/24 is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). Add public addresses later under External exposure.')).toBeInTheDocument()
+    await u.clear(screen.getByLabelText('Range 1'))
     await u.type(screen.getByLabelText('Range 1'), '10.0.0.0/24')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     await u.click(await screen.findByRole('button', { name: 'Continue' }))
@@ -216,6 +220,18 @@ describe('core: cài đặt ban đầu', () => {
     expect(st.scope_confirmed_at).not.toBeNull()
     const scan = (await (await fetch(`${location.origin}/api/v1/scans/config`)).json()) as { scope: { networks: string[] } }
     expect(scan.scope.networks).toEqual(['192.168.18.0/24', '10.1.0.0/16'])
+  })
+
+  it('setup takes a network in the RFC 6598 shared address space (100.64/10) and refuses the rest of 100/8, with the backend sentence (D-461)', async () => {
+    orgStore.update((o) => ({ ...o, setup_complete: false }))
+    const body = (lan: string[]) => JSON.stringify({ setup_code: MOCK_SETUP_CODE, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan, bundle: 'smb', commitment: true })
+    const pub = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(['100.128.0.0/24']) })
+    expect(pub.status).toBe(400)
+    expect(((await pub.json()) as { error: { code: string; message: string } }).error).toEqual(expect.objectContaining({ code: 'public_range', message: '100.128.0.0/24 is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). Add public addresses later under External exposure.' }))
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(['100.65.254.0/24']) })
+    expect(res.status).toBe(200)
+    const st = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[] }
+    expect(st.lan_ranges).toEqual(['100.65.254.0/24'])
   })
 
   it('setup refuses overlapping LAN ranges like Devices → Scope does, and nothing is set up (#350)', async () => {

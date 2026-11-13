@@ -69606,7 +69606,7 @@ type InventoryGetInventorySettingsOK struct {
 	Active InventoryGetInventorySettingsOKActive `json:"active"`
 	// Device types scanned only once, gently, when first seen; passive-only after that.
 	FragileKinds []InventoryGetInventorySettingsOKFragileKindsItem `json:"fragile_kinds"`
-	// Internal IPv4 CIDR (RFC 1918).
+	// Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461).
 	LanRanges []string `json:"lan_ranges"`
 	// Subset of fragile_kinds for which the owner allowed regular scans.
 	RegularScanKinds []InventoryGetInventorySettingsOKRegularScanKindsItem `json:"regular_scan_kinds"`
@@ -71948,7 +71948,7 @@ type InventoryPutInventorySettingsOK struct {
 	Adjusted []InventoryPutInventorySettingsOKAdjustedItem `json:"adjusted"`
 	// Device types scanned only once, gently, when first seen; passive-only after that.
 	FragileKinds []InventoryPutInventorySettingsOKFragileKindsItem `json:"fragile_kinds"`
-	// Internal IPv4 CIDR (RFC 1918).
+	// Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461).
 	LanRanges []string `json:"lan_ranges"`
 	// Subset of fragile_kinds for which the owner allowed regular scans.
 	RegularScanKinds []InventoryPutInventorySettingsOKRegularScanKindsItem `json:"regular_scan_kinds"`
@@ -72364,7 +72364,7 @@ type InventoryPutInventorySettingsReq struct {
 	Active InventoryPutInventorySettingsReqActive `json:"active"`
 	// Device types scanned only once, gently, when first seen; passive-only after that.
 	FragileKinds []InventoryPutInventorySettingsReqFragileKindsItem `json:"fragile_kinds"`
-	// Internal IPv4 CIDR (RFC 1918).
+	// Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461).
 	LanRanges []string `json:"lan_ranges"`
 	// Subset of fragile_kinds for which the owner allowed regular scans.
 	RegularScanKinds []InventoryPutInventorySettingsReqRegularScanKindsItem `json:"regular_scan_kinds"`

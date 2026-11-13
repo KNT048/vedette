@@ -81,12 +81,14 @@ func TestBuild_Refuses(t *testing.T) {
 		"host errors 21":      mut(func(j *Job) { j.MaxHostErrors = 21 }),
 		"public IP":           host("8.8.8.8"),
 		"documentation IP":    host("203.0.113.7"),
-		"CGNAT":               host("100.64.0.1"),
+		"100.63 (not 6598)":   host("100.63.255.1"),
+		"100.128 (not 6598)":  host("100.128.0.1"),
 		"benchmark range":     host("198.18.0.1"),
 		"reserved 240/4":      host("240.0.0.1"),
 		"loopback":            host("127.0.0.1"),
 		"unspecified":         host("0.0.0.0"),
 		"link-local metadata": host("169.254.169.254"),
+		"Alibaba metadata":    host("100.100.100.200"), // inside 100.64/10, refused anyway (D-461 (5))
 		"multicast":           host("224.0.0.1"),
 		"broadcast":           host("255.255.255.255"),
 		"private .255":        host("192.168.10.255"),
@@ -117,7 +119,7 @@ func TestBuild_Refuses(t *testing.T) {
 			t.Errorf("%s: built %q", name, args)
 		}
 	}
-	for _, h := range []string{"10.0.0.1", "172.16.5.4", "172.31.255.254", "192.168.10.21"} {
+	for _, h := range []string{"10.0.0.1", "172.16.5.4", "172.31.255.254", "192.168.10.21", "100.64.0.1", "100.65.254.7", "100.100.100.199", "100.127.255.254"} { // RFC 6598 too (D-461)
 		if _, err := Build(host(h)); err != nil {
 			t.Errorf("private %s refused: %v", h, err)
 		}
@@ -189,7 +191,8 @@ func TestTarget_Input(t *testing.T) {
 // The fixed part as the review approved it, written out here on purpose: a change in argv.go must change this too.
 var approvedFixed = []string{"-jsonl", "-silent", "-nc", "-duc", "-ni", "-ms", "-dr", "-nh", "-etags", "dos,intrusive,fuzz", "-pt", "http,tcp,ssl", "-elog", "/dev/stderr", "-c", "1", "-bs", "1", "-timeout", "10", "-retries", "1"}
 
-// rfc1918Literal is written apart from validHost: a dotted IPv4 literal in 10/8, 172.16/12 or 192.168/16, last octet 1..254.
+// rfc1918Literal is written apart from validHost: a dotted IPv4 literal in 10/8, 172.16/12, 192.168/16 or the RFC 6598 shared space
+// 100.64/10 (D-461), last octet 1..254.
 func rfc1918Literal(s string) bool {
 	parts := strings.Split(s, ".")
 	if len(parts) != 4 {
@@ -203,7 +206,7 @@ func rfc1918Literal(s string) bool {
 		}
 		o[i] = n
 	}
-	private := o[0] == 10 || (o[0] == 172 && o[1] >= 16 && o[1] <= 31) || (o[0] == 192 && o[1] == 168)
+	private := o[0] == 10 || (o[0] == 172 && o[1] >= 16 && o[1] <= 31) || (o[0] == 192 && o[1] == 168) || (o[0] == 100 && o[1] >= 64 && o[1] <= 127)
 	return private && o[3] >= 1 && o[3] <= 254
 }
 

@@ -4,6 +4,8 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+
+	"github.com/knt048/vedette/core/localnet"
 )
 
 // The connection a line is about (L4, D-213): the LAN device that made it and what it connected to (a public address, and for a DNS
@@ -37,8 +39,10 @@ type Conn struct {
 	Blocked bool
 }
 
-// LocalOK says whether an address can be the LAN device of a connection: a private IPv4 address (RFC 1918).
-func LocalOK(a netip.Addr) bool { return a.IsValid() && a.Is4() && a.IsPrivate() }
+// LocalOK says whether an address can be the LAN device of a connection: an IPv4 address of a local network (RFC 1918, or the RFC 6598
+// shared space 100.64/10 that a network watched by Vedette may use, localnet.Addr, D-461). The destination rule (PublicDest) is not
+// changed: a 100.64/10 destination is never looked up.
+func LocalOK(a netip.Addr) bool { return a.IsValid() && localnet.Addr(a) }
 
 var specialNets = func() []netip.Prefix {
 	var out []netip.Prefix

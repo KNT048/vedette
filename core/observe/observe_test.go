@@ -50,3 +50,32 @@ func TestErrRejectedWithoutReasonPrints(t *testing.T) {
 		t.Error("empty message")
 	}
 }
+
+// D-503: the kind of an agent's OS, from its platform (a new report) or from the OS text the inventory stored (the upgrade path); both
+// give the same kind for the same system.
+func TestAgentKind(t *testing.T) {
+	for _, c := range []struct{ platform, name, stored, want string }{
+		{"ubuntu", "Ubuntu", "Ubuntu 26.04 LTS (Resolute Raccoon)", "server"},
+		{"debian", "Debian GNU/Linux", "Debian GNU/Linux 12 (bookworm)", "server"},
+		{"rhel", "Red Hat Enterprise Linux", "Red Hat Enterprise Linux 9.4 (Plow)", "server"},
+		{"ol", "Oracle Linux Server", "Oracle Linux Server 9.4", "server"},
+		{"sles", "SLES", "SLES 15-SP5", "server"},
+		{"windows", "Microsoft Windows Server 2022 Datacenter", "Microsoft Windows Server 2022 Datacenter 10.0.20348 build 20348", "server"},
+		{"windows", "Microsoft Windows 11 Pro", "Microsoft Windows 11 Pro 10.0.22631 build 22631", "pc"},
+		{"darwin", "macOS", "macOS 15.1", "pc"},
+		{"linuxmint", "Linux Mint", "Linux Mint 22", ""},
+		{"", "", "", ""},
+	} {
+		if got := observe.AgentKind(c.platform, c.name); got != c.want {
+			t.Errorf("AgentKind(%q, %q) = %q, want %q", c.platform, c.name, got, c.want)
+		}
+		if got := observe.AgentKindOfOS(c.stored); got != c.want {
+			t.Errorf("AgentKindOfOS(%q) = %q, want %q", c.stored, got, c.want)
+		}
+	}
+	for _, os := range []string{"Ubuntusomething 1", "Debianish", "openSUSE Leap 15.6"} {
+		if got := observe.AgentKindOfOS(os); got != "" {
+			t.Errorf("AgentKindOfOS(%q) = %q, want none", os, got)
+		}
+	}
+}

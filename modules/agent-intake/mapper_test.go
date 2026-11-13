@@ -142,6 +142,9 @@ func TestMapPackagesGolden(t *testing.T) {
 		if it.Vendor != w.vendor || it.Product != w.product || it.Version != w.version || key != w.key || it.Confidence != softwareConfidence {
 			t.Errorf("item %d = %s | %s | %s | %v, want %+v", i, it.Vendor, it.Product, it.Version, it.KevKeys, w)
 		}
+		if packaged := i < 14; it.Packaged != packaged { // D-474 (MK-2): the 11 deb and 3 rpm rows came from the package database, programs did not
+			t.Errorf("item %d (%s) packaged = %v, want %v", i, it.Product, it.Packaged, packaged)
+		}
 	}
 }
 

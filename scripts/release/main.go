@@ -246,7 +246,7 @@ func cmdManifest(ctx context.Context, args []string, stdout, stderr io.Writer) e
 	if err != nil {
 		return err
 	}
-	if err := checkTagsCover(earlier, env.PrevIndex); err != nil {
+	if err := checkTagsCover(inputs.Version, earlier, env.PrevIndex); err != nil {
 		return err
 	}
 	if err := checkSensorProto(inputs.Version, inputs.MinUpgradeFrom, proto, accepts, earlier); err != nil {

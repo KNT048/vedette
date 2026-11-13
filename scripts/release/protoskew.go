@@ -82,13 +82,14 @@ func earlierProtos(ctx context.Context, repo, version string) ([]releaseProto, e
 }
 
 // checkTagsCover refuses a clone that lacks the tag of a release the published index names (the latest of each channel): the gate
-// below would not see that release, and pass for it. A clone made before kien pushed a tag, or with --no-tags, is the case.
-func checkTagsCover(earlier []releaseProto, idx *release.Index) error {
+// below would not see that release, and pass for it. A clone made before kien pushed a tag, or with --no-tags, is the case. A latest
+// at or above version (beta ahead of a stable hotfix) is no release a box updates to version from.
+func checkTagsCover(version string, earlier []releaseProto, idx *release.Index) error {
 	if idx == nil {
 		return nil
 	}
 	for name, ch := range idx.Channels {
-		if refuseTestVersion(ch.Latest) != nil {
+		if c, err := release.CompareVersions(ch.Latest, version); refuseTestVersion(ch.Latest) != nil || err != nil || c >= 0 {
 			continue
 		}
 		if !slices.ContainsFunc(earlier, func(e releaseProto) bool { return e.Version == ch.Latest }) {

@@ -82,11 +82,15 @@ func TestEarlierProtosFromGit(t *testing.T) {
 	}
 	// a clone without the tag of the published latest would let the gate pass for a release it never saw
 	idx := &release.Index{Channels: map[string]release.Channel{"stable": {Latest: "1.1.0"}, "beta": {Latest: "1.5.0"}}}
-	if err := checkTagsCover(got, idx); err == nil || !strings.Contains(err.Error(), "no tag v1.5.0 here") {
+	if err := checkTagsCover("2.0.0", got, idx); err == nil || !strings.Contains(err.Error(), "no tag v1.5.0 here") {
 		t.Errorf("a missing tag: %v", err)
 	}
+	// a stable hotfix below beta's latest: beta's release is no source of an update to it (Opus r2)
+	if err := checkTagsCover("1.1.6", got, idx); err != nil {
+		t.Errorf("hotfix below beta: %v", err)
+	}
 	idx.Channels["beta"] = release.Channel{Latest: "1.1.0"}
-	if err := checkTagsCover(got, idx); err != nil {
+	if err := checkTagsCover("2.0.0", got, idx); err != nil {
 		t.Error(err)
 	}
 }

@@ -8,7 +8,7 @@ import { assetsStore, boxInfo, emailCodeUserCount, usersStore } from '@/mocks/st
 import { collection, daysAgo, newId, nowIso } from '@/mocks/db'
 import type { Severity } from '@/lib/types'
 import { isInternalHost } from '@/features/feeds/defaults'
-import { CHANNEL_TYPES, FIELDS, ROUTE_SEVERITIES, forbiddenHost } from './types'
+import { CHANNEL_TYPES, FIELDS, OWN_TEXT, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
 import type { Approver, Channel, ChannelInput, ChannelType, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult } from './types'
 
 const SEV: Record<Severity, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' }
@@ -164,8 +164,8 @@ const webhookUrl = (f: Record<string, string>, cur: StoredChannel) => {
   return given && given !== shownUrl(cur.url) ? given : cur.url ?? ''
 }
 
-/** The box's rule for a webhook or an SMTP server (channel/webhook.go forbiddenAddr): never this machine (loopback: in a container that is core
- * itself), link-local (cloud metadata), multicast or unspecified. The mock knows none of the box's own LAN addresses. */
+/** The box's rule for a webhook or an SMTP server (channel/webhook.go ownAddr, forbiddenAddr; D-446): never Vedette itself (loopback: in a
+ * container that is core itself), link-local (cloud metadata), multicast or unspecified. The mock knows none of the machine's addresses. */
 /** The recipient named in `bad_to` (smtp.go badRecipient): one line, control and format characters dropped, cut to 60 characters. */
 const shownRecipient = (x: string) => {
   const r = [...x.replace(/[\t\n\u0085\u2028\u2029]/g, ' ').replace(/[\p{Cc}\p{Cf}]/gu, '').trim()]
@@ -223,9 +223,10 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
     if (badTo !== undefined) return fail(400, 'bad_to', named ? `${named} is not a valid email address. Separate several recipients with commas.` : 'A recipient email is not valid. Separate several recipients with commas.')
     const host = (f.host ?? '').trim()
     if (!(IPV4_RE.test(host) || DOMAIN_RE.test(host))) return fail(400, 'bad_host', 'The SMTP server must be a domain name or an IP address, for example smtp.company.com.')
-    if (forbiddenHost(host)) return fail(400, 'bad_host', "The SMTP server cannot be this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address. For a mail server on the computer that runs Vedette, enter that computer's LAN address.")
     const port = Number(portText)
     if (port < 1 || port > 65535) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
+    if (ownHost(host)) return fail(400, 'bad_host', OWN_TEXT) // D-446
+    if (forbiddenHost(host)) return fail(400, 'bad_host', 'The SMTP server cannot be a link-local or multicast address, a cloud metadata service, or an unspecified address.')
     if (!['starttls', 'ssl', 'none'].includes(f.security ?? '')) return fail(400, 'bad_security', 'Choose an encryption type: STARTTLS, SSL/TLS or none.')
     if (f.security === 'ssl' && port === 587) return fail(400, 'port_mismatch', 'Port 587 uses STARTTLS, not SSL/TLS. Choose STARTTLS, or change the port to 465 for SSL/TLS.')
     if (f.security === 'starttls' && port === 465) return fail(400, 'port_mismatch', 'Port 465 uses SSL/TLS, not STARTTLS. Choose SSL/TLS, or change the port to 587 for STARTTLS.')
@@ -243,7 +244,8 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
   try { u = new URL(webhookUrl(f, cur)) } catch { /* không phải URL */ }
   if (!u || !/^https?:$/.test(u.protocol)) return fail(400, 'bad_url', 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.')
   // The API answers the adapter's blocked_host and insecure_url as bad_url (channels.go apiConfigCode); blocked_host comes first (webhook.go).
-  if (forbiddenHost(u.hostname)) return fail(400, 'bad_url', 'The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.')
+  if (ownHost(u.hostname)) return fail(400, 'bad_url', OWN_TEXT) // D-446
+  if (forbiddenHost(u.hostname)) return fail(400, 'bad_url', 'The webhook cannot point at a link-local or multicast address, a cloud metadata service, or an unspecified address.')
   if (u.protocol === 'http:' && !isInternalHost(u.hostname)) return fail(400, 'bad_url', 'Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.')
   if (secret && secret.length < 16) return fail(400, 'bad_secret', 'The signing key needs at least 16 characters. Press Generate random if you want a random one.')
   return need('webhook signing key')

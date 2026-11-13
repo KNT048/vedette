@@ -166,6 +166,8 @@ var (
 	ErrTooLarge    = errors.New("provider response is too large")
 	ErrBadResponse = errors.New("provider response is not valid")
 	ErrNetwork     = errors.New("provider is unreachable")
+	// ErrOwnAddress is ErrNetwork for a server that is Vedette itself (Own, D-446): the dial was refused before any packet.
+	ErrOwnAddress = fmt.Errorf("%w: the server is Vedette itself", ErrNetwork)
 	// ErrNoWorkspace: an Anthropic key that is not scoped to a workspace (HTTP 400 on every request, issue #118).
 	ErrNoWorkspace = errors.New("the API key is not tied to a workspace")
 	// ErrRefused: the model declined (safety refusal). The content is discarded; Error.Category says why.

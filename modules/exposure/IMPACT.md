@@ -22,6 +22,9 @@
 ## Modifying: trường `Snapshot`/`Diff`
 - **SPA** `ResultsPanel`, `TargetPage`; **reports**. `contract.ts` là nguồn OpenAPI.
 
+## Modifying: `Snapshots`, `SnapshotOf`, `Diff` (`Diff.Added`, nhãn mục), `upsertSnapshot`, sự kiện `exposure.snapshot.created` (`SnapshotCreatedEvent`)
+- **response** (trigger `new_port`, D-384) qua cầu `cmd/vedette/exposureports.go`: mỗi `exposure.snapshot.created` nó đọc `Snapshots` (mới nhất trước) lấy ngày quét trước của cùng mục tiêu, rồi `Diff` và `SnapshotOf` hai ngày đó, và phát một `exposure.port.opened` cho mỗi cổng mở bây giờ mà ngày trước không có. Nó dựa vào: nhãn của mục `port` trong `Diff.Added` đúng dạng `"<ip>:<port>"`; **một ảnh chụp mỗi mục tiêu mỗi ngày** (`upsertSnapshot` ghi đè trong ngày); `SnapshotCreatedEvent` mang `TargetID` + `Date` của ảnh vừa ghi; ngày quét đầu tiên của mục tiêu là mốc, không phát gì. Đổi bất kỳ điều nào → sửa cầu và `cmd/vedette` `TestExposureSnapshotOpensNewPorts`. Nếu sau này `exposure` tự phát `exposure.port.opened` thì cầu bỏ đi.
+
 ## Disabling this module
 - Trang External exposure mất; `scan` chỉ quét mục tiêu nội bộ; luồng PRIVACY 9 dừng (job không chạy, kể cả lượt dò đầy đủ trước khi quét).
 - Mục tiêu, cam kết, ảnh chụp, cài đặt và danh sách bỏ qua giữ; `reports` bỏ mục bề mặt ngoài.

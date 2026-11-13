@@ -257,13 +257,24 @@ func TestContract_INV3_NoAddressThatReachesTheBoxItselfOrTheNeighbourhood(t *tes
 	if a.fake.total() != 0 {
 		t.Fatal("a refused address reached the provider")
 	}
-	// local servers stay possible for internal profiles: loopback and the private ranges
-	for _, ok := range []string{"http://127.0.0.1:11434/v1", "http://[::1]:11434/v1", "http://10.0.0.7:8000/v1", "http://100.64.1.1:8000/v1"} {
+	// local servers stay possible for internal profiles: the private ranges
+	for _, ok := range []string{"http://10.0.0.7:8000/v1", "http://100.64.1.1:8000/v1", "http://[fd00::7]:11434/v1"} {
 		a.want("POST", "/ai/profiles", "admin", strings.Replace(internalBody("n-"+ok[7:12]), "http://192.168.10.5:11434/v1", ok, 1), 200, "")
 	}
+	// D-446: loopback is Vedette itself (in the container, core); so are Vedette's own ports (here on every address: the test box
+	// does not know the machine's addresses). Same sentence at save and at Test.
+	for _, own := range []string{"http://127.0.0.1:11434/v1", "http://[::1]:11434/v1", "http://localhost:11434/v1", "http://10.0.0.7:8443/v1"} {
+		for _, call := range []string{"/ai/profiles", "/ai/profiles/test"} {
+			got, m, raw := a.do("POST", call, "admin", strings.Replace(internalBody("o"), "http://192.168.10.5:11434/v1", own, 1))
+			if got != 400 || errCode(m) != "invalid_base_url" || !strings.Contains(raw, "That address is Vedette itself") {
+				t.Errorf("%s %s: %d %s", own, call, got, raw)
+			}
+		}
+	}
 	// editing into a refused address is refused as well
-	id := a.profileIDOf("n-127.0")
-	a.want("PUT", "/ai/profiles/"+id, "admin", strings.Replace(internalBody("n-127.0"), "192.168.10.5", "169.254.169.254", 1), 400, "invalid_base_url")
+	id := a.profileIDOf("n-10.0.")
+	a.want("PUT", "/ai/profiles/"+id, "admin", strings.Replace(internalBody("n-10.0."), "192.168.10.5", "169.254.169.254", 1), 400, "invalid_base_url")
+	a.want("PUT", "/ai/profiles/"+id, "admin", strings.Replace(internalBody("n-10.0."), "192.168.10.5", "127.0.0.1", 1), 400, "invalid_base_url")
 }
 
 func TestContract_L2_ABadSavedStateDoesNotStopTheBox(t *testing.T) {

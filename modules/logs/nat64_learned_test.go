@@ -132,7 +132,7 @@ func TestForgedNAT64AnswerDoesNotOpenTheGuard(t *testing.T) {
 		if got := addrForms(a); !slices.Contains(got, netip.MustParseAddr("169.254.169.254")) {
 			t.Errorf("%s: the metadata reading is missing from %v", s, got)
 		}
-		if !siemForbidden(a, nil, false) {
+		if !siemForbidden(a) {
 			t.Errorf("%s is allowed after a forged answer", s)
 		}
 	}

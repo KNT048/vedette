@@ -22,13 +22,16 @@ import (
 // KindExternal is the sa_job kind of an external run (migration 0005).
 const KindExternal = "external"
 
-// Errors of ScanExternal. No packet went to ip when one of these is returned before the probe row was written: ErrBusy (another
-// nmap run kept the slot for busyWait), ErrNotOwnIP (the fence in core or in the worker said no). ErrHostTimedOut: nmap ran and
+// Errors of ScanExternal. No packet went to ip with ErrBusy (another nmap run kept the slot), ErrNoTime (too little of the caller's
+// time was left for the run, #723 review L5), ErrNotOwnIP (the fence in core or in the worker saw the box leave through another
+// address) or ErrEgressUnverified (the worker could not reach the public IP services to check). ErrHostTimedOut: nmap ran and
 // gave up on the host at its --host-timeout, so it printed no port table and nothing can be said of the services.
 var (
-	ErrBusy         = errors.New("sensoractive: the scan container's nmap is busy with another scan")
-	ErrNotOwnIP     = errors.New("sensoractive: the address is not the box's own public IP now")
-	ErrHostTimedOut = errors.New("sensoractive: nmap gave up on the address before it finished")
+	ErrBusy             = errors.New("sensoractive: the scan container's nmap is busy with another scan")
+	ErrNoTime           = errors.New("sensoractive: too little time was left for service identification")
+	ErrNotOwnIP         = errors.New("sensoractive: the address is not the box's own public IP now")
+	ErrEgressUnverified = errors.New("sensoractive: the public IP services could not be reached to check the address")
+	ErrHostTimedOut     = errors.New("sensoractive: nmap gave up on the address before it finished")
 )
 
 // OwnEgress says whether ip is the box's own verified public egress now: exposure's gate (verified, committed, seen by the
@@ -57,13 +60,32 @@ type External struct {
 // externalRun bounds an external run whose context has no deadline (exposure gives it 5 minutes, ServicesTimeout there).
 const externalRun = 5 * time.Minute
 
+// externalNeed is the least time an external run needs once it has the nmap slot and core's fence said yes (#723 review L5): the
+// worker's fence (at most 5 rounds of 5 s), nmap's --host-timeout of 3 minutes, and the pickup and the result (15 s). With less
+// left of the caller's deadline the run is skipped (ErrNoTime) rather than cut by it halfway; the wait for the slot is shortened
+// to leave it, plus coreFenceTime for core's own check.
+const (
+	externalNeed  = 25*time.Second + 3*time.Minute + 15*time.Second
+	coreFenceTime = 30 * time.Second
+)
+
+// left is how long ctx has before its deadline (externalRun when it has none).
+func left(ctx context.Context) time.Duration {
+	if d, ok := ctx.Deadline(); ok {
+		return time.Until(d)
+	}
+	return externalRun
+}
+
 // externalPorts are the port numbers the external shape names (-p); a port outside them in the XML fails the run (INV-7).
 var externalPorts = commonports.Numbers()
 
 // ScanExternal identifies the services on the open TCP ports of ip, the box's own verified public IP, for exposure (D-514).
-// Order: wait at most busyWait for the nmap slot (else ErrBusy); the worker must be there (ErrUnavailable); a job row; then,
-// right before the job is handed out, own says whether ip is still the box's own egress (else ErrNotOwnIP, nothing sent); the
-// probe row; then the job. A nil own refuses (fail closed). The stop of the module (Stop) or of ctx ends it with ErrStopped.
+// Order: wait for the nmap slot at most busyWait, and never so long that less than externalNeed plus coreFenceTime would be left
+// (else ErrBusy, or ErrNoTime when no wait at all fits); a Stop that came during the wait ends it (ErrStopped); the worker must be
+// there (ErrUnavailable); a job row; then, right before the job is handed out, own says whether ip is still the box's own egress
+// (else ErrNotOwnIP, nothing sent); less than externalNeed left → ErrNoTime; the probe row; then the job. A nil own refuses (fail
+// closed). The stop of the module (Stop) or of ctx ends it with ErrStopped.
 func (s *Service) ScanExternal(ctx context.Context, ip netip.Addr, own OwnEgress) (External, error) {
 	targets := []netip.Addr{ip}
 	args, err := nmapargv.Build(nmapargv.External, nmapargv.ExternalRate, targets)
@@ -73,13 +95,21 @@ func (s *Service) ScanExternal(ctx context.Context, ip netip.Addr, own OwnEgress
 	if own == nil {
 		return External{}, ErrNotOwnIP
 	}
-	if !s.lockWithin(ctx, busyWait) {
+	wait := min(busyWait, left(ctx)-externalNeed-coreFenceTime)
+	if wait < 0 {
+		return External{}, ErrNoTime
+	}
+	stops := s.stops.Load()
+	if !s.lockWithin(ctx, wait) {
 		if ctx.Err() != nil {
 			return External{}, ErrStopped
 		}
 		return External{}, ErrBusy
 	}
 	defer s.runMu.Unlock()
+	if s.stops.Load() != stops { // the module was turned off while the run waited for the slot (#723 review L4)
+		return External{}, ErrStopped
+	}
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	s.setCur(&running{cancel: cancel, targets: targets, rate: nmapargv.ExternalRate, kind: nmapargv.External, external: true})
@@ -114,6 +144,9 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 		s.log.WarnContext(ctx, "sensoractive: external scan refused, the address is not the box's own public IP now; no packet sent", "ip", ip.String())
 		return External{}, ErrNotOwnIP
 	}
+	if left(ctx) < externalNeed {
+		return External{}, ErrNoTime
+	}
 	targets := []netip.Addr{ip}
 	probeID, err := s.insertProbe(ctx, jobID, nmapargv.External, nmapargv.ExternalRate, targets)
 	if err != nil {
@@ -123,17 +156,13 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 		s.finishProbe(ctx, probeID, stoppedText)
 		return External{}, ErrStopped
 	}
-	timeout := externalRun
-	if d, ok := ctx.Deadline(); ok {
-		timeout = min(time.Until(d), externalRun)
-	}
-	rctx, cancel := context.WithTimeout(ctx, timeout)
+	rctx, cancel := context.WithTimeout(ctx, min(left(ctx), externalRun))
 	defer cancel()
 	out, runErr := s.prober.Probe(rctx, args)
-	hosts, result, err := runOutcome(ctx, rctx, out, runErr, targets)
+	hosts, result, err := runOutcome(ctx, rctx, out, runErr)
 	var ext External
 	if err == nil {
-		if ext, err = externalOf(hosts); err != nil {
+		if ext, err = externalOf(hosts, ip); err != nil {
 			result = "failed: output not valid, discarded"
 			if errors.Is(err, ErrHostTimedOut) {
 				result = "failed: nmap gave up on the address at its host timeout"
@@ -152,16 +181,17 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 	return ext, nil
 }
 
-// externalOf reads the services of an external run from the hosts nmap reported for the one address (onlyTargets already dropped
-// any other). Beyond the limits of parseNmapXML (INV-7) it fails closed on more than one host, a port that is not TCP or not in
-// the probed list, and a port twice: an answer outside what was asked is not believed in part (D-514).
-func externalOf(hosts []host) (External, error) {
+// externalOf reads the services of an external run from every host nmap reported up. Beyond the limits of parseNmapXML (INV-7)
+// it fails closed on anything but exactly one host, the asked address (-Pn reports it up; none means nmap printed nothing usable
+// for it, never "no open port", #723 review L3), a port that is not TCP or not in the probed list, and a port twice: an answer
+// outside what was asked is not believed in part (D-514).
+func externalOf(hosts []host, ip netip.Addr) (External, error) {
 	ext := External{Services: []ExternalService{}, Ports: len(externalPorts)}
 	switch {
-	case len(hosts) > 1:
+	case len(hosts) != 1:
 		return External{}, fmt.Errorf("%w: %d hosts for one address", errXMLInvalid, len(hosts))
-	case len(hosts) == 0:
-		return ext, nil // -Pn reports the host up; none means nmap printed nothing for it
+	case hosts[0].addr != ip:
+		return External{}, fmt.Errorf("%w: a host that was not asked about", errXMLInvalid)
 	case hosts[0].timedOut:
 		return External{}, ErrHostTimedOut
 	}

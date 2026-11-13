@@ -6,6 +6,7 @@ import (
 	"errors"
 	"go/build"
 	"log/slog"
+	"net"
 	"os"
 	"os/exec" //nolint:depguard // the test re-runs its own binary to send main() a real signal; SYS-1 is about the product
 	"path/filepath"
@@ -308,5 +309,30 @@ func TestNucleiHomeFlagIsRefusedWhenDangerous(t *testing.T) {
 	}
 	if err := validNucleiHome("/tmp/vedette-nuclei"); err != nil {
 		t.Errorf("the default is refused: %v", err)
+	}
+}
+
+// #723 review M2: the own-IP fence connects over IPv4 only, so a dual-stack host's services answer with its IPv4 address.
+func TestEgressTransportDialsIPv4Only(t *testing.T) {
+	t.Parallel()
+	tr := egressTransport()
+	v4, err := new(net.ListenConfig).Listen(t.Context(), "tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer v4.Close()
+	c, err := tr.DialContext(t.Context(), "tcp", v4.Addr().String())
+	if err != nil {
+		t.Fatalf("IPv4: %v", err)
+	}
+	_ = c.Close()
+	v6, err := new(net.ListenConfig).Listen(t.Context(), "tcp6", "[::1]:0")
+	if err != nil {
+		t.Skip("no IPv6 loopback on this machine")
+	}
+	defer v6.Close()
+	if c, err := tr.DialContext(t.Context(), "tcp", v6.Addr().String()); err == nil {
+		_ = c.Close()
+		t.Fatal("the fence's transport dialed an IPv6 address")
 	}
 }

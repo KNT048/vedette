@@ -2,24 +2,28 @@ package sensoractive
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"log/slog"
 	"net/netip"
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
+	"time"
 	"unicode/utf8"
 )
 
 var ownIP = netip.MustParseAddr("8.8.8.8")
 
-// readExternal is the parse of an external run as ScanExternal does it: the XML limits (INV-7), the asked address only, then
-// externalOf's own bounds (D-514).
+// readExternal is the parse of an external run as ScanExternal does it: the XML limits (INV-7), then externalOf's own bounds over
+// every host nmap reported (D-514).
 func readExternal(data []byte) (External, error) {
 	all, err := parseNmapXML(data)
 	if err != nil {
 		return External{}, err
 	}
-	return externalOf(onlyTargets(all, []netip.Addr{ownIP}))
+	return externalOf(all, ownIP)
 }
 
 // D-514: what -sV read on each open port of the box's own IP: the application CPE only, the extra info, a service with no
@@ -69,11 +73,18 @@ func TestExternalOutputFailsClosed(t *testing.T) {
 			t.Errorf("%s: err = %v, want %v", name, err, c.want)
 		}
 	}
-	// a host nmap reports from another address is not the target's: dropped (onlyTargets), the target's rows stay
+	// #723 review L3: a host of another address fails the run, with or without the target's; no usable host is not "0 open ports"
 	other := strings.Replace(host, `addr="8.8.8.8"`, `addr="1.1.1.1"`, 1)
-	got, err := readExternal([]byte(strings.Replace(base, host, host+other, 1)))
-	if err != nil || len(got.Services) != 4 {
-		t.Fatalf("another host: %v %+v", err, got)
+	down := strings.Replace(host, `state="up"`, `state="down"`, 1)
+	for name, data := range map[string]string{
+		"another host as well": strings.Replace(base, host, host+other, 1),
+		"only another host":    strings.Replace(base, host, other, 1),
+		"no host":              strings.Replace(base, host, "", 1),
+		"the host down":        strings.Replace(base, host, down, 1),
+	} {
+		if got, err := readExternal([]byte(data)); !errors.Is(err, errXMLInvalid) {
+			t.Errorf("%s: %+v %v", name, got, err)
+		}
 	}
 }
 
@@ -105,6 +116,45 @@ func FuzzExternalOf(f *testing.F) {
 			if s.CPE != "" && (!strings.HasPrefix(s.CPE, "cpe:/a:") || cpeText(s.CPE) != s.CPE) {
 				t.Fatalf("cpe %q", s.CPE)
 			}
+		}
+	})
+}
+
+type yesFence struct{}
+
+func (yesFence) OwnEgress(context.Context, netip.Addr) (bool, error) { return true, nil }
+
+// #723 review L4: the module turned off (Stop) while a run waited for the nmap slot ends it once it has the slot, before it asks or
+// sends anything: an external run and a picked identification alike.
+func TestStopDuringTheSlotWaitIsHonoured(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		s := &Service{log: slog.New(slog.DiscardHandler), clock: time.Now}
+		s.runMu.Lock() // another nmap run holds the slot
+		ext, ident := make(chan error, 1), make(chan error, 1)
+		go func() { _, err := s.ScanExternal(t.Context(), ownIP, yesFence{}); ext <- err }()
+		go func() { _, err := s.IdentifyDevice(t.Context(), "a-web"); ident <- err }()
+		synctest.Wait() // both wait for the slot
+		s.Stop()
+		s.runMu.Unlock()
+		for name, ch := range map[string]chan error{"external": ext, "identify": ident} {
+			if err := <-ch; !errors.Is(err, ErrStopped) {
+				t.Errorf("%s: err = %v, want ErrStopped", name, err)
+			}
+		}
+	})
+}
+
+// #723 review L5: with less of the caller's time left than the run needs (the worker's fence, nmap's 3-minute host timeout, the
+// pickup and the result), the run is skipped before it waits, asks or sends anything.
+func TestExternalSkippedWhenTooLittleTimeIsLeft(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		s := &Service{log: slog.New(slog.DiscardHandler), clock: time.Now}
+		ctx, cancel := context.WithTimeout(t.Context(), externalNeed+coreFenceTime-time.Second)
+		defer cancel()
+		if _, err := s.ScanExternal(ctx, ownIP, yesFence{}); !errors.Is(err, ErrNoTime) {
+			t.Fatalf("err = %v, want ErrNoTime", err)
 		}
 	})
 }

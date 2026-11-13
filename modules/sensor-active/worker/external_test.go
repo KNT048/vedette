@@ -73,15 +73,20 @@ func TestExternalJobRunsOnlyOnTheBoxsOwnIP(t *testing.T) {
 	}
 }
 
-// Not the box's own address in any of the rounds, no answer at all, or no fence configured: refused not_own_ip, and nmap never
-// starts.
+// Not the box's own address in any of the rounds: refused not_own_ip. No round answered at all (services unreachable, TLS, no
+// agreement) or no fence configured: refused egress_unverified (#723 review M1). Either way nmap never starts.
 func TestExternalJobRefusedWhenTheAddressIsNotTheBoxs(t *testing.T) {
 	t.Parallel()
-	for name, eg := range map[string]*fakeEgress{
-		"another address": {answers: []string{"1.1.1.1"}},
-		"no answer":       {answers: []string{""}},
-		"no fence":        nil,
+	for name, c := range map[string]struct {
+		eg   *fakeEgress
+		want string
+	}{
+		"another address":             {&fakeEgress{answers: []string{"1.1.1.1"}}, "not_own_ip"},
+		"no answer, then another one": {&fakeEgress{answers: []string{"", "1.1.1.1", ""}}, "not_own_ip"},
+		"no answer":                   {&fakeEgress{answers: []string{""}}, "egress_unverified"},
+		"no fence":                    {nil, "egress_unverified"},
 	} {
+		eg := c.eg
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			nm := writeNmap(t, printXML)
@@ -92,7 +97,7 @@ func TestExternalJobRefusedWhenTheAddressIsNotTheBoxs(t *testing.T) {
 			})
 			r.core.push(externalJob(id1, "8.8.8.8"))
 			got := r.core.next(t)
-			if got.res.Status != "refused" || got.res.Reason != "not_own_ip" || got.res.ExitCode != -1 {
+			if got.res.Status != "refused" || got.res.Reason != c.want || got.res.ExitCode != -1 {
 				t.Fatalf("result = %+v", got.res)
 			}
 			if nm.argvLog() != "" {

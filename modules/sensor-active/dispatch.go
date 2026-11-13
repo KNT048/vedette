@@ -385,9 +385,13 @@ func (d *Dispatcher) outcome(j *djob) (Output, error) {
 	res := j.res
 	switch {
 	case res.Status == "refused" && res.Reason == "not_own_ip":
-		// The worker's own-IP fence (D-514): it does not see the box leave the Internet through the external job's address.
+		// The worker's own-IP fence (D-514): it sees the box leave the Internet through another address than the external job's.
 		d.log.Warn("sensor_active_worker_refused_external_job", "reason", res.Reason)
 		return Output{}, fmt.Errorf("%w (%s): %w", ErrWorkerRefused, res.Reason, ErrNotOwnIP)
+	case res.Status == "refused" && res.Reason == "egress_unverified":
+		// The fence could not ask the public IP services (no route, DNS, TLS, no agreement): nothing is known, so nothing is sent.
+		d.log.Warn("sensor_active_worker_refused_external_job", "reason", res.Reason)
+		return Output{}, fmt.Errorf("%w (%s): %w", ErrWorkerRefused, res.Reason, ErrEgressUnverified)
 	case res.Status == "refused":
 		d.log.Error("sensor_active_worker_refused_job", "reason", res.Reason) // core and worker disagree on the grammar, or the worker is not what it should be
 		return Output{}, fmt.Errorf("%w (%s)", ErrWorkerRefused, res.Reason)

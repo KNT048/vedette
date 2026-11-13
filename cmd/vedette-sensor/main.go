@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -103,7 +105,7 @@ func runActive(ctx context.Context, args []string, stdout io.Writer, logger *slo
 		return err
 	}
 	// The own-IP fence of the external shape (D-514): the three public services of exposure, asked only when an external job comes.
-	egress, err := egressip.New(nil, nil, 0)
+	egress, err := egressip.New(nil, egressTransport(), 0)
 	if err != nil {
 		return err
 	}
@@ -115,4 +117,14 @@ func runActive(ctx context.Context, args []string, stdout io.Writer, logger *slo
 		return err
 	}
 	return w.Run(ctx)
+}
+
+// egressTransport is the transport of the worker's own-IP fence: it connects over IPv4 only (#723 review M2). The scan container
+// runs on the host's network; on a dual-stack host two of the three services would answer with the host's IPv6 address and the
+// fence could never see the IPv4 target. exposure, in core on the IPv4 bridge, keeps its own default transport.
+func egressTransport() *http.Transport {
+	t := http.DefaultTransport.(*http.Transport).Clone() //nolint:forcetypeassert // the standard library's default is an *http.Transport
+	d := &net.Dialer{Timeout: 5 * time.Second}
+	t.DialContext = func(ctx context.Context, _, addr string) (net.Conn, error) { return d.DialContext(ctx, "tcp4", addr) }
+	return t
 }

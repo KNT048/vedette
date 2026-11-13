@@ -497,7 +497,7 @@ var (
 	nmapVerRE  = regexp.MustCompile(`^[0-9A-Za-z._+-]{0,32}$`)
 	hostPortRE = regexp.MustCompile(`^[0-9]{1,3}(\.[0-9]{1,3}){3}:[0-9]{1,5}$`)
 	etagRE     = regexp.MustCompile(`^"[A-Za-z0-9._:-]{1,64}"$`)
-	resultCode = map[string]bool{"": true, "invalid_job": true, "busy": true, "nmap_missing": true, "nuclei_missing": true, "pack_mismatch": true, "pack_invalid": true, "exec_failed": true, "deadline": true, "cancelled": true, "not_own_ip": true}
+	resultCode = map[string]bool{"": true, "invalid_job": true, "busy": true, "nmap_missing": true, "nuclei_missing": true, "pack_mismatch": true, "pack_invalid": true, "exec_failed": true, "deadline": true, "cancelled": true, "not_own_ip": true, "egress_unverified": true}
 	resultStat = map[string]bool{"done": true, "failed": true, "stopped": true, "refused": true}
 )
 

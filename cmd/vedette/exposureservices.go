@@ -29,7 +29,9 @@ type exposureServiceScan struct {
 // The reasons exposure shows after "Service identification (nmap -sV) did not run: ".
 const (
 	servicesOff     = "the Active discovery module is off, so the scan container does not run nmap. An admin can turn it on in Settings, Modules."
-	servicesBusy    = "the scan container's nmap was busy with another scan for 2 minutes. Scan again later."
+	servicesBusy    = "the scan container's nmap was busy with another scan. Scan again later."
+	servicesNoTime  = "too little of the 5 minutes of this step was left to run nmap -sV. Scan again later."
+	servicesNoCheck = "the scan container could not reach the public IP services to check that %s is still this box's address, so its ports were not probed. Check that the box can reach checkip.amazonaws.com, icanhazip.com and ifconfig.me over HTTPS."
 	servicesNoWork  = "the scan container is not available (it has not reported, or it has no nmap). Settings, Sensors says why."
 	servicesNotOwn  = "this box no longer reaches the Internet through %s, so its ports were not probed."
 	servicesOld     = "the scan container refused the job; it may be older than the rest of Vedette. Update the box, then scan again."
@@ -60,6 +62,10 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 		return exposure.ServiceScan{}, ctx.Err()
 	case errors.Is(err, sensoractive.ErrStopped):
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesStopped}
+	case errors.Is(err, sensoractive.ErrNoTime):
+		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesNoTime}
+	case errors.Is(err, sensoractive.ErrEgressUnverified): // before ErrWorkerRefused, which wraps it
+		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: fmt.Sprintf(servicesNoCheck, ip)}
 	case errors.Is(err, sensoractive.ErrBusy):
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesBusy}
 	case errors.Is(err, sensoractive.ErrNotOwnIP):

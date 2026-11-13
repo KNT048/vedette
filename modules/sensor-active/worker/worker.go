@@ -417,12 +417,12 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 	rctx, cancel := context.WithTimeout(jctx, time.Duration(cur.job.TimeoutS)*time.Second)
 	defer cancel()
 	if cur.job.Shape == nmapargv.External.Name() { // argvOf proved it has one public target
-		if !w.ownIP(rctx, netip.MustParseAddr(cur.job.Targets[0])) {
+		if ok, reason := w.ownIP(rctx, netip.MustParseAddr(cur.job.Targets[0])); !ok {
 			if context.Cause(jctx) != nil {
 				return stopped()
 			}
-			w.log.WarnContext(ctx, "sensor_active_external_job_refused_not_own_ip", "id", cur.job.ID)
-			return &sensorlink.JobResult{Status: "refused", Reason: "not_own_ip", ExitCode: -1}
+			w.log.WarnContext(ctx, "sensor_active_external_job_refused", "id", cur.job.ID, "reason", reason)
+			return &sensorlink.JobResult{Status: "refused", Reason: reason, ExitCode: -1}
 		}
 	}
 	out, err := w.runner.Run(rctx, "nmap", argv, nil)

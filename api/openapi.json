@@ -61426,6 +61426,7 @@
                                   "unapproved",
                                   "excluded",
                                   "out_of_scope",
+                                  "no_ip",
                                   "box",
                                   "regular_scan_never",
                                   "unverified",
@@ -61437,7 +61438,38 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "null when the target can be scanned by picking it. box: the Vedette box itself is never scanned. regular_scan_never: a person set \"never scan\" on the device (D-126). not_supported: external targets are not scanned by this version yet"
+                            "description": "null when the target can be scanned by picking it. no_ip: the device has no IP address (a product added by hand without one). box: the Vedette box itself is never scanned. regular_scan_never: a person set \"never scan\" on the device (D-126). not_supported: external targets are not scanned by this version yet"
+                          },
+                          "mac": {
+                            "description": "For the picker search (D-472); null when unknown and for external targets",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "vendor": {
+                            "description": "For the picker search (D-472); null when unknown and for external targets",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "approved": {
+                            "type": "boolean",
+                            "description": "Approved in the inventory (picker filter, D-472); false for external targets"
+                          },
+                          "last_seen": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "When the inventory last saw the device (picker filter, D-472); null for external targets"
                           }
                         },
                         "required": [
@@ -61450,7 +61482,11 @@
                           "findings",
                           "pick_only",
                           "selectable",
-                          "reason"
+                          "reason",
+                          "mac",
+                          "vendor",
+                          "approved",
+                          "last_seen"
                         ],
                         "additionalProperties": false
                       }

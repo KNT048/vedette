@@ -138805,6 +138805,8 @@ func (s *ScanGetScansTargetsOK) SetItems(val []ScanGetScansTargetsOKItemsItem) {
 }
 
 type ScanGetScansTargetsOKItemsItem struct {
+	// Approved in the inventory (picker filter, D-472); false for external targets.
+	Approved bool `json:"approved"`
 	// Device type in the inventory; null for external targets.
 	DeviceKind NilScanGetScansTargetsOKItemsItemDeviceKind `json:"device_kind"`
 	Findings   int                                         `json:"findings"`
@@ -138816,14 +138818,26 @@ type ScanGetScansTargetsOKItemsItem struct {
 	IP    string                             `json:"ip"`
 	Kind  ScanGetScansTargetsOKItemsItemKind `json:"kind"`
 	Label string                             `json:"label"`
+	// When the inventory last saw the device (picker filter, D-472); null for external targets.
+	LastSeen NilDateTime `json:"last_seen"`
+	// For the picker search (D-472); null when unknown and for external targets.
+	MAC NilString `json:"mac"`
 	// Fragile, unclassified or added by hand: scanned only when a person ticks it in Scan now (D-126 (2)).
 	// The page never ticks it for you: not by default, not with Select all, not from a link.
 	PickOnly bool `json:"pick_only"`
-	// Null when the target can be scanned by picking it. box: the Vedette box itself is never scanned.
-	// regular_scan_never: a person set "never scan" on the device (D-126). not_supported: external targets
-	// are not scanned by this version yet.
+	// Null when the target can be scanned by picking it. no_ip: the device has no IP address (a product
+	// added by hand without one). box: the Vedette box itself is never scanned. regular_scan_never: a
+	// person set "never scan" on the device (D-126). not_supported: external targets are not scanned by
+	// this version yet.
 	Reason     NilScanGetScansTargetsOKItemsItemReason `json:"reason"`
 	Selectable bool                                    `json:"selectable"`
+	// For the picker search (D-472); null when unknown and for external targets.
+	Vendor NilString `json:"vendor"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *ScanGetScansTargetsOKItemsItem) GetApproved() bool {
+	return s.Approved
 }
 
 // GetDeviceKind returns the value of DeviceKind.
@@ -138861,6 +138875,16 @@ func (s *ScanGetScansTargetsOKItemsItem) GetLabel() string {
 	return s.Label
 }
 
+// GetLastSeen returns the value of LastSeen.
+func (s *ScanGetScansTargetsOKItemsItem) GetLastSeen() NilDateTime {
+	return s.LastSeen
+}
+
+// GetMAC returns the value of MAC.
+func (s *ScanGetScansTargetsOKItemsItem) GetMAC() NilString {
+	return s.MAC
+}
+
 // GetPickOnly returns the value of PickOnly.
 func (s *ScanGetScansTargetsOKItemsItem) GetPickOnly() bool {
 	return s.PickOnly
@@ -138874,6 +138898,16 @@ func (s *ScanGetScansTargetsOKItemsItem) GetReason() NilScanGetScansTargetsOKIte
 // GetSelectable returns the value of Selectable.
 func (s *ScanGetScansTargetsOKItemsItem) GetSelectable() bool {
 	return s.Selectable
+}
+
+// GetVendor returns the value of Vendor.
+func (s *ScanGetScansTargetsOKItemsItem) GetVendor() NilString {
+	return s.Vendor
+}
+
+// SetApproved sets the value of Approved.
+func (s *ScanGetScansTargetsOKItemsItem) SetApproved(val bool) {
+	s.Approved = val
 }
 
 // SetDeviceKind sets the value of DeviceKind.
@@ -138911,6 +138945,16 @@ func (s *ScanGetScansTargetsOKItemsItem) SetLabel(val string) {
 	s.Label = val
 }
 
+// SetLastSeen sets the value of LastSeen.
+func (s *ScanGetScansTargetsOKItemsItem) SetLastSeen(val NilDateTime) {
+	s.LastSeen = val
+}
+
+// SetMAC sets the value of MAC.
+func (s *ScanGetScansTargetsOKItemsItem) SetMAC(val NilString) {
+	s.MAC = val
+}
+
 // SetPickOnly sets the value of PickOnly.
 func (s *ScanGetScansTargetsOKItemsItem) SetPickOnly(val bool) {
 	s.PickOnly = val
@@ -138924,6 +138968,11 @@ func (s *ScanGetScansTargetsOKItemsItem) SetReason(val NilScanGetScansTargetsOKI
 // SetSelectable sets the value of Selectable.
 func (s *ScanGetScansTargetsOKItemsItem) SetSelectable(val bool) {
 	s.Selectable = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *ScanGetScansTargetsOKItemsItem) SetVendor(val NilString) {
+	s.Vendor = val
 }
 
 type ScanGetScansTargetsOKItemsItemDeviceKind string
@@ -139091,6 +139140,7 @@ const (
 	ScanGetScansTargetsOKItemsItemReasonUnapproved       ScanGetScansTargetsOKItemsItemReason = "unapproved"
 	ScanGetScansTargetsOKItemsItemReasonExcluded         ScanGetScansTargetsOKItemsItemReason = "excluded"
 	ScanGetScansTargetsOKItemsItemReasonOutOfScope       ScanGetScansTargetsOKItemsItemReason = "out_of_scope"
+	ScanGetScansTargetsOKItemsItemReasonNoIP             ScanGetScansTargetsOKItemsItemReason = "no_ip"
 	ScanGetScansTargetsOKItemsItemReasonBox              ScanGetScansTargetsOKItemsItemReason = "box"
 	ScanGetScansTargetsOKItemsItemReasonRegularScanNever ScanGetScansTargetsOKItemsItemReason = "regular_scan_never"
 	ScanGetScansTargetsOKItemsItemReasonUnverified       ScanGetScansTargetsOKItemsItemReason = "unverified"
@@ -139104,6 +139154,7 @@ func (ScanGetScansTargetsOKItemsItemReason) AllValues() []ScanGetScansTargetsOKI
 		ScanGetScansTargetsOKItemsItemReasonUnapproved,
 		ScanGetScansTargetsOKItemsItemReasonExcluded,
 		ScanGetScansTargetsOKItemsItemReasonOutOfScope,
+		ScanGetScansTargetsOKItemsItemReasonNoIP,
 		ScanGetScansTargetsOKItemsItemReasonBox,
 		ScanGetScansTargetsOKItemsItemReasonRegularScanNever,
 		ScanGetScansTargetsOKItemsItemReasonUnverified,
@@ -139120,6 +139171,8 @@ func (s ScanGetScansTargetsOKItemsItemReason) MarshalText() ([]byte, error) {
 	case ScanGetScansTargetsOKItemsItemReasonExcluded:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemReasonOutOfScope:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemReasonNoIP:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemReasonBox:
 		return []byte(s), nil
@@ -139147,6 +139200,9 @@ func (s *ScanGetScansTargetsOKItemsItemReason) UnmarshalText(data []byte) error 
 		return nil
 	case ScanGetScansTargetsOKItemsItemReasonOutOfScope:
 		*s = ScanGetScansTargetsOKItemsItemReasonOutOfScope
+		return nil
+	case ScanGetScansTargetsOKItemsItemReasonNoIP:
+		*s = ScanGetScansTargetsOKItemsItemReasonNoIP
 		return nil
 	case ScanGetScansTargetsOKItemsItemReasonBox:
 		*s = ScanGetScansTargetsOKItemsItemReasonBox

@@ -180,6 +180,7 @@ type AssetCore struct {
 	Notes       *string      `json:"notes,omitempty"`
 	IsBox       bool         `json:"is_box"`
 	FirstScanAt *string      `json:"first_scan_at"`
+	ApprovedAt  *string      `json:"approved_at"` // when a person (or osquery enrolment) approved it; nil when not approved, added by hand, or approved before D-471
 	RegularScan string       `json:"regular_scan"`
 }
 

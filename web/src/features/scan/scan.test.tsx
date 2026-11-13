@@ -929,16 +929,16 @@ describe('scan: target picker with 500 devices (S-SCAN-4, D-472)', () => {
     expect(screen.getByText('0 selected')).toBeInTheDocument()
   })
 
-  it('beta item 27, D-484: a product added by hand without an address is named, says "no IP" and links to its device', async () => {
+  it('beta item 27, D-484: a product added by hand without an address is named "<product> (no device)" (D-471), says "no IP" and links to its device', async () => {
     assetsStore.update((l) => [{ ...l.find((a) => a.id === 'a-web01')!, id: 'a-office', ip: '—', mac: null, hostname: null, kind: 'unknown' as const, origin: 'manual' as const, model: null,
       vendor: { value: 'Microsoft', source: 'manual' as const, confidence: 1, seen_at: new Date().toISOString() },
       software: [{ id: 's-off', display: 'Microsoft Office', vendor: 'Microsoft', product: 'Office', version: null, kev: [], source: 'manual' as const, confidence: 1 }] }, ...l])
     await start()
-    const row = screen.getByRole('checkbox', { name: /^Microsoft$/ }) // D-484's name; no "—" for the missing IP
+    const row = screen.getByRole('checkbox', { name: 'Microsoft Office (no device)' }) // D-471's name; no "—" for the missing IP
     expect(row).toBeDisabled()
     expect(screen.getByText('No IP address, so it cannot be scanned. Add its IP on the device page')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^No IP address/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open device Microsoft' })).toHaveAttribute('href', '/devices/a-office')
+    expect(screen.getByRole('link', { name: 'Open device Microsoft Office (no device)' })).toHaveAttribute('href', '/devices/a-office')
     await expectNoA11yViolations()
   })
 })

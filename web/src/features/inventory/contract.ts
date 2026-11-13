@@ -29,6 +29,7 @@ const ScanInfo = z.object({
   is_box: z.boolean().describe('true for the Vedette box itself: the first device, always present, cannot be deleted (409)'),
   first_scan_at: dt.nullable().describe('When the one gentle first scan happened; null = no gentle scan (declared by hand, the box itself, or a known kind that is not fragile and not set to never)'),
   regular_scan: RegularScan,
+  approved_at: dt.nullable().describe('When a person approved the device, or osquery enrolment did (D-471: "Approved in the last 24 h"); approving again does not move it; null = not approved, added by hand, or approved before this field existed'),
 })
 export const DeviceRow = Asset.extend(ScanInfo.shape).extend({
   suspicious: z.boolean(),
@@ -161,6 +162,8 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/inventory/devices/{id}/suspicious', summary: 'Mark or unmark a device as suspicious', stories: ['S-INV-3'], role: 'operator', params: id, body: z.object({ suspicious: z.boolean() }), response: ok },
   { method: 'post', path: '/inventory/devices/{id}/software', status: 201, summary: 'Declare additional software running on a device', stories: ['S-INV-2'], role: 'operator', params: id,
     body: AddDeviceInput.omit({ name: true, ip: true }), response: z.object({ kev_cves: z.number().int() }) },
+  { method: 'patch', path: '/inventory/devices/{id}/software/{sid}', summary: 'Change the version of manually declared software (400 not_manual for software a sensor or agent saw); an empty version removes it; the device is matched again (D-471)', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }),
+    body: z.object({ version: z.string().max(40).describe('Letters, digits, . - + ( ) and spaces; empty removes the version') }), response: ok },
   { method: 'delete', path: '/inventory/devices/{id}/software/{sid}', summary: 'Remove manually declared software from a device', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }), response: null },
   { method: 'get', path: '/inventory/catalog', summary: 'Suggest products by vendor or commercial name', stories: ['S-INV-2'], role: 'viewer', query: z.object({ q: z.string().max(80) }), response: CatalogResponse, example: { query: { q: 'forti' } } },
   { method: 'put', path: '/inventory/notify-new', summary: 'Turn alerts for new devices on or off', stories: ['S-INV-3'], role: 'operator', body: z.object({ enabled: z.boolean() }), response: z.object({ enabled: z.boolean() }) },

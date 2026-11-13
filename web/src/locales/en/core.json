@@ -494,6 +494,7 @@
       "inventory.import": "Import devices",
       "inventory.notify_new": "Change alerts for new devices",
       "inventory.remove_software": "Remove software from a device",
+      "inventory.set_software_version": "Change the version of software on a device",
       "inventory.set_fragile": "Mark device fragile",
       "inventory.set_kind": "Change device kind",
       "inventory.set_notes": "Change device notes",

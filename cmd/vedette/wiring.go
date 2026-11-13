@@ -63,11 +63,10 @@ func (a feedsInventory) MatchProducts(ctx context.Context, products []feeds.Prod
 	return out, nil
 }
 
-// AddManualDevice declares the "I have this" device. inventory does not return the new device's id yet, so the id is ""
-// and the "I have this" scope of findings (D-484, INV-11) stays off: no CVE is hidden on any device. Once
-// inventory.AddManualDevice returns the id (Kiên, .ai/deferred/fix-findings-walk1-mlee.md), return it here.
+// AddManualDevice declares the "I have this" device and returns its id, so feeds records it on the answer and the
+// "I have this" scope of findings (D-484 (4), INV-11) covers that one device (W1-3, M5-177).
 func (a feedsInventory) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d feeds.ManualDevice) (string, error) {
-	return "", a.inv.AddManualDevice(ctx, tx, actor, inventory.ManualDevice{Kind: d.Kind, Vendor: d.Vendor, Product: d.Product, Display: d.Display, Key: d.Key})
+	return a.inv.AddManualDevice(ctx, tx, actor, inventory.ManualDevice{Kind: d.Kind, Vendor: d.Vendor, Product: d.Product, Display: d.Display, Key: d.Key})
 }
 
 func (a feedsInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) {

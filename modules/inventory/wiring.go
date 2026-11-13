@@ -398,21 +398,22 @@ type ManualDevice struct {
 // software, the audit row and the events are the caller's one commit. It applies every check of AddDevice (a
 // product from the catalog or typed by hand, the same length and character rules). The one difference: a
 // vendor and product that are an exact pair of the KEV list may be longer than 64 characters, because that is
-// data from the CISA list, not something a person typed. The events are kept until the caller calls Settle.
-func (s *Service) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, in ManualDevice) error {
+// data from the CISA list, not something a person typed. The events are kept until the caller calls Settle. It returns
+// the new device's id: feeds scopes "I have this" to that one device (D-484 (4), W1-3).
+func (s *Service) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, in ManualDevice) (string, error) {
 	if in.Key != kevKey(in.Vendor, in.Product) {
-		return badRequest("bad_product", "The product key does not match the vendor and product.")
+		return "", badRequest("bad_product", "The product key does not match the vendor and product.")
 	}
 	c, err := s.Catalog(ctx)
 	if err != nil {
-		return err
+		return "", err
 	}
 	a, aerr := checkAdd(c, AddInput{Vendor: in.Vendor, Product: in.Product}, true)
 	if aerr != nil && aerr.Code == "bad_product" && c.kevCount[in.Key] > 0 && cleanText(strings.TrimSpace(in.Vendor)) && cleanText(strings.TrimSpace(in.Product)) {
 		a, aerr = addChecked{entry: c.custom(strings.TrimSpace(in.Vendor), strings.TrimSpace(in.Product))}, nil
 	}
 	if aerr != nil {
-		return aerr
+		return "", aerr
 	}
 	e := *a.entry
 	if d := strings.TrimSpace(in.Display); label(d) { // a name with markup or too long is not used; the product's own name stays
@@ -427,14 +428,15 @@ func (s *Service) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string,
 		kind = in.Kind
 	}
 	var o outbox
-	if _, err := s.createManual(ctx, tx, &o, a, kind); err != nil {
-		return err
+	id, err := s.createManual(ctx, tx, &o, a, kind)
+	if err != nil {
+		return "", err
 	}
 	if err := s.auditTx(ctx, tx, actor, "inventory.add_manual", a.entry.display, ""); err != nil {
-		return err
+		return "", err
 	}
 	s.keep(tx, &o)
-	return nil
+	return id, nil
 }
 
 // keep holds o's events until Settle(tx) (AddManualDevice, SetupScope); a second call in the same transaction adds to the first.

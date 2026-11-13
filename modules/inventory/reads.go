@@ -11,7 +11,7 @@ import (
 
 const noIP = "—" // what the API says for a device whose IP is unknown (contract.ts Asset.ip)
 
-const assetColumns = `a.id, a.ip, a.mac, a.hostname, a.kind, a.origin, a.approved, a.fragile, a.regular_scan, a.first_scan_at, a.suspicious, a.is_box, a.notes, a.first_seen, a.last_seen,
+const assetColumns = `a.id, a.ip, a.mac, a.hostname, a.kind, a.origin, a.approved, a.fragile, a.regular_scan, a.first_scan_at, a.approved_at, a.suspicious, a.is_box, a.notes, a.first_seen, a.last_seen,
 	v.value, v.source, v.confidence, v.seen_at, m.value, m.source, m.confidence, m.seen_at, o.value, o.source, o.confidence, o.seen_at,
 	h.value, h.source, h.confidence, h.seen_at, x.value, x.source, x.confidence, x.seen_at`
 
@@ -49,10 +49,10 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 	var out []Device
 	for rows.Next() {
 		var d Device
-		var ip, mac, host, scan, notes sql.NullString
+		var ip, mac, host, scan, approvedAt, notes sql.NullString
 		var v, m, o, h, x obsCols
 		var approved, fragile, suspicious, box bool
-		if err := rows.Scan(&d.ID, &ip, &mac, &host, &d.Kind, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen,
+		if err := rows.Scan(&d.ID, &ip, &mac, &host, &d.Kind, &d.Origin, &approved, &fragile, &d.RegularScan, &scan, &approvedAt, &suspicious, &box, &notes, &d.FirstSeen, &d.LastSeen,
 			&v.value, &v.source, &v.conf, &v.seen, &m.value, &m.source, &m.conf, &m.seen, &o.value, &o.source, &o.conf, &o.seen,
 			&h.value, &h.source, &h.conf, &h.seen, &x.value, &x.source, &x.conf, &x.seen); err != nil {
 			return nil, fmt.Errorf("inventory: read devices: %w", err)
@@ -62,7 +62,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 		if ip.Valid {
 			d.IP = ip.String
 		}
-		d.MAC, d.Hostname, d.FirstScanAt, d.Notes = ptr(mac), ptr(host), ptr(scan), ptr(notes)
+		d.MAC, d.Hostname, d.FirstScanAt, d.ApprovedAt, d.Notes = ptr(mac), ptr(host), ptr(scan), ptr(approvedAt), ptr(notes)
 		d.Vendor, d.Model, d.OS = v.observed(), m.observed(), o.observed()
 		d.ident = []*Observed{h.observed(), x.observed()}
 		d.Approved, d.Fragile, d.Suspicious, d.IsBox = approved, fragile, suspicious, box
@@ -314,28 +314,62 @@ func (s *Service) cves(ctx context.Context, keys []string) ([]string, error) {
 	return list, nil
 }
 
-// Names maps device ids to the name to show: the hostname, else "vendor model", else the IP (notify, honeypot, reports).
+// NoDevice ends the name of a device added by hand that has neither a name nor an IP: it is only a product someone
+// declared ("Microsoft Office (no device)"), never a nameless row (D-471).
+const NoDevice = " (no device)"
+
+// DisplayName is the one naming rule of every page and module (D-471; web/src/features/inventory/nameOf.ts is the same):
+// the host name (a name typed by hand is one); then a device added by hand is named after its first product, with
+// NoDevice when it has no IP either; any other device after its make and model, then its IP. "" when none of these is
+// known: the caller adds the kind, the IP placeholder or the id.
+func DisplayName(hostname, vendor, model, ip, origin, product string) string {
+	if h := strings.TrimSpace(hostname); h != "" {
+		return h
+	}
+	hasIP := ip != "" && ip != noIP
+	if p := strings.TrimSpace(product); origin == "manual" && p != "" {
+		if hasIP {
+			return p
+		}
+		return p + NoDevice
+	}
+	if hw := strings.TrimSpace(strings.TrimSpace(vendor) + " " + strings.TrimSpace(model)); hw != "" {
+		return hw
+	}
+	if hasIP {
+		return ip
+	}
+	return ""
+}
+
+// Name is DisplayName of a listed device; its software is sorted by display name, like firstSoftware.
+func (d Device) Name() string {
+	product := ""
+	if len(d.Software) > 0 {
+		product = d.Software[0].Display
+	}
+	return DisplayName(deref(d.Hostname), obsValue(d.Vendor), obsValue(d.Model), d.IP, d.Origin, product)
+}
+
+// firstSoftware selects the display name of a device's first software, in the order the pages list it (D-471 naming).
+const firstSoftware = `(SELECT display FROM inv_software WHERE asset_id = a.id ORDER BY display, id LIMIT 1)`
+
+// Names maps device ids to the name to show (DisplayName; the id when nothing is known) for findings, notify, honeypot
+// and reports.
 func (s *Service) Names(ctx context.Context) (map[string]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.vendor, a.model, a.ip FROM inv_asset a`)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.vendor, a.model, a.ip, a.origin, `+firstSoftware+` FROM inv_asset a`)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read names: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	out := map[string]string{}
 	for rows.Next() {
-		var id string
-		var host, vendor, model, ip sql.NullString
-		if err := rows.Scan(&id, &host, &vendor, &model, &ip); err != nil {
+		var id, origin string
+		var host, vendor, model, ip, product sql.NullString
+		if err := rows.Scan(&id, &host, &vendor, &model, &ip, &origin, &product); err != nil {
 			return nil, fmt.Errorf("inventory: read names: %w", err)
 		}
-		switch hw := strings.TrimSpace(vendor.String + " " + model.String); {
-		case host.Valid:
-			out[id] = host.String
-		case hw != "":
-			out[id] = hw
-		case ip.Valid:
-			out[id] = ip.String
-		default:
+		if out[id] = DisplayName(host.String, vendor.String, model.String, ip.String, origin, product.String); out[id] == "" {
 			out[id] = id
 		}
 	}
@@ -351,17 +385,23 @@ func assetExists(ctx context.Context, q querier, id string) (bool, error) {
 	return err == nil, err
 }
 
-// deviceName is how audit rows and messages name a device: hostname, else IP, else id.
+// deviceName is how audit rows and messages name a device: the hostname, else the IP, else as the pages do
+// (DisplayName, D-471), else the id.
 func deviceName(ctx context.Context, q querier, id string) string {
-	var host, ip sql.NullString
-	if err := q.QueryRowContext(ctx, `SELECT hostname, ip FROM inv_asset WHERE id = ?`, id).Scan(&host, &ip); err != nil {
+	var host, vendor, model, ip, product sql.NullString
+	var origin string
+	if err := q.QueryRowContext(ctx, `SELECT a.hostname, a.vendor, a.model, a.ip, a.origin, `+firstSoftware+` FROM inv_asset a WHERE a.id = ?`, id).
+		Scan(&host, &vendor, &model, &ip, &origin, &product); err != nil {
 		return id
 	}
-	if host.Valid {
+	switch {
+	case host.Valid:
 		return host.String
-	}
-	if ip.Valid {
+	case ip.Valid:
 		return ip.String
+	}
+	if n := DisplayName("", vendor.String, model.String, "", origin, product.String); n != "" {
+		return n
 	}
 	return id
 }

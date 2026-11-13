@@ -9,6 +9,7 @@ import type { Asset, Finding } from '@/lib/types'
 import { compromise, packs } from './packs'
 import type { AiResult, ApplyItem, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, MitigationPack, StatusAction } from './types'
 import { fmtDate } from '@/lib/format'
+import { displayName } from '@/features/inventory/nameOf'
 
 interface Vuln { cve: string; vendor: string; product: string; name: string; required_action: string; links: string[]; date_added: string; due_date: string | null; ransomware: boolean; epss: number | null; has_template: boolean }
 const vulns = (kev as { vulns: Vuln[] }).vulns
@@ -33,10 +34,9 @@ function kevInfo(cve: string): KevInfo | null {
   return { name: v.name, vendor: v.vendor, product: v.product, display, required_action: v.required_action, links: v.links, date_added: v.date_added, due_date: v.due_date, ransomware: v.ransomware, epss: v.epss, has_template: v.has_template }
 }
 
-/** Tên như trang Devices (D-484): tên máy, rồi hãng + model, rồi IP, rồi phần mềm; không bao giờ là id. */
+/** Tên như trang Devices (D-484, D-471 `displayName`): tên máy, sản phẩm khai tay ("… (no device)" khi không có IP), hãng + model, IP, rồi phần mềm; không bao giờ là id. */
 function nameOf(a: Asset): string {
-  const hw = [a.vendor?.value, a.model?.value].filter(Boolean).join(' ')
-  return a.hostname || hw || (a.ip && a.ip !== '—' ? a.ip : '') || a.software[0]?.display || a.kind
+  return displayName(a) || a.software[0]?.display || a.kind
 }
 
 function assetView(a: Asset | undefined): FindingAsset | null {

@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -267,6 +268,64 @@ func (s *Service) RemoveSoftware(ctx context.Context, actor, assetID, softwareID
 	})
 }
 
+// SetSoftwareVersion changes the version of software a person declared (D-471 "edit version": Accept on the device
+// page's "the device reports X" hint, and findings' "I updated it"); "" removes the version. What a sensor or agent saw
+// is not editable: it changes with its next report. The device's findings are matched again right after the commit.
+func (s *Service) SetSoftwareVersion(ctx context.Context, actor, assetID, softwareID, version string) error {
+	if err := s.requireDevice(ctx, assetID); err != nil { // 404 before 400, like AddSoftware
+		return err
+	}
+	version = strings.TrimSpace(version)
+	if version != "" && !versionRE.MatchString(version) {
+		return badRequest("bad_version", "The version may only contain letters, digits, dots, hyphens and brackets, up to 40 characters. Example 7.2.5.")
+	}
+	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+		ok, err := assetExists(ctx, tx, assetID)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return notFoundDevice()
+		}
+		var display, source string
+		var old sql.NullString
+		err = tx.QueryRowContext(ctx, `SELECT display, source, version FROM inv_software WHERE id = ? AND asset_id = ?`, softwareID, assetID).Scan(&display, &source, &old)
+		if errors.Is(err, sql.ErrNoRows) {
+			return apierr.New(404, apierr.CodeNotFound, "No such software on this device.")
+		} else if err != nil {
+			return fmt.Errorf("inventory: read software: %w", err)
+		}
+		if source != "manual" {
+			return badRequest("not_manual", "Only the version of manually declared software can be changed. Software seen by a sensor or agent updates on its next report.")
+		}
+		if old.String == version {
+			return nil // nothing changes: no audit row, no rematch
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET version = ?, seen_at = ? WHERE id = ?`, nullStr(version), s.now(), softwareID); err != nil {
+			if strings.Contains(err.Error(), "UNIQUE") {
+				return conflict("duplicate_software", display+" "+version+" is already on this device.")
+			}
+			return fmt.Errorf("inventory: set software version: %w", err)
+		}
+		keys, err := softwareKeys(ctx, tx, assetID)
+		if err != nil {
+			return err
+		}
+		o.add(EventSoftwareChanged, AssetEvent{AssetID: assetID})
+		// The keys do not change, so matchEvents would say nothing: one match event makes findings read the device again
+		// (OnMatchChanged matches the whole device), as the template pull does.
+		o.after = append(o.after, func(ctx context.Context) []Event {
+			cves, err := s.cves(ctx, keys)
+			if err != nil || len(cves) == 0 {
+				return nil
+			}
+			return []Event{{Name: EventMatchChanged, Data: MatchEvent{AssetID: assetID, CVE: slices.Min(cves), Basis: "product"}}}
+		})
+		detail := cmp.Or(old.String, "no version") + " → " + cmp.Or(version, "no version")
+		return s.auditTx(ctx, tx, actor, "inventory.set_software_version", deviceName(ctx, tx, assetID)+": "+display, detail)
+	})
+}
+
 // Patch is PATCH /inventory/devices/{id}; a nil field is left alone.
 type Patch struct {
 	Kind        *string
@@ -344,7 +403,8 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 
 // Approve accepts a device a sensor found (S-INV-3); it also clears the suspicious flag.
 func (s *Service) Approve(ctx context.Context, actor, id string) error {
-	return s.setFlag(ctx, actor, id, `UPDATE inv_asset SET approved = 1, suspicious = 0 WHERE id = ?`, []any{id}, "inventory.approve")
+	// approved_at keeps the first approval: approving again (to clear the unknown mark) does not move the device to "approved in the last 24 h" (D-471).
+	return s.setFlag(ctx, actor, id, `UPDATE inv_asset SET approved_at = CASE WHEN approved = 1 THEN approved_at ELSE ? END, approved = 1, suspicious = 0 WHERE id = ?`, []any{s.now(), id}, "inventory.approve")
 }
 
 // SetSuspicious marks or unmarks a device as suspicious (S-INV-3).

@@ -1,4 +1,5 @@
-import { Link } from 'react-router'
+import { useEffect } from 'react'
+import { Link, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -15,9 +16,16 @@ function Body() {
   const { t } = useTranslation('inventory')
   const me = useMe()
   const settings = useSettings()
+  const { hash } = useLocation()
+  const admin = me.data?.role === 'admin'
+  // "Add devices" links to #agents (D-471): the router does not scroll to a hash, and the section moves down once the ranges load.
+  useEffect(() => {
+    if (!hash || !admin || !settings.isFetched) return
+    document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView?.({ block: 'start' })
+  }, [hash, admin, settings.isFetched])
   const back = <Link to="/devices" className={cn(buttonVariants({ variant: 'link', size: 'sm' }), 'mb-3 inline-flex')}><ArrowLeft />{t('detail.back')}</Link>
   if (me.isPending) return <>{back}<Loading /></>
-  if (me.data?.role !== 'admin') {
+  if (!admin) {
     return <>{back}<PageHeader title={t('setup.forbiddenTitle')} /><EmptyState title={t('setup.forbidden')}>{t('setup.forbiddenBody', { role: t('common:role.admin') })}</EmptyState></>
   }
   const ranges = settings.data?.lan_ranges.length

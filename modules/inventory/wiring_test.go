@@ -20,7 +20,7 @@ func (e *env) manual(d inventory.ManualDevice, fail bool) error {
 	var txp *sql.Tx
 	err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
 		txp = tx
-		if err := e.svc.AddManualDevice(e.ctx(), tx, "emily@acme.example", d); err != nil {
+		if _, err := e.svc.AddManualDevice(e.ctx(), tx, "emily@acme.example", d); err != nil {
 			return err
 		}
 		if fail {
@@ -507,7 +507,8 @@ func TestSettleSendsTheEventsOfEveryCallInTheTransaction(t *testing.T) {
 		if err := e.svc.SetupScope(e.ctx(), tx, "ann@acme.example", []string{"192.168.10.0/24"}, true); err != nil {
 			return err
 		}
-		return e.svc.AddManualDevice(e.ctx(), tx, "ann@acme.example", inventory.ManualDevice{Vendor: "Fortinet", Product: "FortiOS", Key: "fortinet|fortios"})
+		_, err := e.svc.AddManualDevice(e.ctx(), tx, "ann@acme.example", inventory.ManualDevice{Vendor: "Fortinet", Product: "FortiOS", Key: "fortinet|fortios"})
+		return err
 	})
 	e.svc.Settle(e.ctx(), txp, err == nil)
 	if err != nil {

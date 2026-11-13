@@ -5739,6 +5739,124 @@ func decodeInventoryPatchInventoryDevicesIDParams(args [1]string, argsEscaped bo
 	return params, nil
 }
 
+// InventoryPatchInventoryDevicesIDSoftwareSidParams is parameters of inventory_patch_inventory_devices_id_software_sid operation.
+type InventoryPatchInventoryDevicesIDSoftwareSidParams struct {
+	ID  string
+	Sid string
+}
+
+func unpackInventoryPatchInventoryDevicesIDSoftwareSidParams(packed middleware.Parameters) (params InventoryPatchInventoryDevicesIDSoftwareSidParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "sid",
+			In:   "path",
+		}
+		params.Sid = packed[key].(string)
+	}
+	return params
+}
+
+func decodeInventoryPatchInventoryDevicesIDSoftwareSidParams(args [2]string, argsEscaped bool, r *http.Request) (params InventoryPatchInventoryDevicesIDSoftwareSidParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: sid.
+	if err := func() error {
+		param := args[1]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[1])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "sid",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Sid = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "sid",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // InventoryPatchInventorySensorsIDParams is parameters of inventory_patch_inventory_sensors_id operation.
 type InventoryPatchInventorySensorsIDParams struct {
 	ID string

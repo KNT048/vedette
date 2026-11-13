@@ -28,7 +28,7 @@ const kevVulns = (kev as { vulns: { cve: string; vendor: string; product: string
 const cvesFor = (keys: string[]) => kevVulns.filter((v) => keys.includes(`${v.vendor}|${v.product}`.toLowerCase())).map((v) => v.cve)
 
 // ---- bảng riêng ----
-interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan }
+interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan; approved_at?: string }
 export type StoredObs = Omit<Observation, 'current'>
 const metaStore = collection<Record<string, Meta>>('inv_meta', () => ({}))
 const obsStore = collection<Record<string, StoredObs[]>>('inv_obs', () => ({}))
@@ -230,6 +230,7 @@ const scanInfo = (a: Asset) => ({
   is_box: a.id === BOX_ID,
   first_scan_at: a.origin === 'discovered' && a.id !== BOX_ID && (a.fragile || a.kind === 'unknown' || metaStore.get()[a.id]?.regular_scan === 'never') ? new Date(new Date(a.first_seen).getTime() + 4 * 60_000).toISOString() : null,
   regular_scan: metaStore.get()[a.id]?.regular_scan ?? ('follow' as RegularScan),
+  approved_at: metaStore.get()[a.id]?.approved_at ?? null, // D-471: a person's first approval
 })
 // Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.
 const live = (a: Asset): Asset => (a.id === BOX_ID ? { ...a, last_seen: nowIso() } : a)
@@ -488,7 +489,7 @@ export const handlers = [
     const a = find(String(params.id))
     if (!a) return notFound(request)
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, approved: true } : x)))
-    metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], suspicious: false } }))
+    metaStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], suspicious: false, approved_at: m[a.id]?.approved_at ?? (a.approved ? undefined : nowIso()) } }))
     audit('inventory.approve', a.hostname ?? a.ip, a.id)
     return HttpResponse.json({ ok: true })
   }),
@@ -516,6 +517,24 @@ export const handlers = [
     matchAssetToKev(a.id)
     audit('inventory.add_software', `${a.hostname ?? a.id}: ${sw.display}`)
     return HttpResponse.json({ kev_cves: v.entry!.kev_count }, { status: 201 })
+  }),
+
+  // D-471 edit version: only what a person declared; empty removes it; the device is matched again.
+  http.patch(`${API}/inventory/devices/:id/software/:sid`, async ({ params, request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const a = find(String(params.id))
+    if (!a) return notFound(request)
+    const b = await body<{ version: string }>(request)
+    const version = typeof b.version === 'string' ? b.version.trim() : null
+    if (version === null || (version !== '' && !/^[A-Za-z0-9_.\-+() ]{1,40}$/.test(version))) return fail(400, 'bad_version', 'The version may only contain letters, digits, dots, hyphens and brackets, up to 40 characters. Example 7.2.5.')
+    const sw = a.software.find((s) => s.id === params.sid)
+    if (!sw) return fail(404, 'not_found', 'No such software on this device.')
+    if (sw.source !== 'manual') return fail(400, 'not_manual', 'Only the version of manually declared software can be changed. Software seen by a sensor or agent updates on its next report.')
+    if ((sw.version ?? '') === version) return HttpResponse.json({ ok: true })
+    assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: x.software.map((s) => (s.id === sw.id ? { ...s, version: version || null } : s)) } : x)))
+    matchAssetToKev(a.id)
+    audit('inventory.set_software_version', `${a.hostname ?? a.id}: ${sw.display}`, `${sw.version || 'no version'} → ${version || 'no version'}`)
+    return HttpResponse.json({ ok: true })
   }),
 
   http.delete(`${API}/inventory/devices/:id/software/:sid`, ({ params, request }) => {

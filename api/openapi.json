@@ -53975,9 +53975,10 @@
                                             "ready",
                                             "execution_off",
                                             "tool_not_allowed",
-                                            "tool_unavailable"
+                                            "tool_unavailable",
+                                            "not_publishable"
                                           ],
-                                          "description": "ready = a request can be made now; the others say what blocks it"
+                                          "description": "ready = a request can be made now; the others say what blocks it (not_publishable: a block list action on an address the list never publishes, D-469)"
                                         },
                                         "request_id": {
                                           "description": "Open (pending) or executed request for this proposal",

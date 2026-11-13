@@ -203069,6 +203069,8 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalState) Decode(d *jx
 		*s = ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolNotAllowed
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolUnavailable:
 		*s = ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolUnavailable
+	case ResponseGetResponsePlansOKItemsItemStepsItemProposalStateNotPublishable:
+		*s = ResponseGetResponsePlansOKItemsItemStepsItemProposalStateNotPublishable
 	default:
 		*s = ResponseGetResponsePlansOKItemsItemStepsItemProposalState(v)
 	}

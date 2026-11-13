@@ -109510,7 +109510,8 @@ type ResponseGetResponsePlansOKItemsItemStepsItemProposal struct {
 	ID          string                                                     `json:"id"`
 	// Open (pending) or executed request for this proposal.
 	RequestID NilString `json:"request_id"`
-	// Ready = a request can be made now; the others say what blocks it.
+	// Ready = a request can be made now; the others say what blocks it (not_publishable: a block list
+	// action on an address the list never publishes, D-469).
 	State ResponseGetResponsePlansOKItemsItemStepsItemProposalState `json:"state"`
 	Title string                                                    `json:"title"`
 	Tool  string                                                    `json:"tool"`
@@ -110026,7 +110027,8 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalChangeRollbackRestM
 	}
 }
 
-// Ready = a request can be made now; the others say what blocks it.
+// Ready = a request can be made now; the others say what blocks it (not_publishable: a block list
+// action on an address the list never publishes, D-469).
 type ResponseGetResponsePlansOKItemsItemStepsItemProposalState string
 
 const (
@@ -110034,6 +110036,7 @@ const (
 	ResponseGetResponsePlansOKItemsItemStepsItemProposalStateExecutionOff    ResponseGetResponsePlansOKItemsItemStepsItemProposalState = "execution_off"
 	ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolNotAllowed  ResponseGetResponsePlansOKItemsItemStepsItemProposalState = "tool_not_allowed"
 	ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolUnavailable ResponseGetResponsePlansOKItemsItemStepsItemProposalState = "tool_unavailable"
+	ResponseGetResponsePlansOKItemsItemStepsItemProposalStateNotPublishable  ResponseGetResponsePlansOKItemsItemStepsItemProposalState = "not_publishable"
 )
 
 // AllValues returns all ResponseGetResponsePlansOKItemsItemStepsItemProposalState values.
@@ -110043,6 +110046,7 @@ func (ResponseGetResponsePlansOKItemsItemStepsItemProposalState) AllValues() []R
 		ResponseGetResponsePlansOKItemsItemStepsItemProposalStateExecutionOff,
 		ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolNotAllowed,
 		ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolUnavailable,
+		ResponseGetResponsePlansOKItemsItemStepsItemProposalStateNotPublishable,
 	}
 }
 
@@ -110056,6 +110060,8 @@ func (s ResponseGetResponsePlansOKItemsItemStepsItemProposalState) MarshalText()
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolNotAllowed:
 		return []byte(s), nil
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolUnavailable:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKItemsItemStepsItemProposalStateNotPublishable:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -110076,6 +110082,9 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalState) UnmarshalTex
 		return nil
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolUnavailable:
 		*s = ResponseGetResponsePlansOKItemsItemStepsItemProposalStateToolUnavailable
+		return nil
+	case ResponseGetResponsePlansOKItemsItemStepsItemProposalStateNotPublishable:
+		*s = ResponseGetResponsePlansOKItemsItemStepsItemProposalStateNotPublishable
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

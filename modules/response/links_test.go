@@ -939,7 +939,7 @@ func TestPost5_ABlackholedMailServerDelaysNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.rule("Pre", "honeypot", []response.RuleAction{{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.source_ip}}"}, TTLMin: intp(1440)}}, func(in *response.RuleInput) { in.PreApproved = true })
-	e.fireNoWait(e.trap("h1", "192.168.10.157"))
+	e.fireNoWait(e.trap("h1", "203.0.113.157")) // a public source: a block on a LAN address is refused when planned (D-469)
 	if e.count(`SELECT COUNT(*) FROM resp_actions WHERE pre_approved = 1 AND status = 'executed'`) != 1 {
 		t.Fatal("a pre-approved action waited for the mail server")
 	}

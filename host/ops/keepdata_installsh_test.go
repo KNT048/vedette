@@ -24,7 +24,7 @@ func TestInstallSh_KeepDataReinstallReadsAndClearsTheHostsRecords(t *testing.T) 
 	}
 	script := "set -eu\nsay() { printf '%s\\n' \"$*\"; }\nwarn() { printf 'WARNING: %s\\n' \"$*\" >&2; }\n" +
 		"die() { printf 'ERROR: %s\\n' \"$*\" >&2; exit 1; }\n"
-	for _, name := range []string{"host_version_ok", "vedette_units", "kept_records", "kept_release_ok", "forget_containers"} {
+	for _, name := range []string{"host_version_ok", "vedette_units", "kept_records", "kept_release", "kept_release_ok", "forget_containers"} {
 		i := strings.Index(s, "\n"+name+"() {\n")
 		if i < 0 {
 			t.Fatalf("no %s in install.sh", name)
@@ -35,11 +35,11 @@ func TestInstallSh_KeepDataReinstallReadsAndClearsTheHostsRecords(t *testing.T) 
 		}
 		script += s[i+1:i+1+j+2] + "\n"
 	}
-	host, units := t.TempDir(), t.TempDir()
+	host, units, state := t.TempDir(), t.TempDir(), t.TempDir()
 	run := func(call string) (string, error) {
 		t.Helper()
 		cmd := exec.CommandContext(t.Context(), "sh", "-c", script+call) //nolint:gosec // the sh functions of install.sh under test
-		cmd.Env = append(os.Environ(), "HOST_STATE="+host, "UNIT_DIR="+units)
+		cmd.Env = append(os.Environ(), "HOST_STATE="+host, "UNIT_DIR="+units, "STATE="+state)
 		out, err := cmd.CombinedOutput()
 		return string(out), err
 	}
@@ -91,6 +91,10 @@ func TestInstallSh_KeepDataReinstallReadsAndClearsTheHostsRecords(t *testing.T) 
 	if out, err := run("kept_records"); err != nil {
 		t.Fatalf("kept_records with the records and no unit: %v %q", err, out)
 	}
+	// the release that last ran is current's, read from the JSON the Go code wrote (not previous's, which is newer here)
+	if out, err := run("kept_release"); err != nil || out != "0.0.1-test.3\n" {
+		t.Fatalf("kept_release: %v %q", err, out)
+	}
 
 	if _, err := exec.LookPath("dpkg"); err == nil { // the comparison is dpkg's (every supported box has it); macOS has none
 		for v, ok := range map[string]bool{"0.0.1-test.2": false, "0.0.1-test.3": true, "0.0.1-test.10": true, "0.0.1": true, "0.1.0-beta.1": true} {
@@ -136,5 +140,29 @@ func TestInstallSh_KeepDataReinstallReadsAndClearsTheHostsRecords(t *testing.T) 
 	}
 	if out, err := run("kept_records"); err == nil {
 		t.Fatalf("kept_records after forget_containers: %q", out)
+	}
+
+	// a run that cleared the records and then stopped before the bootstrap wrote a unit: the note keeps the guard
+	note := filepath.Join(state, "kept-release")
+	if err := os.WriteFile(note, []byte("0.0.1-test.3\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := run("kept_records && kept_release"); err != nil || out != "0.0.1-test.3\n" {
+		t.Fatalf("the note of a cleared record is not read: %v %q", err, out)
+	}
+	if err := os.WriteFile(note, []byte("0.0.1-test.3; rm -rf /\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := run("kept_release"); err != nil || out != "" {
+		t.Fatalf("a note that is not a release was read: %v %q", err, out)
+	}
+	if err := os.Remove(note); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, note); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := run("kept_release"); err != nil || out != "" {
+		t.Fatalf("a link in place of the note was followed: %v %q", err, out)
 	}
 }

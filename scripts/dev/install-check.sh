@@ -414,13 +414,17 @@ EOT
 	grep -q 'first-run setup was completed already' "$work/kd2.log" || { tail -15 "$work/kd2.log" >&2; fail "W2-9: the summary does not say setup was done"; }
 	kd_healthy "W2-9, install after --uninstall --keep-data"
 	[ "$(x 'sha256sum /var/lib/vedette/vedette.key')" = "$kkey" ] && [ "$(x 'id vedette; id vedette-sensor')" = "$kids" ] || fail "W2-9: the key or the ids of the users changed"
+	x '! test -e /var/lib/vedette-install/kept-release' || fail "W2-9: the note of the release that ran is still there after the bootstrap"
 	ok "W2-9: install after --uninstall --keep-data: core healthy, setup still complete, the administrator signs in, same key and user ids"
 	# W2-10: the repair path with vedette-host running: core's unit removed by hand, then install.sh again
+	# the honeypot Requires= the host: it stops with it for the bootstrap and must be running again afterwards when it was before
+	hp_before=$(x 'systemctl is-active vedette-honeypot.service' || true)
 	x 'systemctl is-active -q vedette-host.service && systemctl stop vedette-core.service && rm -f /etc/containers/systemd/vedette-core.container && systemctl daemon-reload' || fail "W2-10: cannot set up the case (vedette-host not running?)"
 	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/kd3.log" 2>&1 || { tail -40 "$work/kd3.log" >&2; fail "W2-10: the re-run with vedette-host running and core's unit missing failed"; }
 	grep -q 'stopping vedette-host for the bootstrap' "$work/kd3.log" || { tail -30 "$work/kd3.log" >&2; fail "W2-10: the re-run did not stop vedette-host before the bootstrap"; }
 	! grep -q 'daemon_running' "$work/kd3.log" || fail "W2-10: the bootstrap still met a running vedette-host"
 	[ "$(x 'systemctl is-active vedette-host.service')" = active ] || fail "W2-10: vedette-host is not running after the re-run"
+	[ "$hp_before" != active ] || [ "$(x 'systemctl is-active vedette-honeypot.service' || true)" = active ] || fail "W2-10: the honeypot ran before the re-run and does not after it"
 	kd_healthy "W2-10, re-run with vedette-host running"
 	ok "W2-10: the re-run stopped vedette-host for the bootstrap, wrote core's unit again and started both; the data is still there"
 	x 'rm -f /root/kd-setup.json /root/kd-setup.out /root/kd-login.json'

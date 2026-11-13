@@ -61,6 +61,9 @@ MODE=install
 HANDOVER=
 KEEP_DATA=
 HOST_STOPPED=
+HP_STOPPED=
+RELEASE=
+SERVICES=
 YES=
 TEST_DIR=
 ART=
@@ -102,8 +105,11 @@ cleanup() {
 		rm -f "$MIRROR_FILE"
 	fi
 	[ -z "$TMP" ] || rm -rf "$TMP"
-	# a run that stopped vedette-host for the bootstrap and then failed leaves it running again, as it was (W2-10)
-	if [ "$rc" -ne 0 ] && [ -n "$HOST_STOPPED" ]; then systemctl start vedette-host.service >/dev/null 2>&1 || true; fi
+	# a run that stopped vedette-host for the bootstrap and then failed leaves it running again, as it was, with the honeypot (W2-10)
+	if [ "$rc" -ne 0 ] && [ -n "$HOST_STOPPED" ]; then
+		systemctl start vedette-host.service >/dev/null 2>&1 || true
+		[ -z "$HP_STOPPED" ] || systemctl start vedette-honeypot.service >/dev/null 2>&1 || true
+	fi
 	[ -e "$STATE/owner" ] || rm -rf "$STATE/art" # a refusal before the first change leaves nothing behind
 	rmdir "$STATE" 2>/dev/null || true
 	if [ "$rc" -ne 0 ] && [ "$MODE" = install ] && [ -d "$STATE" ]; then
@@ -302,10 +308,11 @@ preflight() {
 		[ -n "$VEDETTE_VERSION" ] || die "this install.sh is not tied to a release: its version and package checksum are empty. Download install.sh from a Vedette release page (${REPO_URL}/releases). Nothing was changed."
 		case $VEDETTE_VERSION in *-test.*) die "release $VEDETTE_VERSION has a -test. prerelease: that is a test version, never a release" ;; esac
 		host_version_ok "$VEDETTE_VERSION" || die "release '$VEDETTE_VERSION' cannot name a host package (SemVer, a prerelease of letters, digits and dots only). Nothing was changed."
+		RELEASE=$VEDETTE_VERSION
 		case $ARCH in amd64) DEB_SUM=$VEDETTE_DEB_SHA256_AMD64 ;; arm64) DEB_SUM=$VEDETTE_DEB_SHA256_ARM64 ;; esac
 		printf '%s' "$DEB_SUM" | grep -Eq '^[0-9a-f]{64}$' || die "this install.sh has no package checksum for $ARCH. Nothing was changed."
 	fi
-	kept_release_ok "${RELEASE:-$VEDETTE_VERSION}"
+	kept_release_ok "$RELEASE"
 	# a self-update of vedette-host under way (D-316) owns the package until it ends: installing over it would race its applier
 	if [ -e "$HOST_STATE/selfupdate/journal.json" ]; then
 		die "a self-update of vedette-host is under way or stopped half way ($HOST_STATE/selfupdate/journal.json): wait for it to end, or follow docs/RUNBOOK.md if it does not. Nothing was changed."
@@ -716,15 +723,31 @@ vedette_units() {
 	return 1
 }
 
-# kept_records: the host recorded what the containers run (containers/versions-<service>.json, written only with the units) but no unit
-# of them is left: the state an --uninstall --keep-data leaves (it removes the units and the images and keeps /var/lib/vedette-host).
-# The records then say which release last ran on the kept data (W2-9, D-418).
+# kept_records: no unit of Vedette's containers is left, but the host recorded what they ran (containers/versions-<service>.json,
+# written only with the units), or this script noted it in $STATE/kept-release before it cleared those records in a run that then
+# stopped: the state an --uninstall --keep-data leaves (it removes the units and the images and keeps /var/lib/vedette-host and
+# $STATE). The records say which release last ran on the kept data (W2-9, D-418).
 kept_records() {
 	! vedette_units || return 1
+	if [ -e "$STATE/kept-release" ] || [ -L "$STATE/kept-release" ]; then return 0; fi
 	for f in "$HOST_STATE"/containers/versions-*.json; do
 		if [ -e "$f" ] || [ -L "$f" ]; then return 0; fi
 	done
 	return 1
+}
+
+# kept_release: the release core last ran on the kept data, as recorded (empty when there is no record that can be read)
+kept_release() {
+	f=$HOST_STATE/containers/versions-core.json
+	v=
+	if [ -f "$f" ] && [ ! -L "$f" ]; then
+		# one line of JSON (Go's encoding); the current record holds only plain values, so it ends at its first }
+		v=$(sed -n 's/.*"current":{\([^}]*\)}.*/\1/p' "$f" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' | head -n 1)
+	fi
+	if [ -z "$v" ] && [ -f "$STATE/kept-release" ] && [ ! -L "$STATE/kept-release" ]; then
+		v=$(head -n 1 "$STATE/kept-release")
+	fi
+	if [ -n "$v" ] && host_version_ok "$v"; then printf '%s\n' "$v"; fi
 }
 
 # kept_release_ok <release>: a release older than the one core last ran on the kept data is refused before any change: core's
@@ -732,19 +755,20 @@ kept_records() {
 # host ignores it too): a warning, and the install goes on.
 kept_release_ok() {
 	kept_records || return 0
-	f=$HOST_STATE/containers/versions-core.json
-	[ -f "$f" ] && [ ! -L "$f" ] || return 0
-	# one line of JSON (Go's encoding); the current record holds only plain values, so it ends at its first }
-	had=$(sed -n 's/.*"current":{\([^}]*\)}.*/\1/p' "$f" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' | head -n 1)
-	[ -n "$had" ] || return 0
-	if ! host_version_ok "$had"; then
-		warn "$f names a release that cannot be read; it is not compared with this one"
+	had=$(kept_release)
+	if [ -z "$had" ]; then
+		warn "the data of an earlier install is kept here, but the release that last ran on it cannot be read ($HOST_STATE/containers/versions-core.json); it is not compared with $1"
 		return 0
 	fi
 	if dpkg --compare-versions "$(printf '%s' "$had" | sed 's/-/~/')" gt "$(printf '%s' "$1" | sed 's/-/~/')"; then
 		die "this box keeps the data of Vedette $had (an --uninstall --keep-data), newer than the release of this script ($1): an older Vedette cannot open newer data. Run the install.sh of release $had or newer. Nothing was changed."
 	fi
-	say "the kept data last ran with release $had; this script installs $1 over it"
+	if [ "$had" = "$1" ]; then
+		say "the kept data last ran with release $had, the release of this script"
+	else
+		# the normal update (Settings -> Updates) takes a pre_update backup first; this path cannot (D-418)
+		warn "the kept data last ran with release $had: core $1 moves it forward at its first start and it cannot go back to $had. A backup of $had made before the uninstall (Settings -> Backups) is the only way back."
+	fi
 }
 
 # forget_containers: the host's records of what the containers ran (versions, pulled images, the journals of unit changes and the old
@@ -774,15 +798,24 @@ bootstrap() {
 	# the bootstrap runs only while vedette-host does not (one owner of the state and the units, D-142): a re-run finds it running when
 	# the package install restarted it or an earlier run started it and then stopped (W2-10). start_and_wait starts it again, and so
 	# does cleanup when this run fails.
+	# The honeypot Requires= the host, so it stops with it and is started again with it.
 	case $(systemctl is-active vedette-host.service 2>/dev/null || true) in
-	active | activating | reloading | refreshing)
+	inactive | failed | unknown | '') ;;
+	*)
 		say "stopping vedette-host for the bootstrap (it starts again below)"
+		if systemctl is-active --quiet vedette-honeypot.service 2>/dev/null; then HP_STOPPED=1; fi
 		HOST_STOPPED=1
 		systemctl stop vedette-host.service || die "vedette-host did not stop (journalctl -u vedette-host)"
 		;;
 	esac
 	if kept_records; then
 		say "the data of an earlier install is kept here (--uninstall --keep-data) but none of its containers: installing release $RELEASE over it"
+		# the release that last ran stays known until this release is bootstrapped, so a run that stops before that keeps the guard
+		had=$(kept_release)
+		if [ -n "$had" ]; then
+			printf '%s\n' "$had" >"$STATE/kept-release.new"
+			mv -f "$STATE/kept-release.new" "$STATE/kept-release"
+		fi
 		forget_containers
 	fi
 	systemctl daemon-reload
@@ -805,12 +838,17 @@ bootstrap() {
 	*) die "vedette-host -bootstrap failed with exit $rc (its message is above); run this script again after fixing it" ;;
 	esac
 	[ -e "$UNIT_DIR/vedette-core.container" ] || die "core has no unit after the bootstrap (exit $rc, its message is above): this box records another release for it in $HOST_STATE/containers/versions-core.json. Run the install.sh of that release."
+	rm -f "$STATE/kept-release" # the host's own record holds the release now
 }
 
 start_and_wait() {
 	systemctl daemon-reload
 	systemctl start vedette-host.service || die "vedette-host did not start (journalctl -u vedette-host)"
 	[ -S /run/vedette/host.sock ] || die "vedette-host is running but /run/vedette/host.sock is missing"
+	if [ -n "$HP_STOPPED" ]; then
+		systemctl start vedette-honeypot.service || warn "the honeypot did not start again after the bootstrap (journalctl -u vedette-honeypot)"
+		HP_STOPPED=
+	fi
 	systemctl start vedette-core.service || die "vedette-core did not start (journalctl -u vedette-core)"
 	say "waiting for core to be healthy (up to 300 s)"
 	n=0

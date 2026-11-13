@@ -464,7 +464,7 @@ func blankLink(b []byte, s string, m []int) {
 		for j < len(link) && link[j] != '/' {
 			j++
 		}
-		if seg := link[i+1 : j]; !(allDigits(seg) && (len(seg) == 9 || len(seg) == 12)) {
+		if seg := link[i+1 : j]; !allDigits(seg) || (len(seg) != 9 && len(seg) != 12) {
 			fill(i+1, j)
 		}
 		i = j

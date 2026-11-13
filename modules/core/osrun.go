@@ -342,6 +342,9 @@ func (h *OSHandlers) settle(parent context.Context, rs *osRunState, r api.Run) {
 	h.runMu.Lock()
 	rs.meta.Audited, rs.meta.Snapshot = true, ""
 	h.runMu.Unlock()
+	if status == api.StatusSucceeded && h.installed != nil {
+		h.installed()
+	}
 }
 
 func (h *OSHandlers) removeSnapshot(id string) {

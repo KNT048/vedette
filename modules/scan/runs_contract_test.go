@@ -34,7 +34,7 @@ func TestContract_INV1_TargetsInScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]string{
-		"a-nas02": "", "a-web01": "", "a-srv": "excluded", "a-unk": "unapproved", "a-box": "box", "a-never": "regular_scan_never", "a-far": "out_of_scope",
+		"a-nas02": "", "a-web01": "", "a-srv": "excluded", "a-unk": "unapproved", "a-box": "", "a-never": "regular_scan_never", "a-far": "out_of_scope",
 		"ext:xt-1": "not_supported", "ext:xt-2": "expired", "ext:xt-3": "unverified",
 	}
 	for _, v := range ts {
@@ -54,7 +54,10 @@ func TestContract_INV1_TargetsInScope(t *testing.T) {
 		return ts[slices.IndexFunc(ts, func(v TargetView) bool { return v.ID == id })]
 	}
 	if !byID("a-nas02").PickOnly || byID("a-web01").PickOnly || byID("a-srv").PickOnly {
-		t.Errorf("pick_only: only the fragile NAS needs a pick here (D-126 (2))")
+		t.Errorf("pick_only: the fragile NAS needs a pick here (D-126 (2))")
+	}
+	if b := byID("a-box"); !b.Selectable || !b.PickOnly || !b.Box || byID("a-srv").Box { // D-470: a person may scan the box, Select all never ticks it
+		t.Errorf("the box: %+v", b)
 	}
 	if !byID("a-nas02").Fragile || !byID("a-unk").Fragile || byID("a-web01").Fragile || byID("a-web01").Findings != 2 || byID("a-nas02").Findings != 1 {
 		t.Errorf("fragile/findings: %+v %+v %+v", byID("a-nas02"), byID("a-unk"), byID("a-web01"))
@@ -67,7 +70,6 @@ func TestContract_INV1_TargetsInScope(t *testing.T) {
 	// a target that cannot be picked is refused by the API with its reason, and nothing starts
 	for id, msg := range map[string]string{
 		"a-unk":    "has not been approved in the inventory",
-		"a-box":    "is the Vedette box itself, which is never scanned",
 		"a-never":  "is set to never be scanned in the inventory; change that setting first",
 		"ext:xt-1": "is an external target, and this version does not scan external targets yet",
 	} {

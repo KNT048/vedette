@@ -89,8 +89,9 @@ func (s *Service) EnsureBox(ctx context.Context, info BoxInfo) (string, error) {
 	return id, nil
 }
 
-// RefreshBoxPackages stores the packages installed on the box as its software (agent, confidence 1.0). It does
-// nothing until a BoxPackages exists (vedette-host, WP-07).
+// RefreshBoxPackages stores the packages installed on the box as its software (agent, confidence 1.0; INV-3, D-470). It
+// does nothing without a BoxPackages (a container-only install) or when it gives no list (nil: a host older than D-470): what
+// is stored stays. A failed read changes nothing either.
 func (s *Service) RefreshBoxPackages(ctx context.Context) error {
 	if s.box == nil {
 		return nil
@@ -98,6 +99,9 @@ func (s *Service) RefreshBoxPackages(ctx context.Context) error {
 	items, err := s.box.Packages(ctx)
 	if err != nil {
 		return fmt.Errorf("inventory: box packages: %w", err)
+	}
+	if items == nil {
+		return nil
 	}
 	for i := range items {
 		items[i].Confidence = 1

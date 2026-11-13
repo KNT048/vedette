@@ -74599,8 +74599,6 @@ func (s ScanGetScansTargetsOKItemsItemReason) Validate() error {
 		return nil
 	case "no_ip":
 		return nil
-	case "box":
-		return nil
 	case "regular_scan_never":
 		return nil
 	case "unverified":

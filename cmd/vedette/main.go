@@ -420,7 +420,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	srv := &http.Server{
-		Handler:           topHandler(log, api, honeyTokenHandler(log, d.Honeypot, server.NewAddrLimiter(honeyTokenPerMinute, nil)), hostAllowed, hsts),
+		Handler:           topHandler(log, api, honeyTokenHandler(log, d.Honeypot, server.NewAddrLimiter(honeyTokenPerMinute, nil), honeyTokenSources{machine: machineAddrs(&d), appliance: perMinute > 0}), hostAllowed, hsts),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,
 		IdleTimeout:       2 * time.Minute,
@@ -460,7 +460,8 @@ func topHandler(log *slog.Logger, api, token http.Handler, allowed func(host str
 	mux := http.NewServeMux()
 	mux.Handle(server.Prefix+"/", api)
 	if token != nil {
-		mux.Handle(honeyTokenPath, token)
+		mux.Handle(urlTrapPath, token)
+		mux.Handle(urlTrapDeeper, token)
 	}
 	mux.Handle("/", webui.Handler(webui.FS())) // the interface (D-149): anything that is not the API; paths under /api/ other than the API's are its own 404
 	h := server.HostAllowlistFunc(allowed, mux)

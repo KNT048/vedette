@@ -5,22 +5,32 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/server"
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/honeypot"
 )
 
-// tokenRouter is the listener's real router (topHandler, as serve builds it) over the stack's API, with the URL token route and a
-// limit of perMinute opens per address on a clock that does not move.
+// tokenRouter is the listener's real router (topHandler, as serve builds it) over the stack's API, with the URL token route, a
+// limit of perMinute repeat opens per address on a clock that does not move, and an appliance whose host is 192.168.10.5 and whose
+// bridge gateway is 10.89.0.1.
 func tokenRouter(s *stack, perMinute int) http.Handler {
+	return tokenRouterWith(s, perMinute, honeyTokenSources{machine: func() ([]netip.Addr, bool) {
+		return []netip.Addr{netip.MustParseAddr("192.168.10.5"), netip.MustParseAddr("10.89.0.1")}, true
+	}, appliance: true})
+}
+
+func tokenRouterWith(s *stack, perMinute int, src honeyTokenSources) http.Handler {
 	now := time.Now()
 	lim := server.NewAddrLimiter(perMinute, func() time.Time { return now })
 	log := slog.New(slog.DiscardHandler)
-	return topHandler(log, s.h, honeyTokenHandler(log, s.d.Honeypot, lim), server.HostMatcher([]string{"192.168.10.5"}, nil), false)
+	return topHandler(log, s.h, honeyTokenHandler(log, s.d.Honeypot, lim, src), server.HostMatcher([]string{"192.168.10.5"}, nil), false)
 }
 
 // open is a request from a LAN machine with no session, no CSRF header and no Origin.
@@ -40,9 +50,11 @@ func open(t *testing.T, h http.Handler, method, path, from, ua string) *httptest
 // urlTokenStack is a stack with the honeypot on and one URL token; it returns the token's /t/<id> path and its name.
 func urlTokenStack(t *testing.T) (*stack, string) {
 	t.Helper()
+	clock := time.Now().UTC().Truncate(10 * time.Minute).Add(time.Minute) // fixed, well inside one 10-minute hit window
 	s := newStackWith(t, func(d *deps) {
 		d.HoneypotDir = t.TempDir()
 		d.BaseURL = func() string { return "https://192.168.10.5:8443" }
+		d.Clock = func() time.Time { return clock }
 	})
 	s.saveScope(t)
 	s.setModule("honeypot", true)
@@ -142,24 +154,117 @@ func TestURLTokenOpenWhileTheModuleIsOff(t *testing.T) {
 	}
 }
 
-// One address cannot make the box write without end: past the per-minute limit the answer is the same and nothing is recorded,
-// while another address still fires.
+// One address cannot make the box write without end: the first open of a token in a window always records, past the per-minute
+// limit a repeat open answers the same and records nothing, and another address still fires.
 func TestURLTokenOpenIsLimitedPerAddress(t *testing.T) {
 	t.Parallel()
 	s, path := urlTokenStack(t)
 	h := tokenRouter(s, 2)
-	for _, port := range []string{"1", "2", "3", "4"} {
+	for _, port := range []string{"1", "2", "3", "4", "5"} {
 		sameAnswer(t, "open "+port, open(t, h, http.MethodGet, path, "192.168.10.107:"+port, ""))
 	}
-	var conns int
-	if err := s.d.DB.Reader().QueryRowContext(t.Context(), `SELECT conn_count FROM hp_hits WHERE src_ip = '192.168.10.107'`).Scan(&conns); err != nil {
-		t.Fatal(err)
-	}
-	if conns != 2 {
-		t.Fatalf("conn_count %d, want 2: the limit is 2 per minute", conns)
+	if n := s.count(`SELECT conn_count FROM hp_hits WHERE src_ip = '192.168.10.107'`); n != 3 {
+		t.Fatalf("conn_count %d, want 3: the first open and 2 repeats per minute", n)
 	}
 	sameAnswer(t, "another address", open(t, h, http.MethodGet, path, "192.168.10.108:1", ""))
 	if n := s.count(`SELECT count(*) FROM hp_hits WHERE src_ip = '192.168.10.108'`); n != 1 {
 		t.Fatalf("another address: %d hits", n)
+	}
+}
+
+// Review M1: made-up ids do not use up an address's limit, so they cannot silence the real link.
+func TestURLTokenFakeIDsDoNotSilenceTheLink(t *testing.T) {
+	t.Parallel()
+	s, path := urlTokenStack(t)
+	h := tokenRouter(s, honeyTokenPerMinute)
+	for i := range honeyTokenPerMinute {
+		sameAnswer(t, "fake id", open(t, h, http.MethodGet, "/t/"+strings.Repeat(string(rune('a'+i)), 10), "192.168.10.107:"+strconv.Itoa(100+i), ""))
+	}
+	sameAnswer(t, "the real link", open(t, h, http.MethodGet, path, "192.168.10.107:200", ""))
+	if n := s.count(`SELECT count(*) FROM hp_hits WHERE src_ip = '192.168.10.107'`); n != 1 {
+		t.Fatalf("%d hits after 10 made-up ids and the real link, want 1", n)
+	}
+}
+
+// Review L1: the link with a trailing slash, a deeper path or punctuation an auto-linker glued on still fires, with the same 404.
+func TestURLTokenOpenWithATailFires(t *testing.T) {
+	t.Parallel()
+	s, path := urlTokenStack(t)
+	h := tokenRouter(s, honeyTokenPerMinute)
+	for i, p := range []string{path + "/", path + ").", path + "/x/y", path + "%3E"} {
+		sameAnswer(t, p, open(t, h, http.MethodGet, p, "192.168.10.107:"+strconv.Itoa(i+1), ""))
+	}
+	if n := s.count(`SELECT conn_count FROM hp_hits WHERE src_ip = '192.168.10.107'`); n != 4 {
+		t.Fatalf("conn_count %d, want 4 opens of the one hit", n)
+	}
+	sameAnswer(t, "glued letters are another id", open(t, h, http.MethodGet, path+"x", "192.168.10.108:1", ""))
+	if n := s.count(`SELECT count(*) FROM hp_hits WHERE src_ip = '192.168.10.108'`); n != 0 {
+		t.Fatalf("%d hits for another id", n)
+	}
+}
+
+// Review L2: the box itself never fires its own token: loopback (IPv4, IPv6, mapped), the box's address in the inventory (INV-3),
+// and on the appliance the machine's addresses (its LAN address, the bridge gateway its host's requests come from). Any other IPv6
+// address fires: hp_hits keeps IPv4 only, so the hit stores "unknown" and the event, line and incident carry the address.
+func TestURLTokenOpenFromTheBoxItselfAndFromIPv6(t *testing.T) {
+	t.Parallel()
+	s, path := urlTokenStack(t)
+	s.seen(t, "192.168.10.6", "aa:bb:cc:00:00:06", "")
+	s.exec(`UPDATE inv_asset SET is_box = 1 WHERE ip = '192.168.10.6'`)
+	h := tokenRouter(s, honeyTokenPerMinute)
+	for _, from := range []string{"127.0.0.1:1", "[::1]:1", "[::ffff:127.0.0.1]:1", "192.168.10.6:1", "192.168.10.5:1", "10.89.0.1:1"} {
+		sameAnswer(t, from, open(t, h, http.MethodGet, path, from, ""))
+	}
+	if n := s.count(`SELECT count(*) FROM hp_hits`); n != 0 {
+		t.Fatalf("%d hits from the box itself", n)
+	}
+	sameAnswer(t, "IPv6", open(t, h, http.MethodGet, path, "[fd00::5]:44321", ""))
+	if n := s.count(`SELECT count(*) FROM hp_hits WHERE src_ip = 'unknown' AND events LIKE '%[fd00::5]:44321%'`); n != 1 {
+		t.Fatalf("%d IPv6 hits", n)
+	}
+	if n := s.count(`SELECT count(*) FROM notify_incident WHERE title = 'fd00::5 opened the URL token Admin-VPN-wiki'`); n != 1 {
+		t.Fatalf("%d incidents naming the IPv6 address", n)
+	}
+}
+
+// Review L3: on a container-only install a port proxy may stand between the visitor and core; an open from the machine's address is
+// recorded with the source "unknown (container-only port proxy)", never naming the gateway as the machine to unplug.
+func TestURLTokenOpenThroughAContainerOnlyPortProxy(t *testing.T) {
+	t.Parallel()
+	s, path := urlTokenStack(t)
+	h := tokenRouterWith(s, honeyTokenPerMinute, honeyTokenSources{machine: func() ([]netip.Addr, bool) {
+		return []netip.Addr{netip.MustParseAddr("172.17.0.1")}, true
+	}})
+	sameAnswer(t, "proxied", open(t, h, http.MethodGet, path, "172.17.0.1:5000", ""))
+	if n := s.count(`SELECT count(*) FROM hp_hits WHERE src_ip = 'unknown' AND events NOT LIKE '%172.17.0.1%'`); n != 1 {
+		t.Fatalf("%d proxied hits", n)
+	}
+	if n := s.count(`SELECT count(*) FROM notify_incident WHERE title = 'unknown (container-only port proxy) opened the URL token Admin-VPN-wiki'`); n != 1 {
+		t.Fatalf("%d incidents with the unknown source", n)
+	}
+	sameAnswer(t, "a LAN address that reached core", open(t, h, http.MethodGet, path, "192.168.10.107:1", ""))
+	if n := s.count(`SELECT count(*) FROM hp_hits WHERE src_ip = '192.168.10.107'`); n != 1 {
+		t.Fatalf("%d hits naming a kept LAN address", n)
+	}
+}
+
+// Review M2: the record is detached from the caller and the publish has its own budget with no write wait limit, so a visitor who
+// hangs up, or a request budget spent waiting for the writer, does not lose the incident of a hit that was saved.
+func TestURLTokenOpenOutlivesTheRequest(t *testing.T) {
+	t.Parallel()
+	s, path := urlTokenStack(t)
+	var pubErr error
+	s.d.Bus.Subscribe(honeypot.EventHitCreated, func(ctx context.Context, _ events.Event) error {
+		pubErr = ctx.Err()
+		return nil
+	})
+	ctx, cancel := context.WithCancel(store.LimitWriteWait(t.Context(), time.Nanosecond))
+	cancel() // the visitor hung up before anything was written
+	err := s.d.Honeypot.OpenURLToken(ctx, honeypot.URLTokenOpen{ID: strings.TrimPrefix(path, "/t/"), Src: netip.MustParseAddrPort("192.168.10.107:1")})
+	if err != nil || pubErr != nil {
+		t.Fatalf("open: %v, publish context: %v", err, pubErr)
+	}
+	if n := s.count(`SELECT count(*) FROM notify_incident WHERE title = '192.168.10.107 opened the URL token Admin-VPN-wiki'`); n != 1 {
+		t.Fatalf("%d incidents", n)
 	}
 }

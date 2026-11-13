@@ -91,6 +91,8 @@ func TestContract_PRE4_Roles(t *testing.T) {
 		{"GET", "/exposure/targets/" + d.ID + "/snapshots", "", "viewer"},
 		{"POST", "/exposure/targets/" + d.ID + "/verify", "", "operator"},
 		{"POST", "/exposure/targets/" + d.ID + "/scan", "", "operator"},
+		{"GET", "/exposure/scan", "", "viewer"},
+		{"POST", "/exposure/scan/stop", "", "operator"},
 		{"POST", "/exposure/targets", `{"value":"new.example"}`, "admin"},
 		{"POST", "/exposure/box-ip/verify", "", "admin"},
 		{"PUT", "/exposure/box-ip/settings", `{"auto":true,"interval_min":60}`, "admin"},

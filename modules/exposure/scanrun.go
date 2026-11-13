@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
@@ -76,6 +77,9 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 	}
 	s.runMu.Lock()
 	defer s.runMu.Unlock()
+	if s.off || s.closed { // the gate took seconds: the module may have been switched off meanwhile (SYS-5)
+		return nil, ErrModuleOff
+	}
 	if s.run != nil && s.run.view.Status == RunRunning {
 		return nil, ErrScanBusy
 	}
@@ -107,6 +111,12 @@ func (s *Service) setPhase(run *scanRun, phase string) {
 // run ends here with exactly one exposure.scan audit row and one final state.
 func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user string, t Target) {
 	defer run.cancel(nil)
+	defer func() { // the runner parses untrusted data; a panic must end this run, not the box (the request pipeline would have answered 500)
+		if p := recover(); p != nil {
+			s.cfg.Log.ErrorContext(ctx, "an exposure scan panicked", "target", t.Value, "panic", p, "stack", string(debug.Stack()))
+			s.finish(ctx, run, user, t, fmt.Errorf("exposure: the scan panicked: %v", p))
+		}
+	}()
 	s.setPhase(run, PhaseProbing)
 	content, err := r.Scan(ctx, ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user})
 	if err == nil && ctx.Err() != nil { // stopped just as it finished: nothing is stored
@@ -116,7 +126,7 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 		s.setPhase(run, PhaseSaving)
 		run.snap, err = s.saveScan(ctx, user, t, content)
 	}
-	if err != nil && ctx.Err() != nil && !errors.Is(err, ErrScanOff) {
+	if err != nil && ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) { // the run was cut short; any other error is the real one
 		err = context.Cause(ctx)
 	}
 	s.finish(ctx, run, user, t, err)
@@ -203,10 +213,7 @@ func (s *Service) CurrentScan() *ScanRun {
 	return &v
 }
 
-// CancelScan cancels the run that runs now, if any, and does not wait for it: the module being switched off calls it on the registry's
-// goroutine. by is who stopped it, for the audit row.
-func (s *Service) CancelScan(by string) { s.cancelRun(by) }
-
+// cancelRun cancels the run that runs now, if any, and does not wait for it. by is who stopped it, for the audit row.
 func (s *Service) cancelRun(by string) *scanRun {
 	s.runMu.Lock()
 	run := s.run
@@ -219,16 +226,43 @@ func (s *Service) cancelRun(by string) *scanRun {
 	return run
 }
 
-// StopScan is CancelScan that waits until the run has ended (or ctx is done) (POST /exposure/scan/stop). It returns the run's final
-// state and false when no run was running.
+// stopWait is how long Stop waits for the run to end before it answers with the state it has (a runner that ignores its context).
+const stopWait = 10 * time.Second
+
+// StopScan is CancelScan that waits until the run has ended, at most stopWait (POST /exposure/scan/stop). It returns the run's state
+// and false when no run was running. The state is stopped; it is still running only when the runner did not end within stopWait.
 func (s *Service) StopScan(ctx context.Context, by string) (ScanRun, bool) {
 	run := s.cancelRun(by)
 	if run == nil {
 		return ScanRun{}, false
 	}
+	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), stopWait)
+	defer cancel()
 	select {
 	case <-run.done:
-	case <-ctx.Done():
+	case <-wctx.Done():
 	}
 	return s.runView(run), true
+}
+
+// ModuleSwitched is the Registry subscriber of the module's switch (SYS-5): off cancels the run and makes begin refuse until it is
+// on again, so a scan whose gate was still running when the switch came cannot start. It does not wait.
+func (s *Service) ModuleSwitched(enabled bool) {
+	s.runMu.Lock()
+	s.off = !enabled
+	s.runMu.Unlock()
+	if !enabled {
+		s.cancelRun("the box (the Exposure module was switched off)")
+	}
+}
+
+// Close ends the shutdown of the box: no new run starts, the run that runs is cancelled and Close waits for it, so its exposure.scan
+// audit row is written before the database closes (LEGAL §3).
+func (s *Service) Close() {
+	s.runMu.Lock()
+	s.closed = true
+	s.runMu.Unlock()
+	if run := s.cancelRun("the box (shutting down)"); run != nil {
+		<-run.done
+	}
 }

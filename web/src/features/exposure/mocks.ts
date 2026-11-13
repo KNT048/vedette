@@ -101,8 +101,8 @@ function auditSystem(action: string, target: string, detail: string) {
 
 const dayLeft = (iso: string) => Math.ceil((Date.parse(iso) - Date.now()) / 864e5)
 
-/** The mock's scan run: the phase follows the time since the press (queued, probing, saving, then done). `undo` is what a stop takes back: the snapshots and last_scan_at the run replaced. */
-interface MockRun { run: ScanRun; startedMs: number; snapId: string; undo: { snaps: Snapshot[]; lastScan: string | null } }
+/** The mock's scan run: the phase follows the time since the press (queued, probing, saving, then done). The snapshot, last_scan_at and the audit row come when it is done, as on the box; a stop saves nothing. */
+interface MockRun { run: ScanRun; startedMs: number; snap: Snapshot }
 const mockRunStore = collection<MockRun | null>('exp_scan_run', () => null, () => null)
 const PHASE_AT_MS = { probing: 300, saving: 1500, done: 2000 }
 function settledRun(): ScanRun | null {
@@ -111,8 +111,16 @@ function settledRun(): ScanRun | null {
   const r = m.run
   if (r.status !== 'running') return r
   const ms = Date.now() - m.startedMs
-  const next: ScanRun = ms >= PHASE_AT_MS.done ? { ...r, status: 'done', phase: 'done', finished_at: nowIso(), snapshot_id: m.snapId }
-    : { ...r, phase: ms >= PHASE_AT_MS.saving ? 'saving' : ms >= PHASE_AT_MS.probing ? 'probing' : 'queued' }
+  if (ms < PHASE_AT_MS.done) {
+    const next: ScanRun = { ...r, phase: ms >= PHASE_AT_MS.saving ? 'saving' : ms >= PHASE_AT_MS.probing ? 'probing' : 'queued' }
+    mockRunStore.set({ ...m, run: next })
+    return next
+  }
+  const snap = m.snap
+  snapshots.update((all) => ({ ...all, [r.target_id]: [...(all[r.target_id] ?? []).filter((x) => x.date !== snap.date), snap] }))
+  targets.update((l) => l.map((x) => (x.id === r.target_id ? { ...x, last_scan_at: snap.scanned_at } : x)))
+  audit('exposure.scan', r.target_value, `${snap.counts.subdomains} subdomains, ${snap.counts.ports} ports`)
+  const next: ScanRun = { ...r, status: 'done', phase: 'done', finished_at: nowIso(), snapshot_id: snap.id }
   mockRunStore.set({ ...m, run: next })
   return next
 }
@@ -459,17 +467,11 @@ export const handlers = [
     // The scan is done by the Vulnerability scans module (D-229): off, nothing is scanned and nothing is saved.
     if (!isOn('scan')) return fail(409, 'module_off', 'The Vulnerability scans module is off, so the box cannot scan. An admin can turn it on in Settings, Modules.')
     // Like the box: 202 with the run at once, and the phases move on while the page polls GET /exposure/scan. The mock has no one-at-a-time or 10-minute limit
-    // (its tests scan an IP several times in a row). The snapshot is stored now and taken back if the run is stopped.
+    // (its tests scan an IP several times in a row). The result is stored when the run is done.
     const at = nowIso()
-    const content = scanContent(t)
-    const snap = makeSnapshot(newId('sn'), at, content, t.kind === 'ip' ? t.value : undefined)
-    const prevSnaps = snapshots.get()[t.id] ?? []
-    const prevScan = t.last_scan_at
-    snapshots.update((m) => ({ ...m, [t.id]: [...prevSnaps.filter((s) => s.date !== snap.date), snap] }))
-    targets.update((l) => l.map((x) => (x.id === t.id ? { ...x, last_scan_at: at } : x)))
-    audit('exposure.scan', t.value, `${snap.counts.subdomains} subdomains, ${snap.counts.ports} ports`)
+    const snap = makeSnapshot(newId('sn'), at, scanContent(t), t.kind === 'ip' ? t.value : undefined)
     const run: ScanRun = { id: newId('sr'), target_id: t.id, target_value: t.value, by: currentUser()?.email ?? '', started_at: at, finished_at: null, status: 'running', phase: 'queued', snapshot_id: null, error: null }
-    mockRunStore.set({ run, startedMs: Date.now(), snapId: snap.id, undo: { snaps: prevSnaps, lastScan: prevScan } })
+    mockRunStore.set({ run, startedMs: Date.now(), snap })
     return HttpResponse.json(run, { status: 202 })
   }),
 
@@ -484,8 +486,6 @@ export const handlers = [
     const r = settledRun()
     const m = mockRunStore.get()
     if (!m || !r || r.status !== 'running') return fail(409, 'not_running', 'No scan is running now.')
-    snapshots.update((all) => ({ ...all, [r.target_id]: m.undo.snaps }))
-    targets.update((l) => l.map((x) => (x.id === r.target_id ? { ...x, last_scan_at: m.undo.lastScan } : x)))
     const stopped: ScanRun = { ...r, status: 'stopped', finished_at: nowIso() }
     mockRunStore.set({ ...m, run: stopped })
     audit('exposure.scan', r.target_value, `stopped by ${currentUser()?.email ?? ''}`)

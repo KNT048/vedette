@@ -43,7 +43,9 @@ type Service struct {
 	mu     sync.RWMutex
 	runner Runner
 
-	runMu    sync.Mutex           // guards run, its view and lastScan
+	runMu    sync.Mutex           // guards run, its view, lastScan, off and closed
+	off      bool                 // the module is switched off (ModuleSwitched): begin refuses
+	closed   bool                 // the box is shutting down (Close)
 	run      *scanRun             // the scan that runs now, or the last one (INV-18); one at a time on the box (D-229): a second one is 409 busy; a restart forgets it
 	lastScan map[string]time.Time // when each target's last scan started (ScanEvery; kept in memory, a restart forgets it)
 }

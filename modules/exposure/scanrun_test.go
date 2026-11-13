@@ -95,3 +95,75 @@ func TestScanRun_FailureShowsTheErrorAndSavesNothing(t *testing.T) {
 		t.Fatalf("%d audit rows, want 1", n)
 	}
 }
+
+type panicRunner struct{}
+
+func (panicRunner) Scan(context.Context, ScanTarget) (Content, error) { panic("bad banner") }
+
+// A panic in the runner (it parses untrusted data) ends the run as failed; it does not take the box down or leave it busy for ever.
+func TestScanRun_RunnerPanicEndsTheRun(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.svc.SetRunner(panicRunner{})
+	v := scanReady(t, e)
+	if _, err := e.svc.ScanNow(e.ctx(), Actor{Email: "operator@acme.example"}, v.ID, ""); err == nil {
+		t.Fatal("a panicking scan reported success")
+	}
+	got := e.svc.CurrentScan()
+	if got.Status != RunFailed || got.Error == nil || got.Error.Code != "internal" {
+		t.Fatalf("run = %+v", got)
+	}
+	e.advance(ScanEvery)
+	e.svc.SetRunner(&fakeRunner{content: sampleContent()})
+	if _, err := e.svc.ScanNow(e.ctx(), Actor{Email: "operator@acme.example"}, v.ID, ""); err != nil {
+		t.Fatalf("the box stayed busy: %v", err)
+	}
+}
+
+// SYS-5: switching the module off stops the run, and a scan whose gate was still running cannot start afterwards; on again, it can.
+func TestScanRun_ModuleSwitchOffStopsAndRefuses(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	r := &waitRunner{fakeRunner: fakeRunner{content: sampleContent()}, in: make(chan struct{}), hold: make(chan struct{})}
+	e.svc.SetRunner(r)
+	v := scanReady(t, e)
+	if _, err := e.svc.StartScan(e.ctx(), Actor{Email: "operator@acme.example"}, v.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	<-r.in
+	e.svc.ModuleSwitched(false)
+	e.svc.runMu.Lock()
+	run := e.svc.run
+	e.svc.runMu.Unlock()
+	<-run.done
+	if got := e.svc.CurrentScan(); got.Status != RunStopped {
+		t.Fatalf("run after the switch-off = %+v", got)
+	}
+	e.advance(ScanEvery)
+	_, err := e.svc.StartScan(e.ctx(), Actor{Email: "operator@acme.example"}, v.ID, "")
+	wantAPI(t, err, 409, "module_off")
+	e.svc.ModuleSwitched(true)
+	e.svc.SetRunner(&fakeRunner{content: sampleContent()})
+	if _, err := e.svc.ScanNow(e.ctx(), Actor{Email: "operator@acme.example"}, v.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Shutting down ends the run with its audit row before the database closes (LEGAL §3), and nothing starts after it.
+func TestScanRun_CloseEndsTheRunWithItsAuditRow(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	r := &waitRunner{fakeRunner: fakeRunner{content: sampleContent()}, in: make(chan struct{}), hold: make(chan struct{})}
+	e.svc.SetRunner(r)
+	v := scanReady(t, e)
+	if _, err := e.svc.StartScan(e.ctx(), Actor{Email: "operator@acme.example"}, v.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	<-r.in
+	e.svc.Close()
+	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'exposure.scan' AND detail = 'stopped by the box (shutting down)'`); n != 1 {
+		t.Fatalf("%d audit rows, want 1", n)
+	}
+	_, err := e.svc.StartScan(e.ctx(), Actor{Email: "operator@acme.example"}, v.ID, "")
+	wantAPI(t, err, 409, "module_off")
+}

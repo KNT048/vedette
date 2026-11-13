@@ -59,10 +59,9 @@ func exposureService(d deps) *exposure.Service {
 	exposureServices[d.DB] = svc
 	if d.Reg != nil { // INV-18: switching the module off stops the scan that runs (SYS-5); the registry's goroutine must not wait for it
 		d.Reg.OnChange(func(id string, enabled bool) {
-			if id != exposure.ModuleID || enabled {
-				return
+			if id == exposure.ModuleID {
+				svc.ModuleSwitched(enabled)
 			}
-			svc.CancelScan("the box (the Exposure module was switched off)") // does not wait
 		})
 	}
 	return svc

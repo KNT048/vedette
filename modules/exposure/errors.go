@@ -49,6 +49,8 @@ var (
 	ErrScanTooLong = apiErr(502, "unreachable", "The scan did not finish within 5 minutes, so nothing was saved. Try again later.")
 	// ErrScanBusy: another scan runs on the box (one at a time).
 	ErrScanBusy = apiErr(409, "busy", "Another external scan is running on this box. Wait for it to finish, then try again.")
+	// ErrModuleOff: the Exposure module was switched off while the scan's gate was running.
+	ErrModuleOff = apiErr(409, "module_off", "The External exposure module is off, so the box cannot scan. An admin can turn it on in Settings, Modules.")
 	// ErrNotRunning: Stop was pressed when no scan runs.
 	ErrNotRunning = apiErr(409, "not_running", "No scan is running now.")
 )

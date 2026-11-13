@@ -3,7 +3,9 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Chip } from '@/components/common/StatusChip'
-import { ErrorState, Loading } from '@/components/common/States'
+import { PageHeader } from '@/components/common/PageHeader'
+import { ErrorState, Loading, ModuleOff } from '@/components/common/States'
+import { useIncident } from '@/features/notify/api'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
 import { errText, useIncidentPanel, useRequestFromIncident } from './api'
@@ -78,5 +80,33 @@ function OptionRow({ id, o, onSent }: { id: string; o: IncidentOption; onSent: (
       </div>
       {o.why && !o.requested ? <p className="text-[13px] text-muted">{o.why}</p> : null}
     </li>
+  )
+}
+
+/** Respond on an incident while the response module is off (the default; W7-1, S-RESP-3): nothing can be asked for, but what to
+ * do by hand still stands, read from the incident itself (notify), and the way to let Vedette help next time. */
+export function IncidentRespondOff({ id }: { id: string }) {
+  const { t } = useTranslation('response')
+  const q = useIncident(id)
+  return (
+    <>
+      <PageHeader title={t('page.title')} stories={['S-RESP-3']} />
+      <section aria-labelledby="incident-respond" className="mb-6 grid gap-3 rounded-md border border-rule bg-surface p-4">
+        <h2 id="incident-respond" className="text-base font-semibold">{t('incident.heading')}</h2>
+        {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : (
+          <>
+            <p className="text-sm"><Link className={link} to={`/incidents/${encodeURIComponent(q.data.incident.id)}`}>{q.data.incident.title}</Link></p>
+            <div className="grid gap-1.5 rounded-md border border-dashed border-rule bg-paper px-3 py-2 text-sm">
+              <p className="font-medium">{t('incident.offNothing')}</p>
+              <ol className="ml-5 grid list-decimal gap-1">
+                <li>{t('incident.doNow')} {q.data.incident.action}</li>
+                <li>{t('incident.offNext')}</li>
+              </ol>
+            </div>
+          </>
+        )}
+      </section>
+      <ModuleOff module="response" />
+    </>
   )
 }

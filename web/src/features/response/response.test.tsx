@@ -9,7 +9,7 @@ import { renderApp } from '@/test/render'
 import { eachOption } from '@/test/formMatrix'
 import { collection } from '@/mocks/db'
 import { connectorsStore, type Connector } from '@/mocks/connectors'
-import { aiConfigStore, aiRunsStore, assetsStore, auditStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
+import { aiConfigStore, aiRunsStore, assetsStore, auditStore, modulesStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
 import { checkValues, evalCondition, resolveParam, validateTpl, verifyChain, EMPTY_TPL, PARAM_CHECK, PARAM_TYPES, TOKEN_RE } from './logic'
 import type { Role } from '@/lib/session'
 import type { ActionRequest, AiState, Blocklist, Catalog, Condition, LogEntry, PlanList, ProposeResult, Rule, RuleInput, RunSummary, SettingsView, Simulation } from './types'
@@ -1843,6 +1843,17 @@ describe('response: Respond from an incident (S-RESP-3, D-509)', () => {
     expect(within(panel).getByRole('link', { name: 'Settings, Connections' })).toHaveAttribute('href', '/settings/connections')
     expect(within(panel).getByText(/The block list only carries public addresses, so it cannot hold 192.168.10.107/)).toBeInTheDocument()
     for (const b of within(panel).getAllByRole('button', { name: 'Ask for approval' })) expect(b).toBeDisabled()
+  })
+
+  it('the response module off (the default): Respond still shows what to do by hand and how to let Vedette help (W7-1)', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'response' ? { ...m, enabled: false } : m)))
+    const inc = (await call<{ incident: { action: string } }>('viewer', 'GET', '/notify/incidents/al-4')).json.incident
+    renderApp('/response?incident=al-4', { role: 'operator' })
+    const panel = await screen.findByRole('region', { name: 'Respond to this incident' })
+    expect(await within(panel).findByText('The response module is off, so Vedette cannot ask for any block here. Handle it by hand.')).toBeInTheDocument()
+    expect(within(panel).getByText((_, el) => el?.tagName === 'LI' && el.textContent === `Do this now: ${inc.action}`)).toBeInTheDocument()
+    expect(within(panel).queryByRole('button')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Open module settings' })).toHaveAttribute('href', '/settings/modules')
   })
 
   it('the panel with execution on: Ask for approval sends one request and says nothing changes until approved', async () => {

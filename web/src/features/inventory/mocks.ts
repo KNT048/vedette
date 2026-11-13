@@ -14,7 +14,7 @@ import { sha256Hex } from './kinds'
 import { customEntry, findById, findCatalog, searchCatalog, type CatalogEntry } from './catalog'
 import type {
   AddDeviceInput, AddDeviceResult, AgentToken, DeviceDetail, DeviceRow, DevicesResponse, ImportResult,
-  InventorySettings, ObsField, Observation, RegularScan, Sensor, SettingsInput, SoftwareView, WazuhConnection, WazuhInput,
+  InventorySettings, ObsField, Observation, OsqueryPackage, RegularScan, Sensor, SettingsInput, SoftwareView, WazuhConnection, WazuhInput,
 } from './types'
 import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, normalizeRange, overlapping } from './validate'
@@ -86,6 +86,15 @@ const agentsStore = collection<AgentToken[]>('intake_agent_tokens', () => [
 type StoredWazuh = WazuhConnection & { password: string }
 // Chứng chỉ CA của hộp (mock: giá trị giả, nhúng trong script như bản thật sẽ nhúng CA tự ký của hộp).
 const MOCK_CA = '-----BEGIN CERTIFICATE-----\nMIIBmockVedetteBoxCA0000000000000000000000000000000000000000000000\n(mock certificate: the real box embeds its own CA here)\n-----END CERTIFICATE-----'
+/** The five packages the real box serves (D-404), with the sizes and SHA-256 of deploy/osquery/PINS; the mock has no file to send. */
+const V = OSQUERY_VERSION
+const MOCK_PACKAGES: OsqueryPackage[] = [
+  { file: `osquery_${V}-1.linux_amd64.deb`, platform: 'linux', format: 'deb', arch: 'x86_64', size: 30579058, sha256: '051c287741d71b09184cb6bc53065cda972e3c27592b1e558696aaec9f0eb013' },
+  { file: `osquery_${V}-1.linux_arm64.deb`, platform: 'linux', format: 'deb', arch: 'arm64', size: 28510972, sha256: 'f6ccad777beef51a86444cb917a5b2063b8477e32dbb4bd994bc5f4e9704c863' },
+  { file: `osquery-${V}-1.linux.x86_64.rpm`, platform: 'linux', format: 'rpm', arch: 'x86_64', size: 30439995, sha256: 'eb3dccd38dec8f92bfd8616fd24f1210486f5f02ffc9d6c016827ab668f67c08' },
+  { file: `osquery-${V}-1.linux.aarch64.rpm`, platform: 'linux', format: 'rpm', arch: 'arm64', size: 28457612, sha256: 'c77cd97b6039c24a2553a00eb8e87334c5a27072a73349412369674d69dd8111' },
+  { file: `osquery-${V}.msi`, platform: 'windows', format: 'msi', arch: 'x86_64', size: 18853888, sha256: 'e9b0acfee492bd375714dc3d92d477272623b301b31a459fcc989cc6aa7dd0c0' },
+]
 const installers = async () => {
   const box = serverUrl()
   const linux = linuxInstallScript(box, MOCK_CA)
@@ -94,6 +103,7 @@ const installers = async () => {
     osquery_version: OSQUERY_VERSION,
     linux: { url: `${box}/api/v1/install/osquery.sh`, sha256: await sha256Hex(linux), script: linux },
     windows: { url: `${box}/api/v1/install/osquery.ps1`, sha256: await sha256Hex(windows), script: windows },
+    packages: MOCK_PACKAGES,
   }
 }
 const expired = (t: AgentToken) => t.expires_at !== null && new Date(t.expires_at).getTime() < Date.now()
@@ -728,11 +738,11 @@ export const handlers = [
     return HttpResponse.json({ node_invalid: !/^mock-node-/.test(b.node_key ?? '') })
   }),
   http.get(`${API}/intake/ca.pem`, () => new HttpResponse(`${MOCK_CA}\n`, { headers: { 'Content-Type': 'application/x-pem-file' } })),
-  // The mock has no package files: only SHA256SUMS exists; the five package names of the real box answer 404 here (they are binaries of 20 to 30 MB).
+  // The mock has no package files: only SHA256SUMS exists (with the pinned hashes); the five package names of the real box answer 404 here
+  // (they are binaries of 20 to 30 MB).
   http.get(`${API}/install/osquery/:file`, ({ params }) => {
     if (params.file !== 'SHA256SUMS') return fail(404, 'not_found', 'The mock box ships no osquery package files.')
-    const names = [`osquery_${OSQUERY_VERSION}-1.linux_amd64.deb`, `osquery-${OSQUERY_VERSION}-1.linux.x86_64.rpm`, `osquery_${OSQUERY_VERSION}-1.linux_arm64.deb`, `osquery-${OSQUERY_VERSION}-1.linux.aarch64.rpm`, `osquery-${OSQUERY_VERSION}.msi`]
-    return new HttpResponse(names.map((n) => `${'0'.repeat(64)}  ${n}`).join('\n') + '\n', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+    return new HttpResponse(MOCK_PACKAGES.map((p) => `${p.sha256}  ${p.file}`).join('\n') + '\n', { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': 'attachment; filename="SHA256SUMS"' } })
   }),
 
   http.post(`${API}/inventory/agents/tokens`, async ({ request }) => {

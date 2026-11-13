@@ -414,7 +414,8 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await expect(page.getByText('You have unsaved changes.')).toBeHidden()
   })
 
-  test('the sensor on this box: shows the SPAN status and links to Settings → Box network; no multi-site controls', async ({ page }) => {
+  // The sample box already listens on a SPAN card (eth1): with SPAN hidden for v1 (D-403) it still shows that state, read-only.
+  test('the sensor on this box: shows the SPAN status it already has and links to Settings → Box network; no multi-site controls', async ({ page }) => {
     const errors = collectErrors(page)
     await page.goto('/devices/setup')
     await expect(page.getByRole('heading', { name: 'Sensor on this box' })).toBeVisible()
@@ -427,7 +428,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await expect(dlg.getByText('eth1')).toBeVisible()
     await expect(dlg.getByRole('switch')).toHaveCount(0)
     await shot(page, 'inventory', 'sensor-config')
-    await expect(dlg.getByRole('link', { name: 'Configure SPAN in Settings → Box network' })).toHaveAttribute('href', '/settings/network')
+    await expect(dlg.getByRole('link', { name: /Settings → Box network$/ })).toHaveAttribute('href', '/settings/network') // either text, SPAN shown or hidden (D-403)
     await page.keyboard.press('Escape')
     await expect(dlg).toBeHidden()
     const row = page.getByRole('table', { name: 'Sensors on this box' }).getByRole('row').nth(1)

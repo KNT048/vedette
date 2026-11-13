@@ -470,7 +470,7 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 	var yes *VersionRange // the widest range the version is inside: the one that explains the finding and names its fix (D-488)
 	jv, isJ := junosParse(in.ver)
 	junosSeen := false // a Junos NVD row decided (junosEval): its exact rows say what a missing update means (D-510)
-	var jrows []junosVer
+	var jl junosList
 	for _, af := range v.Affected {
 		c, err := ParseCPE(af.CPE)
 		if err != nil || c.Part.Kind == NA {
@@ -487,7 +487,12 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 		if isJ && isJunos(c) {
 			junosSeen = true
 			if row, ok := junosRow(c, af.Range); ok {
-				jrows = append(jrows, row)
+				jl.rows = append(jl.rows, row)
+			} else if rel, ok := c.Version.Literal(); ok && strings.EqualFold(rel, jv.release()) {
+				jl.own = true // a row of the device's release junosRow does not read: never a proof (review M1, round 2)
+				jl.ownDash = jl.ownDash || c.Update.Kind == NA
+			} else if e, ok := junosEnd(af.Range); ok && c.Version.Kind == Any {
+				jl.ends = append(jl.ends, e)
 			}
 		}
 		t, r := evalAffected(c, af.Range, in.ver, in.cpe, in.hasCPE)
@@ -537,7 +542,7 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 		return Unknown, VersionRange{}, every, proofNone
 	}
 	if junosSeen && result == No { // NVD's Junos lists have gaps: a missing update is not a proof (review H1 of #703)
-		t, w, proved := junosListed(jv, jrows)
+		t, w, proved := junosListed(jv, jl)
 		switch {
 		case t != No:
 			return t, w, every, proofNone

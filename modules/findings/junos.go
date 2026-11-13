@@ -214,19 +214,36 @@ func junosRow(c CPE, r VersionRange) (junosVer, bool) {
 // junosCmp orders two versions of the same release and train.
 func junosCmp(a, b junosVer) int { return cmp.Or(cmp.Compare(a.n1, b.n1), cmp.Compare(a.n2, b.n2)) }
 
-// junosListed decides a Junos version that every applicable NVD row ruled out, from the exact rows NVD lists (review H1
-// of #703). NVD enumerates Junos updates one by one and leaves gaps: CVE-2020-1631 lists 15.1R7 to 15.1R7-S5 but not
-// 15.1R7-S6 (Juniper's fix is 15.1R7-S7), 12.3R12-S8 and -S11 but not -S9 and -S10, 17.3R1-S1 but not 17.3R1. So, for
-// the device's own release and train: between the first and the last listed update it is affected (Yes, the listed span
-// is the range); before the first it is Unknown; after the last it is no finding but no proof either (the list may stop
-// short of the fix). A release NVD does not list at all, between listed ones (21.3 among 21.2 and 21.4), is Unknown;
-// before every listed release (or with another train of its release listed) no finding, no proof. Only a version after
-// every release NVD lists is proved outside (proof true: D-530 may close a finding).
-func junosListed(v junosVer, rows []junosVer) (t Tri, within VersionRange, proof bool) {
+// junosList is what the applicable Junos NVD rows of one entry list, for junosListed.
+type junosList struct {
+	rows []junosVer // the exact rows junosRow reads ("junos:15.1:r7-s5")
+	ends []junosVer // the release of each range's end bound ("before 21.2"): the range lists the releases before it
+	// own and ownDash: a row of the device's own release in a form junosRow does not read ("15.1:-", "15.1:f", "15.1:a1");
+	// ownDash when one of them is the release with no update ("15.1:-").
+	own, ownDash bool
+}
+
+// junosListed decides a Junos version that every applicable NVD row ruled out, from what NVD lists (review H1 of #703,
+// round 2). NVD enumerates Junos updates one by one and leaves gaps, and Juniper fixes per maintenance branch (the R or F
+// number of a release, or an X train): "22.3 before 22.3R2-S2, 22.3R3-S1" makes NVD list up to 22.3R2-S1, then 22.3R3,
+// skipping the fixed 22.3R2-S2. So the device's own branch decides first: between its first and last listed update it
+// is affected (CVE-2020-1631: 12.3R12-S10 between S8 and S11), before the first Unknown, after the last no finding but no
+// proof (22.3R2-S2; 15.1R7-S6, where Juniper's fix is S7: see the ponytail below). A branch NVD does not list: between
+// listed branches of its release, or before every one, Unknown; after every one, no finding, no proof. A release NVD does
+// not list: between listed releases (a range's end counts: "before 15.1" and 16.1 rows leave 15.1 out) Unknown; the
+// range's end release itself, a release with only other trains or unread rows listed ("15.1:f"), or one before every
+// listed release, no finding, no proof ("15.1:-" alone: Unknown). Only a version after every release NVD lists is proved
+// outside (proof true: D-530 may close a finding).
+//
+// ponytail: the tail of a branch is a guess from NVD's list: a build after the last listed update is taken as fixed (the
+// usual case; Unknown would flag every patched build), so a build NVD forgot (15.1R7-S6 of CVE-2020-1631) gets no finding.
+// Upgrade path: read the "versions prior to Y" list of Juniper's advisory text (NVD description / JSA) for the exact fixed
+// build of each branch; that would also settle a skipped branch exactly.
+func junosListed(v junosVer, l junosList) (t Tri, within VersionRange, proof bool) {
 	var lo, hi *junosVer
-	earlier, later, otherTrain := false, false, false
-	for i := range rows {
-		r := &rows[i]
+	earlier, later, otherTrain, atEnd, lowerBranch, higherBranch := false, false, false, false, false, false
+	for i := range l.rows {
+		r := &l.rows[i]
 		switch c := cmp.Or(cmp.Compare(v.major, r.major), cmp.Compare(v.minor, r.minor)); {
 		case c > 0:
 			earlier = true
@@ -234,13 +251,25 @@ func junosListed(v junosVer, rows []junosVer) (t Tri, within VersionRange, proof
 			later = true
 		case r.train != v.train || r.xnum != v.xnum:
 			otherTrain = true
-		default:
+		case v.train != 'x' && r.n1 < v.n1:
+			lowerBranch = true
+		case v.train != 'x' && r.n1 > v.n1:
+			higherBranch = true
+		default: // the device's own branch: its R or F number, or its X train
 			if lo == nil || junosCmp(*r, *lo) < 0 {
 				lo = r
 			}
 			if hi == nil || junosCmp(*r, *hi) > 0 {
 				hi = r
 			}
+		}
+	}
+	for _, e := range l.ends {
+		switch c := cmp.Or(cmp.Compare(v.major, e.major), cmp.Compare(v.minor, e.minor)); {
+		case c > 0:
+			earlier = true
+		case c == 0:
+			earlier, atEnd = true, true
 		}
 	}
 	switch {
@@ -250,12 +279,36 @@ func junosListed(v junosVer, rows []junosVer) (t Tri, within VersionRange, proof
 		return No, VersionRange{}, false
 	case lo != nil:
 		return Yes, VersionRange{StartIncl: lo.String(), EndIncl: hi.String()}, false
+	case higherBranch: // a branch NVD skips, between listed ones or before every one
+		return Unknown, VersionRange{}, false
+	case lowerBranch:
+		return No, VersionRange{}, false
+	case l.ownDash:
+		return Unknown, VersionRange{}, false
+	case otherTrain || l.own:
+		return No, VersionRange{}, false
 	case earlier && later:
 		return Unknown, VersionRange{}, false
-	case later || otherTrain:
+	case later || atEnd:
 		return No, VersionRange{}, false
 	}
 	return No, VersionRange{}, true
+}
+
+// junosEnd is the release of a range's end bound ("21.2", "21.2r3"), when it reads.
+func junosEnd(r VersionRange) (junosVer, bool) {
+	b := cmp.Or(r.EndExcl, r.EndIncl)
+	if b == "" {
+		return junosVer{}, false
+	}
+	if e, ok := junosParse(b); ok {
+		return e, true
+	}
+	pv, ok := parseVersion(b)
+	if !ok || len(pv.rel) != 2 {
+		return junosVer{}, false
+	}
+	return junosVer{major: pv.rel[0], minor: pv.rel[1]}, true
 }
 
 // deviceOSes turn the operating system a network device states about itself (Asset.StatedOS: the OS the LLDP or SNMP
@@ -281,7 +334,7 @@ func osSoftwareID(assetID string) string { return "os:" + assetID }
 
 // deviceSoftware is the software the matcher reads for a device: its inventory rows and, when the device states a
 // network OS with its version (deviceOSes), one row for that OS. A row a person, an agent or a scan recorded for that
-// product with a readable version wins over the device's statement (no OS row). A recorded row of the product without a
+// product with a full Junos version wins over the device's statement (no OS row). A recorded row of the product without a
 // readable version, all of whose KEV keys are the OS row's, gives way to it: the device's own version decides instead of
 // "add the version" (review M3 of #703).
 func deviceSoftware(a Asset) []Software {
@@ -299,7 +352,7 @@ func deviceSoftware(a Asset) []Software {
 			}
 			_, junos := junosParse(s.Version)
 			switch {
-			case keyed && (junos || versionKnown(s.Version)):
+			case keyed && junos: // "15.1" or "JUNOS 15.1R7.9" typed by a person is not a Junos version: the stated one decides (review L2)
 				return a.Software
 			case covered:
 				continue

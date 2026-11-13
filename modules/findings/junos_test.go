@@ -123,6 +123,16 @@ func TestJunos_VersionForms(t *testing.T) {
 		{"21.4R3-S5", "CVE-2023-36845", No, proofNone}, // the fix of 21.4
 		{"22.4R2-S1", "CVE-2023-36845", No, proofNone},
 		{"20.4R3-EVO", "CVE-2023-36845", Unknown, proofNone}, // Junos OS Evolved is not read the Junos way
+		// Round 2, HIGH-1: Juniper fixes per maintenance branch. NVD lists 22.3 up to R2-S1, then R3: the fixed R2-S2 is
+		// after the last listed update of its own branch (R2), not "between 22.3R1 and 22.3R3".
+		{"22.3R2-S2", "CVE-2023-36844", No, proofNone},
+		// JSA11021's fixed builds of CVE-2020-1631, each after the last listed update of its branch.
+		{"18.4R1-S7", "CVE-2020-1631", No, proofNone},
+		{"18.4R2-S5", "CVE-2020-1631", No, proofNone},
+		{"18.3R2-S4", "CVE-2020-1631", No, proofNone},
+		{"18.3R1-S7", "CVE-2020-1631", No, proofNone},
+		{"18.2R2-S7", "CVE-2020-1631", No, proofNone},
+		{"17.4R1-S8", "CVE-2020-1631", No, proofNone},
 	} {
 		in := newSWInfo(Software{Vendor: "Juniper", Product: "Junos OS", Version: tc.ver}, "")
 		got, _, _, proof := decide(in, byCVE[tc.cve], false)
@@ -285,5 +295,55 @@ func TestJunos_ProofRuleIsForJunosRowsOnly(t *testing.T) {
 	in := newSWInfo(Software{Vendor: "Acme", Product: "Router OS", Version: "15.1F6", CPE: "cpe:2.3:o:acme:router_os:15.1f6:*:*:*:*:*:x86:*"}, "")
 	if got, _, _, proof := decide(in, v, false); got != No || proof != proofNone {
 		t.Errorf("Acme 15.1F6 on x86: %v proof %d", got, proof)
+	}
+}
+
+// Round 2 of #703 (MEDIUM-1, LOW-1): what NVD lists besides the readable rows of the device's branch. A row of the device's
+// release that junosRow does not read ("15.1:-", "15.1:f", "15.1:a1") is never a proof; a range's end release counts as
+// listed ("before 21.2" with no 21.2 rows proves nothing on 21.2R1; "before 15.1" and 16.1 rows leave 15.1 out: Unknown).
+// A branch NVD skips inside a listed release is Unknown.
+func TestJunos_WhatNVDListsBesidesTheBranch(t *testing.T) {
+	t.Parallel()
+	row := func(rel, upd string) string { return "cpe:2.3:o:juniper:junos:" + rel + ":" + upd + ":*:*:*:*:*:*" }
+	all := "cpe:2.3:o:juniper:junos:*:*:*:*:*:*:*:*"
+	for _, tc := range []struct {
+		name, ver string
+		aff       []Affected
+		want      Tri
+		proof     proofKind
+	}{
+		{"15.1:- only", "15.1R7", []Affected{{CPE: row("12.3", "r1")}, {CPE: row("15.1", "-")}}, Unknown, proofNone},
+		{"15.1:f only", "15.1R7", []Affected{{CPE: row("12.3", "r1")}, {CPE: row("15.1", "f")}}, No, proofNone},
+		{"15.1:a1 only", "15.1R7", []Affected{{CPE: row("12.3", "r1")}, {CPE: row("15.1", "a1")}}, No, proofNone},
+		{"before 21.2 only, on 21.2", "21.2R1", []Affected{{CPE: all, Range: VersionRange{EndExcl: "21.2"}}}, No, proofNone},
+		{"before 21.2 only, after it", "22.1R1", []Affected{{CPE: all, Range: VersionRange{EndExcl: "21.2"}}}, No, proofRange},
+		{"before 15.1 and 16.1 rows, on 15.1", "15.1R5", []Affected{{CPE: all, Range: VersionRange{EndExcl: "15.1"}}, {CPE: row("16.1", "r1")}}, Unknown, proofNone},
+		{"before 15.1 and 16.1 rows, on 15.2", "15.2R1", []Affected{{CPE: all, Range: VersionRange{EndExcl: "15.1"}}, {CPE: row("16.1", "r1")}}, Unknown, proofNone},
+		{"a branch NVD skips", "15.1R6-S3", []Affected{{CPE: row("15.1", "r5")}, {CPE: row("15.1", "r7-s5")}}, Unknown, proofNone},
+		{"after every listed branch", "15.1R8", []Affected{{CPE: row("15.1", "r5")}, {CPE: row("15.1", "r7-s5")}}, No, proofNone},
+	} {
+		v := Vuln{CVE: "CVE-2099-0001", Vendor: "Juniper", Product: "Junos OS", Affected: tc.aff}
+		in := newSWInfo(Software{Vendor: "Juniper", Product: "Junos OS", Version: tc.ver}, "")
+		if got, _, _, proof := decide(in, v, false); got != tc.want || proof != tc.proof {
+			t.Errorf("%s (%s): %v proof %d, want %v proof %d", tc.name, tc.ver, got, proof, tc.want, tc.proof)
+		}
+	}
+}
+
+// Round 2 of #703 (LOW-2): a recorded Junos row wins only with a full Junos version; "15.1" or "JUNOS 15.1R7.9" typed by a
+// person gives way to the version the switch states.
+func TestJunos_RecordedRowWinsOnlyWithAJunosVersion(t *testing.T) {
+	t.Parallel()
+	vulns := loadGolden(t, "testdata/kev-nvd-junos-n23.json")
+	for _, ver := range []string{"15.1", "JUNOS 15.1R7.9", "12.1"} {
+		a := walk1EX4200()
+		a.Software = []Software{{ID: "s-manual", Display: "Juniper Junos OS", Vendor: "Juniper", Product: "Junos OS", Version: ver, KevKeys: []string{"juniper|junos os"}}}
+		if sws := deviceSoftware(a); len(sws) != 1 || sws[0].ID != osSoftwareID(a.ID) || sws[0].Version != "15.1R7.9" {
+			t.Errorf("recorded %q: %+v", ver, sws)
+		}
+		r := MatchAsset(a, vulns, nil, t0)
+		if got := matchedCVEs(r.New); !slices.Equal(got, []string{"CVE-2020-1631", "CVE-2023-36844", "CVE-2023-36845", "CVE-2023-36847", "CVE-2025-21590"}) {
+			t.Errorf("recorded %q: %v", ver, got)
+		}
 	}
 }

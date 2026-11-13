@@ -9,7 +9,7 @@
 - **sensor-active** (`IdentifyDevice`, mã `Why`), adapter `scanIdentify` ở `cmd/vedette/scan.go`; **SPA** `RunsTab` (`Identification` trong hộp thoại kết quả), `contract.ts` `IdentReason`/`RunIdentRow`, mock `IDENT_NOTE`/`identOne` (cùng câu với `identNote`), `api/openapi.json` + ogen. Đổi một lý do hay câu: sửa cả bốn chỗ cùng commit.
 
 ## Modifying: `slotOK`, `NextRun`, `lastSlot`, `RunSchedule` (lượt lịch đầu, D-504 (6))
-- `sched_last` trống = chưa lượt lịch nào: đổi luật này đổi cả `next_run` của `GET /scans/config` (`view`), mock `nextRun` (`web/src/features/scan/mocks.ts`, `first` = chưa có run `schedule`) và `TestContract_POST3_NextRun`; xoá `sched_last` (migration, khôi phục) làm hộp chạy lại lượt đầu ở cửa sổ kế tiếp.
+- "Chưa lượt lịch nào" = không dòng `scan_run` nào `trigger = schedule` (`firstPending`, W3-9; trước đây là `sched_last` trống, sai khi một mốc bỏ lỡ hay không có gì để quét đã được ghi): đổi luật này đổi cả `next_run` của `GET /scans/config` (`view`), `RunSchedule`, mock `nextRun` (`web/src/features/scan/mocks.ts`, `first` = chưa có run `schedule`, cùng luật) và `TestContract_POST3_NextRun`; dòng `scan_run` không bao giờ bị xoá, nên lượt đầu không quay lại; khôi phục một bản sao lưu trước lượt lịch đầu làm hộp chạy lượt đầu ở cửa sổ kế tiếp.
 
 ## Modifying: `identNote` (thêm `os_no_patch_level`, D-504)
 - Mã lý do do sensor-active trả (`WhyOSNoPatch`); thêm/đổi mã thì đổi `IdentReason` của `contract.ts`, OpenAPI và `core/api/oas` (sinh), ghi chú của mock và nhãn `scan.ident.*`.

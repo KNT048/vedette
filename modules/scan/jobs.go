@@ -439,8 +439,8 @@ func (s *Service) startAuto(ctx context.Context, trigger string, note *string, i
 // RunSchedule starts the scheduled run of the latest slot while that slot's own window is open (S-SCAN-4, POST-3);
 // the run stops when that window ends. A slot that found a scan running, or the scanner not ready, is tried again at
 // the next tick while its window is open; once the window has closed the slot is recorded as missed, never run late
-// in a later window (#164 review M1). A slot starts at most one run. Until a first slot is recorded (sched_last empty) the slots
-// are those of every window day (slotOK first, W3-6); such an extra slot (not on the weekly weekday) that closed or had nothing to
+// in a later window (#164 review M1). A slot starts at most one run. Until a first scheduled run has started (firstPending, W3-9;
+// not sched_last, which a missed or empty slot also records) the slots are those of every window day (slotOK first, W3-6); such an extra slot (not on the weekly weekday) that closed or had nothing to
 // scan is not recorded, so a new box's first scheduled run is the next window that scans something, not the next weekday. An extra
 // slot counts only when the schedule was saved and the scope confirmed before it (review M4, as missSlot judges "due"): a box set up
 // inside an open window waits for the next one instead of starting at once.
@@ -459,7 +459,10 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 	if !ok { // the zone unknown: the tick is skipped, the slot stays open (fail closed)
 		return nil
 	}
-	never := !last.Valid // no scheduled slot recorded yet
+	never, err := firstPending(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		return err
+	}
 	slot := st.lastSlot(now, loc, never)
 	if slot == nil || (last.Valid && last.String >= store.FormatTS(*slot)) {
 		return nil
@@ -516,6 +519,19 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+// firstPending says whether the box's first scheduled run is still to come: no run with trigger schedule ever started (W3-9).
+// sched_last cannot say it: a weekday slot that was missed or had nothing to scan is recorded without a run, and on a box that
+// was off or empty that first Sunday the first-run rule never applied. Run rows are never deleted, so the answer does not go back.
+func firstPending(ctx context.Context, q interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}) (bool, error) {
+	var ran bool
+	if err := q.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM scan_run WHERE trigger = 'schedule')`).Scan(&ran); err != nil {
+		return false, fmt.Errorf("scan: reading the scheduled runs: %w", err)
+	}
+	return !ran, nil
 }
 
 func markSlot(ctx context.Context, tx *sql.Tx, slot time.Time) error {

@@ -30,6 +30,36 @@ const maxObsPerSeries = 32
 // maxClockSkew is how far into the future a sensor's clock may be before its time is replaced by ours.
 const maxClockSkew = 5 * time.Minute
 
+// LearningWindow is how long a source learns the network after its first report to this box (D-474): a device it finds meanwhile is
+// announced with AssetEvent.Learning, like Darktrace's and Zeek's learning periods, so notify folds the first sweep into one summary.
+const LearningWindow = 36 * time.Hour
+
+// learning records the source's first contact with this box (inv_source, written once) and reports whether that was less than
+// LearningWindow ago, by the box's clock. It runs in the transaction of the report, so a refused report leaves no contact. The time only
+// ever moves back: a first contact stored while the clock was ahead (review #721 LOW-1) becomes now once the clock is corrected, so the
+// window is never longer than LearningWindow of the corrected clock.
+func (s *Service) learning(ctx context.Context, tx *sql.Tx, source string) (bool, error) {
+	now := s.clock()
+	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_source (source, first_seen) VALUES (?, ?) ON CONFLICT (source) DO NOTHING`, source, store.FormatTS(now)); err != nil {
+		return false, fmt.Errorf("inventory: record the source's first contact: %w", err)
+	}
+	var first string
+	if err := tx.QueryRowContext(ctx, `SELECT first_seen FROM inv_source WHERE source = ?`, source).Scan(&first); err != nil {
+		return false, fmt.Errorf("inventory: read the source's first contact: %w", err)
+	}
+	t, err := time.Parse(time.RFC3339Nano, first)
+	if err != nil {
+		return false, fmt.Errorf("inventory: read the source's first contact: %w", err)
+	}
+	if now.Before(t) {
+		if _, err := tx.ExecContext(ctx, `UPDATE inv_source SET first_seen = ? WHERE source = ?`, store.FormatTS(now), source); err != nil {
+			return false, fmt.Errorf("inventory: correct the source's first contact: %w", err)
+		}
+		t = now
+	}
+	return now.Sub(t) < LearningWindow, nil
+}
+
 // RecordObservation stores one observation (PRE-1, POST-1). It is Record with a batch of one.
 func (s *Service) RecordObservation(ctx context.Context, o observe.Observation) error {
 	return s.Record(ctx, []observe.Observation{o})
@@ -158,7 +188,15 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 		if err != nil {
 			return err
 		}
-		created := map[string]bool{}
+		learn := map[string]bool{} // source → still learning (D-474); every source of the batch has made contact
+		for _, c := range clean {
+			if _, ok := learn[c.source]; !ok {
+				if learn[c.source], err = s.learning(ctx, tx, c.source); err != nil {
+					return err
+				}
+			}
+		}
+		created := map[string]string{} // device → the source whose observation created it
 		touched := []string{}
 		before := map[string]string{} // what the findings matcher reads of each device (matchView), before the batch
 		for _, c := range clean {
@@ -176,7 +214,7 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 				return err
 			}
 			if isNew {
-				created[id] = true
+				created[id] = c.source
 				if err := s.auditTx(ctx, tx, systemActor, "inventory.discover", c.target(), id); err != nil {
 					return err
 				}
@@ -210,8 +248,8 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 			}
 			match := after != before[id] // D-510: findings matches the device again only when its OS or model changed
 			switch {
-			case created[id]:
-				o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify, Match: match})
+			case created[id] != "":
+				o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify, Match: match, Learning: learn[created[id]]})
 			case changed || match:
 				o.add(EventAssetUpdated, AssetEvent{AssetID: id, Match: match})
 			}

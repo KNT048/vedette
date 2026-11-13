@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/knt048/vedette/content/devicetypes"
 )
@@ -25,6 +26,10 @@ type DeviceRef struct {
 	Kind     string
 	Display  string // the first software's display name, else the kind
 	Approved bool   // a person approved it, or osquery enrolment did (sensor-active sends SNMP credentials only to approved devices, D-512)
+	Model    string // the current model value, "" when none (D-474: notify names a device without inv.Device)
+	Origin   string // "discovered" or "manual"
+	// ApprovedAt is when a person or osquery enrolment approved it; nil when not approved, declared by hand, or approved before D-471.
+	ApprovedAt *time.Time
 }
 
 // DeviceRefs returns the devices with these ids; unknown ids are absent.
@@ -35,7 +40,7 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		for i, id := range chunk {
 			args[i] = id
 		}
-		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.ip, a.mac, a.vendor, a.kind, a.approved,
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.ip, a.mac, a.vendor, a.kind, a.approved, a.model, a.origin, a.approved_at,
 			(SELECT display FROM inv_software WHERE asset_id = a.id ORDER BY display, id LIMIT 1)
 			FROM inv_asset a WHERE a.id IN (?`+strings.Repeat(`, ?`, len(chunk)-1)+`)`, args...)
 		if err != nil {
@@ -43,12 +48,20 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		}
 		for rows.Next() {
 			var d DeviceRef
-			var host, ip, mac, vendor, display sql.NullString
-			if err := rows.Scan(&d.ID, &host, &ip, &mac, &vendor, &d.Kind, &d.Approved, &display); err != nil {
+			var host, ip, mac, vendor, model, approvedAt, display sql.NullString
+			if err := rows.Scan(&d.ID, &host, &ip, &mac, &vendor, &d.Kind, &d.Approved, &model, &d.Origin, &approvedAt, &display); err != nil {
 				_ = rows.Close()
 				return nil, fmt.Errorf("inventory: read devices: %w", err)
 			}
-			d.Hostname, d.IP, d.MAC, d.Vendor, d.Display = ptr(host), noIP, mac.String, vendor.String, d.Kind
+			d.Hostname, d.IP, d.MAC, d.Vendor, d.Display, d.Model = ptr(host), noIP, mac.String, vendor.String, d.Kind, model.String
+			if approvedAt.Valid {
+				t, err := time.Parse(time.RFC3339Nano, approvedAt.String)
+				if err != nil {
+					_ = rows.Close()
+					return nil, fmt.Errorf("inventory: read devices: approved_at: %w", err)
+				}
+				d.ApprovedAt = &t
+			}
 			if ip.Valid {
 				d.IP = ip.String
 			}
@@ -70,6 +83,11 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 type MatchSoftware struct {
 	ID, Display, Vendor, Product, Version, CPE string
 	KevKeys                                    []string
+	// Source is who reported the row (D-474, MK-2): "agent" (osquery, Wazuh, the box's dpkg list), "manual" (a person), "scan" (the
+	// vulnerability scan), or a sensor ("nmap", "snmp", "passive").
+	Source string
+	// Packaged: an agent row read from the operating system's package database (deb/rpm), so the distribution ships its fixes.
+	Packaged bool
 }
 
 // MatchDevice is a device with its software, for the matcher of findings.
@@ -100,7 +118,7 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 	if d.StatedOS, err = statedOS(ctx, q, id); err != nil {
 		return MatchDevice{}, false, err
 	}
-	rows, err := q.QueryContext(ctx, `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.version, ''), ifnull(s.cpe, ''), k.kev_key
+	rows, err := q.QueryContext(ctx, `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.version, ''), ifnull(s.cpe, ''), s.source, s.packaged, k.kev_key
 		FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id WHERE s.asset_id = ? ORDER BY s.display, s.id, k.kev_key`, id)
 	if err != nil {
 		return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
@@ -109,7 +127,7 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 	for rows.Next() {
 		var sw MatchSoftware
 		var key sql.NullString
-		if err := rows.Scan(&sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &sw.Version, &sw.CPE, &key); err != nil {
+		if err := rows.Scan(&sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &sw.Version, &sw.CPE, &sw.Source, &sw.Packaged, &key); err != nil {
 			return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
 		}
 		if n := len(d.Software); n > 0 && d.Software[n-1].ID == sw.ID {

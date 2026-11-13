@@ -135,12 +135,17 @@ func insertKeys(ctx context.Context, tx *sql.Tx, softwareID string, keys []strin
 
 func insertSoftware(ctx context.Context, tx *sql.Tx, assetID string, it SoftwareItem, source, seenAt string) error {
 	id := store.NewID("s")
-	_, err := tx.ExecContext(ctx, `INSERT INTO inv_software (id, asset_id, display, vendor, product, version, cpe, source, confidence, seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, assetID, it.Display, it.Vendor, it.Product, nullStr(it.Version), nullStr(it.CPE), source, it.Confidence, seenAt)
+	_, err := tx.ExecContext(ctx, `INSERT INTO inv_software (id, asset_id, display, vendor, product, version, cpe, source, confidence, seen_at, packaged) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, assetID, it.Display, it.Vendor, it.Product, nullStr(it.Version), nullStr(it.CPE), source, it.Confidence, seenAt, packaged(it, source))
 	if err != nil {
 		return fmt.Errorf("inventory: store software: %w", err)
 	}
 	return insertKeys(ctx, tx, id, it.KevKeys)
+}
+
+// packaged is the stored flag of a row (D-474, MK-2): only an agent reads a package database; a sensor's claim is not stored.
+func packaged(it SoftwareItem, source string) bool {
+	return it.Packaged && source == string(observe.Agent)
 }
 
 // matchEvents is run after the commit: the CVEs of the keys after the change that were not matched before
@@ -201,7 +206,7 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 		}
 		keep[k] = true
 		if id, ok := have[k]; ok {
-			if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET display = ?, cpe = ?, confidence = ?, seen_at = ? WHERE id = ?`, it.Display, nullStr(it.CPE), it.Confidence, seenAt, id); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET display = ?, cpe = ?, confidence = ?, seen_at = ?, packaged = ? WHERE id = ?`, it.Display, nullStr(it.CPE), it.Confidence, seenAt, packaged(it, source), id); err != nil {
 				return fmt.Errorf("inventory: refresh software: %w", err)
 			}
 			if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software_kev WHERE software_id = ?`, id); err != nil {
@@ -279,7 +284,7 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 	conv := make([]SoftwareItem, len(items))
 	cat := s.cpeCatalog(ctx, items)
 	for i, it := range items {
-		conv[i] = SoftwareItem{Display: it.Display, Vendor: it.Vendor, Product: it.Product, Version: it.Version, CPE: it.CPE, KevKeys: it.KevKeys, Confidence: it.Confidence, Guess: it.Guess}
+		conv[i] = SoftwareItem{Display: it.Display, Vendor: it.Vendor, Product: it.Product, Version: it.Version, CPE: it.CPE, KevKeys: it.KevKeys, Confidence: it.Confidence, Guess: it.Guess, Packaged: it.Packaged}
 		if len(it.KevKeys) == 0 && it.CPE != "" && cat != nil && !it.Guess {
 			conv[i].KevKeys = cat.keysForCPE(it.CPE) // nmap's "apple:iphone_os" is CISA's "Apple|iOS" (D-501); nil keeps the vendor|product key
 		}
@@ -317,7 +322,12 @@ func (s *Service) cpeCatalog(ctx context.Context, items []observe.Software) *Cat
 }
 
 // deviceFor finds the device of a sensor's list (software, services) by its MAC or IP, or creates it unapproved and announces it.
+// Every call is a contact of the source (D-474), whether or not it creates a device.
 func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, ip netip.Addr, mac string, source observe.Source, now string) (string, error) {
+	learning, err := s.learning(ctx, tx, string(source))
+	if err != nil {
+		return "", err
+	}
 	id, isNew, err := s.resolve(ctx, tx, cleanObs{ip: ip, mac: mac, seenAt: now})
 	if err != nil || !isNew {
 		return id, err
@@ -341,6 +351,6 @@ func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, ip netip
 	if err := s.auditTx(ctx, tx, systemActor, "inventory.discover", target, id); err != nil {
 		return "", err
 	}
-	o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify})
+	o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify, Learning: learning})
 	return id, nil
 }

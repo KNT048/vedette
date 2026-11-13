@@ -109,6 +109,10 @@ type Software struct {
 	// keys, so it raises no finding until a person adds it with its version. A Windows release a device named in its NTLM answer is
 	// one too, with a version but no patch level (D-504).
 	Guess bool
+	// Packaged marks an agent's row read from the operating system's package database (osquery deb_packages or rpm_packages, Wazuh's
+	// deb and rpm packages, the box's dpkg list): the distribution ships its fixes, so findings can say "install your distribution's
+	// security updates" (D-474, MK-2). Programs and apps from other lists are false.
+	Packaged bool
 }
 
 // Approver accepts the device an enrolled agent reports on (D-503): the person who made the enrolment token and ran the install

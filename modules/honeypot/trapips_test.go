@@ -342,8 +342,9 @@ func TestTouchingTwoTrapIPsWithinAMinuteIsOneScan(t *testing.T) {
 	// a third Trap IP in the same window: the same scan hit, no new event
 	e.appendLog(httpGet(src, 3, "192.168.10.242", t0.Add(40*time.Second)).json())
 	e.poll()
-	if scans = hitsOfKind(t, e, honeypot.KindScan); len(scans) != 1 || !strings.Contains(scans[0].Excerpt, "PRN-FLOOR2 (192.168.10.242)") {
-		t.Fatalf("after a third Trap IP: %+v", scans)
+	if scans = hitsOfKind(t, e, honeypot.KindScan); len(scans) != 1 || !strings.Contains(scans[0].Excerpt, "PRN-FLOOR2 (192.168.10.242)") ||
+		scans[0].TrapHostname != "FILESRV-OLD, NAS-ARCHIVE, PRN-FLOOR2" || scans[0].TrapIP != "192.168.10.240, 192.168.10.241, 192.168.10.242" {
+		t.Fatalf("after a third Trap IP (the Trap IP column names all three): %+v", scans)
 	}
 	n := 0
 	for _, ev := range e.pub.all() {

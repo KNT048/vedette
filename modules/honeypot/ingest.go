@@ -537,12 +537,55 @@ func (s *Service) sweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, src net
 	}
 	tsText := store.FormatTS(ts)
 	line := src.String() + " touched " + env.nameAt(trapIP) + " (" + trapIP + ")"
-	return s.upsert(ctx, tx, env, storedHit{
+	key := connKey("sweep", src.String(), strconv.FormatInt(ts.Truncate(hitWindow).Unix(), 10))
+	if err := s.upsert(ctx, tx, env, storedHit{
 		Hit: Hit{TS: tsText, Kind: KindScan, Label: "Scan across the Trap IPs", SrcIP: src.String(),
-			Excerpt: "Touched " + strings.Join(both, ", ") + " within a minute", TrapIP: joinMax(ips, 400), TrapHostname: joinMax(names, 100)},
-		connKey: connKey("sweep", src.String(), strconv.FormatInt(ts.Truncate(hitWindow).Unix(), 10)),
+			Excerpt: "Touched " + strings.Join(both, ", ") + " within a minute", TrapIP: joinMax(ips, maxTrapIPText), TrapHostname: joinMax(names, maxTrapNameText)},
+		connKey: key,
 		events:  []HitEvent{{TS: tsText, Source: "honeypot", Text: line, Mark: true}},
-	}, line, env.nameAt(trapIP)+" ("+trapIP+")")
+	}, line, env.nameAt(trapIP)+" ("+trapIP+")"); err != nil {
+		return err
+	}
+	return s.widenSweep(ctx, tx, env, key, near)
+}
+
+// The column limits of hp_hits trap_ip and trap_hostname (migration 0001).
+const (
+	maxTrapIPText   = 400
+	maxTrapNameText = 200
+)
+
+// widenSweep keeps the Trap IP columns of a scan hit naming every Trap IP the source touched in its window: a Trap IP touched
+// later in the same window (a third, a fourth) joins the columns, not only the excerpt and the lines (B2 review).
+func (s *Service) widenSweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, key string, near []netip.Addr) error {
+	var have string
+	switch err := tx.QueryRowContext(ctx, `SELECT trap_ip FROM hp_hits WHERE conn_key = ?`, key).Scan(&have); {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil // over the flood cap: not stored
+	case err != nil:
+		return fmt.Errorf("honeypot: find scan hit: %w", err)
+	}
+	all := slices.Clone(near)
+	for _, part := range strings.Split(have, ", ") {
+		if a, err := netip.ParseAddr(part); err == nil && !slices.Contains(all, a) {
+			all = append(all, a)
+		}
+	}
+	slices.SortFunc(all, func(a, b netip.Addr) int { return a.Compare(b) })
+	ips, names := make([]string, 0, len(all)), make([]string, 0, len(all))
+	for _, a := range all {
+		name := env.nameAt(a.String())
+		if name == "" {
+			name = a.String()
+		}
+		ips, names = append(ips, a.String()), append(names, name)
+	}
+	if ipText := joinMax(ips, maxTrapIPText); ipText != have {
+		if _, err := tx.ExecContext(ctx, `UPDATE hp_hits SET trap_ip = ?, trap_hostname = ? WHERE conn_key = ?`, ipText, joinMax(names, maxTrapNameText), key); err != nil {
+			return fmt.Errorf("honeypot: update scan hit: %w", err)
+		}
+	}
+	return nil
 }
 
 func isBroadcast(lan netip.Prefix, a netip.Addr) bool {

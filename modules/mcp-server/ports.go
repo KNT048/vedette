@@ -73,18 +73,20 @@ type Software struct {
 // Finding is an exploited vulnerability matched to a device. Not included: who changed its status and the notes they wrote
 // (users and free text, INV-7), and the raw request and response of a scan check (D-233; open question 3 of the contract).
 type Finding struct {
-	ID         string        `json:"id"`
-	AssetID    string        `json:"asset_id"`
-	CVE        string        `json:"cve"`
-	Status     string        `json:"status"`
-	Severity   string        `json:"severity"`
-	Confidence float64       `json:"confidence"`
-	Basis      string        `json:"basis"`
-	FirstSeen  string        `json:"first_seen"`
-	LastSeen   string        `json:"last_seen"`
-	ResolvedAt *string       `json:"resolved_at"`
-	Evidence   *Evidence     `json:"evidence"`
-	History    []HistoryStep `json:"history"`
+	ID         string  `json:"id"`
+	AssetID    string  `json:"asset_id"`
+	CVE        string  `json:"cve"`
+	Status     string  `json:"status"`
+	Severity   string  `json:"severity"`
+	Confidence float64 `json:"confidence"`
+	Basis      string  `json:"basis"`
+	FirstSeen  string  `json:"first_seen"`
+	LastSeen   string  `json:"last_seen"`
+	ResolvedAt *string `json:"resolved_at"`
+	// AcceptedUntil (YYYY-MM-DD) is the last day of a risk acceptance, only with status risk_accepted (D-498).
+	AcceptedUntil string        `json:"accepted_until,omitempty"`
+	Evidence      *Evidence     `json:"evidence"`
+	History       []HistoryStep `json:"history"`
 }
 
 // Evidence names the scan check that confirmed a finding. Its summary is not included: it names the device, its address and

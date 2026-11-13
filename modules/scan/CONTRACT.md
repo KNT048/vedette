@@ -71,7 +71,7 @@ S-SCAN-1…4. **Máy quét nối thật (S5)**: `cmd/vedette` `scanEngine` nối
 - Bằng chứng không chứa tên thiết bị (đến từ mạng); câu tự kiểm tra chỉ dựng từ đường dẫn mẫu đã kiểm, địa chỉ qua văn phạm argv và đầu vào của job (M3).
 - Lượt bị khởi động lại bỏ dở được đóng ngay khi module chạy (job `recover`); khi Vedette tắt, `Close` dừng lượt đang chạy và chờ nó (M4).
 - Địa chỉ dùng cho job phải đúng địa chỉ inventory đã quyết định; khác → bỏ qua (L1). Một job 15 phút không được kiểm lại giữa chừng.
-- Phát hiện đã bị người đóng (`false_positive`, `not_relevant`, `patched`) không bị thăm dò lại; `mitigated` vẫn được quét lại để kiểm tra biện pháp (L3).
+- Phát hiện đã bị người đóng (`false_positive`, `not_relevant`, `patched`, `risk_accepted` của D-498) không bị thăm dò lại; `mitigated` vẫn được quét lại để kiểm tra biện pháp (L3).
 - Probe còn mở khi lượt kết thúc được đóng trong `finish` (L4). Thiết bị quá 15 phút có lý do riêng (L5). Thiết bị bị xoá giữa lúc dựng danh sách thì rời danh sách (L6).
 
 ## Rà soát bảo mật S4 (2026-11-10, PR #164)

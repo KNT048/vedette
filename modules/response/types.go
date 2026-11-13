@@ -243,7 +243,7 @@ type ApprovalItem struct {
 // ActionRequest is a bundled request: one per rule run or AI proposal.
 type ActionRequest struct {
 	ID                string        `json:"id"`
-	Source            string        `json:"source"` // "rule" or "ai"
+	Source            string        `json:"source"` // "rule", "ai", or "person" (asked from an incident, D-509)
 	ProposalID        string        `json:"proposal_id"`
 	RuleID            *string       `json:"rule_id"`
 	RuleName          *string       `json:"rule_name"`

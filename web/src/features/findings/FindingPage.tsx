@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { ArrowLeft, ScanSearch } from 'lucide-react'
 import { PageHeader, Section, KeyValue, Panel } from '@/components/common/PageHeader'
 import { QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
-import { Chip, StatusChip } from '@/components/common/StatusChip'
+import { Chip } from '@/components/common/StatusChip'
 import { SourceBadge } from '@/components/common/SourceBadge'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Slot } from '@/components/common/Slot'
@@ -15,6 +15,8 @@ import { Field, Textarea } from '@/components/ui/input'
 import { RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { fmtDate, fmtDateTime, fmtPercent } from '@/lib/format'
 import { useCan } from '@/lib/session'
+import { AcceptUntil, FindingStatusChip } from './AcceptRisk'
+import { untilOk } from './accept'
 import { useFinding, useSetStatus } from './api'
 import { basisKey, deviceName, hasIp, isOpen, unverified } from './basis'
 import { errMsg } from './errors'
@@ -22,22 +24,28 @@ import { AskAi, NoPack, PackView } from './Recommendation'
 import { RiskChip } from './Risk'
 import type { FindingDetail, StatusAction } from './types'
 
-const RESOLVE: StatusAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant']
+const RESOLVE: StatusAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk']
 
 function StatusDialog({ f, open, onOpenChange, opener }: { f: FindingDetail; open: boolean; onOpenChange: (v: boolean) => void; opener: RefObject<HTMLButtonElement | null> }) {
   const { t } = useTranslation('findings')
   const set = useSetStatus(f.id)
   const [action, setAction] = useState<StatusAction>('patched')
   const [note, setNote] = useState('')
+  const [until, setUntil] = useState('')
   const [error, setError] = useState<string | undefined>()
+  const [untilError, setUntilError] = useState<string | undefined>()
   // Every opening starts clean: Cancel or Esc drops the draft, and a saved status is not offered again the next time.
   const [wasOpen, setWasOpen] = useState(open)
-  if (open !== wasOpen) { setWasOpen(open); if (open) { setAction('patched'); setNote(''); setError(undefined) } }
-  const needNote = action === 'false_positive' || action === 'not_relevant'
+  if (open !== wasOpen) { setWasOpen(open); if (open) { setAction('patched'); setNote(''); setUntil(''); setError(undefined); setUntilError(undefined) } }
+  const accept = action === 'accept_risk'
+  const needNote = action === 'false_positive' || action === 'not_relevant' || accept
   function submit() {
-    if (needNote && note.trim().length < 3) { setError(t('status.noteRequired')); return }
+    const badUntil = accept && !untilOk(until)
+    setUntilError(badUntil ? t('accept.untilRequired') : undefined)
+    if (needNote && note.trim().length < 3) { setError(t(accept ? 'accept.noteRequired' : 'status.noteRequired')); return }
+    if (badUntil) return
     setError(undefined)
-    set.mutate({ action, note: note.trim() }, {
+    set.mutate({ action, note: note.trim(), ...(accept ? { until } : {}) }, {
       onSuccess: () => { toast.success(t('status.done')); onOpenChange(false); setNote('') },
       onError: (e) => setError(errMsg(e)),
     })
@@ -45,7 +53,7 @@ function StatusDialog({ f, open, onOpenChange, opener }: { f: FindingDetail; ope
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent title={t('status.title')} description={t('status.description', { cve: f.cve })} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
-        <RadioGroup value={action} onValueChange={(v) => { setAction(v as StatusAction); setError(undefined) }} aria-label={t('status.title')}>
+        <RadioGroup value={action} onValueChange={(v) => { setAction(v as StatusAction); setError(undefined); setUntilError(undefined) }} aria-label={t('status.title')}>
           {RESOLVE.map((a) => (
             <div key={a} className="flex items-start gap-2.5">
               <RadioItem id={`st-${a}`} value={a} className="mt-1" />
@@ -53,6 +61,7 @@ function StatusDialog({ f, open, onOpenChange, opener }: { f: FindingDetail; ope
             </div>
           ))}
         </RadioGroup>
+        {accept ? <AcceptUntil id="st-until" value={until} onChange={(v) => { setUntil(v); setUntilError(undefined) }} error={untilError} /> : null}
         <Field htmlFor="st-note" label={needNote ? t('status.noteLabelRequired') : t('status.noteLabel')} error={error}>
           <Textarea id="st-note" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} aria-invalid={!!error} aria-describedby={error ? 'st-note-error' : undefined} />
         </Field>
@@ -172,15 +181,18 @@ function Detail({ f }: { f: FindingDetail }) {
   return (
     <>
       <PageHeader
-        title={<span className="[overflow-wrap:anywhere]">{t(`headline.${f.status}`, { device: name, cve: f.cve })}</span>}
+        title={<span className="[overflow-wrap:anywhere]">{t(`headline.${f.status}`, { device: name, cve: f.cve, date: fmtDate(f.accepted_until) })}</span>}
         stories={['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2']}
         meta={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <StatusChip status={f.status} /><RiskChip f={f} />
+            <FindingStatusChip f={f} /><RiskChip f={f} />
             {unverified(f) ? <span className="text-muted">{t('risk.unverifiedLine')}</span> : null}
             {f.kev?.ransomware ? <Chip tone="danger">{t('meta.ransomware')}</Chip> : null}
             <span>{t('meta.seen', { first: fmtDate(f.first_seen), last: fmtDateTime(f.last_seen) })}</span>
             {f.kev?.due_date && isOpen(f.status) ? <span>{t('meta.due', { date: fmtDate(f.kev.due_date) })}</span> : null}
+            {f.status === 'risk_accepted' ? (
+              <span className="basis-full [overflow-wrap:anywhere]">{t('accept.line', { date: fmtDate(f.accepted_until), who: f.resolved_by ?? '' })}{f.resolution_note ? ` ${f.resolution_note}` : ''}</span>
+            ) : null}
           </span>
         }
         actions={

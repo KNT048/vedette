@@ -577,12 +577,17 @@ func (s *Service) RescanClear(ctx context.Context, assetID, cve string) error {
 // SetStatus applies a person's action (INV-3). user is the actor's email. On any error nothing is
 // written. The checks run in the order the API reports them (library Finding.Apply).
 func (s *Service) SetStatus(ctx context.Context, id string, action Action, note, user string) (Record, error) {
+	return s.setStatus(ctx, id, action, note, user, time.Time{})
+}
+
+// setStatus is SetStatus with the until day of accept_risk (D-498; zero for every other action).
+func (s *Service) setStatus(ctx context.Context, id string, action Action, note, user string, until time.Time) (Record, error) {
 	if err := ValidUser(user); err != nil {
 		return Record{}, err
 	}
 	var out Record
 	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
-		r, err := applyStatus(ctx, s.cfg.Audit, tx, id, action, note, user, now, emit)
+		r, err := applyStatus(ctx, s.cfg.Audit, tx, id, action, note, user, until, now, emit)
 		out = r
 		return err
 	})
@@ -598,15 +603,24 @@ var ErrTooMany = &APIError{"invalid", 400, fmt.Sprintf("Select between 1 and %d 
 
 // SetStatusMany applies one action with one note to the open findings among ids (INV-10): every open finding gets its
 // own history row, its own core_audit row and its own status_changed event, exactly as SetStatus would give it, all in
-// one transaction. A finding that is already closed (patched, mitigated, false positive, not relevant) is counted in
+// one transaction. A finding that is already closed (patched, mitigated, false positive, not relevant, risk accepted) is counted in
 // skipped and left as it is: a bulk change never overwrites a reason someone wrote. All or nothing: an unknown id or a
 // refused action writes nothing. reopen is not a bulk action. A duplicate id counts once.
 func (s *Service) SetStatusMany(ctx context.Context, ids []string, action Action, note, user string) (changed, skipped int, err error) {
+	return s.setStatusMany(ctx, ids, action, note, user, time.Time{})
+}
+
+// setStatusMany is SetStatusMany with the until day of accept_risk (D-498): a bad day is refused before anything, even
+// when every finding is closed.
+func (s *Service) setStatusMany(ctx context.Context, ids []string, action Action, note, user string, until time.Time) (changed, skipped int, err error) {
 	if err := ValidUser(user); err != nil {
 		return 0, 0, err
 	}
 	if action == ActionReopen {
 		return 0, 0, fmt.Errorf("findings: bulk %q: %w", action, ErrBadAction)
+	}
+	if err := ValidUntil(action, until, s.now()); err != nil {
+		return 0, 0, err
 	}
 	seen := make(map[string]bool, len(ids))
 	uniq := make([]string, 0, len(ids))
@@ -630,7 +644,7 @@ func (s *Service) SetStatusMany(ctx context.Context, ids []string, action Action
 				skipped++
 				continue
 			}
-			if _, err := applyStatus(ctx, s.cfg.Audit, tx, id, action, note, user, now, emit); err != nil {
+			if _, err := applyStatus(ctx, s.cfg.Audit, tx, id, action, note, user, until, now, emit); err != nil {
 				return err
 			}
 			changed++
@@ -645,13 +659,13 @@ func (s *Service) SetStatusMany(ctx context.Context, ids []string, action Action
 
 // applyStatus is one person's action on one finding inside tx: the change, its history row, its audit row and, when the
 // status changed, its event.
-func applyStatus(ctx context.Context, log *audit.Log, tx *sql.Tx, id string, action Action, note, user string, now time.Time, emit func(string, any)) (Record, error) {
+func applyStatus(ctx context.Context, log *audit.Log, tx *sql.Tx, id string, action Action, note, user string, until, now time.Time, emit func(string, any)) (Record, error) {
 	r, err := loadByID(ctx, tx, id)
 	if err != nil {
 		return Record{}, err
 	}
 	was := r.Status
-	f, h, err := r.Apply(action, note, user, now)
+	f, h, err := r.apply(action, note, user, until, now)
 	if err != nil {
 		return Record{}, err
 	}

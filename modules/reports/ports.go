@@ -30,13 +30,14 @@ type Inventory interface {
 }
 
 // Finding is a finding as the reports need it. Status is one of confirmed, suspected, mitigated, patched, false_positive,
-// not_relevant; Severity one of critical, high, medium, low, info.
+// not_relevant, risk_accepted (D-498); Severity one of critical, high, medium, low, info.
 type Finding struct {
 	ID, AssetID, CVE string
 	Status, Severity string
 	FirstSeen        time.Time
 	ResolvedAt       time.Time // zero = not closed
 	ResolvedBy       string    // who closed it ("" = open)
+	AcceptedUntil    time.Time // risk_accepted: the last day of the acceptance (D-498); zero otherwise
 }
 
 // Findings lists every finding.

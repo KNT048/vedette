@@ -21,14 +21,18 @@ type CreatedEvent struct {
 }
 
 // StatusChangedEvent is the payload of findings.finding.status_changed. From and To are equal only when a
-// scan matched a finding a person closed as false_positive or not_relevant: someone has to decide (POST-2).
+// scan matched a finding a person closed as false_positive, not_relevant or risk_accepted: someone has to decide (POST-2).
 type StatusChangedEvent struct {
 	FindingID string `json:"finding_id"`
 	From      Status `json:"from"`
 	To        Status `json:"to"`
 	// Reason is set when Vedette changed the status by itself (D-530): ReasonNotAffectedVersion when it closed the
-	// finding, ReasonMatchesAgain when it reopened one it had closed. Empty for a person's action or a scan.
+	// finding, ReasonMatchesAgain when it reopened one it had closed, ReasonRiskExpired when a risk acceptance ran out
+	// (D-498). Empty for a person's action or a scan.
 	Reason string `json:"reason,omitempty"`
+	// AcceptedBy and AcceptedUntil (YYYY-MM-DD) are set only with ReasonRiskExpired: who accepted the risk and its last day.
+	AcceptedBy    string `json:"accepted_by,omitempty"`
+	AcceptedUntil string `json:"accepted_until,omitempty"`
 }
 
 // ReasonMatchesAgain is the StatusChangedEvent reason of a finding Vedette reopened because the device matches the

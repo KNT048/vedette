@@ -208,6 +208,7 @@ type Row struct {
 	ResolvedBy     *string      `json:"resolved_by"`
 	ResolvedAt     *time.Time   `json:"resolved_at"`
 	ResolutionNote *string      `json:"resolution_note"`
+	AcceptedUntil  *string      `json:"accepted_until"` // YYYY-MM-DD, the last day of a risk acceptance (D-498)
 	History        []historyDoc `json:"history"`
 	Asset          *AssetView   `json:"asset"`
 	Kev            *KevInfo     `json:"kev"`
@@ -242,6 +243,10 @@ func newRow(r Record, a *AssetView, k *KevInfo) Row {
 	}
 	if r.ResolutionNote != "" {
 		row.ResolutionNote = &r.ResolutionNote
+	}
+	if !r.AcceptedUntil.IsZero() {
+		d := r.AcceptedUntil.UTC().Format(time.DateOnly)
+		row.AcceptedUntil = &d
 	}
 	for _, h := range r.History {
 		row.History = append(row.History, historyDoc{TS: h.TS.UTC(), User: h.User, Act: h.Action, Note: h.Note})

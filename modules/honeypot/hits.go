@@ -144,6 +144,19 @@ func (s *Service) HitDetail(ctx context.Context, id string) (HitDetail, error) {
 	return out, nil
 }
 
+// SourceConnected reports whether src completed a connection to a trap service (a real service hit: the listener logs a connection only
+// after the handshake) within window of at. A scan hit can be made from attempts that completed nothing, so its source may be forged;
+// response offers to block the source of a scan only when this holds (D-509). Read only.
+func (s *Service) SourceConnected(ctx context.Context, src string, at time.Time, window time.Duration) (bool, error) {
+	var n int
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT COUNT(*) FROM hp_hits WHERE src_ip = ? AND is_test = 0 AND kind = 'service' AND ts BETWEEN ? AND ?`,
+		src, store.FormatTS(at.Add(-window)), store.FormatTS(at.Add(window))).Scan(&n)
+	if err != nil {
+		return false, fmt.Errorf("honeypot: read the hits of a source: %w", err)
+	}
+	return n > 0, nil
+}
+
 func (s *Service) insertHit(ctx context.Context, tx *sql.Tx, h storedHit) error {
 	var svc, port, tok, conn any
 	if h.Service != nil {

@@ -21,7 +21,7 @@ function useWrite<V>(id: string, fn: (v: V) => Promise<FindingDetail>) {
 }
 
 export const useSetStatus = (id: string) =>
-  useWrite<{ action: StatusAction; note: string }>(id, (v) => api.post<FindingDetail>(`/findings/${encodeURIComponent(id)}/status`, v))
+  useWrite<{ action: StatusAction; note: string; until?: string }>(id, (v) => api.post<FindingDetail>(`/findings/${encodeURIComponent(id)}/status`, v))
 
 export const useApplied = (id: string) =>
   useWrite<ApplyItem>(id, (item) => api.post<FindingDetail>(`/findings/${encodeURIComponent(id)}/applied`, { item }))
@@ -33,7 +33,7 @@ export const useAskAi = (id: string) =>
 export function useBulkStatus() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (v: { ids: string[]; action: BulkAction; note: string }) => api.post<{ updated: number; skipped: number }>('/findings/status', v),
+    mutationFn: (v: { ids: string[]; action: BulkAction; note: string; until?: string }) => api.post<{ updated: number; skipped: number }>('/findings/status', v),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['findings'] }) },
   })
 }

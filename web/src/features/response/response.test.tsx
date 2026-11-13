@@ -1794,3 +1794,92 @@ describe('response: rule editor form matrix (docs/QA.md §2)', () => {
     expect(await screen.findByText('Cloned: switched off, in dry run')).toBeInTheDocument()
   })
 })
+
+describe('response: Respond from an incident (S-RESP-3, D-509)', () => {
+  type Panel = import('./types').IncidentPanel
+  const hitRow = (id: string, src: string, asset: string | null, kind = 'service') => ({ id, ts: new Date().toISOString(), kind, service: 'ssh', port: 22, src_ip: src, src_asset_id: asset, is_test: false, excerpt: '', events: [], trap_ip: '192.168.10.240', trap_hostname: 'FILESRV-OLD' })
+  const incident = (id: string, hit: string, title: string, status = 'new', kind = 'trap') => ({ id, kind, attempt: false, link: `/honeypot/hits/${hit}`, title, asset_ids: [], severity: 'critical', status, first_seen: new Date().toISOString(), last_seen: new Date().toISOString(), count: 1,
+    what: title, action: 'Take the machine off the network (unplug the cable, turn off Wi-Fi), then ask its user what they were doing.', sends: [], handled_by: null, handled_at: null, note: null })
+  beforeEach(() => {
+    collection<unknown[]>('hp_hits', () => []).set([hitRow('hit-lan', '192.168.10.107', 'a-pc07'), hitRow('hit-pub', '203.0.113.9', null), hitRow('hit-scan', '192.168.10.170', null, 'scan'), hitRow('hit-v6', 'fd00::5', null)])
+    collection<unknown[]>('notify_incidents', () => []).set([incident('al-4', 'hit-lan', 'PC-HR-01 touched the SSH trap'), incident('in-pub', 'hit-pub', '203.0.113.9 touched the SSH trap'),
+      incident('in-scan', 'hit-scan', '192.168.10.170 scanned the Trap IPs'), incident('in-v6', 'hit-v6', 'fd00::5 touched the SSH trap'), incident('in-done', 'hit-lan', 'PC-HR-01 touched the SSH trap', 'resolved'),
+      { ...incident('in-log', 'hit-lan', 'WEB01 logged far more failed sign-ins than usual', 'new', 'log_anomaly'), link: '/logs' }])
+  })
+
+  it('a LAN source: never the block list; a firewall block is a pending request after execution is on, asked once', async () => {
+    const p = (await call<Panel>('viewer', 'GET', '/response/incidents/al-4')).json
+    expect(p.source).toMatchObject({ ip: '192.168.10.107', scope: 'lan' })
+    expect(p.options.map((o) => o.action_id)).not.toContain('blocklist_add')
+    const fgt = p.options.find((o) => o.action_id === 'fgt_addrgrp_add')!
+    expect(fgt).toMatchObject({ ready: false, why: 'Execution is off. Turn it on in Settings, AI response (high risk).', ttl_min: 1440 })
+    expect((await call('operator', 'POST', '/response/incidents/al-4/request', { action_id: 'fgt_addrgrp_add' })).code).toBe('execution_off')
+    expect((await call('operator', 'POST', '/response/incidents/al-4/request', { action_id: 'blocklist_add' })).code).toBe('tool_not_allowed')
+    await turnOn()
+    const r = await call<ActionRequest>('operator', 'POST', '/response/incidents/al-4/request', { action_id: 'fgt_addrgrp_add' })
+    expect(r.status).toBe(201)
+    expect(r.json).toMatchObject({ source: 'person', status: 'pending', proposal_id: 'incident:al-4', pre_approved: false })
+    expect(r.json.items[0]!.ttl_min).toBe(1440)
+    expect((await call('operator', 'POST', '/response/incidents/al-4/request', { action_id: 'fgt_addrgrp_add' })).code).toBe('already_requested')
+    expect((await call<Panel>('viewer', 'GET', '/response/incidents/al-4')).json.options.find((o) => o.action_id === 'fgt_addrgrp_add')).toMatchObject({ requested: true, ready: false })
+    expect((await call('viewer', 'POST', '/response/incidents/al-4/request', { action_id: 'fgt_addrgrp_add' })).status).toBe(403)
+  })
+
+  it('a public source: the block list, even with execution off, through approval', async () => {
+    const p = (await call<Panel>('viewer', 'GET', '/response/incidents/in-pub')).json
+    expect(p.source).toMatchObject({ ip: '203.0.113.9', scope: 'public' })
+    expect(p.options.find((o) => o.action_id === 'blocklist_add')).toMatchObject({ ready: true, title: 'Add 203.0.113.9 to the block list' })
+    const r = await call<ActionRequest>('operator', 'POST', '/response/incidents/in-pub/request', { action_id: 'blocklist_add' })
+    expect(r.json).toMatchObject({ source: 'person', status: 'pending' })
+    expect((await call<Blocklist>('admin', 'GET', '/response/blocklist')).json.entries.map((e) => e.value)).not.toContain('203.0.113.9') // nothing until approved
+  })
+
+  it('the panel: the source, why nothing can be done yet and where to connect; then one click asks for approval', async () => {
+    renderApp('/response?incident=al-4', { role: 'operator' })
+    const panel = await screen.findByRole('region', { name: 'Respond to this incident' })
+    expect(await within(panel).findByText('192.168.10.107')).toBeInTheDocument()
+    expect(within(panel).getByText('On your network')).toBeInTheDocument()
+    expect(within(panel).getByText('Vedette cannot cut this machine off for you yet.')).toBeInTheDocument()
+    expect(within(panel).getByRole('link', { name: 'Settings, Connections' })).toHaveAttribute('href', '/settings/connections')
+    expect(within(panel).getByText(/The block list only carries public addresses, so it cannot hold 192.168.10.107/)).toBeInTheDocument()
+    for (const b of within(panel).getAllByRole('button', { name: 'Ask for approval' })) expect(b).toBeDisabled()
+  })
+
+  it('the panel with execution on: Ask for approval sends one request and says nothing changes until approved', async () => {
+    await turnOn()
+    renderApp('/response?incident=al-4', { role: 'operator' })
+    const panel = await screen.findByRole('region', { name: 'Respond to this incident' })
+    const row = (await within(panel).findByText('FortiGate: add an IP to the Vedette-Blocked address group: 192.168.10.107')).closest('li')!
+    await userEvent.click(within(row as HTMLElement).getByRole('button', { name: 'Ask for approval' }))
+    expect(await within(panel).findByRole('status')).toHaveTextContent('Nothing changes until someone approves it.')
+    expect(actionsStore.get().filter((a) => a.source === 'person')).toHaveLength(1)
+  })
+
+  it('a scan that completed no connection, a resolved incident, an IPv6 source (review of #702)', async () => {
+    await turnOn()
+    const scan = (await call<Panel>('viewer', 'GET', '/response/incidents/in-scan')).json
+    expect(scan.note).toMatch(/can be forged/)
+    expect(scan.options.every((o) => !o.ready)).toBe(true)
+    expect((await call('operator', 'POST', '/response/incidents/in-scan/request', { action_id: 'fgt_addrgrp_add' })).code).toBe('source_unconfirmed')
+    const done = (await call<Panel>('viewer', 'GET', '/response/incidents/in-done')).json
+    expect(done).toMatchObject({ options: [], note: expect.stringMatching(/resolved/) as unknown })
+    expect((await call('operator', 'POST', '/response/incidents/in-done/request', { action_id: 'fgt_addrgrp_add' })).code).toBe('incident_resolved')
+    expect((await call<Panel>('viewer', 'GET', '/response/incidents/in-v6')).json.source).toMatchObject({ ip: 'fd00::5', scope: 'lan' })
+  })
+
+  it('the panel with no source says so and links to Rules, without a button', async () => {
+    renderApp('/response?incident=in-log', { role: 'operator' })
+    const panel = await screen.findByRole('region', { name: 'Respond to this incident' })
+    expect(await within(panel).findByText(/names no single address Vedette can act on/)).toBeInTheDocument()
+    expect(within(panel).getByRole('link', { name: 'Rule templates' })).toHaveAttribute('href', '/response?tab=rules')
+    expect(within(panel).queryByRole('button')).toBeNull()
+  })
+
+  it('a viewer sees a ready option with a disabled button', async () => {
+    await turnOn()
+    renderApp('/response?incident=al-4', { role: 'viewer' })
+    const panel = await screen.findByRole('region', { name: 'Respond to this incident' })
+    const row = (await within(panel).findByText('FortiGate: add an IP to the Vedette-Blocked address group: 192.168.10.107')).closest('li')!
+    expect(within(row as HTMLElement).getByRole('button', { name: 'Ask for approval' })).toBeDisabled()
+  })
+})

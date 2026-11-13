@@ -283,8 +283,11 @@ func (s *Service) addBlockEntry(ctx context.Context, tx *sql.Tx, r request, it i
 		return fmt.Errorf("response: a block list item has no valid address")
 	}
 	source := "AI request"
-	if r.Source == "rule" {
+	switch r.Source {
+	case "rule":
 		source = "Rule: " + deref2(r.RuleName)
+	case sourcePerson:
+		source = "Asked from an incident"
 	}
 	_, reason, _ := strings.Cut(it.Change.After, "Reason: ")
 	if reason == "" {

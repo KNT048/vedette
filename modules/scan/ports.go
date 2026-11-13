@@ -55,7 +55,7 @@ type FindingRef struct {
 	ID      string
 	AssetID string
 	CVE     string
-	Status  string // suspected, confirmed, mitigated, patched, false_positive, not_relevant
+	Status  string // suspected, confirmed, mitigated, patched, false_positive, not_relevant, risk_accepted
 	Basis   string // how it was matched: scan, version, product ("" = unknown)
 }
 

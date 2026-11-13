@@ -90,14 +90,14 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (248 mã)
+#### HTTP 400 (249 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `allow_required` | 400 | Add at least one entry to the allow-list. Only hosts, addresses or commands on this list. | `POST /core/connections`; `PUT /core/connections/{id}` |
 | `approvals_unsupported` | 400 | This channel cannot take approvals. It sends a link that opens Vedette instead. | module notify (validator dùng chung) |
 | `approvers_required` | 400 | Add at least one approver, or turn off "Approve actions from this channel". | module notify (validator dùng chung) |
-| `bad_action` | 400 | Choose one of: patched, mitigated, false positive, not relevant, or reopen. | `POST /findings/{id}/status` |
+| `bad_action` | 400 | Choose one of: patched, mitigated, false positive, not relevant, accept risk, or reopen. | `POST /findings/{id}/status`; `POST /findings/status` |
 | `bad_active` | 400 | Active scan settings are missing. | `PUT /inventory/settings` |
 | `bad_answer` | 400 | answer must be have or not_relevant. | `POST /feeds/weekly/{id}` |
 | `bad_app_id` | 400 | App ID is the number of your Zalo app, shown in Zalo Developers next to the app name. | module notify (Zalo OA, D-483) |
@@ -163,6 +163,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_to` | 400 | not-an-email is not a valid email address. Separate several recipients with commas. | module notify (validator dùng chung) |
 | `bad_token` | 400 | A bot token looks like 123456789:AAH… and comes from @BotFather. Copy it again without extra spaces. | module notify (validator dùng chung) |
 | `bad_type` | 400 | Choose a token type: decoy file, fake credentials, URL or DNS name. | `POST /honeypot/tokens` |
+| `bad_until` | 400 | Accept the risk until a date from tomorrow up to one year from today. | `POST /findings/{id}/status`; `POST /findings/status` (D-498) |
 | `bad_url` | 400 | Enter the Wazuh server API address starting with https://, for example https://wazuh-manager:55000. Do not put the user  Also (D-480): the address pasted after a Google sign-in is not this sign-in's loopback address, or has no code (`POST /notify/email-signin/{id}`). | module inventory, logs, notify (validator dùng chung) |
 | `bad_user_id` | 400 | The Zalo recipient ID (user_id) is the number of a person who followed or messaged the OA. | module notify (validator dùng chung) |
 | `bad_username` | 400 | Enter the read-only API user name (letters, digits, dot, dash, underscore; up to 64 characters). | `POST /scans/credentialed` |
@@ -284,7 +285,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `not_manual` | 400/409 | Only manually declared software can be removed. Software seen by a sensor or agent updates on the next scan. | `DELETE /inventory/devices/{id}/software/{sid}`; `POST /response/rules/{id}/manual` |
 | `not_public` | 400 | The box reaches the Internet via ${ip}, which is a private, reserved or shared carrier (CGNAT) address. Scanning it coul | `POST /exposure/box-ip/verify` |
 | `not_server` | 400 | The target is not a server (credentialed scan is for servers only). | `POST /scans/credentialed` |
-| `note_required` | 400 | Write why this is a false positive or not relevant (at least 3 characters) so the next person understands. | `POST /findings/{id}/status` |
+| `note_required` | 400 | Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands. | `POST /findings/{id}/status` |
 | `note_too_long` | 400 | The note can be at most 500 characters. Shorten it. | `PATCH /notify/incidents/{id}`; `POST /findings/{id}/status` |
 | `oidc_off` | 400 | SSO sign-in is not set up. Sign in with your email and password, or ask an administrator. | `POST /auth/oidc/start`; `POST /auth/oidc/callback` (D-194) |
 | `out_of_scope` | 400 | The target is outside the approved scope. | `POST /scans/credentialed`; `POST /scans/runs` |
@@ -367,7 +368,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `no_access` | 403 | Your company account is not in a group that may use Vedette. Ask an administrator. | `POST /auth/oidc/callback`: no mapped group and the default role is No access (D-195 (1)) |
 | `password_change_required` | 403 | Choose a new password before you continue. | mọi yêu cầu có phiên của người dùng có mật khẩu tạm, trừ `GET /me`, `POST /core/account/password` (D-180) |
 | `token_expired` | 403 | This enrollment token has expired. Create a new one in Vedette. | `POST /intake/osquery/status`; `POST /inventory/agents/tokens/{id}/sample-data` |
-| `tool_not_allowed` | 403 | The action "${cat?.name ?? prop.tool}" is not enabled in the action catalog (Settings, AI response). | `POST /response/proposals/{id}/request` |
+| `tool_not_allowed` | 403 | The action "${cat?.name ?? prop.tool}" is not enabled in the action catalog (Settings, AI response). | `POST /response/proposals/{id}/request`; `POST /response/incidents/{id}/request` (D-509) |
 
 #### HTTP 404 (8 mã)
 
@@ -382,7 +383,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (93 mã)
+#### HTTP 409 (96 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -391,11 +392,11 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `blocked_by_hook` | 409 | The AI was not asked: a hook stopped the question. The text contains an ID number. It was not sent to the AI. Remove the number and ask again. Rephrase and try again; an administrator can adjust the hooks in Settings, AI assistant, Hooks. | `POST /findings/{id}/ai`, `POST /ai/cve/{id}/explain`, `POST /ai/cve/{id}/news`, `POST /ai/ask`, `POST /ai/logs/digest`, `POST /reports/weekly/ai-summary`, `POST /reports/pdpl/ai-summary` (D-481): hook `before_ai` chặn câu hỏi hay dữ liệu đi kèm (thông điệp nêu phần nào) hoặc hook `after_ai` chặn câu trả lời; `POST /ai/ask` trả 200 với hook trong `hooks[].step` thay vì mã này |
 | `already_on` | 409 | Two-step sign-in is already on. Turn it off first to set up the other method. | `POST /core/account/2fa/email/confirm`; `POST /core/account/2fa/email/start`; `POST /core/account/2fa/start` |
 | `already_open` | 409 | This finding is already open. | `POST /findings/{id}/status` |
-| `already_requested` | 409 | This action already has an open request or has already been carried out. | `POST /response/proposals/{id}/request` |
+| `already_requested` | 409 | This action already has an open request or has already been carried out. | `POST /response/proposals/{id}/request`; `POST /response/incidents/{id}/request` (D-509) |
 | `already_running` | 409 | A scan is already running. Wait for it to finish or press Stop now. | `POST /scans/runs` |
 | `already_setup` | 409 | This box is already set up. Sign in with the administrator account. | `POST /core/setup` |
 | `box_device` | 409 | This is the Vedette box itself, so it cannot be deleted. It is always the first device in the list. Its packages come fr | `DELETE /inventory/devices/{id}` |
-| `circuit_open` | 409 | The circuit breaker is open: too many actions in one hour, so everything is paused. An admin can resume it in Settings, AI response. | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/proposals/{id}/request`; rule runs (resp_log); the emergency stop opens it too (D-88 amendment 2026-11-09) |
+| `circuit_open` | 409 | The circuit breaker is open: too many actions in one hour, so everything is paused. An admin can resume it in Settings, AI response. | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/proposals/{id}/request`; rule runs (resp_log); the emergency stop opens it too (D-88 amendment 2026-11-09); `POST /response/incidents/{id}/request` (D-509) |
 | `connection_changed` | 409 | The connection "…" was changed after the request was made. Nothing was changed. Ask again. (another connection, address or version than the one the request was rendered against) | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/actions/{id}/rollback`; `POST /core/connections/{id}/test` (the connection was edited while the test ran, so the result was not saved) |
 | `builtin` | 409 | Built-in actions cannot be deleted. Disable it instead. | `DELETE /response/catalog/{id}` |
 | `busy` | 409 | An update run is in progress. Wait for it to finish, then check again. / Another external scan is running on this box. Wait for it to finish, then try again. (`POST /exposure/targets/{id}/scan`, D-229) | `POST /core/updates/os/check`; `POST /core/updates/os/install`; `POST /core/updates/os/reboot`; `GET /core/data/backup` (cũng khi một lần tải khác đang chạy); `GET /core/logs/export` (backend: another log download is being prepared); `GET /core/data/export` (backend: another export is being prepared); `POST /ai/knowledge` (documents still being read); `POST /core/updates/apply`, `POST /core/updates/rollback` ("An update or rollback of the software is already running. Wait for it to finish."; while an OS install runs: "An operating system update is running. Wait for it to finish, then try again."). Backend (D-342): a software run counts as busy for the OS endpoints too |
@@ -407,7 +408,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `duplicate_software` | 409 | This software is already on the device. | `POST /inventory/devices/{id}/software` |
 | `email_channel_not_ready` | 409 | Email codes need the email alert channel. An administrator has to set it up and turn it on first. | `POST /core/account/2fa/email/confirm`; `POST /core/account/2fa/email/start` |
 | `email_in_use` | 409 | A Vedette account already uses ${email} and does not belong to this SSO identity. Use another email at the identity provider, or ask an administrator. | `POST /auth/oidc/callback` (D-195 (3)) |
-| `execution_off` | 409 | Execution is off (Settings, AI response). | `POST /response/actions/{id}/chat-decision`; `POST /response/proposals/{id}/request` |
+| `execution_off` | 409 | Execution is off (Settings, AI response). | `POST /response/actions/{id}/chat-decision`; `POST /response/proposals/{id}/request`; `POST /response/incidents/{id}/request` (D-509) |
 | `exists` | 409 | This target already has a scan account. | `POST /scans/credentialed` |
 | `expired` | 409 | Verification of ${t.value} has expired. Verify it again first. | `POST /exposure/targets/{id}/scan` |
 | `feed_disabled` | 409 | Turn the feed on before fetching it. | `POST /feeds/sources/{id}/fetch` |
@@ -421,11 +422,14 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `module_off` | 409 | The module for this role is off. / The Vulnerability scans module is off, so the box cannot scan. An admin can turn it on in Settings, Modules. / The External exposure module is off, so the box cannot scan. An admin can turn it on in Settings, Modules. | `POST /exposure/targets/{id}/scan` while the `scan` module, which does the scan, is off (D-229), or the exposure module was switched off while the gate ran (D-493); sensor link 8444 (`core/sensorlink`, D-141); `POST /response/me/identities/{channel}/code` on a chat channel while notify is off (D-414). `/core/mcp*` no longer uses it: off, they are 404 (D-230) |
 | `need_decoys` | 409 | Scan detection needs at least two Trap IPs that are on. Add a Trap IP first. | `POST /honeypot/test-scan` |
 | `no_devices` | 409 | No device in the inventory matches (agent sample data). | `POST /inventory/agents/tokens/{id}/sample-data`; `POST /inventory/agents/wazuh/sample-data` |
+| `no_source` | 409 | This incident names no single address Vedette can act on. Nothing was requested. | `POST /response/incidents/{id}/request` (D-509): not a trap incident, a test hit, or the hit is gone |
+| `incident_resolved` | 409 | This incident is resolved, so nothing is offered. Reopen it in Incidents to act on it. | `POST /response/incidents/{id}/request` (D-509) |
+| `source_unconfirmed` | 409 | The source of a scan can be forged: these attempts completed no connection, so this address may belong to someone innocent. Confirm on the device first. Nothing is offered for it. | `POST /response/incidents/{id}/request` (D-509): a scan hit whose source has no service hit within the hour around it |
 | `no_pending` | 409 | No key is waiting for confirmation. Click "Turn on two-factor authentication" to create one. | `POST /core/account/2fa/confirm` |
 | `no_previous` | 409 | No previous version to go back to. | `POST /core/updates/rollback` |
 | `not_email_method` | 409 | This account does not use email codes. | `POST /auth/login/resend-code` |
-| `maintenance` | 409 | Held: maintenance window "…" is active. Nothing was changed. | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/proposals/{id}/request`; rule runs (resp_log) |
-| `never_touch` | 409 | … matches the never-touch list (…). Nothing was changed. Also: The never-touch list could not be read in full (the box's own addresses or the inventory are not available), so nothing was changed. | rule runs and `POST /response/proposals/{id}/request` (planning); `POST /response/actions/{id}/approve` (item refused right before it runs) |
+| `maintenance` | 409 | Held: maintenance window "…" is active. Nothing was changed. | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/proposals/{id}/request`; rule runs (resp_log); `POST /response/incidents/{id}/request` (D-509) |
+| `never_touch` | 409 | … matches the never-touch list (…). Nothing was changed. Also: The never-touch list could not be read in full (the box's own addresses or the inventory are not available), so nothing was changed. | rule runs and `POST /response/proposals/{id}/request` (planning); `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/incidents/{id}/request` (D-509) |
 | `not_publishable` | 409/400 | 192.168.1.5 is not a public address (private, loopback, link-local, carrier-grade NAT 100.64.0.0/10, multicast or reserved). The block list only carries public addresses, so your firewall never blocks your own network. … Nothing was changed. (D-469; not `not_public`, which is exposure's 400 for the box's own address) | 409: rule runs and manual runs (resp_log; only that action is dropped, the rule's others go ahead); `POST /response/proposals/{id}/request`; AI proposals; `POST /response/actions/{id}/approve` (a `blocklist_add` item made before the check is refused right before it runs). 400: `POST /response/rules`, `PUT /response/rules/{id}`, `POST /response/rules/simulate` (a fixed address in a block list action) |
 | `not_executed` | 409 | Only an executed action can be rolled back. | module response (validator dùng chung) |
 | `not_on` | 409 | Two-step sign-in is already off for this user. | `POST /core/users/{id}/2fa/reset` |

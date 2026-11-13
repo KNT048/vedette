@@ -1029,7 +1029,8 @@ type Handler interface {
 	FindingsPostFindingsIDApplied(ctx context.Context, req *FindingsPostFindingsIDAppliedReq, params FindingsPostFindingsIDAppliedParams) (*FindingsPostFindingsIDAppliedOK, error)
 	// FindingsPostFindingsIDStatus implements findings_post_findings_id_status operation.
 	//
-	// Change status (patched, mitigated, false positive, not relevant, reopen) with a note.
+	// Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen)
+	// with a note.
 	//
 	// POST /findings/{id}/status
 	FindingsPostFindingsIDStatus(ctx context.Context, req *FindingsPostFindingsIDStatusReq, params FindingsPostFindingsIDStatusParams) (*FindingsPostFindingsIDStatusOK, error)
@@ -1718,6 +1719,13 @@ type Handler interface {
 	//
 	// GET /response/events
 	ResponseGetResponseEvents(ctx context.Context) (*ResponseGetResponseEventsOK, error)
+	// ResponseGetResponseIncidentsID implements response_get_response_incidents_id operation.
+	//
+	// Respond to an incident (D-509): its source address and device, LAN or public, and the actions that
+	// can really be asked for it, each with why it is not ready.
+	//
+	// GET /response/incidents/{id}
+	ResponseGetResponseIncidentsID(ctx context.Context, params ResponseGetResponseIncidentsIDParams) (*ResponseGetResponseIncidentsIDOK, error)
 	// ResponseGetResponseLog implements response_get_response_log operation.
 	//
 	// Tamper-evident response log: every rule, dry run, simulation, proposal, request, decision,
@@ -1851,6 +1859,16 @@ type Handler interface {
 	//
 	// POST /response/execution
 	ResponsePostResponseExecution(ctx context.Context, req *ResponsePostResponseExecutionReq) (*ResponsePostResponseExecutionOK, error)
+	// ResponsePostResponseIncidentsIDRequest implements response_post_response_incidents_id_request operation.
+	//
+	// Ask for approval of one offered action on the incident's source (D-509). The server reads the source
+	// from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log).
+	// Refused when the action is not offered for this source, a device action while execution is off, a
+	// request is already open, the incident is resolved (incident_resolved) or the source of a scan may be
+	// forged (source_unconfirmed).
+	//
+	// POST /response/incidents/{id}/request
+	ResponsePostResponseIncidentsIDRequest(ctx context.Context, req *ResponsePostResponseIncidentsIDRequestReq, params ResponsePostResponseIncidentsIDRequestParams) (*ResponsePostResponseIncidentsIDRequestCreated, error)
 	// ResponsePostResponseMeIdentitiesChannelCode implements response_post_response_me_identities_channel_code operation.
 	//
 	// Email: mail a 6-digit link code to my address on the email approval channel (my sign-in email).

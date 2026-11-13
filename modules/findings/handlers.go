@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
@@ -230,7 +231,7 @@ func (h *FindingHandlers) FindingsPostFindingsIDStatus(ctx context.Context, req 
 	if strings.ContainsRune(req.Note, 0) {
 		return nil, apierr.Invalid("The note contains a character that is not allowed.")
 	}
-	rec, err := h.svc.SetStatus(ctx, params.ID, Action(req.Action), req.Note, p.Email)
+	rec, err := h.svc.setStatus(ctx, params.ID, Action(req.Action), req.Note, p.Email, req.Until.Or(time.Time{}))
 	if err != nil {
 		return nil, ToAPIError(err)
 	}
@@ -251,7 +252,7 @@ func (h *FindingHandlers) FindingsPostFindingsStatus(ctx context.Context, req *o
 	if strings.ContainsRune(req.Note, 0) {
 		return nil, apierr.Invalid("The note contains a character that is not allowed.")
 	}
-	n, skipped, err := h.svc.SetStatusMany(ctx, req.Ids, Action(req.Action), req.Note, p.Email)
+	n, skipped, err := h.svc.setStatusMany(ctx, req.Ids, Action(req.Action), req.Note, p.Email, req.Until.Or(time.Time{}))
 	if err != nil {
 		return nil, ToAPIError(err)
 	}

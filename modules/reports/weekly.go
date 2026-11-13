@@ -98,7 +98,8 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 		return rows
 	}
 	var newRows, resolvedRows, openRows []FindingRow
-	var openConfirmed, openSuspected int
+	var openConfirmed, openSuspected, accepted int
+	var acceptedUntil time.Time
 	for _, f := range in.findings {
 		if f.FirstSeen.After(now) {
 			continue
@@ -106,7 +107,12 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 		if inWeek(f.FirstSeen) {
 			newRows = append(newRows, row(f, f.Status))
 		}
-		if inWeek(f.ResolvedAt) {
+		if inWeek(f.ResolvedAt) && f.Status == "risk_accepted" { // not resolved: it comes back by itself (D-498)
+			accepted++
+			if acceptedUntil.IsZero() || (!f.AcceptedUntil.IsZero() && f.AcceptedUntil.Before(acceptedUntil)) {
+				acceptedUntil = f.AcceptedUntil
+			}
+		} else if inWeek(f.ResolvedAt) {
 			r := row(f, f.Status)
 			r.By = clip(f.ResolvedBy, 80)
 			resolvedRows = append(resolvedRows, r)
@@ -186,7 +192,7 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 	}
 	return WeeklyReport{
 		Period: Period{From: ts(from), To: ts(now)}, GeneratedAt: ts(now),
-		Counts: Counts{NewFindings: newN, Resolved: resolvedN, OpenConfirmed: openConfirmed, OpenSuspected: openSuspected,
+		Counts: Counts{NewFindings: newN, Resolved: resolvedN, Accepted: accepted, AcceptedUntil: isoDay(acceptedUntil), OpenConfirmed: openConfirmed, OpenSuspected: openSuspected,
 			Devices: len(in.devices), DevicesUnapprove: unapproved, DevicesNew: devicesNew, KevNew: in.kevNew, KevMatched: in.kevInUse},
 		TopRisks: risks, NewFindings: nonNil(newRows), Resolved: nonNil(resolvedRows), Open: nonNil(openRows), Actions: nonNilA(actions),
 		Happened: happened, Sources: sources,
@@ -212,4 +218,12 @@ func nonNilA(a []ActionItem) []ActionItem {
 		return []ActionItem{}
 	}
 	return a
+}
+
+// isoDay is t as YYYY-MM-DD, or "" when zero.
+func isoDay(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.DateOnly)
 }

@@ -51,7 +51,7 @@ func (d *evidenceDoc) evidence() *Evidence {
 	return &Evidence{Summary: d.Summary, Template: d.Template, Request: d.Request, Response: d.Response, CheckedAt: d.CheckedAt}
 }
 
-const findingColumns = `id, asset_id, cve, status, severity, confidence, basis, evidence, first_seen, last_seen, resolved_by, resolved_at, resolution_note, resolution_reason`
+const findingColumns = `id, asset_id, cve, status, severity, confidence, basis, evidence, first_seen, last_seen, resolved_by, resolved_at, resolution_note, resolution_reason, accepted_until`
 
 type scanner interface{ Scan(dest ...any) error }
 
@@ -60,10 +60,10 @@ func scanRecord(s scanner) (Record, error) {
 		r                                      Record
 		status, severity, basis                string
 		evidence, resolvedBy, resolvedAt, note sql.NullString
-		reason                                 sql.NullString
+		reason, until                          sql.NullString
 		first, last                            string
 	)
-	if err := s.Scan(&r.ID, &r.AssetID, &r.CVE, &status, &severity, &r.Confidence, &basis, &evidence, &first, &last, &resolvedBy, &resolvedAt, &note, &reason); err != nil {
+	if err := s.Scan(&r.ID, &r.AssetID, &r.CVE, &status, &severity, &r.Confidence, &basis, &evidence, &first, &last, &resolvedBy, &resolvedAt, &note, &reason, &until); err != nil {
 		return Record{}, err
 	}
 	r.Status, r.Severity, r.Basis = Status(status), Severity(severity), Basis(basis)
@@ -87,6 +87,11 @@ func scanRecord(s scanner) (Record, error) {
 			return Record{}, err
 		}
 	}
+	if until.Valid {
+		if r.AcceptedUntil, err = time.Parse(time.DateOnly, until.String); err != nil {
+			return Record{}, fmt.Errorf("accepted_until: %w", err)
+		}
+	}
 	return r, nil
 }
 
@@ -103,6 +108,13 @@ func nullString(s string) any {
 		return nil
 	}
 	return s
+}
+
+func nullDay(t time.Time) any {
+	if t.IsZero() {
+		return nil
+	}
+	return t.UTC().Format(time.DateOnly)
 }
 
 func nullTS(t time.Time) any {
@@ -212,9 +224,9 @@ func insertRecord(ctx context.Context, tx *sql.Tx, r Record) error {
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO fnd_finding (`+findingColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	_, err = tx.ExecContext(ctx, `INSERT INTO fnd_finding (`+findingColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		r.ID, r.AssetID, r.CVE, string(r.Status), string(r.Severity), r.Confidence, string(r.Basis), ev,
-		store.FormatTS(r.FirstSeen), store.FormatTS(r.LastSeen), nullString(r.ResolvedBy), nullTS(r.ResolvedAt), nullString(r.ResolutionNote), nullString(r.ResolutionReason))
+		store.FormatTS(r.FirstSeen), store.FormatTS(r.LastSeen), nullString(r.ResolvedBy), nullTS(r.ResolvedAt), nullString(r.ResolutionNote), nullString(r.ResolutionReason), nullDay(r.AcceptedUntil))
 	if err != nil {
 		return fmt.Errorf("findings: inserting finding: %w", err)
 	}
@@ -227,9 +239,9 @@ func updateRecord(ctx context.Context, tx *sql.Tx, r Record) error {
 		return err
 	}
 	_, err = tx.ExecContext(ctx, `UPDATE fnd_finding SET status = ?, severity = ?, confidence = ?, basis = ?, evidence = ?, last_seen = ?,
-		resolved_by = ?, resolved_at = ?, resolution_note = ?, resolution_reason = ? WHERE id = ?`,
+		resolved_by = ?, resolved_at = ?, resolution_note = ?, resolution_reason = ?, accepted_until = ? WHERE id = ?`,
 		string(r.Status), string(r.Severity), r.Confidence, string(r.Basis), ev, store.FormatTS(r.LastSeen),
-		nullString(r.ResolvedBy), nullTS(r.ResolvedAt), nullString(r.ResolutionNote), nullString(r.ResolutionReason), r.ID)
+		nullString(r.ResolvedBy), nullTS(r.ResolvedAt), nullString(r.ResolutionNote), nullString(r.ResolutionReason), nullDay(r.AcceptedUntil), r.ID)
 	if err != nil {
 		return fmt.Errorf("findings: updating finding: %w", err)
 	}

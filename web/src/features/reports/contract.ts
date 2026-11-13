@@ -6,7 +6,7 @@ const iso = z.iso.datetime()
 const email = z.string().max(120)
 export const FindingRow = z.object({
   id: z.string(), cve: z.string(), device: z.string(), asset_id: z.string(), product: z.string(),
-  status: z.enum(['confirmed', 'suspected', 'mitigated', 'patched', 'false_positive', 'not_relevant']),
+  status: z.enum(['confirmed', 'suspected', 'mitigated', 'patched', 'false_positive', 'not_relevant', 'risk_accepted']),
   severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), since: iso,
   by: z.string().optional().describe('Who closed it (rows of what was done)'),
 })
@@ -34,7 +34,9 @@ export const AiSummary = z.object({ paragraphs: z.array(z.string()), model: z.st
 export const WeeklyReport = z.object({
   period: z.object({ from: iso, to: iso }), generated_at: iso,
   counts: z.object({
-    new_findings: z.number(), resolved: z.number(), open_confirmed: z.number(), open_suspected: z.number(),
+    new_findings: z.number(), resolved: z.number().describe('Closed this week; accepted risks are counted in accepted (D-498)'), open_confirmed: z.number(), open_suspected: z.number(),
+    accepted: z.number().optional().describe('Risks accepted this week (D-498); absent when none or in reports sent before it'),
+    accepted_until: z.iso.date().optional().describe('The earliest day one of those acceptances ends'),
     devices: z.number().describe('Devices as the Devices page counts them, this box included'), devices_unapproved: z.number(), devices_new: z.number(),
     kev_new: z.number().describe('Vulnerabilities newly exploited in the last 7 days, as Home counts them (D-485)'),
     kev_matched: z.number().describe('Products you use among them, as Home counts them (D-485; earlier reports: their CVEs on a device)'),

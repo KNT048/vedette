@@ -57,3 +57,6 @@
 
 ## Modifying: `Service.PollTouches`, `Host` tuỳ chọn `Touches(ctx) ([]Touch, error)` (B2 review M2)
 - **cmd/vedette** (`honeypotHost.Touches` → host `GET /v1/state/hp-touches`): vòng `Run` gọi mỗi `touchEvery` (15 s), 4 lần đọc/phút trong 60 của host. Bỏ đi thì quét SYN (mặc định của nmap) không còn thành cảnh báo quét; chỉ còn quét bằng kết nối thật.
+
+## Modifying: `HitDetail(ctx, id)`, `SourceConnected(ctx, src, at, window)` (D-509) — người gọi: `cmd/vedette` `responseIncidents`
+- Respond trên sự cố bẫy (`response`) đọc nguồn từ `HitDetail` (`SrcIP`, `SrcAssetID`, `IsTest`, `Kind`) và, với hit `scan`, hỏi `SourceConnected`: có hit `service` thật (không thử) của cùng `src_ip` trong `at ± window` không. Chỉ đọc. Đổi `kind`/`src_ip`/`ts` của hit `service` hay để luồng tạo `scan` cũng tạo hit `service` từ lần thử chưa bắt tay ⇒ response coi nguồn giả được là đã xác nhận (rủi ro chặn nhầm máy vô tội); trả lỗi ⇒ response trả lỗi (không đưa gì).

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from '@/lib/api'
-import type { ActionRequest, AiState, ApprovalView, Allowlist, Blocklist, Catalog, CatalogAction, CatalogInput, EventView, LogEntry, Metrics, PlanList, ProposeResult, Rule, RuleInput, RunSummary, SettingsInput, SettingsView, Simulation, Template, TriggerInfo } from './types'
+import type { ActionRequest, AiState, ApprovalView, Allowlist, Blocklist, Catalog, CatalogAction, CatalogInput, EventView, IncidentPanel, LogEntry, Metrics, PlanList, ProposeResult, Rule, RuleInput, RunSummary, SettingsInput, SettingsView, Simulation, Template, TriggerInfo } from './types'
 
 export const usePlans = (finding?: string) =>
   useQuery({ queryKey: ['response', 'plans', finding ?? 'all'], queryFn: () => api.get<PlanList>(`/response/plans${finding ? `?finding=${encodeURIComponent(finding)}` : ''}`) })
@@ -16,6 +16,7 @@ export const useCatalog = () => useQuery({ queryKey: ['response', 'catalog'], qu
 export const useLog = () => useQuery({ queryKey: ['response', 'log'], queryFn: () => api.get<{ items: LogEntry[] }>('/response/log') })
 export const useAi = () => useQuery({ queryKey: ['response', 'ai'], queryFn: () => api.get<AiState>('/response/ai') })
 export const useMetrics = () => useQuery({ queryKey: ['response', 'metrics'], queryFn: () => api.get<Metrics>('/response/metrics') })
+export const useIncidentPanel = (id: string) => useQuery({ queryKey: ['response', 'incident', id], queryFn: () => api.get<IncidentPanel>(`/response/incidents/${encodeURIComponent(id)}`), retry: false })
 export const useApprovalView = (token: string) => useQuery({ queryKey: ['approve', token], queryFn: () => api.get<ApprovalView>(`/response/approve/${encodeURIComponent(token)}`), retry: false })
 
 function useInvalidating<V, R>(fn: (v: V) => Promise<R>) {
@@ -26,6 +27,7 @@ function useInvalidating<V, R>(fn: (v: V) => Promise<R>) {
 const enc = encodeURIComponent
 
 export const useRequestApproval = () => useInvalidating((proposal: string) => api.post<ActionRequest>(`/response/proposals/${enc(proposal)}/request`))
+export const useRequestFromIncident = () => useInvalidating((v: { id: string; action_id: string }) => api.post<ActionRequest>(`/response/incidents/${enc(v.id)}/request`, { action_id: v.action_id }))
 export const useApprove = () => useInvalidating((v: { id: string; items?: string[]; code?: string }) => api.post<ActionRequest>(`/response/actions/${enc(v.id)}/approve`, { items: v.items, code: v.code || undefined }))
 export const useReject = () => useInvalidating((v: { id: string; reason?: string; remember?: 'none' | 'rule' | 'memory' }) => api.post<ActionRequest>(`/response/actions/${enc(v.id)}/reject`, { reason: v.reason || undefined, remember: v.remember }))
 export const useRollback = () => useInvalidating((id: string) => api.post<ActionRequest>(`/response/actions/${enc(id)}/rollback`))

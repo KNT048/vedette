@@ -2,9 +2,9 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Section } from '@/components/common/PageHeader'
 import { ModuleOff, QueryState } from '@/components/common/States'
-import { StatusChip } from '@/components/common/StatusChip'
 import { fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
+import { FindingStatusChip } from './AcceptRisk'
 import { useFindings } from './api'
 import { isOpen, riskRank } from './basis'
 import { RiskChip } from './Risk'
@@ -31,7 +31,7 @@ export function DevicePanel(props: Record<string, unknown>) {
               <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
                 <Link to={`/findings/${f.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{f.cve}</Link>
                 <span className="text-sm text-muted">{f.kev?.display ?? ''}</span>
-                <StatusChip status={f.status} />
+                <FindingStatusChip f={f} />
                 <RiskChip f={f} />
                 <span className="ml-auto text-[12px] text-muted">{t('device.lastSeen', { time: fmtRelative(f.last_seen) })}</span>
               </li>

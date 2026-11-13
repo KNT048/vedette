@@ -104,7 +104,7 @@ export function RequestCard({ a }: { a: ActionRequest }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">{a.title}</h3>
         <div className="flex flex-wrap items-center gap-2">
-          <Chip tone="off">{a.source === 'rule' ? t('action.fromRule') : t('action.fromAi')}</Chip>
+          <Chip tone="off">{a.source === 'rule' ? t('action.fromRule') : a.source === 'person' ? t('action.fromPerson') : t('action.fromAi')}</Chip>
           <RiskChip risk={a.risk} />
           {a.requires_approvals > 1 ? <Chip tone="warn">{t('request.twoApprovers')}</Chip> : null}
           {a.pre_approved ? <Chip tone="danger">{t('request.preApproved')}</Chip> : null}
@@ -113,7 +113,7 @@ export function RequestCard({ a }: { a: ActionRequest }) {
       </div>
       <KeyValue items={[
         ...(a.rule_name ? [{ label: t('action.rule'), value: a.rule_name }] : []),
-        ...(a.trigger_summary && a.source === 'rule' ? [{ label: t('request.because'), value: a.trigger_summary }] : []),
+        ...(a.trigger_summary && a.source !== 'ai' ? [{ label: t('request.because'), value: a.trigger_summary }] : []),
         { label: t('action.device'), value: a.asset_id ? <Link className="text-accent underline-offset-4 hover:underline" to={`/devices/${a.asset_id}`}>{a.asset_name}</Link> : a.asset_name },
         ...(a.finding_id ? [{ label: t('action.finding'), value: <Link className="text-accent underline-offset-4 hover:underline" to={`/findings/${a.finding_id}`}>{a.cve ?? a.finding_id}</Link> }] : []),
         { label: t('action.requested'), value: fmtDateTime(a.requested_at) },

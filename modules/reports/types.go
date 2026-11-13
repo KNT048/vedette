@@ -92,15 +92,18 @@ type Period struct {
 
 // Counts are the figures at the top of the weekly report.
 type Counts struct {
-	NewFindings      int `json:"new_findings"`
-	Resolved         int `json:"resolved"`
-	OpenConfirmed    int `json:"open_confirmed"`
-	OpenSuspected    int `json:"open_suspected"`
-	Devices          int `json:"devices"`
-	DevicesUnapprove int `json:"devices_unapproved"`
-	DevicesNew       int `json:"devices_new"`
-	KevNew           int `json:"kev_new"`     // newly exploited in the last 7 days, as Home counts them (D-485)
-	KevMatched       int `json:"kev_matched"` // their products in use, as Home counts them (D-485; before it, CVEs on a device)
+	NewFindings int `json:"new_findings"`
+	Resolved    int `json:"resolved"` // closed this week, accepted risks left out (D-498)
+	// Accepted counts the risks accepted this week (D-498), AcceptedUntil (YYYY-MM-DD) the earliest day one of them ends.
+	Accepted         int    `json:"accepted,omitempty"`
+	AcceptedUntil    string `json:"accepted_until,omitempty"`
+	OpenConfirmed    int    `json:"open_confirmed"`
+	OpenSuspected    int    `json:"open_suspected"`
+	Devices          int    `json:"devices"`
+	DevicesUnapprove int    `json:"devices_unapproved"`
+	DevicesNew       int    `json:"devices_new"`
+	KevNew           int    `json:"kev_new"`     // newly exploited in the last 7 days, as Home counts them (D-485)
+	KevMatched       int    `json:"kev_matched"` // their products in use, as Home counts them (D-485; before it, CVEs on a device)
 }
 
 // Source says where a group of figures came from and when (INV-1).

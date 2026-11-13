@@ -810,6 +810,12 @@ forward_check() {
 			warn "$NETWORK_FILE is from an install that did not name the bridge vedette0, so vedette-host puts no rules in DOCKER-USER (D-267): run --uninstall --yes and install again"
 			return 0
 		fi
+		# the file names the bridge, but Podman keeps the bridge of a network vedette-int that existed before (left by an earlier install
+		# or made by hand): then there is no vedette0, and the rules below are written and found but never match a packet
+		if ! ip -o link show dev vedette0 >/dev/null 2>&1; then
+			warn "the container network vedette-int has no bridge named vedette0 (a network left by an earlier install keeps its old bridge; podman network inspect vedette-int shows it), so the DOCKER-USER rules of vedette-host never match: the LAN may not reach 8443, 514 or 6514 and the containers may not reach the internet. Run --uninstall --yes and install again (D-267)"
+			return 0
+		fi
 		say "Docker is on this box: vedette-host keeps five rules in its DOCKER-USER chain for the bridge vedette0 and $fw_net, plus one ACCEPT per uplink bridge of the box named br-… (comment vedette-int; --uninstall removes them; D-267, D-396)"
 		n=0
 		while [ "$n" -lt 15 ]; do
@@ -846,6 +852,33 @@ remove_forward_rules() {
 }
 
 # ---- uninstall -------------------------------------------------------------------------------------------------------
+
+# remove_images: the images Vedette pulled or made, by their exact names (the services of host/api.Services): the registry names
+# ghcr.io/knt048/vedette-<service>, the local names the host gives them (localhost/vedette-<service>:<version>) and the scan image the
+# box builds (localhost/vedette-scan-nmap). Another localhost/vedette-* image may be the administrator's own and is never touched; an
+# image of ours that also has a name of someone else is left too (rmi -f by ID would take that name and its containers with it). Then
+# what the on-box scan build left without a name, found only by its label, and our released images that lost their name; never prune.
+remove_images() {
+	podman images --format '{{.ID}} {{.Repository}}' 2>/dev/null | awk '
+		$2 ~ /^(ghcr\.io\/knt048|localhost)\/vedette-(core|sensor|honeypot|scan|greenbone)$/ || $2 == "localhost/vedette-scan-nmap" { ours[$1] = 1; next }
+		$2 != "<none>" { other[$1] = 1 }
+		END { for (id in ours) print id, (id in other) ? "shared" : "ours" }' | sort -u | while read -r id kind; do
+		if [ "$kind" = ours ]; then
+			podman rmi -f "$id" >/dev/null 2>&1 || true
+		else
+			warn "image $id is Vedette's but also has a name that is not Vedette's: left in place (podman images | grep $id)"
+		fi
+	done
+	podman images -a --filter dangling=true --filter label=io.vedette.build=scan --format '{{.ID}}' 2>/dev/null | sort -u | while read -r id; do
+		podman rmi -f "$id" >/dev/null 2>&1 || true
+	done
+	# a pulled vedette-scan-base after a failed build or an upgrade: untagged, with our source label and a vedette-* title; an image of
+	# anyone else has neither and is never touched
+	podman images -a --filter dangling=true --filter 'label=org.opencontainers.image.source=https://github.com/KNT048/vedette' --format '{{.ID}}' 2>/dev/null | sort -u | while read -r id; do
+		title=$(podman image inspect --format '{{index .Labels "org.opencontainers.image.title"}}' "$id" 2>/dev/null) || continue
+		case "$title" in vedette-*) podman rmi -f "$id" >/dev/null 2>&1 || true ;; esac
+	done
+}
 
 # remove_subid <file> <state name>: the line the package added, and the file if the package made it; never the administrator's own line
 remove_subid() {
@@ -1017,20 +1050,7 @@ do_uninstall() {
 	if have podman; then
 		podman network rm -f vedette-int >/dev/null 2>&1 || true
 		podman volume rm -f vedette-creds-passive vedette-creds-active vedette-hp-log >/dev/null 2>&1 || true
-		# every image Vedette made or pulled: the registry names, and the local names bootstrap gives them (localhost/vedette-<service>:<version>,
-		# localhost/vedette-scan-nmap); then what the on-box scan build left without a name (<none>), found only by its label, never by prune
-		podman images --format '{{.ID}} {{.Repository}}' 2>/dev/null | awk '$2 ~ /^(ghcr\.io\/knt048\/vedette-|localhost\/vedette-)/ {print $1}' | sort -u | while read -r id; do
-			podman rmi -f "$id" >/dev/null 2>&1 || true
-		done
-		podman images -a --filter dangling=true --filter label=io.vedette.build=scan --format '{{.ID}}' 2>/dev/null | sort -u | while read -r id; do
-			podman rmi -f "$id" >/dev/null 2>&1 || true
-		done
-		# and our released images that lost their name (a pulled vedette-scan-base after a failed build or an upgrade): untagged, with our
-		# source label and a vedette-* title; an image of anyone else has neither and is never touched
-		podman images -a --filter dangling=true --filter 'label=org.opencontainers.image.source=https://github.com/KNT048/vedette' --format '{{.ID}}' 2>/dev/null | sort -u | while read -r id; do
-			title=$(podman image inspect --format '{{index .Labels "org.opencontainers.image.title"}}' "$id" 2>/dev/null) || continue
-			case "$title" in vedette-*) podman rmi -f "$id" >/dev/null 2>&1 || true ;; esac
-		done
+		remove_images
 	fi
 	restore_runtime
 	say "removing packages"

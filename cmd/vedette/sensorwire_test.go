@@ -325,9 +325,14 @@ func TestSensorLinkFailureShutsDownTheMainServer(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "sensor link") {
 		t.Fatalf("err = %v, want the sensor link failure", err)
 	}
-	if c, err := new(net.Dialer).DialContext(t.Context(), "tcp", main.Addr().String()); err == nil {
-		_ = c.Close()
-		t.Fatal("the 8443 server still accepts connections after the sensor link failed")
+	// Accept on the listener itself, not a dial to its port: a parallel test may bind the same port number once it is closed
+	// (merge queue run 43365010370 for #634).
+	_ = main.(*net.TCPListener).SetDeadline(time.Now().Add(5 * time.Second)) // an open listener fails with a timeout, not a hang
+	if c, err := main.Accept(); !errors.Is(err, net.ErrClosed) {
+		if c != nil {
+			_ = c.Close()
+		}
+		t.Fatalf("the 8443 listener is still open after the sensor link failed: Accept err = %v", err)
 	}
 }
 

@@ -341,9 +341,10 @@ describe('honeypot: Trap IP and honey token form matrix (docs/QA.md §2)', () =>
     const FILE = 'File type'
     const form = formOf('Token type')
     await eachOption([
-      { option: 'Decoy file', shown: ['File name', FILE, /Looks tempting/], hidden: ['User name', 'Label'] },
-      { option: 'Fake credentials', shown: ['User name', /Looks like an old service account/], hidden: ['File name', FILE, 'Label'] },
-      { option: 'URL token', shown: ['Label', /intranet wiki page/], hidden: ['File name', FILE, 'User name'] },
+      { option: 'Decoy file', shown: ['File name', FILE, /Looks tempting/], hidden: ['Label'] },
+      // #717 review: the box makes the bait account name (svc_ + 6 letters, D-90 (3)); the field is only the token's label
+      { option: 'Fake credentials', shown: ['Label', /The box makes the account name and password/], hidden: ['File name', FILE, 'User name', /intranet wiki page/] },
+      { option: 'URL token', shown: ['Label', /intranet wiki page/], hidden: ['File name', FILE, 'User name', /The box makes the account name/] },
       { option: 'Decoy file', shown: ['File name', FILE], hidden: ['Label'] },
     ], pick('Token type'), form)
     // D-468 (D-507): the box answers no DNS, so a DNS token could never alert and is not offered
@@ -352,7 +353,7 @@ describe('honeypot: Trap IP and honey token form matrix (docs/QA.md §2)', () =>
     await userEvent.type(within(form).getByLabelText('File name'), 'Payroll-2026-Q4')
     await userEvent.type(within(form).getByLabelText('Where will you plant it?'), 'SRV-FILE-HR')
     await pick('Token type')('Fake credentials')
-    expect(within(form).getByLabelText('User name')).toHaveValue('')
+    expect(within(form).getByLabelText('Label')).toHaveValue('')
     expect(within(form).getByLabelText('Where will you plant it?')).toHaveValue('')
   })
 
@@ -380,7 +381,7 @@ describe('honeypot: Trap IP and honey token form matrix (docs/QA.md §2)', () =>
     expect(field('Where will you plant it?')).toHaveValue('Shared drive, IT')
     await pick('Start from')('Backup service account')
     expect(field('Token type')).toHaveValue('credential')
-    expect(field('User name')).toHaveValue('svc-backup')
+    expect(field('Label')).toHaveValue('Backup service account')
     expect(field('Where will you plant it?')).toHaveValue('IT password manager')
     await pick('Start from')('Router admin bookmark')
     expect(field('Token type')).toHaveValue('url')
@@ -394,6 +395,31 @@ describe('honeypot: Trap IP and honey token form matrix (docs/QA.md §2)', () =>
     await userEvent.click(within(form).getByRole('button', { name: 'Create token' }))
     expect(await screen.findByRole('button', { name: `Test token Payroll-${year}` })).toBeInTheDocument()
     expect(field('Start from')).toHaveValue('custom')
+  })
+
+  it('a credential preset shows the bait account the box made (svc_ and six letters), not its label (#717 review, D-90 (3))', async () => {
+    renderApp('/honeypot?tab=tokens')
+    await screen.findByRole('list', { name: 'Honey tokens' })
+    await pick('Start from')('Old admin account (decoy)')
+    expect(screen.getByLabelText('Label')).toHaveValue('Old admin account')
+    await userEvent.click(screen.getByRole('button', { name: 'Create token' }))
+    const item = (await screen.findByRole('button', { name: 'Test token Old admin account' })).closest('li')!
+    expect(item.textContent).toMatch(/user: svc_[a-z]{6}\b/)
+    expect(item.textContent).not.toMatch(/user: old/i)
+  })
+
+  it('one-click Create on a return visit: the form starts on the first preset not already made (#717 review)', async () => {
+    const year = new Date().getFullYear()
+    const { unmount } = renderApp('/honeypot?tab=tokens')
+    await screen.findByRole('list', { name: 'Honey tokens' })
+    expect(screen.getByLabelText('Start from')).toHaveValue('payroll')
+    await userEvent.click(screen.getByRole('button', { name: 'Create token' }))
+    await screen.findByRole('button', { name: `Test token Payroll-${year}` })
+    unmount()
+    renderApp('/honeypot?tab=tokens')
+    await screen.findByRole('button', { name: `Test token Payroll-${year}` })
+    expect(screen.getByLabelText('Start from')).toHaveValue('passwords')
+    expect(within(formOf('Start from')).getByLabelText('File name')).toHaveValue('Passwords')
   })
 
   it('Trap IP: each preset fills its own services and vendor; Custom keeps what was picked', async () => {

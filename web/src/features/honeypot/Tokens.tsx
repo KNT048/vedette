@@ -35,12 +35,14 @@ function Inner({ items }: { items: Token[] }) {
   const add = useAddToken()
   const del = useDeleteToken()
   const test = useTestToken()
-  const first = TOKEN_PRESETS[0]!
-  const [preset, setPreset] = useState<TokenPreset>(first.id)
-  const [type, setType] = useState<OfferedTokenType>(first.type)
-  const [ext, setExt] = useState<'docx' | 'xlsx'>(first.ext ?? 'xlsx')
-  const [name, setName] = useState(tokenPresetName(first))
-  const [plant, setPlant] = useState(t(`token.preset.${first.id}.plant`))
+  // One click on a return visit too (#717 review): start on the first preset whose name is not made yet (the box refuses a
+  // duplicate name per type), the blank form when all are.
+  const [first] = useState(() => TOKEN_PRESETS.find((p) => !items.some((k) => k.type === p.type && k.name.toLowerCase() === tokenPresetName(p).toLowerCase())))
+  const [preset, setPreset] = useState<TokenPreset>(first?.id ?? 'custom')
+  const [type, setType] = useState<OfferedTokenType>(first?.type ?? 'file')
+  const [ext, setExt] = useState<'docx' | 'xlsx'>(first?.ext ?? 'xlsx')
+  const [name, setName] = useState(first ? tokenPresetName(first) : '')
+  const [plant, setPlant] = useState(first ? t(`token.preset.${first.id}.plant`) : '')
   const [error, setError] = useState<string | null>(null)
 
   function pickPreset(id: TokenPreset) {

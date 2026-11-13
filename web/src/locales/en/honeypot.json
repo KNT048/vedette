@@ -339,12 +339,12 @@
       "create": "Create token",
       "name": {
         "file": "File name",
-        "credential": "User name",
+        "credential": "Label",
         "url": "Label"
       },
       "nameHint": {
         "file": "Looks tempting: Payroll-2026-Q4, Passwords-IT.",
-        "credential": "Looks like an old service account: svc-backup-old.",
+        "credential": "Names this token in alerts, for example Backup service account. The box makes the account name and password, unique to this token.",
         "url": "Names this token in alerts, for example Wiki admin link."
       },
       "plantHint": {
@@ -379,11 +379,11 @@
         "plant": "IT password manager"
       },
       "old_admin": {
-        "label": "Old admin account",
+        "label": "Old admin account (decoy)",
         "plant": "Printed sheet in the server cupboard"
       },
       "db_login": {
-        "label": "Database login",
+        "label": "Reporting database login",
         "plant": "Config file of a reporting script"
       },
       "wiki": {

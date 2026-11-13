@@ -47,9 +47,9 @@ const (
 )
 
 var (
-	// ErrZaloQRDeclined: the person pressed Decline in the Zalo app.
+	// ErrZaloQRDeclined means the person pressed Decline in the Zalo app.
 	ErrZaloQRDeclined = errors.New("notify: zalo-personal: the sign-in was declined in the Zalo app")
-	// ErrZaloQRExpired: the code was not scanned and confirmed in time.
+	// ErrZaloQRExpired means the code was not scanned and confirmed in time.
 	ErrZaloQRExpired = errors.New("notify: zalo-personal: the QR code expired")
 
 	zaloLoginVersionRE = regexp.MustCompile(`https://stc-zlogin\.zdn\.vn/main-([\d.]{1,20})\.js`)

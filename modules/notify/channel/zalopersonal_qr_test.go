@@ -86,7 +86,7 @@ func (f *qrFake) handle(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	switch r.Host + r.URL.Path {
 	case "id.zalo.me/account":
-		http.SetCookie(w, &http.Cookie{Name: "zpdid", Value: "DEVICEcookie0001", Domain: "id.zalo.me", Path: "/"})
+		http.SetCookie(w, &http.Cookie{Name: "zpdid", Value: "DEVICEcookie0001", Domain: "id.zalo.me", Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 		_, _ = w.Write([]byte(`<html><script src="https://stc-zlogin.zdn.vn/main-2.44.13.js"></script></html>`))
 	case "id.zalo.me/account/logininfo", "id.zalo.me/account/verify-client":
 		if r.PostForm.Get("v") != "2.44.13" || r.Header.Get("User-Agent") != ZaloQRUserAgent {
@@ -107,16 +107,16 @@ func (f *qrFake) handle(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write(zenv(8, "waiting", nil))
 			return
 		}
-		_, _ = w.Write(zenv(0, "", map[string]any{"display_name": "Vedette Alerts‮", "avatar": "https://s120.example/a.jpg"}))
+		_, _ = w.Write(zenv(0, "", map[string]any{"display_name": "Vedette Alerts\u202e", "avatar": "https://s120.example/a.jpg"}))
 	case "id.zalo.me/account/authen/qr/waiting-confirm":
 		if r.PostForm.Get("gAction") != "CONFIRM_QR" {
 			f.t.Errorf("waiting-confirm form %v", r.PostForm)
 		}
 		_, _ = w.Write(zenv(f.confirm, "", nil))
 	case "id.zalo.me/account/checksession":
-		http.SetCookie(w, &http.Cookie{Name: "zpsid", Value: "SESSIONzpsid00001", Domain: ".zalo.me", Path: "/"})
-		http.SetCookie(w, &http.Cookie{Name: "zpw_sek", Value: "SEKcookie0000001", Domain: "chat.zalo.me", Path: "/"}) // set from id.zalo.me, as zca-js keeps it
-		http.SetCookie(w, &http.Cookie{Name: "evil", Value: "NOTzaloCOOKIE0001", Domain: "example.com", Path: "/"})
+		http.SetCookie(w, &http.Cookie{Name: "zpsid", Value: "SESSIONzpsid00001", Domain: ".zalo.me", Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+		http.SetCookie(w, &http.Cookie{Name: "zpw_sek", Value: "SEKcookie0000001", Domain: "chat.zalo.me", Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode}) // set from id.zalo.me, as zca-js keeps it
+		http.SetCookie(w, &http.Cookie{Name: "evil", Value: "NOTzaloCOOKIE0001", Domain: "example.com", Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 		http.Redirect(w, r, f.redirectTo, http.StatusFound)
 	case "chat.zalo.me/index.html":
 		_, _ = w.Write([]byte("<html></html>"))
@@ -208,7 +208,8 @@ func TestContract_D447_ZaloQRSignInEndToEnd(t *testing.T) {
 		t.Errorf("signed in as %q", signed.Name)
 	}
 	sess, err := parseZaloSession(signed.Session.Reveal())
-	if err != nil || sess.userAgent != ZaloQRUserAgent || !strings.HasSuffix(sess.imei, "-"+hex.EncodeToString(func() []byte { m := md5.Sum([]byte(ZaloQRUserAgent)); return m[:] }())) || len(sess.imei) != 36+1+32 {
+	uaSum := md5.Sum([]byte(ZaloQRUserAgent)) //nolint:gosec // the device id format of the web client, not a security control
+	if err != nil || sess.userAgent != ZaloQRUserAgent || !strings.HasSuffix(sess.imei, "-"+hex.EncodeToString(uaSum[:])) || len(sess.imei) != 36+1+32 {
 		t.Fatalf("session %+v, %v", sess, err)
 	}
 	names := map[string]bool{}

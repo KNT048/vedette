@@ -51,7 +51,11 @@ func useQR(e *env, f *fakeQR, startErr error) {
 		}
 		return f, nil
 	})
-	e.t.Cleanup(func() { e.svc.CancelZaloLogin("admin@acme.example"); e.svc.CancelZaloLogin("it@acme.example"); e.svc.WaitZaloForTest() })
+	e.t.Cleanup(func() {
+		e.svc.CancelZaloLogin("admin@acme.example")
+		e.svc.CancelZaloLogin("it@acme.example")
+		e.svc.WaitZaloForTest()
+	})
 }
 
 // waitLogin waits (by state, at most 30 s) until the sign-in of who reaches state.

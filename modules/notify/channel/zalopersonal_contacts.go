@@ -30,7 +30,7 @@ const (
 	zaloContactLimit = 16 << 20 // decrypted contact list, base64 text included
 )
 
-// ErrZaloNotFound: no Zalo account or group behind a phone number or an invite link.
+// ErrZaloNotFound means there is no Zalo account or group behind a phone number or an invite link.
 var ErrZaloNotFound = errors.New("notify: zalo-personal: not found")
 
 // ZaloContact is a person or a group the box's account can send to. Members is the size of a group (0 = not given).

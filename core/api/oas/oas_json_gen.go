@@ -112004,6 +112004,10 @@ func (s *FindingsGetFindingsIDOKFixedIn) encodeFields(e *jx.Encoder) {
 		e.Int(s.More)
 	}
 	{
+		e.FieldStart("no_fix")
+		e.Int(s.NoFix)
+	}
+	{
 		e.FieldStart("source")
 		e.Str(s.Source)
 	}
@@ -112013,13 +112017,14 @@ func (s *FindingsGetFindingsIDOKFixedIn) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKFixedIn = [6]string{
+var jsonFieldsNameOfFindingsGetFindingsIDOKFixedIn = [7]string{
 	0: "branches",
 	1: "fixed",
 	2: "kind",
 	3: "more",
-	4: "source",
-	5: "version",
+	4: "no_fix",
+	5: "source",
+	6: "version",
 }
 
 // Decode decodes FindingsGetFindingsIDOKFixedIn from json.
@@ -112083,8 +112088,20 @@ func (s *FindingsGetFindingsIDOKFixedIn) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"more\"")
 			}
-		case "source":
+		case "no_fix":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.NoFix = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"no_fix\"")
+			}
+		case "source":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -112096,7 +112113,7 @@ func (s *FindingsGetFindingsIDOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -112117,7 +112134,7 @@ func (s *FindingsGetFindingsIDOKFixedIn) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -112298,6 +112315,8 @@ func (s *FindingsGetFindingsIDOKFixedInKind) Decode(d *jx.Decoder) error {
 		*s = FindingsGetFindingsIDOKFixedInKindUpTo
 	case FindingsGetFindingsIDOKFixedInKindBranches:
 		*s = FindingsGetFindingsIDOKFixedInKindBranches
+	case FindingsGetFindingsIDOKFixedInKindDistro:
+		*s = FindingsGetFindingsIDOKFixedInKindDistro
 	default:
 		*s = FindingsGetFindingsIDOKFixedInKind(v)
 	}
@@ -119325,6 +119344,10 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) encodeFields(e *jx.Encoder) {
 		e.Int(s.More)
 	}
 	{
+		e.FieldStart("no_fix")
+		e.Int(s.NoFix)
+	}
+	{
 		e.FieldStart("source")
 		e.Str(s.Source)
 	}
@@ -119334,13 +119357,14 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKFixedIn = [6]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKFixedIn = [7]string{
 	0: "branches",
 	1: "fixed",
 	2: "kind",
 	3: "more",
-	4: "source",
-	5: "version",
+	4: "no_fix",
+	5: "source",
+	6: "version",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKFixedIn from json.
@@ -119404,8 +119428,20 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"more\"")
 			}
-		case "source":
+		case "no_fix":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.NoFix = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"no_fix\"")
+			}
+		case "source":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -119417,7 +119453,7 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -119438,7 +119474,7 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -119619,6 +119655,8 @@ func (s *FindingsPostFindingsIDAiOKFixedInKind) Decode(d *jx.Decoder) error {
 		*s = FindingsPostFindingsIDAiOKFixedInKindUpTo
 	case FindingsPostFindingsIDAiOKFixedInKindBranches:
 		*s = FindingsPostFindingsIDAiOKFixedInKindBranches
+	case FindingsPostFindingsIDAiOKFixedInKindDistro:
+		*s = FindingsPostFindingsIDAiOKFixedInKindDistro
 	default:
 		*s = FindingsPostFindingsIDAiOKFixedInKind(v)
 	}
@@ -124926,6 +124964,10 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) encodeFields(e *jx.Encoder) {
 		e.Int(s.More)
 	}
 	{
+		e.FieldStart("no_fix")
+		e.Int(s.NoFix)
+	}
+	{
 		e.FieldStart("source")
 		e.Str(s.Source)
 	}
@@ -124935,13 +124977,14 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKFixedIn = [6]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKFixedIn = [7]string{
 	0: "branches",
 	1: "fixed",
 	2: "kind",
 	3: "more",
-	4: "source",
-	5: "version",
+	4: "no_fix",
+	5: "source",
+	6: "version",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKFixedIn from json.
@@ -125005,8 +125048,20 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"more\"")
 			}
-		case "source":
+		case "no_fix":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.NoFix = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"no_fix\"")
+			}
+		case "source":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -125018,7 +125073,7 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -125039,7 +125094,7 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -125220,6 +125275,8 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInKind) Decode(d *jx.Decoder) error
 		*s = FindingsPostFindingsIDAppliedOKFixedInKindUpTo
 	case FindingsPostFindingsIDAppliedOKFixedInKindBranches:
 		*s = FindingsPostFindingsIDAppliedOKFixedInKindBranches
+	case FindingsPostFindingsIDAppliedOKFixedInKindDistro:
+		*s = FindingsPostFindingsIDAppliedOKFixedInKindDistro
 	default:
 		*s = FindingsPostFindingsIDAppliedOKFixedInKind(v)
 	}
@@ -130533,6 +130590,10 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) encodeFields(e *jx.Encoder) {
 		e.Int(s.More)
 	}
 	{
+		e.FieldStart("no_fix")
+		e.Int(s.NoFix)
+	}
+	{
 		e.FieldStart("source")
 		e.Str(s.Source)
 	}
@@ -130542,13 +130603,14 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKFixedIn = [6]string{
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKFixedIn = [7]string{
 	0: "branches",
 	1: "fixed",
 	2: "kind",
 	3: "more",
-	4: "source",
-	5: "version",
+	4: "no_fix",
+	5: "source",
+	6: "version",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKFixedIn from json.
@@ -130612,8 +130674,20 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"more\"")
 			}
-		case "source":
+		case "no_fix":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.NoFix = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"no_fix\"")
+			}
+		case "source":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -130625,7 +130699,7 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -130646,7 +130720,7 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -130827,6 +130901,8 @@ func (s *FindingsPostFindingsIDStatusOKFixedInKind) Decode(d *jx.Decoder) error 
 		*s = FindingsPostFindingsIDStatusOKFixedInKindUpTo
 	case FindingsPostFindingsIDStatusOKFixedInKindBranches:
 		*s = FindingsPostFindingsIDStatusOKFixedInKindBranches
+	case FindingsPostFindingsIDStatusOKFixedInKindDistro:
+		*s = FindingsPostFindingsIDStatusOKFixedInKindDistro
 	default:
 		*s = FindingsPostFindingsIDStatusOKFixedInKind(v)
 	}

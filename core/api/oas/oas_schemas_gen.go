@@ -55590,15 +55590,18 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	Branches []FindingsGetFindingsIDOKFixedInBranchesItem `json:"branches"`
 	// The fixed release (fixed), the last affected release (up_to); empty for branches.
 	Fixed string `json:"fixed"`
-	// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
-	// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
-	// `branches` lists the fix of each release line.
+	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+	// line; distro = a distribution package, no number is named.
 	Kind FindingsGetFindingsIDOKFixedInKind `json:"kind"`
-	// Release lines left out of branches.
+	// Release lines with a fix left out of branches.
 	More int `json:"more"`
+	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
+	NoFix int `json:"no_fix"`
 	// Where the versions come from: "NVD affected versions".
 	Source string `json:"source"`
-	// The device's version; empty for branches.
+	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
 }
 
@@ -55620,6 +55623,11 @@ func (s *FindingsGetFindingsIDOKFixedIn) GetKind() FindingsGetFindingsIDOKFixedI
 // GetMore returns the value of More.
 func (s *FindingsGetFindingsIDOKFixedIn) GetMore() int {
 	return s.More
+}
+
+// GetNoFix returns the value of NoFix.
+func (s *FindingsGetFindingsIDOKFixedIn) GetNoFix() int {
+	return s.NoFix
 }
 
 // GetSource returns the value of Source.
@@ -55650,6 +55658,11 @@ func (s *FindingsGetFindingsIDOKFixedIn) SetKind(val FindingsGetFindingsIDOKFixe
 // SetMore sets the value of More.
 func (s *FindingsGetFindingsIDOKFixedIn) SetMore(val int) {
 	s.More = val
+}
+
+// SetNoFix sets the value of NoFix.
+func (s *FindingsGetFindingsIDOKFixedIn) SetNoFix(val int) {
+	s.NoFix = val
 }
 
 // SetSource sets the value of Source.
@@ -55688,15 +55701,17 @@ func (s *FindingsGetFindingsIDOKFixedInBranchesItem) SetFixed(val string) {
 	s.Fixed = val
 }
 
-// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
-// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
-// `branches` lists the fix of each release line.
+// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+// line; distro = a distribution package, no number is named.
 type FindingsGetFindingsIDOKFixedInKind string
 
 const (
 	FindingsGetFindingsIDOKFixedInKindFixed    FindingsGetFindingsIDOKFixedInKind = "fixed"
 	FindingsGetFindingsIDOKFixedInKindUpTo     FindingsGetFindingsIDOKFixedInKind = "up_to"
 	FindingsGetFindingsIDOKFixedInKindBranches FindingsGetFindingsIDOKFixedInKind = "branches"
+	FindingsGetFindingsIDOKFixedInKindDistro   FindingsGetFindingsIDOKFixedInKind = "distro"
 )
 
 // AllValues returns all FindingsGetFindingsIDOKFixedInKind values.
@@ -55705,6 +55720,7 @@ func (FindingsGetFindingsIDOKFixedInKind) AllValues() []FindingsGetFindingsIDOKF
 		FindingsGetFindingsIDOKFixedInKindFixed,
 		FindingsGetFindingsIDOKFixedInKindUpTo,
 		FindingsGetFindingsIDOKFixedInKindBranches,
+		FindingsGetFindingsIDOKFixedInKindDistro,
 	}
 }
 
@@ -55716,6 +55732,8 @@ func (s FindingsGetFindingsIDOKFixedInKind) MarshalText() ([]byte, error) {
 	case FindingsGetFindingsIDOKFixedInKindUpTo:
 		return []byte(s), nil
 	case FindingsGetFindingsIDOKFixedInKindBranches:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKFixedInKindDistro:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -55733,6 +55751,9 @@ func (s *FindingsGetFindingsIDOKFixedInKind) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsIDOKFixedInKindBranches:
 		*s = FindingsGetFindingsIDOKFixedInKindBranches
+		return nil
+	case FindingsGetFindingsIDOKFixedInKindDistro:
+		*s = FindingsGetFindingsIDOKFixedInKindDistro
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -58919,15 +58940,18 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	Branches []FindingsPostFindingsIDAiOKFixedInBranchesItem `json:"branches"`
 	// The fixed release (fixed), the last affected release (up_to); empty for branches.
 	Fixed string `json:"fixed"`
-	// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
-	// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
-	// `branches` lists the fix of each release line.
+	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+	// line; distro = a distribution package, no number is named.
 	Kind FindingsPostFindingsIDAiOKFixedInKind `json:"kind"`
-	// Release lines left out of branches.
+	// Release lines with a fix left out of branches.
 	More int `json:"more"`
+	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
+	NoFix int `json:"no_fix"`
 	// Where the versions come from: "NVD affected versions".
 	Source string `json:"source"`
-	// The device's version; empty for branches.
+	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
 }
 
@@ -58949,6 +58973,11 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) GetKind() FindingsPostFindingsIDAiOK
 // GetMore returns the value of More.
 func (s *FindingsPostFindingsIDAiOKFixedIn) GetMore() int {
 	return s.More
+}
+
+// GetNoFix returns the value of NoFix.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetNoFix() int {
+	return s.NoFix
 }
 
 // GetSource returns the value of Source.
@@ -58979,6 +59008,11 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) SetKind(val FindingsPostFindingsIDAi
 // SetMore sets the value of More.
 func (s *FindingsPostFindingsIDAiOKFixedIn) SetMore(val int) {
 	s.More = val
+}
+
+// SetNoFix sets the value of NoFix.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetNoFix(val int) {
+	s.NoFix = val
 }
 
 // SetSource sets the value of Source.
@@ -59017,15 +59051,17 @@ func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) SetFixed(val string) {
 	s.Fixed = val
 }
 
-// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
-// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
-// `branches` lists the fix of each release line.
+// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+// line; distro = a distribution package, no number is named.
 type FindingsPostFindingsIDAiOKFixedInKind string
 
 const (
 	FindingsPostFindingsIDAiOKFixedInKindFixed    FindingsPostFindingsIDAiOKFixedInKind = "fixed"
 	FindingsPostFindingsIDAiOKFixedInKindUpTo     FindingsPostFindingsIDAiOKFixedInKind = "up_to"
 	FindingsPostFindingsIDAiOKFixedInKindBranches FindingsPostFindingsIDAiOKFixedInKind = "branches"
+	FindingsPostFindingsIDAiOKFixedInKindDistro   FindingsPostFindingsIDAiOKFixedInKind = "distro"
 )
 
 // AllValues returns all FindingsPostFindingsIDAiOKFixedInKind values.
@@ -59034,6 +59070,7 @@ func (FindingsPostFindingsIDAiOKFixedInKind) AllValues() []FindingsPostFindingsI
 		FindingsPostFindingsIDAiOKFixedInKindFixed,
 		FindingsPostFindingsIDAiOKFixedInKindUpTo,
 		FindingsPostFindingsIDAiOKFixedInKindBranches,
+		FindingsPostFindingsIDAiOKFixedInKindDistro,
 	}
 }
 
@@ -59045,6 +59082,8 @@ func (s FindingsPostFindingsIDAiOKFixedInKind) MarshalText() ([]byte, error) {
 	case FindingsPostFindingsIDAiOKFixedInKindUpTo:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKFixedInKindBranches:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKFixedInKindDistro:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -59062,6 +59101,9 @@ func (s *FindingsPostFindingsIDAiOKFixedInKind) UnmarshalText(data []byte) error
 		return nil
 	case FindingsPostFindingsIDAiOKFixedInKindBranches:
 		*s = FindingsPostFindingsIDAiOKFixedInKindBranches
+		return nil
+	case FindingsPostFindingsIDAiOKFixedInKindDistro:
+		*s = FindingsPostFindingsIDAiOKFixedInKindDistro
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -61232,15 +61274,18 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	Branches []FindingsPostFindingsIDAppliedOKFixedInBranchesItem `json:"branches"`
 	// The fixed release (fixed), the last affected release (up_to); empty for branches.
 	Fixed string `json:"fixed"`
-	// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
-	// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
-	// `branches` lists the fix of each release line.
+	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+	// line; distro = a distribution package, no number is named.
 	Kind FindingsPostFindingsIDAppliedOKFixedInKind `json:"kind"`
-	// Release lines left out of branches.
+	// Release lines with a fix left out of branches.
 	More int `json:"more"`
+	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
+	NoFix int `json:"no_fix"`
 	// Where the versions come from: "NVD affected versions".
 	Source string `json:"source"`
-	// The device's version; empty for branches.
+	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
 }
 
@@ -61262,6 +61307,11 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetKind() FindingsPostFindingsI
 // GetMore returns the value of More.
 func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetMore() int {
 	return s.More
+}
+
+// GetNoFix returns the value of NoFix.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetNoFix() int {
+	return s.NoFix
 }
 
 // GetSource returns the value of Source.
@@ -61292,6 +61342,11 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetKind(val FindingsPostFinding
 // SetMore sets the value of More.
 func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetMore(val int) {
 	s.More = val
+}
+
+// SetNoFix sets the value of NoFix.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetNoFix(val int) {
+	s.NoFix = val
 }
 
 // SetSource sets the value of Source.
@@ -61330,15 +61385,17 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) SetFixed(val string
 	s.Fixed = val
 }
 
-// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
-// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
-// `branches` lists the fix of each release line.
+// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+// line; distro = a distribution package, no number is named.
 type FindingsPostFindingsIDAppliedOKFixedInKind string
 
 const (
 	FindingsPostFindingsIDAppliedOKFixedInKindFixed    FindingsPostFindingsIDAppliedOKFixedInKind = "fixed"
 	FindingsPostFindingsIDAppliedOKFixedInKindUpTo     FindingsPostFindingsIDAppliedOKFixedInKind = "up_to"
 	FindingsPostFindingsIDAppliedOKFixedInKindBranches FindingsPostFindingsIDAppliedOKFixedInKind = "branches"
+	FindingsPostFindingsIDAppliedOKFixedInKindDistro   FindingsPostFindingsIDAppliedOKFixedInKind = "distro"
 )
 
 // AllValues returns all FindingsPostFindingsIDAppliedOKFixedInKind values.
@@ -61347,6 +61404,7 @@ func (FindingsPostFindingsIDAppliedOKFixedInKind) AllValues() []FindingsPostFind
 		FindingsPostFindingsIDAppliedOKFixedInKindFixed,
 		FindingsPostFindingsIDAppliedOKFixedInKindUpTo,
 		FindingsPostFindingsIDAppliedOKFixedInKindBranches,
+		FindingsPostFindingsIDAppliedOKFixedInKindDistro,
 	}
 }
 
@@ -61358,6 +61416,8 @@ func (s FindingsPostFindingsIDAppliedOKFixedInKind) MarshalText() ([]byte, error
 	case FindingsPostFindingsIDAppliedOKFixedInKindUpTo:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKFixedInKindBranches:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindDistro:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -61375,6 +61435,9 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInKind) UnmarshalText(data []byte) 
 		return nil
 	case FindingsPostFindingsIDAppliedOKFixedInKindBranches:
 		*s = FindingsPostFindingsIDAppliedOKFixedInKindBranches
+		return nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindDistro:
+		*s = FindingsPostFindingsIDAppliedOKFixedInKindDistro
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -63566,15 +63629,18 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 	Branches []FindingsPostFindingsIDStatusOKFixedInBranchesItem `json:"branches"`
 	// The fixed release (fixed), the last affected release (up_to); empty for branches.
 	Fixed string `json:"fixed"`
-	// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
-	// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
-	// `branches` lists the fix of each release line.
+	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+	// line; distro = a distribution package, no number is named.
 	Kind FindingsPostFindingsIDStatusOKFixedInKind `json:"kind"`
-	// Release lines left out of branches.
+	// Release lines with a fix left out of branches.
 	More int `json:"more"`
+	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
+	NoFix int `json:"no_fix"`
 	// Where the versions come from: "NVD affected versions".
 	Source string `json:"source"`
-	// The device's version; empty for branches.
+	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
 }
 
@@ -63596,6 +63662,11 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) GetKind() FindingsPostFindingsID
 // GetMore returns the value of More.
 func (s *FindingsPostFindingsIDStatusOKFixedIn) GetMore() int {
 	return s.More
+}
+
+// GetNoFix returns the value of NoFix.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetNoFix() int {
+	return s.NoFix
 }
 
 // GetSource returns the value of Source.
@@ -63626,6 +63697,11 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) SetKind(val FindingsPostFindings
 // SetMore sets the value of More.
 func (s *FindingsPostFindingsIDStatusOKFixedIn) SetMore(val int) {
 	s.More = val
+}
+
+// SetNoFix sets the value of NoFix.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetNoFix(val int) {
+	s.NoFix = val
 }
 
 // SetSource sets the value of Source.
@@ -63664,15 +63740,17 @@ func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) SetFixed(val string)
 	s.Fixed = val
 }
 
-// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
-// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
-// `branches` lists the fix of each release line.
+// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
+// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
+// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
+// line; distro = a distribution package, no number is named.
 type FindingsPostFindingsIDStatusOKFixedInKind string
 
 const (
 	FindingsPostFindingsIDStatusOKFixedInKindFixed    FindingsPostFindingsIDStatusOKFixedInKind = "fixed"
 	FindingsPostFindingsIDStatusOKFixedInKindUpTo     FindingsPostFindingsIDStatusOKFixedInKind = "up_to"
 	FindingsPostFindingsIDStatusOKFixedInKindBranches FindingsPostFindingsIDStatusOKFixedInKind = "branches"
+	FindingsPostFindingsIDStatusOKFixedInKindDistro   FindingsPostFindingsIDStatusOKFixedInKind = "distro"
 )
 
 // AllValues returns all FindingsPostFindingsIDStatusOKFixedInKind values.
@@ -63681,6 +63759,7 @@ func (FindingsPostFindingsIDStatusOKFixedInKind) AllValues() []FindingsPostFindi
 		FindingsPostFindingsIDStatusOKFixedInKindFixed,
 		FindingsPostFindingsIDStatusOKFixedInKindUpTo,
 		FindingsPostFindingsIDStatusOKFixedInKindBranches,
+		FindingsPostFindingsIDStatusOKFixedInKindDistro,
 	}
 }
 
@@ -63692,6 +63771,8 @@ func (s FindingsPostFindingsIDStatusOKFixedInKind) MarshalText() ([]byte, error)
 	case FindingsPostFindingsIDStatusOKFixedInKindUpTo:
 		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKFixedInKindBranches:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKFixedInKindDistro:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -63709,6 +63790,9 @@ func (s *FindingsPostFindingsIDStatusOKFixedInKind) UnmarshalText(data []byte) e
 		return nil
 	case FindingsPostFindingsIDStatusOKFixedInKindBranches:
 		*s = FindingsPostFindingsIDStatusOKFixedInKindBranches
+		return nil
+	case FindingsPostFindingsIDStatusOKFixedInKindDistro:
+		*s = FindingsPostFindingsIDStatusOKFixedInKindDistro
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

@@ -59,10 +59,12 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
   let text: string
   if (f.kind === 'fixed') text = t('rec.fixedIn', { fixed: f.fixed, device, version: f.version })
   else if (f.kind === 'up_to') text = t('rec.fixedUpTo', { fixed: f.fixed, device, version: f.version })
+  else if (f.kind === 'distro') text = t('rec.fixedDistro', { device, version: f.version })
   else {
     const list = f.branches.map((b) => (b.branch ? t('rec.fixedBranch', { branch: b.branch, fixed: b.fixed }) : t('rec.fixedBranchPlain', { fixed: b.fixed })))
     if (f.more > 0) list.push(t('rec.fixedMore', { count: f.more }))
-    text = t('rec.fixedBranches', { device, list: list.join(', ') })
+    if (f.no_fix > 0) list.push(t('rec.fixedNoFix', { count: f.no_fix }))
+    text = f.version ? t('rec.fixedUnreadable', { device, version: f.version, list: list.join(', ') }) : t('rec.fixedBranches', { device, list: list.join(', ') })
   }
   return (
     <div className="grid max-w-3xl gap-1" data-testid="fixed-in">

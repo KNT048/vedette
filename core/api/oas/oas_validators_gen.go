@@ -32085,6 +32085,27 @@ func (s *FindingsGetFindingsIDOKFixedIn) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.NoFix)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "no_fix",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -32098,6 +32119,8 @@ func (s FindingsGetFindingsIDOKFixedInKind) Validate() error {
 	case "up_to":
 		return nil
 	case "branches":
+		return nil
+	case "distro":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -33603,6 +33626,27 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.NoFix)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "no_fix",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -33616,6 +33660,8 @@ func (s FindingsPostFindingsIDAiOKFixedInKind) Validate() error {
 	case "up_to":
 		return nil
 	case "branches":
+		return nil
+	case "distro":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -34698,6 +34744,27 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.NoFix)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "no_fix",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -34711,6 +34778,8 @@ func (s FindingsPostFindingsIDAppliedOKFixedInKind) Validate() error {
 	case "up_to":
 		return nil
 	case "branches":
+		return nil
+	case "distro":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -35799,6 +35868,27 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.NoFix)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "no_fix",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -35812,6 +35902,8 @@ func (s FindingsPostFindingsIDStatusOKFixedInKind) Validate() error {
 	case "up_to":
 		return nil
 	case "branches":
+		return nil
+	case "distro":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

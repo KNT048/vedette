@@ -9,18 +9,21 @@ import (
 // "What to do" part of a finding page. It is only ever built from a range with an end bound; no range, no FixedIn,
 // and the page keeps CISA's required action and the vendor's advisory.
 type FixedIn struct {
-	// Kind is "fixed" (the device's version is inside a range that ends before Fixed), "up_to" (inside a range that
-	// ends at Fixed, itself affected: NVD names no fixed release) or "branches" (the version is not known).
+	// Kind is "fixed" (the device's version is inside a range that ends before Fixed, and Fixed is outside every
+	// range that applies), "up_to" (inside a range that ends at Fixed, itself affected: NVD names no fixed release),
+	// "branches" (the version is not known, or not readable) or "distro" (a distribution's package: its security
+	// updates carry the fix under their own version numbers, so no number is named).
 	Kind     string        `json:"kind"`
-	Version  string        `json:"version"` // the device's version; "" for branches
-	Fixed    string        `json:"fixed"`   // fixed (kind fixed), last affected (kind up_to), "" for branches
+	Version  string        `json:"version"` // the device's version; "" when it has none (branches), the unreadable text when it has one Vedette cannot read
+	Fixed    string        `json:"fixed"`   // fixed (kind fixed), last affected (kind up_to), "" otherwise
 	Branches []FixedBranch `json:"branches"`
-	More     int           `json:"more"`   // branches left out of Branches
+	More     int           `json:"more"`   // release lines with a fix left out of Branches
+	NoFix    int           `json:"no_fix"` // release lines NVD gives no fixed release for (a range ending at an affected version)
 	Source   string        `json:"source"` // always FixedInSource
 }
 
-// FixedBranch is the first fixed release of one release line ("7.4" -> "7.4.3"); Branch is "" when the line cannot be
-// told from the version.
+// FixedBranch is the fix of one release line, the line named by the start of its range ("7.4" -> "7.4.3"); Branch is
+// "" when the range has no start or it is not a plain dotted version.
 type FixedBranch struct {
 	Branch string `json:"branch"`
 	Fixed  string `json:"fixed"`
@@ -32,37 +35,64 @@ const FixedInSource = "NVD affected versions"
 const maxFixedBranches = 5
 
 // FixedInFor says which release fixes v on device a, from the NVD ranges in v.Affected, or nil when they do not say.
-// It reads the software the same way the matcher does (the entries that apply, evalAffected for a known version) and
-// invents nothing: a range with no end bound, an exact-version entry or a version outside every range gives nil.
+// It reads the software the same way the matcher does (the entries that apply, evalAffected) and invents nothing: a
+// fixed release is named only when it lies outside EVERY applicable entry (an iPhone range ending at 18.3 does not
+// make the iPadOS-only 17.7.6 a fix), and never for a distribution's package. Of several software rows of the product,
+// the one with the most definite answer wins.
 func FixedInFor(a Asset, v Vuln) *FixedIn {
 	multi := isMultiProduct(v.Product)
 	var key []identity
 	if n := (identity{vendor: norm(v.Vendor), product: norm(v.Product)}); !multi && n.ok() {
 		key = []identity{n}
 	}
+	var best *FixedIn
+	rank := func(f *FixedIn) int {
+		switch {
+		case f == nil:
+			return 0
+		case f.Kind == "fixed":
+			return 5
+		case f.Kind == "up_to":
+			return 4
+		case f.Kind == "distro":
+			return 3
+		case f.Version == "":
+			return 2
+		}
+		return 1
+	}
 	for _, s := range a.Software {
 		if !keyedTo(s, v) {
 			continue
 		}
 		in := newSWInfo(s, []Vuln{v}, a.OS)
-		if f := fixedInSoftware(in, v, key); f != nil {
-			return f
+		if f := fixedInSoftware(in, v, key); rank(f) > rank(best) {
+			best = f
 		}
 	}
-	return nil
+	return best
+}
+
+type fixedEntry struct {
+	c CPE
+	r VersionRange
+}
+
+// boundsReadable says every bound the range has is a version Vedette can compare.
+func boundsReadable(r VersionRange) bool {
+	for _, b := range []string{r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl} {
+		if b != "" && !versionKnown(b) {
+			return false
+		}
+	}
+	return true
 }
 
 func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
-	known := in.given && versionKnown(in.ver)
-	var excl, incl *FixedIn
-	var ends []string // EndExcl of every applicable range, for the branches list
+	var ents []fixedEntry // every entry that applies to the software, whatever its range
 	for _, af := range v.Affected {
-		r := af.Range
-		if r.IsZero() {
-			continue // all versions or one exact version: no fixed release in it
-		}
 		c, err := ParseCPE(af.CPE)
-		if err != nil || c.Part.Kind == NA || c.Version.Kind != Any || c.Update.Kind != Any {
+		if err != nil || c.Part.Kind == NA {
 			continue
 		}
 		own, _ := appliesTo(c, in.cpe, in.hasCPE, in.ids)
@@ -70,31 +100,31 @@ func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
 		if !own && !byKey || !byKey && distroRelease(c) {
 			continue
 		}
-		if !known {
-			if r.EndExcl != "" {
-				ends = append(ends, r.EndExcl)
-			}
-			continue
-		}
-		if t, _ := evalAffected(c, r, in.ver, in.cpe, in.hasCPE); t != Yes {
-			continue
-		}
-		switch {
-		case r.EndExcl != "" && excl == nil:
-			excl = &FixedIn{Kind: "fixed", Version: clean(in.ver), Fixed: clean(r.EndExcl)}
-		case r.EndIncl != "" && incl == nil:
-			incl = &FixedIn{Kind: "up_to", Version: clean(in.ver), Fixed: clean(r.EndIncl)}
+		ents = append(ents, fixedEntry{c, af.Range})
+	}
+	// usable are the entries that carry a range with readable bounds: the only ones a fix can be read from.
+	var usable []fixedEntry
+	for _, e := range ents {
+		if !e.r.IsZero() && e.c.Version.Kind == Any && e.c.Update.Kind == Any && boundsReadable(e.r) {
+			usable = append(usable, e)
 		}
 	}
+	// outside: X is a version that none of the applicable entries lists or cannot judge.
+	outside := func(x string) bool {
+		for _, e := range ents {
+			if t, _ := evalAffected(e.c, e.r, x, in.cpe, in.hasCPE); t != No {
+				return false
+			}
+		}
+		return true
+	}
 	var f *FixedIn
-	switch {
-	case excl != nil:
-		f = excl
-	case incl != nil:
-		f = incl
-	case !known && len(ends) > 0:
-		f = branches(ends)
-	default:
+	if in.given && versionKnown(in.ver) {
+		f = fixedForVersion(in, usable, outside)
+	} else {
+		f = fixedBranches(in, usable, outside)
+	}
+	if f == nil {
 		return nil
 	}
 	f.Source = FixedInSource
@@ -104,36 +134,116 @@ func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
 	return f
 }
 
-// branches lists the fixed releases newest first, one per distinct version, at most maxFixedBranches.
-func branches(ends []string) *FixedIn {
-	slices.SortStableFunc(ends, func(a, b string) int {
-		if c, ok := compareBound(a, b); ok {
+func fixedForVersion(in swInfo, usable []fixedEntry, outside func(string) bool) *FixedIn {
+	var excl, incl []string // end bounds of the ranges the device's version is inside
+	for _, e := range usable {
+		if t, _ := evalAffected(e.c, e.r, in.ver, in.cpe, in.hasCPE); t != Yes {
+			continue
+		}
+		if e.r.EndExcl != "" {
+			excl = append(excl, e.r.EndExcl)
+		} else if e.r.EndIncl != "" {
+			incl = append(incl, e.r.EndIncl)
+		}
+	}
+	if len(excl)+len(incl) == 0 {
+		return nil // inside no range, or inside only ranges with no end
+	}
+	if in.osVer != "" && distroVendors[in.os.vendor] {
+		return &FixedIn{Kind: "distro", Version: clean(in.ver)} // apt/dnf fix it with backports under their own numbers
+	}
+	asc := func(l []string) []string {
+		slices.SortStableFunc(l, func(a, b string) int {
+			if c, ok := compareBound(a, b); ok {
+				return c
+			}
+			return 0
+		})
+		return l
+	}
+	for _, x := range asc(excl) { // the nearest release that no entry lists
+		if outside(x) {
+			return &FixedIn{Kind: "fixed", Version: clean(in.ver), Fixed: clean(x)}
+		}
+	}
+	if len(incl) > 0 {
+		l := asc(incl)
+		return &FixedIn{Kind: "up_to", Version: clean(in.ver), Fixed: clean(l[len(l)-1])}
+	}
+	return nil
+}
+
+// fixedBranches lists the fix of each release line (the line named by its range's start), for a device whose version
+// is missing or unreadable.
+func fixedBranches(in swInfo, usable []fixedEntry, outside func(string) bool) *FixedIn {
+	if in.osVer != "" && distroVendors[in.os.vendor] {
+		return nil
+	}
+	type line struct{ label, fixed string }
+	var fixes []line
+	noFix := map[string]bool{}
+	for _, e := range usable {
+		label := lineOf(e.r)
+		if e.r.EndExcl != "" {
+			if outside(e.r.EndExcl) {
+				fixes = append(fixes, line{label, e.r.EndExcl})
+			}
+		} else if e.r.EndIncl != "" {
+			noFix[label+"|"+e.r.EndIncl] = true
+		}
+	}
+	slices.SortStableFunc(fixes, func(a, b line) int {
+		if c, ok := compareBound(a.fixed, b.fixed); ok {
 			return -c
 		}
 		return 0
 	})
-	ends = slices.Compact(ends)
+	f := &FixedIn{Kind: "branches"}
+	if in.given {
+		f.Version = clean(in.ver)
+	}
+	// One entry per fixed release (an iPhone range and an iPadOS range often end at the same one), named by the lowest
+	// line that shares it; a line with a fix is not also counted as "no fix named".
+	have := map[string]bool{}
 	var all []FixedBranch
-	seen := map[string]bool{}
-	for _, e := range ends { // newest first: the first of a line is its highest fix, the safe one to name
-		b := branchOf(e)
-		if b != "" && seen[b] {
+	for _, l := range fixes { // newest first: the first of a line is its highest fix, the safe one to name
+		have[l.label] = true
+	}
+	for _, l := range fixes {
+		if k := len(all) - 1; k >= 0 && all[k].Fixed == clean(l.fixed) {
+			if c, ok := compareBound(l.label, all[k].Branch); ok && c < 0 || all[k].Branch != "" && l.label == "" {
+				all[k].Branch = l.label
+			}
 			continue
 		}
-		seen[b] = true
-		all = append(all, FixedBranch{Branch: b, Fixed: clean(e)})
+		if l.label != "" && slices.ContainsFunc(all, func(b FixedBranch) bool { return b.Branch == l.label }) {
+			continue
+		}
+		all = append(all, FixedBranch{Branch: l.label, Fixed: clean(l.fixed)})
 	}
-	f := &FixedIn{Kind: "branches", Branches: all}
+	for k := range noFix {
+		if label, _, _ := strings.Cut(k, "|"); label != "" && have[label] {
+			delete(noFix, k) // that line has a fix in another range
+		}
+	}
+	if len(all) == 0 {
+		return nil
+	}
+	f.Branches, f.NoFix = all, len(noFix)
 	if len(all) > maxFixedBranches {
 		f.Branches, f.More = all[:maxFixedBranches], len(all)-maxFixedBranches
 	}
 	return f
 }
 
-// branchOf is the release line of a plain dotted version: the version without its last number ("7.4.3" -> "7.4").
-// Anything else ("22.4R2", "15.2(4)m3") has no line we can name.
-func branchOf(v string) string {
-	parts := strings.Split(v, ".")
+// lineOf names the release line of a range by its start ("7.0.0" -> "7.0"), "" when it has none or it is not a plain
+// dotted version.
+func lineOf(r VersionRange) string {
+	start := r.StartIncl
+	if start == "" {
+		start = r.StartExcl
+	}
+	parts := strings.Split(start, ".")
 	if len(parts) < 2 {
 		return ""
 	}
@@ -142,5 +252,5 @@ func branchOf(v string) string {
 			return ""
 		}
 	}
-	return strings.Join(parts[:len(parts)-1], ".")
+	return parts[0] + "." + parts[1]
 }

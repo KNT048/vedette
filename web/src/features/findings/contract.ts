@@ -74,11 +74,12 @@ export const AiResult = z.object({
 export const AppliedEntry = z.object({ item: z.string(), ts: iso, user: z.string() })
 
 export const FixedIn = z.object({
-  kind: z.enum(['fixed', 'up_to', 'branches']).describe('fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown, `branches` lists the fix of each release line'),
-  version: z.string().describe("The device's version; empty for branches"),
+  kind: z.enum(['fixed', 'up_to', 'branches', 'distro']).describe('fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a distribution package, no number is named'),
+  version: z.string().describe("The device's version; for branches empty when it has none, else the text Vedette cannot read"),
   fixed: z.string().describe('The fixed release (fixed), the last affected release (up_to); empty for branches'),
   branches: z.array(z.object({ branch: z.string().describe('Release line such as 7.4; empty when it cannot be told'), fixed: z.string() })).describe('At most 5, newest first'),
-  more: z.number().int().min(0).describe('Release lines left out of branches'),
+  more: z.number().int().min(0).describe('Release lines with a fix left out of branches'),
+  no_fix: z.number().int().min(0).describe('Release lines NVD gives no fixed release for (a range that ends at an affected version)'),
   source: z.string().describe('Where the versions come from: "NVD affected versions"'),
 })
 export const FindingDetail = FindingRow.extend({

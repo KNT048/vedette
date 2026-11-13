@@ -27551,13 +27551,14 @@
                               "enum": [
                                 "fixed",
                                 "up_to",
-                                "branches"
+                                "branches",
+                                "distro"
                               ],
-                              "description": "fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown, `branches` lists the fix of each release line"
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a distribution package, no number is named"
                             },
                             "version": {
                               "type": "string",
-                              "description": "The device's version; empty for branches"
+                              "description": "The device's version; for branches empty when it has none, else the text Vedette cannot read"
                             },
                             "fixed": {
                               "type": "string",
@@ -27588,7 +27589,13 @@
                               "type": "integer",
                               "minimum": 0,
                               "maximum": 9007199254740991,
-                              "description": "Release lines left out of branches"
+                              "description": "Release lines with a fix left out of branches"
+                            },
+                            "no_fix": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines NVD gives no fixed release for (a range that ends at an affected version)"
                             },
                             "source": {
                               "type": "string",
@@ -27601,6 +27608,7 @@
                             "fixed",
                             "branches",
                             "more",
+                            "no_fix",
                             "source"
                           ],
                           "additionalProperties": false
@@ -28589,13 +28597,14 @@
                               "enum": [
                                 "fixed",
                                 "up_to",
-                                "branches"
+                                "branches",
+                                "distro"
                               ],
-                              "description": "fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown, `branches` lists the fix of each release line"
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a distribution package, no number is named"
                             },
                             "version": {
                               "type": "string",
-                              "description": "The device's version; empty for branches"
+                              "description": "The device's version; for branches empty when it has none, else the text Vedette cannot read"
                             },
                             "fixed": {
                               "type": "string",
@@ -28626,7 +28635,13 @@
                               "type": "integer",
                               "minimum": 0,
                               "maximum": 9007199254740991,
-                              "description": "Release lines left out of branches"
+                              "description": "Release lines with a fix left out of branches"
+                            },
+                            "no_fix": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines NVD gives no fixed release for (a range that ends at an affected version)"
                             },
                             "source": {
                               "type": "string",
@@ -28639,6 +28654,7 @@
                             "fixed",
                             "branches",
                             "more",
+                            "no_fix",
                             "source"
                           ],
                           "additionalProperties": false
@@ -29629,13 +29645,14 @@
                               "enum": [
                                 "fixed",
                                 "up_to",
-                                "branches"
+                                "branches",
+                                "distro"
                               ],
-                              "description": "fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown, `branches` lists the fix of each release line"
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a distribution package, no number is named"
                             },
                             "version": {
                               "type": "string",
-                              "description": "The device's version; empty for branches"
+                              "description": "The device's version; for branches empty when it has none, else the text Vedette cannot read"
                             },
                             "fixed": {
                               "type": "string",
@@ -29666,7 +29683,13 @@
                               "type": "integer",
                               "minimum": 0,
                               "maximum": 9007199254740991,
-                              "description": "Release lines left out of branches"
+                              "description": "Release lines with a fix left out of branches"
+                            },
+                            "no_fix": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines NVD gives no fixed release for (a range that ends at an affected version)"
                             },
                             "source": {
                               "type": "string",
@@ -29679,6 +29702,7 @@
                             "fixed",
                             "branches",
                             "more",
+                            "no_fix",
                             "source"
                           ],
                           "additionalProperties": false
@@ -30674,13 +30698,14 @@
                               "enum": [
                                 "fixed",
                                 "up_to",
-                                "branches"
+                                "branches",
+                                "distro"
                               ],
-                              "description": "fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown, `branches` lists the fix of each release line"
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a distribution package, no number is named"
                             },
                             "version": {
                               "type": "string",
-                              "description": "The device's version; empty for branches"
+                              "description": "The device's version; for branches empty when it has none, else the text Vedette cannot read"
                             },
                             "fixed": {
                               "type": "string",
@@ -30711,7 +30736,13 @@
                               "type": "integer",
                               "minimum": 0,
                               "maximum": 9007199254740991,
-                              "description": "Release lines left out of branches"
+                              "description": "Release lines with a fix left out of branches"
+                            },
+                            "no_fix": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines NVD gives no fixed release for (a range that ends at an affected version)"
                             },
                             "source": {
                               "type": "string",
@@ -30724,6 +30755,7 @@
                             "fixed",
                             "branches",
                             "more",
+                            "no_fix",
                             "source"
                           ],
                           "additionalProperties": false

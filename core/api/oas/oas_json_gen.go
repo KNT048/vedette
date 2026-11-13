@@ -259364,6 +259364,8 @@ func (s *ScanGetScansRunsOKItemsItemIdentificationItemReason) Decode(d *jx.Decod
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed:
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence:
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly:
@@ -261833,6 +261835,8 @@ func (s *ScanPostScansRunsCreatedIdentificationItemReason) Decode(d *jx.Decoder)
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonNoVersion
 	case ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed:
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel
 	case ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence:
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence
 	case ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly:
@@ -262865,6 +262869,8 @@ func (s *ScanPostScansRunsIDStopOKIdentificationItemReason) Decode(d *jx.Decoder
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed:
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence:
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly:

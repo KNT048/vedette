@@ -47,6 +47,7 @@ const maxFoundLines = 20
 var identNote = map[string]string{
 	"":                    "Recorded on the device page. Software with a version is compared with the CISA list of exploited flaws; an operating system nmap only guessed is not, until you add it with its version there.",
 	"os_unconfirmed":      "nmap only guessed the operating system and no service gave a version, so nothing is compared with the CISA list yet: a guess would flag every flaw of that system. Add the operating system and its version on the device page to check it.",
+	"os_no_patch_level":   "Windows named its release (shown above) but not its monthly update level, so nothing is compared with the CISA list yet: that would flag every Windows flaw since that release. Add Windows with its full version (Settings, System, About: OS build, for example 10.0.22631.4317) on the device page, or install the osquery agent on it.",
 	"host_down":           "Did not answer: it may be switched off, asleep (phones often are) or off the network. Scan it again while it is in use.",
 	"no_open_ports":       "Answered, but every port tried was closed, so no service could be identified. Add its software on the device page, or install the osquery agent on it.",
 	"filtered":            "Answered, but a firewall dropped the probes (every port tried was filtered), so nothing could be identified. Add its software on the device page, or install the osquery agent on it.",

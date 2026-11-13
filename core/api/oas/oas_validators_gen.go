@@ -74318,6 +74318,8 @@ func (s ScanGetScansRunsOKItemsItemIdentificationItemReason) Validate() error {
 		return nil
 	case "os_unconfirmed":
 		return nil
+	case "os_no_patch_level":
+		return nil
 	case "os_low_confidence":
 		return nil
 	case "gentle_only":
@@ -74971,6 +74973,8 @@ func (s ScanPostScansRunsCreatedIdentificationItemReason) Validate() error {
 		return nil
 	case "os_unconfirmed":
 		return nil
+	case "os_no_patch_level":
+		return nil
 	case "os_low_confidence":
 		return nil
 	case "gentle_only":
@@ -75289,6 +75293,8 @@ func (s ScanPostScansRunsIDStopOKIdentificationItemReason) Validate() error {
 	case "no_version":
 		return nil
 	case "os_unconfirmed":
+		return nil
+	case "os_no_patch_level":
 		return nil
 	case "os_low_confidence":
 		return nil

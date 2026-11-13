@@ -222,6 +222,7 @@
     "filtered": "Probes dropped",
     "no_version": "No version given",
     "os_unconfirmed": "OS guessed, not checked",
+    "os_no_patch_level": "Windows release known, patch level not",
     "scope_not_confirmed": "Scope not confirmed",
     "box": "The box itself",
     "regular_scan_never": "Set to never scan",

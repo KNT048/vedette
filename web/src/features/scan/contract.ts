@@ -14,6 +14,10 @@ export const ScanTarget = z.object({
   selectable: z.boolean(), reason: z.enum(['unapproved', 'excluded', 'out_of_scope', 'no_ip', 'regular_scan_never', 'unverified', 'expired', 'not_supported']).nullable()
     .describe('null when the target can be scanned by picking it. no_ip: the device has no IP address in the inventory (D-484). regular_scan_never: a person set "never scan" on the device (D-126). not_supported: external targets are not scanned by this version yet'),
   box: z.boolean().describe('The Vedette box itself (D-470): pick_only, so it is scanned only when a person ticks it; sweeps, schedules, KEV rescans and Select all never include it'),
+  mac: z.string().nullable().describe('For the picker search (D-472); null when unknown and for external targets'),
+  vendor: z.string().nullable().describe('For the picker search (D-472); null when unknown and for external targets'),
+  approved: z.boolean().describe('Approved in the inventory (picker filter, D-472); false for external targets'),
+  last_seen: iso.nullable().describe('When the inventory last saw the device (picker filter, D-472); null for external targets'),
 })
 export const ScanScope = z.object({ networks: z.array(z.string()), commitment: z.object({ confirmed_at: iso, by: z.string() }).nullable().describe('The scope commitment ticked under Devices, Scope and sensors (inventory scope_confirmed_at)') })
 export const ScanConfig = z.object({

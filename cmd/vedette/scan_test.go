@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/netip"
 	"testing"
 
@@ -9,7 +10,10 @@ import (
 )
 
 // fakeScanInv counts reads: the adapter must take Careful and the IP from the decision, not re-read the device.
-type fakeScanInv struct{ policy, devices, settings int }
+type fakeScanInv struct {
+	policy, devices, settings int
+	batches                   [][]string
+}
 
 func (f *fakeScanInv) Settings(context.Context) (inventory.Settings, error) {
 	f.settings++
@@ -22,6 +26,41 @@ func (f *fakeScanInv) Devices(context.Context) (inventory.DeviceList, error) {
 func (f *fakeScanInv) VulnScanPolicy(context.Context, string, bool) (inventory.ScanDecision, error) {
 	f.policy++
 	return inventory.ScanDecision{Allowed: true, Rate: 12, Reason: inventory.ReasonOK, Careful: true, IP: netip.MustParseAddr("192.168.10.20")}, nil
+}
+
+func (f *fakeScanInv) VulnScanPolicies(_ context.Context, ids []string, _ bool) (map[string]inventory.ScanDecision, error) {
+	f.batches = append(f.batches, ids)
+	out := map[string]inventory.ScanDecision{}
+	for _, id := range ids {
+		if id != "a-gone" {
+			out[id] = inventory.ScanDecision{Allowed: true, Rate: 12, Reason: inventory.ReasonOK, Careful: true, IP: netip.MustParseAddr("192.168.10.20")}
+		}
+	}
+	return out, nil
+}
+
+// D-472: the adapter reads the policy of a whole list in chunks of inventory.MaxPolicyBatch, never one read per device;
+// a device deleted since the list was read is absent, and Careful and the IP come with each decision.
+func TestScanAdapterVulnScanPoliciesBatches(t *testing.T) {
+	f := &fakeScanInv{}
+	ids := make([]string, inventory.MaxPolicyBatch+3)
+	for i := range ids {
+		ids[i] = fmt.Sprintf("a-%d", i)
+	}
+	ids[5] = "a-gone"
+	m, err := scanInventory{inv: f}.VulnScanPolicies(t.Context(), ids, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(f.batches) != 2 || len(f.batches[0]) != inventory.MaxPolicyBatch || len(f.batches[1]) != 3 || f.policy != 0 {
+		t.Fatalf("batches %d (first %d), single reads %d; want 2 (%d, 3), 0", len(f.batches), len(f.batches[0]), f.policy, inventory.MaxPolicyBatch)
+	}
+	if _, ok := m["a-gone"]; ok || len(m) != len(ids)-1 {
+		t.Errorf("got %d decisions, gone present %v; want %d without a-gone", len(m), ok, len(ids)-1)
+	}
+	if d := m["a-7"]; !d.Allowed || !d.Careful || d.IP != "192.168.10.20" {
+		t.Errorf("a-7: %+v", d)
+	}
 }
 
 func TestScanAdapterVulnScanPolicyIsOneRead(t *testing.T) {

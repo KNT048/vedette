@@ -67,6 +67,8 @@ type runInventory struct {
 	devices []Device
 	policy  func(id string, explicit bool) Decision
 	calls   []policyCall
+	single  int // VulnScanPolicy calls: the per-device re-check right before a job (INV-1)
+	batches int // VulnScanPolicies calls (D-472)
 }
 
 func (f *runInventory) Devices(context.Context) ([]Device, error) {
@@ -78,6 +80,26 @@ func (f *runInventory) Devices(context.Context) ([]Device, error) {
 func (f *runInventory) VulnScanPolicy(_ context.Context, id string, explicit bool) (Decision, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.single++
+	return f.decide(id, explicit), nil
+}
+
+// VulnScanPolicies records one call per id like VulnScanPolicy (the INV-1 tests read calls) and counts the batch.
+func (f *runInventory) VulnScanPolicies(_ context.Context, ids []string, explicit bool) (map[string]Decision, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.batches++
+	out := map[string]Decision{}
+	for _, id := range ids {
+		if slices.ContainsFunc(f.devices, func(d Device) bool { return d.ID == id }) {
+			out[id] = f.decide(id, explicit)
+		}
+	}
+	return out, nil
+}
+
+// decide records the call and answers the policy; f.mu is held.
+func (f *runInventory) decide(id string, explicit bool) Decision {
 	f.calls = append(f.calls, policyCall{id, explicit})
 	d := f.policy(id, explicit)
 	if d.IP == "" {
@@ -87,7 +109,7 @@ func (f *runInventory) VulnScanPolicy(_ context.Context, id string, explicit boo
 			}
 		}
 	}
-	return d, nil
+	return d
 }
 
 func (f *runInventory) setPolicy(p func(id string, explicit bool) Decision) {

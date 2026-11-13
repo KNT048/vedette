@@ -3,6 +3,7 @@ import type { z } from 'zod'
 import type * as C from './contract'
 
 export type FindingRow = z.infer<typeof C.FindingRow>
+export type TopRisk = z.infer<typeof C.TopRisk>
 export type ActionItem = z.infer<typeof C.ActionItem>
 export type AiSummary = z.infer<typeof C.AiSummary>
 export type WeeklyReport = z.infer<typeof C.WeeklyReport>

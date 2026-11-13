@@ -2,6 +2,7 @@
 // Chạy: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/scan.spec.ts
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
+import { manyAssets } from '../../src/mocks/seed/assets'
 
 const DB = 'vedette-mock-db-v4'
 const DIACRITICS = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i
@@ -82,6 +83,44 @@ test.describe('scan: IT operator', () => {
     await expect(page.getByRole('button', { name: /Scan now/ })).toBeDisabled()
     await expect(page.getByText('Select at least one device.')).toBeVisible()
     await english(page, 'scans')
+    expect(errors).toEqual([])
+  })
+
+  test('500 devices (D-472): subnet groups and pages, search, the selection survives paging, Select all says what needs your own tick', async ({ page }, info) => {
+    const errors = collectErrors(page)
+    await page.goto('/scans') // the mock seeds the inventory settings on first read; the patch below keeps them
+    await expect(page.getByRole('button', { name: 'Select all' })).toBeVisible()
+    await page.evaluate(([k, extra]) => {
+      const db = JSON.parse(localStorage.getItem(k as string) ?? '{}')
+      db.inv_assets = [...(db.inv_assets ?? []), ...(extra as unknown[])]
+      db.inv_settings = { ...db.inv_settings, lan_ranges: ['192.168.0.0/16'], scope_confirmed_at: new Date().toISOString(), scope_confirmed_by: 'admin@acme.example' }
+      localStorage.setItem(k as string, JSON.stringify(db))
+    }, [DB, manyAssets(470)] as const)
+    await page.goto('/scans')
+    await expect(page.getByText(/^50\d devices in the inventory$/)).toBeVisible()
+    await expect(page.getByRole('button', { name: /^192\.168\.10\.0\/24/ })).toBeVisible()
+    await expect(page.getByText(/^Page 1 of \d+$/)).toBeVisible()
+    await page.getByRole('button', { name: 'Clear selection' }).click()
+    await page.getByRole('checkbox', { name: /^SRV-AD / }).click()
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByRole('searchbox', { name: 'Search devices' }).fill('PC-120')
+    await page.getByRole('checkbox', { name: /^PC-120 / }).click()
+    await expect(page.getByText('2 selected')).toBeVisible()
+    await page.getByRole('button', { name: 'Clear filters' }).first().click()
+    await page.getByRole('button', { name: 'Show selected' }).click()
+    await expect(page.locator('[id^="tg-"][data-state="checked"]')).toHaveCount(2)
+    await page.getByRole('button', { name: 'Show all' }).click()
+    await page.getByRole('combobox', { name: 'Subnet' }).selectOption('192.168.40.0/24')
+    await page.getByRole('button', { name: 'Select all' }).click()
+    const report = page.getByText(/^Selected \d+ devices\./)
+    await expect(report).toContainText(/need your own tick \(\d+ fragile, \d+ type unknown, \d+ added by hand\): Show them \d+ cannot be scanned \(\d+ not approved\)/)
+    await shot(page, 'scan', `picker-500-${info.project.name}`)
+    await noHScroll(page, 'picker 500')
+    await expectAccessible(page, 'picker 500')
+    await report.getByRole('button', { name: 'Show them' }).click()
+    await expect(page.getByRole('combobox', { name: 'Show' })).toHaveValue('pick')
+    await expect(page.locator('[id^="tg-"][data-state="checked"]')).toHaveCount(0)
     expect(errors).toEqual([])
   })
 

@@ -1,7 +1,9 @@
 # Scan — Change Impact Map
 
 ## Modifying: `scan.Service.StartRun(ctx, targets, trigger)` và bộ chọn `Targets()`
-- **SPA** (`/scans`, `RunsTab`, Devices → "Scan"), **core/jobs** (lịch), `OnNewKEV`. Đổi điều kiện chọn mục tiêu đổi số gói/request rời hộp: sửa CONTRACT + test INV-1…3. `ScanTarget.box` (D-470): `scan.Device.Box` từ `is_box` của inventory (`cmd/vedette/scan.go`); `RunsTab` đọc nó cho dòng "pick it to scan"; đổi nó phải sửa `contract.ts` + `api/openapi.json` + ogen cùng lúc.
+- **SPA** (`/scans`, `RunsTab`, `TargetPicker`, Devices → "Scan"), **core/jobs** (lịch), `OnNewKEV`. Đổi điều kiện chọn mục tiêu đổi số gói/request rời hộp: sửa CONTRACT + test INV-1…3.
+- `scan.Inventory.VulnScanPolicies` (D-472) là `inventory.VulnScanPolicies` qua adapter `cmd/vedette` (chia lô `inventory.MaxPolicyBatch`); đổi luật D-126 ở `inventory.decideVuln` thì cả hai đường (một thiết bị và theo lô) đổi cùng nhau. Thêm/bớt trường của `ScanTarget` ⇒ `contract.ts` + `api/openapi.json` + ogen.
+- `ScanTarget.box` (D-470): `scan.Device.Box` từ `is_box` của inventory (`cmd/vedette/scan.go`); `TargetPicker` đọc nó cho dòng "pick it to scan" và lý do không tick khi Select all; đổi nó phải sửa `contract.ts` + `api/openapi.json` + ogen cùng lúc.
 
 ## Modifying: gọi `inventory.InScope/ScanPolicy` và `exposure.CheckScannable`
 - **inventory**, **exposure**: đây là hai rào SYS-7. Nới ở một phía mà không sửa phía kia ⇒ lỗ hổng phạm vi.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -74,6 +75,7 @@ type scanInv interface {
 	Settings(ctx context.Context) (inventory.Settings, error)
 	Devices(ctx context.Context) (inventory.DeviceList, error)
 	VulnScanPolicy(ctx context.Context, assetID string, explicit bool) (inventory.ScanDecision, error)
+	VulnScanPolicies(ctx context.Context, assetIDs []string, explicit bool) (map[string]inventory.ScanDecision, error)
 }
 
 func (s scanInventory) Scope(ctx context.Context) (scan.Scope, error) {
@@ -122,7 +124,13 @@ func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 	}
 	out := make([]scan.Device, 0, len(list.Items))
 	for _, d := range list.Items {
-		sd := scan.Device{ID: d.ID, Label: deviceLabel(d.AssetCore), IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, Box: d.IsBox}
+		sd := scan.Device{ID: d.ID, Label: deviceLabel(d.AssetCore), IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, LastSeen: d.LastSeen, Box: d.IsBox}
+		if d.MAC != nil {
+			sd.MAC = *d.MAC
+		}
+		if d.Vendor != nil {
+			sd.Vendor = d.Vendor.Value
+		}
 		for _, sv := range d.Services {
 			if sv.Proto == "" || sv.Proto == "tcp" {
 				sd.Services = append(sd.Services, scan.OpenPort{Port: sv.Port, Name: sv.Name})
@@ -134,8 +142,8 @@ func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 }
 
 // VulnScanPolicy is inventory's D-126 policy; Careful (fragile or unclassified, slowed even when regular scans are
-// allowed: the safe side) and the IP come from the same read as the decision. ponytail: scan.Inventory has no
-// batch method, so this is one inventory read per device; inventory.VulnScanPolicies is there when it gets one.
+// allowed: the safe side) and the IP come from the same read as the decision. Used for the re-check of one device
+// right before its job leaves core (scan INV-1); lists use VulnScanPolicies.
 func (s scanInventory) VulnScanPolicy(ctx context.Context, assetID string, explicit bool) (scan.Decision, error) {
 	if s.inv == nil {
 		return scan.Decision{}, fmt.Errorf("vedette: scan: the inventory is not wired")
@@ -147,11 +155,34 @@ func (s scanInventory) VulnScanPolicy(ctx context.Context, assetID string, expli
 	if err != nil {
 		return scan.Decision{}, err
 	}
+	return scanDecision(dec), nil
+}
+
+// VulnScanPolicies is inventory.VulnScanPolicies in chunks of inventory.MaxPolicyBatch (D-472): one settings read and
+// one query per chunk instead of one read per device. A device deleted since the list was read is absent.
+func (s scanInventory) VulnScanPolicies(ctx context.Context, assetIDs []string, explicit bool) (map[string]scan.Decision, error) {
+	if s.inv == nil {
+		return nil, fmt.Errorf("vedette: scan: the inventory is not wired")
+	}
+	out := make(map[string]scan.Decision, len(assetIDs))
+	for c := range slices.Chunk(assetIDs, inventory.MaxPolicyBatch) {
+		m, err := s.inv.VulnScanPolicies(ctx, c, explicit)
+		if err != nil {
+			return nil, err
+		}
+		for id, dec := range m {
+			out[id] = scanDecision(dec)
+		}
+	}
+	return out, nil
+}
+
+func scanDecision(dec inventory.ScanDecision) scan.Decision {
 	out := scan.Decision{Allowed: dec.Allowed, Reason: dec.Reason}
 	if dec.Allowed {
 		out.Careful, out.IP = dec.Careful, dec.IP.String()
 	}
-	return out, nil
+	return out
 }
 
 // scanFindings is the findings module as scan needs it (scan.Findings).

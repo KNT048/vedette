@@ -7,6 +7,7 @@ import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
 import { auditStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { feature } from './index'
+import { portLabel, riskOf } from './services'
 
 const USER = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' } as const
 async function call(method: string, path: string, body?: unknown, role: keyof typeof USER = 'admin') {
@@ -78,6 +79,23 @@ describe('exposure: list (S-EXP-1)', () => {
     renderApp('/exposure')
     expect(await screen.findByRole('heading', { level: 1, name: 'No domain or verified public IP yet' })).toBeInTheDocument()
     expect(screen.getAllByText(/Select Detect now to look right away/).length).toBeGreaterThan(0)
+  })
+
+  it('W1-23: with no admin page, the first sentence says what is open and SIP is called out with "is that on purpose?"', async () => {
+    const at = '2026-11-13T06:02:00.000Z'
+    const ip = { id: 't-ip', kind: 'ip', value: '203.0.113.10', status: 'verified', method: 'box_egress', token: '', verified_at: at, expires_at: '2026-12-13T06:02:00.000Z', validity: 'valid', last_check: null,
+      commitment: { by: 'An', at }, scannable: true, blocked_reason: null, created_at: at, last_scan_at: at,
+      latest: { subdomains: 0, ips: 1, ports: 2, admin_panels: 0, certs_expiring: 0 },
+      open_ports: [{ ip: '203.0.113.10', port: 5060, service: 'sip' }, { ip: '203.0.113.10', port: 10443, service: 'https', product: 'nginx' }] }
+    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [ip], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [] })))
+    renderApp('/exposure')
+    expect(await screen.findByRole('heading', { level: 1, name: '2 ports are open to the Internet: SIP 5060, HTTPS 10443' })).toBeInTheDocument()
+    const open = screen.getByRole('region', { name: '2 ports open to the Internet' })
+    expect(within(open).getAllByText('Commonly attacked')).toHaveLength(1) // SIP only; HTTPS is not called out
+    expect(within(open).getByText(/toll fraud.*Is that on purpose\?/)).toBeInTheDocument()
+    expect(within(open).getByText('answers as nginx')).toBeInTheDocument()
+    // a service name from the network never finds Object.prototype
+    expect([riskOf({ service: 'constructor' }), portLabel({ service: 'constructor', port: 1 })]).toEqual([null, 'CONSTRUCTOR 1'])
   })
 
   it('module off says where to turn it on', async () => {

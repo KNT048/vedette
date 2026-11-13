@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// Handlers implements the 16 operations of the inventory module. Embed it in the composite handler of
+// Handlers implements the 17 operations of the inventory module. Embed it in the composite handler of
 // cmd/vedette. The role of each route comes from the route table, so nothing here checks roles.
 //
 // ogen generates a separate struct per operation for the same schema, so the answers are built from the
@@ -164,6 +164,18 @@ func (h *Handlers) InventoryPostInventoryDevicesIDSoftware(ctx context.Context, 
 		return nil, fail(err)
 	}
 	return &oas.InventoryPostInventoryDevicesIDSoftwareCreated{KevCves: n}, nil
+}
+
+// InventoryPatchInventoryDevicesIDSoftwareSid implements PATCH /inventory/devices/{id}/software/{sid} (operator, D-471).
+func (h *Handlers) InventoryPatchInventoryDevicesIDSoftwareSid(ctx context.Context, req *oas.InventoryPatchInventoryDevicesIDSoftwareSidReq, params oas.InventoryPatchInventoryDevicesIDSoftwareSidParams) (*oas.InventoryPatchInventoryDevicesIDSoftwareSidOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.svc.SetSoftwareVersion(ctx, who, params.ID, params.Sid, req.Version); err != nil {
+		return nil, fail(err)
+	}
+	return &oas.InventoryPatchInventoryDevicesIDSoftwareSidOK{Ok: true}, nil
 }
 
 // InventoryDeleteInventoryDevicesIDSoftwareSid implements DELETE /inventory/devices/{id}/software/{sid} (operator).

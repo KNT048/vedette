@@ -20,6 +20,13 @@ var (
 	ErrArchiveDigest = errArchiveDigest
 )
 
+// The names of Vedette's things in podman, for the test that ties install.sh --uninstall to them (D-508 review).
+const (
+	IntNetwork    = intNetwork
+	LocalPrefix   = localPrefix
+	NmapTagPrefix = nmapTagPrefix
+)
+
 var (
 	FilterJournal        = filterJournal
 	SchemaNewer          = schemaNewer

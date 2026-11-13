@@ -38,12 +38,29 @@
     "titleEmpty": "No devices yet",
     "titleBoxOnly": "Only the Vedette box so far"
   },
+  "noDevice": "{{product}} (no device)",
+  "tabs": {
+    "label": "Device areas",
+    "all": "All devices",
+    "review": "To review",
+    "reviewBadge": "waiting for your approval",
+    "software": "Software",
+    "add": "Add devices"
+  },
+  "kpi": {
+    "label": "Devices at a glance",
+    "devices": "devices",
+    "review": "to review",
+    "recent": "approved in the last 24 h",
+    "manual": "added by hand"
+  },
   "filter": {
     "label": "Filter devices",
     "all": "All ({{count}})",
-    "pending": "Not approved ({{count}})",
-    "fragile": "Fragile ({{count}})",
-    "manual": "Added by hand ({{count}})"
+    "recent": "Approved in the last 24 h ({{count}})",
+    "manual": "Added by hand ({{count}})",
+    "agent": "From an agent ({{count}})",
+    "fragile": "Fragile ({{count}})"
   },
   "col": {
     "name": "Name",
@@ -59,9 +76,10 @@
     "search": "Search by name, IP, make, operating system",
     "empty": {
       "all": "No device matches this search.",
-      "pending": "No devices waiting for approval.",
+      "recent": "No device was approved in the last 24 hours. Devices you approve appear here for a day.",
       "fragile": "No fragile device matches.",
-      "manual": "No device added by hand yet. Use \"Add a device\" to add one."
+      "manual": "No device added by hand yet. Use \"Add a device\" to add one.",
+      "agent": "No device reports through an agent yet. See \"Add devices\" to set up osquery or Wazuh."
     }
   },
   "empty": {
@@ -84,6 +102,7 @@
     "firstSeen": "First seen {{when}}.",
     "approve": "Approve",
     "approved": "Approved {{name}}.",
+    "findLater": "Find it later under All devices → Approved in the last 24 h.",
     "mark": "Mark unknown",
     "unmark": "Remove unknown mark",
     "marked": "Marked {{name}} as unknown.",
@@ -250,7 +269,54 @@
     "remove": "Remove {{name}} from the device",
     "removed": "Removed {{name}} from the device.",
     "empty": "No software yet",
-    "emptyBody": "Use \"Add software\" to say what runs on this device, or install an agent so Vedette reads it by itself."
+    "emptyBody": "Use \"Add software\" to say what runs on this device, or install an agent so Vedette reads it by itself.",
+    "edit": "Change the version of {{name}}",
+    "editTitle": "Change the version of {{name}}",
+    "editBody": "Vedette matches exploited vulnerabilities by version, so findings follow what you enter. Leave it empty if you do not know.",
+    "editSave": "Save version",
+    "edited": "{{name}} is now version {{version}}. Findings are matched again.",
+    "editedNone": "Removed the version of {{name}}. Findings are matched again.",
+    "seen": "The device reports {{version}} ({{source}}).",
+    "seenTyped": "You entered {{typed}}; the device reports {{version}} ({{source}}).",
+    "accept": "Use {{version}}",
+    "acceptLabel": "Use version {{version}} for {{name}}"
+  },
+  "softwareTab": {
+    "description": "Every piece of software on every device, with its version and where Vedette learned it. Search for a product to see which devices run it.",
+    "caption": "Software on all devices",
+    "search": "Search by software, version or device",
+    "device": "Device",
+    "empty": "No software yet",
+    "emptyBody": "Software appears when you add a product by hand, when an agent reports, or when a scan reads a version."
+  },
+  "ways": {
+    "intro": "Vedette learns about devices in these ways. You can use several at once; what an agent reports wins over a scan's guess.",
+    "when": "When to use it",
+    "adminOnly": "An administrator sets this up in Scope, sensors and agents.",
+    "agentsOff": "The Agent intake module is off; an administrator turns it on in Settings → Modules.",
+    "discovery": {
+      "title": "Found on the network (automatic)",
+      "when": "Everything plugged into your LAN. The box's sensor listens and a gentle scan in the night names devices; new ones wait under \"To review\".",
+      "action": "Set network ranges and sensors"
+    },
+    "manual": {
+      "title": "Add by hand",
+      "when": "A product you know you run, even if the box cannot see it: a branch firewall, a cloud service, software on a laptop. Pick it from the suggestions in three clicks."
+    },
+    "csv": {
+      "title": "Import a CSV file",
+      "when": "You already keep a list in Excel. Columns name, ip, product, version and kind; up to 500 rows. Wrong rows are reported by line."
+    },
+    "osquery": {
+      "title": "osquery agent on servers",
+      "when": "Linux and Windows servers. The agent reads the exact packages and versions, so alerts say \"confirmed\" instead of \"suspected\".",
+      "action": "Download osquery and create a token"
+    },
+    "wazuh": {
+      "title": "Connect Wazuh",
+      "when": "You already run Wazuh. Vedette reads its agents and packages through the read-only Wazuh API; nothing is installed.",
+      "action": "Connect Wazuh"
+    }
   },
   "notes": {
     "title": "Notes",

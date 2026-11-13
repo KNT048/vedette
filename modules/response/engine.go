@@ -105,7 +105,7 @@ func (s *Service) planAction(a RuleAction, ev Det, why string, cats map[string]c
 	// After the never-touch check, which names the device (the gateway, the box) and stays the answer for those.
 	if cat.ID == "blocklist_add" {
 		if why := notPublicMsg(vals[PIP]); why != "" {
-			return planned{}, &planFail{"not_public", why, title}
+			return planned{}, &planFail{codeNotPublishable, why, title}
 		}
 	}
 	if why2 := unavailable(cat, cs); why2 != "" {
@@ -358,12 +358,25 @@ func (s *Service) fire(ctx context.Context, tx *sql.Tx, rule Rule, ev Det, sum *
 		return no(refusal.Code, refusal.Message)
 	}
 	var plan []planned
+	dropped := false
 	for _, a := range rule.Actions {
 		p, f := s.planAction(a, ev, ev.Summary, cats, cs, never)
+		if f != nil && f.code == codeNotPublishable {
+			// D-469: a block the list could never publish would do nothing; it is not a safety refusal, so only that action is
+			// dropped (with its line) and the rule's other actions still go ahead (a trap's "block the source + tell me" still tells).
+			if _, err := no(f.code, f.msg); err != nil {
+				return "", err
+			}
+			dropped = true
+			continue
+		}
 		if f != nil {
 			return no(f.code, f.msg) // fail closed: one bad action refuses the whole run
 		}
 		plan = append(plan, p)
+	}
+	if len(plan) == 0 && dropped {
+		return "", nil
 	}
 	// The same target and action already open or in force: nothing new to ask. Duplicates inside one run merge into one.
 	open, err := openKeys(ctx, tx, s.now())

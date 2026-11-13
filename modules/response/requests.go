@@ -749,7 +749,7 @@ func (s *Service) carryOut(ctx context.Context, r request, it itemRec, cat catRo
 		switch cat.ID {
 		case "blocklist_add":
 			if why := notPublicMsg(it.Values[PIP]); why != "" { // D-469: a request made before the plan-time check is refused here, never "Added"
-				return itemOutcome{refusal: fail(http.StatusConflict, "not_public", why)}
+				return itemOutcome{refusal: fail(http.StatusConflict, codeNotPublishable, why)}
 			}
 			full, err := s.blockListFull(ctx, it.Values[PIP])
 			if err != nil {

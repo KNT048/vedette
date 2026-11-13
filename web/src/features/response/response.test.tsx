@@ -1277,28 +1277,32 @@ describe('response: block list (pull)', () => {
     expect((await fetch(`${location.origin}${path}`)).status).toBe(404)
   })
 
-  it('a block on an address the list never publishes is refused when it is planned, with not_public and a refused line (D-469)', async () => {
+  it('a block on an address the list never publishes is refused when it is planned, with not_publishable and a refused line (D-469)', async () => {
     iocHits(['192.168.1.5'])
-    const priv = [{ action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 60 }]
-    // simulate: the step shows the reason
-    const sim = await call<Simulation>('operator', 'POST', '/response/rules/simulate', { rule: { ...RULE, actions: [{ ...priv[0]!, params: { ip: '192.168.1.5' } }] } })
+    const priv = { action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 60 }
+    const tell = { action_id: 'msg_send', params: { text: 'Bad connection from {{trigger.device}}' }, ttl_min: null }
+    // a fixed private address is refused when the rule is saved (or simulated); a trigger field only when it runs
+    const fixed = { ...RULE, actions: [{ ...priv, params: { ip: '192.168.1.5' } }] }
+    expect([(await addRule(fixed)).code, (await call('operator', 'POST', '/response/rules/simulate', { rule: fixed })).code]).toEqual(['not_publishable', 'not_publishable'])
+    const sim = await call<Simulation>('operator', 'POST', '/response/rules/simulate', { rule: { ...RULE, actions: [priv] } })
     expect(sim.status).toBe(200)
     expect(sim.json.steps[0]!.error).toMatch(/^192\.168\.1\.5 is not a public address .*Nothing was changed\.$/)
-    // a live rule: nothing is requested, the run counts a refusal and the log says why
-    const rule = await liveRule({ conditions: [{ field: 'dest_kind', op: 'eq', value: 'ip', n: null, window_min: null }], actions: priv })
+    // a live rule "block + tell": the block is dropped with its refused line, the message is still asked for
+    const rule = await liveRule({ conditions: [{ field: 'dest_kind', op: 'eq', value: 'ip', n: null, window_min: null }], actions: [priv, tell] })
     await onlyRule(rule.id)
-    const before = (await list<ActionRequest>('operator', '/response/actions')).length
     const sum = await run()
     expect(sum.refused).toBeGreaterThan(0)
-    expect((await list<ActionRequest>('operator', '/response/actions')).length).toBe(before)
-    expect((await logList()).some((e) => e.kind === 'refused' && /^not_public: .*192\.168\.1\.5 is not a public address/.test(e.detail))).toBe(true)
-    // an AI proposal, for each kind of address the list never carries; a public one still passes this gate
+    const mine = (await list<ActionRequest>('operator', '/response/actions')).filter((a) => a.rule_id === rule.id)
+    expect(mine.length).toBeGreaterThan(0)
+    expect(mine.flatMap((a) => a.items.map((i) => i.action_id))).toEqual(mine.map(() => 'msg_send'))
+    expect((await logList()).some((e) => e.kind === 'refused' && /^not_publishable: .*192\.168\.1\.5 is not a public address/.test(e.detail))).toBe(true)
+    // an AI proposal, for the ranges the box's type check lets through to this gate; a public one still passes it
     await saveSettings({ ai: { triggers: ['ioc_connection', 'finding'], budget_hour: 20, budget_day: 100 } })
-    for (const ip of ['10.0.0.5', '127.0.0.1', '169.254.1.1', '100.64.0.1', '224.0.0.1', '198.18.0.1', '255.255.255.255']) {
+    for (const ip of ['10.0.0.5', '172.16.4.4', '100.64.0.1', '192.0.0.8', '198.18.0.1']) {
       const r = await propose({ params: { ip } })
-      expect([r.status, r.code], ip).toEqual([409, 'not_public'])
+      expect([r.status, r.code], ip).toEqual([409, 'not_publishable'])
     }
-    expect((await propose({ params: { ip: '100.128.0.1' } })).code).not.toBe('not_public')
+    expect((await propose({ params: { ip: '100.128.0.1' } })).code).not.toBe('not_publishable')
     expect((await call<Blocklist>('admin', 'GET', '/response/blocklist')).json.entries.map((e) => e.value)).not.toContain('192.168.1.5')
   })
 })

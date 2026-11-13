@@ -35,6 +35,7 @@
     "execution_off": "Execution is off. Turn it on in Settings, AI response (high risk).",
     "tool_not_allowed": "This action is not enabled. Enable it in Settings, AI response (high risk).",
     "tool_unavailable": "The connection or its write tool is turned off in Settings → Connections.",
+    "not_publishable": "This blocks an address the block list never publishes (private or reserved), so it would do nothing. Use a device action to stop a device on your LAN.",
     "toSettings": "Open settings"
   },
   "requests": {

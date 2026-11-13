@@ -447,6 +447,9 @@ func (s *Service) ensureSeeded(ctx context.Context) error {
 	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.seedCatalog(ctx, tx) }); err != nil {
 		return fmt.Errorf("response: seed the catalog: %w", err)
 	}
+	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.dropUnpublishable(ctx, tx) }); err != nil { // D-469, once per start
+		return fmt.Errorf("response: clean the block list: %w", err)
+	}
 	s.seeded = true
 	return nil
 }

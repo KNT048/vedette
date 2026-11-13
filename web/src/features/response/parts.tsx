@@ -45,7 +45,7 @@ function Blocked({ state }: { state: Proposal['state'] }) {
   if (state === 'ready') return null
   return (
     <p className="rounded-md border border-dashed border-rule bg-sunken px-3 py-2 text-[13px] text-muted">
-      {t(`blocked.${state}`)} {admin && state !== 'tool_unavailable' ? <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link> : null}
+      {t(`blocked.${state}`)} {admin && state !== 'tool_unavailable' && state !== 'not_publishable' ?<Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link> : null}
     </p>
   )
 }

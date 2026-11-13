@@ -570,7 +570,8 @@ func TestEveryImageShipsItsThirdPartyLicenses(t *testing.T) {
 
 // The core image carries its data and credentials directories, owned by the user it runs as, so the container-only compose can mount
 // new named volumes on them without a root step (D-168 (5)). The directories are made in the build stage (the final stage has no RUN),
-// 0750 each, and copied as the contents of /out/dirs/var/lib/ into /var/lib, so they keep that mode on buildah too (D-409).
+// 0750 each, and copied as the contents of /out/dirs/var/lib/ into /var/lib, so they keep that mode on buildah too (D-409). The parent
+// /var/lib/vedette-creds is 0755: on the appliance core runs as core_uid (not 65532) and must traverse it to the creds volumes below.
 func TestCoreImageOwnsItsVolumeDirectories(t *testing.T) {
 	t.Parallel()
 	text := read(t, "core/Containerfile")
@@ -578,7 +579,7 @@ func TestCoreImageOwnsItsVolumeDirectories(t *testing.T) {
 	build, final := stages[0].body, stages[len(stages)-1].body
 	for _, d := range []string{
 		"mkdir -p -m 0750 /out/dirs/var/lib/vedette /out/dirs/var/lib/vedette-creds/passive /out/dirs/var/lib/vedette-creds/active;",
-		"chmod 0750 /out/dirs/var/lib/vedette-creds;", "chmod 0755 /out/dirs/var/lib\n",
+		"chmod 0755 /out/dirs/var/lib/vedette-creds /out/dirs/var/lib\n",
 	} {
 		if !strings.Contains(build, d) {
 			t.Errorf("core/Containerfile: the build stage does not contain %q", strings.TrimSpace(d))
@@ -586,6 +587,9 @@ func TestCoreImageOwnsItsVolumeDirectories(t *testing.T) {
 	}
 	if l := "COPY --from=build --chown=65532:65532 /out/dirs/var/lib/ /var/lib/\n"; !strings.Contains(final, l) {
 		t.Errorf("core/Containerfile: the final stage must contain %q (the directories are entries of the copy and keep 0750)", strings.TrimSpace(l))
+	}
+	if regexp.MustCompile(`chmod 07[0-4]0 [^\n]*/out/dirs/var/lib/vedette-creds( |;|$)`).MatchString(build) {
+		t.Error("core/Containerfile: /var/lib/vedette-creds must stay traversable (0755) for core_uid on the appliance (D-409)")
 	}
 	if strings.Contains(final, "--chmod=0750 /out/dirs/") {
 		t.Error("core/Containerfile: a COPY --chmod of a directory to a new destination gives that destination 0755 on buildah (D-409)")

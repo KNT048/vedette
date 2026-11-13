@@ -538,16 +538,17 @@ const containerDataDir = "/var/lib/vedette"
 // containerCredsDir is the -sensor-creds of the images and the appliance; its passive/ and active/ folders are the two creds volumes.
 const containerCredsDir = "/var/lib/vedette-creds"
 
-// tightenContainerDataDir is the call of serve: only the data directory of the images and, with the sensor link, the credentials
-// directory and its two role folders (the creds-* volumes, which hold the 0640 credential files; D-409), only when core is not root.
-// The sensors read their folder through the group (0750 keeps it), never through "other".
+// tightenContainerDataDir is the call of serve: only the data directory of the images and, with the sensor link, the two role folders
+// of the credentials directory (the creds-* volumes, which hold the 0640 credential files; D-409), only when core is not root. The
+// sensors read their folder through the group (0750 keeps it), never through "other". The credentials directory itself is left 0755:
+// it holds only the two mount points, and on the appliance core (core_uid, not its owner 65532) must traverse it.
 func tightenContainerDataDir(db, creds string, log *slog.Logger) {
 	uid := os.Geteuid()
 	tightenDataDir(filepath.Dir(db), containerDataDir, uid, log)
 	if creds == "" {
 		return
 	}
-	for _, sub := range []string{"", "passive", "active"} {
+	for _, sub := range []string{"passive", "active"} {
 		tightenDataDir(filepath.Join(creds, sub), filepath.Join(containerCredsDir, sub), uid, log)
 	}
 }

@@ -31,8 +31,10 @@ RUN set -eu; \
     go build -tags webui -trimpath -ldflags "-s -w -X main.version=${VERSION} -X github.com/knt048/vedette/internal/release.MinSequenceText=${MIN_SEQUENCE}" -o /out/vedette ./cmd/vedette; \
     install -D -m 0644 internal/webui/licenses/web-third-party-licenses.txt /out/licenses/web-third-party-licenses.txt; \
     CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go run ./scripts/hostlicenses -goos "${TARGETOS}" -goarch "${TARGETARCH}" -pkg ./cmd/vedette -name vedette-core -tags webui -out /out/licenses/third-party-licenses
+# /var/lib/vedette-creds stays 0755: it only holds the two mount points, and on the appliance core runs as core_uid (not 65532,
+# host/ops/quadlet.go), which must traverse it to reach the creds volumes mounted below it (D-409).
 RUN set -eu; mkdir -p -m 0750 /out/dirs/var/lib/vedette /out/dirs/var/lib/vedette-creds/passive /out/dirs/var/lib/vedette-creds/active; \
-    chmod 0750 /out/dirs/var/lib/vedette-creds; chmod 0755 /out/dirs/var/lib
+    chmod 0755 /out/dirs/var/lib/vedette-creds /out/dirs/var/lib
 # The signed confirmed mitigation packs (D-345): the regular files of content/mitigation/packs, hidden ones left out (a Finder .DS_Store
 # would make the box refuse the folder), modes set here and not by COPY --chmod (podman applies it to folders too, scan-base).
 RUN set -eu; install -d -m 0755 /out/content/mitigation; \

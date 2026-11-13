@@ -14084,7 +14084,7 @@
                                 "failed",
                                 "reverted"
                               ],
-                              "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that"
+                              "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that (an update that fails after Vedette itself switched leaves Vedette on \"to\", D-459)"
                             },
                             "steps": {
                               "type": "array",
@@ -14098,7 +14098,7 @@
                                   "restart"
                                 ]
                               },
-                              "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, start, restart; rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
+                              "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459); rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
                             },
                             "step": {
                               "anyOf": [
@@ -14654,7 +14654,7 @@
                                 "failed",
                                 "reverted"
                               ],
-                              "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that"
+                              "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that (an update that fails after Vedette itself switched leaves Vedette on \"to\", D-459)"
                             },
                             "steps": {
                               "type": "array",
@@ -14668,7 +14668,7 @@
                                   "restart"
                                 ]
                               },
-                              "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, start, restart; rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
+                              "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459); rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
                             },
                             "step": {
                               "anyOf": [
@@ -15218,7 +15218,7 @@
                                 "failed",
                                 "reverted"
                               ],
-                              "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that"
+                              "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that (an update that fails after Vedette itself switched leaves Vedette on \"to\", D-459)"
                             },
                             "steps": {
                               "type": "array",
@@ -15232,7 +15232,7 @@
                                   "restart"
                                 ]
                               },
-                              "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, start, restart; rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
+                              "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459); rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
                             },
                             "step": {
                               "anyOf": [
@@ -15835,7 +15835,7 @@
                                     "failed",
                                     "reverted"
                                   ],
-                                  "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that"
+                                  "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that (an update that fails after Vedette itself switched leaves Vedette on \"to\", D-459)"
                                 },
                                 "steps": {
                                   "type": "array",
@@ -15849,7 +15849,7 @@
                                       "restart"
                                     ]
                                   },
-                                  "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, start, restart; rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
+                                  "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459); rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
                                 },
                                 "step": {
                                   "anyOf": [
@@ -16387,7 +16387,7 @@
                                 "failed",
                                 "reverted"
                               ],
-                              "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that"
+                              "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that (an update that fails after Vedette itself switched leaves Vedette on \"to\", D-459)"
                             },
                             "steps": {
                               "type": "array",
@@ -16401,7 +16401,7 @@
                                   "restart"
                                 ]
                               },
-                              "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, start, restart; rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
+                              "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459); rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
                             },
                             "step": {
                               "anyOf": [
@@ -18631,7 +18631,7 @@
                                 "failed",
                                 "reverted"
                               ],
-                              "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that"
+                              "description": "reverted: the target was not healthy and the box went back to \"from\" by itself; failed: it stopped before or without that (an update that fails after Vedette itself switched leaves Vedette on \"to\", D-459)"
                             },
                             "steps": {
                               "type": "array",
@@ -18645,7 +18645,7 @@
                                   "restart"
                                 ]
                               },
-                              "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, start, restart; rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
+                              "description": "The steps of this run in order: update = host (only when the release brings a newer system helper, D-316), download, restart, start (Vedette itself before the sensor, scan and decoy parts, D-459); rollback = start, then restore (only when it puts back the database), restart (a rollback never takes the helper back)"
                             },
                             "step": {
                               "anyOf": [
@@ -32435,12 +32435,67 @@
                             "script"
                           ],
                           "additionalProperties": false
+                        },
+                        "packages": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "file": {
+                                "type": "string",
+                                "description": "File name; the browser downloads it from /api/v1/install/osquery/{file} (D-404)"
+                              },
+                              "platform": {
+                                "type": "string",
+                                "enum": [
+                                  "linux",
+                                  "windows"
+                                ]
+                              },
+                              "format": {
+                                "type": "string",
+                                "enum": [
+                                  "deb",
+                                  "rpm",
+                                  "msi"
+                                ]
+                              },
+                              "arch": {
+                                "type": "string",
+                                "enum": [
+                                  "x86_64",
+                                  "arm64"
+                                ]
+                              },
+                              "size": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991,
+                                "description": "Bytes"
+                              },
+                              "sha256": {
+                                "type": "string",
+                                "description": "SHA-256 (lowercase hex) from the box's SHA256SUMS, which the core build writes from deploy/osquery/PINS"
+                              }
+                            },
+                            "required": [
+                              "file",
+                              "platform",
+                              "format",
+                              "arch",
+                              "size",
+                              "sha256"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "The osquery packages this box serves (D-404); empty when it has no copy (a development build without the mirror)"
                         }
                       },
                       "required": [
                         "osquery_version",
                         "linux",
-                        "windows"
+                        "windows",
+                        "packages"
                       ],
                       "additionalProperties": false
                     },

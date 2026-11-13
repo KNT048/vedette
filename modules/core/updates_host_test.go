@@ -75,7 +75,7 @@ func TestUpdateHostStepGoesFirstThenTheImages(t *testing.T) {
 	}
 	r := e.admin.post("/core/updates/apply", map[string]any{"component": "software"})
 	wantOK(t, r, 200)
-	if run := runOf(t, r); steps(run) != "host,download,start,restart" {
+	if run := runOf(t, r); steps(run) != "host,download,restart,start" {
 		t.Fatalf("run = %v", run)
 	}
 	if run := endedRun(t, e); run["status"] != "done" {
@@ -103,7 +103,7 @@ func TestUpdateHostStepGoesFirstThenTheImages(t *testing.T) {
 func TestUpdateHostStaysNewWhenAnImageFailsLater(t *testing.T) {
 	t.Parallel()
 	e, fh := newHostRunEnv(t, "1.3.0", nil)
-	fh.ends["start sensor"] = api.RunError{Code: api.CodeUnitFailed}
+	fh.ends["start core"] = api.RunError{Code: api.CodeUnitFailed} // the first image switched (D-459)
 	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
 	if run := endedRun(t, e); run["status"] != "reverted" {
 		t.Fatalf("run = %v", run)
@@ -194,7 +194,7 @@ func TestUpdateHostTooOldStopsBeforeAnyCall(t *testing.T) {
 	r := e.admin.post("/core/updates/apply", map[string]any{"component": "software"})
 	wantOK(t, r, 200)
 	want := "This box's system helper (1.3.0) is too old to update itself. Run install.sh of release 1.4.0 on the box (it upgrades the helper and keeps your data), then apply again."
-	if run := runOf(t, r); run["status"] != "failed" || run["error"] != want || steps(run) != "host,download,start,restart" {
+	if run := runOf(t, r); run["status"] != "failed" || run["error"] != want || steps(run) != "host,download,restart,start" {
 		t.Fatalf("run = %v", run)
 	}
 	if got := fh.callList(); len(got) != 0 || e.srv.hit(hostPkgPath) != 0 {
@@ -214,7 +214,7 @@ func TestUpdateWithoutANewerHostHasNoHostStep(t *testing.T) {
 	}
 	r := e.admin.post("/core/updates/apply", map[string]any{"component": "software"})
 	wantOK(t, r, 200)
-	if run := runOf(t, r); steps(run) != "download,start,restart" {
+	if run := runOf(t, r); steps(run) != "download,restart,start" {
 		t.Fatalf("run = %v", run)
 	}
 	if run := endedRun(t, e); run["status"] != "done" || slices.ContainsFunc(fh.callList(), func(c string) bool { return strings.HasPrefix(c, "self_update") }) {

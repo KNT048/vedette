@@ -967,7 +967,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
 
   it('a run that went back shows why and no success toast (D-340)', async () => {
     const success = vi.spyOn(toast, 'success')
-    const run = { id: 'ur1', action: 'update', component: 'software', from: '0.9.3', to: '0.9.4', status: 'reverted', steps: ['download', 'start', 'restart'], step: null, started_at: '2026-11-12T08:00:00Z', finished_at: '2026-11-12T08:09:00Z', user: 'admin@acme.example', error: 'core did not pass its health check, so the box went back to 0.9.3.' }
+    const run = { id: 'ur1', action: 'update', component: 'software', from: '0.9.3', to: '0.9.4', status: 'reverted', steps: ['download', 'restart', 'start'], step: null, started_at: '2026-11-12T08:00:00Z', finished_at: '2026-11-12T08:09:00Z', user: 'admin@acme.example', error: 'core did not pass its health check, so the box went back to 0.9.3.' }
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ channel: 'stable', mode: 'manual', check_enabled: true, last_check: '2026-11-12T08:00:00Z', components: [], available: [], history: [], advisories: [], managed: [], run })))
     renderApp('/settings/updates')
     expect(await screen.findByRole('heading', { name: 'Update to 0.9.4 did not start; back on 0.9.3' })).toBeInTheDocument()

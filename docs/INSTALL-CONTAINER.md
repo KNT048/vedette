@@ -10,11 +10,11 @@ Decision and plan: D-168, `docs/plans/2026-11-11-wp08m-container-only.md`. The a
 |---|---|---|
 | Web page, users, feeds, inventory (by hand or import), findings, notifications, AI (your key), osquery, response | yes | yes |
 | Syslog receiver | yes, add `compose.syslog.yaml` | yes |
-| Passive sensor (SPAN) and scan worker | yes, add `compose.sensors.yaml`: Linux, run as root (the sensor is uid 0, group 65532, with only `NET_RAW`), you prepare the card | yes, set up in the page |
+| Passive sensor and scan worker | yes, add `compose.sensors.yaml`: Linux, run as root (the sensor is uid 0, group 65532, with only `NET_RAW`), it listens on this machine's card with an address or the one you choose under Sensors | yes, set up in the page |
 | Honeypot (traps) | **no** | yes |
 | Nmap in the scan worker | **no** (nuclei only) | yes |
 | Operating system updates, reboot | **you**, on your machine | in the page |
-| Box network (card, SPAN, extra IP, NTP) | **you**, on your machine | in the page |
+| Box network (card, extra IP, NTP) | **you**, on your machine | in the page |
 | Updating Vedette | **you** run `pull` and `up` (below) | in the page, in batches, with rollback |
 | Backup | **you** back up the Docker volume (below) | snapshots and rotation by the helper |
 | "This box" in the device list | present, without a package list | with the package list |
@@ -27,7 +27,7 @@ Decision and plan: D-168, `docs/plans/2026-11-11-wp08m-container-only.md`. The a
 - Linux, macOS or Windows (WSL2). Docker Desktop on macOS and Windows has no host network, so there you get the web page and the modules that need no real network card, not the sensors.
 - Rootless Docker or Podman: the web page and everything that is not a sensor. A rootless setup cannot publish port 514, cannot read a real network card from a container, and may show every syslog sender as one address.
 - About 4 CPU cores and 8 GB of memory for a network of up to 1,000 devices (`docs/DEPLOYMENT.md` section 4). Core is limited to 2 GB, the sensor to 512 MB, the scan worker to 1 GB.
-- For the sensors: a wired card on a switch port that mirrors traffic (SPAN), set promiscuous with no IP address, before you start. Vedette cannot do that for you here.
+- For the sensors: a wired card on the network you want to discover. The sensor listens on the card that has this machine's address, or on the one you choose under Devices, Scope and sensors, Configure. A switch mirror port (SPAN) is not offered in this version (D-403).
 
 ## 1. Get the files and check them
 

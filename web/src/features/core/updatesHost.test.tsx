@@ -50,7 +50,7 @@ describe('core: system helper update (S-CORE-2 criterion D-316)', () => {
 
   it('while the helper updates: step 1 is the helper with its sentence, Apply and Rollback are off', async () => {
     signIn()
-    expect((await call('POST', '/apply', { component: 'software' })).run?.steps).toEqual(['host', 'download', 'start', 'restart'])
+    expect((await call('POST', '/apply', { component: 'software' })).run?.steps).toEqual(['host', 'download', 'restart', 'start'])
     renderApp('/settings/updates')
     expect(await screen.findAllByText('Step 1 of 4: update the system helper')).not.toHaveLength(0)
     expect(screen.getAllByText('Updating the system helper. Vedette keeps running; settings that need the helper cannot be changed until this step ends.')).not.toHaveLength(0)
@@ -79,7 +79,7 @@ describe('core: system helper update (S-CORE-2 criterion D-316)', () => {
     hostScenario.set({ code: null, version: '0.9.3' })
     signIn()
     expect((await call('GET')).available[0]?.host_version).toBeUndefined()
-    expect((await call('POST', '/apply', { component: 'software' })).run?.steps).toEqual(['download', 'start', 'restart'])
+    expect((await call('POST', '/apply', { component: 'software' })).run?.steps).toEqual(['download', 'restart', 'start'])
   })
 
   it('a container-only install (no helper row, criterion g): no System helper row, no "Includes system helper", no host step', async () => {
@@ -91,7 +91,7 @@ describe('core: system helper update (S-CORE-2 criterion D-316)', () => {
     await screen.findByRole('table', { name: 'Versions in use' })
     expect(screen.queryByText('System helper')).toBeNull()
     expect(screen.queryByText(/Includes system helper/)).toBeNull()
-    expect((await call('POST', '/apply', { component: 'software' })).run?.steps).toEqual(['download', 'start', 'restart'])
+    expect((await call('POST', '/apply', { component: 'software' })).run?.steps).toEqual(['download', 'restart', 'start'])
   })
 
   it('host_too_old ends at once and is still announced: a toast and an alert (criterion h)', async () => {

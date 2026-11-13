@@ -798,6 +798,8 @@
     "thenCatalog": ", choose that connection on its block action in",
     "toCatalog": "the action catalog",
     "thenRule": ", and turn on a trap rule from",
-    "noBlocklist": "The block list only carries public addresses, so it cannot hold {{ip}}: it is on your network."
+    "noBlocklist": "The block list only carries public addresses, so it cannot hold {{ip}}: it is on your network.",
+    "offNothing": "The response module is off, so Vedette cannot ask for any block here. Handle it by hand.",
+    "offNext": "To let Vedette block a source next time: an administrator turns on the response module in Settings, Modules, connects your firewall or switch in Settings, Connections, and turns on a trap rule."
   }
 }

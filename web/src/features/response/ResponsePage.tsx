@@ -11,7 +11,7 @@ import { RequestsTab } from './RequestsTab'
 import { BlocklistTab } from './BlocklistTab'
 import { LogTab } from './LogTab'
 import { MetricsTab } from './MetricsTab'
-import { IncidentRespond } from './IncidentRespond'
+import { IncidentRespond, IncidentRespondOff } from './IncidentRespond'
 
 const OLD_HASH = ['rules', 'requests', 'blocklist', 'log', 'metrics']
 
@@ -71,5 +71,7 @@ function Content() {
 }
 
 export default function ResponsePage() {
-  return <RequireModule module="response"><Content /></RequireModule>
+  const incident = new URLSearchParams(useLocation().search).get('incident')
+  // Respond on an incident while response is off (the default): the manual steps still help (W7-1, S-RESP-3)
+  return <RequireModule module="response" fallback={incident ? <IncidentRespondOff id={incident} /> : undefined}><Content /></RequireModule>
 }

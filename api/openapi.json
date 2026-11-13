@@ -60350,12 +60350,118 @@
                     },
                     "execution": {
                       "type": "boolean"
+                    },
+                    "planner": {
+                      "type": "object",
+                      "properties": {
+                        "ran_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Last run of the plan job (every 5 minutes); null = not run since the box started"
+                        },
+                        "blocked": {
+                          "type": "string",
+                          "enum": [
+                            "",
+                            "no_ai",
+                            "ai_paused"
+                          ],
+                          "description": "The run asked nothing: no_ai = no usable AI profile for Response plans (or the AI module is off); ai_paused = the quality breaker paused AI proposals"
+                        },
+                        "sending": {
+                          "type": "boolean",
+                          "description": "The execution switch is on and the AI may send requests for critical findings (D-314)"
+                        },
+                        "considered": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Open critical findings the run looked at"
+                        },
+                        "asked": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Of those, how many the AI was asked about"
+                        },
+                        "proposed": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Requests the run sent to the inbox"
+                        },
+                        "findings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "finding_id": {
+                                "type": "string"
+                              },
+                              "cve": {
+                                "type": "string"
+                              },
+                              "asset_name": {
+                                "type": "string"
+                              },
+                              "outcome": {
+                                "type": "string",
+                                "enum": [
+                                  "proposed",
+                                  "noted",
+                                  "refused",
+                                  "not_sent",
+                                  "no_action",
+                                  "plan_refused",
+                                  "ai_failed",
+                                  "ai_unavailable",
+                                  "has_plan",
+                                  "backed_off",
+                                  "later"
+                                ]
+                              },
+                              "reason": {
+                                "type": "string",
+                                "description": "The box's own sentence"
+                              }
+                            },
+                            "required": [
+                              "finding_id",
+                              "cve",
+                              "asset_name",
+                              "outcome",
+                              "reason"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "At most 20; the counts cover all"
+                        }
+                      },
+                      "required": [
+                        "ran_at",
+                        "blocked",
+                        "sending",
+                        "considered",
+                        "asked",
+                        "proposed",
+                        "findings"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
                     "items",
                     "ai_available",
-                    "execution"
+                    "execution",
+                    "planner"
                   ],
                   "additionalProperties": false
                 }
@@ -64281,6 +64387,18 @@
                           },
                           "ai_allowed": {
                             "type": "boolean"
+                          },
+                          "ai_evidence": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "finding",
+                                "ioc_hit",
+                                "config_read"
+                              ]
+                            },
+                            "description": "Kinds of evidence that prove the trigger to the AI (D-119); empty = the AI may never use it"
                           }
                         },
                         "required": [
@@ -64288,7 +64406,8 @@
                           "name",
                           "description",
                           "fields",
-                          "ai_allowed"
+                          "ai_allowed",
+                          "ai_evidence"
                         ],
                         "additionalProperties": false
                       }

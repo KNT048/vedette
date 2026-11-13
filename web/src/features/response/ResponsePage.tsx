@@ -9,11 +9,21 @@ import { EmergencyStop } from './parts'
 import { RulesTab } from './RulesTab'
 import { RequestsTab } from './RequestsTab'
 import { BlocklistTab } from './BlocklistTab'
+import { CatalogEditor } from './CatalogEditor'
+import { NeverTouch } from './NeverTouch'
 import { LogTab } from './LogTab'
 import { MetricsTab } from './MetricsTab'
 import { IncidentRespond, IncidentRespondOff } from './IncidentRespond'
+import ResponseSettings from './ResponseSettings'
 
+/** What the AI and the rules may do (the action catalog), what they may never touch, and the block list firewalls pull (D-513). */
+function ActionsTab() {
+  return <div className="grid grid-cols-[minmax(0,1fr)] gap-8"><CatalogEditor /><NeverTouch /><BlocklistTab /></div>
+}
+
+// Tabs before D-513: Block list moved into Actions, Metrics into Log.
 const OLD_HASH = ['rules', 'requests', 'blocklist', 'log', 'metrics']
+const MOVED: Record<string, string> = { blocklist: 'actions', metrics: 'log' }
 
 function Content() {
   const { t } = useTranslation('response')
@@ -28,8 +38,14 @@ function Content() {
   const old = hash.slice(1) === 'ai' ? 'requests' : hash.slice(1)
   if (OLD_HASH.includes(old)) {
     const p = new URLSearchParams(search)
-    p.set('tab', old)
+    p.set('tab', MOVED[old] ?? old)
     return <Navigate replace to={{ search: `?${p}`, hash: '' }} />
+  }
+  const tab = new URLSearchParams(search).get('tab') ?? ''
+  if (MOVED[tab]) {
+    const p = new URLSearchParams(search)
+    p.set('tab', MOVED[tab]!)
+    return <Navigate replace to={{ search: `?${p}`, hash }} />
   }
   if (plans.isPending || actions.isPending) return <Loading />
   if (plans.error || actions.error) return <ErrorState error={plans.error ?? actions.error} onRetry={() => { void plans.refetch(); void actions.refetch() }} />
@@ -59,12 +75,13 @@ function Content() {
         </p>
       )}
       {incident ? <IncidentRespond id={incident} /> : null}
+      {/* D-513: the inbox first, then how requests are made (Rules, Actions), what happened (Log), and the switch and limits (Settings). */}
       <PageTabs label={t('tabs.label')} tabs={[
-        { id: 'rules', label: t('tabs.rules'), panel: <RulesTab /> },
         { id: 'requests', label: t('tabs.requests'), panel: <RequestsTab />, badge: { count: pending, label: t('tabs.pending') } },
-        ...(admin ? [{ id: 'blocklist', label: t('tabs.blocklist'), panel: <BlocklistTab /> }] : []),
-        ...(operator ? [{ id: 'log', label: t('tabs.log'), panel: <LogTab /> }] : []),
-        { id: 'metrics', label: t('tabs.metrics'), panel: <MetricsTab /> },
+        { id: 'rules', label: t('tabs.rules'), panel: <RulesTab /> },
+        ...(admin ? [{ id: 'actions', label: t('tabs.actions'), panel: <ActionsTab /> }] : []),
+        { id: 'log', label: t('tabs.log'), panel: <>{operator ? <LogTab /> : null}<MetricsTab /></> },
+        ...(admin ? [{ id: 'settings', label: t('tabs.settings'), panel: <ResponseSettings embedded /> }] : []),
       ]} />
     </>
   )

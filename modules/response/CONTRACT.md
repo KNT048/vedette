@@ -1,6 +1,6 @@
 # Response Contract
 
-> Tier: tuỳ chọn, **rủi ro cao**, tắt mặc định · Story: S-RESP-1..4, S-AI-8 · Quyết định: D-40, D-41, D-44, D-46, D-47, D-48, D-51 (**D-51 thắng khi mâu thuẫn**), D-88, D-93…D-98 · Last verified: 2026-11-11 (WP-13a: phần 1 đã có mã và đã sửa theo rà bảo mật độc lập, xem "Trạng thái WP-13a"; 13b-0: hợp đồng phần 2 viết trước mã, mỗi mục ghi lát làm nó, xem "Kế hoạch WP-13b")
+> Tier: tuỳ chọn, **rủi ro cao**, tắt mặc định · Story: S-RESP-1..4, S-AI-8 · Quyết định: D-40, D-41, D-44, D-46, D-47, D-48, D-51 (**D-51 thắng khi mâu thuẫn**), D-88, D-93…D-98, D-513 · Last verified: 2026-11-11 (WP-13a: phần 1 đã có mã và đã sửa theo rà bảo mật độc lập, xem "Trạng thái WP-13a"; 13b-0: hợp đồng phần 2 viết trước mã, mỗi mục ghi lát làm nó, xem "Kế hoạch WP-13b")
 > Nguồn hành vi thực tế: `web/src/features/response/{contract,state,engine,ai,logic,data,mocks}.ts` (mock đã có test cổng chặn).
 > Module này là **ngoại lệ duy nhất** của SYS-8 (D-41): nơi duy nhất mã của Vedette thực thi công cụ ghi lên thiết bị khác, và chỉ sau khi một yêu cầu được duyệt.
 > Mô hình: quy tắc của người dùng **KHI** (trigger có trường dữ liệu) **NẾU** (điều kiện) **THÌ** (chuỗi hành động có tham số kiểu) hoặc đề xuất của AI. Máy chủ giữ mẫu lệnh; client không bao giờ gửi lệnh.
@@ -95,10 +95,14 @@ Mỗi lát một PR; GUI trước backend (`rules/gui-first.md`). Đường chí
 - **13b-10 đã làm** (đề xuất AI, sau 13b-9, D-97, D-119): `Service.Propose(ctx, ProposeBody) (ProposeResult, error)` (tác nhân `ai:response`, `propose.go`), `AIActions(ctx)`, `Config.Evidence{IocHit, ConfigRead}`. INV-15 đủ 12 cổng theo thứ tự mock, **một giao dịch ghi** dưới khoá dịch vụ (hai đề xuất cùng lúc chỉ tạo một yêu cầu, không vượt hạn mức); lỗi mang mã và trạng thái của mock; ghi chú `resp_ai_notes` ≤ 50; `GET /response/ai` và `/response/metrics` (`suggestions`, `digested`) đọc dữ liệu thật; yêu cầu tạo ra không bao giờ duyệt sẵn, `in_app_only` khi rủi ro cao. `ConfigRead` do `cmd/vedette` nối với `ai.Service.ConfigRead` (bản ghi `ai_read` các lần đọc hộp đã làm qua kết nối, ≤ 24 giờ, `Connection` = id kết nối, không `Relates`; lát ai 7, D-311); `IocHit` nil (đóng cửa) tới khi `logs` có hàm tra chỉ đọc. `POST /response/ai/proposals` vẫn 404 (FORBID-5). Sau rà soát (D-119 (6)-(13)): 60 lần gọi/giờ (429), ghi chú mỗi loại ≤ 50, huỷ không là từ chối, `ProposeResult` hẹp (`ProposedRequest`), module tắt → 404/rỗng, khoá nhả trước khi phát sự kiện, `ConfigRead` nil tới khi `ai` có tra cứu các lần đọc đã làm. Test: `propose_test.go` (bảng INV-15 mỗi cổng một dòng, kiểm cổng đó thắng mọi cổng sau), `cmd/vedette/response_propose_test.go`.
 - **13b-11** (kế hoạch AI S-RESP-1, cần WP-25): cổng `Planner`, job kế hoạch 5 phút cho finding critical chưa có kế hoạch.
 
+## Trạng thái job kế hoạch (mục 20, D-513)
+- **POST-planner** Sau mỗi lượt `PlanOpen` khi module bật, `GET /response/plans` trả `planner` của lượt đó: `ran_at`, `blocked` (`no_ai` khi `Planner.Available` sai; `ai_paused` khi cầu dao chất lượng dừng AI), `sending` (= công tắc thực thi bật và `finding` ∈ `ai.triggers`, D-314), `considered`/`asked`/`proposed`, và ≤ 20 `findings` với `outcome` ∈ {proposed, noted, refused, not_sent, no_action, plan_refused, ai_failed, ai_unavailable, has_plan, backed_off, later} cùng câu của hộp. Chỉ đọc, giữ trong bộ nhớ (khởi động lại → `ran_at` null tới lượt sau); lấy từ đúng điểm quyết định của job, không đổi hành vi của job (không gọi AI thêm, không ghi DB). Câu không bao giờ chứa chữ của nhà cung cấp AI (lỗi gọi AI chỉ nói "failed", AI không dùng được dùng câu của module ai).
+- `GET /response/triggers` trả `ai_evidence` của từng trigger (`data/triggers.json`): rỗng = AI không bao giờ dùng được (D-119).
+
 ## Endpoints owned (từ `contract.ts`)
 | Method | Path | Vai tối thiểu | Story |
 |---|---|---|---|
-| GET | `/response/plans` | viewer | S-RESP-1 |
+| GET | `/response/plans` (+ `planner`: lần chạy gần nhất của job kế hoạch, D-513) | viewer | S-RESP-1, 2 |
 | GET | `/response/actions` | viewer | S-RESP-2, 3 |
 | POST | `/response/proposals/{id}/request` | operator | S-RESP-2 |
 | GET | `/response/incidents/{id}` | viewer | S-RESP-3 (D-509) |

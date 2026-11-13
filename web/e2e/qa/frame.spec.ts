@@ -8,7 +8,7 @@ test.describe.configure({ timeout: 120_000 })
 
 const PAGES = [
   { path: '/scans', second: 'Auto rescan', id: 'auto', other: 'Probe log' },
-  { path: '/response', second: 'Metrics', id: 'metrics', other: 'Rules' },
+  { path: '/response', second: 'Log', id: 'log', other: 'Rules' },
   { path: '/reports', second: 'Data protection assessment', id: 'pdpl', other: 'Weekly report' },
 ] as const
 

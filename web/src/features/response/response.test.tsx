@@ -1385,10 +1385,13 @@ describe('response: screens', () => {
     expect(screen.getByRole('region', { name: 'This box' })).toBeInTheDocument() // built-in groups are translated, library packs show the name the library gives them
   })
 
-  it('Response page has the five tabs; Rules shows rules and the template gallery', async () => {
+  it('Response opens on the inbox; the tabs are Requests, Rules, Actions, Log, Settings; Rules shows rules and the template gallery (D-513)', async () => {
     renderApp('/response')
     expect(await screen.findByRole('heading', { level: 1, name: 'Response' })).toBeInTheDocument()
-    for (const name of ['Rules', /Requests/, 'Block list', 'Log', 'Metrics']) expect(screen.getByRole('tab', { name })).toBeInTheDocument()
+    expect(screen.getAllByRole('tab').map((x) => x.textContent?.replace(/\d+.*$/, '').trim())).toEqual(['Requests', 'Rules', 'Actions', 'Log', 'Settings'])
+    expect(screen.getByRole('tab', { name: /^Requests/ })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByRole('heading', { name: 'Inbox' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'Rules' }))
     expect(await screen.findByText('Block destinations of known-bad connections')).toBeInTheDocument()
     expect(await screen.findByText('Template gallery')).toBeInTheDocument()
     expect(await screen.findByText('Trap touched: block the source on FortiGate for 24 hours')).toBeInTheDocument()
@@ -1419,7 +1422,7 @@ describe('response: screens', () => {
     expect((await screen.findAllByText('Add 203.0.113.77 to the block list')).length).toBeGreaterThan(0)
   })
 
-  it('page frame (D-464): old #hash links open the tab through ?tab=, Requests carries the pending count, a tab the role may not see opens Rules', async () => {
+  it('page frame (D-464): old #hash links open the tab through ?tab=, Requests carries the pending count, a tab the role may not see opens the inbox', async () => {
     // ResponsePage on its own router, so the test can read the address after the redirect.
     const at = (url: string) => {
       sessionStore.set({ userId: 'u-admin' })
@@ -1437,14 +1440,19 @@ describe('response: screens', () => {
     expect(await screen.findByRole('tab', { name: /^Requests/ })).toHaveAttribute('aria-selected', 'true')
     expect(ai.where()).toBe('/response?tab=requests')
     ai.view.unmount()
-    // any other hash (the skip link's #main) is not an old tab name: no redirect
+    // any other hash (the skip link's #main) is not an old tab name: no redirect; a tab that moved (D-513) opens where it went
     const skip = at('/response?tab=metrics#main')
-    expect(await screen.findByRole('tab', { name: 'Metrics' })).toHaveAttribute('aria-selected', 'true')
-    expect(skip.where()).toBe('/response?tab=metrics#main')
+    expect(await screen.findByRole('tab', { name: 'Log' })).toHaveAttribute('aria-selected', 'true')
+    expect(skip.where()).toBe('/response?tab=log#main')
     skip.view.unmount()
-    renderApp('/response?tab=blocklist', { role: 'viewer' })
-    expect(await screen.findByRole('tab', { name: 'Rules' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.queryByRole('tab', { name: 'Block list' })).toBeNull()
+    const bl = at('/response#blocklist')
+    expect(await screen.findByRole('tab', { name: 'Actions' })).toHaveAttribute('aria-selected', 'true')
+    expect(bl.where()).toBe('/response?tab=actions')
+    bl.view.unmount()
+    renderApp('/response?tab=actions', { role: 'viewer' })
+    expect(await screen.findByRole('tab', { name: /^Requests/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('tab', { name: 'Actions' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: 'Settings' })).toBeNull()
   })
 
   it('Metrics tab: acceptance, AI budget and the rejected requests with their reasons', async () => {
@@ -1777,7 +1785,7 @@ describe('response: rule editor form matrix (docs/QA.md §2)', () => {
   })
 
   it('a rule card asks before Delete and says when a rule is switched or a template cloned (D-390)', async () => {
-    renderApp('/response')
+    renderApp('/response?tab=rules')
     const name = (await list<Rule>('admin', '/response/rules')).find((r) => r.enabled)!.name
     await userEvent.click(await screen.findByRole('switch', { name: `Rule ${name} is on` }))
     expect(await screen.findByText(`Rule ${name} is off`)).toBeInTheDocument()
@@ -1792,6 +1800,82 @@ describe('response: rule editor form matrix (docs/QA.md §2)', () => {
     expect((await list<Rule>('admin', '/response/rules')).some((r) => r.name === name)).toBe(false)
     await userEvent.click(screen.getAllByRole('button', { name: /^Clone / }).find((b) => !(b as HTMLButtonElement).disabled)!)
     expect(await screen.findByText('Cloned: switched off, in dry run')).toBeInTheDocument()
+  })
+})
+
+// ---- Item 20 (S-RESP-2, D-513): the inbox, the guided "Let the AI propose actions" setup, and why an empty inbox is empty ----
+describe('response: inbox and guided setup (item 20, D-513)', () => {
+  const triggersOf = () => list<{ id: string; ai_allowed: boolean; ai_evidence: string[] }>('admin', '/response/triggers')
+
+  it('the plans carry what the plan job did and why nothing was sent; the triggers say what proves them to the AI (D-119)', async () => {
+    const { json } = await call<PlanList>('viewer', 'GET', '/response/plans')
+    expect(json.planner.ran_at).not.toBeNull()
+    expect(json.planner.sending).toBe(false)
+    expect(json.planner.considered).toBeGreaterThan(0)
+    const f = json.planner.findings.find((x) => x.finding_id === 'f-1')!
+    expect(['not_sent', 'has_plan']).toContain(f.outcome)
+    expect(f.reason).not.toBe('')
+    const tr = await triggersOf()
+    expect(tr.find((x) => x.id === 'finding')!.ai_evidence).toEqual(['finding'])
+    expect(tr.find((x) => x.id === 'honeypot')!.ai_evidence).toEqual([])
+  })
+
+  it('an empty inbox shows the five steps with their status and what leaves the box, and explains why nothing is waiting', async () => {
+    actionsDb.set([])
+    renderApp('/response')
+    const setup = await screen.findByRole('region', { name: 'Let the AI propose actions' })
+    for (const step of ['1. Connect a firewall or switch, or let a firewall pull the block list', '2. Choose what the AI may propose', '3. Approvers and the channel', '4. Turn on execution (high risk)', '5. Pick the AI profile for response plans (this starts the AI)'])
+      expect(within(setup).getByRole('heading', { name: step })).toBeInTheDocument()
+    expect(within(setup).getAllByText('What leaves the box:')).toHaveLength(5)
+    expect(within(setup).getByText(/of 4 required steps done/)).toBeInTheDocument()
+    const why = await screen.findByRole('region', { name: 'Why is nothing waiting?' })
+    expect(await within(why).findByText(/open critical findings?, asked the AI about/)).toBeInTheDocument()
+    expect(within(why).getAllByText(/the execution switch is off|written for it on an earlier run|No action the AI may propose/).length).toBeGreaterThan(0)
+    expect(within(why).getAllByText(/the AI may not use it/).length).toBeGreaterThan(3) // honeypot, unknown device, log, new port, schedule, manual
+  })
+
+  it('the steps write the same settings their own screens write: the finding trigger, "AI may propose", and execution behind the risk phrase', async () => {
+    actionsDb.set([])
+    renderApp('/response')
+    const box = await screen.findByRole('checkbox', { name: 'Critical findings: the AI may send requests from its plans' })
+    await waitFor(() => expect(box).toBeEnabled())
+    const before = (await call<SettingsView>('admin', 'GET', '/response/settings')).json.ai.triggers.includes('finding')
+    await userEvent.click(box)
+    await waitFor(async () => expect((await call<SettingsView>('admin', 'GET', '/response/settings')).json.ai.triggers.includes('finding')).toBe(!before))
+    const bl = (await call<Catalog>('admin', 'GET', '/response/catalog')).json.items.find((a) => a.id === 'blocklist_add')!
+    const sw = await screen.findByRole('switch', { name: `AI may propose ${bl.name}` })
+    const was = bl.ai_may_propose
+    await userEvent.click(sw)
+    await waitFor(async () => expect((await call<Catalog>('admin', 'GET', '/response/catalog')).json.items.find((a) => a.id === 'blocklist_add')!.ai_may_propose).toBe(!was))
+    await userEvent.click(screen.getByRole('button', { name: 'Turn on execution…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Turn on AI execution' })
+    expect(within(dialog).getByRole('button', { name: 'Turn on AI execution' })).toBeDisabled() // the phrase and two-step sign-in, as in Settings
+  })
+
+  it('a viewer sees the status of each step but no control', async () => {
+    actionsDb.set([])
+    renderApp('/response', { role: 'viewer' })
+    const setup = await screen.findByRole('region', { name: 'Let the AI propose actions' })
+    expect(within(setup).getAllByText('An administrator does this step.').length).toBeGreaterThan(0)
+    expect(within(setup).queryByRole('button', { name: 'Turn on execution…' })).toBeNull()
+    expect(within(setup).getByRole('checkbox', { name: /Critical findings/ })).toBeDisabled()
+  })
+
+  it('filters by source and risk; with requests waiting the setup folds into one line', async () => {
+    const pending = (await list<ActionRequest>('admin', '/response/actions')).filter((a) => a.status === 'pending')
+    expect(pending.length).toBeGreaterThan(0)
+    renderApp('/response')
+    expect(await screen.findByText(/^Let the AI propose actions/, { selector: 'summary' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Why is nothing waiting?' })).toBeNull()
+    const one = pending[0]!
+    expect((await screen.findAllByText(one.title)).length).toBeGreaterThan(0)
+    const other = (['high', 'medium', 'low'] as const).find((r) => r !== one.risk)!
+    await userEvent.click(within(screen.getByRole('group', { name: 'Risk' })).getByRole('button', { name: `${other[0]!.toUpperCase()}${other.slice(1)} risk` }))
+    const shown = pending.filter((a) => a.risk === other)
+    if (!shown.some((a) => a.title === one.title)) await waitFor(() => expect(screen.queryByRole('heading', { name: one.title, level: 3 })).toBeNull())
+    if (!shown.length) expect(screen.getByText(/No request matches these filters/)).toBeInTheDocument()
+    await userEvent.click(within(screen.getByRole('group', { name: 'Where from' })).getByRole('button', { name: 'People' }))
+    expect(within(screen.getByRole('group', { name: 'Where from' })).getByRole('button', { name: 'People' })).toHaveAttribute('aria-pressed', 'true')
   })
 })
 

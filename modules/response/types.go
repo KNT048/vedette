@@ -441,6 +441,7 @@ type TriggerInfo struct {
 	Description string         `json:"description"`
 	Fields      []TriggerField `json:"fields"`
 	AIAllowed   bool           `json:"ai_allowed"`
+	AIEvidence  []string       `json:"ai_evidence"` // what proves it to the AI (D-119); empty = the AI may never use it
 }
 
 // Condition is one IF test.
@@ -650,9 +651,10 @@ type Plan struct {
 
 // PlanList is GET /response/plans.
 type PlanList struct {
-	Items       []Plan `json:"items"`
-	AIAvailable bool   `json:"ai_available"`
-	Execution   bool   `json:"execution"`
+	Items       []Plan        `json:"items"`
+	AIAvailable bool          `json:"ai_available"`
+	Execution   bool          `json:"execution"`
+	Planner     PlannerStatus `json:"planner"`
 }
 
 // CatalogAction is an action of the catalog as the API shows it.

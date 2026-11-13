@@ -71,7 +71,18 @@ export const Plan = z.object({
   steps: z.array(PlanStep),
   sent_to: z.array(z.string()).describe('Report channels that received the plan, for example "Slack #security"'),
 })
-export const PlanList = z.object({ items: z.array(Plan), ai_available: z.boolean(), execution: z.boolean() })
+// What the plan job did on its last run (item 20, D-513): read-only, so an empty inbox says why. Reasons are the job's own decision points.
+export const PlannerOutcome = z.enum(['proposed', 'noted', 'refused', 'not_sent', 'no_action', 'plan_refused', 'ai_failed', 'ai_unavailable', 'has_plan', 'backed_off', 'later'])
+export const PlannerStatus = z.object({
+  ran_at: iso.nullable().describe('Last run of the plan job (every 5 minutes); null = not run since the box started'),
+  blocked: z.enum(['', 'no_ai', 'ai_paused']).describe('The run asked nothing: no_ai = no usable AI profile for Response plans (or the AI module is off); ai_paused = the quality breaker paused AI proposals'),
+  sending: z.boolean().describe('The execution switch is on and the AI may send requests for critical findings (D-314)'),
+  considered: z.number().int().describe('Open critical findings the run looked at'), asked: z.number().int().describe('Of those, how many the AI was asked about'),
+  proposed: z.number().int().describe('Requests the run sent to the inbox'),
+  findings: z.array(z.object({ finding_id: z.string(), cve: z.string(), asset_name: z.string(), outcome: PlannerOutcome, reason: z.string().describe("The box's own sentence") }))
+    .describe('At most 20; the counts cover all'),
+})
+export const PlanList = z.object({ items: z.array(Plan), ai_available: z.boolean(), execution: z.boolean(), planner: PlannerStatus })
 
 // ---- Requests: one bundled request per rule run ----
 export const EmailLink = z.object({ approver: z.string(), address: z.string(), url: z.string(), expires_at: iso, used: z.boolean() })
@@ -152,7 +163,8 @@ export const SettingsInput = z.object({
 
 // ---- Trigger catalog ----
 export const TriggerField = z.object({ key: z.string(), label: z.string(), type: FieldType, example: z.string(), choices: z.array(z.string()), min: z.number().nullable(), max: z.number().nullable() })
-export const TriggerInfo = z.object({ id: TriggerKind, name: z.string(), description: z.string(), fields: z.array(TriggerField), ai_allowed: z.boolean() })
+export const TriggerInfo = z.object({ id: TriggerKind, name: z.string(), description: z.string(), fields: z.array(TriggerField), ai_allowed: z.boolean(),
+  ai_evidence: z.array(z.enum(['finding', 'ioc_hit', 'config_read'])).describe('Kinds of evidence that prove the trigger to the AI (D-119); empty = the AI may never use it') })
 export const TriggerList = z.object({ items: z.array(TriggerInfo) })
 
 // ---- Action catalog ----

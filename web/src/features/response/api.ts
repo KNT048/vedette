@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from '@/lib/api'
+import type { Assignments } from '@/features/ai/types'
 import type { ActionRequest, AiState, ApprovalView, Allowlist, Blocklist, Catalog, CatalogAction, CatalogInput, EventView, IncidentPanel, LogEntry, Metrics, PlanList, ProposeResult, Rule, RuleInput, RunSummary, SettingsInput, SettingsView, Simulation, Template, TriggerInfo } from './types'
 
 export const usePlans = (finding?: string) =>
@@ -48,5 +49,8 @@ export const useDeleteAction = () => useInvalidating((id: string) => api.del<voi
 export const useDecideByLink = () => useInvalidating((v: { token: string; decision: 'approve' | 'reject' }) => api.post<ActionRequest>(`/response/approve/${enc(v.token)}`, { decision: v.decision }))
 export const usePropose = () => useInvalidating((v: Record<string, unknown>) => api.post<ProposeResult>('/response/ai/proposals', v))
 export const useResumeAi = () => useInvalidating(() => api.post<AiState>('/response/ai/resume'))
+
+// The ai module's own API (Settings, AI assistant writes the same): read only while the module is on, when its routes exist (S-CORE-9).
+export const useAiAssignments = (enabled: boolean) => useQuery({ queryKey: ['ai', 'assignments'], queryFn: () => api.get<Assignments>('/ai/assignments'), enabled })
 
 export const errText = (e: unknown) => (e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e))

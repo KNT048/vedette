@@ -144,7 +144,7 @@ func (s *Service) Plans(ctx context.Context, finding string) (PlanList, error) {
 	if err != nil {
 		return PlanList{}, err
 	}
-	out := PlanList{Items: []Plan{}, Execution: st.Execution, AIAvailable: s.aiAvailable(ctx)}
+	out := PlanList{Items: []Plan{}, Execution: st.Execution, AIAvailable: s.aiAvailable(ctx), Planner: s.plannerStatus()}
 	for _, p := range plans {
 		if s.cfg.Directory != nil {
 			f, ok, err := s.cfg.Directory.Finding(ctx, p.FindingID)

@@ -12,7 +12,7 @@ import type { Finding } from '@/lib/types'
 import { scheduledPause } from '@/features/ai/mocks'
 import { aiState, afterReject, metrics, propose, resume } from './ai'
 import { RISK_PHRASE } from './contract'
-import { TRIGGERS } from './data'
+import { AI_PROOF, TRIGGERS } from './data'
 import { TEMPLATES } from './templates'
 import { checkRule, events, eventView, openKeys, planAction, plannedKey, ruleErrCode, rulesStore, runRules, simulate, templates, type Det } from './engine'
 import { hitSource } from '@/features/honeypot/mocks'
@@ -22,7 +22,7 @@ import {
   newRequest, OFF_MSG, maintenanceNow, breakerOpen, BREAKER_MSG, checkBreaker, paramsOf, oneLine, previewBuild, rawChans, readyChan, refuse, reject, rollbackRequest, settings, settingsStore, settingsView, step, sweep, tokensStore, unavailable, userCanApprove, who, writeToolsOf,
   type Allow, type CatErr, randomToken, reversible, TEXT_RE,
 } from './state'
-import type { ActionRequest, ApprovalView, BlockEntry, IncidentOption, IncidentPanel, Plan, Proposal, RequestItem, Rule, RuleInput, StoredProposal } from './types'
+import type { ActionRequest, ApprovalView, BlockEntry, IncidentOption, IncidentPanel, Plan, PlannerStatus, Proposal, RequestItem, Rule, RuleInput, StoredProposal } from './types'
 import { chatNotLinked, identityHandlers } from './identity'
 
 // ---- Plans (S-RESP-1): what the AI drafts for an unresolved critical finding, deterministic here ----
@@ -59,6 +59,15 @@ function proposalView(p: StoredProposal): Proposal {
   const state: Proposal['state'] = !s.execution ? 'execution_off' : !cat || !cat.enabled ? 'tool_not_allowed' : proposalProblem(p, cat) ? 'tool_unavailable' : 'ready'
   return { ...p, state, request_id: open?.id ?? null }
 }
+// The sentences of the plan job's status (modules/response/planner.go, planner_status.go).
+const PLAN_HAS = 'A plan was written for it on an earlier run (one plan per finding): its actions, and any request made from them, are in the plan below and in the Response log.'
+const PLAN_LATER = 'Waiting for a later run: the AI is asked about at most 3 findings per run, every 5 minutes.'
+const PLAN_PAUSED = "The AI cannot be used now, so this run stopped: Scheduled AI jobs such as response plans pause at 80 % of this month's AI budget, so questions and explanations keep the rest. They start again when the budget renews or an administrator raises it in Settings, AI assistant."
+const PLAN_NO_ACTION = 'No action the AI may propose can be used for this device. Connect a firewall or switch (Settings, Connections), choose it for a block action and let the AI propose that action (Response, Actions).'
+const PLAN_SWITCH_OFF = 'The plan was stored, but the execution switch is off, so the AI sends no request. Turn it on in Response, Settings (high risk), or ask for approval of its actions from the plan.'
+const PLAN_TRIGGER_OFF = 'The plan was stored, but the AI may not send requests for critical findings (Response, Settings, AI requests). Ask for approval of its actions from the plan.'
+const PLAN_PREVIEW = 'The plan was stored. The preview build does not send plan proposals by itself: ask for approval of its actions from the plan.'
+let plannerLast: PlannerStatus = { ran_at: null, blocked: '', sending: false, considered: 0, asked: 0, proposed: 0, findings: [] }
 const planView = (p: StoredPlan): Plan => ({ ...p, steps: p.steps.map((s) => ({ ...s, proposal: s.proposal ? proposalView(s.proposal) : null })), sent_to: chanList().map(chanLabel) })
 
 // ---- Block list (pull, D-44): entries are executed block-list items still in force ----
@@ -143,20 +152,36 @@ export const handlers = [
     const denied = guard('viewer'); if (denied) return denied
     sweep()
     const open = findingsStore.get().filter(openCritical)
-    // Draft a plan for each unresolved critical finding that has none yet (needs a usable AI profile for the job).
-    if (aiAvailable('response-plan') && !scheduledPause()) { // from 80 % of the month's AI budget the scheduled plan job is paused (backend: 429 budget_reached, no row)
+    // Draft a plan for each unresolved critical finding that has none yet (needs a usable AI profile for the job). Each GET stands for one run of
+    // the plan job, and what it did is the planner status (D-513), with the backend's sentences.
+    const s = settings()
+    const sending = s.execution && s.ai.triggers.includes('finding')
+    const status: PlannerStatus = { ran_at: nowIso(), blocked: '', sending, considered: 0, asked: 0, proposed: 0, findings: [] }
+    if (!aiAvailable('response-plan')) status.blocked = 'no_ai'
+    else if (s.ai.paused_at) status.blocked = 'ai_paused'
+    else {
+      status.considered = open.length
       for (const f of open) {
-        if (plansStore.get().some((p) => p.finding_id === f.id)) continue
+        const add = (outcome: PlannerStatus['findings'][number]['outcome'], reason: string, name?: string) => {
+          if (status.findings.length < 20) status.findings.push({ finding_id: f.id, cve: f.cve, asset_name: name ?? assetsStore.get().find((a) => a.id === f.asset_id)?.hostname ?? f.asset_id, outcome, reason })
+        }
+        if (scheduledPause()) { add('ai_unavailable', PLAN_PAUSED); continue } // from 80 % of the month's AI budget the scheduled plan job is paused (backend: 429 budget_reached, no row)
+        if (plansStore.get().some((p) => p.finding_id === f.id)) { add('has_plan', PLAN_HAS); continue }
+        if (status.asked >= 3) { add('later', PLAN_LATER); continue }
         const p = draft(f); if (!p) continue
+        status.asked += 1
         plansStore.update((l) => [...l, p])
         recordAiRun('response-plan', 1850, 540, f.id)
         step('response.plan', f.id, 'proposal', `AI drafted a response plan for ${f.cve} on ${p.asset_name}`, 'ai:response-plan')
+        if (!p.steps.some((x) => x.proposal)) add('no_action', PLAN_NO_ACTION, p.asset_name)
+        else add('not_sent', !s.execution ? PLAN_SWITCH_OFF : !s.ai.triggers.includes('finding') ? PLAN_TRIGGER_OFF : PLAN_PREVIEW, p.asset_name)
       }
     }
+    plannerLast = status
     const only = new URL(request.url).searchParams.get('finding')
     const ids = new Set(open.map((f) => f.id))
     const items = plansStore.get().filter((p) => ids.has(p.finding_id) && (!only || p.finding_id === only)).map(planView)
-    return HttpResponse.json({ items, ai_available: aiAvailable('response-plan'), execution: settings().execution })
+    return HttpResponse.json({ items, ai_available: aiAvailable('response-plan'), execution: s.execution, planner: plannerLast })
   }),
 
   http.get(`${API}/response/actions`, () => {
@@ -372,7 +397,7 @@ export const handlers = [
   // ---- Triggers, rules, events, templates (S-RESP-3) ----
   http.get(`${API}/response/triggers`, () => {
     const denied = guard('viewer'); if (denied) return denied
-    return HttpResponse.json({ items: TRIGGERS.map((t) => ({ ...t, ai_allowed: settings().ai.triggers.includes(t.id) })) })
+    return HttpResponse.json({ items: TRIGGERS.map((t) => ({ ...t, ai_allowed: settings().ai.triggers.includes(t.id), ai_evidence: AI_PROOF[t.id] ?? [] })) })
   }),
   http.get(`${API}/response/rules`, () => {
     const denied = guard('viewer'); if (denied) return denied

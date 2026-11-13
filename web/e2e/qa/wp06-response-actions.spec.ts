@@ -143,7 +143,7 @@ for (const theme of THEMES) {
     await expect(box.getByText('Not verified on a device yet')).toHaveCount(0)
     await shot('catalog-packs')
     // rule templates gallery
-    await page.goto('/response')
+    await page.goto('/response?tab=rules')
     await expect(page.getByRole('heading', { name: 'Template gallery' })).toBeVisible()
     await page.getByRole('heading', { name: 'Template gallery' }).scrollIntoViewIfNeeded()
     await shot('gallery')
@@ -184,7 +184,7 @@ test('param types id and name are labelled in the rule editor (choose an action 
   console.log('SAVE ALERT', JSON.stringify(await dl.getByRole('alert').allTextContents()))
   await expect(dl).toBeHidden()
   await page.getByRole('switch', { name: 'Allow QA isolate host' }).click()
-  await page.goto('/response')
+  await page.goto('/response?tab=rules')
   await page.getByRole('button', { name: /^Clone / }).first().click()
   await page.getByRole('button', { name: /^Edit/ }).first().click()
   const ed = page.getByRole('dialog')

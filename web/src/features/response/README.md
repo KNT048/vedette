@@ -1,7 +1,7 @@
 # features/response
 
 Standalone Response feature. Stories S-RESP-1..4 (+ S-AI-8 log). Decisions D-40, D-41, D-44, D-46, D-47, D-48, **D-51 (wins)**.
-Page tabs: Rules (WHEN/IF/THEN builder, template gallery, recent events), Requests (pending/history, rules and AI, AI plans), Block list, Log, Metrics (acceptance, AI budget and quality, rejected requests, preview-only "try an AI request").
+Page tabs (D-513): Requests (the inbox: waiting/history, source and risk filters; empty → the guided "Let the AI propose actions" setup in `AiSetup.tsx` and why nothing is waiting from the plan job's `planner` status; AI plans), Rules (WHEN/IF/THEN builder, template gallery, recent events), Actions (admin: action catalog, never-touch list, block list), Log (log for operators, then metrics: acceptance, AI budget and quality, rejected requests, preview-only "try an AI request"), Settings (admin: the Settings, AI response form without the catalog).
 Settings section `response` (admin): execution switch, limits, approval channels, safety envelope (circuit breaker, multi-target limit, maintenance windows), AI gates, never-touch list, action catalog by vendor pack.
 
 - Files: `identity.ts` (approver identities: link codes, My account card data, D-191), `contract.ts` (all endpoints), `state.ts` (stores, log, catalog, request lifecycle and gates), `engine.ts` (events, conditions, planning, firing, simulate, templates), `ai.ts` (AI gates, quality breaker, metrics), `data.ts` (trigger catalog, built-in action packs, 15 templates), `mocks.ts` (handlers, AI plans), `logic.ts` (pure: SHA-256, typed placeholders, escape per transport, conditions, connection-kind field rules).

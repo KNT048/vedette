@@ -1,4 +1,5 @@
-// My account → Approval channels (S-RESP-2, D-191): I prove the address or ID an administrator typed for me on each approval channel.
+// My account → Approval channels (S-RESP-2, D-191): I prove the address or ID an administrator typed for me on each approval channel
+// (Zalo personal: status only, D-447; a confirm link comes to my Zalo when an administrator saves me as an approver, and I confirm it on /link/zalo).
 // Mounted by the account page only for operators and admins while the response module is on.
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -58,14 +59,8 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
           <p id={`${id}-title`} className="text-sm"><span className="font-semibold">{r.label}</span> <span className="break-all font-mono text-[13px] text-muted">{r.address}</span></p>
           <Chip tone="warn">{t('identity.notLinked')}</Chip>
         </div>
+        {/* D-447: status only; the administrator's Save sends a confirm link to this Zalo account, which I confirm signed in. */}
         <p className="text-[13px]">{t('identity.howSend', { channel: r.label })}</p>
-        {sent?.code
-          ? <div role="status" className="grid gap-1"><p className="font-mono text-2xl tracking-widest">{sent.code}</p><p className="text-[13px] text-muted">{t('identity.sendWaiting', { channel: r.label, address: r.address })}</p></div>
-          : r.code_waiting ? <p className="text-[13px] text-muted">{t('identity.sendLost')}</p> : null}
-        {err ? <p className="text-[13px] text-danger" role="alert">{err}</p> : null}
-        <div className="flex flex-wrap gap-2">
-          <Button variant={sent ? undefined : 'primary'} disabled={cooldown.left > 0 || m.send.isPending} onClick={() => void send()}>{cooldown.left > 0 ? t('identity.resendIn', { s: cooldown.left }) : sent || r.code_waiting ? t('identity.newCode') : t('identity.getCode')}</Button>
-        </div>
       </li>
     )
   }

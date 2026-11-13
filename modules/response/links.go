@@ -46,7 +46,10 @@ var hashRE = regexp.MustCompile(`^[0-9a-f]{64}$`)
 var ErrLinkInvalid = errors.New("response: the approval link is not valid")
 
 // Approver is a person who may approve on a channel, as the channel's saved list names them.
-type Approver struct{ UserID, Address string }
+type Approver struct {
+	UserID, Address string
+	Name            string // the shown name of the address where the channel knows it (Zalo personal, D-447); "" elsewhere
+}
 
 // ApprovalMessage is one approval request to send. What is plain text of at most 4 KiB. Channels are the channel types the request may
 // go to (empty sends nothing). InAppOnly means every channel only says to open Vedette: no link, no button, no code.

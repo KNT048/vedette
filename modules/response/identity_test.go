@@ -391,16 +391,16 @@ func TestContract_D191_ZaloOAIsNotLinkable(t *testing.T) {
 	}
 }
 
-// Zalo personal is linked the other way round (D-243): My account shows the code, and it counts only when it arrives from the listed ID.
-// Typing it in the app does nothing, the same code from another ID does nothing, and an unlinked reply code gets no code in its answer
-// (the answer would sit in the box account's history).
-func TestContract_D191_ZaloPersonalIsLinkedBySendingTheCode(t *testing.T) {
+// D-447 (option A): a Zalo personal approver is linked only by the confirm link the box sends to their Zalo, opened and confirmed by that
+// person signed in to Vedette. A reply from the account links nothing; another signed-in person is refused and the link stays good for
+// its person; reading My account (a GET) links nothing; a used, replaced or expired link does not link.
+func TestContract_D447_ZaloIsLinkedOnlyByTheConfirmLink(t *testing.T) {
 	t.Parallel()
 	c := unlinkedChat(t)
 	a := c.pending()
 	c.codes(a.ID, "u-op", zlOp, "A-7KQ2MX", "R-7KQ2MX")
-	_, err := c.typed(zlOp, "A-7KQ2MX", true)
-	if code := linkCodeOf(t, err); code != "" || !strings.Contains(err.Error(), "get a code to send from this account") {
+	_, err := c.typed(zlOp, "A-7KQ2MX", true) // a reply alone links nothing and decides nothing
+	if code := linkCodeOf(t, err); code != "" || !strings.Contains(err.Error(), "Open the link Vedette sent") {
 		t.Fatalf("unlinked reply = %v", err)
 	}
 	ids, err := c.svc.MyIdentities(c.ctx(), op)
@@ -408,55 +408,93 @@ func TestContract_D191_ZaloPersonalIsLinkedBySendingTheCode(t *testing.T) {
 	if r := zaloRow(ids); r == nil || r.Method != "send_code" || r.Linked {
 		t.Fatalf("identities = %+v", ids)
 	}
-	sent, err := c.svc.SendLinkCode(c.ctx(), op, "zalo-personal")
+	_, err = c.svc.SendLinkCode(c.ctx(), op, "zalo-personal") // no self-service code any more
+	wantCode(t, err, 400, "chat_channel")
+	token, name, err := c.svc.ChatLinkToken(c.ctx(), "u-op", "zalo-personal", zlOp)
 	c.must(err)
-	if len(sent.Code) != 6 || sent.SentTo != zlOp {
-		t.Fatalf("code shown = %+v", sent)
+	if len(token) != 31 || name == "" {
+		t.Fatalf("token %q name %q", token, name)
 	}
-	if _, err := c.svc.ConfirmLink(c.ctx(), op, "zalo-personal", sent.Code); err == nil {
-		t.Fatal("a Zalo code typed in the app linked the ID")
+	if rows := c.dump(`SELECT code_hash FROM resp_link_codes`); strings.Contains(rows, token[9:]) {
+		t.Fatal("the token is stored in clear")
 	}
-	if _, err := c.svc.LinkFromChat(c.ctx(), response.ChatDecision{Channel: "zalo-personal", ExternalID: "9999999999", Code: sent.Code}); err == nil {
-		t.Fatal("the code from an ID that is not listed linked")
+	_, err = c.svc.ConfirmLink(c.ctx(), op2, "zalo-personal", token) // signed in as someone else: refused, nothing read
+	wantCode(t, err, 403, "other_account")
+	_, err = c.svc.ConfirmLink(c.ctx(), op, "zalo-personal", "123456") // six digits are not a link
+	wantCode(t, err, 400, "invalid_link")
+	if ids, _ = c.svc.MyIdentities(c.ctx(), op); zaloRow(ids).Linked || !zaloRow(ids).CodeWaiting {
+		t.Fatalf("a GET or a refusal changed the link: %+v", ids)
 	}
-	if _, err := c.svc.LinkFromChat(c.ctx(), response.ChatDecision{Channel: "telegram", ExternalID: tgOp, Code: sent.Code}); err == nil {
-		t.Fatal("a send-code link on another channel")
-	}
-	wrong := "000000"
-	if sent.Code == wrong {
-		wrong = "111111"
-	}
-	for range 4 { // wrong codes from the listed ID use up its tries and are logged as refusals, without the code
-		_, err := c.svc.LinkFromChat(c.ctx(), response.ChatDecision{Channel: "zalo-personal", ExternalID: zlOp, Code: wrong})
-		wantCode(t, err, 400, "wrong_code")
-	}
-	if n := c.count(`SELECT COUNT(*) FROM resp_log WHERE kind = 'refused' AND detail LIKE 'wrong_code:%'`); n != 4 {
-		t.Fatalf("refusals logged = %d", n)
-	}
-	if rows := c.dump(`SELECT detail FROM resp_log`) + c.dump(`SELECT detail FROM core_audit`); strings.Contains(rows, sent.Code) {
-		t.Fatal("the link code reached a log")
-	}
-	out, err := c.svc.LinkFromChat(c.ctx(), response.ChatDecision{Channel: "zalo-personal", ExternalID: zlOp, Code: sent.Code})
+	got, err := c.svc.ConfirmLink(c.ctx(), op, "zalo-personal", token)
 	c.must(err)
-	if out.Status != "linked" {
-		t.Fatalf("link = %+v", out)
-	}
-	ids, err = c.svc.MyIdentities(c.ctx(), op)
-	c.must(err)
-	if r := zaloRow(ids); r == nil || !r.Linked {
-		t.Fatalf("after linking = %+v", ids)
+	if !got.Linked || got.Address != zlOp {
+		t.Fatalf("confirm = %+v", got)
 	}
 	if c.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'response.identity_link' AND target = 'zalo-personal'`) != 1 {
 		t.Fatal("the link is not audited")
 	}
-	if again, err := c.svc.LinkFromChat(c.ctx(), response.ChatDecision{Channel: "zalo-personal", ExternalID: zlOp, Code: sent.Code}); err != nil || again.Status != "already_linked" {
-		t.Fatalf("six digits from a linked ID = %+v, %v", again, err)
+	if rows := c.dump(`SELECT detail FROM resp_log`) + c.dump(`SELECT detail FROM core_audit`); strings.Contains(rows, token[9:]) {
+		t.Fatal("the token reached a log")
 	}
-	got, err := c.typed(zlOp, "A-7KQ2MX", true) // the reply code was not burned by the refusal
+	_, err = c.svc.ConfirmLink(c.ctx(), op, "zalo-personal", token) // used
+	wantCode(t, err, 400, "no_code")
+	got2, err := c.typed(zlOp, "A-7KQ2MX", true) // the reply code was not burned by the refusal
 	c.must(err)
-	if got.Status != "approved" || got.RequestID != a.ID {
-		t.Fatalf("reply after linking = %+v", got)
+	if got2.Status != "approved" || got2.RequestID != a.ID {
+		t.Fatalf("reply after linking = %+v", got2)
 	}
+}
+
+// Send again (a new token) invalidates the old one; a link older than 10 minutes has expired, then is gone.
+func TestContract_D447_ZaloConfirmLinkReplacedExpiredWrong(t *testing.T) {
+	t.Parallel()
+	c := unlinkedChat(t)
+	old, _, err := c.svc.ChatLinkToken(c.ctx(), "u-op", "zalo-personal", zlOp)
+	c.must(err)
+	_, _, err = c.svc.ChatLinkToken(c.ctx(), "u-op", "zalo-personal", zlOp)
+	wantCode(t, err, 429, "resend_too_soon")
+	c.clock.Advance(61 * time.Second)
+	fresh, _, err := c.svc.ChatLinkToken(c.ctx(), "u-op", "zalo-personal", zlOp)
+	c.must(err)
+	_, err = c.svc.ConfirmLink(c.ctx(), op, "zalo-personal", old)
+	wantCode(t, err, 400, "wrong_code")
+	c.clock.Advance(11 * time.Minute)
+	_, err = c.svc.ConfirmLink(c.ctx(), op, "zalo-personal", fresh)
+	wantCode(t, err, 400, "code_expired")
+	_, err = c.svc.ConfirmLink(c.ctx(), op, "zalo-personal", fresh)
+	wantCode(t, err, 400, "no_code")
+	_, _, err = c.svc.ChatLinkToken(c.ctx(), "u-op", "zalo-personal", "9999999999")
+	wantCode(t, err, 404, "not_listed")
+	_, _, err = c.svc.ChatLinkToken(c.ctx(), "u-op", "telegram", tgOp)
+	wantCode(t, err, 400, "chat_channel")
+}
+
+// D-447 (review L1, L4): an administrator's change drops the proof of the old address, so naming it again needs a new proof; with
+// Response off no code is made.
+func TestContract_D447_DroppedZaloProofDoesNotComeBack(t *testing.T) {
+	t.Parallel()
+	c := newChatEnv(t) // every approver linked
+	ids, err := c.svc.MyIdentities(c.ctx(), op)
+	c.must(err)
+	if r := zaloRow(ids); r == nil || !r.Linked {
+		t.Fatalf("before = %+v", ids)
+	}
+	c.must(c.svc.DropChatLink(c.ctx(), "admin@acme.example", "u-op", "zalo-personal", "9999999999")) // another address: nothing to drop
+	ids, _ = c.svc.MyIdentities(c.ctx(), op)
+	if r := zaloRow(ids); r == nil || !r.Linked {
+		t.Fatal("dropping another address removed the proof")
+	}
+	c.must(c.svc.DropChatLink(c.ctx(), "admin@acme.example", "u-op", "zalo-personal", zlOp))
+	ids, _ = c.svc.MyIdentities(c.ctx(), op)
+	if r := zaloRow(ids); r == nil || r.Linked { // the list still names zlOp (A -> B -> A): it does not count again
+		t.Fatalf("after the drop = %+v", ids)
+	}
+	if c.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'response.identity_unlink' AND user = 'admin@acme.example'`) != 1 {
+		t.Fatal("the drop is not audited")
+	}
+	off := newEnv(t, func(cfg *response.Config) { cfg.Modules = &gate{on: false} })
+	_, _, err = off.svc.ChatLinkToken(off.ctx(), "u-op", "zalo-personal", zlOp)
+	wantCode(t, err, 503, "link_unavailable")
 }
 
 func zaloRow(ids []response.Identity) *response.Identity {

@@ -214,7 +214,12 @@ func zaloEncrypt(key, plain []byte) (string, error) {
 // escaped (decodeURIComponent; "+" stays "+"), base64 with or without padding.
 // It checks the length and the padding strictly.
 func zaloDecrypt(key []byte, enc string) ([]byte, error) {
-	if len(enc) == 0 || len(enc) > zaloMaxCipher {
+	return zaloDecryptN(key, enc, zaloMaxCipher)
+}
+
+// zaloDecryptN is zaloDecrypt for text of at most limit bytes.
+func zaloDecryptN(key []byte, enc string, limit int) ([]byte, error) {
+	if len(enc) == 0 || len(enc) > limit {
 		return nil, errZaloDecrypt
 	}
 	blk, err := aes.NewCipher(key)
@@ -304,6 +309,11 @@ func (e zaloEnvelope) check(outer bool, hide []secrets.Value) error {
 // decrypts to is again {error_code, error_message, data}. It returns the inner
 // data. Any other shape is an error. hide is scrubbed from the provider's text.
 func openZaloAnswer(body, key []byte, hide ...secrets.Value) (json.RawMessage, error) {
+	return openZaloAnswerN(body, key, zaloMaxCipher, hide...)
+}
+
+// openZaloAnswerN is openZaloAnswer for an answer whose encrypted data may be up to limit bytes.
+func openZaloAnswerN(body, key []byte, limit int, hide ...secrets.Value) (json.RawMessage, error) {
 	outer, ok := parseZaloEnvelope(body)
 	if !ok {
 		return nil, badAnswer("the answer was not understood")
@@ -315,7 +325,7 @@ func openZaloAnswer(body, key []byte, hide ...secrets.Value) (json.RawMessage, e
 	if json.Unmarshal(outer.Data, &enc) != nil {
 		return nil, badAnswer("the answer carried no encrypted data")
 	}
-	plain, err := zaloDecrypt(key, enc)
+	plain, err := zaloDecryptN(key, enc, limit)
 	if err != nil {
 		return nil, badAnswer(err.Error())
 	}

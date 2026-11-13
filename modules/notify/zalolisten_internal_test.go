@@ -66,12 +66,3 @@ func TestZaloNotesAreCapped(t *testing.T) {
 		t.Fatalf("%d notes in an hour", ok)
 	}
 }
-
-func TestLinkCodeNormalisation(t *testing.T) {
-	for in, want := range map[string]string{"123456": "123456", " 012345\n": "012345", "12345": "", "1234567": "", "12345a": "", "１２３４５６": ""} {
-		got, ok := normLinkCode(in)
-		if got != want || ok != (want != "") {
-			t.Errorf("normLinkCode(%q) = %q %v", in, got, ok)
-		}
-	}
-}

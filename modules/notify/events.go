@@ -21,6 +21,7 @@ import (
 const (
 	EventFindingCreated       = "findings.finding.created"
 	EventFindingStatusChanged = "findings.finding.status_changed"
+	EventFindingRaised        = "findings.finding.severity_raised"
 	EventAssetDiscovered      = "inventory.asset.discovered"
 	EventAssetDeleted         = "inventory.asset.deleted"
 	EventNewKEV               = "feeds.vuln.new_kev"
@@ -57,6 +58,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	}
 	on(EventFindingCreated, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, false) })
 	on(EventFindingStatusChanged, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, true) })
+	on(EventFindingRaised, s.findingRaised)
 	on(EventNewKEV, s.kevEvent)
 	on(EventAssetDiscovered, s.assetEvent)
 	on(EventAssetDeleted, s.assetDeleted)
@@ -95,12 +97,24 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 		CVE       string `json:"cve"`
 		Severity  string `json:"severity"`
 		To        string `json:"to"`
+		Reason    string `json:"reason"`
 	}
 	if err := decode(data, &e); err != nil {
 		return err
 	}
 	if e.FindingID == "" {
 		return nil
+	}
+	if statusChange && e.Reason == "matches_again" { // Vedette reopened a finding it had closed as not affected (D-530)
+		if IsBaseline(ctx) {
+			return nil
+		}
+		return s.findingChange(ctx, e.FindingID, e.CVE, "", func(f FindingInfo, cve string, n *Notice) {
+			n.ID += "-reopened-" + n.At.UTC().Format("20060102") // one notice per UTC day: a version that flaps between scans does not send one each time
+			n.Change = "reopened, it matches again"
+			n.Title = "Vedette reopened " + about(cve, f) + ": it matches again"
+			n.What = "Vedette had closed this finding as not affected, and the device matches the entry again. " + f.What
+		})
 	}
 	if !statusChange && kevKey(e.CVE) != "" { // a finding exists: a device matched this CVE, so it is no longer one that matched nothing
 		if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return markKEV(ctx, tx, []string{e.CVE}, s.now(), true) }); err != nil {
@@ -139,6 +153,87 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 		n.ID += "-confirmed"
 		n.What = "A scan confirmed that this flaw is present. " + n.What
 	}
+	return s.Publish(ctx, n)
+}
+
+// findingRaised turns findings.finding.severity_raised (a re-match found the finding more serious: the installed version is
+// in the affected range, or ransomware / a high EPSS made it critical) into a notice, as for a new finding. The id carries the
+// new severity, so the same raise is sent once and a later raise to a higher level is told again. The text is derived from the
+// event only: the two severities and the basis.
+func (s *Service) findingRaised(ctx context.Context, data any) error {
+	var e struct {
+		FindingID    string `json:"finding_id"`
+		CVE          string `json:"cve"`
+		FromSeverity string `json:"from_severity"`
+		ToSeverity   string `json:"to_severity"`
+		Basis        string `json:"basis"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	to := Severity(e.ToSeverity)
+	if e.FindingID == "" || !to.Valid() {
+		return nil
+	}
+	if IsBaseline(ctx) {
+		return nil
+	}
+	return s.findingChange(ctx, e.FindingID, e.CVE, to, func(f FindingInfo, cve string, n *Notice) {
+		n.ID += "-raised-" + string(to)
+		was := ""
+		if Severity(e.FromSeverity).Valid() {
+			was = " (was " + e.FromSeverity + ")"
+		}
+		n.Change = "now " + string(to) + was
+		n.Title = about(cve, f) + " is now " + string(to) + was
+		why := "Vedette checked again and found stronger evidence that this device is affected."
+		if e.Basis == "version" {
+			why = "The installed version is in the range that the vendor lists as affected."
+		}
+		n.What = why + " " + f.What
+	})
+}
+
+// about names a finding in a sentence: "CVE-2026-1 on NAS-01".
+func about(cve string, f FindingInfo) string {
+	out := cve
+	if out == "" {
+		out = "A finding"
+	}
+	if len(f.Devices) > 0 {
+		out += " on " + strings.Join(f.Devices, ", ")
+	}
+	return out
+}
+
+// findingChange builds the notice of a finding that changed (raised, reopened) the way findingEvent builds a new one: same
+// directory lookup, device names, severity (override when not empty), link and path through Publish; shape sets the id suffix and text.
+func (s *Service) findingChange(ctx context.Context, id, eventCVE string, override Severity, shape func(f FindingInfo, cve string, n *Notice)) error {
+	if s.cfg.Findings == nil {
+		s.cfg.Log.WarnContext(ctx, "finding event skipped: no finding directory is wired")
+		return nil
+	}
+	f, ok, err := s.cfg.Findings.Finding(ctx, id)
+	if err != nil || !ok {
+		return err
+	}
+	sev := override
+	if !sev.Valid() {
+		sev = f.Severity
+	}
+	if !sev.Valid() {
+		return nil
+	}
+	cve := f.CVE
+	if cve == "" {
+		cve = eventCVE
+	}
+	n := Notice{ID: "nt-" + id, Kind: KindVuln, Severity: sev, Product: f.Product, FindingIDs: []string{id}, Devices: f.Devices,
+		Title: f.Title, What: f.What, Action: f.Action, Link: s.link("/findings/" + id), At: s.now()}
+	if cve != "" {
+		n.CVEs = []string{cve}
+	}
+	shape(f, cve, &n)
 	return s.Publish(ctx, n)
 }
 

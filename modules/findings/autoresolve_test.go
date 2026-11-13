@@ -226,3 +226,29 @@ func TestUpsert_SeverityFollowsTheBasis(t *testing.T) {
 		t.Fatalf("events %+v", ev)
 	}
 }
+
+// D-495 (review MED1 of #698): a finding Vedette closed while its basis was still the product, reopened by the same re-match
+// that finds the version inside the range, is one story: status_changed matches_again, no severity_raised on top of it.
+func TestUpsert_ReopenAndRaiseInOneMatchIsOneEvent(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	inRange := []Vuln{qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})}
+	run := func(ver string, v []Vuln) {
+		t.Helper()
+		e.advance(time.Minute)
+		if _, err := e.svc.UpsertFromMatch(t.Context(), nas(ver), v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run("6.2.0", []Vuln{qnapVuln()}) // no ranges known: a product finding
+	run("6.2.0", inRange)            // ranges arrive, the version is outside: closed, basis still product
+	e.pub.take()
+	run("6.1.1", inRange) // the version is inside: reopened and now a version finding
+	r, _ := loadByPair(t.Context(), e.db.Reader(), "a-1", "CVE-2022-27593")
+	if r.Status != StatusSuspected || r.Basis != BasisVersion {
+		t.Fatalf("finding = %+v", r.Finding)
+	}
+	if ev := e.pub.take(); len(ev) != 1 || ev[0].Name != EventStatusChanged || ev[0].Payload.(StatusChangedEvent).Reason != ReasonMatchesAgain {
+		t.Fatalf("events = %+v", ev)
+	}
+}

@@ -42,7 +42,7 @@ func FuzzParseLine(f *testing.F) {
 			t.Fatalf("ports %+v", r)
 		}
 		for name, s := range map[string]string{"user": r.User, "host": r.Hostname, "path": r.Path, "file": r.Filename, "agent": r.UserAgent, "version": r.RemoteVersion,
-			"cmd": r.Cmd, "repo": r.Repo, "opcode": r.Opcode, "action": r.Action, "error": r.Error} {
+			"cmd": r.Cmd, "repo": r.Repo, "opcode": r.Opcode, "action": r.MongoAction, "error": r.Error} {
 			if !utf8.ValidString(s) || utf8.RuneCountInString(s) > 200 {
 				t.Fatalf("%s: %q", name, s)
 			}

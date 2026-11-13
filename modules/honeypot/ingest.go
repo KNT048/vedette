@@ -338,7 +338,7 @@ func loginLine(r Record) bool {
 	case ltSSHLogin, ltHTTPLogin, ltMSSQLSQL, ltMSSQLWin, ltRDP, ltFTPLogin, ltTelnetLogin, ltProxyLogin, ltMySQLLogin:
 		return true
 	case ltMongoDB:
-		return r.Action == "mongodb.auth_attempt"
+		return r.MongoAction == "mongodb.auth_attempt"
 	}
 	return false
 }
@@ -409,7 +409,7 @@ func detail(r Record, svc ServiceName) string {
 		}
 		return "command " + q(r.Cmd)
 	case ltMongoDB:
-		switch r.Action {
+		switch r.MongoAction {
 		case "mongodb.connection":
 			return "new connection"
 		case "mongodb.auth_attempt":

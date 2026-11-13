@@ -78,7 +78,7 @@ type Record struct {
 	Cmd           string // Redis: the command (never its arguments); MongoDB: the command
 	Repo          string // Git: the repository asked for
 	Opcode        string // TFTP: READ or WRITE
-	Action        string // MongoDB: mongodb.connection, mongodb.auth_attempt ...
+	MongoAction   string // MongoDB: mongodb.connection, mongodb.auth_attempt ...
 	Error         string // Redis: a protocol error
 }
 
@@ -146,7 +146,7 @@ func ParseLine(line []byte) (Record, error) {
 		User: clean(string(r.Data.User), maxUser), Hostname: clean(string(r.Data.Host), maxHost), Path: clean(string(r.Data.Path), maxPath),
 		Filename: clean(string(r.Data.File), maxFile), UserAgent: clean(string(r.Data.Agent), maxAgent),
 		RemoteVersion: clean(string(r.Data.Version), maxVersion), Cmd: clean(string(r.Data.Cmd), maxCmd), Repo: clean(string(r.Data.Repo), maxPath),
-		Opcode: clean(string(r.Data.Opcode), maxCmd), Action: clean(string(r.Data.Action), maxCmd), Error: clean(string(r.Data.Error), maxPath)}
+		Opcode: clean(string(r.Data.Opcode), maxCmd), MongoAction: clean(string(r.Data.Action), maxCmd), Error: clean(string(r.Data.Error), maxPath)}
 	if rec.Cmd == "" {
 		rec.Cmd = clean(string(r.Data.Command), maxCmd)
 	}

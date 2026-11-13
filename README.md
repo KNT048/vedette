@@ -43,7 +43,7 @@ Run the same command again to repair (also after a run that stopped half way) or
 sudo sh install.sh --uninstall --yes            # --keep-data keeps /var/lib/vedette*, /etc/vedette and the users
 ```
 
-Your own containers are safe: the uninstall removes only Vedette's containers, images, volumes and network from podman. If podman holds anything that is not Vedette's (containers, stopped ones too, pods, networks, volumes, named images), or podman cannot be asked, or you used `--keep-data`, podman, the packages it runs with and `/var/lib/containers` stay, and the last lines say what was kept and why (D-508). Podman is removed only when the installer added it and nothing else is in it.
+Your own containers are safe: the uninstall removes only Vedette's containers, images, volumes and network from podman. If podman holds anything that is not Vedette's (containers, stopped ones too, pods, networks, volumes, named images), or podman cannot be asked, or you used `--keep-data`, podman, the packages it runs with and `/var/lib/containers` stay, and the last lines say what was kept and why (D-508). A Vedette network, volume or image that one of your containers uses is left in place too. Podman is removed only when the installer added it and nothing else is in it.
 
 Until the first release exists, the script in this repository stops with "not tied to a release". To try the installer before that, see `docs/INSTALL-TEST.md` (a test install signed with throwaway keys; not for customers).
 

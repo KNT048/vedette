@@ -3,6 +3,7 @@ package findings
 import (
 	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -111,7 +112,17 @@ type MatchResult struct {
 	// (D-505): no finding, and no proof either (NVD's list can lag the vendor's advisory), so the finding stays open for a
 	// person. Evidence.Summary is the sentence of its no_longer_matches history row.
 	Unlisted []Match
+	// Retired lists the Unlisted CVEs that are settled (D-506): NVD names none of the device's software of that vendor and
+	// CISA added the entry at least SettledKEV ago, so NVD's list has had a year to follow the advisory. The current
+	// matcher would not create such a finding on a fresh device either: the service closes an open one of basis product
+	// (never version, scan or a person's) with Evidence.Summary as its note. Each one is also in Unlisted.
+	Retired []Match
 }
+
+// SettledKEV is how long a "Multiple Products" entry must have been in KEV before NVD's product list for it is taken as
+// settled, so that an old product finding NVD's list leaves out may close by itself (D-506). Recent entries keep D-505:
+// open at medium with the note, because NVD's list lags the vendor's advisory in the months after publication.
+const SettledKEV = 365 * 24 * time.Hour
 
 // VersionNeeded is a software whose product is on the exploited list but whose version is missing or unreadable.
 type VersionNeeded struct {
@@ -185,9 +196,14 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		}
 		seen[v.CVE] = true
 		var best, proved, unlisted *Match
-		unproved := false // a software of this product with a No that proves nothing, or one that needs a version
+		unproved := false    // a software of this product with a No that proves nothing, or one that needs a version
+		othersOnly := true   // every software keyed to the entry is one NVD's list leaves out (D-506)
+		var unnamed []string // their names, for the D-506 sentence
 		for i, s := range a.Software {
 			m, out := matchOne(a, s, infos[i], v, now)
+			if out != outNone && (out != outRuledOut || m.Evidence.Summary == "") {
+				othersOnly = false
+			}
 			switch out {
 			case outNotAffected:
 				if proved == nil {
@@ -195,8 +211,13 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				}
 			case outRuledOut:
 				unproved = true
-				if unlisted == nil && m.Evidence.Summary != "" {
-					unlisted = &m
+				if m.Evidence.Summary != "" {
+					if unlisted == nil {
+						unlisted = &m
+					}
+					if !slices.Contains(unnamed, m.SoftwareDisplay) {
+						unnamed = append(unnamed, m.SoftwareDisplay)
+					}
 				}
 			case outMatch:
 				if best == nil || rank(m.Basis) > rank(best.Basis) {
@@ -222,6 +243,12 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				res.NotAffected = append(res.NotAffected, *proved)
 			case unlisted != nil:
 				res.Unlisted = append(res.Unlisted, *unlisted)
+				if othersOnly && settled(v, now) {
+					r := *unlisted
+					r.Evidence.Summary = fmt.Sprintf("Closed by Vedette: CISA lists %s for several %s products; NVD names %s, not %s (settled: CISA added it over a year ago). Vedette reopens it if NVD later names %[4]s.",
+						v.CVE, clean(v.Vendor), nvdProducts(v.Vendor, v.Affected), strings.Join(unnamed, ", "))
+					res.Retired = append(res.Retired, r)
+				}
 			}
 			continue
 		}
@@ -232,6 +259,11 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		}
 	}
 	return res
+}
+
+// settled reports whether CISA added v to KEV at least SettledKEV before now (D-506); an unknown date is never settled.
+func settled(v Vuln, now time.Time) bool {
+	return !v.DateAdded.IsZero() && !v.DateAdded.After(now.Add(-SettledKEV))
 }
 
 // outcome of one software against one KEV entry.

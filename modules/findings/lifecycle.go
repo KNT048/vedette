@@ -115,7 +115,7 @@ func (f Finding) ReopenOnMatch(now time.Time) (Finding, HistoryEntry, bool) {
 	}
 	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = StatusSuspected, "", time.Time{}, "", ""
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: "matches_again",
-		Note: "The device matches this entry again, so Vedette reopened it (it had closed it because the version was outside the affected versions)."}, true
+		Note: "The device matches this entry again, so Vedette reopened it (it had closed it as not affected)."}, true
 }
 
 // clipRunes cuts s to at most n UTF-16 units (jsLen), on a character boundary.

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -137,6 +138,9 @@ type UpsertResult struct {
 	Touched int      // findings that already existed (open or closed) and only had last_seen refreshed
 	// Regraded counts the product findings graded higher before D-500 that took the product severity (W3-3).
 	Regraded int
+	// Closed counts the findings Vedette closed because the version is proved outside every range (D-530), Retired the
+	// old product findings of settled "Multiple Products" entries NVD's list leaves out (D-506).
+	Closed, Retired int
 }
 
 // OnMatchChanged handles inventory.match.changed: it reads the device and the exploited list and
@@ -252,7 +256,10 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 			}
 			res.Touched++
 		}
-		if err := s.autoResolve(ctx, tx, a.ID, m.NotAffected, now, emit); err != nil {
+		if res.Closed, err = s.autoResolve(ctx, tx, a.ID, m.NotAffected, false, now, emit); err != nil {
+			return err
+		}
+		if res.Retired, err = s.autoResolve(ctx, tx, a.ID, m.Retired, true, now, emit); err != nil {
 			return err
 		}
 		n, err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, now)
@@ -267,6 +274,10 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 	}
 	if res.Regraded > 0 {
 		s.cfg.Log.InfoContext(ctx, "product-only findings re-graded to the product severity (W3-3)", "asset", a.ID, "count", res.Regraded)
+	}
+	if res.Retired > 0 {
+		s.cfg.Log.InfoContext(ctx, "findings: closed (D-506): Multiple Products entries over a year old whose NVD list names none of the device's software",
+			"asset", a.ID, "count", res.Retired)
 	}
 	return res, nil
 }
@@ -320,7 +331,7 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 		}
 		return out
 	}
-	out := MatchResult{New: keep(m.New), Existing: keep(m.Existing), NeedVersion: m.NeedVersion, NotAffected: m.NotAffected, Unlisted: m.Unlisted}
+	out := MatchResult{New: keep(m.New), Existing: keep(m.Existing), NeedVersion: m.NeedVersion, NotAffected: m.NotAffected, Unlisted: m.Unlisted, Retired: m.Retired}
 	taken := map[string]bool{}
 	for _, x := range append(append([]Match{}, out.New...), out.Existing...) {
 		taken[x.CVE] = true
@@ -350,17 +361,27 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 // findings.finding.status_changed event. Only a positive proof comes here (MatchResult.NotAffected): an unknown or
 // unreadable version, a scan-confirmed or a closed finding is never closed, nor one a person reopened after Vedette
 // closed it. Nothing is deleted.
-func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, proved []Match, now time.Time, emit func(string, any)) error {
+//
+// retired (D-506) closes the old findings of settled "Multiple Products" entries NVD's list leaves out
+// (MatchResult.Retired) the same way, under the same reason: the CHECK of fnd_finding.resolution_reason allows only
+// not_affected_version and a new value needs a rebuild of fnd_finding (D-505), so the note says why. Only basis product
+// closes (a version finding came from NVD naming the software once), and never one a person reopened at any time.
+// It returns how many it closed.
+func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, proved []Match, retired bool, now time.Time, emit func(string, any)) (int, error) {
+	closed := 0
 	for _, p := range proved {
 		r, err := loadByPair(ctx, tx, assetID, p.CVE)
 		if errors.Is(err, ErrNotFound) {
 			continue
 		}
 		if err != nil {
-			return err
+			return closed, err
 		}
 		if reopenedByPerson(r.History) {
 			continue // a person reopened what Vedette closed: their call stands (review M-b)
+		}
+		if retired && (r.Basis != BasisProduct || slices.ContainsFunc(r.History, func(h HistoryEntry) bool { return h.User != SystemUser && h.Action == "reopened" })) {
+			continue // D-506: product findings only, and a person's reopen always stands
 		}
 		was := r.Status
 		f, h, ok := r.AutoResolve(p.Evidence.Summary, now)
@@ -369,18 +390,22 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 		}
 		r.Finding = f
 		if err := updateRecord(ctx, tx, r); err != nil {
-			return err
+			return closed, err
 		}
 		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-			return err
+			return closed, err
 		}
-		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID,
-			Detail: r.CVE + ": " + ReasonNotAffectedVersion}); err != nil {
-			return err
+		detail := r.CVE + ": " + ReasonNotAffectedVersion
+		if retired {
+			detail += " (D-506: Multiple Products, NVD names none of the device's software, entry over a year old)"
+		}
+		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID, Detail: detail}); err != nil {
+			return closed, err
 		}
 		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status, Reason: ReasonNotAffectedVersion})
+		closed++
 	}
-	return nil
+	return closed, nil
 }
 
 // noteNoLongerMatching records, once, that a suspected finding (basis version or product) is no longer produced by the

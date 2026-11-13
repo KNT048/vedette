@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -95,6 +96,24 @@ func (s scanInventory) Scope(ctx context.Context) (scan.Scope, error) {
 	return sc, nil
 }
 
+// deviceLabel names a device as the Devices page does (inventory.Names): hostname, else vendor and model, else the IP. A
+// hand-added or LLDP-only device has no IP and must still show its name in the scan list and the reports (D-484).
+func deviceLabel(d inventory.AssetCore) string {
+	if d.Hostname != nil && *d.Hostname != "" {
+		return *d.Hostname
+	}
+	var hw []string
+	for _, o := range []*inventory.Observed{d.Vendor, d.Model} {
+		if o != nil && strings.TrimSpace(o.Value) != "" {
+			hw = append(hw, strings.TrimSpace(o.Value))
+		}
+	}
+	if len(hw) > 0 {
+		return strings.Join(hw, " ")
+	}
+	return d.IP
+}
+
 func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 	if s.inv == nil {
 		return nil, fmt.Errorf("vedette: scan: the inventory is not wired")
@@ -105,7 +124,7 @@ func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 	}
 	out := make([]scan.Device, 0, len(list.Items))
 	for _, d := range list.Items {
-		sd := scan.Device{ID: d.ID, Label: scanLabel(d), IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, LastSeen: d.LastSeen}
+		sd := scan.Device{ID: d.ID, Label: deviceLabel(d.AssetCore), IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, LastSeen: d.LastSeen}
 		if d.MAC != nil {
 			sd.MAC = *d.MAC
 		}
@@ -120,27 +139,6 @@ func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 		out = append(out, sd)
 	}
 	return out, nil
-}
-
-// scanLabel names a device in the scan list and its results: the host name, else the IP, else (a product added by
-// hand with neither, beta item 27) the product, else the vendor, with "(no device)", never a bare "—".
-// ponytail: inventory has no shared display name yet (B7 adds one); this follows the rule B7 states.
-func scanLabel(d inventory.Device) string {
-	switch {
-	case d.Hostname != nil && *d.Hostname != "":
-		return *d.Hostname
-	case d.IP != "" && d.IP != "—":
-		return d.IP
-	}
-	for _, s := range d.Software {
-		if s.Display != "" {
-			return s.Display + " (no device)"
-		}
-	}
-	if d.Vendor != nil && d.Vendor.Value != "" {
-		return d.Vendor.Value + " (no device)"
-	}
-	return "Device without a name or address"
 }
 
 // VulnScanPolicy is inventory's D-126 policy; Careful (fragile or unclassified, slowed even when regular scans are

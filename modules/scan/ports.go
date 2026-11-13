@@ -46,7 +46,7 @@ const (
 	reasonNever      = "regular_scan_never"
 	reasonOutOfScope = "out_of_scope"
 	reasonNoScope    = "scope_not_confirmed"
-	reasonNoIP       = "no_ip"
+	reasonNoIP       = "no_ip" // a device in the inventory with no address (hand-added, LLDP only) is not "outside the scope" (D-484)
 )
 
 // FindingRef is a finding of a device: the CVEs scan may confirm or clear on it.

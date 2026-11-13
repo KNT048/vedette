@@ -165,10 +165,6 @@ export function nextRun(c: ScanConfig, now = new Date()): string | null {
 }
 
 // ---- mục tiêu ----
-const hasIp = (ip: string) => IPV4_RE.test(ip) || ip.includes(':')
-/** cmd/vedette scanLabel: never a bare "—" (beta item 27). */
-const labelOf = (a: Asset) => a.hostname || (hasIp(a.ip) ? a.ip : a.software[0]?.display ? `${a.software[0].display} (no device)` : a.vendor?.value ? `${a.vendor.value} (no device)` : 'Device without a name or address')
-
 function targets(): ScanTarget[] {
   const c = config.get()
   const sc = scope.get()
@@ -179,8 +175,8 @@ function targets(): ScanTarget[] {
   const open = new Map<string, number>()
   for (const f of findings) if (f.status === 'confirmed' || f.status === 'suspected') open.set(f.asset_id, (open.get(f.asset_id) ?? 0) + 1)
   const internal = assetsStore.get().map((a: Asset): ScanTarget => {
-    const reason = a.id === BOX_ID ? 'box' : meta[a.id]?.regular_scan === 'never' ? 'regular_scan_never' : !a.approved ? 'unapproved' : c.exclusions.some((e) => inCidr(a.ip, e)) ? 'excluded' : !hasIp(a.ip) ? 'no_ip' : !sc.networks.some((n) => inCidr(a.ip, n)) ? 'out_of_scope' : null
-    return { id: a.id, kind: 'internal', device_kind: a.kind, label: labelOf(a), ip: a.ip, fragile: a.fragile || a.kind === 'unknown', findings: open.get(a.id) ?? 0, selectable: reason === null, pick_only: reason === null && (a.fragile || a.kind === 'unknown' || a.origin === 'manual'), reason,
+    const reason = a.id === BOX_ID ? 'box' : meta[a.id]?.regular_scan === 'never' ? 'regular_scan_never' : !a.approved ? 'unapproved' : !a.ip || a.ip === '—' ? 'no_ip' : c.exclusions.some((e) => inCidr(a.ip, e)) ? 'excluded' : !sc.networks.some((n) => inCidr(a.ip, n)) ? 'out_of_scope' : null
+    return { id: a.id, kind: 'internal', device_kind: a.kind, label: a.hostname ?? ([a.vendor?.value, a.model?.value].filter(Boolean).join(' ') || a.ip), ip: a.ip, fragile: a.fragile || a.kind === 'unknown', findings: open.get(a.id) ?? 0, selectable: reason === null, pick_only: reason === null && (a.fragile || a.kind === 'unknown' || a.origin === 'manual'), reason,
       mac: a.mac, vendor: a.vendor?.value ?? null, approved: a.approved, last_seen: a.last_seen }
   })
   // External targets are listed but not scanned by this version yet (the GUI says so); ownership problems are named first, since they are what the user can fix.
@@ -203,7 +199,7 @@ const REASON: Record<NonNullable<ScanTarget['reason']>, string> = {
   unapproved: 'has not been approved in the inventory',
   excluded: 'is on the exclusion list',
   out_of_scope: 'is outside the confirmed network range',
-  no_ip: 'has no IP address; add one on the device first',
+  no_ip: 'has no IP address in the inventory; add its IP on the device page to scan it',
   box: 'is the Vedette box itself, which is never scanned',
   regular_scan_never: 'is set to never be scanned in the inventory; change that setting first',
   unverified: 'has no verified ownership (do it on the External exposure page)',

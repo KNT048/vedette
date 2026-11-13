@@ -95,3 +95,9 @@ func (s *Service) WaitZaloForTest() { s.zalo.bg.Wait() }
 func (s *Service) SetZaloSelfForTest(f func(context.Context, channel.Sender) (string, error)) {
 	s.zaloSelf = f
 }
+
+// WaitRotationsForTest waits for the saves of rotated secrets a send started (email, Zalo OA).
+func (s *Service) WaitRotationsForTest() { s.rotations.Wait() }
+
+// SetZaloSaveFaultForTest makes the save of a rotated Zalo OA grant fail while f returns an error.
+func (s *Service) SetZaloSaveFaultForTest(f func() error) { s.zaloSaveFault = f }

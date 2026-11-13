@@ -56,7 +56,7 @@ var reasonText = map[string]string{
 	"unapproved":         "has not been approved in the inventory",
 	"excluded":           "is on the exclusion list",
 	"out_of_scope":       "is outside the confirmed network range",
-	"no_ip":              "has no IP address; add one on the device first",
+	"no_ip":              "has no IP address in the inventory; add its IP on the device page to scan it",
 	"box":                "is the Vedette box itself, which is never scanned",
 	"regular_scan_never": "is set to never be scanned in the inventory; change that setting first",
 	"unverified":         "has no verified ownership (do it on the External exposure page)",
@@ -158,7 +158,7 @@ func targetReason(r string) string {
 	case "", reasonNoScope:
 		return ""
 	case "unapproved", "excluded", reasonBox, reasonNever, reasonNoIP:
-		return r // no_ip: a device added by hand without an address is not "outside the scope" (beta item 27)
+		return r
 	}
 	return reasonOutOfScope
 }

@@ -59,8 +59,8 @@ func TestContract_D472_TargetsReadThePolicyInOneBatch(t *testing.T) {
 	}
 }
 
-// Beta item 27: a product added by hand without an address is listed with the reason no_ip, not out_of_scope, and
-// Scan now refuses it with that reason.
+// Beta item 27, D-484: a product added by hand without an address is listed with the reason no_ip, not out_of_scope,
+// and Scan now refuses it with that reason.
 func TestContract_INV1_NoIPIsItsOwnReason(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
@@ -84,7 +84,7 @@ func TestContract_INV1_NoIPIsItsOwnReason(t *testing.T) {
 	}
 	_, err = r.svc.StartRun(r.ctx(), "it@acme.example", []string{"a-office"})
 	wantAPI(t, err, 400, "out_of_scope")
-	if !strings.Contains(err.Error(), "Microsoft Office (no device) (—) has no IP address; add one on the device first") {
+	if !strings.Contains(err.Error(), "Microsoft Office (no device) (—) has no IP address in the inventory; add its IP on the device page to scan it") {
 		t.Errorf("refusal: %v", err)
 	}
 }

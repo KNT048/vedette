@@ -78,7 +78,7 @@ test.describe('Alert channels with what the box really holds (S-NOT-1, S-NOT-2)'
       await page.goto('/settings/channels')
       await expect(h1(page)).toHaveText('Alert channels')
       const fields: Record<string, string[]> = {
-        telegram: ['Chat ID', 'Bot token'], slack: ['Channel label (optional)', 'Incoming Webhook URL'], zalo: ['OA ID', 'Recipient ID (user_id)', 'Access token'],
+        telegram: ['Chat ID', 'Bot token'], slack: ['Channel label (optional)', 'Incoming Webhook URL'], zalo: ['OA ID', 'Recipient ID (user_id)', 'App ID', 'Secret key', 'Refresh token', 'Access token (optional)'],
         'zalo-personal': ['Recipient (user or group ID)'], email: ['SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password'], webhook: ['Webhook URL', 'Signing key'],
       }
       for (const ch of before.channels) {

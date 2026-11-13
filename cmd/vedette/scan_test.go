@@ -63,29 +63,6 @@ func TestScanAdapterVulnScanPoliciesBatches(t *testing.T) {
 	}
 }
 
-// Beta item 27: a device is never named "—" in the scan list.
-func TestScanLabel(t *testing.T) {
-	host, ip := "NAS-1", "192.168.10.20"
-	dev := func(h *string, ip string, sw []inventory.Software, vendor string) inventory.Device {
-		d := inventory.Device{AssetCore: inventory.AssetCore{Hostname: h, IP: ip}, Software: sw}
-		if vendor != "" {
-			d.Vendor = &inventory.Observed{Value: vendor}
-		}
-		return d
-	}
-	for want, d := range map[string]inventory.Device{
-		"NAS-1":                            dev(&host, ip, nil, ""),
-		"192.168.10.20":                    dev(nil, ip, nil, ""),
-		"Microsoft Office (no device)":     dev(nil, "—", []inventory.Software{{Display: "Microsoft Office"}}, "Microsoft"),
-		"Apple (no device)":                dev(nil, "—", nil, "Apple"),
-		"Device without a name or address": dev(nil, "—", nil, ""),
-	} {
-		if got := scanLabel(d); got != want {
-			t.Errorf("got %q, want %q", got, want)
-		}
-	}
-}
-
 func TestScanAdapterVulnScanPolicyIsOneRead(t *testing.T) {
 	f := &fakeScanInv{}
 	d, err := scanInventory{inv: f}.VulnScanPolicy(t.Context(), "a-1", true)

@@ -337,7 +337,15 @@ func TestWiringDeviceNoticeNamesTheDeviceFromInventory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 1 || !strings.Contains(list[0].Title, "fw-hanoi") || strings.Contains(list[0].Title, r.ID) {
+	// On a fresh box the first 36 hours give one summary incident (D-483) that lists the devices; either way the name, never the id.
+	named := false
+	for _, d := range list[0:min(len(list), 1)] {
+		named = strings.Contains(d.Title, "fw-hanoi")
+		for _, dev := range d.Devices {
+			named = named || dev.Name == "fw-hanoi"
+		}
+	}
+	if len(list) != 1 || !named || strings.Contains(list[0].Title, r.ID) {
 		t.Fatalf("the incident does not name the device: %+v", list)
 	}
 }

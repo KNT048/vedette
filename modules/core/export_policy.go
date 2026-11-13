@@ -79,7 +79,7 @@ var exportPolicy = map[string]tablePolicy{
 	"feeds_source":           {export: "id builtin name kind format enabled interval_hours auth_type auth_header_name auth_username secret_last4 license created_at last_fetch last_success failures records status error etag last_modified catalog_version rev answered_by", json: "parser", url: "url default_url", skip: "secret_id"},
 	"feeds_template":         {export: "cve"},
 	"feeds_vuln":             {export: "cve vendor product product_key name description required_action date_added due_date ransomware epss epss_7d_ago has_template source_id updated_at kev_announced_at", json: "links"},
-	"feeds_weekly_answer":    {export: "key answer user_id answered_at device_added"},
+	"feeds_weekly_answer":    {export: "key answer user_id answered_at device_added device_id have_since"},
 	"fnd_finding":            {export: "id asset_id cve status severity confidence basis first_seen last_seen resolved_by resolved_at resolution_note", json: "evidence"},
 	"fnd_finding_history":    {export: "id finding_id ts user action note"},
 	"hp_config":              {export: "key updated_at updated_by", json: "value"},
@@ -107,14 +107,15 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_kev":             {export: "cve seen_at matched"},
 	"notify_notice":          {export: "id created_at product", json: "cves"},
 	"notify_notice_finding":  {export: "notice_id finding_id"},
-	"notify_pending":         {export: "id channel notice_id reason due_at state claimed_at created_at", json: "notice"},
-	"notify_send":            {export: "id kind ref_id channel at ok error what link recipient", json: "message", url: "to"},
+	"notify_pending":         {export: "id channel notice_id reason due_at state claimed_at created_at attempts", json: "notice"},
+	"notify_send":            {export: "id kind ref_id channel at ok error what link recipient delayed", json: "message", url: "to"},
 	"intake_agent_tokens":    {export: "id name kind last4 created_at expires_at last_received", skip: "token_hash"},                                                                                                                              // the hash never leaves (agent-intake INV-3)
 	"intake_wazuh":           {export: "id username password_last4 interval_minutes tls_pin tls_pin_first_seen generation status last_sync next_pull agents packages error resume_after pass_packages updated_at", url: "url", skip: "secret_id"}, // the password stays in core_secret (agent-intake INV-6)
 	"intake_osquery_nodes":   {export: "id token_id host_identifier hostname platform osquery_version enrolled_at last_seen last_result_at bound_ip bound_mac", skip: "node_key_hash"},                                                            // the key hash never leaves
 	"intake_prune_clock":     {export: "id last_run"},                                                                                                                                                                                             // when node-prune last ran (agent-intake POST-4)
 	"mcp_tokens":             {export: "id name last4 created_at last_used", json: "scopes", skip: "token_hash"},                                                                                                                                  // the hash never leaves (mcp-server INV-3)
 	"notify_send_notice":     {export: "send_id notice_id"},
+	"notify_box":             {export: "id first_run_at discovery_told_at discovery_told_count"}, // when notify first ran (D-483 first-discovery window)
 	"notify_setting":         {export: "key updated_at updated_by", json: "value"},
 	"notify_tg_button":       {skipAll: true, skip: "request_id nonce_hash expires_at message_id chat_id state tries"},
 	"notify_slack_button":    {skipAll: true, skip: "request_id channel_id ts expires_at state outcome tries"},

@@ -90,7 +90,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (243 mã)
+#### HTTP 400 (246 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -100,6 +100,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_action` | 400 | Choose one of: patched, mitigated, false positive, not relevant, or reopen. | `POST /findings/{id}/status` |
 | `bad_active` | 400 | Active scan settings are missing. | `PUT /inventory/settings` |
 | `bad_answer` | 400 | answer must be have or not_relevant. | `POST /feeds/weekly/{id}` |
+| `bad_app_id` | 400 | App ID is the number of your Zalo app, shown in Zalo Developers next to the app name. | module notify (Zalo OA, D-483) |
 | `bad_app_token` | 400 | The app-level token starts with xapp- and needs the connections:write scope. Copy it again from Basic Information. | module notify (validator dùng chung) |
 | `bad_approver_address` | 400 | The approver address is not valid for this channel. | module notify (validator dùng chung) |
 | `bad_body` | 400 | enabled must be true or false. | `PATCH /honeypot/decoys/{id}`; `PATCH /honeypot/traps/{service}` |
@@ -144,9 +145,11 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_quiet` | 400 | The start and end times must not be the same. | `PUT /notify/rules` |
 | `bad_ranges` | 400 | The list of network ranges is missing. | `PUT /inventory/settings` |
 | `bad_rate` | 400 | Scan rate is 1 to 1000 packets per second. | `PUT /inventory/settings` |
+| `bad_refresh_token` | 400 | Enter the refresh token of the OA (Zalo Developers, API Explorer, OA access token). It lasts about 3 months. | module notify (Zalo OA, D-483) |
 | `bad_regular_scan` | 400 | Regular scans must be: follow type setting, allow or never. | `PATCH /inventory/devices/{id}` |
 | `bad_sample` | 400 | The sample text could not be read with this parser. | `POST /feeds/parse-test` |
 | `bad_secret` | 400 | The signing key needs at least 16 characters. Press Generate random if you want a random one. Also (email, D-449): a Google service account key file, a Microsoft 365 client secret or a Postmark server token of the wrong shape. | module logs, notify (validator dùng chung) |
+| `bad_secret_key` | 400 | Enter the Secret key of the Zalo app (Zalo Developers, your app, Settings). | module notify (Zalo OA, D-483) |
 | `bad_security` | 400 | Choose an encryption type: STARTTLS, SSL/TLS or none. | module notify (validator dùng chung) |
 | `bad_service` | 400 | Choose a service: SMB, RDP, SSH, MSSQL or HTTP. | `POST /honeypot/test-hit` |
 | `bad_severity` | 400 | Choose a minimum severity: Critical, High, Medium or Low. | module notify (validator dùng chung) |

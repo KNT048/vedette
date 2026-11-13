@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // The reads of the weekly sentences and of the lookup box answer from SQL (ORDER BY, LIMIT, an index on
@@ -96,6 +97,36 @@ func (s *Store) pendingDevices(ctx context.Context) ([]string, error) {
 			return nil, fmt.Errorf("feeds: read pending devices: %w", err)
 		}
 		out = append(out, k)
+	}
+	return out, rows.Err()
+}
+
+// Have is the "I have this" scope of one declared device (D-484): its version-less software of KEV key Key is matched
+// from the CISA date Since on.
+type Have struct {
+	Key   string
+	Since time.Time
+}
+
+// HaveSince maps each device an "I have this" answer declared (S-FEED-2) to its scope: the answered product and the date
+// a week before the answered entry (HaveWindow), set by the first "have". Only answers that are still "have" and whose
+// device the inventory named count; findings scopes that one device, never the product on other devices.
+func (s *Store) HaveSince(ctx context.Context) (map[string]Have, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT device_id, key, have_since FROM feeds_weekly_answer
+		WHERE answer = 'have' AND device_id IS NOT NULL AND have_since IS NOT NULL`)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: read answered products: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]Have{}
+	for rows.Next() {
+		var id, key, since string
+		if err := rows.Scan(&id, &key, &since); err != nil {
+			return nil, fmt.Errorf("feeds: read answered products: %w", err)
+		}
+		if t, err := time.Parse(time.DateOnly, since); err == nil {
+			out[id] = Have{Key: key, Since: t}
+		}
 	}
 	return out, rows.Err()
 }

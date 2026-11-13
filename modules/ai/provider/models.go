@@ -46,7 +46,9 @@ func modelsURL(base *url.URL, style APIStyle) (u url.URL, headers func(Secret, s
 		u.RawQuery = "pageSize=1000"
 		return u, func(k Secret, _ string) map[string]string { return map[string]string{"x-goog-api-key": k.Reveal()} }
 	}
-	if p, ok := strings.CutSuffix(u.Path, "/openai/v1"); ok {
+	// OpenCode puts the API family in the chat path (/inference/openai/v1) but lists every family at /inference/v1/models. Only that
+	// host: Groq (/openai/v1/models) and Azure serve the list under the same path as the chat.
+	if p, ok := strings.CutSuffix(u.Path, "/openai/v1"); ok && strings.EqualFold(u.Hostname(), "opencode.ai") {
 		u.Path = p + "/v1"
 	}
 	u.Path += "/models"
@@ -148,6 +150,11 @@ func decodeModels(data []byte) ([]string, error) {
 	return out, nil
 }
 
-// geminiRoot drops a trailing /v1beta from a Gemini base path: the client adds /v1beta itself, and the first preset ended with it
+// geminiRoot drops trailing /v1beta segments from a Gemini base path: the client adds /v1beta itself, and the first preset ended with it
 // (a profile saved that way would otherwise call /v1beta/v1beta/...).
-func geminiRoot(path string) string { return strings.TrimSuffix(path, "/v1beta") }
+func geminiRoot(path string) string {
+	for strings.HasSuffix(path, "/v1beta") {
+		path = strings.TrimSuffix(path, "/v1beta")
+	}
+	return path
+}

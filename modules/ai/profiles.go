@@ -583,6 +583,9 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 // the same dialer at connect time (provider.ListModels). The call is audited with the host (never the key). Nothing is saved and no
 // tokens are spent; the answer is ids only.
 func (s *Service) ListModels(ctx context.Context, who string, in ProfileInput) ([]string, error) {
+	if !s.allowModelList(who) {
+		return nil, apierr.New(http.StatusTooManyRequests, "rate_limited", "Too many model lists in a minute (at most 10). Wait a moment and try again.")
+	}
 	cur := s.snap.Load()
 	key := keyOf(in)
 	if in.ID != "" {
@@ -606,6 +609,10 @@ func (s *Service) ListModels(ctx context.Context, who string, in ProfileInput) (
 	if err := p.checkOwn(s.own()); err != nil {
 		return nil, mapErr(err)
 	}
+	target := hostOf(p.BaseURL)
+	if in.ID != "" {
+		target = in.ID + " " + target // a saved profile's key was used: the row names the profile
+	}
 	style, err := provider.StyleForKind(p.Kind, p.APIStyle)
 	if err != nil {
 		return nil, mapErr(perr("invalid_style", "Pick a provider type."))
@@ -622,7 +629,7 @@ func (s *Service) ListModels(ctx context.Context, who string, in ProfileInput) (
 	actx, acancel := context.WithTimeout(context.WithoutCancel(ctx), auditTimeout)
 	defer acancel()
 	if err := s.cfg.DB.Write(actx, func(tx *sql.Tx) error {
-		return s.auditTx(actx, tx, who, "ai.models", hostOf(p.BaseURL), "result="+outcome)
+		return s.auditTx(actx, tx, who, "ai.models", target, "result="+outcome)
 	}); err != nil {
 		return nil, err
 	}
@@ -633,6 +640,32 @@ func (s *Service) ListModels(ctx context.Context, who string, in ProfileInput) (
 		return nil, probeFailure(lerr, p.BaseURL)
 	}
 	return ids, nil
+}
+
+// modelListsPerMinute bounds ListModels per admin: the call dials an address the admin typed, so without a bound it is a cheap probe
+// of the network from the box.
+const modelListsPerMinute = 10
+
+// allowModelList records a model-list call of who and reports whether it is within modelListsPerMinute in the last minute.
+func (s *Service) allowModelList(who string) bool {
+	now := s.cfg.Clock()
+	s.modelsMu.Lock()
+	defer s.modelsMu.Unlock()
+	if s.modelsAt == nil {
+		s.modelsAt = map[string][]time.Time{}
+	}
+	recent := s.modelsAt[who][:0]
+	for _, t := range s.modelsAt[who] {
+		if now.Sub(t) < time.Minute {
+			recent = append(recent, t)
+		}
+	}
+	if len(recent) >= modelListsPerMinute {
+		s.modelsAt[who] = recent
+		return false
+	}
+	s.modelsAt[who] = append(recent, now)
+	return true
 }
 
 // withTest is the next snapshot with the result of a test of saved recorded on it, or nil when that profile was removed or its

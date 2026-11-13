@@ -104,10 +104,14 @@ func TestModelsURLPerStyle(t *testing.T) {
 	}{
 		{StyleOpenAI, "https://api.openai.com/v1", "https://api.openai.com/v1/models"},
 		{StyleOpenAI, "https://opencode.ai/inference/openai/v1", "https://opencode.ai/inference/v1/models"}, // OpenCode: the family segment goes
+		{StyleOpenAI, "https://api.groq.com/openai/v1", "https://api.groq.com/openai/v1/models"},            // not OpenCode: the list is under the chat path
+		{StyleOpenAI, "https://res.openai.azure.com/openai/v1", "https://res.openai.azure.com/openai/v1/models"},
+		{StyleOpenAI, "https://evil.example/inference/openai/v1", "https://evil.example/inference/openai/v1/models"},
 		{StyleOpenAI, "http://10.0.0.5:11434/v1/", "http://10.0.0.5:11434/v1/models"},
 		{StyleAnthropic, "https://api.anthropic.com", "https://api.anthropic.com/v1/models?limit=1000"},
 		{StyleGemini, "https://generativelanguage.googleapis.com", "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000"},
 		{StyleGemini, "https://generativelanguage.googleapis.com/v1beta", "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000"}, // saved by the first preset
+		{StyleGemini, "https://generativelanguage.googleapis.com/v1beta/v1beta", "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000"},
 	} {
 		base, err := ParseBaseURL(c.base)
 		if err != nil {

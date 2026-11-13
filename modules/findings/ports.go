@@ -35,11 +35,18 @@ type Publisher interface {
 // AssetView is the device a finding is about, as the finding list and page show it (FindingAsset).
 type AssetView struct {
 	ID       string  `json:"id"`
+	Name     string  `json:"name"`     // the name the Devices page shows (hostname, else vendor and model, else IP); never the id (D-484)
 	Hostname *string `json:"hostname"` // nil when the device has no name
-	IP       string  `json:"ip"`
-	Kind     string  `json:"kind"`    // one of the inventory kinds; anything else is shown as "unknown"
-	Display  string  `json:"display"` // first software's display name, else the kind
+	IP       string  `json:"ip"`       // "—" when the device has no IP address (hand-added, LLDP only)
+	Kind     string  `json:"kind"`     // one of the inventory kinds; anything else is shown as "unknown"
+	Display  string  `json:"display"`  // first software's display name, else the kind
 }
+
+// NoIP is the IP of a device without an address, as the inventory API writes it.
+const NoIP = "—"
+
+// HasIP reports whether the device has an address a scan or a person can reach.
+func (a *AssetView) HasIP() bool { return a != nil && a.IP != "" && a.IP != NoIP }
 
 // Inventory is what findings reads from the inventory module (Kien's; not built yet).
 type Inventory interface {

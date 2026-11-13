@@ -16,9 +16,9 @@ type settleInv struct {
 	settled []bool
 }
 
-func (s *settleInv) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d ManualDevice) error {
+func (s *settleInv) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d ManualDevice) (string, error) {
 	if s.fail != nil {
-		return s.fail
+		return "", s.fail
 	}
 	return s.fakeInv.AddManualDevice(ctx, tx, actor, d)
 }

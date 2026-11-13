@@ -64,10 +64,7 @@ func (a reportsInventory) Devices(ctx context.Context) ([]reports.Device, error)
 		if d.IsBox {
 			continue // the box itself is not a device of the customer's network
 		}
-		r := reports.Device{ID: d.ID, Name: d.IP, IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile}
-		if d.Hostname != nil && *d.Hostname != "" {
-			r.Name = *d.Hostname
-		}
+		r := reports.Device{ID: d.ID, Name: deviceLabel(d.AssetCore), IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile}
 		if t, err := time.Parse(time.RFC3339, d.FirstSeen); err == nil {
 			r.FirstSeen = t
 		}

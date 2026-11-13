@@ -50,40 +50,58 @@ function NoBoxAddress() {
   )
 }
 
-/** D-404: the packages the box serves for the chosen OS, each a direct download from this origin (the public mirror route of D-169: the
- *  browser saves it under its own name), with what it is for, its size and the SHA-256 of the box's SHA256SUMS. */
+/** The command that installs a package already on the server, run in the folder that holds it (osquery install docs: dpkg -i, rpm -Uvh, msiexec). */
+const INSTALL_HINT: Record<OsqueryPackage['format'], (file: string) => string> = {
+  deb: (f) => `sudo dpkg -i ${f}`,
+  rpm: (f) => `sudo rpm -Uvh ${f}`,
+  msi: (f) => `msiexec /i ${f} /qn`,
+}
+
+/** D-404: the packages the box serves, each a direct download from this origin (the public mirror route of D-169: the browser saves it
+ *  under its own name), with what it is for, its size, the SHA-256 of the box's SHA256SUMS and the one line that installs it. */
+function PackageTable({ packages }: { packages: OsqueryPackage[] }) {
+  const { t } = useTranslation('inventory')
+  return (
+    // On a phone the table keeps its width and scrolls inside this box (the links in it are focusable), instead of breaking file names per letter.
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[46rem] text-left text-[13px]">
+        <caption className="sr-only">{t('agents.download.caption')}</caption>
+        <thead className="text-muted"><tr>
+          <th scope="col" className="py-1 pr-3 font-medium">{t('agents.download.col.file')}</th>
+          <th scope="col" className="py-1 pr-3 font-medium">{t('agents.download.col.for')}</th>
+          <th scope="col" className="py-1 pr-3 font-medium">{t('agents.download.col.size')}</th>
+          <th scope="col" className="py-1 pr-3 font-medium">{t('agents.download.col.sha')}</th>
+          <th scope="col" className="py-1 font-medium">{t('agents.download.col.install')}</th>
+        </tr></thead>
+        <tbody>
+          {packages.map((p) => (
+            <tr key={p.file} className="border-t border-rule align-top">
+              <td className="py-1.5 pr-3">
+                <a href={`/api/v1/install/osquery/${encodeURIComponent(p.file)}`} download={p.file} aria-label={t('agents.download.link', { file: p.file })}
+                  className="inline-flex items-center gap-1 whitespace-nowrap font-medium text-accent underline-offset-4 hover:underline">
+                  <Download className="size-3.5 shrink-0" aria-hidden />{p.file}
+                </a>
+              </td>
+              <td className="py-1.5 pr-3">{t(`agents.download.format.${p.format}`)} · {p.format === 'msi' ? 'x64' : p.arch}</td>
+              <td className="whitespace-nowrap py-1.5 pr-3">{t('agents.download.size', { mb: (p.size / 1e6).toFixed(1) })}</td>
+              <td className="py-1.5 pr-3"><code className="break-all font-mono text-[12px]">{p.sha256}</code></td>
+              <td className="py-1.5"><code className="break-all font-mono text-[12px]">{INSTALL_HINT[p.format](p.file)}</code></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/** The token dialog's copy of the table, for the OS chosen there (D-404). */
 function Downloads({ packages }: { packages: OsqueryPackage[] }) {
   const { t } = useTranslation('inventory')
   return (
     <div className="grid gap-1.5">
       <p className="text-sm font-medium">{t('agents.download.title')}</p>
       <p className="text-[13px] text-muted">{t('agents.download.body')}</p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-[13px]">
-          <caption className="sr-only">{t('agents.download.caption')}</caption>
-          <thead className="text-muted"><tr>
-            <th scope="col" className="py-1 pr-3 font-medium">{t('agents.download.col.file')}</th>
-            <th scope="col" className="py-1 pr-3 font-medium">{t('agents.download.col.for')}</th>
-            <th scope="col" className="py-1 pr-3 font-medium">{t('agents.download.col.size')}</th>
-            <th scope="col" className="py-1 font-medium">{t('agents.download.col.sha')}</th>
-          </tr></thead>
-          <tbody>
-            {packages.map((p) => (
-              <tr key={p.file} className="border-t border-rule align-top">
-                <td className="py-1.5 pr-3">
-                  <a href={`/api/v1/install/osquery/${encodeURIComponent(p.file)}`} download={p.file} aria-label={t('agents.download.link', { file: p.file })}
-                    className="inline-flex items-center gap-1 font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">
-                    <Download className="size-3.5 shrink-0" aria-hidden />{p.file}
-                  </a>
-                </td>
-                <td className="py-1.5 pr-3">{t(`agents.download.format.${p.format}`)} · {p.format === 'msi' ? 'x64' : p.arch}</td>
-                <td className="whitespace-nowrap py-1.5 pr-3">{t('agents.download.size', { mb: (p.size / 1e6).toFixed(1) })}</td>
-                <td className="py-1.5"><code className="break-all font-mono text-[12px]">{p.sha256}</code></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <PackageTable packages={packages} />
     </div>
   )
 }
@@ -314,17 +332,38 @@ export function AgentsSection() {
     ) },
   ]
   return (
-    <Section id="agents" title={t('agents.title')} description={t('agents.description')} stories={['S-INV-4']}
-      actions={<Button disabled={!on} title={on ? undefined : t('agents.off')} onClick={() => setCreating(true)}><Plus />{t('agents.create')}</Button>}>
+    <Section id="agents" title={t('agents.title')} description={t('agents.description')} stories={['S-INV-4']}>
       <RequireModule module="agent-intake" fallback={<ModuleOff module="agent-intake">{t('agents.off')}</ModuleOff>}>
         <QueryState query={q}>
           {(d) => (
             <div className="grid gap-6">
               <p className="max-w-3xl rounded-md border border-rule bg-sunken px-3 py-2 text-sm">{t('agents.recommendation')}</p>
-              <div className="grid gap-2">
-                <h3 className="text-sm font-semibold">{t('agents.osquery.title')}</h3>
-                <p className="max-w-3xl text-[13px] text-muted">{t('agents.osquery.intro')}</p>
-                {d.tokens.length ? <DataTable caption={t('agents.caption')} data={d.tokens} columns={columns} /> : <EmptyState title={t('agents.empty')}>{t('agents.emptyBody')}</EmptyState>}
+              <div className="grid min-w-0 gap-5 [&>*]:min-w-0">
+                <div className="grid gap-1">
+                  <h3 className="text-sm font-semibold">{t('agents.osquery.title')}</h3>
+                  <p className="max-w-3xl text-[13px] text-muted">{t('agents.osquery.intro')}</p>
+                </div>
+                {/* Item 26b: the packages are on the page itself (step 1), not only inside the token dialog; the token is step 2. */}
+                <div className="grid gap-1.5">
+                  <h4 className="text-sm font-medium">{t('agents.page.downloadTitle')}</h4>
+                  {d.install.packages.length ? (
+                    <>
+                      <p className="max-w-3xl text-[13px] text-muted">{t('agents.page.downloadBody', { version: d.install.osquery_version })}</p>
+                      <PackageTable packages={d.install.packages} />
+                      <p className="max-w-3xl text-[13px] text-muted">{t('agents.page.checkHint')}</p>
+                    </>
+                  ) : <p role="status" className="max-w-3xl rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-sm">{t('agents.page.none')}</p>}
+                </div>
+                <div className="grid gap-2">
+                  <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div className="grid gap-1">
+                      <h4 className="text-sm font-medium">{t('agents.page.tokenTitle')}</h4>
+                      <p className="max-w-3xl text-[13px] text-muted">{t('agents.page.tokenBody')}</p>
+                    </div>
+                    <Button onClick={() => setCreating(true)}><Plus />{t('agents.create')}</Button>
+                  </div>
+                  {d.tokens.length ? <DataTable caption={t('agents.caption')} data={d.tokens} columns={columns} /> : <EmptyState title={t('agents.empty')}>{t('agents.emptyBody')}</EmptyState>}
+                </div>
               </div>
               <WazuhCard w={d.wazuh} />
               <CreateDialog open={creating} onOpenChange={setCreating} data={d} />

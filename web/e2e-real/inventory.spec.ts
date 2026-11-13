@@ -267,7 +267,7 @@ test.describe('viewer, read only', () => {
       await expect(b).toHaveAttribute('title', /Operator/)
     }
     await expect(page.getByRole('button', { name: 'Export CSV' })).toBeEnabled()
-    await expect(page.getByRole('link', { name: 'Scope and sensors' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Scope, sensors and agents' })).toHaveCount(0)
     await page.goto('/devices/setup')
     await expect(page.getByText('You do not have access to this page')).toBeVisible()
     const list = await devices(page)

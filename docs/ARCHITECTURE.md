@@ -87,7 +87,7 @@ Module bật/tắt riêng (D-10; `MODULES.md`, `rules/modules.md`): tắt = khô
 | `exposure` | tuỳ chọn | scan | inventory | ra Internet | S-EXP-1 |
 | `scan` | tuỳ chọn | scan | inventory, feeds | LAN/Internet trong phạm vi | S-SCAN-1…4 |
 | `scan-credentialed` | tuỳ chọn | greenbone | scan | container riêng | S-SCAN-5 |
-| `honeypot` | tuỳ chọn | honeypot | inventory | 22/80/445/1433/3389 trên IP phụ | S-HP-1, S-HP-2 |
+| `honeypot` | tuỳ chọn | honeypot | inventory | cổng của dịch vụ từng Trap IP (INV-2, D-467: 18 dịch vụ TCP/UDP) | S-HP-1, S-HP-2 |
 | `logs` | tuỳ chọn | sensor (nhận) + core (gộp, baseline, IOC) | feeds, inventory | UDP/TCP/TLS 514 | S-LOG-1…4 |
 | `response` | tuỳ chọn | core | ai, notify, inventory | ghi qua kết nối đã duyệt | S-RESP-1…4 |
 | `agent-intake` | tuỳ chọn | core | inventory | HTTPS (osquery TLS) | S-INV-4 |

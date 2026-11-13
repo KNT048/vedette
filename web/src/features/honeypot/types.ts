@@ -3,7 +3,8 @@ import type { z } from 'zod'
 import type * as C from './contract'
 
 export type HpService = z.infer<typeof C.HpService>
-export const HP_SERVICES: HpService[] = ['smb', 'rdp', 'ssh', 'mssql', 'http']
+/** In the order of the API (modules/honeypot Services). */
+export const HP_SERVICES: HpService[] = ['smb', 'rdp', 'ssh', 'mssql', 'http', 'https', 'ftp', 'telnet', 'mysql', 'mongodb', 'redis', 'vnc', 'git', 'httpproxy', 'tcpbanner', 'tftp', 'ntp', 'sip']
 
 /** off; listening; conflict; starting; stopping; failed: what the box reports (contract.ts TrapState). */
 export type Trap = z.infer<typeof C.Trap>

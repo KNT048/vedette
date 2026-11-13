@@ -63,7 +63,7 @@ func TestHTTPRedirectAndRefusedMethodAreHTTPHits(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		svc, scan, ok := classify(r.LogType)
+		svc, scan, ok := classify(r)
 		if svc != HTTP || scan || !ok {
 			t.Fatalf("%d: %v %v %v", lt, svc, scan, ok)
 		}

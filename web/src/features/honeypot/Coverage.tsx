@@ -3,6 +3,8 @@ import { Link } from 'react-router'
 import { Section, Panel } from '@/components/common/PageHeader'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { SPAN_IN_UI } from '@/lib/span'
+import { LOGIN_SERVICES } from './presets'
+import type { HpService } from './types'
 
 type Level = 'covered' | 'partial' | 'none'
 const TONE: Record<Level, Tone> = { covered: 'ok', partial: 'warn', none: 'off' }
@@ -17,12 +19,30 @@ const ROWS: { id: string; level: Level }[] = [
   { id: 'email', level: 'none' },
 ]
 
-/** listening: at least one trap really listens. Without one, nothing the traps would see is covered, and the list says so (2026-11-12 walk);
- * URL tokens are answered by the box itself, so bait stays partly covered (W6-2). */
-export default function CoverageSection({ listening }: { listening: boolean }) {
+/** What really fires now (D-467: Coverage claims only that). services: the services some Trap IP listens on; listeningIps: how many Trap IPs listen.
+ * Without one, nothing the traps would see is covered (2026-11-12 walk); URL tokens are answered by the box itself, so bait stays partly covered (W6-2).
+ * Moving to shares needs SMB, stolen credentials need a service whose login names an account, and a sweep alert needs two Trap IPs: one alone
+ * still alerts on each touch. */
+export default function CoverageSection({ services, listeningIps }: { services: HpService[]; listeningIps: number }) {
   const { t } = useTranslation('honeypot')
-  const level = (id: string, l: Level): Level => (listening || l !== 'covered' ? l : id === 'documents' ? 'partial' : 'none')
-  const how = (id: string) => (id === 'outbound' && !SPAN_IN_UI ? 'howNoSpan' : id === 'documents' && !listening ? 'howNoTrap' : 'how')
+  const listening = listeningIps > 0
+  const needs: Record<string, { ok: boolean; why: string; level?: Level }> = {
+    lateral: { ok: services.includes('smb'), why: 'howNoSmb' },
+    credentials: { ok: services.some((s) => LOGIN_SERVICES.includes(s)), why: 'howNoLogin' },
+    scanning: { ok: listeningIps >= 2, why: 'howOneTrap', level: 'partial' },
+  }
+  const level = (id: string, l: Level): Level => {
+    if (l !== 'covered') return l
+    if (!listening) return id === 'documents' ? 'partial' : 'none'
+    const n = needs[id]
+    return !n || n.ok ? l : (n.level ?? 'none')
+  }
+  const how = (id: string) => {
+    if (id === 'outbound' && !SPAN_IN_UI) return 'howNoSpan'
+    if (id === 'documents' && !listening) return 'howNoTrap'
+    const n = needs[id]
+    return listening && n && !n.ok ? n.why : 'how'
+  }
   return (
     <Section id="coverage" title={t('coverage.title')} description={t('coverage.description')}>
       <Panel className="p-4">

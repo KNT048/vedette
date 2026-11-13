@@ -22,7 +22,7 @@ import (
 type Config struct {
 	DB        *store.DB
 	Audit     *audit.Log
-	Secrets   *secrets.Store // the bait password of a credential token (core_secret)
+	Secrets   *secrets.Store // the bait password of a credential token, the key of the HTTPS trap (core_secret)
 	Inventory Inventory
 	Host      Host
 	Logs      Logs      // optional: other sources' lines around a hit (the logs module)
@@ -56,15 +56,16 @@ type Service struct {
 
 	kick chan struct{} // capacity 1: "the state changed, apply it to the host"
 
-	mu        sync.Mutex // guards host, tl's counters (copied into stats), stats, lastWarn, hourStart, hourNew
-	host      hostCache
-	kickGen   uint64 // bumped by Kick; doneGen is the kickGen the last finished Apply started with: kickGen > doneGen = a change the host has not confirmed (state starting/stopping)
-	doneGen   uint64
-	tl        *tailer
-	stats     Stats
-	lastWarn  map[string]time.Time
-	hourStart time.Time // the clock hour hourNew counts
-	hourNew   int       // new hits stored in that hour (per-hour cap, ingest.go)
+	mu         sync.Mutex // guards host, tl's counters (copied into stats), stats, lastWarn, hourStart, hourNew
+	host       hostCache
+	kickGen    uint64 // bumped by Kick; doneGen is the kickGen the last finished Apply started with: kickGen > doneGen = a change the host has not confirmed (state starting/stopping)
+	doneGen    uint64
+	tl         *tailer
+	stats      Stats
+	lastWarn   map[string]time.Time
+	hourStart  time.Time // the clock hour hourNew counts
+	hourNew    int       // new hits of real connections stored in that hour (per-hour cap, ingest.go)
+	udpHourNew int       // new UDP service hits stored in that hour (their own budget, maxUDPHitsPerHour)
 
 	applyMu sync.Mutex                   // one Apply or teardown at a time (they rewrite "applied" and talk to the host)
 	written map[string][sha256.Size]byte // hash of what Apply last wrote to ConfigDir, by file name (guarded by applyMu)
@@ -72,6 +73,8 @@ type Service struct {
 	// applyMu). Memory only (INV-15: nothing in config/ is read back), so the first Apply after core starts asks for one
 	// restart. ponytail: one restart per core start, an upgrade is a hash of the file the container last read.
 	restartDue bool
+	// https is the certificate of the HTTPS trap in use (https.go; guarded by applyMu), nil until it is first needed.
+	https *httpsCert
 	// refusals is what the host refused per address, for the back-off (guarded by applyMu); sig is the wanted set it belongs to.
 	refusals map[netip.Addr]*refusal
 	sig      string
@@ -180,17 +183,15 @@ func loadJSON(ctx context.Context, q querier, key string, out any) error {
 	return nil
 }
 
-func (s *Service) saveJSON(ctx context.Context, tx *sql.Tx, key string, v any, actor string) error {
+// saveJSON writes one hp_config row; every one is the system's own (none comes from a person).
+func (s *Service) saveJSON(ctx context.Context, tx *sql.Tx, key string, v any) error {
 	raw, err := jsonMarshal(v)
 	if err != nil {
 		return err
 	}
-	if actor == "" {
-		actor = "system"
-	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO hp_config (key, value, updated_at, updated_by) VALUES (?, ?, ?, ?)
 		ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`,
-		key, raw, store.FormatTS(s.now()), actor)
+		key, raw, store.FormatTS(s.now()), "system")
 	if err != nil {
 		return fmt.Errorf("honeypot: write %s: %w", key, err)
 	}
@@ -499,6 +500,29 @@ func (w *world) boxWide() (smb, http *trapIPRow) {
 		}
 	}
 	return smb, http
+}
+
+// looks are the Trap IPs that decide how each service presents itself (D-467): of those handed to the host, in creation
+// order, the first that has it.
+func (w *world) looks() map[ServiceName]Look {
+	ips, _, _ := w.desired()
+	out := map[ServiceName]Look{}
+	for i := range w.trapIPs {
+		d := &w.trapIPs[i]
+		if !slices.Contains(ips, d.ip) {
+			continue
+		}
+		for _, svc := range d.Services {
+			if _, ok := out[svc]; !ok {
+				l := Look{Name: d.Name, Preset: d.Preset}
+				if d.Vendor != nil {
+					l.Vendor = *d.Vendor
+				}
+				out[svc] = l
+			}
+		}
+	}
+	return out
 }
 
 // httpPage is the login page the box shows: "nas" when the Trap IP that decides it looks like a NAS.

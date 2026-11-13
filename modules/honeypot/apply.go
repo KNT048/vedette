@@ -279,9 +279,9 @@ func (w *world) trapIPAt(ip netip.Addr) *trapIPRow {
 	return nil
 }
 
-// writeFiles renders opencanary.conf and honeytokens.json and writes the ones that differ from what this process wrote
-// last. Nothing in ConfigDir is ever read: the container could have left anything there (it mounts the folder read-only
-// in the real setup, this is the second line of defence).
+// writeFiles renders opencanary.conf and honeytokens.json (and, while a Trap IP has HTTPS, the trap's certificate and key) and
+// writes the ones that differ from what this process wrote last. Nothing in ConfigDir is ever read: the container could have left
+// anything there (it mounts the folder read-only in the real setup, this is the second line of defence).
 func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceName) error {
 	toks, err := s.loadTokens(ctx, s.db.Reader())
 	if err != nil {
@@ -293,9 +293,11 @@ func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceNa
 			files = append(files, t.Value)
 		}
 	}
-	// One login page and one share name for the whole box (D-466 (4)): the oldest Trap IP handed to the host decides each.
+	// One login page and one share name for the whole box (D-466 (4)): the oldest Trap IP handed to the host decides each; so
+	// for every service's banner (D-467).
 	smb, http := w.boxWide()
-	conf, err := RenderConfig(ConfigInput{Enabled: services, LogPath: filepath.Join(s.cfg.LogDir, defaultLogFile), NASDecoy: http != nil && http.Preset == NAS})
+	looks := w.looks()
+	conf, err := RenderConfig(ConfigInput{Enabled: services, LogPath: filepath.Join(s.cfg.LogDir, defaultLogFile), NASDecoy: http != nil && http.Preset == NAS, Looks: looks})
 	if err != nil {
 		return err
 	}
@@ -307,10 +309,21 @@ func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceNa
 	if err != nil {
 		return err
 	}
-	for _, f := range []struct {
+	type file struct {
 		name string
 		data []byte
-	}{{ConfFile, conf}, {TokensFile, tok}} {
+	}
+	out := []file{{ConfFile, conf}, {TokensFile, tok}}
+	if slices.Contains(services, HTTPS) {
+		// One file, key then certificate, replaced in one rename: the container never sees a new key with an old certificate (review
+		// L2). It is written before opencanary.conf switches the trap on.
+		cert, key, err := s.httpsFiles(ctx, looks[HTTPS])
+		if err != nil {
+			return err
+		}
+		out = []file{{CertFile, append(append([]byte{}, key...), cert...)}, {ConfFile, conf}, {TokensFile, tok}}
+	}
+	for _, f := range out {
 		sum := sha256.Sum256(f.data)
 		if old, ok := s.written[f.name]; ok && old == sum {
 			continue
@@ -320,6 +333,11 @@ func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceNa
 			return err
 		}
 		s.written[f.name] = sum
+	}
+	if !slices.Contains(services, HTTPS) { // after the conf that no longer loads HTTPS is written: never a conf asking for a missing pem
+		if err := s.removeCert(); err != nil { // no Trap IP has HTTPS: its key does not stay on the shared folder (review L1)
+			s.cfg.Log.WarnContext(ctx, "honeypot: remove the HTTPS trap's key from the config folder", "error", err) // tried again next Apply
+		}
 	}
 	return nil
 }
@@ -613,7 +631,7 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, specs map[neti
 			return
 		}
 		wctx := context.WithoutCancel(ctx)
-		if err := s.db.Write(wctx, func(tx *sql.Tx) error { return s.saveJSON(wctx, tx, "applied", now, "system") }); err != nil {
+		if err := s.db.Write(wctx, func(tx *sql.Tx) error { return s.saveJSON(wctx, tx, "applied", now) }); err != nil {
 			errs = append(errs, err)
 			return
 		}
@@ -681,6 +699,19 @@ func (s *Service) Disable(ctx context.Context) error {
 	return s.disable(ctx)
 }
 
+// removeCert removes the HTTPS trap's key and certificate from config/ (nothing there when none was written); the next write is
+// a new one. Guarded by applyMu.
+func (s *Service) removeCert() error {
+	if s.cfg.ConfigDir == "" {
+		return nil
+	}
+	if err := removeInRoot(s.cfg.ConfigDir, CertFile); err != nil {
+		return err
+	}
+	delete(s.written, CertFile)
+	return nil
+}
+
 func (s *Service) disable(ctx context.Context) error {
 	defer func() { // a later switch-on must read "starting", never the "the module is off" this left behind; the back-off starts over
 		s.mu.Lock()
@@ -697,6 +728,9 @@ func (s *Service) disable(ctx context.Context) error {
 	if s.cfg.ConfigDir == "" { // nothing was ever started without a configuration folder
 		s.setHost(hostCache{reason: "the module is off"})
 		return nil
+	}
+	if err := s.removeCert(); err != nil { // the module is off (or the box is purged): no trap key stays behind (review L1)
+		s.cfg.Log.WarnContext(ctx, "honeypot: remove the HTTPS trap's key from the config folder", "error", err)
 	}
 	if !st.Available {
 		// A host that is unreachable or rebooting is not a host with nothing on it: say "done" only when the record

@@ -173,8 +173,8 @@ func honeypotHealthcheck(ctx context.Context, confFile string, limit time.Durati
 	return conn.Close()
 }
 
-// firstTrapPort reads the configuration and returns the port of the first enabled service (in honeypot.Services order) that has one,
-// 0 when there is none.
+// firstTrapPort reads the configuration and returns the port of the first enabled TCP service (in honeypot.Services order) that has
+// one, 0 when there is none.
 func firstTrapPort(confFile string) (int, error) {
 	f, err := os.Open(confFile) //nolint:gosec // a constant path in production, a test path in tests
 	if err != nil {
@@ -193,11 +193,18 @@ func firstTrapPort(confFile string) (int, error) {
 		return 0, errors.New("opencanary.conf is not a JSON object")
 	}
 	for _, s := range honeypot.Services {
+		if s.Proto() != "tcp" { // a UDP trap (TFTP, NTP, SIP) accepts no connection, and answers nothing it does not log
+			continue
+		}
 		var on bool
 		if json.Unmarshal(conf[string(s)+".enabled"], &on) != nil || !on {
 			continue
 		}
-		raw, has := conf[string(s)+".port"]
+		key := string(s) + ".port"
+		if s == honeypot.TCPBanner {
+			key = "tcpbanner_1.port" // OpenCanary's banner module numbers its listeners (RenderConfig writes the one)
+		}
+		raw, has := conf[key]
 		if !has {
 			continue // no port key: not a listener of OpenCanary's
 		}

@@ -25,23 +25,41 @@ const (
 	maxFile    = 200
 	maxAgent   = 120
 	maxVersion = 80
+	maxCmd     = 40
 )
 
-// OpenCanary logtypes the module reads (opencanary/logger.py). Others (boot, ping, services that are off) are skipped.
+// OpenCanary logtypes the module reads (opencanary/logger.py of the pinned 0.9.10; testdata/opencanary-0.9.10-lines.jsonl has a
+// real line of each). Others (boot, ping, services that are off) are skipped.
 const (
+	ltFTPLogin     = 2000 // USERNAME, PASSWORD (never read)
+	ltFTPAuthStart = 2001 // ftp.log_auth_attempt_initiated, not switched on
 	ltSSHNew       = 4000
 	ltSSHVersion   = 4001
 	ltSSHLogin     = 4002
 	ltSMBFile      = 5000
 	ltPortSYN      = 5001
-	ltPortNmapEnd  = 5005 // 5001..5005: the portscan module; it is off (D-90 (5)), the mapping is ready for when it is on
-	ltHTTPGet      = 3000
+	ltPortNmapEnd  = 5005 // 5001..5005: the portscan module; it is off (D-90 (5), D-467), the mapping is ready for when it is on
+	ltHTTPGet      = 3000 // 3000..3003 are the HTTPS trap's too: its port tells them apart
 	ltHTTPLogin    = 3001
 	ltHTTPOther    = 3002 // a method the fake page refuses (HEAD, PUT ...); needs http.log_unimplemented_method_requests
 	ltHTTPRedirect = 3003 // GET / (the redirect to the login page); needs http.log_redirect_request
+	ltTelnetLogin  = 6001 // USERNAME, PASSWORD
+	ltTelnetNew    = 6002 // telnet.log_tcp_connection
+	ltProxyLogin   = 7001 // USERNAME (Basic) or the raw NTLM token, PASSWORD
+	ltMySQLLogin   = 8001 // USERNAME, PASSWORD (hex of the scrambled answer)
 	ltMSSQLSQL     = 9001
 	ltMSSQLWin     = 9002
+	ltMySQLNew     = 9003 // mysql.log_connection_made
+	ltTFTP         = 10001
+	ltNTPMonlist   = 11001
+	ltVNC          = 12001 // the challenge, the answer and a password guessed from a short list (never read)
 	ltRDP          = 14001
+	ltSIP          = 15001
+	ltGit          = 16001
+	ltRedis        = 17001 // CMD, ARGS (never read: AUTH carries the password), ERROR
+	ltBannerNew    = 18001 // 18001..18005: the tcpbanner module (the SMTP greeting)
+	ltBannerEnd    = 18005
+	ltMongoDB      = 20001 // action, username, mechanism, auth_data (never read)
 )
 
 // Record is one OpenCanary line reduced to the fields the module uses, every text cut and cleaned.
@@ -57,6 +75,11 @@ type Record struct {
 	Filename      string
 	UserAgent     string
 	RemoteVersion string
+	Cmd           string // Redis: the command (never its arguments); MongoDB: the command
+	Repo          string // Git: the repository asked for
+	Opcode        string // TFTP: READ or WRITE
+	MongoAction   string // MongoDB: mongodb.connection, mongodb.auth_attempt ...
+	Error         string // Redis: a protocol error
 }
 
 // text is a JSON value that is kept only when it is a string or a number: logdata values are free-form.
@@ -92,6 +115,13 @@ type rawLine struct {
 		Agent   text `json:"USERAGENT"`
 		Version text `json:"REMOTEVERSION"`
 		Client  text `json:"CLIENTVERSION"`
+		// encoding/json matches names without regard to case: MongoDB's "username" is USERNAME
+		Cmd     text `json:"CMD"`
+		Command text `json:"command"`
+		Repo    text `json:"REPO"`
+		Opcode  text `json:"OPCODE"`
+		Action  text `json:"action"`
+		Error   text `json:"ERROR"`
 	} `json:"logdata"`
 }
 
@@ -115,7 +145,11 @@ func ParseLine(line []byte) (Record, error) {
 	rec := Record{LogType: r.LogType, Src: src, SrcPort: clampPort(r.SrcPort), DstPort: clampPort(r.DstPort),
 		User: clean(string(r.Data.User), maxUser), Hostname: clean(string(r.Data.Host), maxHost), Path: clean(string(r.Data.Path), maxPath),
 		Filename: clean(string(r.Data.File), maxFile), UserAgent: clean(string(r.Data.Agent), maxAgent),
-		RemoteVersion: clean(string(r.Data.Version), maxVersion)}
+		RemoteVersion: clean(string(r.Data.Version), maxVersion), Cmd: clean(string(r.Data.Cmd), maxCmd), Repo: clean(string(r.Data.Repo), maxPath),
+		Opcode: clean(string(r.Data.Opcode), maxCmd), MongoAction: clean(string(r.Data.Action), maxCmd), Error: clean(string(r.Data.Error), maxPath)}
+	if rec.Cmd == "" {
+		rec.Cmd = clean(string(r.Data.Command), maxCmd)
+	}
 	if rec.RemoteVersion == "" {
 		rec.RemoteVersion = clean(string(r.Data.Client), maxVersion)
 	}

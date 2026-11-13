@@ -21,7 +21,10 @@ import (
 )
 
 // migratedBefore is a database at the honeypot migrations before 0003 (a box before D-466).
-func migratedBefore(t *testing.T) *store.DB {
+func migratedBefore(t *testing.T) *store.DB { t.Helper(); return migratedBeforeV(t, "0003") }
+
+// migratedBeforeV is a database with the module's migrations before version v.
+func migratedBeforeV(t *testing.T, v string) *store.DB {
 	t.Helper()
 	before := fstest.MapFS{}
 	entries, err := fs.ReadDir(honeypot.Migrations, ".")
@@ -29,7 +32,7 @@ func migratedBefore(t *testing.T) *store.DB {
 		t.Fatal(err)
 	}
 	for _, e := range entries {
-		if e.Name() >= "0003" {
+		if e.Name() >= v {
 			continue
 		}
 		b, err := fs.ReadFile(honeypot.Migrations, e.Name())

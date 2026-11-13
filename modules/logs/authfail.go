@@ -342,7 +342,8 @@ func authEvent(a authAlert, name string, devices []DeviceInfo) AnomalyEvent {
 		ev.What = fmt.Sprintf("%d failed login attempts from %s within %d minutes (%s).%s%s", a.attempts, addr, int(AuthFailWindow/time.Minute), where, tried, inside)
 		ev.Action = "Open Logs and search for the address: check whether any login from it succeeded. Block the address at the firewall and turn off password login for SSH (use keys)."
 		ev.Severity = "medium"
-		if a.accepted {
+		if a.accepted { // a login got in before the threshold: the incident says so, as the escalated one does (D-490)
+			ev.Title = fmt.Sprintf("A login from %s was ACCEPTED after %d failed attempts on %s", addr, a.attempts, name)
 			ev.What += " A login from the same address was ACCEPTED in that time."
 			ev.Action = "A login from this address succeeded: treat that account as taken over (change its password, end its sessions). " + ev.Action
 			ev.Severity = "high"

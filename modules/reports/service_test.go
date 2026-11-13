@@ -94,7 +94,7 @@ func TestSendNowSendsToSavedRecipientsAndKeepsTheFigures(t *testing.T) {
 		t.Fatalf("sent = %+v", e.mail.sent)
 	}
 	m := e.mail.sent[0].m
-	if !strings.Contains(m.Title, "1 new, 1 resolved, 2 open") || m.Path != "/reports" || len(m.Items) == 0 || !strings.HasPrefix(m.Items[0], "Fix Microsoft Windows on pc-old") {
+	if !strings.Contains(m.Title, "4 things to do this week, 2 open findings") || m.Path != "/reports" || len(m.Items) == 0 || !strings.HasPrefix(m.Action, "Update Microsoft Windows on pc-old") {
 		t.Fatalf("mail = %+v", m)
 	}
 	// The report of that week is frozen: change the data and read the old entry back (INV-2).

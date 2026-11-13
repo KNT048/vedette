@@ -47,6 +47,29 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(within(doc).getByRole('region', { name: 'Appendix: every finding of the week' })).toBeInTheDocument()
   })
 
+  it('D-490: the box wrote what to do (fixed version) and what happened; the page shows those sentences and no "not included" note', async () => {
+    const base = buildWeekly()
+    const action = 'Upgrade FortiGate (FortiOS) on FortiGate-HQ from 7.4.1 to 7.4.3 or later — fixes 3 exploited vulnerabilities'
+    const rep = {
+      ...base,
+      top_risks: [{ ...base.top_risks![0]!, action }],
+      actions: [{ kind: 'fix' as const, cve: 'CVE-2024-1', device: 'FortiGate-HQ', finding_id: 'f-1', product: 'FortiGate (FortiOS)', count: 3, text: action }],
+      happened: { traps: 1, failed_logins: 0, accepted_logins: 1, bad_connections: 0, other: 0, summary: 'This week: 1 login ACCEPTED after failed attempts, 1 honeypot touch.',
+        top: [{ kind: 'login_accepted' as const, title: 'A login from 45.1.2.3 was ACCEPTED after failed attempts on web', severity: 'high' as const, at: base.generated_at }] },
+      sources: [...base.sources, { id: 'incidents' as const, at: base.generated_at }],
+    }
+    server.use(http.get('*/api/v1/reports/weekly/preview', () => HttpResponse.json({ report: rep, ai_available: false })))
+    renderApp('/reports')
+    const doc = await screen.findByRole('article', { name: 'Weekly security report' })
+    expect(within(doc).getAllByText(action)).toHaveLength(2) // under the top risk and in the to-do list
+    const hap = within(doc).getByRole('region', { name: 'What happened this week' })
+    expect(within(hap).getByText('This week: 1 login ACCEPTED after failed attempts, 1 honeypot touch.')).toBeInTheDocument()
+    expect(within(hap).getByText(/was ACCEPTED after failed attempts on web/)).toBeInTheDocument()
+    expect(within(doc).getByRole('region', { name: 'To do this week' })).toBeInTheDocument()
+    expect(within(doc).queryByText(/are not part of this report yet/)).toBeNull()
+    expect(within(doc).getByText(/Data sources:.*Incidents/)).toBeInTheDocument()
+  })
+
   it('send history: 3 sample entries, a failed one says why, each can be opened for printing', async () => {
     renderApp('/reports')
     const table = await screen.findByRole('table', { name: 'History of weekly reports sent' })

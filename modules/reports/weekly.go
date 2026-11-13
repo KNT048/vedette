@@ -1,7 +1,6 @@
 package reports
 
 import (
-	"fmt"
 	"regexp"
 	"sort"
 	"strings"
@@ -49,6 +48,11 @@ type weeklyInput struct {
 	kevNew   int // KEV.NewlyExploited: the Home headline
 	kevInUse int
 	now      time.Time
+
+	fixes       map[string]Fix                    // by finding id; nil = none known
+	fixesFor    func(fs []Finding) map[string]Fix // reads the fixes of the findings it is given (Service.fill); asked only for the top products
+	week        IncidentWeek
+	incidentsOn bool // notify answered: the report has a "what happened" section even when it is empty
 }
 
 // buildWeekly computes the weekly report (INV-1) at in.now. No AI text is in it.
@@ -130,14 +134,35 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 		}
 	}
 
-	risks := topRisks(openRows)
-	var actions []ActionItem
-	for _, r := range risks {
-		kind := "verify"
-		if r.Confirmed > 0 {
-			kind = "fix"
+	fixes := in.fixes
+	if fixes == nil && in.fixesFor != nil { // the release is read only for the products the page names, never for a whole large estate
+		top, _ := topRisks(openRows, nil)
+		named := map[string]bool{}
+		for _, r := range top {
+			named[r.Product] = true
 		}
-		actions = append(actions, ActionItem{Kind: kind, CVE: r.CVE, Device: r.Device, FindingID: r.FindingID, Product: r.Product, Count: r.Open})
+		byID := make(map[string]Finding, len(in.findings))
+		for _, f := range in.findings {
+			byID[f.ID] = f
+		}
+		devs := map[string]bool{} // every open finding of those devices: a phone's CVEs carry several product names and one release must clear them all
+		for _, r := range openRows {
+			if named[r.Product] {
+				devs[r.AssetID] = true
+			}
+		}
+		var ask []Finding
+		for _, r := range openRows {
+			if devs[r.AssetID] {
+				ask = append(ask, byID[r.ID])
+			}
+		}
+		fixes = in.fixesFor(ask)
+	}
+	risks, kinds := topRisks(openRows, fixes)
+	var actions []ActionItem
+	for i, r := range risks {
+		actions = append(actions, ActionItem{Kind: kinds[i], CVE: r.CVE, Device: r.Device, FindingID: r.FindingID, Product: r.Product, Count: r.Open, Text: r.Action})
 	}
 	if unapproved > 0 {
 		actions = append(actions, ActionItem{Kind: "review_devices", Count: unapproved})
@@ -151,79 +176,19 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 	if kevAt.IsZero() {
 		kevAt = now
 	}
+	sources := []Source{{ID: "inventory", At: ts(now)}, {ID: "findings", At: ts(now)}, {ID: "kev", At: ts(kevAt)}}
+	var happened *Happened
+	if in.incidentsOn {
+		happened = buildHappened(in.week)
+		sources = append(sources, Source{ID: "incidents", At: ts(now)})
+	}
 	return WeeklyReport{
 		Period: Period{From: ts(from), To: ts(now)}, GeneratedAt: ts(now),
 		Counts: Counts{NewFindings: newN, Resolved: resolvedN, OpenConfirmed: openConfirmed, OpenSuspected: openSuspected,
 			Devices: len(in.devices), DevicesUnapprove: unapproved, DevicesNew: devicesNew, KevNew: in.kevNew, KevMatched: in.kevInUse},
 		TopRisks: risks, NewFindings: nonNil(newRows), Resolved: nonNil(resolvedRows), Open: nonNil(openRows), Actions: nonNilA(actions),
-		Sources: []Source{{ID: "inventory", At: ts(now)}, {ID: "findings", At: ts(now)}, {ID: "kev", At: ts(kevAt)}},
+		Happened: happened, Sources: sources,
 	}
-}
-
-// TopRiskCount is how many risks the management page names (W1-24, D-485).
-const TopRiskCount = 3
-
-// topRisks groups the open findings (ordered by severity, newest first) by product and returns the TopRiskCount biggest:
-// confirmed by a scan first, then the worst severity, then the most open findings, then the name. Never nil.
-func topRisks(open []FindingRow) []TopRisk {
-	type acc struct {
-		TopRisk
-		names []string
-		seen  map[string]bool
-	}
-	by := map[string]*acc{}
-	var order []*acc
-	for _, f := range open {
-		g := by[f.Product]
-		if g == nil {
-			g = &acc{TopRisk: TopRisk{Product: f.Product, Severity: f.Severity, CVE: f.CVE, FindingID: f.ID}, seen: map[string]bool{}}
-			by[f.Product] = g
-			order = append(order, g)
-		}
-		g.Open++
-		if f.Status == "confirmed" {
-			if g.Confirmed == 0 { // the finding named is one a scan confirmed; Severity stays the worst of the group
-				g.CVE, g.FindingID = f.CVE, f.ID
-			}
-			g.Confirmed++
-		}
-		if severityRank[f.Severity] < severityRank[g.Severity] {
-			g.Severity = f.Severity
-		}
-		if !g.seen[f.AssetID] {
-			g.seen[f.AssetID] = true
-			g.names = append(g.names, f.Device)
-		}
-	}
-	sort.SliceStable(order, func(i, j int) bool {
-		a, b := order[i], order[j]
-		if (a.Confirmed > 0) != (b.Confirmed > 0) {
-			return a.Confirmed > 0
-		}
-		if severityRank[a.Severity] != severityRank[b.Severity] {
-			return severityRank[a.Severity] < severityRank[b.Severity]
-		}
-		if a.Open != b.Open {
-			return a.Open > b.Open
-		}
-		return a.Product < b.Product
-	})
-	out := []TopRisk{}
-	for _, g := range order {
-		if len(out) == TopRiskCount {
-			break
-		}
-		g.Devices = len(g.names)
-		g.Device = g.names[0]
-		switch {
-		case len(g.names) == 2:
-			g.Device += " and " + g.names[1]
-		case len(g.names) > 2:
-			g.Device += fmt.Sprintf(" and %d more", len(g.names)-1)
-		}
-		out = append(out, g.TopRisk)
-	}
-	return out
 }
 
 func capRows(r []FindingRow) []FindingRow {

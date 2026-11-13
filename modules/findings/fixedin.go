@@ -94,7 +94,14 @@ func boundsReadable(r VersionRange) bool {
 	return true
 }
 
-func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
+// fixedParts are the entries of v that apply to the software (ents), those that carry a readable range (usable), and outside: X
+// is a version that none of the applicable entries lists or cannot judge.
+type fixedParts struct {
+	ents, usable []fixedEntry
+	outside      func(string) bool
+}
+
+func fixedPartsOf(in swInfo, v Vuln, key []identity) fixedParts {
 	var ents []fixedEntry // every entry that applies to the software, whatever its range
 	for _, af := range v.Affected {
 		c, err := ParseCPE(af.CPE)
@@ -115,7 +122,6 @@ func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
 			usable = append(usable, e)
 		}
 	}
-	// outside: X is a version that none of the applicable entries lists or cannot judge.
 	outside := func(x string) bool {
 		for _, e := range ents {
 			if t, _ := evalAffected(e.c, e.r, x, in.cpe, in.hasCPE); t != No {
@@ -124,6 +130,12 @@ func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
 		}
 		return true
 	}
+	return fixedParts{ents, usable, outside}
+}
+
+func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
+	p := fixedPartsOf(in, v, key)
+	usable, outside := p.usable, p.outside
 	var f *FixedIn
 	if in.given && versionKnown(in.ver) {
 		f = fixedForVersion(in, usable, outside)
@@ -281,4 +293,111 @@ func lineOf(r VersionRange) string {
 		return parts[0] + ".x" // "17.0" is the whole 17 line, not release 17.0
 	}
 	return parts[0] + "." + parts[1]
+}
+
+// GroupFix is the one release that closes every vulnerability of one installed software on a device (D-490, "one upgrade, one line").
+// Kind is "fixed" (Fixed is outside the affected range of ALL the vulnerabilities of the software), "none" (NVD's ranges name no
+// release that clears them all: the advisory decides), "up_to" (NVD names no fixed release, Fixed is the last affected one) or
+// "distro" (the distribution's security updates carry the fix). Software is the id of the software row it is about.
+type GroupFix struct {
+	Kind, Software, Version, Fixed, Distro string
+	// Closed holds the CVEs the release closes: for kind fixed every vulnerability of the software (the release is outside all their ranges); otherwise those the device is affected by through a range that has an end.
+	Closed map[string]bool
+}
+
+// FixedInForAll is FixedInFor for the vulnerabilities of the software of one device. It does not take the highest release
+// FixedInFor names for each (a release that fixes one can still be inside the range of another: 26.3 for CVE A, in [26.0, 26.7.1) of
+// CVE B), and it is not limited to the ranges the device is inside: it takes the nearest end bound ABOVE the device's version, of any
+// range of any of the vulnerabilities, that is outside the affected ranges of all of them (a phone on 18.2 is cleared by 26.7.1 when
+// every 18.x and 26.x before it is still inside some range). A vulnerability belongs to the software row it matches (keyedTo), so one
+// phone is one group whatever names CISA gives the CVEs. The map is by CVE; a CVE the device is not affected by through a range with
+// an end is not in it. A CVE that matches several software rows takes the group that closes the most.
+func FixedInForAll(a Asset, vulns []Vuln) map[string]*GroupFix {
+	out := map[string]*GroupFix{}
+	for _, s := range a.Software {
+		in := newSWInfo(s, a.OS)
+		if !in.given || !versionKnown(in.ver) {
+			continue
+		}
+		var mine []Vuln
+		for _, v := range vulns {
+			if keyedTo(s, v) {
+				mine = append(mine, v)
+			}
+		}
+		g := groupFixOf(in, mine)
+		if g == nil {
+			continue
+		}
+		g.Software = s.ID
+		for cve := range g.Closed {
+			if o := out[cve]; o == nil || len(g.Closed) > len(o.Closed) {
+				out[cve] = g
+			}
+		}
+	}
+	return out
+}
+
+func groupFixOf(in swInfo, vulns []Vuln) *GroupFix {
+	closed := map[string]bool{}
+	var ends []string // every readable end bound of every applicable range: the releases a fix can be
+	haveExcl := false
+	var parts []fixedParts
+	for _, v := range vulns {
+		var key []identity
+		if n := (identity{vendor: norm(v.Vendor), product: norm(v.Product)}); !isMultiProduct(v.Product) && n.ok() {
+			key = []identity{n}
+		}
+		p := fixedPartsOf(in, v, key)
+		parts = append(parts, p)
+		for _, e := range p.usable {
+			for _, b := range []string{e.r.EndExcl, e.r.EndIncl} {
+				if b != "" {
+					ends = append(ends, b)
+				}
+			}
+			if t, _ := evalAffected(e.c, e.r, in.ver, in.cpe, in.hasCPE); t == Yes && (e.r.EndExcl != "" || e.r.EndIncl != "") {
+				closed[v.CVE] = true
+				haveExcl = haveExcl || e.r.EndExcl != ""
+			}
+		}
+	}
+	if len(closed) == 0 {
+		return nil
+	}
+	g := &GroupFix{Version: clean(in.ver), Distro: distroName(in), Closed: closed}
+	if distroMarked(in.ver) && g.Distro != "" {
+		g.Kind = "distro"
+		return g
+	}
+	cmp := func(a, b string) int {
+		if c, ok := compareBound(a, b); ok {
+			return c
+		}
+		return 0
+	}
+	slices.SortStableFunc(ends, cmp)
+	for _, x := range ends {
+		if c, ok := compareBound(x, in.ver); !ok || c <= 0 {
+			continue // not above the device's version
+		}
+		clears := true
+		for _, p := range parts {
+			clears = clears && p.outside(x)
+		}
+		if clears { // it is outside the ranges of all of them, so it closes each, whether or not the device was inside the range yet
+			g.Kind, g.Fixed = "fixed", clean(x)
+			for _, v := range vulns {
+				g.Closed[v.CVE] = true
+			}
+			return g
+		}
+	}
+	if !haveExcl { // only ranges that end at an affected release: NVD names no fix
+		g.Kind, g.Fixed = "up_to", clean(ends[len(ends)-1])
+		return g
+	}
+	g.Kind = "none"
+	return g
 }

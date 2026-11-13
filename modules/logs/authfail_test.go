@@ -2,6 +2,7 @@ package logs
 
 import (
 	"fmt"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -308,5 +309,20 @@ func TestAuthFail_ProgramFirstWordIsNotSshd(t *testing.T) {
 	e.ingest(src, "<13>Nov  9 10:00:00 app: sshd[1]: Accepted password for root from "+attacker+" port 5 ssh2")
 	if len(p.summaries) != 0 {
 		t.Fatalf("visitor text made %d incidents", len(p.summaries))
+	}
+}
+
+// A login accepted before the threshold (D-490 review H2) says ACCEPTED in the title, so a report or a person reading the list does not
+// take it for a plain failed-login attack; the failures-only incident keeps its title.
+func TestAuthFail_AcceptedBeforeTheThresholdIsTitledAccepted(t *testing.T) {
+	t.Parallel()
+	a := authAlert{source: "s1", addr: netip.MustParseAddr(attacker), at: time.Now(), attempts: 6, accepted: true}
+	ev := authEvent(a, "web-1", nil)
+	if ev.Title != "A login from "+attacker+" was ACCEPTED after 6 failed attempts on web-1" || ev.Severity != "high" || ev.Target != "auth:"+attacker+" accepted" {
+		t.Fatalf("event = %+v", ev)
+	}
+	a.accepted = false
+	if ev := authEvent(a, "web-1", nil); !strings.Contains(ev.Title, " failed logins from ") || ev.Severity != "medium" {
+		t.Fatalf("failures only = %+v", ev)
 	}
 }

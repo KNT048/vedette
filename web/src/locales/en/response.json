@@ -7,7 +7,7 @@
   },
   "page": {
     "title": "Response",
-    "meta": "Rules you build (WHEN, IF, THEN) and requests your AI sends. Every action needs approval by default, and nothing changes another device without the safety envelope below.",
+    "meta": "Your inbox of actions the AI and your rules propose: you approve or reject each one. Nothing changes another device without an approval and the safety envelope.",
     "onTitle": "High-risk mode is on",
     "onBody_one": "Actions that change your network devices can run after a person approves them. {{count}} request is waiting. Use Emergency stop if something looks wrong.",
     "onBody_other": "Actions that change your network devices can run after a person approves them. {{count}} requests are waiting. Use Emergency stop if something looks wrong.",
@@ -40,8 +40,8 @@
     "toSettings": "Open settings"
   },
   "requests": {
-    "title": "Requests",
-    "description": "One request per rule run or AI proposal. The approver can approve everything or pick actions. High-risk requests need two different approvers. A request expires after 15 to 30 minutes with nothing done, and a notice is sent.",
+    "title": "Inbox",
+    "description": "Proposals from the AI, your rules and people, waiting first. Each says what it changes and on which device, why, the evidence, the exact change, how it is undone and when it expires. Approve or reject; a high-risk request needs two different people, each with their two-step code. A request expires after 15 to 30 minutes with nothing done.",
     "empty": "Nothing in the history",
     "emptyBody": "Requests appear here when a rule matches or the AI sends one.",
     "emptyPending": "Nothing is waiting for a decision",
@@ -51,7 +51,11 @@
     "history": "History",
     "all": "All",
     "rules": "Rules",
-    "ai": "AI"
+    "ai": "AI",
+    "people": "People",
+    "risk": "Risk",
+    "anyRisk": "Any risk",
+    "emptyFiltered": "No request matches these filters. Choose All and Any risk to see every request."
   },
   "status": {
     "pending": "Pending",
@@ -166,7 +170,9 @@
     "requests": "Requests",
     "blocklist": "Block list",
     "log": "Log",
-    "metrics": "Metrics"
+    "metrics": "Metrics",
+    "actions": "Actions",
+    "settings": "Settings"
   },
   "plan": {
     "read": "Read {{tool}} on {{connection}}:",
@@ -801,5 +807,102 @@
     "noBlocklist": "The block list only carries public addresses, so it cannot hold {{ip}}: it is on your network.",
     "offNothing": "The response module is off, so Vedette cannot ask for any block here. Handle it by hand.",
     "offNext": "To let Vedette block a source next time: an administrator turns on the response module in Settings, Modules, connects your firewall or switch in Settings, Connections, and turns on a trap rule."
+  },
+  "setup": {
+    "title": "Let the AI propose actions",
+    "description": "The AI looks at every open critical finding every 5 minutes, writes a plan and sends the actions that fit to this inbox. You only approve or reject. These steps set it up; each one writes the same setting as its own screen, and says what leaves the box.",
+    "count": "{{n}} of {{of}} required steps done",
+    "done": "Done",
+    "todo": "To do",
+    "optional": "Optional",
+    "unknown": "Ask an administrator",
+    "leaves": "What leaves the box:",
+    "adminDoes": "An administrator does this step.",
+    "toModules": "Open Settings, Modules",
+    "profile": {
+      "title": "Pick the AI profile for response plans (this starts the AI)",
+      "body": "No profile is chosen for this job by default (D-181): the plans run on their own, so an administrator picks the AI that writes them. Do this last: the AI writes one plan per finding when it first sees it, and sends its actions to this inbox only if steps 1, 2 and 4 are done at that moment. A plan written earlier stays in the plan list below, where you ask for approval yourself.",
+      "label": "AI profile for Response plans",
+      "noneChosen": "None (no plans)",
+      "cloudBlocked": "not allowed: internal data goes to internal profiles only",
+      "none": "There is no working AI profile yet.",
+      "toAi": "Open Settings, AI assistant",
+      "aiOff": "The AI assistant module is off.",
+      "saved": "AI profile for response plans saved",
+      "leaves": "For each open critical finding: the CVE and its public exploited-list entry, the device name, IP address and kind, the actions the AI may propose (names and parameter names, never commands or credentials) and the box's own records of reads it made (never what they returned). They go to the provider of the profile you pick, with your key; with a profile that runs inside your network nothing leaves it (Privacy, row 3).",
+      "wait": "Finish steps 1, 2 and 4 first: a plan written before them never reaches this inbox. (Settings, AI assistant can still set it.)"
+    },
+    "connect": {
+      "title": "Connect a firewall or switch",
+      "body": "The AI can only propose an action Vedette can carry out on the device of the finding: a block or quarantine of its address through a firewall or switch connection.",
+      "ready": "Ready through a connection: {{names}}.",
+      "noneReady": "No device action can run yet: connect a firewall or switch with a write tool, then choose it for a block action.",
+      "toConnections": "Settings, Connections",
+      "toActions": "Choose a connection in Actions",
+      "pulled": "Block list last pulled {{time}} by {{from}}. It holds public addresses only; it does not cover devices on your network, so it does not count for this step.",
+      "blocklist": "No firewall has pulled the block list yet. The block list holds public addresses only; it does not cover devices on your network, so it does not count for this step.",
+      "toBlocklist": "Set up the block list",
+      "leaves": "Nothing leaves your network: Vedette talks to the device at the address you typed for the connection (Privacy, row 12), and a firewall pulls the block list from the box."
+    },
+    "choose": {
+      "title": "Choose what the AI may propose",
+      "body": "Allow the AI to send requests for critical findings, and choose the actions it may propose. It proposes only actions whose every value is the address of the device of the finding, and the box checks every proposal again.",
+      "finding": "Critical findings: the AI may send requests from its plans",
+      "off": "Switched off in the action catalog, so the AI cannot propose it yet.",
+      "via": "Runs through {{connection}}.",
+      "publicOnly": "Public addresses only; it does not cover devices on your network.",
+      "noAction": "No action in the catalog takes only an address, so the AI has nothing to propose.",
+      "leaves": "Nothing: these are settings on the box.",
+      "toActions": "Turn it on in Actions"
+    },
+    "approvers": {
+      "title": "Approvers and the channel",
+      "body": "Without a channel, operators and administrators approve in Vedette. With one, the request is also sent to the approvers of that channel, who approve from there.",
+      "chosen": "Requests go to: {{channels}}.",
+      "none": "No channel is chosen: approvals happen in Vedette only.",
+      "toSettings": "Choose channels in Settings",
+      "leaves": "Each approval request (what, which device, the exact change) is sent to the channels you choose (Privacy, row 5)."
+    },
+    "execution": {
+      "title": "Turn on execution (high risk)",
+      "body": "While it is off, the AI still writes plans but sends no request, and nothing can change a device. On, an approved request runs through the connection. Needs two-step sign-in and the risk phrase; Emergency stop turns it off.",
+      "button": "Turn on execution…",
+      "leaves": "Nothing: after a person approves, Vedette changes your device through its connection on your network."
+    }
+  },
+  "why": {
+    "title": "Why is nothing waiting?",
+    "notYet": "The AI has not looked yet since the box started. It looks every 5 minutes.",
+    "blocked": {
+      "no_ai": "At {{time}} the AI was not asked: no AI profile is set for Response plans, or the AI assistant module is off (step 5).",
+      "ai_paused": "At {{time}} the AI was not asked: AI proposals are paused because people rejected too many. An administrator resumes them in the Log tab."
+    },
+    "looked_one": "At {{time}} the box looked at {{count}} open critical finding, asked the AI about {{asked}}, and {{proposed}} of its proposals reached this inbox as requests.",
+    "looked_other": "At {{time}} the box looked at {{count}} open critical findings, asked the AI about {{asked}}, and {{proposed}} of its proposals reached this inbox as requests.",
+    "noFindings": "No device has an open critical finding, so there is nothing to propose.",
+    "on": "on {{device}}",
+    "outcome": {
+      "proposed": "Sent",
+      "noted": "Note only",
+      "refused": "Refused",
+      "not_sent": "Not sent",
+      "no_action": "No action",
+      "plan_refused": "Plan refused",
+      "ai_failed": "AI call failed",
+      "ai_unavailable": "AI not available",
+      "has_plan": "Planned earlier",
+      "backed_off": "Waiting",
+      "later": "Next run"
+    },
+    "triggers": "Which triggers the AI may use",
+    "triggersBody": "The AI may only use a trigger that something the box recorded can prove happened (D-119): a finding, a known-bad connection or a read of a device. The others are for rules.",
+    "trigger": {
+      "asked": "the AI may use it, and the box asks the AI about it every 5 minutes.",
+      "notAllowed": "the AI could use it, but it is not allowed in Settings, AI requests.",
+      "nobodyAsks": "the AI may use it, but nothing asks the AI about it yet; a rule handles it.",
+      "never": "the AI may not use it: nothing the box records can prove it happened. A rule handles it."
+    },
+    "rules": "Rules you turn on also send requests here when their trigger happens.",
+    "toRules": "Open Rules"
   }
 }

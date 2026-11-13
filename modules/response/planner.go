@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/jobs"
@@ -91,7 +92,14 @@ func (s *Service) aiAvailable(ctx context.Context) bool {
 // saves the plan if it passes. It returns how many plans were saved. With the module off, no Planner, or the AI not available it does
 // nothing and asks nothing.
 func (s *Service) PlanOpen(ctx context.Context) (int, error) {
-	if !s.aiAvailable(ctx) || s.cfg.Critical == nil {
+	if !s.on() || s.cfg.Critical == nil {
+		return 0, nil
+	}
+	ran := s.ts()
+	status := PlannerStatus{RanAt: &ran, Findings: []PlannerFinding{}}
+	defer func() { s.keepStatus(status) }() // what this run did, for GET /response/plans (D-513); read-only
+	if !s.aiAvailable(ctx) {
+		status.Blocked = PlannerNoAI
 		return 0, nil
 	}
 	st, err := loadSettings(ctx, s.cfg.DB.Reader())
@@ -99,16 +107,19 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	if checkAIPaused(st) != nil { // the quality breaker paused the AI (INV-15 (3)): no plan is asked for either
+		status.Blocked = PlannerAIPaused
 		return 0, nil
 	}
 	// The proposals of a new plan are also sent as AI requests when the admin lets the AI send requests for the finding trigger and the
 	// execution switch is on (off by default, INV-7): with it off, no request could run, and a person's RequestProposal is refused too
 	// (D-314).
 	send := st.Execution && slices.Contains(st.AI.Triggers, "finding")
+	status.Sending = send
 	targets, err := s.cfg.Critical(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("response: list the open critical findings: %w", err)
 	}
+	status.Considered = len(targets)
 	have := map[string]bool{}
 	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT finding_id FROM resp_plans`)
 	if err != nil {
@@ -128,12 +139,21 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 	saved := 0
 	var actions []AIAction
 	asked := 0
+	stopped := ""
 	for _, t := range targets {
-		if have[t.FindingID] || s.backedOff(t.FindingID) {
+		switch {
+		case stopped != "":
+			status.add(t, OutcomeAIUnavailable, stopped)
 			continue
-		}
-		if asked >= maxPlansPerRun {
-			break
+		case have[t.FindingID]:
+			status.add(t, OutcomeHasPlan, "A plan was written for it on an earlier run (one plan per finding): its actions, and any request made from them, are in the plan below and in the Response log.")
+			continue
+		case s.backedOff(t.FindingID):
+			status.add(t, OutcomeBackedOff, s.backoffReason(t.FindingID))
+			continue
+		case asked >= maxPlansPerRun:
+			status.add(t, OutcomeLater, "Waiting for a later run: the AI is asked about at most 3 findings per run, every 5 minutes.")
+			continue
 		}
 		if actions == nil {
 			all, err := s.AIActions(ctx)
@@ -149,29 +169,58 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 			}
 		}
 		asked++
+		status.Asked = asked
 		d, err := s.cfg.Planner.Plan(ctx, PlanAsk{Target: t, Actions: offeredFor(actions, t)})
 		if errors.Is(err, ErrPlanUnavailable) {
-			return saved, nil
+			// the sentence of the ai module (budget used up, a fuse), never the provider's text; the rest of this run is not asked either
+			stopped = "The AI cannot be used now (this month's AI budget, or a fuse of the AI module), so this run stopped."
+			if why := strings.TrimPrefix(strings.TrimPrefix(err.Error(), ErrPlanUnavailable.Error()), ": "); why != "" && why != err.Error() {
+				stopped = "The AI cannot be used now, so this run stopped: " + why
+			}
+			status.add(t, OutcomeAIUnavailable, stopped)
+			continue
 		}
 		if err != nil {
 			s.cfg.Log.WarnContext(ctx, "response: the AI could not make a plan", "finding", t.FindingID, "error", err)
 			s.planFailed(t.FindingID)
+			status.add(t, OutcomeAIFailed, "The AI call failed or its answer could not be read (see AI activity); it is asked again after 1 hour.")
 			continue
 		}
-		steps, err := s.savePlan(ctx, t, d)
+		steps, why, err := s.savePlan(ctx, t, d)
 		if err != nil {
 			return saved, err
 		}
 		if steps == nil {
 			s.planFailed(t.FindingID)
+			if why == "" { // another run stored a plan for it first
+				status.add(t, OutcomeHasPlan, "A plan was written for it at the same time by another run.")
+				continue
+			}
+			status.add(t, OutcomePlanRefused, "The AI's plan failed the checks and was not stored: "+why)
 			continue
 		}
 		saved++
-		if send {
-			if err := s.sendPlan(ctx, t, d, steps, offeredFor(actions, t)); err != nil {
-				return saved, err
-			}
+		if !slices.ContainsFunc(steps, func(x storedStep) bool { return x.Proposal != nil }) {
+			status.add(t, OutcomeNoAction, s.noActionReason(ctx, t, offeredFor(actions, t)))
+			continue
 		}
+		if !send {
+			status.add(t, OutcomeNotSent, notSentReason(st))
+			continue
+		}
+		notes, skipped, err := s.sendPlan(ctx, t, d, steps, offeredFor(actions, t))
+		if err != nil {
+			return saved, err
+		}
+		if skipped != "" { // the settings changed while the AI wrote the plan
+			status.add(t, OutcomeNotSent, skipped)
+			continue
+		}
+		o, why := sentReason(notes)
+		if o == OutcomeProposed {
+			status.Proposed++
+		}
+		status.add(t, o, why)
 	}
 	return saved, nil
 }
@@ -190,15 +239,20 @@ func offeredFor(actions []AIAction, t PlanTarget) []AIAction {
 // evidence is the finding and the reads the AI cited (citedReads), the confidence is the AI's. Every gate of INV-15 runs there, so a
 // refusal is logged by Propose and is the end of it: nothing is retried. Only an error that is not a refusal (the database) stops the
 // run. The settings are read again first: the switch may have been turned off while the AI was writing the plan.
-func (s *Service) sendPlan(ctx context.Context, t PlanTarget, d PlanDraft, steps []storedStep, offered []AIAction) error {
+func (s *Service) sendPlan(ctx context.Context, t PlanTarget, d PlanDraft, steps []storedStep, offered []AIAction) ([]sentNote, string, error) {
 	st, err := loadSettings(ctx, s.cfg.DB.Reader())
 	if err != nil {
-		return err
+		return nil, "", err
 	}
-	if !st.Execution || !slices.Contains(st.AI.Triggers, "finding") || checkAIPaused(st) != nil {
-		return nil
+	// The second string is why nothing was sent, for the planner status (D-513).
+	if checkAIPaused(st) != nil {
+		return nil, "The plan was stored, but AI proposals were paused (quality breaker) while the AI wrote it, so nothing was sent. An administrator resumes them in the Log tab; ask for approval from the plan meanwhile.", nil
+	}
+	if !st.Execution || !slices.Contains(st.AI.Triggers, "finding") {
+		return nil, "The plan was stored, but sending was turned off while the AI wrote it.", nil
 	}
 	var sent []SentProposal
+	var notes []sentNote // for the planner status (D-513): the outcome and the box's sentence about it
 	for i, step := range steps {
 		if step.Proposal == nil {
 			continue
@@ -208,21 +262,25 @@ func (s *Service) sendPlan(ctx context.Context, t PlanTarget, d PlanDraft, steps
 		why := truncRunes(cleanLine(t.CVE+" on "+t.AssetName+": "+step.Title), maxProposeWhy)
 		res, err := s.Propose(ctx, ProposeBody{Trigger: "finding", ActionID: step.Proposal.ActionID, Params: step.Proposal.Params, Confidence: x.Confidence, Evidence: ev, Why: why})
 		sp := SentProposal{ProposalID: step.Proposal.ID, ActionID: step.Proposal.ActionID, Outcome: res.Outcome}
+		note := sentNote{outcome: res.Outcome, note: res.Note}
 		if err != nil {
 			ae, ok := asAPI(err)
 			if !ok {
-				return err
+				return nil, "", err
 			}
 			sp.Outcome = ae.Code
+			note = sentNote{outcome: ae.Code, note: "Refused (" + ae.Code + "): " + ae.Message}
 		} else if res.Request != nil {
 			sp.RequestID = res.Request.ID
+			note.note = "Sent to the inbox for approval."
 		}
 		sent = append(sent, sp)
+		notes = append(notes, note)
 	}
 	if len(sent) > 0 {
 		s.cfg.Planner.Proposed(ctx, t, sent)
 	}
-	return nil
+	return notes, "", nil
 }
 
 // citedReads keeps, of the reads the AI cited for a proposal, those the box recorded through the connection of that action (D-313):
@@ -279,9 +337,10 @@ func (s *Service) planFailed(id string) {
 }
 
 // savePlan checks the draft and, if it passes, stores it; if not, nothing is stored and the refusal is written to the log and the audit
-// (INV-19, FORBID-5). It returns the stored steps (one per step of the draft, in order), or nil when no plan was stored.
-func (s *Service) savePlan(ctx context.Context, t PlanTarget, d PlanDraft) ([]storedStep, error) {
+// (INV-19, FORBID-5). It returns the stored steps (one per step of the draft, in order), or nil and the reason when no plan was stored.
+func (s *Service) savePlan(ctx context.Context, t PlanTarget, d PlanDraft) ([]storedStep, string, error) {
 	var saved []storedStep
+	refusal := ""
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		var n int
 		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM resp_plans WHERE finding_id = ?`, t.FindingID).Scan(&n); err != nil {
@@ -310,6 +369,7 @@ func (s *Service) savePlan(ctx context.Context, t PlanTarget, d PlanDraft) ([]st
 			steps, reason = s.checkDraft(t, d, cats, cs, never)
 		}
 		if reason != "" {
+			refusal = reason
 			return s.step(ctx, tx, "response.plan_refused", t.FindingID, LogRefused, "plan_invalid: AI plan for "+t.CVE+" refused, nothing stored: "+reason, planActor)
 		}
 		id := newID("plan")
@@ -325,9 +385,9 @@ func (s *Service) savePlan(ctx context.Context, t PlanTarget, d PlanDraft) ([]st
 		return err
 	})
 	if err != nil {
-		return nil, fmt.Errorf("response: store a plan: %w", err)
+		return nil, "", fmt.Errorf("response: store a plan: %w", err)
 	}
-	return saved, nil
+	return saved, refusal, nil
 }
 
 // checkDraft turns a draft into stored steps, or says why it cannot. Everything of a proposal that is kept comes from the catalog and from

@@ -20,7 +20,8 @@ import { EmergencyStop } from './parts'
 import { NeverTouch } from './NeverTouch'
 import type { SettingsView, Window } from './types'
 
-function EnableDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+/** The only way to turn execution on (D-41): admin, two-step sign-in, the exact phrase. Also opened by the guided setup of the inbox (D-513). */
+export function EnableDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { t } = useTranslation('response')
   const me = useMe()
   const set = useSetExecution()
@@ -136,7 +137,8 @@ function Form({ s }: { s: SettingsView }) {
   )
 }
 
-export default function ResponseSettings() {
+/** Settings, AI response; also the Settings tab of /response (`embedded`, D-513), where the action catalog and the never-touch list are in the Actions tab. */
+export default function ResponseSettings({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation('response')
   const q = useSettings()
   const set = useSetExecution()
@@ -147,7 +149,7 @@ export default function ResponseSettings() {
   const s = q.data
   return (
     <>
-      <PageHeader title={t('settings.title')} meta={t('settings.description')} stories={['S-RESP-2', 'S-RESP-4']} />
+      {embedded ? <p className="mb-4 max-w-3xl text-[13px] text-muted">{t('settings.description')}</p> : <PageHeader title={t('settings.title')} meta={t('settings.description')} stories={['S-RESP-2', 'S-RESP-4']} />}
       <section>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <p className="rounded-md border border-danger/50 bg-danger-soft px-4 py-3 text-sm font-medium">{t('risk.statement')}</p>
@@ -167,8 +169,7 @@ export default function ResponseSettings() {
             </div>
           ) : null}
           <Form key={JSON.stringify([s.max_per_hour, s.expiry_min, s.approval_channels, s.channels.map((c) => [c.type, c.ready]), s.breaker_max_per_hour, s.multi_target_max, s.maintenance, s.ai])} s={s} />
-          <NeverTouch />
-          <CatalogEditor />
+          {embedded ? null : <><NeverTouch /><CatalogEditor /></>}
         </div>
       </section>
       <EnableDialog open={open} onOpenChange={setOpen} />

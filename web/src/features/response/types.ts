@@ -9,6 +9,7 @@ export type Proposal = z.infer<typeof C.Proposal>
 export type PlanStep = z.infer<typeof C.PlanStep>
 export type Plan = z.infer<typeof C.Plan>
 export type PlanList = z.infer<typeof C.PlanList>
+export type PlannerStatus = z.infer<typeof C.PlannerStatus>
 export type ActionRequest = z.infer<typeof C.ActionRequest>
 export type IncidentPanel = z.infer<typeof C.IncidentPanel>
 export type IncidentOption = z.infer<typeof C.IncidentOption>

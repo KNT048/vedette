@@ -62957,6 +62957,17 @@ func (s *ResponseGetResponsePlansOK) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := s.Planner.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "planner",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -63321,6 +63332,185 @@ func (s ResponseGetResponsePlansOKItemsItemStepsItemProposalState) Validate() er
 	case "tool_unavailable":
 		return nil
 	case "not_publishable":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ResponseGetResponsePlansOKPlanner) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Asked)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "asked",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Blocked.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "blocked",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Considered)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "considered",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Findings == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Findings {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "findings",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Proposed)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "proposed",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ResponseGetResponsePlansOKPlannerBlocked) Validate() error {
+	switch s {
+	case "":
+		return nil
+	case "no_ai":
+		return nil
+	case "ai_paused":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *ResponseGetResponsePlansOKPlannerFindingsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Outcome.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "outcome",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ResponseGetResponsePlansOKPlannerFindingsItemOutcome) Validate() error {
+	switch s {
+	case "proposed":
+		return nil
+	case "noted":
+		return nil
+	case "refused":
+		return nil
+	case "not_sent":
+		return nil
+	case "no_action":
+		return nil
+	case "plan_refused":
+		return nil
+	case "ai_failed":
+		return nil
+	case "ai_unavailable":
+		return nil
+	case "has_plan":
+		return nil
+	case "backed_off":
+		return nil
+	case "later":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -64905,6 +65095,34 @@ func (s *ResponseGetResponseTriggersOKItemsItem) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.AiEvidence == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.AiEvidence {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "ai_evidence",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Fields == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -64947,6 +65165,19 @@ func (s *ResponseGetResponseTriggersOKItemsItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s ResponseGetResponseTriggersOKItemsItemAiEvidenceItem) Validate() error {
+	switch s {
+	case "finding":
+		return nil
+	case "ioc_hit":
+		return nil
+	case "config_read":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ResponseGetResponseTriggersOKItemsItemFieldsItem) Validate() error {

@@ -313,6 +313,14 @@ func (a ActionRequest) masked(full bool) ActionRequest {
 
 // masked hides the header values of every proposal of every plan (a plan's proposal holds the exact change, like a request does).
 func (l PlanList) masked(full bool) PlanList {
+	// The planner's sentences quote the operator log (a refused plan's reason, Propose's answer): a viewer gets the counts and the
+	// outcome codes only (D-513).
+	l.Planner.Findings = slices.Clone(l.Planner.Findings)
+	for i := range l.Planner.Findings {
+		if !full {
+			l.Planner.Findings[i].Reason = ""
+		}
+	}
 	l.Items = slices.Clone(l.Items)
 	for i := range l.Items {
 		l.Items[i].Steps = slices.Clone(l.Items[i].Steps)
@@ -441,6 +449,7 @@ type TriggerInfo struct {
 	Description string         `json:"description"`
 	Fields      []TriggerField `json:"fields"`
 	AIAllowed   bool           `json:"ai_allowed"`
+	AIEvidence  []string       `json:"ai_evidence"` // what proves it to the AI (D-119); empty = the AI may never use it
 }
 
 // Condition is one IF test.
@@ -650,9 +659,10 @@ type Plan struct {
 
 // PlanList is GET /response/plans.
 type PlanList struct {
-	Items       []Plan `json:"items"`
-	AIAvailable bool   `json:"ai_available"`
-	Execution   bool   `json:"execution"`
+	Items       []Plan        `json:"items"`
+	AIAvailable bool          `json:"ai_available"`
+	Execution   bool          `json:"execution"`
+	Planner     PlannerStatus `json:"planner"`
 }
 
 // CatalogAction is an action of the catalog as the API shows it.

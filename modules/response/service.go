@@ -331,6 +331,7 @@ type Service struct {
 
 	limitMu         sync.Mutex
 	planFails       map[string]planAttempt // failed or refused plans per finding (limitMu)
+	planStatus      *PlannerStatus         // the plan job's last run, read-only for GET /response/plans (D-513; limitMu)
 	proposeTimes    []time.Time            // Propose calls of the last hour, any outcome (D-119)
 	proposeSkipped  int                    // calls refused since the last log line
 	proposeLoggedAt time.Time

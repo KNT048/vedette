@@ -133730,6 +133730,7 @@ type ResponseGetResponsePlansOK struct {
 	AiAvailable bool                                  `json:"ai_available"`
 	Execution   bool                                  `json:"execution"`
 	Items       []ResponseGetResponsePlansOKItemsItem `json:"items"`
+	Planner     ResponseGetResponsePlansOKPlanner     `json:"planner"`
 }
 
 // GetAiAvailable returns the value of AiAvailable.
@@ -133747,6 +133748,11 @@ func (s *ResponseGetResponsePlansOK) GetItems() []ResponseGetResponsePlansOKItem
 	return s.Items
 }
 
+// GetPlanner returns the value of Planner.
+func (s *ResponseGetResponsePlansOK) GetPlanner() ResponseGetResponsePlansOKPlanner {
+	return s.Planner
+}
+
 // SetAiAvailable sets the value of AiAvailable.
 func (s *ResponseGetResponsePlansOK) SetAiAvailable(val bool) {
 	s.AiAvailable = val
@@ -133760,6 +133766,11 @@ func (s *ResponseGetResponsePlansOK) SetExecution(val bool) {
 // SetItems sets the value of Items.
 func (s *ResponseGetResponsePlansOK) SetItems(val []ResponseGetResponsePlansOKItemsItem) {
 	s.Items = val
+}
+
+// SetPlanner sets the value of Planner.
+func (s *ResponseGetResponsePlansOK) SetPlanner(val ResponseGetResponsePlansOKPlanner) {
+	s.Planner = val
 }
 
 type ResponseGetResponsePlansOKItemsItem struct {
@@ -134615,6 +134626,307 @@ func (s *ResponseGetResponsePlansOKItemsItemStepsItemProposalState) UnmarshalTex
 		return nil
 	case ResponseGetResponsePlansOKItemsItemStepsItemProposalStateNotPublishable:
 		*s = ResponseGetResponsePlansOKItemsItemStepsItemProposalStateNotPublishable
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponseGetResponsePlansOKPlanner struct {
+	// Of those, how many the AI was asked about.
+	Asked int `json:"asked"`
+	// The run asked nothing: no_ai = no usable AI profile for Response plans (or the AI module is off);
+	// ai_paused = the quality breaker paused AI proposals.
+	Blocked ResponseGetResponsePlansOKPlannerBlocked `json:"blocked"`
+	// Open critical findings the run looked at.
+	Considered int `json:"considered"`
+	// At most 20; the counts cover all.
+	Findings []ResponseGetResponsePlansOKPlannerFindingsItem `json:"findings"`
+	// Requests the run sent to the inbox.
+	Proposed int `json:"proposed"`
+	// Last run of the plan job (every 5 minutes); null = not run since the box started.
+	RanAt NilDateTime `json:"ran_at"`
+	// The execution switch is on and the AI may send requests for critical findings (D-314).
+	Sending bool `json:"sending"`
+}
+
+// GetAsked returns the value of Asked.
+func (s *ResponseGetResponsePlansOKPlanner) GetAsked() int {
+	return s.Asked
+}
+
+// GetBlocked returns the value of Blocked.
+func (s *ResponseGetResponsePlansOKPlanner) GetBlocked() ResponseGetResponsePlansOKPlannerBlocked {
+	return s.Blocked
+}
+
+// GetConsidered returns the value of Considered.
+func (s *ResponseGetResponsePlansOKPlanner) GetConsidered() int {
+	return s.Considered
+}
+
+// GetFindings returns the value of Findings.
+func (s *ResponseGetResponsePlansOKPlanner) GetFindings() []ResponseGetResponsePlansOKPlannerFindingsItem {
+	return s.Findings
+}
+
+// GetProposed returns the value of Proposed.
+func (s *ResponseGetResponsePlansOKPlanner) GetProposed() int {
+	return s.Proposed
+}
+
+// GetRanAt returns the value of RanAt.
+func (s *ResponseGetResponsePlansOKPlanner) GetRanAt() NilDateTime {
+	return s.RanAt
+}
+
+// GetSending returns the value of Sending.
+func (s *ResponseGetResponsePlansOKPlanner) GetSending() bool {
+	return s.Sending
+}
+
+// SetAsked sets the value of Asked.
+func (s *ResponseGetResponsePlansOKPlanner) SetAsked(val int) {
+	s.Asked = val
+}
+
+// SetBlocked sets the value of Blocked.
+func (s *ResponseGetResponsePlansOKPlanner) SetBlocked(val ResponseGetResponsePlansOKPlannerBlocked) {
+	s.Blocked = val
+}
+
+// SetConsidered sets the value of Considered.
+func (s *ResponseGetResponsePlansOKPlanner) SetConsidered(val int) {
+	s.Considered = val
+}
+
+// SetFindings sets the value of Findings.
+func (s *ResponseGetResponsePlansOKPlanner) SetFindings(val []ResponseGetResponsePlansOKPlannerFindingsItem) {
+	s.Findings = val
+}
+
+// SetProposed sets the value of Proposed.
+func (s *ResponseGetResponsePlansOKPlanner) SetProposed(val int) {
+	s.Proposed = val
+}
+
+// SetRanAt sets the value of RanAt.
+func (s *ResponseGetResponsePlansOKPlanner) SetRanAt(val NilDateTime) {
+	s.RanAt = val
+}
+
+// SetSending sets the value of Sending.
+func (s *ResponseGetResponsePlansOKPlanner) SetSending(val bool) {
+	s.Sending = val
+}
+
+// The run asked nothing: no_ai = no usable AI profile for Response plans (or the AI module is off);
+// ai_paused = the quality breaker paused AI proposals.
+type ResponseGetResponsePlansOKPlannerBlocked string
+
+const (
+	ResponseGetResponsePlansOKPlannerBlockedEmpty    ResponseGetResponsePlansOKPlannerBlocked = ""
+	ResponseGetResponsePlansOKPlannerBlockedNoAi     ResponseGetResponsePlansOKPlannerBlocked = "no_ai"
+	ResponseGetResponsePlansOKPlannerBlockedAiPaused ResponseGetResponsePlansOKPlannerBlocked = "ai_paused"
+)
+
+// AllValues returns all ResponseGetResponsePlansOKPlannerBlocked values.
+func (ResponseGetResponsePlansOKPlannerBlocked) AllValues() []ResponseGetResponsePlansOKPlannerBlocked {
+	return []ResponseGetResponsePlansOKPlannerBlocked{
+		ResponseGetResponsePlansOKPlannerBlockedEmpty,
+		ResponseGetResponsePlansOKPlannerBlockedNoAi,
+		ResponseGetResponsePlansOKPlannerBlockedAiPaused,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponseGetResponsePlansOKPlannerBlocked) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponseGetResponsePlansOKPlannerBlockedEmpty:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKPlannerBlockedNoAi:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKPlannerBlockedAiPaused:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponseGetResponsePlansOKPlannerBlocked) UnmarshalText(data []byte) error {
+	switch ResponseGetResponsePlansOKPlannerBlocked(data) {
+	case ResponseGetResponsePlansOKPlannerBlockedEmpty:
+		*s = ResponseGetResponsePlansOKPlannerBlockedEmpty
+		return nil
+	case ResponseGetResponsePlansOKPlannerBlockedNoAi:
+		*s = ResponseGetResponsePlansOKPlannerBlockedNoAi
+		return nil
+	case ResponseGetResponsePlansOKPlannerBlockedAiPaused:
+		*s = ResponseGetResponsePlansOKPlannerBlockedAiPaused
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponseGetResponsePlansOKPlannerFindingsItem struct {
+	AssetName string                                               `json:"asset_name"`
+	Cve       string                                               `json:"cve"`
+	FindingID string                                               `json:"finding_id"`
+	Outcome   ResponseGetResponsePlansOKPlannerFindingsItemOutcome `json:"outcome"`
+	// The box's own sentence.
+	Reason string `json:"reason"`
+}
+
+// GetAssetName returns the value of AssetName.
+func (s *ResponseGetResponsePlansOKPlannerFindingsItem) GetAssetName() string {
+	return s.AssetName
+}
+
+// GetCve returns the value of Cve.
+func (s *ResponseGetResponsePlansOKPlannerFindingsItem) GetCve() string {
+	return s.Cve
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ResponseGetResponsePlansOKPlannerFindingsItem) GetFindingID() string {
+	return s.FindingID
+}
+
+// GetOutcome returns the value of Outcome.
+func (s *ResponseGetResponsePlansOKPlannerFindingsItem) GetOutcome() ResponseGetResponsePlansOKPlannerFindingsItemOutcome {
+	return s.Outcome
+}
+
+// GetReason returns the value of Reason.
+func (s *ResponseGetResponsePlansOKPlannerFindingsItem) GetReason() string {
+	return s.Reason
+}
+
+// SetAssetName sets the value of AssetName.
+func (s *ResponseGetResponsePlansOKPlannerFindingsItem) SetAssetName(val string) {
+	s.AssetName = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ResponseGetResponsePlansOKPlannerFindingsItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ResponseGetResponsePlansOKPlannerFindingsItem) SetFindingID(val string) {
+	s.FindingID = val
+}
+
+// SetOutcome sets the value of Outcome.
+func (s *ResponseGetResponsePlansOKPlannerFindingsItem) SetOutcome(val ResponseGetResponsePlansOKPlannerFindingsItemOutcome) {
+	s.Outcome = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ResponseGetResponsePlansOKPlannerFindingsItem) SetReason(val string) {
+	s.Reason = val
+}
+
+type ResponseGetResponsePlansOKPlannerFindingsItemOutcome string
+
+const (
+	ResponseGetResponsePlansOKPlannerFindingsItemOutcomeProposed      ResponseGetResponsePlansOKPlannerFindingsItemOutcome = "proposed"
+	ResponseGetResponsePlansOKPlannerFindingsItemOutcomeNoted         ResponseGetResponsePlansOKPlannerFindingsItemOutcome = "noted"
+	ResponseGetResponsePlansOKPlannerFindingsItemOutcomeRefused       ResponseGetResponsePlansOKPlannerFindingsItemOutcome = "refused"
+	ResponseGetResponsePlansOKPlannerFindingsItemOutcomeNotSent       ResponseGetResponsePlansOKPlannerFindingsItemOutcome = "not_sent"
+	ResponseGetResponsePlansOKPlannerFindingsItemOutcomeNoAction      ResponseGetResponsePlansOKPlannerFindingsItemOutcome = "no_action"
+	ResponseGetResponsePlansOKPlannerFindingsItemOutcomePlanRefused   ResponseGetResponsePlansOKPlannerFindingsItemOutcome = "plan_refused"
+	ResponseGetResponsePlansOKPlannerFindingsItemOutcomeAiFailed      ResponseGetResponsePlansOKPlannerFindingsItemOutcome = "ai_failed"
+	ResponseGetResponsePlansOKPlannerFindingsItemOutcomeAiUnavailable ResponseGetResponsePlansOKPlannerFindingsItemOutcome = "ai_unavailable"
+	ResponseGetResponsePlansOKPlannerFindingsItemOutcomeHasPlan       ResponseGetResponsePlansOKPlannerFindingsItemOutcome = "has_plan"
+	ResponseGetResponsePlansOKPlannerFindingsItemOutcomeBackedOff     ResponseGetResponsePlansOKPlannerFindingsItemOutcome = "backed_off"
+	ResponseGetResponsePlansOKPlannerFindingsItemOutcomeLater         ResponseGetResponsePlansOKPlannerFindingsItemOutcome = "later"
+)
+
+// AllValues returns all ResponseGetResponsePlansOKPlannerFindingsItemOutcome values.
+func (ResponseGetResponsePlansOKPlannerFindingsItemOutcome) AllValues() []ResponseGetResponsePlansOKPlannerFindingsItemOutcome {
+	return []ResponseGetResponsePlansOKPlannerFindingsItemOutcome{
+		ResponseGetResponsePlansOKPlannerFindingsItemOutcomeProposed,
+		ResponseGetResponsePlansOKPlannerFindingsItemOutcomeNoted,
+		ResponseGetResponsePlansOKPlannerFindingsItemOutcomeRefused,
+		ResponseGetResponsePlansOKPlannerFindingsItemOutcomeNotSent,
+		ResponseGetResponsePlansOKPlannerFindingsItemOutcomeNoAction,
+		ResponseGetResponsePlansOKPlannerFindingsItemOutcomePlanRefused,
+		ResponseGetResponsePlansOKPlannerFindingsItemOutcomeAiFailed,
+		ResponseGetResponsePlansOKPlannerFindingsItemOutcomeAiUnavailable,
+		ResponseGetResponsePlansOKPlannerFindingsItemOutcomeHasPlan,
+		ResponseGetResponsePlansOKPlannerFindingsItemOutcomeBackedOff,
+		ResponseGetResponsePlansOKPlannerFindingsItemOutcomeLater,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponseGetResponsePlansOKPlannerFindingsItemOutcome) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeProposed:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeNoted:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeRefused:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeNotSent:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeNoAction:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomePlanRefused:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeAiFailed:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeAiUnavailable:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeHasPlan:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeBackedOff:
+		return []byte(s), nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeLater:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponseGetResponsePlansOKPlannerFindingsItemOutcome) UnmarshalText(data []byte) error {
+	switch ResponseGetResponsePlansOKPlannerFindingsItemOutcome(data) {
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeProposed:
+		*s = ResponseGetResponsePlansOKPlannerFindingsItemOutcomeProposed
+		return nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeNoted:
+		*s = ResponseGetResponsePlansOKPlannerFindingsItemOutcomeNoted
+		return nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeRefused:
+		*s = ResponseGetResponsePlansOKPlannerFindingsItemOutcomeRefused
+		return nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeNotSent:
+		*s = ResponseGetResponsePlansOKPlannerFindingsItemOutcomeNotSent
+		return nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeNoAction:
+		*s = ResponseGetResponsePlansOKPlannerFindingsItemOutcomeNoAction
+		return nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomePlanRefused:
+		*s = ResponseGetResponsePlansOKPlannerFindingsItemOutcomePlanRefused
+		return nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeAiFailed:
+		*s = ResponseGetResponsePlansOKPlannerFindingsItemOutcomeAiFailed
+		return nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeAiUnavailable:
+		*s = ResponseGetResponsePlansOKPlannerFindingsItemOutcomeAiUnavailable
+		return nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeHasPlan:
+		*s = ResponseGetResponsePlansOKPlannerFindingsItemOutcomeHasPlan
+		return nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeBackedOff:
+		*s = ResponseGetResponsePlansOKPlannerFindingsItemOutcomeBackedOff
+		return nil
+	case ResponseGetResponsePlansOKPlannerFindingsItemOutcomeLater:
+		*s = ResponseGetResponsePlansOKPlannerFindingsItemOutcomeLater
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -136219,16 +136531,23 @@ func (s *ResponseGetResponseTriggersOK) SetItems(val []ResponseGetResponseTrigge
 }
 
 type ResponseGetResponseTriggersOKItemsItem struct {
-	AiAllowed   bool                                               `json:"ai_allowed"`
-	Description string                                             `json:"description"`
-	Fields      []ResponseGetResponseTriggersOKItemsItemFieldsItem `json:"fields"`
-	ID          ResponseGetResponseTriggersOKItemsItemID           `json:"id"`
-	Name        string                                             `json:"name"`
+	AiAllowed bool `json:"ai_allowed"`
+	// Kinds of evidence that prove the trigger to the AI (D-119); empty = the AI may never use it.
+	AiEvidence  []ResponseGetResponseTriggersOKItemsItemAiEvidenceItem `json:"ai_evidence"`
+	Description string                                                 `json:"description"`
+	Fields      []ResponseGetResponseTriggersOKItemsItemFieldsItem     `json:"fields"`
+	ID          ResponseGetResponseTriggersOKItemsItemID               `json:"id"`
+	Name        string                                                 `json:"name"`
 }
 
 // GetAiAllowed returns the value of AiAllowed.
 func (s *ResponseGetResponseTriggersOKItemsItem) GetAiAllowed() bool {
 	return s.AiAllowed
+}
+
+// GetAiEvidence returns the value of AiEvidence.
+func (s *ResponseGetResponseTriggersOKItemsItem) GetAiEvidence() []ResponseGetResponseTriggersOKItemsItemAiEvidenceItem {
+	return s.AiEvidence
 }
 
 // GetDescription returns the value of Description.
@@ -136256,6 +136575,11 @@ func (s *ResponseGetResponseTriggersOKItemsItem) SetAiAllowed(val bool) {
 	s.AiAllowed = val
 }
 
+// SetAiEvidence sets the value of AiEvidence.
+func (s *ResponseGetResponseTriggersOKItemsItem) SetAiEvidence(val []ResponseGetResponseTriggersOKItemsItemAiEvidenceItem) {
+	s.AiEvidence = val
+}
+
 // SetDescription sets the value of Description.
 func (s *ResponseGetResponseTriggersOKItemsItem) SetDescription(val string) {
 	s.Description = val
@@ -136274,6 +136598,54 @@ func (s *ResponseGetResponseTriggersOKItemsItem) SetID(val ResponseGetResponseTr
 // SetName sets the value of Name.
 func (s *ResponseGetResponseTriggersOKItemsItem) SetName(val string) {
 	s.Name = val
+}
+
+type ResponseGetResponseTriggersOKItemsItemAiEvidenceItem string
+
+const (
+	ResponseGetResponseTriggersOKItemsItemAiEvidenceItemFinding    ResponseGetResponseTriggersOKItemsItemAiEvidenceItem = "finding"
+	ResponseGetResponseTriggersOKItemsItemAiEvidenceItemIocHit     ResponseGetResponseTriggersOKItemsItemAiEvidenceItem = "ioc_hit"
+	ResponseGetResponseTriggersOKItemsItemAiEvidenceItemConfigRead ResponseGetResponseTriggersOKItemsItemAiEvidenceItem = "config_read"
+)
+
+// AllValues returns all ResponseGetResponseTriggersOKItemsItemAiEvidenceItem values.
+func (ResponseGetResponseTriggersOKItemsItemAiEvidenceItem) AllValues() []ResponseGetResponseTriggersOKItemsItemAiEvidenceItem {
+	return []ResponseGetResponseTriggersOKItemsItemAiEvidenceItem{
+		ResponseGetResponseTriggersOKItemsItemAiEvidenceItemFinding,
+		ResponseGetResponseTriggersOKItemsItemAiEvidenceItemIocHit,
+		ResponseGetResponseTriggersOKItemsItemAiEvidenceItemConfigRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponseGetResponseTriggersOKItemsItemAiEvidenceItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponseGetResponseTriggersOKItemsItemAiEvidenceItemFinding:
+		return []byte(s), nil
+	case ResponseGetResponseTriggersOKItemsItemAiEvidenceItemIocHit:
+		return []byte(s), nil
+	case ResponseGetResponseTriggersOKItemsItemAiEvidenceItemConfigRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponseGetResponseTriggersOKItemsItemAiEvidenceItem) UnmarshalText(data []byte) error {
+	switch ResponseGetResponseTriggersOKItemsItemAiEvidenceItem(data) {
+	case ResponseGetResponseTriggersOKItemsItemAiEvidenceItemFinding:
+		*s = ResponseGetResponseTriggersOKItemsItemAiEvidenceItemFinding
+		return nil
+	case ResponseGetResponseTriggersOKItemsItemAiEvidenceItemIocHit:
+		*s = ResponseGetResponseTriggersOKItemsItemAiEvidenceItemIocHit
+		return nil
+	case ResponseGetResponseTriggersOKItemsItemAiEvidenceItemConfigRead:
+		*s = ResponseGetResponseTriggersOKItemsItemAiEvidenceItemConfigRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ResponseGetResponseTriggersOKItemsItemFieldsItem struct {

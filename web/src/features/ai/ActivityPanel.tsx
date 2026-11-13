@@ -15,7 +15,8 @@ import type { ActivityEntry, ActivityResult } from './types'
 const RESULTS: ActivityResult[] = ['ok', 'blocked_by_hook', 'fallback_used', 'error']
 const TONE: Record<ActivityResult, Tone> = { ok: 'ok', blocked_by_hook: 'warn', fallback_used: 'accent', error: 'danger' }
 const JOBS = ['ask-my-data', 'explain-finding', 'cve-news', 'log-digest', 'log-investigate', 'mitigation-config', 'weekly-report', 'pdpl-assessment', 'translate-advisory', 'response-plan', 'connection-test']
-const LINK_TO: Record<string, string> = { proposal: '/response', action: '/response' }
+// a proposal and a request are both in the inbox (D-513), named so the link does not depend on which tab opens first
+const LINK_TO: Record<string, string> = { proposal: '/response?tab=requests', action: '/response?tab=requests' }
 
 /** Assistant, Activity (S-AI-8): everything the AI did, newest first. Read only; the chain check shows whether anything was changed. */
 export default function ActivityPanel() {

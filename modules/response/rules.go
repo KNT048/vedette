@@ -456,7 +456,7 @@ func (s *Service) Triggers(ctx context.Context) ([]TriggerInfo, error) {
 	}
 	out := make([]TriggerInfo, len(s.triggers))
 	for i, t := range s.triggers {
-		out[i] = TriggerInfo{ID: t.ID, Name: t.Name, Description: t.Description, Fields: t.Fields, AIAllowed: slices.Contains(st.AI.Triggers, t.ID)}
+		out[i] = TriggerInfo{ID: t.ID, Name: t.Name, Description: t.Description, Fields: t.Fields, AIAllowed: slices.Contains(st.AI.Triggers, t.ID), AIEvidence: append([]string{}, t.AIEvidence...)}
 	}
 	return out, nil
 }

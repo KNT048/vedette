@@ -182,17 +182,17 @@ func parseNmapXML(data []byte) ([]host, error) {
 	dec := xml.NewDecoder(bytes.NewReader(data))
 	dec.Strict = true // an unknown entity is an error; charsets other than UTF-8 are refused (no CharsetReader)
 	var (
-		path   []string
-		hosts  []host
-		cur    *host
-		up     bool
-		port   *portInfo
-		portOK bool
-		match  *osMatch
-		class  *osClass
-		cpeDst *[]string
-		cpeBuf strings.Builder
-		closed bool
+		path    []string
+		hosts   []host
+		cur     *host
+		up      bool
+		port    *portInfo
+		portOK  bool
+		match   *osMatch
+		class   *osClass
+		cpeDst  *[]string
+		cpeBuf  strings.Builder
+		closed  bool
 		ntlm    bool   // inside the <script> of an NTLM script of an open port
 		elemKey string // key of the <elem> being read; "" when none
 		elemBuf strings.Builder

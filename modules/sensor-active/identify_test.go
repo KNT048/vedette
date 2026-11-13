@@ -201,7 +201,7 @@ func TestNTLMAnswerIsReadFailClosed(t *testing.T) {
 		"leading text":          {`<elem key="Product_Version">x10.0.22631</elem>`, ntlmInfo{}},
 		"too long":              {`<elem key="Product_Version">10.0.` + strings.Repeat("1", 300) + `</elem>`, ntlmInfo{}},
 		"name with a space":     {`<elem key="DNS_Computer_Name">evil name</elem>`, ntlmInfo{}},
-		"name with a bidi mark": {"<elem key=\"NetBIOS_Computer_Name\">PC‮EXE</elem>", ntlmInfo{}},
+		"name with a bidi mark": {"<elem key=\"NetBIOS_Computer_Name\">PC\u202eEXE</elem>", ntlmInfo{}},
 		"other key":             {`<elem key="OS">10.0.22631</elem>`, ntlmInfo{}},
 		"the first value wins":  {`<elem key="Product_Version">10.0.20348</elem><elem key="Product_Version">6.1.7601</elem>`, ntlmInfo{version: "10.0.20348"}},
 		"DNS name before NetBIOS": {`<elem key="NetBIOS_Computer_Name">SRV1</elem><elem key="DNS_Computer_Name">srv1.corp.example</elem>`,

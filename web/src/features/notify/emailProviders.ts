@@ -36,3 +36,16 @@ export const EMAIL_PROVIDERS: EmailProvider[] = [
 /** The preset of a saved channel: a channel saved before the presets has none and is Custom SMTP. */
 export const emailProvider = (id: string | undefined) => EMAIL_PROVIDERS.find((p) => p.id === (id || 'custom'))
 export const isOAuth = (a: EmailAuth) => a === 'microsoft_oauth' || a === 'google_oauth'
+
+/**
+ * What a saved email secret was saved for: sign-in method, server and port (channels.go emailBinding, D-449 review). The box sends a
+ * saved secret only there and returns the binding as `fields.secret_for`; a channel saved before it is bound to its own fields.
+ */
+export const emailBinding = (f: Record<string, string | undefined>) => {
+  const port = (f.port ?? '').trim()
+  return `${emailProvider(f.provider)?.auth ?? ''} ${(f.host ?? '').trim().toLowerCase().replace(/\.$/, '')}:${/^[+-]?\d+$/.test(port) ? String(Number(port)) : port}`
+}
+export const savedFor = (f: Record<string, string | undefined>) => f.secret_for || emailBinding(f)
+
+/** The only SMTP server an OAuth2 preset sends its token to (smtp.go oauthHost). */
+export const OAUTH_HOST: Partial<Record<EmailAuth, string>> = { microsoft_oauth: 'smtp.office365.com', google_oauth: 'smtp.gmail.com' }

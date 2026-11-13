@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/smtp"
@@ -55,10 +56,16 @@ const testTenant = "72f988bf-86f1-41af-91ab-2d7cd011db47"
 const testClient = "0a1b2c3d-4e5f-6789-abcd-ef0123456789"
 
 func microsoftCfg(f *fakeSMTP, tokens *fakeTokenService, t *testing.T) EmailConfig {
-	cfg := emailCfg(f, SecurityStartTLS)
+	cfg := oauthAt(f, emailCfg(f, SecurityStartTLS), "smtp.office365.com")
 	cfg.Provider, cfg.TenantID, cfg.ClientID = "microsoft365", testTenant, testClient
 	cfg.Password = secrets.NewValue("Abc8Q~client.secret_value-123")
 	cfg.HTTPClient = clientTo(t, tokens.srv.URL)
+	return cfg
+}
+
+// oauthAt names the provider's own SMTP host (the only one an OAuth2 preset accepts) and connects to the fake instead.
+func oauthAt(f *fakeSMTP, cfg EmailConfig, host string) EmailConfig {
+	cfg.Host, cfg.dialAddr = host, f.ln.Addr().String()
 	return cfg
 }
 
@@ -280,7 +287,7 @@ func TestSMTPTokenServiceRefusals(t *testing.T) {
 			tokens := startTokenService(t, func(string, url.Values) (int, string) { return c.code, c.body })
 			cfg := microsoftCfg(f, tokens, t)
 			if c.google {
-				cfg.Provider, cfg.TenantID, cfg.ClientID, cfg.Password = "google-workspace", "", "", secrets.NewValue(googleKeyFile(t))
+				cfg.Provider, cfg.TenantID, cfg.ClientID, cfg.Password, cfg.Host = "google-workspace", "", "", secrets.NewValue(googleKeyFile(t)), "smtp.gmail.com"
 			}
 			s, err := NewEmail(cfg)
 			if err != nil {
@@ -367,7 +374,7 @@ func TestSMTPGoogleServiceAccountJWT(t *testing.T) {
 		}
 		return 200, `{"access_token":"ya29.google-token","expires_in":3599,"token_type":"Bearer"}`
 	})
-	cfg := emailCfg(f, SecurityStartTLS)
+	cfg := oauthAt(f, emailCfg(f, SecurityStartTLS), "smtp.gmail.com")
 	cfg.Provider, cfg.Password, cfg.HTTPClient, cfg.Now = "google-workspace", secrets.NewValue(googleKeyFile(t)), clientTo(t, tokens.srv.URL), func() time.Time { return now }
 	s, err := NewEmail(cfg)
 	if err != nil {
@@ -392,6 +399,10 @@ func TestSMTPProviderConfigRefusals(t *testing.T) {
 	ecDER, _ := x509.MarshalPKCS8PrivateKey(ec)
 	small, _ := rsa.GenerateKey(rand.Reader, 1024) //nolint:gosec // the key the box must refuse
 	smallDER, _ := x509.MarshalPKCS8PrivateKey(small)
+	bigDER, err := x509.MarshalPKCS8PrivateKey(bigRSA(t))
+	if err != nil {
+		t.Fatal(err)
+	}
 	base := EmailConfig{Host: "smtp.office365.com", Port: 587, Security: SecurityStartTLS, Provider: "microsoft365", Username: "alerts@acme.example",
 		TenantID: testTenant, ClientID: testClient, Password: secrets.NewValue("Abc8Q~client.secret_value-123"), From: "alerts@acme.example", To: []string{"it@acme.example"}}
 	if _, err := NewEmail(base); err != nil {
@@ -429,6 +440,20 @@ func TestSMTPProviderConfigRefusals(t *testing.T) {
 		"key odd kid": {gkey(func(m map[string]string) { m["private_key_id"] = "\"}\r\n" }), "bad_secret"},
 		"key too big": {gkey(func(m map[string]string) { m["padding"] = strings.Repeat("x", maxKeyFile) }), "bad_secret"},
 		"no key":      {func(c *EmailConfig) { *c = google; c.Password = secrets.Value{} }, "secret_required"},
+		"key rsa over 4096": {gkey(func(m map[string]string) {
+			m["private_key"] = string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: bigDER}))
+		}), "bad_secret"},
+		"ms token elsewhere": {func(c *EmailConfig) { c.Host = "smtp.acme.example" }, "bad_host"},
+		"google elsewhere":   {func(c *EmailConfig) { *c = google; c.Host = "smtp.googlemail.evil.example" }, "bad_host"},
+		"password with a NUL": {func(c *EmailConfig) {
+			c.Provider, c.Host, c.Password = "custom", "smtp.acme.example", secrets.NewValue("pass\x00word")
+		}, "bad_secret"},
+		"password with a LF": {func(c *EmailConfig) {
+			c.Provider, c.Host, c.Password = "gmail", "smtp.gmail.com", secrets.NewValue("abcd\nefgh")
+		}, "bad_secret"},
+		"username with a NUL": {func(c *EmailConfig) {
+			c.Provider, c.Host, c.Username = "custom", "smtp.acme.example", "alerts\x00@acme.example"
+		}, "bad_username"},
 	} {
 		cfg := base
 		c.mod(&cfg)
@@ -438,4 +463,77 @@ func TestSMTPProviderConfigRefusals(t *testing.T) {
 		}
 		mustNot(t, errString(err), "Abc8Q", "PRIVATE KEY")
 	}
+}
+
+// bigRSA is a valid 4112-bit RSA key built from two fixed primes: generating one takes seconds, and a PEM private key does not belong
+// in the repository even for a test.
+func bigRSA(t *testing.T) *rsa.PrivateKey {
+	p, _ := new(big.Int).SetString("c6997eee05fbd604ae274f1ec53ef1a4a6aba9e90a514cf43b6aa4e142b88e76a6cb9b4d42dcf6a649af6b64b316162ac3bd98c453cb7266316a0a2da6fd16508a1e9dd6860c6bbfc2046d8825b105f6ed9ee92d42ec837cd54ed9bf7fe3ee6c8a737a59e3de477f22d7fbacdb56bd7c8d14ad0962bebdaf118fa675084136f0d039af3610bc15f899b2dc71f21ec6570aaabcefeeceaa9525fb26c38a71d1c9ef26fc0f4c406585ec16df4996b8c2efb5a0f1c4e64093fd233ca560cb2ad7ddbbcc27fbafd455056f2ba88ddf97c1da1e090c5c4795bcfb3ddc53a0beb146737cf35aab6cc5f7f227e94150dc26c8e53d4bce7810118aa31d0874139c01922ef7", 16)
+	q, _ := new(big.Int).SetString("c7514e69db962e555d1a769f075e74d8e261fb433f8e9ec286898f922d0c461e3b7ae8d87fc6d9f24886b25f289e3e2f1e1ae036dde2deea4c18a6c57df5f7985d4c9a39291a304fa8c5746a253b8f4c7fd30d55e1b0aa8496f63629ce1be1ad8a77e3fcca7c9e6d03b269659fbb5bf1568bae67a659f4814e252f424dd2dd99a34b8947f2241df2063ab1ac770c616f3742ba25ff9b4587e763b7ae46150e8492097154a40854b06d9312eb0bcb2908d8f4e6cd8e3eab64222908f015132c5583b473ca21a58d01263ebe5e0cf9a9cd89aabbf38154ab6d26ab846b9064e194fa07f9a8b31162e29668e4987edf8eddd7245d5b9025ed088cdbb4abd60c4b6fb1", 16)
+	one := big.NewInt(1)
+	phi := new(big.Int).Mul(new(big.Int).Sub(p, one), new(big.Int).Sub(q, one))
+	k := &rsa.PrivateKey{PublicKey: rsa.PublicKey{N: new(big.Int).Mul(p, q), E: 65537}, D: new(big.Int).ModInverse(big.NewInt(65537), phi), Primes: []*big.Int{p, q}}
+	k.Precompute()
+	if err := k.Validate(); err != nil || k.N.BitLen() <= 4096 {
+		t.Fatalf("test key: %v, %d bits", err, k.N.BitLen())
+	}
+	return k
+}
+
+// A server that keeps challenging after the OAuth error challenge gets no third answer: the client gives up, nothing is sent.
+func TestSMTPOAuthEndlessChallengesStop(t *testing.T) {
+	t.Parallel()
+	f := startFakeSMTP(t, &fakeSMTP{starttls: true, mechs: []string{"XOAUTH2"}, user: "alerts@acme.example", token: "the-right-one", endless: true})
+	s, _ := NewEmail(microsoftCfg(f, msTokens(t, "another-token"), t))
+	_, err := s.Send(context.Background(), sample)
+	if err == nil {
+		t.Fatal("sent after an endless challenge")
+	}
+	mustNot(t, err.Error(), "another-token")
+	if _, _, from, _, _ := f.snapshot(); from != "" {
+		t.Errorf("MAIL FROM after a failed sign-in: %q", from)
+	}
+}
+
+// Many senders at once ask for one token: one request, every sender gets it; Clear and a refused token's drop run alongside
+// (the daily -race run checks the locking).
+func TestSMTPTokenCacheIsSharedAndSingleFlight(t *testing.T) {
+	t.Parallel()
+	tokens := msTokens(t, "shared-token")
+	f := startFakeSMTP(t, &fakeSMTP{starttls: true})
+	cache := NewTokenCache()
+	cfg := microsoftCfg(f, tokens, t)
+	cfg.Tokens = cache
+	snd, err := NewEmail(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := snd.(*emailSender)
+	var wg sync.WaitGroup
+	got := make([]string, 16)
+	for i := range got {
+		wg.Go(func() {
+			tok, _, err := e.token(context.Background())
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			got[i] = tok.Reveal()
+		})
+	}
+	wg.Wait()
+	for _, g := range got {
+		if g != "shared-token" {
+			t.Fatalf("tokens %v", got)
+		}
+	}
+	if n := tokens.calls.Load(); n != 1 {
+		t.Fatalf("token requests = %d, want 1", n)
+	}
+	for range 8 {
+		wg.Go(func() { _, _, _ = e.token(context.Background()) })
+		wg.Go(cache.Clear)
+		wg.Go(func() { cache.drop(e.tokenKey()) })
+	}
+	wg.Wait()
 }

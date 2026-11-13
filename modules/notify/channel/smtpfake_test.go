@@ -31,6 +31,7 @@ type fakeSMTP struct {
 	pass     string
 	mechs    []string // AUTH mechanisms offered; nil = PLAIN
 	token    string   // the bearer token XOAUTH2 and OAUTHBEARER accept
+	endless  bool     // after a refused token, challenge again and again instead of answering 535
 
 	mu        sync.Mutex
 	authPlain bool // AUTH arrived before TLS
@@ -53,7 +54,7 @@ func newTLSMaterial(t *testing.T) (tls.Certificate, *x509.CertPool) {
 		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour),
 		KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true, IsCA: true,
-		IPAddresses: []net.IP{net.ParseIP("127.0.0.1")}, DNSNames: []string{"localhost"},
+		IPAddresses: []net.IP{net.ParseIP("127.0.0.1")}, DNSNames: []string{"localhost", "smtp.office365.com", "smtp.gmail.com"},
 	}
 	der, err := x509.CreateCertificate(rand.Reader, tpl, tpl, &key.PublicKey, key)
 	if err != nil {
@@ -218,6 +219,14 @@ func (f *fakeSMTP) auth(line string, r *bufio.Reader, say func(string)) bool {
 		if got != want {
 			say("501 5.5.2 bad answer to the challenge")
 			return true
+		}
+		for f.endless {
+			say("334 " + base64.StdEncoding.EncodeToString([]byte(`{"status":"401"}`)))
+			l, err := r.ReadString('\n')
+			if err != nil || strings.HasPrefix(l, "*") {
+				say("501 5.7.0 cancelled")
+				return err == nil
+			}
 		}
 		say("535 5.7.8 token not accepted " + initial())
 		return true

@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/knt048/vedette/core/secrets"
 )
@@ -61,6 +62,9 @@ type EmailConfig struct {
 	// AllowLoopback is for tests only (the fake SMTP servers of the notify and cmd/vedette tests listen on 127.0.0.1); production
 	// code never sets it: core never runs on the host network, so loopback is core itself.
 	AllowLoopback bool
+	// dialAddr, when set, is where the session connects instead of Host:Port (tests: the OAuth2 presets accept only the provider's
+	// own host name, and the fake server listens on 127.0.0.1). TLS still verifies Host.
+	dialAddr string
 }
 
 const (
@@ -161,6 +165,11 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 			return nil, cfgErr("insecure_smtp", "Unencrypted SMTP is only allowed for a server on your internal network. Choose STARTTLS or SSL/TLS.")
 		}
 	case auth == AuthMicrosoft || auth == AuthGoogle:
+		// The token goes only to the provider's own server: .default carries every permission of the app, so a token sent to a server
+		// the admin typed by mistake (or on purpose) is a live credential there (D-449 review).
+		if want := oauthHost[auth]; host != want {
+			return nil, cfgErr("bad_host", "This sign-in sends its token only to "+want+". Enter "+want+" as the SMTP server.")
+		}
 		if !validEmail(cfg.Username) {
 			return nil, cfgErr("bad_username", "Enter the mailbox Vedette sends as, for example alerts@company.com.")
 		}
@@ -195,8 +204,11 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 		if !isSet(cfg.Password) {
 			return nil, cfgErr("secret_required", "Enter the SMTP password. This channel has no saved key yet.")
 		}
-		if auth == AuthTokenAsUser && !validHeaderText(cfg.Password.Reveal()) {
-			return nil, cfgErr("bad_secret", "The server API token is one line of letters, digits and dashes. Copy it again from the server's API Tokens tab in Postmark.")
+		if p := cfg.Password.Reveal(); len(p) > 1024 || strings.ContainsFunc(p, unicode.IsControl) {
+			if auth == AuthTokenAsUser {
+				return nil, cfgErr("bad_secret", "The server API token is one line of letters, digits and dashes. Copy it again from the server's API Tokens tab in Postmark.")
+			}
+			return nil, cfgErr("bad_secret", "The password has a control character (such as a line break) or is too long. Copy it again.")
 		}
 	}
 	if !validEmail(cfg.From) {
@@ -218,9 +230,13 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 	if tokens == nil {
 		tokens = NewTokenCache()
 	}
+	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
+	if cfg.dialAddr != "" {
+		addr = cfg.dialAddr
+	}
 	return &emailSender{
 		cfg:    cfg,
-		addr:   net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port)),
+		addr:   addr,
 		tls:    &tls.Config{ServerName: cfg.Host, MinVersion: tls.VersionTLS12, RootCAs: cfg.RootCAs},
 		box:    box,
 		auth:   auth,
@@ -229,6 +245,9 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 		tokens: tokens,
 	}, nil
 }
+
+// oauthHost is the only SMTP server each OAuth2 sign-in sends its token to.
+var oauthHost = map[string]string{AuthMicrosoft: "smtp.office365.com", AuthGoogle: "smtp.gmail.com"}
 
 // validHeaderText reports whether s is non-empty printable text with no control characters (SMTP username).
 func validHeaderText(s string) bool {

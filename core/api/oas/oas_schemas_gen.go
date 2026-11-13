@@ -89052,9 +89052,10 @@ type NotifyGetNotifyChannelsOKChannelsItem struct {
 	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
 	// absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365
 	// and google-workspace; none for postmark, whose server token is the secret), tenant_id and client_id
-	// (microsoft365 only), from, to · webhook url (a secret: sealed on save, returned only as
-	// scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the
-	// saved one) · slack label (optional), channel_id (approvals only).
+	// (microsoft365 only), from, to, secret_for (written by the box: the sign-in method, server and port
+	// the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on
+	// save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as
+	// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
 	Fields      NotifyGetNotifyChannelsOKChannelsItemFields      `json:"fields"`
 	LastTest    NilNotifyGetNotifyChannelsOKChannelsItemLastTest `json:"last_test"`
 	MinSeverity NotifyGetNotifyChannelsOKChannelsItemMinSeverity `json:"min_severity"`
@@ -89221,9 +89222,10 @@ func (s *NotifyGetNotifyChannelsOKChannelsItemApproversItem) SetUserID(val strin
 // custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
 // absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365
 // and google-workspace; none for postmark, whose server token is the secret), tenant_id and client_id
-// (microsoft365 only), from, to · webhook url (a secret: sealed on save, returned only as
-// scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the
-// saved one) · slack label (optional), channel_id (approvals only).
+// (microsoft365 only), from, to, secret_for (written by the box: the sign-in method, server and port
+// the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on
+// save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as
+// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
 type NotifyGetNotifyChannelsOKChannelsItemFields map[string]string
 
 func (s *NotifyGetNotifyChannelsOKChannelsItemFields) init() NotifyGetNotifyChannelsOKChannelsItemFields {
@@ -92165,9 +92167,10 @@ type NotifyPutNotifyChannelsTypeOK struct {
 	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
 	// absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365
 	// and google-workspace; none for postmark, whose server token is the secret), tenant_id and client_id
-	// (microsoft365 only), from, to · webhook url (a secret: sealed on save, returned only as
-	// scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the
-	// saved one) · slack label (optional), channel_id (approvals only).
+	// (microsoft365 only), from, to, secret_for (written by the box: the sign-in method, server and port
+	// the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on
+	// save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as
+	// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
 	Fields      NotifyPutNotifyChannelsTypeOKFields      `json:"fields"`
 	LastTest    NilNotifyPutNotifyChannelsTypeOKLastTest `json:"last_test"`
 	MinSeverity NotifyPutNotifyChannelsTypeOKMinSeverity `json:"min_severity"`
@@ -92334,9 +92337,10 @@ func (s *NotifyPutNotifyChannelsTypeOKApproversItem) SetUserID(val string) {
 // custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
 // absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365
 // and google-workspace; none for postmark, whose server token is the secret), tenant_id and client_id
-// (microsoft365 only), from, to · webhook url (a secret: sealed on save, returned only as
-// scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the
-// saved one) · slack label (optional), channel_id (approvals only).
+// (microsoft365 only), from, to, secret_for (written by the box: the sign-in method, server and port
+// the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on
+// save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as
+// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
 type NotifyPutNotifyChannelsTypeOKFields map[string]string
 
 func (s *NotifyPutNotifyChannelsTypeOKFields) init() NotifyPutNotifyChannelsTypeOKFields {

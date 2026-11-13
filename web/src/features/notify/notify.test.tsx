@@ -792,7 +792,7 @@ describe('notify: email providers (S-NOT-1, D-449)', () => {
     await expectNoA11yViolations(dlg)
   })
 
-  it('Microsoft 365: wrong IDs show under their fields; the saved password is not a client secret; a full form saves', async () => {
+  it('Microsoft 365: wrong IDs show under their fields first; the saved password is not a client secret; a full form saves', async () => {
     const dlg = await openEmail()
     await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'microsoft365')
     const mailbox = within(dlg).getByLabelText('Mailbox to send as')
@@ -803,14 +803,14 @@ describe('notify: email providers (S-NOT-1, D-449)', () => {
     await userEvent.type(within(dlg).getByLabelText('Client ID'), '0a1b2c3d-4e5f-6789-abcd-ef0123456789')
     const save = () => userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
     await save()
-    // the sign-in method changed: the saved SMTP password is not kept as the client secret
-    const secret = within(dlg).getByLabelText('Client secret')
-    await waitFor(() => expect(secret).toHaveAccessibleDescription(/^Enter the client secret: the sign-in method changed/))
-    await userEvent.type(secret, 'Abc8Q~client.secret_value-123')
-    await save()
     await waitFor(() => expect(tenant).toHaveAccessibleDescription(/^The tenant ID is the Directory \(tenant\) ID/))
     await userEvent.clear(tenant)
     await userEvent.type(tenant, '72f988bf-86f1-41af-91ab-2d7cd011db47')
+    await save()
+    // the sign-in method changed: the saved SMTP password is not kept as the client secret
+    const secret = within(dlg).getByLabelText('Client secret')
+    await waitFor(() => expect(secret).toHaveAccessibleDescription(/^Enter the client secret again: the sign-in method, the server or the port changed/))
+    await userEvent.type(secret, 'Abc8Q~client.secret_value-123')
     await save()
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     const em = await emailOf()
@@ -832,6 +832,37 @@ describe('notify: email providers (S-NOT-1, D-449)', () => {
     await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect((await emailOf()).fields.provider).toBe('google-workspace')
+  })
+
+  it('a saved secret goes only to the method, server and port it was saved for; a save without encryption between deletes it (D-449 review)', async () => {
+    await openEmail()
+    const ms = { enabled: true, min_severity: 'high', fields: { provider: 'microsoft365', host: 'smtp.office365.com', port: '587', security: 'starttls', username: 'alerts@acme.example', tenant_id: '72f988bf-86f1-41af-91ab-2d7cd011db47', client_id: '0a1b2c3d-4e5f-6789-abcd-ef0123456789', from: 'alerts@acme.example', to: 'it@acme.example' }, secret: 'Abc8Q~client.secret_value-123' }
+    const code = async (b: unknown) => { const r = await put(b); return r.ok ? 'ok' : ((await r.json()) as { error: { code: string } }).error.code }
+    expect(await code(ms)).toBe('ok')
+    expect(await code({ ...ms, fields: { ...ms.fields, host: 'smtp.attacker.example' } })).toBe('bad_host') // the token goes to Microsoft only
+    // two steps: Custom without encryption (no secret needed: the client secret is deleted), then STARTTLS has nothing to send
+    expect(await code({ enabled: true, min_severity: 'high', fields: { provider: 'custom', host: '192.168.1.25', port: '25', security: 'none', from: 'alerts@acme.example', to: 'it@acme.example' } })).toBe('ok')
+    expect((await emailOf()).secret_last4).toBeNull()
+    const tls = { enabled: true, min_severity: 'high', fields: { provider: 'custom', host: 'smtp.attacker.example', port: '587', security: 'starttls', username: 'x', from: 'alerts@acme.example', to: 'it@acme.example' } }
+    expect(await code(tls)).toBe('secret_required')
+    // a password saved for one server is not sent to another server or port
+    expect(await code({ ...tls, secret: 'pass-word-1' })).toBe('ok')
+    expect(await code({ ...tls, fields: { ...tls.fields, host: 'smtp.other.example' } })).toBe('secret_required')
+    expect(await code({ ...tls, fields: { ...tls.fields, port: '2525' } })).toBe('secret_required')
+    expect(await code({ ...tls, fields: { ...tls.fields, to: 'director@acme.example' } })).toBe('ok')
+    expect(await code({ ...tls, secret: 'pass\nword' })).toBe('bad_secret')
+  })
+
+  it('the dialog says the saved password is kept only while server, port and method stay; OAuth presets lock the server', async () => {
+    const dlg = await openEmail()
+    const secret = within(dlg).getByLabelText('SMTP password')
+    expect(secret).toHaveAccessibleDescription(/m3Tz/) // the saved one, for this server
+    const host = within(dlg).getByLabelText('SMTP server')
+    await userEvent.type(host, 'x')
+    expect(secret).not.toHaveAccessibleDescription(/m3Tz/)
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'google-workspace')
+    expect(within(dlg).getByLabelText('SMTP server')).toHaveAttribute('readonly')
+    expect(within(dlg).getByLabelText('SMTP server')).toHaveValue('smtp.gmail.com')
   })
 
   it('the mock refuses as the box does: unknown preset, bad key, OAuth without encryption; Postmark keeps no username', async () => {

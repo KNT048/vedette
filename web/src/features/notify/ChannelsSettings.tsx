@@ -17,7 +17,7 @@ import { useCan } from '@/lib/session'
 import { useUsers } from '@/features/core/api'
 import { checkFeedUrl } from '@/features/feeds/defaults'
 import History from './History'
-import { EMAIL_PROVIDERS, emailProvider, isOAuth, type EmailProvider } from './emailProviders'
+import { EMAIL_PROVIDERS, OAUTH_HOST, emailBinding, emailProvider, isOAuth, savedFor, type EmailProvider } from './emailProviders'
 import { useChannels, useRemoveChannel, useSaveChannel, useSaveRules, useTestChannel } from './api'
 import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
 import type { Approver, Channel, Grouping, Quiet, RouteSeverity } from './types'
@@ -48,7 +48,7 @@ function keyAccount(text: string): string | null {
 function emailKeys(p: EmailProvider, k: string, part: 'label' | 'hint') {
   const mailbox = p.group === 'password' && p.id !== 'custom'
   const variants = k === 'username' ? [p.id, isOAuth(p.auth) ? 'oauth' : mailbox ? 'mailbox' : '']
-    : k === 'secret' ? [p.id, p.auth, mailbox && p.id !== 'zoho' ? 'app' : '', p.id !== 'custom' ? 'service' : ''] : [p.id]
+    : k === 'secret' ? [p.id, p.auth, mailbox && p.id !== 'zoho' ? 'app' : '', p.id !== 'custom' ? 'service' : ''] : [p.id, k === 'host' && isOAuth(p.auth) ? 'oauth' : '']
   return [...variants.filter(Boolean).map((v) => `channels.f.email.${k}.${part}_${v}`), `channels.f.email.${k}.${part}`]
 }
 
@@ -69,8 +69,8 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
   const [keyOf, setKeyOf] = useState<string | null>(null) // the service account of a chosen Google key file
   // Email presets (D-449): the preset decides which fields show and what the secret is; a saved secret counts only for the same sign-in.
   const prov = emailProvider(fields.provider) ?? EMAIL_PROVIDERS[0]!
-  const savedAuth = emailProvider(channel.fields.provider)?.auth
-  const keepsSecret = !!channel.secret_last4 && (type !== 'email' || savedAuth === prov.auth)
+  // the box sends a saved secret only to the method, server and port it was saved for (D-449 review): say so before saving
+  const keepsSecret = !!channel.secret_last4 && (type !== 'email' || savedFor(channel.fields) === emailBinding(fields))
   const [min, setMin] = useState<RouteSeverity>(channel.min_severity)
   const [approvals, setApprovals] = useState(channel.approvals)
   const [approvers, setApprovers] = useState<Approver[]>(channel.approvers)
@@ -197,7 +197,7 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
             const hint = type === 'webhook' && k === 'url' && channel.fields.url ? t('channels.urlSaved', { url: channel.fields.url }) : type === 'email' ? t(emailKeys(prov, k, 'hint')) : t(`channels.f.${type}.${k}.hint`)
             return (
               <Field key={k} label={label} hint={hint} htmlFor={id} error={fieldErr[k]}>
-                <Input id={id} value={fields[k] ?? ''} type={k === 'port' ? 'number' : 'text'} onChange={(e) => set(k, e.target.value)} autoComplete="off" {...aria(id, k)} />
+                <Input id={id} value={fields[k] ?? ''} type={k === 'port' ? 'number' : 'text'} readOnly={type === 'email' && k === 'host' && !!OAUTH_HOST[prov.auth]} onChange={(e) => set(k, e.target.value)} autoComplete="off" {...aria(id, k)} />
               </Field>
             )
           })}

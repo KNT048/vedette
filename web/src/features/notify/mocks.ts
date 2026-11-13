@@ -9,7 +9,7 @@ import { collection, daysAgo, newId, nowIso } from '@/mocks/db'
 import type { Severity } from '@/lib/types'
 import { isInternalHost } from '@/features/feeds/defaults'
 import { CHANNEL_TYPES, FIELDS, OWN_TEXT, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
-import { emailProvider, isOAuth } from './emailProviders'
+import { OAUTH_HOST, emailBinding, emailProvider, isOAuth, savedFor } from './emailProviders'
 import type { Approver, Channel, ChannelInput, ChannelType, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult } from './types'
 
 const SEV: Record<Severity, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' }
@@ -191,8 +191,9 @@ const ONE_LINE = /^[^\u0000-\u001f\u007f]+$/
 function validateEmail(f: Record<string, string>, secret: string, cur: StoredChannel) {
   const prov = emailProvider(f.provider)
   if (!prov) return fail(400, 'bad_provider', 'Choose an email provider from the list, or Custom SMTP.')
-  const was = emailProvider(cur.fields.provider)?.auth
-  if (!secret && cur.secret && was !== prov.auth && f.security !== 'none') return fail(400, 'secret_required', `Enter the ${SECRET_NAME[prov.auth]}: the sign-in method changed, and a saved secret is only used with the method it was saved for.`)
+  // a saved secret goes only where it was saved for (D-449 review): another method, server or port needs it again
+  const rebind = !secret && !!cur.secret && savedFor(cur.fields) !== emailBinding(f)
+  const needSecret = (msg: string) => fail(400, 'secret_required', rebind ? `Enter the ${SECRET_NAME[prov.auth]} again: the sign-in method, the server or the port changed, and a saved secret is only sent where it was saved for.` : msg)
   // SaveChannel reads the port and the recipients before the adapter checks the rest (channels.go newSender).
   const portText = (f.port ?? '').trim()
   if (!/^[+-]?\d+$/.test(portText)) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
@@ -210,27 +211,29 @@ function validateEmail(f: Record<string, string>, secret: string, cur: StoredCha
   if (!['starttls', 'ssl', 'none'].includes(f.security ?? '')) return fail(400, 'bad_security', 'Choose an encryption type: STARTTLS, SSL/TLS or none.')
   if (f.security === 'ssl' && port === 587) return fail(400, 'port_mismatch', 'Port 587 uses STARTTLS, not SSL/TLS. Choose STARTTLS, or change the port to 465 for SSL/TLS.')
   if (f.security === 'starttls' && port === 465) return fail(400, 'port_mismatch', 'Port 465 uses SSL/TLS, not STARTTLS. Choose SSL/TLS, or change the port to 587 for STARTTLS.')
-  const has = !!(secret || cur.secret)
+  const has = !!secret || (!!cur.secret && !rebind)
+  const pinned = OAUTH_HOST[prov.auth]
   if (f.security === 'none') {
     if (prov.auth !== 'password') return fail(400, 'bad_security', 'This provider signs in, so the connection must be encrypted. Choose STARTTLS or SSL/TLS.')
     // the adapter's insecure_smtp, which the API answers as bad_security (channels.go apiConfigCode); no login without encryption
     if (!isInternalHost(host)) return fail(400, 'bad_security', 'Unencrypted SMTP is only allowed for a server on your internal network. Choose STARTTLS or SSL/TLS.')
   } else if (isOAuth(prov.auth)) {
+    if (pinned && host.toLowerCase().replace(/\.$/, '') !== pinned) return fail(400, 'bad_host', `This sign-in sends its token only to ${pinned}. Enter ${pinned} as the SMTP server.`)
     if (!EMAIL_RE.test((f.username ?? '').trim())) return fail(400, 'bad_username', 'Enter the mailbox Vedette sends as, for example alerts@company.com.')
     if (prov.auth === 'microsoft_oauth') {
       const tenant = (f.tenant_id ?? '').trim()
       if (!GUID_RE.test(tenant) && !DOMAIN_RE.test(tenant)) return fail(400, 'bad_tenant_id', 'The tenant ID is the Directory (tenant) ID of the app registration, for example 72f988bf-86f1-41af-91ab-2d7cd011db47, or your domain such as company.onmicrosoft.com.')
       if (!GUID_RE.test((f.client_id ?? '').trim())) return fail(400, 'bad_client_id', 'The client ID is the Application (client) ID of the app registration, for example 0a1b2c3d-4e5f-6789-abcd-ef0123456789.')
-      if (!has) return fail(400, 'secret_required', 'Enter the client secret of the app registration.')
+      if (!has) return needSecret('Enter the client secret of the app registration.')
       if (secret && (secret.length > 256 || !ONE_LINE.test(secret))) return fail(400, 'bad_secret', 'The client secret is the Value of a secret under Certificates & secrets of the app registration (not its Secret ID). Copy it again.')
     } else {
-      if (!has) return fail(400, 'secret_required', 'Choose the JSON key file of the service account.')
+      if (!has) return needSecret('Choose the JSON key file of the service account.')
       if (secret && !googleKeyOk(secret)) return fail(400, 'bad_secret', BAD_KEY)
     }
   } else {
-    if (prov.auth !== 'token_as_user' && !f.username?.trim()) return fail(400, 'bad_username', 'Enter the SMTP username (usually the email address).')
-    if (!has) return fail(400, 'secret_required', 'Enter the SMTP password. This channel has no saved key yet.')
-    if (prov.auth === 'token_as_user' && secret && !ONE_LINE.test(secret)) return fail(400, 'bad_secret', "The server API token is one line of letters, digits and dashes. Copy it again from the server's API Tokens tab in Postmark.")
+    if (prov.auth !== 'token_as_user' && (!f.username?.trim() || !ONE_LINE.test(f.username))) return fail(400, 'bad_username', 'Enter the SMTP username (usually the email address).')
+    if (!has) return needSecret('Enter the SMTP password. This channel has no saved key yet.')
+    if (secret && (secret.length > 1024 || !ONE_LINE.test(secret))) return fail(400, 'bad_secret', prov.auth === 'token_as_user' ? "The server API token is one line of letters, digits and dashes. Copy it again from the server's API Tokens tab in Postmark." : 'The password has a control character (such as a line break) or is too long. Copy it again.')
   }
   if (!EMAIL_RE.test((f.from ?? '').trim())) return fail(400, 'bad_from', 'The sender email is not valid, for example alerts@company.com.')
   return null
@@ -398,7 +401,10 @@ export const handlers = [
     const secret = (b.secret ?? '').trim()
     const approvals = b.approvals === true
     const approvers = approvals ? (b.approvers ?? []).map((a) => ({ user_id: a.user_id, address: a.address.trim() })) : []
-    const next: StoredChannel = { ...cur, configured: true, enabled: b.enabled === true, fields, secret: secret ? secret : cur.secret, ...(type === 'webhook' ? { url: webhookUrl(b.fields ?? {}, cur) } : {}), min_severity: b.min_severity!, last_test: null, approvals, approvers,
+    // email: the saved secret stays only for the method, server and port it was saved for; a save that needs none deletes it (D-449 review)
+    const kept = type !== 'email' || savedFor(cur.fields) === emailBinding(fields) ? cur.secret : ''
+    if (type === 'email' && (secret || kept)) fields.secret_for = emailBinding(fields)
+    const next: StoredChannel = { ...cur, configured: true, enabled: b.enabled === true, fields, secret: secret ? secret : kept, ...(type === 'webhook' ? { url: webhookUrl(b.fields ?? {}, cur) } : {}), min_severity: b.min_severity!, last_test: null, approvals, approvers,
       app_token: type === 'slack' ? (b.app_token?.trim() || cur.app_token) : undefined, bot_token: type === 'slack' ? (b.bot_token?.trim() || cur.bot_token) : undefined }
     channels.update((l) => [...l.filter((c) => c.type !== type), next])
     audit('notify.channel_save', type, `${next.enabled ? 'on' : 'off'}${approvals ? `, approvals on (${approvers.length} approver${approvers.length === 1 ? '' : 's'})` : ''}`)

@@ -132,7 +132,7 @@ func parseGoogleKey(raw string) (googleKey, error) {
 		return googleKey{}, bad
 	}
 	rk, ok := key.(*rsa.PrivateKey)
-	if err != nil || !ok || rk.N.BitLen() < 2048 {
+	if err != nil || !ok || rk.N.BitLen() < 2048 || rk.N.BitLen() > 4096 { // Google makes 2048-bit keys; a huge key is a slow signature per token
 		return googleKey{}, bad
 	}
 	return googleKey{email: f.ClientEmail, kid: f.PrivateKeyID, key: rk}, nil
@@ -167,8 +167,15 @@ func googleAssertion(k googleKey, sub string, now time.Time) (string, error) {
 // builds (alerts, approval mails, two-step codes). The key is a hash of everything that identifies the token, the secret included,
 // so a changed configuration never reuses an old token. Tokens live in memory only.
 type TokenCache struct {
-	mu sync.Mutex
-	m  map[[32]byte]cachedToken
+	mu      sync.Mutex
+	m       map[[32]byte]cachedToken
+	flights map[[32]byte]*tokenFlight // fetches under way: one per key, the other senders wait for it
+}
+
+type tokenFlight struct {
+	done chan struct{}
+	tok  secrets.Value
+	err  error
 }
 
 type cachedToken struct {
@@ -179,16 +186,44 @@ type cachedToken struct {
 const maxCachedTokens = 16
 
 // NewTokenCache returns an empty cache.
-func NewTokenCache() *TokenCache { return &TokenCache{m: map[[32]byte]cachedToken{}} }
+func NewTokenCache() *TokenCache {
+	return &TokenCache{m: map[[32]byte]cachedToken{}, flights: map[[32]byte]*tokenFlight{}}
+}
 
-func (c *TokenCache) get(k [32]byte, now time.Time) (secrets.Value, bool) {
+// Clear forgets every token (the service calls it when the email channel is saved or removed).
+func (c *TokenCache) Clear() {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	t, ok := c.m[k]
-	if !ok || !now.Before(t.until) {
-		return secrets.Value{}, false
+	clear(c.m)
+	c.mu.Unlock()
+}
+
+// once returns the cached token of key k, or waits for the fetch of k under way, or runs fetch (which caches what it gets) while the
+// others wait: one request per key at a time. The cache is read under the same lock that starts a fetch, so a sender that comes after
+// a fetch ended finds its token. A waiter stops at its own ctx; the fetch runs under the context of the sender that started it.
+func (c *TokenCache) once(ctx context.Context, k [32]byte, now time.Time, fetch func() (secrets.Value, error)) (secrets.Value, error) {
+	c.mu.Lock()
+	if t, ok := c.m[k]; ok && now.Before(t.until) {
+		c.mu.Unlock()
+		return t.token, nil
 	}
-	return t.token, true
+	if f, ok := c.flights[k]; ok {
+		c.mu.Unlock()
+		select {
+		case <-f.done:
+			return f.tok, f.err
+		case <-ctx.Done():
+			return secrets.Value{}, fmt.Errorf("notify: email: token: %s", transportReason(ctx.Err(), nil))
+		}
+	}
+	f := &tokenFlight{done: make(chan struct{})}
+	c.flights[k] = f
+	c.mu.Unlock()
+	f.tok, f.err = fetch()
+	c.mu.Lock()
+	delete(c.flights, k)
+	c.mu.Unlock()
+	close(f.done)
+	return f.tok, f.err
 }
 
 func (c *TokenCache) put(k [32]byte, tok secrets.Value, until, now time.Time) {
@@ -223,9 +258,12 @@ func (e *emailSender) tokenKey() [32]byte {
 func (e *emailSender) token(ctx context.Context) (secrets.Value, [32]byte, error) {
 	k := e.tokenKey()
 	now := e.cfg.Now()
-	if t, ok := e.tokens.get(k, now); ok {
-		return t, k, nil
-	}
+	t, err := e.tokens.once(ctx, k, now, func() (secrets.Value, error) { return e.fetchToken(ctx, k, now) })
+	return t, k, err
+}
+
+// fetchToken asks the token service for a new token and caches it.
+func (e *emailSender) fetchToken(ctx context.Context, k [32]byte, now time.Time) (secrets.Value, error) {
 	var form url.Values
 	var endpoint, who string
 	if e.auth == AuthMicrosoft {
@@ -235,28 +273,28 @@ func (e *emailSender) token(ctx context.Context) (secrets.Value, [32]byte, error
 		endpoint, who = googleTokenURL, "Google"
 		jwt, err := googleAssertion(e.gkey, e.cfg.Username, now)
 		if err != nil {
-			return secrets.Value{}, k, fmt.Errorf("notify: email: sign the token request: %w", err)
+			return secrets.Value{}, fmt.Errorf("notify: email: sign the token request: %w", err)
 		}
 		form = url.Values{"grant_type": {"urn:ietf:params:oauth:grant-type:jwt-bearer"}, "assertion": {jwt}}
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
 	if err != nil {
-		return secrets.Value{}, k, fmt.Errorf("notify: email: token request: %w", err)
+		return secrets.Value{}, fmt.Errorf("notify: email: token request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
 	resp, err := e.client.Do(req)
 	if err != nil {
 		if ctx.Err() != nil {
-			return secrets.Value{}, k, fmt.Errorf("notify: email: token: %s", transportReason(ctx.Err(), nil))
+			return secrets.Value{}, fmt.Errorf("notify: email: token: %s", transportReason(ctx.Err(), nil))
 		}
 		host := req.URL.Host
-		return secrets.Value{}, k, &SignInError{Msg: "Vedette could not reach " + who + "'s sign-in service (" + host + "). Check the box's internet access and DNS."}
+		return secrets.Value{}, &SignInError{Msg: "Vedette could not reach " + who + "'s sign-in service (" + host + "). Check the box's internet access and DNS."}
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxTokenBody+1))
 	if err != nil || len(body) > maxTokenBody {
-		return secrets.Value{}, k, &SignInError{Msg: who + "'s sign-in service sent an answer Vedette cannot read."}
+		return secrets.Value{}, &SignInError{Msg: who + "'s sign-in service sent an answer Vedette cannot read."}
 	}
 	var tr struct {
 		AccessToken string          `json:"access_token"`
@@ -270,17 +308,17 @@ func (e *emailSender) token(ctx context.Context) (secrets.Value, [32]byte, error
 		if jerr == nil && oauthCodeRE.MatchString(tr.Error) {
 			code = tr.Error
 		}
-		return secrets.Value{}, k, &SignInError{Msg: e.tokenRefusal(code, resp.StatusCode)}
+		return secrets.Value{}, &SignInError{Msg: e.tokenRefusal(code, resp.StatusCode)}
 	}
 	if jerr != nil || len(tr.AccessToken) > maxAccess || !accessRE.MatchString(tr.AccessToken) || (tr.TokenType != "" && !strings.EqualFold(tr.TokenType, "bearer")) {
-		return secrets.Value{}, k, &SignInError{Msg: who + "'s sign-in service sent an answer Vedette cannot read."}
+		return secrets.Value{}, &SignInError{Msg: who + "'s sign-in service sent an answer Vedette cannot read."}
 	}
 	tok := secrets.NewValue(tr.AccessToken)
 	life, _ := strconv.Atoi(strings.Trim(string(tr.ExpiresIn), `"`))
 	if d := time.Duration(min(max(life, 0), int(maxTokenLife/time.Second))) * time.Second; d > tokenSkew {
 		e.tokens.put(k, tok, now.Add(d-tokenSkew), now) // a token that lives less than the skew is used once and not kept
 	}
-	return tok, k, nil
+	return tok, nil
 }
 
 // tokenRefusal is the sentence for a refusal of the token service. code is the OAuth2 error code (RFC 6749 5.2) when it looks like

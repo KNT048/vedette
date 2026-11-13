@@ -151,7 +151,8 @@
         },
         "host": {
           "label": "SMTP server",
-          "hint": "For example smtp.company.com."
+          "hint": "For example smtp.company.com.",
+          "hint_oauth": "Fixed for this sign-in: Vedette sends the token to the provider's own server only."
         },
         "port": {
           "label": "Port",

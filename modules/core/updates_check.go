@@ -3,12 +3,14 @@ package core
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"database/sql"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -18,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
@@ -42,7 +45,6 @@ const DefaultReleaseBase = "https://github.com/KNT048/vedette/releases/download"
 const (
 	CodeUpdateSourceUnreachable = "update_source_unreachable"
 	CodeUpdateCheckFailed       = "update_check_failed"
-	CodeUpdateNotPublished      = "update_not_published"
 )
 
 const (
@@ -57,10 +59,6 @@ var (
 	versionTokenRE = regexp.MustCompile(`^[0-9A-Za-z.+_-]{1,32}$`)
 	// errStoredInvalid: the index stored earlier no longer verifies.
 	errStoredInvalid = errors.New("core: the stored release index does not verify")
-	// errNotPublished: the source answered 404 for the index (or its signature): no release is published there yet
-	// (D-407, walk 4: a -test.N build with no GitHub release). A 404 on a release's manifest is not this: the index names
-	// that release, so its missing file stays update_source_unreachable.
-	errNotPublished = errors.New("core: no update information is published at the source")
 )
 
 // updCheck is the check side's part of OSHandlers.
@@ -215,7 +213,7 @@ type updateSettings struct {
 // for it (checkFailure's message, never text received from the network).
 type checkErrorView struct {
 	At      time.Time `json:"at"`
-	Code    string    `json:"code"` // CodeUpdateSourceUnreachable | CodeUpdateNotPublished | CodeUpdateCheckFailed
+	Code    string    `json:"code"` // CodeUpdateSourceUnreachable | CodeUpdateCheckFailed ("update_not_published" only in a record of an older version, D-540)
 	Message string    `json:"message"`
 }
 
@@ -529,18 +527,57 @@ func (h *OSHandlers) manifestURL(version string) string {
 
 // ---- POST /core/updates/check ----
 
+// sourceHost is the host the check downloads from (src, else base), for the box's own sentence: from our configuration, never the network.
+func sourceHost(src, base string) string {
+	if src == "" {
+		src = base
+	}
+	if u, err := url.Parse(src); err == nil && u.Host != "" {
+		return u.Host
+	}
+	return "the update source"
+}
+
+// unreachableReason names, in fixed words, why the source could not be reached (M5-181, D-540). It classifies the error;
+// it never copies text received from the network (INV-34), and leaves out the status number.
+func unreachableReason(err error) string {
+	var src errSource
+	var ne net.Error
+	var dns *net.DNSError
+	var cert *tls.CertificateVerificationError
+	switch {
+	case errors.As(err, &dns):
+		return "its name could not be looked up (DNS)"
+	case errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()):
+		return "it did not answer within 30 seconds"
+	case errors.Is(err, syscall.ECONNREFUSED):
+		return "the connection was refused"
+	case errors.Is(err, syscall.ENETUNREACH) || errors.Is(err, syscall.EHOSTUNREACH):
+		return "there is no network route to it from this box"
+	case errors.As(err, &cert):
+		return "its HTTPS certificate was not accepted (check the box clock and any proxy that inspects HTTPS)"
+	case errors.As(err, &src) && src.status == http.StatusNotFound:
+		return "a file that the release index names is missing there"
+	case errors.As(err, &src) && (src.status == http.StatusForbidden || src.status == http.StatusTooManyRequests):
+		return "it refused the request or limited how often this box may ask"
+	case errors.As(err, &src) && src.status >= 500:
+		return "it had a server error"
+	case errors.As(err, &src) && src.status != 0:
+		return "it answered with something other than the file"
+	}
+	return "the connection failed"
+}
+
 // checkFailure turns a failed check into the API error; the remote text is never echoed (it is logged).
 func (h *OSHandlers) checkFailure(ctx context.Context, err error) error {
 	var src errSource
 	switch {
 	case errors.Is(err, context.Canceled):
 		return err
-	case errors.Is(err, errNotPublished):
-		h.log.WarnContext(ctx, "core: the update source has no release information", "error", err)
-		return apierr.New(502, CodeUpdateNotPublished, "No release found yet: the release source answered, but no update information is published there. This is not a network problem and nothing needs fixing on the box.")
 	case errors.As(err, &src) || errors.Is(err, context.DeadlineExceeded):
 		h.log.WarnContext(ctx, "core: the update source could not be reached", "error", err)
-		return apierr.New(503, CodeUpdateSourceUnreachable, "Vedette could not download the update information from GitHub. Check that the box can reach github.com over HTTPS, then try again.")
+		host := sourceHost(h.upd.src, h.upd.base)
+		return apierr.New(503, CodeUpdateSourceUnreachable, "Could not reach the update source ("+host+"): "+unreachableReason(err)+". Try again later; if it keeps happening, check that the box can reach "+host+" over HTTPS.")
 	case errors.Is(err, release.ErrNoTrustKeys):
 		h.log.ErrorContext(ctx, "core: this build has no usable release keys", "error", err)
 		return apierr.New(502, CodeUpdateCheckFailed, "This build of Vedette has no release signing keys, so it cannot check for updates. Install an official build.")
@@ -641,7 +678,22 @@ func (h *OSHandlers) runCheck(ctx context.Context, by string) (string, error) {
 	raw, sig, err := h.fetchPair(ctx, h.upd.base+"/index/index.json")
 	var src errSource
 	if errors.As(err, &src) && src.status == http.StatusNotFound {
-		return "", fmt.Errorf("%w: %w", errNotPublished, err)
+		// M5-181, D-540: the source answered and publishes no release (yet), so nothing is newer than this build: a good
+		// check (Home Assistant, Grafana: "you're on the latest version"), not a 502. The stored index and offer stay.
+		// A 404 on a manifest the index names is not this: it stays update_source_unreachable (fetchOffer).
+		h.log.InfoContext(ctx, "core: update check: no release information is published at the source", "error", err)
+		wctx := context.WithoutCancel(ctx)
+		if err := h.db.Write(wctx, func(tx *sql.Tx) error {
+			cur, err := updSettingsTx(wctx, tx)
+			if err != nil {
+				return err
+			}
+			cur.LastCheck, cur.LastCheckError = h.now().UTC(), nil
+			return h.putSetting(wctx, tx, keyUpdates, cur, by)
+		}); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("running %s, channel %s: nothing offered: no release information is published at the source", h.upd.version, s.Channel), nil
 	}
 	if err != nil {
 		return "", err

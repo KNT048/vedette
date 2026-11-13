@@ -568,7 +568,7 @@
     "footerVersion": "Vedette {{version}}",
     "checkedApplied": "Installed {{count}} new items automatically.",
     "checkedNew": "{{count}} new items. Press Update on the matching row.",
-    "checkedNone": "Everything is up to date.",
+    "checkedNone": "You're on the latest version ({{version}}).",
     "components": "Versions in use",
     "componentsDesc": "Software and confirmed recommendation packs (mitigation guides, scan templates, log parsers) arrive inside signed updates. Vulnerability data is not an update: the box fetches it directly from each source.",
     "comp": {

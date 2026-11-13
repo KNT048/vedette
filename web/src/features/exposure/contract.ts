@@ -66,7 +66,14 @@ export const BoxIpSettings = z.object({
 })
 /** An IP the customer removed and told Vedette not to add again (D-79). The list only blocks, it never allows: restoring only lets detection add the IP again. */
 export const IgnoredIp = z.object({ value: z.string().describe('A public IPv4 address'), ignored_by: z.string(), ignored_at: z.iso.datetime() })
-export const TargetList = z.object({ items: z.array(Target), box_ip: BoxIpSettings, ignored: z.array(IgnoredIp).describe('The Ignored list, newest first') })
+/** D-492: the device that probably answers the open ports of the box's own public IP. Never a sure claim: NAT may forward the port to another device. */
+export const Gateway = z.object({
+  ip: z.string().nullable().describe('The LAN default gateway the host reports; null when the box cannot tell'),
+  device_id: z.string().nullable().describe('The inventory device with that IP; null when the gateway is not in the device list'),
+  name: z.string().nullable().describe('That device\'s name as the Devices page shows it (untrusted label, at most 80 characters)'),
+  open_exploited: z.number().int().describe('Open findings (exploited vulnerabilities, confirmed or suspected) of that device; 0 when device_id is null'),
+})
+export const TargetList = z.object({ items: z.array(Target), box_ip: BoxIpSettings, ignored: z.array(IgnoredIp).describe('The Ignored list, newest first'), gateway: Gateway.nullable().describe('null unless one of the box\'s own IPs has an open port in its newest scan; then who probably answers it (D-492)') })
 export const BoxIpDetectResult = z.object({ items: z.array(Target).describe('The public IPs the box saw this time, each added or renewed'), message: z.string() })
 
 const id = z.object({ id: z.string() })

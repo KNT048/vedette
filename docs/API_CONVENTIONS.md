@@ -89,7 +89,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (237 mã)
+#### HTTP 400 (242 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -107,6 +107,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_chat_id` | 400 | Chat ID is a number (groups look like -1001234567890) or a public @channel_name. Send the bot a message, then open getUp | module notify (validator dùng chung) |
 | `bad_cidr` | 400 | "${r.slice(0, 30)}" is not a valid network range. Enter something like 192.168.10.0/24. | `PUT /inventory/settings` |
 | `bad_client_cert` | 400 | Only a TLS source can have a client certificate, given as its SHA-256 fingerprint: 64 hexadecimal characters. | module logs (validator dùng chung) |
+| `bad_client_id` | 400 | The client ID is the Application (client) ID of the app registration, for example 0a1b2c3d-4e5f-6789-abcd-ef0123456789. | `PUT /notify/channels/email` (Microsoft 365, D-449) |
 | `bad_config` | 400 | Parser configuration is not valid (for example, JSONPath must start with $). | `POST /feeds/parse-test` |
 | `bad_cursor` | 400 | That search position is not valid. Search again from the start. | `GET /logs/events` (module logs, D-441): `cursor` not in the form of a `next_cursor`, or sent without `q`; GUI searches again from the start |
 | `bad_days` | 400 | Scan days must be Monday to Sunday. | `PUT /inventory/settings`; `PUT /logs/retention` |
@@ -138,24 +139,27 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_port` | 400 | The port must be a number from 1 to 65535. Usually 514 (UDP or TCP) or 6514 (TLS). | `POST /scans/credentialed` |
 | `bad_product` | 400 | Vendor and product are at most 64 characters each and cannot contain < or >. | module inventory (validator dùng chung) |
 | `bad_proto` | 400 | This device type cannot send logs with the chosen protocol. Pick another protocol from the list. | module logs (validator dùng chung) |
+| `bad_provider` | 400 | Choose an email provider from the list, or Custom SMTP. | `PUT /notify/channels/email` (D-449) |
 | `bad_quiet` | 400 | The start and end times must not be the same. | `PUT /notify/rules` |
 | `bad_ranges` | 400 | The list of network ranges is missing. | `PUT /inventory/settings` |
 | `bad_rate` | 400 | Scan rate is 1 to 1000 packets per second. | `PUT /inventory/settings` |
 | `bad_regular_scan` | 400 | Regular scans must be: follow type setting, allow or never. | `PATCH /inventory/devices/{id}` |
 | `bad_sample` | 400 | The sample text could not be read with this parser. | `POST /feeds/parse-test` |
-| `bad_secret` | 400 | The signing key needs at least 16 characters. Press Generate random if you want a random one. | module logs, notify (validator dùng chung) |
+| `bad_secret` | 400 | The signing key needs at least 16 characters. Press Generate random if you want a random one. Also (email, D-449): a Google service account key file, a Microsoft 365 client secret or a Postmark server token of the wrong shape. | module logs, notify (validator dùng chung) |
 | `bad_security` | 400 | Choose an encryption type: STARTTLS, SSL/TLS or none. | module notify (validator dùng chung) |
 | `bad_service` | 400 | Choose a service: SMB, RDP, SSH, MSSQL or HTTP. | `POST /honeypot/test-hit` |
 | `bad_severity` | 400 | Choose a minimum severity: Critical, High, Medium or Low. | module notify (validator dùng chung) |
 | `bad_signature` | 400 | Invalid signature. The bundle was modified or not signed by the project. The box does not install unsigned packages. | `POST /core/updates/bundle` |
 | `bad_skill` | 400 | skill must be explain or mitigation-config. | `POST /findings/{id}/ai` |
 | `bad_span` | 400 | span must be true or false. | `PATCH /inventory/sensors/{id}` |
+| `bad_state` | 400 | This address belongs to another sign-in. Press Sign in with Google again and paste the address of that sign-in. | `POST /notify/email-signin/{id}` (D-480) |
 | `bad_status` | 400 | Status must be new, acknowledged or resolved. | `PATCH /notify/incidents/{id}` |
+| `bad_tenant_id` | 400 | The tenant ID is the Directory (tenant) ID of the app registration, for example 72f988bf-86f1-41af-91ab-2d7cd011db47, or your domain such as company.onmicrosoft.com. | `PUT /notify/channels/email` (Microsoft 365, D-449) |
 | `bad_time` | 400 | Time must look like 23:00. | `PUT /inventory/settings`; `PUT /notify/rules` |
 | `bad_to` | 400 | not-an-email is not a valid email address. Separate several recipients with commas. | module notify (validator dùng chung) |
 | `bad_token` | 400 | A bot token looks like 123456789:AAH… and comes from @BotFather. Copy it again without extra spaces. | module notify (validator dùng chung) |
 | `bad_type` | 400 | Choose a token type: decoy file, fake credentials, URL or DNS name. | `POST /honeypot/tokens` |
-| `bad_url` | 400 | Enter the Wazuh server API address starting with https://, for example https://wazuh-manager:55000. Do not put the user  | module inventory, logs, notify (validator dùng chung) |
+| `bad_url` | 400 | Enter the Wazuh server API address starting with https://, for example https://wazuh-manager:55000. Do not put the user  Also (D-480): the address pasted after a Google sign-in is not this sign-in's loopback address, or has no code (`POST /notify/email-signin/{id}`). | module inventory, logs, notify (validator dùng chung) |
 | `bad_user_id` | 400 | The Zalo recipient ID (user_id) is the number of a person who followed or messaged the OA. | module notify (validator dùng chung) |
 | `bad_username` | 400 | Enter the read-only API user name (letters, digits, dot, dash, underscore; up to 64 characters). | `POST /scans/credentialed` |
 | `bad_value` | 400 | Enter only a domain name, without http://, a path, a port or spaces. Example: example.com. | `POST /exposure/targets` |
@@ -294,6 +298,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `secret_required` | 400 | Enter the secret. It stays on this box and is encrypted; only the last 4 characters are shown afterwards. Also: Enter the secret again: the address changed, and a saved secret is only sent to the address it was saved for. | `POST /core/connections`; `PUT /core/connections/{id}`; module notify (validator dùng chung) |
 | `self_disable` | 400 | You cannot disable the account you are using. Ask another administrator. | `PATCH /core/users/{id}` |
 | `self_reset` | 400 | You cannot reset your own two-step sign-in here. Use My account instead. | `POST /core/users/{id}/2fa/reset` |
+| `signin_refused` | 400 | Microsoft refused the app registration. Check the client ID and the tenant ID, and turn on Allow public client flows under Authentication of the app registration. (Each refusal of Microsoft or Google has its own fixed sentence; never the provider's text.) | `POST /notify/email-signin`, `POST /notify/email-signin/{id}` (D-480) |
 | `sso_expired` | 400 | This sign-in has expired or was already used. Start again from the sign-in page. / This sign-in was started in another tab or browser. Start again from the sign-in page. | `POST /auth/oidc/callback`: state unknown, used or older than 10 minutes, or the binding is wrong (D-194 (4)); the flow is spent either way |
 | `sso_failed` | 400 | The identity provider's answer could not be verified. Ask an administrator to check the SSO settings; the audit log has the reason. | `POST /auth/oidc/callback`: code exchange refused, or the ID token fails a check (signature, alg, iss, aud/azp, exp, nonce); `auth.login_failed` says which (D-194 (3)) |
 | `temp_password_expired` | 400 | This temporary password has expired. Ask an administrator for a new one. | `POST /auth/login` (D-180) |
@@ -365,7 +370,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `no_box_address` | 404 | This box knows no address that other machines can reach, so an install script would point nowhere. Open Vedette at its network address; on a container-only install first set VEDETTE_BIND_IP to this machine's LAN address and VEDETTE_HOSTS to that address or a name for it. Then copy the command again. | `GET /install/osquery.sh`, `GET /install/osquery.ps1` khi địa chỉ hộp trong script sẽ là chỗ giữ chỗ `<VEDETTE_BOX_IP>` (mở bằng localhost, không có địa chỉ cấu hình); `GET /inventory/agents` vẫn trả `server_url` giữ chỗ (agent-intake INV-17 (c), D-399) |
 | `no_certificate` | 404 | This box serves plain HTTP on loopback, so it has no certificate for osquery to trust. Open Vedette at its network address. | `GET /intake/ca.pem`, `GET /install/osquery.sh`, `GET /install/osquery.ps1` khi hộp phục vụ HTTP trên loopback (không có chứng chỉ để ghim); `GET /inventory/agents` vẫn trả script với chỗ trống CA ghi rõ (agent-intake, WP-26 lát 3) |
 | `no_update` | 404 | There is no new version of this component. Click "Check now". | `POST /core/updates/apply` |
-| `not_found` | 404 | This ${what} no longer exists. | 51 endpoint (/ai, /core, /exposure, /feeds, /findings, /honeypot, /inventory, /logs, /modules, /notify, /reports, /response) |
+| `not_found` | 404 | This ${what} no longer exists. | 52 endpoint (/ai, /core, /exposure, /feeds, /findings, /honeypot, /inventory, /logs, /modules, /notify, /reports, /response) |
 | `not_in_kev` | 404 | This CVE is not on the exploited list (CISA KEV) in the current data. | `GET /feeds/cve/{id}` |
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
@@ -497,7 +502,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `daily_cap` | 429 | The AI daily token cap is reached; the call is not made. | module ai (validator dùng chung) |
-| `rate_limited` | 429 | ${value} was scanned at ${time}. Scan it again after ${time}: at most one scan of a target every 10 minutes. (`POST /exposure/targets/{id}/scan`, backend only, D-229) / Too many verification attempts (limit ${MAX_ATTEMPTS_PER_HOUR} per hour). Try again in about ${wait} minute${wait === 1  | module exposure, response (validator dùng chung) ; `POST /auth/login`; `POST /auth/login/resend-code` (kèm `retry_after` và `Retry-After`); `GET /core/data/backup` (một lần tải mỗi phút mỗi hộp, kèm `retry_after` và `Retry-After`); `POST /core/setup` (sai mã cài đặt, D-75); mật khẩu của người đã đăng nhập (`/core/account/password`, `/core/account/2fa/{start,email/start,disable}`); `GET /core/logs/export` (backend: one download a minute); agent-intake (kèm `retry_after` và `Retry-After`): `POST /intake/osquery/{enroll,config,log,status}` khi một nguồn sai thông tin xác thực quá 10 lần/phút hoặc một máy quá 6 `config` / 12 `log` mỗi phút, hoặc đăng ký lại cùng (token, `host_identifier`) trong 60 giây (D-265 (2)); `GET /install/osquery/{file}` khi đã có 4 lượt tải gói chạy cùng lúc (`Retry-After: 5`, WP-26 lát 3) |
+| `rate_limited` | 429 | ${value} was scanned at ${time}. Scan it again after ${time}: at most one scan of a target every 10 minutes. (`POST /exposure/targets/{id}/scan`, backend only, D-229) / Too many verification attempts (limit ${MAX_ATTEMPTS_PER_HOUR} per hour). Try again in about ${wait} minute${wait === 1  Also (D-480): more than 8 email sign-ins open at once (`POST /notify/email-signin`). | module exposure, response (validator dùng chung) ; `POST /auth/login`; `POST /auth/login/resend-code` (kèm `retry_after` và `Retry-After`); `GET /core/data/backup` (một lần tải mỗi phút mỗi hộp, kèm `retry_after` và `Retry-After`); `POST /core/setup` (sai mã cài đặt, D-75); mật khẩu của người đã đăng nhập (`/core/account/password`, `/core/account/2fa/{start,email/start,disable}`); `GET /core/logs/export` (backend: one download a minute); agent-intake (kèm `retry_after` và `Retry-After`): `POST /intake/osquery/{enroll,config,log,status}` khi một nguồn sai thông tin xác thực quá 10 lần/phút hoặc một máy quá 6 `config` / 12 `log` mỗi phút, hoặc đăng ký lại cùng (token, `host_identifier`) trong 60 giây (D-265 (2)); `GET /install/osquery/{file}` khi đã có 4 lượt tải gói chạy cùng lúc (`Retry-After: 5`, WP-26 lát 3) |
 | `resend_too_soon` | 429 | Wait ${wait} seconds before asking for a new code. | module core (validator dùng chung) |
 | `too_many_codes` | 429 | Too many codes were sent in the last hour. Try again later. | module core (validator dùng chung) |
 | `too_many_nodes` | 429 | This enrollment token already has the most machines it can have. Revoke it and make a new one. | `POST /intake/osquery/enroll` khi token đã có 500 máy hoặc hộp đã có 5.000 máy (agent-intake INV-14, D-265 (2); kèm `retry_after` 3600 và `Retry-After`); máy-với-máy, osquery chỉ ghi log và thử lại |

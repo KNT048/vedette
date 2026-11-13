@@ -101,3 +101,37 @@ func TestInstallSh_ForwardCheckNeedsTheBridge(t *testing.T) {
 		})
 	}
 }
+
+// D-463: --uninstall wipes podman's storage and runtime files, and removes the folders podman made, only when the script added
+// podman and apt then purged it. A podman that apt kept is the administrator's: nothing of it is wiped, not even by --keep-data.
+func TestInstallSh_UninstallWipesPodmanOnlyWhenPodmanIsGone(t *testing.T) {
+	body := installShFunc(t, "do_uninstall")
+	const gate = "\tif grep -qx podman \"$STATE/asked-packages\" 2>/dev/null && ! installed_pkg podman; then\n"
+	i := strings.Index(body, gate)
+	if i < 0 {
+		t.Fatalf("do_uninstall has no gate %q", gate)
+	}
+	j := strings.Index(body[i:], "\n\tfi\n")
+	if j < 0 {
+		t.Fatal("the gate has no end")
+	}
+	inside, outside := body[i:i+j], ""
+	for l := range strings.Lines(body[:i] + body[i+j:]) {
+		if !strings.HasPrefix(strings.TrimSpace(l), "#") { // the commands, not the comments that name the folders
+			outside += l
+		}
+	}
+	for _, w := range []string{"find /var/lib/containers -mindepth 1 -delete", "rm -rf /run/containers", "/etc/containers/networks", "/var/lib/cni", "dpkg-query -S"} {
+		if !strings.Contains(inside, w) {
+			t.Errorf("%q is not inside the gate", w)
+		}
+	}
+	for _, w := range []string{"/var/lib/containers", "/run/containers", "rm -rf /etc/containers", "/var/lib/cni"} {
+		if strings.Contains(outside, w) {
+			t.Errorf("%q is outside the gate", w)
+		}
+	}
+	if strings.Contains(inside, "rm -rf /etc") || strings.Contains(inside, "rm -rf /var/lib/cni") {
+		t.Error("a folder of /etc/containers or /var/lib/cni is removed with rm -r, not rmdir")
+	}
+}

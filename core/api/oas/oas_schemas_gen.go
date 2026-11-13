@@ -89143,9 +89143,16 @@ type NotifyGetNotifyChannelsOKChannelsItem struct {
 	// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
 	// or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
 	// the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
-	// email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed
-	// on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as
-	// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
+	// email provider (preset, D-449:
+	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
+	// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
+	// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
+	// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
+	// microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by
+	// the box: the sign-in method, server and port the saved secret is for; changing one needs the secret
+	// again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its
+	// last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
+	// channel_id (approvals only).
 	Fields      NotifyGetNotifyChannelsOKChannelsItemFields      `json:"fields"`
 	LastTest    NilNotifyGetNotifyChannelsOKChannelsItemLastTest `json:"last_test"`
 	MinSeverity NotifyGetNotifyChannelsOKChannelsItemMinSeverity `json:"min_severity"`
@@ -89322,9 +89329,16 @@ func (s *NotifyGetNotifyChannelsOKChannelsItemApproversItem) SetUserID(val strin
 // Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
 // or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
 // the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
-// email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed
-// on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as
-// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
+// email provider (preset, D-449:
+// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
+// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
+// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
+// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
+// microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by
+// the box: the sign-in method, server and port the saved secret is for; changing one needs the secret
+// again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its
+// last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
+// channel_id (approvals only).
 type NotifyGetNotifyChannelsOKChannelsItemFields map[string]string
 
 func (s *NotifyGetNotifyChannelsOKChannelsItemFields) init() NotifyGetNotifyChannelsOKChannelsItemFields {
@@ -92497,6 +92511,646 @@ func (s *NotifyPostNotifyChannelsTypeTestType) UnmarshalText(data []byte) error 
 	}
 }
 
+type NotifyPostNotifyEmailSigninIDOK struct {
+	ConsentURL OptString `json:"consent_url"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	// Device: Microsoft device code, the box polls; paste: Google consent, the admin pastes the loopback
+	// address back.
+	Flow NotifyPostNotifyEmailSigninIDOKFlow `json:"flow"`
+	ID   string                              `json:"id"`
+	// Seconds between checks of a device sign-in.
+	Interval OptInt `json:"interval"`
+	// The account that signed in.
+	Mailbox         OptString                               `json:"mailbox"`
+	Provider        NotifyPostNotifyEmailSigninIDOKProvider `json:"provider"`
+	Status          NotifyPostNotifyEmailSigninIDOKStatus   `json:"status"`
+	UserCode        OptString                               `json:"user_code"`
+	VerificationURI OptString                               `json:"verification_uri"`
+}
+
+// GetConsentURL returns the value of ConsentURL.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetConsentURL() OptString {
+	return s.ConsentURL
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// GetFlow returns the value of Flow.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetFlow() NotifyPostNotifyEmailSigninIDOKFlow {
+	return s.Flow
+}
+
+// GetID returns the value of ID.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetID() string {
+	return s.ID
+}
+
+// GetInterval returns the value of Interval.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetInterval() OptInt {
+	return s.Interval
+}
+
+// GetMailbox returns the value of Mailbox.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetMailbox() OptString {
+	return s.Mailbox
+}
+
+// GetProvider returns the value of Provider.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetProvider() NotifyPostNotifyEmailSigninIDOKProvider {
+	return s.Provider
+}
+
+// GetStatus returns the value of Status.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetStatus() NotifyPostNotifyEmailSigninIDOKStatus {
+	return s.Status
+}
+
+// GetUserCode returns the value of UserCode.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetUserCode() OptString {
+	return s.UserCode
+}
+
+// GetVerificationURI returns the value of VerificationURI.
+func (s *NotifyPostNotifyEmailSigninIDOK) GetVerificationURI() OptString {
+	return s.VerificationURI
+}
+
+// SetConsentURL sets the value of ConsentURL.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetConsentURL(val OptString) {
+	s.ConsentURL = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+// SetFlow sets the value of Flow.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetFlow(val NotifyPostNotifyEmailSigninIDOKFlow) {
+	s.Flow = val
+}
+
+// SetID sets the value of ID.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetInterval sets the value of Interval.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetInterval(val OptInt) {
+	s.Interval = val
+}
+
+// SetMailbox sets the value of Mailbox.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetMailbox(val OptString) {
+	s.Mailbox = val
+}
+
+// SetProvider sets the value of Provider.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetProvider(val NotifyPostNotifyEmailSigninIDOKProvider) {
+	s.Provider = val
+}
+
+// SetStatus sets the value of Status.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetStatus(val NotifyPostNotifyEmailSigninIDOKStatus) {
+	s.Status = val
+}
+
+// SetUserCode sets the value of UserCode.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetUserCode(val OptString) {
+	s.UserCode = val
+}
+
+// SetVerificationURI sets the value of VerificationURI.
+func (s *NotifyPostNotifyEmailSigninIDOK) SetVerificationURI(val OptString) {
+	s.VerificationURI = val
+}
+
+// Device: Microsoft device code, the box polls; paste: Google consent, the admin pastes the loopback
+// address back.
+type NotifyPostNotifyEmailSigninIDOKFlow string
+
+const (
+	NotifyPostNotifyEmailSigninIDOKFlowDevice NotifyPostNotifyEmailSigninIDOKFlow = "device"
+	NotifyPostNotifyEmailSigninIDOKFlowPaste  NotifyPostNotifyEmailSigninIDOKFlow = "paste"
+)
+
+// AllValues returns all NotifyPostNotifyEmailSigninIDOKFlow values.
+func (NotifyPostNotifyEmailSigninIDOKFlow) AllValues() []NotifyPostNotifyEmailSigninIDOKFlow {
+	return []NotifyPostNotifyEmailSigninIDOKFlow{
+		NotifyPostNotifyEmailSigninIDOKFlowDevice,
+		NotifyPostNotifyEmailSigninIDOKFlowPaste,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyEmailSigninIDOKFlow) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyEmailSigninIDOKFlowDevice:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninIDOKFlowPaste:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyEmailSigninIDOKFlow) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyEmailSigninIDOKFlow(data) {
+	case NotifyPostNotifyEmailSigninIDOKFlowDevice:
+		*s = NotifyPostNotifyEmailSigninIDOKFlowDevice
+		return nil
+	case NotifyPostNotifyEmailSigninIDOKFlowPaste:
+		*s = NotifyPostNotifyEmailSigninIDOKFlowPaste
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyEmailSigninIDOKProvider string
+
+const (
+	NotifyPostNotifyEmailSigninIDOKProviderMicrosoft365User NotifyPostNotifyEmailSigninIDOKProvider = "microsoft365-user"
+	NotifyPostNotifyEmailSigninIDOKProviderOutlook          NotifyPostNotifyEmailSigninIDOKProvider = "outlook"
+	NotifyPostNotifyEmailSigninIDOKProviderGmailOAuth       NotifyPostNotifyEmailSigninIDOKProvider = "gmail-oauth"
+)
+
+// AllValues returns all NotifyPostNotifyEmailSigninIDOKProvider values.
+func (NotifyPostNotifyEmailSigninIDOKProvider) AllValues() []NotifyPostNotifyEmailSigninIDOKProvider {
+	return []NotifyPostNotifyEmailSigninIDOKProvider{
+		NotifyPostNotifyEmailSigninIDOKProviderMicrosoft365User,
+		NotifyPostNotifyEmailSigninIDOKProviderOutlook,
+		NotifyPostNotifyEmailSigninIDOKProviderGmailOAuth,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyEmailSigninIDOKProvider) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyEmailSigninIDOKProviderMicrosoft365User:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninIDOKProviderOutlook:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninIDOKProviderGmailOAuth:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyEmailSigninIDOKProvider) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyEmailSigninIDOKProvider(data) {
+	case NotifyPostNotifyEmailSigninIDOKProviderMicrosoft365User:
+		*s = NotifyPostNotifyEmailSigninIDOKProviderMicrosoft365User
+		return nil
+	case NotifyPostNotifyEmailSigninIDOKProviderOutlook:
+		*s = NotifyPostNotifyEmailSigninIDOKProviderOutlook
+		return nil
+	case NotifyPostNotifyEmailSigninIDOKProviderGmailOAuth:
+		*s = NotifyPostNotifyEmailSigninIDOKProviderGmailOAuth
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyEmailSigninIDOKStatus string
+
+const (
+	NotifyPostNotifyEmailSigninIDOKStatusWaiting  NotifyPostNotifyEmailSigninIDOKStatus = "waiting"
+	NotifyPostNotifyEmailSigninIDOKStatusSignedIn NotifyPostNotifyEmailSigninIDOKStatus = "signed_in"
+	NotifyPostNotifyEmailSigninIDOKStatusExpired  NotifyPostNotifyEmailSigninIDOKStatus = "expired"
+	NotifyPostNotifyEmailSigninIDOKStatusDeclined NotifyPostNotifyEmailSigninIDOKStatus = "declined"
+)
+
+// AllValues returns all NotifyPostNotifyEmailSigninIDOKStatus values.
+func (NotifyPostNotifyEmailSigninIDOKStatus) AllValues() []NotifyPostNotifyEmailSigninIDOKStatus {
+	return []NotifyPostNotifyEmailSigninIDOKStatus{
+		NotifyPostNotifyEmailSigninIDOKStatusWaiting,
+		NotifyPostNotifyEmailSigninIDOKStatusSignedIn,
+		NotifyPostNotifyEmailSigninIDOKStatusExpired,
+		NotifyPostNotifyEmailSigninIDOKStatusDeclined,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyEmailSigninIDOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyEmailSigninIDOKStatusWaiting:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninIDOKStatusSignedIn:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninIDOKStatusExpired:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninIDOKStatusDeclined:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyEmailSigninIDOKStatus) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyEmailSigninIDOKStatus(data) {
+	case NotifyPostNotifyEmailSigninIDOKStatusWaiting:
+		*s = NotifyPostNotifyEmailSigninIDOKStatusWaiting
+		return nil
+	case NotifyPostNotifyEmailSigninIDOKStatusSignedIn:
+		*s = NotifyPostNotifyEmailSigninIDOKStatusSignedIn
+		return nil
+	case NotifyPostNotifyEmailSigninIDOKStatusExpired:
+		*s = NotifyPostNotifyEmailSigninIDOKStatusExpired
+		return nil
+	case NotifyPostNotifyEmailSigninIDOKStatusDeclined:
+		*s = NotifyPostNotifyEmailSigninIDOKStatusDeclined
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyEmailSigninIDReq struct {
+	// Google: the whole address the browser showed after approving.
+	URL OptString `json:"url"`
+}
+
+// GetURL returns the value of URL.
+func (s *NotifyPostNotifyEmailSigninIDReq) GetURL() OptString {
+	return s.URL
+}
+
+// SetURL sets the value of URL.
+func (s *NotifyPostNotifyEmailSigninIDReq) SetURL(val OptString) {
+	s.URL = val
+}
+
+type NotifyPostNotifyEmailSigninOK struct {
+	ConsentURL OptString `json:"consent_url"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	// Device: Microsoft device code, the box polls; paste: Google consent, the admin pastes the loopback
+	// address back.
+	Flow NotifyPostNotifyEmailSigninOKFlow `json:"flow"`
+	ID   string                            `json:"id"`
+	// Seconds between checks of a device sign-in.
+	Interval OptInt `json:"interval"`
+	// The account that signed in.
+	Mailbox         OptString                             `json:"mailbox"`
+	Provider        NotifyPostNotifyEmailSigninOKProvider `json:"provider"`
+	Status          NotifyPostNotifyEmailSigninOKStatus   `json:"status"`
+	UserCode        OptString                             `json:"user_code"`
+	VerificationURI OptString                             `json:"verification_uri"`
+}
+
+// GetConsentURL returns the value of ConsentURL.
+func (s *NotifyPostNotifyEmailSigninOK) GetConsentURL() OptString {
+	return s.ConsentURL
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *NotifyPostNotifyEmailSigninOK) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// GetFlow returns the value of Flow.
+func (s *NotifyPostNotifyEmailSigninOK) GetFlow() NotifyPostNotifyEmailSigninOKFlow {
+	return s.Flow
+}
+
+// GetID returns the value of ID.
+func (s *NotifyPostNotifyEmailSigninOK) GetID() string {
+	return s.ID
+}
+
+// GetInterval returns the value of Interval.
+func (s *NotifyPostNotifyEmailSigninOK) GetInterval() OptInt {
+	return s.Interval
+}
+
+// GetMailbox returns the value of Mailbox.
+func (s *NotifyPostNotifyEmailSigninOK) GetMailbox() OptString {
+	return s.Mailbox
+}
+
+// GetProvider returns the value of Provider.
+func (s *NotifyPostNotifyEmailSigninOK) GetProvider() NotifyPostNotifyEmailSigninOKProvider {
+	return s.Provider
+}
+
+// GetStatus returns the value of Status.
+func (s *NotifyPostNotifyEmailSigninOK) GetStatus() NotifyPostNotifyEmailSigninOKStatus {
+	return s.Status
+}
+
+// GetUserCode returns the value of UserCode.
+func (s *NotifyPostNotifyEmailSigninOK) GetUserCode() OptString {
+	return s.UserCode
+}
+
+// GetVerificationURI returns the value of VerificationURI.
+func (s *NotifyPostNotifyEmailSigninOK) GetVerificationURI() OptString {
+	return s.VerificationURI
+}
+
+// SetConsentURL sets the value of ConsentURL.
+func (s *NotifyPostNotifyEmailSigninOK) SetConsentURL(val OptString) {
+	s.ConsentURL = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *NotifyPostNotifyEmailSigninOK) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+// SetFlow sets the value of Flow.
+func (s *NotifyPostNotifyEmailSigninOK) SetFlow(val NotifyPostNotifyEmailSigninOKFlow) {
+	s.Flow = val
+}
+
+// SetID sets the value of ID.
+func (s *NotifyPostNotifyEmailSigninOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetInterval sets the value of Interval.
+func (s *NotifyPostNotifyEmailSigninOK) SetInterval(val OptInt) {
+	s.Interval = val
+}
+
+// SetMailbox sets the value of Mailbox.
+func (s *NotifyPostNotifyEmailSigninOK) SetMailbox(val OptString) {
+	s.Mailbox = val
+}
+
+// SetProvider sets the value of Provider.
+func (s *NotifyPostNotifyEmailSigninOK) SetProvider(val NotifyPostNotifyEmailSigninOKProvider) {
+	s.Provider = val
+}
+
+// SetStatus sets the value of Status.
+func (s *NotifyPostNotifyEmailSigninOK) SetStatus(val NotifyPostNotifyEmailSigninOKStatus) {
+	s.Status = val
+}
+
+// SetUserCode sets the value of UserCode.
+func (s *NotifyPostNotifyEmailSigninOK) SetUserCode(val OptString) {
+	s.UserCode = val
+}
+
+// SetVerificationURI sets the value of VerificationURI.
+func (s *NotifyPostNotifyEmailSigninOK) SetVerificationURI(val OptString) {
+	s.VerificationURI = val
+}
+
+// Device: Microsoft device code, the box polls; paste: Google consent, the admin pastes the loopback
+// address back.
+type NotifyPostNotifyEmailSigninOKFlow string
+
+const (
+	NotifyPostNotifyEmailSigninOKFlowDevice NotifyPostNotifyEmailSigninOKFlow = "device"
+	NotifyPostNotifyEmailSigninOKFlowPaste  NotifyPostNotifyEmailSigninOKFlow = "paste"
+)
+
+// AllValues returns all NotifyPostNotifyEmailSigninOKFlow values.
+func (NotifyPostNotifyEmailSigninOKFlow) AllValues() []NotifyPostNotifyEmailSigninOKFlow {
+	return []NotifyPostNotifyEmailSigninOKFlow{
+		NotifyPostNotifyEmailSigninOKFlowDevice,
+		NotifyPostNotifyEmailSigninOKFlowPaste,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyEmailSigninOKFlow) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyEmailSigninOKFlowDevice:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninOKFlowPaste:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyEmailSigninOKFlow) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyEmailSigninOKFlow(data) {
+	case NotifyPostNotifyEmailSigninOKFlowDevice:
+		*s = NotifyPostNotifyEmailSigninOKFlowDevice
+		return nil
+	case NotifyPostNotifyEmailSigninOKFlowPaste:
+		*s = NotifyPostNotifyEmailSigninOKFlowPaste
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyEmailSigninOKProvider string
+
+const (
+	NotifyPostNotifyEmailSigninOKProviderMicrosoft365User NotifyPostNotifyEmailSigninOKProvider = "microsoft365-user"
+	NotifyPostNotifyEmailSigninOKProviderOutlook          NotifyPostNotifyEmailSigninOKProvider = "outlook"
+	NotifyPostNotifyEmailSigninOKProviderGmailOAuth       NotifyPostNotifyEmailSigninOKProvider = "gmail-oauth"
+)
+
+// AllValues returns all NotifyPostNotifyEmailSigninOKProvider values.
+func (NotifyPostNotifyEmailSigninOKProvider) AllValues() []NotifyPostNotifyEmailSigninOKProvider {
+	return []NotifyPostNotifyEmailSigninOKProvider{
+		NotifyPostNotifyEmailSigninOKProviderMicrosoft365User,
+		NotifyPostNotifyEmailSigninOKProviderOutlook,
+		NotifyPostNotifyEmailSigninOKProviderGmailOAuth,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyEmailSigninOKProvider) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyEmailSigninOKProviderMicrosoft365User:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninOKProviderOutlook:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninOKProviderGmailOAuth:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyEmailSigninOKProvider) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyEmailSigninOKProvider(data) {
+	case NotifyPostNotifyEmailSigninOKProviderMicrosoft365User:
+		*s = NotifyPostNotifyEmailSigninOKProviderMicrosoft365User
+		return nil
+	case NotifyPostNotifyEmailSigninOKProviderOutlook:
+		*s = NotifyPostNotifyEmailSigninOKProviderOutlook
+		return nil
+	case NotifyPostNotifyEmailSigninOKProviderGmailOAuth:
+		*s = NotifyPostNotifyEmailSigninOKProviderGmailOAuth
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyEmailSigninOKStatus string
+
+const (
+	NotifyPostNotifyEmailSigninOKStatusWaiting  NotifyPostNotifyEmailSigninOKStatus = "waiting"
+	NotifyPostNotifyEmailSigninOKStatusSignedIn NotifyPostNotifyEmailSigninOKStatus = "signed_in"
+	NotifyPostNotifyEmailSigninOKStatusExpired  NotifyPostNotifyEmailSigninOKStatus = "expired"
+	NotifyPostNotifyEmailSigninOKStatusDeclined NotifyPostNotifyEmailSigninOKStatus = "declined"
+)
+
+// AllValues returns all NotifyPostNotifyEmailSigninOKStatus values.
+func (NotifyPostNotifyEmailSigninOKStatus) AllValues() []NotifyPostNotifyEmailSigninOKStatus {
+	return []NotifyPostNotifyEmailSigninOKStatus{
+		NotifyPostNotifyEmailSigninOKStatusWaiting,
+		NotifyPostNotifyEmailSigninOKStatusSignedIn,
+		NotifyPostNotifyEmailSigninOKStatusExpired,
+		NotifyPostNotifyEmailSigninOKStatusDeclined,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyEmailSigninOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyEmailSigninOKStatusWaiting:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninOKStatusSignedIn:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninOKStatusExpired:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninOKStatusDeclined:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyEmailSigninOKStatus) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyEmailSigninOKStatus(data) {
+	case NotifyPostNotifyEmailSigninOKStatusWaiting:
+		*s = NotifyPostNotifyEmailSigninOKStatusWaiting
+		return nil
+	case NotifyPostNotifyEmailSigninOKStatusSignedIn:
+		*s = NotifyPostNotifyEmailSigninOKStatusSignedIn
+		return nil
+	case NotifyPostNotifyEmailSigninOKStatusExpired:
+		*s = NotifyPostNotifyEmailSigninOKStatusExpired
+		return nil
+	case NotifyPostNotifyEmailSigninOKStatusDeclined:
+		*s = NotifyPostNotifyEmailSigninOKStatusDeclined
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyEmailSigninReq struct {
+	// The customer's own app registration (Microsoft, public client flows on) or Desktop OAuth client
+	// (Google).
+	ClientID string `json:"client_id"`
+	// Google Desktop client secret; never returned.
+	ClientSecret OptString                              `json:"client_secret"`
+	Provider     NotifyPostNotifyEmailSigninReqProvider `json:"provider"`
+	// Microsoft: Directory (tenant) ID, a domain, organizations, or consumers (Outlook.com).
+	TenantID OptString `json:"tenant_id"`
+}
+
+// GetClientID returns the value of ClientID.
+func (s *NotifyPostNotifyEmailSigninReq) GetClientID() string {
+	return s.ClientID
+}
+
+// GetClientSecret returns the value of ClientSecret.
+func (s *NotifyPostNotifyEmailSigninReq) GetClientSecret() OptString {
+	return s.ClientSecret
+}
+
+// GetProvider returns the value of Provider.
+func (s *NotifyPostNotifyEmailSigninReq) GetProvider() NotifyPostNotifyEmailSigninReqProvider {
+	return s.Provider
+}
+
+// GetTenantID returns the value of TenantID.
+func (s *NotifyPostNotifyEmailSigninReq) GetTenantID() OptString {
+	return s.TenantID
+}
+
+// SetClientID sets the value of ClientID.
+func (s *NotifyPostNotifyEmailSigninReq) SetClientID(val string) {
+	s.ClientID = val
+}
+
+// SetClientSecret sets the value of ClientSecret.
+func (s *NotifyPostNotifyEmailSigninReq) SetClientSecret(val OptString) {
+	s.ClientSecret = val
+}
+
+// SetProvider sets the value of Provider.
+func (s *NotifyPostNotifyEmailSigninReq) SetProvider(val NotifyPostNotifyEmailSigninReqProvider) {
+	s.Provider = val
+}
+
+// SetTenantID sets the value of TenantID.
+func (s *NotifyPostNotifyEmailSigninReq) SetTenantID(val OptString) {
+	s.TenantID = val
+}
+
+type NotifyPostNotifyEmailSigninReqProvider string
+
+const (
+	NotifyPostNotifyEmailSigninReqProviderMicrosoft365User NotifyPostNotifyEmailSigninReqProvider = "microsoft365-user"
+	NotifyPostNotifyEmailSigninReqProviderOutlook          NotifyPostNotifyEmailSigninReqProvider = "outlook"
+	NotifyPostNotifyEmailSigninReqProviderGmailOAuth       NotifyPostNotifyEmailSigninReqProvider = "gmail-oauth"
+)
+
+// AllValues returns all NotifyPostNotifyEmailSigninReqProvider values.
+func (NotifyPostNotifyEmailSigninReqProvider) AllValues() []NotifyPostNotifyEmailSigninReqProvider {
+	return []NotifyPostNotifyEmailSigninReqProvider{
+		NotifyPostNotifyEmailSigninReqProviderMicrosoft365User,
+		NotifyPostNotifyEmailSigninReqProviderOutlook,
+		NotifyPostNotifyEmailSigninReqProviderGmailOAuth,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyEmailSigninReqProvider) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyEmailSigninReqProviderMicrosoft365User:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninReqProviderOutlook:
+		return []byte(s), nil
+	case NotifyPostNotifyEmailSigninReqProviderGmailOAuth:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyEmailSigninReqProvider) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyEmailSigninReqProvider(data) {
+	case NotifyPostNotifyEmailSigninReqProviderMicrosoft365User:
+		*s = NotifyPostNotifyEmailSigninReqProviderMicrosoft365User
+		return nil
+	case NotifyPostNotifyEmailSigninReqProviderOutlook:
+		*s = NotifyPostNotifyEmailSigninReqProviderOutlook
+		return nil
+	case NotifyPostNotifyEmailSigninReqProviderGmailOAuth:
+		*s = NotifyPostNotifyEmailSigninReqProviderGmailOAuth
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type NotifyPostNotifyHistoryIDResendOK struct {
 	At      time.Time                                `json:"at"`
 	Channel NotifyPostNotifyHistoryIDResendOKChannel `json:"channel"`
@@ -93131,9 +93785,16 @@ type NotifyPutNotifyChannelsTypeOK struct {
 	// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
 	// or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
 	// the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
-	// email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed
-	// on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as
-	// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
+	// email provider (preset, D-449:
+	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
+	// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
+	// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
+	// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
+	// microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by
+	// the box: the sign-in method, server and port the saved secret is for; changing one needs the secret
+	// again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its
+	// last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
+	// channel_id (approvals only).
 	Fields      NotifyPutNotifyChannelsTypeOKFields      `json:"fields"`
 	LastTest    NilNotifyPutNotifyChannelsTypeOKLastTest `json:"last_test"`
 	MinSeverity NotifyPutNotifyChannelsTypeOKMinSeverity `json:"min_severity"`
@@ -93310,9 +93971,16 @@ func (s *NotifyPutNotifyChannelsTypeOKApproversItem) SetUserID(val string) {
 // Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
 // or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
 // the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
-// email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed
-// on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as
-// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
+// email provider (preset, D-449:
+// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
+// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
+// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
+// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
+// microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by
+// the box: the sign-in method, server and port the saved secret is for; changing one needs the secret
+// again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its
+// last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
+// channel_id (approvals only).
 type NotifyPutNotifyChannelsTypeOKFields map[string]string
 
 func (s *NotifyPutNotifyChannelsTypeOKFields) init() NotifyPutNotifyChannelsTypeOKFields {
@@ -93496,8 +94164,13 @@ type NotifyPutNotifyChannelsTypeReq struct {
 	Enabled     bool                                      `json:"enabled"`
 	Fields      NotifyPutNotifyChannelsTypeReqFields      `json:"fields"`
 	MinSeverity NotifyPutNotifyChannelsTypeReqMinSeverity `json:"min_severity"`
-	// Leave blank to keep the saved secret.
+	// Leave blank to keep the saved secret (email: only while the sign-in method of the provider stays the
+	// same). Email: password, app password or API key; the Microsoft 365 client secret; the Google
+	// Workspace service account key file (JSON).
 	Secret OptString `json:"secret"`
+	// Email user sign-in (D-480): the id of a finished sign-in of the same admin; its refresh token
+	// becomes the secret and its mailbox the username.
+	Signin OptString `json:"signin"`
 	// Zalo personal: save the session of your finished QR sign-in (D-447); without it the saved session is
 	// kept. The session is never sent by the client.
 	ZaloLogin OptBool `json:"zalo_login"`
@@ -93543,6 +94216,11 @@ func (s *NotifyPutNotifyChannelsTypeReq) GetSecret() OptString {
 	return s.Secret
 }
 
+// GetSignin returns the value of Signin.
+func (s *NotifyPutNotifyChannelsTypeReq) GetSignin() OptString {
+	return s.Signin
+}
+
 // GetZaloLogin returns the value of ZaloLogin.
 func (s *NotifyPutNotifyChannelsTypeReq) GetZaloLogin() OptBool {
 	return s.ZaloLogin
@@ -93586,6 +94264,11 @@ func (s *NotifyPutNotifyChannelsTypeReq) SetMinSeverity(val NotifyPutNotifyChann
 // SetSecret sets the value of Secret.
 func (s *NotifyPutNotifyChannelsTypeReq) SetSecret(val OptString) {
 	s.Secret = val
+}
+
+// SetSignin sets the value of Signin.
+func (s *NotifyPutNotifyChannelsTypeReq) SetSignin(val OptString) {
+	s.Signin = val
 }
 
 // SetZaloLogin sets the value of ZaloLogin.

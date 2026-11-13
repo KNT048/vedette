@@ -226,6 +226,8 @@
   "POST /logs/siem/test": "logs",
   "POST /logs/sources": "logs",
   "POST /notify/channels/{type}/test": "notify",
+  "POST /notify/email-signin": "notify",
+  "POST /notify/email-signin/{id}": "notify",
   "POST /notify/history/{id}/resend": "notify",
   "POST /notify/zalo/approvers/{user_id}/code": "notify",
   "POST /notify/zalo/login": "notify",

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter } from 'react-router'
+import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router'
 import { Toaster } from 'sonner'
 import { makeQueryClient } from '@/app/App'
 import { renderApp } from '@/test/render'
@@ -14,6 +14,7 @@ import { checkValues, evalCondition, resolveParam, validateTpl, verifyChain, EMP
 import type { Role } from '@/lib/session'
 import type { ActionRequest, AiState, Blocklist, Catalog, Condition, LogEntry, PlanList, ProposeResult, Rule, RuleInput, RunSummary, SettingsView, Simulation } from './types'
 import ResponseSettings from './ResponseSettings'
+import ResponsePage from './ResponsePage'
 import { ActionDialog } from './CatalogEditor'
 import { RequestCard } from './RequestCard'
 import { RuleDialog } from './RuleEditor'
@@ -1401,6 +1402,34 @@ describe('response: screens', () => {
     expect((await screen.findAllByText('Add 203.0.113.77 to the block list')).length).toBeGreaterThan(0)
   })
 
+  it('page frame (D-464): old #hash links open the tab through ?tab=, Requests carries the pending count, a tab the role may not see opens Rules', async () => {
+    // ResponsePage on its own router, so the test can read the address after the redirect.
+    const at = (url: string) => {
+      sessionStore.set({ userId: 'u-admin' })
+      const router = createMemoryRouter([{ path: '/response', element: <ResponsePage /> }], { initialEntries: [url] })
+      const view = render(<QueryClientProvider client={makeQueryClient()}><RouterProvider router={router} /></QueryClientProvider>)
+      const where = () => router.state.location.pathname + router.state.location.search + router.state.location.hash
+      return { view, where }
+    }
+    const log = at('/response?incident=al-4#log')
+    expect(await screen.findByRole('tab', { name: 'Log' })).toHaveAttribute('aria-selected', 'true')
+    expect(log.where()).toBe('/response?incident=al-4&tab=log')
+    expect(screen.getByRole('tab', { name: /^Requests \d+ waiting for a decision$/ })).toBeInTheDocument()
+    log.view.unmount()
+    const ai = at('/response#ai')
+    expect(await screen.findByRole('tab', { name: /^Requests/ })).toHaveAttribute('aria-selected', 'true')
+    expect(ai.where()).toBe('/response?tab=requests')
+    ai.view.unmount()
+    // any other hash (the skip link's #main) is not an old tab name: no redirect
+    const skip = at('/response?tab=metrics#main')
+    expect(await screen.findByRole('tab', { name: 'Metrics' })).toHaveAttribute('aria-selected', 'true')
+    expect(skip.where()).toBe('/response?tab=metrics#main')
+    skip.view.unmount()
+    renderApp('/response?tab=blocklist', { role: 'viewer' })
+    expect(await screen.findByRole('tab', { name: 'Rules' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('tab', { name: 'Block list' })).toBeNull()
+  })
+
   it('Metrics tab: acceptance, AI budget and the rejected requests with their reasons', async () => {
     renderApp('/response#metrics')
     expect((await screen.findAllByText('Acceptance')).length).toBeGreaterThan(0)
@@ -1435,6 +1464,13 @@ describe('response: screens', () => {
     renderApp('/findings/f-1')
     expect(await screen.findByRole('heading', { name: 'Response plan' })).toBeInTheDocument()
     expect(await screen.findByText(/Turn off virtual IP NAS-PHOTO-443 on FW-HQ/, { selector: 'p' })).toBeInTheDocument()
+  })
+
+  it('a requested proposal on the finding page links to the Requests tab (D-464: ?tab=, not #requests)', async () => {
+    await turnOn()
+    expect((await request()).status).toBe(201)
+    renderApp('/findings/f-1')
+    expect(await screen.findByRole('link', { name: 'Requested, see Action requests' })).toHaveAttribute('href', '/response?tab=requests')
   })
 
   it('the public approval page shows the change on load and decides only on the button', async () => {

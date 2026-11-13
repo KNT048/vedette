@@ -151,7 +151,11 @@ EOT
 	code=$(sed -n 's/.*setup code:  \([A-Z0-9-]*\).*/\1/p' "$work/install.log" | head -n 1)
 	printf '%s' "$code" | grep -Eq '^[A-HJ-NP-Z2-9]{5}(-[A-HJ-NP-Z2-9]{5}){3}$' || { tail -15 "$work/install.log" >&2; fail "no setup code in the output"; }
 	grep -q 'open:        https://' "$work/install.log" || fail "no address in the output"
-	ok "installed; the output has the test warning, the address and a setup code"
+	# the JSON log lines of vedette-host -bootstrap go to the journal, not to the person's terminal (N100)
+	! grep -n '^{"time"' "$work/install.log" >&2 || fail "the installer output has raw log lines of vedette-host (above); they belong in the journal"
+	# through the syslog socket: the bootstrap's own line, not one of the daemon (stdout of vedette-host.service)
+	x 'journalctl -t vedette-host _TRANSPORT=syslog --no-pager -o cat | grep -q "\"msg\":\"release index stored\""' || fail "the WARN 'release index stored' of the bootstrap is not in the journal (journalctl -t vedette-host _TRANSPORT=syslog)"
+	ok "installed; the output has the test warning, the address and a setup code, and no raw log line (the bootstrap's WARN is in the journal)"
 	[ "$(x 'systemctl is-active vedette-host.service')" = active ] || fail "vedette-host is not active"
 	x '[ "$(stat -c "%a %U:%G" /run/vedette)" = "750 root:vedette" ] && [ "$(stat -c "%a %U:%G" /run/vedette/host.sock)" = "660 root:vedette" ]' || fail "socket or its folder has the wrong mode or owner"
 	ok "vedette-host active (Type=notify); /run/vedette 750 and host.sock 660, root:vedette"
@@ -224,6 +228,12 @@ EOT
 	ok "--uninstall without --yes only says what it would do"
 	x 'sh /root/art/install.sh --uninstall --yes' >"$work/un.log" 2>&1 || { tail -40 "$work/un.log" >&2; fail "--uninstall --yes failed"; }
 	snap_files "$work/$n.after"
+	# the folders the package and podman made for vedette-int (N100), named before the whole-box diff below
+	for d in /etc/containers /etc/containers/networks /var/lib/cni /etc/apparmor.d/disable; do
+		b=$(grep -c "^$d " "$work/$n.before" || true)
+		a=$(grep -c "^$d " "$work/$n.after" || true)
+		[ "$b" = "$a" ] || fail "N100: $d is not as before after --uninstall (there before: $b, there after: $a)"
+	done
 	same "$work/$n.before" "$work/$n.after" "after --uninstall the box is not as before (diff above)"
 	x '! ss -H -ltn | grep -Eq "[:.](8443|8444)\$" && ! getent passwd vedette vedette-sensor >/dev/null && ! getent group vedette vedette-sensor >/dev/null && ! test -e /etc/vedette && ! test -e /var/lib/vedette && ! test -e /etc/containers/systemd/vedette-core.container' || fail "something of Vedette is left"
 	ok "uninstall: users, groups, units, listening sockets, links, namespaces, packages and files are exactly as before; 8443 and 8444 closed"

@@ -1,13 +1,16 @@
 import type { ReactNode } from 'react'
 import { StoryTag } from './StoryTag'
 
-/** Dòng đầu mỗi trang trả lời câu hỏi của persona (FRONTEND §3 "thứ bậc thông tin"). */
+/** Dòng đầu mỗi trang trả lời câu hỏi của persona (FRONTEND §3 "thứ bậc thông tin").
+ *  Khung trang D-464: tiêu đề ~20 px và mô tả ngắn chung một dòng (mô tả xuống dòng khi không đủ chỗ); sau đó KpiStrip, PageTabs (`PageFrame.tsx`). */
 export function PageHeader({ title, meta, actions, stories }: { title: ReactNode; meta?: ReactNode; actions?: ReactNode; stories?: string[] }) {
   return (
-    <header className="mb-6 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-      <div className="grid max-w-3xl gap-1">
-        <h1 className="text-xl font-semibold leading-tight tracking-[-0.01em] sm:text-2xl">{title}</h1>
-        {meta ? <div className="text-[13px] text-muted">{meta}</div> : null}
+    <header className="mb-5 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+      <div className="grid min-w-0 max-w-4xl gap-1">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h1 className="text-xl font-semibold leading-tight tracking-[-0.01em]">{title}</h1>
+          {meta ? <div className="text-[13px] text-muted">{meta}</div> : null}
+        </div>
         {stories ? <StoryTag ids={stories} /> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}

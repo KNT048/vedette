@@ -169,7 +169,11 @@
     "test": "Test connection",
     "testOk": "Read the identity provider's OIDC configuration.",
     "saveFirst": "Save the settings before testing",
-    "err": { "issuer": "Enter the issuer address.", "client": "Enter the Client ID.", "secret": "Enter the Client secret." },
+    "err": {
+      "issuer": "Enter the issuer address.",
+      "client": "Enter the Client ID.",
+      "secret": "Enter the Client secret."
+    },
     "noAccess": "No access",
     "scopes": "Scopes",
     "scopesHint": "Separated by spaces; must include openid. Add groups if your identity provider needs it to send groups (Okta, Authentik).",
@@ -495,9 +499,6 @@
       "notify.approval_request": "Send approval request",
       "notify.approval_skipped": "Approval request not sent",
       "notify.zalo_message": "Zalo message from someone who is not an approver",
-      "notify.zalo_login": "Zalo personal QR sign-in",
-      "notify.zalo_link_code": "Send a Zalo approver their confirm link",
-      "notify.zalo_unlink": "Zalo approver link no longer counts",
       "notify.channel_remove": "Remove notification channel",
       "notify.channel_save": "Save notification channel",
       "notify.channel_test": "Test notification channel",
@@ -513,7 +514,10 @@
       "sensor-ca.create": "Create sensor certificate authority",
       "sensor-ca.replace": "Replace sensor certificate authority",
       "sensor-cert.issue": "Issue sensor certificate",
-      "sensor-cert.retire": "Retire sensor certificate"
+      "sensor-cert.retire": "Retire sensor certificate",
+      "notify.zalo_login": "Zalo personal QR sign-in",
+      "notify.zalo_link_code": "Send a Zalo approver their confirm link",
+      "notify.zalo_unlink": "Zalo approver link no longer counts"
     }
   },
   "updates": {
@@ -914,8 +918,8 @@
       },
       "5": {
         "name": "Notifications",
-        "what": "Alert content, the 6-digit sign-in code for people who use two-step email codes, and a 6-digit link code that proves an approver's address (mailed to that address, answered privately to their button press in chat, or, for Zalo personal, a confirm link to this box sent from the box's Zalo account to the approver's Zalo, which they open and confirm while signed in to Vedette). Email goes through your own SMTP server. Slack: Incoming Webhook, plus an outward Socket Mode connection if you approve actions in Slack. Telegram: bot with long polling; once a request is decided or has ended, the box edits its approval message to remove the buttons. Zalo personal (unofficial): an administrator signs in with a QR code (the box talks to id.zalo.me, chat.zalo.me and jr.chat.zalo.me for that), and to pick the recipient and approvers the box asks Zalo for the account's friends and groups, the group of an invite link you paste or the person of a phone number you type; the box then signs in to Zalo with that account's session and sends alerts, and approval codes privately to each approver's own Zalo user ID; it reads the direct messages to that account to take approvers' reply codes, answers them privately, and notes the Zalo user ID and name of any other sender in the audit log. Email approvals add a single-use link valid for 30 minutes that opens a confirmation page on this box. Approval requests sent to Telegram, Slack, Zalo and email carry the whole change: the full command or API call with its non-credential header values and body, the undo and the check before. The response action webhook_call, if an administrator adds it to a rule, posts the request id, the item id and the action text to the webhook you configured.",
-        "to": "The Slack, Telegram, Zalo OA, Zalo personal or webhook you set up, or your own SMTP server for email",
+        "what": "Alert content, the 6-digit sign-in code for people who use two-step email codes, and a 6-digit link code that proves an approver's address (mailed to that address, answered privately to their button press in chat, or, for Zalo personal, a confirm link to this box sent from the box's Zalo account to the approver's Zalo, which they open and confirm while signed in to Vedette). Email goes through the SMTP server you set: your own, or a provider you choose under your account (Gmail, SendGrid, Microsoft 365, Outlook.com at smtp-mail.outlook.com and others). OAuth sign-ins add a token service, contacted only with those presets: login.microsoftonline.com for Microsoft 365 and Outlook.com, oauth2.googleapis.com for Google Workspace and Gmail with your own Google client. As an app, Microsoft 365 gets a token with the tenant ID, client ID and client secret; Google Workspace with a request signed with the service account key, naming the mailbox (the key never leaves the box). With a user sign-in (Microsoft 365 or Outlook.com by device code, Gmail with your own Google OAuth client) the box gets a device code and then tokens from login.microsoftonline.com, or exchanges the code from the address you paste at oauth2.googleapis.com; it keeps the refresh token encrypted and the mailbox's address, and refreshes the access token there before sending. Access tokens stay in memory only. Slack: Incoming Webhook, plus an outward Socket Mode connection if you approve actions in Slack. Telegram: bot with long polling; once a request is decided or has ended, the box edits its approval message to remove the buttons. Zalo personal (unofficial): an administrator signs in with a QR code (the box talks to id.zalo.me, chat.zalo.me and jr.chat.zalo.me for that), and to pick the recipient and approvers the box asks Zalo for the account's friends and groups, the group of an invite link you paste or the person of a phone number you type; the box then signs in to Zalo with that account's session and sends alerts, and approval codes privately to each approver's own Zalo user ID; it reads the direct messages to that account to take approvers' reply codes, answers them privately, and notes the Zalo user ID and name of any other sender in the audit log. Email approvals add a single-use link valid for 30 minutes that opens a confirmation page on this box. Approval requests sent to Telegram, Slack, Zalo and email carry the whole change: the full command or API call with its non-credential header values and body, the undo and the check before. The response action webhook_call, if an administrator adds it to a rule, posts the request id, the item id and the action text to the webhook you configured.",
+        "to": "The Slack, Telegram, Zalo OA, Zalo personal or webhook you set up, or the SMTP server you set for email (such as smtp-mail.outlook.com for Outlook.com), plus login.microsoftonline.com (Microsoft 365, Outlook.com) or oauth2.googleapis.com (Google Workspace, Gmail with your own Google client) for OAuth sign-in tokens",
         "control": "Remove the channel, or turn off approvals in chat, to stop it (buttons already sent are still removed while the channel exists).",
         "link": "Open alert channels"
       },

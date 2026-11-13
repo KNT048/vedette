@@ -230,6 +230,8 @@ const (
 	NotifyGetNotifyZaloLoginOperation                       OperationName = "NotifyGetNotifyZaloLogin"
 	NotifyPatchNotifyIncidentsIDOperation                   OperationName = "NotifyPatchNotifyIncidentsID"
 	NotifyPostNotifyChannelsTypeTestOperation               OperationName = "NotifyPostNotifyChannelsTypeTest"
+	NotifyPostNotifyEmailSigninOperation                    OperationName = "NotifyPostNotifyEmailSignin"
+	NotifyPostNotifyEmailSigninIDOperation                  OperationName = "NotifyPostNotifyEmailSigninID"
 	NotifyPostNotifyHistoryIDResendOperation                OperationName = "NotifyPostNotifyHistoryIDResend"
 	NotifyPostNotifyZaloApproversUserIDCodeOperation        OperationName = "NotifyPostNotifyZaloApproversUserIDCode"
 	NotifyPostNotifyZaloLoginOperation                      OperationName = "NotifyPostNotifyZaloLogin"

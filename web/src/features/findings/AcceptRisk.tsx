@@ -20,7 +20,7 @@ export function AcceptUntil({ id, value, onChange, error }: { id: string; value:
     <div className="grid gap-2">
       <Segmented<string> label={t('accept.presets')} value={preset} onChange={(v) => onChange(dayAfter(today, Number(v)))}
         options={PRESETS.map((d) => ({ value: d, label: t('accept.days', { count: Number(d) }) }))} />
-      <Field htmlFor={id} label={t('accept.until')} hint={t('accept.untilHint')} error={error}>
+      <Field htmlFor={id} label={t('accept.until')} hint={value ? t('accept.reopensAfter', { date: fmtDate(value) }) : t('accept.untilHint')} error={error}>
         <Input id={id} type="date" className="w-fit" min={min} max={max} value={value} onChange={(e) => onChange(e.target.value)}
           aria-invalid={!!error} aria-describedby={error ? `${id}-error` : `${id}-hint`} />
       </Field>

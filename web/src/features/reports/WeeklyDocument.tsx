@@ -102,6 +102,7 @@ export function WeeklyDocument({ report: r, org }: { report: WeeklyReport; org: 
                 </ul>
               ) : <p className="text-muted">{t('doc.weekly.noneDone')}</p>}
               {c.resolved > DONE_LINES ? <p className="mt-1 text-[13px] text-muted">{t('doc.weekly.doneMore', { count: c.resolved - DONE_LINES })}</p> : null}
+              {c.accepted ? <p className="mt-1 text-[13px] text-muted">{t('doc.weekly.accepted', { count: c.accepted, date: fmtDate(c.accepted_until) })}</p> : null}
             </section>
           </>
         ) : null}

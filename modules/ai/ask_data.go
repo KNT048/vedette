@@ -49,6 +49,8 @@ type FindingRow struct {
 	Evidence   string // the summary of the scan that confirmed it; "" = none
 	FirstSeen  string
 	LastSeen   string
+	// AcceptedUntil (YYYY-MM-DD) is the last day of a risk acceptance, only with status risk_accepted (D-498); "" otherwise.
+	AcceptedUntil string
 }
 
 // IOCFact is an indicator (an IP address or a domain) that feeds list.

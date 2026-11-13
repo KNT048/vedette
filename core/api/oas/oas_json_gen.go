@@ -188097,6 +188097,41 @@ func (s *OptFindingsPostFindingsIDStatusOKPackFirewallItemAlternative) Unmarshal
 	return s.Decode(d)
 }
 
+// Encode encodes float64 as json.
+func (o OptFloat64) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Float64(float64(o.Value))
+}
+
+// Decode decodes float64 from json.
+func (o *OptFloat64) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptFloat64 to nil")
+	}
+	o.Set = true
+	v, err := d.Float64()
+	if err != nil {
+		return err
+	}
+	o.Value = float64(v)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptFloat64) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptFloat64) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes HoneypotPostHoneypotTokensReqExt as json.
 func (o OptHoneypotPostHoneypotTokensReqExt) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -192171,6 +192206,8 @@ func (s *ReportsGetReportsPdplOKReportRisksItemStatus) Decode(d *jx.Decoder) err
 		*s = ReportsGetReportsPdplOKReportRisksItemStatusFalsePositive
 	case ReportsGetReportsPdplOKReportRisksItemStatusNotRelevant:
 		*s = ReportsGetReportsPdplOKReportRisksItemStatusNotRelevant
+	case ReportsGetReportsPdplOKReportRisksItemStatusRiskAccepted:
+		*s = ReportsGetReportsPdplOKReportRisksItemStatusRiskAccepted
 	default:
 		*s = ReportsGetReportsPdplOKReportRisksItemStatus(v)
 	}
@@ -193998,6 +194035,18 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) encodeFields(e *jx.Encoder) {
 	{
+		if s.Accepted.Set {
+			e.FieldStart("accepted")
+			s.Accepted.Encode(e)
+		}
+	}
+	{
+		if s.AcceptedUntil.Set {
+			e.FieldStart("accepted_until")
+			s.AcceptedUntil.Encode(e, json.EncodeDate)
+		}
+	}
+	{
 		e.FieldStart("devices")
 		e.Float64(s.Devices)
 	}
@@ -194035,16 +194084,18 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) encodeFields(e *jx.Enco
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportCounts = [9]string{
-	0: "devices",
-	1: "devices_new",
-	2: "devices_unapproved",
-	3: "kev_matched",
-	4: "kev_new",
-	5: "new_findings",
-	6: "open_confirmed",
-	7: "open_suspected",
-	8: "resolved",
+var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportCounts = [11]string{
+	0:  "accepted",
+	1:  "accepted_until",
+	2:  "devices",
+	3:  "devices_new",
+	4:  "devices_unapproved",
+	5:  "kev_matched",
+	6:  "kev_new",
+	7:  "new_findings",
+	8:  "open_confirmed",
+	9:  "open_suspected",
+	10: "resolved",
 }
 
 // Decode decodes ReportsGetReportsWeeklyHistoryIDOKReportCounts from json.
@@ -194056,8 +194107,28 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) Decode(d *jx.Decoder) e
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "accepted":
+			if err := func() error {
+				s.Accepted.Reset()
+				if err := s.Accepted.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accepted\"")
+			}
+		case "accepted_until":
+			if err := func() error {
+				s.AcceptedUntil.Reset()
+				if err := s.AcceptedUntil.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accepted_until\"")
+			}
 		case "devices":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Float64()
 				s.Devices = float64(v)
@@ -194069,7 +194140,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"devices\"")
 			}
 		case "devices_new":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Float64()
 				s.DevicesNew = float64(v)
@@ -194081,7 +194152,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"devices_new\"")
 			}
 		case "devices_unapproved":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Float64()
 				s.DevicesUnapproved = float64(v)
@@ -194093,7 +194164,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"devices_unapproved\"")
 			}
 		case "kev_matched":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Float64()
 				s.KevMatched = float64(v)
@@ -194105,7 +194176,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"kev_matched\"")
 			}
 		case "kev_new":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Float64()
 				s.KevNew = float64(v)
@@ -194117,7 +194188,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"kev_new\"")
 			}
 		case "new_findings":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Float64()
 				s.NewFindings = float64(v)
@@ -194129,7 +194200,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"new_findings\"")
 			}
 		case "open_confirmed":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Float64()
 				s.OpenConfirmed = float64(v)
@@ -194141,7 +194212,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"open_confirmed\"")
 			}
 		case "open_suspected":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Float64()
 				s.OpenSuspected = float64(v)
@@ -194153,7 +194224,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"open_suspected\"")
 			}
 		case "resolved":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Float64()
 				s.Resolved = float64(v)
@@ -194174,8 +194245,8 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) Decode(d *jx.Decoder) e
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111111,
-		0b00000001,
+		0b11111100,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -194967,6 +195038,8 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus) Decode(d
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusFalsePositive
 	case ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusNotRelevant:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusNotRelevant
+	case ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusRiskAccepted:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusRiskAccepted
 	default:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus(v)
 	}
@@ -195290,6 +195363,8 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus) Decode(d *jx.De
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusFalsePositive
 	case ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusNotRelevant:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusNotRelevant
+	case ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusRiskAccepted:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusRiskAccepted
 	default:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus(v)
 	}
@@ -195726,6 +195801,8 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus) Decode(d *j
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusFalsePositive
 	case ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusNotRelevant:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusNotRelevant
+	case ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusRiskAccepted:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusRiskAccepted
 	default:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus(v)
 	}
@@ -198173,6 +198250,18 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) encodeFields(e *jx.Encoder) {
 	{
+		if s.Accepted.Set {
+			e.FieldStart("accepted")
+			s.Accepted.Encode(e)
+		}
+	}
+	{
+		if s.AcceptedUntil.Set {
+			e.FieldStart("accepted_until")
+			s.AcceptedUntil.Encode(e, json.EncodeDate)
+		}
+	}
+	{
 		e.FieldStart("devices")
 		e.Float64(s.Devices)
 	}
@@ -198210,16 +198299,18 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) encodeFields(e *jx.Encode
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportCounts = [9]string{
-	0: "devices",
-	1: "devices_new",
-	2: "devices_unapproved",
-	3: "kev_matched",
-	4: "kev_new",
-	5: "new_findings",
-	6: "open_confirmed",
-	7: "open_suspected",
-	8: "resolved",
+var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportCounts = [11]string{
+	0:  "accepted",
+	1:  "accepted_until",
+	2:  "devices",
+	3:  "devices_new",
+	4:  "devices_unapproved",
+	5:  "kev_matched",
+	6:  "kev_new",
+	7:  "new_findings",
+	8:  "open_confirmed",
+	9:  "open_suspected",
+	10: "resolved",
 }
 
 // Decode decodes ReportsGetReportsWeeklyPreviewOKReportCounts from json.
@@ -198231,8 +198322,28 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) Decode(d *jx.Decoder) err
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "accepted":
+			if err := func() error {
+				s.Accepted.Reset()
+				if err := s.Accepted.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accepted\"")
+			}
+		case "accepted_until":
+			if err := func() error {
+				s.AcceptedUntil.Reset()
+				if err := s.AcceptedUntil.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accepted_until\"")
+			}
 		case "devices":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Float64()
 				s.Devices = float64(v)
@@ -198244,7 +198355,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"devices\"")
 			}
 		case "devices_new":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Float64()
 				s.DevicesNew = float64(v)
@@ -198256,7 +198367,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"devices_new\"")
 			}
 		case "devices_unapproved":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Float64()
 				s.DevicesUnapproved = float64(v)
@@ -198268,7 +198379,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"devices_unapproved\"")
 			}
 		case "kev_matched":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Float64()
 				s.KevMatched = float64(v)
@@ -198280,7 +198391,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"kev_matched\"")
 			}
 		case "kev_new":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Float64()
 				s.KevNew = float64(v)
@@ -198292,7 +198403,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"kev_new\"")
 			}
 		case "new_findings":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Float64()
 				s.NewFindings = float64(v)
@@ -198304,7 +198415,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"new_findings\"")
 			}
 		case "open_confirmed":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Float64()
 				s.OpenConfirmed = float64(v)
@@ -198316,7 +198427,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"open_confirmed\"")
 			}
 		case "open_suspected":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Float64()
 				s.OpenSuspected = float64(v)
@@ -198328,7 +198439,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"open_suspected\"")
 			}
 		case "resolved":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Float64()
 				s.Resolved = float64(v)
@@ -198349,8 +198460,8 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) Decode(d *jx.Decoder) err
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111111,
-		0b00000001,
+		0b11111100,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -199142,6 +199253,8 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus) Decode(d *
 		*s = ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusFalsePositive
 	case ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusNotRelevant:
 		*s = ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusNotRelevant
+	case ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusRiskAccepted:
+		*s = ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusRiskAccepted
 	default:
 		*s = ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus(v)
 	}
@@ -199465,6 +199578,8 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus) Decode(d *jx.Deco
 		*s = ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusFalsePositive
 	case ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusNotRelevant:
 		*s = ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusNotRelevant
+	case ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusRiskAccepted:
+		*s = ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusRiskAccepted
 	default:
 		*s = ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus(v)
 	}
@@ -199901,6 +200016,8 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus) Decode(d *jx.
 		*s = ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusFalsePositive
 	case ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusNotRelevant:
 		*s = ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusNotRelevant
+	case ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusRiskAccepted:
+		*s = ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusRiskAccepted
 	default:
 		*s = ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus(v)
 	}
@@ -203179,6 +203296,8 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItemStatus) Decode(d *jx.Decoder) 
 		*s = ReportsPostReportsPdplGenerateOKRisksItemStatusFalsePositive
 	case ReportsPostReportsPdplGenerateOKRisksItemStatusNotRelevant:
 		*s = ReportsPostReportsPdplGenerateOKRisksItemStatusNotRelevant
+	case ReportsPostReportsPdplGenerateOKRisksItemStatusRiskAccepted:
+		*s = ReportsPostReportsPdplGenerateOKRisksItemStatusRiskAccepted
 	default:
 		*s = ReportsPostReportsPdplGenerateOKRisksItemStatus(v)
 	}

@@ -288,6 +288,9 @@ func (a aiAsk) names(ctx context.Context) (map[string]inventory.Device, error) {
 func aiFindingRow(r findings.Record, devs map[string]inventory.Device) ai.FindingRow {
 	f := ai.FindingRow{ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), Basis: string(r.Basis), Confidence: r.Confidence,
 		FirstSeen: r.FirstSeen.UTC().Format(time.RFC3339), LastSeen: r.LastSeen.UTC().Format(time.RFC3339)}
+	if !r.AcceptedUntil.IsZero() {
+		f.AcceptedUntil = r.AcceptedUntil.UTC().Format(time.DateOnly)
+	}
 	if d, ok := devs[r.AssetID]; ok {
 		f.Asset, f.AssetIP = aiDeviceName(d), d.IP
 	}

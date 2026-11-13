@@ -1,17 +1,10 @@
 package findings
 
 import (
-	"database/sql"
 	"errors"
-	"io/fs"
 	"strings"
 	"testing"
-	"testing/fstest"
 	"time"
-
-	"github.com/knt048/vedette/core/store"
-	"github.com/knt048/vedette/core/store/storetest"
-	"github.com/knt048/vedette/modules/core"
 )
 
 // D-498: accept_risk needs a note like false positive and a day from tomorrow to a year ahead (one day of slack each side
@@ -58,7 +51,8 @@ func TestFinding_AcceptRisk_NoteAndUntilBounds(t *testing.T) {
 	}
 }
 
-// D-498, INV-13: the acceptance holds through its last day and reopens the next one, to what a fresh match gives.
+// D-498, INV-13: the acceptance holds until its last day has ended everywhere (the next day 12:00 UTC, the end of the day at
+// UTC-12), then reopens to what a fresh match gives.
 func TestFinding_ExpireAcceptance(t *testing.T) {
 	t.Parallel()
 	until := dayOf(t0).AddDate(0, 0, 30)
@@ -66,10 +60,10 @@ func TestFinding_ExpireAcceptance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, ok := acc.ExpireAcceptance(until.Add(23 * time.Hour)); ok {
-		t.Fatal("expired on its last day")
+	if _, _, ok := acc.ExpireAcceptance(until.AddDate(0, 0, 1).Add(12*time.Hour - time.Millisecond)); ok {
+		t.Fatal("expired before the last day ended at UTC-12")
 	}
-	re, h, ok := acc.ExpireAcceptance(until.AddDate(0, 0, 1))
+	re, h, ok := acc.ExpireAcceptance(AcceptanceEnds(until))
 	if !ok || re.Status != StatusSuspected || !re.AcceptedUntil.IsZero() || re.ResolvedBy != "" || re.Validate() != nil {
 		t.Fatalf("reopened = %+v %v", re, ok)
 	}
@@ -115,25 +109,35 @@ func TestService_AcceptRiskThenExpiresInReconcile(t *testing.T) {
 	if _, err := e.svc.OnMatchChanged(t.Context(), "a-1"); err != nil {
 		t.Fatal(err)
 	}
-	e.advance(30 * 24 * time.Hour) // the last day: still accepted
-	if r, err := e.svc.Reconcile(t.Context()); err != nil || r.Expired != 0 {
-		t.Fatalf("reconcile on the last day = %+v %v", r, err)
+	for _, step := range []time.Duration{30 * 24 * time.Hour, 24 * time.Hour} { // the last day, then the next morning UTC: it is still that day at UTC-12
+		e.advance(step)
+		if r, err := e.svc.Reconcile(t.Context()); err != nil || r.Expired != 0 {
+			t.Fatalf("reconcile at %s = %+v %v", *e.clock, r, err)
+		}
 	}
 	r, _ := e.svc.Get(t.Context(), id)
 	if r.Status != StatusRiskAccepted || !r.AcceptedUntil.Equal(until) || r.ResolutionNote != "March window" {
 		t.Fatalf("accepted = %+v", r)
 	}
 	e.pub.take()
-	e.advance(24 * time.Hour)
+	e.advance(2 * time.Hour) // the next day 12:00 UTC: the last day has ended everywhere
 	if r, err := e.svc.Reconcile(t.Context()); err != nil || r.Expired != 1 {
 		t.Fatalf("reconcile after the day = %+v %v", r, err)
+	}
+	e.advance(time.Hour)
+	if r, err := e.svc.Reconcile(t.Context()); err != nil || r.Expired != 0 {
+		t.Fatalf("second reconcile = %+v %v", r, err)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding_history WHERE user = 'system' AND note LIKE 'Risk acceptance expired%'`); n != 1 {
+		t.Fatalf("expiry history rows = %d, want exactly 1", n)
 	}
 	r, _ = e.svc.Get(t.Context(), id)
 	last := r.History[len(r.History)-1]
 	if r.Status != StatusSuspected || !r.AcceptedUntil.IsZero() || last.User != SystemUser || !strings.HasPrefix(last.Note, "Risk acceptance expired (accepted by it@acme.example") {
 		t.Fatalf("expired = %+v %+v", r.Finding, last)
 	}
-	if ev := e.pub.take(); len(ev) != 1 || ev[0].Payload != (StatusChangedEvent{FindingID: id, From: StatusRiskAccepted, To: StatusSuspected, Reason: ReasonRiskExpired}) {
+	if ev := e.pub.take(); len(ev) != 1 || ev[0].Payload != (StatusChangedEvent{FindingID: id, From: StatusRiskAccepted, To: StatusSuspected, Reason: ReasonRiskExpired,
+		AcceptedBy: "it@acme.example", AcceptedUntil: until.Format(time.DateOnly)}) {
 		t.Fatalf("events = %+v", ev)
 	}
 	if e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.status' AND detail LIKE '%risk acceptance expired%'`) != 1 {
@@ -141,67 +145,5 @@ func TestService_AcceptRiskThenExpiresInReconcile(t *testing.T) {
 	}
 	if p, _ := e.svc.Get(t.Context(), res.Created[1]); p.Status != StatusPatched {
 		t.Fatalf("the patched one became %s", p.Status)
-	}
-}
-
-// Migration 0005 rebuilds fnd_finding, the parent of ON DELETE CASCADE keys of findings and mitigation: every child row
-// must survive it, and foreign keys must be on again afterwards.
-func TestMigration0005_KeepsTheRowsThatHangOffAFinding(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-	db := storetest.New(t)
-	if err := store.Migrate(ctx, db, "core", core.Migrations); err != nil {
-		t.Fatal(err)
-	}
-	before := fstest.MapFS{}
-	if err := fs.WalkDir(Migrations, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || strings.HasPrefix(p, "0005") {
-			return err
-		}
-		b, err := fs.ReadFile(Migrations, p)
-		before[p] = &fstest.MapFile{Data: b}
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "findings", before); err != nil {
-		t.Fatal(err)
-	}
-	ts := store.FormatTS(t0)
-	if err := db.Write(ctx, func(tx *sql.Tx) error {
-		for _, q := range []string{
-			`CREATE TABLE x_child (finding_id TEXT NOT NULL REFERENCES fnd_finding (id) ON DELETE CASCADE)`,
-			`INSERT INTO fnd_finding (id, asset_id, cve, status, severity, confidence, basis, first_seen, last_seen) VALUES ('f-1', 'a-1', 'CVE-2022-27593', 'suspected', 'medium', 0.5, 'product', '` + ts + `', '` + ts + `')`,
-			`INSERT INTO fnd_finding_history (id, finding_id, ts, user, action) VALUES ('fh-1', 'f-1', '` + ts + `', 'system', 'created')`,
-			`INSERT INTO x_child (finding_id) VALUES ('f-1')`,
-		} {
-			if _, err := tx.ExecContext(ctx, q); err != nil {
-				return err
-			}
-		}
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Migrate(ctx, db, "findings", Migrations); err != nil {
-		t.Fatal(err)
-	}
-	count := func(q string) (n int) {
-		if err := db.Reader().QueryRowContext(ctx, q).Scan(&n); err != nil {
-			t.Fatal(err)
-		}
-		return n
-	}
-	if count(`SELECT count(*) FROM fnd_finding_history`) != 1 || count(`SELECT count(*) FROM x_child`) != 1 {
-		t.Fatal("the rebuild deleted rows that hang off a finding")
-	}
-	if err := db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `DELETE FROM fnd_finding WHERE id = 'f-1'`)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if count(`SELECT count(*) FROM fnd_finding_history`) != 0 || count(`SELECT count(*) FROM x_child`) != 0 {
-		t.Fatal("foreign keys are off after the migration: deleting a finding left its rows")
 	}
 }

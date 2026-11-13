@@ -103409,6 +103409,52 @@ func (o OptFindingsPostFindingsIDStatusOKPackFirewallItemAlternative) Or(d Findi
 	return d
 }
 
+// NewOptFloat64 returns new OptFloat64 with value set to v.
+func NewOptFloat64(v float64) OptFloat64 {
+	return OptFloat64{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFloat64 is optional float64.
+type OptFloat64 struct {
+	Value float64
+	Set   bool
+}
+
+// IsSet returns true if OptFloat64 was set.
+func (o OptFloat64) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFloat64) Reset() {
+	var v float64
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFloat64) SetTo(v float64) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFloat64) Get() (v float64, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFloat64) Or(d float64) float64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptHoneypotPostHoneypotTokensReqExt returns new OptHoneypotPostHoneypotTokensReqExt with value set to v.
 func NewOptHoneypotPostHoneypotTokensReqExt(v HoneypotPostHoneypotTokensReqExt) OptHoneypotPostHoneypotTokensReqExt {
 	return OptHoneypotPostHoneypotTokensReqExt{
@@ -106275,6 +106321,7 @@ const (
 	ReportsGetReportsPdplOKReportRisksItemStatusPatched       ReportsGetReportsPdplOKReportRisksItemStatus = "patched"
 	ReportsGetReportsPdplOKReportRisksItemStatusFalsePositive ReportsGetReportsPdplOKReportRisksItemStatus = "false_positive"
 	ReportsGetReportsPdplOKReportRisksItemStatusNotRelevant   ReportsGetReportsPdplOKReportRisksItemStatus = "not_relevant"
+	ReportsGetReportsPdplOKReportRisksItemStatusRiskAccepted  ReportsGetReportsPdplOKReportRisksItemStatus = "risk_accepted"
 )
 
 // AllValues returns all ReportsGetReportsPdplOKReportRisksItemStatus values.
@@ -106286,6 +106333,7 @@ func (ReportsGetReportsPdplOKReportRisksItemStatus) AllValues() []ReportsGetRepo
 		ReportsGetReportsPdplOKReportRisksItemStatusPatched,
 		ReportsGetReportsPdplOKReportRisksItemStatusFalsePositive,
 		ReportsGetReportsPdplOKReportRisksItemStatusNotRelevant,
+		ReportsGetReportsPdplOKReportRisksItemStatusRiskAccepted,
 	}
 }
 
@@ -106303,6 +106351,8 @@ func (s ReportsGetReportsPdplOKReportRisksItemStatus) MarshalText() ([]byte, err
 	case ReportsGetReportsPdplOKReportRisksItemStatusFalsePositive:
 		return []byte(s), nil
 	case ReportsGetReportsPdplOKReportRisksItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsPdplOKReportRisksItemStatusRiskAccepted:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -106329,6 +106379,9 @@ func (s *ReportsGetReportsPdplOKReportRisksItemStatus) UnmarshalText(data []byte
 		return nil
 	case ReportsGetReportsPdplOKReportRisksItemStatusNotRelevant:
 		*s = ReportsGetReportsPdplOKReportRisksItemStatusNotRelevant
+		return nil
+	case ReportsGetReportsPdplOKReportRisksItemStatusRiskAccepted:
+		*s = ReportsGetReportsPdplOKReportRisksItemStatusRiskAccepted
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -107028,6 +107081,10 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportAiSummaryTokens) SetOutput(val 
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportCounts struct {
+	// Risks accepted this week (D-498); absent when none or in reports sent before it.
+	Accepted OptFloat64 `json:"accepted"`
+	// The earliest day one of those acceptances ends.
+	AcceptedUntil OptDate `json:"accepted_until"`
 	// Devices as the Devices page counts them, this box included.
 	Devices           float64 `json:"devices"`
 	DevicesNew        float64 `json:"devices_new"`
@@ -107039,7 +107096,18 @@ type ReportsGetReportsWeeklyHistoryIDOKReportCounts struct {
 	NewFindings   float64 `json:"new_findings"`
 	OpenConfirmed float64 `json:"open_confirmed"`
 	OpenSuspected float64 `json:"open_suspected"`
-	Resolved      float64 `json:"resolved"`
+	// Closed this week; accepted risks are counted in accepted (D-498).
+	Resolved float64 `json:"resolved"`
+}
+
+// GetAccepted returns the value of Accepted.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) GetAccepted() OptFloat64 {
+	return s.Accepted
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) GetAcceptedUntil() OptDate {
+	return s.AcceptedUntil
 }
 
 // GetDevices returns the value of Devices.
@@ -107085,6 +107153,16 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) GetOpenSuspected() floa
 // GetResolved returns the value of Resolved.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) GetResolved() float64 {
 	return s.Resolved
+}
+
+// SetAccepted sets the value of Accepted.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetAccepted(val OptFloat64) {
+	s.Accepted = val
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetAcceptedUntil(val OptDate) {
+	s.AcceptedUntil = val
 }
 
 // SetDevices sets the value of Devices.
@@ -107560,6 +107638,7 @@ const (
 	ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusPatched       ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus = "patched"
 	ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusFalsePositive ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus = "false_positive"
 	ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusNotRelevant   ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus = "not_relevant"
+	ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusRiskAccepted  ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus = "risk_accepted"
 )
 
 // AllValues returns all ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus values.
@@ -107571,6 +107650,7 @@ func (ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus) AllValues()
 		ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusPatched,
 		ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusFalsePositive,
 		ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusNotRelevant,
+		ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusRiskAccepted,
 	}
 }
 
@@ -107588,6 +107668,8 @@ func (s ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus) MarshalTe
 	case ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusFalsePositive:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusRiskAccepted:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -107614,6 +107696,9 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus) Unmarsha
 		return nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusNotRelevant:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusNotRelevant
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusRiskAccepted:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatusRiskAccepted
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -107794,6 +107879,7 @@ const (
 	ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusPatched       ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus = "patched"
 	ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusFalsePositive ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus = "false_positive"
 	ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusNotRelevant   ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus = "not_relevant"
+	ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusRiskAccepted  ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus = "risk_accepted"
 )
 
 // AllValues returns all ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus values.
@@ -107805,6 +107891,7 @@ func (ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus) AllValues() []Repo
 		ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusPatched,
 		ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusFalsePositive,
 		ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusNotRelevant,
+		ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusRiskAccepted,
 	}
 }
 
@@ -107822,6 +107909,8 @@ func (s ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus) MarshalText() ([
 	case ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusFalsePositive:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusRiskAccepted:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -107848,6 +107937,9 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus) UnmarshalText(d
 		return nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusNotRelevant:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusNotRelevant
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusRiskAccepted:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatusRiskAccepted
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -108053,6 +108145,7 @@ const (
 	ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusPatched       ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus = "patched"
 	ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusFalsePositive ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus = "false_positive"
 	ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusNotRelevant   ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus = "not_relevant"
+	ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusRiskAccepted  ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus = "risk_accepted"
 )
 
 // AllValues returns all ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus values.
@@ -108064,6 +108157,7 @@ func (ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus) AllValues() []
 		ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusPatched,
 		ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusFalsePositive,
 		ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusNotRelevant,
+		ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusRiskAccepted,
 	}
 }
 
@@ -108081,6 +108175,8 @@ func (s ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus) MarshalText(
 	case ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusFalsePositive:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusRiskAccepted:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -108107,6 +108203,9 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus) UnmarshalTe
 		return nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusNotRelevant:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusNotRelevant
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusRiskAccepted:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatusRiskAccepted
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -109191,6 +109290,10 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportAiSummaryTokens) SetOutput(val fl
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportCounts struct {
+	// Risks accepted this week (D-498); absent when none or in reports sent before it.
+	Accepted OptFloat64 `json:"accepted"`
+	// The earliest day one of those acceptances ends.
+	AcceptedUntil OptDate `json:"accepted_until"`
 	// Devices as the Devices page counts them, this box included.
 	Devices           float64 `json:"devices"`
 	DevicesNew        float64 `json:"devices_new"`
@@ -109202,7 +109305,18 @@ type ReportsGetReportsWeeklyPreviewOKReportCounts struct {
 	NewFindings   float64 `json:"new_findings"`
 	OpenConfirmed float64 `json:"open_confirmed"`
 	OpenSuspected float64 `json:"open_suspected"`
-	Resolved      float64 `json:"resolved"`
+	// Closed this week; accepted risks are counted in accepted (D-498).
+	Resolved float64 `json:"resolved"`
+}
+
+// GetAccepted returns the value of Accepted.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) GetAccepted() OptFloat64 {
+	return s.Accepted
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) GetAcceptedUntil() OptDate {
+	return s.AcceptedUntil
 }
 
 // GetDevices returns the value of Devices.
@@ -109248,6 +109362,16 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) GetOpenSuspected() float6
 // GetResolved returns the value of Resolved.
 func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) GetResolved() float64 {
 	return s.Resolved
+}
+
+// SetAccepted sets the value of Accepted.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetAccepted(val OptFloat64) {
+	s.Accepted = val
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetAcceptedUntil(val OptDate) {
+	s.AcceptedUntil = val
 }
 
 // SetDevices sets the value of Devices.
@@ -109723,6 +109847,7 @@ const (
 	ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusPatched       ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus = "patched"
 	ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusFalsePositive ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus = "false_positive"
 	ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusNotRelevant   ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus = "not_relevant"
+	ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusRiskAccepted  ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus = "risk_accepted"
 )
 
 // AllValues returns all ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus values.
@@ -109734,6 +109859,7 @@ func (ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus) AllValues() [
 		ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusPatched,
 		ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusFalsePositive,
 		ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusNotRelevant,
+		ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusRiskAccepted,
 	}
 }
 
@@ -109751,6 +109877,8 @@ func (s ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus) MarshalText
 	case ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusFalsePositive:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusRiskAccepted:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -109777,6 +109905,9 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus) UnmarshalT
 		return nil
 	case ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusNotRelevant:
 		*s = ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusNotRelevant
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusRiskAccepted:
+		*s = ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatusRiskAccepted
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -109957,6 +110088,7 @@ const (
 	ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusPatched       ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus = "patched"
 	ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusFalsePositive ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus = "false_positive"
 	ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusNotRelevant   ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus = "not_relevant"
+	ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusRiskAccepted  ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus = "risk_accepted"
 )
 
 // AllValues returns all ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus values.
@@ -109968,6 +110100,7 @@ func (ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus) AllValues() []Report
 		ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusPatched,
 		ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusFalsePositive,
 		ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusNotRelevant,
+		ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusRiskAccepted,
 	}
 }
 
@@ -109985,6 +110118,8 @@ func (s ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus) MarshalText() ([]b
 	case ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusFalsePositive:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusRiskAccepted:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -110011,6 +110146,9 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus) UnmarshalText(dat
 		return nil
 	case ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusNotRelevant:
 		*s = ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusNotRelevant
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusRiskAccepted:
+		*s = ReportsGetReportsWeeklyPreviewOKReportOpenItemStatusRiskAccepted
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -110216,6 +110354,7 @@ const (
 	ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusPatched       ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus = "patched"
 	ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusFalsePositive ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus = "false_positive"
 	ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusNotRelevant   ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus = "not_relevant"
+	ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusRiskAccepted  ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus = "risk_accepted"
 )
 
 // AllValues returns all ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus values.
@@ -110227,6 +110366,7 @@ func (ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus) AllValues() []Re
 		ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusPatched,
 		ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusFalsePositive,
 		ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusNotRelevant,
+		ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusRiskAccepted,
 	}
 }
 
@@ -110244,6 +110384,8 @@ func (s ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus) MarshalText() 
 	case ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusFalsePositive:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusRiskAccepted:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -110270,6 +110412,9 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus) UnmarshalText
 		return nil
 	case ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusNotRelevant:
 		*s = ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusNotRelevant
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusRiskAccepted:
+		*s = ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatusRiskAccepted
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -111908,6 +112053,7 @@ const (
 	ReportsPostReportsPdplGenerateOKRisksItemStatusPatched       ReportsPostReportsPdplGenerateOKRisksItemStatus = "patched"
 	ReportsPostReportsPdplGenerateOKRisksItemStatusFalsePositive ReportsPostReportsPdplGenerateOKRisksItemStatus = "false_positive"
 	ReportsPostReportsPdplGenerateOKRisksItemStatusNotRelevant   ReportsPostReportsPdplGenerateOKRisksItemStatus = "not_relevant"
+	ReportsPostReportsPdplGenerateOKRisksItemStatusRiskAccepted  ReportsPostReportsPdplGenerateOKRisksItemStatus = "risk_accepted"
 )
 
 // AllValues returns all ReportsPostReportsPdplGenerateOKRisksItemStatus values.
@@ -111919,6 +112065,7 @@ func (ReportsPostReportsPdplGenerateOKRisksItemStatus) AllValues() []ReportsPost
 		ReportsPostReportsPdplGenerateOKRisksItemStatusPatched,
 		ReportsPostReportsPdplGenerateOKRisksItemStatusFalsePositive,
 		ReportsPostReportsPdplGenerateOKRisksItemStatusNotRelevant,
+		ReportsPostReportsPdplGenerateOKRisksItemStatusRiskAccepted,
 	}
 }
 
@@ -111936,6 +112083,8 @@ func (s ReportsPostReportsPdplGenerateOKRisksItemStatus) MarshalText() ([]byte, 
 	case ReportsPostReportsPdplGenerateOKRisksItemStatusFalsePositive:
 		return []byte(s), nil
 	case ReportsPostReportsPdplGenerateOKRisksItemStatusNotRelevant:
+		return []byte(s), nil
+	case ReportsPostReportsPdplGenerateOKRisksItemStatusRiskAccepted:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -111962,6 +112111,9 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItemStatus) UnmarshalText(data []b
 		return nil
 	case ReportsPostReportsPdplGenerateOKRisksItemStatusNotRelevant:
 		*s = ReportsPostReportsPdplGenerateOKRisksItemStatusNotRelevant
+		return nil
+	case ReportsPostReportsPdplGenerateOKRisksItemStatusRiskAccepted:
+		*s = ReportsPostReportsPdplGenerateOKRisksItemStatusRiskAccepted
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

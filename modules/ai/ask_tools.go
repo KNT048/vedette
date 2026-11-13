@@ -424,8 +424,12 @@ func cleanAll(in []string, n int) []string {
 }
 
 func findingMap(f FindingRow) map[string]any {
-	return map[string]any{"id": clip(f.ID, 96), "device": clip(f.Asset, 80), "device_ip": clip(f.AssetIP, 45), "asset_id": clip(f.AssetID, 96), "cve": clip(f.CVE, 24), "status": clip(f.Status, 20),
+	m := map[string]any{"id": clip(f.ID, 96), "device": clip(f.Asset, 80), "device_ip": clip(f.AssetIP, 45), "asset_id": clip(f.AssetID, 96), "cve": clip(f.CVE, 24), "status": clip(f.Status, 20),
 		"severity": clip(f.Severity, 12), "basis": clip(f.Basis, 12), "confidence": f.Confidence, "first_seen": clip(f.FirstSeen, 32), "last_seen": clip(f.LastSeen, 32)}
+	if f.AcceptedUntil != "" { // D-498: when an accepted risk comes back by itself
+		m["accepted_until"] = clip(f.AcceptedUntil, 10)
+	}
+	return m
 }
 
 // riskRank orders findings riskiest first: confirmed, then suspected, then closed ones (status=any), then severity, then how the match was made (a scan, the version, the

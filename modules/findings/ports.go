@@ -30,6 +30,9 @@ type StatusChangedEvent struct {
 	// finding, ReasonMatchesAgain when it reopened one it had closed, ReasonRiskExpired when a risk acceptance ran out
 	// (D-498). Empty for a person's action or a scan.
 	Reason string `json:"reason,omitempty"`
+	// AcceptedBy and AcceptedUntil (YYYY-MM-DD) are set only with ReasonRiskExpired: who accepted the risk and its last day.
+	AcceptedBy    string `json:"accepted_by,omitempty"`
+	AcceptedUntil string `json:"accepted_until,omitempty"`
 }
 
 // ReasonMatchesAgain is the StatusChangedEvent reason of a finding Vedette reopened because the device matches the

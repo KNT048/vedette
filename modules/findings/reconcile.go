@@ -137,15 +137,17 @@ func (s *Service) Reconcile(ctx context.Context) (ReconcileResult, error) {
 	return res, errors.Join(failed...)
 }
 
-// expireAcceptances reopens, in one write, every risk_accepted finding whose last day (UTC) is before today (D-498,
+// expireAcceptances reopens, in one write, every risk_accepted finding whose acceptance has ended (AcceptanceEnds, D-498,
 // INV-13): Finding.ExpireAcceptance, its history row by the system user, an audit row findings.status and the
-// status_changed event with reason ReasonRiskExpired. It returns how many it reopened.
+// status_changed event with reason ReasonRiskExpired. A row that cannot be read or reopened is logged with its id and
+// skipped; the others still reopen. It returns how many it reopened.
 func (s *Service) expireAcceptances(ctx context.Context) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, eventWriteTimeout)
 	defer cancel()
 	n := 0
 	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		n = 0
+		// accepted_until < the latest day that has ended everywhere; ExpireAcceptance decides with AcceptanceEnds.
 		rows, err := tx.QueryContext(ctx, `SELECT id FROM fnd_finding WHERE status = 'risk_accepted' AND accepted_until < ? ORDER BY id`, dayOf(now).Format(time.DateOnly))
 		if err != nil {
 			return fmt.Errorf("findings: reading expired risk acceptances: %w", err)
@@ -163,30 +165,30 @@ func (s *Service) expireAcceptances(ctx context.Context) (int, error) {
 			return fmt.Errorf("findings: reading expired risk acceptances: %w", err)
 		}
 		for _, id := range ids {
-			r, err := loadByID(ctx, tx, id)
-			if err != nil {
+			if err := ctx.Err(); err != nil {
 				return err
 			}
-			was, until := r.Status, r.AcceptedUntil
+			r, err := loadByID(ctx, tx, id)
+			if err != nil {
+				s.cfg.Log.WarnContext(ctx, "findings: a risk acceptance could not be read; skipped", "finding", id, "error", err)
+				continue
+			}
+			by, until := r.ResolvedBy, r.AcceptedUntil
 			f, h, ok := r.ExpireAcceptance(now)
 			if !ok {
 				continue
 			}
+			before := r.Finding
 			r.Finding = f
-			if err := r.Validate(); err != nil {
-				return fmt.Errorf("findings: finding %s after its risk acceptance expired: %w", r.ID, err)
+			if err := s.expireOne(ctx, tx, r, h, until); err != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				s.cfg.Log.WarnContext(ctx, "findings: a risk acceptance could not be reopened; skipped", "finding", id, "error", err)
+				continue
 			}
-			if err := updateRecord(ctx, tx, r); err != nil {
-				return err
-			}
-			if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-				return err
-			}
-			if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.status", Target: r.ID,
-				Detail: r.CVE + ": risk acceptance expired (until " + until.Format(time.DateOnly) + "), reopened as " + string(r.Status)}); err != nil {
-				return err
-			}
-			emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status, Reason: ReasonRiskExpired})
+			emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status, Reason: ReasonRiskExpired,
+				AcceptedBy: by, AcceptedUntil: until.Format(time.DateOnly)})
 			n++
 		}
 		return nil
@@ -195,6 +197,30 @@ func (s *Service) expireAcceptances(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	return n, nil
+}
+
+// expireOne writes one expiry under a savepoint, so a row that fails leaves nothing half written and the pass goes on.
+func (s *Service) expireOne(ctx context.Context, tx *sql.Tx, r Record, h HistoryEntry, until time.Time) (err error) {
+	if _, err := tx.ExecContext(ctx, `SAVEPOINT fnd_expire`); err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_, _ = tx.ExecContext(context.WithoutCancel(ctx), `ROLLBACK TO fnd_expire`)
+		}
+		_, _ = tx.ExecContext(context.WithoutCancel(ctx), `RELEASE fnd_expire`)
+	}()
+	if err := r.Validate(); err != nil {
+		return fmt.Errorf("findings: finding %s after its risk acceptance expired: %w", r.ID, err)
+	}
+	if err := updateRecord(ctx, tx, r); err != nil {
+		return err
+	}
+	if err := insertHistory(ctx, tx, r.ID, h); err != nil {
+		return err
+	}
+	return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.status", Target: r.ID,
+		Detail: r.CVE + ": risk acceptance expired (until " + until.Format(time.DateOnly) + "), reopened as " + string(r.Status)})
 }
 
 // splitByNews separates the entries whose findings are announced (added to KEV within RecentKEV) from the backlog.

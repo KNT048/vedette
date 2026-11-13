@@ -77,12 +77,12 @@ const (
 		`"id":{"type":"string"},"asset_id":{"type":"string"},"cve":{"type":"string"},` +
 		`"status":{"type":"string","enum":["confirmed","suspected","mitigated","patched","false_positive","not_relevant","risk_accepted"]},` +
 		`"severity":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1},"basis":{"type":"string"},` +
-		`"first_seen":{"type":"string","format":"date-time"},"last_seen":{"type":"string","format":"date-time"},"resolved_at":{"type":["string","null"],"format":"date-time"}}}`
+		`"first_seen":{"type":"string","format":"date-time"},"last_seen":{"type":"string","format":"date-time"},"resolved_at":{"type":["string","null"],"format":"date-time"},"accepted_until":{"type":"string","format":"date","description":"risk_accepted only: the last day; the finding reopens by itself after it."}}}`
 	findingSchema = `{"type":"object","additionalProperties":false,"required":["id","asset_id","cve","status","severity","confidence","basis","first_seen","last_seen","resolved_at","evidence","history"],"properties":{` +
 		`"id":{"type":"string"},"asset_id":{"type":"string"},"cve":{"type":"string"},` +
 		`"status":{"type":"string","enum":["confirmed","suspected","mitigated","patched","false_positive","not_relevant","risk_accepted"]},` +
 		`"severity":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1},"basis":{"type":"string"},` +
-		`"first_seen":{"type":"string","format":"date-time"},"last_seen":{"type":"string","format":"date-time"},"resolved_at":{"type":["string","null"],"format":"date-time"},` +
+		`"first_seen":{"type":"string","format":"date-time"},"last_seen":{"type":"string","format":"date-time"},"resolved_at":{"type":["string","null"],"format":"date-time"},"accepted_until":{"type":"string","format":"date","description":"risk_accepted only: the last day; the finding reopens by itself after it."},` +
 		`"evidence":{"type":["object","null"],"additionalProperties":false,"required":["template","checked_at"],"properties":{"template":{"type":"string","description":"The scan check that confirmed it."},"checked_at":{"type":"string","format":"date-time"}}},` +
 		`"history":{"type":"array","maxItems":50,"items":{"type":"object","additionalProperties":false,"required":["at","action"],"properties":{"at":{"type":"string","format":"date-time"},"action":{"type":"string"}}}}}}`
 
@@ -357,16 +357,17 @@ func getAsset(ctx context.Context, src Source, a args) (any, int, error) {
 
 // findingRow is a finding in a list: without its evidence and history.
 type findingRow struct {
-	ID         string  `json:"id"`
-	AssetID    string  `json:"asset_id"`
-	CVE        string  `json:"cve"`
-	Status     string  `json:"status"`
-	Severity   string  `json:"severity"`
-	Confidence float64 `json:"confidence"`
-	Basis      string  `json:"basis"`
-	FirstSeen  string  `json:"first_seen"`
-	LastSeen   string  `json:"last_seen"`
-	ResolvedAt *string `json:"resolved_at"`
+	ID            string  `json:"id"`
+	AssetID       string  `json:"asset_id"`
+	CVE           string  `json:"cve"`
+	Status        string  `json:"status"`
+	Severity      string  `json:"severity"`
+	Confidence    float64 `json:"confidence"`
+	Basis         string  `json:"basis"`
+	FirstSeen     string  `json:"first_seen"`
+	LastSeen      string  `json:"last_seen"`
+	ResolvedAt    *string `json:"resolved_at"`
+	AcceptedUntil string  `json:"accepted_until,omitempty"`
 }
 
 func listFindings(ctx context.Context, src Source, a args) (any, int, error) {
@@ -411,7 +412,7 @@ func listFindings(ctx context.Context, src Source, a args) (any, int, error) {
 		case hasCVE && !strings.EqualFold(f.CVE, cve):
 			continue
 		}
-		rows = append(rows, findingRow{f.ID, f.AssetID, f.CVE, f.Status, f.Severity, f.Confidence, f.Basis, f.FirstSeen, f.LastSeen, f.ResolvedAt})
+		rows = append(rows, findingRow{f.ID, f.AssetID, f.CVE, f.Status, f.Severity, f.Confidence, f.Basis, f.FirstSeen, f.LastSeen, f.ResolvedAt, f.AcceptedUntil})
 	}
 	p := paginate(rows, offset, limit)
 	return p, len(p.Items), nil

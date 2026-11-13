@@ -82,7 +82,13 @@ type Finding struct {
 }
 
 // ReasonRiskExpired is the StatusChangedEvent reason of a finding whose risk acceptance ran out (D-498, INV-13).
-const ReasonRiskExpired = "risk_acceptance_expired"
+const ReasonRiskExpired = "acceptance_expired"
+
+// AcceptanceEnds is when a risk accepted until the day until ends: once that day is over everywhere on Earth, at its end
+// in UTC-12, which is the next day at 12:00 UTC. It is never early for anyone and at most about a day late for UTC+14.
+func AcceptanceEnds(until time.Time) time.Time {
+	return dayOf(until).AddDate(0, 0, 1).Add(12 * time.Hour)
+}
 
 // dayOf is the UTC day of t, at 00:00.
 func dayOf(t time.Time) time.Time {
@@ -93,11 +99,11 @@ func dayOf(t time.Time) time.Time {
 // FmtDay is how a day is written in history notes: "12 Feb 2027", like the GUI.
 func FmtDay(t time.Time) string { return t.UTC().Format("2 Jan 2006") }
 
-// ExpireAcceptance reopens a risk_accepted finding once its last day has passed (D-498, INV-13): to the open status a
+// ExpireAcceptance reopens a risk_accepted finding once AcceptanceEnds(its last day) (D-498, INV-13): to the open status a
 // fresh match would give (confirmed with a scan basis, else suspected), with a history row by the system user that names
 // who accepted it and until when. ok is false for anything else.
 func (f Finding) ExpireAcceptance(now time.Time) (Finding, HistoryEntry, bool) {
-	if f.Status != StatusRiskAccepted || !dayOf(now).After(f.AcceptedUntil) {
+	if f.Status != StatusRiskAccepted || now.Before(AcceptanceEnds(f.AcceptedUntil)) {
 		return f, HistoryEntry{}, false
 	}
 	note := "Risk acceptance expired (accepted by " + f.ResolvedBy + " until " + FmtDay(f.AcceptedUntil) + ")."

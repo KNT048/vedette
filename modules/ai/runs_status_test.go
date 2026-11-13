@@ -11,7 +11,7 @@ import (
 func TestRunsTellAProfileCapAndANotSentCallFromAProviderFailure(t *testing.T) {
 	t.Parallel()
 	a := newAPI(t)
-	a.addProfile(strings.Replace(cloudBody("Claude", keyA), `"daily_cap":60000`, `"daily_cap":1000`, 1))
+	a.addProfile(strings.Replace(cloudBody("Claude", keyA), `"monthly_budget":60000`, `"monthly_budget":1000`, 1))
 	a.fake.setAnswer(goodExplain)
 	a.fake.setUsage(1200, 300) // the first call passes the profile's own cap of 1,000
 	a.explain("CVE-2022-27593", 200, "")
@@ -19,9 +19,12 @@ func TestRunsTellAProfileCapAndANotSentCallFromAProviderFailure(t *testing.T) {
 	a.facts.assets["CVE-2022-27593"][0].Name = "NAS-2" // a cache miss
 	a.facts.mu.Unlock()
 	calls := a.fake.total()
-	a.explain("CVE-2022-27593", 409, "ai_unavailable")
+	m := a.explain("CVE-2022-27593", 429, "budget_reached") // D-531: the profile's budget stops it, it is not "not set up"
 	if a.fake.total() != calls {
 		t.Fatal("the capped profile was asked")
+	}
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.HasPrefix(msg, "The monthly budget of the AI profile Claude is used up and no other profile could take explaining findings, so nothing was sent.") {
+		t.Fatalf("message = %q", msg)
 	}
 	runs := a.want("GET", "/ai/runs", "viewer", "", 200, "")["items"].([]any)
 	if st := runs[0].(map[string]any)["status"]; st != "capped" {

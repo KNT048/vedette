@@ -155,7 +155,7 @@ func TestE2ENewsFakeInternet(t *testing.T) {
 	t.Cleanup(func() { testNewsNetwork = nil })
 	p, err := svc.AddProfile(ctx, "test", ai.ProfileInput{Name: "Fake", Kind: "anthropic", APIStyle: provider.StyleAnthropic, BaseURL: "https://api.anthropic.com", //nolint:gosec // a fake key for a fake model
 		Model: "claude-haiku-5-5", APIKey: "e2e-fake-key-0123456789abcd",
-		Location: ai.LocationCloud, DailyCap: 60000})
+		Location: ai.LocationCloud, MonthlyBudget: 60000})
 	if err != nil {
 		t.Fatal(err)
 	}

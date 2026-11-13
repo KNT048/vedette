@@ -509,6 +509,7 @@ func TestAskToolArgumentsAreCheckedAtTheEdge(t *testing.T) {
 	}
 	a := newAskAPI(t)
 	for _, c := range cases {
+		a.clock.Add(3 * time.Second) // more cases than the runaway fuse lets one job make in a minute (D-531)
 		a.fake.play(turn{calls: []provider.ToolCall{call(c.tool, c.args)}}, turn{text: "I could not read that."})
 		before := a.data.readCount()
 		a.ask("Check "+c.name+" please", 200, "")
@@ -926,15 +927,17 @@ func TestAskHistoryKeepsTheNewestAndPrunes(t *testing.T) {
 	}
 }
 
-func TestAskDowngradeIsReported(t *testing.T) {
+// D-531: a question that passes the monthly budget keeps its answer and lowers no level; the next one is refused at the budget.
+func TestAskOverTheBudgetLowersNoLevel(t *testing.T) {
 	a := newAskAPI(t)
-	a.want("PUT", "/ai/config", "admin", `{"tier":"max","daily_cap":1000,"redact_pii":true}`, 200, "")
+	a.want("PUT", "/ai/config", "admin", `{"tier":"max","monthly_budget":1000,"redact_pii":true}`, 200, "")
 	a.fake.play(turn{text: "Nothing."})
-	a.fake.setUsage(900, 200) // more than the cap in one question
+	a.fake.setUsage(900, 200) // more than the budget in one question
 	got := a.ask("Which machines still expose RDP?", 200, "")
-	if d, _ := got["downgraded"].(map[string]any); d["from"] != "max" || d["to"] != "med" {
+	if got["downgraded"] != nil {
 		t.Fatalf("downgraded = %v", got["downgraded"])
 	}
+	a.ask("Which machines still expose SMB?", 429, "budget_reached")
 }
 
 // storedEverywhere returns every place the arguments of a call are kept: the answer, the history and the activity row.

@@ -39,8 +39,8 @@ func TestContract_INV17_ACancelledRequestStillLeavesItsRow(t *testing.T) {
 					t.Fatalf("row = %+v", rows[0])
 				}
 				b := newAPIOver(a.env)
-				if list := b.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any); list[0].(map[string]any)["used_today"] != float64(17) {
-					t.Fatalf("used_today after a restart = %v", list[0])
+				if list := b.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any); list[0].(map[string]any)["used_month"] != float64(17) {
+					t.Fatalf("used_month after a restart = %v", list[0])
 				}
 				return
 			}
@@ -125,13 +125,13 @@ func TestContract_INV4_UsageFollowsTheProfileNotItsName(t *testing.T) {
 	a.want("PUT", "/ai/profiles/"+id, "admin", noKey(cloudBody("Claude renamed", keyA)), 200, "")
 	b := newAPIOver(a.env)
 	list := b.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any)
-	if p := list[0].(map[string]any); p["name"] != "Claude renamed" || p["used_today"] != float64(17) {
+	if p := list[0].(map[string]any); p["name"] != "Claude renamed" || p["used_month"] != float64(17) {
 		t.Fatalf("after a rename and a restart = %v", p)
 	}
 	// a new profile that takes the old name does not inherit its usage
 	fresh := b.addProfile(cloudBody("Claude", keyB))
-	if fresh["used_today"] != float64(0) {
-		t.Fatalf("a new profile named like an old one starts with %v tokens", fresh["used_today"])
+	if fresh["used_month"] != float64(0) {
+		t.Fatalf("a new profile named like an old one starts with %v tokens", fresh["used_month"])
 	}
 	c := newAPIOver(b.env)
 	for _, p := range c.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any) {
@@ -140,8 +140,8 @@ func TestContract_INV4_UsageFollowsTheProfileNotItsName(t *testing.T) {
 		if m["name"] == "Claude renamed" {
 			want = 17
 		}
-		if m["used_today"] != want {
-			t.Fatalf("after a second restart %v has %v tokens, want %v", m["name"], m["used_today"], want)
+		if m["used_month"] != want {
+			t.Fatalf("after a second restart %v has %v tokens, want %v", m["name"], m["used_month"], want)
 		}
 	}
 }

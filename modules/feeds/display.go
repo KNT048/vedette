@@ -6,7 +6,8 @@ import (
 )
 
 // displaySlugs is the vendor_product_slug of DATA_PIPELINE section 3: the name a person recognises for a
-// vendor|product pair of KEV (slug.ts of the GUI mock; English, D-28). Pairs not listed read "Vendor Product".
+// vendor|product pair of KEV (slug.ts of the GUI mock; English, D-28). Pairs not listed read "Vendor Product", or only
+// "Product" when KEV's product already starts with the vendor ("OpenSSL"/"OpenSSL", "GNU"/"GNU C Library": W5-3).
 var displaySlugs = map[string]string{
 	"qnap|photo station":                              "Photo Station app on QNAP NAS",
 	"qnap|qts":                                        "QNAP NAS (QTS)",
@@ -34,12 +35,16 @@ var displaySlugs = map[string]string{
 	"google|brotli":                                   "Brotli compression library (in many products)",
 	"gitlab|community edition and enterprise edition": "Self-hosted GitLab",
 	"cisco|secure firewall asa software and cisco secure ftd software": "Cisco ASA/FTD firewall",
+	"sudo|sudo": "sudo", // the program's own spelling
 }
 
 // DisplayOf is the name people recognise for a vendor and product.
 func DisplayOf(vendor, product string) string {
 	if d, ok := displaySlugs[ProductKey(vendor, product)]; ok {
 		return d
+	}
+	if p := strings.ToLower(product); p == strings.ToLower(vendor) || strings.HasPrefix(p, strings.ToLower(vendor)+" ") {
+		return product
 	}
 	return vendor + " " + product
 }

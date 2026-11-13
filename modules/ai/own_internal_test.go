@@ -22,7 +22,7 @@ func TestD446_ProfileOnTheMachine(t *testing.T) {
 		"http://ollama.localhost/v1": true, "http://10.89.0.5:11434/v1": true, "http://10.89.0.5:8443/v1": true,
 		"http://host.containers.internal:8443/v1": true, "https://HOST.docker.internal:8765/v1": true, "http://host.containers.internal:11434/v1": false,
 	} {
-		p := Profile{ID: "x", Name: "Local", Kind: "openai-compatible", BaseURL: base, Model: "qwen3:8b", Location: LocationInternal, DailyCap: 10_000}
+		p := Profile{ID: "x", Name: "Local", Kind: "openai-compatible", BaseURL: base, Model: "qwen3:8b", Location: LocationInternal, MonthlyBudget: 10_000}
 		err := p.checkOwn(own)
 		var pe *ProfileError
 		if got := err != nil; got != refused || (refused && (!errors.As(err, &pe) || pe.Code != "invalid_base_url")) {
@@ -35,7 +35,7 @@ func TestD446_ProfileOnTheMachine(t *testing.T) {
 // refused at the dialer as ErrOwnAddress, before any packet.
 func TestD446_StoredLocalhostProfileLoadsAndIsRefusedAtCall(t *testing.T) {
 	t.Parallel()
-	p := Profile{ID: "old", Name: "Old local", Kind: "openai-compatible", BaseURL: "http://localhost:11434/v1", Model: "qwen3:8b", Location: LocationInternal, DailyCap: 10_000}
+	p := Profile{ID: "old", Name: "Old local", Kind: "openai-compatible", BaseURL: "http://localhost:11434/v1", Model: "qwen3:8b", Location: LocationInternal, MonthlyBudget: 10_000}
 	if err := p.Validate(); err != nil {
 		t.Fatalf("a stored profile at localhost no longer loads: %v", err)
 	}

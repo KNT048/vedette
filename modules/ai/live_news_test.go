@@ -55,7 +55,7 @@ func TestLiveCVENews(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := svc.AddProfile(ctx, "test", ai.ProfileInput{Name: "Live Haiku", Kind: "anthropic", APIStyle: provider.StyleAnthropic, BaseURL: "https://api.anthropic.com",
-		Model: "claude-haiku-5-5", APIKey: key, Location: ai.LocationCloud, DailyCap: 60000}); err != nil {
+		Model: "claude-haiku-5-5", APIKey: key, Location: ai.LocationCloud, MonthlyBudget: 60000}); err != nil {
 		t.Fatal(err)
 	}
 	r, err := svc.NewsCVE(ctx, "test", "CVE-2024-3400")

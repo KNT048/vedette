@@ -9,11 +9,12 @@ import { EmptyState, ModuleOff, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
-import { fmtDateTime, fmtNumber } from '@/lib/format'
+import { fmtDate, fmtDateTime, fmtNumber } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useAiConfig, useAsk, useAsks, useRuns, useUsage } from './api'
 import ActivityPanel from './ActivityPanel'
 import { ActionError, ToSettings, useAiGate } from './parts'
+import { budgetPct } from './Budget'
 import type { AiRun, AskResult, Usage } from './types'
 
 // The box's limit for a question (modules/ai ask.go askQuestionMax; POST /ai/ask refuses longer with invalid_question).
@@ -29,13 +30,13 @@ export default function AssistantPage() {
   const u = usage.data
   const title = gate.state === 'off' ? t('page.titleOff')
     : gate.state === 'unconfigured' ? t('page.titleUnconfigured')
-      : u ? t('page.title', { used: fmtNumber(u.today.total), cap: fmtNumber(u.daily_cap) }) : t('page.titleLoading')
+      : u ? t('page.title', { used: fmtNumber(u.month.total), cap: fmtNumber(u.monthly_budget) }) : t('page.titleLoading')
   return (
     <>
       <PageHeader title={title} meta={cfg.data?.configured ? t('page.meta', { tier: t(`settings.tier.${cfg.data.tier}.name`) }) : undefined} stories={['S-AI-4', 'S-AI-5', 'S-AI-6', 'S-AI-8']} />
       <Ask />
       {/* Chưa nối AI và chưa từng chạy: đồng hồ 0/trần và nhật ký trống chỉ gây nhiễu; màn trống ở trên đã nói việc cần làm. */}
-      {!on || (gate.state === 'unconfigured' && u && u.month.total === 0) ? null : <><Meter query={usage} /><RunLog /><ActivityPanel /></>}
+      {!on || (gate.state === 'unconfigured' && u && u.month.total === 0) ? null : <><Meter query={usage} renews={cfg.data?.renews_on} /><RunLog /><ActivityPanel /></>}
     </>
   )
 }
@@ -158,26 +159,28 @@ function Answer({ r }: { r: AskResult }) {
   )
 }
 
-function Meter({ query }: { query: { data: Usage | undefined; error: unknown; isPending: boolean; refetch: () => unknown } }) {
+function Meter({ query, renews }: { query: { data: Usage | undefined; error: unknown; isPending: boolean; refetch: () => unknown }; renews: string | undefined }) {
   const { t } = useTranslation('ai')
   return (
     <Section title={t('meter.title')} description={t('meter.description')} stories={['S-AI-4']}>
       <QueryState query={query}>
         {(u) => {
-          const pct = Math.min(100, Math.round((u.today.total / u.daily_cap) * 100))
-          const tone = u.today.total >= u.daily_cap ? 'bg-danger' : pct >= 80 ? 'bg-warn' : 'bg-accent'
+          // D-531: the bar is this month against the monthly budget (the box's count, rounded down like its 80 % and 100 % alerts)
+          const pct = Math.min(100, budgetPct(u.month.total, u.monthly_budget))
+          const date = fmtDate(renews)
+          const tone = u.month.total >= u.monthly_budget ? 'bg-danger' : pct >= 80 ? 'bg-warn' : 'bg-accent'
           return (
             <div className="grid gap-5">
               <Panel className="grid gap-3 p-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="text-sm">{t('meter.today', { used: fmtNumber(u.today.total), cap: fmtNumber(u.daily_cap) })}</p>
+                  <p className="text-sm">{t('meter.today', { used: fmtNumber(u.month.total), cap: fmtNumber(u.monthly_budget) })}</p>
                   <p className="text-[13px] text-muted">{t('meter.tier', { tier: t(`settings.tier.${u.tier}.name`) })}</p>
                 </div>
-                <div role="progressbar" aria-label={t('meter.barLabel')} aria-valuemin={0} aria-valuemax={u.daily_cap} aria-valuenow={Math.min(u.today.total, u.daily_cap)} aria-valuetext={t('meter.percent', { pct })} className="h-2 overflow-hidden rounded-full bg-sunken">
+                <div role="progressbar" aria-label={t('meter.barLabel')} aria-valuemin={0} aria-valuemax={u.monthly_budget} aria-valuenow={Math.min(u.month.total, u.monthly_budget)} aria-valuetext={t('meter.percent', { pct })} className="h-2 overflow-hidden rounded-full bg-sunken">
                   <div className={`h-full ${tone}`} style={{ width: `${pct}%` }} />
                 </div>
-                <p className="text-[13px] text-muted">{t('meter.split', { input: fmtNumber(u.today.input), output: fmtNumber(u.today.output), month: fmtNumber(u.month.total) })}</p>
-                {pct >= 80 ? <p className="text-sm text-warn">{u.today.total >= u.daily_cap ? t('meter.over') : t('meter.near')}</p> : null}
+                <p className="text-[13px] text-muted">{t('meter.split', { input: fmtNumber(u.today.input), output: fmtNumber(u.today.output), month: fmtNumber(u.month.total), date })}</p>
+                {pct >= 80 ? <p className={`text-sm ${u.month.total >= u.monthly_budget ? 'text-danger' : 'text-warn'}`}>{u.month.total >= u.monthly_budget ? t('meter.over', { date }) : t('meter.near')}</p> : null}
               </Panel>
               <DataTable caption={t('meter.skillCaption')} data={u.by_skill} pageSize={20}
                 columns={[

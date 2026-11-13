@@ -25,15 +25,15 @@ const (
 
 // Profile is one customer-configured AI connection (S-AI-1). APIKey comes from core/secrets.
 type Profile struct {
-	ID       string
-	Name     string
-	Kind     string // anthropic, openai, gemini, openai-compatible, custom
-	APIStyle provider.APIStyle
-	BaseURL  string
-	Model    string
-	APIKey   provider.Secret
-	Location Location
-	DailyCap int
+	ID            string
+	Name          string
+	Kind          string // anthropic, openai, gemini, openai-compatible, custom
+	APIStyle      provider.APIStyle
+	BaseURL       string
+	Model         string
+	APIKey        provider.Secret
+	Location      Location
+	MonthlyBudget int
 	// AnthropicVersion overrides the anthropic-version header (YYYY-MM-DD); empty = the provider package default.
 	AnthropicVersion string
 }
@@ -112,8 +112,8 @@ func (p Profile) Validate() error {
 	if p.Location == LocationCloud && !p.APIKey.IsSet() {
 		return perr("key_required", "Enter the API key. It stays on this box and is encrypted.")
 	}
-	if !ValidDailyCap(p.DailyCap) {
-		return perr("invalid_cap", "The profile's daily token cap must be a whole number from %d to %d.", MinDailyCap, MaxDailyCap)
+	if !ValidMonthlyBudget(p.MonthlyBudget) {
+		return perr("invalid_cap", "The profile's monthly budget must be a whole number of tokens from %d to %d.", MinMonthlyBudget, MaxMonthlyBudget)
 	}
 	return nil
 }

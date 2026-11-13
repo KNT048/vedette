@@ -115,7 +115,7 @@ func (UnimplementedHandler) AiGetAiAssignmentsSuggestion(ctx context.Context, pa
 
 // AiGetAiConfig implements ai_get_ai_config operation.
 //
-// Usage tier, shared token cap, PII redaction; which jobs are ready.
+// Usage tier, shared monthly budget and this month's use, PII redaction; which jobs are ready.
 //
 // GET /ai/config
 func (UnimplementedHandler) AiGetAiConfig(ctx context.Context) (r *AiGetAiConfigOK, _ error) {
@@ -205,7 +205,7 @@ func (UnimplementedHandler) AiGetAiSkills(ctx context.Context) (r *AiGetAiSkills
 
 // AiGetAiUsage implements ai_get_ai_usage operation.
 //
-// Token meter: today, 30 days, per job, tier downgrades.
+// Token meter: today, this month, per job this month, earlier tier downgrades.
 //
 // GET /ai/usage
 func (UnimplementedHandler) AiGetAiUsage(ctx context.Context) (r *AiGetAiUsageOK, _ error) {
@@ -312,6 +312,16 @@ func (UnimplementedHandler) AiPostAiProfiles(ctx context.Context, req *AiPostAiP
 	return r, ht.ErrNotImplemented
 }
 
+// AiPostAiProfilesModels implements ai_post_ai_profiles_models operation.
+//
+// List the models a provider offers (asked by the box through the same guarded connection as AI calls;
+// nothing is saved).
+//
+// POST /ai/profiles/models
+func (UnimplementedHandler) AiPostAiProfilesModels(ctx context.Context, req *AiPostAiProfilesModelsReq) (r *AiPostAiProfilesModelsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // AiPostAiProfilesTest implements ai_post_ai_profiles_test operation.
 //
 // Test the connection of a profile (saved or in draft) with a tiny request.
@@ -350,7 +360,7 @@ func (UnimplementedHandler) AiPutAiAssignments(ctx context.Context, req *AiPutAi
 
 // AiPutAiConfig implements ai_put_ai_config operation.
 //
-// Save token tier, shared cap and PII redaction.
+// Save token tier, shared monthly budget and PII redaction.
 //
 // PUT /ai/config
 func (UnimplementedHandler) AiPutAiConfig(ctx context.Context, req *AiPutAiConfigReq) (r *AiPutAiConfigOK, _ error) {

@@ -201,7 +201,7 @@ describe('container-only install (D-381)', () => {
     renderApp('/settings/modules')
     expect(await screen.findByText('Light scans of your network inside the allowed time window.')).toBeInTheDocument()
     expect(screen.queryByText(/nmap/)).toBeNull()
-    renderApp('/response')
+    renderApp('/response?tab=rules') // the inbox opens first (D-513); the gallery is on Rules
     const clone = await screen.findByRole('button', { name: /^Clone Trap touched: block the source on FortiGate/ })
     expect(clone).toBeDisabled()
     expect(within(clone.closest('li')!).getByText(/Not available on this install/)).toBeInTheDocument()
@@ -210,7 +210,7 @@ describe('container-only install (D-381)', () => {
 
   it('Response: Add a rule does not offer the honeypot trigger and Recent events does not promise honeypot touches (D-390)', async () => {
     const u = userEvent.setup()
-    renderApp('/response')
+    renderApp('/response?tab=rules') // the inbox opens first (D-513)
     expect(await screen.findByText(/^What the triggers watch for: known-bad connections/)).toBeInTheDocument()
     expect(screen.queryByText(/honeypot touches/)).toBeNull()
     await u.click(screen.getByRole('button', { name: 'Add a rule' }))

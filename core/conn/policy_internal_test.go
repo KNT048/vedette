@@ -49,6 +49,7 @@ func TestIPv6FormsThatCarryAnIPv4AddressAreRefused(t *testing.T) {
 	t.Parallel()
 	for _, h := range []string{
 		"[64:ff9b::7f00:1]", "[64:ff9b::a9fe:a9fe]", "[64:ff9b::192.168.10.1]", // NAT64
+		"[64:ff9b:1::a9fe:a9fe]", "[64:ff9b:1::6464:64c8]", "[64:ff9b:1::7f00:1]", "[64:ff9b:1:a9fe:a9:fe00::]", // local-use NAT64 (RFC 8215, D-411)
 		"[2002:7f00:1::]", "[2002:c0a8:a01::1]", // 6to4
 		"[::7f00:1]", "[::c0a8:a01]", "[::192.168.10.1]", // IPv4-compatible
 		"[::ffff:0:7f00:1]", "[::ffff:0:0:0]", // IPv4-translated

@@ -2,6 +2,7 @@ package response
 
 import (
 	"encoding/json"
+	"errors"
 	"net/netip"
 	"os"
 	"strings"
@@ -168,11 +169,12 @@ func TestCheckWebhookURLRefusesMetadata(t *testing.T) {
 func TestWebhookVedetteItself(t *testing.T) {
 	t.Parallel()
 	known := true
+	var selfErr error
 	s := &Service{interfaceFn: func() ([]netip.Addr, error) {
 		return []netip.Addr{netip.MustParseAddr("127.0.0.1"), netip.MustParseAddr("10.88.0.5")}, nil
 	}, cfg: Config{
 		MachineAddrs: func() ([]netip.Addr, bool) { return []netip.Addr{netip.MustParseAddr("192.168.18.141")}, known },
-		SelfAddrs:    func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("192.168.18.200")} },
+		SelfAddrs:    func() ([]netip.Addr, error) { return []netip.Addr{netip.MustParseAddr("192.168.18.200")}, selfErr },
 	}}
 	for u, own := range map[string]bool{
 		"https://192.168.18.141/hook": false, "https://192.168.18.141:5678/hook": false, // another program on the machine
@@ -189,7 +191,11 @@ func TestWebhookVedetteItself(t *testing.T) {
 	if dial("tcp", "192.168.18.141:8443", nil) == nil || dial("tcp", "192.168.18.141:5678", nil) != nil || dial("tcp", "10.88.0.5:5678", nil) == nil {
 		t.Error("the dial-time check differs from the save-time check")
 	}
-	known = false
+	selfErr = errors.New("the decoy record cannot be read")
+	if _, err := s.checkWebhookURL("https://192.168.18.50:5678/"); err == nil || dial("tcp", "192.168.18.50:5678", nil) == nil {
+		t.Error("an unreadable decoy record must refuse every webhook (D-179 (8))")
+	}
+	selfErr, known = nil, false
 	if _, err := s.checkWebhookURL("https://192.168.18.50:5678/"); err == nil || dial("tcp", "192.168.18.50:5678", nil) == nil {
 		t.Error("unknown machine addresses must refuse every webhook (fail closed, #157)")
 	}

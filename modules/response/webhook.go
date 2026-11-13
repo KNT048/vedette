@@ -55,7 +55,7 @@ func forbiddenAddr(a netip.Addr, allowLoopback bool) bool {
 
 // webhookOwn is Vedette itself for the webhook (D-446, core/netguard): the machine's addresses (Config.MachineAddrs) on Vedette's own
 // ports, and on every port the addresses of core's own container (its interfaces, read at every check) and Config.SelfAddrs (the
-// honeypot's decoys). An interface list that cannot be read is an error: the webhook is refused, not checked against less.
+// honeypot's decoys). An interface list or a decoy record that cannot be read is an error: the webhook is refused, not checked against less.
 func (s *Service) webhookOwn() (netguard.Own, error) {
 	own := netguard.Own{Known: true}
 	if s.cfg.MachineAddrs != nil {
@@ -71,7 +71,11 @@ func (s *Service) webhookOwn() (netguard.Own, error) {
 		}
 	}
 	if s.cfg.SelfAddrs != nil {
-		own.Self = append(own.Self, s.cfg.SelfAddrs()...)
+		more, err := s.cfg.SelfAddrs()
+		if err != nil {
+			return netguard.Own{}, err
+		}
+		own.Self = append(own.Self, more...)
 	}
 	return own, nil
 }

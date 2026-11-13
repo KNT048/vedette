@@ -34,3 +34,17 @@ func TestOwnRefuses(t *testing.T) {
 		t.Error("allowLoopback must open loopback only")
 	}
 }
+
+// The machine behind a learned local-use NAT64 prefix (RFC 7050) is refused on Vedette's ports and allowed on another, as without one.
+func TestOwnRefusesThroughALearnedNAT64Prefix(t *testing.T) {
+	old := nat64Prefixes
+	t.Cleanup(func() { nat64Prefixes = old })
+	o := Own{Machine: []netip.Addr{netip.MustParseAddr("192.168.18.141")}, Known: true}
+	a := netip.MustParseAddr("64:ff9b:1:a00::c0a8:128d") // 192.168.18.141 in the /96 layout of 64:ff9b:1:a00::/96
+	for _, learned := range [][]netip.Prefix{nil, {netip.MustParsePrefix("64:ff9b:1:a00::/96")}} {
+		nat64Prefixes = func() []netip.Prefix { return learned }
+		if !o.Refuses(a, 8443, false) || o.Refuses(a, 5678, false) {
+			t.Errorf("learned %v: the machine on 8443 must be refused and on 5678 allowed", learned)
+		}
+	}
+}

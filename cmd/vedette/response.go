@@ -389,6 +389,16 @@ func responseBoxAddrs(host func() ([]netip.Addr, bool), decoys decoyIPs) func() 
 	}
 }
 
+// responseDecoys is response's Config.SelfAddrs: the decoy addresses with the read's error, so webhook_call refuses every target when the
+// honeypot record cannot be read (vedetteSelf, for notify and the others, counts that as no decoys).
+func responseDecoys(decoys decoyIPs) func() ([]netip.Addr, error) {
+	return func() ([]netip.Addr, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second) // Config.SelfAddrs has no context; one short query
+		defer cancel()
+		return decoys.DecoyIPsRead(ctx)
+	}
+}
+
 // responseBoxMACs is response's Config.BoxMACs: the MACs of the decoys and cards that vedette-host reports.
 func responseBoxMACs(h *hostMACs) func() ([]string, error) {
 	return func() ([]string, error) {
@@ -415,7 +425,7 @@ func responseConfig(d *deps) (response.Config, error) {
 		Notifier: responseNotifier{n: n, now: d.Clock, reg: d.Reg}, Links: responseLinks{n}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings},
 		Mailer: responseMailer{n.CodeMailer()}, BaseURL: d.BaseURL} // the block list address a firewall pulls (empty on loopback: a relative path)
 	cfg.BoxAddrs = responseBoxAddrs(notifyBoxAddrs(d.HostNet), lateDecoys{d}) // D-179 (6), (8): the decoys and the host's addresses are the box too, so an action aimed at one is never_touch
-	cfg.MachineAddrs, cfg.SelfAddrs = machineAddrs(d), vedetteSelf(d)         // D-446 for webhook_call, as notify's webhook channel
+	cfg.MachineAddrs, cfg.SelfAddrs = machineAddrs(d), responseDecoys(lateDecoys{d}) // D-446 for webhook_call; an unreadable decoy record refuses (D-179 (8))
 	var hostState netStateReader
 	if d.HostSocket != "" {
 		hostState = hostclient.New(d.HostSocket)

@@ -83,7 +83,7 @@ const EMBEDDED_V4 = 'Vedette does not connect to IPv6 addresses that carry an IP
 /** IPv6 forms that carry an IPv4 address: mapped, NAT64 64:ff9b::/96, 6to4 2002::/16, compatible ::/96, translated ::ffff:0:0:0/96, Teredo 2001::/32. */
 function carriesV4(g: number[]): boolean {
   const zero = (a: number, b: number) => g.slice(a, b).every((x) => x === 0)
-  return (zero(0, 5) && g[5] === 0xffff) || (g[0] === 0x64 && g[1] === 0xff9b && zero(2, 6)) || g[0] === 0x2002 || zero(0, 6) || (zero(0, 4) && g[4] === 0xffff && g[5] === 0) || (g[0] === 0x2001 && g[1] === 0)
+  return (zero(0, 5) && g[5] === 0xffff) || (g[0] === 0x64 && g[1] === 0xff9b && (zero(2, 6) || g[2] === 1)) || g[0] === 0x2002 || zero(0, 6) || (zero(0, 4) && g[4] === 0xffff && g[5] === 0) || (g[0] === 0x2001 && g[1] === 0)
 }
 
 const NUMERIC_HOST = /^(0x[0-9a-f]+|\d+)(\.(0x[0-9a-f]+|\d+))*$/i

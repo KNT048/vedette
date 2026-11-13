@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { dateTimeText } from './dates'
 import { useCan } from '@/lib/session'
-import { useDeleteTarget, useScan, useTarget } from './api'
+import { useDeleteTarget, useScan, useScanRun, useTarget } from './api'
+import { ScanProgress } from './ScanProgress'
 import { CommitmentPanel } from './CommitmentPanel'
 import { OwnerChip } from './OwnerChip'
 import { RemoveDialog } from './RemoveDialog'
@@ -36,6 +37,7 @@ function TargetView({ target }: { target: Target }) {
   const { t } = useTranslation('exposure')
   const operator = useCan('operator')
   const scan = useScan()
+  const running = useScanRun().data?.status === 'running'
   const admin = useCan('admin')
   // D-473: an administrator's first Scan now is the D-26 confirmation. The sentence (version and text) comes from the API and is shown beside the button as received.
   const notice = target.blocked_reason === 'no_commitment' && admin ? target.commitment_notice : null
@@ -50,7 +52,6 @@ function TargetView({ target }: { target: Target }) {
 
   function run() {
     scan.mutate({ id: target.id, noticeVersion: notice?.version }, {
-      onSuccess: (s) => toast.success(t('scan.done', { ports: s.counts.ports, admin: s.counts.admin_panels })),
       onError: (e) => { if ((e as { code?: string }).code !== 'twofa_required') toast.error(errMsg(e)) },
     })
   }
@@ -59,11 +60,12 @@ function TargetView({ target }: { target: Target }) {
       <PageHeader title={title} stories={['S-EXP-1']}
         meta={<span className="flex flex-wrap items-center gap-2"><OwnerChip target={target} />{target.commitment ? <Chip tone="ok">{t('status.commitYes')}</Chip> : <Chip tone="off">{t('status.commitNo')}</Chip>}{target.last_scan_at ? t('target.lastScan', { time: dateTimeText(target.last_scan_at) }) : t('targets.neverScanned')}</span>}
         actions={<>
-          <Button variant="primary" onClick={run} disabled={!!blocked || !operator || scan.isPending} title={blocked ?? roleReason ?? undefined} aria-describedby={blocked ? 'scan-reason' : notice ? 'scan-notice' : undefined}>
-            <Play />{scan.isPending ? t('scan.running') : t('scan.button')}
+          <Button variant="primary" onClick={run} disabled={!!blocked || !operator || scan.isPending || running} title={blocked ?? roleReason ?? undefined} aria-describedby={blocked ? 'scan-reason' : notice ? 'scan-notice' : undefined}>
+            <Play />{scan.isPending || running ? t('scan.running') : t('scan.button')}
           </Button>
           <DeleteTarget target={target} />
         </>} />
+      <ScanProgress />
       {needTwoStep ? <p role="alert" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{t('scan.needTwoStep', { value: target.value })} <Link to="/account#two-step" className="underline">{t('scan.needTwoStepLink')}</Link></p> : null}
       {blocked ? <p id="scan-reason" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{blocked}</p> : <p className="-mt-3 mb-6 max-w-3xl text-[13px] text-muted">{t('scan.safe')}</p>}
       {notice ? (

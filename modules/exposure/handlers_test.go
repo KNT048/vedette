@@ -177,8 +177,17 @@ func TestHandlers_FlowAndShapes(t *testing.T) {
 	// an administrator's first Scan now is the confirmation (D-473): needs two-step sign-in and the version of the sentence
 	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
 	code, b = e.call("POST", "/exposure/targets/"+id+"/scan", "admin", `{"notice_version":"`+NoticeVersion+`"}`)
-	if code != 200 || len(list(b, "hosts")) != 3 || len(list(b, "certs")) != 2 || b["date"] != "2026-11-09" {
+	if code != 202 || b["status"] != "running" || b["target_id"] != id || b["by"] != "admin@acme.example" {
 		t.Fatalf("first scan by an administrator: %d %v", code, b)
+	}
+	e.waitScan()
+	code, b = e.call("GET", "/exposure/scan", "viewer", "")
+	if code != 200 || b["status"] != "done" || b["phase"] != "done" || b["error"] != nil || b["snapshot_id"] == nil {
+		t.Fatalf("the run after it ended: %d %v", code, b)
+	}
+	snapID := b["snapshot_id"]
+	if code, b = e.call("GET", "/exposure/targets/"+id+"/snapshots/2026-11-09", "viewer", ""); code != 200 || b["id"] != snapID || len(list(b, "hosts")) != 3 || len(list(b, "certs")) != 2 {
+		t.Fatalf("first snapshot: %d %v", code, b)
 	}
 	code, tb := e.call("GET", "/exposure/targets/"+id, "viewer", "")
 	c, _ := tb["commitment"].(map[string]any)
@@ -198,9 +207,10 @@ func TestHandlers_FlowAndShapes(t *testing.T) {
 
 	// results
 	e.advance(day)
-	if code, _ = e.call("POST", "/exposure/targets/"+id+"/scan", "operator", ""); code != 200 {
+	if code, _ = e.call("POST", "/exposure/targets/"+id+"/scan", "operator", ""); code != 202 {
 		t.Fatal(code)
 	}
+	e.waitScan()
 	code, b = e.call("GET", "/exposure/targets/"+id+"/snapshots", "viewer", "")
 	if code != 200 || len(list(b, "items")) != 2 {
 		t.Fatalf("snapshots: %d %v", code, b)
@@ -323,4 +333,16 @@ func TestHandlers_AttemptLimitIs429(t *testing.T) {
 	if got := e.ipValues(); len(got) != 2 || got[1] != ipC {
 		t.Fatalf("IPs after the automatic check = %v", got)
 	}
+}
+
+// waitScan waits until the run that runs now has ended.
+func (e *httpEnv) waitScan() {
+	e.t.Helper()
+	e.svc.runMu.Lock()
+	run := e.svc.run
+	e.svc.runMu.Unlock()
+	if run == nil {
+		e.t.Fatal("no scan run")
+	}
+	<-run.done
 }

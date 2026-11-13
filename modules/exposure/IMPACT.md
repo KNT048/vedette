@@ -20,6 +20,12 @@
 - **scan** sở hữu runner (`cmd/vedette` `scanRunner`, `modules/scan/surface`, D-229): đổi `ScanTarget`/`Content` phải sửa adapter `contentOf` và `TestExposureRunnerResult`. Ba lỗi là câu người dùng đọc (toast của Scan now); mock `exposure` trả đúng `module_off` khi module `scan` tắt.
 - **response** (`new_port`) và **reports** đọc ảnh chụp do runner tạo; runner không lưu gì khi lỗi.
 
+## Modifying: `StartScan`, `ScanRun`, `CurrentScan`, `StopScan`, `execute` (INV-18, D-493), `GET /exposure/scan`, `POST /exposure/scan/stop`
+- **web/features/exposure**: `ScanProgress.tsx` (trang Exposure và trang mục tiêu) hỏi `GET /exposure/scan` mỗi 2 giây khi `status` là `running`, hiện `phase`, nút Stop cho operator, và làm mới ảnh chụp khi lượt kết thúc; nút Scan now của `TargetPage` bị khoá khi một lượt chạy. Thêm phase = sửa `ScanPhase` trong `contract.ts`, `progress.phase.*` trong `locales/en/exposure.json` và mock.
+- **cmd/vedette** `exposure.go`: đăng ký `Registry.OnChange` để tắt module huỷ lượt đang chạy (SYS-5); `scanRunner` (module `scan`) vẫn có công tắc riêng. Đổi context của lượt quét về context của request sẽ làm lượt quét chết cùng kết nối.
+- **core/server** `contractRoutes` và `api/route-modules.json` có hai route mới. Trạng thái lượt ở bộ nhớ: không có bảng mới, không có migration.
+- Slice sau (nmap/nuclei/ZAP) chạy lâu hơn trong cùng lượt: chúng chỉ cần thêm phase, không đổi hình `ScanRun`.
+
 ## Modifying: `TargetView.open_ports`, `MaxOpenPorts`, `latestResults` (D-485)
 - **web/features/exposure**: câu đầu và mục "N ports open to the Internet" của `ExposurePage.tsx` đọc `open_ports`; nhãn "Commonly attacked" theo `PortRow.service` (`services.ts`), nên đổi tên dịch vụ trong `modules/scan/surface/ports.go` là đổi nhãn đó. Mock `mocks.ts` cắt 20 như hộp.
 

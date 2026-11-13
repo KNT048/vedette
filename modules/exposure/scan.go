@@ -198,16 +198,42 @@ func (s *Service) Scan(ctx context.Context, user, id string) (Snapshot, error) {
 	return s.ScanNow(ctx, Actor{Email: user}, id, "")
 }
 
-// ScanNow scans one target now (POST …/scan, PRE-1, INV-1, INV-12, INV-17): the gate first, then one scan at a time on the box (409 busy)
-// and at most one per target every ScanEvery (429 rate_limited), then the runner the scan module registered, then one snapshot
-// for the day. Without a runner the answer is 501 after the gate. Every attempt on a target that exists is audited as
-// exposure.scan with its outcome, refused or failed ones too (LEGAL §3). When the only thing missing is the commitment and who.Admin
-// is set, this scan is the confirmation (D-473): it needs two-step sign-in and the notice version the page showed (confirmByScan),
-// then the gate runs again with the commitment in place. For anyone else the answer is 400 commitment_required.
+// ScanNow scans one target now and waits for the snapshot: it is StartScan followed by waiting for the run, for callers that
+// are not a page (tests, a schedule). The page calls StartScan and polls the run (POST …/scan answers 202).
 func (s *Service) ScanNow(ctx context.Context, who Actor, id, noticeVersion string) (Snapshot, error) {
+	run, err := s.startScan(ctx, who, id, noticeVersion)
+	if err != nil {
+		return Snapshot{}, err
+	}
+	select {
+	case <-run.done:
+	case <-ctx.Done():
+		return Snapshot{}, fmt.Errorf("exposure: waiting for the scan: %w", context.Cause(ctx))
+	}
+	if run.err != nil {
+		return Snapshot{}, fmt.Errorf("exposure: scanning %s: %w", run.view.TargetValue, run.err)
+	}
+	return run.snap, nil
+}
+
+// StartScan is POST …/scan (PRE-1, INV-1, INV-12, INV-17, INV-18): the gate first, then one scan at a time on the box (409 busy) and at
+// most one per target every ScanEvery (429 rate_limited), then the runner the scan module registered, which runs in the background
+// (execute). It returns the run at once; a refusal is the same error as before and is audited as exposure.scan with its outcome
+// (LEGAL §3). Without a runner the answer is 501 after the gate. When the only thing missing is the commitment and who.Admin is set,
+// this press is the confirmation (D-473): it needs two-step sign-in and the notice version the page showed (confirmByScan), then the
+// gate runs again with the commitment in place. For anyone else the answer is 400 commitment_required.
+func (s *Service) StartScan(ctx context.Context, who Actor, id, noticeVersion string) (ScanRun, error) {
+	run, err := s.startScan(ctx, who, id, noticeVersion)
+	if err != nil {
+		return ScanRun{}, err
+	}
+	return s.runView(run), nil
+}
+
+func (s *Service) startScan(ctx context.Context, who Actor, id, noticeVersion string) (*scanRun, error) {
 	t, reason, err := s.gate(ctx, who.Email, id)
 	if err != nil {
-		return Snapshot{}, fmt.Errorf("exposure: scanning: %w", err)
+		return nil, fmt.Errorf("exposure: scanning: %w", err)
 	}
 	if reason == BlockedNoCommitment && who.Admin {
 		if err = s.confirmByScan(ctx, who, t, noticeVersion); err == nil {
@@ -215,67 +241,15 @@ func (s *Service) ScanNow(ctx context.Context, who Actor, id, noticeVersion stri
 		}
 		if err != nil {
 			s.auditFailedScan(ctx, who.Email, t, err)
-			return Snapshot{}, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
+			return nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
 		}
 	}
-	snap, err := s.scan(ctx, who.Email, t, reason)
+	run, err := s.begin(ctx, who.Email, t, reason)
 	if err != nil {
 		s.auditFailedScan(ctx, who.Email, t, err)
-		return Snapshot{}, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
+		return nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
 	}
-	return snap, nil
-}
-
-func (s *Service) scan(ctx context.Context, user string, t Target, reason BlockedReason) (Snapshot, error) {
-	if reason != "" {
-		return Snapshot{}, s.refusal(t, reason, s.clock())
-	}
-	r := s.scanRunner()
-	if r == nil {
-		return Snapshot{}, ErrNotImplemented
-	}
-	if !s.scanMu.TryLock() {
-		return Snapshot{}, ErrScanBusy
-	}
-	defer s.scanMu.Unlock()
-	now := s.clock()
-	if last, ok := s.lastScan[t.ID]; ok && now.Sub(last) < ScanEvery && !last.After(now) {
-		next := last.Add(ScanEvery)
-		return Snapshot{}, apiErr(429, "rate_limited", "%s was scanned at %s. Scan it again after %s: at most one scan of a target every %d minutes.",
-			t.Value, s.momentText(last), s.momentText(next), int(ScanEvery/time.Minute))
-	}
-	content, err := r.Scan(ctx, ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user})
-	if !errors.Is(err, ErrScanOff) { // the scan module was off: nothing was asked or probed, so it does not count
-		s.lastScan[t.ID] = now
-	}
-	if err != nil {
-		return Snapshot{}, err
-	}
-	at := s.clock()
-	content = sanitize(content)
-	extra := ""
-	if t.Kind == KindIP {
-		extra = t.Value
-	}
-	snap := Snapshot{ID: store.NewID("sn"), Date: at.In(s.cfg.Location).Format(dayFormat), ScannedAt: store.FormatTS(at), Content: content, Counts: countsOf(content, extra, at)}
-	err = s.write(ctx, func(tx *sql.Tx, emit func(string, any)) error {
-		if _, err := loadTarget(ctx, tx, t.ID); err != nil { // deleted while the scan ran
-			return err
-		}
-		if err := upsertSnapshot(ctx, tx, t.ID, snap); err != nil {
-			return err
-		}
-		detail := fmt.Sprintf("%d subdomains, %d ports", snap.Counts.Subdomains, snap.Counts.Ports)
-		if err := s.audit(ctx, tx, user, "exposure.scan", t.Value, detail); err != nil {
-			return err
-		}
-		emit(EventSnapshotCreated, SnapshotCreatedEvent{TargetID: t.ID, Date: snap.Date, Counts: snap.Counts})
-		return nil
-	})
-	if err != nil {
-		return Snapshot{}, err
-	}
-	return snap, nil
+	return run, nil
 }
 
 // auditFailedScan writes the exposure.scan row of an attempt that ended without a snapshot: refused by the gate, busy, too soon,
@@ -283,16 +257,24 @@ func (s *Service) scan(ctx context.Context, user string, t Target, reason Blocke
 func (s *Service) auditFailedScan(ctx context.Context, user string, t Target, cause error) {
 	detail := "failed: the scan stopped (" + clipText(cause.Error(), 200) + ")"
 	var ae *APIError
-	if errors.As(cause, &ae) {
+	var sb *stoppedBy
+	switch {
+	case errors.As(cause, &sb):
+		detail = "stopped by " + sb.by
+	case errors.As(cause, &ae):
 		detail = "not done: " + ae.Code + ": " + clipText(ae.Message, 300)
 	}
+	s.auditScanRow(ctx, user, t.Value, detail)
+}
+
+func (s *Service) auditScanRow(ctx context.Context, user, target, detail string) {
 	actx, cancel := context.WithTimeout(context.WithoutCancel(ctx), publishTimeout)
 	defer cancel()
 	err := s.write(actx, func(tx *sql.Tx, _ func(string, any)) error {
-		return s.audit(actx, tx, user, "exposure.scan", t.Value, detail)
+		return s.audit(actx, tx, user, "exposure.scan", target, detail)
 	})
 	if err != nil {
-		s.cfg.Log.ErrorContext(actx, "auditing an exposure scan failed", "target", t.Value, "error", err)
+		s.cfg.Log.ErrorContext(actx, "auditing an exposure scan failed", "target", target, "error", err)
 	}
 }
 

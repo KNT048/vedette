@@ -42369,6 +42369,264 @@ func (s *ExposureDeleteExposureTargetsIDIgnore) UnmarshalText(data []byte) error
 // ExposureDeleteExposureTargetsIDNoContent is response for ExposureDeleteExposureTargetsID operation.
 type ExposureDeleteExposureTargetsIDNoContent struct{}
 
+type ExposureGetExposureScanOK struct {
+	// Who pressed Scan now (an e-mail).
+	By string `json:"by"`
+	// Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many,
+	// module_off ...); null otherwise.
+	Error      NilExposureGetExposureScanOKError `json:"error"`
+	FinishedAt NilDateTime                       `json:"finished_at"`
+	ID         string                            `json:"id"`
+	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
+	// saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the
+	// phase it reached.
+	Phase ExposureGetExposureScanOKPhase `json:"phase"`
+	// The new snapshot when status is done.
+	SnapshotID  NilString                       `json:"snapshot_id"`
+	StartedAt   time.Time                       `json:"started_at"`
+	Status      ExposureGetExposureScanOKStatus `json:"status"`
+	TargetID    string                          `json:"target_id"`
+	TargetValue string                          `json:"target_value"`
+}
+
+// GetBy returns the value of By.
+func (s *ExposureGetExposureScanOK) GetBy() string {
+	return s.By
+}
+
+// GetError returns the value of Error.
+func (s *ExposureGetExposureScanOK) GetError() NilExposureGetExposureScanOKError {
+	return s.Error
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *ExposureGetExposureScanOK) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetID returns the value of ID.
+func (s *ExposureGetExposureScanOK) GetID() string {
+	return s.ID
+}
+
+// GetPhase returns the value of Phase.
+func (s *ExposureGetExposureScanOK) GetPhase() ExposureGetExposureScanOKPhase {
+	return s.Phase
+}
+
+// GetSnapshotID returns the value of SnapshotID.
+func (s *ExposureGetExposureScanOK) GetSnapshotID() NilString {
+	return s.SnapshotID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposureGetExposureScanOK) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposureGetExposureScanOK) GetStatus() ExposureGetExposureScanOKStatus {
+	return s.Status
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposureGetExposureScanOK) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTargetValue returns the value of TargetValue.
+func (s *ExposureGetExposureScanOK) GetTargetValue() string {
+	return s.TargetValue
+}
+
+// SetBy sets the value of By.
+func (s *ExposureGetExposureScanOK) SetBy(val string) {
+	s.By = val
+}
+
+// SetError sets the value of Error.
+func (s *ExposureGetExposureScanOK) SetError(val NilExposureGetExposureScanOKError) {
+	s.Error = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *ExposureGetExposureScanOK) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposureGetExposureScanOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ExposureGetExposureScanOK) SetPhase(val ExposureGetExposureScanOKPhase) {
+	s.Phase = val
+}
+
+// SetSnapshotID sets the value of SnapshotID.
+func (s *ExposureGetExposureScanOK) SetSnapshotID(val NilString) {
+	s.SnapshotID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposureGetExposureScanOK) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposureGetExposureScanOK) SetStatus(val ExposureGetExposureScanOKStatus) {
+	s.Status = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposureGetExposureScanOK) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTargetValue sets the value of TargetValue.
+func (s *ExposureGetExposureScanOK) SetTargetValue(val string) {
+	s.TargetValue = val
+}
+
+type ExposureGetExposureScanOKError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// GetCode returns the value of Code.
+func (s *ExposureGetExposureScanOKError) GetCode() string {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposureGetExposureScanOKError) GetMessage() string {
+	return s.Message
+}
+
+// SetCode sets the value of Code.
+func (s *ExposureGetExposureScanOKError) SetCode(val string) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposureGetExposureScanOKError) SetMessage(val string) {
+	s.Message = val
+}
+
+// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
+// saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the
+// phase it reached.
+type ExposureGetExposureScanOKPhase string
+
+const (
+	ExposureGetExposureScanOKPhaseQueued  ExposureGetExposureScanOKPhase = "queued"
+	ExposureGetExposureScanOKPhaseProbing ExposureGetExposureScanOKPhase = "probing"
+	ExposureGetExposureScanOKPhaseSaving  ExposureGetExposureScanOKPhase = "saving"
+	ExposureGetExposureScanOKPhaseDone    ExposureGetExposureScanOKPhase = "done"
+)
+
+// AllValues returns all ExposureGetExposureScanOKPhase values.
+func (ExposureGetExposureScanOKPhase) AllValues() []ExposureGetExposureScanOKPhase {
+	return []ExposureGetExposureScanOKPhase{
+		ExposureGetExposureScanOKPhaseQueued,
+		ExposureGetExposureScanOKPhaseProbing,
+		ExposureGetExposureScanOKPhaseSaving,
+		ExposureGetExposureScanOKPhaseDone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureScanOKPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureScanOKPhaseQueued:
+		return []byte(s), nil
+	case ExposureGetExposureScanOKPhaseProbing:
+		return []byte(s), nil
+	case ExposureGetExposureScanOKPhaseSaving:
+		return []byte(s), nil
+	case ExposureGetExposureScanOKPhaseDone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureScanOKPhase) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureScanOKPhase(data) {
+	case ExposureGetExposureScanOKPhaseQueued:
+		*s = ExposureGetExposureScanOKPhaseQueued
+		return nil
+	case ExposureGetExposureScanOKPhaseProbing:
+		*s = ExposureGetExposureScanOKPhaseProbing
+		return nil
+	case ExposureGetExposureScanOKPhaseSaving:
+		*s = ExposureGetExposureScanOKPhaseSaving
+		return nil
+	case ExposureGetExposureScanOKPhaseDone:
+		*s = ExposureGetExposureScanOKPhaseDone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureScanOKStatus string
+
+const (
+	ExposureGetExposureScanOKStatusRunning ExposureGetExposureScanOKStatus = "running"
+	ExposureGetExposureScanOKStatusDone    ExposureGetExposureScanOKStatus = "done"
+	ExposureGetExposureScanOKStatusFailed  ExposureGetExposureScanOKStatus = "failed"
+	ExposureGetExposureScanOKStatusStopped ExposureGetExposureScanOKStatus = "stopped"
+)
+
+// AllValues returns all ExposureGetExposureScanOKStatus values.
+func (ExposureGetExposureScanOKStatus) AllValues() []ExposureGetExposureScanOKStatus {
+	return []ExposureGetExposureScanOKStatus{
+		ExposureGetExposureScanOKStatusRunning,
+		ExposureGetExposureScanOKStatusDone,
+		ExposureGetExposureScanOKStatusFailed,
+		ExposureGetExposureScanOKStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureScanOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureScanOKStatusRunning:
+		return []byte(s), nil
+	case ExposureGetExposureScanOKStatusDone:
+		return []byte(s), nil
+	case ExposureGetExposureScanOKStatusFailed:
+		return []byte(s), nil
+	case ExposureGetExposureScanOKStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureScanOKStatus) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureScanOKStatus(data) {
+	case ExposureGetExposureScanOKStatusRunning:
+		*s = ExposureGetExposureScanOKStatusRunning
+		return nil
+	case ExposureGetExposureScanOKStatusDone:
+		*s = ExposureGetExposureScanOKStatusDone
+		return nil
+	case ExposureGetExposureScanOKStatusFailed:
+		*s = ExposureGetExposureScanOKStatusFailed
+		return nil
+	case ExposureGetExposureScanOKStatusStopped:
+		*s = ExposureGetExposureScanOKStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposureGetExposureTargetsIDDiffOK struct {
 	Added   []ExposureGetExposureTargetsIDDiffOKAddedItem   `json:"added"`
 	Changed []ExposureGetExposureTargetsIDDiffOKChangedItem `json:"changed"`
@@ -45510,6 +45768,264 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemValidity) UnmarshalText(data 
 	}
 }
 
+type ExposurePostExposureScanStopOK struct {
+	// Who pressed Scan now (an e-mail).
+	By string `json:"by"`
+	// Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many,
+	// module_off ...); null otherwise.
+	Error      NilExposurePostExposureScanStopOKError `json:"error"`
+	FinishedAt NilDateTime                            `json:"finished_at"`
+	ID         string                                 `json:"id"`
+	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
+	// saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the
+	// phase it reached.
+	Phase ExposurePostExposureScanStopOKPhase `json:"phase"`
+	// The new snapshot when status is done.
+	SnapshotID  NilString                            `json:"snapshot_id"`
+	StartedAt   time.Time                            `json:"started_at"`
+	Status      ExposurePostExposureScanStopOKStatus `json:"status"`
+	TargetID    string                               `json:"target_id"`
+	TargetValue string                               `json:"target_value"`
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureScanStopOK) GetBy() string {
+	return s.By
+}
+
+// GetError returns the value of Error.
+func (s *ExposurePostExposureScanStopOK) GetError() NilExposurePostExposureScanStopOKError {
+	return s.Error
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *ExposurePostExposureScanStopOK) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePostExposureScanStopOK) GetID() string {
+	return s.ID
+}
+
+// GetPhase returns the value of Phase.
+func (s *ExposurePostExposureScanStopOK) GetPhase() ExposurePostExposureScanStopOKPhase {
+	return s.Phase
+}
+
+// GetSnapshotID returns the value of SnapshotID.
+func (s *ExposurePostExposureScanStopOK) GetSnapshotID() NilString {
+	return s.SnapshotID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposurePostExposureScanStopOK) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposurePostExposureScanStopOK) GetStatus() ExposurePostExposureScanStopOKStatus {
+	return s.Status
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposurePostExposureScanStopOK) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTargetValue returns the value of TargetValue.
+func (s *ExposurePostExposureScanStopOK) GetTargetValue() string {
+	return s.TargetValue
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureScanStopOK) SetBy(val string) {
+	s.By = val
+}
+
+// SetError sets the value of Error.
+func (s *ExposurePostExposureScanStopOK) SetError(val NilExposurePostExposureScanStopOKError) {
+	s.Error = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *ExposurePostExposureScanStopOK) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePostExposureScanStopOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ExposurePostExposureScanStopOK) SetPhase(val ExposurePostExposureScanStopOKPhase) {
+	s.Phase = val
+}
+
+// SetSnapshotID sets the value of SnapshotID.
+func (s *ExposurePostExposureScanStopOK) SetSnapshotID(val NilString) {
+	s.SnapshotID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposurePostExposureScanStopOK) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposurePostExposureScanStopOK) SetStatus(val ExposurePostExposureScanStopOKStatus) {
+	s.Status = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposurePostExposureScanStopOK) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTargetValue sets the value of TargetValue.
+func (s *ExposurePostExposureScanStopOK) SetTargetValue(val string) {
+	s.TargetValue = val
+}
+
+type ExposurePostExposureScanStopOKError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// GetCode returns the value of Code.
+func (s *ExposurePostExposureScanStopOKError) GetCode() string {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePostExposureScanStopOKError) GetMessage() string {
+	return s.Message
+}
+
+// SetCode sets the value of Code.
+func (s *ExposurePostExposureScanStopOKError) SetCode(val string) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePostExposureScanStopOKError) SetMessage(val string) {
+	s.Message = val
+}
+
+// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
+// saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the
+// phase it reached.
+type ExposurePostExposureScanStopOKPhase string
+
+const (
+	ExposurePostExposureScanStopOKPhaseQueued  ExposurePostExposureScanStopOKPhase = "queued"
+	ExposurePostExposureScanStopOKPhaseProbing ExposurePostExposureScanStopOKPhase = "probing"
+	ExposurePostExposureScanStopOKPhaseSaving  ExposurePostExposureScanStopOKPhase = "saving"
+	ExposurePostExposureScanStopOKPhaseDone    ExposurePostExposureScanStopOKPhase = "done"
+)
+
+// AllValues returns all ExposurePostExposureScanStopOKPhase values.
+func (ExposurePostExposureScanStopOKPhase) AllValues() []ExposurePostExposureScanStopOKPhase {
+	return []ExposurePostExposureScanStopOKPhase{
+		ExposurePostExposureScanStopOKPhaseQueued,
+		ExposurePostExposureScanStopOKPhaseProbing,
+		ExposurePostExposureScanStopOKPhaseSaving,
+		ExposurePostExposureScanStopOKPhaseDone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureScanStopOKPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureScanStopOKPhaseQueued:
+		return []byte(s), nil
+	case ExposurePostExposureScanStopOKPhaseProbing:
+		return []byte(s), nil
+	case ExposurePostExposureScanStopOKPhaseSaving:
+		return []byte(s), nil
+	case ExposurePostExposureScanStopOKPhaseDone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureScanStopOKPhase) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureScanStopOKPhase(data) {
+	case ExposurePostExposureScanStopOKPhaseQueued:
+		*s = ExposurePostExposureScanStopOKPhaseQueued
+		return nil
+	case ExposurePostExposureScanStopOKPhaseProbing:
+		*s = ExposurePostExposureScanStopOKPhaseProbing
+		return nil
+	case ExposurePostExposureScanStopOKPhaseSaving:
+		*s = ExposurePostExposureScanStopOKPhaseSaving
+		return nil
+	case ExposurePostExposureScanStopOKPhaseDone:
+		*s = ExposurePostExposureScanStopOKPhaseDone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureScanStopOKStatus string
+
+const (
+	ExposurePostExposureScanStopOKStatusRunning ExposurePostExposureScanStopOKStatus = "running"
+	ExposurePostExposureScanStopOKStatusDone    ExposurePostExposureScanStopOKStatus = "done"
+	ExposurePostExposureScanStopOKStatusFailed  ExposurePostExposureScanStopOKStatus = "failed"
+	ExposurePostExposureScanStopOKStatusStopped ExposurePostExposureScanStopOKStatus = "stopped"
+)
+
+// AllValues returns all ExposurePostExposureScanStopOKStatus values.
+func (ExposurePostExposureScanStopOKStatus) AllValues() []ExposurePostExposureScanStopOKStatus {
+	return []ExposurePostExposureScanStopOKStatus{
+		ExposurePostExposureScanStopOKStatusRunning,
+		ExposurePostExposureScanStopOKStatusDone,
+		ExposurePostExposureScanStopOKStatusFailed,
+		ExposurePostExposureScanStopOKStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureScanStopOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureScanStopOKStatusRunning:
+		return []byte(s), nil
+	case ExposurePostExposureScanStopOKStatusDone:
+		return []byte(s), nil
+	case ExposurePostExposureScanStopOKStatusFailed:
+		return []byte(s), nil
+	case ExposurePostExposureScanStopOKStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureScanStopOKStatus) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureScanStopOKStatus(data) {
+	case ExposurePostExposureScanStopOKStatusRunning:
+		*s = ExposurePostExposureScanStopOKStatusRunning
+		return nil
+	case ExposurePostExposureScanStopOKStatusDone:
+		*s = ExposurePostExposureScanStopOKStatusDone
+		return nil
+	case ExposurePostExposureScanStopOKStatusFailed:
+		*s = ExposurePostExposureScanStopOKStatusFailed
+		return nil
+	case ExposurePostExposureScanStopOKStatusStopped:
+		*s = ExposurePostExposureScanStopOKStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposurePostExposureTargetsCreated struct {
 	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
 	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
@@ -46185,176 +46701,183 @@ func (s *ExposurePostExposureTargetsCreatedValidity) UnmarshalText(data []byte) 
 	}
 }
 
-type ExposurePostExposureTargetsIDScanOK struct {
-	AdminPanels []ExposurePostExposureTargetsIDScanOKAdminPanelsItem `json:"admin_panels"`
-	Certs       []ExposurePostExposureTargetsIDScanOKCertsItem       `json:"certs"`
-	Counts      ExposurePostExposureTargetsIDScanOKCounts            `json:"counts"`
-	Date        string                                               `json:"date"`
-	Hosts       []ExposurePostExposureTargetsIDScanOKHostsItem       `json:"hosts"`
-	ID          string                                               `json:"id"`
-	Ports       []ExposurePostExposureTargetsIDScanOKPortsItem       `json:"ports"`
-	ScannedAt   time.Time                                            `json:"scanned_at"`
+type ExposurePostExposureTargetsIDScanAccepted struct {
+	// Who pressed Scan now (an e-mail).
+	By string `json:"by"`
+	// Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many,
+	// module_off ...); null otherwise.
+	Error      NilExposurePostExposureTargetsIDScanAcceptedError `json:"error"`
+	FinishedAt NilDateTime                                       `json:"finished_at"`
+	ID         string                                            `json:"id"`
+	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
+	// saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the
+	// phase it reached.
+	Phase ExposurePostExposureTargetsIDScanAcceptedPhase `json:"phase"`
+	// The new snapshot when status is done.
+	SnapshotID  NilString                                       `json:"snapshot_id"`
+	StartedAt   time.Time                                       `json:"started_at"`
+	Status      ExposurePostExposureTargetsIDScanAcceptedStatus `json:"status"`
+	TargetID    string                                          `json:"target_id"`
+	TargetValue string                                          `json:"target_value"`
 }
 
-// GetAdminPanels returns the value of AdminPanels.
-func (s *ExposurePostExposureTargetsIDScanOK) GetAdminPanels() []ExposurePostExposureTargetsIDScanOKAdminPanelsItem {
-	return s.AdminPanels
+// GetBy returns the value of By.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetBy() string {
+	return s.By
 }
 
-// GetCerts returns the value of Certs.
-func (s *ExposurePostExposureTargetsIDScanOK) GetCerts() []ExposurePostExposureTargetsIDScanOKCertsItem {
-	return s.Certs
+// GetError returns the value of Error.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetError() NilExposurePostExposureTargetsIDScanAcceptedError {
+	return s.Error
 }
 
-// GetCounts returns the value of Counts.
-func (s *ExposurePostExposureTargetsIDScanOK) GetCounts() ExposurePostExposureTargetsIDScanOKCounts {
-	return s.Counts
-}
-
-// GetDate returns the value of Date.
-func (s *ExposurePostExposureTargetsIDScanOK) GetDate() string {
-	return s.Date
-}
-
-// GetHosts returns the value of Hosts.
-func (s *ExposurePostExposureTargetsIDScanOK) GetHosts() []ExposurePostExposureTargetsIDScanOKHostsItem {
-	return s.Hosts
+// GetFinishedAt returns the value of FinishedAt.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
 }
 
 // GetID returns the value of ID.
-func (s *ExposurePostExposureTargetsIDScanOK) GetID() string {
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetID() string {
 	return s.ID
 }
 
-// GetPorts returns the value of Ports.
-func (s *ExposurePostExposureTargetsIDScanOK) GetPorts() []ExposurePostExposureTargetsIDScanOKPortsItem {
-	return s.Ports
+// GetPhase returns the value of Phase.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetPhase() ExposurePostExposureTargetsIDScanAcceptedPhase {
+	return s.Phase
 }
 
-// GetScannedAt returns the value of ScannedAt.
-func (s *ExposurePostExposureTargetsIDScanOK) GetScannedAt() time.Time {
-	return s.ScannedAt
+// GetSnapshotID returns the value of SnapshotID.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetSnapshotID() NilString {
+	return s.SnapshotID
 }
 
-// SetAdminPanels sets the value of AdminPanels.
-func (s *ExposurePostExposureTargetsIDScanOK) SetAdminPanels(val []ExposurePostExposureTargetsIDScanOKAdminPanelsItem) {
-	s.AdminPanels = val
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetStartedAt() time.Time {
+	return s.StartedAt
 }
 
-// SetCerts sets the value of Certs.
-func (s *ExposurePostExposureTargetsIDScanOK) SetCerts(val []ExposurePostExposureTargetsIDScanOKCertsItem) {
-	s.Certs = val
+// GetStatus returns the value of Status.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetStatus() ExposurePostExposureTargetsIDScanAcceptedStatus {
+	return s.Status
 }
 
-// SetCounts sets the value of Counts.
-func (s *ExposurePostExposureTargetsIDScanOK) SetCounts(val ExposurePostExposureTargetsIDScanOKCounts) {
-	s.Counts = val
+// GetTargetID returns the value of TargetID.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetTargetID() string {
+	return s.TargetID
 }
 
-// SetDate sets the value of Date.
-func (s *ExposurePostExposureTargetsIDScanOK) SetDate(val string) {
-	s.Date = val
+// GetTargetValue returns the value of TargetValue.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetTargetValue() string {
+	return s.TargetValue
 }
 
-// SetHosts sets the value of Hosts.
-func (s *ExposurePostExposureTargetsIDScanOK) SetHosts(val []ExposurePostExposureTargetsIDScanOKHostsItem) {
-	s.Hosts = val
+// SetBy sets the value of By.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetBy(val string) {
+	s.By = val
+}
+
+// SetError sets the value of Error.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetError(val NilExposurePostExposureTargetsIDScanAcceptedError) {
+	s.Error = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
 }
 
 // SetID sets the value of ID.
-func (s *ExposurePostExposureTargetsIDScanOK) SetID(val string) {
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetID(val string) {
 	s.ID = val
 }
 
-// SetPorts sets the value of Ports.
-func (s *ExposurePostExposureTargetsIDScanOK) SetPorts(val []ExposurePostExposureTargetsIDScanOKPortsItem) {
-	s.Ports = val
+// SetPhase sets the value of Phase.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetPhase(val ExposurePostExposureTargetsIDScanAcceptedPhase) {
+	s.Phase = val
 }
 
-// SetScannedAt sets the value of ScannedAt.
-func (s *ExposurePostExposureTargetsIDScanOK) SetScannedAt(val time.Time) {
-	s.ScannedAt = val
+// SetSnapshotID sets the value of SnapshotID.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetSnapshotID(val NilString) {
+	s.SnapshotID = val
 }
 
-type ExposurePostExposureTargetsIDScanOKAdminPanelsItem struct {
-	IP      string                                                 `json:"ip"`
-	Port    int                                                    `json:"port"`
-	Product string                                                 `json:"product"`
-	Risk    ExposurePostExposureTargetsIDScanOKAdminPanelsItemRisk `json:"risk"`
-	URL     string                                                 `json:"url"`
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetStartedAt(val time.Time) {
+	s.StartedAt = val
 }
 
-// GetIP returns the value of IP.
-func (s *ExposurePostExposureTargetsIDScanOKAdminPanelsItem) GetIP() string {
-	return s.IP
+// SetStatus sets the value of Status.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetStatus(val ExposurePostExposureTargetsIDScanAcceptedStatus) {
+	s.Status = val
 }
 
-// GetPort returns the value of Port.
-func (s *ExposurePostExposureTargetsIDScanOKAdminPanelsItem) GetPort() int {
-	return s.Port
+// SetTargetID sets the value of TargetID.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetTargetID(val string) {
+	s.TargetID = val
 }
 
-// GetProduct returns the value of Product.
-func (s *ExposurePostExposureTargetsIDScanOKAdminPanelsItem) GetProduct() string {
-	return s.Product
+// SetTargetValue sets the value of TargetValue.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetTargetValue(val string) {
+	s.TargetValue = val
 }
 
-// GetRisk returns the value of Risk.
-func (s *ExposurePostExposureTargetsIDScanOKAdminPanelsItem) GetRisk() ExposurePostExposureTargetsIDScanOKAdminPanelsItemRisk {
-	return s.Risk
+type ExposurePostExposureTargetsIDScanAcceptedError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
-// GetURL returns the value of URL.
-func (s *ExposurePostExposureTargetsIDScanOKAdminPanelsItem) GetURL() string {
-	return s.URL
+// GetCode returns the value of Code.
+func (s *ExposurePostExposureTargetsIDScanAcceptedError) GetCode() string {
+	return s.Code
 }
 
-// SetIP sets the value of IP.
-func (s *ExposurePostExposureTargetsIDScanOKAdminPanelsItem) SetIP(val string) {
-	s.IP = val
+// GetMessage returns the value of Message.
+func (s *ExposurePostExposureTargetsIDScanAcceptedError) GetMessage() string {
+	return s.Message
 }
 
-// SetPort sets the value of Port.
-func (s *ExposurePostExposureTargetsIDScanOKAdminPanelsItem) SetPort(val int) {
-	s.Port = val
+// SetCode sets the value of Code.
+func (s *ExposurePostExposureTargetsIDScanAcceptedError) SetCode(val string) {
+	s.Code = val
 }
 
-// SetProduct sets the value of Product.
-func (s *ExposurePostExposureTargetsIDScanOKAdminPanelsItem) SetProduct(val string) {
-	s.Product = val
+// SetMessage sets the value of Message.
+func (s *ExposurePostExposureTargetsIDScanAcceptedError) SetMessage(val string) {
+	s.Message = val
 }
 
-// SetRisk sets the value of Risk.
-func (s *ExposurePostExposureTargetsIDScanOKAdminPanelsItem) SetRisk(val ExposurePostExposureTargetsIDScanOKAdminPanelsItemRisk) {
-	s.Risk = val
-}
-
-// SetURL sets the value of URL.
-func (s *ExposurePostExposureTargetsIDScanOKAdminPanelsItem) SetURL(val string) {
-	s.URL = val
-}
-
-type ExposurePostExposureTargetsIDScanOKAdminPanelsItemRisk string
+// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
+// saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the
+// phase it reached.
+type ExposurePostExposureTargetsIDScanAcceptedPhase string
 
 const (
-	ExposurePostExposureTargetsIDScanOKAdminPanelsItemRiskDanger ExposurePostExposureTargetsIDScanOKAdminPanelsItemRisk = "danger"
-	ExposurePostExposureTargetsIDScanOKAdminPanelsItemRiskWarn   ExposurePostExposureTargetsIDScanOKAdminPanelsItemRisk = "warn"
+	ExposurePostExposureTargetsIDScanAcceptedPhaseQueued  ExposurePostExposureTargetsIDScanAcceptedPhase = "queued"
+	ExposurePostExposureTargetsIDScanAcceptedPhaseProbing ExposurePostExposureTargetsIDScanAcceptedPhase = "probing"
+	ExposurePostExposureTargetsIDScanAcceptedPhaseSaving  ExposurePostExposureTargetsIDScanAcceptedPhase = "saving"
+	ExposurePostExposureTargetsIDScanAcceptedPhaseDone    ExposurePostExposureTargetsIDScanAcceptedPhase = "done"
 )
 
-// AllValues returns all ExposurePostExposureTargetsIDScanOKAdminPanelsItemRisk values.
-func (ExposurePostExposureTargetsIDScanOKAdminPanelsItemRisk) AllValues() []ExposurePostExposureTargetsIDScanOKAdminPanelsItemRisk {
-	return []ExposurePostExposureTargetsIDScanOKAdminPanelsItemRisk{
-		ExposurePostExposureTargetsIDScanOKAdminPanelsItemRiskDanger,
-		ExposurePostExposureTargetsIDScanOKAdminPanelsItemRiskWarn,
+// AllValues returns all ExposurePostExposureTargetsIDScanAcceptedPhase values.
+func (ExposurePostExposureTargetsIDScanAcceptedPhase) AllValues() []ExposurePostExposureTargetsIDScanAcceptedPhase {
+	return []ExposurePostExposureTargetsIDScanAcceptedPhase{
+		ExposurePostExposureTargetsIDScanAcceptedPhaseQueued,
+		ExposurePostExposureTargetsIDScanAcceptedPhaseProbing,
+		ExposurePostExposureTargetsIDScanAcceptedPhaseSaving,
+		ExposurePostExposureTargetsIDScanAcceptedPhaseDone,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s ExposurePostExposureTargetsIDScanOKAdminPanelsItemRisk) MarshalText() ([]byte, error) {
+func (s ExposurePostExposureTargetsIDScanAcceptedPhase) MarshalText() ([]byte, error) {
 	switch s {
-	case ExposurePostExposureTargetsIDScanOKAdminPanelsItemRiskDanger:
+	case ExposurePostExposureTargetsIDScanAcceptedPhaseQueued:
 		return []byte(s), nil
-	case ExposurePostExposureTargetsIDScanOKAdminPanelsItemRiskWarn:
+	case ExposurePostExposureTargetsIDScanAcceptedPhaseProbing:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDScanAcceptedPhaseSaving:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDScanAcceptedPhaseDone:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -46362,183 +46885,78 @@ func (s ExposurePostExposureTargetsIDScanOKAdminPanelsItemRisk) MarshalText() ([
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePostExposureTargetsIDScanOKAdminPanelsItemRisk) UnmarshalText(data []byte) error {
-	switch ExposurePostExposureTargetsIDScanOKAdminPanelsItemRisk(data) {
-	case ExposurePostExposureTargetsIDScanOKAdminPanelsItemRiskDanger:
-		*s = ExposurePostExposureTargetsIDScanOKAdminPanelsItemRiskDanger
+func (s *ExposurePostExposureTargetsIDScanAcceptedPhase) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsIDScanAcceptedPhase(data) {
+	case ExposurePostExposureTargetsIDScanAcceptedPhaseQueued:
+		*s = ExposurePostExposureTargetsIDScanAcceptedPhaseQueued
 		return nil
-	case ExposurePostExposureTargetsIDScanOKAdminPanelsItemRiskWarn:
-		*s = ExposurePostExposureTargetsIDScanOKAdminPanelsItemRiskWarn
+	case ExposurePostExposureTargetsIDScanAcceptedPhaseProbing:
+		*s = ExposurePostExposureTargetsIDScanAcceptedPhaseProbing
+		return nil
+	case ExposurePostExposureTargetsIDScanAcceptedPhaseSaving:
+		*s = ExposurePostExposureTargetsIDScanAcceptedPhaseSaving
+		return nil
+	case ExposurePostExposureTargetsIDScanAcceptedPhaseDone:
+		*s = ExposurePostExposureTargetsIDScanAcceptedPhaseDone
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
-type ExposurePostExposureTargetsIDScanOKCertsItem struct {
-	ExpiresAt time.Time `json:"expires_at"`
-	Host      string    `json:"host"`
-	Issuer    string    `json:"issuer"`
+type ExposurePostExposureTargetsIDScanAcceptedStatus string
+
+const (
+	ExposurePostExposureTargetsIDScanAcceptedStatusRunning ExposurePostExposureTargetsIDScanAcceptedStatus = "running"
+	ExposurePostExposureTargetsIDScanAcceptedStatusDone    ExposurePostExposureTargetsIDScanAcceptedStatus = "done"
+	ExposurePostExposureTargetsIDScanAcceptedStatusFailed  ExposurePostExposureTargetsIDScanAcceptedStatus = "failed"
+	ExposurePostExposureTargetsIDScanAcceptedStatusStopped ExposurePostExposureTargetsIDScanAcceptedStatus = "stopped"
+)
+
+// AllValues returns all ExposurePostExposureTargetsIDScanAcceptedStatus values.
+func (ExposurePostExposureTargetsIDScanAcceptedStatus) AllValues() []ExposurePostExposureTargetsIDScanAcceptedStatus {
+	return []ExposurePostExposureTargetsIDScanAcceptedStatus{
+		ExposurePostExposureTargetsIDScanAcceptedStatusRunning,
+		ExposurePostExposureTargetsIDScanAcceptedStatusDone,
+		ExposurePostExposureTargetsIDScanAcceptedStatusFailed,
+		ExposurePostExposureTargetsIDScanAcceptedStatusStopped,
+	}
 }
 
-// GetExpiresAt returns the value of ExpiresAt.
-func (s *ExposurePostExposureTargetsIDScanOKCertsItem) GetExpiresAt() time.Time {
-	return s.ExpiresAt
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsIDScanAcceptedStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsIDScanAcceptedStatusRunning:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDScanAcceptedStatusDone:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDScanAcceptedStatusFailed:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDScanAcceptedStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
 }
 
-// GetHost returns the value of Host.
-func (s *ExposurePostExposureTargetsIDScanOKCertsItem) GetHost() string {
-	return s.Host
-}
-
-// GetIssuer returns the value of Issuer.
-func (s *ExposurePostExposureTargetsIDScanOKCertsItem) GetIssuer() string {
-	return s.Issuer
-}
-
-// SetExpiresAt sets the value of ExpiresAt.
-func (s *ExposurePostExposureTargetsIDScanOKCertsItem) SetExpiresAt(val time.Time) {
-	s.ExpiresAt = val
-}
-
-// SetHost sets the value of Host.
-func (s *ExposurePostExposureTargetsIDScanOKCertsItem) SetHost(val string) {
-	s.Host = val
-}
-
-// SetIssuer sets the value of Issuer.
-func (s *ExposurePostExposureTargetsIDScanOKCertsItem) SetIssuer(val string) {
-	s.Issuer = val
-}
-
-type ExposurePostExposureTargetsIDScanOKCounts struct {
-	AdminPanels   int `json:"admin_panels"`
-	CertsExpiring int `json:"certs_expiring"`
-	Ips           int `json:"ips"`
-	Ports         int `json:"ports"`
-	Subdomains    int `json:"subdomains"`
-}
-
-// GetAdminPanels returns the value of AdminPanels.
-func (s *ExposurePostExposureTargetsIDScanOKCounts) GetAdminPanels() int {
-	return s.AdminPanels
-}
-
-// GetCertsExpiring returns the value of CertsExpiring.
-func (s *ExposurePostExposureTargetsIDScanOKCounts) GetCertsExpiring() int {
-	return s.CertsExpiring
-}
-
-// GetIps returns the value of Ips.
-func (s *ExposurePostExposureTargetsIDScanOKCounts) GetIps() int {
-	return s.Ips
-}
-
-// GetPorts returns the value of Ports.
-func (s *ExposurePostExposureTargetsIDScanOKCounts) GetPorts() int {
-	return s.Ports
-}
-
-// GetSubdomains returns the value of Subdomains.
-func (s *ExposurePostExposureTargetsIDScanOKCounts) GetSubdomains() int {
-	return s.Subdomains
-}
-
-// SetAdminPanels sets the value of AdminPanels.
-func (s *ExposurePostExposureTargetsIDScanOKCounts) SetAdminPanels(val int) {
-	s.AdminPanels = val
-}
-
-// SetCertsExpiring sets the value of CertsExpiring.
-func (s *ExposurePostExposureTargetsIDScanOKCounts) SetCertsExpiring(val int) {
-	s.CertsExpiring = val
-}
-
-// SetIps sets the value of Ips.
-func (s *ExposurePostExposureTargetsIDScanOKCounts) SetIps(val int) {
-	s.Ips = val
-}
-
-// SetPorts sets the value of Ports.
-func (s *ExposurePostExposureTargetsIDScanOKCounts) SetPorts(val int) {
-	s.Ports = val
-}
-
-// SetSubdomains sets the value of Subdomains.
-func (s *ExposurePostExposureTargetsIDScanOKCounts) SetSubdomains(val int) {
-	s.Subdomains = val
-}
-
-type ExposurePostExposureTargetsIDScanOKHostsItem struct {
-	IP   string `json:"ip"`
-	Name string `json:"name"`
-}
-
-// GetIP returns the value of IP.
-func (s *ExposurePostExposureTargetsIDScanOKHostsItem) GetIP() string {
-	return s.IP
-}
-
-// GetName returns the value of Name.
-func (s *ExposurePostExposureTargetsIDScanOKHostsItem) GetName() string {
-	return s.Name
-}
-
-// SetIP sets the value of IP.
-func (s *ExposurePostExposureTargetsIDScanOKHostsItem) SetIP(val string) {
-	s.IP = val
-}
-
-// SetName sets the value of Name.
-func (s *ExposurePostExposureTargetsIDScanOKHostsItem) SetName(val string) {
-	s.Name = val
-}
-
-type ExposurePostExposureTargetsIDScanOKPortsItem struct {
-	IP      string    `json:"ip"`
-	Port    int       `json:"port"`
-	Product OptString `json:"product"`
-	Service string    `json:"service"`
-}
-
-// GetIP returns the value of IP.
-func (s *ExposurePostExposureTargetsIDScanOKPortsItem) GetIP() string {
-	return s.IP
-}
-
-// GetPort returns the value of Port.
-func (s *ExposurePostExposureTargetsIDScanOKPortsItem) GetPort() int {
-	return s.Port
-}
-
-// GetProduct returns the value of Product.
-func (s *ExposurePostExposureTargetsIDScanOKPortsItem) GetProduct() OptString {
-	return s.Product
-}
-
-// GetService returns the value of Service.
-func (s *ExposurePostExposureTargetsIDScanOKPortsItem) GetService() string {
-	return s.Service
-}
-
-// SetIP sets the value of IP.
-func (s *ExposurePostExposureTargetsIDScanOKPortsItem) SetIP(val string) {
-	s.IP = val
-}
-
-// SetPort sets the value of Port.
-func (s *ExposurePostExposureTargetsIDScanOKPortsItem) SetPort(val int) {
-	s.Port = val
-}
-
-// SetProduct sets the value of Product.
-func (s *ExposurePostExposureTargetsIDScanOKPortsItem) SetProduct(val OptString) {
-	s.Product = val
-}
-
-// SetService sets the value of Service.
-func (s *ExposurePostExposureTargetsIDScanOKPortsItem) SetService(val string) {
-	s.Service = val
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsIDScanAcceptedStatus) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsIDScanAcceptedStatus(data) {
+	case ExposurePostExposureTargetsIDScanAcceptedStatusRunning:
+		*s = ExposurePostExposureTargetsIDScanAcceptedStatusRunning
+		return nil
+	case ExposurePostExposureTargetsIDScanAcceptedStatusDone:
+		*s = ExposurePostExposureTargetsIDScanAcceptedStatusDone
+		return nil
+	case ExposurePostExposureTargetsIDScanAcceptedStatusFailed:
+		*s = ExposurePostExposureTargetsIDScanAcceptedStatusFailed
+		return nil
+	case ExposurePostExposureTargetsIDScanAcceptedStatusStopped:
+		*s = ExposurePostExposureTargetsIDScanAcceptedStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ExposurePostExposureTargetsIDScanReq struct {
@@ -84654,6 +85072,96 @@ func (o NilDateTime) Or(d time.Time) time.Time {
 	return d
 }
 
+// NewNilExposureGetExposureScanOK returns new NilExposureGetExposureScanOK with value set to v.
+func NewNilExposureGetExposureScanOK(v ExposureGetExposureScanOK) NilExposureGetExposureScanOK {
+	return NilExposureGetExposureScanOK{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureScanOK is nullable ExposureGetExposureScanOK.
+type NilExposureGetExposureScanOK struct {
+	Value ExposureGetExposureScanOK
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureScanOK) SetTo(v ExposureGetExposureScanOK) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureScanOK) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureScanOK) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureScanOK
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureScanOK) Get() (v ExposureGetExposureScanOK, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureScanOK) Or(d ExposureGetExposureScanOK) ExposureGetExposureScanOK {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureScanOKError returns new NilExposureGetExposureScanOKError with value set to v.
+func NewNilExposureGetExposureScanOKError(v ExposureGetExposureScanOKError) NilExposureGetExposureScanOKError {
+	return NilExposureGetExposureScanOKError{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureScanOKError is nullable ExposureGetExposureScanOKError.
+type NilExposureGetExposureScanOKError struct {
+	Value ExposureGetExposureScanOKError
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureScanOKError) SetTo(v ExposureGetExposureScanOKError) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureScanOKError) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureScanOKError) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureScanOKError
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureScanOKError) Get() (v ExposureGetExposureScanOKError, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureScanOKError) Or(d ExposureGetExposureScanOKError) ExposureGetExposureScanOKError {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureTargetsIDOKBlockedReason returns new NilExposureGetExposureTargetsIDOKBlockedReason with value set to v.
 func NewNilExposureGetExposureTargetsIDOKBlockedReason(v ExposureGetExposureTargetsIDOKBlockedReason) NilExposureGetExposureTargetsIDOKBlockedReason {
 	return NilExposureGetExposureTargetsIDOKBlockedReason{
@@ -85689,6 +86197,51 @@ func (o NilExposurePostExposureBoxIPVerifyOKItemsItemValidity) Or(d ExposurePost
 	return d
 }
 
+// NewNilExposurePostExposureScanStopOKError returns new NilExposurePostExposureScanStopOKError with value set to v.
+func NewNilExposurePostExposureScanStopOKError(v ExposurePostExposureScanStopOKError) NilExposurePostExposureScanStopOKError {
+	return NilExposurePostExposureScanStopOKError{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureScanStopOKError is nullable ExposurePostExposureScanStopOKError.
+type NilExposurePostExposureScanStopOKError struct {
+	Value ExposurePostExposureScanStopOKError
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureScanStopOKError) SetTo(v ExposurePostExposureScanStopOKError) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureScanStopOKError) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureScanStopOKError) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureScanStopOKError
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureScanStopOKError) Get() (v ExposurePostExposureScanStopOKError, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureScanStopOKError) Or(d ExposurePostExposureScanStopOKError) ExposurePostExposureScanStopOKError {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePostExposureTargetsCreatedBlockedReason returns new NilExposurePostExposureTargetsCreatedBlockedReason with value set to v.
 func NewNilExposurePostExposureTargetsCreatedBlockedReason(v ExposurePostExposureTargetsCreatedBlockedReason) NilExposurePostExposureTargetsCreatedBlockedReason {
 	return NilExposurePostExposureTargetsCreatedBlockedReason{
@@ -85998,6 +86551,51 @@ func (o NilExposurePostExposureTargetsCreatedValidity) Get() (v ExposurePostExpo
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePostExposureTargetsCreatedValidity) Or(d ExposurePostExposureTargetsCreatedValidity) ExposurePostExposureTargetsCreatedValidity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTargetsIDScanAcceptedError returns new NilExposurePostExposureTargetsIDScanAcceptedError with value set to v.
+func NewNilExposurePostExposureTargetsIDScanAcceptedError(v ExposurePostExposureTargetsIDScanAcceptedError) NilExposurePostExposureTargetsIDScanAcceptedError {
+	return NilExposurePostExposureTargetsIDScanAcceptedError{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsIDScanAcceptedError is nullable ExposurePostExposureTargetsIDScanAcceptedError.
+type NilExposurePostExposureTargetsIDScanAcceptedError struct {
+	Value ExposurePostExposureTargetsIDScanAcceptedError
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsIDScanAcceptedError) SetTo(v ExposurePostExposureTargetsIDScanAcceptedError) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsIDScanAcceptedError) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsIDScanAcceptedError) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsIDScanAcceptedError
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsIDScanAcceptedError) Get() (v ExposurePostExposureTargetsIDScanAcceptedError, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsIDScanAcceptedError) Or(d ExposurePostExposureTargetsIDScanAcceptedError) ExposurePostExposureTargetsIDScanAcceptedError {
 	if v, ok := o.Get(); ok {
 		return v
 	}

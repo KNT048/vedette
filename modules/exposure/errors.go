@@ -49,6 +49,8 @@ var (
 	ErrScanTooLong = apiErr(502, "unreachable", "The scan did not finish within 5 minutes, so nothing was saved. Try again later.")
 	// ErrScanBusy: another scan runs on the box (one at a time).
 	ErrScanBusy = apiErr(409, "busy", "Another external scan is running on this box. Wait for it to finish, then try again.")
+	// ErrNotRunning: Stop was pressed when no scan runs.
+	ErrNotRunning = apiErr(409, "not_running", "No scan is running now.")
 )
 
 // TooManyNames is the answer when the certificate-transparency logs list more names under domain than one scan reads (D-229):

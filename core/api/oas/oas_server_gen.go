@@ -822,6 +822,13 @@ type Handler interface {
 	//
 	// DELETE /exposure/targets/{id}
 	ExposureDeleteExposureTargetsID(ctx context.Context, params ExposureDeleteExposureTargetsIDParams) error
+	// ExposureGetExposureScan implements exposure_get_exposure_scan operation.
+	//
+	// The scan that runs now, or the last one (status done, failed or stopped, with its error or
+	// snapshot_id); null when no scan has run since the box started (the run is kept in memory only).
+	//
+	// GET /exposure/scan
+	ExposureGetExposureScan(ctx context.Context) (NilExposureGetExposureScanOK, error)
 	// ExposureGetExposureTargets implements exposure_get_exposure_targets operation.
 	//
 	// Domains and verified public IPs with ownership status, expiry, commitment and latest result, plus
@@ -865,6 +872,13 @@ type Handler interface {
 	//
 	// POST /exposure/box-ip/verify
 	ExposurePostExposureBoxIPVerify(ctx context.Context) (*ExposurePostExposureBoxIPVerifyOK, error)
+	// ExposurePostExposureScanStop implements exposure_post_exposure_scan_stop operation.
+	//
+	// Stop the scan that runs now (status stopped, nothing is saved; audited). 409 not_running when no
+	// scan runs.
+	//
+	// POST /exposure/scan/stop
+	ExposurePostExposureScanStop(ctx context.Context) (*ExposurePostExposureScanStopOK, error)
 	// ExposurePostExposureTargets implements exposure_post_exposure_targets operation.
 	//
 	// Add a domain (changes scan scope). Public IPs cannot be typed in: use /exposure/box-ip/verify.
@@ -873,25 +887,28 @@ type Handler interface {
 	ExposurePostExposureTargets(ctx context.Context, req *ExposurePostExposureTargetsReq) (*ExposurePostExposureTargetsCreated, error)
 	// ExposurePostExposureTargetsIDScan implements exposure_post_exposure_targets_id_scan operation.
 	//
-	// Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked
-	// right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through
-	// (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required
-	// when the commitment is missing and the caller is an operator (an administrator must run the first
-	// scan). For an administrator that first scan IS the confirmation (D-473, amends D-26): it needs
-	// two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence
-	// shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not
-	// the current one); the commitment is then recorded with who, when and that exact sentence, and the
-	// scan goes on. A target that already has a commitment records nothing again. After those checks the
-	// Vulnerability scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own
-	// verified public IPs; a domain's names from certificate transparency are listed and get one GET of /
-	// by name on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan
-	// runs on the box; 429 rate_limited within 10 minutes of the target's last scan; 400 too_many when the
-	// domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search
-	// (crt.sh) does not answer or the scan does not finish within 5 minutes. Nothing is saved then; every
-	// attempt is audited.
+	// Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in
+	// the background and the page polls GET /exposure/scan. The checks below still answer synchronously.
+	// 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before
+	// the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest
+	// check, or a fresh full check just before the scan, must see it); 400 commitment_required when the
+	// commitment is missing and the caller is an operator (an administrator must run the first scan). For
+	// an administrator that first scan IS the confirmation (D-473, amends D-26): it needs two-step sign-in
+	// on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the
+	// button (400 commitment_required when left out, 409 notice_changed when it is not the current one);
+	// the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A
+	// target that already has a commitment records nothing again. After those checks the Vulnerability
+	// scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own verified
+	// public IPs; a domain's names from certificate transparency are listed and get one GET of / by name
+	// on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan runs on
+	// the box; 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the
+	// scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when
+	// the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5
+	// minutes; module_off when the module is switched off meanwhile) end the run as status failed with
+	// that code and text, and nothing is saved. Every attempt is audited.
 	//
 	// POST /exposure/targets/{id}/scan
-	ExposurePostExposureTargetsIDScan(ctx context.Context, req OptExposurePostExposureTargetsIDScanReq, params ExposurePostExposureTargetsIDScanParams) (*ExposurePostExposureTargetsIDScanOK, error)
+	ExposurePostExposureTargetsIDScan(ctx context.Context, req OptExposurePostExposureTargetsIDScanReq, params ExposurePostExposureTargetsIDScanParams) (*ExposurePostExposureTargetsIDScanAccepted, error)
 	// ExposurePostExposureTargetsIDVerify implements exposure_post_exposure_targets_id_verify operation.
 	//
 	// Re-check ownership: domain = DNS TXT record; IP = the box must currently egress through this same IP

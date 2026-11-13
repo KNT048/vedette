@@ -21233,6 +21233,273 @@
         }
       }
     },
+    "/exposure/scan": {
+      "get": {
+        "operationId": "exposure_get_exposure_scan",
+        "summary": "The scan that runs now, or the last one (status done, failed or stopped, with its error or snapshot_id); null when no scan has run since the box started (the run is kept in memory only)",
+        "tags": [
+          "exposure"
+        ],
+        "x-stories": [
+          "S-EXP-1"
+        ],
+        "x-min-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "target_id": {
+                          "type": "string"
+                        },
+                        "target_value": {
+                          "type": "string"
+                        },
+                        "by": {
+                          "type": "string",
+                          "description": "Who pressed Scan now (an e-mail)"
+                        },
+                        "started_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "finished_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "running",
+                            "done",
+                            "failed",
+                            "stopped"
+                          ]
+                        },
+                        "phase": {
+                          "type": "string",
+                          "enum": [
+                            "queued",
+                            "probing",
+                            "saving",
+                            "done"
+                          ],
+                          "description": "queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
+                        },
+                        "snapshot_id": {
+                          "description": "The new snapshot when status is done",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "error": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "code": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "code",
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many, module_off ...); null otherwise"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "target_id",
+                        "target_value",
+                        "by",
+                        "started_at",
+                        "finished_at",
+                        "status",
+                        "phase",
+                        "snapshot_id",
+                        "error"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/exposure/scan/stop": {
+      "post": {
+        "operationId": "exposure_post_exposure_scan_stop",
+        "summary": "Stop the scan that runs now (status stopped, nothing is saved; audited). 409 not_running when no scan runs",
+        "tags": [
+          "exposure"
+        ],
+        "x-stories": [
+          "S-EXP-1"
+        ],
+        "x-min-role": "operator",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "target_id": {
+                      "type": "string"
+                    },
+                    "target_value": {
+                      "type": "string"
+                    },
+                    "by": {
+                      "type": "string",
+                      "description": "Who pressed Scan now (an e-mail)"
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "finished_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "running",
+                        "done",
+                        "failed",
+                        "stopped"
+                      ]
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "probing",
+                        "saving",
+                        "done"
+                      ],
+                      "description": "queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
+                    },
+                    "snapshot_id": {
+                      "description": "The new snapshot when status is done",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "error": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string"
+                            },
+                            "message": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many, module_off ...); null otherwise"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "target_id",
+                    "target_value",
+                    "by",
+                    "started_at",
+                    "finished_at",
+                    "status",
+                    "phase",
+                    "snapshot_id",
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/exposure/targets": {
       "get": {
         "operationId": "exposure_get_exposure_targets",
@@ -22716,7 +22983,7 @@
     "/exposure/targets/{id}/scan": {
       "post": {
         "operationId": "exposure_post_exposure_targets_id_scan",
-        "summary": "Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation (D-473, amends D-26): it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target that already has a commitment records nothing again. After those checks the Vulnerability scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan; 400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes. Nothing is saved then; every attempt is audited",
+        "summary": "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation (D-473, amends D-26): it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target that already has a commitment records nothing again. After those checks the Vulnerability scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited",
         "tags": [
           "exposure"
         ],
@@ -22752,8 +23019,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "202": {
+            "description": "Accepted",
             "content": {
               "application/json": {
                 "schema": {
@@ -22762,172 +23029,95 @@
                     "id": {
                       "type": "string"
                     },
-                    "date": {
-                      "type": "string",
-                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    "target_id": {
+                      "type": "string"
                     },
-                    "scanned_at": {
+                    "target_value": {
+                      "type": "string"
+                    },
+                    "by": {
+                      "type": "string",
+                      "description": "Who pressed Scan now (an e-mail)"
+                    },
+                    "started_at": {
                       "type": "string",
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
-                    "hosts": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "name": {
-                            "type": "string"
-                          },
-                          "ip": {
-                            "type": "string"
-                          }
+                    "finished_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                         },
-                        "required": [
-                          "name",
-                          "ip"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "ports": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "ip": {
-                            "type": "string"
-                          },
-                          "port": {
-                            "type": "integer",
-                            "minimum": -9007199254740991,
-                            "maximum": 9007199254740991
-                          },
-                          "service": {
-                            "type": "string"
-                          },
-                          "product": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "ip",
-                          "port",
-                          "service"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "admin_panels": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "url": {
-                            "type": "string"
-                          },
-                          "product": {
-                            "type": "string"
-                          },
-                          "ip": {
-                            "type": "string"
-                          },
-                          "port": {
-                            "type": "integer",
-                            "minimum": -9007199254740991,
-                            "maximum": 9007199254740991
-                          },
-                          "risk": {
-                            "type": "string",
-                            "enum": [
-                              "danger",
-                              "warn"
-                            ]
-                          }
-                        },
-                        "required": [
-                          "url",
-                          "product",
-                          "ip",
-                          "port",
-                          "risk"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "certs": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "host": {
-                            "type": "string"
-                          },
-                          "issuer": {
-                            "type": "string"
-                          },
-                          "expires_at": {
-                            "type": "string",
-                            "format": "date-time",
-                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                          }
-                        },
-                        "required": [
-                          "host",
-                          "issuer",
-                          "expires_at"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "counts": {
-                      "type": "object",
-                      "properties": {
-                        "subdomains": {
-                          "type": "integer",
-                          "minimum": -9007199254740991,
-                          "maximum": 9007199254740991
-                        },
-                        "ips": {
-                          "type": "integer",
-                          "minimum": -9007199254740991,
-                          "maximum": 9007199254740991
-                        },
-                        "ports": {
-                          "type": "integer",
-                          "minimum": -9007199254740991,
-                          "maximum": 9007199254740991
-                        },
-                        "admin_panels": {
-                          "type": "integer",
-                          "minimum": -9007199254740991,
-                          "maximum": 9007199254740991
-                        },
-                        "certs_expiring": {
-                          "type": "integer",
-                          "minimum": -9007199254740991,
-                          "maximum": 9007199254740991
+                        {
+                          "type": "null"
                         }
-                      },
-                      "required": [
-                        "subdomains",
-                        "ips",
-                        "ports",
-                        "admin_panels",
-                        "certs_expiring"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "running",
+                        "done",
+                        "failed",
+                        "stopped"
+                      ]
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "probing",
+                        "saving",
+                        "done"
                       ],
-                      "additionalProperties": false
+                      "description": "queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
+                    },
+                    "snapshot_id": {
+                      "description": "The new snapshot when status is done",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "error": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string"
+                            },
+                            "message": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many, module_off ...); null otherwise"
                     }
                   },
                   "required": [
                     "id",
-                    "date",
-                    "scanned_at",
-                    "hosts",
-                    "ports",
-                    "admin_panels",
-                    "certs",
-                    "counts"
+                    "target_id",
+                    "target_value",
+                    "by",
+                    "started_at",
+                    "finished_at",
+                    "status",
+                    "phase",
+                    "snapshot_id",
+                    "error"
                   ],
                   "additionalProperties": false
                 }

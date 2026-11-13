@@ -57,6 +57,13 @@ func exposureService(d deps) *exposure.Service {
 		panic("vedette: " + err.Error())
 	}
 	exposureServices[d.DB] = svc
+	if d.Reg != nil { // INV-18: switching the module off stops the scan that runs (SYS-5); the registry's goroutine must not wait for it
+		d.Reg.OnChange(func(id string, enabled bool) {
+			if id == exposure.ModuleID {
+				svc.ModuleSwitched(enabled)
+			}
+		})
+	}
 	return svc
 }
 

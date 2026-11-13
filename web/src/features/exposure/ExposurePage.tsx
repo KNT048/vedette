@@ -14,6 +14,7 @@ import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { BoxIpPanel } from './BoxIpPanel'
 import { OwnerChip } from './OwnerChip'
+import { ScanProgress } from './ScanProgress'
 import { useAddTarget, useTargets } from './api'
 import { portLabel, riskOf } from './services'
 import type { Gateway, PortRow, Target } from './types'
@@ -44,6 +45,7 @@ export default function ExposurePage() {
     <RequireModule module="exposure">
       <PageHeader title={title} stories={['S-EXP-1']} actions={<AddTarget />}
         meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{certs > 0 ? `${t('meta.certs', { count: certs })} ` : null}{t('meta.rule')}</span>} />
+      <ScanProgress />
       <QueryState query={{ data, error, isPending, refetch }}>
         {(d) => (
           <>

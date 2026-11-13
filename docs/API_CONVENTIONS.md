@@ -416,7 +416,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `ip_not_current` | 409 | This box no longer reaches the Internet through ${ip}; it was last seen ${time}. Scans of it are paused until the box uses it again. | `POST /exposure/targets/{id}/scan`; `POST /scans/runs` (kiểm lúc quét của IP, `exposure` INV-13, D-79 (2)) |
 | `limit` | 409 | Up to 30 rules. | `POST /response/catalog`; `POST /response/rules`; `POST /response/templates/{id}/clone`; `POST /response/actions/{id}/approve` (a `blocklist_add` item refused when the block list already holds 10 000 entries) |
 | `limit_reached` | 409 | The box can hold 32 decoys. Delete one before adding another. | `POST /honeypot/decoys` |
-| `module_off` | 409 | The module for this role is off. / The Vulnerability scans module is off, so the box cannot scan. An admin can turn it on in Settings, Modules. | `POST /exposure/targets/{id}/scan` while the `scan` module, which does the scan, is off (D-229); sensor link 8444 (`core/sensorlink`, D-141); `POST /response/me/identities/{channel}/code` on a chat channel while notify is off (D-414). `/core/mcp*` no longer uses it: off, they are 404 (D-230) |
+| `module_off` | 409 | The module for this role is off. / The Vulnerability scans module is off, so the box cannot scan. An admin can turn it on in Settings, Modules. / The External exposure module is off, so the box cannot scan. An admin can turn it on in Settings, Modules. | `POST /exposure/targets/{id}/scan` while the `scan` module, which does the scan, is off (D-229), or the exposure module was switched off while the gate ran (D-493); sensor link 8444 (`core/sensorlink`, D-141); `POST /response/me/identities/{channel}/code` on a chat channel while notify is off (D-414). `/core/mcp*` no longer uses it: off, they are 404 (D-230) |
 | `need_decoys` | 409 | Scan detection needs at least two decoy IPs. Add a decoy first. | `POST /honeypot/test-scan` |
 | `no_devices` | 409 | No device in the inventory matches (agent sample data). | `POST /inventory/agents/tokens/{id}/sample-data`; `POST /inventory/agents/wazuh/sample-data` |
 | `no_pending` | 409 | No key is waiting for confirmation. Click "Turn on two-factor authentication" to create one. | `POST /core/account/2fa/confirm` |
@@ -429,7 +429,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `not_executed` | 409 | Only an executed action can be rolled back. | module response (validator dùng chung) |
 | `not_on` | 409 | Two-step sign-in is already off for this user. | `POST /core/users/{id}/2fa/reset` |
 | `not_pending` | 409 | This request is already ${a.status.replace('_', ' ')}. One approval covers one request. | module response (validator dùng chung) |
-| `not_running` | 409 | This scan has already ended, so there is nothing to stop. | `POST /scans/runs/{id}/stop` |
+| `not_running` | 409 | This scan has already ended, so there is nothing to stop. Also: No scan is running now. | `POST /scans/runs/{id}/stop`; `POST /exposure/scan/stop` |
 | `not_verified` | 409 | Verify ownership first; only then can this target be scanned. | `POST /exposure/targets/{id}/scan` |
 | `nothing_scheduled` | 409 | No reboot is scheduled. | `DELETE /core/updates/os/reboot` |
 | `nothing_to_install` | 409 | There are no updates waiting to install. | `POST /core/updates/os/install` |

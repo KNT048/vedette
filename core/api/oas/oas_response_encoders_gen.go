@@ -1569,6 +1569,19 @@ func encodeExposureDeleteExposureTargetsIDResponse(response *ExposureDeleteExpos
 	return nil
 }
 
+func encodeExposureGetExposureScanResponse(response NilExposureGetExposureScanOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeExposureGetExposureTargetsResponse(response *ExposureGetExposureTargetsOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -1647,6 +1660,19 @@ func encodeExposurePostExposureBoxIPVerifyResponse(response *ExposurePostExposur
 	return nil
 }
 
+func encodeExposurePostExposureScanStopResponse(response *ExposurePostExposureScanStopOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeExposurePostExposureTargetsResponse(response *ExposurePostExposureTargetsCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(201)
@@ -1660,9 +1686,9 @@ func encodeExposurePostExposureTargetsResponse(response *ExposurePostExposureTar
 	return nil
 }
 
-func encodeExposurePostExposureTargetsIDScanResponse(response *ExposurePostExposureTargetsIDScanOK, w http.ResponseWriter) error {
+func encodeExposurePostExposureTargetsIDScanResponse(response *ExposurePostExposureTargetsIDScanAccepted, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
+	w.WriteHeader(202)
 
 	e := new(jx.Encoder)
 	response.Encode(e)

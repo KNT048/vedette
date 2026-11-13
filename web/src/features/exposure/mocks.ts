@@ -20,7 +20,7 @@ import { collection, newId, nowIso, type Collection } from '@/mocks/db'
 import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, DEFAULT_INTERVAL, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, type StoredTarget } from './data'
 import { NOTICE_TEMPLATE, NOTICE_VERSION } from './contract'
 import { dateText, dateTimeText } from './dates'
-import type { BoxIpSettings, Commitment, Diff, DiffChange, DiffItem, IgnoredIp, Snapshot, Target } from './types'
+import type { BoxIpSettings, Commitment, Diff, DiffChange, DiffItem, IgnoredIp, ScanRun, Snapshot, Target } from './types'
 
 const targets = collection<StoredTarget[]>('exp_targets', seedTargets, () => [])
 const snapshots = collection<Record<string, Snapshot[]>>('exp_snapshots', seedSnapshots, () => ({}))
@@ -100,6 +100,30 @@ function auditSystem(action: string, target: string, detail: string) {
 }
 
 const dayLeft = (iso: string) => Math.ceil((Date.parse(iso) - Date.now()) / 864e5)
+
+/** The mock's scan run: the phase follows the time since the press (queued, probing, saving, then done). The snapshot, last_scan_at and the audit row come when it is done, as on the box; a stop saves nothing. */
+interface MockRun { run: ScanRun; startedMs: number; snap: Snapshot }
+const mockRunStore = collection<MockRun | null>('exp_scan_run', () => null, () => null)
+const PHASE_AT_MS = { probing: 300, saving: 1500, done: 2000 }
+function settledRun(): ScanRun | null {
+  const m = mockRunStore.get()
+  if (!m) return null
+  const r = m.run
+  if (r.status !== 'running') return r
+  const ms = Date.now() - m.startedMs
+  if (ms < PHASE_AT_MS.done) {
+    const next: ScanRun = { ...r, phase: ms >= PHASE_AT_MS.saving ? 'saving' : ms >= PHASE_AT_MS.probing ? 'probing' : 'queued' }
+    mockRunStore.set({ ...m, run: next })
+    return next
+  }
+  const snap = m.snap
+  snapshots.update((all) => ({ ...all, [r.target_id]: [...(all[r.target_id] ?? []).filter((x) => x.date !== snap.date), snap] }))
+  targets.update((l) => l.map((x) => (x.id === r.target_id ? { ...x, last_scan_at: snap.scanned_at } : x)))
+  audit('exposure.scan', r.target_value, `${snap.counts.subdomains} subdomains, ${snap.counts.ports} ports`)
+  const next: ScanRun = { ...r, status: 'done', phase: 'done', finished_at: nowIso(), snapshot_id: snap.id }
+  mockRunStore.set({ ...m, run: next })
+  return next
+}
 
 function view(t: StoredTarget): Target {
   const commitment = commitments.get()[t.id] ?? null
@@ -442,13 +466,30 @@ export const handlers = [
     }
     // The scan is done by the Vulnerability scans module (D-229): off, nothing is scanned and nothing is saved.
     if (!isOn('scan')) return fail(409, 'module_off', 'The Vulnerability scans module is off, so the box cannot scan. An admin can turn it on in Settings, Modules.')
+    // Like the box: 202 with the run at once, and the phases move on while the page polls GET /exposure/scan. The mock has no one-at-a-time or 10-minute limit
+    // (its tests scan an IP several times in a row). The result is stored when the run is done.
     const at = nowIso()
-    const content = scanContent(t)
-    const snap = makeSnapshot(newId('sn'), at, content, t.kind === 'ip' ? t.value : undefined)
-    snapshots.update((m) => ({ ...m, [t.id]: [...(m[t.id] ?? []).filter((s) => s.date !== snap.date), snap] }))
-    targets.update((l) => l.map((x) => (x.id === t.id ? { ...x, last_scan_at: at } : x)))
-    audit('exposure.scan', t.value, `${snap.counts.subdomains} subdomains, ${snap.counts.ports} ports`)
-    return HttpResponse.json(snap)
+    const snap = makeSnapshot(newId('sn'), at, scanContent(t), t.kind === 'ip' ? t.value : undefined)
+    const run: ScanRun = { id: newId('sr'), target_id: t.id, target_value: t.value, by: currentUser()?.email ?? '', started_at: at, finished_at: null, status: 'running', phase: 'queued', snapshot_id: null, error: null }
+    mockRunStore.set({ run, startedMs: Date.now(), snap })
+    return HttpResponse.json(run, { status: 202 })
+  }),
+
+  // The run that runs now or the last one; null before the first. In the mock it lives in memory only, as on the box.
+  http.get(`${API}/exposure/scan`, () => {
+    const denied = guard('viewer'); if (denied) return denied
+    return HttpResponse.json(settledRun())
+  }),
+
+  http.post(`${API}/exposure/scan/stop`, () => {
+    const denied = guard('operator'); if (denied) return denied
+    const r = settledRun()
+    const m = mockRunStore.get()
+    if (!m || !r || r.status !== 'running') return fail(409, 'not_running', 'No scan is running now.')
+    const stopped: ScanRun = { ...r, status: 'stopped', finished_at: nowIso() }
+    mockRunStore.set({ ...m, run: stopped })
+    audit('exposure.scan', r.target_value, `stopped by ${currentUser()?.email ?? ''}`)
+    return HttpResponse.json(stopped)
   }),
 
   http.get(`${API}/exposure/targets/:id/snapshots`, ({ params }) => {

@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// ExposureHandlers implements the 13 exposure operations (modules/exposure/CONTRACT.md). Embed it in the
+// ExposureHandlers implements the 15 exposure operations (modules/exposure/CONTRACT.md). Embed it in the
 // composite handler. Roles are enforced by the server pipeline before a handler runs, never here.
 //
 //nolint:revive // the name is distinct on purpose: it is embedded in cmd/vedette next to inventory.Handlers
@@ -158,19 +158,46 @@ func (h *ExposureHandlers) ExposurePostExposureTargetsIDVerify(ctx context.Conte
 	return into[oas.ExposurePostExposureTargetsIDVerifyOK](r)
 }
 
-// ExposurePostExposureTargetsIDScan implements exposure_post_exposure_targets_id_scan (operator). For the first scan of a target an
+// ExposurePostExposureTargetsIDScan implements exposure_post_exposure_targets_id_scan (operator): the gate answers synchronously as always,
+// then the scan starts in the background and the answer is 202 with the run (INV-18). For the first scan of a target an
 // administrator's press is the D-26 confirmation (D-473): the body carries the notice version the page showed.
-func (h *ExposureHandlers) ExposurePostExposureTargetsIDScan(ctx context.Context, req oas.OptExposurePostExposureTargetsIDScanReq, params oas.ExposurePostExposureTargetsIDScanParams) (*oas.ExposurePostExposureTargetsIDScanOK, error) {
+func (h *ExposureHandlers) ExposurePostExposureTargetsIDScan(ctx context.Context, req oas.OptExposurePostExposureTargetsIDScanReq, params oas.ExposurePostExposureTargetsIDScanParams) (*oas.ExposurePostExposureTargetsIDScanAccepted, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
 		return nil, apierr.Unauthenticated()
 	}
 	who := Actor{ID: p.ID, Email: p.Email, Admin: p.Role == routes.Admin}
-	s, err := h.svc.ScanNow(ctx, who, params.ID, req.Value.NoticeVersion.Value)
+	run, err := h.svc.StartScan(ctx, who, params.ID, req.Value.NoticeVersion.Value)
 	if err != nil {
 		return nil, ToAPIError(err)
 	}
-	return into[oas.ExposurePostExposureTargetsIDScanOK](s)
+	return into[oas.ExposurePostExposureTargetsIDScanAccepted](run)
+}
+
+// ExposureGetExposureScan implements exposure_get_exposure_scan (viewer): the run that runs now or the last one, null before the first.
+func (h *ExposureHandlers) ExposureGetExposureScan(_ context.Context) (oas.NilExposureGetExposureScanOK, error) {
+	run := h.svc.CurrentScan()
+	if run == nil {
+		return oas.NilExposureGetExposureScanOK{Null: true}, nil
+	}
+	out, err := into[oas.ExposureGetExposureScanOK](*run)
+	if err != nil {
+		return oas.NilExposureGetExposureScanOK{}, err
+	}
+	return oas.NewNilExposureGetExposureScanOK(*out), nil
+}
+
+// ExposurePostExposureScanStop implements exposure_post_exposure_scan_stop (operator): cancels the run that runs now; 409 not_running when none does.
+func (h *ExposureHandlers) ExposurePostExposureScanStop(ctx context.Context) (*oas.ExposurePostExposureScanStopOK, error) {
+	user, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	run, ok := h.svc.StopScan(ctx, user)
+	if !ok {
+		return nil, ToAPIError(ErrNotRunning)
+	}
+	return into[oas.ExposurePostExposureScanStopOK](run)
 }
 
 // ExposureGetExposureTargetsIDSnapshots implements exposure_get_exposure_targets_id_snapshots.

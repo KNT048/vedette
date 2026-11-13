@@ -16811,6 +16811,133 @@ func (s *Server) handleExposureDeleteExposureTargetsIDRequest(args [1]string, ar
 	}
 }
 
+// handleExposureGetExposureScanRequest handles exposure_get_exposure_scan operation.
+//
+// The scan that runs now, or the last one (status done, failed or stopped, with its error or
+// snapshot_id); null when no scan has run since the box started (the run is kept in memory only).
+//
+// GET /exposure/scan
+func (s *Server) handleExposureGetExposureScanRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ExposureGetExposureScanOperation,
+			ID:   "exposure_get_exposure_scan",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, ExposureGetExposureScanOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response NilExposureGetExposureScanOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ExposureGetExposureScanOperation,
+			OperationSummary: "The scan that runs now, or the last one (status done, failed or stopped, with its error or snapshot_id); null when no scan has run since the box started (the run is kept in memory only)",
+			OperationID:      "exposure_get_exposure_scan",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = NilExposureGetExposureScanOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ExposureGetExposureScan(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ExposureGetExposureScan(ctx)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeExposureGetExposureScanResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleExposureGetExposureTargetsRequest handles exposure_get_exposure_targets operation.
 //
 // Domains and verified public IPs with ownership status, expiry, commitment and latest result, plus
@@ -17646,6 +17773,133 @@ func (s *Server) handleExposurePostExposureBoxIPVerifyRequest(args [0]string, ar
 	}
 }
 
+// handleExposurePostExposureScanStopRequest handles exposure_post_exposure_scan_stop operation.
+//
+// Stop the scan that runs now (status stopped, nothing is saved; audited). 409 not_running when no
+// scan runs.
+//
+// POST /exposure/scan/stop
+func (s *Server) handleExposurePostExposureScanStopRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ExposurePostExposureScanStopOperation,
+			ID:   "exposure_post_exposure_scan_stop",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, ExposurePostExposureScanStopOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response *ExposurePostExposureScanStopOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ExposurePostExposureScanStopOperation,
+			OperationSummary: "Stop the scan that runs now (status stopped, nothing is saved; audited). 409 not_running when no scan runs",
+			OperationID:      "exposure_post_exposure_scan_stop",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *ExposurePostExposureScanStopOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ExposurePostExposureScanStop(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ExposurePostExposureScanStop(ctx)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeExposurePostExposureScanStopResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleExposurePostExposureTargetsRequest handles exposure_post_exposure_targets operation.
 //
 // Add a domain (changes scan scope). Public IPs cannot be typed in: use /exposure/box-ip/verify.
@@ -17789,22 +18043,25 @@ func (s *Server) handleExposurePostExposureTargetsRequest(args [0]string, argsEs
 
 // handleExposurePostExposureTargetsIDScanRequest handles exposure_post_exposure_targets_id_scan operation.
 //
-// Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked
-// right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through
-// (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required
-// when the commitment is missing and the caller is an operator (an administrator must run the first
-// scan). For an administrator that first scan IS the confirmation (D-473, amends D-26): it needs
-// two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence
-// shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not
-// the current one); the commitment is then recorded with who, when and that exact sentence, and the
-// scan goes on. A target that already has a commitment records nothing again. After those checks the
-// Vulnerability scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own
-// verified public IPs; a domain's names from certificate transparency are listed and get one GET of /
-// by name on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan
-// runs on the box; 429 rate_limited within 10 minutes of the target's last scan; 400 too_many when the
-// domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search
-// (crt.sh) does not answer or the scan does not finish within 5 minutes. Nothing is saved then; every
-// attempt is audited.
+// Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in
+// the background and the page polls GET /exposure/scan. The checks below still answer synchronously.
+// 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before
+// the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest
+// check, or a fresh full check just before the scan, must see it); 400 commitment_required when the
+// commitment is missing and the caller is an operator (an administrator must run the first scan). For
+// an administrator that first scan IS the confirmation (D-473, amends D-26): it needs two-step sign-in
+// on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the
+// button (400 commitment_required when left out, 409 notice_changed when it is not the current one);
+// the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A
+// target that already has a commitment records nothing again. After those checks the Vulnerability
+// scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own verified
+// public IPs; a domain's names from certificate transparency are listed and get one GET of / by name
+// on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan runs on
+// the box; 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the
+// scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when
+// the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5
+// minutes; module_off when the module is switched off meanwhile) end the run as status failed with
+// that code and text, and nothing is saved. Every attempt is audited.
 //
 // POST /exposure/targets/{id}/scan
 func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -17893,12 +18150,12 @@ func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, 
 		}
 	}()
 
-	var response *ExposurePostExposureTargetsIDScanOK
+	var response *ExposurePostExposureTargetsIDScanAccepted
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureTargetsIDScanOperation,
-			OperationSummary: "Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation (D-473, amends D-26): it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target that already has a commitment records nothing again. After those checks the Vulnerability scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan; 400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes. Nothing is saved then; every attempt is audited",
+			OperationSummary: "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation (D-473, amends D-26): it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target that already has a commitment records nothing again. After those checks the Vulnerability scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited",
 			OperationID:      "exposure_post_exposure_targets_id_scan",
 			Body:             request,
 			RawBody:          rawBody,
@@ -17914,7 +18171,7 @@ func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, 
 		type (
 			Request  = OptExposurePostExposureTargetsIDScanReq
 			Params   = ExposurePostExposureTargetsIDScanParams
-			Response = *ExposurePostExposureTargetsIDScanOK
+			Response = *ExposurePostExposureTargetsIDScanAccepted
 		)
 		response, err = middleware.HookMiddleware[
 			Request,

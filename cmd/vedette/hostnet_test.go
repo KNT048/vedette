@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
 )
@@ -462,7 +463,7 @@ func TestHostAllowlistAcceptsTheBoxsOwnAddressesAfterAChange(t *testing.T) {
 	t.Parallel()
 	f := lanBox()
 	cache := newHostNetCache(hostNetSource(f, nil), time.Now)
-	h := topHandler(slog.New(slog.DiscardHandler), okHandler(), []string{"box.corp.example"}, false, boxOwnAddress(cache))
+	h := topHandler(slog.New(slog.DiscardHandler), okHandler(), server.HostMatcher([]string{"box.corp.example"}, boxOwnAddress(cache)), false)
 	status := func(host string) int {
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/setup", nil)
 		req.Host = host

@@ -65,7 +65,16 @@
     "toolsNote": "The AI only has these lookup tools. It has no write, block or scan tool.",
     "toolResult": "returned {{result}}",
     "refused": "The AI was not asked",
-    "hooksTitle": "Hooks that acted"
+    "answerHeld": "The AI answered, but a hook held the answer back",
+    "hooksTitle": "Hooks that acted",
+    "step": {
+      "question": "on the question:",
+      "tool_call": "on the AI's call to {{tool}}:",
+      "tool_result": "on the result of {{tool}}:",
+      "answer": "on the answer:"
+    },
+    "hooksHint": "Rephrase the question to need other data. An administrator can adjust the hooks in Settings, AI assistant, Hooks.",
+    "hooksLink": "Open the hooks"
   },
   "meter": {
     "title": "Token meter",

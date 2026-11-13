@@ -34,6 +34,7 @@ export type LogDigest = z.infer<typeof C.LogDigest>
 export type HookWhen = z.infer<typeof C.HookWhen>
 export type HookAction = z.infer<typeof C.HookAction>
 export type HookHit = z.infer<typeof C.HookHit>
+export type AskHookHit = z.infer<typeof C.AskHookHit>
 export type BuiltinRule = z.infer<typeof C.BuiltinRule>
 export type Rule = z.infer<typeof C.Rule>
 export type RuleInput = z.infer<typeof C.RuleInput>

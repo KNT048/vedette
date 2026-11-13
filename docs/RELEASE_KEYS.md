@@ -27,6 +27,12 @@ Sau đó mỗi khoá ký `internal/release/testdata/prod/proof.txt` (bằng ch�
 
 ## Ký một bản phát hành
 
+Thứ tự đầy đủ: `docs/plans/2026-11-12-wp08k-release-job.md` §1. Trước khi ký:
+
+- [ ] kien tag `v<v>` **trước**, rồi mới dựng image và `.deb` từ bản clone sạch ở đúng tag: `.deb` dựng trước tag mang commit và phiên bản khác, `release-gates` dựng lại ở tag và từ chối (bản v0.1.0-beta.1 phải dựng lại `.deb`).
+- [ ] `podman login ghcr.io` (token `write:packages`); `gh auth refresh -s read:packages` để `gh` liệt kê được package.
+- [ ] Tổ chức KNT048 cho phép package Public (Settings → Packages); sau `release-push` lần đầu, bốn package `vedette-core`, `-sensor`, `-scan`, `-honeypot` đặt Public và nối với repo (plan §3 bước 3).
+
 Mật khẩu không bao giờ là đối số (D-164); mỗi lệnh dưới đây hiện một hộp thoại Keychain:
 
 ```bash
@@ -35,10 +41,10 @@ security find-generic-password -s vedette-release-minisign -a "$USER" -w | make 
 
 ```bash
 make -s release-cosign-plan COSIGN_KEY=$HOME/.vedette-release-keys/cosign.key > dist/cosign-plan.sh && less dist/cosign-plan.sh   # chỉ in lệnh (cosign đã ghim); đọc lại
-COSIGN_PASSWORD=$(security find-generic-password -s vedette-release-cosign -a "$USER" -w) sh -eu dist/cosign-plan.sh
+COSIGN_PASSWORD=$(security find-generic-password -s vedette-release-cosign -a "$USER" -w) scripts/release/cosign-auth.sh sh -eu dist/cosign-plan.sh
 ```
 
-Kế hoạch bắt đầu bằng `cd` về gốc repo, rồi `cosign sign` cho từng image (ghi `dist/release/cosign/<service>.{payload.json,sig}` cho `release-manifest`), rồi `cosign attest --type cyclonedx` cho từng SBOM theo kiến trúc (`dist/sbom` của `make sbom RELEASE=1 IMAGE_TAG=<v>`), tải lên ghcr cạnh digest của kiến trúc đó. Mỗi SBOM phải là SBOM của đúng image đã đẩy: `aquasecurity:trivy:ImageID` của trivy phải bằng config digest mà `release-push` ghi cho kiến trúc đó trong `images.json` (dựng lại image sau khi đẩy thì SBOM mới bị từ chối). cosign cần đăng nhập ghcr (`~/.docker/config.json`, hoặc `REGISTRY_AUTH_FILE` trỏ tới `auth.json` của podman). Chạy lại sau lỗi: `--replace` thay attestation CycloneDX cũ của cùng digest (chưa đo trên ghcr; `.ai/deferred/feat-release-cosign-plan.md`) (D-457, phần C).
+Kế hoạch bắt đầu bằng `cd` về gốc repo, rồi `cosign sign` cho từng image (ghi `dist/release/cosign/<service>.{payload.json,sig}` cho `release-manifest`), rồi `cosign attest --type cyclonedx` cho từng SBOM theo kiến trúc (`dist/sbom` của `make sbom RELEASE=1 IMAGE_TAG=<v>`), tải lên ghcr cạnh digest của kiến trúc đó. Mỗi SBOM phải là SBOM của đúng image đã đẩy: `aquasecurity:trivy:ImageID` của trivy phải bằng config digest mà `release-push` ghi cho kiến trúc đó trong `images.json` (dựng lại image sau khi đẩy thì SBOM mới bị từ chối). cosign cần đăng nhập ghcr và đọc nó như Docker (`$DOCKER_CONFIG/config.json`, rồi `~/.docker/config.json`; chỉ khi cả hai không có mới đọc `auth.json` của podman), nên một `~/.docker/config.json` không có ghcr che mất `podman login ghcr.io`: `scripts/release/cosign-auth.sh` trỏ `DOCKER_CONFIG` vào thư mục tạm (0700) có `config.json` là liên kết tới `auth.json` của podman (`$REGISTRY_AUTH_FILE`, hoặc `~/.config/containers/auth.json` trên macOS), chạy kế hoạch rồi xoá thư mục; không chép, không in thông tin đăng nhập. Chạy lại sau lỗi: `--replace` thay attestation CycloneDX cũ của cùng digest (chưa đo trên ghcr; `.ai/deferred/feat-release-cosign-plan.md`) (D-457, phần C).
 
 Khoá dự phòng chỉ được lấy ra khi cần ký index thu hồi (`RELEASE_SLOT=backup`) hay bản cứu (D-258).
 

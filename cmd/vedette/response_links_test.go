@@ -118,7 +118,7 @@ func (s *stack) dumpDB() string {
 func linkSetup(t *testing.T) (s *stack, clock *manualClock, a response.ActionRequest, token string) {
 	t.Helper()
 	clock = newManualClock(time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC))
-	s = newStackWith(t, func(d *deps) { d.Clock = clock.now; d.BaseURL = "https://box.example:8443" })
+	s = newStackWith(t, func(d *deps) { d.Clock = clock.now; d.BaseURL = func() string { return "https://box.example:8443" } })
 	for _, m := range []string{"notify", "inventory", "response"} {
 		s.setModule(m, true)
 	}
@@ -339,7 +339,7 @@ func TestWiringApprovalLinkNeedsNotifyOn(t *testing.T) {
 func TestWiringNotifySkipsAnUnlinkedEmailApprover(t *testing.T) {
 	t.Parallel()
 	clock := newManualClock(time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC))
-	s := newStackWith(t, func(d *deps) { d.Clock = clock.now; d.BaseURL = "https://box.example:8443" })
+	s := newStackWith(t, func(d *deps) { d.Clock = clock.now; d.BaseURL = func() string { return "https://box.example:8443" } })
 	for _, m := range []string{"notify", "inventory", "response"} {
 		s.setModule(m, true)
 	}

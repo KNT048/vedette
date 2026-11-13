@@ -351,6 +351,7 @@
       "findings.no_longer_matches": "Finding no longer matches its device",
       "findings.matches_again": "Finding matches its device again",
       "findings.auto_resolved": "Finding closed: version not affected",
+      "findings.regraded": "Finding severity changed",
       "findings.deleted_with_asset": "Finding deleted with its device",
       "honeypot.trap_enable": "Turn trap on",
       "honeypot.trap_disable": "Turn trap off",

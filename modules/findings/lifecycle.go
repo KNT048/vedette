@@ -166,16 +166,46 @@ func NewFinding(m Match, now time.Time) (Finding, HistoryEntry) {
 }
 
 // ApplyMatch merges a repeated match into an existing finding. Only an open
-// finding can gain a stronger basis (product to version); the basis never goes
-// down, the status never changes and a closed finding is left alone.
+// finding changes; the basis never goes down, the status never changes and a
+// closed finding is left alone. A stronger basis (product to version) brings the
+// match's evidence and severity when it is higher (review H2: a ransomware CVE
+// first matched by product becomes critical once its NVD ranges arrive). A
+// finding matched by product only takes the matcher's product severity (medium,
+// D-500) when it was graded higher before that rule (walk 3 W3-3): once, since
+// it then equals the match.
 func (f Finding) ApplyMatch(m Match) Finding {
-	if !f.Status.Open() || rank(m.Basis) <= rank(f.Basis) {
+	if !f.Status.Open() {
 		return f
 	}
-	ev := m.Evidence
-	f.Basis, f.Evidence = m.Basis, &ev
-	f.Confidence = math.Max(f.Confidence, m.Confidence)
+	switch {
+	case rank(m.Basis) > rank(f.Basis):
+		ev := m.Evidence
+		f.Basis, f.Evidence = m.Basis, &ev
+		f.Confidence = math.Max(f.Confidence, m.Confidence)
+		if sevRank(m.Severity) > sevRank(f.Severity) {
+			f.Severity = m.Severity
+		}
+	case f.Basis == BasisProduct && m.Basis == BasisProduct && m.Severity != "" && sevRank(f.Severity) > sevRank(m.Severity):
+		f.Severity = m.Severity
+	}
 	return f
+}
+
+// sevRank orders severities (unknown values lowest).
+func sevRank(s Severity) int {
+	switch s {
+	case SeverityCritical:
+		return 5
+	case SeverityHigh:
+		return 4
+	case SeverityMedium:
+		return 3
+	case "low":
+		return 2
+	case "info":
+		return 1
+	}
+	return 0
 }
 
 // Apply performs a status action by a person (INV-3). Checks run in the order

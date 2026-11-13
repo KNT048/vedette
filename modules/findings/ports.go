@@ -23,6 +23,10 @@ type StatusChangedEvent struct {
 	FindingID string `json:"finding_id"`
 	From      Status `json:"from"`
 	To        Status `json:"to"`
+	// Severity and Basis are set when a repeated match raised the basis and the severity of an open finding (review
+	// H2; From == To): a consumer that alerts by severity can tell it apart from a status change.
+	Severity Severity `json:"severity,omitempty"`
+	Basis    Basis    `json:"basis,omitempty"`
 }
 
 // Publisher is the event bus as this module needs it. core/events is not built yet; the real bus

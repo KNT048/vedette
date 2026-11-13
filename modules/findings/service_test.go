@@ -232,8 +232,9 @@ func TestContract_INV2_UpsertRaisesBasisOfOpenFindingOnly(t *testing.T) {
 	if got := e.auditActions(); len(got) != 2 || got[1] != "findings.basis_raised" {
 		t.Fatalf("audit = %v", got)
 	}
-	if len(e.pub.take()) != 0 {
-		t.Fatal("a repeated match must not publish created")
+	// a repeated match never publishes created (POST-1); the raise to high goes out as status_changed (review H2)
+	if ev := e.pub.take(); len(ev) != 1 || ev[0].Name != EventStatusChanged || ev[0].Payload.(StatusChangedEvent).Severity != SeverityHigh {
+		t.Fatalf("events = %+v", ev)
 	}
 }
 

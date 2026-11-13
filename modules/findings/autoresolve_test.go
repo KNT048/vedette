@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"database/sql"
 	"strings"
 	"testing"
 	"time"
@@ -153,5 +154,47 @@ func TestMatchAsset_D530_NotAffectedNeedsEverySoftwareProved(t *testing.T) {
 	a.Software = append(a.Software, Software{ID: "s-2", Display: "Photo Station", Vendor: "QNAP", Product: "Photo Station", KevKeys: []string{"qnap|photo station"}})
 	if r := MatchAsset(a, []Vuln{v}, have, t0); len(r.NotAffected) != 0 {
 		t.Fatalf("a second copy without a version still needs deciding: %+v", r)
+	}
+}
+
+// W3-3: a product-only finding graded higher before D-500 takes the product severity (medium) at the next match, once,
+// with an audit line; review H2: product to version raises the severity and says so on the bus.
+func TestUpsert_SeverityFollowsTheBasis(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{qnapVuln()}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET severity = 'critical'`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e.pub.take()
+	for i, want := range []int{1, 0} {
+		res, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{qnapVuln()})
+		if err != nil || res.Regraded != want {
+			t.Fatalf("round %d: %+v %v", i, res, err)
+		}
+	}
+	r, _ := loadByPair(t.Context(), e.db.Reader(), "a-1", "CVE-2022-27593")
+	if r.Severity != SeverityMedium || e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.regraded'`) != 1 {
+		t.Fatalf("severity %s", r.Severity)
+	}
+	if ev := e.pub.take(); len(ev) != 0 {
+		t.Fatalf("a re-grade down is not news: %+v", ev)
+	}
+	inside := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})
+	inside.Ransomware = true
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{inside}); err != nil {
+		t.Fatal(err)
+	}
+	r, _ = loadByPair(t.Context(), e.db.Reader(), "a-1", "CVE-2022-27593")
+	if r.Basis != BasisVersion || r.Severity != SeverityCritical {
+		t.Fatalf("after the ranges: %s %s", r.Basis, r.Severity)
+	}
+	if ev := e.pub.take(); len(ev) != 1 || ev[0].Name != EventStatusChanged || ev[0].Payload.(StatusChangedEvent).Severity != SeverityCritical {
+		t.Fatalf("events %+v", ev)
 	}
 }

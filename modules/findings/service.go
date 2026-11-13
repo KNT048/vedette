@@ -135,6 +135,8 @@ func (s *Service) List(ctx context.Context, assetID string) ([]Record, error) {
 type UpsertResult struct {
 	Created []string // ids of the findings created
 	Touched int      // findings that already existed (open or closed) and only had last_seen refreshed
+	// Regraded counts the product findings graded higher before D-500 that took the product severity (W3-3).
+	Regraded int
 }
 
 // OnMatchChanged handles inventory.match.changed: it reads the device and the exploited list and
@@ -224,9 +226,18 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 			}
 			if r.Basis != before.Basis {
 				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.basis_raised", Target: r.ID,
-					Detail: fmt.Sprintf("%s: %s to %s", r.CVE, before.Basis, r.Basis)}); err != nil {
+					Detail: fmt.Sprintf("%s: %s to %s, %s", r.CVE, before.Basis, r.Basis, r.Severity)}); err != nil {
 					return err
 				}
+				if r.Severity != before.Severity { // review H2: the bus hears the raise (status unchanged; created is only for new pairs, POST-1)
+					emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: r.Status, To: r.Status, Severity: r.Severity, Basis: r.Basis})
+				}
+			} else if r.Severity != before.Severity { // W3-3: a product match graded before D-500 takes the product severity, once
+				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.regraded", Target: r.ID,
+					Detail: fmt.Sprintf("%s: %s to %s (product match only, version not compared)", r.CVE, before.Severity, r.Severity)}); err != nil {
+					return err
+				}
+				res.Regraded++
 			}
 			if n := len(r.History); !reopened && n > 0 && r.History[n-1].Action == "no_longer_matches" { // matches again: the newest line must not say otherwise
 				if err := insertHistory(ctx, tx, r.ID, HistoryEntry{TS: now, User: SystemUser, Action: "matches_again", Note: "The device matches this entry again."}); err != nil {
@@ -248,6 +259,9 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 	})
 	if err != nil {
 		return UpsertResult{}, err
+	}
+	if res.Regraded > 0 {
+		s.cfg.Log.InfoContext(ctx, "product-only findings re-graded to the product severity (W3-3)", "asset", a.ID, "count", res.Regraded)
 	}
 	return res, nil
 }

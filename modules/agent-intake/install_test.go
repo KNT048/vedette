@@ -252,7 +252,7 @@ func TestInstall_NewTokenEnrolsAgain(t *testing.T) {
 		`if [ "$(cat "$DIR/enroll.secret" 2>/dev/null || true)" != "$TOKEN" ]; then`, `systemctl stop osqueryd`, `rm -rf "$DB"`, `fi`,
 		`printf '%s' "$TOKEN" > "$DIR/enroll.secret"`, `systemctl restart osqueryd`)
 	inOrder("ps1", ps1, `$Db = Join-Path $Dir 'osquery.db'`, `if ($Uninstall)`, `Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $Db`, `return`,
-		`if ($held -cne $Token) {`, `Stop-Service osqueryd -Force`, `Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $Db`, `}`,
+		`if ($held -cne $Token) {`, `Stop-Service osqueryd -Force`, `Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $Db`, `if (Test-Path $Db) { throw`, `}`,
 		`Set-Content -Path $Secret -Value $Token`, `Restart-Service osqueryd`)
 }
 

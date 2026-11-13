@@ -14,7 +14,6 @@ import (
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/modules/logs/signature"
-	"golang.org/x/net/publicsuffix"
 )
 
 // Events this module publishes, after the transaction that caused them committed (payloads: CONTRACT "Events").
@@ -351,8 +350,6 @@ const maxIocPerHour = 60
 // the edge, as the honeypot hit is: an id, a private source address, a destination of its kind (an address or a domain), a
 // public destination address, a confidence from 0 to 1. Anything else is skipped with a warning. Of the line's text only the
 // destination reaches a rule, after that check; the feed names and the device name come from feeds and the inventory.
-// A domain that a feed lists with all of its subdomains (listed_as, D-425) gives that listed name as dest_domain, so a rule blocks the
-// name the feed lists, not the one random subdomain a device asked for first (logs keeps one hit per device and listed name a day).
 func (s *Service) iocEvent(ctx context.Context, data any) error {
 	var e struct {
 		ID         string   `json:"id"`
@@ -364,7 +361,6 @@ func (s *Service) iocEvent(ctx context.Context, data any) error {
 		DestKind   string   `json:"dest_kind"`
 		Feeds      []string `json:"feeds"`
 		Confidence float64  `json:"confidence"`
-		ListedAs   *string  `json:"listed_as"`
 	}
 	if err := decode(data, &e); err != nil {
 		return err
@@ -423,39 +419,17 @@ func (s *Service) iocEvent(ctx context.Context, data any) error {
 	}
 	fields := map[string]string{"src_ip": src, "device": name, "dest": dest, "dest_kind": e.DestKind, "dest_ip": "", "dest_domain": "",
 		"feeds": strings.Join(feeds, ", "), "confidence": strconv.FormatFloat(e.Confidence, 'f', -1, 64), "switch_port": ""}
-	listed := ""
 	if e.DestKind == "ip" {
 		fields["dest_ip"] = dest
 	} else {
-		listed = listedParent(dest, e.ListedAs)
-		fields["dest_domain"] = firstNonEmpty(listed, dest)
-	}
-	as := ""
-	if listed != "" {
-		as = " (listed as " + listed + ", with all of its subdomains)"
+		fields["dest_domain"] = dest
 	}
 	ts := s.ts()
 	if t, err := time.Parse(time.RFC3339Nano, e.TS); err == nil {
 		ts = store2(t)
 	}
 	return s.StoreEvent(ctx, Det{ID: "ioc:" + e.ID, Trigger: "ioc_connection", TS: ts, DeviceKind: dev.Kind, AssetID: dev.ID,
-		Summary: oneLine(who+" connected to "+dest+as+", listed by "+firstNonEmpty(fields["feeds"], "a feed"), 300), Fields: fields})
-}
-
-// listedParent is the hit's listed_as when it is a domain that dest is a subdomain of and not a public suffix (feeds refuses those at
-// import; checked again because a rule may block it): a broader name than dest only when that holds, else "" and dest is used.
-func listedParent(dest string, listedAs *string) string {
-	if listedAs == nil {
-		return ""
-	}
-	l, ok := CheckValue(PDomain, *listedAs)
-	if !ok || !strings.HasSuffix(dest, "."+l) {
-		return ""
-	}
-	if suffix, _ := publicsuffix.PublicSuffix(l); suffix == l {
-		return ""
-	}
-	return l
+		Summary: oneLine(who+" connected to "+dest+", listed by "+firstNonEmpty(fields["feeds"], "a feed"), 300), Fields: fields})
 }
 
 // iocRoom counts a known-bad connection against this hour's cap and reports whether it may reach the rules.

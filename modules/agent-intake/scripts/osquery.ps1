@@ -58,6 +58,7 @@ try {
     if ($held) { Write-Host 'This machine was enrolled with another token; it enrols again under this one. The old token lists it until it has been silent for 90 days or you revoke that token in Vedette.' }
     if (Get-Service osqueryd -ErrorAction SilentlyContinue) { Stop-Service osqueryd -Force }
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $Db
+    if (Test-Path $Db) { throw "Could not remove $Db (a file is still open). Stop the osqueryd service and run this command again." }
   }
   Set-Content -Path $Secret -Value $Token -NoNewline -Encoding ascii
   $hostPort = $Box -replace '^https://', ''

@@ -74,7 +74,7 @@ if [ "$FMT" = deb ]; then dpkg -i "$TMP/$FILE"; else rpm -Uvh --replacepkgs "$TM
 # machine already holds this very token (a repair keeps its key), its database is removed so that it enrols under this token (D-411).
 if [ "$(cat "$DIR/enroll.secret" 2>/dev/null || true)" != "$TOKEN" ]; then
   [ ! -s "$DIR/enroll.secret" ] || echo "This machine was enrolled with another token; it enrols again under this one. The old token lists it until it has been silent for 90 days or you revoke that token in Vedette."
-  systemctl stop osqueryd 2>/dev/null || true
+  if systemctl is-active --quiet osqueryd; then systemctl stop osqueryd; fi # a failed stop ends the script: a running osqueryd keeps its key
   rm -rf "$DB"
 fi
 ( umask 077; printf '%s' "$TOKEN" > "$DIR/enroll.secret" )

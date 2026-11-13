@@ -36,12 +36,10 @@ export function events(): Det[] {
   const out: Det[] = []
   const add = (d: Det) => { if (!out.some((x) => x.id === d.id)) out.push(d) }
   const sample = dataMode() === 'sample'
-  // listed: the name a feed lists with all of its subdomains when dest is one of them (logs listed_as, D-425): a rule blocks that name (D-411)
-  const ioc = (id: string, src: string, dest: string, kind: 'ip' | 'domain', conf: number, feeds: string, ts: string, listed = '') => {
+  const ioc = (id: string, src: string, dest: string, kind: 'ip' | 'domain', conf: number, feeds: string, ts: string) => {
     const dev = deviceOf(src)
-    const as = listed ? `, listed as ${listed} with all of its subdomains` : ''
-    add({ id, trigger: 'ioc_connection', ts, device_kind: dev.kind, asset_id: dev.asset_id, summary: `${dev.name} connected to ${dest} (${feeds}${as}, confidence ${conf})`,
-      fields: { src_ip: src, device: dev.name, dest, dest_kind: kind, dest_ip: kind === 'ip' ? dest : '', dest_domain: kind === 'domain' ? (listed || dest) : '', feeds, confidence: String(conf), switch_port: portOf(src) } })
+    add({ id, trigger: 'ioc_connection', ts, device_kind: dev.kind, asset_id: dev.asset_id, summary: `${dev.name} connected to ${dest} (${feeds}, confidence ${conf})`,
+      fields: { src_ip: src, device: dev.name, dest, dest_kind: kind, dest_ip: kind === 'ip' ? dest : '', dest_domain: kind === 'domain' ? dest : '', feeds, confidence: String(conf), switch_port: portOf(src) } })
   }
   if (sample) {
     ioc('det-s-ioc-1', '192.168.10.105', '185.220.101.47', 'ip', 0.92, 'Tor exit list', daysAgo(0, 2))
@@ -56,9 +54,7 @@ export function events(): Det[] {
       const src = str(h.src_ip), dest = str(h.dest), kind = h.dest_kind === 'domain' ? 'domain' : 'ip'
       if (!isIpv4(src) || !str(h.id) || !dest) continue
       const c = typeof h.confidence === 'number' && h.confidence >= 0 && h.confidence <= 1 ? h.confidence : 0 // 0 to 1 everywhere (D-57 (13))
-      const listed = str(h.listed_as).toLowerCase() // used only for a domain under it (the box also refuses a public suffix)
-      const parent = kind === 'domain' && PARAM_CHECK.domain(listed) && dest.toLowerCase().endsWith(`.${listed}`) ? listed : ''
-      ioc(`det-l-${str(h.id)}`, src, dest, kind, c, Array.isArray(h.feeds) ? h.feeds.map(String).join(', ') : '', str(h.ts) || nowIso(), parent)
+      ioc(`det-l-${str(h.id)}`, src, dest, kind, c, Array.isArray(h.feeds) ? h.feeds.map(String).join(', ') : '', str(h.ts) || nowIso())
     }
   }
   // Honeypot module: every real hit is a touch. Module never opened and sample data: one sample touch.

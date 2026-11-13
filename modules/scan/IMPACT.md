@@ -7,6 +7,12 @@
 ## Modifying: `scan.Identifier`, `IdentRow`, `ScanRun.identification` (D-501, INV-13)
 - **sensor-active** (`IdentifyDevice`, mã `Why`), adapter `scanIdentify` ở `cmd/vedette/scan.go`; **SPA** `RunsTab` (`Identification` trong hộp thoại kết quả), `contract.ts` `IdentReason`/`RunIdentRow`, mock `IDENT_NOTE`/`identOne` (cùng câu với `identNote`), `api/openapi.json` + ogen. Đổi một lý do hay câu: sửa cả bốn chỗ cùng commit.
 
+## Modifying: `slotOK`, `NextRun`, `lastSlot`, `RunSchedule` (lượt lịch đầu, D-504 (6))
+- `sched_last` trống = chưa lượt lịch nào: đổi luật này đổi cả `next_run` của `GET /scans/config` (`view`), mock `nextRun` (`web/src/features/scan/mocks.ts`, `first` = chưa có run `schedule`) và `TestContract_POST3_NextRun`; xoá `sched_last` (migration, khôi phục) làm hộp chạy lại lượt đầu ở cửa sổ kế tiếp.
+
+## Modifying: `identNote` (thêm `os_no_patch_level`, D-504)
+- Mã lý do do sensor-active trả (`WhyOSNoPatch`); thêm/đổi mã thì đổi `IdentReason` của `contract.ts`, OpenAPI và `core/api/oas` (sinh), ghi chú của mock và nhãn `scan.ident.*`.
+
 ## Modifying: gọi `inventory.InScope/ScanPolicy` và `exposure.CheckScannable`
 - **inventory**, **exposure**: đây là hai rào SYS-7. Nới ở một phía mà không sửa phía kia ⇒ lỗ hổng phạm vi.
 

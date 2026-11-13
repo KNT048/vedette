@@ -1,0 +1,4 @@
+# Deferred: fix/scan-unknown-identify (D-504, customer walk 3 W3-4..W3-6)
+
+- [ ] A Windows PC with only 135/445 open (RDP off, the Windows Home default) gets only the type from the port rule, no build: nmap 7.95 has no SMB2 NTLM-challenge script (smb-os-discovery needs SMBv1 and opens an anonymous/guest session, refused in D-504). Upgrade path: a script of our own is not allowed (FORBID-6); revisit when nmap ships an SMB2 NTLM info script, or when the osquery agent (S-INV) covers it.
+- [ ] Probe-log accuracy during an update: an older scan worker builds `normal`/`versions` without the two scripts while `sa_probe.flags` lists them (D-504 (1)). Upgrade path if skew outlives a release: compare the `<nmaprun args>` of the result with the flags core logged, or bump the sensor proto and pick the shape by the worker's proto.

@@ -86,9 +86,9 @@ This needs `PublicServiceProber`/`parseAnswer` and `IsPublicIPv4` to move into a
 | nmap `-sV` | NPSL 0.95 | already installed from trixie into the on-box image (D-4); not distributed by Vedette | 30–80 MB per host, inside scan's 1 GiB | 0 |
 | nuclei 3.11.1 + templates | MIT / MIT | already in the signed scan-base; b2 adds a second pack directory | 150–300 MB with ≤ 300 templates | +5–20 MB |
 | ZAP (`ghcr.io/zaproxy/zaproxy:stable`) | Apache-2.0 (image: OpenJDK GPL-2+CE, Debian) | separate one-shot container, unmodified, pulled by digest, never linked | 0.6–1 GB while it runs, capped `--memory=1g` | ~1.5–2 GB image |
-| Greenbone CE | gvmd/gsa AGPL-3.0, openvas GPL-2.0, feed with its own terms | separate unmodified containers (THIRD_PARTY_NOTICES already lists it, scan-credentialed INV-6) | upstream minimum 4 GB, recommended 8 GB; DEPLOYMENT.md §2.5 says 16 GB | 20–60 GB |
+| Greenbone CE | gvmd/gsa AGPL-3.0, openvas GPL-2.0, feed with its own terms | separate unmodified containers (THIRD_PARTY_NOTICES already lists it, scan-credentialed INV-6) | upstream minimum 4 GB, recommended 8 GB; measured on the N100 next to Vedette: peak ~4 GB used + ~2 GB swap during the feed import, ~2 GB while scanning (D-494) | measured ≈ 50 GB (images 9 GB + feeds 41 GB) |
 
-**N100 budget:** the limits are core 2 GiB + sensor 512 MiB + honeypot 256 MiB + scan 1 GiB, about 3.75 GiB, plus the OS. nmap and nuclei fit in scan's 1 GiB; measure the peak with both slots busy. ZAP adds about 1 GB only while it runs. **Greenbone does not fit on 8 GB** alongside the rest.
+**N100 budget:** the limits are core 2 GiB + sensor 512 MiB + honeypot 256 MiB + scan 1 GiB, about 3.75 GiB, plus the OS. nmap and nuclei fit in scan's 1 GiB; measure the peak with both slots busy. ZAP adds about 1 GB only while it runs. Greenbone ran on the 7 GB N100 alongside the rest (2026-11-13 trial, D-494), but swapped during its ~2 h first feed import.
 
 **How to measure:**
 - `cat /sys/fs/cgroup/system.slice/vedette-scan.service/memory.peak` after a restart and one test scan.
@@ -161,9 +161,13 @@ Today the request waits up to 5 minutes, and nmap, nuclei and ZAP add minutes mo
 
 ### Slice d: Greenbone, optional, off by default ([T] host; Mlee scan-credentialed)
 - An unauthenticated scan of the box's own public IP with `safe_checks=yes`, and without the brute-force, default-account and DoS families.
-- Preflight refuses to enable below 16 GiB RAM (DEPLOYMENT.md §2.5) or 20 GB free disk, and shows the reason.
+- Preflight refuses to enable below 8 GiB RAM or 60 GB free disk (Greenbone's recommended sizing, confirmed by the trial: D-494), and shows the reason.
+- Runs as Greenbone's own unmodified compose project next to Vedette (separate processes, GPL/AGPL not embedded); Vedette talks GMP over the gvmd socket. The ~2 h first feed import is a visible phase ("Greenbone is loading its feed"), not a hang.
+- Results come in as findings marked "scanner: Greenbone" with their QoD (≥ 70 only); they never close or hide Vedette's version-based findings ("Greenbone found nothing" is not "not affected": on Ubuntu .181 it reported 0 CVEs where Vedette had 4 real exploited ones, because distributions backport fixes).
+- Uninstall never touches the Greenbone project or its volumes (true since #686/#689; keep a test).
 - **Privacy:** a new PRIVACY row for the feed sync.
-- **N100:** enabling is refused with the RAM reason. A lab VM with 16 GB or more records an NVT result with its RAM and disk use.
+- **N100:** enabling is refused with the RAM reason (7 GB). The 2026-11-13 trial on the N100 itself is the RAM and disk record.
+- **Value, measured:** on a Linux host with an agent it adds hardening notes, not CVEs; it is for hosts without an agent (appliances, Windows without osquery, web apps). Next trial: Windows .49 and a web app.
 - **Not part of item 24's Done:** it comes after a–c.
 
 ## 6. Order and what to ask first

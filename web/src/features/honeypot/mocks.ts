@@ -4,7 +4,7 @@
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
 import { assetsStore, boxInfo } from '@/mocks/stores'
-import { boxAddress } from '@/mocks/network'
+import { boxAddress, networkStore } from '@/mocks/network'
 import { collection, daysAgo, newId, nowIso } from '@/mocks/db'
 import { PRESETS, SERVICE_PORT, VENDORS } from './presets'
 import { HP_SERVICES, type Hit, type HitDetail, type HitEvent, type HitKind, type HpOverview, type HpService, type Token, type TokenType, type Trap, type TrapIP, type TrapIPInput, type TrapPreset, type TrapState, type TrapSuggestion, type TrapVendor } from './types'
@@ -249,6 +249,8 @@ function checkInput(b: Partial<TrapIPInput>, self?: string): Response | { name: 
   const raw = Array.isArray(b.services) ? b.services : null
   if (!raw || raw.length === 0) return fail(400, 'bad_services', 'Pick at least one service for the Trap IP to answer on.')
   if (raw.some((s) => !HP_SERVICES.includes(s)) || new Set(raw).size !== raw.length) return fail(400, 'bad_services', 'Pick services from the list, each once.')
+  // After the form's own checks, as the box asks the host for its gateway last (trapips.go gatewayRefusal).
+  if (ip === networkStore.get().mgmt.gateway) return fail(400, 'ip_is_gateway', 'This is the address of your router (the box\'s default gateway). Pick an unused IP.')
   return { name, ip, preset, vendor, services: HP_SERVICES.filter((s) => raw.includes(s)) }
 }
 

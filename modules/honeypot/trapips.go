@@ -44,6 +44,24 @@ func checkIP(w *world, raw string) (netip.Addr, error) {
 	return ip, nil
 }
 
+// gatewayReporter is the optional part of a Host that knows the box's default gateway (vedette-host state/net).
+type gatewayReporter interface {
+	Gateway(ctx context.Context) netip.Addr
+}
+
+// gatewayRefusal refuses the router's own address before any Apply (the host refuses it too, ip_is_gateway, but the owner
+// would only see a conflict a minute later). A host that does not say leaves it to the host (B2 review).
+func (s *Service) gatewayRefusal(ctx context.Context, ip string) error {
+	g, ok := s.cfg.Host.(gatewayReporter)
+	if !ok {
+		return nil
+	}
+	if gw := g.Gateway(ctx); gw.IsValid() && gw.String() == ip {
+		return bad("ip_is_gateway", "This is the address of your router (the box's default gateway). Pick an unused IP.")
+	}
+	return nil
+}
+
 // cleanInput checks a Trap IP in the order the form shows its fields (preset, vendor, name, address, services; the mock
 // checks the same order). self is the id being changed, "" for a new one. The checks against other Trap IPs that the
 // stored state decides run again in the writing transaction (writeChecks).
@@ -201,6 +219,9 @@ func (s *Service) AddTrapIP(ctx context.Context, actor string, in TrapIPInput) (
 	if err != nil {
 		return TrapIP{}, err
 	}
+	if err := s.gatewayRefusal(ctx, d.IP); err != nil {
+		return TrapIP{}, err
+	}
 	d.ID, d.Enabled, d.CreatedAt = store.NewID("tip"), true, store.FormatTS(s.now())
 	svc, err := servicesJSON(d.Services)
 	if err != nil {
@@ -237,6 +258,9 @@ func (s *Service) EditTrapIP(ctx context.Context, actor, id string, in TrapIPInp
 	}
 	d, err := cleanInput(w, in, id)
 	if err != nil {
+		return TrapIP{}, err
+	}
+	if err := s.gatewayRefusal(ctx, d.IP); err != nil {
 		return TrapIP{}, err
 	}
 	svc, err := servicesJSON(d.Services)
@@ -280,6 +304,9 @@ func (s *Service) SetTrapIPEnabled(ctx context.Context, actor, id string, enable
 			return TrapIP{}, notFound("No such Trap IP.")
 		}
 		if _, err := checkIP(w, w.trapIPs[i].IP); err != nil {
+			return TrapIP{}, err
+		}
+		if err := s.gatewayRefusal(ctx, w.trapIPs[i].IP); err != nil {
 			return TrapIP{}, err
 		}
 	}

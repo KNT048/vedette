@@ -373,3 +373,26 @@ func TestNoScanWithoutTwoTrapIPsInAMinute(t *testing.T) {
 		t.Fatalf("scans %+v", scans)
 	}
 }
+
+// gatewayHost knows the box's default gateway.
+type gatewayHost struct{ *fakeHost }
+
+func (gatewayHost) Gateway(context.Context) netip.Addr { return addr("192.168.10.1") }
+
+// B2 review: the router's address is refused when the Trap IP is added, changed or switched on (ip_is_gateway), not a minute
+// later as a conflict after the host refused it.
+func TestTheGatewayIsNoTrapIP(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, func(e *env) { e.cfg.Host = gatewayHost{e.host} })
+	in := honeypot.TrapIPInput{Name: "ROUTER-2", IP: "192.168.10.1", Preset: honeypot.Linux, Services: []honeypot.ServiceName{honeypot.SSH}}
+	if _, err := e.svc.AddTrapIP(e.ctx(), "a", in); apiCode(t, err) != "ip_is_gateway" {
+		t.Fatalf("add: %v", err)
+	}
+	tip := e.addTrapIP("LNX-01", "192.168.10.241", honeypot.Linux, honeypot.SSH)
+	if _, err := e.svc.EditTrapIP(e.ctx(), "a", tip.ID, in); apiCode(t, err) != "ip_is_gateway" {
+		t.Fatalf("edit: %v", err)
+	}
+	if n := e.count(`SELECT count(*) FROM hp_trap_ips WHERE ip = '192.168.10.1'`); n != 0 {
+		t.Fatalf("%d rows on the gateway", n)
+	}
+}

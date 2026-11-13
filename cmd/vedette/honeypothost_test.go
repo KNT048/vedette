@@ -669,6 +669,9 @@ func TestHoneypotHostSendsEachTrapIPItsPortsAndPrefix(t *testing.T) {
 	if b, err := strconv.ParseUint(d.MAC[:2], 16, 8); err != nil || b&0x02 == 0 || d.Ports == nil || len(*d.Ports) != 1 {
 		t.Fatalf("no vendor: the host holds %+v, not a locally administered MAC with the ports", d)
 	}
+	if gw := a.Gateway(ctx); gw != netip.MustParseAddr("192.168.10.1") {
+		t.Fatalf("gateway %v", gw)
+	}
 	links := a.DecoyLinks(ctx)
 	if l := links[ip]; l.Link != "vdhc0a80af0" || l.MAC != d.MAC {
 		t.Fatalf("links %+v", links)

@@ -56,6 +56,7 @@ type honeypotHost struct {
 	decoyAt   time.Time
 	decoys    map[netip.Addr]heldDecoy // what the last state/net read listed; nil = read again
 	parent    string                   // the management card of that read: the decoys' macvlan links hang off it
+	gateway   netip.Addr               // the box's IPv4 default gateway of that read (zero: unknown)
 	lastWarns map[string]time.Time
 	// infoAt and setPorts: whether the host lists decoy_ip.set_ports (GET /v1/info, read once per infoTTL): only then does
 	// core send ports (host-api 6.6 compatibility, D-466).
@@ -326,9 +327,28 @@ func (h *honeypotHost) refresh(ctx context.Context) {
 			parent = c.Name
 		}
 	}
+	var gw netip.Addr
+	if ns.DefaultRoute != nil {
+		gw, _ = netip.ParseAddr(ns.DefaultRoute.Gateway)
+	}
+	if !gw.Is4() && ns.Config.Mgmt != nil {
+		gw, _ = netip.ParseAddr(ns.Config.Mgmt.Gateway)
+	}
+	if !gw.Is4() {
+		gw = netip.Addr{}
+	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.decoys, h.parent, h.decoyAt = set, parent, time.Now()
+	h.decoys, h.parent, h.gateway, h.decoyAt = set, parent, gw, time.Now()
+}
+
+// Gateway is the box's IPv4 default gateway from state/net (the optional honeypot.gatewayReporter), so core refuses a Trap IP
+// on the router's address before the host does; the zero Addr when unknown.
+func (h *honeypotHost) Gateway(ctx context.Context) netip.Addr {
+	h.refresh(ctx)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.gateway
 }
 
 // DecoyLinks is how the host holds each decoy address (the optional honeypot.linkReporter), from the same state/net read

@@ -522,6 +522,14 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 3 }, window: { ...c.window, days: [1] } }, now)).toBeNull()
   })
 
+  it('the first scheduled run is the next window of any window day, not the weekly weekday (W3-6)', () => {
+    const c: ScanConfig = { window: { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00' }, rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true, schedule: { enabled: true, frequency: 'weekly', weekday: 7, at: '23:00' } }
+    const fri = new Date(2026, 10, 13, 14, 40) // the walk: Friday 13 Nov 14:40
+    const first = new Date(nextRun(c, fri, true)!)
+    expect([first.getDate(), first.getHours()]).toEqual([13, 23])
+    expect(new Date(nextRun(c, fri, false)!).getDate()).toBe(15) // once a scheduled run happened: the weekly Sunday
+  })
+
   it('a window that crosses midnight counts by its start day: a 02:00 slot belongs to the day before (#164 review M1)', () => {
     const c: ScanConfig = { window: { days: [1, 2, 3, 4, 5], from: '22:00', to: '05:00' }, rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true, schedule: { enabled: true, frequency: 'daily', weekday: 1, at: '02:00' } }
     const fri = new Date(nextRun(c, new Date(2026, 10, 20, 12, 0))!) // Friday noon: Saturday 02:00 is Friday's window

@@ -250,7 +250,7 @@ func TestContract_INV4_RateAndFlags(t *testing.T) {
 	}
 	want := [][]string{
 		{"--privileged", "-sn", "-n", "--max-rate", "100", "-oX", "-"},
-		{"--privileged", "-sS", "-sV", "-O", "-n", "--max-rate", "100", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"},
+		{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info", "-n", "--max-rate", "100", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"},
 		{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.30"},
 	}
 	for i, w := range want {
@@ -263,8 +263,10 @@ func TestContract_INV4_RateAndFlags(t *testing.T) {
 		}
 	}
 	for _, c := range calls {
-		for _, a := range c {
-			if strings.HasPrefix(a, "--script") || a == "-A" || a == "-sC" {
+		for i, a := range c {
+			// FORBID-6 (D-504): the only scripts are the two pinned NTLM ones, after a bare --script; never a category or -A/-sC.
+			pinned := a == "--script" && i+1 < len(c) && c[i+1] == "rdp-ntlm-info,http-ntlm-info"
+			if strings.HasPrefix(a, "--script") && !pinned || a == "-A" || a == "-sC" {
 				t.Errorf("NSE flag %q in %q (FORBID-6)", a, c)
 			}
 		}

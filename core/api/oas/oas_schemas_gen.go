@@ -140239,9 +140239,11 @@ type ScanGetScansRunsOKItemsItemIdentificationItem struct {
 	// Null: software with a version was recorded and compared with the KEV list. Otherwise why nothing
 	// was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version
 	// (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until
-	// a person adds the OS with its version), os_low_confidence (OS guess under 85%), scope_not_confirmed,
-	// box (the box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out,
-	// busy (discovery was running nmap), unavailable (nmap not available or Active discovery off),
+	// a person adds the OS with its version), os_no_patch_level (the device named its Windows release and
+	// build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it
+	// with its full version, D-504), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the
+	// box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out, busy
+	// (discovery was running nmap), unavailable (nmap not available or Active discovery off),
 	// declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
 	Reason   NilScanGetScansRunsOKItemsItemIdentificationItemReason `json:"reason"`
 	TargetID string                                                 `json:"target_id"`
@@ -140315,6 +140317,7 @@ const (
 	ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered          ScanGetScansRunsOKItemsItemIdentificationItemReason = "filtered"
 	ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion         ScanGetScansRunsOKItemsItemIdentificationItemReason = "no_version"
 	ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed     ScanGetScansRunsOKItemsItemIdentificationItemReason = "os_unconfirmed"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel    ScanGetScansRunsOKItemsItemIdentificationItemReason = "os_no_patch_level"
 	ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence   ScanGetScansRunsOKItemsItemIdentificationItemReason = "os_low_confidence"
 	ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly        ScanGetScansRunsOKItemsItemIdentificationItemReason = "gentle_only"
 	ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut          ScanGetScansRunsOKItemsItemIdentificationItemReason = "timed_out"
@@ -140339,6 +140342,7 @@ func (ScanGetScansRunsOKItemsItemIdentificationItemReason) AllValues() []ScanGet
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut,
@@ -140368,6 +140372,8 @@ func (s ScanGetScansRunsOKItemsItemIdentificationItemReason) MarshalText() ([]by
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion:
 		return []byte(s), nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel:
 		return []byte(s), nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence:
 		return []byte(s), nil
@@ -140419,6 +140425,9 @@ func (s *ScanGetScansRunsOKItemsItemIdentificationItemReason) UnmarshalText(data
 		return nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed:
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel
 		return nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence:
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence
@@ -141686,9 +141695,11 @@ type ScanPostScansRunsCreatedIdentificationItem struct {
 	// Null: software with a version was recorded and compared with the KEV list. Otherwise why nothing
 	// was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version
 	// (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until
-	// a person adds the OS with its version), os_low_confidence (OS guess under 85%), scope_not_confirmed,
-	// box (the box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out,
-	// busy (discovery was running nmap), unavailable (nmap not available or Active discovery off),
+	// a person adds the OS with its version), os_no_patch_level (the device named its Windows release and
+	// build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it
+	// with its full version, D-504), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the
+	// box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out, busy
+	// (discovery was running nmap), unavailable (nmap not available or Active discovery off),
 	// declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
 	Reason   NilScanPostScansRunsCreatedIdentificationItemReason `json:"reason"`
 	TargetID string                                              `json:"target_id"`
@@ -141762,6 +141773,7 @@ const (
 	ScanPostScansRunsCreatedIdentificationItemReasonFiltered          ScanPostScansRunsCreatedIdentificationItemReason = "filtered"
 	ScanPostScansRunsCreatedIdentificationItemReasonNoVersion         ScanPostScansRunsCreatedIdentificationItemReason = "no_version"
 	ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed     ScanPostScansRunsCreatedIdentificationItemReason = "os_unconfirmed"
+	ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel    ScanPostScansRunsCreatedIdentificationItemReason = "os_no_patch_level"
 	ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence   ScanPostScansRunsCreatedIdentificationItemReason = "os_low_confidence"
 	ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly        ScanPostScansRunsCreatedIdentificationItemReason = "gentle_only"
 	ScanPostScansRunsCreatedIdentificationItemReasonTimedOut          ScanPostScansRunsCreatedIdentificationItemReason = "timed_out"
@@ -141786,6 +141798,7 @@ func (ScanPostScansRunsCreatedIdentificationItemReason) AllValues() []ScanPostSc
 		ScanPostScansRunsCreatedIdentificationItemReasonFiltered,
 		ScanPostScansRunsCreatedIdentificationItemReasonNoVersion,
 		ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed,
+		ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel,
 		ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence,
 		ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly,
 		ScanPostScansRunsCreatedIdentificationItemReasonTimedOut,
@@ -141815,6 +141828,8 @@ func (s ScanPostScansRunsCreatedIdentificationItemReason) MarshalText() ([]byte,
 	case ScanPostScansRunsCreatedIdentificationItemReasonNoVersion:
 		return []byte(s), nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel:
 		return []byte(s), nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence:
 		return []byte(s), nil
@@ -141866,6 +141881,9 @@ func (s *ScanPostScansRunsCreatedIdentificationItemReason) UnmarshalText(data []
 		return nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed:
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel
 		return nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence:
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence
@@ -142367,9 +142385,11 @@ type ScanPostScansRunsIDStopOKIdentificationItem struct {
 	// Null: software with a version was recorded and compared with the KEV list. Otherwise why nothing
 	// was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version
 	// (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until
-	// a person adds the OS with its version), os_low_confidence (OS guess under 85%), scope_not_confirmed,
-	// box (the box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out,
-	// busy (discovery was running nmap), unavailable (nmap not available or Active discovery off),
+	// a person adds the OS with its version), os_no_patch_level (the device named its Windows release and
+	// build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it
+	// with its full version, D-504), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the
+	// box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out, busy
+	// (discovery was running nmap), unavailable (nmap not available or Active discovery off),
 	// declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
 	Reason   NilScanPostScansRunsIDStopOKIdentificationItemReason `json:"reason"`
 	TargetID string                                               `json:"target_id"`
@@ -142443,6 +142463,7 @@ const (
 	ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered          ScanPostScansRunsIDStopOKIdentificationItemReason = "filtered"
 	ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion         ScanPostScansRunsIDStopOKIdentificationItemReason = "no_version"
 	ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed     ScanPostScansRunsIDStopOKIdentificationItemReason = "os_unconfirmed"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel    ScanPostScansRunsIDStopOKIdentificationItemReason = "os_no_patch_level"
 	ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence   ScanPostScansRunsIDStopOKIdentificationItemReason = "os_low_confidence"
 	ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly        ScanPostScansRunsIDStopOKIdentificationItemReason = "gentle_only"
 	ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut          ScanPostScansRunsIDStopOKIdentificationItemReason = "timed_out"
@@ -142467,6 +142488,7 @@ func (ScanPostScansRunsIDStopOKIdentificationItemReason) AllValues() []ScanPostS
 		ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut,
@@ -142496,6 +142518,8 @@ func (s ScanPostScansRunsIDStopOKIdentificationItemReason) MarshalText() ([]byte
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion:
 		return []byte(s), nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel:
 		return []byte(s), nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence:
 		return []byte(s), nil
@@ -142547,6 +142571,9 @@ func (s *ScanPostScansRunsIDStopOKIdentificationItemReason) UnmarshalText(data [
 		return nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed:
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel
 		return nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence:
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence

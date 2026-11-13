@@ -155,7 +155,11 @@ func (s *Service) view(ctx context.Context, c Settings) (ConfigView, error) {
 		}
 	}
 	if loc, ok := s.loc(ctx); ok { // the zone unknown: no next run is shown, as none would start
-		if t := c.NextRun(s.now(), loc); t != nil {
+		var last sql.NullString
+		if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT sched_last FROM scan_setting WHERE id = 1`).Scan(&last); err != nil {
+			return ConfigView{}, fmt.Errorf("scan: reading the schedule: %w", err)
+		}
+		if t := c.NextRun(s.now(), loc, !last.Valid); t != nil {
 			ts := store.FormatTS(*t)
 			v.NextRun = &ts
 		}

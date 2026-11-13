@@ -439,7 +439,11 @@ func (s *Service) startAuto(ctx context.Context, trigger string, note *string, i
 // RunSchedule starts the scheduled run of the latest slot while that slot's own window is open (S-SCAN-4, POST-3);
 // the run stops when that window ends. A slot that found a scan running, or the scanner not ready, is tried again at
 // the next tick while its window is open; once the window has closed the slot is recorded as missed, never run late
-// in a later window (#164 review M1). A slot starts at most one run.
+// in a later window (#164 review M1). A slot starts at most one run. Until a first slot is recorded (sched_last empty) the slots
+// are those of every window day (slotOK first, W3-6); such an extra slot (not on the weekly weekday) that closed or had nothing to
+// scan is not recorded, so a new box's first scheduled run is the next window that scans something, not the next weekday. An extra
+// slot counts only when the schedule was saved and the scope confirmed before it (review M4, as missSlot judges "due"): a box set up
+// inside an open window waits for the next one instead of starting at once.
 func (s *Service) RunSchedule(ctx context.Context) error {
 	var last, saved sql.NullString
 	row := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT sched_last, updated_at FROM scan_setting WHERE id = 1`)
@@ -455,18 +459,29 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 	if !ok { // the zone unknown: the tick is skipped, the slot stays open (fail closed)
 		return nil
 	}
-	slot := st.lastSlot(now, loc)
+	never := !last.Valid // no scheduled slot recorded yet
+	slot := st.lastSlot(now, loc, never)
 	if slot == nil || (last.Valid && last.String >= store.FormatTS(*slot)) {
+		return nil
+	}
+	extra := never && !st.slotOK(*slot, false) // a slot only because no first run happened yet: never recorded as missed or empty
+	if extra && saved.Valid && saved.String >= store.FormatTS(*slot) {
 		return nil
 	}
 	end, _ := st.slotWindowEnd(*slot)
 	if !now.Before(end) {
+		if extra {
+			return nil
+		}
 		// A slot from before the schedule was last saved (turned on, moved) was never due: it is passed over quietly.
 		return s.missSlot(ctx, *slot, !saved.Valid || saved.String < store.FormatTS(*slot))
 	}
 	sc, err := s.cfg.Inventory.Scope(ctx)
 	if err != nil || sc.ConfirmedAt == "" || s.liveRun() != "" || !s.scannerReady(ctx) {
 		return err
+	}
+	if c, err := time.Parse(time.RFC3339Nano, sc.ConfirmedAt); extra && (err != nil || !c.Before(*slot)) {
+		return nil
 	}
 	devs, err := s.cfg.Inventory.Devices(ctx)
 	if err != nil {
@@ -488,6 +503,9 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 		ids = append(ids, d.ID)
 	}
 	if len(ids) == 0 { // nothing may be scanned without a pick: the slot is done
+		if extra {
+			return nil
+		}
 		return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return markSlot(ctx, tx, *slot) })
 	}
 	// The slot is recorded in the transaction that writes its run (#164 review L4): a failure leaves neither, so a slot
@@ -520,8 +538,9 @@ func (s *Service) missSlot(ctx context.Context, slot time.Time, due bool) error 
 	})
 }
 
-// lastSlot is the latest slot of the schedule at or before now (within eight days), or nil when the schedule is off.
-func (c Settings) lastSlot(now time.Time, loc *time.Location) *time.Time {
+// lastSlot is the latest slot of the schedule at or before now (within eight days), or nil when the schedule is off; first as in
+// slotOK.
+func (c Settings) lastSlot(now time.Time, loc *time.Location, first bool) *time.Time {
 	if !c.Schedule.Enabled || !hhmmRE.MatchString(c.Schedule.At) {
 		return nil
 	}
@@ -529,7 +548,7 @@ func (c Settings) lastSlot(now time.Time, loc *time.Location) *time.Time {
 	local := now.In(loc)
 	for i := range 8 {
 		d := time.Date(local.Year(), local.Month(), local.Day()-i, at/60, at%60, 0, 0, loc)
-		if !d.After(now) && c.slotOK(d) {
+		if !d.After(now) && c.slotOK(d, first) {
 			return &d
 		}
 	}

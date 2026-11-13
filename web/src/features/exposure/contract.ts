@@ -52,13 +52,36 @@ export const HostRow = z.object({ name: z.string(), ip: z.string() })
 export const AdminRow = z.object({ url: z.string(), product: z.string(), ip: z.string(), port: z.number().int(), risk: z.enum(['danger', 'warn']) })
 export const CertRow = z.object({ host: z.string(), issuer: z.string(), expires_at: z.iso.datetime() })
 
+// S-EXP-2 (INV-19, INV-20, D-553): what service identification (nmap -sV) read on the box's own public IP, what the scan checked and
+// did not, and the exploited CVEs (CISA KEV) of the identified services, computed when the snapshot is read (not stored).
+export const ServiceRow = z.object({
+  ip: z.string(), port: z.number().int(),
+  name: z.string().describe('nmap\'s service name: http, ssh, tcpwrapped'), product: z.string().describe('"" when nmap named none'),
+  version: z.string().describe('"" when the service sent none'), cpe: z.string().describe('The CPE 2.2 URI nmap printed; "" when none'),
+  extra: z.string().describe('nmap\'s extrainfo, e.g. (Debian); "" when none'),
+})
+export const CheckRow = z.object({ kind: z.string().describe('ports, names, services or cve'), text: z.string(), at: z.iso.datetime() })
+export const NotCheckedRow = z.object({ kind: z.string().describe('udp, ports, non_exploited, services or cve'), text: z.string() })
+export const VulnBasis = z.enum(['version', 'product'])
+export const VulnRow = z.object({
+  ip: z.string(), port: z.number().int(), cve: z.string(), name: z.string(),
+  basis: VulnBasis.describe('version: the version is inside an NVD range; product: only the product matches'),
+  summary: z.string(), date_added: isoDate.nullable().describe('When CISA listed it as exploited'), ransomware: z.boolean(),
+  backport: z.string().describe('The distribution the service names (Debian, Ubuntu…), which may have backported the fix without changing the version; "" when none'),
+})
+export const GapRow = z.object({ ip: z.string(), port: z.number().int(), software: z.string(), cves: z.array(z.string()).describe('Exploited CVEs of the product that only a version would decide') })
+
 export const Snapshot = z.object({
   id: z.string(), date: isoDate, scanned_at: z.iso.datetime(),
   hosts: z.array(HostRow), ports: z.array(PortRow), admin_panels: z.array(AdminRow), certs: z.array(CertRow), counts: Counts,
+  services: z.array(ServiceRow), checks: z.array(CheckRow), not_checked: z.array(NotCheckedRow),
+  vulns: z.array(VulnRow).describe('Computed on read against today\'s CISA list, not stored'), version_gaps: z.array(GapRow),
 })
 export const SnapshotMeta = Snapshot.pick({ id: true, date: true, scanned_at: true, counts: true })
 
-export const DiffKind = z.enum(['subdomain', 'port', 'admin', 'cert'])
+/** The "to" of a service whose version the newer scan did not read (INV-20): not a change of version, and its CVEs are not gone. */
+export const VERSION_NOT_READ = 'version not read this time'
+export const DiffKind = z.enum(['subdomain', 'port', 'admin', 'cert', 'service', 'vuln'])
 export const DiffItem = z.object({ kind: DiffKind, key: z.string(), label: z.string(), detail: z.string() })
 export const DiffChange = DiffItem.extend({ from: z.string(), to: z.string() })
 export const Diff = z.object({ from: isoDate, to: isoDate, added: z.array(DiffItem), removed: z.array(DiffItem), changed: z.array(DiffChange) })
@@ -111,6 +134,6 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/exposure/scan', summary: 'The scan that runs now, or the last one (status done, failed or stopped, with its error or snapshot_id); null when no scan has run since the box started (the run is kept in memory only)', stories: ['S-EXP-1'], role: 'viewer', response: ScanRun.nullable() },
   { method: 'post', path: '/exposure/scan/stop', summary: 'Stop the scan that runs now (status stopped, nothing is saved; audited). 409 not_running when no scan runs', stories: ['S-EXP-1'], role: 'operator', response: ScanRun },
   { method: 'get', path: '/exposure/targets/{id}/snapshots', summary: 'Scan days of a target, newest first', stories: ['S-EXP-1'], role: 'viewer', params: id, response: z.object({ items: z.array(SnapshotMeta) }), example: idEx },
-  { method: 'get', path: '/exposure/targets/{id}/snapshots/{date}', summary: 'Scan result of one day', stories: ['S-EXP-1'], role: 'viewer', params: z.object({ id: z.string(), date: isoDate }), response: Snapshot, example: { params: { id: 'xt-1', date: day(1) } } },
-  { method: 'get', path: '/exposure/targets/{id}/diff', summary: 'Compare two scan days: newly exposed, gone, changed', stories: ['S-EXP-1'], role: 'viewer', params: id, query: z.object({ from: isoDate, to: isoDate }), response: Diff, example: { params: { id: 'xt-1' }, query: { from: day(7), to: day(1) } } },
+  { method: 'get', path: '/exposure/targets/{id}/snapshots/{date}', summary: 'Scan result of one day', stories: ['S-EXP-1', 'S-EXP-2'], role: 'viewer', params: z.object({ id: z.string(), date: isoDate }), response: Snapshot, example: { params: { id: 'xt-1', date: day(1) } } },
+  { method: 'get', path: '/exposure/targets/{id}/diff', summary: 'Compare two scan days: newly exposed, gone, changed', stories: ['S-EXP-1', 'S-EXP-2'], role: 'viewer', params: id, query: z.object({ from: isoDate, to: isoDate }), response: Diff, example: { params: { id: 'xt-1' }, query: { from: day(7), to: day(1) } } },
 ])

@@ -1,13 +1,14 @@
 // Sample data and scan-result generator of the exposure mock. 203.0.113.0/24 is the documentation range (RFC 5737), not real IPs.
 import { daysAgo } from '@/mocks/db'
 import { dateText } from './dates'
-import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type Counts, type HostRow, type IgnoredIp, type PortRow, type Snapshot, type Target, type TargetKind } from './types'
+import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type Counts, type GapRow, type HostRow, type IgnoredIp, type NotCheckedRow, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type VulnRow } from './types'
 
 export const BOX_EGRESS_IP = '203.0.113.10'
 /** The sample company has two public IPs behind a load balancer: the box leaves through both. */
 export const BOX_EGRESS_IP_2 = '203.0.113.11'
 
-export interface Content { hosts: HostRow[]; ports: PortRow[]; admin_panels: AdminRow[]; certs: CertRow[] }
+/** What one scan found; services: what nmap -sV read on the box's own IP (S-EXP-2). The mock plays a box whose nmap -sV is set up. */
+export interface Content { hosts: HostRow[]; ports: PortRow[]; admin_panels: AdminRow[]; certs: CertRow[]; services?: ServiceRow[] }
 /** txt_ok = the DNS TXT record is currently present (domains). expires_at = verified_at + 30 days (IPs; verified_at is the last time the box saw the IP). The scan module reads this shape. */
 export interface StoredTarget { id: string; kind: TargetKind; value: string; token: string; method: Target['method']; verified_at: string | null; expires_at: string | null; txt_ok: boolean; checks: number; last_check: Target['last_check']; created_at: string; last_scan_at: string | null }
 export const VERIFY_DAYS = 30
@@ -76,10 +77,16 @@ export function scanContent(t: { kind: TargetKind; value: string }): Content {
   const h = hash(t.value)
   const ip = (n: number) => `203.0.113.${100 + ((h + n) % 100)}`
   if (t.kind === 'ip') {
+    if (t.value === BOX_EGRESS_IP) return boxIpNow()
     const ports = [P(t.value, 443, 'https', 'nginx 1.22')]
+    const services: ServiceRow[] = [S(t.value, 443, 'http', 'nginx', '1.22.1', 'cpe:/a:igor_sysoev:nginx:1.22.1')]
     const admin: AdminRow[] = []
-    if (h % 2 === 0) { ports.push(P(t.value, 8443, 'https', 'pfSense')); admin.push({ url: `https://${t.value}:8443`, product: 'pfSense (admin)', ip: t.value, port: 8443, risk: 'danger' }) }
-    return { hosts: [], ports, admin_panels: admin, certs: [{ host: t.value, issuer: 'Self-signed', expires_at: inDays(40 + (h % 200)) }] }
+    if (h % 2 === 0) {
+      ports.push(P(t.value, 8443, 'https', 'pfSense'))
+      services.push(S(t.value, 8443, 'http', 'nginx', '', 'cpe:/a:igor_sysoev:nginx'))
+      admin.push({ url: `https://${t.value}:8443`, product: 'pfSense (admin)', ip: t.value, port: 8443, risk: 'danger' })
+    }
+    return { hosts: [], ports, admin_panels: admin, certs: [{ host: t.value, issuer: 'Self-signed', expires_at: inDays(40 + (h % 200)) }], services }
   }
   const apex = ip(0), mail = ip(1)
   const hosts: HostRow[] = [{ name: t.value, ip: apex }, { name: `www.${t.value}`, ip: apex }, { name: `mail.${t.value}`, ip: mail }]
@@ -91,8 +98,72 @@ export function scanContent(t: { kind: TargetKind; value: string }): Content {
   }
 }
 
+const S = (ip: string, port: number, name: string, product = '', version = '', cpe = '', extra = ''): ServiceRow => ({ ip, port, name, product, version, cpe, extra })
+
+/** The box's own IP (203.0.113.10): a FortiGate SSL VPN that hides its version, an old Apache forwarded to a LAN server, and a port
+ * that closes every connection. The sample of S-EXP-2: two exploited CVEs by version and one service that needs its version. */
+function boxIpNow(): Content {
+  const ip = BOX_EGRESS_IP
+  return {
+    hosts: [], admin_panels: [], certs: [{ host: ip, issuer: 'Fortinet (self-signed)', expires_at: inDays(120) }],
+    ports: [P(ip, 443, 'https', 'FortiGate SSL-VPN'), P(ip, 8443, 'https'), P(ip, 18443, 'http', 'Apache/2.4.49 (Unix)')],
+    services: [S(ip, 443, 'https', 'Fortinet FortiGate SSL VPN', '', 'cpe:/o:fortinet:fortios'), S(ip, 8443, 'tcpwrapped'), S(ip, 18443, 'http', 'Apache httpd', '2.4.49', 'cpe:/a:apache:http_server:2.4.49', '(Unix)')],
+  }
+}
+
+// The mock's matcher (INV-20): real CISA KEV entries for the sample products, decided as the box does with the NVD ranges.
+const APACHE_TRAVERSAL = 'Apache HTTP Server Path Traversal Vulnerability'
+const FORTIOS_KEV = ['CVE-2018-13379', 'CVE-2022-42475', 'CVE-2023-27997', 'CVE-2024-21762']
+function matchServices(services: ServiceRow[]): { vulns: VulnRow[]; version_gaps: GapRow[]; compared: number } {
+  const vulns: VulnRow[] = [], version_gaps: GapRow[] = []
+  const apache = (s: ServiceRow, cve: string, range: string): VulnRow => ({
+    ip: s.ip, port: s.port, cve, name: APACHE_TRAVERSAL, basis: 'version', date_added: '2021-11-03', ransomware: false, backport: '',
+    summary: `${s.ip} runs ${s.product} ${s.version}. Its version is inside the range affected by ${cve} (${range}); no scan has confirmed it yet, so this is only suspected.`,
+  })
+  for (const s of services) {
+    if (s.cpe.startsWith('cpe:/a:apache:http_server') && s.version === '2.4.49') vulns.push(apache(s, 'CVE-2021-41773', '= 2.4.49'), apache(s, 'CVE-2021-42013', '= 2.4.49'))
+    if (s.cpe.startsWith('cpe:/a:apache:http_server') && s.version === '2.4.50') vulns.push(apache(s, 'CVE-2021-42013', '= 2.4.50'))
+    if (s.cpe.startsWith('cpe:/o:fortinet:fortios') && !s.version) version_gaps.push({ ip: s.ip, port: s.port, software: s.product, cves: FORTIOS_KEV })
+  }
+  return { vulns, version_gaps, compared: services.filter((s) => s.cpe).length }
+}
+
+const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
+const NOT_UDP = 'UDP ports: the scan connects over TCP only.'
+const NOT_EXPLOITED = 'Vulnerabilities that are not known to be exploited: only the CISA list of exploited vulnerabilities (KEV) is compared.'
+
+/** What the scan checked and did not check, in the box's sentences (INV-19, INV-20). */
+function lines(c: Content, at: string, ip: boolean, m: ReturnType<typeof matchServices>): Pick<Snapshot, 'checks' | 'not_checked'> {
+  const services = c.services ?? []
+  if (!ip) {
+    return {
+      checks: [{ kind: 'names', at, text: `Names under the domain from certificate-transparency logs (crt.sh): ${plural(c.hosts.length, 'name')}; each checked by name on ports 80 and 443 (one GET / and the certificate on 443). ${plural(c.ports.length, 'port')} open in all.` }],
+      not_checked: [
+        { kind: 'udp', text: NOT_UDP },
+        { kind: 'ports', text: "Other ports of the names under this domain: names get web checks by name only; ports are scanned only on the box's own verified public IP." },
+        { kind: 'services', text: "Service identification (nmap -sV): it runs on the box's own verified public IP only, not on the names of a domain." },
+        { kind: 'non_exploited', text: NOT_EXPLOITED },
+      ],
+    }
+  }
+  const not_checked: NotCheckedRow[] = [{ kind: 'udp', text: NOT_UDP }, { kind: 'ports', text: 'TCP ports outside the fixed list of commonly exposed ports.' }, { kind: 'non_exploited', text: NOT_EXPLOITED }]
+  let cve = `${plural(m.compared, 'identified service')} of ${services.length} compared with today's CISA list of exploited vulnerabilities (1484 entries) and its NVD version ranges: ${plural(m.vulns.length, 'exploited CVE')} matched.`
+  if (m.version_gaps.length > 0) cve += ` ${plural(m.version_gaps.length, 'service')} could not be checked: no version was read.`
+  if (services.length > m.compared) cve += ` ${plural(services.length - m.compared, 'service')} gave no product to look up, so not compared.`
+  return {
+    checks: [
+      { kind: 'ports', at, text: `TCP connect to the fixed list of commonly exposed ports, then one GET / on each open web port and a TLS handshake on each TLS port: ${plural(c.ports.length, 'port')} open.` },
+      { kind: 'services', at, text: `Service identification (nmap -sV) on 98 TCP ports: ${plural(services.length, 'service')} identified.` },
+      ...(services.length > 0 ? [{ kind: 'cve', at, text: cve }] : []),
+    ],
+    not_checked,
+  }
+}
+
 export function makeSnapshot(id: string, at: string, c: Content, extraIp?: string): Snapshot {
-  return { id, date: dateOf(at), scanned_at: at, ...c, counts: countsOf(c, extraIp) }
+  const services = c.services ?? []
+  const m = matchServices(services)
+  return { id, date: dateOf(at), scanned_at: at, hosts: c.hosts, ports: c.ports, admin_panels: c.admin_panels, certs: c.certs, services, ...lines(c, at, extraIp !== undefined, m), vulns: m.vulns, version_gaps: m.version_gaps, counts: countsOf(c, extraIp) }
 }
 
 const plusDays = (iso: string, d: number) => new Date(Date.parse(iso) + d * 864e5).toISOString()
@@ -106,7 +177,7 @@ export function seedTargets(): StoredTarget[] {
   return [
     { id: 'xt-1', kind: 'domain', value: 'acme.example', token: 'a3f9c2e17b4d8a60', method: 'dns_txt', verified_at: v1, expires_at: null, txt_ok: true, checks: 2, last_check: ok('acme.example', v1), created_at: daysAgo(21, 1), last_scan_at: daysAgo(1) },
     // The two public IPs of the sample company (behind a load balancer): both seen 40 minutes ago, so both are valid for 30 days from then.
-    { id: 'xt-2', kind: 'ip', value: BOX_EGRESS_IP, token: '', method: 'box_egress', verified_at: seen, expires_at: plusDays(seen, VERIFY_DAYS), txt_ok: false, checks: 1, last_check: ipOk(BOX_EGRESS_IP, seen), created_at: daysAgo(30), last_scan_at: null },
+    { id: 'xt-2', kind: 'ip', value: BOX_EGRESS_IP, token: '', method: 'box_egress', verified_at: seen, expires_at: plusDays(seen, VERIFY_DAYS), txt_ok: false, checks: 1, last_check: ipOk(BOX_EGRESS_IP, seen), created_at: daysAgo(30), last_scan_at: daysAgo(1) },
     { id: 'xt-3', kind: 'domain', value: 'acme-demo.example', token: '9be41c0a77d2e358', method: 'dns_txt', verified_at: null, expires_at: null, txt_ok: false, checks: 0, last_check: null, created_at: daysAgo(0, 2), last_scan_at: null },
     // Last seen 40 days ago, never renewed since: expired (30 days), cannot be scanned until the box uses it again.
     { id: 'xt-4', kind: 'ip', value: '203.0.113.55', token: '', method: 'box_egress', verified_at: v4, expires_at: plusDays(v4, VERIFY_DAYS), txt_ok: false, checks: 1, last_check: ipOk('203.0.113.55', v4), created_at: daysAgo(70), last_scan_at: null },
@@ -141,5 +212,11 @@ export function seedSnapshots(): Record<string, Snapshot[]> {
     admin_panels: mid.admin_panels.filter((a) => a.ip !== '203.0.113.23'),
     certs: full.certs.filter((c) => c.host !== 'nas.acme.example'),
   }
-  return { 'xt-1': [makeSnapshot('sn-1', daysAgo(14), old), makeSnapshot('sn-2', daysAgo(7), mid), makeSnapshot('sn-3', daysAgo(1), full)] }
+  // The box's own IP, scanned a week ago and yesterday: the router forward to the old Apache on 18443 is new since then.
+  const box = boxIpNow()
+  const boxOld: Content = { ...box, ports: box.ports.filter((p) => p.port !== 18443), services: box.services!.filter((s) => s.port !== 18443) }
+  return {
+    'xt-1': [makeSnapshot('sn-1', daysAgo(14), old), makeSnapshot('sn-2', daysAgo(7), mid), makeSnapshot('sn-3', daysAgo(1), full)],
+    'xt-2': [makeSnapshot('sn-4', daysAgo(8), boxOld, BOX_EGRESS_IP), makeSnapshot('sn-5', daysAgo(1), box, BOX_EGRESS_IP)],
+  }
 }

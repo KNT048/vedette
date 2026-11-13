@@ -162,7 +162,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_time` | 400 | Time must look like 23:00. | `PUT /inventory/settings`; `PUT /notify/rules` |
 | `bad_to` | 400 | not-an-email is not a valid email address. Separate several recipients with commas. | module notify (validator dùng chung) |
 | `bad_token` | 400 | A bot token looks like 123456789:AAH… and comes from @BotFather. Copy it again without extra spaces. | module notify (validator dùng chung) |
-| `bad_type` | 400 | Choose a token type: decoy file, fake credentials, URL or DNS name. | `POST /honeypot/tokens` |
+| `bad_type` | 400 | Choose a token type: decoy file, fake credentials or URL. | `POST /honeypot/tokens` |
 | `bad_until` | 400 | Accept the risk until a date from tomorrow up to one year from today. | `POST /findings/{id}/status`; `POST /findings/status` (D-498) |
 | `bad_url` | 400 | Enter the Wazuh server API address starting with https://, for example https://wazuh-manager:55000. Do not put the user  Also (D-480): the address pasted after a Google sign-in is not this sign-in's loopback address, or has no code (`POST /notify/email-signin/{id}`). | module inventory, logs, notify (validator dùng chung) |
 | `bad_user_id` | 400 | The Zalo recipient ID (user_id) is the number of a person who followed or messaged the OA. | module notify (validator dùng chung) |
@@ -383,7 +383,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (96 mã)
+#### HTTP 409 (97 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -403,6 +403,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `channel_not_ready` | 409 | This channel is not set up or is turned off. An administrator can turn it on in Settings, Alert channels. | `POST /notify/history/{id}/resend` |
 | `check_off` | 409 | Update checks are off under Privacy. Turn them on to look for Vedette releases. | `POST /core/updates/check`; `POST /core/updates/os/check` |
 | `connection_off` | 409 | This connection is turned off, so nothing is sent to it. Turn it on, then test it. | `POST /core/connections/{id}/test` (PRIVACY flow 12) |
+| `dns_unavailable` | 409 | A DNS token cannot alert: the box runs no DNS server, so nothing would record a lookup of its name. Use a URL token or fake credentials instead. | `POST /honeypot/tokens` (D-468) |
 | `duplicate` | 409 | This email already has an account. | `POST /core/users`; `POST /exposure/targets`; `POST /honeypot/tokens` |
 | `duplicate_ip` | 409 | IP ${ip} is already in the list (${dup.hostname ?? dup.id}). Open that device instead of adding a new one. | module inventory (validator dùng chung) |
 | `duplicate_software` | 409 | This software is already on the device. | `POST /inventory/devices/{id}/software` |

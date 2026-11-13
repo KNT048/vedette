@@ -200,21 +200,29 @@ type (
 	}
 )
 
-// Content is what one scan found.
+// Content is what one scan found. Services, Checks and NotChecked are S-EXP-2 (INV-19): what service identification read, and
+// what the scan checked and did not check.
 type Content struct {
-	Hosts       []HostRow  `json:"hosts"`
-	Ports       []PortRow  `json:"ports"`
-	AdminPanels []AdminRow `json:"admin_panels"`
-	Certs       []CertRow  `json:"certs"`
+	Hosts       []HostRow       `json:"hosts"`
+	Ports       []PortRow       `json:"ports"`
+	AdminPanels []AdminRow      `json:"admin_panels"`
+	Certs       []CertRow       `json:"certs"`
+	Services    []ServiceRow    `json:"services"`
+	Checks      []CheckRow      `json:"checks"`
+	NotChecked  []NotCheckedRow `json:"not_checked"`
 }
 
-// Snapshot is the result of one scan day (contract.ts Snapshot).
+// Snapshot is the result of one scan day (contract.ts Snapshot). Vulns and VersionGaps are not stored: they are computed when the
+// snapshot is read, from its services and the current list of exploited vulnerabilities (INV-20), so a new KEV entry shows without
+// a rescan.
 type Snapshot struct {
 	ID        string `json:"id"`
 	Date      string `json:"date"`
 	ScannedAt string `json:"scanned_at"`
 	Content
-	Counts Counts `json:"counts"`
+	Vulns       []VulnRow `json:"vulns"`
+	VersionGaps []GapRow  `json:"version_gaps"`
+	Counts      Counts    `json:"counts"`
 }
 
 // SnapshotMeta is a snapshot without its lists.

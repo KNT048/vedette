@@ -51,6 +51,10 @@
 - **content/oui** (bảng D-83, dữ liệu): module đọc nó để ra `mac_vendor`; đổi bảng → hãng hiện khác (test `TestVendorOUIsBelongToTheVendor` giữ OUI của vendor đúng hãng).
 - `Trap.state`/`TrapIP.state` có thêm `starting|stopping|failed`: GUI (`TrapStateChip`), mock (`features/honeypot/mocks.ts`) và `api/openapi.json` phải đổi cùng lượt.
 
+## Modifying: `Service.AddToken` từ chối `type=dns` (D-468)
+- **web/features/honeypot** (`Tokens.tsx`, `mocks.ts`): form không đưa DNS (`TOKEN_TYPES`), mock trả cùng 409 `dns_unavailable` và câu chữ; đổi câu ở `msgDNSUnavailable` thì đổi cả mock và bảng mã lỗi `docs/API_CONVENTIONS.md`. Mẫu token (`presets.ts` `TOKEN_PRESETS`) chỉ điền các trường đã có, không đụng API.
+- **Dữ liệu cũ**: hàng `hp_tokens` loại `dns` vẫn đọc, xoá được; `TokenDNS` giữ cho việc đọc.
+
 ## Modifying: `Service.OpenURLToken(ctx, URLTokenOpen)`, `ValidURLTokenID`, `UnknownSource` (D-507) — 1 người gọi
 - **cmd/vedette** (`honeytoken.go`, nối trong `topHandler` ở `/t/{id}`): mọi `/t/<x>` trả cùng `404 page not found`; đổi câu trả lời theo việc token có tồn tại hay không là lộ token cho người dò. Đổi dạng id (`AddToken`: 10 ký tự `a-z0-9`) phải đổi `ValidURLTokenID` cùng lúc, nếu không token mới không bao giờ bắn. Giới hạn mỗi địa chỉ: `server.AddrLimiter` (`core/server/publimit.go`), chỉ hỏi qua `URLTokenOpen.RepeatOK` cho lần mở lặp lại; hỏi trước khi biết token là cho id bịa làm im liên kết thật (review M1). Chính hộp: `machineAddrs` + `appliance` (`honeyTokenSources`). **response** nhận `src_ip` không phải IP (`unknown (container-only port proxy)`) và bỏ qua hit đó. Hit đi qua `upsert`/`newIngest` của `ingest.go`: đổi chữ ký của chúng phải sửa `urltoken.go`.
 - **notify** (`hitEvent`): hit `kind=token` có tiêu đề "<ip> opened the URL token <tên>" (đọc tiền tố `URL token `/`File token ` của `label`, `tokenLabel`); đổi `tokenLabel` làm tiêu đề quay về "used".

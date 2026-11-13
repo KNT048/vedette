@@ -94,6 +94,7 @@ export const TrapSuggestion = z.object({ preset: TrapPreset, count: z.number().i
 export const TrapIPsResponse = z.object({ items: z.array(TrapIP), suggestions: z.array(TrapSuggestion), spare_ips: z.array(z.string()), spare_checked: z.boolean().describe('false while the inventory has no device in the box network: nothing was compared, so spare_ips are only addresses not seen yet') })
 export const TrapIPInput = z.object({ name: z.string(), ip: z.string(), preset: TrapPreset, vendor: TrapVendor.nullable(), services: z.array(HpService) })
 
+// 'dns' only lists DNS tokens made before D-468: a new one is refused (409 dns_unavailable), it could never alert.
 export const TokenType = z.enum(['file', 'credential', 'url', 'dns'])
 export const Token = z.object({
   id: z.string(), type: TokenType, name: z.string(), value: z.string().describe('File name, user name, URL or hostname to plant'),
@@ -115,7 +116,7 @@ export const endpoints = defineEndpoints([
   { method: 'delete', path: '/honeypot/trap-ips/{id}', summary: 'Delete a Trap IP; the address stops answering, its hits stay', stories: ['S-HP-1', 'S-HP-2'], role: 'admin', params: z.object({ id: z.string() }), response: null },
   { method: 'post', path: '/honeypot/test-scan', summary: '"Test scan": a labelled test scan alert from the box across the Trap IPs, not counted, no alert sent', stories: ['S-HP-2'], role: 'operator', response: Hit },
   { method: 'get', path: '/honeypot/tokens', summary: 'Honey tokens with last triggered time', stories: ['S-HP-2'], role: 'viewer', response: z.object({ items: z.array(Token) }) },
-  { method: 'post', path: '/honeypot/tokens', status: 201, summary: 'Create a honey token (decoy file, fake credentials, URL or DNS name)', stories: ['S-HP-2'], role: 'admin', body: TokenInput, response: Token },
+  { method: 'post', path: '/honeypot/tokens', status: 201, summary: 'Create a honey token (decoy file, fake credentials or URL); a DNS token is refused (D-468)', stories: ['S-HP-2'], role: 'admin', body: TokenInput, response: Token },
   { method: 'delete', path: '/honeypot/tokens/{id}', summary: 'Delete a honey token; the planted copy stops alerting', stories: ['S-HP-2'], role: 'admin', params: z.object({ id: z.string() }), response: null },
   { method: 'post', path: '/honeypot/tokens/{id}/test', summary: '"Test token": a labelled test trigger, not counted, no alert sent', stories: ['S-HP-2'], role: 'operator', params: z.object({ id: z.string() }), response: Hit },
 ])

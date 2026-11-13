@@ -22597,7 +22597,7 @@ func (s *Server) handleHoneypotPostHoneypotTestScanRequest(args [0]string, argsE
 
 // handleHoneypotPostHoneypotTokensRequest handles honeypot_post_honeypot_tokens operation.
 //
-// Create a honey token (decoy file, fake credentials, URL or DNS name).
+// Create a honey token (decoy file, fake credentials or URL); a DNS token is refused (D-468).
 //
 // POST /honeypot/tokens
 func (s *Server) handleHoneypotPostHoneypotTokensRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22681,7 +22681,7 @@ func (s *Server) handleHoneypotPostHoneypotTokensRequest(args [0]string, argsEsc
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    HoneypotPostHoneypotTokensOperation,
-			OperationSummary: "Create a honey token (decoy file, fake credentials, URL or DNS name)",
+			OperationSummary: "Create a honey token (decoy file, fake credentials or URL); a DNS token is refused (D-468)",
 			OperationID:      "honeypot_post_honeypot_tokens",
 			Body:             request,
 			RawBody:          rawBody,

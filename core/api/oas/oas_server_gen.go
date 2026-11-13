@@ -1106,7 +1106,7 @@ type Handler interface {
 	HoneypotPostHoneypotTestScan(ctx context.Context) (*HoneypotPostHoneypotTestScanOK, error)
 	// HoneypotPostHoneypotTokens implements honeypot_post_honeypot_tokens operation.
 	//
-	// Create a honey token (decoy file, fake credentials, URL or DNS name).
+	// Create a honey token (decoy file, fake credentials or URL); a DNS token is refused (D-468).
 	//
 	// POST /honeypot/tokens
 	HoneypotPostHoneypotTokens(ctx context.Context, req *HoneypotPostHoneypotTokensReq) (*HoneypotPostHoneypotTokensCreated, error)

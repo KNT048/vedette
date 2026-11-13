@@ -313,31 +313,74 @@
     "what": {
       "file": "A .docx or .xlsx for a file share. It calls home when opened.",
       "credential": "A user and password for a password manager or a script. Any login attempt with them alerts.",
-      "url": "A web link. Opening it alerts.",
-      "dns": "A hostname. It cannot alert yet: the box does not answer DNS lookups, so nothing records a lookup of this name."
+      "url": "A web link. Opening it alerts."
     },
     "form": {
+      "preset": "Start from",
+      "presetHint": "Fills in the type, the name and where to plant it, like a real file or account in your office. You can change every field.",
       "type": "Token type",
       "ext": "File type",
       "plant": "Where will you plant it?",
       "create": "Create token",
       "name": {
         "file": "File name",
-        "credential": "User name",
-        "url": "Label",
-        "dns": "Label"
+        "credential": "Label",
+        "url": "Label"
       },
       "nameHint": {
         "file": "Looks tempting: Payroll-2026-Q4, Passwords-IT.",
-        "credential": "Looks like an old service account: svc-backup-old.",
-        "url": "Names this token in alerts, for example Wiki admin link.",
-        "dns": "Names this token in alerts, for example Backup script host."
+        "credential": "Names this token in alerts, for example Backup service account. The box makes the account name and password, unique to this token.",
+        "url": "Names this token in alerts, for example Wiki admin link."
       },
       "plantHint": {
         "file": "For example \\\\SRV-FILE\\HR",
         "credential": "For example the IT password manager",
-        "url": "For example an intranet wiki page",
-        "dns": "For example a backup script config"
+        "url": "For example an intranet wiki page"
+      }
+    },
+    "preset": {
+      "payroll": {
+        "label": "Payroll spreadsheet (.xlsx)",
+        "plant": "HR folder on the file share"
+      },
+      "passwords": {
+        "label": "Password list (.xlsx)",
+        "plant": "IT folder on the file share"
+      },
+      "bank_accounts": {
+        "label": "Bank account list (.xlsx)",
+        "plant": "Finance folder on the file share"
+      },
+      "network_diagram": {
+        "label": "Network diagram (.docx)",
+        "plant": "IT folder on the file share"
+      },
+      "vpn_setup": {
+        "label": "VPN setup guide (.docx)",
+        "plant": "IT folder on the file share"
+      },
+      "backup_account": {
+        "label": "Backup service account",
+        "plant": "IT password manager"
+      },
+      "old_admin": {
+        "label": "Old admin account (decoy)",
+        "plant": "Printed sheet in the server cupboard"
+      },
+      "db_login": {
+        "label": "Reporting database login",
+        "plant": "Config file of a reporting script"
+      },
+      "wiki": {
+        "label": "Internal wiki bookmark",
+        "plant": "Browser bookmarks on the IT admin PC"
+      },
+      "router_admin": {
+        "label": "Router admin bookmark",
+        "plant": "Intranet page about the network"
+      },
+      "custom": {
+        "label": "Custom (blank)"
       }
     },
     "created": "Token created",
@@ -365,14 +408,15 @@
       "file": "someone opens the file in Word or Excel and it loads a hidden image from the box.",
       "credential": "anyone tries to sign in with this user name, from any machine.",
       "url": "anyone opens the link in a browser or a link scanner fetches it.",
-      "dns": "nothing yet. The box does not answer DNS lookups, so this name cannot alert, even if your DNS server forwards vedette.internal to the box. Use a URL token or fake credentials for an alert you can count on."
+      "dns": "nothing. The box runs no DNS server, so a lookup of this name is never seen, even if your DNS server forwards vedette.internal to the box. New DNS tokens are no longer offered: use a URL token or fake credentials for an alert you can count on."
     },
     "how": {
       "file": "Download {{value}} from this page and copy it to the share. In this preview there is no download: the real box generates the file with its call-home address inside, and you copy it to the share like any other document.",
       "credential": "Save the user and password as an entry in a password manager or a script config. Do not create the account in Active Directory: the box alerts on the failed login.",
       "url": "Paste the link into a wiki page, a document or a note where an intruder reads about admin systems. Whoever opens it sees a plain \"404 page not found\", like a dead link, and the box records who opened it.",
-      "dns": "Do not plant {{value}} yet: a DNS token needs a DNS server on the box that answers the vedette.internal zone, and the box has none yet. Delete this token and use a URL token instead."
-    }
+      "dns": "Do not plant {{value}}: it can never alert, because the box runs no DNS server. Delete this token and use a URL token instead."
+    },
+    "noAlert": "Cannot alert"
   },
   "notHere": {
     "page": "Honeypot",

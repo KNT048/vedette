@@ -198,7 +198,13 @@
     "issuer": "Issuer",
     "expires": "Expires",
     "left": "Remaining",
-    "note": "Note"
+    "note": "Note",
+    "version": "Version",
+    "exploited": "Exploited CVEs",
+    "cve": "CVE",
+    "basis": "Basis",
+    "listed": "Listed as exploited",
+    "why": "Why it matches"
   },
   "hosts": {
     "title": "Subdomains",
@@ -253,7 +259,9 @@
       "subdomain": "Subdomain",
       "port": "Open port",
       "admin": "Admin interface",
-      "cert": "Certificate"
+      "cert": "Certificate",
+      "service": "Service",
+      "vuln": "Exploited CVE"
     },
     "col": {
       "change": "Change",
@@ -261,7 +269,9 @@
       "item": "Item",
       "detail": "Detail"
     },
-    "certChanged": "Expiry changed from {{from}} to {{to}}"
+    "certChanged": "Expiry changed from {{from}} to {{to}}",
+    "serviceChanged": "Changed from {{from}} to {{to}}",
+    "versionNotRead": "Version not read this time (was {{from}}); its exploited CVEs are not known to be gone"
   },
   "delete": {
     "button": "Delete target",
@@ -389,5 +399,39 @@
     "done": "Scan of {{value}} finished. The new result is below.",
     "stopped": "The scan of {{value}} was stopped. Nothing was saved.",
     "failed": "The scan of {{value}} failed and nothing was saved. Try again."
+  },
+  "vulns": {
+    "title": "Exploited vulnerabilities",
+    "description": "Vedette identifies the service and version on each open port of this box's own public IP (nmap -sV) and compares them with the CISA list of exploited vulnerabilities and its NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a service is safe.",
+    "caption": "Exploited vulnerabilities that match the services on this IP",
+    "servicesCaption": "Services identified on the open ports (nmap -sV)",
+    "noneIdentifiedTitle": "No service was identified",
+    "noneIdentifiedBody": "Service identification found no service on the open ports of this IP.",
+    "noneTitle": "No exploited vulnerability matches the identified services",
+    "noneBody": "The services and versions below were compared with the CISA list of exploited vulnerabilities. Vulnerabilities that are not known to be exploited are not compared.",
+    "gapsLabel": "Services whose version could not be read",
+    "gap_one": "{{count}} exploited CVE of {{software}} on port {{port}} could not be checked: the service sent no version ({{cves}}).",
+    "gap_other": "{{count}} exploited CVEs of {{software}} on port {{port}} could not be checked: the service sent no version ({{cves}}).",
+    "count_one": "{{count}} exploited",
+    "count_other": "{{count}} exploited",
+    "noProduct": "Not named",
+    "noVersion": "No version sent",
+    "tcpwrappedShort": "Closed at once (tcpwrapped)",
+    "tcpwrapped": "The port accepted the connection and closed it before any service could be read.",
+    "ransomware": "Used by ransomware",
+    "basis": {
+      "version": "Version in range",
+      "product": "Product only",
+      "backport": "Version in range, but {{distro}} may have backported the fix"
+    },
+    "countBackport_one": "{{count}} maybe patched",
+    "countBackport_other": "{{count}} maybe patched"
+  },
+  "checked": {
+    "title": "What was checked",
+    "description": "What this scan sent and compared, and what it did not check. A scan that did not check something says nothing about it.",
+    "checked": "Checked",
+    "notChecked": "Not checked",
+    "older": "This scan was made before Vedette listed what each scan checks."
   }
 }

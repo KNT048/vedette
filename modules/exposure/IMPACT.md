@@ -38,6 +38,13 @@
 ## Modifying: `Snapshots`, `SnapshotOf`, `Diff` (`Diff.Added`, nhãn mục), `upsertSnapshot`, sự kiện `exposure.snapshot.created` (`SnapshotCreatedEvent`)
 - **response** (trigger `new_port`, D-384) qua cầu `cmd/vedette/exposureports.go`: mỗi `exposure.snapshot.created` nó đọc `Snapshots` (mới nhất trước) lấy ngày quét trước của cùng mục tiêu, rồi `Diff` và `SnapshotOf` hai ngày đó, và phát một `exposure.port.opened` cho mỗi cổng mở bây giờ mà ngày trước không có. Nó dựa vào: nhãn của mục `port` trong `Diff.Added` đúng dạng `"<ip>:<port>"`; **một ảnh chụp mỗi mục tiêu mỗi ngày** (`upsertSnapshot` ghi đè trong ngày); `SnapshotCreatedEvent` mang `TargetID` + `Date` của ảnh vừa ghi; ngày quét đầu tiên của mục tiêu là mốc, không phát gì. Đổi bất kỳ điều nào → sửa cầu và `cmd/vedette` `TestExposureSnapshotOpensNewPorts`. Nếu sau này `exposure` tự phát `exposure.port.opened` thì cầu bỏ đi.
 
+## Modifying: `ServiceScanner`, `ServiceScan`, `Matcher`, `Matches`, `Unavailable`, `identify`, `withVulns`, `ServiceRow`/`CheckRow`/`NotCheckedRow`/`VulnRow`/`GapRow`, cột `exp_snapshot.services/checks/not_checked` (INV-19, INV-20, D-553)
+- **sensor-active** (Trưởng, chưa có): `ScanExternal` sẽ hiện thực `ServiceScanner` (nmap `-sV` dạng `external` trong container scan, rào own-IP ở worker); nối bằng một dòng `cfg.Services = …` trong `cmd/vedette/exposure.go`. Đổi chữ ký cổng là sửa adapter đó. Khi nối: PRIVACY luồng 9 + Settings → Privacy và dòng nmap của THIRD_PARTY_NOTICES đổi trong cùng PR (`.ai/deferred/feat-exposure-services-mlee.md`).
+- **findings/feeds** qua `cmd/vedette/exposurematch.go`: `findings.MatchAsset` (đổi quy tắc khớp, `NeedVersion`, chữ `Evidence.Summary` là đổi cái trang exposure hiện) và `findingsFeeds.Vulns` (danh sách KEV + dải NVD, có cache theo stamp). Module Feeds tắt → dòng "Not checked" kèm lý do. **inventory**: `KevKeysForCPE` (chưa export) cắm vào trường `catalog`.
+- **web/features/exposure**: `ServicesPanel.tsx` (mục "Exploited vulnerabilities" chỉ cho IP, "What was checked" cho mọi mục tiêu), kind `service`/`vuln` của Compare trong `ResultsPanel.tsx`; `contract.ts` là nguồn OpenAPI của `Snapshot.services/checks/not_checked/vulns/version_gaps` và `DiffKind`; mock `data.ts` (`matchServices`, `lines`) giữ cùng câu chữ với `identify.go`.
+- **core** `export_policy.go`: ba cột JSON mới được xuất (`TestExport_PolicyClassifiesEveryColumn`).
+- **response** (`new_port`) đọc `Diff.Added` kind `port`: kind mới không đổi nó.
+
 ## Disabling this module
 - Trang External exposure mất; `scan` chỉ quét mục tiêu nội bộ; luồng PRIVACY 9 dừng (job không chạy, kể cả lượt dò đầy đủ trước khi quét).
 - Mục tiêu, cam kết, ảnh chụp, cài đặt và danh sách bỏ qua giữ; `reports` bỏ mục bề mặt ngoài.

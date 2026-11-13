@@ -1,7 +1,7 @@
 // Trap IP presets and vendors (D-466): data, as modules/honeypot/presets.go. A preset fills the services and the vendor of a Trap IP;
 // both stay editable. Adding a service later (B3) is a row here and in presets.go, not new screens.
 import type { AssetKind } from '@/lib/types'
-import type { HpService, TrapPreset, TrapVendor } from './types'
+import type { HpService, OfferedTokenType, TrapPreset, TrapVendor } from './types'
 
 export interface PresetDef { id: TrapPreset; services: HpService[]; vendor: TrapVendor | null; kinds: AssetKind[]; example: string }
 
@@ -33,3 +33,24 @@ export const UDP_SERVICES: HpService[] = ['tftp', 'ntp', 'sip']
 export const portLabel = (s: HpService) => (UDP_SERVICES.includes(s) ? `${SERVICE_PORT[s]}/udp` : String(SERVICE_PORT[s]))
 /** Services where a login names an account, so a fake credential fires on them (Coverage). */
 export const LOGIN_SERVICES: HpService[] = ['ssh', 'rdp', 'mssql', 'http', 'https', 'ftp', 'telnet', 'mysql', 'mongodb', 'httpproxy']
+
+// Honey token presets (D-468, S-HP-2): a believable token in one click, as Canarytokens offers ready token kinds. A preset fills the
+// type, name, file type and place of the form (the place text is token.preset.<id>.plant); every field stays editable. Web only:
+// the API gets the fields, never the preset. {year} becomes this year. Custom is the blank form. A credential preset's name is the
+// token's label, by role: the box makes the bait account name itself (svc_ + 6 letters, D-90 (3)).
+export type TokenPreset = 'payroll' | 'passwords' | 'bank_accounts' | 'network_diagram' | 'vpn_setup' | 'backup_account' | 'old_admin' | 'db_login' | 'wiki' | 'router_admin' | 'custom'
+export interface TokenPresetDef { id: TokenPreset; type: OfferedTokenType; name: string; ext?: 'docx' | 'xlsx' }
+
+export const TOKEN_PRESETS: TokenPresetDef[] = [
+  { id: 'payroll', type: 'file', name: 'Payroll-{year}', ext: 'xlsx' },
+  { id: 'passwords', type: 'file', name: 'Passwords', ext: 'xlsx' },
+  { id: 'bank_accounts', type: 'file', name: 'Bank-accounts-{year}', ext: 'xlsx' },
+  { id: 'network_diagram', type: 'file', name: 'Network-diagram', ext: 'docx' },
+  { id: 'vpn_setup', type: 'file', name: 'VPN-setup', ext: 'docx' },
+  { id: 'backup_account', type: 'credential', name: 'Backup service account' },
+  { id: 'old_admin', type: 'credential', name: 'Old admin account' },
+  { id: 'db_login', type: 'credential', name: 'Reporting database login' },
+  { id: 'wiki', type: 'url', name: 'Wiki admin page' },
+  { id: 'router_admin', type: 'url', name: 'Router admin' },
+]
+export const tokenPresetName = (p: TokenPresetDef) => p.name.replace('{year}', String(new Date().getFullYear()))

@@ -5,7 +5,6 @@ import (
 	"net/netip"
 	"regexp"
 	"slices"
-	"strings"
 
 	"github.com/knt048/vedette/content/devicetypes"
 )
@@ -176,18 +175,3 @@ var (
 )
 
 func validHostname(s string) bool { return netbiosRE.MatchString(s) && !allDigitsRE.MatchString(s) }
-
-func slug(name string) string {
-	var b strings.Builder
-	dash := true
-	for _, r := range strings.ToLower(name) {
-		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
-			b.WriteRune(r)
-			dash = false
-		} else if !dash {
-			b.WriteByte('-')
-			dash = true
-		}
-	}
-	return strings.Trim(b.String(), "-")
-}

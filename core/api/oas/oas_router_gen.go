@@ -13396,7 +13396,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									return r, true
 								case "POST":
 									r.name = HoneypotPostHoneypotTokensOperation
-									r.summary = "Create a honey token (decoy file, fake credentials, URL or DNS name)"
+									r.summary = "Create a honey token (decoy file, fake credentials or URL); a DNS token is refused (D-468)"
 									r.operationID = "honeypot_post_honeypot_tokens"
 									r.operationGroup = ""
 									r.pathPattern = "/honeypot/tokens"

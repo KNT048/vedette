@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -25,6 +26,9 @@ type ServiceConfig struct {
 	// older than RecentKEV under it, and the binary makes the bus carry it to notify (D-78: backlog is silent).
 	// nil: nothing is marked. findings does not know notify; the binary supplies notify.WithBaseline.
 	Backlog func(ctx context.Context) context.Context
+	// HaveSince maps a KEV product key the customer answered "I have this" for on Home (feeds, S-FEED-2) to the CISA date
+	// from which a version-less product of that key is matched (INV-11, D-484). nil: no such scope.
+	HaveSince func(ctx context.Context) (map[string]time.Time, error)
 }
 
 // Service owns fnd_finding and fnd_finding_history. Every mutation runs in one transaction with its
@@ -150,6 +154,13 @@ func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertRes
 // or reopened: it only gets last_seen refreshed and, if open, a stronger basis (product to version).
 // The matcher only adds, never removes.
 func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (UpsertResult, error) {
+	var since map[string]time.Time
+	if s.cfg.HaveSince != nil {
+		var err error
+		if since, err = s.cfg.HaveSince(ctx); err != nil {
+			return UpsertResult{}, fmt.Errorf("findings: reading the products answered on Home: %w", err)
+		}
+	}
 	var res UpsertResult
 	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		res = UpsertResult{}
@@ -157,7 +168,7 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 		if err != nil {
 			return err
 		}
-		m := MatchAsset(a, vulns, haveSet(have), now)
+		m := haveScope(a, vulns, MatchAsset(a, vulns, haveSet(have), now), since)
 		for _, nm := range m.New {
 			f, h := NewFinding(nm, now)
 			if err := f.Validate(); err != nil {
@@ -213,6 +224,46 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 		return UpsertResult{}, err
 	}
 	return res, nil
+}
+
+// haveScope drops the matches that "I have this" on Home does not cover (INV-11, D-484): a software row with no version
+// whose KEV key the customer answered "I have this" for is matched only against CISA entries added on or after the
+// entry they answered. Older entries are not theirs to handle unless they type the version, and then the version
+// decides. An entry with no known date is kept. The matcher itself is unchanged; this is the customer's own scope.
+func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]time.Time) MatchResult {
+	if len(since) == 0 {
+		return m
+	}
+	from := map[string]time.Time{} // software id -> the date its matches start
+	for _, sw := range a.Software {
+		if strings.TrimSpace(sw.Version) != "" {
+			continue
+		}
+		for _, k := range sw.KevKeys {
+			if t, ok := since[NormalizeKevKey(k)]; ok {
+				from[sw.ID] = t
+			}
+		}
+	}
+	if len(from) == 0 {
+		return m
+	}
+	added := make(map[string]time.Time, len(vulns))
+	for _, v := range vulns {
+		added[v.CVE] = v.DateAdded
+	}
+	keep := func(ms []Match) []Match {
+		out := ms[:0:0]
+		for _, x := range ms {
+			t, scoped := from[x.SoftwareID]
+			if d := added[x.CVE]; scoped && !d.IsZero() && d.Before(t) {
+				continue
+			}
+			out = append(out, x)
+		}
+		return out
+	}
+	return MatchResult{New: keep(m.New), Existing: keep(m.Existing)}
 }
 
 // noteNoLongerMatching records, once, that a suspected finding (basis version or product) is no longer produced by the
@@ -351,39 +402,89 @@ func (s *Service) SetStatus(ctx context.Context, id string, action Action, note,
 	}
 	var out Record
 	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
-		r, err := loadByID(ctx, tx, id)
-		if err != nil {
-			return err
-		}
-		was := r.Status
-		f, h, err := r.Apply(action, note, user, now)
-		if err != nil {
-			return err
-		}
-		r.Finding = f
-		if err := f.Validate(); err != nil {
-			return fmt.Errorf("findings: finding %s after %s: %w", r.ID, action, err)
-		}
-		if err := updateRecord(ctx, tx, r); err != nil {
-			return err
-		}
-		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-			return err
-		}
-		detail := fmt.Sprintf("%s: %s", r.CVE, action)
-		if h.Note != "" {
-			detail += ": " + h.Note
-		}
-		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "findings.status", Target: r.ID, Detail: detail}); err != nil {
-			return err
-		}
-		if was != r.Status {
-			emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status})
-		}
-		out, err = loadByID(ctx, tx, r.ID)
+		r, err := applyStatus(ctx, s.cfg.Audit, tx, id, action, note, user, now, emit)
+		out = r
 		return err
 	})
 	return out, err
+}
+
+// MaxBulk is how many findings one bulk status change may touch (INV-10): a filtered list of a few hundred findings
+// fits, and the one write transaction stays short.
+const MaxBulk = 500
+
+// ErrTooMany is a bulk change that names more than MaxBulk findings, or none (the API's 400 invalid).
+var ErrTooMany = &APIError{"invalid", 400, fmt.Sprintf("Select between 1 and %d findings.", MaxBulk)}
+
+// SetStatusMany applies one action with one note to several findings (INV-10): every finding gets its own history
+// row, its own core_audit row and its own status_changed event, exactly as SetStatus would give it, all in one
+// transaction. All or nothing: an unknown id or a refused action writes nothing. reopen is not a bulk action.
+// A duplicate id counts once. It returns how many findings were changed.
+func (s *Service) SetStatusMany(ctx context.Context, ids []string, action Action, note, user string) (int, error) {
+	if err := ValidUser(user); err != nil {
+		return 0, err
+	}
+	if action == ActionReopen {
+		return 0, fmt.Errorf("findings: bulk %q: %w", action, ErrBadAction)
+	}
+	seen := make(map[string]bool, len(ids))
+	uniq := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if !seen[id] {
+			seen[id] = true
+			uniq = append(uniq, id)
+		}
+	}
+	if len(uniq) == 0 || len(uniq) > MaxBulk {
+		return 0, ErrTooMany
+	}
+	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
+		for _, id := range uniq {
+			if _, err := applyStatus(ctx, s.cfg.Audit, tx, id, action, note, user, now, emit); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return len(uniq), nil
+}
+
+// applyStatus is one person's action on one finding inside tx: the change, its history row, its audit row and, when the
+// status changed, its event.
+func applyStatus(ctx context.Context, log *audit.Log, tx *sql.Tx, id string, action Action, note, user string, now time.Time, emit func(string, any)) (Record, error) {
+	r, err := loadByID(ctx, tx, id)
+	if err != nil {
+		return Record{}, err
+	}
+	was := r.Status
+	f, h, err := r.Apply(action, note, user, now)
+	if err != nil {
+		return Record{}, err
+	}
+	r.Finding = f
+	if err := f.Validate(); err != nil {
+		return Record{}, fmt.Errorf("findings: finding %s after %s: %w", r.ID, action, err)
+	}
+	if err := updateRecord(ctx, tx, r); err != nil {
+		return Record{}, err
+	}
+	if err := insertHistory(ctx, tx, r.ID, h); err != nil {
+		return Record{}, err
+	}
+	detail := fmt.Sprintf("%s: %s", r.CVE, action)
+	if h.Note != "" {
+		detail += ": " + h.Note
+	}
+	if err := log.Append(ctx, tx, audit.Entry{User: user, Action: "findings.status", Target: r.ID, Detail: detail}); err != nil {
+		return Record{}, err
+	}
+	if was != r.Status {
+		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status})
+	}
+	return loadByID(ctx, tx, r.ID)
 }
 
 // OnAssetDeleted handles inventory.asset.deleted: the device's findings, their history and, through

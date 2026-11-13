@@ -31,6 +31,15 @@
 ## Modifying: `findings.Service.SetStatus(ctx, id, action, note, user)`
 - **SPA** (`POST /findings/{id}/status`, mã lỗi `note_required`, `already_open`, `bad_action`, `note_too_long`), **notify** (sự kiện `status_changed`), **response**/**reports** (đếm finding mở). Đổi bảng chuyển trạng thái = đổi hành vi nút trên trang finding.
 
+## Modifying: `findings.Service.SetStatusMany(ctx, ids, action, note, user)` (D-484, INV-10)
+- **SPA** (`POST /findings/status`: thanh chọn của danh sách Findings), **notify** (một `status_changed` mỗi finding), **core_audit** (một dòng mỗi finding: 500 dòng một lần; trần nhật ký kiểm toán là W1-34). Đổi `MaxBulk` = đổi `MAX_BULK` trong `findings/contract.ts`.
+
+## Modifying: `ServiceConfig.HaveSince` và `haveScope` (D-484, INV-11)
+- **feeds** (`Store.HaveSince`, đọc `feeds_weekly_answer` + `feeds_vuln`), **cmd/vedette** (cài trong `wiring.go`). Đổi luật = đổi số finding (và tin `notify`) của sản phẩm khách bấm "I have this" trên Home; text Home (`feeds.json` `weekly.*`) nói luật này.
+
+## Modifying: `AssetView.Name` / `HasIP` (D-484, INV-12)
+- **cmd/vedette** (`findingsInventory.Assets` điền `Name` từ `inventory.Names`; `MatchInput` dùng tên đó khi thiết bị không có tên máy lẫn IP), **mitigation** (`genericRecheck` dùng `Name`, chỉ nhắc "Rescan this device" khi `HasIP`), SPA (`findings/basis.ts` `deviceName`, `hasIp`).
+
 ## Modifying: `findings.Service.CountByAsset(ctx) (map[string]int, error)`
 - **inventory** (`FindingCounter`, `findings_count` ở danh sách và trang thiết bị, hộp thoại xoá): một lần đọc gộp theo `asset_id`, **mọi trạng thái** (đúng số bị xoá cùng thiết bị, INV-11 của inventory). Nối ở `cmd/vedette` `findingCounts`; module findings tắt → 0 (khi tắt không gì xoá chúng cùng thiết bị). Đổi nghĩa (ví dụ chỉ đếm finding mở) là đổi câu "deleting the device also deletes these findings" của `inventory/contract.ts`.
 

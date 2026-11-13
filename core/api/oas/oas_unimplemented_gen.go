@@ -1452,6 +1452,16 @@ func (UnimplementedHandler) FindingsPostFindingsIDStatus(ctx context.Context, re
 	return r, ht.ErrNotImplemented
 }
 
+// FindingsPostFindingsStatus implements findings_post_findings_status operation.
+//
+// Change the status of several findings at once with one note (at most 500); one history and audit row
+// per finding, all or nothing.
+//
+// POST /findings/status
+func (UnimplementedHandler) FindingsPostFindingsStatus(ctx context.Context, req *FindingsPostFindingsStatusReq) (r *FindingsPostFindingsStatusOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // HoneypotDeleteHoneypotDecoysID implements honeypot_delete_honeypot_decoys_id operation.
 //
 // Delete a decoy.

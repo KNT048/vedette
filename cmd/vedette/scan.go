@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"strings"
 	"sync"
 	"time"
 
@@ -93,6 +94,24 @@ func (s scanInventory) Scope(ctx context.Context) (scan.Scope, error) {
 	return sc, nil
 }
 
+// deviceLabel names a device as the Devices page does (inventory.Names): hostname, else vendor and model, else the IP. A
+// hand-added or LLDP-only device has no IP and must still show its name in the scan list and the reports (D-484).
+func deviceLabel(d inventory.AssetCore) string {
+	if d.Hostname != nil && *d.Hostname != "" {
+		return *d.Hostname
+	}
+	var hw []string
+	for _, o := range []*inventory.Observed{d.Vendor, d.Model} {
+		if o != nil && strings.TrimSpace(o.Value) != "" {
+			hw = append(hw, strings.TrimSpace(o.Value))
+		}
+	}
+	if len(hw) > 0 {
+		return strings.Join(hw, " ")
+	}
+	return d.IP
+}
+
 func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 	if s.inv == nil {
 		return nil, fmt.Errorf("vedette: scan: the inventory is not wired")
@@ -103,11 +122,7 @@ func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 	}
 	out := make([]scan.Device, 0, len(list.Items))
 	for _, d := range list.Items {
-		label := d.IP
-		if d.Hostname != nil && *d.Hostname != "" {
-			label = *d.Hostname
-		}
-		sd := scan.Device{ID: d.ID, Label: label, IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile}
+		sd := scan.Device{ID: d.ID, Label: deviceLabel(d.AssetCore), IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile}
 		for _, sv := range d.Services {
 			if sv.Proto == "" || sv.Proto == "tcp" {
 				sd.Services = append(sd.Services, scan.OpenPort{Port: sv.Port, Name: sv.Name})

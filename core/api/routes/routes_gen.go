@@ -175,6 +175,7 @@ var Operations = map[string]Operation{
 	"findings_post_findings_id_ai":                          {Method: "POST", Path: "/findings/{id}/ai", MinRole: Operator, Tag: "findings"},
 	"findings_post_findings_id_applied":                     {Method: "POST", Path: "/findings/{id}/applied", MinRole: Operator, Tag: "findings"},
 	"findings_post_findings_id_status":                      {Method: "POST", Path: "/findings/{id}/status", MinRole: Operator, Tag: "findings"},
+	"findings_post_findings_status":                         {Method: "POST", Path: "/findings/status", MinRole: Operator, Tag: "findings"},
 	"honeypot_delete_honeypot_decoys_id":                    {Method: "DELETE", Path: "/honeypot/decoys/{id}", MinRole: Admin, Tag: "honeypot"},
 	"honeypot_delete_honeypot_tokens_id":                    {Method: "DELETE", Path: "/honeypot/tokens/{id}", MinRole: Admin, Tag: "honeypot"},
 	"honeypot_get_honeypot":                                 {Method: "GET", Path: "/honeypot", MinRole: Viewer, Tag: "honeypot"},

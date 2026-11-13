@@ -186,10 +186,28 @@ export function AskAi({ finding, skill, result, label, hint }: { finding: Findin
   )
 }
 
-/** Chưa có khuyến nghị đã xác nhận: thông tin gốc của CISA/hãng + hỏi AI của khách (S-MIT-1, D-21). */
+/** Liên kết trong ghi chú KEV: trang của CISA, NVD, còn lại coi là khuyến cáo của hãng (W1-31). */
+function linkKind(u: string): 'cisa' | 'nvd' | 'vendor' {
+  let host = ''
+  try { host = new URL(u).hostname.toLowerCase() } catch { return 'vendor' }
+  if (host === 'nvd.nist.gov') return 'nvd'
+  if (host === 'cisa.gov' || host.endsWith('.cisa.gov')) return 'cisa'
+  return 'vendor'
+}
+const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, '') } catch { return u } }
+
+/**
+ * Chưa có gói đã xác nhận (S-MIT-1, D-21, W1-31): nói hết điều hộp đang biết, không tự bịa biện pháp: yêu cầu và hạn của CISA,
+ * khuyến cáo của hãng và NVD từ ghi chú KEV, các bước kiểm tra phiên bản, rồi "Hỏi AI của tôi". Hộp chưa có dữ liệu phiên bản
+ * đã vá (cần feed mới, W1-29), nên trang nói thẳng chỗ lấy nó.
+ */
 export function NoPack({ finding }: { finding: FindingDetail }) {
   const { t } = useTranslation('findings')
   const k: KevInfo | null = finding.kev
+  const vendor = k?.links.filter((u) => linkKind(u) === 'vendor') ?? []
+  const other = k?.links.filter((u) => linkKind(u) !== 'vendor') ?? []
+  const device = finding.asset?.name || t('removedDevice')
+  const product = k?.display || t('rec.theSoftware')
   return (
     <div className="grid gap-5">
       <div className="rounded-md border border-dashed border-warn bg-warn-soft/60 px-4 py-3">
@@ -197,16 +215,38 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
         <p className="mt-1 max-w-3xl text-sm">{t('rec.noPackBody')}</p>
       </div>
       {k ? (
-        <div className="grid gap-2">
-          <h3 className="text-sm font-semibold">{t('rec.sourceTitle')}</h3>
-          <p className="text-[13px] text-muted">{t('rec.sourceHint', { date: fmtDate(k.date_added) })}</p>
-          <blockquote lang="en" className="max-w-3xl border-l-2 border-rule pl-3 text-sm">{k.required_action}</blockquote>
-          {k.due_date ? <p className="text-[13px]">{t('rec.dueDate', { date: fmtDate(k.due_date) })}</p> : null}
-          <ul className="grid gap-1 text-sm">
-            {k.links.map((u) => <li key={u}><a className="break-all text-accent underline underline-offset-4" href={u} target="_blank" rel="noopener noreferrer">{u}</a></li>)}
-          </ul>
-        </div>
-      ) : null}
+        <>
+          <div className="grid gap-2">
+            <h3 className="text-sm font-semibold">{t('rec.cisaTitle')}</h3>
+            <p className="text-[13px] text-muted">{t('rec.sourceHint', { date: fmtDate(k.date_added) })}</p>
+            <blockquote lang="en" className="max-w-3xl border-l-2 border-rule pl-3 text-sm">{k.required_action}</blockquote>
+            {k.due_date ? <p className="text-sm font-medium">{t('rec.dueDate', { date: fmtDate(k.due_date) })}</p> : null}
+            {k.ransomware ? <p className="text-[13px]">{t('rec.ransomware')}</p> : null}
+          </div>
+          <div className="grid gap-2">
+            <h3 className="text-sm font-semibold">{t('rec.fixTitle')}</h3>
+            <p className="max-w-3xl text-[13px] text-muted">{t('rec.noFixedVersion')}</p>
+            {vendor.length > 0 ? (
+              <ul className="grid gap-1 text-sm">
+                {vendor.map((u) => <li key={u}><a className="break-all text-accent underline underline-offset-4" href={u} target="_blank" rel="noopener noreferrer">{t('rec.vendorLink', { host: hostOf(u) })}</a></li>)}
+              </ul>
+            ) : <p className="text-sm">{t('rec.noVendorLink', { cve: finding.cve, product })}</p>}
+            {other.length > 0 ? (
+              <ul className="grid gap-1 text-[13px]">
+                {other.map((u) => <li key={u}><a className="break-all text-accent underline underline-offset-4" href={u} target="_blank" rel="noopener noreferrer">{t(`rec.${linkKind(u)}Link`)}</a></li>)}
+              </ul>
+            ) : null}
+          </div>
+          <div className="grid gap-2">
+            <h3 className="text-sm font-semibold">{t('rec.stepsTitle')}</h3>
+            <ol className="grid max-w-3xl list-decimal gap-1 pl-5 text-sm">
+              <li>{t('rec.step1', { device, product })}</li>
+              <li>{k.due_date ? t('rec.step2Due', { date: fmtDate(k.due_date) }) : t('rec.step2')}</li>
+              <li>{t('rec.step3')}</li>
+            </ol>
+          </div>
+        </>
+      ) : <p className="text-sm text-muted">{t('rec.noKev')}</p>}
       <div className="grid gap-2">
         <h3 className="text-sm font-semibold">{t('rec.askTitle')}</h3>
         <AskAi finding={finding} skill="mitigation-config" result={finding.ai.config} label={t('rec.askAi')} />

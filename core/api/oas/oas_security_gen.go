@@ -176,6 +176,7 @@ var operationRolesSession = map[string][]string{
 	FindingsPostFindingsIDAiOperation:                       []string{},
 	FindingsPostFindingsIDAppliedOperation:                  []string{},
 	FindingsPostFindingsIDStatusOperation:                   []string{},
+	FindingsPostFindingsStatusOperation:                     []string{},
 	HoneypotDeleteHoneypotDecoysIDOperation:                 []string{},
 	HoneypotDeleteHoneypotTokensIDOperation:                 []string{},
 	HoneypotGetHoneypotOperation:                            []string{},

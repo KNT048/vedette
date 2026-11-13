@@ -157,6 +157,7 @@ const (
 	FindingsPostFindingsIDAiOperation                       OperationName = "FindingsPostFindingsIDAi"
 	FindingsPostFindingsIDAppliedOperation                  OperationName = "FindingsPostFindingsIDApplied"
 	FindingsPostFindingsIDStatusOperation                   OperationName = "FindingsPostFindingsIDStatus"
+	FindingsPostFindingsStatusOperation                     OperationName = "FindingsPostFindingsStatus"
 	HoneypotDeleteHoneypotDecoysIDOperation                 OperationName = "HoneypotDeleteHoneypotDecoysID"
 	HoneypotDeleteHoneypotTokensIDOperation                 OperationName = "HoneypotDeleteHoneypotTokensID"
 	HoneypotGetHoneypotOperation                            OperationName = "HoneypotGetHoneypot"

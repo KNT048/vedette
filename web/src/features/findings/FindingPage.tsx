@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { ArrowLeft, ScanSearch } from 'lucide-react'
 import { PageHeader, Section, KeyValue, Panel } from '@/components/common/PageHeader'
 import { QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
-import { Chip, SeverityChip, StatusChip } from '@/components/common/StatusChip'
+import { Chip, StatusChip } from '@/components/common/StatusChip'
 import { SourceBadge } from '@/components/common/SourceBadge'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Slot } from '@/components/common/Slot'
@@ -16,9 +16,10 @@ import { RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { fmtDate, fmtDateTime, fmtPercent } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useFinding, useSetStatus } from './api'
-import { basisKey, deviceName, isOpen } from './basis'
+import { basisKey, deviceName, hasIp, isOpen, unverified } from './basis'
 import { errMsg } from './errors'
 import { AskAi, NoPack, PackView } from './Recommendation'
+import { RiskChip } from './Risk'
 import type { FindingDetail, StatusAction } from './types'
 
 const RESOLVE: StatusAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant']
@@ -87,8 +88,10 @@ function Evidence({ f }: { f: FindingDetail }) {
           <h3 className="text-sm font-semibold">{t('evidence.recheck')}</h3>
           <ol className="grid list-decimal gap-1 pl-5 text-sm">{f.recheck.steps.map((s) => <li key={s}>{s}</li>)}</ol>
           {f.recheck.code ? <CodeBlock code={f.recheck.code} label={t('evidence.recheckCode')} wrapOnPhone /> : null}
-          {f.asset ? (
+          {f.asset && hasIp(f.asset) ? (
             <Button asChild className="w-fit"><Link to={`/scans?target=${f.asset.id}`}><ScanSearch />{t('evidence.rescan')}</Link></Button>
+          ) : f.asset ? (
+            <p className="text-[13px] text-muted">{t('evidence.noIpScan')} <Link to={`/devices/${f.asset.id}`} className="text-accent underline underline-offset-4">{t('evidence.openDevice')}</Link></p>
           ) : null}
         </div>
       </Panel>
@@ -134,8 +137,8 @@ function Aside({ f }: { f: FindingDetail }) {
         <h2 id="dev-title" className="text-base font-semibold">{t('aside.device')}</h2>
         {f.asset ? (
           <Panel className="grid gap-1 p-4 text-sm">
-            <Link to={`/devices/${f.asset.id}`} className="w-fit font-medium text-accent underline-offset-4 hover:underline">{deviceName(f.asset, f.asset_id)}</Link>
-            <span className="text-muted">{f.asset.ip}</span>
+            <Link to={`/devices/${f.asset.id}`} className="w-fit font-medium text-accent underline-offset-4 hover:underline">{deviceName(f.asset, t('removedDevice'))}</Link>
+            <span className="text-muted">{hasIp(f.asset) ? f.asset.ip : t('noIp')}</span>
             <span>{f.asset.display}</span>
           </Panel>
         ) : <p className="text-sm text-muted">{t('aside.noDevice')}</p>}
@@ -164,7 +167,7 @@ function Detail({ f }: { f: FindingDetail }) {
   const set = useSetStatus(f.id)
   const [open, setOpen] = useState(false)
   const opener = useRef<HTMLButtonElement>(null)
-  const name = deviceName(f.asset, f.asset_id)
+  const name = deviceName(f.asset, t('removedDevice'))
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   return (
     <>
@@ -173,7 +176,8 @@ function Detail({ f }: { f: FindingDetail }) {
         stories={['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2']}
         meta={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <StatusChip status={f.status} /><SeverityChip severity={f.severity} />
+            <StatusChip status={f.status} /><RiskChip f={f} />
+            {unverified(f) ? <span className="text-muted">{t('risk.unverifiedLine')}</span> : null}
             {f.kev?.ransomware ? <Chip tone="danger">{t('meta.ransomware')}</Chip> : null}
             <span>{t('meta.seen', { first: fmtDate(f.first_seen), last: fmtDateTime(f.last_seen) })}</span>
             {f.kev?.due_date && isOpen(f.status) ? <span>{t('meta.due', { date: fmtDate(f.kev.due_date) })}</span> : null}

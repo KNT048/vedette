@@ -2,8 +2,10 @@ package feeds
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // The reads of the weekly sentences and of the lookup box answer from SQL (ORDER BY, LIMIT, an index on
@@ -96,6 +98,32 @@ func (s *Store) pendingDevices(ctx context.Context) ([]string, error) {
 			return nil, fmt.Errorf("feeds: read pending devices: %w", err)
 		}
 		out = append(out, k)
+	}
+	return out, rows.Err()
+}
+
+// HaveSince maps the product key of every "I have this" answer that declared a device (S-FEED-2) to the CISA date its alerts
+// start from: the date of the entry the person answered, that is the newest entry of the product added on or before the
+// answer. findings matches a version-less product of that key only against entries of that date or later, so "I have
+// this" means "alert me about this product", not "I have every flaw of it since 2009" (D-484).
+func (s *Store) HaveSince(ctx context.Context) (map[string]time.Time, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.key, max(v.date_added) FROM feeds_weekly_answer a
+		JOIN feeds_vuln v ON v.product_key = a.key AND v.source_id = 'cisa-kev' AND v.date_added <= substr(a.answered_at, 1, 10)
+		WHERE a.device_added = 1 GROUP BY a.key`)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: read answered products: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]time.Time{}
+	for rows.Next() {
+		var k string
+		var d sql.NullString
+		if err := rows.Scan(&k, &d); err != nil {
+			return nil, fmt.Errorf("feeds: read answered products: %w", err)
+		}
+		if t, err := time.Parse(time.DateOnly, d.String); err == nil {
+			out[k] = t
+		}
 	}
 	return out, rows.Err()
 }

@@ -51,11 +51,11 @@
   },
   "weekly": {
     "title": "This week in plain words",
-    "description": "What is under attack, in plain words. Click \"I have this\" to get alerts for that product.",
+    "description": "What is under attack, in plain words. Click \"I have this\" to get alerts for that product: this flaw and every new one from now on. Older flaws of the product are not listed unless you add the product with its version to a device.",
     "have": "I have this",
     "notRelevant": "Not relevant",
-    "added": "Added to your devices",
-    "addedToast": "Added to your device list. You will get alerts for this product.",
+    "added": "Alerts on for this product",
+    "addedToast": "Done. This flaw is now a finding, and you will get alerts for new exploited flaws in this product. Add the product with its version to the right device for an exact check.",
     "hiddenToast": "Item hidden."
   },
   "lookup": {

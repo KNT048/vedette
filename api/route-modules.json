@@ -202,6 +202,7 @@
   "POST /feeds/parse-test": "feeds",
   "POST /feeds/sources/{id}/fetch": "feeds",
   "POST /feeds/weekly/{id}": "feeds",
+  "POST /findings/status": "findings",
   "POST /findings/{id}/ai": "mitigation",
   "POST /findings/{id}/applied": "mitigation",
   "POST /findings/{id}/status": "findings",

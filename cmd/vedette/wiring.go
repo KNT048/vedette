@@ -124,9 +124,13 @@ func (a findingsInventory) Assets(ctx context.Context, ids []string) (map[string
 	if err != nil {
 		return nil, err
 	}
+	names, err := a.inv.Names(ctx) // the Devices page's name (hostname, else vendor and model, else IP), as notify and reports use it
+	if err != nil {
+		return nil, err
+	}
 	out := make(map[string]findings.AssetView, len(refs))
 	for id, r := range refs {
-		out[id] = findings.AssetView{ID: r.ID, Hostname: r.Hostname, IP: r.IP, Kind: r.Kind, Display: r.Display}
+		out[id] = findings.AssetView{ID: r.ID, Name: names[id], Hostname: r.Hostname, IP: r.IP, Kind: r.Kind, Display: r.Display}
 	}
 	return out, nil
 }
@@ -146,6 +150,15 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 		return findings.Asset{}, false, err
 	}
 	out := findings.Asset{ID: d.ID, Name: d.Name, Software: make([]findings.Software, len(d.Software))}
+	if d.Name == d.ID { // no hostname and no IP (hand-added, LLDP only): the evidence names it as the Devices page does, never by its id (D-484)
+		names, err := a.inv.Names(ctx)
+		if err != nil {
+			return findings.Asset{}, false, err
+		}
+		if n := names[d.ID]; n != "" && n != d.ID {
+			out.Name = n
+		}
+	}
 	for i, s := range d.Software {
 		out.Software[i] = findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE}
 	}
@@ -272,7 +285,8 @@ func buildServices(ctx context.Context, d *deps) error {
 	inv := findingsInventory{d.Inventory}
 	feed := findingsFeeds{fs.Store()}
 	// Backlog: findings the reconcile job creates for old KEV entries are D-78 backlog, silent for notify (findings does not import notify).
-	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Backlog: notify.WithBaseline}
+	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Backlog: notify.WithBaseline,
+		HaveSince: fs.Store().HaveSince} // "I have this" on Home alerts from the answered entry on (D-484)
 	if d.Bus != nil {
 		cfg.Publisher = findingsPublisher{d.Bus}
 	}

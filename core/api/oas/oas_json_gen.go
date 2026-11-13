@@ -104571,14 +104571,19 @@ func (s *FindingsGetFindingsIDOKAsset) encodeFields(e *jx.Encoder) {
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKAsset = [5]string{
+var jsonFieldsNameOfFindingsGetFindingsIDOKAsset = [6]string{
 	0: "display",
 	1: "hostname",
 	2: "id",
 	3: "ip",
 	4: "kind",
+	5: "name",
 }
 
 // Decode decodes FindingsGetFindingsIDOKAsset from json.
@@ -104646,6 +104651,18 @@ func (s *FindingsGetFindingsIDOKAsset) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "name":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -104656,7 +104673,7 @@ func (s *FindingsGetFindingsIDOKAsset) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -108291,14 +108308,19 @@ func (s *FindingsGetFindingsOKItemsItemAsset) encodeFields(e *jx.Encoder) {
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOKItemsItemAsset = [5]string{
+var jsonFieldsNameOfFindingsGetFindingsOKItemsItemAsset = [6]string{
 	0: "display",
 	1: "hostname",
 	2: "id",
 	3: "ip",
 	4: "kind",
+	5: "name",
 }
 
 // Decode decodes FindingsGetFindingsOKItemsItemAsset from json.
@@ -108366,6 +108388,18 @@ func (s *FindingsGetFindingsOKItemsItemAsset) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "name":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -108376,7 +108410,7 @@ func (s *FindingsGetFindingsOKItemsItemAsset) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -111056,14 +111090,19 @@ func (s *FindingsPostFindingsIDAiOKAsset) encodeFields(e *jx.Encoder) {
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKAsset = [5]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKAsset = [6]string{
 	0: "display",
 	1: "hostname",
 	2: "id",
 	3: "ip",
 	4: "kind",
+	5: "name",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKAsset from json.
@@ -111131,6 +111170,18 @@ func (s *FindingsPostFindingsIDAiOKAsset) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "name":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -111141,7 +111192,7 @@ func (s *FindingsPostFindingsIDAiOKAsset) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -116281,14 +116332,19 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) encodeFields(e *jx.Encoder) {
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKAsset = [5]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKAsset = [6]string{
 	0: "display",
 	1: "hostname",
 	2: "id",
 	3: "ip",
 	4: "kind",
+	5: "name",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKAsset from json.
@@ -116356,6 +116412,18 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "name":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -116366,7 +116434,7 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -121512,14 +121580,19 @@ func (s *FindingsPostFindingsIDStatusOKAsset) encodeFields(e *jx.Encoder) {
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKAsset = [5]string{
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKAsset = [6]string{
 	0: "display",
 	1: "hostname",
 	2: "id",
 	3: "ip",
 	4: "kind",
+	5: "name",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKAsset from json.
@@ -121587,6 +121660,18 @@ func (s *FindingsPostFindingsIDStatusOKAsset) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "name":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -121597,7 +121682,7 @@ func (s *FindingsPostFindingsIDStatusOKAsset) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -124906,6 +124991,286 @@ func (s FindingsPostFindingsIDStatusReqAction) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FindingsPostFindingsIDStatusReqAction) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsPostFindingsStatusOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsPostFindingsStatusOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("updated")
+		e.Int(s.Updated)
+	}
+}
+
+var jsonFieldsNameOfFindingsPostFindingsStatusOK = [1]string{
+	0: "updated",
+}
+
+// Decode decodes FindingsPostFindingsStatusOK from json.
+func (s *FindingsPostFindingsStatusOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsPostFindingsStatusOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "updated":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Updated = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"updated\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsPostFindingsStatusOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsPostFindingsStatusOK) {
+					name = jsonFieldsNameOfFindingsPostFindingsStatusOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsPostFindingsStatusOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsPostFindingsStatusOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsPostFindingsStatusReq) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsPostFindingsStatusReq) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		s.Action.Encode(e)
+	}
+	{
+		e.FieldStart("ids")
+		e.ArrStart()
+		for _, elem := range s.Ids {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("note")
+		e.Str(s.Note)
+	}
+}
+
+var jsonFieldsNameOfFindingsPostFindingsStatusReq = [3]string{
+	0: "action",
+	1: "ids",
+	2: "note",
+}
+
+// Decode decodes FindingsPostFindingsStatusReq from json.
+func (s *FindingsPostFindingsStatusReq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsPostFindingsStatusReq to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Action.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "ids":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.Ids = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Ids = append(s.Ids, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ids\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Note = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsPostFindingsStatusReq")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsPostFindingsStatusReq) {
+					name = jsonFieldsNameOfFindingsPostFindingsStatusReq[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsPostFindingsStatusReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsPostFindingsStatusReq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsPostFindingsStatusReqAction as json.
+func (s FindingsPostFindingsStatusReqAction) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsPostFindingsStatusReqAction from json.
+func (s *FindingsPostFindingsStatusReqAction) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsPostFindingsStatusReqAction to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsPostFindingsStatusReqAction(v) {
+	case FindingsPostFindingsStatusReqActionPatched:
+		*s = FindingsPostFindingsStatusReqActionPatched
+	case FindingsPostFindingsStatusReqActionMitigated:
+		*s = FindingsPostFindingsStatusReqActionMitigated
+	case FindingsPostFindingsStatusReqActionFalsePositive:
+		*s = FindingsPostFindingsStatusReqActionFalsePositive
+	case FindingsPostFindingsStatusReqActionNotRelevant:
+		*s = FindingsPostFindingsStatusReqActionNotRelevant
+	default:
+		*s = FindingsPostFindingsStatusReqAction(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsPostFindingsStatusReqAction) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsPostFindingsStatusReqAction) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -251076,6 +251441,8 @@ func (s *ScanGetScansTargetsOKItemsItemReason) Decode(d *jx.Decoder) error {
 		*s = ScanGetScansTargetsOKItemsItemReasonExcluded
 	case ScanGetScansTargetsOKItemsItemReasonOutOfScope:
 		*s = ScanGetScansTargetsOKItemsItemReasonOutOfScope
+	case ScanGetScansTargetsOKItemsItemReasonNoIP:
+		*s = ScanGetScansTargetsOKItemsItemReasonNoIP
 	case ScanGetScansTargetsOKItemsItemReasonBox:
 		*s = ScanGetScansTargetsOKItemsItemReasonBox
 	case ScanGetScansTargetsOKItemsItemReasonRegularScanNever:

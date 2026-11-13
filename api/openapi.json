@@ -25494,6 +25494,10 @@
                                   "id": {
                                     "type": "string"
                                   },
+                                  "name": {
+                                    "type": "string",
+                                    "description": "The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id (D-484)"
+                                  },
                                   "hostname": {
                                     "type": [
                                       "string",
@@ -25501,7 +25505,8 @@
                                     ]
                                   },
                                   "ip": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "description": "\"—\" when the device has no IP address"
                                   },
                                   "kind": {
                                     "type": "string",
@@ -25527,6 +25532,7 @@
                                 },
                                 "required": [
                                   "id",
+                                  "name",
                                   "hostname",
                                   "ip",
                                   "kind",
@@ -25835,6 +25841,10 @@
                             "id": {
                               "type": "string"
                             },
+                            "name": {
+                              "type": "string",
+                              "description": "The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id (D-484)"
+                            },
                             "hostname": {
                               "type": [
                                 "string",
@@ -25842,7 +25852,8 @@
                               ]
                             },
                             "ip": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "\"—\" when the device has no IP address"
                             },
                             "kind": {
                               "type": "string",
@@ -25868,6 +25879,7 @@
                           },
                           "required": [
                             "id",
+                            "name",
                             "hostname",
                             "ip",
                             "kind",
@@ -26796,6 +26808,10 @@
                             "id": {
                               "type": "string"
                             },
+                            "name": {
+                              "type": "string",
+                              "description": "The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id (D-484)"
+                            },
                             "hostname": {
                               "type": [
                                 "string",
@@ -26803,7 +26819,8 @@
                               ]
                             },
                             "ip": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "\"—\" when the device has no IP address"
                             },
                             "kind": {
                               "type": "string",
@@ -26829,6 +26846,7 @@
                           },
                           "required": [
                             "id",
+                            "name",
                             "hostname",
                             "ip",
                             "kind",
@@ -27759,6 +27777,10 @@
                             "id": {
                               "type": "string"
                             },
+                            "name": {
+                              "type": "string",
+                              "description": "The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id (D-484)"
+                            },
                             "hostname": {
                               "type": [
                                 "string",
@@ -27766,7 +27788,8 @@
                               ]
                             },
                             "ip": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "\"—\" when the device has no IP address"
                             },
                             "kind": {
                               "type": "string",
@@ -27792,6 +27815,7 @@
                           },
                           "required": [
                             "id",
+                            "name",
                             "hostname",
                             "ip",
                             "kind",
@@ -28727,6 +28751,10 @@
                             "id": {
                               "type": "string"
                             },
+                            "name": {
+                              "type": "string",
+                              "description": "The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id (D-484)"
+                            },
                             "hostname": {
                               "type": [
                                 "string",
@@ -28734,7 +28762,8 @@
                               ]
                             },
                             "ip": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "\"—\" when the device has no IP address"
                             },
                             "kind": {
                               "type": "string",
@@ -28760,6 +28789,7 @@
                           },
                           "required": [
                             "id",
+                            "name",
                             "hostname",
                             "ip",
                             "kind",
@@ -29465,6 +29495,93 @@
                     "ai",
                     "ai_available",
                     "applied"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/findings/status": {
+      "post": {
+        "operationId": "findings_post_findings_status",
+        "summary": "Change the status of several findings at once with one note (at most 500); one history and audit row per finding, all or nothing",
+        "tags": [
+          "findings"
+        ],
+        "x-stories": [
+          "S-MIT-1"
+        ],
+        "x-min-role": "operator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "minItems": 1,
+                    "maxItems": 500,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    }
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "patched",
+                      "mitigated",
+                      "false_positive",
+                      "not_relevant"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "ids",
+                  "action",
+                  "note"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "updated": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "updated"
                   ],
                   "additionalProperties": false
                 }
@@ -59959,6 +60076,7 @@
                                   "unapproved",
                                   "excluded",
                                   "out_of_scope",
+                                  "no_ip",
                                   "box",
                                   "regular_scan_never",
                                   "unverified",

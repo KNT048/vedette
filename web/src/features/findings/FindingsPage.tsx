@@ -1,17 +1,25 @@
-import { useMemo, useState } from 'react'
+import { useRef, useState, type RefObject } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { X } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
-import { SeverityChip, StatusChip } from '@/components/common/StatusChip'
+import { StatusChip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
+import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
+import { Field, Input, Select, Textarea } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
-import { useFindings } from './api'
-import { basisKey, isOpen } from './basis'
-import type { FindingRow } from './types'
+import { useCan } from '@/lib/session'
+import { useBulkStatus, useFindings } from './api'
+import { basisKey, deviceName, hasIp, isOpen, riskRank, unverified } from './basis'
+import { MAX_BULK } from './contract'
+import { errMsg } from './errors'
+import { RiskChip } from './Risk'
+import type { BulkAction, FindingRow } from './types'
 
 type Filter = 'open' | 'confirmed' | 'suspected' | 'resolved' | 'all'
 const match: Record<Filter, (f: FindingRow) => boolean> = {
@@ -21,31 +29,103 @@ const match: Record<Filter, (f: FindingRow) => boolean> = {
   resolved: (f) => !isOpen(f.status),
   all: () => true,
 }
+/** Độ chắc chắn (D-484): tất cả / đã xác nhận hoặc theo phiên bản / chỉ khớp tên sản phẩm. */
+type Certainty = 'all' | 'likely' | 'unverified'
+const certain: Record<Certainty, (f: FindingRow) => boolean> = { all: () => true, likely: (f) => !unverified(f), unverified }
+const BULK: BulkAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant']
+
+/** Một hành động, một ghi chú cho các phát hiện đã chọn (W1-12): mỗi phát hiện vẫn có dòng lịch sử và kiểm toán riêng. */
+function BulkDialog({ ids, open, onOpenChange, opener, onDone }: { ids: string[]; open: boolean; onOpenChange: (v: boolean) => void; opener: RefObject<HTMLButtonElement | null>; onDone: () => void }) {
+  const { t } = useTranslation('findings')
+  const bulk = useBulkStatus()
+  const [action, setAction] = useState<BulkAction>('patched')
+  const [note, setNote] = useState('')
+  const [error, setError] = useState<string | undefined>()
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) { setWasOpen(open); if (open) { setAction('patched'); setNote(''); setError(undefined) } }
+  const needNote = action === 'false_positive' || action === 'not_relevant'
+  function submit() {
+    if (needNote && note.trim().length < 3) { setError(t('status.noteRequired')); return }
+    setError(undefined)
+    bulk.mutate({ ids, action, note: note.trim() }, {
+      onSuccess: (r) => { toast.success(t('bulk.done', { count: r.updated })); onOpenChange(false); onDone() },
+      onError: (e) => setError(errMsg(e)),
+    })
+  }
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent title={t('bulk.title', { count: ids.length })} description={t('bulk.description')} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
+        <RadioGroup value={action} onValueChange={(v) => { setAction(v as BulkAction); setError(undefined) }} aria-label={t('status.title')}>
+          {BULK.map((a) => (
+            <div key={a} className="flex items-start gap-2.5">
+              <RadioItem id={`bulk-${a}`} value={a} className="mt-1" />
+              <label htmlFor={`bulk-${a}`} className="grid text-sm"><span className="font-medium">{t(`status.${a}`)}</span><span className="text-[13px] text-muted">{t(`status.${a}Hint`)}</span></label>
+            </div>
+          ))}
+        </RadioGroup>
+        <Field htmlFor="bulk-note" label={needNote ? t('status.noteLabelRequired') : t('status.noteLabel')} hint={t('bulk.noteHint')} error={error}>
+          <Textarea id="bulk-note" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} aria-invalid={!!error} aria-describedby={error ? 'bulk-note-error' : undefined} />
+        </Field>
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button>
+          <Button variant="primary" disabled={bulk.isPending} onClick={submit}>{t('bulk.submit', { count: ids.length })}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 function List() {
   const { t } = useTranslation('findings')
   const navigate = useNavigate()
+  const can = useCan('operator')
   const [params, setParams] = useSearchParams()
   const cve = params.get('cve')?.toUpperCase() ?? ''
+  const device = params.get('device') ?? ''
+  const product = params.get('product') ?? ''
+  const setParam = (k: string, v: string) => { if (v) params.set(k, v); else params.delete(k); setParams(params, { replace: true }) }
   const [filter, setFilter] = useState<Filter>('open')
+  const [certainty, setCertainty] = useState<Certainty>('all')
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const opener = useRef<HTMLButtonElement>(null)
   const q = useFindings()
   const items = q.data?.items
   const open = items?.filter((f) => isOpen(f.status)).length ?? 0
   const confirmed = items?.filter((f) => f.status === 'confirmed').length ?? 0
-  const rows = useMemo(() => (items ?? []).filter(match[filter]).filter((f) => !cve || f.cve === cve), [items, filter, cve])
+  const name = (r: FindingRow) => deviceName(r.asset, t('removedDevice'))
+  const devices = [...new Map((items ?? []).map((f) => [f.asset_id, name(f)])).entries()].sort((a, b) => a[1].localeCompare(b[1]))
+  const products = [...new Set((items ?? []).map((f) => f.kev?.display ?? '').filter(Boolean))].sort()
+  const s = search.trim().toLowerCase()
+  const rows = (items ?? []).filter(match[filter]).filter(certain[certainty])
+    .filter((f) => (!cve || f.cve === cve) && (!device || f.asset_id === device) && (!product || f.kev?.display === product))
+    .filter((f) => !s || [f.cve, name(f), f.asset?.ip ?? '', f.kev?.display ?? ''].some((v) => v.toLowerCase().includes(s)))
+  // Only what is shown can stay selected: changing a filter never acts on hidden rows.
+  const shown = rows.filter((r) => selected.has(r.id)).map((r) => r.id)
+  const allShown = rows.length > 0 && shown.length === rows.length
+  const toggle = (id: string, on: boolean) => setSelected((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n })
+  const toggleAll = (on: boolean) => setSelected(on ? new Set(rows.map((r) => r.id)) : new Set())
 
+  const pick = (r: FindingRow) => (
+    // A click on the box selects; it never opens the finding (the row click does).
+    <span onClick={(e) => e.stopPropagation()} className="inline-flex">
+      <Checkbox checked={selected.has(r.id)} onCheckedChange={(v) => toggle(r.id, v === true)} aria-label={t('bulk.select', { cve: r.cve, device: name(r) })} />
+    </span>
+  )
   const columns: ColumnDef<FindingRow>[] = [
-    { id: 'device', header: t('col.device'), accessorFn: (r) => r.asset?.hostname ?? r.asset_id, cell: ({ row: { original: r } }) => (
+    ...(can ? [{ id: 'select', enableSorting: false, header: () => <Checkbox checked={allShown ? true : shown.length > 0 ? 'indeterminate' : false} onCheckedChange={(v) => toggleAll(v === true)} aria-label={t('bulk.selectAll', { count: rows.length })} />, cell: ({ row: { original: r } }) => pick(r) } satisfies ColumnDef<FindingRow>] : []),
+    { id: 'device', header: t('col.device'), accessorFn: (r) => name(r), cell: ({ row: { original: r } }) => (
       <div className="grid">
-        {r.asset ? <Link to={`/devices/${r.asset.id}`} className="w-fit font-medium text-accent underline-offset-4 hover:underline">{r.asset.hostname ?? r.asset.ip}</Link> : <span className="font-medium">{r.asset_id}</span>}
-        <span className="text-[12px] text-muted">{r.asset?.ip}</span>
+        {r.asset ? <Link to={`/devices/${r.asset.id}`} className="w-fit font-medium text-accent underline-offset-4 hover:underline">{name(r)}</Link> : <span className="font-medium">{name(r)}</span>}
+        <span className="text-[12px] text-muted">{hasIp(r.asset) ? r.asset?.ip : r.asset ? t('noIp') : ''}</span>
       </div>
     ) },
     { id: 'cve', header: t('col.cve'), accessorFn: (r) => r.cve, cell: ({ row: { original: r } }) => <Link to={`/findings/${r.id}`} className="whitespace-nowrap font-medium text-accent underline-offset-4 hover:underline">{r.cve}</Link> },
     { id: 'product', header: t('col.product'), accessorFn: (r) => r.kev?.display ?? '', cell: ({ row: { original: r } }) => <span>{r.kev?.display ?? '–'}</span> },
     { id: 'status', header: t('col.status'), accessorFn: (r) => r.status, cell: ({ row: { original: r } }) => <StatusChip status={r.status} /> },
-    { id: 'severity', header: t('col.severity'), accessorFn: (r) => ['info', 'low', 'medium', 'high', 'critical'].indexOf(r.severity), cell: ({ row: { original: r } }) => <SeverityChip severity={r.severity} /> },
-    { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row: { original: r } }) => <span className="text-[13px]">{t(basisKey(r.basis))}</span> },
+    { id: 'severity', header: t('col.severity'), accessorFn: riskRank, cell: ({ row: { original: r } }) => <RiskChip f={r} /> },
+    { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row: { original: r } }) => <span className={unverified(r) ? 'text-[13px] text-muted' : 'text-[13px]'}>{t(basisKey(r.basis))}</span> },
     { id: 'seen', header: t('col.lastSeen'), accessorFn: (r) => r.last_seen, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap text-[13px] text-muted" title={fmtDateTime(r.last_seen)}>{fmtRelative(r.last_seen)}</span> },
   ]
 
@@ -57,12 +137,36 @@ function List() {
         meta={t('intro')}
         actions={<SampleDataNote />}
       />
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="max-w-full overflow-x-auto">
-          <Segmented<Filter> label={t('filterLabel')} value={filter} onChange={setFilter} options={(['open', 'confirmed', 'suspected', 'resolved', 'all'] as Filter[]).map((v) => ({ value: v, label: t(`filters.${v}`) }))} />
+      <div className="mb-3 grid gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="max-w-full overflow-x-auto">
+            <Segmented<Filter> label={t('filterLabel')} value={filter} onChange={setFilter} options={(['open', 'confirmed', 'suspected', 'resolved', 'all'] as Filter[]).map((v) => ({ value: v, label: t(`filters.${v}`) }))} />
+          </div>
+          <div className="max-w-full overflow-x-auto">
+            <Segmented<Certainty> label={t('certainty.label')} value={certainty} onChange={setCertainty} options={(['all', 'likely', 'unverified'] as Certainty[]).map((v) => ({ value: v, label: t(`certainty.${v}`) }))} />
+          </div>
+          {cve ? (
+            <Button size="sm" onClick={() => setParam('cve', '')}><X />{t('clearCve', { cve })}</Button>
+          ) : null}
         </div>
-        {cve ? (
-          <Button size="sm" onClick={() => { params.delete('cve'); setParams(params) }}><X />{t('clearCve', { cve })}</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input className="h-9 w-full sm:max-w-xs" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('filter')} aria-label={t('filter')} />
+          <Select className="w-full sm:w-auto sm:max-w-64" value={device} onChange={(e) => setParam('device', e.target.value)} aria-label={t('deviceFilter')}>
+            <option value="">{t('allDevices')}</option>
+            {devices.map(([id, n]) => <option key={id} value={id}>{n}</option>)}
+          </Select>
+          <Select className="w-full sm:w-auto sm:max-w-64" value={product} onChange={(e) => setParam('product', e.target.value)} aria-label={t('productFilter')}>
+            <option value="">{t('allProducts')}</option>
+            {products.map((p) => <option key={p} value={p}>{p}</option>)}
+          </Select>
+        </div>
+        {can && shown.length > 0 ? (
+          <div role="region" aria-label={t('bulk.region')} className="flex flex-wrap items-center gap-2 rounded-md border border-rule bg-sunken px-3 py-2 text-sm">
+            <span className="font-medium">{t('bulk.selected', { count: shown.length })}</span>
+            {shown.length > MAX_BULK ? <span className="text-[13px] text-danger">{t('bulk.tooMany', { max: MAX_BULK })}</span> : null}
+            <Button ref={opener} size="sm" variant="primary" disabled={shown.length > MAX_BULK} onClick={() => setBulkOpen(true)}>{t('status.mark')}</Button>
+            <Button size="sm" onClick={() => setSelected(new Set())}>{t('bulk.clear')}</Button>
+          </div>
         ) : null}
       </div>
       <QueryState query={q}>
@@ -71,25 +175,27 @@ function List() {
             caption={t('caption')}
             data={rows}
             columns={columns}
-            filterPlaceholder={t('filter')}
             initialSort={[{ id: 'severity', desc: true }]}
             onRowClick={(r) => navigate(`/findings/${r.id}`)}
             mobileRow={(r) => (
-              <div className="grid gap-1.5">
-                <div className="flex items-start justify-between gap-3">
-                  <Link to={`/findings/${r.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.cve}</Link>
-                  <StatusChip status={r.status} />
-                </div>
-                <span className="text-sm">{r.asset?.hostname ?? r.asset?.ip ?? r.asset_id}<span className="text-muted">{r.asset ? ` (${r.asset.ip})` : ''}</span></span>
-                <span className="text-[13px] text-muted">{r.kev?.display ?? '–'}</span>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
-                  <SeverityChip severity={r.severity} />
-                  <span>{t(basisKey(r.basis))}</span>
-                  <span className="text-muted">{fmtRelative(r.last_seen)}</span>
+              <div className="flex items-start gap-3">
+                {can ? <span className="pt-0.5">{pick(r)}</span> : null}
+                <div className="grid flex-1 gap-1.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <Link to={`/findings/${r.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.cve}</Link>
+                    <StatusChip status={r.status} />
+                  </div>
+                  <span className="text-sm">{name(r)}<span className="text-muted">{hasIp(r.asset) ? ` (${r.asset?.ip})` : r.asset ? ` (${t('noIp')})` : ''}</span></span>
+                  <span className="text-[13px] text-muted">{r.kev?.display ?? '–'}</span>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+                    <RiskChip f={r} />
+                    <span>{t(basisKey(r.basis))}</span>
+                    <span className="text-muted">{fmtRelative(r.last_seen)}</span>
+                  </div>
                 </div>
               </div>
             )}
-            rowTone={(r) => (r.status === 'confirmed' ? 'danger' : r.status === 'suspected' ? 'warn' : undefined)}
+            rowTone={(r) => (r.status === 'confirmed' ? 'danger' : r.status === 'suspected' && !unverified(r) ? 'warn' : undefined)}
             empty={
               <EmptyState title={cve ? t('emptyCve', { cve }) : filter === 'open' ? t('emptyOpen') : t('emptyFilter')}>
                 {t('emptyHelp')}{' '}
@@ -100,6 +206,7 @@ function List() {
           />
         )}
       </QueryState>
+      <BulkDialog ids={shown} open={bulkOpen} onOpenChange={setBulkOpen} opener={opener} onDone={() => setSelected(new Set())} />
     </>
   )
 }

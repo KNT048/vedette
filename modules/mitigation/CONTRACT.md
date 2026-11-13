@@ -13,7 +13,7 @@ Mitigation là phần **"What to do"** của một finding: gói giảm thiểu 
 - **INV-6**: Dấu hiệu "Tôi đã bị chưa?" và lệnh kiểm tra chỉ là văn bản từ nội dung ký; Vedette không bao giờ chạy chúng.
 
 ## Preconditions / Postconditions
-- **PRE-1** (`Guidance(finding)`, nguồn của phần "What to do" trong `GET /findings/{id}`): finding tồn tại (do `findings` kiểm). **POST-1**: trả `pack`, `compromise`, `recheck`, `ai`, `ai_available {explain, config}`, `applied`; thiết bị thay vào `{IP}`/`{HOST}` theo INV-4.
+- **PRE-1** (`Guidance(finding)`, nguồn của phần "What to do" trong `GET /findings/{id}`): finding tồn tại (do `findings` kiểm). **POST-1**: trả `pack`, `compromise`, `recheck`, `ai`, `ai_available {explain, config}`, `applied`; thiết bị thay vào `{IP}`/`{HOST}` theo INV-4. `recheck` chung (gói không có) gọi thiết bị bằng `AssetView.Name` (không bao giờ id), không giả định trang quản trị, và chỉ nhắc "Rescan this device" khi thiết bị có IP (D-484, W1-32).
 - **PRE-2** (`POST /findings/{id}/applied`, `…/ai`): `operator`. **POST-2**: trả `FindingDetail` mới; thất bại không đổi gì.
 
 ## Forbidden

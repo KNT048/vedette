@@ -47,10 +47,16 @@ func TestMatchAsset_NoVersionIsOneItemNotAFinding(t *testing.T) {
 	}
 }
 
+// D-505: a "Multiple Products" entry is keyed by the vendor, but only NVD can tie it to the software: no NVD data gives no
+// finding (a vendor-wide guess), and an NVD entry that may name the software (product ANY) gives a product finding.
 func TestMatchAsset_MultipleProductsMatchesVendor(t *testing.T) {
 	t.Parallel()
 	a := Asset{ID: "a", Name: "fw", Software: []Software{{ID: "s", Display: "FortiOS", Version: "7.0.1", KevKeys: []string{"fortinet|fortios"}}}}
 	v := Vuln{CVE: "CVE-2023-0001", Vendor: "Fortinet", Product: "Multiple Products", EPSS: 0.1}
+	if r := MatchAsset(a, []Vuln{v}, nil, t0); len(r.New) != 0 {
+		t.Fatalf("no NVD data yet, but a finding: %+v", r)
+	}
+	v.Affected = []Affected{{CPE: "cpe:2.3:o:fortinet:*:*:*:*:*:*:*:*:*"}}
 	m := MatchAsset(a, []Vuln{v}, nil, t0).New[0]
 	if m.Basis != BasisProduct || m.Confidence != 0.3 {
 		t.Fatalf("match = %+v", m)

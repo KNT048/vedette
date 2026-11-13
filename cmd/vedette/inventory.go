@@ -91,7 +91,10 @@ func inventoryJobs(d deps) []jobs.Job {
 			}
 			cancel()
 		}
-		if _, err := svc.EnsureBox(ctx, inventory.BoxInfo{Hostname: host, IP: ip, ContainerOnly: d.Reg != nil && d.Reg.ContainerOnly()}); err != nil {
+		// The box's OS from the same answer of the host (W3-8): findings judge OS-release NVD entries (CVE-2021-3493) by it, as on an
+		// agent host. "" (no host, or no answer yet) keeps what the row has.
+		box := inventory.BoxInfo{Hostname: host, IP: ip, OS: d.BoxName.OS(), ContainerOnly: d.Reg != nil && d.Reg.ContainerOnly()}
+		if _, err := svc.EnsureBox(ctx, box); err != nil {
 			return err
 		}
 		return svc.RefreshBoxPackages(ctx)

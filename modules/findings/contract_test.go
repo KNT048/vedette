@@ -116,10 +116,14 @@ func TestContract_INV4_KeyAndRanges(t *testing.T) {
 	if KevKey(" QNAP", "Photo Station ") != "qnap|photo station" {
 		t.Error("KevKey")
 	}
-	// multiple products match by vendor
+	// multiple products are keyed by vendor, but only an NVD entry naming the software gives a finding (D-505)
 	multi := Vuln{CVE: "CVE-2023-0001", Vendor: "QNAP", Product: "Multiple products"}
-	if r := MatchAsset(nas("1"), []Vuln{multi}, nil, t0); len(r.New) != 1 || r.New[0].Confidence != ConfVendorOnly {
-		t.Errorf("multiple products: %+v", r)
+	if r := MatchAsset(nas("1"), []Vuln{multi}, nil, t0); len(r.New) != 0 {
+		t.Errorf("multiple products without NVD data: %+v", r)
+	}
+	multi.Affected = []Affected{{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}}}
+	if r := MatchAsset(nas("6.1.1"), []Vuln{multi}, nil, t0); len(r.New) != 1 || r.New[0].Basis != BasisVersion {
+		t.Errorf("multiple products naming the software: %+v", r)
 	}
 	// inside the range: version; outside every range: nothing
 	if r := MatchAsset(nas("6.1.1"), []Vuln{qnapVuln(af)}, nil, t0); len(r.New) != 1 || r.New[0].Basis != BasisVersion {

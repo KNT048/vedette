@@ -255,9 +255,11 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 		if err := s.autoResolve(ctx, tx, a.ID, m.NotAffected, now, emit); err != nil {
 			return err
 		}
-		if err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, now); err != nil {
+		n, err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, now)
+		if err != nil {
 			return err
 		}
+		res.Regraded += n
 		return replaceVersionNeeded(ctx, tx, a.ID, m.NeedVersion, now)
 	})
 	if err != nil {
@@ -385,26 +387,27 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 // matcher although its CVE is in the list that was matched: the device's software changed, or CISA changed the vendor or
 // product of the entry (D-439). Nothing closes (FORBID-2): a person reads the history row and closes it. A CVE that is not
 // in vulns says nothing (a partial list never judges a pair), and a finding the scan confirmed (basis scan) is not judged by
-// the version matcher.
-func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID string, vulns []Vuln, m MatchResult, now time.Time) error {
+// the version matcher. Such a finding matched by product only and graded above medium before D-500 takes the product
+// severity, once (W3-3 reaches it too: a pair the matcher no longer produces is never in Existing); it returns how many.
+func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID string, vulns []Vuln, m MatchResult, now time.Time) (regraded int, err error) {
 	rows, err := tx.QueryContext(ctx, `SELECT cve FROM fnd_finding WHERE asset_id = ? AND status = 'suspected'`, assetID)
 	if err != nil {
-		return fmt.Errorf("findings: reading suspected findings: %w", err)
+		return 0, fmt.Errorf("findings: reading suspected findings: %w", err)
 	}
 	var open []string
 	for rows.Next() {
 		var c string
 		if err := rows.Scan(&c); err != nil {
 			_ = rows.Close()
-			return fmt.Errorf("findings: reading suspected findings: %w", err)
+			return 0, fmt.Errorf("findings: reading suspected findings: %w", err)
 		}
 		open = append(open, c)
 	}
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-		return fmt.Errorf("findings: reading suspected findings: %w", err)
+		return 0, fmt.Errorf("findings: reading suspected findings: %w", err)
 	}
 	if len(open) == 0 {
-		return nil
+		return 0, nil
 	}
 	listed := make(map[string]bool, len(vulns))
 	for _, v := range vulns {
@@ -429,7 +432,19 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 		}
 		r, err := loadByPair(ctx, tx, assetID, cve)
 		if err != nil {
-			return err
+			return regraded, err
+		}
+		if r.Basis == BasisProduct && sevRank(r.Severity) > sevRank(SeverityMedium) {
+			was := r.Severity
+			r.Severity = SeverityMedium
+			if err := updateRecord(ctx, tx, r); err != nil {
+				return regraded, err
+			}
+			if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.regraded", Target: r.ID,
+				Detail: fmt.Sprintf("%s: %s to %s (product match only, version not compared)", r.CVE, was, r.Severity)}); err != nil {
+				return regraded, err
+			}
+			regraded++
 		}
 		if n := len(r.History); n > 0 && r.History[n-1].Action == "no_longer_matches" {
 			continue // said already
@@ -440,13 +455,13 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 			h.Note = clean(sw) + " on this device has no version Vedette can read, so this CVE is no longer listed on its own: it is counted in \"Add the version\". Add the version to check it, or close this yourself."
 		}
 		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-			return err
+			return regraded, err
 		}
 		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.no_longer_matches", Target: r.ID, Detail: cve}); err != nil {
-			return err
+			return regraded, err
 		}
 	}
-	return nil
+	return regraded, nil
 }
 
 // ConfirmFromScan records a positive scan result for a pair (PRE-2, POST-2). The finding must exist

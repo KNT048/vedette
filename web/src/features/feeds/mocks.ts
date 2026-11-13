@@ -134,7 +134,7 @@ export const handlers = [
       const v = data.vulns.find((x) => x.cve === item.cve)!
       const now = nowIso()
       const asset: Asset = {
-        id: newId('a'), site: 'hq', ip: '—', mac: null, hostname: null, kind: kindOf(item.key) as AssetKind, vendor: { value: v.vendor, source: 'manual', confidence: 1, seen_at: now },
+        id: newId('a'), site: 'hq', ip: '—', mac: null, hostname: null, kind: (['pc', 'server', 'web'].includes(kindOf(item.key)) ? 'unknown' : kindOf(item.key)) as AssetKind /* no device, no computer type (W9-1, D-515) */, vendor: { value: v.vendor, source: 'manual', confidence: 1, seen_at: now },
         model: null, os: null, services: [], first_seen: now, last_seen: now, approved: true, fragile: false, origin: 'manual',
         software: [{ id: newId('s'), display: displayOf(v.vendor, v.product), vendor: v.vendor, product: v.product, version: null, kev: [item.key], source: 'manual', confidence: 1 }],
       }

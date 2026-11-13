@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/store"
 )
@@ -108,6 +109,12 @@ func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, a add
 		if a.entry != nil {
 			kind = a.entry.kind
 		}
+	}
+	// A product with neither an IP nor a name is only a product (NoDevice, "Microsoft Office (no device)"): the computer type its catalog
+	// entry or feeds suggests (pc, server, web) would name a device nobody declared (W9-1, D-515). An appliance type stays: there the
+	// product is the device, and mitigation reads a declared firewall or router.
+	if a.ip == "" && a.name == "" && slices.Contains([]string{"pc", "server", "web"}, devicetypes.ActsAs(kind)) {
+		kind = "unknown"
 	}
 	now := s.now()
 	id := store.NewID("a")

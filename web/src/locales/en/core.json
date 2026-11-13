@@ -502,6 +502,7 @@
       "inventory.discover": "Discover software",
       "inventory.export": "Export devices",
       "inventory.first_scan": "First scan of a new device",
+      "inventory.merge": "Two rows of the same device joined",
       "inventory.import": "Import devices",
       "inventory.notify_new": "Change alerts for new devices",
       "inventory.remove_software": "Remove software from a device",

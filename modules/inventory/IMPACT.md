@@ -7,6 +7,13 @@
 - **`SetSoftwareVersion`**: findings khớp lại qua `inventory.match.changed` (một sự kiện mỗi lần đổi); M1 (findings "I updated X") gọi cùng route. Nhãn audit `inventory.set_software_version` trong `web/src/locales/en/core.json`.
 - **`AddManualDevice` trả id**: `cmd/vedette/wiring.go` `feedsInventory.AddManualDevice` chuyển id cho feeds (`declareDevice` ghi `feeds_weekly_answer.device_id`), làm phạm vi "I have this" theo thiết bị của findings (D-484 (4), INV-11) có hiệu lực. Trả id rỗng là tắt phạm vi đó.
 
+## Modifying: nối thiết bị (`join.go` `sameDevice`, `joinInto`, `chassisOwner`; D-515, INV-28)
+- **sensor-passive** (`capture/engine.go` `handleLLDP`): LLDP gửi quan sát với gợi ý chỉ có MAC khung, không IP; luật nối dựa vào đó (hàng không IP) và vào loại từ capabilities. Gửi kèm IP (ví dụ địa chỉ quản lý) sẽ làm IP nhảy giữa hai hàng: phải đi kèm một khoá nối riêng (D-515 luật (a), cần tăng proto sensor).
+- **findings**: hàng bị nối phát `inventory.asset.deleted` (finding của nó bị xoá, trạng thái phân loại trên hàng đó mất) và thiết bị giữ lại phát `inventory.asset.updated` `match=true` (khớp lại cả thiết bị). **notify**: incident của hàng cũ trỏ tới id không còn, như sau `Delete`.
+- Quan sát `mac` `evidence='chassis'`: `RecomputeAsset` bỏ qua nó khi chọn MAC; `ApproveEnrolled` vẫn coi nó là "MAC khác" (switch không chạy agent). Nới luật (bỏ điều kiện cùng OUI, một ứng viên, không IP) là gộp nhầm máy thật: đổi kèm test âm `TestContract_D515_DifferentDevicesStayApart`.
+- Audit `inventory.merge`: nhãn trong `web/src/locales/en/core.json` (`TestEveryAuditActionHasALabel`).
+- Loại của sản phẩm không thiết bị (W9-1): mock `web/src/features/inventory/mocks.ts` `createManual` và `web/src/features/feeds/mocks.ts` ("I have it") theo cùng luật.
+
 ## Modifying: `inventory.Service.ApproveEnrolled` (`core/observe.Approver`, D-503, INV-25)
 - **agent-intake** (người gọi duy nhất, `ingest.go` `firstReport` và job `approve-enrolled` `ApproveBound` lúc khởi động — D-503 đường nâng cấp; nối ở `cmd/vedette/wiring.go` `Approver: d.Inventory`): đánh dấu node đã duyệt (`approved_at`) khi `found=true`, nên trả `found=true` mà không duyệt (đáng ngờ, hộp, hàng từng có MAC khác `mac` của agent) là cố ý: không thử lại ở mỗi lần báo; địa chỉ hộp trả lời trả `found=false` (agent-intake thử lại, rẻ). Luật MAC đọc `inv_observation` (mọi nguồn): đổi cách `Record`/`pruneObs` giữ quan sát `mac` (INV-16, 32 dòng mỗi chuỗi) là đổi điều kiện duyệt. Đổi cách tìm thiết bị phải giữ giống `resolve` (MAC rồi IP), nếu không máy được duyệt có thể là hàng khác với hàng nhận gói.
 - **`agentSaw`** (rà #673 H1): đọc quan sát `mac` nguồn `agent`; đổi cách `Record`/`pruneObs` giữ chuỗi `mac` của agent là đổi điều kiện duyệt của job sau nâng cấp.

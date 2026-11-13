@@ -244,12 +244,59 @@ func TestScheduledJobsWriteNoRowWhenTheProfileBudgetIsUsedUp(t *testing.T) {
 	if len(a.activity()) != rows || a.fake.total() != calls {
 		t.Fatalf("a stopped scheduled plan wrote a row or reached the provider: rows %d -> %d, calls %d -> %d", rows, len(a.activity()), calls, a.fake.total())
 	}
+	// the reasons alternate (the shared budget used up, then raised again): each is logged once for the month
+	a.want("PUT", "/ai/config", "admin", `{"tier":"med","monthly_budget":1500,"redact_pii":true}`, 200, "")
+	if _, err := a.svc.RunJob(a.ctx(), ai.JobSpec{Job: ai.JobResponsePlan, Actor: "system", Task: "Write a plan.", Question: "Write the response plan.", MaxTokens: 100}); err == nil {
+		t.Fatal("the shared budget is used up")
+	}
+	a.want("PUT", "/ai/config", "admin", `{"tier":"med","monthly_budget":6000000,"redact_pii":true}`, 200, "")
+	if _, err := a.svc.RunJob(a.ctx(), ai.JobSpec{Job: ai.JobResponsePlan, Actor: "system", Task: "Write a plan.", Question: "Write the response plan.", MaxTokens: 100}); err == nil {
+		t.Fatal("the profile budget is used up")
+	}
+	if n := a.logBuf.count("scheduled AI jobs stop"); n != 2 {
+		t.Fatalf("log lines = %d, want one per reason", n)
+	}
 	a.facts.mu.Lock()
 	a.facts.assets["CVE-2022-27593"][0].Name = "NAS-2" // a cache miss
 	a.facts.mu.Unlock()
 	a.explain("CVE-2022-27593", 429, "budget_reached")
 	if len(a.activity()) != rows+1 {
 		t.Fatalf("a person's call keeps its capped row: rows %d -> %d", rows, len(a.activity()))
+	}
+}
+
+// W5-4: a scheduled plan whose profile is used up goes to its free fallback like any call (a row on the fallback, no 429); when the
+// fallback is only held by calls in flight it is busy, not used up: 429 rate_limited and no "used up" log line.
+func TestScheduledJobsUseTheFallbackOfAUsedUpProfile(t *testing.T) {
+	a := newAPI(t)
+	small := func(name, key string) string {
+		return strings.Replace(cloudBody(name, key), `"monthly_budget":60000`, `"monthly_budget":1000`, 1)
+	}
+	p1 := a.addProfile(small("Claude", keyA))["id"].(string)
+	p2 := a.addProfile(small("Backup", keyB))["id"].(string)
+	a.fake.setAnswer(goodExplain)
+	a.want("PUT", "/ai/assignments", "admin", assignBody(false, map[string][2]string{"response-plan": {p1, p2}, "explain-finding": {p1, ""}}), 200, "")
+	a.fake.setUsage(1200, 300) // the primary passes its own budget
+	a.explain("CVE-2022-27593", 200, "")
+	plan := func() error {
+		_, err := a.svc.RunJob(a.ctx(), ai.JobSpec{Job: ai.JobResponsePlan, Actor: "system", Task: "Write a plan.", Question: "Write the response plan.", MaxTokens: 100})
+		return err
+	}
+	release := a.svc.HoldProfileBudget(p2, 1000, 1200)
+	err := plan()
+	if e, ok := apierr.As(err); !ok || e.Code != "rate_limited" {
+		t.Fatalf("fallback held by calls in flight: %v", err)
+	}
+	release()
+	rows := len(a.activity())
+	if err := plan(); err != nil {
+		t.Fatalf("the free fallback should answer: %v", err)
+	}
+	if act := a.activity(); len(act) != rows+1 || act[len(act)-1].Profile != "Backup" {
+		t.Fatalf("want one new row on the fallback, got %d -> %d", rows, len(act))
+	}
+	if n := a.logBuf.count("scheduled AI jobs stop"); n != 0 {
+		t.Fatalf("a busy or answered plan logged a budget stop %d times", n)
 	}
 }
 

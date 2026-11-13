@@ -9,7 +9,7 @@ import { renderApp } from '@/test/render'
 import { eachOption } from '@/test/formMatrix'
 import { collection } from '@/mocks/db'
 import { connectorsStore, type Connector } from '@/mocks/connectors'
-import { assetsStore, auditStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
+import { aiConfigStore, aiRunsStore, assetsStore, auditStore, orgStore, sessionStore, usersStore } from '@/mocks/stores'
 import { checkValues, evalCondition, resolveParam, validateTpl, verifyChain, EMPTY_TPL, PARAM_CHECK, PARAM_TYPES, TOKEN_RE } from './logic'
 import type { Role } from '@/lib/session'
 import type { ActionRequest, AiState, Blocklist, Catalog, Condition, LogEntry, PlanList, ProposeResult, Rule, RuleInput, RunSummary, SettingsView, Simulation } from './types'
@@ -105,6 +105,15 @@ describe('response: AI plans (S-RESP-1, D-40)', () => {
     expect(p.change.rest!.method).toBe('PUT')
     expect(p.change.rollback.cli).toContain('set status enable')
     expect(p.state).toBe('execution_off')
+  })
+
+  it('from 80 % of the month\'s AI budget the scheduled plan job drafts nothing (D-531a)', async () => {
+    mapChat()
+    collection<unknown[]>('resp_plans', () => []).set([]) // no plan drafted yet: only the job could add one
+    aiConfigStore.update((c) => ({ ...c, monthly_budget: 10_000_000 }))
+    aiRunsStore.set([{ id: 'run-spent', ts: new Date().toISOString(), skill: 'ask-my-data', model: 'claude-haiku-5-5', tokens_in: 8_500_000, tokens_out: 0, status: 'ok', profile: 'Claude Haiku' }])
+    const { json } = await call<PlanList>('viewer', 'GET', '/response/plans?finding=f-1')
+    expect(json.items).toEqual([])
   })
 
   it('clean install: no plans, no requests', async () => {

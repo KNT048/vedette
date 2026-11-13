@@ -100,7 +100,8 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 // hot is the newly exploited board of the last hours (Home, S-FEED-1): the CISA entries added in the window, grouped by
 // product, you_have=yes first, then the number of CVEs, then the top EPSS. A day counts until its last second.
 func (s *Service) hot(ctx context.Context, hours int) ([]*hotRow, error) {
-	cutoff := s.now().Add(-time.Duration(hours) * time.Hour)
+	now := s.now()
+	cutoff := now.Add(-time.Duration(hours) * time.Hour)
 	rows, err := s.st.vulnsNewestFirst(ctx, cutoff.AddDate(0, 0, -1).Format("2006-01-02"))
 	if err != nil {
 		return nil, err
@@ -111,7 +112,8 @@ func (s *Service) hot(ctx context.Context, hours int) ([]*hotRow, error) {
 	for _, v := range rows {
 		// the day counts until its last second (the GUI mock does the same)
 		day, err := parseDate(v.DateAdded)
-		if err != nil || day.Add(24*time.Hour-time.Second).Before(cutoff) {
+		// a date in the future (a feed or box clock that is off) is not "newly exploited" yet (D-485)
+		if err != nil || day.Add(24*time.Hour-time.Second).Before(cutoff) || day.After(now) {
 			continue
 		}
 		k := v.Key()

@@ -154,6 +154,9 @@ describe('logs: the syslog header of a listed line (W1-22, D-485)', () => {
       .toEqual({ host: 'laptop-it', app: 'sshd', message: 'Failed password for invalid user admin from 45.155.205.233 port 51122 ssh2' })
     expect(syslogHeader('<165>1 2026-11-13T07:15:02.000Z fw01 app 77 ID47 - hello')).toEqual({ host: 'fw01', app: 'app', message: 'hello' })
     expect(syslogHeader('type="traffic" srcip=10.0.0.5 action="deny"')).toEqual({ host: null, app: null, message: 'type="traffic" srcip=10.0.0.5 action="deny"' })
+    expect(syslogHeader('<34>Nov 11 08:30:15 sshd[1]: hi')).toEqual({ host: null, app: 'sshd', message: 'hi' })
+    expect(syslogHeader('<34>Nov 11 08:30:15 sshd[1]: Accepted: key')).toEqual({ host: null, app: 'sshd', message: 'Accepted: key' })
+    expect(syslogHeader('<38>Nov 13 14:15:02 lap\u202etop sshd[2]: x')).toEqual({ host: 'laptop', app: 'sshd', message: 'x' })
   })
 })
 

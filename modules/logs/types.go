@@ -2,6 +2,7 @@ package logs
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/modules/logs/listen"
@@ -138,18 +139,36 @@ type Event struct {
 	Message string  `json:"message"`
 }
 
-// withHeader fills Host, App and Message from Line.
+// withHeader fills Host, App and Message from Line. A BSD line without a hostname ("<34>Nov 11 08:30:15 sshd[1]: hi") reads
+// its tag as the host (RFC 3164 makes the hostname mandatory); a "host" ending in ":" is that tag, so it is shown as the program.
+// Labels drop control and format characters (bidi overrides), whatever the stored line kept.
 func (e *Event) withHeader() {
 	env := listen.ParseSyslog(e.Line)
-	e.Message = env.Msg
-	if env.Host != "" && env.Host != "-" {
-		h := env.Host
+	host, app, msg := env.Host, env.App, env.Msg
+	if env.Format == listen.FormatRFC3164 && strings.HasSuffix(host, ":") {
+		app, _, _ = strings.Cut(strings.TrimSuffix(host, ":"), "[")
+		msg = ""
+		if i := strings.Index(e.Line, " "+host+" "); i >= 0 {
+			msg = e.Line[i+len(host)+2:]
+		}
+		host = ""
+	}
+	e.Message = msg
+	if h := label(host); h != "" && h != "-" {
 		e.Host = &h
 	}
-	if env.App != "" {
-		a := env.App
+	if a := label(app); a != "" {
 		e.App = &a
 	}
+}
+
+func label(s string) string {
+	return strings.TrimSpace(strings.Map(func(r rune) rune {
+		if isControl(r) || r == '\t' {
+			return -1
+		}
+		return r
+	}, s))
 }
 
 // EventQuery is GET /logs/events.

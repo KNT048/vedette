@@ -7,6 +7,7 @@ import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
 import { auditStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { feature } from './index'
+import { portLabel, riskOf } from './services'
 
 const USER = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' } as const
 async function call(method: string, path: string, body?: unknown, role: keyof typeof USER = 'admin') {
@@ -93,6 +94,8 @@ describe('exposure: list (S-EXP-1)', () => {
     expect(within(open).getAllByText('Commonly attacked')).toHaveLength(1) // SIP only; HTTPS is not called out
     expect(within(open).getByText(/toll fraud.*Is that on purpose\?/)).toBeInTheDocument()
     expect(within(open).getByText('answers as nginx')).toBeInTheDocument()
+    // a service name from the network never finds Object.prototype
+    expect([riskOf({ service: 'constructor' }), portLabel({ service: 'constructor', port: 1 })]).toEqual([null, 'CONSTRUCTOR 1'])
   })
 
   it('module off says where to turn it on', async () => {

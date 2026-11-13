@@ -13,7 +13,7 @@ import type { CveDetail, FeedStatus, HotRow, IocHit, MatchedAsset, SearchResult,
 
 const data = kev as { generated_at: string; kev_catalog_version: string; sources: FeedStatus['sources']; vulns: Vuln[] }
 const ref = new Date(data.generated_at).getTime()
-const inWindow = (v: Vuln, hours: number, end: number) => new Date(`${v.date_added}T23:59:59Z`).getTime() >= end - hours * 36e5
+const inWindow = (v: Vuln, hours: number, end: number) => new Date(`${v.date_added}T23:59:59Z`).getTime() >= end - hours * 36e5 && new Date(`${v.date_added}T00:00:00Z`).getTime() <= end // a date after now is not counted (D-485)
 
 const weeklyAnswers = collection<Record<string, 'have' | 'not_relevant'>>('feeds_weekly_answers', () => ({}))
 

@@ -182,8 +182,8 @@ func topRisks(open []FindingRow) []TopRisk {
 		}
 		g.Open++
 		if f.Status == "confirmed" {
-			if g.Confirmed == 0 { // the worst finding is one a scan confirmed
-				g.CVE, g.FindingID, g.Severity = f.CVE, f.ID, f.Severity
+			if g.Confirmed == 0 { // the finding named is one a scan confirmed; Severity stays the worst of the group
+				g.CVE, g.FindingID = f.CVE, f.ID
 			}
 			g.Confirmed++
 		}

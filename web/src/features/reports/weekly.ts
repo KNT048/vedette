@@ -28,7 +28,7 @@ export function topRisks(open: FindingRow[]): TopRisk[] {
     let g = by.get(f.product)
     if (!g) { g = { product: f.product, device: '', devices: 0, open: 0, confirmed: 0, severity: f.severity, cve: f.cve, finding_id: f.id, names: [], ids: new Set() }; by.set(f.product, g) }
     g.open++
-    if (f.status === 'confirmed') { if (!g.confirmed) Object.assign(g, { cve: f.cve, finding_id: f.id, severity: f.severity }); g.confirmed++ }
+    if (f.status === 'confirmed') { if (!g.confirmed) Object.assign(g, { cve: f.cve, finding_id: f.id }); g.confirmed++ // severity stays the worst of the group }
     if (SEV[f.severity] < SEV[g.severity]) g.severity = f.severity
     if (!g.ids.has(f.asset_id)) { g.ids.add(f.asset_id); g.names.push(f.device) }
   }

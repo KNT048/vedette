@@ -927,3 +927,21 @@ func TestG10_SaveRefusesBlockedAndDuplicateAddresses(t *testing.T) {
 		t.Errorf("edit onto the box: %d %v", got, b)
 	}
 }
+
+// D-485: Home's "newly exploited in the last 7 days" (and the weekly report, which reads the same function): the day counts
+// until its last second, the eighth day back is out, and an entry dated after now is not counted (the store already turns a feed's
+// future date into the day of the pull; this is the box clock set back after a pull).
+func TestNewlyExploitedWindowIsHomes(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t) // now: 2026-11-05 12:00 UTC
+	// pulled a day ahead (a clock that was later set back): the store keeps a date up to the day of the pull, so 2026-11-06 stays
+	applyV(t, e.db, e.clock().Add(24*time.Hour), "cisa-kev", []Vuln{
+		vuln("CVE-2026-0001", "Acme", "A", "2026-11-05"), // today: in
+		vuln("CVE-2026-0002", "Acme", "A", "2026-10-29"), // the day 7 days ago, until its last second: in
+		vuln("CVE-2026-0003", "Acme", "A", "2026-10-28"), // out
+		vuln("CVE-2026-0004", "Acme", "A", "2026-11-06"), // tomorrow: out
+	}, false)
+	if n, _, err := e.svc.NewlyExploited(t.Context()); err != nil || n != 2 {
+		t.Errorf("NewlyExploited = %d, %v; want 2", n, err)
+	}
+}

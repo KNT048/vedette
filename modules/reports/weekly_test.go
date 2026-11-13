@@ -140,3 +140,34 @@ func TestWeeklyEmptyBoxHasEmptyListsNotNull(t *testing.T) {
 		t.Fatal("lists must be [] in JSON, never null")
 	}
 }
+
+// D-485 review: a product's risk keeps the worst severity of its open findings even when the one a scan confirmed is milder;
+// the finding it names is the confirmed one. Closed rows say who closed them.
+func TestWeeklyTopRiskKeepsTheWorstSeverityAndClosedRowsSayWho(t *testing.T) {
+	t.Parallel()
+	in := sampleInput()
+	in.findings = append(in.findings,
+		Finding{ID: "w1", AssetID: "a1", CVE: "CVE-2026-0101", Status: "suspected", Severity: "critical", FirstSeen: day0(5)},
+		Finding{ID: "w2", AssetID: "a1", CVE: "CVE-2026-0102", Status: "confirmed", Severity: "medium", FirstSeen: day0(5)},
+		Finding{ID: "w3", AssetID: "a1", CVE: "CVE-2026-0103", Status: "not_relevant", Severity: "low", FirstSeen: day0(9), ResolvedAt: day0(1), ResolvedBy: "an@acme.example"})
+	for _, c := range []string{"CVE-2026-0101", "CVE-2026-0102"} {
+		in.kev = append(in.kev, KEVEntry{CVE: c, Vendor: "Fortinet", Product: "FortiOS", Display: "FortiGate (FortiOS)"})
+	}
+	r := buildWeekly(in)
+	var got *TopRisk
+	for i := range r.TopRisks {
+		if r.TopRisks[i].Product == "FortiGate (FortiOS)" {
+			got = &r.TopRisks[i]
+		}
+	}
+	if got == nil || got.Severity != "critical" || got.Confirmed != 1 || got.FindingID != "w2" || got.Open != 2 {
+		t.Fatalf("top risks = %+v", r.TopRisks)
+	}
+	by := map[string]string{}
+	for _, f := range r.Resolved {
+		by[f.ID] = f.By
+	}
+	if by["w3"] != "an@acme.example" || by["f3"] != "" {
+		t.Errorf("closed rows: %+v", r.Resolved)
+	}
+}

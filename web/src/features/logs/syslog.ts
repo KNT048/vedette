@@ -3,7 +3,9 @@
 // header stays in the message. The mock uses it to answer like the box.
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const nil = (s: string) => (s === '-' || s === '' ? null : s)
+// Labels drop control and format characters (bidi overrides), as the box does (types.go label).
+const CONTROL = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu // Go unicode.Cc, Cf, Zl, Zp (isControl)
+const nil = (s: string) => { const v = s.replace(CONTROL, '').trim(); return v === '-' || v === '' ? null : v }
 
 export function syslogHeader(line: string): { host: string | null; app: string | null; message: string } {
   const pri = /^<(\d{1,3})>/.exec(line)
@@ -17,8 +19,11 @@ export function syslogHeader(line: string): { host: string | null; app: string |
   let s = rest.slice(16)
   let host: string | null = null
   const sp = s.indexOf(' ')
-  if (sp > 0 && sp <= 255) { host = nil(s.slice(0, sp)); s = s.slice(sp + 1) }
+  const first = sp > 0 && sp <= 255 ? s.slice(0, sp) : ''
+  // No hostname ("sshd[1]: hi"): the first word ends in ":" and is the program, as on the box.
+  if (first.endsWith(':')) return { host: null, app: nil(first.slice(0, -1).split('[')[0]!), message: s.slice(sp + 1) }
+  if (first) { host = nil(first); s = s.slice(sp + 1) }
   const tag = /^([A-Za-z0-9_./-]{1,47})(\[[^\]]{0,128}\])?:? ?/.exec(s)
-  if (tag && (s[tag[1]!.length] === ':' || s[tag[1]!.length] === '[')) return { host, app: tag[1]!, message: s.slice(tag[0].length) }
+  if (tag && (s[tag[1]!.length] === ':' || s[tag[1]!.length] === '[')) return { host, app: nil(tag[1]!), message: s.slice(tag[0].length) }
   return { host, app: null, message: s }
 }

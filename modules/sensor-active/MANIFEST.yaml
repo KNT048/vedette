@@ -9,5 +9,5 @@ ports: []
 container: scan                       # D-113: worker nmap trong `scan` (vai mTLS active); chính sách, phạm vi, sa_* ở `core`; tới SP-3 nmap còn chạy qua core/exec từ core (D-84 (5))
 tables_prefix: sa_                    # D-84 (4): sa_; MODULES.md đã sửa
 stories: [S-INV-1, S-SCAN-4]          # S-SCAN-4 phần cửa sổ giờ/tốc độ của khám phá
-decisions: [D-4, D-26, D-32, D-45, D-55, D-57, D-84, D-109, D-110, D-111, D-113, D-114, D-125, D-133, D-136, D-350]
+decisions: [D-4, D-26, D-32, D-45, D-55, D-57, D-84, D-109, D-110, D-111, D-113, D-114, D-125, D-133, D-136, D-350, D-512]   # D-512: SNMP reads (UDP 161 GETs from the worker, gosnmp; credentials in core/secrets)
 milestone: M3

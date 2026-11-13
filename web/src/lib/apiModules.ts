@@ -12,6 +12,7 @@ const prefixOverrides: ReadonlyArray<readonly [string, string]> = [
   ['/intake', 'agent-intake'],
   ['/inventory/agents', 'agent-intake'],
   ['/inventory/sensors', 'sensor-passive'],
+  ['/inventory/snmp', 'sensor-active'],
   ['/core/network', 'host'],
   ['/auth', 'core'],
   ['/me', 'core'],

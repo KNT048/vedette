@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/observe"
@@ -156,6 +157,121 @@ func TestMatchInputAndDeviceRefs(t *testing.T) {
 	}
 	if refs, _ = e.svc.DeviceRefs(e.ctx(), nil); len(refs) != 0 {
 		t.Errorf("no ids: %v", refs)
+	}
+}
+
+// D-512: the OS a device states over SNMP is its StatedOS for findings, as LLDP's is (D-510), even when nmap's guess wins the OS
+// field; DeviceRefs says whether a device is approved (sensor-active sends SNMP credentials to approved devices only).
+func TestSNMPStatedOSAndApproval(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ip := netip.MustParseAddr("192.168.30.47")
+	at := time.Date(2026, 11, 13, 8, 0, 0, 0, time.UTC)
+	for i, o := range []observe.Observation{
+		{Field: observe.OS, Value: "Juniper JUNOS 10.4R1.9 (EX4200 switch)", Source: observe.Nmap, Confidence: 0.9},
+		{Field: observe.OS, Value: "JUNOS 15.1R7.9", Source: observe.SNMP, Confidence: 0.9},
+		{Field: observe.Model, Value: "EX4200-48T", Source: observe.SNMP, Confidence: 0.9},
+	} {
+		o.AssetHint, o.SeenAt = observe.AssetHint{IP: ip}, at.Add(time.Duration(i)*time.Minute)
+		if err := e.svc.Record(e.ctx(), []observe.Observation{o}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	addrs, err := e.svc.AddressMap(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := addrs[ip.String()]
+	d, ok, err := e.svc.MatchInput(e.ctx(), id)
+	if err != nil || !ok || d.StatedOS != "JUNOS 15.1R7.9" || d.Model != "EX4200-48T" {
+		t.Fatalf("MatchInput: %+v %v %v", d, ok, err)
+	}
+	refs, err := e.svc.DeviceRefs(e.ctx(), []string{id})
+	if err != nil || refs[id].Approved {
+		t.Fatalf("a discovered device is approved: %+v %v", refs, err)
+	}
+}
+
+// Review #715 M4, the union guard (D-512): a device is never-touch while ANY trusted observation says router or firewall. SNMP outranks
+// nmap and so can change the current kind, but it only ever adds a device to the list: (a) an on-path host answering a router's SNMP
+// read as a printer does not take the router off it; (b) an approved PC whose SNMP answer says firewall is added (more protection).
+func TestNeverTouchIsTheUnionOfTrustedKinds(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	rec := func(ip, mac, kind string, src observe.Source) {
+		h := observe.AssetHint{IP: netip.MustParseAddr(ip), MAC: mac}
+		if err := e.svc.Record(e.ctx(), []observe.Observation{
+			{AssetHint: h, Field: observe.MAC, Value: mac, Source: src, Confidence: 0.9},
+			{AssetHint: h, Field: observe.Kind, Value: kind, Source: src, Confidence: 0.9},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	gateways := func() map[string]inventory.KindDevice {
+		l, err := e.svc.DevicesOfKind(e.ctx(), []string{"router", "firewall"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]inventory.KindDevice{}
+		for _, d := range l {
+			if d.TrustedKind() {
+				out[d.IP] = d
+			}
+		}
+		return out
+	}
+	approve := func(ip string) {
+		addrs, err := e.svc.AddressMap(e.ctx())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := e.svc.Approve(e.ctx(), "emily@acme.example", addrs[ip]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// (a) the inner router, approved, typed router by nmap; then an SNMP answer says printer and wins the current kind
+	rec("192.168.10.1", "02:01:01:01:01:01", "router", observe.Nmap)
+	approve("192.168.10.1")
+	rec("192.168.10.1", "02:01:01:01:01:01", "printer", observe.SNMP)
+	if d, ok := gateways()["192.168.10.1"]; !ok || d.Kind != "router" || d.KindSource != "nmap" {
+		t.Errorf("the router left the never-touch list when SNMP said printer: %+v %v", d, ok)
+	}
+	// (b) an approved PC (kind from osquery) whose SNMP answer says firewall: listed, the agent's kind stays current
+	rec("192.168.10.50", "02:50:50:50:50:50", "pc", observe.Agent)
+	approve("192.168.10.50")
+	rec("192.168.10.50", "02:50:50:50:50:50", "firewall", observe.SNMP)
+	if d, ok := gateways()["192.168.10.50"]; !ok || d.Kind != "firewall" || d.KindSource != "snmp" {
+		t.Errorf("an approved device SNMP calls a firewall is not never-touch: %+v %v", d, ok)
+	}
+	// a person's explicit choice wins over older machine claims: an approved device SNMP calls a router, then a person sets printer:
+	// off the list; an SNMP router read after that choice puts it back
+	rec("192.168.10.70", "02:70:70:70:70:70", "router", observe.SNMP)
+	approve("192.168.10.70")
+	if _, ok := gateways()["192.168.10.70"]; !ok {
+		t.Fatal("an approved SNMP router is not never-touch")
+	}
+	addrs, err := e.svc.AddressMap(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Minute)
+	printer := "printer"
+	if err := e.svc.PatchDevice(e.ctx(), "emily@acme.example", addrs["192.168.10.70"], inventory.Patch{Kind: &printer}); err != nil {
+		t.Fatal(err)
+	}
+	if d, ok := gateways()["192.168.10.70"]; ok {
+		t.Errorf("a person set printer after the SNMP router and it is still never-touch: %+v", d)
+	}
+	e.tick(time.Minute)
+	rec("192.168.10.70", "02:70:70:70:70:70", "router", observe.SNMP)
+	if d, ok := gateways()["192.168.10.70"]; !ok || d.KindSource != "snmp" {
+		t.Errorf("an SNMP router read after the person's printer does not put it back: %+v %v", d, ok)
+	}
+	// an SNMP or nmap claim of a device nobody approved adds nothing
+	rec("192.168.10.60", "02:60:60:60:60:60", "pc", observe.Agent)
+	rec("192.168.10.60", "02:60:60:60:60:60", "router", observe.SNMP)
+	if d, ok := gateways()["192.168.10.60"]; ok {
+		t.Errorf("an unapproved device's SNMP router claim is trusted: %+v", d)
 	}
 }
 

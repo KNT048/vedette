@@ -14,7 +14,8 @@ import { sha256Hex } from './kinds'
 import { customEntry, findById, findCatalog, searchCatalog, type CatalogEntry } from './catalog'
 import type {
   AddDeviceInput, AddDeviceResult, AgentToken, DeviceDetail, DeviceRow, DevicesResponse, ImportResult,
-  InventorySettings, ObsField, Observation, OsqueryPackage, RegularScan, Sensor, SettingsInput, SoftwareView, WazuhConnection, WazuhInput,
+  InventorySettings, ObsField, Observation, OsqueryPackage, RegularScan, Sensor, SettingsInput, SnmpCredential, SnmpCredentialInput, SnmpTestReason, SnmpTestResult,
+  SoftwareView, WazuhConnection, WazuhInput,
 } from './types'
 import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
@@ -389,6 +390,122 @@ function injectSample(): { devices: number; software: number } | { err: string }
     added += sw.length
   }
   return { devices: targets.length, software: added }
+}
+
+// ---- SNMP credentials (S-INV-1, D-512; module sensor-active, table prefix sa_) ----
+// Secrets live only in this store (the box encrypts them with core/secrets); every response goes through publicSnmp.
+type StoredSnmp = SnmpCredential & { community?: string; auth_password?: string; priv_password?: string }
+const snmpStore = collection<StoredSnmp[]>('sa_snmp', () => [{
+  id: 'snmp-1', name: 'Core switches (v3)', version: 'v3', username: 'vedette-ro', auth: 'sha256', priv: 'aes128',
+  auth_password: 'ro-auth-2fe8', priv_password: 'ro-priv-91c4', secret_last4: '2fe8', priv_last4: '91c4',
+  scope: ['192.168.10.0/24'], created_at: daysAgo(30), last_answer_at: daysAgo(1), answered: 3,
+}], () => [])
+const SNMP_MAX = 8
+const PRINTABLE_RE = /^[\x20-\x7e]{1,64}$/
+const SNMP_USER_RE = /^[A-Za-z0-9._@-]{1,64}$/
+/** The last 4 characters only when the secret has 8 or more (a short one would be half shown). */
+const last4 = (v: string | undefined) => (v && v.length >= 8 ? v.slice(-4) : '')
+const publicSnmp = ({ community: _c, auth_password: _a, priv_password: _p, ...rest }: StoredSnmp): SnmpCredential => rest
+const snmpOff = () => fail(404, 'module_off', 'Active discovery is off, so SNMP credentials are not used. An admin can turn it on in Settings, Modules.')
+const ipInt = (ip: string) => cidrRange(`${ip}/32`).base
+/** `ip` inside an address or CIDR range of `list`. */
+const inList = (ip: string, list: string[]) => list.some((x) => { const r = cidrRange(x.includes('/') ? x : `${x}/32`); const n = ipInt(ip); const base = Math.floor(r.base / r.size) * r.size; return n >= base && n < base + r.size })
+
+function checkSnmp(b: Partial<SnmpCredentialInput>, prev: StoredSnmp | null): { err: ReturnType<typeof bad> } | { err?: undefined; value: Omit<StoredSnmp, 'id' | 'created_at' | 'last_answer_at' | 'answered'> } {
+  const name = typeof b.name === 'string' ? b.name.trim() : ''
+  if (!LABEL_RE.test(name)) return { err: bad(400, 'bad_name', 'Name the credential, up to 64 characters, without < or >. Example "Core switches".') }
+  if (snmpStore.get().some((x) => x.id !== prev?.id && x.name.toLowerCase() === name.toLowerCase())) return { err: bad(409, 'name_taken', `A credential named "${name}" already exists. Choose another name.`) }
+  if (b.version !== 'v2c' && b.version !== 'v3') return { err: bad(400, 'bad_version', 'The SNMP version is v2c or v3. SNMPv1 is not offered: it is not secure.') }
+  const scope = Array.isArray(b.scope) ? [...new Set(b.scope.map((x) => String(x).trim()).filter(Boolean))] : []
+  if (scope.length > 16) return { err: bad(400, 'bad_scope', 'At most 16 addresses or ranges.') }
+  for (const x of scope) {
+    if (!IPV4_RE.test(x) && !CIDR_RE.test(x)) return { err: bad(400, 'bad_scope', `"${x.slice(0, 30)}" is not an IPv4 address or CIDR range, like 192.168.10.20 or 192.168.10.0/24.`) }
+    if (!isPrivateCidr(x.includes('/') ? x : `${x}/32`)) return { err: bad(400, 'bad_scope', `${x} is not in a local network range (${LOCAL_RANGE_NAMES}). SNMP credentials are sent only inside the local network.`) }
+  }
+  // D-512 (review M3): a credential names the devices it belongs to; it is never sent anywhere else.
+  if (scope.length === 0) return { err: bad(400, 'scope_required', 'List the addresses or ranges of the devices this credential belongs to (for example 192.168.1.1 or 192.168.1.0/28). It is sent only there, so a device someone plugs in later never receives it.') }
+  // A saved secret goes only where it went when it was typed: an edit that sends it to more addresses needs it again (backend checkSNMP).
+  const widens = !!prev && (scope.some((x) => {
+    const r = cidrRange(x.includes('/') ? x : `${x}/32`)
+    const base = Math.floor(r.base / r.size) * r.size
+    const at = (n: number) => [n >>> 24, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.')
+    return !inList(at(base), prev.scope) || !inList(at(base + r.size - 1), prev.scope)
+  }))
+  let kept = false
+  const secret = (v: unknown, keep: string | undefined, what: string, min: number) => {
+    if (v === undefined || v === '') {
+      if (!keep) return { err: bad(400, 'secret_required', `Enter the ${what}.`) }
+      kept = true
+      return { v: keep }
+    }
+    if (typeof v !== 'string' || v.length < min || !PRINTABLE_RE.test(v)) return { err: bad(400, 'bad_secret', `The ${what} must be ${min} to 64 printable ASCII characters (letters, digits, punctuation, spaces).`) }
+    return { v }
+  }
+  const widened = () => (kept && widens ? { err: bad(400, 'secret_required', 'This credential would be sent to more addresses. Type its community or passwords again to allow that.') } : null)
+  if (b.version === 'v2c') {
+    const c = secret(b.community, prev?.version === 'v2c' ? prev.community : undefined, 'community', 1)
+    if (c.err) return { err: c.err }
+    const w = widened()
+    if (w) return w
+    return { value: { name, version: 'v2c', username: null, auth: null, priv: null, community: c.v, secret_last4: last4(c.v), priv_last4: '', scope } }
+  }
+  const username = typeof b.username === 'string' ? b.username.trim() : ''
+  if (!SNMP_USER_RE.test(username)) return { err: bad(400, 'bad_user', 'The v3 user name is 1 to 64 letters, digits and . _ @ -.') }
+  if (b.auth !== 'sha' && b.auth !== 'sha256') return { err: bad(400, 'bad_auth', 'Authentication is SHA or SHA-256. MD5 is not offered: it is not secure.') }
+  const priv = b.priv ?? 'aes128'
+  if (priv !== 'aes128' && priv !== 'none') return { err: bad(400, 'bad_priv', 'Privacy is AES-128 or none. DES is not offered: it is not secure.') }
+  const wasV3 = prev?.version === 'v3'
+  const a = secret(b.auth_password, wasV3 ? prev.auth_password : undefined, 'authentication password', 8)
+  if (a.err) return { err: a.err }
+  const p = priv === 'aes128' ? secret(b.priv_password, wasV3 && prev.priv === 'aes128' ? prev.priv_password : undefined, 'privacy password', 8) : { v: undefined, err: undefined }
+  if (p.err) return { err: p.err }
+  const w = widened()
+  if (w) return w
+  return { value: { name, version: 'v3', username, auth: b.auth, priv, auth_password: a.v, priv_password: p.v, secret_last4: last4(a.v), priv_last4: last4(p.v), scope } }
+}
+
+/** The plain words the backend uses for each Test result (D-512). `unavailable` carries the readiness message instead. */
+const SNMP_MSG: Record<Exclude<SnmpTestReason, 'ok' | 'unavailable'>, (ip: string) => string> = {
+  no_answer: (ip) => `No answer from ${ip} on UDP 161 within 2 s (sent twice). The device may not run SNMP, a firewall may drop UDP 161, or the community is wrong: a device ignores a wrong community instead of saying so.`,
+  auth_failed: () => 'The device did not accept the v3 user name or password (or the authentication or privacy algorithm differs).',
+  unknown_user: () => 'The device does not know this v3 user name.',
+  error: () => 'The device answered with an error, or with a message Vedette could not read.',
+  not_in_inventory: (ip) => `${ip} is not a device in the inventory. Only devices in the list can be tested.`,
+  not_approved: (ip) => `${ip} is not approved yet. SNMP credentials are sent only to devices a person approved: approve it under Devices, To review, then test again.`,
+  out_of_scope: (ip) => `${ip} is outside the scan scope (the LAN ranges and exclusions under Scope and sensors).`,
+  not_for_this_credential: (ip) => `${ip} is outside the scope of this credential, so it is never sent there.`,
+  scanning_off: () => 'Active scanning is off under Scope and sensors, so nothing is sent.',
+  scope_not_confirmed: () => 'The scan scope commitment is not ticked under Scope and sensors, so nothing is sent.',
+  declared_by_hand: () => 'This device was added by hand: Vedette never probes it.',
+  box: () => 'This is the Vedette box itself (or one of its trap addresses): it is never probed.',
+  regular_scan_never: () => 'This device is set to never be scanned.',
+  busy: () => 'SNMP reads are running for the scan window right now. Try again in a minute.',
+}
+/** What the mock device says when it answers: a Juniper EX4200 (the switch of walk W1-32). */
+const snmpAnswer = (a: Asset): NonNullable<SnmpTestResult['answer']> => ({
+  sys_descr: 'Juniper Networks, Inc. ex4200-48t Ethernet Switch, kernel JUNOS 15.1R7.9, Build date: 2019-06-28 21:18:40 UTC Copyright (c) 1996-2019 Juniper Networks, Inc.',
+  sys_object_id: '.1.3.6.1.4.1.2636.1.1.1.2.31', sys_name: (a.hostname ?? 'ex4200-48t').toLowerCase(),
+  vendor: 'Juniper Networks', product: 'Junos', model: 'EX4200-48T', os: 'JUNOS 15.1R7.9', kind: 'switch', serial: '', firmware: '', // Junos has no ENTITY-MIB chassis row (D-512)
+})
+/** Records an answer as source snmp: new observations (nothing overwritten), and the device's fields where snmp outranks what it had. */
+function recordSnmp(a: Asset, ans: NonNullable<SnmpTestResult['answer']>) {
+  const conf = 0.9
+  const now = nowIso()
+  addObs(a, 'hostname', ans.sys_name, 'snmp', conf)
+  addObs(a, 'vendor', ans.vendor, 'snmp', conf)
+  addObs(a, 'model', ans.model, 'snmp', conf)
+  addObs(a, 'os', ans.os, 'snmp', conf)
+  if (ans.kind) addObs(a, 'kind', ans.kind, 'snmp', conf)
+  const wins = (cur: Asset['vendor']) => !cur || sourceRank('snmp') >= sourceRank(cur.source)
+  const o = (value: string) => ({ value, source: 'snmp' as ObsSource, confidence: conf, seen_at: now })
+  const patch: Partial<Asset> = {}
+  if (wins(a.vendor)) patch.vendor = o(ans.vendor)
+  if (wins(a.model)) patch.model = o(ans.model)
+  if (wins(a.os)) patch.os = o(ans.os)
+  if (!a.hostname) patch.hostname = ans.sys_name
+  if (a.kind === 'unknown' && KINDS.includes(ans.kind as AssetKind)) patch.kind = ans.kind as AssetKind
+  assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, ...patch, last_seen: now } : x)))
+  matchAssetToKev(a.id)
 }
 
 export const handlers = [
@@ -843,6 +960,79 @@ export const handlers = [
     wazuhStore.set({ ...w, status: 'connected', last_sync: nowIso(), agents: r.devices, packages: r.software * 40 + 120, error: null })
     audit('inventory.wazuh_sample_data', w.url, `${r.devices} devices, ${r.software} software`)
     return HttpResponse.json({ devices: r.devices, software: r.software })
+  }),
+  // ---- SNMP credentials (S-INV-1, D-512): routes of sensor-active, 404 while it is off ----
+  http.get(`${API}/inventory/snmp`, () => {
+    const denied = guard('admin'); if (denied) return denied
+    if (!isOn('sensor-active')) return snmpOff()
+    return HttpResponse.json({ credentials: snmpStore.get().map(publicSnmp), ready: true, message: null })
+  }),
+
+  http.post(`${API}/inventory/snmp`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    if (!isOn('sensor-active')) return snmpOff()
+    if (snmpStore.get().length >= SNMP_MAX) return fail(409, 'too_many', `At most ${SNMP_MAX} SNMP credentials: each one is tried in turn on every device. Delete one you no longer use.`)
+    const v = checkSnmp(await body<SnmpCredentialInput>(request), null)
+    if (v.err) return fail(v.err.status, v.err.code, v.err.message)
+    const c: StoredSnmp = { ...v.value, id: newId('snmp'), created_at: nowIso(), last_answer_at: null, answered: 0 }
+    snmpStore.update((l) => [...l, c])
+    audit('inventory.snmp_add', c.name, `${c.version}, scope ${c.scope.join(' ')}`)
+    return HttpResponse.json(publicSnmp(c), { status: 201 })
+  }),
+
+  http.put(`${API}/inventory/snmp/:id`, async ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    if (!isOn('sensor-active')) return snmpOff()
+    const prev = snmpStore.get().find((x) => x.id === params.id)
+    if (!prev) return fail(404, 'not_found', 'No such SNMP credential. It may have been deleted.')
+    const v = checkSnmp(await body<SnmpCredentialInput>(request), prev)
+    if (v.err) return fail(v.err.status, v.err.code, v.err.message)
+    const c: StoredSnmp = { ...v.value, id: prev.id, created_at: prev.created_at, last_answer_at: prev.last_answer_at, answered: prev.answered }
+    snmpStore.update((l) => l.map((x) => (x.id === c.id ? c : x)))
+    audit('inventory.snmp_edit', c.name, c.version)
+    return HttpResponse.json(publicSnmp(c))
+  }),
+
+  http.delete(`${API}/inventory/snmp/:id`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    if (!isOn('sensor-active')) return snmpOff()
+    const c = snmpStore.get().find((x) => x.id === params.id)
+    if (!c) return fail(404, 'not_found', 'No such SNMP credential. It may have been deleted.')
+    snmpStore.update((l) => l.filter((x) => x.id !== c.id))
+    audit('inventory.snmp_delete', c.name)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Mock device: the community "public" or any v3 credential gets an answer; any other community gets none (a device ignores a wrong community).
+  http.post(`${API}/inventory/snmp/:id/test`, async ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    if (!isOn('sensor-active')) return snmpOff()
+    const c = snmpStore.get().find((x) => x.id === params.id)
+    if (!c) return fail(404, 'not_found', 'No such SNMP credential. It may have been deleted.')
+    const b = await body<{ ip: string }>(request)
+    const ip = typeof b.ip === 'string' ? b.ip.trim() : ''
+    if (!IPV4_RE.test(ip)) return fail(400, 'bad_ip', 'Enter the IPv4 address of a device in the list, like 192.168.10.3.')
+    const a = allAssets().find((x) => x.ip === ip)
+    const st = loadSettings()
+    const reason: SnmpTestReason = !st.active.enabled ? 'scanning_off'
+      : !st.scope_confirmed_at ? 'scope_not_confirmed'
+      : !a ? 'not_in_inventory'
+      : a.id === BOX_ID ? 'box'
+      : a.origin === 'manual' ? 'declared_by_hand'
+      : !a.approved ? 'not_approved'
+      : !inList(ip, st.lan_ranges) || inList(ip, st.active.exclusions) ? 'out_of_scope'
+      : metaStore.get()[a.id]?.regular_scan === 'never' ? 'regular_scan_never'
+      : !inList(ip, c.scope) ? 'not_for_this_credential'
+      : c.version === 'v3' || c.community === 'public' ? 'ok' : 'no_answer'
+    const res: SnmpTestResult = { ok: false, reason, message: '', device_id: a?.id ?? null, answer: null }
+    if (reason === 'ok' && a) {
+      const ans = snmpAnswer(a)
+      recordSnmp(a, ans)
+      snmpStore.update((l) => l.map((x) => (x.id === c.id ? { ...x, last_answer_at: nowIso(), answered: Math.max(x.answered, 1) } : x)))
+      Object.assign(res, { ok: true, message: `${ip} answered. What it said is recorded in the inventory.`, answer: ans })
+    } else res.message = SNMP_MSG[reason as keyof typeof SNMP_MSG](ip)
+    audit('inventory.snmp_test', c.name, `${ip}: ${reason}`)
+    return HttpResponse.json(res)
   }),
 ]
 

@@ -114,6 +114,16 @@ type fakeInv struct {
 	checked  []netip.Addr
 	// protected is what ProtectedIPs lists (a device by hand, never, fragile after its gentle scan, the box)
 	protected []netip.Addr
+	approved  map[string]bool // Asset.Approved (SNMP, D-512)
+	box       []netip.Addr    // BoxIPs: the box and its decoys (a part of protected)
+	// onInScope runs once, at the next InScope (outside the lock): a test changes something between a check and the run.
+	onInScope func()
+}
+
+func (f *fakeInv) BoxIPs(context.Context) ([]netip.Addr, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.box), nil
 }
 
 func (f *fakeInv) Settings(context.Context) (sa.Settings, error) {
@@ -129,6 +139,13 @@ func (f *fakeInv) set(fn func(*sa.Settings)) {
 }
 
 func (f *fakeInv) InScope(_ context.Context, ip netip.Addr) (bool, error) {
+	f.mu.Lock()
+	hook := f.onInScope
+	f.onInScope = nil
+	f.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.checked = append(f.checked, ip)
@@ -175,7 +192,7 @@ func (f *fakeInv) Asset(_ context.Context, id string) (sa.Asset, error) {
 	if !ok {
 		return sa.Asset{}, sa.ErrNotFound
 	}
-	return sa.Asset{ID: id, IP: ip}, nil
+	return sa.Asset{ID: id, IP: ip, Approved: f.approved[id]}, nil
 }
 
 func (f *fakeInv) Addresses(context.Context) (map[netip.Addr]string, error) {

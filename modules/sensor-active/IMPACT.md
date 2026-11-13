@@ -35,8 +35,16 @@
 - Đổi trần JSONL (4 MiB) là đổi `nucleiargv.MaxOutput`, `sensorlink.MaxResultJSONL` (`TestNucleiOutputCapsAgree`) và spec §9. Đổi số khe hay thêm loại job thứ ba là đổi `running` trên dây, `pollLocked` và worker `slotOf`. Đổi cách worker kiểm gói (`Lstat` cả cây, băm tệp được chọn) đụng INV-4 của `scan`.
 - Worker không đọc `~/.config/nuclei` và không kế thừa môi trường: thêm biến cho nuclei = đổi `core/exec` allowlist (`allowedEnv`) và CONTRACT `scan` INV-4.
 
+## Modifying: đọc SNMP (D-512, INV-10: `snmp.go`, `snmpmap.go`, `snmp_dispatch.go`, `handlers.go`, `worker/snmp.go`, `content/snmp`)
+- **core/sensorlink** (giao thức **bản 5**: `KindSNMP`, `SNMPJob`, `SNMPCredential`, `CheckSNMPJob`, `JobResult.SNMP`, `ActiveHeartbeat.SNMP`, `MaxRunning` 3; `core` nhận bản 4, chỉ gửi job snmp cho worker có heartbeat `snmp`): đổi dây = tăng `X-Vedette-Proto`, sửa `docs/specs/sensor-protocol.md` §6.3–§6.5, §9, và phát hành nêu `min_upgrade_from` khi bỏ bản cũ (`scripts/release/protoskew.go`). Khe thứ ba của `Dispatcher` đổi `pollLocked` (`numSlots`) và worker `slotOf`.
+- **Worker / binary `vedette-sensor`**: gosnmp là gói bên thứ ba thứ hai được phép (`TestBinaryDependencies`, `THIRD_PARTY_NOTICES.md`); đổi danh sách OID, timeout, số lần thử hay nhịp gói là đổi số gói rời hộp: sửa INV-10 (a) và spec.
+- **inventory**: `DeviceRef.Approved` (adapter `sensorInventory.Asset` ở `cmd/vedette/sensoractive.go`); quan sát `source=snmp` xếp trên nmap (DATA_MODEL §5.1); OS Junos `snmp` tới **findings** qua `MatchInput.StatedOS` (D-510; đổi chuỗi OS ở `capture.ParseSysDesc` đổi phát hiện Junos). Loại chỉ lấy từ `snmpKinds` (các loại hiện có): đổi bộ loại của inventory phải giữ các id này hoặc sửa `content/snmp/enterprises.json` + `TestSNMPTable`.
+- **sensor-passive/capture**: `ParseSysDesc` (mẫu sysDescr dùng chung với LLDP); đổi mẫu đổi cả hai nguồn.
+- **core/secrets** (`sa_snmp.secret`, `sa_snmp.priv`), **core/audit** (`inventory.snmp_add|_edit|_delete|_test`, nhãn ở `web/src/locales/en/core.json`, `TestEveryAuditActionHasALabel`), **modules/core** export policy (`sa_snmp`: id bí mật `skip`), **core/server** (`/inventory/snmp` → `sensor-active`, `api/route-modules.json`, `web/src/lib/apiModules.ts`).
+- **GUI**: `web/src/features/inventory/{SnmpSection.tsx,contract.ts,mocks.ts}`; lý do Test (`SnmpTestReason`) và câu `snmpMessage` phải giống câu của mock.
+
 ## Disabling this module
-- Devices không còn OS/dịch vụ/phiên bản mới; thiết bị mong manh mới không được quét lần đầu.
+- Devices không còn OS/dịch vụ/phiên bản mới; thiết bị mong manh mới không được quét lần đầu; không đọc SNMP (thông tin xác thực giữ nguyên, route 404).
 - `inventory`, `scan`, `findings` chạy với dữ liệu cũ; số finding theo phiên bản giảm dần theo thời gian. Bảng `sa_*` giữ nguyên.
 
 ## Modifying: câu trả lời NTLM (`ntlmInfo`, `windowsOf`, `windowsByPorts`), phần mềm từ dịch vụ (D-504)

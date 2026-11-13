@@ -119,12 +119,12 @@ func TestForbiddenRouteBeforeTheBody(t *testing.T) {
 }
 
 // D-109 (3), D-459: no X-Vedette-Proto, or one that is neither core's nor the one before it, is 426; it is checked before the
-// route. 5 is a sensor newer than core (never taken), 2 one two protocols behind.
+// route. 6 is a sensor newer than core (never taken), 3 one two protocols behind.
 func TestProtoHeader(t *testing.T) {
 	t.Parallel()
 	r := newRig(t, rigOpt{})
 	p := r.good(t)
-	for _, v := range []string{"", "0", "1", "2", "5", "1.0", "11", "03", "4,3"} {
+	for _, v := range []string{"", "0", "1", "2", "3", "6", "1.0", "11", "04", "5,4"} {
 		hdr := map[string]string{sensorlink.ProtoHeader: v}
 		if v == "" {
 			hdr[sensorlink.ProtoHeader] = "" // removes it

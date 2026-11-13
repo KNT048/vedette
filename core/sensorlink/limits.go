@@ -11,14 +11,16 @@ import (
 // Limits of the protocol (sensor-protocol.md section 9). They are starting points to measure again, not measurements.
 const (
 	ProtoHeader  = "X-Vedette-Proto"
-	ProtoVersion = "4" // 4: capture_error in the passive heartbeat (D-399); 3: host_errors on a nuclei result (D-165); 2: nuclei jobs (D-133)
+	ProtoVersion = "5" // 5: snmp jobs, snmp in the active heartbeat and the result (D-512); 4: capture_error in the passive heartbeat (D-399); 3: host_errors on a nuclei result (D-165); 2: nuclei jobs (D-133)
 	// ProtoPrevious is the one older protocol core still takes (D-459): a sensor or scan worker one protocol behind core, while
 	// an update runs (core switches first) and after a sensor's switch that went back by itself. Never a newer one, never two
 	// behind. A bump sets it to the old ProtoVersion (TestProtoPreviousIsOneBelow) and must keep core able to serve that peer:
 	// what the new protocol adds to a request is optional (absent = the old meaning). A bump that changes a reply core sends
 	// must first add what does not exist yet: the request's protocol passed to the handler and the old shape sent to a
-	// ProtoPrevious peer, with a test. 4 over 3 only added capture_error to a request, so nothing differs in core's replies.
-	ProtoPrevious = "3"
+	// ProtoPrevious peer, with a test. 4 over 3 only added capture_error to a request, so nothing differs in core's replies. 5 over 4
+	// adds a job kind to a reply, but core sends an snmp job only to a worker whose heartbeat said snmp (a field of protocol 5), so a
+	// worker of protocol 4 gets the replies of protocol 4 (sensoractive TestSNMPNeverGoesToAWorkerOfProtocol4).
+	ProtoPrevious = "4"
 	PathPrefix    = "/sensor/v1"
 
 	MaxObservationsBody = 1 << 20
@@ -28,7 +30,7 @@ const (
 	MaxResultJSONL      = 4 << 20 // the cap of a nuclei run's stdout (nucleiargv.MaxOutput; a test in sensoractive checks they agree)
 	MaxHostErrors       = 16      // entries of host_errors on a nuclei result: one per target (nucleiargv.MaxTargets; a test in the worker checks they agree)
 	MaxItems            = 500
-	MaxRunning          = 2 // jobs a worker runs at once: one nmap and one nuclei (D-125 (3))
+	MaxRunning          = 3 // jobs a worker runs at once: one nmap, one nuclei (D-125 (3)) and one snmp (D-512)
 
 	// What a sensor reads back from core.
 	MaxConfigReply = 64 << 10

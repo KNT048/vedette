@@ -5,7 +5,8 @@ import { api } from '@/lib/api'
 import type { AssetKind } from '@/lib/types'
 import type {
   AddDeviceInput, AddDeviceResult, AgentKind, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse,
-  ImportResult, InventorySettings, RegularScan, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, WazuhConnection, WazuhInput, WazuhTestResult,
+  ImportResult, InventorySettings, RegularScan, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SnmpCredential, SnmpCredentialInput, SnmpResponse, SnmpTestResult,
+  WazuhConnection, WazuhInput, WazuhTestResult,
 } from './types'
 
 export const useDevices = () => useQuery({ queryKey: ['inventory', 'devices'], queryFn: () => api.get<DevicesResponse>('/inventory/devices') })
@@ -26,6 +27,9 @@ export function useSensorCard(id: string) {
 }
 /** `enabled` false while the agent-intake module is off: a module that is off answers 404 (rules/modules.md), so the GUI does not ask. */
 export const useAgents = (enabled = true) => useQuery({ queryKey: ['inventory', 'agents'], queryFn: () => api.get<AgentsResponse>('/inventory/agents'), retry: false, enabled })
+
+/** D-512: `enabled` false while sensor-active is off (its SNMP routes answer 404 then, rules/modules.md), so the GUI does not ask. */
+export const useSnmp = (enabled = true) => useQuery({ queryKey: ['inventory', 'snmp'], queryFn: () => api.get<SnmpResponse>('/inventory/snmp'), retry: false, enabled })
 
 /** Sau mọi thay đổi thiết bị: làm mới cả danh sách, chi tiết và các trang module khác đọc tài sản (feeds, findings). */
 function useInvalidate() {
@@ -85,5 +89,16 @@ export function useWazuhActions() {
     save: useMutation({ mutationFn: (b: WazuhInput) => api.put<WazuhConnection>('/inventory/agents/wazuh', b), onSuccess: inv }),
     disconnect: useMutation({ mutationFn: () => api.del('/inventory/agents/wazuh'), onSuccess: inv }),
     sample: useMutation({ mutationFn: () => api.post<SampleResult>('/inventory/agents/wazuh/sample-data'), onSuccess: inv }),
+  }
+}
+/** D-512: SNMP credentials. A Test that gets an answer records it in the inventory, so it refreshes devices too. */
+export function useSnmpActions() {
+  const inv = useInvalidate()
+  const path = (id: string) => `/inventory/snmp/${encodeURIComponent(id)}`
+  return {
+    create: useMutation({ mutationFn: (b: SnmpCredentialInput) => api.post<SnmpCredential>('/inventory/snmp', b), onSuccess: inv }),
+    update: useMutation({ mutationFn: ({ id, ...b }: SnmpCredentialInput & { id: string }) => api.put<SnmpCredential>(path(id), b), onSuccess: inv }),
+    remove: useMutation({ mutationFn: (id: string) => api.del(path(id)), onSuccess: inv }),
+    test: useMutation({ mutationFn: ({ id, ip }: { id: string; ip: string }) => api.post<SnmpTestResult>(`${path(id)}/test`, { ip }), onSuccess: inv }),
   }
 }

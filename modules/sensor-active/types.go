@@ -33,6 +33,9 @@ type Decision struct {
 type Asset struct {
 	ID string
 	IP netip.Addr // invalid when the inventory knows no IP
+	// Approved: a person approved the device (or its osquery enrolment did). SNMP credentials go only to approved devices (D-512):
+	// a device nobody vouched for may be a rogue one that collects communities.
+	Approved bool
 }
 
 // Inventory is what this module asks of the inventory (INV-1, INV-2, INV-5). The real implementation is
@@ -50,6 +53,9 @@ type Inventory interface {
 	// regular_scan=never, fragile or unclassified devices after their one gentle scan, and the box itself. It
 	// is by IP, so a new MAC at a protected address does not make it fair game.
 	ProtectedIPs(ctx context.Context) ([]netip.Addr, error)
+	// BoxIPs lists only the addresses that are the box (its own device, its cards, the decoys): never probed, not even by an SNMP read
+	// of a fragile device (D-512).
+	BoxIPs(ctx context.Context) ([]netip.Addr, error)
 }
 
 // PendingGentle is an optional part of Inventory (D-511, review of #714 round 2): the devices whose one gentle scan is still to come
@@ -109,6 +115,7 @@ type BlockedEvent struct {
 const (
 	KindSweep  = "sweep"
 	KindDevice = "device"
+	KindSNMP   = "snmp" // a Test or the window's round of SNMP reads (D-512)
 
 	StatusRunning = "running"
 	StatusDone    = "done"

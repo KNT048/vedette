@@ -162,6 +162,48 @@ export const AgentsResponse = z.object({ install: Installers, tokens: z.array(Ag
 export const CreateTokenResult = z.object({ token: AgentToken, secret: z.string().describe('Full token, returned only at creation') })
 export const SampleResult = z.object({ devices: z.number().int(), software: z.number().int() })
 
+/** SNMP credentials (D-512, S-INV-1): read-only GETs from the scan container to approved devices in the scan scope. Secrets are stored encrypted; the API never returns them, only their last 4 characters. */
+export const SnmpVersion = z.enum(['v2c', 'v3']).describe('No SNMPv1 (D-512)')
+export const SnmpAuth = z.enum(['sha', 'sha256']).describe('v3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5)')
+export const SnmpPriv = z.enum(['aes128', 'none']).describe('v3 privacy: AES-128 (authPriv) or none (authNoPriv); no DES')
+export const SnmpCredential = z.object({
+  id: z.string(), name: z.string(), version: SnmpVersion,
+  username: z.string().nullable().describe('v3 user name; null for v2c'),
+  auth: SnmpAuth.nullable().describe('null for v2c'), priv: SnmpPriv.nullable().describe('null for v2c'),
+  secret_last4: z.string().describe('Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has fewer than 8 characters'),
+  priv_last4: z.string().describe('Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8 characters'),
+  scope: z.array(z.string()).describe('IPv4 addresses and CIDR ranges this credential is sent to (1 to 16): only approved devices of the scan scope inside them'),
+  created_at: dt, last_answer_at: dt.nullable().describe('When a device last answered with it (a round in the scan window, or a Test)'),
+  answered: z.number().int().describe('Devices that answered with it in its latest round in the scan window; a Test that got an answer makes it at least 1'),
+})
+export const SnmpCredentialInput = z.object({
+  name: z.string().max(64).describe('1 to 64 characters, not < >; unique (case does not matter)'), version: SnmpVersion,
+  community: z.string().max(64).optional().describe('v2c: 1 to 64 printable ASCII characters; blank when editing keeps the saved one'),
+  username: z.string().max(64).optional().describe('v3: letters, digits and . _ @ -'), auth: SnmpAuth.optional(),
+  auth_password: z.string().max(64).optional().describe('v3: 8 to 64 printable ASCII characters; blank when editing keeps the saved one'),
+  priv: SnmpPriv.optional().describe('v3; default aes128'),
+  priv_password: z.string().max(64).optional().describe('v3 with aes128: 8 to 64 printable ASCII characters; blank when editing keeps the saved one'),
+  scope: z.array(z.string()).max(16).describe('Required: the IPv4 addresses or CIDR ranges of the local network this credential belongs to (400 scope_required when empty, from the handler so the person reads why). A device someone plugs in later and gets approved never receives it (D-512)'),
+})
+export const SnmpResponse = z.object({
+  credentials: z.array(SnmpCredential).describe('In the order they are tried (oldest first), at most 8'),
+  ready: z.boolean().describe('false while the scan container cannot read SNMP (not reporting, or older than this version)'), message: z.string().nullable().describe('Why not ready'),
+})
+export const SnmpTestReason = z.enum([
+  'ok', 'no_answer', 'auth_failed', 'unknown_user', 'error', 'not_in_inventory', 'not_approved', 'out_of_scope', 'not_for_this_credential',
+  'scanning_off', 'scope_not_confirmed', 'declared_by_hand', 'box', 'regular_scan_never', 'unavailable', 'busy',
+])
+export const SnmpAnswer = z.object({
+  sys_descr: z.string(), sys_object_id: z.string(), sys_name: z.string().describe('What the device said, cleaned; empty when it has none'),
+  vendor: z.string(), product: z.string().describe('Product family from sysObjectID, e.g. FortiGate'), model: z.string(), os: z.string(), kind: z.string().describe('A device type id, or empty'),
+  serial: z.string(), firmware: z.string().describe('ENTITY-MIB chassis firmware text; shown, not stored'),
+})
+export const SnmpTestResult = z.object({
+  ok: z.boolean(), reason: SnmpTestReason, message: z.string().describe('Plain words for the person'),
+  device_id: z.string().nullable().describe('The inventory device at that IP, when there is one'),
+  answer: SnmpAnswer.nullable().describe('What the device said, when it answered; it is also recorded in the inventory with source snmp'),
+})
+
 const id = z.object({ id: z.string() })
 const ok = z.object({ ok: z.literal(true) })
 
@@ -204,4 +246,10 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/inventory/agents/wazuh/test', summary: 'Test the connection to the Wazuh API with the form values, without saving', stories: ['S-INV-4'], role: 'admin', body: WazuhInput, response: WazuhTestResult },
   { method: 'delete', path: '/inventory/agents/wazuh', summary: 'Disconnect Wazuh and delete the saved password', stories: ['S-INV-4'], role: 'admin', response: null },
   { method: 'post', path: '/inventory/agents/wazuh/sample-data', summary: 'PREVIEW ONLY (mock): sync sample data as if just pulled from Wazuh', stories: ['S-INV-4'], role: 'admin', response: SampleResult },
+  { method: 'get', path: '/inventory/snmp', summary: 'SNMP credentials (secrets only as their last 4 characters) and whether the scan container can read SNMP now (D-512)', stories: ['S-INV-1'], role: 'admin', response: SnmpResponse },
+  { method: 'post', path: '/inventory/snmp', status: 201, summary: 'Add an SNMP credential (v2c community or v3 user); its secrets are stored encrypted. 409 name_taken, 409 too_many (8 at most)', stories: ['S-INV-1'], role: 'admin', body: SnmpCredentialInput, response: SnmpCredential },
+  { method: 'put', path: '/inventory/snmp/{id}', summary: 'Edit an SNMP credential; a blank secret keeps the saved one', stories: ['S-INV-1'], role: 'admin', params: id, body: SnmpCredentialInput, response: SnmpCredential },
+  { method: 'delete', path: '/inventory/snmp/{id}', summary: 'Delete an SNMP credential and its secrets; what devices said stays in the inventory', stories: ['S-INV-1'], role: 'admin', params: id, response: null },
+  { method: 'post', path: '/inventory/snmp/{id}/test', summary: 'Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory', stories: ['S-INV-1'], role: 'admin', params: id,
+    body: z.object({ ip: z.string().max(15).describe('IPv4 of a device in the inventory') }), response: SnmpTestResult },
 ])

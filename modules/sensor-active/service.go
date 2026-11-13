@@ -15,9 +15,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 	"github.com/knt048/vedette/modules/sensor-passive/capture"
@@ -56,6 +58,11 @@ type Config struct {
 	// Location is the organization's time zone, the one the windows are read in (INV-3). Nil, or a nil result,
 	// means the box's own zone (time.Local).
 	Location func() *time.Location
+	// SNMP reads (D-512). Secrets seals the credentials' secrets (nil: the credential calls answer 501); Audit records who changed
+	// or tested a credential; SNMP sends the reads (nil: the Prober when it is one, the Dispatcher, else none).
+	Secrets *secrets.Store
+	Audit   *audit.Log
+	SNMP    SNMPReader
 }
 
 // Service runs active discovery. Create it with New. It is the only writer of the sa_* tables.
@@ -79,10 +86,16 @@ type Service struct {
 
 	runMu sync.Mutex // one nmap job at a time on the box
 
+	secrets *secrets.Store
+	audit   *audit.Log
+	snmp    SNMPReader
+	snmpMu  sync.Mutex // one snmp job at a time (a Test or a batch of the window's round)
+
 	ver atomic.Uint64 // bumped by every SettingsChanged; a run that sees it move before nmap starts stops
 
-	mu  sync.Mutex
-	cur *running // the job holding runMu, for SettingsChanged
+	mu      sync.Mutex
+	cur     *running // the job holding runMu, for SettingsChanged
+	snmpCur *snmpRun // the snmp batch holding snmpMu, for SettingsChanged, AssetChanged and Stop
 	// firstUntil is set while the first pass of a new box runs (firstPass, D-501): until then the window counts as open. Zero otherwise.
 	firstUntil time.Time
 }
@@ -136,6 +149,10 @@ func New(cfg Config) (*Service, error) {
 			return nil, err
 		}
 		s.prober = p
+	}
+	s.secrets, s.audit, s.snmp = cfg.Secrets, cfg.Audit, cfg.SNMP
+	if r, ok := s.prober.(SNMPReader); ok && s.snmp == nil {
+		s.snmp = r // the Dispatcher sends the reads to the scan worker too
 	}
 	return s, nil
 }
@@ -291,15 +308,21 @@ func clip(s string, n int) string {
 // failInterrupted closes jobs a restart left "running" (nothing runs now: the caller holds runMu). It writes
 // only when there is something to close, since Tick calls it every minute.
 func (s *Service) failInterrupted(ctx context.Context) error {
+	// An snmp job runs under snmpMu, not runMu: it is closed only when no snmp job runs now either.
+	kinds := `kind <> 'snmp'`
+	if s.snmpMu.TryLock() {
+		defer s.snmpMu.Unlock()
+		kinds = `1 = 1`
+	}
 	var n int
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM sa_job WHERE status = 'running'`).Scan(&n); err != nil {
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM sa_job WHERE status = 'running' AND `+kinds).Scan(&n); err != nil {
 		return fmt.Errorf("sensoractive: read jobs: %w", err)
 	}
 	if n == 0 {
 		return nil
 	}
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `UPDATE sa_job SET status = 'stopped', finished_at = ?, error = 'interrupted by a restart' WHERE status = 'running'`, s.now())
+		_, err := tx.ExecContext(ctx, `UPDATE sa_job SET status = 'stopped', finished_at = ?, error = 'interrupted by a restart' WHERE status = 'running' AND `+kinds, s.now())
 		return err
 	})
 }
@@ -448,10 +471,13 @@ func (s *Service) setTargets(t []netip.Addr, rate int) {
 // identification for Scan now runs on the scan module's goroutine, so only this reaches it (D-501, review L3).
 func (s *Service) Stop() {
 	s.mu.Lock()
-	cur := s.cur
+	cur, snmp := s.cur, s.snmpCur
 	s.mu.Unlock()
 	if cur != nil {
 		cur.cancel()
+	}
+	if snmp != nil {
+		snmp.cancel()
 	}
 }
 
@@ -1295,7 +1321,11 @@ func (s *Service) Tick(ctx context.Context) error {
 			s.log.WarnContext(ctx, "sensoractive: the sweep did not run", "error", err)
 		}
 	}
-	return s.drain(ctx)
+	if err := s.drain(ctx); err != nil {
+		return err
+	}
+	// Then the window's round of SNMP reads (D-512): the sweep and the queue may have found the devices it reads.
+	return s.snmpRound(ctx, start)
 }
 
 // firstPassDue says the first pass has never started (no sa_first_pass row) and no sweep ever finished on this box (a box from
@@ -1387,6 +1417,7 @@ func (s *Service) drain(ctx context.Context) error {
 // now. The next batch reads the new settings by itself.
 func (s *Service) SettingsChanged(ctx context.Context) error {
 	s.ver.Add(1)
+	s.snmpChanged(ctx, "")
 	s.mu.Lock()
 	cur := s.cur
 	var targets []netip.Addr
@@ -1424,6 +1455,7 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 // run is heavier than the policy now allows, the run is stopped; that is not an attempt (the queue keeps it
 // only if the policy still lets it be scanned later). Other devices are not the run's business.
 func (s *Service) AssetChanged(ctx context.Context, assetID string) error {
+	s.snmpChanged(ctx, assetID)
 	s.mu.Lock()
 	cur := s.cur
 	var gentle, picked bool

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -29,7 +30,7 @@ func newLocalSensorActive(d deps, path string) (*sensoractive.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newSensorActive(d, nmapHealth{p, path})
+	return newSensorActive(context.Background(), d, nmapHealth{p, path})
 }
 
 // nmapHealth is a local Prober that says what Health says of a local nmap (the file exists and is executable): the service reads the

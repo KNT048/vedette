@@ -217,7 +217,7 @@ func TestTypeAssertedOptionalMethodsSurviveTheComposition(t *testing.T) {
 	if _, ok := pr.(interface{ NmapHealth() string }); !ok {
 		t.Fatal("the Prober of the service hides NmapHealth")
 	}
-	svc, err := sensorActiveService(*s.d)
+	svc, err := sensorActiveService(t.Context(), *s.d)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -272,7 +272,7 @@ func TestProductionRunsNoCaptureAndNoLocalNmap(t *testing.T) {
 			return true
 		})
 	}
-	if _, err := newSensorActive(*s.d, nil); err == nil {
+	if _, err := newSensorActive(t.Context(), *s.d, nil); err == nil {
 		t.Error("newSensorActive accepted a nil Prober: the module would start nmap in this process")
 	}
 }

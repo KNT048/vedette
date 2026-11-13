@@ -5394,6 +5394,71 @@ func decodeInventoryDeleteInventoryDevicesIDSoftwareSidParams(args [2]string, ar
 	return params, nil
 }
 
+// InventoryDeleteInventorySnmpIDParams is parameters of inventory_delete_inventory_snmp_id operation.
+type InventoryDeleteInventorySnmpIDParams struct {
+	ID string
+}
+
+func unpackInventoryDeleteInventorySnmpIDParams(packed middleware.Parameters) (params InventoryDeleteInventorySnmpIDParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeInventoryDeleteInventorySnmpIDParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryDeleteInventorySnmpIDParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // InventoryGetInstallOsqueryFileParams is parameters of inventory_get_install_osquery_file operation.
 type InventoryGetInstallOsqueryFileParams struct {
 	File string
@@ -6061,6 +6126,136 @@ func unpackInventoryPostInventoryDevicesIDSuspiciousParams(packed middleware.Par
 }
 
 func decodeInventoryPostInventoryDevicesIDSuspiciousParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryPostInventoryDevicesIDSuspiciousParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// InventoryPostInventorySnmpIDTestParams is parameters of inventory_post_inventory_snmp_id_test operation.
+type InventoryPostInventorySnmpIDTestParams struct {
+	ID string
+}
+
+func unpackInventoryPostInventorySnmpIDTestParams(packed middleware.Parameters) (params InventoryPostInventorySnmpIDTestParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeInventoryPostInventorySnmpIDTestParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryPostInventorySnmpIDTestParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// InventoryPutInventorySnmpIDParams is parameters of inventory_put_inventory_snmp_id operation.
+type InventoryPutInventorySnmpIDParams struct {
+	ID string
+}
+
+func unpackInventoryPutInventorySnmpIDParams(packed middleware.Parameters) (params InventoryPutInventorySnmpIDParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeInventoryPutInventorySnmpIDParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryPutInventorySnmpIDParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]

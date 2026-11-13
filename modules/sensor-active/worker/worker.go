@@ -1,15 +1,18 @@
 // Package worker is the worker of the scan container (`vedette-sensor active`, D-113, D-125, sensor-protocol.md section 6.4). It
-// long-polls core for jobs, at most one nmap job and one nuclei job at a time (two slots, D-125 (3)), builds the command line
+// long-polls core for jobs, at most one nmap job, one nuclei job and one snmp job at a time (three slots, D-125 (3), D-512; the
+// snmp job is read-only GETs through gosnmp in this process, snmp.go), builds the command line
 // itself from the job's fields (nmapargv for nmap; nucleiargv, the pack index and the pinned nuclei for nuclei: the same code
 // core used before it handed the job over), runs the program through core/exec in its own process group and posts the
 // result. It holds no scope and no consent: core decided before it dispatched; the worker only refuses what the grammar forbids,
 // and it kills the program whenever core can no longer be listening for the answer.
 //
 // The package is linked into the sensor binary: standard library, core/exec, core/sensorlink, the nmapargv leaf and the
-// nucleiargv and pack leaves only, never the database or the generated API (TestBinaryDependencies).
+// nucleiargv and pack leaves and github.com/gosnmp/gosnmp (D-512) only, never the database or the generated API
+// (TestBinaryDependencies).
 package worker
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -79,6 +82,11 @@ type Config struct {
 	NucleiHome   string
 	TemplatesDir string
 
+	// SNMPDial points the SNMP requests elsewhere than the target's port 161 (tests: a fake agent on loopback). nil in production.
+	SNMPDial SNMPDialer
+	// SNMPTimeout is how long one SNMP request waits for its answer (default SNMPTimeout; tests make it short).
+	SNMPTimeout time.Duration
+
 	Now       func() time.Time // the clock of the lease
 	Sleep     func(ctx context.Context, d time.Duration) error
 	Wait      time.Duration // long-poll wait (default 25 s)
@@ -92,6 +100,8 @@ type Worker struct {
 	runner    *exec.Runner
 	nmapPath  string
 	nucleiCfg nucleiConfig
+	snmpDial  SNMPDialer
+	snmpWait  time.Duration
 	version   string
 	log       *slog.Logger
 	now       func() time.Time
@@ -110,6 +120,7 @@ type Worker struct {
 const (
 	slotNmap = iota
 	slotNuclei
+	slotSNMP
 	numSlots
 )
 
@@ -127,7 +138,7 @@ func New(c Config) (*Worker, error) {
 	if c.Link == nil {
 		return nil, errors.New("worker: a Link is required")
 	}
-	w := &Worker{link: c.Link, nmapPath: c.NmapPath, version: c.Version, log: c.Log, now: c.Now, sleep: c.Sleep, wait: c.Wait, heartbeat: c.Heartbeat, tick: c.Tick}
+	w := &Worker{link: c.Link, nmapPath: c.NmapPath, snmpDial: c.SNMPDial, snmpWait: cmp.Or(c.SNMPTimeout, SNMPTimeout), version: c.Version, log: c.Log, now: c.Now, sleep: c.Sleep, wait: c.Wait, heartbeat: c.Heartbeat, tick: c.Tick}
 	if w.log == nil {
 		w.log = slog.New(slog.DiscardHandler)
 	}
@@ -372,14 +383,19 @@ func slotOf(kind string) (int, bool) {
 		return slotNmap, true
 	case sensorlink.KindNuclei:
 		return slotNuclei, true
+	case sensorlink.KindSNMP:
+		return slotSNMP, true
 	}
 	return 0, false
 }
 
 // execute re-checks the job and runs it and returns the result to post.
 func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.JobResult {
-	if cur.slot == slotNuclei {
+	switch cur.slot {
+	case slotNuclei:
 		return w.executeNuclei(ctx, jctx, cur)
+	case slotSNMP:
+		return w.executeSNMP(ctx, jctx, cur)
 	}
 	argv, err := argvOf(cur.job)
 	if err != nil {
@@ -508,7 +524,8 @@ func (w *Worker) heartbeats(ctx context.Context) {
 
 func (w *Worker) beat(ctx context.Context) {
 	present, ver := w.nmapVersion(ctx)
-	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver}, Nuclei: w.nucleiStatus(ctx)}
+	// SNMP is in this binary (gosnmp, D-512): a worker of protocol 5 always runs snmp jobs.
+	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver}, Nuclei: w.nucleiStatus(ctx), SNMP: true}
 	inst, err := w.link.ActiveHeartbeat(ctx, hb)
 	if err != nil {
 		if ctx.Err() == nil {

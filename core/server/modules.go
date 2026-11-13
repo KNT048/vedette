@@ -20,6 +20,7 @@ var moduleOverrides = []struct{ prefix, module string }{
 	{"/intake", "agent-intake"},
 	{"/inventory/agents", "agent-intake"},
 	{"/inventory/sensors", "sensor-passive"},
+	{"/inventory/snmp", "sensor-active"}, // D-512: the SNMP credentials of active discovery
 	{"/core/network", "host"},
 	{"/auth", "core"},
 	{"/me", "core"},

@@ -60,9 +60,9 @@ func (u tgSeen) chat() *tgChat {
 }
 
 // FindChats lists the chats of the updates Telegram holds for the bot, newest first, at most ten. It sends no offset (nothing is
-// confirmed) and asks for no waiting; allowed_updates names the kinds that show a chat. The answer is untrusted: see ParseTelegramChats.
+// confirmed) and asks for no waiting; allowed_updates names the kinds that show a chat, plus callback_query so a later approval poller (which relies on the stored list) loses nothing. The answer is untrusted: see ParseTelegramChats.
 func (b *TelegramBot) FindChats(ctx context.Context) ([]TelegramChat, error) {
-	args := map[string]any{"timeout": 0, "limit": maxUpdates, "allowed_updates": []string{"message", "edited_message", "channel_post", "my_chat_member"}}
+	args := map[string]any{"timeout": 0, "limit": maxUpdates, "allowed_updates": []string{"message", "edited_message", "channel_post", "my_chat_member", "callback_query"}}
 	ans, err := b.call(ctx, "getUpdates", args, defaultTimeout, maxChatsBody+1)
 	if err != nil {
 		return nil, err

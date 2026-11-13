@@ -42845,10 +42845,15 @@
                         "additionalProperties": false
                       },
                       "description": "Chats the bot has seen, newest first, at most 10; empty when no message has reached it yet"
+                    },
+                    "fresh": {
+                      "type": "boolean",
+                      "description": "Empty answer only: this Find just set the bot's update filter, so a message sent earlier may not have been kept; ask the person to send it again"
                     }
                   },
                   "required": [
-                    "items"
+                    "items",
+                    "fresh"
                   ],
                   "additionalProperties": false
                 }

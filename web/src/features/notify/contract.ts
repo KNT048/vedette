@@ -117,7 +117,8 @@ export const ZaloApprovers = z.object({ items: z.array(ZaloApprover) })
 
 export const TelegramChat = z.object({ id: z.string().describe('Chat ID as Telegram writes it: a person is positive, a group negative (-100…)'), kind: z.enum(['private', 'group', 'supergroup', 'channel']),
   name: z.string().describe('The person\'s name or the group\'s title, cleaned and shortened'), username: z.string().describe('Public name without @; empty when none') })
-export const TelegramChats = z.object({ items: z.array(TelegramChat).describe('Chats the bot has seen, newest first, at most 10; empty when no message has reached it yet') })
+export const TelegramChats = z.object({ items: z.array(TelegramChat).describe('Chats the bot has seen, newest first, at most 10; empty when no message has reached it yet'),
+  fresh: z.boolean().describe('Empty answer only: this Find just set the bot\'s update filter, so a message sent earlier may not have been kept; ask the person to send it again') })
 
 const id = z.object({ id: z.string() })
 const type = z.object({ type: ChannelType })

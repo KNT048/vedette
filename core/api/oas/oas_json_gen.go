@@ -182819,6 +182819,10 @@ func (s *NotifyPostNotifyTelegramChatsOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *NotifyPostNotifyTelegramChatsOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("fresh")
+		e.Bool(s.Fresh)
+	}
+	{
 		e.FieldStart("items")
 		e.ArrStart()
 		for _, elem := range s.Items {
@@ -182828,8 +182832,9 @@ func (s *NotifyPostNotifyTelegramChatsOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfNotifyPostNotifyTelegramChatsOK = [1]string{
-	0: "items",
+var jsonFieldsNameOfNotifyPostNotifyTelegramChatsOK = [2]string{
+	0: "fresh",
+	1: "items",
 }
 
 // Decode decodes NotifyPostNotifyTelegramChatsOK from json.
@@ -182841,8 +182846,20 @@ func (s *NotifyPostNotifyTelegramChatsOK) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "items":
+		case "fresh":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Fresh = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fresh\"")
+			}
+		case "items":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.Items = make([]NotifyPostNotifyTelegramChatsOKItemsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -182869,7 +182886,7 @@ func (s *NotifyPostNotifyTelegramChatsOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

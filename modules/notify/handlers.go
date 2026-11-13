@@ -357,7 +357,7 @@ func (h *NotifyHandlers) NotifyPostNotifyTelegramChats(ctx context.Context, req 
 	if _, err := actor(ctx); err != nil {
 		return nil, err
 	}
-	chats, err := h.svc.TelegramChats(ctx, req.Token.Or(""))
+	chats, fresh, err := h.svc.TelegramChats(ctx, req.Token.Or(""))
 	if err != nil {
 		return nil, err
 	}
@@ -366,5 +366,6 @@ func (h *NotifyHandlers) NotifyPostNotifyTelegramChats(ctx context.Context, req 
 	}
 	return convert[oas.NotifyPostNotifyTelegramChatsOK](struct {
 		Items []channel.TelegramChat `json:"items"`
-	}{chats})
+		Fresh bool                   `json:"fresh"`
+	}{chats, fresh})
 }

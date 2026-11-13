@@ -44,4 +44,4 @@ export const useLinkApprovers = (kind: LinkKind, enabled: boolean) => useQuery({
   refetchInterval: (q) => (q.state.data?.items.some((a) => WAITING.includes(a.state)) ? 3000 : false) })
 export const useSendLink = (kind: LinkKind) => useInvalidating((userId: string) => api.post<ZaloApprover>(`/notify/${kind}/approvers/${encodeURIComponent(userId)}/code`))
 // D-491: Find my chat. The token goes in the body (empty = the saved one, which never leaves the box); nothing is cached.
-export const useFindTelegramChats = () => useMutation({ mutationFn: (token: string) => api.post<{ items: TelegramChat[] }>('/notify/telegram/chats', { token }) })
+export const useFindTelegramChats = () => useMutation({ mutationFn: (token: string) => api.post<{ items: TelegramChat[]; fresh: boolean }>('/notify/telegram/chats', { token }) })

@@ -98469,13 +98469,26 @@ func (s *NotifyPostNotifyTelegramApproversUserIDCodeOKState) UnmarshalText(data 
 }
 
 type NotifyPostNotifyTelegramChatsOK struct {
+	// Empty answer only: this Find just set the bot's update filter, so a message sent earlier may not
+	// have been kept; ask the person to send it again.
+	Fresh bool `json:"fresh"`
 	// Chats the bot has seen, newest first, at most 10; empty when no message has reached it yet.
 	Items []NotifyPostNotifyTelegramChatsOKItemsItem `json:"items"`
+}
+
+// GetFresh returns the value of Fresh.
+func (s *NotifyPostNotifyTelegramChatsOK) GetFresh() bool {
+	return s.Fresh
 }
 
 // GetItems returns the value of Items.
 func (s *NotifyPostNotifyTelegramChatsOK) GetItems() []NotifyPostNotifyTelegramChatsOKItemsItem {
 	return s.Items
+}
+
+// SetFresh sets the value of Fresh.
+func (s *NotifyPostNotifyTelegramChatsOK) SetFresh(val bool) {
+	s.Fresh = val
 }
 
 // SetItems sets the value of Items.

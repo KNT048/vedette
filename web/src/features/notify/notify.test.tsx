@@ -317,7 +317,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     const dlg = await screen.findByRole('dialog', { name: 'Channel Telegram' })
     const chat = within(dlg).getByLabelText('Chat ID')
     await userEvent.clear(chat)
-    const none = `${TOKEN}_none`, revoked = `${TOKEN}_revoked`, busy = `${TOKEN}_busy`
+    const none = `${TOKEN}_none`, fresh = `${TOKEN}_fresh`, revoked = `${TOKEN}_revoked`, busy = `${TOKEN}_busy`
     const token = within(dlg).getByLabelText('Bot token')
     const findBtn = within(dlg).getByRole('button', { name: 'Find my chat' })
     await userEvent.click(findBtn) // the saved token is used when none is typed
@@ -328,6 +328,9 @@ describe('notify: alert channels (S-NOT-1)', () => {
     await userEvent.type(token, none)
     await userEvent.click(findBtn)
     expect(await within(dlg).findByText(/No message yet: send any message to your bot/)).toBeInTheDocument()
+    await userEvent.clear(token); await userEvent.type(token, fresh)
+    await userEvent.click(findBtn)
+    expect(await within(dlg).findByText(/Vedette has just told Telegram to keep this bot's messages/)).toBeInTheDocument()
     await userEvent.clear(token); await userEvent.type(token, busy)
     await userEvent.click(findBtn)
     expect(await within(dlg).findByText(/Another program is already reading this bot's messages/)).toBeInTheDocument()

@@ -121,6 +121,11 @@ type Service struct {
 	urlSealFailing atomic.Bool
 	// tgOffset is the next Telegram update the approval listener reads (tglisten.go).
 	tgOffset telegramOffset
+	// tgFound holds the bots whose update filter a Find my chat already reset (D-491): the first empty answer for a bot says so.
+	tgFound struct {
+		mu   sync.Mutex
+		seen map[string]bool
+	}
 }
 
 // changeNotifier is the part of core/modreg.Registry that tells when a module is switched (OnChange). Config.Modules

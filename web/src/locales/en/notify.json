@@ -581,6 +581,7 @@
     "button": "Find my chat",
     "needToken": "Enter the bot token first.",
     "none": "No message yet: send any message to your bot (or post in the group after adding the bot), then press Find my chat again.",
+    "fresh": "Vedette has just told Telegram to keep this bot's messages. If you sent yours earlier, send it again now, then press Find my chat again.",
     "pick": "Chats your bot has seen, newest first",
     "option": "{{name}} - {{kind}}, ID {{id}}",
     "kind": { "private": "private chat", "group": "group", "supergroup": "group", "channel": "channel" }

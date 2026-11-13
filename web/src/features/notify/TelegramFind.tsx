@@ -14,6 +14,7 @@ export function TelegramFind({ token, hasSaved, chatId, onPick, onTokenError }: 
   const { t } = useTranslation('notify')
   const find = useFindTelegramChats()
   const [chats, setChats] = useState<TelegramChat[] | null>(null)
+  const [fresh, setFresh] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const ready = token.trim() !== '' || hasSaved
   const label = (c: TelegramChat) => `${c.name || c.id}${c.username ? ` (@${c.username})` : ''}`
@@ -21,7 +22,7 @@ export function TelegramFind({ token, hasSaved, chatId, onPick, onTokenError }: 
     setError(null)
     setChats(null)
     find.mutate(token.trim(), {
-      onSuccess: (r) => setChats(r.items),
+      onSuccess: (r) => { setChats(r.items); setFresh(r.fresh) },
       onError: (e) => {
         const msg = e instanceof ApiError ? e.message : String(e)
         if (e instanceof ApiError && e.code === 'bad_token') onTokenError(msg) // under the token field, as Save does
@@ -39,7 +40,7 @@ export function TelegramFind({ token, hasSaved, chatId, onPick, onTokenError }: 
         {!ready ? <span className="text-[13px] text-muted">{t('tgFind.needToken')}</span> : null}
       </div>
       {error ? <p role="alert" className="text-[13px] text-danger">{error}</p> : null}
-      {chats && chats.length === 0 ? <p role="status" className="text-[13px] text-muted">{t('tgFind.none')}</p> : null}
+      {chats && chats.length === 0 ? <p role="status" className="text-[13px] text-muted">{t(fresh ? 'tgFind.fresh' : 'tgFind.none')}</p> : null}
       {chats && chats.length > 0 ? (
         <fieldset className="grid gap-1 rounded-md border border-rule p-2">
           <legend className="px-1 text-[13px] font-medium">{t('tgFind.pick')}</legend>

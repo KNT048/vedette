@@ -132,6 +132,29 @@ func TestContract_D447_ZaloQRSignInThenSave(t *testing.T) {
 	if c := e.save(channel.ZaloPersonal, in); c.Fields["account"] != "Vedette Box" {
 		t.Errorf("account after a plain save: %+v", c.Fields)
 	}
+	in.Secret = zaloSession // a pasted session (API only): the signed-in account's name no longer applies
+	if c := e.save(channel.ZaloPersonal, in); c.Fields["account"] != "" {
+		t.Errorf("account after a pasted session: %+v", c.Fields)
+	}
+}
+
+// Five QR sign-ins an hour per box, whatever became of them (review L6).
+func TestZaloQRSignInsAreFiveAnHour(t *testing.T) {
+	e := newEnv(t)
+	useQR(e, nil, &channel.ProviderError{Channel: channel.ZaloPersonal, Code: -1, Reason: "x"})
+	for i := range 5 {
+		if _, err := e.svc.StartZaloLogin(e.ctx(), "admin@acme.example"); zaloErr(err) != "zalo_unreachable" {
+			t.Fatalf("start %d: %v", i+1, err)
+		}
+		e.clock.Add(31 * time.Second)
+	}
+	if _, err := e.svc.StartZaloLogin(e.ctx(), "admin@acme.example"); zaloErr(err) != "too_many_logins" {
+		t.Fatalf("sixth start in the hour: %v", err)
+	}
+	e.clock.Add(time.Hour)
+	if _, err := e.svc.StartZaloLogin(e.ctx(), "admin@acme.example"); zaloErr(err) != "zalo_unreachable" {
+		t.Fatalf("an hour later: %v", err)
+	}
 }
 
 func TestZaloQRSignInDeclinedOrFailed(t *testing.T) {
@@ -178,9 +201,17 @@ func TestZaloResolveRefusesAtTheEdge(t *testing.T) {
 
 // fakeLinkCodes is the LinkCodes port (module response in production).
 type fakeLinkCodes struct {
-	mu    sync.Mutex
-	asked []string
-	err   error
+	mu      sync.Mutex
+	asked   []string
+	dropped []string
+	err     error
+}
+
+func (f *fakeLinkCodes) DropChatLink(_ context.Context, actor, userID string, _ channel.Type, address string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.dropped = append(f.dropped, actor+"|"+userID+"|"+address)
+	return nil
 }
 
 func (f *fakeLinkCodes) ChatLinkCode(_ context.Context, userID string, _ channel.Type, address string) (string, string, error) {
@@ -241,5 +272,37 @@ func TestContract_D447_ZaloApproverLinkCodes(t *testing.T) {
 	e.svc.WaitZaloForTest()
 	if e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.zalo_unlink' AND detail LIKE 'it@acme.example: Zalo `+zaloOp+`%'`) != 1 {
 		t.Error("removing a linked approver is not audited")
+	}
+	if len(codes.dropped) != 1 || codes.dropped[0] != "admin@acme.example|u-op|"+zaloOp {
+		t.Errorf("the old proof was not dropped: %v", codes.dropped)
+	}
+}
+
+// One box sends at most 10 link-code messages in 10 minutes, however many approvers a save adds (review L3, D-46).
+func TestZaloLinkCodeMessagesAreRationed(t *testing.T) {
+	codes := &fakeLinkCodes{}
+	e := newZaloEnv(t, func(c *notify.Config) { c.ApproverLinks, c.LinkCodes = &fakeLinks{}, codes })
+	z := &zaloRecorder{codes: func() int { return 0 }}
+	e.svc.SetZaloToForTest(z.direct)
+	e.save(channel.ZaloPersonal, notify.ChannelInput{Enabled: true, Fields: map[string]string{"user_id": "123456789"}, Secret: zaloSession, MinSeverity: notify.Low, Approvals: true,
+		Approvers: []notify.Approver{{UserID: "u-op", Address: zaloOp}}})
+	e.svc.WaitZaloForTest()
+	for i := 2; i <= 10; i++ {
+		if _, err := e.svc.SendZaloCode(e.ctx(), "admin@acme.example", "u-op"); err != nil {
+			t.Fatalf("code %d: %v", i, err)
+		}
+	}
+	if _, err := e.svc.SendZaloCode(e.ctx(), "admin@acme.example", "u-op"); zaloErr(err) != "too_many_codes" {
+		t.Fatalf("eleventh code: %v", err)
+	}
+	if len(z.sent) != 10 {
+		t.Errorf("%d messages sent", len(z.sent))
+	}
+	if st, _ := e.svc.ZaloApprovers(e.ctx()); st[0].State != "not_sent" || !strings.Contains(st[0].Error, "Too many codes") {
+		t.Errorf("state after the ration %+v", st)
+	}
+	e.clock.Add(10 * time.Minute)
+	if _, err := e.svc.SendZaloCode(e.ctx(), "admin@acme.example", "u-op"); err != nil {
+		t.Errorf("after 10 minutes: %v", err)
 	}
 }

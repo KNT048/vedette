@@ -23,6 +23,10 @@ import (
 // qrPNG draws a 21x21 pattern at 4 pixels a cell inside a white margin: the top-left finder, one lone cell at (10, 10) and one at (20, 20).
 func qrPNG(t *testing.T) []byte {
 	t.Helper()
+	return qrPNGBytes()
+}
+
+func qrPNGBytes() []byte {
 	img := image.NewGray(image.Rect(0, 0, 21*4+16, 21*4+16))
 	for i := range img.Pix {
 		img.Pix[i] = 0xff
@@ -47,7 +51,7 @@ func qrPNG(t *testing.T) []byte {
 	cell(20, 20) // the far corner, so the dark box is 21 cells a side
 	var b bytes.Buffer
 	if err := png.Encode(&b, img); err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
 	return b.Bytes()
 }

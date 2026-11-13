@@ -221,9 +221,12 @@ type ApproverLinks interface {
 
 // LinkCodes makes the code that proves an approver's chat ID when the box sends it to that ID and the person replies with it from there
 // (Zalo personal, D-447; module response keeps the code and the proof, D-191). name is the Vedette user's name for the message. A
-// refusal is an *apierr.Error (not listed, already linked, a new code too soon): it goes to the administrator as it is.
+// refusal is an *apierr.Error (not listed, already linked, a new code too soon, Response off): it goes to the administrator as it is.
+// DropChatLink ends the proof of one address when an administrator removes that approver or gives them another address, so the old
+// address never counts again without a new proof.
 type LinkCodes interface {
 	ChatLinkCode(ctx context.Context, userID string, ch channel.Type, address string) (code, name string, err error)
+	DropChatLink(ctx context.Context, actor, userID string, ch channel.Type, address string) error
 }
 
 // ModuleGate says whether a module is on (modreg.Registry satisfies it).

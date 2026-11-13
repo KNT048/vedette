@@ -477,7 +477,7 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			in.Secret = login.signed.Session.Reveal()
 		}
 	}
-	unlinked, err := s.zaloUnlinked(ctx, t, in)
+	unlinked, dropped, err := s.zaloUnlinked(ctx, t, in)
 	if err != nil {
 		return Channel{}, err
 	}
@@ -503,6 +503,8 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			fields["name"], fields["account"] = channel.Line(fields["name"], 64), cur.Fields["account"]
 			if login != nil {
 				fields["account"] = login.signed.Name
+			} else if strings.TrimSpace(in.Secret) != "" {
+				delete(fields, "account") // a pasted session replaces the signed-in one: its account is not known
 			}
 			for _, k := range []string{"name", "account"} {
 				if fields[k] == "" {
@@ -646,6 +648,11 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		if login != nil {
 			s.dropLogin(login)
 		}
+		for _, a := range dropped { // after the commit (response writes its own rows): the old address must not count again
+			if err := s.cfg.LinkCodes.DropChatLink(ctx, actor, a.UserID, t, a.Address); err != nil {
+				s.cfg.Log.WarnContext(ctx, "notify: zalo-personal: an old approver proof could not be dropped", "user", a.UserID, "error", err.Error())
+			}
+		}
 		if c, err := loadChannel(ctx, s.cfg.DB.Reader(), t); err == nil && zaloReady(c) {
 			s.sendLinkCodesLater(ctx, actor, c, newZaloApprovers(before, out.Approvers))
 		}
@@ -664,17 +671,19 @@ func newZaloApprovers(before, now []Approver) []Approver {
 	return out
 }
 
-// zaloUnlinked describes the linked Zalo approvers a save removes or gives another Zalo: their proof stops counting (it is held to the
-// address, D-191), and each gets a "notify.zalo_unlink" audit row. Asked before the save, outside its transaction.
-func (s *Service) zaloUnlinked(ctx context.Context, t channel.Type, in ChannelInput) ([]string, error) {
+// zaloUnlinked describes the linked Zalo approvers a save removes or gives another Zalo: each gets a "notify.zalo_unlink" audit row,
+// and their proof of the old address is dropped after the save (Config.LinkCodes), so naming that address again needs a new reply.
+// Asked before the save, outside its transaction.
+func (s *Service) zaloUnlinked(ctx context.Context, t channel.Type, in ChannelInput) ([]string, []Approver, error) {
 	if t != channel.ZaloPersonal || s.cfg.ApproverLinks == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 	before, err := loadApprovers(ctx, s.cfg.DB.Reader(), t)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var out []string
+	var dropped []Approver
 	for _, b := range before {
 		if in.Approvals && slices.ContainsFunc(in.Approvers, func(a Approver) bool { return a.UserID == b.UserID && strings.TrimSpace(a.Address) == b.Address }) {
 			continue
@@ -687,8 +696,11 @@ func (s *Service) zaloUnlinked(ctx context.Context, t channel.Type, in ChannelIn
 			who = u.Email
 		}
 		out = append(out, who+": Zalo "+b.Address+" is no longer their approver address; its link no longer counts")
+		if s.cfg.LinkCodes != nil {
+			dropped = append(dropped, b)
+		}
 	}
-	return out, nil
+	return out, dropped, nil
 }
 
 // putSecret seals plaintext as a new secret, or replaces the one id. It returns the id and the last 4 characters ("" when too short to show).

@@ -558,6 +558,9 @@ func (s *Service) chatNotLinked(ctx context.Context, u User, channel, ext, targe
 // person must be an active operator or admin listed with exactly that address and not linked yet; the limits of Get a code apply (one a
 // minute, five an hour) and a new code replaces the one waiting. name is how the message names the person (their name, else their email).
 func (s *Service) ChatLinkCode(ctx context.Context, userID, channel, address string) (code, name string, err error) {
+	if !s.on() {
+		return "", "", fail(http.StatusServiceUnavailable, "link_unavailable", "Approvers cannot be linked now: the Response module is off.")
+	}
 	if !slices.Contains(sendLink, channel) {
 		return "", "", fail(http.StatusBadRequest, "chat_channel", "This channel is not linked by a code sent to it.")
 	}
@@ -590,4 +593,31 @@ func (s *Service) ChatLinkCode(ctx context.Context, userID, channel, address str
 		name = u.Email
 	}
 	return sent.Code, name, nil
+}
+
+// DropChatLink ends the person's proof of exactly this address on the channel, and any code waiting for it, when an administrator removes
+// them as an approver or gives them another address (notify Config.LinkCodes, D-447): a proof held to an old address must not count again
+// if the list later names that address once more. Nothing linked is no error. The audit row is response.identity_unlink by the actor.
+func (s *Service) DropChatLink(ctx context.Context, actor, userID, channel, address string) error {
+	s.mu.Lock() // as Unlink: a decision that passed its re-check under the lock runs before the proof goes, never after
+	defer s.mu.Unlock()
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		var got string
+		err := tx.QueryRowContext(ctx, `SELECT address FROM resp_identity WHERE user_id = ? AND channel = ?`, userID, channel).Scan(&got)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && !sameAddress(channel, got, address)) {
+			_, err = tx.ExecContext(ctx, `DELETE FROM resp_link_codes WHERE user_id = ? AND channel = ? AND address = ?`, userID, channel, address)
+			return err
+		}
+		if err != nil {
+			return fmt.Errorf("response: read identity: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM resp_identity WHERE user_id = ? AND channel = ?`, userID, channel); err != nil {
+			return fmt.Errorf("response: delete identity: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM resp_link_codes WHERE user_id = ? AND channel = ?`, userID, channel); err != nil {
+			return fmt.Errorf("response: delete link code: %w", err)
+		}
+		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: "response.identity_unlink", Target: channel,
+			Detail: truncRunes(cleanLine(userID+" no longer linked "+address+": an administrator changed the approver list"), 400)})
+	})
 }

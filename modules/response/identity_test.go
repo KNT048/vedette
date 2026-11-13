@@ -484,6 +484,34 @@ func TestContract_D447_ZaloCodeForTheListedAddress(t *testing.T) {
 	wantCode(t, err, 409, "already_linked")
 }
 
+// D-447 (review L1, L4): an administrator's change drops the proof of the old address, so naming it again needs a new proof; with
+// Response off no code is made.
+func TestContract_D447_DroppedZaloProofDoesNotComeBack(t *testing.T) {
+	t.Parallel()
+	c := newChatEnv(t) // every approver linked
+	ids, err := c.svc.MyIdentities(c.ctx(), op)
+	c.must(err)
+	if r := zaloRow(ids); r == nil || !r.Linked {
+		t.Fatalf("before = %+v", ids)
+	}
+	c.must(c.svc.DropChatLink(c.ctx(), "admin@acme.example", "u-op", "zalo-personal", "9999999999")) // another address: nothing to drop
+	ids, _ = c.svc.MyIdentities(c.ctx(), op)
+	if r := zaloRow(ids); r == nil || !r.Linked {
+		t.Fatal("dropping another address removed the proof")
+	}
+	c.must(c.svc.DropChatLink(c.ctx(), "admin@acme.example", "u-op", "zalo-personal", zlOp))
+	ids, _ = c.svc.MyIdentities(c.ctx(), op)
+	if r := zaloRow(ids); r == nil || r.Linked { // the list still names zlOp (A -> B -> A): it does not count again
+		t.Fatalf("after the drop = %+v", ids)
+	}
+	if c.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'response.identity_unlink' AND user = 'admin@acme.example'`) != 1 {
+		t.Fatal("the drop is not audited")
+	}
+	off := newEnv(t, func(cfg *response.Config) { cfg.Modules = &gate{on: false} })
+	_, _, err = off.svc.ChatLinkCode(off.ctx(), "u-op", "zalo-personal", zlOp)
+	wantCode(t, err, 503, "link_unavailable")
+}
+
 func zaloRow(ids []response.Identity) *response.Identity {
 	for i := range ids {
 		if ids[i].Channel == "zalo-personal" {

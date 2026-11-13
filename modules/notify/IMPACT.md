@@ -42,6 +42,9 @@ Người gọi duy nhất ở mọi mục là `response` (qua adapter ở `cmd/v
 - Máy mới hộp nói chuyện: `id.zalo.me`, `chat.zalo.me`, `jr.chat.zalo.me` (chỉ lúc đăng nhập QR) và các dịch vụ `*.chat.zalo.me` của bản đồ dịch vụ (PRIVACY luồng 5, Cài đặt → Quyền riêng tư).
 - Trạng thái trong bộ nhớ (`Service.zalo`): một lần đăng nhập, khẩu phần bắt đầu/tra cứu, mã đã gửi theo người duyệt; khởi động lại thì mất (mã vẫn ở `response`, gửi lại được). Goroutine nền (đăng nhập, gửi mã sau Save) có hạn: 100 s + 45 s, mỗi tin ≤ 30 s.
 - GUI: `web/src/features/notify/ZaloPersonal.tsx`; My account (response, `ApproverIdentities.tsx`) chỉ còn trạng thái cho Zalo.
+- **Không đăng xuất được phiên bên Zalo** (rà soát L5): zca-js v2.2.0 không có lời gọi đăng xuất (không có `logout` trong `src/apis`), nên một lần đăng nhập QR bị huỷ, bị thay bằng lần mới, hết 10 phút chờ Save, hay một phiên đã lưu bị thay bằng phiên khác **vẫn còn sống phía Zalo** (là một thiết bị/phiên web của tài khoản) cho tới khi Zalo tự hết hạn hoặc người dùng đăng xuất nó trong ứng dụng Zalo. Hộp chỉ bỏ nó khỏi bộ nhớ; hộp thoại nói điều này một dòng (`zp.signOutHint`). Nâng cấp: viết lại lời gọi đăng xuất khi có nguồn (zca-js hoặc client web Zalo) đọc được.
+- Khẩu phần (rà soát L3, L6): bắt đầu đăng nhập (30 s, 5/giờ), tra cứu (20/10 phút) và tin mã liên kết (10/10 phút, 429 `too_many_codes`, người duyệt còn lại ở `not_sent`) đều theo đồng hồ của dịch vụ (`Config.Clock`); hạn của mã QR theo đồng hồ thật.
+- Bỏ hay đổi Zalo của người duyệt đã liên kết (rà soát L1): sau khi lưu, notify gọi `LinkCodes.DropChatLink` → `response.DropChatLink` xoá bằng chứng của đúng địa chỉ cũ (`resp_identity`, mã đang chờ; kiểm toán `response.identity_unlink`), nên A→B→A cần một lần trả lời mã mới. Lỗi khi xoá chỉ ghi cảnh báo (bằng chứng cũ còn, nhưng không khớp địa chỉ mới).
 
 ## Disabling this module
 - Không tin nào gửi; Incidents và Settings → Alert channels mất; panel thông báo ở finding mất.

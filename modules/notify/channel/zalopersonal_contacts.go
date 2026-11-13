@@ -176,18 +176,8 @@ func ZaloContacts(ctx context.Context, snd Sender) (friends, groups []ZaloContac
 		if err != nil {
 			return err
 		}
-		var list []struct {
-			UserID      json.RawMessage `json:"userId"`
-			DisplayName string          `json:"displayName"`
-			ZaloName    string          `json:"zaloName"`
-		}
-		if json.Unmarshal(data, &list) != nil {
-			return badAnswer("the friend list was not understood")
-		}
-		for _, f := range list {
-			if id := zaloID(f.UserID); id != "" && len(friends) < zaloMaxContacts {
-				friends = append(friends, ZaloContact{ID: id, Name: zaloName(f.DisplayName, f.ZaloName)})
-			}
+		if friends, err = parseZaloFriends(data); err != nil {
+			return err
 		}
 		ids, err := z.groupIDs(ctx)
 		if err != nil {
@@ -217,20 +207,7 @@ func (z *zaloPersonalSender) groupIDs(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var all struct {
-		Map map[string]json.RawMessage `json:"gridVerMap"`
-	}
-	if json.Unmarshal(data, &all) != nil {
-		return nil, badAnswer("the group list was not understood")
-	}
-	ids := make([]string, 0, len(all.Map))
-	for id := range all.Map {
-		if zaloPersonalUserRE.MatchString(id) {
-			ids = append(ids, id)
-		}
-	}
-	sort.Strings(ids)
-	return ids[:min(len(ids), zaloMaxGroups)], nil
+	return parseZaloGroupIDs(data)
 }
 
 // groupInfo reads the names of groups (getmg-v2), zaloGroupBatch at a time. A group the answer leaves out is listed by its id.
@@ -261,19 +238,11 @@ func (z *zaloPersonalSender) groupInfo(ctx context.Context, ids []string) ([]Zal
 		if err != nil {
 			return nil, err
 		}
-		var info struct {
-			Map map[string]struct {
-				Name        string `json:"name"`
-				TotalMember int    `json:"totalMember"`
-			} `json:"gridInfoMap"`
+		got, err := parseZaloGroupInfo(data, batch)
+		if err != nil {
+			return nil, err
 		}
-		if json.Unmarshal(data, &info) != nil {
-			return nil, badAnswer("the group details were not understood")
-		}
-		for _, id := range batch {
-			g := info.Map[id]
-			out = append(out, ZaloContact{ID: id, Name: zaloName(g.Name, ""), Group: true, Members: max(g.TotalMember, 0)})
-		}
+		out = append(out, got...)
 	}
 	return out, nil
 }
@@ -298,15 +267,9 @@ func ZaloGroupByLink(ctx context.Context, snd Sender, link string) (g ZaloContac
 		if err != nil {
 			return notFound(err)
 		}
-		var info struct {
-			GroupID     json.RawMessage `json:"groupId"`
-			Name        string          `json:"name"`
-			TotalMember int             `json:"totalMember"`
+		if g, err = parseZaloGroupLink(data); err != nil {
+			return err
 		}
-		if json.Unmarshal(data, &info) != nil || zaloID(info.GroupID) == "" {
-			return ErrZaloNotFound
-		}
-		g = ZaloContact{ID: zaloID(info.GroupID), Name: zaloName(info.Name, ""), Group: true, Members: max(info.TotalMember, 0)}
 		ids, err := z.groupIDs(ctx)
 		if err != nil {
 			return err
@@ -338,16 +301,8 @@ func ZaloFindPhone(ctx context.Context, snd Sender, phone string) (ZaloContact, 
 		if err != nil {
 			return notFound(err)
 		}
-		var u struct {
-			UID         json.RawMessage `json:"uid"`
-			ZaloName    string          `json:"zalo_name"`
-			DisplayName string          `json:"display_name"`
-		}
-		if json.Unmarshal(data, &u) != nil || zaloID(u.UID) == "" {
-			return ErrZaloNotFound
-		}
-		c = ZaloContact{ID: zaloID(u.UID), Name: zaloName(u.DisplayName, u.ZaloName)}
-		return nil
+		c, err = parseZaloFoundUser(data)
+		return err
 	})
 	return c, err
 }
@@ -398,4 +353,88 @@ func parseZaloServices(data json.RawMessage) map[string]string {
 		}
 	}
 	return out
+}
+
+// ---- the answers of the look-ups, decrypted (untrusted: fuzzed in zalopersonal_fuzz_test.go) ----
+
+// parseZaloFriends reads getfriends: a list of {userId, displayName, zaloName}; entries without a digit id are left out, at most zaloMaxContacts.
+func parseZaloFriends(data json.RawMessage) ([]ZaloContact, error) {
+	var list []struct {
+		UserID      json.RawMessage `json:"userId"`
+		DisplayName string          `json:"displayName"`
+		ZaloName    string          `json:"zaloName"`
+	}
+	if json.Unmarshal(data, &list) != nil {
+		return nil, badAnswer("the friend list was not understood")
+	}
+	var out []ZaloContact
+	for _, f := range list {
+		if id := zaloID(f.UserID); id != "" && len(out) < zaloMaxContacts {
+			out = append(out, ZaloContact{ID: id, Name: zaloName(f.DisplayName, f.ZaloName)})
+		}
+	}
+	return out, nil
+}
+
+// parseZaloGroupIDs reads getlg/v4: the keys of gridVerMap that are digit ids, sorted, at most zaloMaxGroups.
+func parseZaloGroupIDs(data json.RawMessage) ([]string, error) {
+	var all struct {
+		Map map[string]json.RawMessage `json:"gridVerMap"`
+	}
+	if json.Unmarshal(data, &all) != nil {
+		return nil, badAnswer("the group list was not understood")
+	}
+	ids := make([]string, 0, len(all.Map))
+	for id := range all.Map {
+		if zaloPersonalUserRE.MatchString(id) {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	return ids[:min(len(ids), zaloMaxGroups)], nil
+}
+
+// parseZaloGroupInfo reads getmg-v2 for the groups asked (batch, already checked): a group the answer leaves out keeps its id as its name.
+func parseZaloGroupInfo(data json.RawMessage, batch []string) ([]ZaloContact, error) {
+	var info struct {
+		Map map[string]struct {
+			Name        string `json:"name"`
+			TotalMember int    `json:"totalMember"`
+		} `json:"gridInfoMap"`
+	}
+	if json.Unmarshal(data, &info) != nil {
+		return nil, badAnswer("the group details were not understood")
+	}
+	out := make([]ZaloContact, 0, len(batch))
+	for _, id := range batch {
+		g := info.Map[id]
+		out = append(out, ZaloContact{ID: id, Name: zaloName(g.Name, ""), Group: true, Members: max(g.TotalMember, 0)})
+	}
+	return out, nil
+}
+
+// parseZaloGroupLink reads link/ginfo: the group's id, name and size; no digit id is ErrZaloNotFound.
+func parseZaloGroupLink(data json.RawMessage) (ZaloContact, error) {
+	var info struct {
+		GroupID     json.RawMessage `json:"groupId"`
+		Name        string          `json:"name"`
+		TotalMember int             `json:"totalMember"`
+	}
+	if json.Unmarshal(data, &info) != nil || zaloID(info.GroupID) == "" {
+		return ZaloContact{}, ErrZaloNotFound
+	}
+	return ZaloContact{ID: zaloID(info.GroupID), Name: zaloName(info.Name, ""), Group: true, Members: max(info.TotalMember, 0)}, nil
+}
+
+// parseZaloFoundUser reads friend/profile/get: the person's uid and name; no digit uid is ErrZaloNotFound.
+func parseZaloFoundUser(data json.RawMessage) (ZaloContact, error) {
+	var u struct {
+		UID         json.RawMessage `json:"uid"`
+		ZaloName    string          `json:"zalo_name"`
+		DisplayName string          `json:"display_name"`
+	}
+	if json.Unmarshal(data, &u) != nil || zaloID(u.UID) == "" {
+		return ZaloContact{}, ErrZaloNotFound
+	}
+	return ZaloContact{ID: zaloID(u.UID), Name: zaloName(u.DisplayName, u.ZaloName)}, nil
 }

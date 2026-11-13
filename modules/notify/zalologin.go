@@ -29,6 +29,7 @@ const (
 	zaloLoginsPerHour = 5
 	zaloLookups       = 20 // contact lists and look-ups per zaloLookupEvery, per box
 	zaloLookupEvery   = 10 * time.Minute
+	zaloCodeDMs       = 10               // link-code messages per zaloLookupEvery, per box: a save that adds many approvers does not burst them (D-46)
 	zaloCodeLife      = 10 * time.Minute // response keeps the code that long (D-191)
 	zaloCodeSendWait  = 30 * time.Second
 	zaloQueryMax      = 200
@@ -115,6 +116,7 @@ type zaloSetup struct {
 	cur     *zaloLoginRun
 	starts  []time.Time
 	lookups []time.Time
+	dms     []time.Time
 	codes   map[string]zaloCodeSent
 	bg      sync.WaitGroup // code sends after a save
 }
@@ -137,9 +139,9 @@ func retryErr(status int, code, msg string, wait time.Duration) error {
 // StartZaloLogin starts a QR sign-in for the administrator who (POST /notify/zalo/login). Another administrator's sign-in in progress is
 // 409 login_busy; more than one start in 30 s or 5 in an hour is 429 (repeated sign-ins can get the account locked, D-46).
 func (s *Service) StartZaloLogin(ctx context.Context, who string) (ZaloLogin, error) {
-	st, now := &s.zalo, time.Now()
+	st, now := &s.zalo, s.now() // the rations run on the service clock; the timers of a sign-in on the wall clock
 	st.mu.Lock()
-	if r := st.cur; r != nil && r.owner != who && r.live(now) {
+	if r := st.cur; r != nil && r.owner != who && r.live(time.Now()) {
 		st.mu.Unlock()
 		return ZaloLogin{}, apierr.New(http.StatusConflict, "login_busy", "Another administrator is signing in to Zalo now. Try again in a few minutes.")
 	}
@@ -157,7 +159,7 @@ func (s *Service) StartZaloLogin(ctx context.Context, who string) (ZaloLogin, er
 		st.cur.stop()
 	}
 	base, stop := context.WithCancel(context.WithoutCancel(ctx))
-	run := &zaloLoginRun{owner: who, state: "starting", ends: now.Add(zaloLoginStart), stop: stop}
+	run := &zaloLoginRun{owner: who, state: "starting", ends: time.Now().Add(zaloLoginStart), stop: stop}
 	st.cur = run
 	st.mu.Unlock()
 
@@ -313,7 +315,7 @@ func (s *Service) zaloAccount(ctx context.Context, who string) (channel.Sender, 
 
 func (s *Service) takeLookup() error {
 	s.zalo.mu.Lock()
-	ok, wait := ration(&s.zalo.lookups, time.Now(), zaloLookups, zaloLookupEvery)
+	ok, wait := ration(&s.zalo.lookups, s.now(), zaloLookups, zaloLookupEvery)
 	s.zalo.mu.Unlock()
 	if !ok {
 		return retryErr(http.StatusTooManyRequests, "too_many_lookups", "Too many Zalo look-ups in a short time (Zalo may lock the account). Try again in %d minutes.", wait)
@@ -469,6 +471,14 @@ func (s *Service) SendZaloCode(ctx context.Context, actor, userID string) (ZaloA
 func (s *Service) sendLinkCode(ctx context.Context, actor string, c channelRow, a Approver) error {
 	if s.cfg.LinkCodes == nil {
 		return apierr.New(http.StatusServiceUnavailable, "link_unavailable", "Approvers cannot be linked now: the Response module is off.")
+	}
+	s.zalo.mu.Lock()
+	ok, wait := ration(&s.zalo.dms, s.now(), zaloCodeDMs, zaloLookupEvery)
+	s.zalo.mu.Unlock()
+	if !ok {
+		err := retryErr(http.StatusTooManyRequests, "too_many_codes", "Too many codes were sent from this Zalo account in a short time (Zalo may lock it). Send again in %d minutes.", wait)
+		s.markCode(a, zaloCodeSent{address: a.Address, errText: refusalText(err)})
+		return err
 	}
 	s.markCode(a, zaloCodeSent{address: a.Address, sending: true})
 	code, name, err := s.cfg.LinkCodes.ChatLinkCode(ctx, a.UserID, channel.ZaloPersonal, a.Address)

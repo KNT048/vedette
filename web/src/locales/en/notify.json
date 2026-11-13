@@ -275,7 +275,8 @@
       "waitingFor": "Waiting for {{name}} to reply with the code sent at {{time}}.",
       "again": "Send again",
       "sentToast": "A new code was sent to {{name}}. The old one no longer works."
-    }
+    },
+    "signOutHint": "Zalo has no sign-out for this kind of session: a sign-in you cancel, replace or do not save stays signed in on Zalo until it expires or you log it out of the account's devices in the Zalo app."
   },
   "incidents": {
     "title_one": "{{count}} new incident",

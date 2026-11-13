@@ -68,6 +68,7 @@ export function ZaloSignIn({ channel, onSigned }: { channel: Channel; onSigned: 
       ) : null}
       {v && NEW_QR.includes(v.state) ? <p role="status" className="text-[13px] text-danger">{v.state === 'failed' ? v.error : t(`zp.state.${v.state}`)}</p> : null}
       {err ? <p role="alert" className="text-[13px] text-danger">{err}</p> : null}
+      <p className="text-[13px] text-muted">{t('zp.signOutHint')}</p>
       {!v || v.state === 'none' || NEW_QR.includes(v.state) || v.state === 'signed_in' ? (
         <div><Button disabled={start.isPending} onClick={() => void begin()}><QrCode />{v && v.state !== 'none' && v.state !== 'signed_in' ? t('zp.newQr') : saved || channel.secret_last4 || signedName ? t('zp.relogin') : t('zp.show')}</Button></div>
       ) : null}

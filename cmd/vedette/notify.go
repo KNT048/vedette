@@ -193,6 +193,14 @@ func (l notifyApproverLinks) ChatLinkCode(ctx context.Context, userID string, ch
 	return l.d.Response.ChatLinkCode(ctx, userID, string(ch), address)
 }
 
+// DropChatLink is the other half of notify's Config.LinkCodes (D-447): an approver removed or given another Zalo loses the old proof.
+func (l notifyApproverLinks) DropChatLink(ctx context.Context, actor, userID string, ch channel.Type, address string) error {
+	if l.d.Response == nil {
+		return errResponseNotReady
+	}
+	return l.d.Response.DropChatLink(ctx, actor, userID, string(ch), address)
+}
+
 // newNotify builds the notify service once per database, so the handlers, the deliver job, the event
 // subscriptions and the code mailer share it (the Zalo personal adapter keeps its signed-in session and its
 // sign-in pause in memory). Events go to and come from deps.Bus. buildServices calls it first with the real

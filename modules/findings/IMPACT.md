@@ -67,7 +67,7 @@
 
 ## Modifying: sự kiện `findings.finding.created|status_changed|severity_raised`
 - **notify** (tin lỗ hổng, `min_severity`), **response** (trigger finding), **logs** (SIEM). Đổi tên/trường = người nhận im lặng, không lỗi biên dịch.
-- `severity_raised` (review M-a của #663) thay cho `status_changed` `from = to` kèm `severity` của review H2: **notify** (tin `nt-<finding>-raised-<mức>`) và **logs** (bản ghi SIEM `finding.severity_raised`) nghe nó từ D-495; đổi tên/trường là làm hai chỗ đó mất tin.
+- `severity_raised` (review M-a của #663) thay cho `status_changed` `from = to` kèm `severity` của review H2: **notify** (tin `nt-<finding>-raised-<mức>`) và **logs** (bản ghi SIEM `finding.severity_raised`) nghe nó từ D-495; đổi tên/trường là làm hai chỗ đó mất tin. Lần khớp vừa mở lại vừa nâng cơ sở chỉ phát `status_changed`.
 
 ## Disabling this module
 - Mất trang Findings và panel finding ở Devices; không finding mới; `notify` mất tin lỗ hổng; `scan` không nối được `finding_id`; `response` không có phát hiện Critical để đề xuất; `reports` thiếu mục lỗ hổng; `mitigation` mất đầu vào.

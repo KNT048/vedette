@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -105,8 +104,11 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 		return nil
 	}
 	if statusChange && e.Reason == "matches_again" { // Vedette reopened a finding it had closed as not affected (D-530)
+		if IsBaseline(ctx) {
+			return nil
+		}
 		return s.findingChange(ctx, e.FindingID, e.CVE, "", func(f FindingInfo, cve string, n *Notice) {
-			n.ID += "-reopened-" + strconv.FormatInt(n.At.Unix(), 10)
+			n.ID += "-reopened-" + n.At.UTC().Format("20060102") // one notice per UTC day: a version that flaps between scans does not send one each time
 			n.Change = "reopened, it matches again"
 			n.Title = "Vedette reopened " + about(cve, f) + ": it matches again"
 			n.What = "Vedette had closed this finding as not affected, and the device matches the entry again. " + f.What
@@ -182,7 +184,7 @@ func (s *Service) findingRaised(ctx context.Context, data any) error {
 		}
 		n.Change = "now " + string(to) + was
 		n.Title = about(cve, f) + " is now " + string(to) + was
-		why := "Vedette checked again and now rates it higher: it has new information about how this flaw is exploited."
+		why := "Vedette checked again and found stronger evidence that this device is affected."
 		if e.Basis == "version" {
 			why = "The installed version is in the range that the vendor lists as affected."
 		}

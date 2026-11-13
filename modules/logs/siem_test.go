@@ -556,7 +556,7 @@ func TestSiemQueuesOnlyWhatIsEnabledAndOnlyWhileTheJobRuns(t *testing.T) {
 		publish(t, bus, siemEventHoneypot, hit)
 		publish(t, bus, siemEventIncident, map[string]any{"id": "i-1", "kind": "trap", "severity": "high"})
 		publish(t, bus, siemEventBadAddress, map[string]any{"id": "b-1", "src_ip": "10.0.0.9", "dest": "evil.example", "dest_kind": "domain"})
-		publish(t, bus, siemEventFindingStatus, map[string]any{"finding_id": "f-1", "from": "open", "to": "confirmed"})
+		publish(t, bus, siemEventFindingStatus, map[string]any{"finding_id": "f-1", "from": "not_relevant", "to": "suspected", "reason": "matches_again"})
 		publish(t, bus, siemEventFindingRaised, map[string]any{"finding_id": "f-1", "asset_id": "a-1", "cve": "CVE-2022-27593", "from_severity": "medium", "to_severity": "critical", "basis": "version"})
 	}
 	queued := func() int { r, _ := e.svc.siemQ.peek(100); return len(r) }
@@ -578,11 +578,13 @@ func TestSiemQueuesOnlyWhatIsEnabledAndOnlyWhileTheJobRuns(t *testing.T) {
 	waitFor(t, func() bool { return e.svc.siemRunning.Load() && e.svc.siemCache.Load() != nil })
 	all()
 	var names []string
+	got := map[string]siemRecord{}
 	for len(names) < 4 {
 		select {
 		case rs := <-sent:
 			for _, r := range rs {
 				names = append(names, r.Name)
+				got[r.Name] = r
 			}
 		case <-time.After(5 * time.Second):
 			t.Fatalf("sent only %v", names)
@@ -590,6 +592,19 @@ func TestSiemQueuesOnlyWhatIsEnabledAndOnlyWhileTheJobRuns(t *testing.T) {
 	}
 	if fmt.Sprint(names) != "[finding.created honeypot.hit finding.status_changed finding.severity_raised]" {
 		t.Fatalf("forwarded %v", names)
+	}
+	fields := func(r siemRecord) map[string]string {
+		m := map[string]string{}
+		for _, f := range r.Fields {
+			m[f.Key] = f.Val
+		}
+		return m
+	}
+	if r := got["finding.severity_raised"]; r.Severity != "critical" || fields(r)["from_severity"] != "medium" || fields(r)["to_severity"] != "critical" || fields(r)["basis"] != "version" || fields(r)["cve"] != "CVE-2022-27593" {
+		t.Fatalf("severity_raised record = %+v", r)
+	}
+	if fields(got["finding.status_changed"])["reason"] != "matches_again" {
+		t.Fatalf("status_changed record = %+v", got["finding.status_changed"])
 	}
 
 	// switched off: nothing more is queued or sent (FORBID-3)

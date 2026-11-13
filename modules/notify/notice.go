@@ -262,8 +262,9 @@ func (b Batch) Message() (channel.Message, error) {
 	listed := b.Listed()
 	for _, n := range listed {
 		line := strings.Join(dedupe(n.CVEs), ", ")
+		change := n.Change
 		if line == "" {
-			line = n.Title
+			line, change = n.Title, "" // the title already says what changed
 		}
 		if mixed && strings.TrimSpace(n.Product) != "" {
 			line = strings.TrimSpace(n.Product) + ": " + line
@@ -271,8 +272,8 @@ func (b Batch) Message() (channel.Message, error) {
 		if d := joinDevices(n.Devices); d != "" {
 			line += " on " + d
 		}
-		if n.Change != "" {
-			line += ": " + n.Change
+		if change != "" {
+			line += ": " + change
 		}
 		items = append(items, line)
 	}

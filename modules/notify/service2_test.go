@@ -593,6 +593,7 @@ func TestSubscribeToldWhenAFindingGetsMoreSeriousOrIsReopened(t *testing.T) {
 	pub(notify.EventFindingRaised, raised("f-1", findings.SeverityMedium, findings.SeverityCritical)) // the same raise again: still one
 	pub(notify.EventFindingRaised, raised("f-2", findings.SeverityMedium, findings.SeverityHigh))     // matched no device: not sent
 	pub(notify.EventFindingStatusChanged, findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusNotRelevant, To: findings.StatusSuspected, Reason: findings.ReasonMatchesAgain})
+	pub(notify.EventFindingStatusChanged, findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusNotRelevant, To: findings.StatusSuspected, Reason: findings.ReasonMatchesAgain}) // flaps the same day: still one
 	e.flush()
 	if n := e.count(`SELECT COUNT(*) FROM notify_notice WHERE id = 'nt-f-1-raised-critical'`); n != 1 {
 		t.Fatalf("raised notices = %d", n)
@@ -631,5 +632,26 @@ func TestSubscribeRaisedNoticeSaysWhyInPlainWords(t *testing.T) {
 		if !strings.Contains(strings.NewReplacer("=\r\n", "", "=\n", "", "\r\n ", " ", "\n ", " ").Replace(all), want) {
 			t.Fatalf("text %q missing: %s", want, all)
 		}
+	}
+}
+
+func TestSubscribeRaisedAndReopenedAreSilentInTheBaseline(t *testing.T) {
+	e := newEnv(t, func(c *notify.Config) {
+		c.Findings = fakeFindings{map[string]notify.FindingInfo{"f-1": {CVE: "CVE-2026-100", Product: "QNAP", Severity: notify.High, Title: "t", What: "w", Action: "a", Devices: []string{"NAS-01"}}}}
+	})
+	e.email(newFakeSMTP(t))
+	e.plain()
+	e.svc.Subscribe(e.bus)
+	ctx := notify.WithBaseline(e.ctx())
+	for name, data := range map[string]any{
+		notify.EventFindingRaised:        findings.SeverityRaisedEvent{FindingID: "f-1", FromSeverity: findings.SeverityMedium, ToSeverity: findings.SeverityHigh, Basis: findings.BasisVersion},
+		notify.EventFindingStatusChanged: findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusNotRelevant, To: findings.StatusSuspected, Reason: findings.ReasonMatchesAgain},
+	} {
+		if err := e.bus.Publish(ctx, events.Event{Name: name, Data: data}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := e.count(`SELECT COUNT(*) FROM notify_notice`); n != 0 {
+		t.Fatalf("notices in the baseline = %d", n)
 	}
 }

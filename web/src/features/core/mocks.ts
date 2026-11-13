@@ -519,7 +519,7 @@ const qOf = (url: string): Partial<AuditQuery> => { const p = new URL(url).searc
 /** D-416: an automatic line is written by the box itself: user "system" or "system:<part>" (a person, the console and an MCP token are not). */
 const isSystemActor = (user: string) => user === 'system' || user.startsWith('system:')
 /** D-416: ids of devices (a-…) and findings (f-…) in a line's target or detail. */
-const AUDIT_ID_RE = /\b[af]-[a-z0-9]+\b/g
+const AUDIT_ID_RE = /\b[af]-[a-z0-9]{1,64}\b/g
 /** D-416: the display names of the devices and findings named in these rows; a device is its host name, else its IP; a finding is "<CVE> on <device>". */
 function auditNames(rows: AuditRow[]): Record<string, string> {
   const ids = new Set(rows.flatMap((r) => `${r.target} ${r.detail ?? ''}`.match(AUDIT_ID_RE) ?? []))

@@ -3,6 +3,7 @@ package audit
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -19,6 +20,12 @@ const (
 	PruneEvery = 6 * time.Hour
 )
 
+// ErrClockSuspect is returned (with the count-based prune done) when the age cut would remove more than half of the lines in one run:
+// in steady use a run removes a tiny share, so this looks like a clock that jumped forward (a bad RTC, a wrong manual time, a spoofed
+// NTP answer), and nothing is removed by age until newer lines outnumber the older ones. A box that was off for a long time hits it
+// too; the count ceiling still holds, so the log stays bounded. The job reports it as a failed run.
+var ErrClockSuspect = errors.New("audit: prune: the age cut would remove more than half of the lines; the clock may have jumped, nothing removed by age")
+
 // Prune removes the lines past the retention and returns how many it removed. Only the oldest run of lines goes: it stops at the first
 // line that is still to be kept (newer than the cutoff and among the newest MaxRows), even if a later line is older (the clock stepped
 // back), so the chain stays one piece. The newest line is never removed: the chain head names it. The lines, the anchor and the head
@@ -31,17 +38,27 @@ func (l *Log) prune(ctx context.Context, db *store.DB, days int, maxRows int64) 
 	now := l.now()
 	cutoff := store.FormatTS(now.AddDate(0, 0, -days))
 	var removed int64
+	var suspect bool
 	err := db.Write(ctx, func(tx *sql.Tx) error {
 		removed = 0 // the write may be retried
 		// keepFrom: the first line to keep. By age: the first line at or after the cutoff (none: the newest line). By count: the
-		// maxRows-th newest line (fewer lines: 0, nothing to remove by count). The later of the two, never past the newest line.
+		// (maxRows-1)-th newest line (fewer lines: 0, nothing to remove by count). The later of the two, never past the newest line.
 		var byAge, byCount, newest int64
 		err := tx.QueryRowContext(ctx, `SELECT
 			COALESCE((SELECT seq FROM core_audit WHERE ts >= ? ORDER BY seq LIMIT 1), (SELECT MAX(seq) FROM core_audit), 0),
 			COALESCE((SELECT seq FROM core_audit ORDER BY seq DESC LIMIT 1 OFFSET ?), 0),
-			COALESCE((SELECT MAX(seq) FROM core_audit), 0)`, cutoff, maxRows-1).Scan(&byAge, &byCount, &newest)
+			COALESCE((SELECT MAX(seq) FROM core_audit), 0)`, cutoff, maxRows-2).Scan(&byAge, &byCount, &newest)
 		if err != nil {
 			return fmt.Errorf("audit: prune: %w", err)
+		}
+		// By count the newest maxRows-1 lines stay, so with this run's "audit.pruned" line the log holds at most maxRows.
+		var total, old int64
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*), COUNT(*) FILTER (WHERE seq < ?) FROM core_audit`, min(byAge, newest)).Scan(&total, &old); err != nil {
+			return fmt.Errorf("audit: prune: %w", err)
+		}
+		suspect = old*2 > total
+		if suspect {
+			byAge = 0 // the count ceiling still applies
 		}
 		keepFrom := min(max(byAge, byCount), newest)
 		var n, lastSeq int64
@@ -75,6 +92,9 @@ func (l *Log) prune(ctx context.Context, db *store.DB, days int, maxRows int64) 
 	})
 	if err != nil {
 		return 0, err
+	}
+	if suspect {
+		return removed, ErrClockSuspect
 	}
 	return removed, nil
 }

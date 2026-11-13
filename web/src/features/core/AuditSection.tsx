@@ -16,7 +16,7 @@ import type { AuditQuery, AuditRow } from './types'
 /** The Who option "Not the system": sends actor=people (D-416). No user value can be it: user values never hold a NUL. */
 const PEOPLE = '\u0000people'
 /** Device (a-…) and finding (f-…) ids in a target or detail (D-416). */
-const ID_RE = /\b[af]-[a-z0-9]+\b/g
+const ID_RE = /\b[af]-[a-z0-9]{1,64}\b/g // the same as auditIDRE in modules/core/handlers_audit.go
 
 /** A target or detail with the ids the box could name replaced by their names; the text as stored stays below it, smaller (D-416). */
 function Named({ text, names }: { text: string; names: Record<string, string> }) {

@@ -33,7 +33,8 @@ var ErrPruneMismatch = errors.New("chain: prune does not match the recorded head
 // Prune records that the oldest `removed` rows of the chain, up to and including lastPrunedID (whose stored hash
 // is lastPrunedHash), were deleted in tx (issue #194): it upserts the chain's core_chain_anchor (where the chain
 // now starts, read by verification and export) and lowers core_chain_head.count by removed. Call it in the same
-// transaction as the DELETE, after it, so rows, anchor and head commit or roll back together. The newest row is
+// transaction as the DELETE, so rows, anchor and head commit or roll back together: after it for ai_activity and resp_log, before
+// it for core_audit, whose delete trigger (migration 0011, D-416) lets a row go only up to the row the anchor names. The newest row is
 // never pruned through here: the head's hash stays as it is.
 func Prune(ctx context.Context, tx coredb.DBTX, name, lastPrunedID, lastPrunedHash string, removed int64, now time.Time) error {
 	if removed <= 0 || lastPrunedID == "" || len(lastPrunedHash) != 64 {

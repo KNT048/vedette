@@ -162,6 +162,7 @@
   "POST /ai/memory/suggestions/{id}/accept": "ai",
   "POST /ai/memory/suggestions/{id}/reject": "ai",
   "POST /ai/profiles": "ai",
+  "POST /ai/profiles/models": "ai",
   "POST /ai/profiles/test": "ai",
   "POST /ai/rules": "ai",
   "POST /auth/login": "core",

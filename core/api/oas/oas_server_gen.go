@@ -208,6 +208,13 @@ type Handler interface {
 	//
 	// POST /ai/profiles
 	AiPostAiProfiles(ctx context.Context, req *AiPostAiProfilesReq) (*AiPostAiProfilesOK, error)
+	// AiPostAiProfilesModels implements ai_post_ai_profiles_models operation.
+	//
+	// List the models a provider offers (asked by the box through the same guarded connection as AI calls;
+	// nothing is saved).
+	//
+	// POST /ai/profiles/models
+	AiPostAiProfilesModels(ctx context.Context, req *AiPostAiProfilesModelsReq) (*AiPostAiProfilesModelsOK, error)
 	// AiPostAiProfilesTest implements ai_post_ai_profiles_test operation.
 	//
 	// Test the connection of a profile (saved or in draft) with a tiny request.

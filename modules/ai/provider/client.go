@@ -109,6 +109,9 @@ func New(c Config) (Provider, error) {
 		// Never follow redirects: a custom header such as x-api-key would travel to the new host.
 		c: &http.Client{Transport: newTransport(c.InternalOnly, base, c.Own), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
+	if c.Style == StyleGemini {
+		h.base.Path = geminiRoot(h.base.Path)
+	}
 	switch c.Style {
 	case StyleAnthropic:
 		return &anthropic{h: h, model: c.Model, version: c.AnthropicVersion}, nil

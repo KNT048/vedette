@@ -8023,6 +8023,249 @@ func (s *AiPostAiMemorySuggestionsIDAcceptOKSource) UnmarshalText(data []byte) e
 // AiPostAiMemorySuggestionsIDRejectNoContent is response for AiPostAiMemorySuggestionsIDReject operation.
 type AiPostAiMemorySuggestionsIDRejectNoContent struct{}
 
+type AiPostAiProfilesModelsOK struct {
+	// Model ids the provider lists, clean, sorted, at most 300; the box asked the provider and kept only
+	// ids.
+	Models []string `json:"models"`
+}
+
+// GetModels returns the value of Models.
+func (s *AiPostAiProfilesModelsOK) GetModels() []string {
+	return s.Models
+}
+
+// SetModels sets the value of Models.
+func (s *AiPostAiProfilesModelsOK) SetModels(val []string) {
+	s.Models = val
+}
+
+type AiPostAiProfilesModelsReq struct {
+	APIKey OptString `json:"api_key"`
+	// Openai = Chat Completions, anthropic = Messages, gemini = generateContent.
+	APIStyle AiPostAiProfilesModelsReqAPIStyle `json:"api_style"`
+	BaseURL  string                            `json:"base_url"`
+	// Present when editing or testing a saved profile: leave the key blank to keep the old key, only while
+	// the provider type and the server address (scheme, host and port) stay the same; another address
+	// needs the key entered again.
+	ID   OptString                     `json:"id"`
+	Kind AiPostAiProfilesModelsReqKind `json:"kind"`
+	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
+	Location AiPostAiProfilesModelsReqLocation `json:"location"`
+}
+
+// GetAPIKey returns the value of APIKey.
+func (s *AiPostAiProfilesModelsReq) GetAPIKey() OptString {
+	return s.APIKey
+}
+
+// GetAPIStyle returns the value of APIStyle.
+func (s *AiPostAiProfilesModelsReq) GetAPIStyle() AiPostAiProfilesModelsReqAPIStyle {
+	return s.APIStyle
+}
+
+// GetBaseURL returns the value of BaseURL.
+func (s *AiPostAiProfilesModelsReq) GetBaseURL() string {
+	return s.BaseURL
+}
+
+// GetID returns the value of ID.
+func (s *AiPostAiProfilesModelsReq) GetID() OptString {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *AiPostAiProfilesModelsReq) GetKind() AiPostAiProfilesModelsReqKind {
+	return s.Kind
+}
+
+// GetLocation returns the value of Location.
+func (s *AiPostAiProfilesModelsReq) GetLocation() AiPostAiProfilesModelsReqLocation {
+	return s.Location
+}
+
+// SetAPIKey sets the value of APIKey.
+func (s *AiPostAiProfilesModelsReq) SetAPIKey(val OptString) {
+	s.APIKey = val
+}
+
+// SetAPIStyle sets the value of APIStyle.
+func (s *AiPostAiProfilesModelsReq) SetAPIStyle(val AiPostAiProfilesModelsReqAPIStyle) {
+	s.APIStyle = val
+}
+
+// SetBaseURL sets the value of BaseURL.
+func (s *AiPostAiProfilesModelsReq) SetBaseURL(val string) {
+	s.BaseURL = val
+}
+
+// SetID sets the value of ID.
+func (s *AiPostAiProfilesModelsReq) SetID(val OptString) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *AiPostAiProfilesModelsReq) SetKind(val AiPostAiProfilesModelsReqKind) {
+	s.Kind = val
+}
+
+// SetLocation sets the value of Location.
+func (s *AiPostAiProfilesModelsReq) SetLocation(val AiPostAiProfilesModelsReqLocation) {
+	s.Location = val
+}
+
+// Openai = Chat Completions, anthropic = Messages, gemini = generateContent.
+type AiPostAiProfilesModelsReqAPIStyle string
+
+const (
+	AiPostAiProfilesModelsReqAPIStyleOpenai    AiPostAiProfilesModelsReqAPIStyle = "openai"
+	AiPostAiProfilesModelsReqAPIStyleAnthropic AiPostAiProfilesModelsReqAPIStyle = "anthropic"
+	AiPostAiProfilesModelsReqAPIStyleGemini    AiPostAiProfilesModelsReqAPIStyle = "gemini"
+)
+
+// AllValues returns all AiPostAiProfilesModelsReqAPIStyle values.
+func (AiPostAiProfilesModelsReqAPIStyle) AllValues() []AiPostAiProfilesModelsReqAPIStyle {
+	return []AiPostAiProfilesModelsReqAPIStyle{
+		AiPostAiProfilesModelsReqAPIStyleOpenai,
+		AiPostAiProfilesModelsReqAPIStyleAnthropic,
+		AiPostAiProfilesModelsReqAPIStyleGemini,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AiPostAiProfilesModelsReqAPIStyle) MarshalText() ([]byte, error) {
+	switch s {
+	case AiPostAiProfilesModelsReqAPIStyleOpenai:
+		return []byte(s), nil
+	case AiPostAiProfilesModelsReqAPIStyleAnthropic:
+		return []byte(s), nil
+	case AiPostAiProfilesModelsReqAPIStyleGemini:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AiPostAiProfilesModelsReqAPIStyle) UnmarshalText(data []byte) error {
+	switch AiPostAiProfilesModelsReqAPIStyle(data) {
+	case AiPostAiProfilesModelsReqAPIStyleOpenai:
+		*s = AiPostAiProfilesModelsReqAPIStyleOpenai
+		return nil
+	case AiPostAiProfilesModelsReqAPIStyleAnthropic:
+		*s = AiPostAiProfilesModelsReqAPIStyleAnthropic
+		return nil
+	case AiPostAiProfilesModelsReqAPIStyleGemini:
+		*s = AiPostAiProfilesModelsReqAPIStyleGemini
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type AiPostAiProfilesModelsReqKind string
+
+const (
+	AiPostAiProfilesModelsReqKindAnthropic        AiPostAiProfilesModelsReqKind = "anthropic"
+	AiPostAiProfilesModelsReqKindOpenai           AiPostAiProfilesModelsReqKind = "openai"
+	AiPostAiProfilesModelsReqKindGemini           AiPostAiProfilesModelsReqKind = "gemini"
+	AiPostAiProfilesModelsReqKindOpenaiCompatible AiPostAiProfilesModelsReqKind = "openai-compatible"
+	AiPostAiProfilesModelsReqKindCustom           AiPostAiProfilesModelsReqKind = "custom"
+)
+
+// AllValues returns all AiPostAiProfilesModelsReqKind values.
+func (AiPostAiProfilesModelsReqKind) AllValues() []AiPostAiProfilesModelsReqKind {
+	return []AiPostAiProfilesModelsReqKind{
+		AiPostAiProfilesModelsReqKindAnthropic,
+		AiPostAiProfilesModelsReqKindOpenai,
+		AiPostAiProfilesModelsReqKindGemini,
+		AiPostAiProfilesModelsReqKindOpenaiCompatible,
+		AiPostAiProfilesModelsReqKindCustom,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AiPostAiProfilesModelsReqKind) MarshalText() ([]byte, error) {
+	switch s {
+	case AiPostAiProfilesModelsReqKindAnthropic:
+		return []byte(s), nil
+	case AiPostAiProfilesModelsReqKindOpenai:
+		return []byte(s), nil
+	case AiPostAiProfilesModelsReqKindGemini:
+		return []byte(s), nil
+	case AiPostAiProfilesModelsReqKindOpenaiCompatible:
+		return []byte(s), nil
+	case AiPostAiProfilesModelsReqKindCustom:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AiPostAiProfilesModelsReqKind) UnmarshalText(data []byte) error {
+	switch AiPostAiProfilesModelsReqKind(data) {
+	case AiPostAiProfilesModelsReqKindAnthropic:
+		*s = AiPostAiProfilesModelsReqKindAnthropic
+		return nil
+	case AiPostAiProfilesModelsReqKindOpenai:
+		*s = AiPostAiProfilesModelsReqKindOpenai
+		return nil
+	case AiPostAiProfilesModelsReqKindGemini:
+		*s = AiPostAiProfilesModelsReqKindGemini
+		return nil
+	case AiPostAiProfilesModelsReqKindOpenaiCompatible:
+		*s = AiPostAiProfilesModelsReqKindOpenaiCompatible
+		return nil
+	case AiPostAiProfilesModelsReqKindCustom:
+		*s = AiPostAiProfilesModelsReqKindCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
+type AiPostAiProfilesModelsReqLocation string
+
+const (
+	AiPostAiProfilesModelsReqLocationInternal AiPostAiProfilesModelsReqLocation = "internal"
+	AiPostAiProfilesModelsReqLocationCloud    AiPostAiProfilesModelsReqLocation = "cloud"
+)
+
+// AllValues returns all AiPostAiProfilesModelsReqLocation values.
+func (AiPostAiProfilesModelsReqLocation) AllValues() []AiPostAiProfilesModelsReqLocation {
+	return []AiPostAiProfilesModelsReqLocation{
+		AiPostAiProfilesModelsReqLocationInternal,
+		AiPostAiProfilesModelsReqLocationCloud,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AiPostAiProfilesModelsReqLocation) MarshalText() ([]byte, error) {
+	switch s {
+	case AiPostAiProfilesModelsReqLocationInternal:
+		return []byte(s), nil
+	case AiPostAiProfilesModelsReqLocationCloud:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AiPostAiProfilesModelsReqLocation) UnmarshalText(data []byte) error {
+	switch AiPostAiProfilesModelsReqLocation(data) {
+	case AiPostAiProfilesModelsReqLocationInternal:
+		*s = AiPostAiProfilesModelsReqLocationInternal
+		return nil
+	case AiPostAiProfilesModelsReqLocationCloud:
+		*s = AiPostAiProfilesModelsReqLocationCloud
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type AiPostAiProfilesOK struct {
 	// Openai = Chat Completions, anthropic = Messages, gemini = generateContent.
 	APIStyle AiPostAiProfilesOKAPIStyle `json:"api_style"`

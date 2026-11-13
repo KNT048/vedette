@@ -25,6 +25,8 @@ export const ProfileInput = z.object({
   api_key: z.string().optional(), location: Location, monthly_budget: z.number().int().min(1000).max(150_000_000),
 })
 export const TestInput = ProfileInput.omit({ monthly_budget: true, name: true }).extend({ name: z.string().optional(), monthly_budget: z.number().int().optional() })
+export const ModelsInput = ProfileInput.pick({ id: true, kind: true, api_style: true, base_url: true, api_key: true, location: true })
+export const ModelsResult = z.object({ models: z.array(z.string()).describe('Model ids the provider lists, clean, sorted, at most 300; the box asked the provider and kept only ids') })
 export const TestResult = z.object({ ok: z.literal(true), latency_ms: z.number(), tokens_in: z.number(), tokens_out: z.number(), capabilities: z.object({ tools: z.boolean(), structured: z.boolean() }) })
 const Slot = z.object({ primary: z.string().nullable(), fallback: z.string().nullable() })
 export const Assignments = z.object({ internal_only: z.boolean().describe('On: jobs that send logs/device data may only be assigned internal profiles'), jobs: z.record(AiJob, Slot) })
@@ -132,6 +134,7 @@ export const endpoints = defineEndpoints([
   { method: 'put', path: '/ai/profiles/{id}', summary: 'Edit an AI profile (blank key = keep the old key)', stories: ['S-AI-1'], role: 'admin', params: z.object({ id: z.string() }), body: ProfileInput, response: AiProfile },
   { method: 'delete', path: '/ai/profiles/{id}', summary: 'Delete an AI profile; jobs using it lose their assignment', stories: ['S-AI-1'], role: 'admin', params: z.object({ id: z.string() }), response: z.object({ cleared_jobs: z.array(AiJob) }) },
   { method: 'post', path: '/ai/profiles/test', summary: 'Test the connection of a profile (saved or in draft) with a tiny request', stories: ['S-AI-1'], role: 'admin', body: TestInput, response: TestResult },
+  { method: 'post', path: '/ai/profiles/models', summary: 'List the models a provider offers (asked by the box through the same guarded connection as AI calls; nothing is saved)', stories: ['S-AI-1'], role: 'admin', body: ModelsInput, response: ModelsResult },
   { method: 'get', path: '/ai/assignments', summary: 'Job assignments: each AI job has a primary and fallback profile; privacy rule', stories: ['S-AI-1', 'S-AI-4'], role: 'viewer', response: Assignments },
   { method: 'put', path: '/ai/assignments', summary: 'Save job assignments and the "internal data only to internal profiles" rule', stories: ['S-AI-1', 'S-AI-4'], role: 'admin', body: Assignments, response: Assignments },
   { method: 'get', path: '/ai/assignments/suggestion', summary: 'Suggested assignments: fast model for bulk jobs, strong model for reasoning jobs', stories: ['S-AI-1'], role: 'viewer', query: z.object({ internal_only: z.enum(['true', 'false']) }), response: Assignments, example: { query: { internal_only: 'false' } } },

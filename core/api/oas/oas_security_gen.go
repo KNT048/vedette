@@ -67,6 +67,7 @@ var operationRolesSession = map[string][]string{
 	AiPostAiMemorySuggestionsIDAcceptOperation:              []string{},
 	AiPostAiMemorySuggestionsIDRejectOperation:              []string{},
 	AiPostAiProfilesOperation:                               []string{},
+	AiPostAiProfilesModelsOperation:                         []string{},
 	AiPostAiProfilesTestOperation:                           []string{},
 	AiPostAiRulesOperation:                                  []string{},
 	AiPutAiActivitySettingsOperation:                        []string{},

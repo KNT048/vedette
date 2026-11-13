@@ -172,6 +172,8 @@ func cloneAssign(a Assignments) Assignments {
 // Every change is validated against the router's rules first, then written with its audit row in one transaction, and only then
 // handed to the router, so the router never runs a state the rules forbid (INV-3).
 type Service struct {
+	modelsMu   sync.Mutex             // guards modelsAt (the rate limit of ListModels)
+	modelsAt   map[string][]time.Time // per admin: when the last model-list calls started
 	cfg        Config
 	router     *Router
 	meter      *Meter

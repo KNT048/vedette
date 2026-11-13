@@ -16,7 +16,7 @@ import { ApiError } from '@/lib/api'
 import { fmtDate, fmtDateTime, fmtNumber } from '@/lib/format'
 import { useInstallKind } from '@/lib/modules'
 import { useCan } from '@/lib/session'
-import { fetchSuggestion, useActivitySettings, useAiConfig, useAssignments, useProfiles, useRemoveProfile, useSaveActivitySettings, useSaveAssignments, useSaveConfig, useSaveProfile, useTestProfile } from './api'
+import { fetchSuggestion, useActivitySettings, useAiConfig, useAssignments, useProfiles, useRemoveProfile, useSaveActivitySettings, useSaveAssignments, useSaveConfig, useListModels, useSaveProfile, useTestProfile } from './api'
 import { ActionError } from './parts'
 import { BudgetUse, budgetPct } from './Budget'
 import type { AiConfigView, AiJob, AiProfile, AiTier, ApiStyle, Assignments, ProfileInput, ProfileKind, TestResult } from './types'
@@ -34,15 +34,22 @@ const HARNESS: Record<Exclude<Tab, 'profiles'>, React.LazyExoticComponent<() => 
 // Địa chỉ và model gợi ý, đối chiếu tài liệu chính thức ngày 2026-11-06. Tên model đổi theo thời gian nên người dùng sửa được.
 //  Anthropic: platform.claude.com/docs/en/about-claude/models/overview (claude-haiku-5-5, API https://api.anthropic.com)
 //  OpenAI:    developers.openai.com/api/docs/models (gpt-6-luna là model gọn nhẹ), API https://api.openai.com/v1
-//  Gemini:    aistudio.google.com/docs/models (gemini-3.6-flash), REST https://generativelanguage.googleapis.com/v1beta
+//  Gemini:    aistudio.google.com/docs/models (gemini-3.6-flash), REST https://generativelanguage.googleapis.com (the client adds /v1beta, D-475)
+//  OpenCode:  opencode.ai/docs/zen (D-475): Chat Completions at https://opencode.ai/inference/openai/v1, model glm-5.3-flash (cheap, tools); a preset on kind custom
 //  Ollama:    docs.ollama.com/api/openai-compatibility (cổng 11434, ví dụ model qwen3:8b); vLLM cổng 8000. Core luôn chạy trong container (cả bản cài install.sh,
 //             Podman root): Ollama trên cùng máy là host.containers.internal, không phải localhost (walk 2, D-226). Bản cài chỉ-container
 //             (Docker hoặc Podman của khách) không có tên đó chắc chắn: không điền sẵn, gợi ý nói dùng IP LAN của máy (walk 3, D-422)
-const KINDS: ProfileKind[] = ['anthropic', 'openai', 'gemini', 'openai-compatible', 'custom']
-const DEFAULTS: Record<ProfileKind, { base_url: string; model: string; api_style: ApiStyle; location: 'internal' | 'cloud'; name: string }> = {
+// The provider choice of the dialog: the five kinds and the OpenCode preset, which is a Custom profile (D-475, no new kind).
+type Preset = ProfileKind | 'opencode'
+const PRESETS: Preset[] = ['anthropic', 'openai', 'gemini', 'opencode', 'openai-compatible', 'custom']
+const OPENCODE_URL = 'https://opencode.ai/inference/openai/v1'
+const kindOf = (p: Preset): ProfileKind => (p === 'opencode' ? 'custom' : p)
+const presetOf = (p: AiProfile | null): Preset => (!p ? 'anthropic' : p.kind === 'custom' && p.base_url === OPENCODE_URL ? 'opencode' : p.kind)
+const DEFAULTS: Record<Preset, { base_url: string; model: string; api_style: ApiStyle; location: 'internal' | 'cloud'; name: string }> = {
   anthropic: { base_url: 'https://api.anthropic.com', model: 'claude-haiku-5-5', api_style: 'anthropic', location: 'cloud', name: 'Claude' },
   openai: { base_url: 'https://api.openai.com/v1', model: 'gpt-6-luna', api_style: 'openai', location: 'cloud', name: 'OpenAI' },
-  gemini: { base_url: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-3.6-flash', api_style: 'gemini', location: 'cloud', name: 'Gemini' },
+  gemini: { base_url: 'https://generativelanguage.googleapis.com', model: 'gemini-3.6-flash', api_style: 'gemini', location: 'cloud', name: 'Gemini' },
+  opencode: { base_url: OPENCODE_URL, model: 'glm-5.3-flash', api_style: 'openai', location: 'cloud', name: 'OpenCode' },
   'openai-compatible': { base_url: 'http://host.containers.internal:11434/v1', model: 'qwen3:8b', api_style: 'openai', location: 'internal', name: 'Local model' },
   custom: { base_url: '', model: '', api_style: 'openai', location: 'cloud', name: '' },
 }
@@ -187,9 +194,12 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
   const { t } = useTranslation('ai')
   const save = useSaveProfile()
   const test = useTestProfile()
-  const first = profile?.kind ?? 'anthropic'
-  const [kind, setKind] = useState<ProfileKind>(first)
-  const [name, setName] = useState(profile?.name ?? '')
+  const models = useListModels()
+  const first = presetOf(profile)
+  const [preset, setPreset] = useState<Preset>(first)
+  const kind = kindOf(preset)
+  const [name, setName] = useState(profile?.name ?? (existing.some((p) => p.name === DEFAULTS[first].name) ? '' : DEFAULTS[first].name))
+  const [adv, setAdv] = useState(first === 'custom')
   const [style, setStyle] = useState<ApiStyle>(profile?.api_style ?? DEFAULTS[first].api_style)
   const [baseUrl, setBaseUrl] = useState(profile?.base_url ?? DEFAULTS[first].base_url)
   const [model, setModel] = useState(profile?.model ?? DEFAULTS[first].model)
@@ -198,37 +208,37 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
   const [cap, setCap] = useState(String(profile?.monthly_budget ?? 6_000_000))
   const [ack, setAck] = useState(false)
   const [errs, setErrs] = useState<Errs>({})
-  const cloudOnly = kind !== 'openai-compatible' && kind !== 'custom'
+  const cloudOnly = preset !== 'openai-compatible' && preset !== 'custom'
   // The consent names the host only for an address that is one; a half-typed or wrong address reads as a neutral phrase (walk 3 G13).
   const host = (() => { try { const u = new URL(baseUrl.trim()); return /^https?:$/.test(u.protocol) && u.host ? u.host : null } catch { return null } })()
   const needAck = location === 'cloud' && (!profile || key !== '' || baseUrl !== profile.base_url || profile.location !== 'cloud')
   const serverField = (e: unknown) => (e instanceof ApiError ? FIELD_OF[e.code] : undefined)
-  const err = (k: keyof Errs) => errs[k] ?? (serverField(save.error) === k ? (save.error as Error).message : serverField(testErr) === k ? (testErr as Error).message : undefined)
+  const err = (k: keyof Errs) => errs[k] ?? (serverField(save.error) === k ? (save.error as Error).message : serverField(testErr) === k ? (testErr as Error).message : serverField(models.error) === k ? (models.error as Error).message : undefined)
   const upd = (k: keyof Errs) => setErrs((x) => ({ ...x, [k]: undefined }))
   // The stored key is offered only for the provider and address it was saved for; another provider or origin needs the key again (validate, server).
   const keptKey = profile?.key_last4 && profile.kind === kind && sameOrigin(profile.base_url, baseUrl) ? profile.key_last4 : null
   // D-422: host.containers.internal is known only on the appliance (rootful Podman); a container-only install may be Docker, which does not
   // resolve it, so the address of a local model starts empty there and the hint says to use the machine's LAN IP.
   const container = useInstallKind() === 'container'
-  const defaultsOf = (k: ProfileKind) => (container && k === 'openai-compatible' ? { ...DEFAULTS[k], base_url: '' } : DEFAULTS[k])
+  const defaultsOf = (k: Preset) => (container && k === 'openai-compatible' ? { ...DEFAULTS[k], base_url: '' } : DEFAULTS[k])
 
-  function pickKind(k: ProfileKind) {
-    save.reset(); test.reset(); setErrs({})
+  function pickKind(k: Preset) {
+    save.reset(); test.reset(); models.reset(); setErrs({})
     const d = defaultsOf(k)
     // đổi loại thì điền lại mặc định; tên chỉ đổi khi người dùng chưa tự đặt
     if (!profile && (name === '' || Object.values(DEFAULTS).some((x) => x.name === name))) setName(d.name && !existing.some((p) => p.name === d.name) ? d.name : '')
     // A key belongs to one provider: never carry it to another one. An address or model the person typed stays; one that is still
     // the previous type's default (or empty) takes the new type's default (walk 3 G13).
-    const prev = defaultsOf(kind)
+    const prev = defaultsOf(preset)
     const typed = (v: string, dflt: string) => v.trim() !== '' && v !== dflt
-    setKind(k); setStyle(d.api_style); setLocation(d.location); setKey(''); setAck(false)
+    setPreset(k); setAdv(k === 'custom'); setStyle(d.api_style); setLocation(d.location); setKey(''); setAck(false)
     if (!typed(baseUrl, prev.base_url)) setBaseUrl(d.base_url)
     if (!typed(model, prev.model)) setModel(d.model)
   }
   // A new profile moved off the network keeps no trace of the local defaults: not the name "Local model", not the http://localhost address.
   function clearLocalDefaults(loc: 'internal' | 'cloud') {
     if (profile || loc !== 'cloud') return
-    const d = defaultsOf(kind)
+    const d = defaultsOf(preset)
     if (d.location === 'internal' && name === d.name) setName('')
     if (d.location === 'internal' && baseUrl === d.base_url) setBaseUrl('')
   }
@@ -249,6 +259,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
     else if (key !== '' && (key.length < 8 || /\s/.test(key))) n.key = t('profiles.err.keyShape')
     if (!forTest) { const c = Number(cap); if (!Number.isInteger(c) || c < 1000 || c > 150_000_000) n.cap = t('profiles.err.cap') }
     setErrs(n)
+    if (n.base_url || n.cap || n.style) setAdv(true)
     return Object.keys(n).length === 0
   }
   function submit(e: React.FormEvent) {
@@ -258,6 +269,17 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
     save.mutate(input(), { onSuccess: () => { toast.success(profile ? t('profiles.saved') : t('profiles.added')); onClose() } })
   }
   function runTest() { save.reset(); if (validate(true)) test.mutate(input()) }
+  // The box asks the provider which models it offers (D-475). Only what the call needs is checked here; the box checks the rest.
+  function listModels() {
+    save.reset(); test.reset()
+    const n: Errs = {}
+    try { const u = new URL(baseUrl.trim()); if (u.protocol !== 'https:' && !(u.protocol === 'http:' && location === 'internal')) n.base_url = t('profiles.err.https') } catch { n.base_url = t('profiles.err.url') }
+    if (key === '' && location === 'cloud' && !keptKey) n.key = t('profiles.err.keyRequired')
+    setErrs(n)
+    if (n.base_url) setAdv(true)
+    if (Object.keys(n).length === 0) models.mutate({ id: profile?.id, kind, api_style: style, base_url: baseUrl.trim(), api_key: key || undefined, location })
+  }
+  const notEncrypted = location === 'internal' && /^http:/i.test(baseUrl.trim())
   const aria = (k: keyof Errs, hint?: boolean) => ({ 'aria-invalid': err(k) ? true : undefined, 'aria-describedby': err(k) ? `pf-${k}-error` : hint ? `pf-${k}-hint` : undefined })
   // "Connected" holds only for what was tested: a changed provider, address, model, key or location hides it until Test runs again.
   const conn = (i: Pick<ProfileInput, 'kind' | 'api_style' | 'base_url' | 'model' | 'api_key' | 'location'>) => JSON.stringify([i.kind, i.api_style, i.base_url, i.model, i.api_key, i.location])
@@ -270,29 +292,12 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
       <DialogContent title={profile ? t('profiles.editTitle', { name: profile.name }) : t('profiles.addTitle')} description={t('profiles.dialogBody')}>
         <form noValidate onSubmit={submit} className="grid gap-4" aria-label={profile ? t('profiles.editTitle', { name: profile.name }) : t('profiles.addTitle')}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t('profiles.f.kind')} htmlFor="pf-kind">
-              <Select id="pf-kind" value={kind} onChange={(e) => pickKind(e.target.value as ProfileKind)}>{KINDS.map((k) => <option key={k} value={k}>{t(`profiles.kind.${k}`)}</option>)}</Select>
-            </Field>
-            <Field label={t('profiles.f.name')} htmlFor="pf-name" hint={t('profiles.f.nameHint')} error={err('name')}>
-              <Input id="pf-name" value={name} maxLength={40} onChange={(e) => { setName(e.target.value); upd('name') }} autoComplete="off" {...aria('name', true)} />
-            </Field>
-            {kind === 'custom' ? (
-              <Field label={t('profiles.f.style')} htmlFor="pf-style" hint={t('profiles.f.styleHint')} error={err('style')} className="sm:col-span-2">
-                <Select id="pf-style" value={style} onChange={(e) => setStyle(e.target.value as ApiStyle)}>{(['openai', 'anthropic', 'gemini'] as const).map((s) => <option key={s} value={s}>{t(`profiles.style.${s}`)}</option>)}</Select>
-              </Field>
-            ) : null}
-            <Field label={t('profiles.f.baseUrl')} htmlFor="pf-base_url" hint={location === 'internal' ? t(container ? 'profiles.f.baseUrlInternalContainer' : 'profiles.f.baseUrlInternal') : t('profiles.f.baseUrlCloud')} error={err('base_url')} className="sm:col-span-2">
-              <Input id="pf-base_url" value={baseUrl} onChange={(e) => { setBaseUrl(e.target.value); upd('base_url') }} autoComplete="off" inputMode="url" placeholder={container && kind === 'openai-compatible' && location === 'internal' ? t('profiles.f.baseUrlLanPlaceholder') : undefined} {...aria('base_url', true)} />
-            </Field>
-            <Field label={t('profiles.f.model')} htmlFor="pf-model" hint={t('profiles.f.modelHint')} error={err('model')} className="sm:col-span-2">
-              <Input id="pf-model" value={model} onChange={(e) => { setModel(e.target.value); upd('model') }} autoComplete="off" {...aria('model', true)} />
-            </Field>
-            <Field label={t('profiles.f.key')} htmlFor="pf-key" error={err('key')} hint={keptKey ? t('profiles.f.keySaved', { last4: keptKey }) : location === 'internal' ? t('profiles.f.keyOptional') : t('profiles.f.keyHint')} className="sm:col-span-2">
-              <Input id="pf-key" type="password" value={key} onChange={(e) => { setKey(e.target.value); upd('key') }} autoComplete="off" placeholder={keptKey ? `••••${keptKey}` : ''} {...aria('key', true)} />
+            <Field label={t('profiles.f.kind')} htmlFor="pf-kind" hint={preset === 'opencode' ? t('profiles.f.opencodeHint') : undefined} className="sm:col-span-2">
+              <Select id="pf-kind" value={preset} onChange={(e) => pickKind(e.target.value as Preset)}>{PRESETS.map((k) => <option key={k} value={k}>{t(`profiles.kind.${k}`)}</option>)}</Select>
             </Field>
             <div className="grid gap-1.5 sm:col-span-2">
               <Label id="pf-location-label">{t('profiles.f.location')}</Label>
-              <RadioGroup value={location} onValueChange={(v) => { setLocation(v as 'internal' | 'cloud'); setErrs((x) => ({ ...x, base_url: undefined, key: undefined })); clearLocalDefaults(v as 'internal' | 'cloud') }} aria-labelledby="pf-location-label" disabled={cloudOnly}>
+              <RadioGroup value={location} onValueChange={(v) => { setLocation(v as 'internal' | 'cloud'); models.reset(); setErrs((x) => ({ ...x, base_url: undefined, key: undefined })); clearLocalDefaults(v as 'internal' | 'cloud') }} aria-labelledby="pf-location-label" disabled={cloudOnly}>
                 {(['internal', 'cloud'] as const).map((l) => (
                   <div key={l} className="flex items-start gap-3 rounded-md border border-rule bg-surface p-3">
                     <RadioItem id={`pf-loc-${l}`} value={l} className="mt-0.5" disabled={cloudOnly && l === 'internal'} />
@@ -301,10 +306,39 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
                 ))}
               </RadioGroup>
               {cloudOnly ? <p className="text-[13px] text-muted">{t('profiles.f.cloudOnly')}</p> : null}
+              {notEncrypted ? <p role="note" className="text-[13px] text-warn">{t('profiles.f.notEncrypted')}</p> : null}
             </div>
-            <Field label={t('profiles.f.cap')} htmlFor="pf-cap" hint={t('profiles.f.capHint')} error={err('cap')} className="sm:col-span-2">
-              <Input id="pf-cap" type="number" min={1000} max={150000000} step={1000} value={cap} onChange={(e) => { setCap(e.target.value); upd('cap') }} {...aria('cap', true)} />
+            <Field label={t('profiles.f.key')} htmlFor="pf-key" error={err('key')} hint={keptKey ? t('profiles.f.keySaved', { last4: keptKey }) : location === 'internal' ? t('profiles.f.keyOptional') : t('profiles.f.keyHint')} className="sm:col-span-2">
+              <Input id="pf-key" type="password" value={key} onChange={(e) => { setKey(e.target.value); upd('key'); models.reset() }} autoComplete="off" placeholder={keptKey ? `••••${keptKey}` : ''} {...aria('key', true)} />
             </Field>
+            <Field label={t('profiles.f.model')} htmlFor="pf-model" hint={models.data ? t('profiles.f.modelsFound', { count: models.data.models.length }) : t('profiles.f.modelHint')} error={err('model')} className="sm:col-span-2">
+              <div className="flex gap-2">
+                <Input id="pf-model" list="pf-models" value={model} onChange={(e) => { setModel(e.target.value); upd('model') }} autoComplete="off" className="min-w-0 flex-1" {...aria('model', true)} />
+                <Button type="button" onClick={listModels} disabled={models.isPending}>{models.isPending ? t('profiles.f.listing') : t('profiles.f.listModels')}</Button>
+              </div>
+              <datalist id="pf-models">{models.data?.models.map((m) => <option key={m} value={m} />)}</datalist>
+            </Field>
+            {models.error && !serverField(models.error) ? <div className="sm:col-span-2"><ActionError error={models.error} /></div> : null}
+            <Field label={t('profiles.f.name')} htmlFor="pf-name" hint={t('profiles.f.nameHint')} error={err('name')} className="sm:col-span-2">
+              <Input id="pf-name" value={name} maxLength={40} onChange={(e) => { setName(e.target.value); upd('name') }} autoComplete="off" {...aria('name', true)} />
+            </Field>
+            <details className="grid gap-4 sm:col-span-2" open={adv} onToggle={(e) => setAdv((e.currentTarget as HTMLDetailsElement).open)}>
+              <summary className="cursor-pointer text-sm font-medium">{t('profiles.f.advanced')}</summary>
+              <div className="mt-3 grid gap-4">
+                <p className="text-[13px] text-muted">{t(preset === 'custom' ? 'profiles.f.advancedCustom' : 'profiles.f.advancedHint')}</p>
+                {preset === 'custom' ? (
+                  <Field label={t('profiles.f.style')} htmlFor="pf-style" hint={t('profiles.f.styleHint')} error={err('style')}>
+                    <Select id="pf-style" value={style} onChange={(e) => setStyle(e.target.value as ApiStyle)}>{(['openai', 'anthropic', 'gemini'] as const).map((st) => <option key={st} value={st}>{t(`profiles.style.${st}`)}</option>)}</Select>
+                  </Field>
+                ) : null}
+                <Field label={t('profiles.f.baseUrl')} htmlFor="pf-base_url" hint={location === 'internal' ? t(container ? 'profiles.f.baseUrlInternalContainer' : 'profiles.f.baseUrlInternal') : t('profiles.f.baseUrlCloud')} error={err('base_url')}>
+                  <Input id="pf-base_url" value={baseUrl} onChange={(e) => { setBaseUrl(e.target.value); upd('base_url'); models.reset() }} autoComplete="off" inputMode="url" placeholder={container && preset === 'openai-compatible' && location === 'internal' ? t('profiles.f.baseUrlLanPlaceholder') : undefined} {...aria('base_url', true)} />
+                </Field>
+                <Field label={t('profiles.f.cap')} htmlFor="pf-cap" hint={t('profiles.f.capHint')} error={err('cap')}>
+                  <Input id="pf-cap" type="number" min={1000} max={150000000} step={1000} value={cap} onChange={(e) => { setCap(e.target.value); upd('cap') }} {...aria('cap', true)} />
+                </Field>
+              </div>
+            </details>
           </div>
           {needAck ? (
             <div className="flex items-start gap-3">

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
@@ -320,6 +321,9 @@ func (s *Service) Apply(ctx context.Context) error {
 	}
 	// What the host confirmed and its MACs go into the same cache write as the rest, so a reader never sees the new state with the old addresses.
 	placedSet, links := s.placedAndLinks(ctx, confirmed)
+	if err := s.rememberMACs(ctx, w, links); err != nil {
+		errs = append(errs, err)
+	}
 	open := false
 	if k, ok := s.cfg.Host.(portKeeper); ok && len(placed) > 0 {
 		open = !k.KeepsPorts(ctx)
@@ -414,6 +418,30 @@ func (s *Service) placedAndLinks(ctx context.Context, placed []netip.Addr) (map[
 		set[ip] = true
 	}
 	return set, links
+}
+
+// rememberMACs keeps, per Trap IP, the last MAC the host gave its address (hp_trap_ips.mac): the host derives it from the address
+// and the vendor, so it is the same next time. A device row the inventory made from the decoy's own frames before it knew them
+// (B2 lab) carries that MAC; deviceAt ignores it even after the address left the host, so a ghost never holds a Trap IP in conflict.
+func (s *Service) rememberMACs(ctx context.Context, w *world, links map[netip.Addr]DecoyLink) error {
+	type change struct{ id, mac string }
+	var todo []change
+	for _, d := range w.trapIPs {
+		if l, ok := links[d.ip]; ok && l.MAC != "" && strings.ToLower(l.MAC) != d.mac {
+			todo = append(todo, change{d.ID, strings.ToLower(l.MAC)})
+		}
+	}
+	if len(todo) == 0 {
+		return nil
+	}
+	return s.db.Write(ctx, func(tx *sql.Tx) error {
+		for _, c := range todo {
+			if _, err := tx.ExecContext(ctx, `UPDATE hp_trap_ips SET mac = ? WHERE id = ?`, c.mac, c.id); err != nil {
+				return fmt.Errorf("honeypot: remember a decoy MAC: %w", err)
+			}
+		}
+		return nil
+	})
 }
 
 func (s *Service) setHost(h hostCache) {

@@ -396,3 +396,48 @@ func TestTheGatewayIsNoTrapIP(t *testing.T) {
 		t.Fatalf("%d rows on the gateway", n)
 	}
 }
+
+// B2 lab: a device row the inventory made from a Trap IP's own frames carries the decoy's MAC. It is no machine on the address:
+// the Trap IP keeps listening, no device is named, and the MAC is remembered, so even after the address leaves the host the ghost
+// does not hold the Trap IP in conflict. A row with another MAC is a real conflict.
+func TestADeviceWithTheDecoysOwnMACIsNoConflict(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, func(e *env) { e.cfg.Host = viewHost{fakeHost: e.host, keeps: true} })
+	tip, err := e.svc.AddTrapIP(e.ctx(), "a", honeypot.TrapIPInput{Name: "FILESRV-OLD", IP: "192.168.10.240", Preset: honeypot.FileServer, Vendor: ptr("dell"),
+		Services: []honeypot.ServiceName{honeypot.SMB, honeypot.RDP}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	ghost := dev("a-ghost", "192.168.10.240", "", "unknown")
+	ghost.MAC = "f8:bc:12:4f:54:67" // viewHost's MAC for .240
+	e.inv.add(ghost)
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	v, err := e.svc.TrapIPs(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := v.Items[0]; got.State != honeypot.StateListening || got.DeviceID != nil {
+		t.Fatalf("a ghost of the decoy's own MAC: %+v", got)
+	}
+	// The address leaves the host (switched off and on again): the remembered MAC still marks the ghost.
+	e.cfg.Host = e.host
+	svc, err := honeypot.New(e.cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SetTrapIPEnabled(e.ctx(), "a", tip.ID, true); err != nil {
+		t.Fatalf("switching on beside a ghost: %v", err)
+	}
+	// Another MAC at the address is a machine there.
+	other := dev("a-real", "192.168.10.240", "REAL-PC", "pc")
+	other.MAC = "aa:bb:cc:00:02:40"
+	e.inv.add(other)
+	if _, err := svc.SetTrapIPEnabled(e.ctx(), "a", tip.ID, true); apiCode(t, err) != "ip_in_use" {
+		t.Fatalf("a real device on the address: %v", err)
+	}
+}

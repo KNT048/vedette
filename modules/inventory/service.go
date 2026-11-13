@@ -40,6 +40,12 @@ type Config struct {
 	// fresh asks for an answer newer than the cache (a decoy added a moment ago has a MAC the cached answer lacks); the provider
 	// bounds how often that reaches the host. A MAC the cached answer does not hold is asked again with fresh before it counts.
 	BoxOwnedMACs func(ctx context.Context, fresh bool) ([]string, error)
+	// BoxDecoyMACs says, per box-owned address, the MAC of the decoy the host holds there now (vedette-host state/net, the same
+	// answer as BoxOwnedMACs). A foreign MAC at a box-owned address is a device only when the host holds a decoy there with
+	// another MAC; while it holds none (a Trap IP being added, a namespace being rebuilt) the frame is the box's own link coming
+	// up and is dropped (B2 lab: a Trap IP added a second ago became a device and then a conflict of itself). nil = not known:
+	// the rule of BoxOwnedMACs alone.
+	BoxDecoyMACs func(ctx context.Context, fresh bool) (map[netip.Addr]string, error)
 	Clock        func() time.Time
 	Log          *slog.Logger
 }
@@ -55,6 +61,7 @@ type Service struct {
 	modules  ModuleGate
 	boxOwned func(ctx context.Context) []netip.Addr
 	boxMACs  func(ctx context.Context, fresh bool) ([]string, error)
+	decoyMAC func(ctx context.Context, fresh bool) (map[netip.Addr]string, error)
 	ownedHit atomic.Int64 // observations ignored because their address is box-owned
 	clock    func() time.Time
 	log      *slog.Logger
@@ -72,7 +79,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Audit == nil {
 		return nil, errors.New("inventory: New needs DB and Audit")
 	}
-	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, findings: cfg.Findings, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, clock: cfg.Clock, log: cfg.Log}
+	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, findings: cfg.Findings, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, decoyMAC: cfg.BoxDecoyMACs, clock: cfg.Clock, log: cfg.Log}
 	if s.clock == nil {
 		s.clock = time.Now
 	}
@@ -106,15 +113,21 @@ func (s *Service) ownedFilter(ctx context.Context) func(ip netip.Addr, mac strin
 		return nil
 	}
 	var macs map[string]bool // nil = unknown; asked only when an observation is at a box-owned address
+	var decoys map[netip.Addr]string
 	asked, freshAsked := false, false
 	load := func(fresh bool) {
-		macs = nil
+		macs, decoys = nil, nil
 		if list, err := s.boxMACs(ctx, fresh); err == nil {
 			macs = map[string]bool{}
 			for _, m := range list {
 				if n, ok := normMAC(m); ok {
 					macs[n] = true
 				}
+			}
+		}
+		if s.decoyMAC != nil {
+			if m, err := s.decoyMAC(ctx, fresh); err == nil {
+				decoys = m
 			}
 		}
 	}
@@ -133,7 +146,17 @@ func (s *Service) ownedFilter(ctx context.Context) func(ip netip.Addr, mac strin
 			freshAsked = true
 			load(true)
 		}
-		return macs == nil || macs[mac]
+		if macs == nil || macs[mac] {
+			return true
+		}
+		// A foreign MAC is another machine only where the host holds a decoy with another MAC; where it holds none yet, the frame is
+		// the box's own link coming up (B2 lab), not a device.
+		if decoys != nil {
+			if _, held := decoys[ip]; !held {
+				return true
+			}
+		}
+		return false
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -189,7 +190,8 @@ func (s *Service) saveJSON(ctx context.Context, tx *sql.Tx, key string, v any, a
 
 type trapIPRow struct {
 	TrapIP
-	ip netip.Addr
+	ip  netip.Addr
+	mac string // hp_trap_ips.mac: the last MAC the host gave the address, "" while unknown
 }
 
 func (d trapIPRow) has(svc ServiceName) bool { return slices.Contains(d.Services, svc) }
@@ -205,9 +207,12 @@ func (d trapIPRow) spec() DecoySpec {
 
 const trapIPCols = `id, name, ip, preset, vendor, services, enabled, created_at`
 
+// loadTrapIPCols are trapIPCols and the remembered MAC (a column no write of the API touches).
+const loadTrapIPCols = trapIPCols + `, ifnull(mac, '')`
+
 // loadTrapIPs reads the Trap IPs in creation order, the order that decides which one names the SMB share (D-466 (4)).
 func loadTrapIPs(ctx context.Context, q querier) ([]trapIPRow, error) {
-	rows, err := q.QueryContext(ctx, `SELECT `+trapIPCols+` FROM hp_trap_ips ORDER BY created_at, id`)
+	rows, err := q.QueryContext(ctx, `SELECT `+loadTrapIPCols+` FROM hp_trap_ips ORDER BY created_at, id`)
 	if err != nil {
 		return nil, fmt.Errorf("honeypot: read trap IPs: %w", err)
 	}
@@ -217,7 +222,7 @@ func loadTrapIPs(ctx context.Context, q querier) ([]trapIPRow, error) {
 		var d trapIPRow
 		var vendor sql.NullString
 		var services string
-		if err := rows.Scan(&d.ID, &d.Name, &d.IP, &d.Preset, &vendor, &services, &d.Enabled, &d.CreatedAt); err != nil {
+		if err := rows.Scan(&d.ID, &d.Name, &d.IP, &d.Preset, &vendor, &services, &d.Enabled, &d.CreatedAt, &d.mac); err != nil {
 			return nil, fmt.Errorf("honeypot: read trap IPs: %w", err)
 		}
 		if vendor.Valid {
@@ -240,6 +245,9 @@ type world struct {
 	devices []Device
 	lan     netip.Prefix // zero when no IPv4 range is declared
 	box     Box
+	// decoyMACs are the MACs the host gave the Trap IP addresses (last Apply): a device row carrying one is a ghost of our own
+	// decoy, recorded before the inventory knew it (B2 lab), not a machine on the address.
+	decoyMACs map[string]bool
 }
 
 func (s *Service) load(ctx context.Context) (*world, error) {
@@ -260,6 +268,17 @@ func (s *Service) load(ctx context.Context) (*world, error) {
 		return nil, fmt.Errorf("honeypot: read box: %w", err)
 	}
 	w.lan = pickLAN(ranges, w.box.IP)
+	w.decoyMACs = map[string]bool{}
+	for _, d := range w.trapIPs {
+		if d.mac != "" {
+			w.decoyMACs[d.mac] = true
+		}
+	}
+	for _, l := range s.hostView().links {
+		if l.MAC != "" {
+			w.decoyMACs[strings.ToLower(l.MAC)] = true
+		}
+	}
 	return w, nil
 }
 
@@ -281,13 +300,13 @@ func pickLAN(ranges []netip.Prefix, boxIP netip.Addr) netip.Prefix {
 	return first
 }
 
-// deviceAt is the inventory device (not the box) that has this IP.
+// deviceAt is the inventory device (not the box, not a row carrying one of our decoys' MACs) that has this IP.
 func (w *world) deviceAt(ip netip.Addr) *Device {
 	if !ip.IsValid() {
 		return nil
 	}
 	for i := range w.devices {
-		if d := &w.devices[i]; !d.IsBox && d.IP == ip {
+		if d := &w.devices[i]; !d.IsBox && d.IP == ip && !(d.MAC != "" && w.decoyMACs[d.MAC]) {
 			return d
 		}
 	}

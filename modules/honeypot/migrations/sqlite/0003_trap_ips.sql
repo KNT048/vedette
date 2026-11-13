@@ -12,6 +12,9 @@ CREATE TABLE hp_trap_ips (
     vendor     TEXT    CHECK (vendor IS NULL OR length(vendor) BETWEEN 1 AND 32),
     services   TEXT    NOT NULL CHECK (json_valid(services) AND json_type(services) = 'array'),
     enabled    INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+    -- The last MAC the host gave the address (it derives it from the address and the vendor, so it is the same next time): a device
+    -- row carrying it is a ghost of this Trap IP's own frames, never a machine on the address (B2 lab). NULL until the host says.
+    mac        TEXT    CHECK (mac IS NULL OR length(mac) = 17),
     created_at TEXT    NOT NULL CHECK (created_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
 ) STRICT;
 

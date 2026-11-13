@@ -271,8 +271,9 @@ func (s *Service) EditTrapIP(ctx context.Context, actor, id string, in TrapIPInp
 		if err := writeChecks(ctx, tx, d, id); err != nil {
 			return err
 		}
-		r, err := tx.ExecContext(ctx, `UPDATE hp_trap_ips SET name = ?, ip = ?, preset = ?, vendor = ?, services = ? WHERE id = ?`,
-			d.Name, d.IP, string(d.Preset), d.Vendor, svc, id)
+		r, err := tx.ExecContext(ctx, `UPDATE hp_trap_ips SET name = ?, ip = ?, preset = ?, vendor = ?, services = ?,
+			mac = CASE WHEN ip = ? AND vendor IS ? THEN mac END WHERE id = ?`, // a new address or vendor gets a new MAC: forget the old one
+			d.Name, d.IP, string(d.Preset), d.Vendor, svc, d.IP, d.Vendor, id)
 		if err != nil {
 			if store.IsUniqueViolation(err) {
 				return conflictErr("ip_in_use", fmt.Sprintf("IP %s is already another Trap IP.", d.IP))

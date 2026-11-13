@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -20,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/host/ops"
@@ -715,5 +717,71 @@ func TestHoneypotHostAddsNothingWhileItsCommandListIsUnknown(t *testing.T) {
 	}
 	if links := e.decoyLinks(); len(links) != 0 {
 		t.Fatalf("the host was asked to add the address: %v", links)
+	}
+}
+
+// B2 lab (Ubuntu 26.04): the passive sensor sees each Trap IP answer ARP with its own macvlan MAC. Over the real host, those frames
+// never become devices, a frame of a Trap IP the host does not list yet is no device either, and every Trap IP listens (no
+// conflict with itself). A foreign MAC on a held Trap IP address is still a device.
+func TestHoneypotTrapIPFramesAreNeverDevices(t *testing.T) {
+	t.Parallel()
+	e := startHPHost(t, false)
+	s := newStackWith(t, func(d *deps) {
+		d.HoneypotDir, d.HostSocket = t.TempDir(), e.h.Socket
+		d.DataDir, d.KeyPath = t.TempDir(), filepath.Join(t.TempDir(), "vedette.key")
+	})
+	s.saveScope(t)
+	s.setModule("honeypot", true)
+	s.addTrapIP(t, `{"name":"FILESRV-OLD","ip":"192.168.10.240","preset":"file_server","vendor":"dell","services":["smb","rdp"]}`)
+	s.addTrapIP(t, `{"name":"NAS-ARCHIVE","ip":"192.168.10.241","preset":"nas","vendor":"synology","services":["http","smb"]}`)
+	s.addTrapIP(t, `{"name":"BUILD-SRV-02","ip":"192.168.10.242","preset":"linux","vendor":"vmware","services":["ssh"]}`)
+	if err := s.d.Honeypot.Apply(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	ns, err := e.h.Client.StateNet(t.Context())
+	if err != nil || len(ns.Decoys) != 3 {
+		t.Fatalf("state/net decoys %+v %v", ns.Decoys, err)
+	}
+	devices := func() int {
+		l, err := s.d.Inventory.AllDevices(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(l)
+	}
+	before := devices()
+	frame := func(ip, mac string) {
+		t.Helper()
+		obs := []observe.Observation{{AssetHint: observe.AssetHint{IP: netip.MustParseAddr(ip), MAC: mac}, Field: observe.MAC, Value: mac, Source: observe.Passive, Confidence: 0.9}}
+		if err := s.d.Inventory.Record(t.Context(), obs); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, d := range ns.Decoys {
+		frame(d.IP, d.MAC)
+	}
+	// A fourth Trap IP the honeypot handed over (on the record) but the host does not list yet: its link coming up.
+	if err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE hp_config SET value = '["192.168.10.240","192.168.10.241","192.168.10.242","192.168.10.243"]' WHERE key = 'applied'`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	frame("192.168.10.243", "00:50:56:12:34:56")
+	if n := devices(); n != before {
+		t.Fatalf("the Trap IPs' own frames made %d device(s)", n-before)
+	}
+	if err := s.d.Honeypot.Apply(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	_, b := s.do("GET", "/honeypot/trap-ips", "viewer", "")
+	for _, it := range field(t, b, "items").([]any) {
+		if m := it.(map[string]any); m["state"] != "listening" || m["device_id"] != nil {
+			t.Fatalf("a Trap IP is not listening: %v", m)
+		}
+	}
+	frame("192.168.10.240", "aa:bb:cc:00:02:40") // another machine took a held Trap IP address
+	if n := devices(); n != before+1 {
+		t.Fatalf("a foreign machine on a Trap IP address: %d new devices", n-before)
 	}
 }

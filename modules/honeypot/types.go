@@ -306,6 +306,7 @@ type Device struct {
 	Approved bool
 	Ports    []int // ports seen listening
 	IsBox    bool
+	MAC      string // lower case, "" when none: a device carrying a decoy's own MAC is the box's decoy, never a device (B2 lab)
 }
 
 // Box is the box itself; IP is the zero Addr when unknown.

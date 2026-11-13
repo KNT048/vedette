@@ -140,3 +140,34 @@ func TestContract_INV17_AForeignMACOnADecoyAddressIsADevice(t *testing.T) {
 		t.Fatal("the device does not hold the decoy's address")
 	}
 }
+
+// B2 lab (Ubuntu 26.04): a Trap IP added a second ago answers ARP with its new macvlan MAC before the host lists it; that frame
+// became a device, and the device then held the Trap IP in conflict. With Config.BoxDecoyMACs a foreign MAC at a box-owned address
+// is a device only where the host holds a decoy with another MAC; where it holds none yet, the frame is the box's own link.
+func TestContract_INV17_ADecoyComingUpIsNoDevice(t *testing.T) {
+	t.Parallel()
+	coming, held := netip.MustParseAddr("192.168.10.242"), netip.MustParseAddr("192.168.10.240")
+	e := newEnv(t, func(c *inventory.Config) {
+		c.BoxOwnedIPs = func(context.Context) []netip.Addr { return []netip.Addr{coming, held} }
+		c.BoxOwnedMACs = func(context.Context, bool) ([]string, error) { return []string{"f8:bc:12:00:02:40", "52:54:00:aa:bb:cc"}, nil }
+		c.BoxDecoyMACs = func(context.Context, bool) (map[netip.Addr]string, error) {
+			return map[netip.Addr]string{held: "f8:bc:12:00:02:40"}, nil // the host does not list .242 yet
+		}
+	})
+	at := func(ip netip.Addr, m string) []observe.Observation {
+		return []observe.Observation{{AssetHint: observe.AssetHint{IP: ip, MAC: m}, Field: observe.MAC, Value: m, Source: observe.Passive, Confidence: 0.9}}
+	}
+	if err := e.svc.Record(e.ctx(), at(coming, "00:50:56:aa:02:42")); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_asset`); n != 0 {
+		t.Fatalf("the Trap IP coming up became %d device(s)", n)
+	}
+	// Where the host holds a decoy with another MAC, a foreign MAC is still another machine on the address (WP-31 M7).
+	if err := e.svc.Record(e.ctx(), at(held, "aa:bb:cc:00:02:40")); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_asset WHERE ip = ?`, held.String()); n != 1 {
+		t.Fatalf("a foreign machine on a held decoy address: %d devices", n)
+	}
+}

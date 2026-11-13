@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
@@ -125,6 +126,9 @@ func (a honeypotInventory) Devices(ctx context.Context) ([]honeypot.Device, erro
 		}
 		if d.OS != nil {
 			x.OS = d.OS.Value
+		}
+		if d.MAC != nil {
+			x.MAC = strings.ToLower(*d.MAC)
 		}
 		for _, s := range d.Services {
 			x.Ports = append(x.Ports, s.Port)

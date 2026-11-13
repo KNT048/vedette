@@ -48,6 +48,7 @@ func newInventory(d *deps) *inventory.Service {
 			}
 			return macs.Get(ctx)
 		}
+		cfg.BoxDecoyMACs = macs.Decoys
 	}
 	svc, err := inventory.New(cfg)
 	if err != nil { // only a missing DB or audit log: a programming error in serve

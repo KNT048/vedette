@@ -1,11 +1,12 @@
 package sensoractive
 
 import (
-	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 	"net/netip"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
 func fixture(t testing.TB, name string) []byte {

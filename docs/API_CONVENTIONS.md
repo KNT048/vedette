@@ -90,7 +90,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (246 mã)
+#### HTTP 400 (248 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -257,6 +257,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_when` | 400 | Pick when the hook runs: before sending to the AI, after the AI answers, or before a tool call. | `POST /ai/hooks/test`; `POST /core/updates/os/reboot` |
 | `invalid_window` | 400 | The maintenance window is "any time" or "only in a window". | `PATCH /core/updates/os/settings` |
 | `ip_is_box` | 400 | This is the Vedette box\ | `POST /honeypot/trap-ips`; `PUT /honeypot/trap-ips/{id}` |
+| `ip_is_gateway` | 400 | This is the address of your router (the box's default gateway). Pick an unused IP. | `POST /honeypot/trap-ips`; `PUT /honeypot/trap-ips/{id}`; `PATCH /honeypot/trap-ips/{id}` (the gateway as the host reports it, B2) |
 | `ip_not_allowed` | 400 | Public IPs are not typed in. Select "Verify this box\ | `POST /exposure/targets` |
 | `ip_outside_lan` | 400 | The Trap IP must be inside the box's network (${boxInfo().lan}), not the network or broadcast address. | `POST /honeypot/trap-ips`; `PUT /honeypot/trap-ips/{id}` |
 | `key_required` | 400 | The API key is required (changing the provider type needs the key again). | module ai (validator dùng chung) |
@@ -381,7 +382,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (94 mã)
+#### HTTP 409 (93 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|

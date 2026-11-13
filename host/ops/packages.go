@@ -13,8 +13,9 @@ import (
 )
 
 // GET /v1/state/packages (D-470, INV-9): the box's own package list for the inventory. One fixed dpkg-query, no shell, no
-// argument from the request; the output is parsed fail-closed: one line that is not a package, a status dpkg does not
-// have, too many lines or a cut output and the whole read fails (core keeps what it had).
+// argument from the request; the structure is parsed fail-closed: a line without exactly 5 fields, a status dpkg does not
+// have, too many lines, no installed package, a cut output or a failed exit and the whole read fails (core keeps what it
+// had). An installed package whose own fields break dpkg's rules is left out, counted and logged (parsePackages).
 
 // argsDpkgQueryList is the one dpkg-query of the package list: tab-separated name, version, architecture, source
 // package and status, one package per line (dpkg-query reads the \t and \n escapes of the format itself).
@@ -48,47 +49,54 @@ func (o *Ops) readPackages(ctx context.Context) (any, error) {
 	case res.Truncated:
 		return nil, errors.New("dpkg-query printed more than the bound")
 	}
-	list, err := parsePackages(res.Stdout)
+	list, dropped, err := parsePackages(res.Stdout)
 	if err != nil {
 		return nil, err
+	}
+	if dropped > 0 {
+		o.log.WarnContext(ctx, "packages: installed packages with a name, version or architecture outside dpkg's rules were left out", "dropped", dropped, "listed", len(list))
 	}
 	return api.PackagesState{Packages: list}, nil
 }
 
-// parsePackages reads argsDpkgQueryList's output. It never returns a partial list.
-func parsePackages(out []byte) ([]api.Package, error) {
-	list := []api.Package{}
+// parsePackages reads argsDpkgQueryList's output. The structure fails closed (a line without exactly 5 fields, an unknown
+// status, no installed package, too many): then it returns no list at all. One installed package whose name, version,
+// architecture or source does not pass dpkg's rules (an old third-party package, a very long version) is left out and
+// counted in dropped, so it cannot hide the rest of the box; its text is never used.
+func parsePackages(out []byte) (list []api.Package, dropped int, err error) {
+	list = []api.Package{}
 	lines := bytes.Split(out, []byte("\n"))
 	if n := len(lines); n > 0 && len(lines[n-1]) == 0 {
 		lines = lines[:n-1]
 	}
 	if len(lines) > api.MaxPackages*2 { // installed or not: dpkg's database itself is bounded too
-		return nil, errors.New("dpkg-query listed too many packages")
+		return nil, 0, errors.New("dpkg-query listed too many packages")
 	}
 	for i, l := range lines {
 		f := bytes.Split(l, []byte("\t"))
 		if len(f) != 5 {
-			return nil, fmt.Errorf("dpkg-query line %d has %d fields", i+1, len(f))
+			return nil, 0, fmt.Errorf("dpkg-query line %d has %d fields", i+1, len(f))
 		}
 		name, version, arch, source, status := string(f[0]), string(f[1]), string(f[2]), string(f[3]), string(f[4])
 		if !slices.Contains(dpkgStatuses, status) {
-			return nil, fmt.Errorf("dpkg-query line %d has an unknown status", i+1)
+			return nil, 0, fmt.Errorf("dpkg-query line %d has an unknown status", i+1)
 		}
 		if !slices.Contains(onDisk, status) {
 			continue
 		}
 		if !debPkgNameRE.MatchString(name) || !debVersionRE.MatchString(version) || !debArchRE.MatchString(arch) ||
 			(source != "" && !debPkgNameRE.MatchString(source)) {
-			return nil, fmt.Errorf("dpkg-query line %d is not a package", i+1)
+			dropped++
+			continue
 		}
 		list = append(list, api.Package{Name: name, Version: version, Arch: arch, Source: source})
 	}
 	switch {
 	case len(list) == 0:
-		return nil, errors.New("dpkg-query listed no installed package")
+		return nil, 0, errors.New("dpkg-query listed no installed package")
 	case len(list) > api.MaxPackages:
-		return nil, errors.New("dpkg-query listed too many packages")
+		return nil, 0, errors.New("dpkg-query listed too many packages")
 	}
 	slices.SortFunc(list, func(a, b api.Package) int { return cmp.Or(cmp.Compare(a.Name, b.Name), cmp.Compare(a.Arch, b.Arch)) })
-	return list, nil
+	return list, dropped, nil
 }

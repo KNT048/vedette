@@ -48,9 +48,11 @@ func TestContract_INV9_PackagesAreTheBoxsDpkgList(t *testing.T) {
 func TestContract_INV9_PackagesFailClosed(t *testing.T) {
 	t.Parallel()
 	for name, out := range map[string]string{
-		"extra field":    "bash\t5.2-1\tamd64\tbash\tinstalled\tx\n",
-		"bad name":       "Bash\t5.2-1\tamd64\tbash\tinstalled\n",
-		"bad version":    "bash\t5.2 1\tamd64\tbash\tinstalled\n",
+		"extra field":       "bash\t5.2-1\tamd64\tbash\tinstalled\tx\n",
+		"only bad names":    "Bash\t5.2-1\tamd64\tbash\tinstalled\n",
+		"only bad versions": "bash\t5.2 1\tamd64\tbash\tinstalled\n",
+		// over the 8 MiB bound of the runner in fewer lines than the line bound, so only the cut output refuses it
+		"cut output":     strings.Repeat("bash"+strings.Repeat("x", 100)+"\t5."+strings.Repeat("1", 100)+"\tamd64\tbash"+strings.Repeat("x", 100)+"\tinstalled\n", 30000),
 		"unknown status": "bash\t5.2-1\tamd64\tbash\tgone\n",
 		"none installed": "bash\t5.2-1\tamd64\tbash\tconfig-files\n",
 		"empty":          "",
@@ -68,5 +70,16 @@ func TestContract_INV9_PackagesFailClosed(t *testing.T) {
 	e.m.RuleText("dpkg-query", "${Package}", "bash\t5.2-1\tamd64\tbash\tinstalled\n", 2, "", "")
 	if code, _ := rawGet(t, e.h, "/v1/state/packages"); code != 500 {
 		t.Errorf("a failing dpkg-query answered %d", code)
+	}
+}
+
+// One installed package whose name or version breaks dpkg's rules is left out (and logged), not the whole box (D-470).
+func TestContract_INV9_AnOddPackageDoesNotHideTheRest(t *testing.T) {
+	t.Parallel()
+	e := startSys(t)
+	e.m.RuleText("dpkg-query", "${Package}", "bash\t5.2-1\tamd64\tbash\tinstalled\nOld_Tool\t1.0\tamd64\tOld_Tool\tinstalled\n", 0, "", "")
+	st, err := e.h.Client.StatePackages(t.Context())
+	if err != nil || len(st.Packages) != 1 || st.Packages[0].Name != "bash" {
+		t.Fatalf("packages %+v, %v; want bash only", st.Packages, err)
 	}
 }

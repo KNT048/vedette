@@ -194,8 +194,8 @@ func TestSocketsAreOpenWithoutSourcesAndAnUndeclaredSenderIsNamed(t *testing.T) 
 		v, err := e.svc.UnknownSenders(t.Context())
 		return err == nil && len(v.Items) == 1 && v.Items[0].IP == "127.0.0.1" && v.Items[0].Proto == proto
 	}
-	send("udp4", "<34>before any source")
-	waitUntil(t, "the sender to be named", func() bool { return named("udp") })
+	// UDP may drop a datagram on a loaded runner: every wait on a datagram sends again until it is seen.
+	waitUntil(t, "the sender to be named", func() bool { send("udp4", "<34>before any source"); return named("udp") })
 	s := e.sourceOn("FW", "udp")
 	if v, err := e.svc.UnknownSenders(t.Context()); err != nil || len(v.Items) != 0 {
 		t.Fatalf("a declared sender is still named: %+v %v", v, err)
@@ -206,15 +206,15 @@ func TestSocketsAreOpenWithoutSourcesAndAnUndeclaredSenderIsNamed(t *testing.T) 
 		t.Fatal(err)
 	}
 	// Datagrams sent before the listener has learned of the change are still the udp source's and are kept, so probe until one is
-	// named, then send the line that must not be kept and wait for it to be counted as unknown (dropped, not stored).
+	// named, then send the line that must not be kept until it is counted as unknown (dropped, not stored).
 	waitUntil(t, "a datagram of the tcp source to be named", func() bool { send("udp4", "<34>probe"); return named("udp") })
 	v, err := e.svc.UnknownSenders(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
 	before := v.Items[0].Count
-	send("udp4", "<34>not over tcp")
 	waitUntil(t, "the datagram to be counted as unknown", func() bool {
+		send("udp4", "<34>not over tcp")
 		v, err := e.svc.UnknownSenders(t.Context())
 		return err == nil && len(v.Items) == 1 && v.Items[0].Count > before
 	})

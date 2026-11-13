@@ -42,7 +42,7 @@ export default function SetupPage() {
   const boxLan = setupModules?.lan ?? null // D-405: the box's own network, offered as the first range
   const [step, setStep] = useState<Step>('account')
   const [s, setS] = useState<State>(INIT)
-  useEffect(() => { if (boxLan) setS((x) => (x.lan.length === 1 && !x.lan[0].trim() ? { ...x, lan: [boxLan] } : x)) }, [boxLan])
+  useEffect(() => { if (boxLan) setS((x) => (x.lan.length === 1 && !x.lan[0]?.trim() ? { ...x, lan: [boxLan] } : x)) }, [boxLan])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [finished, setFinished] = useState(false)

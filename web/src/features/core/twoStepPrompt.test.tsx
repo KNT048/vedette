@@ -30,7 +30,7 @@ describe('two-step sign-in prompt on Home (D-405)', () => {
 
   it('not shown to an SSO administrator (the identity provider does two-step)', async () => {
     localStorage.removeItem('vedette-two-step-later:u-admin')
-    usersStore.update((l) => l.map((x) => (x.id === 'u-admin' ? { ...x, sso: true } : x)))
+    usersStore.update((l) => l.map((x) => (x.id === 'u-admin' ? { ...x, sso: { iss: 'https://idp.example', sub: 'admin' } } : x)))
     let read = false
     const seen = ({ request }: { request: Request }) => { if (new URL(request.url).pathname.endsWith('/core/account')) read = true }
     server.events.on('response:mocked', seen)

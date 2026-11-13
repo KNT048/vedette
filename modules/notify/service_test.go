@@ -129,6 +129,7 @@ func TestContract_INV3_GroupsSameProductInsideWindow(t *testing.T) {
 		}
 	}
 	other := e.vulnNotice("z", "WordPress", "CVE-2026-9", notify.High, "WEB01")
+	other.At = t0.Add(10 * time.Minute) // due in a later run: batches due in the same run become one digest (D-483)
 	if err := e.svc.Publish(e.ctx(), other); err != nil {
 		t.Fatal(err)
 	}
@@ -137,6 +138,11 @@ func TestContract_INV3_GroupsSameProductInsideWindow(t *testing.T) {
 		t.Fatalf("sent before the window ended: %d", e.net.total())
 	}
 	e.clock.Add(15 * time.Minute)
+	e.flush()
+	if n := len(e.net.to("api.telegram.org")); n != 1 {
+		t.Fatalf("calls = %d after the QNAP window, want the grouped message only", n)
+	}
+	e.clock.Add(10 * time.Minute)
 	e.flush()
 	calls := e.net.to("api.telegram.org")
 	if len(calls) != 2 {

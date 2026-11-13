@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { ApplyItem, FindingDetail, FindingRow, StatusAction } from './types'
+import type { ApplyItem, BulkAction, FindingDetail, FindingRow, StatusAction } from './types'
 
 export const useFindings = (asset?: string) =>
   useQuery({ queryKey: ['findings', 'list', asset ?? null], queryFn: () => api.get<{ items: FindingRow[] }>(asset ? `/findings?asset=${encodeURIComponent(asset)}` : '/findings') })
@@ -28,3 +28,12 @@ export const useApplied = (id: string) =>
 
 export const useAskAi = (id: string) =>
   useWrite<'explain' | 'mitigation-config'>(id, (skill) => api.post<FindingDetail>(`/findings/${encodeURIComponent(id)}/ai`, { skill }))
+
+/** Một hành động, một ghi chú cho nhiều phát hiện (W1-12, INV-10): tất cả hoặc không gì. */
+export function useBulkStatus() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { ids: string[]; action: BulkAction; note: string }) => api.post<{ updated: number; skipped: number }>('/findings/status', v),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['findings'] }) },
+  })
+}

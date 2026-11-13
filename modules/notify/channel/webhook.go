@@ -526,7 +526,11 @@ func newWebhookPayload(n Message, link string) webhookPayload {
 	if devices == nil {
 		devices = []DeviceRef{}
 	}
-	return webhookPayload{Event: event, Kind: n.IncidentKind, ID: n.ID, Severity: n.Severity, Title: n.Title, Devices: devices, What: n.What, Action: n.Action, Items: n.Items, URL: link}
+	items := n.Items
+	if more := n.moreLine(); more != "" { // the payload keeps its shape: the count is the last item, as "…and more" was
+		items = append(slices.Clone(items), more)
+	}
+	return webhookPayload{Event: event, Kind: n.IncidentKind, ID: n.ID, Severity: n.Severity, Title: n.Title, Devices: devices, What: n.What, Action: n.Action, Items: items, URL: link}
 }
 
 // sign returns the signature header value for body at timestamp ts.

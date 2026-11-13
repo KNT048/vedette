@@ -320,19 +320,28 @@ func (h *FeedHandlers) FeedsPostFeedsWeeklyID(ctx context.Context, req *oas.Feed
 		default:
 			return fmt.Errorf("feeds: read answer: %w", err)
 		}
+		// The scope of "I have this" starts a week before the answered entry (HaveWindow, D-484) and is set by the
+		// first "have" only: a later answer (not relevant, have again) never moves it.
+		var since any
+		if d, err := time.Parse(time.DateOnly, v.DateAdded); answer == "have" && err == nil {
+			since = d.Add(-HaveWindow).Format(time.DateOnly)
+		}
+		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_weekly_answer (key, answer, user_id, answered_at, device_added, have_since) VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(key) DO UPDATE SET answer = excluded.answer, user_id = excluded.user_id, answered_at = excluded.answered_at,
+	have_since = coalesce(feeds_weekly_answer.have_since, excluded.have_since)`,
+			item.Key, answer, p.ID, h.s.now().Format(tsLayout), added, since)
+		if err != nil {
+			return fmt.Errorf("feeds: store answer: %w", err)
+		}
 		// The device is created once per product, whatever is answered later (have, not relevant, have again).
 		// With the inventory off the answer is stored and the pull job adds the device when it is back.
 		if answer == "have" && added == 0 && h.s.inventoryOn() {
 			if err := h.s.declareDevice(ctx, tx, p.Email, item.Key, v); err != nil {
 				return err
 			}
-			added = 1
-		}
-		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_weekly_answer (key, answer, user_id, answered_at, device_added) VALUES (?, ?, ?, ?, ?)
-ON CONFLICT(key) DO UPDATE SET answer = excluded.answer, user_id = excluded.user_id, answered_at = excluded.answered_at, device_added = excluded.device_added`,
-			item.Key, answer, p.ID, h.s.now().Format(tsLayout), added)
-		if err != nil {
-			return fmt.Errorf("feeds: store answer: %w", err)
+			if _, err := tx.ExecContext(ctx, `UPDATE feeds_weekly_answer SET device_added = 1 WHERE key = ?`, item.Key); err != nil {
+				return fmt.Errorf("feeds: mark device added: %w", err)
+			}
 		}
 		return h.s.Audit.Append(ctx, tx, audit.Entry{User: p.Email, Action: "feeds.weekly_answer", Target: DisplayOf(v.Vendor, v.Product), Detail: answer})
 	})

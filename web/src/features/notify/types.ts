@@ -38,7 +38,7 @@ export const INCIDENT_KINDS: IncidentKind[] = ['trap', 'bad_address', 'log_anoma
 export const FIELDS: Record<ChannelType, string[]> = {
   telegram: ['chat_id'],
   slack: ['label'], // channel_id chỉ hiện khi bật duyệt trong chat
-  zalo: ['oa_id', 'user_id'],
+  zalo: ['oa_id', 'user_id', 'app_id'], // app_id: the refresh-token flow (D-483); secret key and refresh token are secrets
   'zalo-personal': ['user_id'],
   email: ['provider', 'host', 'port', 'security', 'username', 'tenant_id', 'client_id', 'from', 'to'], // provider: preset (D-449); tenant_id, client_id: Microsoft 365 only
   webhook: ['url'],

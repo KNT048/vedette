@@ -178,7 +178,7 @@ test.describe('notify: alert channels (S-NOT-1)', () => {
     await expect(visible(page.getByText(/Tested .*: failed/))).toBeVisible()
   })
 
-  test('Zalo OA: needs OA ID, recipient and access token; each missing piece is reported at its field', async ({ page }) => {
+  test('Zalo OA: needs OA ID, recipient and a refresh token with its Secret key and App ID (D-483); each missing piece is reported at its field', async ({ page }) => {
     await startWithSample(page)
     await page.goto('/settings/channels')
     await page.getByRole('button', { name: 'Set up Zalo OA' }).click()
@@ -191,8 +191,12 @@ test.describe('notify: alert channels (S-NOT-1)', () => {
     await expect(d.getByLabel('Recipient ID (user_id)')).toHaveAccessibleDescription(/user_id/)
     await d.getByLabel('Recipient ID (user_id)').fill('2468013579')
     await d.getByRole('button', { name: 'Save', exact: true }).click()
-    await expect(d.getByLabel('Access token')).toHaveAccessibleDescription(/access token/)
-    await d.getByLabel('Access token').fill('zalo-access-token-0123456789abcdef')
+    await expect(d.getByLabel('Refresh token')).toHaveAccessibleDescription(/Enter the refresh token, or an access token/)
+    await d.getByLabel('Refresh token').fill('zalo-refresh-token-0123456789abcdef')
+    await d.getByLabel('Secret key').fill('app-secret-key-123')
+    await d.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(d.getByLabel('App ID')).toHaveAccessibleDescription(/App ID is the number of your Zalo app/)
+    await d.getByLabel('App ID').fill('4318650137000000000')
     await d.getByRole('button', { name: 'Save and send test' }).click()
     await expect(page.getByText(/Zalo OA 1234567890 sent the test message to recipient 2468013579/).first()).toBeVisible()
   })

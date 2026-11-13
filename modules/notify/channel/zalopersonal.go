@@ -183,7 +183,7 @@ func (z *zaloPersonalSender) send(ctx context.Context, m Message, to string, gro
 		text = truncRunes(strings.TrimSpace(clean(m.Title, false)), zaloReplyMax)
 	} else {
 		link, _ := safeLink(m.Link)
-		lines := m.norm().mapText(defang).lines(link)
+		lines := fitChat(m.norm(), link, zaloTextMax).lines(link)
 		if m.ReplyCodes != nil { // the box's own text, not feed text: kept whole with the link line, which fit never cuts
 			lines[len(lines)-1] += "\n" + m.ReplyCodes.line()
 		}

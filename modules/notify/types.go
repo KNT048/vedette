@@ -58,6 +58,10 @@ type ChannelInput struct {
 	AppToken    string
 	BotToken    string
 	Signin      string // email: a finished user sign-in whose refresh token becomes the secret (D-480)
+	// SecretKey and RefreshToken (Zalo OA, D-483): the app's secret key and the OA refresh token; Secret is then the current access
+	// token, optional. Empty keeps the saved one.
+	SecretKey    string
+	RefreshToken string
 	// ZaloLogin (Zalo personal, D-447): the session of the saving administrator's finished QR sign-in becomes the channel's secret.
 	ZaloLogin bool
 }
@@ -84,6 +88,8 @@ type SendView struct {
 	At      string       `json:"at"`
 	OK      bool         `json:"ok"`
 	Error   string       `json:"error,omitempty"`
+	// Delayed: the provider asked to slow down and the message waits in the queue; it is sent again by itself (D-483).
+	Delayed bool `json:"delayed"`
 }
 
 // HistoryItem is a SendView with what it was about.

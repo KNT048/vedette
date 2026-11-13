@@ -60,6 +60,15 @@ func (e *env) critical(id, product, cve string) {
 	}
 }
 
+// incident queues an incident notice: incidents stay one message each, vulnerability notices due together become one digest (D-483).
+func (e *env) incident(id string, sev notify.Severity) {
+	e.t.Helper()
+	if err := e.svc.Publish(e.ctx(), notify.Notice{ID: id, Kind: notify.KindIncident, IncidentKind: "trap", Severity: sev, Title: "192.168.10.107 touched the trap " + id,
+		What: "w", Action: "a", Link: "https://box.example:8443/incidents/" + id, At: e.clock.Now()}); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
 // ---- BaseURL ----
 
 func TestNoBaseURLMessagesCarryNoInventedLink(t *testing.T) {
@@ -267,8 +276,8 @@ func TestContract_INV6_CancelledRunKeepsItsRecordAndReturnsTheUnattempted(t *tes
 	}))
 	e.telegram(notify.Low)
 	e.plain()
-	e.critical("c1", "WordPress", "CVE-2026-31")
-	e.critical("c2", "QNAP", "CVE-2026-32")
+	e.incident("c1", notify.Critical)
+	e.incident("c2", notify.Critical)
 	ctx, c := context.WithCancel(e.ctx())
 	cancel = c
 	if err := e.svc.Flush(ctx); err == nil {
@@ -476,11 +485,9 @@ func TestDeliveryCriticalFirstAndBoundedPerRun(t *testing.T) {
 	e.telegram(notify.Low)
 	e.plain()
 	for i := range 25 {
-		if err := e.svc.Publish(e.ctx(), e.vulnNotice(fmt.Sprintf("h%d", i), fmt.Sprintf("Product%d", i), fmt.Sprintf("CVE-2026-9%02d", i), notify.High, "NAS-01")); err != nil {
-			t.Fatal(err)
-		}
+		e.incident(fmt.Sprintf("h%d", i), notify.High)
 	}
-	e.critical("late-critical", "Late", "CVE-2026-999")
+	e.incident("late-critical", notify.Critical)
 	e.flush()
 	calls := e.net.to("api.telegram.org")
 	if len(calls) != 20 || !strings.Contains(calls[0].Body, "Critical:") {
@@ -551,8 +558,8 @@ func TestSuppressedCountFollowsKEVAndFindingEvents(t *testing.T) {
 	}
 	e.clock.Add(4 * time.Minute)
 	e.flush()
-	if n := e.count(`SELECT COUNT(*) FROM notify_send WHERE kind = 'vuln'`); n != 2 {
-		t.Fatalf("vuln messages = %d (the finding and its confirmation)", n)
+	if n := e.count(`SELECT COUNT(*) FROM notify_send WHERE kind = 'vuln'`); n != 1 {
+		t.Fatalf("vuln messages = %d (the finding and its confirmation, due in the same run: one message, D-483)", n)
 	}
 }
 

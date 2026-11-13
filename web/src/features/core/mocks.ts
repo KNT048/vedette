@@ -15,7 +15,7 @@ import { connectionsHandlers } from './connectionsMock'
 import { connectorsStore } from '@/mocks/connectors'
 import { newSecret, verifyTotp } from './totp'
 import { checkCode, clearCode, issueCode, maskEmail, sentBody } from './emailCode'
-import { CIDR_RE, compareVersion, fromBase64, GUESSABLE_PASSWORD, guessablePassword, isPrivateCidr, MIN_PASSWORD, validTimeZone } from './util'
+import { CIDR_RE, compareVersion, fromBase64, GUESSABLE_PASSWORD, guessablePassword, isPrivateCidr, LOCAL_RANGE_NAMES, MIN_PASSWORD, validTimeZone } from './util'
 import type { AccountSession, AdminUser, BoxBackup, RestoreRun, Advisory, AuditQuery, AuditRow, ManagedPackage, McpToken, OidcConfig, PrivacyFlow, SetupPayload, UpdateAvailable, UpdateChannel, UpdateComponent, UpdateHistory, UpdateCheckError, UpdateRun, UpdatesState } from './types'
 
 const ROLES: Role[] = ['viewer', 'operator', 'admin']
@@ -60,7 +60,7 @@ const setupHandlers = [
     const badLan = lan.find((x) => !CIDR_RE.test(x))
     if (badLan) return fail(400, 'invalid_lan', `The range "${badLan}" is not valid. Write it like 192.168.10.0/24.`)
     const pub = lan.find((x) => !isPrivateCidr(x))
-    if (pub) return fail(400, 'public_range', `${pub} is not a private range (10.x, 172.16-31.x, 192.168.x). Add public addresses later under External exposure.`)
+    if (pub) return fail(400, 'public_range', `${pub} is not a private range (${LOCAL_RANGE_NAMES}). Add public addresses later under External exposure.`)
     // The ranges become the scope of Devices → Scope and sensors (below), so they obey that page's rule too (inventory INV-6, #350).
     const uniqueLan = [...new Set(lan.map((r) => cidrRange(r).network))] // host bits cleared first, as the backend does
     const clash = uniqueLan.map((r) => [r, overlapping(r, uniqueLan)] as const).find(([, o]) => o)

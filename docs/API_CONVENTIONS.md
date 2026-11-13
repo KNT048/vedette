@@ -288,7 +288,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `port_mismatch` | 400 | Port 587 uses STARTTLS, not SSL/TLS. Choose STARTTLS, or change the port to 465 for SSL/TLS. | module notify (validator dùng chung) |
 | `privacy_rule` | 400 | "${p.name}" runs in the cloud, but ${JOB_NAME[j.id]} sends internal data and the privacy rule only allows internal profi | `PUT /ai/profiles/{id}` |
 | `profile_unusable` | 400 | "${p.name}" has no API key yet, so it cannot build the index. Edit the profile and add the key. | `PUT /ai/knowledge/settings` |
-| `public_range` | 400 | The range is not a private range (10.x, 172.16-31.x, 192.168.x). | `POST /core/setup`; `PUT /inventory/settings` |
+| `public_range` | 400 | The range is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x; D-461). | `POST /core/setup`; `PUT /inventory/settings` |
 | `same_date` | 400 | Pick two different days to compare. | `GET /exposure/targets/{id}/diff` |
 | `same_password` | 400 | The new password must differ from the current one. | `POST /core/account/password` |
 | `same_profile` | 400 | The fallback for ${JOB_NAME[j.id]} must be a different profile from the primary. | module ai (validator dùng chung) |

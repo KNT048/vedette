@@ -66,8 +66,7 @@ async function cleanInstall(page: Page, lan: string) {
 }
 async function finishWizard(page: Page) {
   await page.getByRole('radio', { name: /Small business/ }).or(page.getByRole('radio').first()).first().click()
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByRole('button', { name: 'Skip and finish' }).click()
+  await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(page).not.toHaveURL(/\/setup/) // the wizard saves the scope before it leaves this page
   await expect(h1(page)).toBeVisible()
 }

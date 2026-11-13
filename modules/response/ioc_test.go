@@ -36,6 +36,7 @@ func TestIocHitEvent(t *testing.T) {
 		"no id":             iocHit("", "192.168.10.105", "185.220.101.47", "ip"),
 		"id with a newline": iocHit("h\n3", "192.168.10.105", "185.220.101.47", "ip"),
 		"public source":     iocHit("h4", "8.8.8.8", "185.220.101.47", "ip"),
+		"100/8 source":      iocHit("h15", "100.128.0.5", "185.220.101.47", "ip"), // only 100.64/10 is local (D-461)
 		"shell in source":   iocHit("h5", "192.168.10.105; reboot", "185.220.101.47", "ip"),
 		"domain as ip":      iocHit("h6", "192.168.10.105", "badhost.example", "ip"),
 		"ip with a quote":   iocHit("h7", "192.168.10.105", "185.220.101.47\"", "ip"),
@@ -71,6 +72,16 @@ func TestIocHitEvent(t *testing.T) {
 	e.must(err)
 	if l := e.actions(); sum.Requests != 1 || len(l) != 1 || !strings.Contains(l[0].Items[0].Title, "185.220.101.47") {
 		t.Fatalf("summary %+v, requests %+v", sum, l)
+	}
+}
+
+// D-461: a device in the RFC 6598 shared address space is a LAN device, as logs reads it (signature.LocalOK).
+func TestIocHitFromASharedAddressSpaceDevice(t *testing.T) {
+	e := newEnv(t)
+	e.svc.Subscribe(e.bus)
+	pubIoc(e, iocHit("h1", "100.65.254.7", "185.220.101.47", "ip"))
+	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE id = 'ioc:h1' AND fields LIKE '%"src_ip":"100.65.254.7"%'`); n != 1 {
+		t.Fatalf("%d events from a 100.64/10 device, want 1", n)
 	}
 }
 

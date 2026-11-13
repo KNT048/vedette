@@ -33,6 +33,6 @@ export const EMAIL_PROVIDERS: EmailProvider[] = [
   { id: 'google-workspace', group: 'oauth', auth: 'google_oauth', host: 'smtp.gmail.com', port: '587', security: 'starttls', doc: 'https://developers.google.com/identity/protocols/oauth2/service-account' },
 ]
 
-/** The preset of a saved channel: a channel saved before the presets (or by the setup wizard) has none and is Custom SMTP. */
+/** The preset of a saved channel: a channel saved before the presets has none and is Custom SMTP. */
 export const emailProvider = (id: string | undefined) => EMAIL_PROVIDERS.find((p) => p.id === (id || 'custom'))
 export const isOAuth = (a: EmailAuth) => a === 'microsoft_oauth' || a === 'google_oauth'

@@ -5,7 +5,8 @@
 // job's fields with Build, then checks it with Validate.
 //
 // The worker's grammar is the last fence against a compromised core (D-113 (3)), so it is as narrow as nmapargv's:
-// private IPv4 literals only, no domain, no public address (external targets are not scanned yet, D-126 (4)).
+// private IPv4 literals only (RFC 1918 or the RFC 6598 shared space 100.64/10, core/localnet, D-461), no domain, no public
+// address (external targets are not scanned yet, D-126 (4)).
 //
 // The flags are those of the nuclei version pinned in the scan image; a new pinned version is checked against this
 // list in the lab before it ships (docs/specs/sensor-protocol.md, D-116 (5)).
@@ -19,6 +20,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/knt048/vedette/core/localnet"
 )
 
 // TemplatesDir is where the signed scan image keeps the safe template pack (D-125 (4)). Every template nuclei loads is
@@ -105,16 +108,21 @@ func ValidTemplatePath(p string) bool {
 	return len(p) <= 200 && pathRE.MatchString(p) && !strings.Contains(p, "..")
 }
 
-// validHost accepts only a canonical private IPv4 literal (RFC 1918) that is not the network or broadcast address of a
-// /24: the same fence as nmapargv. No domain (it could resolve to loopback or the metadata address), no public IP.
+// validHost accepts only a canonical private IPv4 literal (RFC 1918 or RFC 6598, localnet.Addr, D-461) that is not the
+// network or broadcast address of a /24: the same fence as nmapargv. No domain (it could resolve to loopback or the
+// metadata address), no public IP, and never the Alibaba Cloud metadata address 100.100.100.200, which lies in 100.64/10
+// (nuclei keeps up to 4 KB of an answer as evidence, which can reach an AI provider; D-461 (5)). nmap may still probe it.
 func validHost(h string) bool {
 	a, err := netip.ParseAddr(h)
-	if err != nil || !a.Is4() || a.String() != h || !a.IsPrivate() {
+	if err != nil || a.String() != h || !localnet.Addr(a) || a == metadataV4 {
 		return false
 	}
 	last := a.As4()[3]
 	return last != 0 && last != 255
 }
+
+// metadataV4 is the cloud metadata endpoint inside the local networks (core/netguard lists it too; this leaf may not import it).
+var metadataV4 = netip.AddrFrom4([4]byte{100, 100, 100, 200})
 
 func (t Target) valid() bool {
 	return validHost(t.Host) && t.Port >= 1 && t.Port <= 65535 && (t.Scheme == "" || t.Scheme == "http" || t.Scheme == "https")

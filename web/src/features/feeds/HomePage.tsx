@@ -17,6 +17,7 @@ import { ApiError } from '@/lib/api'
 import { useAnswerWeekly, useFeedStatus, useHot, useWeekly } from './api'
 import { YouHaveCell } from './YouHaveCell'
 import { TwoStepPrompt } from '@/features/core/TwoStepPrompt'
+import { AlertChannelPrompt } from '@/features/core/AlertChannelPrompt'
 import type { HotRow } from './types'
 
 function SearchBox() {
@@ -171,6 +172,7 @@ export default function HomePage() {
         meta={never ? t('home.metaNone') : status.data ? <>{t('home.meta', { time: fmtStamp(status.data.generated_at), sources: status.data.sources.map((s) => s.name).join(', ') })}{setup.data?.data_mode === 'sample' ? ` ${t('home.sampleInventory')}` : ''}</> : null}
         actions={<SearchBox />}
       />
+      <AlertChannelPrompt />
       <TwoStepPrompt />
       {matched > 0 ? (
         <p className="-mt-2 mb-6 text-sm"><Link to="/findings" className="text-accent underline-offset-4 hover:underline">{t('home.toFindings')}</Link></p>

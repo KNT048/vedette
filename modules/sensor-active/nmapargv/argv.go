@@ -1,5 +1,6 @@
 // Package nmapargv builds and checks the only three nmap command lines Vedette ever runs (D-84 (7), D-113).
-// It is a leaf: standard library only, no database and no core/exec, because the sensor binary links it and
+// It is a leaf: standard library only (plus core/localnet, itself standard library only, D-461), no database and
+// no core/exec, because the sensor binary links it and
 // both sides (core before it hands a job over, the worker before it starts nmap) use the same code (SYS-2).
 package nmapargv
 
@@ -9,6 +10,8 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
+
+	"github.com/knt048/vedette/core/localnet"
 )
 
 // Kind says which of the three nmap command lines is built (D-84 (7)).
@@ -91,10 +94,10 @@ func atoi(s string) (int, bool) {
 	return n, err == nil
 }
 
-// validTarget: a LAN range can only hold private unicast IPv4 addresses (RFC 1918), so nothing else may ever
-// be named, whatever the caller says (0/8, 127/8, 169.254/16, 100.64/10, multicast, reserved and broadcast
-// are all outside 10/8, 172.16/12 and 192.168/16).
-func validTarget(a netip.Addr) bool { return a.IsValid() && a.Is4() && a.Zone() == "" && a.IsPrivate() }
+// validTarget: a LAN range can only hold local IPv4 addresses (RFC 1918 or the RFC 6598 shared space 100.64/10,
+// localnet.Addr, D-461), so nothing else may ever be named, whatever the caller says (0/8, 127/8, 169.254/16, the
+// rest of 100/8, multicast, reserved and broadcast are all outside 10/8, 172.16/12, 192.168/16 and 100.64/10).
+func validTarget(a netip.Addr) bool { return a.IsValid() && a.Zone() == "" && localnet.Addr(a) }
 
 // Build builds an nmap command line only from private IPv4 addresses, an integer rate and the fixed
 // flags above (INV-4, FORBID-3). The shape is: the flags of the kind, -oX -, then the targets.

@@ -461,7 +461,7 @@ func (s *Service) checkApprovers(ctx context.Context, t channel.Type, in Channel
 // a password is not a client secret, and a client secret is not a key file.
 func emailFields(fields map[string]string, cur channelRow, secret string) error {
 	if fields["provider"] == "" {
-		delete(fields, "provider") // a channel saved without the presets (the setup wizard): custom SMTP
+		delete(fields, "provider") // a channel saved before the presets, or a client that sends none: custom SMTP
 	}
 	auth, ok := channel.EmailAuth(fields["provider"])
 	if !ok {

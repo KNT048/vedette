@@ -81,6 +81,10 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   await page.getByLabel('Range 1', { exact: true }).fill('10.0.0.0/0')
   await next(page)
   await expect(page.getByText(/is not a private range/)).toBeVisible()
+  // D-461: 100/8 outside the RFC 6598 shared address space is public; the sentence names 100.64-127.x
+  await page.getByLabel('Range 1', { exact: true }).fill('100.128.0.0/24')
+  await next(page)
+  await expect(page.getByText('100.128.0.0/24 is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). Add public addresses later under External exposure.')).toBeVisible()
   await page.getByLabel('Range 1', { exact: true }).fill('abc')
   await next(page)
   await expect(page.getByText(/"abc" is not a valid range/)).toBeVisible()
@@ -102,6 +106,15 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   await page.getByRole('button', { name: 'Add range' }).click()
   await next(page)
   await expect(page.getByText('Fill in this range or remove the row.')).toBeVisible()
+  // D-461 (kien's N100): a LAN behind carrier-grade NAT (RFC 6598, 100.64/10) passes the private-range check: written twice, the
+  // step names the duplicate, not a public range. Not kept, so the lab's scan scope stays the two ranges below.
+  await page.getByLabel('Range 3', { exact: true }).fill('100.65.254.0/24')
+  await page.getByRole('button', { name: 'Add range' }).click()
+  await page.getByLabel('Range 4', { exact: true }).fill('100.65.254.0/24')
+  await next(page)
+  await expect(page.getByText(/100\.65\.254\.0\/24 is listed twice/)).toBeVisible()
+  await expect(page.getByText(/is not a private range/)).toHaveCount(0)
+  await page.getByRole('button', { name: 'Remove range 4' }).click()
   await page.getByRole('button', { name: 'Remove range 3' }).click()
   await expect(page.getByLabel(/Upload/)).toHaveCount(0)
   await expect(page.locator('input[type=file]')).toHaveCount(0)
@@ -118,17 +131,16 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   await next(page)
   await page.getByRole('radio', { name: /Mid-size business/ }).click()
   await shot(page, 'real', 'setup-3')
-  await next(page)
-
-  // step 4: incomplete -> errors; skip
-  await expect(page.getByRole('heading', { level: 2, name: 'Where alerts go' })).toBeVisible()
+  // D-462: three steps; Modules is the last one and finishes setup, there is no Alerts step
+  await expect(page.getByRole('list', { name: 'Setup steps' }).getByRole('listitem')).toHaveCount(3)
   await page.getByRole('button', { name: 'Finish setup' }).click()
-  await expect(page.getByText('Fill this in.').first()).toBeVisible()
-  await shot(page, 'real', 'setup-4')
-  await page.getByRole('button', { name: 'Skip and finish' }).click()
   await expect(h1(page)).toBeVisible()
   await expect(page).toHaveURL(/\/$/) // finishing lands on Home, signed in as the new administrator
   await expect(h1(page)).toContainText('Today')
+  // a new box has no alert channel: Home says so and links to Settings, Alert channels (read from the real notify module)
+  await expect(page.getByText('No alert channel yet')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Set up an alert channel' })).toHaveAttribute('href', '/settings/channels')
+  await shot(page, 'real', 'setup-home-no-channel')
 
   // the scope reached the inventory module (the real one)
   const inv = await api<{ lan_ranges: string[]; active: { enabled: boolean } }>(page.request, 'GET', '/inventory/settings')

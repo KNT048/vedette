@@ -131,15 +131,18 @@ func (p Profile) checkOwn(own provider.OwnSources) error {
 	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
 		return perr("invalid_base_url", provider.OwnText)
 	}
-	ip, err := netip.ParseAddr(host)
-	if err != nil {
-		return nil
-	}
 	port := uint16(443)
 	if n, e := strconv.ParseUint(u.Port(), 10, 16); e == nil {
 		port = uint16(n)
 	} else if u.Scheme == "http" {
 		port = 80
+	}
+	if provider.OwnHostAlias(host, port) { // host.containers.internal:8443 is the machine's 8443
+		return perr("invalid_base_url", provider.OwnText)
+	}
+	ip, err := netip.ParseAddr(host)
+	if err != nil {
+		return nil
 	}
 	if own.Own(ip, port) {
 		return perr("invalid_base_url", provider.OwnText)

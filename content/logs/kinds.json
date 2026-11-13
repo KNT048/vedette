@@ -45,6 +45,6 @@
   {"id": "hpe-procurve", "protos": ["udp"], "reads": "stored"},
   {"id": "hpe-comware", "protos": ["udp"], "reads": "stored"},
   {"id": "unifi", "protos": ["udp"], "reads": "stored"},
-  {"id": "syslog-generic", "protos": ["udp", "tcp"], "reads": "stored"},
+  {"id": "syslog-generic", "protos": ["udp", "tcp", "tls"], "reads": "stored"},
   {"id": "cef-leef", "protos": ["udp", "tcp"], "reads": "stored"}
 ]

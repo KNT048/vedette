@@ -594,7 +594,7 @@ const E: CatalogEntry[] = [
 
   // ───────── Other and generic ─────────
   {
-    id: 'syslog-generic', group: 'other', name: 'Other device (standard syslog, RFC 3164 / 5424)', keywords: 'syslog generic other rfc 3164 5424 unknown', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
+    id: 'syslog-generic', group: 'other', name: 'Other device (standard syslog, RFC 3164 / 5424)', keywords: 'syslog generic other rfc 3164 5424 unknown', protos: ['udp', 'tcp', 'tls'], reads: 'stored', readsNote: STORED,
     intro: 'Any device or program that can send standard syslog works. Point it at the address below.',
     steps: (c) => [`Find the remote syslog (or log server) setting in the device and enter ${c.ip}.`, `Set the port to ${c.port} and the protocol to ${c.proto.toUpperCase()}.`, 'Choose the log types to send and save.'],
     snippets: (c) => [{ label: 'Where to send', code: [`Server: ${c.ip}`, `Port: ${c.port}`, `Protocol: ${c.proto.toUpperCase()}`, 'Format: RFC 3164 or RFC 5424'].join('\n') }],

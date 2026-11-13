@@ -37,9 +37,10 @@ export function useSaveAssignments() {
 }
 export const fetchSuggestion = (internalOnly: boolean) => api.get<Assignments>(`/ai/assignments/suggestion?internal_only=${internalOnly}`)
 
-export const useUsage = () => useQuery({ queryKey: ['ai', 'usage'], queryFn: () => api.get<Usage>('/ai/usage') })
+/** enabled false (every read below): not asked while the AI module is off, when its routes are 404 (S-CORE-9). */
+export const useUsage = (enabled = true) => useQuery({ queryKey: ['ai', 'usage'], queryFn: () => api.get<Usage>('/ai/usage'), enabled })
 export const useRuns = () => useQuery({ queryKey: ['ai', 'runs'], queryFn: () => api.get<{ items: AiRun[] }>('/ai/runs') })
-export const useAsks = () => useQuery({ queryKey: ['ai', 'asks'], queryFn: () => api.get<{ items: AskResult[] }>('/ai/asks') })
+export const useAsks = (enabled = true) => useQuery({ queryKey: ['ai', 'asks'], queryFn: () => api.get<{ items: AskResult[] }>('/ai/asks'), enabled })
 
 export function useAsk() {
   const done = useInvalidateAi()
@@ -58,7 +59,7 @@ export function useNews(cve: string) {
   return useMutation({ mutationFn: () => api.post<NewsResult>(`/ai/cve/${encodeURIComponent(cve)}/news`), onSettled: done })
 }
 
-export const useDigest = () => useQuery({ queryKey: ['ai', 'digest'], queryFn: () => api.get<{ digest: LogDigest | null }>('/ai/logs/digest'), retry: false })
+export const useDigest = (enabled = true) => useQuery({ queryKey: ['ai', 'digest'], queryFn: () => api.get<{ digest: LogDigest | null }>('/ai/logs/digest'), retry: false, enabled })
 export function useRefreshDigest() {
   const done = useInvalidateAi()
   return useMutation({ mutationFn: () => api.post<{ digest: LogDigest }>('/ai/logs/digest'), onSettled: done })

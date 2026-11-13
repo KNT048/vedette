@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/knt048/vedette/modules/ai/provider"
 )
 
 // The sources of D-446 (Vedette never connects to itself) for feeds, notify, logs and ai: machineAddrs is the machine's addresses
@@ -71,7 +73,7 @@ func (s decoySelf) addrs() []netip.Addr {
 }
 
 // hostAliasNames are the names Docker (Desktop, or host-gateway) and Podman give the machine that runs the container.
-var hostAliasNames = []string{"host.docker.internal", "host.containers.internal"}
+var hostAliasNames = provider.HostAliasNames
 
 // aliasCache resolves hostAliasNames. The first call resolves in place (at most aliasTimeout); after that a stale answer is served
 // while one refresh runs in the background, so no check waits on DNS. A name that does not resolve adds nothing.

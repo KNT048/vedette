@@ -35,6 +35,14 @@
     "moreOnTarget_one": "{{count}} more open port is listed on its target's page.",
     "moreOnTarget_other": "{{count}} more open ports are listed on their target's page."
   },
+  "gateway": {
+    "known_one": "These ports are answered by your gateway {{name}} ({{ip}}), or a device it forwards them to. {{name}} has {{count}} open exploited vulnerability: fix these first.",
+    "known_other": "These ports are answered by your gateway {{name}} ({{ip}}), or a device it forwards them to. {{name}} has {{count}} open exploited vulnerabilities: fix these first.",
+    "none": "These ports are answered by your gateway {{name}} ({{ip}}), or a device it forwards them to. Vedette knows of no open exploited vulnerability on {{name}}; that does not prove the device it forwards to is safe.",
+    "link": "See the vulnerabilities of {{name}}",
+    "notListed": "These ports are answered by your gateway ({{ip}}), or a device it forwards them to. Your gateway is not in your device list yet, so Vedette cannot say what is exploited on it. Scan your network to add it.",
+    "unknown": "Vedette cannot see which gateway your network uses from here, so it cannot say which device answers these ports."
+  },
   "risky": {
     "voip": "Phone systems (SIP) are scanned all day for toll fraud: attackers guess extension passwords and make paid calls on your bill.",
     "remote": "Remote access is the most attacked way in: attackers guess passwords and use known flaws to log in.",

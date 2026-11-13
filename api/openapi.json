@@ -21627,12 +21627,60 @@
                         "additionalProperties": false
                       },
                       "description": "The Ignored list, newest first"
+                    },
+                    "gateway": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "ip": {
+                              "description": "The LAN default gateway the host reports; null when the box cannot tell",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "device_id": {
+                              "description": "The inventory device with that IP; null when the gateway is not in the device list",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "name": {
+                              "description": "That device's name as the Devices page shows it (untrusted label, at most 80 characters)",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "open_exploited": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "description": "Open findings (exploited vulnerabilities, confirmed or suspected) of that device; 0 when device_id is null"
+                            }
+                          },
+                          "required": [
+                            "ip",
+                            "device_id",
+                            "name",
+                            "open_exploited"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null unless one of the box's own IPs has an open port in its newest scan; then who probably answers it (D-492)"
                     }
                   },
                   "required": [
                     "items",
                     "box_ip",
-                    "ignored"
+                    "ignored",
+                    "gateway"
                   ],
                   "additionalProperties": false
                 }

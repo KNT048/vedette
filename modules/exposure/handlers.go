@@ -66,7 +66,8 @@ func (h *ExposureHandlers) ExposureGetExposureTargets(ctx context.Context) (*oas
 		Items   []TargetView `json:"items"`
 		BoxIP   BoxIP        `json:"box_ip"`
 		Ignored []IgnoredIP  `json:"ignored"`
-	}{items, box, ignored})
+		Gateway *GatewayView `json:"gateway"`
+	}{items, box, ignored, h.svc.GatewayNote(ctx, items)})
 }
 
 // ExposurePostExposureTargets implements exposure_post_exposure_targets: add a domain (admin).

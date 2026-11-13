@@ -25,6 +25,7 @@ type Config struct {
 	Prober    EgressProber     // the three public IP services (PublicServiceProber); tests pass a fake
 	Publisher Publisher        // nil: no events
 	Runner    Runner           // nil: scanning answers 501 until the scan module registers one
+	Gateway   Gateway          // nil: the page makes no claim about which device answers the open ports (D-492)
 	Location  *time.Location   // the day of a snapshot (nil: time.Local)
 	Log       *slog.Logger     //
 	Clock     func() time.Time // nil: time.Now

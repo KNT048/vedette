@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useCallback, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { LoaderCircle, QrCode, Send, TriangleAlert, X } from 'lucide-react'
+import { LoaderCircle, Send, X } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
@@ -21,12 +21,14 @@ import { EMAIL_PROVIDERS, OAUTH_HOST, emailBinding, emailProvider, isOAuth, isUs
 import { EmailSignin } from './EmailSignin'
 import { useChannels, useRemoveChannel, useSaveChannel, useSaveRules, useTestChannel } from './api'
 import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
+import { ZaloApproverField, ZaloRecipient, ZaloSignIn, ZaloWarning, type ZaloTarget } from './ZaloPersonal'
 import type { Approver, Channel, Grouping, Quiet, RouteSeverity } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
 // The box names the wrong field by its code: the message goes under that field, as in the log source form. Per type, because a code
 // can mean another field elsewhere (modules/notify/channel/*.go, mocks.ts validate). A code left out stays at the top of the dialog:
-// Slack `secret_required` is the webhook URL, the app token or the bot token; Zalo personal's session is a QR sign-in, not a field.
+// Slack `secret_required` is the webhook URL, the app token or the bot token; Zalo personal's session is a QR sign-in, not a field
+// (`login_required` too); its `bad_user_id` is the recipient, shown in the recipient box.
 // Approver errors (`bad_approver_address`, …) stay at the top too: they name the approver in the message.
 const FIELD_OF: Record<Channel['type'], Record<string, string>> = {
   telegram: { bad_chat_id: 'chat_id', secret_required: 'secret', bad_token: 'secret' },
@@ -59,10 +61,12 @@ function randomKey() {
   return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('')
 }
 
-function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Channel; codeUsers: number; onClose: () => void; onSaved: (thenTest: boolean) => void }) {
+function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { channel: Channel; codeUsers: number; onClose: () => void; onSaved: (thenTest: boolean) => void }) {
   const { t } = useTranslation('notify')
   const save = useSaveChannel()
-  const type = channel.type
+  const type = opened.type
+  // The channel as the box has it now: a Zalo personal dialog stays open after Save to show each approver's link state (D-447).
+  const channel = useChannels().data?.channels.find((c) => c.type === type) ?? opened
   const name = t(`ch.${type}`)
   const [enabled, setEnabled] = useState(channel.configured ? channel.enabled : true)
   const [fields, setFields] = useState<Record<string, string>>(() => ({ ...(type === 'email' ? { port: '587', security: 'starttls', provider: 'custom' } : {}), ...(type === 'webhook' ? {} : channel.fields) })) // the webhook URL is a secret: only its masked form comes back, so the field starts empty (empty = keep)
@@ -77,7 +81,10 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
   const [approvals, setApprovals] = useState(channel.approvals)
   const [approvers, setApprovers] = useState<Approver[]>(channel.approvers)
   const [pick, setPick] = useState('')
-  const [qr, setQr] = useState(false)
+  const [zaloSigned, setZaloSigned] = useState<string | null>(null) // the account of a finished QR sign-in: Save keeps its session
+  const onZaloSigned = useCallback((n: string | null) => setZaloSigned(n), [])
+  const [target, setTarget] = useState<ZaloTarget>({ user_id: opened.fields.user_id ?? '', group: opened.fields.group === 'true', name: opened.fields.name ?? '' })
+  const zaloLook = zaloSigned !== null || (channel.configured && channel.secret_last4 !== null)
   const users = useUsers()
   const [appToken, setAppToken] = useState('')
   const [botToken, setBotToken] = useState('')
@@ -95,10 +102,13 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
     if (type === 'email' && channel.enabled && !enabled && codeUsers > 0 && !confirmed) { setWarn(thenTest); return }
     const canApprove = APPROVAL_CHANNELS.includes(type)
     // Slack's channel ID and app tokens only belong to approvals: with approvals off they are not sent.
-    const sent = type === 'slack' && !approvals ? Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'channel_id')) : fields
-    save.mutate({ type, enabled, fields: sent, secret: secret || undefined, ...(type === 'email' && signin ? { signin } : {}), min_severity: min, ...(canApprove ? { approvals, approvers: approvals ? approvers : [] } : {}), ...(type === 'slack' && approvals ? { app_token: appToken || undefined, bot_token: botToken || undefined } : {}) }, {
+    const sent = type === 'slack' && !approvals ? Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'channel_id'))
+      : type === 'zalo-personal' ? { user_id: target.user_id, group: target.group ? 'true' : '', name: target.name } : fields
+    const zalo = type === 'zalo-personal' ? { zalo_login: zaloSigned !== null } : {}
+    save.mutate({ type, enabled, fields: sent, secret: secret || undefined, ...(type === 'email' && signin ? { signin } : {}), min_severity: min, ...zalo, ...(canApprove ? { approvals, approvers: approvals ? approvers : [] } : {}), ...(type === 'slack' && approvals ? { app_token: appToken || undefined, bot_token: botToken || undefined } : {}) }, {
       onSuccess: () => {
         toast.success(t('channels.saved', { name }))
+        if (type === 'zalo-personal' && approvals && !thenTest) { setZaloSigned(null); toast.info(t('zp.codesSent')); return } // stay: show who is linked
         onSaved(thenTest)
       },
       onError: (er) => {
@@ -158,7 +168,7 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
       <DialogContent title={t('channels.dialogTitle', { name })} description={t('channels.dialogDesc')}>
         <form onSubmit={submit} className="grid gap-4" noValidate>
           {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error}</p> : null}
-          {FIELDS[type].filter(shown).map((k) => {
+          {type === 'zalo-personal' ? null : FIELDS[type].filter(shown).map((k) => {
             const id = `ch-${type}-${k}`
             const label = type === 'email' ? t(emailKeys(prov, k, 'label')) : t(`channels.f.${type}.${k}.label`)
             if (k === 'provider') {
@@ -207,18 +217,9 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
           })}
           {type === 'zalo-personal' ? (
             <div className="grid gap-3">
-              <p role="note" className="flex gap-2 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm font-medium"><TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />{t('zp.warning')}</p>
-              <div className="grid gap-2 rounded-md border border-rule p-3">
-                <span className="text-sm font-medium">{t('zp.login')}</span>
-                <p className="text-[13px] text-muted">{secret ? t('zp.ready') : channel.secret_last4 ? t('channels.secretSaved', { last4: channel.secret_last4 }) : t('zp.none')}</p>
-                {qr ? (
-                  <div className="grid justify-items-start gap-2">
-                    <div role="img" aria-label={t('zp.qrAlt')} className="grid size-36 place-items-center rounded-md border border-dashed border-rule bg-sunken text-muted"><QrCode className="size-20" aria-hidden /></div>
-                    <p className="text-[13px]">{t('zp.scan')}</p>
-                    <Button onClick={() => { setSecret(`zl-session-${randomKey()}`); setQr(false) }}>{t('zp.scanned')}</Button>
-                  </div>
-                ) : <div><Button onClick={() => setQr(true)}><QrCode />{channel.secret_last4 || secret ? t('zp.relogin') : t('zp.show')}</Button></div>}
-              </div>
+              <ZaloWarning />
+              <ZaloSignIn channel={channel} onSigned={onZaloSigned} />
+              <ZaloRecipient value={target} onChange={(v) => { setTarget(v); fixed('user_id') }} canLook={zaloLook} error={fieldErr.user_id || undefined} />
             </div>
           ) : type === 'email' && isUserSignin(prov.auth) ? (
             <EmailSignin key={prov.id} prov={prov} fields={fields} saved={keepsSecret ? channel.fields.username ?? null : null} error={fieldErr.secret}
@@ -256,9 +257,13 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
                       return (
                         <div key={a.user_id} className="grid items-end gap-2 sm:grid-cols-[1fr_1.4fr_auto]">
                           <div className="grid text-sm"><span className="font-medium">{u?.name ?? a.user_id}</span><span className="text-[12px] text-muted">{u ? `${u.email}, ${t(`common:role.${u.role}`)}` : ''}</span></div>
-                          <Field label={t(`approve.address.${type}`)} htmlFor={`ap-${type}-${a.user_id}`}>
-                            <Input id={`ap-${type}-${a.user_id}`} value={a.address} placeholder={t(`approve.placeholder.${type}`)} autoComplete="off" onChange={(e) => setApprovers((l) => l.map((x) => (x.user_id === a.user_id ? { ...x, address: e.target.value } : x)))} />
-                          </Field>
+                          {type === 'zalo-personal'
+                            ? <ZaloApproverField approver={a} saved={channel.configured ? channel : null} canLook={zaloLook} onChange={(n) => setApprovers((l) => l.map((x) => (x.user_id === a.user_id ? n : x)))} />
+                            : (
+                              <Field label={t(`approve.address.${type}`)} htmlFor={`ap-${type}-${a.user_id}`}>
+                                <Input id={`ap-${type}-${a.user_id}`} value={a.address} placeholder={t(`approve.placeholder.${type}`)} autoComplete="off" onChange={(e) => setApprovers((l) => l.map((x) => (x.user_id === a.user_id ? { ...x, address: e.target.value } : x)))} />
+                              </Field>
+                            )}
                           <Button size="sm" variant="ghost" onClick={() => setApprovers((l) => l.filter((x) => x.user_id !== a.user_id))}><X /><span className="sr-only">{t('approve.remove', { who })}</span></Button>
                         </div>
                       )

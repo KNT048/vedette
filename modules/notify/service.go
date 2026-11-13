@@ -43,6 +43,9 @@ type Config struct {
 	// (D-191); an error from it skips the approver too (fail closed). nil = no link check, as before.
 	ApproverLinks ApproverLinks
 	Decisions     Decisions // module response: takes decisions made in chat (13b-8); nil = chat decisions are not taken
+	// LinkCodes makes the code a Zalo personal approver replies with to prove their Zalo account (D-447); nil = no code is sent and the
+	// approver stays not linked.
+	LinkCodes LinkCodes
 
 	Clock func() time.Time // nil = time.Now
 	// Zone returns the IANA name of the box time zone (core_org.timezone), asked at every use so a change applies at
@@ -98,6 +101,11 @@ type Service struct {
 	// (only the listener's read loop uses it, and the job runs once at a time).
 	zaloAnswerBudget zaloBudget
 	zaloSeen         seenEnvelopes
+	// zalo is the Zalo personal set-up: the one QR sign-in, its rations, the link codes sent (zalologin.go); zaloStartQR starts a sign-in
+	// (channel.StartZaloQR), only export_test.go replaces it.
+	zalo        zaloSetup
+	zaloStartQR func(context.Context, *http.Client) (zaloQRFlow, error)
+	zaloSelf    func(context.Context, channel.Sender) (string, error) // the uid of the box's own Zalo account (channel.ZaloSelf)
 	// reenabled is set when the module is turned on (modreg tells us) and cleared by the next Flush, which then drops
 	// the queued notices that went stale while it was off (D-86 (7)).
 	reenabled atomic.Bool
@@ -128,7 +136,7 @@ func New(c Config) (*Service, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	s := &Service{cfg: c, senders: map[channel.Type]cachedSender{}, tokens: channel.NewTokenCache(), zaloTo: channel.ZaloPersonalTo, zaloListen: openZaloInbox}
+	s := &Service{cfg: c, senders: map[channel.Type]cachedSender{}, tokens: channel.NewTokenCache(), zaloTo: channel.ZaloPersonalTo, zaloListen: openZaloInbox, zaloStartQR: startZaloQR, zaloSelf: channel.ZaloSelf}
 	if cn, ok := c.Modules.(changeNotifier); ok { // the callback only sets a flag: it runs on the publisher's goroutine and must not block
 		cn.OnChange(func(id string, enabled bool) {
 			if id == ModuleID && enabled {

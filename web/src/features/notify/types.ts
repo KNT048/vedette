@@ -23,6 +23,12 @@ export type HistoryResponse = z.infer<typeof C.HistoryResponse>
 export type FindingNotices = z.infer<typeof C.FindingNotices>
 export type EmailSignin = z.infer<typeof C.EmailSignin>
 export type EmailSigninStart = z.infer<typeof C.EmailSigninStart>
+export type ZaloLogin = z.infer<typeof C.ZaloLogin>
+export type ZaloContact = z.infer<typeof C.ZaloContact>
+export type ZaloContacts = z.infer<typeof C.ZaloContacts>
+export type ZaloFound = z.infer<typeof C.ZaloFound>
+export type ZaloApprover = z.infer<typeof C.ZaloApprover>
+export type ZaloApprovers = z.infer<typeof C.ZaloApprovers>
 
 export const CHANNEL_TYPES: ChannelType[] = ['telegram', 'slack', 'zalo', 'zalo-personal', 'email', 'webhook']
 export const ROUTE_SEVERITIES: RouteSeverity[] = ['critical', 'high', 'medium', 'low']

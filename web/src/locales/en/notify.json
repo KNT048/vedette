@@ -268,16 +268,6 @@
           "label": "Bot token (xoxb-…)",
           "hint": "Slack app, OAuth & Permissions, after installing the app to your workspace. Needs the chat:write scope."
         }
-      },
-      "zalo-personal": {
-        "user_id": {
-          "label": "Recipient (user or group ID)",
-          "hint": "The numeric Zalo ID of the person or group that receives alerts. Check how your Zalo client shows IDs, or the community node documentation."
-        },
-        "secret": {
-          "label": "Session",
-          "hint": "Created by scanning the QR code below."
-        }
       }
     },
     "emailCodes_one": "{{count}} user signs in with email codes. They will not be able to sign in until this channel is back on or an administrator resets their two-step sign-in.",
@@ -323,20 +313,18 @@
     "address": {
       "slack": "Slack member ID",
       "telegram": "Telegram user ID",
-      "email": "Sign-in email",
-      "zalo-personal": "Zalo user ID"
+      "email": "Sign-in email"
     },
     "placeholder": {
       "slack": "U04ABCD1234",
       "telegram": "123456789",
-      "email": "name@company.com",
-      "zalo-personal": "2938475610293847561"
+      "email": "name@company.com"
     },
     "hint": {
       "slack": "Approval requests show Approve and Reject buttons in Slack. This uses Slack Socket Mode: the box opens the connection outward to Slack, so you open no inbound port and need no public address.",
       "telegram": "Approval requests show inline Approve and Reject buttons in the chat. This uses the bot above with long polling: the box asks Telegram for new button presses, so you open no inbound port.",
       "email": "Each approver receives an email with an Approve button that opens a confirmation page on Vedette.",
-      "zalo-personal": "Each approver gets a private message from this Zalo account with two codes of their own: one to approve, one to reject. Replying with a code from their own Zalo account decides; each code works once and ends with the request. High-risk actions are approved only in Vedette. Enter the Zalo user ID of each approver, not a phone number."
+      "zalo-personal": "Add each approver with their Zalo account: pick a friend of this account or find them by phone number. When you save, this account sends each of them a confirm link; they are linked once they open it and confirm while signed in to Vedette as themselves (your own Zalo you confirm here). Then each approval request reaches them privately with two codes of their own, one to approve and one to reject. High-risk actions are approved only in Vedette."
     },
     "email": {
       "p1": "The link is single-use, valid for 30 minutes, and bound to that one action and that one approver.",
@@ -347,15 +335,59 @@
     "linkOnly": "This channel cannot take approvals. Messages sent here carry a link that opens Vedette, where an operator or administrator approves."
   },
   "zp": {
-    "warning": "Unofficial: uses Zalo's personal web protocol, not an official API. Zalo may lock the account. Use a dedicated account, not your personal one.",
-    "login": "Zalo login",
-    "none": "Not signed in yet.",
-    "ready": "Signed in. The session is saved when you press Save.",
-    "show": "Show QR code",
+    "warning": "Unofficial channel: Zalo may lock the account it signs in with, so use a separate Zalo account, not your own.",
+    "login": "Zalo sign-in",
+    "none": "Not signed in yet. Sign in with the Zalo account that will send the alerts.",
+    "show": "Sign in with a QR code",
     "relogin": "Sign in again",
-    "qrAlt": "QR code placeholder for Zalo login",
-    "scan": "Scan with the Zalo app on a dedicated phone.",
-    "scanned": "I scanned it"
+    "qrAlt": "QR code to sign in to Zalo",
+    "scan": "On the phone of that Zalo account, open Zalo, tap the QR scanner and scan this code. It expires at {{time}}.",
+    "sessionSaved": "A Zalo session is saved.",
+    "signedSaved": "Signed in as {{name}}.",
+    "signedNew": "Signed in as {{name}}. Press Save to keep this sign-in.",
+    "newQr": "New QR code",
+    "scannedBy": "Scanned by {{name}}. Confirm the sign-in on the phone.",
+    "scannedConfirm": "Scanned. Confirm the sign-in on the phone.",
+    "state": {
+      "expired": "The QR code expired before it was confirmed.",
+      "declined": "The sign-in was declined on the phone."
+    },
+    "recipient": "Who receives alerts",
+    "noRecipient": "No recipient yet. Pick a group or a friend, or find one.",
+    "toGroup": "Alerts go to the group {{name}} (ID {{id}}).",
+    "toPerson": "Alerts go to {{name}} (ID {{id}}).",
+    "pick": "Group or friend",
+    "pickHint": "Groups and friends of the signed-in Zalo account.",
+    "choose": "Choose…",
+    "loading": "Loading the list from Zalo…",
+    "groups": "Groups",
+    "friends": "Friends",
+    "groupOption": "{{name}} ({{count}} members)",
+    "signInToPick": "Sign in to pick from the account's groups and friends, or find one below.",
+    "find": "Find",
+    "findLabel": "Or find by invite link, phone number or ID",
+    "findHint": "A group invite link looks like https://zalo.me/g/abcdef123; a phone number like 0912345678.",
+    "notMember": "The signed-in account is not a member of {{name}}. Join the group with that account in the Zalo app, or alerts will not arrive.",
+    "notAGroup": "An approver is a person, not a group.",
+    "approverIs": "Zalo: {{name}} (ID {{id}})",
+    "approverNone": "No Zalo account yet.",
+    "approverPick": "Zalo friend",
+    "approverFind": "Or find by phone number",
+    "approverFindHint": "The phone number of their Zalo account, for example 0912345678.",
+    "codesSent": "Each new approver gets a confirm link from this Zalo account. They are linked once they open it and confirm while signed in to Vedette.",
+    "link": {
+      "unsaved": "Save to send this person a confirm link on Zalo (your own Zalo too, unless it is this box's signed-in account: that one you confirm here).",
+      "linked": "Linked",
+      "sending": "Sending the link",
+      "waiting": "Waiting",
+      "not_sent": "Not linked",
+      "waitingFor": "Waiting for {{name}} to open the link sent at {{time}} and confirm it while signed in to Vedette.",
+      "again": "Send again",
+      "sentToast": "A new confirm link was sent to {{name}}. The old one no longer works.",
+      "yours": "This is the box's own Zalo account, which you signed in with: link it to your Vedette account now.",
+      "mine": "Link my Zalo now"
+    },
+    "signOutHint": "Zalo has no sign-out for this kind of session: a sign-in you cancel, replace or do not save stays signed in on Zalo until it expires or you log it out of the account's devices in the Zalo app."
   },
   "incidents": {
     "title_one": "{{count}} new incident",
@@ -524,5 +556,19 @@
     "finish": "Finish sign-in",
     "clientSecret": "Client secret of the Desktop client",
     "clientSecretHint": "Used to sign in and kept on this box, encrypted. Enter it again when you sign in again."
+  },
+  "zl": {
+    "title": "Link your Zalo account",
+    "account": "Zalo ID {{id}}",
+    "thisAccount": "This Zalo account",
+    "noToken": "This link is not complete. Open it again from the Zalo message.",
+    "question": "Link this Zalo account to your account, {{who}}?",
+    "explain": "An administrator listed this Zalo account as yours for approving actions, and Vedette sent you this link. Confirm only if this Zalo account is yours: approval replies from it will then count as you.",
+    "confirm": "Confirm",
+    "linked": "Linked. {{zalo}} now counts as you when you reply to approval messages.",
+    "already": "{{zalo}} is already linked to your account.",
+    "toAccount": "Open My account",
+    "idLabel": "Zalo ID",
+    "namedBy": "Named \"{{name}}\" by your administrator."
   }
 }

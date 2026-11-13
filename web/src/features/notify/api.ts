@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { EmailSignin, EmailSigninStart, FindingNotices, HistoryItem, HistoryResponse, IncidentDetail, IncidentsResponse, IncidentStatus, Channel, ChannelInput, ChannelsResponse, ChannelType, Grouping, Quiet, TestResult } from './types'
+import type { EmailSignin, EmailSigninStart, FindingNotices, HistoryItem, HistoryResponse, IncidentDetail, IncidentsResponse, IncidentStatus, Channel, ChannelInput, ChannelsResponse, ChannelType, Grouping, Quiet, TestResult, ZaloApprover, ZaloApprovers, ZaloContacts, ZaloFound, ZaloLogin } from './types'
 
 export const useIncidents = () => useQuery({ queryKey: ['notify', 'incidents'], queryFn: () => api.get<IncidentsResponse>('/notify/incidents') })
 export const useIncident = (id: string) => useQuery({ queryKey: ['notify', 'incident', id], queryFn: () => api.get<IncidentDetail>(`/notify/incidents/${encodeURIComponent(id)}`), retry: false })
@@ -24,3 +24,20 @@ export const useStartEmailSignin = () => useMutation({ mutationFn: (v: EmailSign
 export const useCheckEmailSignin = () => useMutation({ mutationFn: ({ id, url }: { id: string; url?: string }) => api.post<EmailSignin>(`/notify/email-signin/${encodeURIComponent(id)}`, url === undefined ? {} : { url }) })
 export const useSaveRules = () => useInvalidating((v: { quiet: Quiet; grouping: Grouping }) => api.put<{ quiet: Quiet; grouping: Grouping }>('/notify/rules', v))
 
+
+// Zalo personal set-up (D-447). The QR sign-in is polled every 2 s while it waits for the phone; the approvers' link state every 3 s
+// while a code is on its way or waits for a reply.
+const LIVE: ZaloLogin['state'][] = ['waiting', 'scanned']
+export const useZaloLogin = (enabled: boolean) => useQuery({ queryKey: ['notify', 'zalo', 'login'], queryFn: () => api.get<ZaloLogin>('/notify/zalo/login'), enabled,
+  refetchInterval: (q) => (q.state.data && LIVE.includes(q.state.data.state) ? 2000 : false) })
+export function useStartZaloLogin() {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: () => api.post<ZaloLogin>('/notify/zalo/login'), onSuccess: (v) => { qc.setQueryData(['notify', 'zalo', 'login'], v) } })
+}
+export const cancelZaloLogin = () => api.del<void>('/notify/zalo/login')
+export const useZaloContacts = (enabled: boolean) => useQuery({ queryKey: ['zalo-contacts'] /* not under 'notify': a save must not ask Zalo again */, queryFn: () => api.get<ZaloContacts>('/notify/zalo/contacts'), enabled, retry: false, staleTime: Infinity })
+export const useResolveZalo = () => useMutation({ mutationFn: (query: string) => api.post<ZaloFound>('/notify/zalo/resolve', { query }) })
+const WAITING: ZaloApprover['state'][] = ['sending', 'waiting']
+export const useZaloApprovers = (enabled: boolean) => useQuery({ queryKey: ['notify', 'zalo', 'approvers'], queryFn: () => api.get<ZaloApprovers>('/notify/zalo/approvers'), enabled,
+  refetchInterval: (q) => (q.state.data?.items.some((a) => WAITING.includes(a.state)) ? 3000 : false) })
+export const useSendZaloCode = () => useInvalidating((userId: string) => api.post<ZaloApprover>(`/notify/zalo/approvers/${encodeURIComponent(userId)}/code`))

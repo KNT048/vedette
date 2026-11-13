@@ -335,8 +335,9 @@ DEB_OUT ?= dist
 SOURCE_DATE_EPOCH ?= $(shell git log -1 --format=%ct)
 # A real release is any VERSION that is not a test one (-test. anywhere, like install.sh, or a -test suffix): only that one gets the release preflight.
 RELEASE_BUILD := $(if $(or $(findstring -test.,$(VERSION)),$(filter %-test,$(VERSION))),,1)
+CHECK_MIN_SEQUENCE = @printf '%s' "$(MIN_SEQUENCE)" | grep -Eq '^(0|[1-9][0-9]{0,17})$$' || { echo "MIN_SEQUENCE must be a plain decimal number (0, or no leading zero, at most 18 digits), got '$(MIN_SEQUENCE)'" >&2; exit 1; }
 check-min-sequence:
-	@printf '%s' "$(MIN_SEQUENCE)" | grep -Eq '^(0|[1-9][0-9]{0,17})$$' || { echo "MIN_SEQUENCE must be a plain decimal number (0, or no leading zero, at most 18 digits), got '$(MIN_SEQUENCE)'" >&2; exit 1; }
+	$(CHECK_MIN_SEQUENCE)
 host-deb: check-min-sequence
 	@printf '%s' "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$$' || { echo "host-deb: VERSION must be SemVer without v (VERSION=0.1.0), got '$(VERSION)'" >&2; exit 1; }
 	@case "$(ARCH)" in amd64|arm64) ;; *) echo "host-deb: ARCH must be amd64 or arm64, got '$(ARCH)'" >&2; exit 1;; esac
@@ -385,14 +386,18 @@ notices-check:
 # the SBOMs); notices-check; then `release gates`: check-binaries -release on the vedette-host inside both .deb, the version label of every
 # platform of the four lists (and core's floor label), and each .deb built again with the floor of RELEASE_PREV_INDEX (MIN_SEQUENCE, the
 # verified sequence of that index, checked again by `release gates` since make lets a MIN_SEQUENCE from the environment win; MIN_SEQUENCE=0
-# for the very first release only) and compared byte for byte (the .deb is reproducible: build it and run this with GOFLAGS unset).
+# for the very first release only) and compared byte for byte (the .deb is reproducible: build it and run this with GOFLAGS unset); and the
+# files inside core and scan-base, read from each platform image without running it (D-410): core's /vedette holds the production keys and
+# not the throwaway ones, scan-base's nuclei is built with exactly the pinned Go and modules, its pack is SCAN_PACK_VERSION, no nmap.
 # Only when all of it passed does `release gates` write $(RELEASE_OUT)/gates.json (each .deb's sha256 and size, each image platform's
 # config digest, which the trivy report in dist/vuln and the SBOM in dist/sbom must name too); the first line removes an earlier one, so
 # a failing step leaves none (D-460). release-push, release-in and release-manifest refuse anything that differs from it.
 .PHONY: release-gates
 RELEASE_GATES_ARGS = -version '$(VERSION)' -min-sequence '$(MIN_SEQUENCE)' $(if $(RELEASE_PREV_INDEX),-prev-index '$(RELEASE_PREV_INDEX)') $(RELEASE_KEYS_ARG)
-release-gates: check-min-sequence
+# The record goes first, before any check (the floor's included), so a run that stops anywhere leaves none (D-410).
+release-gates:
 	rm -f '$(RELEASE_OUT)/gates.json'
+	$(CHECK_MIN_SEQUENCE)
 	@test "$(CONTAINER)" = podman || { echo "release-gates: reads the podman manifest lists of make images; CONTAINER=$(CONTAINER) is not supported yet (D-457)" >&2; exit 1; }
 	@$(if $(or $(RELEASE_PREV_INDEX),$(filter-out file,$(origin MIN_SEQUENCE))),:,echo "release-gates: the release floor is the sequence of the published index: pass RELEASE_PREV_INDEX=<published index dir>, or MIN_SEQUENCE=0 for the very first release only" >&2; exit 1)
 	@printf '%s' "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$$' || { echo "release-gates: VERSION must be SemVer without v (VERSION=1.0.0), got '$(VERSION)'" >&2; exit 1; }

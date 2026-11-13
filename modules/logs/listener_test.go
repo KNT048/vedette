@@ -205,7 +205,19 @@ func TestSocketsAreOpenWithoutSourcesAndAnUndeclaredSenderIsNamed(t *testing.T) 
 	if _, err := e.svc.UpdateSource(t.Context(), "admin@acme.example", s.ID, Input{Kind: "fortigate", Name: "FW", SenderIP: "127.0.0.1", Proto: "tcp", Port: 514}); err != nil {
 		t.Fatal(err)
 	}
-	waitUntil(t, "a datagram of the tcp source to be named", func() bool { send("udp4", "<34>not over tcp"); return named("udp") })
+	// Datagrams sent before the listener has learned of the change are still the udp source's and are kept, so probe until one is
+	// named, then send the line that must not be kept and wait for it to be counted as unknown (dropped, not stored).
+	waitUntil(t, "a datagram of the tcp source to be named", func() bool { send("udp4", "<34>probe"); return named("udp") })
+	v, err := e.svc.UnknownSenders(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := v.Items[0].Count
+	send("udp4", "<34>not over tcp")
+	waitUntil(t, "the datagram to be counted as unknown", func() bool {
+		v, err := e.svc.UnknownSenders(t.Context())
+		return err == nil && len(v.Items) == 1 && v.Items[0].Count > before
+	})
 	if err := e.svc.DeleteSource(t.Context(), "admin@acme.example", s.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +225,7 @@ func TestSocketsAreOpenWithoutSourcesAndAnUndeclaredSenderIsNamed(t *testing.T) 
 		t.Errorf("deleting the last source closed a socket: %+v", st.Status)
 	}
 	for _, l := range e.searchLines() {
-		if !strings.Contains(l, "a udp source over tcp") {
+		if !strings.Contains(l, "a udp source over tcp") && !strings.Contains(l, "probe") {
 			t.Errorf("stored %q, which its sender sent while it was not a source of that protocol", l)
 		}
 	}

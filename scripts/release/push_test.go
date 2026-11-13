@@ -12,6 +12,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/knt048/vedette/internal/release"
 )
 
 // fakeRun records every argv and answers with fn.
@@ -466,10 +468,28 @@ func debDir(t *testing.T, version string) string {
 	return dir
 }
 
+// atTag answers `git show v0.2.0:<file>` with the pins and the pack index of the release tag (bundledOf), and the rest with fn.
+func atTag(fn func([]string) ([]byte, error), pins, index string) func([]string) ([]byte, error) {
+	return func(argv []string) ([]byte, error) {
+		switch strings.Join(argv, " ") {
+		case "git -C  show v0.2.0:" + pinsFile:
+			return []byte(pins), nil
+		case "git -C  show v0.2.0:" + committedPackIndex:
+			return []byte(index), nil
+		}
+		return fn(argv)
+	}
+}
+
+const (
+	tagPins  = "# pins\nNUCLEI_VERSION=3.11.1\nSCAN_PACK_VERSION=2026.11.1\nOPENCANARY_VERSION=0.9.10\n"
+	tagIndex = `{"version": "2026.11.1", "sha256": "` + "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" + `", "templates": []}`
+)
+
 func TestBuildInputsIsWhatManifestReads(t *testing.T) {
 	r := newRig(t)
 	cdir, _ := r.cosignDir("0.2.0", "core", "sensor", "scan", "honeypot")
-	fr := &fakeRun{fn: localStore("0.2.0")}
+	fr := &fakeRun{fn: atTag(localStore("0.2.0"), tagPins, tagIndex)}
 	dd := debDir(t, "0.2.0")
 	in, err := BuildInputs(context.Background(), fr.run, imagesFor("0.2.0"), inputsOpts{Channel: "stable", RollbackSafe: "false", DebDir: dd, Gates: gatesPath(t, gatesDoc(t, "0.2.0", dd))})
 	if err != nil {
@@ -488,6 +508,13 @@ func TestBuildInputsIsWhatManifestReads(t *testing.T) {
 			t.Errorf("%+v", im)
 		}
 	}
+	// D-410: bundled[] is the pins of the tag, as Managed packages shows them
+	want := []release.Bundled{{Service: "scan", Name: "nuclei", Version: "3.11.1", License: "MIT"},
+		{Service: "scan", Name: "nuclei-templates-pack", Version: "2026.11.1", SHA256: strings.Repeat("c", 64), License: "MIT"},
+		{Service: "honeypot", Name: "opencanary", Version: "0.9.10", License: "BSD-3-Clause"}}
+	if !slices.Equal(back.Bundled, want) {
+		t.Errorf("bundled: %+v", back.Bundled)
+	}
 	if _, err := BuildManifest(back, Env{Now: t1, CosignDir: cdir, CurTree: addOnlyTree}); err != nil {
 		t.Fatalf("release-manifest refuses what release-in wrote: %v", err)
 	}
@@ -499,6 +526,7 @@ func TestBuildInputsRefusals(t *testing.T) {
 		mut     func(*inputsOpts, *ImagesDoc)
 		gates   func(*GatesDoc) // changes the record of what debDir and localStore hold
 		version string
+		pins    string // pins.env at the tag (default tagPins)
 		want    string
 	}{
 		"no gates record":          {mut: func(o *inputsOpts, _ *ImagesDoc) { must(t, os.Remove(o.Gates)) }, want: "no gates record"},
@@ -521,6 +549,8 @@ func TestBuildInputsRefusals(t *testing.T) {
 			must(t, os.Remove(filepath.Join(o.DebDir, "vedette-host_0.2.0_arm64.deb")))
 		}, want: "host file"},
 		"images.json lacks a platform": {mut: func(_ *inputsOpts, d *ImagesDoc) { d.Images[0].Platforms = d.Images[0].Platforms[:1] }, want: "images.json core linux/arm64 is absent now"},
+		"stale pack at the tag":        {pins: strings.Replace(tagPins, "2026.11.1", "2026.12.1", 1), want: "is pack 2026.11.1, pins.env says \"2026.12.1\""},
+		"no opencanary pin":            {pins: strings.Replace(tagPins, "OPENCANARY_VERSION=0.9.10", "", 1), want: "no version for opencanary"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -538,7 +568,11 @@ func TestBuildInputsRefusals(t *testing.T) {
 			if c.mut != nil {
 				c.mut(&o, d)
 			}
-			_, err := BuildInputs(context.Background(), (&fakeRun{fn: localStore("0.2.0")}).run, d, o)
+			pins := c.pins
+			if pins == "" {
+				pins = tagPins
+			}
+			_, err := BuildInputs(context.Background(), (&fakeRun{fn: atTag(localStore("0.2.0"), pins, tagIndex)}).run, d, o)
 			if err == nil || !strings.Contains(err.Error(), c.want) {
 				t.Fatalf("got %v, want %q", err, c.want)
 			}

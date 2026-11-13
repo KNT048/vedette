@@ -1,3 +1,4 @@
+//nolint:gosec // test code: every path is in a directory the test made
 package main
 
 import (

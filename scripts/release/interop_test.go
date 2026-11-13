@@ -137,6 +137,7 @@ func TestInteropMinisignCLI(t *testing.T) {
 	must(t, os.MkdirAll(filepath.Join(repo, "modules/a/migrations/sqlite"), 0o750))
 	must(t, os.WriteFile(filepath.Join(repo, "modules/a/migrations/sqlite/0001_a.sql"), up("CREATE TABLE a (id INT);"), 0o600))
 	copyContainerTemplate(t, repo) // D-451: the real compose files and vedette.env, read back from git at the tag
+	putProto(t, repo, "4")         // D-410: the sensor protocol gate reads it at the tag
 	// D-457 part A: install.sh is baked from git at the tag
 	must(t, os.WriteFile(filepath.Join(repo, installer), realInstaller(t), 0o600))
 	// the migrations are read from git: a repository with the release tagged

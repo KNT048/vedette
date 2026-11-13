@@ -129,3 +129,24 @@ func TestTightenDataDir(t *testing.T) {
 		}
 	})
 }
+
+// D-409: serve tightens the credentials directory and its two role folders only at the path of the images
+// (/var/lib/vedette-creds); a dev -sensor-creds elsewhere, and its role folders, keep their mode.
+func TestTightenContainerDataDir_OnlyTheImageCredsPath(t *testing.T) {
+	log := slog.New(slog.DiscardHandler)
+	creds := filepath.Join(t.TempDir(), "creds")
+	mkdirMode(t, creds, 0o755)
+	for _, sub := range []string{"passive", "active"} {
+		mkdirMode(t, filepath.Join(creds, sub), 0o755)
+	}
+	tightenContainerDataDir(filepath.Join(t.TempDir(), "vedette.db"), creds, log)
+	for _, d := range []string{creds, filepath.Join(creds, "passive"), filepath.Join(creds, "active")} {
+		fi, err := os.Stat(d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := fi.Mode().Perm(); got != 0o755 {
+			t.Errorf("%s: mode %v, want 0755 (not the image's creds path)", d, got)
+		}
+	}
+}

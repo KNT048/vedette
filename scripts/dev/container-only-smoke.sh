@@ -219,7 +219,9 @@ run_runtime() {
 	ran=$((ran + 1))
 
 	# the customer's files, copied, and a vedette.env filled in the way the doc says (images = local builds, see INSTALL-CONTAINER.md section 1)
+	# 0700: the cookie jar of the admin session lives here (curl writes it 0644 under the umask 022 the build keeps)
 	mkdir -p "$work"
+	chmod 0700 "$work"
 	cp deploy/compose/container-only/compose*.yaml "$work/"
 	local with_sensors=0
 	[ "$rootful" = 1 ] && with_sensors=1
@@ -306,11 +308,13 @@ run_runtime() {
 	pass='smoke-only-Passw0rd-123'
 	mods='"core"'
 	[ "$with_sensors" = 1 ] && mods='"core","feeds","inventory","sensor-passive","sensor-active"'
-	out=$(api -w ' %{http_code}' -X POST "$base/core/setup" -d "{\"org\":\"Smoke\",\"admin\":{\"name\":\"Smoke Admin\",\"email\":\"smoke@example.com\",\"password\":\"$pass\"},\"lan\":[\"192.168.10.0/24\"],\"commitment\":true,\"bundle\":\"custom\",\"modules\":[$mods],\"setup_code\":\"$code\"}" || true)
+	# the bodies go on stdin (printf is a builtin): the setup code and the password never stand in curl's argv (/proc/<pid>/cmdline)
+	out=$(printf '{"org":"Smoke","admin":{"name":"Smoke Admin","email":"smoke@example.com","password":"%s"},"lan":["192.168.10.0/24"],"commitment":true,"bundle":"custom","modules":[%s],"setup_code":"%s"}' "$pass" "$mods" "$code" |
+		api -w ' %{http_code}' -X POST "$base/core/setup" --data-binary @- || true)
 	[[ $out == *' 2'?? ]] || {
 		die "setup through the API failed: ${out:0:300}" || return 0
 	}
-	api -f -X POST "$base/auth/login" -d '{"email":"smoke@example.com","password":"'"$pass"'"}' >/dev/null || {
+	printf '{"email":"smoke@example.com","password":"%s"}' "$pass" | api -f -X POST "$base/auth/login" --data-binary @- >/dev/null || {
 		die "login failed" || return 0
 	}
 	ok "setup and login through the API"

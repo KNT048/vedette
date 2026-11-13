@@ -11,7 +11,8 @@ import { cidrRange, CIDR_RE_UI, hasHostBits, IPV4_RE_UI, normalizeRange, rangePr
 import { fmtDateTime } from '@/lib/format'
 import { useSaveSettings } from './api'
 import { errMsg } from './kinds'
-import { KINDS, type InventorySettings } from './types'
+import { BEHAVIOUR_KINDS, type InventorySettings } from './types'
+import { kindLabel } from '@/lib/deviceTypes'
 
 const RATES = [10, 50, 200, 500]
 
@@ -179,15 +180,15 @@ export function NetworkForm({ settings }: { settings: InventorySettings }) {
           <fieldset>
             <legend className="sr-only">{t('fragile.title')}</legend>
             <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3 lg:grid-cols-4">
-              {KINDS.map((k) => (
+              {BEHAVIOUR_KINDS.map((k) => (
                 <span key={k} className="grid gap-1">
                   <span className="inline-flex items-center gap-2">
                     <Checkbox id={`fragile-${k}`} checked={draft.fragile_kinds.includes(k)} onCheckedChange={(v) => set(v === true ? { fragile_kinds: [...draft.fragile_kinds, k] } : { fragile_kinds: draft.fragile_kinds.filter((x) => x !== k), regular_scan_kinds: draft.regular_scan_kinds.filter((x) => x !== k) })} />
-                    <Label htmlFor={`fragile-${k}`} className="font-normal">{t(`kind.${k}`)}</Label>
+                    <Label htmlFor={`fragile-${k}`} className="font-normal">{kindLabel(k)}</Label>
                   </span>
                   {draft.fragile_kinds.includes(k) ? (
                     <span className="ml-6 inline-flex items-center gap-2">
-                      <Switch id={`regular-${k}`} aria-label={t('fragile.allowRegularFor', { kind: t(`kind.${k}`) })} checked={draft.regular_scan_kinds.includes(k)}
+                      <Switch id={`regular-${k}`} aria-label={t('fragile.allowRegularFor', { kind: kindLabel(k) })} checked={draft.regular_scan_kinds.includes(k)}
                         onCheckedChange={(v) => set({ regular_scan_kinds: v ? [...draft.regular_scan_kinds, k] : draft.regular_scan_kinds.filter((x) => x !== k) })} />
                       <span className="text-[13px] text-muted" aria-hidden>{t('fragile.allowRegular')}</span>
                     </span>

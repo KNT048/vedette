@@ -19,6 +19,7 @@ import type {
 import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
 import { nameOf } from './nameOf'
+import { actsAs, lookupType } from '@/lib/deviceTypes'
 
 // Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
 const serverUrl = () => `https://${boxAddress() ?? NO_BOX_ADDRESS}:8443` // D-465: the Box address
@@ -128,7 +129,7 @@ function loadSettings(): InventorySettings {
   settingsStore.set(upd)
   return upd
 }
-const policyFragile = (kind: AssetKind) => settingsStore.get().fragile_kinds.includes(kind)
+const policyFragile = (kind: AssetKind) => (settingsStore.get().fragile_kinds as string[]).includes(actsAs(kind)) // a type acts as one of the 13 kinds (D-511)
 
 // ---- Chính hộp là thiết bị đầu tiên (D-53, S-INV-5) ----
 export const BOX_ID = 'a-box'
@@ -234,7 +235,8 @@ const scanInfo = (a: Asset) => ({
   approved_at: metaStore.get()[a.id]?.approved_at ?? null, // D-471: a person's first approval
 })
 // Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.
-const live = (a: Asset): Asset => (a.id === BOX_ID ? { ...a, last_seen: nowIso() } : a)
+/** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown (D-511). */
+const live = (a: Asset) => ({ ...a, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null })
 const toRow = (a: Asset): DeviceRow => ({ ...live(a), ...scanInfo(a), suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), summary: summaryOf(a) })
 const find = (id: string) => allAssets().find((x) => x.id === id)
 const notFound = (_request?: Request) => fail(404, 'not_found', 'No such device. It may have been removed; go back to the list to see the remaining devices.')
@@ -322,11 +324,8 @@ const HEADER_ALIAS: Record<string, string> = {
   device: 'name', device_name: 'name', hostname: 'name', host_name: 'name', ip_address: 'ip', address: 'ip', software: 'product', application: 'product',
   product_name: 'product', ver: 'version', type: 'kind', device_type: 'kind',
 }
-// Nhãn loại như hiển thị trong giao diện ("Wi-Fi (AP)", "Camera recorder") cũng được nhận ngoài khoá (firewall, ap, nvr…).
-const KIND_LABEL: Record<string, AssetKind> = {
-  wi_fi_ap: 'ap', wifi: 'ap', access_point: 'ap', camera_recorder: 'nvr', iot_device: 'iot', website: 'web', laptop: 'pc', computer: 'pc', desktop: 'pc', other: 'unknown',
-}
-const parseKind = (text: string): AssetKind | undefined => { const k = fold(text); return KINDS.find((x) => x === k) ?? KIND_LABEL[k] }
+// Loại như người gõ: id, nhãn giao diện ("Wi-Fi (AP)", "IP phone") hay bí danh (camera_recorder, notebook), như devicetypes.Lookup của Go (D-511).
+const parseKind = (text: string): AssetKind | undefined => lookupType(text)
 /** Như rowShapeProblem của Go: nhiều ô có chữ hơn số cột, hoặc một ô duy nhất chứa cả dòng ngăn cách bằng ký tự khác tiêu đề; dòng ngắn thì chấp nhận. */
 function rowShapeProblem(cells: string[], columns: number, delim: string): string {
   let n = cells.length
@@ -352,7 +351,7 @@ const MAX_IMPORT_ROWS = 500
 function applyFragilePolicy() {
   const meta = metaStore.get()
   const kinds = settingsStore.get().fragile_kinds
-  assetsStore.update((l) => l.map((a) => (meta[a.id]?.fragile_manual ? a : { ...a, fragile: kinds.includes(a.kind) })))
+  assetsStore.update((l) => l.map((a) => (meta[a.id]?.fragile_manual ? a : { ...a, fragile: (kinds as string[]).includes(actsAs(a.kind)) })))
 }
 
 
@@ -612,7 +611,7 @@ export const handlers = [
       if (!productText && !get('name')) return err('This row has neither name nor product. At least one is needed.')
       const kindText = get('kind')
       const kind = kindText ? parseKind(kindText) : undefined
-      if (kindText && !kind) return err(`Type "${kindText.slice(0, 20)}" is not valid. Use one of: ${KINDS.join(', ')}.`)
+      if (kindText && !kind) return err(`Type "${kindText.slice(0, 20)}" is not a device type. Use a type the device page lists, for example router, switch, server, laptop, printer, camera, ip_phone or unknown.`)
       const v = validateAdd(request, { catalog_id: entry?.id, version: get('version'), name: get('name'), ip: get('ip') }, false)
       if (v.err) return err(v.err.message)
       if (v.ip) { if (seenIps.has(v.ip)) return err(`IP ${v.ip} appears twice in the file.`); seenIps.add(v.ip) }

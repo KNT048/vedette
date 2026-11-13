@@ -19,6 +19,7 @@ const (
 	maxSvcName    = 100 // the CHECK of inv_service.name
 	maxSvcProduct = 200 // the CHECK of inv_service.product (= maxObsValue, the cap of cleanText)
 	maxSvcVersion = 100
+	maxSvcDetail  = 200 // the CHECK of inv_service.detail (D-511)
 	// ServiceRetention is how long a service no source reports again is kept (DATA_MODEL, D-350); PruneServices removes older rows.
 	ServiceRetention = 90 * 24 * time.Hour
 )
@@ -36,7 +37,7 @@ func (s *Service) checkServices(ctx context.Context, items []observe.Service) ([
 	for i, it := range items {
 		it, err := checkService(i, it)
 		if err != nil {
-			if !hasInvisible(it.Name, it.Product, it.Version) {
+			if !hasInvisible(it.Name, it.Product, it.Version, it.Detail) {
 				return nil, err
 			}
 			s.log.WarnContext(ctx, "inventory: a service with an invisible character was dropped", "index", i)
@@ -53,7 +54,7 @@ func (s *Service) checkServices(ctx context.Context, items []observe.Service) ([
 
 // checkService validates one item: port 1..65535, proto tcp or udp, optional texts as cleanText with their column's length.
 func checkService(i int, it observe.Service) (observe.Service, error) {
-	it.Name, it.Product, it.Version = stripIgnorable(it.Name), stripIgnorable(it.Product), stripIgnorable(it.Version)
+	it.Name, it.Product, it.Version, it.Detail = stripIgnorable(it.Name), stripIgnorable(it.Product), stripIgnorable(it.Version), stripIgnorable(it.Detail)
 	if it.Port < 1 || it.Port > 65535 {
 		return it, invalid("service %d: port must be 1 to 65535", i)
 	}
@@ -68,6 +69,9 @@ func checkService(i int, it observe.Service) (observe.Service, error) {
 	}
 	if it.Version != "" && (!cleanText(it.Version) || utf8.RuneCountInString(it.Version) > maxSvcVersion) {
 		return it, invalid("service %d: version must be at most %d printable characters", i, maxSvcVersion)
+	}
+	if it.Detail != "" && (!cleanText(it.Detail) || utf8.RuneCountInString(it.Detail) > maxSvcDetail) {
+		return it, invalid("service %d: detail must be at most %d printable characters", i, maxSvcDetail)
 	}
 	if it.Confidence < 0 || it.Confidence > 1 || it.Confidence != it.Confidence {
 		return it, invalid("service %d: confidence must be between 0 and 1", i)
@@ -118,10 +122,10 @@ func (s *Service) services(ctx context.Context, hint observe.AssetHint, source o
 
 // upsertService is the write of one item: a full list overwrites the row of the same port, a partial one only moves seen_at.
 const (
-	upsertService = `INSERT INTO inv_service (id, asset_id, port, proto, name, product, version, source, confidence, seen_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asset_id, port, proto, source) DO UPDATE SET `
-	replaceSet = `name = excluded.name, product = excluded.product, version = excluded.version, confidence = excluded.confidence, seen_at = excluded.seen_at`
-	addSet     = `seen_at = excluded.seen_at`
+	upsertService = `INSERT INTO inv_service (id, asset_id, port, proto, name, product, version, detail, source, confidence, seen_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asset_id, port, proto, source) DO UPDATE SET `
+	replaceSet = `name = excluded.name, product = excluded.product, version = excluded.version, detail = excluded.detail, confidence = excluded.confidence, seen_at = excluded.seen_at`
+	addSet     = `seen_at = excluded.seen_at, detail = coalesce(excluded.detail, detail)` // a gentle look with titles adds what a port said (D-511)
 )
 
 func replaceServicesTx(ctx context.Context, tx *sql.Tx, assetID string, items []observe.Service, source, seenAt string, replace bool) error {
@@ -132,7 +136,7 @@ func replaceServicesTx(ctx context.Context, tx *sql.Tx, assetID string, items []
 	keep := map[[2]any]bool{}
 	for _, it := range items {
 		keep[[2]any{it.Port, it.Proto}] = true
-		_, err := tx.ExecContext(ctx, q, store.NewID("sv"), assetID, it.Port, it.Proto, it.Name, nullStr(it.Product), nullStr(it.Version), source, it.Confidence, seenAt)
+		_, err := tx.ExecContext(ctx, q, store.NewID("sv"), assetID, it.Port, it.Proto, it.Name, nullStr(it.Product), nullStr(it.Version), nullStr(it.Detail), source, it.Confidence, seenAt)
 		if err != nil {
 			return fmt.Errorf("inventory: store service: %w", err)
 		}

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/modules/logs/signature"
@@ -191,7 +192,12 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 		vendor = "Unknown vendor"
 	}
 	if !s.isDeviceKind(kind) {
-		kind = "unknown"
+		// A type of D-511 as the kind it acts as; anything else, and a type marked no_auto_isolate (a PBX, a PLC), unknown, so no
+		// "kind in iot" rule covers what the device_type test leaves out (#714 round 2, L1).
+		kind = devicetypes.ActsAs(kind)
+		if !devicetypes.MatchesKind([]string{kind}, d.Kind) {
+			kind = devicetypes.Unknown
+		}
 	}
 	ts := d.Seen
 	if ts.IsZero() {

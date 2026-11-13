@@ -384,7 +384,7 @@ func TestRunsAJobWithTheFixedGrammar(t *testing.T) {
 	if got.id != id1 || got.res.Status != "done" || got.res.ExitCode != 0 || got.res.Truncated || !strings.Contains(string(got.xml), "192.168.10.20") {
 		t.Fatalf("result = %+v xml %q", got.res, got.xml)
 	}
-	want := "--privileged\n-sS\n-sV\n-O\n--script\nrdp-ntlm-info,http-ntlm-info\n-n\n--max-rate\n100\n--top-ports\n1000\n--host-timeout\n30m\n-oX\n-\n192.168.10.20\n10.0.0.7\n"
+	want := "--privileged\n-sS\n-sV\n-O\n--script\nrdp-ntlm-info,http-ntlm-info,http-title,ssl-cert\n-n\n--max-rate\n100\n--top-ports\n1000\n--host-timeout\n30m\n-oX\n-\n192.168.10.20\n10.0.0.7\n"
 	if nm.argvLog() != want {
 		t.Fatalf("argv:\n%s\nwant:\n%s", nm.argvLog(), want)
 	}

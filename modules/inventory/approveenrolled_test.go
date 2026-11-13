@@ -71,3 +71,64 @@ func TestContract_INV25_ApproveEnrolledOnlyTheAgentsMachine(t *testing.T) {
 		t.Fatalf("%d approval audit rows, want 2", n)
 	}
 }
+
+// INV-25 (D-503, the upgrade path): an OS the agent reported before agents sent a kind types the device when the enrolment approves it,
+// at the agent's rank; an OS another source saw types nothing, a person's kind wins, and the row of another machine is left as it is.
+func TestContract_INV25_ApproveEnrolledTypesFromTheAgentsOS(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	rec := func(ip string, src observe.Source, f observe.Field, v string) {
+		t.Helper()
+		o := observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr(ip)}, Field: f, Value: v, Source: src, Confidence: 0.95}
+		if err := e.svc.Record(e.ctx(), []observe.Observation{o}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	kind := func(ip string) string {
+		t.Helper()
+		var k string
+		if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT kind FROM inv_asset WHERE ip = ?`, ip).Scan(&k); err != nil {
+			t.Fatal(err)
+		}
+		return k
+	}
+	approve := func(ip, mac string) {
+		t.Helper()
+		if _, err := e.svc.ApproveEnrolled(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr(ip)}, mac, "r"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	const mac = "52:54:00:aa:bb:01"
+	rec("192.168.10.31", observe.Agent, observe.OS, "Ubuntu 26.04 LTS (Resolute Raccoon)")
+	approve("192.168.10.31", mac)
+	if k := kind("192.168.10.31"); k != "server" {
+		t.Fatalf("an agent's Ubuntu: %q", k)
+	}
+	rec("192.168.10.32", observe.Nmap, observe.OS, "Ubuntu 26.04 LTS")
+	approve("192.168.10.32", mac)
+	if k := kind("192.168.10.32"); k != "unknown" {
+		t.Fatalf("an OS nmap guessed typed the device: %q", k)
+	}
+	rec("192.168.10.33", observe.Agent, observe.OS, "Microsoft Windows 11 Pro 10.0.22631 build 22631")
+	var id string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT id FROM inv_asset WHERE ip = '192.168.10.33'`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	nas := "nas"
+	if err := e.svc.PatchDevice(e.ctx(), "admin@acme.example", id, inventory.Patch{Kind: &nas}); err != nil {
+		t.Fatal(err)
+	}
+	approve("192.168.10.33", mac)
+	if k := kind("192.168.10.33"); k != "nas" {
+		t.Fatalf("a person's kind: %q", k)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_observation WHERE field = 'kind' AND source = 'agent' AND value = 'pc'`); n != 1 {
+		t.Fatalf("the agent's pc observation under a person's kind: %d", n)
+	}
+	rec("192.168.10.34", observe.Agent, observe.OS, "Ubuntu 26.04 LTS")
+	rec("192.168.10.34", observe.Passive, observe.MAC, "52:54:00:00:00:99")
+	approve("192.168.10.34", mac)
+	if k := kind("192.168.10.34"); k != "unknown" {
+		t.Fatalf("the row of another machine was typed: %q", k)
+	}
+}

@@ -1,6 +1,7 @@
 package agentintake_test
 
 import (
+	"fmt"
 	"net/netip"
 	"strings"
 	"testing"
@@ -205,5 +206,98 @@ func TestContract_D503_APackageListTheWindowDroppedIsAskedAgain(t *testing.T) {
 	w.post("/intake/osquery/log", peerA, fullLog(second))
 	if got := w.intervals(second)["deb_packages"]; got != 3600 {
 		t.Fatalf("the list after the window was not taken: deb_packages every %v s", got)
+	}
+}
+
+// D-503, the upgrade path (N100 walk): a machine enrolled before the upgrade has a binding and an OS in the inventory but was never
+// approved, and its next report may be an hour away. The approve-enrolled job, at start, approves and types it from what the inventory
+// already has, with no new report; a row seen with another MAC is still left for a person, a person's kind still wins, a node with no
+// binding waits for its report, and a second run changes nothing.
+func TestContract_D503_UpgradeApprovesAndTypesEnrolledMachines(t *testing.T) {
+	w := newWorld(t)
+	ctx := t.Context()
+	const (
+		peerB, peerC, peerD = "192.0.2.11", "192.0.2.12", "192.0.2.13"
+		macC, macD          = "52:54:00:aa:bb:03", "52:54:00:aa:bb:04"
+		oldMAC              = "52:54:00:00:00:99"
+	)
+	record := func(ip string, src observe.Source, f observe.Field, v string) {
+		t.Helper()
+		o := observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr(ip)}, Field: f, Value: v, Source: src, Confidence: 0.95}
+		if err := w.inv.Record(ctx, []observe.Observation{o}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// What an agent wrote before the upgrade: its OS and its card's MAC, no kind.
+	old := func(ip, mac string) {
+		t.Helper()
+		record(ip, observe.Agent, observe.OS, "Ubuntu 26.04 LTS (Resolute Raccoon)")
+		record(ip, observe.Agent, observe.MAC, mac)
+	}
+	_, secret := w.token("srv", 7)
+	for host, peer := range map[string]string{"byn": peerA, "dhcp": peerB, "kept": peerC, "nat": peerD} {
+		w.enroll(secret, host, peer)
+	}
+	old(peerA, macA)
+	if err := w.inv.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{MAC: oldMAC, IP: netip.MustParseAddr(peerB)}, Field: observe.Hostname, Value: "old-laptop", Source: observe.Passive, Confidence: 0.6}}); err != nil {
+		t.Fatal(err)
+	}
+	old(peerB, macC)
+	old(peerC, macD)
+	kept, _ := w.device(peerC)
+	nas := "nas"
+	if err := w.inv.PatchDevice(ctx, "admin@acme.example", kept.ID, inventory.Patch{Kind: &nas}); err != nil {
+		t.Fatal(err)
+	}
+	w.exec(`UPDATE intake_osquery_nodes SET bound_ip = '` + peerA + `', bound_mac = '` + macA + `' WHERE host_identifier = 'byn'`)
+	w.exec(`UPDATE intake_osquery_nodes SET bound_ip = '` + peerB + `', bound_mac = '` + macC + `' WHERE host_identifier = 'dhcp'`)
+	w.exec(`UPDATE intake_osquery_nodes SET bound_ip = '` + peerC + `', bound_mac = '` + macD + `' WHERE host_identifier = 'kept'`)
+	w.clock.Advance(2 * time.Hour) // enrolled two hours before the upgrade: past the first-report window
+	if d, _ := w.device(peerA); d.Approved || d.Kind != "unknown" {
+		t.Fatalf("setup: %+v", d.AssetCore)
+	}
+
+	if err := w.svc.ApproveBound(ctx); err != nil {
+		t.Fatal(err)
+	}
+	d, _ := w.device(peerA)
+	if !d.Approved || d.Kind != "server" || d.OS == nil || d.OS.Source != "agent" {
+		t.Fatalf("the old machine after the upgrade: %+v os=%+v", d.AssetCore, d.OS)
+	}
+	if d, _ := w.device(peerB); d.Approved {
+		t.Fatal("the upgrade approved a row seen with another machine's MAC")
+	}
+	if d, _ := w.device(peerC); !d.Approved || d.Kind != "nas" {
+		t.Fatalf("a person's kind: %s approved=%v", d.Kind, d.Approved)
+	}
+	if n := w.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.approve_enrolled' AND user = 'system' AND detail LIKE '%"byn" enrolled with the token "srv", made by admin@acme.example, approved from its earlier reports after an upgrade'`); n != 1 {
+		t.Fatalf("approval audit rows of byn: %d", n)
+	}
+	if n := w.count(`SELECT count(*) FROM intake_osquery_nodes WHERE approved_at IS NOT NULL`); n != 3 {
+		t.Fatalf("%d nodes marked done, want 3 (the node with no binding waits for its report)", n)
+	}
+
+	snapshot := func() string {
+		var done string
+		if err := w.db.Reader().QueryRowContext(t.Context(), `SELECT (SELECT count(*) FROM core_audit) || ' ' ||
+			(SELECT group_concat(host_identifier || '=' || coalesce(approved_at, '-'), ' ') FROM (SELECT host_identifier, approved_at FROM intake_osquery_nodes ORDER BY host_identifier))`).Scan(&done); err != nil {
+			t.Fatal(err)
+		}
+		for _, ip := range []string{peerA, peerB, peerC} {
+			d, _ := w.device(ip)
+			done += fmt.Sprintf(" %s:%s:%v", ip, d.Kind, d.Approved)
+		}
+		return done
+	}
+	before := snapshot()
+	w.clock.Advance(time.Minute)
+	if err := w.svc.ApproveBound(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if after := snapshot(); after != before {
+		t.Fatalf("a second run changed something: %v -> %v", before, after)
+	}
+	if w.count(`SELECT count(*) FROM intake_osquery_nodes WHERE approved_at IS NULL AND host_identifier = 'nat'`) != 1 {
+		t.Fatal("the node with no binding was marked done")
 	}
 }

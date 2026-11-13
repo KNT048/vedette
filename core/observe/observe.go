@@ -115,7 +115,8 @@ type Software struct {
 // vouched for the machine. mac is the MAC of the agent's card that holds hint.IP ("" when it reported none): the device is approved
 // only when it was never seen with another MAC, so an address DHCP gave to a new machine never approves the old machine's row.
 // found says the hint points to a device at all; a device a person marked suspicious, the box, one already approved or one seen with
-// another MAC is left as it is. reason is the audit detail (which token, made by whom).
+// another MAC is left as it is. On that same machine's row (not the box) an OS the agent reported before agents sent a kind gives the
+// device its kind (AgentKindOfOS, agent rank). reason is the audit detail (which token, made by whom).
 type Approver interface {
 	ApproveEnrolled(ctx context.Context, hint AssetHint, mac, reason string) (found bool, err error)
 }

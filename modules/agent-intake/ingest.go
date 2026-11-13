@@ -65,21 +65,9 @@ func (s *Service) firstReport(ctx context.Context, n nodeRow, hint observe.Asset
 	reported := strings.Join(list, ",")
 	approved := false
 	if !n.approved && len(taken) > 0 {
-		reason, err := s.enrolment(ctx, n.id)
-		if err != nil {
+		var err error
+		if approved, err = s.approve(ctx, n.id, hint, mac, ""); err != nil {
 			return err
-		}
-		found, err := s.cfg.Approver.ApproveEnrolled(ctx, hint, mac, reason)
-		switch {
-		case err != nil && transient(err):
-			return fmt.Errorf("agentintake: approve: %w", err)
-		case err != nil: // refused at the inventory's boundary: it would refuse it again; do not try at every report
-			s.cfg.Log.ErrorContext(ctx, "agent-intake: the inventory refused the enrolment's approval", "node", n.id, "error", err.Error())
-			approved = true
-		default:
-			// no device yet (only the interfaces arrived): the next report tries again. A row seen with another MAC (DHCP gave this
-			// address to a new machine and no sensor saw the move yet) is found and left for a person: done once, like a suspicious one.
-			approved = found
 		}
 	}
 	if reported == n.reported && !approved {
@@ -92,6 +80,84 @@ func (s *Service) firstReport(ctx context.Context, n nodeRow, hint observe.Asset
 		}
 		return nil
 	})
+}
+
+// approve asks the inventory to approve the device of node (hint: its bound address, mac: the card on it) and says whether the node is
+// done (approved_at is set): the inventory found the device, or refused the request at its boundary. A transient error is returned.
+// note ends the audit detail ("" on the log path).
+func (s *Service) approve(ctx context.Context, node string, hint observe.AssetHint, mac, note string) (bool, error) {
+	reason, err := s.enrolment(ctx, node)
+	if err != nil {
+		return false, err
+	}
+	found, err := s.cfg.Approver.ApproveEnrolled(ctx, hint, mac, reason+note)
+	switch {
+	case err != nil && transient(err):
+		return false, fmt.Errorf("agentintake: approve: %w", err)
+	case err != nil: // refused at the inventory's boundary: it would refuse it again; do not try at every report
+		s.cfg.Log.ErrorContext(ctx, "agent-intake: the inventory refused the enrolment's approval", "node", node, "error", err.Error())
+		return true, nil
+	}
+	// no device yet (only the interfaces arrived): the next report tries again. A row seen with another MAC (DHCP gave this address to a
+	// new machine and no sensor saw the move yet) is found and left for a person: done once, like a suspicious one.
+	return found, nil
+}
+
+// ApproveBound is the job approve-enrolled (D-503, the upgrade path): it runs at start, when the module is turned on, and daily after.
+// A node enrolled before Vedette approved and typed devices from the enrolment has a binding (bound_ip, bound_mac) from its reports but
+// no approved_at, and its next report that the inventory takes may be an hour away (an old install has no --config_refresh, so it never
+// gets the first-report schedule). Each such node goes through the same approve as the log path, with its bound address and MAC: every
+// guard of the inventory holds (the box's addresses, a row seen with another MAC, a suspicious device, once per node), and the inventory
+// types the device from the OS its agent already reported. Only nodes with approved_at NULL are read, so a second run does nothing.
+func (s *Service) ApproveBound(ctx context.Context) error {
+	type bound struct{ id, ip, mac string }
+	var list []bound
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, bound_ip, bound_mac FROM intake_osquery_nodes
+		WHERE approved_at IS NULL AND bound_ip IS NOT NULL AND coalesce(bound_mac, '') <> '' ORDER BY id`)
+	if err != nil {
+		return fmt.Errorf("agentintake: read bound nodes: %w", err)
+	}
+	for rows.Next() {
+		var b bound
+		if err := rows.Scan(&b.id, &b.ip, &b.mac); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("agentintake: read bound nodes: %w", err)
+		}
+		list = append(list, b)
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("agentintake: read bound nodes: %w", err)
+	}
+	approved := 0
+	for _, b := range list {
+		ip, err := netip.ParseAddr(b.ip)
+		if err != nil {
+			continue // not written by markResult; nothing to approve
+		}
+		done, err := s.approve(ctx, b.id, observe.AssetHint{IP: ip}, b.mac, ", approved from its earlier reports after an upgrade")
+		switch {
+		case errors.Is(err, errNodeInvalid): // revoked since the list was read
+			continue
+		case err != nil:
+			return err
+		case !done:
+			continue
+		}
+		err = s.db.Write(ctx, func(tx *sql.Tx) error {
+			if _, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET approved_at = coalesce(approved_at, ?) WHERE id = ?`, store.FormatTS(s.now()), b.id); err != nil {
+				return fmt.Errorf("agentintake: mark approved: %w", err)
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		approved++
+	}
+	if approved > 0 {
+		s.cfg.Log.InfoContext(ctx, "agent-intake: enrolled machines approved from their earlier reports", "nodes", approved)
+	}
+	return nil
 }
 
 // enrolment is the audit detail of the enrolment's approval: the machine, the token and who made the token.

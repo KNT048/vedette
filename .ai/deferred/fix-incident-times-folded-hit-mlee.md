@@ -1,0 +1,2 @@
+- [ ] 2026-11-13 — Replace notify `Config.Hits` read-at-render by the `honeypot.hit.updated {id, conn_count}` event and drop notifyHits — vì sao để sau: event not built by the honeypot owner (Kiên side) — ở đâu: modules/notify/types.go HitConnections, cmd/vedette/notify.go, D-496
+- [ ] 2026-11-13 — Connections folded into a later (second window) hit of the same trap incident are not counted: the incident links only its first hit — vì sao để sau: needs the incident to keep every hit id, or the event above — ở đâu: modules/notify/incidents.go withConnections

@@ -325,7 +325,43 @@ func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 	if err := errors.Join(srows.Err(), srows.Close()); err != nil {
 		return nil, fmt.Errorf("notify: read incident sends: %w", err)
 	}
+	s.withConnections(ctx, out)
 	return out, nil
+}
+
+const hitLinkPrefix = "/honeypot/hits/"
+
+// withConnections raises the count of each trap incident to the connections its hit saw: notify counts one per event, and a
+// repeat connection folds into the hit without an event (D-496). The hit is counted once, so a later hit of the same incident
+// stays one. Without the port, or when it fails, the count stays notify's own (one log line, no error to the page).
+func (s *Service) withConnections(ctx context.Context, list []Incident) {
+	if s.cfg.Hits == nil || len(list) == 0 || (s.cfg.Modules != nil && !s.cfg.Modules.Enabled("honeypot")) {
+		return
+	}
+	var refs []HitRef
+	for _, i := range list {
+		id, ok := strings.CutPrefix(i.Link, hitLinkPrefix)
+		at, err := time.Parse(time.RFC3339, i.FirstSeen)
+		if i.Kind != IncidentTrap || !ok || id == "" || err != nil {
+			continue
+		}
+		refs = append(refs, HitRef{ID: id, At: at})
+	}
+	if len(refs) == 0 {
+		return
+	}
+	conns, err := s.cfg.Hits.HitConnections(ctx, refs)
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "notify: trap hit connections are not available, showing notify's own count", "error", err)
+		return
+	}
+	for k := range list {
+		if id, ok := strings.CutPrefix(list[k].Link, hitLinkPrefix); ok && list[k].Kind == IncidentTrap {
+			if n := conns[id]; n > 1 {
+				list[k].Count += n - 1
+			}
+		}
+	}
 }
 
 // incidentsLimit is the most incidents GET /notify/incidents returns, newest seen first (the page of an
@@ -334,7 +370,16 @@ const incidentsLimit = 500
 
 // IncidentDetail returns one incident with what each channel received (GET /notify/incidents/{id}).
 func (s *Service) IncidentDetail(ctx context.Context, id string) (IncidentDetail, error) {
-	return s.incidentDetail(ctx, s.cfg.DB.Reader(), id)
+	d, err := s.incidentDetail(ctx, s.cfg.DB.Reader(), id)
+	s.detailConnections(ctx, &d)
+	return d, err
+}
+
+// detailConnections is withConnections for one incident, called outside any write transaction.
+func (s *Service) detailConnections(ctx context.Context, d *IncidentDetail) {
+	one := []Incident{d.Incident}
+	s.withConnections(ctx, one)
+	d.Incident.Count = one[0].Count
 }
 
 func (s *Service) incidentDetail(ctx context.Context, q dbtx, id string) (IncidentDetail, error) {
@@ -421,6 +466,9 @@ func (s *Service) HandleIncident(ctx context.Context, actor, id string, status I
 		d, err = s.incidentDetail(ctx, tx, id)
 		return err
 	})
+	if err == nil {
+		s.detailConnections(ctx, &d) // after the write closed: the honeypot is asked outside the transaction
+	}
 	return d, err
 }
 

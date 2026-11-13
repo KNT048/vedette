@@ -530,16 +530,18 @@ func TestManifestCommandReadsGit(t *testing.T) {
 		for _, im := range imgs {
 			js = append(js, imgJSON(im))
 		}
+		host := hostIn(t, version)
 		doc, err := json.Marshal(map[string]any{
 			"version": version, "channel": "beta", "install_modes": []string{"appliance"}, "images": js,
-			"rollback": map[string]any{"safe": safe, "min_version": minVersion}, "host": hostIn(t, version),
+			"rollback": map[string]any{"safe": safe, "min_version": minVersion}, "host": host,
 		})
 		must(t, err)
 		in := filepath.Join(t.TempDir(), "release.in.json")
 		must(t, os.WriteFile(in, doc, 0o600))
 		out := t.TempDir()
 		var o, e bytes.Buffer
-		args := append([]string{"manifest", "-in", in, "-cosign-dir", cdir, "-out", out, "-repo", repo}, extra...)
+		gates := gatesPath(t, gatesDoc(t, version, filepath.Dir(host.Files[0]))) // the packages the gates checked; extra may name another record
+		args := append([]string{"manifest", "-in", in, "-cosign-dir", cdir, "-out", out, "-repo", repo, "-gates", gates}, extra...)
 		code := run(args, nil, &o, &e)
 		return code, o.String() + e.String(), out
 	}
@@ -554,6 +556,19 @@ func TestManifestCommandReadsGit(t *testing.T) {
 	raw, _ := os.ReadFile(filepath.Join(out, manifestFile))
 	if !strings.Contains(string(raw), `"db_schema": 3`) || !strings.Contains(string(raw), `"min_version": "0.2.0"`) {
 		t.Errorf("%s", raw)
+	}
+	// the packages must be the bytes release gates checked (a make host-deb after step 3), of this version; no record, no manifest
+	other := gatesDoc(t, "0.3.0", "") // the record of other packages
+	for name, c := range map[string]struct{ gates, want string }{
+		"package rebuilt after the gates": {gatesPath(t, other), "vedette-host_0.3.0_amd64.deb has sha256 "},
+		"record of another version":       {gatesPath(t, gatesDoc(t, "0.2.0", "")), "the gates record is of version 0.2.0, not 0.3.0"},
+		"no record":                       {filepath.Join(t.TempDir(), gatesFile), "no gates record"},
+	} {
+		if code, msg, out := manifest("0.3.0", "0.2.0", true, "-gates", c.gates); code != 1 || !strings.Contains(msg, c.want) {
+			t.Errorf("%s: %d %s", name, code, msg)
+		} else if _, err := os.Stat(filepath.Join(out, manifestFile)); err == nil {
+			t.Errorf("%s: a manifest was written", name)
+		}
 	}
 	// safe=false across the DROP is allowed, and says why
 	if code, msg, _ := manifest("0.3.0", "0.1.0", false); code != 0 || !strings.Contains(msg, "rollback.safe=false is right") {

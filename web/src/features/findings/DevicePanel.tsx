@@ -6,8 +6,12 @@ import { fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { FindingStatusChip } from './AcceptRisk'
 import { useFindings } from './api'
+import type { SoftwareView } from '@/features/inventory/types'
+import type { FindingRow } from './types'
 import { isOpen, riskRank } from './basis'
 import { RiskChip } from './Risk'
+import { IUpdated } from './Updated'
+import { useDeviceSoftware } from './rematch'
 
 /** Slot device.panels (trang chi tiết thiết bị của module inventory): phát hiện của đúng thiết bị này. */
 export function DevicePanel(props: Record<string, unknown>) {
@@ -15,6 +19,7 @@ export function DevicePanel(props: Record<string, unknown>) {
   const { t } = useTranslation('findings')
   const on = useModuleEnabled('findings')
   const q = useFindings(assetId)
+  const sw = useDeviceSoftware(assetId)
   if (on === false) return <Section title={t('device.title')}><ModuleOff module="findings" /></Section>
   return (
     <Section id="device-findings" title={t('device.title')} description={t('device.description')} stories={['S-MIT-1']}>
@@ -26,6 +31,7 @@ export function DevicePanel(props: Record<string, unknown>) {
           {d.items.some((f) => isOpen(f.status)) ? (
             <Link to={`/findings?device=${encodeURIComponent(assetId)}`} className="w-fit text-[13px] text-accent underline underline-offset-4">{t('device.handleAll')}</Link>
           ) : null}
+          <Updated items={d.items} software={sw.data?.asset.software} />
           <ul className="divide-y divide-rule rounded-md border border-rule bg-surface">
             {[...d.items].sort((a, b) => riskRank(b) - riskRank(a)).map((f) => (
               <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
@@ -42,4 +48,13 @@ export function DevicePanel(props: Record<string, unknown>) {
       </QueryState>
     </Section>
   )
+}
+
+/** D-499: "I updated <software>" for each hand-added software with findings; a scanned one is checked by a scan. */
+function Updated({ items, software }: { items: FindingRow[]; software: SoftwareView[] | undefined }) {
+  const asset = items.find((f) => f.asset)?.asset
+  // Any finding, not only open ones: the button stays while its dialog says what the re-match closed.
+  const manual = (software ?? []).filter((s) => s.source === 'manual' && items.some((f) => s.kev_cves.includes(f.cve)))
+  if (!asset || manual.length === 0) return null
+  return <div className="flex flex-wrap gap-2">{manual.map((s) => <IUpdated key={s.id} size="sm" asset={asset} software={s} />)}</div>
 }

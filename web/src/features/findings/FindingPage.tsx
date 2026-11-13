@@ -23,6 +23,7 @@ import { errMsg } from './errors'
 import { AskAi, NoPack, PackView } from './Recommendation'
 import { RiskChip } from './Risk'
 import type { FindingDetail, StatusAction } from './types'
+import { IUpdatedFinding } from './Updated'
 
 const RESOLVE: StatusAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk']
 
@@ -198,6 +199,7 @@ function Detail({ f }: { f: FindingDetail }) {
         actions={
           <>
             <SampleDataNote />
+            <IUpdatedFinding f={f} />
             {isOpen(f.status) ? (
               <Button ref={opener} variant="primary" disabled={!can} title={needRole} onClick={() => setOpen(true)}>{t('status.mark')}</Button>
             ) : (

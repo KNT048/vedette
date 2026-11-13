@@ -281,6 +281,8 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
 
 describe('findings: đổi trạng thái và quyền', () => {
   it('đánh dấu đã vá kèm ghi chú: lưu trạng thái, lịch sử, kiểm toán, còn sau khi tải lại', async () => {
+    // The inventory mock adds the box, and its finding, on its first read ("I updated", D-499, reads the device); this test counts the seed only.
+    server.use(http.get('*/api/v1/inventory/devices/:id', () => HttpResponse.json({ asset: { software: [] } })))
     const view = renderApp('/findings/f-1')
     await userEvent.click(await screen.findByRole('button', { name: 'Mark as handled' }))
     const dlg = await screen.findByRole('dialog', { name: 'Mark as handled' })
@@ -468,5 +470,59 @@ describe('findings: accept risk until a day (D-498, S-MIT-1)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: /risk accepted until/ })).toBeInTheDocument()
     expect(screen.getByText(/^Risk accepted until .* by admin@acme\.example\. No patch window before March$/)).toBeInTheDocument()
     expect(findingsStore.get().find((x) => x.id === 'f-2')!.history.at(-1)?.action).toBe('risk_accepted')
+  })
+})
+
+describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
+  const device = (source: 'manual' | 'nmap', version = '7.2.0') => http.get('*/api/v1/inventory/devices/:id', () => HttpResponse.json({ asset: { id: 'a-srvad', software: [
+    { id: 's-srvad', display: 'FortiOS', vendor: 'Fortinet', product: 'FortiOS', version, source, confidence: 1, kev_cves: ['CVE-2026-96951'] },
+  ] } }))
+
+  it('hand-added software: the new version is sent once, the re-match closes what it fixes, the dialog says how many', async () => {
+    let sent: unknown = null
+    server.use(device('manual'), http.patch('*/api/v1/inventory/devices/:id/software/:sid', async ({ params, request }) => {
+      sent = { sid: params.sid, ...(await request.json() as object) }
+      // The backend re-match (D-530): the version is outside every range, so the finding closes by itself.
+      findingsStore.update((l) => l.map((f) => (f.id === 'f-3' ? { ...f, status: 'not_relevant' as const, resolved_by: 'system' } : f)))
+      return HttpResponse.json({ ok: true })
+    }))
+    renderApp('/findings/f-3')
+    await userEvent.click(await screen.findByRole('button', { name: 'I updated FortiOS' }))
+    const dlg = await screen.findByRole('dialog', { name: 'I updated FortiOS' })
+    expect(within(dlg).getByText('Vedette has 7.2.0.')).toBeInTheDocument()
+    const box = within(dlg).getByLabelText('New version')
+    await userEvent.clear(box)
+    await userEvent.type(box, '7.2.0')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save and check' }))
+    expect(await within(dlg).findByText(/^Vedette already has 7\.2\.0\./)).toBeInTheDocument()
+    expect(sent).toBeNull()
+    await userEvent.clear(box)
+    await userEvent.type(box, '7.4.5')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save and check' }))
+    expect(await within(dlg).findByRole('status')).toHaveTextContent('Version 7.4.5 saved. 1 finding on SRV-AD no longer applies and was closed. None still match this version.')
+    expect(sent).toEqual({ sid: 's-srvad', version: '7.4.5' })
+    // The page re-reads the finding (now closed); the dialog and its answer stay until the person closes it.
+    expect(await screen.findByRole('heading', { level: 1, name: 'SRV-AD: CVE-2026-96951 marked as not relevant', hidden: true })).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog', { name: 'I updated FortiOS' })).getByRole('status')).toHaveTextContent(/^Version 7\.4\.5 saved\./)
+  })
+
+  it('a refused version reads as a plain sentence', async () => {
+    server.use(device('manual'), http.patch('*/api/v1/inventory/devices/:id/software/:sid', () => HttpResponse.json({ error: { code: 'duplicate_software', message: 'x' } }, { status: 409 })))
+    renderApp('/findings/f-3')
+    await userEvent.click(await screen.findByRole('button', { name: 'I updated FortiOS' }))
+    const dlg = await screen.findByRole('dialog', { name: 'I updated FortiOS' })
+    await userEvent.type(within(dlg).getByLabelText('New version'), '7.4.5')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save and check' }))
+    expect(await within(dlg).findByText('FortiOS 7.4.5 is already on SRV-AD. Remove the older FortiOS on the device page instead.')).toBeInTheDocument()
+  })
+
+  it('software a scan reads: no version box, says to scan the device', async () => {
+    server.use(device('nmap'))
+    renderApp('/findings/f-3')
+    await userEvent.click(await screen.findByRole('button', { name: 'I updated it' }))
+    const dlg = await screen.findByRole('dialog', { name: 'I updated FortiOS' })
+    expect(within(dlg).queryByLabelText('New version')).toBeNull()
+    expect(within(dlg).getByText('Vedette reads this version from the device. Run a scan of SRV-AD to check.')).toBeInTheDocument()
+    expect(within(dlg).getByRole('link', { name: 'Scan SRV-AD' })).toHaveAttribute('href', '/scans?target=a-srvad')
   })
 })

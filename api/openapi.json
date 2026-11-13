@@ -39570,7 +39570,7 @@
                             "additionalProperties": {
                               "type": "string"
                             },
-                            "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) · email provider (preset, D-449: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
+                            "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow, D-483; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) · email provider (preset, D-449: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
                           },
                           "secret_last4": {
                             "description": "Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4)",
@@ -39922,6 +39922,14 @@
                   "signin": {
                     "description": "Email user sign-in (D-480): the id of a finished sign-in of the same admin; its refresh token becomes the secret and its mailbox the username",
                     "type": "string"
+                  },
+                  "secret_key": {
+                    "description": "Zalo OA (D-483): the Secret key of the Zalo app; leave blank to keep the saved one",
+                    "type": "string"
+                  },
+                  "refresh_token": {
+                    "description": "Zalo OA (D-483): the OA refresh token (about 3 months, single use; the box refreshes the access token and keeps the rotated refresh token); leave blank to keep the saved one. With it, secret is the current access token, optional",
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -39967,7 +39975,7 @@
                       "additionalProperties": {
                         "type": "string"
                       },
-                      "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) · email provider (preset, D-449: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
+                      "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow, D-483; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) · email provider (preset, D-449: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
                     },
                     "secret_last4": {
                       "description": "Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4)",
@@ -40489,6 +40497,10 @@
                           },
                           "error": {
                             "type": "string"
+                          },
+                          "delayed": {
+                            "type": "boolean",
+                            "description": "The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent again by itself; not a failure, no Resend (D-483)"
                           }
                         },
                         "required": [
@@ -40496,7 +40508,8 @@
                           "channel",
                           "to",
                           "at",
-                          "ok"
+                          "ok",
+                          "delayed"
                         ],
                         "additionalProperties": false
                       }
@@ -40576,6 +40589,10 @@
                           "error": {
                             "type": "string"
                           },
+                          "delayed": {
+                            "type": "boolean",
+                            "description": "A \"Delayed (rate limited)\" row: the message is sent again by itself after the wait the provider asked for (D-483)"
+                          },
                           "kind": {
                             "type": "string",
                             "enum": [
@@ -40597,6 +40614,7 @@
                           "channel",
                           "to",
                           "ok",
+                          "delayed",
                           "kind",
                           "what",
                           "link"
@@ -40704,6 +40722,10 @@
                     "error": {
                       "type": "string"
                     },
+                    "delayed": {
+                      "type": "boolean",
+                      "description": "A \"Delayed (rate limited)\" row: the message is sent again by itself after the wait the provider asked for (D-483)"
+                    },
                     "kind": {
                       "type": "string",
                       "enum": [
@@ -40725,6 +40747,7 @@
                     "channel",
                     "to",
                     "ok",
+                    "delayed",
                     "kind",
                     "what",
                     "link"
@@ -40911,6 +40934,10 @@
                                 },
                                 "error": {
                                   "type": "string"
+                                },
+                                "delayed": {
+                                  "type": "boolean",
+                                  "description": "The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent again by itself; not a failure, no Resend (D-483)"
                                 }
                               },
                               "required": [
@@ -40918,7 +40945,8 @@
                                 "channel",
                                 "to",
                                 "at",
-                                "ok"
+                                "ok",
+                                "delayed"
                               ],
                               "additionalProperties": false
                             }
@@ -41140,6 +41168,10 @@
                               },
                               "error": {
                                 "type": "string"
+                              },
+                              "delayed": {
+                                "type": "boolean",
+                                "description": "The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent again by itself; not a failure, no Resend (D-483)"
                               }
                             },
                             "required": [
@@ -41147,7 +41179,8 @@
                               "channel",
                               "to",
                               "at",
-                              "ok"
+                              "ok",
+                              "delayed"
                             ],
                             "additionalProperties": false
                           }
@@ -41425,6 +41458,10 @@
                               },
                               "error": {
                                 "type": "string"
+                              },
+                              "delayed": {
+                                "type": "boolean",
+                                "description": "The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent again by itself; not a failure, no Resend (D-483)"
                               }
                             },
                             "required": [
@@ -41432,7 +41469,8 @@
                               "channel",
                               "to",
                               "at",
-                              "ok"
+                              "ok",
+                              "delayed"
                             ],
                             "additionalProperties": false
                           }

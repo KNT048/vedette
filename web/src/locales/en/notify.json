@@ -88,13 +88,29 @@
           "hint": "The Official Account ID number, shown in the OA management page or your app in Zalo Developers."
         },
         "secret": {
-          "label": "Access token",
-          "hint": "The OA access token issued in Zalo Developers. Zalo tokens live about 25 hours and are renewed with a refresh token: when it expires, sending reports an error so you can paste a new token. Check the Zalo Developers documentation."
+          "label": "Access token (optional)",
+          "hint": "The current OA access token, if you have one. Leave it empty: Vedette gets one with the refresh token.",
+          "hintGrant": "Leave it empty: Vedette gets a new access token with the refresh token before the old one ends (about 25 hours)."
         },
         "user_id": {
           "label": "Recipient ID (user_id)",
           "hint": "The Zalo ID of the person who receives alerts. They must have followed or messaged the OA, and Zalo only lets an OA send consultation messages within about 48 hours of their last interaction. Check the Zalo Developers documentation."
-        }
+        },
+        "app_id": {
+          "label": "App ID",
+          "hint": "The number of your Zalo app, shown in Zalo Developers next to the app name. The app must be linked to the OA."
+        },
+        "secret_key": {
+          "label": "Secret key",
+          "hint": "The Secret key of the Zalo app (Zalo Developers, your app, Settings). It stays on the box, encrypted."
+        },
+        "refresh_token": {
+          "label": "Refresh token",
+          "hint": "The OA refresh token from Zalo Developers (API Explorer, OA access token). It lasts about 3 months and works once: Vedette renews the access token by itself every day and keeps the new refresh token it gets back."
+        },
+        "helpTitle": "Zalo OA tokens",
+        "help": "Vedette renews the Zalo access token by itself with the refresh token, the App ID and the Secret key, so you set this up once, not every day. Get the OA's refresh token once in Zalo Developers; only if Vedette cannot reach Zalo for about 3 months does it run out, and then you save a new one.",
+        "doc": "Zalo's guide to OA access and refresh tokens"
       },
       "email": {
         "provider": {
@@ -274,7 +290,8 @@
     "emailCodes_other": "{{count}} users sign in with email codes. They will not be able to sign in until this channel is back on or an administrator resets their two-step sign-in.",
     "turnOffTitle": "Turn off the email channel?",
     "turnOffConfirm": "Turn off anyway",
-    "keepEditing": "Keep editing"
+    "keepEditing": "Keep editing",
+    "keepSaved": "Saved. Leave empty to keep it."
   },
   "rules": {
     "quiet": {
@@ -443,7 +460,8 @@
     "emptyAllTitle": "No incidents yet",
     "emptyBody": "When a trap is touched, a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
     "emptyBodyNoTraps": "When a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
-    "setupChannels": "Set up alert channels"
+    "setupChannels": "Set up alert channels",
+    "sentDelayed": "{{channel}} delayed"
   },
   "detail": {
     "meta": "First seen {{time}}.",
@@ -498,7 +516,8 @@
     "notified": "Notified: {{list}}",
     "entry": "{{channel}} {{time}}",
     "entryFailed": "{{channel}} (failed: {{reason}})",
-    "history": "All sent messages"
+    "history": "All sent messages",
+    "notDelivered": "Not delivered: {{list}}"
   },
   "history": {
     "via": "{{channel}} to {{to}}",
@@ -529,7 +548,8 @@
     "resendFor": "Send again via {{channel}}",
     "resendOk": "Sent again via {{channel}}.",
     "emptyTitle": "Nothing sent yet",
-    "emptyBody": "Messages appear here once a channel is on and something worth telling you happens. Test messages are not listed here; each channel shows its last test."
+    "emptyBody": "Messages appear here once a channel is on and something worth telling you happens. Test messages are not listed here; each channel shows its last test.",
+    "delayed": "Delayed"
   },
   "signin": {
     "microsoft": "Microsoft",

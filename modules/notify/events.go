@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -139,7 +140,8 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 }
 
 // assetEvent opens an unknown_device incident for a newly discovered device when the notify_new setting
-// of inventory was on at that moment (the event says so).
+// of inventory was on at that moment (the event says so). During the first discovery every device is new, so they go into one
+// summary incident instead (firstDiscovery, D-483).
 func (s *Service) assetEvent(ctx context.Context, data any) error {
 	var e struct {
 		AssetID string `json:"asset_id"`
@@ -160,11 +162,85 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 		}
 	}
 	name = clip(name, 160) // a host name can be 200 characters; the title may not be longer than that (OpenIncident)
-	_, _, err := s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: e.AssetID, Title: "A new unknown device appeared: " + name, Severity: Medium,
+	first, err := s.firstDiscovery(ctx)
+	if err != nil {
+		return err
+	}
+	if first {
+		return s.discoveryIncident(ctx, Device{ID: e.AssetID, Name: name})
+	}
+	_, _, err = s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: e.AssetID, Title: "A new unknown device appeared: " + name, Severity: Medium,
 		What:   "A device that is not in your inventory joined the network: " + name + ".",
 		Action: "Find out whose device it is. Add it to the inventory if it belongs to you, otherwise remove it from the network.",
 		Link:   "/devices/" + e.AssetID, Devices: []Device{{ID: e.AssetID, Name: name}}})
 	return err
+}
+
+const (
+	// firstDiscoveryWindow is how long after the first device the box ever reported new devices go into the one summary (D-483):
+	// the passive sensor finds most devices in the first hours, the active sensor (23:00-05:00 by default) the rest the first night.
+	firstDiscoveryWindow = 36 * time.Hour
+	firstDiscoverySource = "first-discovery" // the source of the summary incident: one per box while it is open
+	maxDiscoveryDevices  = 500               // devices listed on the summary; the count goes on
+)
+
+// firstDiscovery reports whether a new device belongs to the first discovery: the box has never had an unknown_device incident, or
+// its first one is the summary and is less than firstDiscoveryWindow old. A box that started with one incident per device (before
+// D-483) keeps them. ponytail: the start is read from notify_incident, so a box whose incidents all passed the one-year retention
+// would start a new first discovery; upgrade path: a notify_setting row with the start.
+func (s *Service) firstDiscovery(ctx context.Context) (bool, error) {
+	var first, key string
+	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT first_seen, dedupe_key FROM notify_incident WHERE kind = 'unknown_device' ORDER BY first_seen, rowid LIMIT 1`).Scan(&first, &key)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return true, nil
+	case err != nil:
+		return false, fmt.Errorf("notify: read first discovery: %w", err)
+	}
+	at, err := time.Parse(time.RFC3339Nano, first)
+	if err != nil || key != dedupeKey(IncidentInput{Kind: IncidentUnknownDevice, Source: firstDiscoverySource}) {
+		return false, nil
+	}
+	return s.now().Sub(at) < firstDiscoveryWindow, nil
+}
+
+// discoveryIncident adds a device to the summary incident of the first discovery: the first device opens it (and its one message goes
+// out, if the channels take medium), the next ones only add to its list and count, and its title says how many there are.
+func (s *Service) discoveryIncident(ctx context.Context, d Device) error {
+	id, _, err := s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: firstDiscoverySource, Severity: Medium,
+		Title: "Devices found on your network: approve them in Devices",
+		What: "This is Vedette's first look at your network, so every device on it is new. Instead of one alert per device, the devices found in the first " +
+			"36 hours are listed together here.",
+		Action: "Open Devices, approve the devices you know, and find out about the ones you do not.",
+		Link:   "/devices", Devices: []Device{d}})
+	if err != nil || id == "" {
+		return err
+	}
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		var n int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM notify_incident_device WHERE incident_id = ?`, id).Scan(&n); err != nil {
+			return fmt.Errorf("notify: count discovered devices: %w", err)
+		}
+		if n < maxDiscoveryDevices {
+			r, err := tx.ExecContext(ctx, `INSERT INTO notify_incident_device (incident_id, asset_id, name) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`, id, d.ID, d.Name)
+			if err != nil {
+				return fmt.Errorf("notify: add discovered device: %w", err)
+			}
+			if c, _ := r.RowsAffected(); c == 1 {
+				n++
+			}
+		}
+		var count int
+		if err := tx.QueryRowContext(ctx, `SELECT count FROM notify_incident WHERE id = ?`, id).Scan(&count); err != nil {
+			return fmt.Errorf("notify: count discovered devices: %w", err)
+		}
+		title := fmt.Sprintf("%d devices found on your network: approve them in Devices", max(n, count))
+		if max(n, count) == 1 {
+			title = "1 device found on your network: approve it in Devices"
+		}
+		_, err := tx.ExecContext(ctx, `UPDATE notify_incident SET title = ? WHERE id = ?`, title, id)
+		return err
+	})
 }
 
 // hitEvent opens a trap incident for a honeypot hit (S-HP-1). Every text from the event is data from the

@@ -7,12 +7,14 @@ package channel
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -163,6 +165,52 @@ func (e *ProviderError) Error() string {
 	return fmt.Sprintf("notify: %s: provider error %d: %s", e.Channel, e.Code, e.Reason)
 }
 
+// RateLimitError is a provider asking the box to slow down (HTTP 429, or Zalo OA error -32). Wait is how long it asked for (Telegram
+// parameters.retry_after, the Retry-After header of Slack and webhooks), 0 when it did not say. Err is the refusal underneath, so
+// errors.As still finds the StatusError or ProviderError (D-483).
+type RateLimitError struct {
+	Channel Type
+	Wait    time.Duration
+	Err     error
+}
+
+func (e *RateLimitError) Error() string {
+	return fmt.Sprintf("notify: %s: rate limited, retry after %s", e.Channel, e.Wait)
+}
+func (e *RateLimitError) Unwrap() error { return e.Err }
+
+// maxRetryAfter caps the wait a provider can ask for: an answer is untrusted, and a day-long pause would hide every alert.
+const maxRetryAfter = time.Hour
+
+// retryAfter reads the wait of a 429 answer: Telegram's "parameters.retry_after" (seconds) in the body, else the Retry-After header
+// (seconds or an HTTP date). 0 = not said or not readable; otherwise at least a second and at most maxRetryAfter.
+func retryAfter(h http.Header, body []byte) time.Duration {
+	var tg struct {
+		Parameters struct {
+			RetryAfter int64 `json:"retry_after"`
+		} `json:"parameters"`
+	}
+	secs := int64(-1)
+	if json.Unmarshal(body, &tg) == nil && tg.Parameters.RetryAfter > 0 {
+		secs = tg.Parameters.RetryAfter
+	} else if v := strings.TrimSpace(h.Get("Retry-After")); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+			secs = n
+		} else if at, err := http.ParseTime(v); err == nil {
+			secs = int64(time.Until(at).Seconds())
+		}
+	}
+	switch {
+	case secs < 0:
+		return 0
+	case secs < 1:
+		return time.Second
+	case secs > int64(maxRetryAfter/time.Second):
+		return maxRetryAfter
+	}
+	return time.Duration(secs) * time.Second
+}
+
 // Limits.
 const (
 	maxResponseBody = 64 << 10
@@ -258,6 +306,13 @@ func doLimit(c *http.Client, ch Type, req *http.Request, limit int64, hide ...se
 	body, err = io.ReadAll(io.LimitReader(resp.Body, limit))
 	if err != nil {
 		return resp.StatusCode, nil, fmt.Errorf("notify: %s: read answer: %s", ch, transportReason(err, hide))
+	}
+	if resp.StatusCode == http.StatusTooManyRequests { // every HTTP adapter: wait as asked, never treat it as a final refusal (D-483)
+		reason := body
+		if ch == Telegram {
+			reason = telegramDescription(body)
+		}
+		return resp.StatusCode, body, &RateLimitError{Channel: ch, Wait: retryAfter(resp.Header, body), Err: statusErr(ch, resp.StatusCode, reason, hide...)}
 	}
 	return resp.StatusCode, body, nil
 }

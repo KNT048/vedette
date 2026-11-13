@@ -89,6 +89,7 @@ type Service struct {
 	signIns   signInSet           // user sign-ins of the email channel under way (D-480)
 	rotations sync.WaitGroup      // saves of rotated refresh tokens (rotateEmailSecret)
 	lastPrune time.Time
+	paused    map[channel.Type]time.Time // a channel whose provider asked to wait, until when (D-483; publish.go delay)
 	// webhookClient replaces the webhook adapter's own guarded client. Only export_test.go sets it: a client from Config
 	// would skip the connect-time address check, so no configuration can reach a webhook.
 	webhookClient *http.Client

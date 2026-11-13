@@ -187,3 +187,6 @@ func slackFormat(s string) string {
 	}
 	return b.String()
 }
+
+// MaxItems is how many detail lines a message shows; beyond it the adapters write "…and more".
+const MaxItems = maxItems

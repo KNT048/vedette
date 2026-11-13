@@ -33,11 +33,14 @@ const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
 const FIELD_OF: Record<Channel['type'], Record<string, string>> = {
   telegram: { bad_chat_id: 'chat_id', secret_required: 'secret', bad_token: 'secret' },
   slack: { bad_label: 'label', bad_webhook: 'secret', bad_channel_id: 'channel_id', bad_app_token: 'app_token', bad_bot_token: 'bot_token' },
-  zalo: { bad_oa_id: 'oa_id', bad_user_id: 'user_id', secret_required: 'secret', bad_token: 'secret' },
+  zalo: { bad_oa_id: 'oa_id', bad_user_id: 'user_id', bad_app_id: 'app_id', bad_secret_key: 'secret_key', bad_refresh_token: 'refresh_token', secret_required: 'refresh_token', bad_token: 'secret' },
   'zalo-personal': { bad_user_id: 'user_id' }, // at save an approver's ID is `bad_approver_address`; `bad_user_id` is the recipient
   email: { bad_provider: 'provider', bad_host: 'host', bad_port: 'port', port_mismatch: 'port', bad_security: 'security', bad_username: 'username', bad_tenant_id: 'tenant_id', bad_client_id: 'client_id', secret_required: 'secret', bad_secret: 'secret', bad_from: 'from', bad_to: 'to' },
   webhook: { bad_url: 'url', url_unreadable: 'url', secret_required: 'secret', bad_secret: 'secret' },
 }
+
+/** Zalo's page on the OA access and refresh tokens (D-483): where the App ID, Secret key and refresh token come from. */
+const ZALO_OA_DOC = 'https://developers.zalo.me/docs/official-account/bat-dau/xac-thuc-va-uy-quyen-cho-ung-dung-new'
 
 /** The service account of a Google key file, or null when the text is not one (the box checks the key itself, D-449). */
 function keyAccount(text: string): string | null {
@@ -86,6 +89,9 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
   const [target, setTarget] = useState<ZaloTarget>({ user_id: opened.fields.user_id ?? '', group: opened.fields.group === 'true', name: opened.fields.name ?? '' })
   const zaloLook = zaloSigned !== null || (channel.configured && channel.secret_last4 !== null)
   const users = useUsers()
+  const [zaloKey, setZaloKey] = useState('') // Zalo OA (D-483): the app's Secret key and the OA refresh token; empty keeps the saved ones
+  const [zaloRefresh, setZaloRefresh] = useState('')
+  const zaloGrant = type === 'zalo' && channel.configured && !!channel.fields.app_id && !!channel.secret_last4
   const [appToken, setAppToken] = useState('')
   const [botToken, setBotToken] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -105,7 +111,7 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
     const sent = type === 'slack' && !approvals ? Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'channel_id'))
       : type === 'zalo-personal' ? { user_id: target.user_id, group: target.group ? 'true' : '', name: target.name } : fields
     const zalo = type === 'zalo-personal' ? { zalo_login: zaloSigned !== null } : {}
-    save.mutate({ type, enabled, fields: sent, secret: secret || undefined, ...(type === 'email' && signin ? { signin } : {}), min_severity: min, ...zalo, ...(canApprove ? { approvals, approvers: approvals ? approvers : [] } : {}), ...(type === 'slack' && approvals ? { app_token: appToken || undefined, bot_token: botToken || undefined } : {}) }, {
+    save.mutate({ type, enabled, fields: sent, secret: secret || undefined, ...(type === 'email' && signin ? { signin } : {}), min_severity: min, ...zalo, ...(canApprove ? { approvals, approvers: approvals ? approvers : [] } : {}), ...(type === 'slack' && approvals ? { app_token: appToken || undefined, bot_token: botToken || undefined } : {}), ...(type === 'zalo' ? { secret_key: zaloKey || undefined, refresh_token: zaloRefresh || undefined } : {}) }, {
       onSuccess: () => {
         toast.success(t('channels.saved', { name }))
         if (type === 'zalo-personal' && approvals && !thenTest) { setZaloSigned(null); toast.info(t('zp.codesSent')); return } // stay: show who is linked
@@ -131,7 +137,7 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
   // Focus after React has drawn the error, so a screen reader reads the field with its message (as the log source form does).
   function showErrors(errs: Record<string, string>) {
     setFieldErr(errs)
-    const first = [...FIELDS[type], 'secret', 'channel_id', 'app_token', 'bot_token'].find((k) => errs[k])
+    const first = [...FIELDS[type], 'secret_key', 'refresh_token', 'secret', 'channel_id', 'app_token', 'bot_token'].find((k) => errs[k])
     if (first) setTimeout(() => document.getElementById(`ch-${type}-${first}`)?.focus(), 0)
     return first !== undefined
   }
@@ -144,7 +150,7 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
     const u = free.find((x) => x.id === pick) ?? free[0]
     if (u) { setApprovers((l) => [...l, { user_id: u.id, address: type === 'email' ? u.email : '' }]); setPick('') }
   }
-  const secretHint = type === 'email' && keyOf ? t('channels.f.email.secret.loaded', { email: keyOf }) : keepsSecret ? t('channels.secretSaved', { last4: channel.secret_last4 }) : type === 'email' ? t(emailKeys(prov, 'secret', 'hint')) : t(`channels.f.${type}.secret.hint`)
+  const secretHint = type === 'zalo' && (zaloGrant || zaloRefresh) ? t('channels.f.zalo.secret.hintGrant') : type === 'email' && keyOf ? t('channels.f.email.secret.loaded', { email: keyOf }) : keepsSecret ? t('channels.secretSaved', { last4: channel.secret_last4 }) : type === 'email' ? t(emailKeys(prov, 'secret', 'hint')) : t(`channels.f.${type}.secret.hint`)
   const shown = (k: string) => type !== 'email' || (k !== 'username' || prov.auth !== 'token_as_user') &&
     (k !== 'tenant_id' || prov.auth === 'microsoft_oauth' || prov.id === 'microsoft365-user') && (k !== 'client_id' || ['microsoft_oauth', 'microsoft_user', 'google_user'].includes(prov.auth))
   const pickProvider = (id: string) => {
@@ -215,6 +221,20 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
               </Field>
             )
           })}
+          {type === 'zalo' ? (
+            <div className="grid gap-3">
+              <div role="note" aria-label={t('channels.f.zalo.helpTitle')} className="grid gap-1.5 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
+                <p>{t('channels.f.zalo.help')}</p>
+                <a className="w-fit text-accent underline underline-offset-4" href={ZALO_OA_DOC} target="_blank" rel="noopener noreferrer">{t('channels.f.zalo.doc')}</a>
+              </div>
+              <Field label={t('channels.f.zalo.secret_key.label')} hint={zaloGrant ? t('channels.keepSaved') : t('channels.f.zalo.secret_key.hint')} htmlFor="ch-zalo-secret_key" error={fieldErr.secret_key}>
+                <Input id="ch-zalo-secret_key" type="password" value={zaloKey} onChange={(e) => { setZaloKey(e.target.value); fixed('secret_key') }} autoComplete="new-password" {...aria('ch-zalo-secret_key', 'secret_key')} />
+              </Field>
+              <Field label={t('channels.f.zalo.refresh_token.label')} hint={zaloGrant ? t('channels.secretSaved', { last4: channel.secret_last4 }) : t('channels.f.zalo.refresh_token.hint')} htmlFor="ch-zalo-refresh_token" error={fieldErr.refresh_token}>
+                <Input id="ch-zalo-refresh_token" type="password" value={zaloRefresh} onChange={(e) => { setZaloRefresh(e.target.value); fixed('refresh_token') }} autoComplete="new-password" {...aria('ch-zalo-refresh_token', 'refresh_token')} />
+              </Field>
+            </div>
+          ) : null}
           {type === 'zalo-personal' ? (
             <div className="grid gap-3">
               <ZaloWarning />

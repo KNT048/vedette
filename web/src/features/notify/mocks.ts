@@ -17,7 +17,7 @@ import type { Approver, Channel, ChannelInput, ChannelType, EmailSignin, Groupin
 const SEV: Record<Severity, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' }
 
 // approvals: module khác (response) đọc bằng peek('notify_channels'): mỗi kênh có approvals?: boolean và approvers?: {user_id, address}[]. Giữ nguyên hình dạng này (D-46).
-interface StoredChannel extends Omit<Channel, 'secret_last4' | 'approvals' | 'approvers' | 'approval_last4'> { secret: string; url?: string; approvals?: boolean; approvers?: Approver[]; app_token?: string; bot_token?: string }
+interface StoredChannel extends Omit<Channel, 'secret_last4' | 'approvals' | 'approvers' | 'approval_last4'> { secret: string; url?: string; approvals?: boolean; approvers?: Approver[]; app_token?: string; bot_token?: string; secret_key?: string; refresh_token?: string }
 const blank = (type: ChannelType): StoredChannel => ({ type, configured: false, enabled: false, fields: {}, secret: '', min_severity: 'medium', last_test: null })
 // The webhook URL is a bearer secret (SYS-4): the mock keeps it apart from `fields`, as the backend seals it, and shows only scheme://host/… and its last 4 characters.
 const SAVED_FIELDS: Record<ChannelType, string[]> = { ...FIELDS, slack: ['label', 'channel_id'], 'zalo-personal': ['user_id', 'group', 'name'], webhook: [] }
@@ -37,7 +37,7 @@ const rules = collection<{ quiet: Quiet; grouping: Grouping }>('notify_rules', (
 
 // Vulnerability notices (D-52): messages about a finding. They are not incidents; the finding page shows them (slot finding.panels) and Settings, Alert channels, History lists them.
 interface Notice { id: string; finding_ids: string[]; cves: string[]; product: string; created_at: string; sends: SendRecord[] }
-const s = (id: string, channel: ChannelType, to: string, at: string, ok = true, error?: string): SendRecord => ({ id, channel, to, at, ok, error })
+const s = (id: string, channel: ChannelType, to: string, at: string, ok = true, error?: string, delayed = false): SendRecord => ({ id, channel, to, at, ok, error, delayed })
 const plus = (iso: string, sec: number) => new Date(new Date(iso).getTime() + sec * 1000).toISOString()
 const notices = collection<Notice[]>('notify_alerts', () => {
   const t1 = daysAgo(0, 4), t2 = daysAgo(3), t3 = daysAgo(24)
@@ -64,7 +64,8 @@ const incidents = collection<StoredIncident[]>('notify_incidents', () => {
     { id: 'al-4', kind: 'trap', attempt: false, link: '/honeypot/hits/hit-seed-1', title: 'PC-HR-01 touched the SMB trap on FILESRV-OLD', asset_ids: ['a-pc07'], severity: 'critical', status: 'new', first_seen: t4, last_seen: p(t4, 0.4), count: 3,
       what: 'PC-HR-01 (192.168.10.107) opened an SMB connection to the trap machine FILESRV-OLD (192.168.10.240) 3 times. Nobody uses this trap, so it usually means the machine is infected or someone is probing the network.',
       action: 'Take the machine off the network (unplug the cable, turn off Wi-Fi), then ask its user what they were doing. Do not change passwords from that machine.',
-      sends: [s('sd-7', 'telegram', 'chat -1002145678901', plus(t4, 5))], handled_by: null, handled_at: null, note: null },
+      // D-483: Telegram held the first try back with HTTP 429; the box sent it after the wait
+      sends: [s('sd-7a', 'telegram', 'chat -1002145678901', plus(t4, 2), false, 'Delayed (rate limited): Telegram asked Vedette to wait 3s. It is sent again by itself after the wait.', true), s('sd-7', 'telegram', 'chat -1002145678901', plus(t4, 5))], handled_by: null, handled_at: null, note: null },
     { id: 'al-5', kind: 'trap', attempt: false, link: '/honeypot/hits/hit-seed-2', title: '192.168.10.157 touched the RDP trap on FILESRV-OLD', asset_ids: ['a-unk01'], severity: 'critical', status: 'resolved', first_seen: t5, last_seen: t5, count: 1,
       what: 'Unknown device 192.168.10.157 (not in the inventory) tried to sign in over Remote Desktop to the trap machine FILESRV-OLD (192.168.10.240).',
       action: 'Take the device off the network, then find out who brought it into the company.',
@@ -122,7 +123,7 @@ function history(): HistoryItem[] {
 
 const last4 = (v?: string) => (v ? v.slice(-4) : null)
 const shownUrl = (u?: string) => { try { const x = new URL(u ?? ''); return `${x.protocol}//${x.host}/…${(u as string).slice(-4)}` } catch { return '' } }
-const pub = (c: StoredChannel): Channel => { const { secret, url, app_token, bot_token, approvals, approvers, ...r } = c; return { ...r, fields: c.type === 'webhook' && url ? { url: shownUrl(url) } : r.fields, secret_last4: last4(secret), approvals: approvals === true, approvers: approvers ?? [], approval_last4: { app_token: last4(app_token), bot_token: last4(bot_token) } } }
+const pub = (c: StoredChannel): Channel => { const { secret, url, app_token, bot_token, approvals, approvers, secret_key: _k, refresh_token, ...r } = c; return { ...r, fields: c.type === 'webhook' && url ? { url: shownUrl(url) } : r.fields, secret_last4: last4(refresh_token || secret), approvals: approvals === true, approvers: approvers ?? [], approval_last4: { app_token: last4(app_token), bot_token: last4(bot_token) } } }
 const HM = /^([01]\d|2[0-3]):[0-5]\d$/
 
 // Quy tắc kênh (đối chiếu 2026-11): Telegram Bot API (token <số bot>:<chuỗi>; chat_id số, nhóm/kênh siêu nhóm bắt đầu -100, kênh công khai @tên);
@@ -303,10 +304,22 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
     }
     return null
   }
-  if (type === 'zalo') {
+  if (type === 'zalo') { // D-483: App ID + Secret key + refresh token (the box renews the access token), or a pasted access token as before
+    const key = (b.secret_key ?? '').trim() || cur.secret_key || '', refresh = (b.refresh_token ?? '').trim() || cur.refresh_token || ''
+    const grant = !!(b.secret_key?.trim() || b.refresh_token?.trim() || cur.refresh_token)
+    const token = (s: string, lo: number, hi: number) => s.length >= lo && s.length <= hi && /^[\x21-\x7e]+$/.test(s)
+    if (grant && !key) return fail(400, 'bad_secret_key', 'Enter the Secret key of the Zalo app (Zalo Developers, your app, Settings).')
+    if (grant && !refresh) return fail(400, 'bad_refresh_token', 'Enter the refresh token of the OA (Zalo Developers, API Explorer, OA access token). It lasts about 3 months.')
     if (!/^\d{6,20}$/.test((f.oa_id ?? '').trim())) return fail(400, 'bad_oa_id', 'OA ID is a string of digits, shown in the Official Account management page.')
     if (!/^\d{6,25}$/.test((f.user_id ?? '').trim())) return fail(400, 'bad_user_id', 'The Zalo recipient ID (user_id) is the number of a person who followed or messaged the OA.')
-    const bad = need('access token'); if (bad) return bad
+    if (grant) {
+      if (!/^\d{6,25}$/.test((f.app_id ?? '').trim())) return fail(400, 'bad_app_id', 'App ID is the number of your Zalo app, shown in Zalo Developers next to the app name.')
+      if (!token(key, 8, 128)) return fail(400, 'bad_secret_key', 'The Secret key of the Zalo app is a string of letters and digits. Copy it again from Zalo Developers (your app, Settings).')
+      if (!token(refresh, 20, 2048)) return fail(400, 'bad_refresh_token', 'The refresh token is too short or has a character that is not allowed. Copy the whole string again from Zalo Developers.')
+      if (secret && !token(secret, 20, 2048)) return fail(400, 'bad_token', 'The Zalo access token has a character that is not allowed. Copy it again without spaces, or leave it empty.')
+      return null
+    }
+    if (!cur.secret && !secret) return fail(400, 'secret_required', 'Enter the refresh token, or an access token. This channel has no saved key yet.')
     if (secret && secret.length < 20) return fail(400, 'bad_token', 'The Zalo access token is too short. Copy the whole string from Zalo Developers.')
     return null
   }
@@ -499,7 +512,7 @@ export const handlers = [
     const c = channels.get().find((x) => x.type === old.channel)
     if (!c || !c.configured || !c.enabled) return fail(409, 'channel_not_ready', 'This channel is not set up or is turned off. An administrator can turn it on in Settings, Alert channels.')
     const r = deliver(c)
-    const rec: SendRecord = { id: newId('sd'), channel: c.type, to: destOf(c), at: nowIso(), ok: r.ok, error: r.ok ? undefined : r.detail }
+    const rec: SendRecord = { id: newId('sd'), channel: c.type, to: destOf(c), at: nowIso(), ok: r.ok, error: r.ok ? undefined : r.detail, delayed: false }
     if (old.kind === 'incident') incidents.update((l) => l.map((x) => (x.sends.some((y) => y.id === id) ? { ...x, sends: [...x.sends, rec] } : x)))
     else if (old.kind === 'vuln') notices.update((l) => l.map((x) => (x.sends.some((y) => y.id === id) ? { ...x, sends: [...x.sends, rec] } : x)))
     else approvalSends.update((l) => [...l, { id: newId('ap'), at: rec.at, what: old.what, send: rec }])
@@ -570,7 +583,9 @@ export const handlers = [
     if (type === 'email' && (secret || kept)) fields.secret_for = emailBinding(fields)
     const fresh = zalo ? approvers.filter((a) => !(cur.approvers ?? []).some((x) => x.user_id === a.user_id && x.address === a.address)) : []
     const next: StoredChannel = { ...cur, configured: true, enabled: b.enabled === true, fields, secret: secret ? secret : kept, ...(type === 'webhook' ? { url: webhookUrl(b.fields ?? {}, cur) } : {}), min_severity: b.min_severity!, last_test: null, approvals, approvers,
-      app_token: type === 'slack' ? (b.app_token?.trim() || cur.app_token) : undefined, bot_token: type === 'slack' ? (b.bot_token?.trim() || cur.bot_token) : undefined }
+      app_token: type === 'slack' ? (b.app_token?.trim() || cur.app_token) : undefined, bot_token: type === 'slack' ? (b.bot_token?.trim() || cur.bot_token) : undefined,
+      ...(type === 'zalo' ? { secret_key: b.secret_key?.trim() || cur.secret_key, refresh_token: b.refresh_token?.trim() || cur.refresh_token } : {}) }
+    if (type === 'zalo' && !next.refresh_token) delete next.fields.app_id // an access token only: no app to refresh with
     channels.update((l) => [...l.filter((c) => c.type !== type), next])
     // your own row with the box's own account confirms in your session; every other Zalo, yours too, gets the link by message
     if (next.enabled && approvals) for (const a of fresh) if (!(a.user_id === currentUser()!.id && a.address === ZALO_BOX_UID)) sendZaloLink(a)

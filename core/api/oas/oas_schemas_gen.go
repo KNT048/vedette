@@ -97740,7 +97740,8 @@ type NotifyGetNotifyIncidentsIDOKIncident struct {
 	// Where to view the source: /honeypot/hits/ (trap), /logs (bad address, log anomaly), /devices/
 	// (unknown device).
 	Link string `json:"link"`
-	// Why no channel received it; null when the last attempt of a channel delivered it.
+	// Why no channel received it; null when any attempt delivered it (a later failed Resend does not undo
+	// that).
 	NotSent  NilNotifyGetNotifyIncidentsIDOKIncidentNotSent  `json:"not_sent"`
 	Note     NilString                                       `json:"note"`
 	Sends    []NotifyGetNotifyIncidentsIDOKIncidentSendsItem `json:"sends"`
@@ -98644,7 +98645,8 @@ type NotifyGetNotifyIncidentsOKIncidentsItem struct {
 	// Where to view the source: /honeypot/hits/ (trap), /logs (bad address, log anomaly), /devices/
 	// (unknown device).
 	Link string `json:"link"`
-	// Why no channel received it; null when the last attempt of a channel delivered it.
+	// Why no channel received it; null when any attempt delivered it (a later failed Resend does not undo
+	// that).
 	NotSent  NilNotifyGetNotifyIncidentsOKIncidentsItemNotSent  `json:"not_sent"`
 	Note     NilString                                          `json:"note"`
 	Sends    []NotifyGetNotifyIncidentsOKIncidentsItemSendsItem `json:"sends"`
@@ -100095,7 +100097,8 @@ type NotifyPatchNotifyIncidentsIDOKIncident struct {
 	// Where to view the source: /honeypot/hits/ (trap), /logs (bad address, log anomaly), /devices/
 	// (unknown device).
 	Link string `json:"link"`
-	// Why no channel received it; null when the last attempt of a channel delivered it.
+	// Why no channel received it; null when any attempt delivered it (a later failed Resend does not undo
+	// that).
 	NotSent  NilNotifyPatchNotifyIncidentsIDOKIncidentNotSent  `json:"not_sent"`
 	Note     NilString                                         `json:"note"`
 	Sends    []NotifyPatchNotifyIncidentsIDOKIncidentSendsItem `json:"sends"`

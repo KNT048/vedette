@@ -1,4 +1,4 @@
-import { useRef, useState, type MouseEvent, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type RefObject } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -22,6 +22,13 @@ import { INCIDENT_KINDS, type Incident, type IncidentKind } from './types'
 
 const link = 'text-accent underline-offset-4 hover:underline'
 type BulkStatus = 'acknowledged' | 'resolved'
+
+/** Tells the page which rows the table shows now (page, sort, filter), so the select-all banner never speaks of another page. */
+function PageWatch({ ids, onChange }: { ids: string[]; onChange: (key: string) => void }) {
+  const key = ids.join(',')
+  useEffect(() => { onChange(key) }, [key, onChange])
+  return null
+}
 
 /** Một trạng thái, một ghi chú cho các incident đã chọn (D-551, INV-25): mỗi incident vẫn có dòng kiểm toán riêng; incident đã Resolved giữ nguyên. */
 function BulkDialog({ ids, status, onOpenChange, opener, onDone }: { ids: string[]; status: BulkStatus | null; onOpenChange: (v: boolean) => void; opener: RefObject<HTMLButtonElement | null>; onDone: () => void }) {
@@ -99,6 +106,8 @@ function Content() {
   const [pageIds, setPageIds] = useState<string[] | null>(null)
   const pageAll = pageIds !== null && rows.length > pageIds.length && pageIds.every((id) => selected.has(id))
   const clear = () => { setSelected(new Set()); setPageIds(null) }
+  // another page, sort or filter: the banner of the page the box selected goes (the selection stays)
+  const onPage = useCallback((key: string) => setPageIds((p) => (p && p.join(',') !== key ? null : p)), [])
   const toggle = (id: string, on: boolean) => setSelected((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n })
   const pick = (r: Incident) => (
     // A click on the box selects; it never opens the incident (the row click does).
@@ -115,7 +124,7 @@ function Content() {
         setSelected((s) => { const n = new Set(s); for (const id of page) { if (v) n.add(id); else n.delete(id) } return n })
         setPageIds(v ? page : null)
       }
-      return <Checkbox checked={page.length > 0 && on === page.length ? true : on > 0 ? 'indeterminate' : false} onCheckedChange={(v) => set(v === true)} aria-label={t('bulk.selectPage', { count: page.length })} />
+      return <><Checkbox checked={page.length > 0 && on === page.length ? true : on > 0 ? 'indeterminate' : false} onCheckedChange={(v) => set(v === true)} aria-label={t('bulk.selectPage', { count: page.length })} /><PageWatch ids={page} onChange={onPage} /></>
     }, cell: ({ row: { original: r } }) => pick(r) } satisfies ColumnDef<Incident>] : []),
     { id: 'incident', header: t('incidents.col.incident'), accessorFn: (r) => r.title, cell: ({ row: { original: r } }) => (
       <div className="grid"><Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium ${link}`}>{r.title}</Link><span className="text-[12px] text-muted">{t(kindKey(r))}</span></div>
@@ -137,8 +146,8 @@ function Content() {
         {() => (
           <Section id="list" title={t('incidents.caption')}>
             <div className="mb-3 flex flex-wrap gap-2">
-              <Segmented className="max-w-full overflow-x-auto" label={t('incidents.kindFilter')} value={kind} onChange={setKind} options={[{ value: 'all', label: t('incidents.kf.all') }, ...kinds.map((k) => ({ value: k, label: t(`incidents.kf.${k}`) }))]} />
-              <Segmented className="max-w-full overflow-x-auto" label={t('incidents.filter')} value={filter} onChange={setFilter} options={[{ value: 'open', label: t('incidents.open') }, { value: 'all', label: t('incidents.all') }]} />
+              <Segmented className="max-w-full overflow-x-auto" label={t('incidents.kindFilter')} value={kind} onChange={(v) => { setKind(v); setPageIds(null) }} options={[{ value: 'all', label: t('incidents.kf.all') }, ...kinds.map((k) => ({ value: k, label: t(`incidents.kf.${k}`) }))]} />
+              <Segmented className="max-w-full overflow-x-auto" label={t('incidents.filter')} value={filter} onChange={(v) => { setFilter(v); setPageIds(null) }} options={[{ value: 'open', label: t('incidents.open') }, { value: 'all', label: t('incidents.all') }]} />
             </div>
             {can && shown.length > 0 ? (
               <div role="region" aria-label={t('bulk.region')} className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-rule bg-sunken px-3 py-2 text-sm">

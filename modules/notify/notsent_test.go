@@ -79,6 +79,17 @@ func TestContract_INV24_NotSentSaysWhyFromTheDecision(t *testing.T) {
 	}
 
 	e.net.failTelegram(http.StatusBadRequest)
+	// a Resend of the delivered message that fails does not undo the delivery: the customer got the alert
+	h, err := e.svc.History(e.ctx())
+	if err != nil || len(h.Items) == 0 {
+		t.Fatalf("history: %+v, %v", h.Items, err)
+	}
+	if _, err := e.svc.Resend(e.ctx(), "it@acme.example", h.Items[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	if ns := e.notSent(sent); ns != nil || e.count(`SELECT COUNT(*) FROM notify_send WHERE ref_id = ? AND ok = 0`, sent) != 1 {
+		t.Fatalf("delivered, then a failed resend: %+v", ns)
+	}
 	failed := e.open("e", notify.High)
 	e.flush()
 	if ns := e.notSent(failed); ns == nil || ns.Reason != notify.UnsentFailed || ns.Channel != channel.Telegram || !strings.HasPrefix(ns.Text, "Not delivered. Telegram failed to deliver it.") {

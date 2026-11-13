@@ -312,10 +312,17 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3, D-551)'
     const bar = screen.getByRole('region', { name: 'Selected incidents' })
     expect(within(bar).getByText('50 incidents selected')).toBeInTheDocument()
     expect(within(bar).getByText('All 50 incidents on this page are selected.')).toBeInTheDocument()
-    await userEvent.click(within(bar).getByRole('button', { name: 'Select all 60 matching incidents' }))
-    expect(within(bar).getByText('60 incidents selected')).toBeInTheDocument()
-    expect(within(bar).getByText('All 60 matching incidents are selected.')).toBeInTheDocument()
-    await userEvent.click(within(bar).getByRole('button', { name: 'Resolve' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Next' })) // another page: no banner about the old one
+    await waitFor(() => expect(within(bar).queryByText('All 50 incidents on this page are selected.')).toBeNull())
+    await userEvent.click(screen.getByRole('button', { name: 'Previous' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 50 incidents on this page' })) // all selected: unselect the page
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 50 incidents on this page' }))
+    expect(within(screen.getByRole('region', { name: 'Selected incidents' })).getByText('All 50 incidents on this page are selected.')).toBeInTheDocument()
+    await userEvent.click(within(screen.getByRole('region', { name: 'Selected incidents' })).getByRole('button', { name: 'Select all 60 matching incidents' }))
+    const bar2 = screen.getByRole('region', { name: 'Selected incidents' })
+    expect(within(bar2).getByText('60 incidents selected')).toBeInTheDocument()
+    expect(within(bar2).getByText('All 60 matching incidents are selected.')).toBeInTheDocument()
+    await userEvent.click(within(bar2).getByRole('button', { name: 'Resolve' }))
     expect(await screen.findByRole('dialog', { name: 'Resolve 60 incidents' })).toBeInTheDocument()
   })
 

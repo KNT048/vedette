@@ -166,7 +166,7 @@ type Incident struct {
 	HandledAt *string        `json:"handled_at"`
 	Note      *string        `json:"note"`
 	Sends     []SendView     `json:"sends"`
-	// NotSent says why no channel has the incident (INV-24, D-551); nil when the last attempt of a channel delivered it.
+	// NotSent says why no channel has the incident (INV-24, D-551); nil when any attempt delivered it.
 	NotSent *NotSent `json:"not_sent"`
 }
 

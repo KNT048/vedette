@@ -123,9 +123,10 @@ func lastPerChannel(sends []SendView) []SendView {
 	return out
 }
 
-// reached is true when the last attempt of a channel delivered the incident.
+// reached is true when any attempt delivered the incident: the customer got the alert, whatever a later Resend did (Opus r2). The last
+// attempt of a channel only chooses between failed and dropped (failedLast).
 func reached(sends []SendView) bool {
-	for _, sd := range lastPerChannel(sends) {
+	for _, sd := range sends {
 		if sd.OK {
 			return true
 		}

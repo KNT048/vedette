@@ -42421,7 +42421,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "Why no channel received it; null when the last attempt of a channel delivered it"
+                            "description": "Why no channel received it; null when any attempt delivered it (a later failed Resend does not undo that)"
                           }
                         },
                         "required": [
@@ -42713,7 +42713,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "Why no channel received it; null when the last attempt of a channel delivered it"
+                          "description": "Why no channel received it; null when any attempt delivered it (a later failed Resend does not undo that)"
                         }
                       },
                       "required": [
@@ -43061,7 +43061,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "Why no channel received it; null when the last attempt of a channel delivered it"
+                          "description": "Why no channel received it; null when any attempt delivered it (a later failed Resend does not undo that)"
                         }
                       },
                       "required": [

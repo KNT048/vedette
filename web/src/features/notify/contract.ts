@@ -90,7 +90,7 @@ export const Incident = z.object({
   handled_at: iso.nullable(),
   note: z.string().nullable(),
   sends: z.array(SendRecord),
-  not_sent: NotSent.nullable().describe('Why no channel received it; null when the last attempt of a channel delivered it'),
+  not_sent: NotSent.nullable().describe('Why no channel received it; null when any attempt delivered it (a later failed Resend does not undo that)'),
 })
 export const Preview = z.object({ channel: ChannelType, subject: z.string().optional(), text: z.string() })
 export const IncidentDetail = z.object({ incident: Incident, previews: z.array(Preview) })

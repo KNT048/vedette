@@ -50,6 +50,7 @@ func TestContract_INV14_AskLoopOffersAndRunsReadToolsOnly(t *testing.T) {
 			t.Errorf("%s: %+v", n, res)
 		}
 	}
+	ts.n = 0 // the eight refused names count against the calls of a question; this test is about the offer, not that limit
 	if res := ts.runCall(t.Context(), h.runner, Prompt{Fence: "f"}, provider.ToolCall{ID: "c", Name: "get_status", Arguments: json.RawMessage(`{}`)}, 0, 0); res.IsError {
 		t.Fatalf("the read tool: %+v", res)
 	}

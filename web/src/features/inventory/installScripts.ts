@@ -28,7 +28,8 @@ export const windowsInstallScript = (box: string, ca: string) => fill(PWSH, box,
  *  (fs.protected_regular=2 của Ubuntu; lượt đi thật 2, W2-3). */
 export function linuxOneLiner(box: string, sha256: string, token: string, action: 'install' | 'uninstall' = 'install') {
   const arg = action === 'install' ? `--token ${token}` : '--uninstall'
-  return `f=$(mktemp) && curl -fsSLk ${box}/api/v1/install/osquery.sh -o "$f" && echo "${sha256}  $f" | sha256sum -c - && sudo sh "$f" ${arg}; rm -f "$f"`
+  // In a subshell, so the exit status of the download, the check or the install survives the cleanup and `exit` never closes the admin's terminal.
+  return `(f=$(mktemp) && curl -fsSLk ${box}/api/v1/install/osquery.sh -o "$f" && echo "${sha256}  $f" | sha256sum -c - && sudo sh "$f" ${arg}; r=$?; rm -f "$f"; exit $r)`
 }
 /** Windows PowerShell 5.1: không có -SkipCertificateCheck, nên chỉ lần tải script đầu tiên dùng curl.exe -k (chưa có CA); script đã nhúng CA và dùng --cacert cho mọi lần tải sau.
  *  Tên tệp mới mỗi lần (GUID, đuôi .ps1 vì -File cần nó) và xoá sau khi chạy, như bản Linux. */

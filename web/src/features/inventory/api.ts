@@ -18,7 +18,7 @@ export const useCatalog = (q: string) =>
 export const useSettings = (enabled = true) => useQuery({ queryKey: ['inventory', 'settings'], queryFn: () => api.get<InventorySettings>('/inventory/settings'), retry: false, enabled })
 // W2-6: while the box is starting the sensor the row is read again every 10 s, so "Starting…" turns into "Reporting" by itself.
 export const useSensors = () => useQuery({ queryKey: ['inventory', 'sensors'], queryFn: () => api.get<SensorsResponse>('/inventory/sensors'), retry: false,
-  refetchInterval: (q) => (q.state.data?.sensors.some((s) => s.status === 'starting') ? 10_000 : false) })
+  refetchInterval: (q) => (q.state.status !== 'error' && q.state.data?.sensors.some((s) => s.status === 'starting') ? 10_000 : false) })
 /** Container-only install (D-387): choose the SPAN card among the cards the sensor reported; the row follows the answer. */
 export function useSensorCard(id: string) {
   const qc = useQueryClient()

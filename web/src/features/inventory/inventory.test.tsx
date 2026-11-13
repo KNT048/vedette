@@ -1215,7 +1215,7 @@ describe('inventory: agents (S-INV-4)', () => {
     const sha = (await call('GET', '/agents')).json!.install.linux.sha256 as string
     expect(sha).toMatch(/^[0-9a-f]{64}$/)
     expect(within(dialog).getByRole('button', { name: 'Linux' })).toHaveAttribute('aria-pressed', 'true')
-    expect(within(dialog).getByText(new RegExp(`sudo sh "\\$f" --token ${secret}; rm -f "\\$f"$`))).toBeInTheDocument()
+    expect(within(dialog).getByText(new RegExp(`sudo sh "\\$f" --token ${secret}; r=\\$\\?; rm -f "\\$f"; exit \\$r\\)$`))).toBeInTheDocument()
     expect(within(dialog).getByText('Expected SHA-256 of the script:').parentElement).toHaveTextContent(sha)
     expect(within(dialog).getByText('What this script does')).toBeInTheDocument()
     expect(within(dialog).getByText('Advanced: manual setup')).toBeInTheDocument()
@@ -1290,7 +1290,7 @@ describe('inventory: agents (S-INV-4)', () => {
     await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     await clickUntil(user, () => screen.getAllByRole('button', { name: `Show setup for ${OSQ}` })[0]!, () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: `Set up ${OSQ}` }, T)
-    expect(within(dialog).getByText(/sudo sh "\$f" --token <TOKEN>; rm -f "\$f"$/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/sudo sh "\$f" --token <TOKEN>; r=\$\?; rm -f "\$f"; exit \$r\)$/)).toBeInTheDocument()
     expect(dialog.textContent).not.toMatch(/vdt_osquery_[a-z0-9]{32}/)
     await user.click(within(dialog).getAllByRole('button', { name: 'Close' })[0]!)
     await clickUntil(user, () => screen.getAllByRole('button', { name: `Revoke token ${OSQ}` })[0]!, () => screen.getByRole('dialog'))
@@ -1597,12 +1597,12 @@ describe('inventory: agents (S-INV-4)', () => {
     const lin = linuxOneLiner(BOX, sha, 'vdt_osquery_x')
     expect(lin).toContain(`curl -fsSLk ${BOX}/api/v1/install/osquery.sh`) // -k exactly once, for the script itself
     // W2-3: a new mktemp file every run (a fixed /tmp name left by another user cannot be overwritten), removed afterwards
-    expect(lin).toMatch(/^f=\$\(mktemp\) && curl /)
+    expect(lin).toMatch(/^\(f=\$\(mktemp\) && curl /) // a subshell: the install's exit status survives the cleanup (review)
     expect(lin).toContain(`-o "$f" && echo "${sha}  $f" | sha256sum -c -`)
-    expect(lin).toContain('sudo sh "$f" --token vdt_osquery_x; rm -f "$f"')
+    expect(lin).toContain('sudo sh "$f" --token vdt_osquery_x; r=$?; rm -f "$f"; exit $r)')
     expect(lin).not.toContain('/tmp/')
     expect(lin.match(/curl/g)).toHaveLength(1)
-    expect(linuxOneLiner(BOX, sha, 'vdt_osquery_x', 'uninstall')).toMatch(/sudo sh "\$f" --uninstall; rm -f "\$f"$/)
+    expect(linuxOneLiner(BOX, sha, 'vdt_osquery_x', 'uninstall')).toMatch(/sudo sh "\$f" --uninstall; r=\$\?; rm -f "\$f"; exit \$r\)$/)
     expect(linuxOneLiner(BOX, sha, 'vdt_osquery_x', 'uninstall')).not.toContain('vdt_osquery_x')
     const win = windowsOneLiner(BOX, sha, 'vdt_osquery_x')
     expect(win).toContain(`curl.exe -fsSLk ${BOX}/api/v1/install/osquery.ps1`)

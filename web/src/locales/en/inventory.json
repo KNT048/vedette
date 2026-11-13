@@ -260,10 +260,10 @@
     "saved": "Notes saved."
   },
   "setup": {
-    "link": "Scope and sensors",
-    "titleLoading": "Scope and sensors",
+    "link": "Scope, sensors and agents",
+    "titleLoading": "Scope, sensors and agents",
     "meta": "Vedette only listens and lightly scans inside the scope you set here. Vedette does not block traffic.",
-    "forbiddenTitle": "Scope and sensors",
+    "forbiddenTitle": "Scope, sensors and agents",
     "forbidden": "You do not have access to this page",
     "forbiddenBody": "The {{role}} role is needed to change scan scope, sensors and agent tokens. Ask an administrator for access or to do it for you.",
     "title_one": "{{count}} network range to watch",
@@ -454,6 +454,14 @@
     "expired": "Expired",
     "empty": "No enrollment tokens yet",
     "emptyBody": "Use \"Create agent token\", then run the one command it shows on each server.",
+    "page": {
+      "downloadTitle": "1. Download osquery",
+      "downloadBody": "The official osquery {{version}} packages, served by this box. The one command in step 2 downloads the right one by itself; download a package here to copy it to a server yourself (a USB stick works) or to install it with your own tools.",
+      "checkHint": "Before you install, check the file: sha256sum <file> on Linux or Get-FileHash <file> in PowerShell must print the SHA-256 in the table. The package alone reports nothing to Vedette: the agent also needs the token from step 2.",
+      "none": "This box has no copy of the osquery packages, so there is nothing to download here and the one command in step 2 stops at the package download. Update Vedette to the release, which ships them.",
+      "tokenTitle": "2. Then create a token so the agent can report to this box",
+      "tokenBody": "The token dialog shows the one command that installs osquery from this box and enrolls it, and the manual steps for a package you installed yourself."
+    },
     "config": "Show setup",
     "showConfig": "Show setup for {{name}}",
     "configTitle": "Set up {{name}}",
@@ -519,7 +527,7 @@
       "title": "Or download the package",
       "body": "For a server without network access, or to install it your own way: download the official osquery package from this box, copy it to the server (a USB stick works), check its SHA-256 and install it. Then follow the enrollment steps under Advanced: manual setup.",
       "caption": "osquery packages this box serves",
-      "col": { "file": "File", "for": "For", "size": "Size", "sha": "SHA-256" },
+      "col": { "file": "File", "for": "For", "size": "Size", "sha": "SHA-256", "install": "Install it on the server" },
       "link": "Download {{file}}",
       "size": "{{mb}} MB",
       "format": { "deb": "Debian, Ubuntu", "rpm": "RHEL, Rocky, AlmaLinux", "msi": "Windows Server" },

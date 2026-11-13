@@ -167,8 +167,9 @@ EOT
 	want "core_data /var/lib/vedette 700 vedette:vedette" '^/var/lib/vedette d 700 vedette:vedette '
 	want "/var/lib/vedette-honeypot 755 root:root" '^/var/lib/vedette-honeypot d 755 root:root '
 	want "honeypot config/ 755 vedette:vedette" '^/var/lib/vedette-honeypot/config d 755 vedette:vedette '
-	# made once as vedette's with 755; after the honeypot first starts it belongs to the container (:U, D-162) and the postinst never checks it again
-	want "honeypot log/ 755 vedette:vedette" '^/var/lib/vedette-honeypot/log d 755 vedette:vedette '
+	# the honeypot's log/ is the volume vedette-hp-log (D-318): no folder for it (D-412)
+	x '[ ! -e /var/lib/vedette-honeypot/log ]' || fail "the package made /var/lib/vedette-honeypot/log (the honeypot log is a volume, D-318/D-412)"
+	ok "no /var/lib/vedette-honeypot/log (the honeypot log is the vedette-hp-log volume)"
 	want "the unit is enabled" '^is-enabled=enabled$'
 	want "the unit is NOT started" '^active=inactive$'
 	want "the enable link is in multi-user.target.wants" '^wants=1$'
@@ -186,13 +187,14 @@ EOT
 	[ "$s1" = "$s2" ] || { diff <(echo "$s1") <(echo "$s2") >&2 || true; fail "the second install changed the state"; }
 	ok "second install: users, groups, subid lines, tree, modes, owners, hashes and unit state are identical"
 
-	# After the honeypot first starts, podman's :U has given log/ to the container's user (a subuid) with mode 755 (D-162): an upgrade must go through.
+	# A box installed before D-412 has the old log/ folder, which podman's :U gave to the container's user (a subuid) with mode 755 (D-162):
+	# an upgrade must go through and leave it alone (install.sh --uninstall removes it with /var/lib/vedette-honeypot).
 	# 61000 stands for the image user's subuid: any uid inside every default rootless map (a map such as byn:100000:65536 only reaches 0..65535) that is not vedette's.
-	x 'chown 61000:0 /var/lib/vedette-honeypot/log && chmod 0755 /var/lib/vedette-honeypot/log'
+	x 'install -d -m 0755 -o 61000 -g 0 /var/lib/vedette-honeypot/log'
 	install "--reinstall"
-	[ "$(x 'stat -c "%u:%g %a" /var/lib/vedette-honeypot/log')" = "61000:0 755" ] || fail "an upgrade changed the container's log/ owner or mode"
-	ok "an upgrade after the honeypot took log/ (:U) succeeds and leaves its owner and mode alone"
-	x 'chown vedette:vedette /var/lib/vedette-honeypot/log'
+	[ "$(x 'stat -c "%u:%g %a" /var/lib/vedette-honeypot/log')" = "61000:0 755" ] || fail "an upgrade changed the old log/ owner or mode"
+	ok "an upgrade on a box with the old log/ (the container's after :U) succeeds and leaves it alone"
+	x 'rmdir /var/lib/vedette-honeypot/log'
 
 	# ---- an upgrade replaces a running daemon (M2) --------------------------------------------------------------------------
 	# The placeholder binary cannot run as the helper, so a drop-in (in /run, gone with the cleanup below) makes the unit a plain sleep: what is

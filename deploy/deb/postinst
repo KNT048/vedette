@@ -86,7 +86,7 @@ subid() { # subid <file>
 # ---- directories ---------------------------------------------------------------------------------------------------------
 
 # every directory of this script: install -d follows a symbolic link, so a link is refused
-DIRS="/etc/vedette /var/lib/vedette-host /etc/containers /etc/containers/systemd /var/lib/vedette /var/lib/vedette-honeypot /var/lib/vedette-honeypot/config /var/lib/vedette-honeypot/log"
+DIRS="/etc/vedette /var/lib/vedette-host /etc/containers /etc/containers/systemd /var/lib/vedette /var/lib/vedette-honeypot /var/lib/vedette-honeypot/config"
 
 check_dirs() {
 	for p in $DIRS; do
@@ -122,8 +122,9 @@ aa_on() {
 # check_profile: there, not disabled, and compiled without loading, before anything is created
 check_profile() {
 	aa_on || return 0
-	# dpkg never brings back a conffile an administrator deleted, not even on upgrade
-	[ -f "$AA_PROFILE" ] || fail "$AA_PROFILE is missing: no Vedette container can start without it. Restore it with: apt-get install --reinstall -o Dpkg::Options::=--force-confmiss vedette-host"
+	# dpkg never brings back a conffile an administrator deleted, not even on upgrade. The way back is the package install.sh keeps
+	# (selfupdate/packages, D-316) under its SemVer name: no apt source has vedette-host, so apt-get --reinstall cannot find it (D-412).
+	[ -f "$AA_PROFILE" ] || fail "$AA_PROFILE is missing: no Vedette container can start without it. Restore it from the package install.sh keeps: dpkg -i --force-confmiss --force-confdef --force-confold /var/lib/vedette-host/selfupdate/packages/vedette-host_\$(/usr/lib/vedette/vedette-host -version)_\$(dpkg --print-architecture).deb (docs/RUNBOOK.md 8.5)"
 	if [ -e "$AA_DISABLE" ] || [ -L "$AA_DISABLE" ]; then
 		fail "$AA_DISABLE disables the AppArmor profile vedette-container: no Vedette container can start without it. Remove that link, then run: dpkg --configure -a"
 	fi
@@ -199,14 +200,12 @@ configure)
 	install -d -m 0755 -o root -g root /etc/containers /etc/containers/systemd
 	# core_data (the default of core and of the installer's host.conf): the database and the key; core's alone, kept on purge
 	once 700 "$CORE" /var/lib/vedette
-	# honeypot folders (D-123 (1)): root's and closed above; config/ is written by core and read by the container; log/ is
-	# written by the container and read by core.
-	# log/ is THE CONTAINER'S after its first start: the unit mounts it with podman's :U, which gives it to uid 1000 of the honeypot image
-	# (a subuid on the host) and init.py sets mode 0755 (D-162). So it is made here only when it is missing and is never checked or re-owned
-	# afterwards: `once` would stop every later upgrade at "exists with mode and owner ...".
+	# honeypot folders (D-123 (1)): root's and closed above; config/ is written by core and read by the container.
+	# The honeypot's log/ is the tmpfs volume vedette-hp-log (D-318), not a folder of the box: nothing makes, checks or re-owns
+	# /var/lib/vedette-honeypot/log (D-412). A box installed before D-412 keeps its old, unused one (possibly the container's after
+	# podman's :U, D-162) until install.sh --uninstall removes /var/lib/vedette-honeypot.
 	install -d -m 0755 -o root -g root /var/lib/vedette-honeypot
 	install -d -m 0755 -o "$CORE" -g "$CORE" /var/lib/vedette-honeypot/config
-	[ -d /var/lib/vedette-honeypot/log ] || install -d -m 0755 -o "$CORE" -g "$CORE" /var/lib/vedette-honeypot/log
 
 	subid /etc/subuid
 	subid /etc/subgid

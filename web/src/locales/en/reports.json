@@ -253,6 +253,7 @@
       "doneLineBy": "{{cve}} on {{device}} ({{product}}): {{status}}, by {{by}}",
       "doneMore_one": "And 1 more, listed in the appendix.",
       "doneMore_other": "And {{count}} more, listed in the appendix.",
+      "accepted": "Risk accepted: {{count}} (until {{date}})",
       "handled": "Handled",
       "remaining": "Remaining",
       "next": "To do this week",

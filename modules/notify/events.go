@@ -98,6 +98,9 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 		Severity  string `json:"severity"`
 		To        string `json:"to"`
 		Reason    string `json:"reason"`
+		// acceptance_expired only (D-498): who accepted the risk and its last day (YYYY-MM-DD)
+		AcceptedBy    string `json:"accepted_by"`
+		AcceptedUntil string `json:"accepted_until"`
 	}
 	if err := decode(data, &e); err != nil {
 		return err
@@ -114,6 +117,17 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 			n.Change = "reopened, it matches again"
 			n.Title = "Vedette reopened " + about(cve, f) + ": it matches again"
 			n.What = "Vedette had closed this finding as not affected, and the device matches the entry again. " + f.What
+		})
+	}
+	if statusChange && e.Reason == "acceptance_expired" { // a risk a person accepted until a day is open again (D-498, INV-21)
+		if IsBaseline(ctx) {
+			return nil
+		}
+		return s.findingChange(ctx, e.FindingID, e.CVE, "", func(f FindingInfo, cve string, n *Notice) {
+			n.ID += "-reopened-" + n.At.UTC().Format("20060102")
+			n.Change = "risk acceptance ended, open again"
+			n.Title = "Risk acceptance ended: " + about(cve, f) + " is open again"
+			n.What = acceptedText(e.AcceptedBy, e.AcceptedUntil) + "; that date has passed. " + f.What
 		})
 	}
 	if !statusChange && kevKey(e.CVE) != "" { // a finding exists: a device matched this CVE, so it is no longer one that matched nothing
@@ -192,6 +206,19 @@ func (s *Service) findingRaised(ctx context.Context, data any) error {
 		}
 		n.What = why + " " + f.What
 	})
+}
+
+// acceptedText is "<who> accepted this risk until <12 Feb 2027>" from the event's fields, each optional.
+func acceptedText(by, until string) string {
+	who := strings.TrimSpace(by)
+	if who == "" || len(who) > 320 {
+		who = "Someone"
+	}
+	out := who + " accepted this risk"
+	if d, err := time.Parse(time.DateOnly, until); err == nil {
+		out += " until " + d.Format("2 Jan 2006")
+	}
+	return out
 }
 
 // about names a finding in a sentence: "CVE-2026-1 on NAS-01".

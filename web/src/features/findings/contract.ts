@@ -5,13 +5,16 @@ import { defineEndpoints } from '@/lib/contract'
 const iso = z.iso.datetime()
 const findingId = z.string().min(1).max(64)
 
-export const FindingStatus = z.enum(['confirmed', 'suspected', 'mitigated', 'patched', 'false_positive', 'not_relevant'])
+export const FindingStatus = z.enum(['confirmed', 'suspected', 'mitigated', 'patched', 'false_positive', 'not_relevant', 'risk_accepted'])
 export const Severity = z.enum(['critical', 'high', 'medium', 'low', 'info'])
 export const AssetKind = z.enum(['firewall', 'router', 'switch', 'ap', 'nas', 'server', 'pc', 'printer', 'camera', 'nvr', 'iot', 'web', 'unknown'])
 export const FirewallVendor = z.enum(['fortigate', 'mikrotik', 'generic'])
 export const ApplyItem = z.enum(['patch', 'workaround', 'fortigate', 'mikrotik', 'generic'])
-export const StatusAction = z.enum(['patched', 'mitigated', 'false_positive', 'not_relevant', 'reopen'])
-export const BulkAction = z.enum(['patched', 'mitigated', 'false_positive', 'not_relevant'])
+export const StatusAction = z.enum(['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk', 'reopen'])
+export const BulkAction = z.enum(['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk'])
+/** How far ahead a risk can be accepted (D-498). */
+export const MAX_ACCEPT_DAYS = 365
+const until = z.iso.date().optional().describe('accept_risk only (D-498): the last day the risk is accepted, from tomorrow to 365 days ahead; the finding reopens by itself after it')
 /** Most findings one bulk status change may touch (INV-10 of findings, D-484). */
 export const MAX_BULK = 500
 
@@ -29,6 +32,7 @@ export const Finding = z.object({
   resolved_by: z.string().nullable(),
   resolved_at: iso.nullable(),
   resolution_note: z.string().nullable(),
+  accepted_until: z.iso.date().nullable().describe('risk_accepted only (D-498): the last day of the acceptance (UTC); the finding reopens by itself after it'),
   history: z.array(z.object({ ts: iso, user: z.string(), action: z.string(), note: z.string().optional() })),
 })
 
@@ -106,10 +110,10 @@ export const endpoints = defineEndpoints([
     query: z.object({ asset: z.string().optional() }), response: FindingList },
   { method: 'get', path: '/findings/{id}', summary: 'One finding: evidence, recommendation, compromise indicators, AI results', stories: ['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2'], role: 'viewer',
     params: idParams, response: FindingDetail, example: { params: { id: 'f-1' } } },
-  { method: 'post', path: '/findings/{id}/status', summary: 'Change status (patched, mitigated, false positive, not relevant, reopen) with a note', stories: ['S-MIT-1'], role: 'operator',
-    params: idParams, body: z.object({ action: StatusAction, note: z.string().max(500) }), response: FindingDetail },
+  { method: 'post', path: '/findings/{id}/status', summary: 'Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen) with a note', stories: ['S-MIT-1'], role: 'operator',
+    params: idParams, body: z.object({ action: StatusAction, note: z.string().max(500), until }), response: FindingDetail },
   { method: 'post', path: '/findings/status', summary: 'Change the status of the open findings among the ids (at most 500) with one note; one history and audit row per finding, all or nothing; closed findings are skipped', stories: ['S-MIT-1'], role: 'operator',
-    body: z.object({ ids: z.array(findingId).min(1).max(MAX_BULK), action: BulkAction, note: z.string().max(500) }),
+    body: z.object({ ids: z.array(findingId).min(1).max(MAX_BULK), action: BulkAction, note: z.string().max(500), until }),
     response: z.object({ updated: z.number().int().describe('Open findings changed'), skipped: z.number().int().describe('Findings already closed, left as they were') }) },
   { method: 'post', path: '/findings/{id}/applied', summary: 'Log "Applied" for one recommendation item; does not change the status by itself', stories: ['S-MIT-1'], role: 'operator',
     params: idParams, body: z.object({ item: ApplyItem }), response: FindingDetail },

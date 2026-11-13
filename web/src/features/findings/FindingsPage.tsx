@@ -6,14 +6,15 @@ import { X } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
-import { StatusChip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select, Textarea } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
-import { fmtDateTime, fmtRelative } from '@/lib/format'
+import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
+import { AcceptUntil, FindingStatusChip } from './AcceptRisk'
+import { untilOk } from './accept'
 import { useBulkStatus, useFindings } from './api'
 import { basisKey, deviceName, hasIp, isOpen, riskRank, unverified } from './basis'
 import { MAX_BULK } from './contract'
@@ -21,18 +22,19 @@ import { errMsg } from './errors'
 import { RiskChip } from './Risk'
 import type { BulkAction, FindingRow, VersionNeeded } from './types'
 
-type Filter = 'open' | 'confirmed' | 'suspected' | 'resolved' | 'all'
+type Filter = 'open' | 'confirmed' | 'suspected' | 'accepted' | 'resolved' | 'all'
 const match: Record<Filter, (f: FindingRow) => boolean> = {
   open: (f) => isOpen(f.status),
   confirmed: (f) => f.status === 'confirmed',
   suspected: (f) => f.status === 'suspected',
+  accepted: (f) => f.status === 'risk_accepted',
   resolved: (f) => !isOpen(f.status),
   all: () => true,
 }
 /** Độ chắc chắn (D-484): tất cả / đã xác nhận hoặc theo phiên bản / chỉ khớp tên sản phẩm. */
 type Certainty = 'all' | 'likely' | 'unverified'
 const certain: Record<Certainty, (f: FindingRow) => boolean> = { all: () => true, likely: (f) => !unverified(f), unverified }
-const BULK: BulkAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant']
+const BULK: BulkAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk']
 
 /** Một hành động, một ghi chú cho các phát hiện đã chọn (W1-12): mỗi phát hiện vẫn có dòng lịch sử và kiểm toán riêng. */
 function BulkDialog({ ids, open, onOpenChange, opener, onDone }: { ids: string[]; open: boolean; onOpenChange: (v: boolean) => void; opener: RefObject<HTMLButtonElement | null>; onDone: () => void }) {
@@ -40,14 +42,20 @@ function BulkDialog({ ids, open, onOpenChange, opener, onDone }: { ids: string[]
   const bulk = useBulkStatus()
   const [action, setAction] = useState<BulkAction>('patched')
   const [note, setNote] = useState('')
+  const [until, setUntil] = useState('')
   const [error, setError] = useState<string | undefined>()
+  const [untilError, setUntilError] = useState<string | undefined>()
   const [wasOpen, setWasOpen] = useState(open)
-  if (open !== wasOpen) { setWasOpen(open); if (open) { setAction('patched'); setNote(''); setError(undefined) } }
-  const needNote = action === 'false_positive' || action === 'not_relevant'
+  if (open !== wasOpen) { setWasOpen(open); if (open) { setAction('patched'); setNote(''); setUntil(''); setError(undefined); setUntilError(undefined) } }
+  const accept = action === 'accept_risk'
+  const needNote = action === 'false_positive' || action === 'not_relevant' || accept
   function submit() {
-    if (needNote && note.trim().length < 3) { setError(t('status.noteRequired')); return }
+    const badUntil = accept && !untilOk(until)
+    setUntilError(badUntil ? t('accept.untilRequired') : undefined)
+    if (needNote && note.trim().length < 3) { setError(t(accept ? 'accept.noteRequired' : 'status.noteRequired')); return }
+    if (badUntil) return
     setError(undefined)
-    bulk.mutate({ ids, action, note: note.trim() }, {
+    bulk.mutate({ ids, action, note: note.trim(), ...(accept ? { until } : {}) }, {
       onSuccess: (r) => { toast.success(r.skipped > 0 ? `${t('bulk.done', { count: r.updated })}. ${t('bulk.skipped', { count: r.skipped })}` : t('bulk.done', { count: r.updated })); onOpenChange(false); onDone() },
       onError: (e) => setError(errMsg(e)),
     })
@@ -55,7 +63,7 @@ function BulkDialog({ ids, open, onOpenChange, opener, onDone }: { ids: string[]
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent title={t('bulk.title', { count: ids.length })} description={t('bulk.description')} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
-        <RadioGroup value={action} onValueChange={(v) => { setAction(v as BulkAction); setError(undefined) }} aria-label={t('status.title')}>
+        <RadioGroup value={action} onValueChange={(v) => { setAction(v as BulkAction); setError(undefined); setUntilError(undefined) }} aria-label={t('status.title')}>
           {BULK.map((a) => (
             <div key={a} className="flex items-start gap-2.5">
               <RadioItem id={`bulk-${a}`} value={a} className="mt-1" />
@@ -63,6 +71,7 @@ function BulkDialog({ ids, open, onOpenChange, opener, onDone }: { ids: string[]
             </div>
           ))}
         </RadioGroup>
+        {accept ? <AcceptUntil id="bulk-until" value={until} onChange={(v) => { setUntil(v); setUntilError(undefined) }} error={untilError} /> : null}
         <Field htmlFor="bulk-note" label={needNote ? t('status.noteLabelRequired') : t('status.noteLabel')} hint={t('bulk.noteHint')} error={error}>
           <Textarea id="bulk-note" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} aria-invalid={!!error} aria-describedby={error ? 'bulk-note-error' : undefined} />
         </Field>
@@ -72,6 +81,17 @@ function BulkDialog({ ids, open, onOpenChange, opener, onDone }: { ids: string[]
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** The status, and for an accepted risk the day it ends (D-498). */
+function StatusCell({ r }: { r: FindingRow }) {
+  const { t } = useTranslation('findings')
+  return (
+    <span className="grid justify-items-start gap-0.5">
+      <FindingStatusChip f={r} />
+      {r.status === 'risk_accepted' && r.accepted_until ? <span className="whitespace-nowrap text-[12px] text-muted">{t('accept.rowUntil', { date: fmtDate(r.accepted_until) })}</span> : null}
+    </span>
   )
 }
 
@@ -123,7 +143,7 @@ function List() {
     ) },
     { id: 'cve', header: t('col.cve'), accessorFn: (r) => r.cve, cell: ({ row: { original: r } }) => <Link to={`/findings/${r.id}`} className="whitespace-nowrap font-medium text-accent underline-offset-4 hover:underline">{r.cve}</Link> },
     { id: 'product', header: t('col.product'), accessorFn: (r) => r.kev?.display ?? '', cell: ({ row: { original: r } }) => <span>{r.kev?.display ?? '–'}</span> },
-    { id: 'status', header: t('col.status'), accessorFn: (r) => r.status, cell: ({ row: { original: r } }) => <StatusChip status={r.status} /> },
+    { id: 'status', header: t('col.status'), accessorFn: (r) => r.status, cell: ({ row: { original: r } }) => <StatusCell r={r} /> },
     { id: 'severity', header: t('col.severity'), accessorFn: riskRank, cell: ({ row: { original: r } }) => <RiskChip f={r} /> },
     { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row: { original: r } }) => <span className={unverified(r) ? 'text-[13px] text-muted' : 'text-[13px]'}>{t(basisKey(r.basis))}</span> },
     { id: 'seen', header: t('col.lastSeen'), accessorFn: (r) => r.last_seen, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap text-[13px] text-muted" title={fmtDateTime(r.last_seen)}>{fmtRelative(r.last_seen)}</span> },
@@ -140,7 +160,7 @@ function List() {
       <div className="mb-3 grid gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <div className="max-w-full overflow-x-auto">
-            <Segmented<Filter> label={t('filterLabel')} value={filter} onChange={setFilter} options={(['open', 'confirmed', 'suspected', 'resolved', 'all'] as Filter[]).map((v) => ({ value: v, label: t(`filters.${v}`) }))} />
+            <Segmented<Filter> label={t('filterLabel')} value={filter} onChange={setFilter} options={(['open', 'confirmed', 'suspected', 'accepted', 'resolved', 'all'] as Filter[]).map((v) => ({ value: v, label: t(`filters.${v}`) }))} />
           </div>
           <div className="max-w-full overflow-x-auto">
             <Segmented<Certainty> label={t('certainty.label')} value={certainty} onChange={setCertainty} options={(['all', 'likely', 'unverified'] as Certainty[]).map((v) => ({ value: v, label: t(`certainty.${v}`) }))} />
@@ -184,7 +204,7 @@ function List() {
                 <div className="grid flex-1 gap-1.5">
                   <div className="flex items-start justify-between gap-3">
                     <Link to={`/findings/${r.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.cve}</Link>
-                    <StatusChip status={r.status} />
+                    <StatusCell r={r} />
                   </div>
                   <span className="text-sm [overflow-wrap:anywhere]">{name(r)}<span className="text-muted">{hasIp(r.asset) ? ` (${r.asset?.ip})` : r.asset ? ` (${t('noIp')})` : ''}</span></span>
                   <span className="text-[13px] text-muted">{r.kev?.display ?? '–'}</span>

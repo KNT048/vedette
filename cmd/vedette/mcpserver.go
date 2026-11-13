@@ -170,6 +170,9 @@ func mcpFinding(r findings.Record) mcpserver.Finding {
 		at := r.ResolvedAt.UTC().Format(mcpTS)
 		f.ResolvedAt = &at
 	}
+	if !r.AcceptedUntil.IsZero() {
+		f.AcceptedUntil = r.AcceptedUntil.UTC().Format(time.DateOnly)
+	}
 	if e := r.Evidence; e != nil { // which check and when: the summary names the device, the request and response stay on the box (D-233)
 		f.Evidence = &mcpserver.Evidence{Template: e.Template, CheckedAt: e.CheckedAt.UTC().Format(mcpTS)}
 	}

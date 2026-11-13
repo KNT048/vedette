@@ -20930,7 +20930,8 @@ func (s *Server) handleFindingsPostFindingsIDAppliedRequest(args [1]string, args
 
 // handleFindingsPostFindingsIDStatusRequest handles findings_post_findings_id_status operation.
 //
-// Change status (patched, mitigated, false positive, not relevant, reopen) with a note.
+// Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen)
+// with a note.
 //
 // POST /findings/{id}/status
 func (s *Server) handleFindingsPostFindingsIDStatusRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -21024,7 +21025,7 @@ func (s *Server) handleFindingsPostFindingsIDStatusRequest(args [1]string, argsE
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    FindingsPostFindingsIDStatusOperation,
-			OperationSummary: "Change status (patched, mitigated, false positive, not relevant, reopen) with a note",
+			OperationSummary: "Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen) with a note",
 			OperationID:      "findings_post_findings_id_status",
 			Body:             request,
 			RawBody:          rawBody,

@@ -171,3 +171,16 @@ func TestWeeklyTopRiskKeepsTheWorstSeverityAndClosedRowsSayWho(t *testing.T) {
 		t.Errorf("closed rows: %+v", r.Resolved)
 	}
 }
+
+// D-498: a risk accepted this week is not "resolved" (it comes back by itself); it is counted apart with its earliest end.
+func TestWeeklyAcceptedRiskIsNotResolved(t *testing.T) {
+	t.Parallel()
+	in := sampleInput()
+	in.findings = append(in.findings,
+		Finding{ID: "f6", AssetID: "a1", CVE: "CVE-2026-0006", Status: "risk_accepted", Severity: "high", FirstSeen: day0(20), ResolvedAt: day0(2), AcceptedUntil: time.Date(2027, 3, 1, 0, 0, 0, 0, time.UTC)},
+		Finding{ID: "f7", AssetID: "a3", CVE: "CVE-2026-0007", Status: "risk_accepted", Severity: "high", FirstSeen: day0(20), ResolvedAt: day0(1), AcceptedUntil: time.Date(2027, 2, 12, 0, 0, 0, 0, time.UTC)})
+	r := buildWeekly(in)
+	if c := r.Counts; c.Resolved != 1 || c.Accepted != 2 || c.AcceptedUntil != "2027-02-12" || len(r.Resolved) != 1 {
+		t.Fatalf("counts = %+v, resolved = %+v", c, r.Resolved)
+	}
+}

@@ -27023,7 +27023,8 @@
                               "mitigated",
                               "patched",
                               "false_positive",
-                              "not_relevant"
+                              "not_relevant",
+                              "risk_accepted"
                             ]
                           },
                           "severity": {
@@ -27117,6 +27118,19 @@
                               "string",
                               "null"
                             ]
+                          },
+                          "accepted_until": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "risk_accepted only (D-498): the last day of the acceptance (UTC); the finding reopens by itself after it"
                           },
                           "history": {
                             "type": "array",
@@ -27289,6 +27303,7 @@
                           "resolved_by",
                           "resolved_at",
                           "resolution_note",
+                          "accepted_until",
                           "history",
                           "asset",
                           "kev"
@@ -27471,7 +27486,8 @@
                         "mitigated",
                         "patched",
                         "false_positive",
-                        "not_relevant"
+                        "not_relevant",
+                        "risk_accepted"
                       ]
                     },
                     "severity": {
@@ -27565,6 +27581,19 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "accepted_until": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "risk_accepted only (D-498): the last day of the acceptance (UTC); the finding reopens by itself after it"
                     },
                     "history": {
                       "type": "array",
@@ -28420,6 +28449,7 @@
                     "resolved_by",
                     "resolved_at",
                     "resolution_note",
+                    "accepted_until",
                     "history",
                     "asset",
                     "kev",
@@ -28522,7 +28552,8 @@
                         "mitigated",
                         "patched",
                         "false_positive",
-                        "not_relevant"
+                        "not_relevant",
+                        "risk_accepted"
                       ]
                     },
                     "severity": {
@@ -28616,6 +28647,19 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "accepted_until": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "risk_accepted only (D-498): the last day of the acceptance (UTC); the finding reopens by itself after it"
                     },
                     "history": {
                       "type": "array",
@@ -29471,6 +29515,7 @@
                     "resolved_by",
                     "resolved_at",
                     "resolution_note",
+                    "accepted_until",
                     "history",
                     "asset",
                     "kev",
@@ -29575,7 +29620,8 @@
                         "mitigated",
                         "patched",
                         "false_positive",
-                        "not_relevant"
+                        "not_relevant",
+                        "risk_accepted"
                       ]
                     },
                     "severity": {
@@ -29669,6 +29715,19 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "accepted_until": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "risk_accepted only (D-498): the last day of the acceptance (UTC); the finding reopens by itself after it"
                     },
                     "history": {
                       "type": "array",
@@ -30524,6 +30583,7 @@
                     "resolved_by",
                     "resolved_at",
                     "resolution_note",
+                    "accepted_until",
                     "history",
                     "asset",
                     "kev",
@@ -30556,7 +30616,7 @@
     "/findings/{id}/status": {
       "post": {
         "operationId": "findings_post_findings_id_status",
-        "summary": "Change status (patched, mitigated, false positive, not relevant, reopen) with a note",
+        "summary": "Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen) with a note",
         "tags": [
           "findings"
         ],
@@ -30590,12 +30650,19 @@
                       "mitigated",
                       "false_positive",
                       "not_relevant",
+                      "accept_risk",
                       "reopen"
                     ]
                   },
                   "note": {
                     "type": "string",
                     "maxLength": 500
+                  },
+                  "until": {
+                    "description": "accept_risk only (D-498): the last day the risk is accepted, from tomorrow to 365 days ahead; the finding reopens by itself after it",
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
                   }
                 },
                 "required": [
@@ -30633,7 +30700,8 @@
                         "mitigated",
                         "patched",
                         "false_positive",
-                        "not_relevant"
+                        "not_relevant",
+                        "risk_accepted"
                       ]
                     },
                     "severity": {
@@ -30727,6 +30795,19 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "accepted_until": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "risk_accepted only (D-498): the last day of the acceptance (UTC); the finding reopens by itself after it"
                     },
                     "history": {
                       "type": "array",
@@ -31582,6 +31663,7 @@
                     "resolved_by",
                     "resolved_at",
                     "resolution_note",
+                    "accepted_until",
                     "history",
                     "asset",
                     "kev",
@@ -31645,12 +31727,19 @@
                       "patched",
                       "mitigated",
                       "false_positive",
-                      "not_relevant"
+                      "not_relevant",
+                      "accept_risk"
                     ]
                   },
                   "note": {
                     "type": "string",
                     "maxLength": 500
+                  },
+                  "until": {
+                    "description": "accept_risk only (D-498): the last day the risk is accepted, from tomorrow to 365 days ahead; the finding reopens by itself after it",
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
                   }
                 },
                 "required": [
@@ -44399,7 +44488,8 @@
                                       "mitigated",
                                       "patched",
                                       "false_positive",
-                                      "not_relevant"
+                                      "not_relevant",
+                                      "risk_accepted"
                                     ]
                                   },
                                   "severity": {
@@ -44969,7 +45059,8 @@
                               "mitigated",
                               "patched",
                               "false_positive",
-                              "not_relevant"
+                              "not_relevant",
+                              "risk_accepted"
                             ]
                           },
                           "severity": {
@@ -45840,13 +45931,24 @@
                               "type": "number"
                             },
                             "resolved": {
-                              "type": "number"
+                              "type": "number",
+                              "description": "Closed this week; accepted risks are counted in accepted (D-498)"
                             },
                             "open_confirmed": {
                               "type": "number"
                             },
                             "open_suspected": {
                               "type": "number"
+                            },
+                            "accepted": {
+                              "description": "Risks accepted this week (D-498); absent when none or in reports sent before it",
+                              "type": "number"
+                            },
+                            "accepted_until": {
+                              "description": "The earliest day one of those acceptances ends",
+                              "type": "string",
+                              "format": "date",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
                             },
                             "devices": {
                               "type": "number",
@@ -45975,7 +46077,8 @@
                                   "mitigated",
                                   "patched",
                                   "false_positive",
-                                  "not_relevant"
+                                  "not_relevant",
+                                  "risk_accepted"
                                 ]
                               },
                               "severity": {
@@ -46039,7 +46142,8 @@
                                   "mitigated",
                                   "patched",
                                   "false_positive",
-                                  "not_relevant"
+                                  "not_relevant",
+                                  "risk_accepted"
                                 ]
                               },
                               "severity": {
@@ -46103,7 +46207,8 @@
                                   "mitigated",
                                   "patched",
                                   "false_positive",
-                                  "not_relevant"
+                                  "not_relevant",
+                                  "risk_accepted"
                                 ]
                               },
                               "severity": {
@@ -46532,13 +46637,24 @@
                               "type": "number"
                             },
                             "resolved": {
-                              "type": "number"
+                              "type": "number",
+                              "description": "Closed this week; accepted risks are counted in accepted (D-498)"
                             },
                             "open_confirmed": {
                               "type": "number"
                             },
                             "open_suspected": {
                               "type": "number"
+                            },
+                            "accepted": {
+                              "description": "Risks accepted this week (D-498); absent when none or in reports sent before it",
+                              "type": "number"
+                            },
+                            "accepted_until": {
+                              "description": "The earliest day one of those acceptances ends",
+                              "type": "string",
+                              "format": "date",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
                             },
                             "devices": {
                               "type": "number",
@@ -46667,7 +46783,8 @@
                                   "mitigated",
                                   "patched",
                                   "false_positive",
-                                  "not_relevant"
+                                  "not_relevant",
+                                  "risk_accepted"
                                 ]
                               },
                               "severity": {
@@ -46731,7 +46848,8 @@
                                   "mitigated",
                                   "patched",
                                   "false_positive",
-                                  "not_relevant"
+                                  "not_relevant",
+                                  "risk_accepted"
                                 ]
                               },
                               "severity": {
@@ -46795,7 +46913,8 @@
                                   "mitigated",
                                   "patched",
                                   "false_positive",
-                                  "not_relevant"
+                                  "not_relevant",
+                                  "risk_accepted"
                                 ]
                               },
                               "severity": {

@@ -32025,6 +32025,8 @@ func (s FindingsGetFindingsIDOKStatus) Validate() error {
 		return nil
 	case "not_relevant":
 		return nil
+	case "risk_accepted":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -32374,6 +32376,8 @@ func (s FindingsGetFindingsOKItemsItemStatus) Validate() error {
 	case "false_positive":
 		return nil
 	case "not_relevant":
+		return nil
+	case "risk_accepted":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -33566,6 +33570,8 @@ func (s FindingsPostFindingsIDAiOKStatus) Validate() error {
 		return nil
 	case "not_relevant":
 		return nil
+	case "risk_accepted":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -34683,6 +34689,8 @@ func (s FindingsPostFindingsIDAppliedOKStatus) Validate() error {
 	case "false_positive":
 		return nil
 	case "not_relevant":
+		return nil
+	case "risk_accepted":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -35808,6 +35816,8 @@ func (s FindingsPostFindingsIDStatusOKStatus) Validate() error {
 		return nil
 	case "not_relevant":
 		return nil
+	case "risk_accepted":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -35868,6 +35878,8 @@ func (s FindingsPostFindingsIDStatusReqAction) Validate() error {
 	case "false_positive":
 		return nil
 	case "not_relevant":
+		return nil
+	case "accept_risk":
 		return nil
 	case "reopen":
 		return nil
@@ -36033,6 +36045,8 @@ func (s FindingsPostFindingsStatusReqAction) Validate() error {
 	case "false_positive":
 		return nil
 	case "not_relevant":
+		return nil
+	case "accept_risk":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -50117,6 +50131,8 @@ func (s ReportsGetReportsPdplOKReportRisksItemStatus) Validate() error {
 		return nil
 	case "not_relevant":
 		return nil
+	case "risk_accepted":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -50792,6 +50808,24 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Accepted.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "accepted",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Float{}).Validate(float64(s.Devices)); err != nil {
 			return errors.Wrap(err, "float")
 		}
@@ -51182,6 +51216,8 @@ func (s ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus) Validate(
 		return nil
 	case "not_relevant":
 		return nil
+	case "risk_accepted":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -51252,6 +51288,8 @@ func (s ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus) Validate() error
 		return nil
 	case "not_relevant":
 		return nil
+	case "risk_accepted":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -51321,6 +51359,8 @@ func (s ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus) Validate() e
 	case "false_positive":
 		return nil
 	case "not_relevant":
+		return nil
+	case "risk_accepted":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -52132,6 +52172,24 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Accepted.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "accepted",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Float{}).Validate(float64(s.Devices)); err != nil {
 			return errors.Wrap(err, "float")
 		}
@@ -52522,6 +52580,8 @@ func (s ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus) Validate() 
 		return nil
 	case "not_relevant":
 		return nil
+	case "risk_accepted":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -52592,6 +52652,8 @@ func (s ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus) Validate() error {
 		return nil
 	case "not_relevant":
 		return nil
+	case "risk_accepted":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -52661,6 +52723,8 @@ func (s ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus) Validate() err
 	case "false_positive":
 		return nil
 	case "not_relevant":
+		return nil
+	case "risk_accepted":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -53603,6 +53667,8 @@ func (s ReportsPostReportsPdplGenerateOKRisksItemStatus) Validate() error {
 	case "false_positive":
 		return nil
 	case "not_relevant":
+		return nil
+	case "risk_accepted":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

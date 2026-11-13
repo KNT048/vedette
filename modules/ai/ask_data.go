@@ -42,13 +42,15 @@ type FindingRow struct {
 	Asset      string // name of the device
 	AssetIP    string
 	CVE        string
-	Status     string // confirmed, suspected, mitigated, patched, false_positive, not_relevant
+	Status     string // confirmed, suspected, mitigated, patched, false_positive, not_relevant, risk_accepted
 	Severity   string
 	Basis      string // version, product, scan
 	Confidence float64
 	Evidence   string // the summary of the scan that confirmed it; "" = none
 	FirstSeen  string
 	LastSeen   string
+	// AcceptedUntil (YYYY-MM-DD) is the last day of a risk acceptance, only with status risk_accepted (D-498); "" otherwise.
+	AcceptedUntil string
 }
 
 // IOCFact is an indicator (an IP address or a domain) that feeds list.

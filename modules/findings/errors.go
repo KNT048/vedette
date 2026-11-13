@@ -21,9 +21,10 @@ func (e *APIError) Error() string { return e.Message }
 // API errors of the findings endpoints; Code and HTTP are what the client sees.
 var (
 	ErrNotFound     = &APIError{"not_found", 404, "No such finding."}
-	ErrBadAction    = &APIError{"bad_action", 400, "Choose one of: patched, mitigated, false positive, not relevant, or reopen."}
+	ErrBadAction    = &APIError{"bad_action", 400, "Choose one of: patched, mitigated, false positive, not relevant, accept risk, or reopen."}
 	ErrNoteTooLong  = &APIError{"note_too_long", 400, "The note can be at most 500 characters. Shorten it."}
-	ErrNoteRequired = &APIError{"note_required", 400, "Write why this is a false positive or not relevant (at least 3 characters) so the next person understands."}
+	ErrNoteRequired = &APIError{"note_required", 400, "Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands."}
+	ErrBadUntil     = &APIError{"bad_until", 400, "Accept the risk until a date from tomorrow up to one year from today."}
 	ErrAlreadyOpen  = &APIError{"already_open", 409, "This finding is already open."}
 )
 

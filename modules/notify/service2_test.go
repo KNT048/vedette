@@ -655,3 +655,39 @@ func TestSubscribeRaisedAndReopenedAreSilentInTheBaseline(t *testing.T) {
 		t.Fatalf("notices in the baseline = %d", n)
 	}
 }
+
+// D-498, INV-21: an accepted risk whose day passed is told once, by name, and not in the baseline.
+func TestSubscribeToldWhenARiskAcceptanceEnds(t *testing.T) {
+	e := newEnv(t, func(c *notify.Config) {
+		c.Findings = fakeFindings{map[string]notify.FindingInfo{
+			"f-1": {CVE: "CVE-2026-100", Product: "QNAP Photo Station", Severity: notify.Critical, Title: "t", What: "It is exploited.", Action: "a", Devices: []string{"NAS-01"}},
+		}}
+	})
+	smtp := newFakeSMTP(t)
+	e.email(smtp)
+	e.plain()
+	e.svc.Subscribe(e.bus)
+	ev := findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusRiskAccepted, To: findings.StatusConfirmed, Reason: findings.ReasonRiskExpired,
+		AcceptedBy: "it@acme.example", AcceptedUntil: "2027-02-12"}
+	if err := e.bus.Publish(notify.WithBaseline(e.ctx()), events.Event{Name: notify.EventFindingStatusChanged, Data: ev}); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT COUNT(*) FROM notify_notice`); n != 0 {
+		t.Fatalf("notices in the baseline = %d", n)
+	}
+	for range 2 {
+		if err := e.bus.Publish(e.ctx(), events.Event{Name: notify.EventFindingStatusChanged, Data: ev}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e.flush()
+	if n := e.count(`SELECT COUNT(*) FROM notify_notice`); n != 1 || e.count(`SELECT COUNT(*) FROM notify_notice WHERE id LIKE 'nt-f-1-reopened-%'`) != 1 {
+		t.Fatalf("notices = %d", n)
+	}
+	all := strings.NewReplacer("=\r\n", "", "=\n", "", "\r\n ", " ", "\n ", " ").Replace(strings.Join(smtp.messages(), "\n"))
+	for _, want := range []string{"Risk acceptance ended: CVE-2026-100 on NAS-01 is open again", "it@acme.example accepted this risk until 12 Feb 2027; that date has passed."} {
+		if !strings.Contains(all, want) {
+			t.Fatalf("text %q missing: %s", want, all)
+		}
+	}
+}

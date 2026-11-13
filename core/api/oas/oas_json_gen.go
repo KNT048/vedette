@@ -34593,6 +34593,8 @@ func (s *CoreGetCoreUpdatesOKLastCheckErrorCode) Decode(d *jx.Decoder) error {
 	switch CoreGetCoreUpdatesOKLastCheckErrorCode(v) {
 	case CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable:
 		*s = CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable
+	case CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateNotPublished:
+		*s = CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateNotPublished
 	case CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed:
 		*s = CoreGetCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed
 	default:
@@ -41034,6 +41036,8 @@ func (s *CorePatchCoreUpdatesOKLastCheckErrorCode) Decode(d *jx.Decoder) error {
 	switch CorePatchCoreUpdatesOKLastCheckErrorCode(v) {
 	case CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable:
 		*s = CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateSourceUnreachable
+	case CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateNotPublished:
+		*s = CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateNotPublished
 	case CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed:
 		*s = CorePatchCoreUpdatesOKLastCheckErrorCodeUpdateCheckFailed
 	default:
@@ -56231,6 +56235,8 @@ func (s *CorePostCoreUpdatesApplyOKLastCheckErrorCode) Decode(d *jx.Decoder) err
 	switch CorePostCoreUpdatesApplyOKLastCheckErrorCode(v) {
 	case CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateSourceUnreachable:
 		*s = CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateSourceUnreachable
+	case CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateNotPublished:
+		*s = CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateNotPublished
 	case CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateCheckFailed:
 		*s = CorePostCoreUpdatesApplyOKLastCheckErrorCodeUpdateCheckFailed
 	default:
@@ -59001,6 +59007,8 @@ func (s *CorePostCoreUpdatesBundleOKStateLastCheckErrorCode) Decode(d *jx.Decode
 	switch CorePostCoreUpdatesBundleOKStateLastCheckErrorCode(v) {
 	case CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateSourceUnreachable:
 		*s = CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateSourceUnreachable
+	case CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateNotPublished:
+		*s = CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateNotPublished
 	case CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateCheckFailed:
 		*s = CorePostCoreUpdatesBundleOKStateLastCheckErrorCodeUpdateCheckFailed
 	default:
@@ -61728,6 +61736,8 @@ func (s *CorePostCoreUpdatesCheckOKLastCheckErrorCode) Decode(d *jx.Decoder) err
 	switch CorePostCoreUpdatesCheckOKLastCheckErrorCode(v) {
 	case CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateSourceUnreachable:
 		*s = CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateSourceUnreachable
+	case CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateNotPublished:
+		*s = CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateNotPublished
 	case CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateCheckFailed:
 		*s = CorePostCoreUpdatesCheckOKLastCheckErrorCodeUpdateCheckFailed
 	default:
@@ -67234,6 +67244,8 @@ func (s *CorePostCoreUpdatesRollbackOKLastCheckErrorCode) Decode(d *jx.Decoder) 
 	switch CorePostCoreUpdatesRollbackOKLastCheckErrorCode(v) {
 	case CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateSourceUnreachable:
 		*s = CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateSourceUnreachable
+	case CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateNotPublished:
+		*s = CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateNotPublished
 	case CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateCheckFailed:
 		*s = CorePostCoreUpdatesRollbackOKLastCheckErrorCodeUpdateCheckFailed
 	default:
@@ -153310,6 +153322,50 @@ func (s *NilBool) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes CoreDeleteCoreUpdatesOsRebootOKOs as json.
+func (o NilCoreDeleteCoreUpdatesOsRebootOKOs) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CoreDeleteCoreUpdatesOsRebootOKOs from json.
+func (o *NilCoreDeleteCoreUpdatesOsRebootOKOs) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCoreDeleteCoreUpdatesOsRebootOKOs to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CoreDeleteCoreUpdatesOsRebootOKOs
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCoreDeleteCoreUpdatesOsRebootOKOs) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCoreDeleteCoreUpdatesOsRebootOKOs) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes CoreDeleteCoreUpdatesOsRebootOKReleaseUpgrade as json.
 func (o NilCoreDeleteCoreUpdatesOsRebootOKReleaseUpgrade) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -153794,6 +153850,50 @@ func (s *NilCoreGetCoreUpdatesOKRunningRevoked) UnmarshalJSON(data []byte) error
 	return s.Decode(d)
 }
 
+// Encode encodes CoreGetCoreUpdatesOsOKOs as json.
+func (o NilCoreGetCoreUpdatesOsOKOs) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CoreGetCoreUpdatesOsOKOs from json.
+func (o *NilCoreGetCoreUpdatesOsOKOs) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCoreGetCoreUpdatesOsOKOs to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CoreGetCoreUpdatesOsOKOs
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCoreGetCoreUpdatesOsOKOs) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCoreGetCoreUpdatesOsOKOs) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes CoreGetCoreUpdatesOsOKReleaseUpgrade as json.
 func (o NilCoreGetCoreUpdatesOsOKReleaseUpgrade) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -154186,6 +154286,50 @@ func (s NilCorePatchCoreUpdatesOKRunningRevoked) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilCorePatchCoreUpdatesOKRunningRevoked) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePatchCoreUpdatesOsSettingsOKOs as json.
+func (o NilCorePatchCoreUpdatesOsSettingsOKOs) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePatchCoreUpdatesOsSettingsOKOs from json.
+func (o *NilCorePatchCoreUpdatesOsSettingsOKOs) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCorePatchCoreUpdatesOsSettingsOKOs to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CorePatchCoreUpdatesOsSettingsOKOs
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCorePatchCoreUpdatesOsSettingsOKOs) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCorePatchCoreUpdatesOsSettingsOKOs) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -154982,6 +155126,50 @@ func (s *NilCorePostCoreUpdatesCheckOKRunningRevoked) UnmarshalJSON(data []byte)
 	return s.Decode(d)
 }
 
+// Encode encodes CorePostCoreUpdatesOsCheckOKOs as json.
+func (o NilCorePostCoreUpdatesOsCheckOKOs) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePostCoreUpdatesOsCheckOKOs from json.
+func (o *NilCorePostCoreUpdatesOsCheckOKOs) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCorePostCoreUpdatesOsCheckOKOs to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CorePostCoreUpdatesOsCheckOKOs
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCorePostCoreUpdatesOsCheckOKOs) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCorePostCoreUpdatesOsCheckOKOs) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes CorePostCoreUpdatesOsCheckOKReleaseUpgrade as json.
 func (o NilCorePostCoreUpdatesOsCheckOKReleaseUpgrade) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -155066,6 +155254,50 @@ func (s NilCorePostCoreUpdatesOsInstallAcceptedResult) MarshalJSON() ([]byte, er
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilCorePostCoreUpdatesOsInstallAcceptedResult) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreUpdatesOsRebootOKOs as json.
+func (o NilCorePostCoreUpdatesOsRebootOKOs) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePostCoreUpdatesOsRebootOKOs from json.
+func (o *NilCorePostCoreUpdatesOsRebootOKOs) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCorePostCoreUpdatesOsRebootOKOs to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CorePostCoreUpdatesOsRebootOKOs
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCorePostCoreUpdatesOsRebootOKOs) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCorePostCoreUpdatesOsRebootOKOs) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

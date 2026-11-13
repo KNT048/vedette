@@ -34,6 +34,7 @@ type releaseServer struct {
 	mu    sync.Mutex
 	files map[string][]byte
 	hits  map[string]int
+	down  bool // every request answers 503
 }
 
 func newReleaseServer(t *testing.T) *releaseServer {
@@ -43,7 +44,12 @@ func newReleaseServer(t *testing.T) *releaseServer {
 		s.mu.Lock()
 		s.hits[r.URL.Path]++
 		b, ok := s.files[r.URL.Path]
+		down := s.down
 		s.mu.Unlock()
+		if down {
+			http.Error(w, "unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		if !ok {
 			http.NotFound(w, r)
 			return
@@ -338,6 +344,12 @@ func TestUpdateCheckRefusesWhatDoesNotVerify(t *testing.T) {
 		}},
 		"source down": {503, core.CodeUpdateSourceUnreachable, func(_ *testing.T, e *updEnv) {
 			e.srv.mu.Lock()
+			e.srv.down = true
+			e.srv.mu.Unlock()
+		}},
+		// D-407 (walk 4): the source answers 404, as GitHub does for a build with no release: not a network problem.
+		"not published": {502, core.CodeUpdateNotPublished, func(_ *testing.T, e *updEnv) {
+			e.srv.mu.Lock()
 			delete(e.srv.files, "/index/index.json")
 			e.srv.mu.Unlock()
 		}},
@@ -349,7 +361,7 @@ func TestUpdateCheckRefusesWhatDoesNotVerify(t *testing.T) {
 			tc.breakIt(t, e)
 			r := e.oper.post("/core/updates/check", nil)
 			wantStatus(t, r, tc.code, tc.code2)
-			if strings.Contains(r.Raw, "evil") || strings.Contains(r.Raw, "HTTP 404") {
+			if strings.Contains(r.Raw, "evil") || strings.Contains(r.Raw, "HTTP 404") || strings.Contains(r.Raw, "HTTP 503") {
 				t.Errorf("the answer echoes remote details: %s", r.Raw)
 			}
 			g := e.viewer.get("/core/updates")
@@ -361,8 +373,11 @@ func TestUpdateCheckRefusesWhatDoesNotVerify(t *testing.T) {
 			if ce, _ := g.JSON["last_check_error"].(map[string]any); ce["code"] != tc.code2 || ce["at"] == nil || ce["message"] != r.JSON["error"].(map[string]any)["message"] {
 				t.Errorf("last_check_error = %v, want code %s and the message of %s", g.JSON["last_check_error"], tc.code2, r.Raw)
 			}
-			if strings.Contains(g.Raw, "evil") || strings.Contains(g.Raw, "HTTP 404") {
+			if strings.Contains(g.Raw, "evil") || strings.Contains(g.Raw, "HTTP 404") || strings.Contains(g.Raw, "HTTP 503") {
 				t.Errorf("the state echoes remote details: %s", g.Raw)
+			}
+			if msg, _ := g.JSON["last_check_error"].(map[string]any)["message"].(string); (tc.code2 == core.CodeUpdateSourceUnreachable) != strings.Contains(msg, "reach github.com") {
+				t.Errorf("message = %q: only a source that could not be reached asks about the network", msg)
 			}
 			e.wantNothingOffered(t, g)
 			if e.srv.hit("/v1.4.0/release-manifest.json") != 0 && name == "foreign manifest url" {

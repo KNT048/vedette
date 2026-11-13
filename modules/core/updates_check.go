@@ -42,6 +42,7 @@ const DefaultReleaseBase = "https://github.com/KNT048/vedette/releases/download"
 const (
 	CodeUpdateSourceUnreachable = "update_source_unreachable"
 	CodeUpdateCheckFailed       = "update_check_failed"
+	CodeUpdateNotPublished      = "update_not_published"
 )
 
 const (
@@ -210,7 +211,7 @@ type updateSettings struct {
 // for it (checkFailure's message, never text received from the network).
 type checkErrorView struct {
 	At      time.Time `json:"at"`
-	Code    string    `json:"code"` // CodeUpdateSourceUnreachable | CodeUpdateCheckFailed
+	Code    string    `json:"code"` // CodeUpdateSourceUnreachable | CodeUpdateNotPublished | CodeUpdateCheckFailed
 	Message string    `json:"message"`
 }
 
@@ -464,8 +465,12 @@ func (h *OSHandlers) restoresData(r releaseNow) bool {
 
 // ---- fetching ----
 
-// errSource is a download that did not happen: the network, a timeout, or an answer other than 200.
-type errSource struct{ err error }
+// errSource is a download that did not happen: the network, a timeout, or an answer other than 200 (status, 0 when
+// no answer came).
+type errSource struct {
+	err    error
+	status int
+}
 
 func (e errSource) Error() string { return "core: update source: " + e.err.Error() }
 func (e errSource) Unwrap() error { return e.err }
@@ -480,15 +485,15 @@ func (h *OSHandlers) fetchDoc(ctx context.Context, rawURL string, limit int64) (
 	req.Header.Set("User-Agent", h.upd.userAgent())
 	resp, err := h.upd.client.Do(req)
 	if err != nil {
-		return nil, errSource{err}
+		return nil, errSource{err: err}
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return nil, errSource{fmt.Errorf("HTTP %d", resp.StatusCode)}
+		return nil, errSource{err: fmt.Errorf("HTTP %d", resp.StatusCode), status: resp.StatusCode}
 	}
 	b, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
-		return nil, errSource{err}
+		return nil, errSource{err: err}
 	}
 	if int64(len(b)) > limit {
 		return nil, release.ErrTooLarge
@@ -526,6 +531,10 @@ func (h *OSHandlers) checkFailure(ctx context.Context, err error) error {
 	switch {
 	case errors.Is(err, context.Canceled):
 		return err
+	case errors.As(err, &src) && src.status == http.StatusNotFound:
+		// The source answered: it has no update information for this build (D-407, walk 4: a test build with no release).
+		h.log.WarnContext(ctx, "core: the update source has no release information for this build", "error", err)
+		return apierr.New(502, CodeUpdateNotPublished, "No release found for this version yet: the release source answered, but has no update information for this build. Nothing needs fixing on the box; Vedette checks again every 6 hours.")
 	case errors.As(err, &src) || errors.Is(err, context.DeadlineExceeded):
 		h.log.WarnContext(ctx, "core: the update source could not be reached", "error", err)
 		return apierr.New(503, CodeUpdateSourceUnreachable, "Vedette could not download the update information from GitHub. Check that the box can reach github.com over HTTPS, then try again.")

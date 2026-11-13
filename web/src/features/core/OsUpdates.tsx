@@ -12,7 +12,6 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Input, Label } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { Switch } from '@/components/ui/switch'
-import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtRelative, isNever } from '@/lib/format'
 import { useOsMutations, useOsRun, useOsState } from './api'
 import { Band, errMsg, useGate } from './parts'
@@ -22,7 +21,7 @@ const DAYS = [1, 2, 3, 4, 5, 6, 7]
 const monthYear = (d: string) => new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }).format(new Date(`${d}T12:00:00`))
 
 /** Hết hạn hỗ trợ: đã qua, sắp tới (trong 12 tháng) hay còn dài. Debian có thêm giai đoạn LTS. */
-function support(os: OsState['os'], now = Date.now()): 'ok' | 'soon' | 'extended' | 'ended' {
+function support(os: NonNullable<OsState['os']>, now = Date.now()): 'ok' | 'soon' | 'extended' | 'ended' {
   const std = new Date(`${os.support_end}T23:59:59`).getTime()
   if (now > std) return os.extended_end && now < new Date(`${os.extended_end}T23:59:59`).getTime() ? 'extended' : 'ended'
   return std - now < 365 * 864e5 ? 'soon' : 'ok'
@@ -157,7 +156,10 @@ function RunPanel({ run }: { run: OsRun }) {
   )
 }
 
-function Body({ s }: { s: OsState }) {
+/** The state of a box that has looked for updates at least once (os is null before, D-407). */
+type CheckedOs = OsState & { os: NonNullable<OsState['os']> }
+
+function Body({ s }: { s: CheckedOs }) {
   const { t } = useTranslation('core')
   const admin = useGate('admin')
   const operator = useGate('operator')
@@ -285,8 +287,8 @@ function Body({ s }: { s: OsState }) {
 }
 
 /** Khối a của Settings → Updates: hệ điều hành của chính hộp (D-53, S-CORE-7). */
-/** The box has not looked for updates yet (409 no_check_yet): keep its message and offer Check now, which is what the message says to do (issue #231). */
-function NoCheckYet({ error }: { error: ApiError }) {
+/** The box has not looked for updates yet (os null, D-407; issue #231): say so and offer Check now, which is what the sentence says to do. */
+function NoCheckYet() {
   const { t } = useTranslation('core')
   const operator = useGate('operator')
   const m = useOsMutations()
@@ -294,7 +296,7 @@ function NoCheckYet({ error }: { error: ApiError }) {
     <section id="os" aria-labelledby="os-band">
       <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')}
         actions={<Button onClick={() => void m.check.mutateAsync().then(() => toast.success(t('updates.os.checked'))).catch((e) => toast.error(errMsg(e, t)))} disabled={operator.disabled || m.check.isPending} title={operator.title}><RefreshCw />{t('updates.os.checkNow')}</Button>} />
-      <p role="status" className="text-sm">{error.message}</p>
+      <p role="status" className="text-sm">{t('updates.os.noCheckYet')}</p>
     </section>
   )
 }
@@ -302,13 +304,12 @@ function NoCheckYet({ error }: { error: ApiError }) {
 export function OsBlock() {
   const { t } = useTranslation('core')
   const q = useOsState()
-  if (q.error instanceof ApiError && q.error.code === 'no_check_yet') return <NoCheckYet error={q.error} />
   // Band 1 stays when this part shows only an error, so the page numbers 1, 2, 3 whichever part loads (issue #241).
   if (q.error) return (
     <section id="os" aria-labelledby="os-band">
       <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')} />
-      <QueryState query={q}>{(s) => <Body s={s} />}</QueryState>
+      <QueryState query={q}>{(s) => (s.os ? <Body s={{ ...s, os: s.os }} /> : <NoCheckYet />)}</QueryState>
     </section>
   )
-  return <QueryState query={q}>{(s) => <Body s={s} />}</QueryState>
+  return <QueryState query={q}>{(s) => (s.os ? <Body s={{ ...s, os: s.os }} /> : <NoCheckYet />)}</QueryState>
 }

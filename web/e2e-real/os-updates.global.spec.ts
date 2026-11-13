@@ -52,17 +52,17 @@ test.afterAll(async () => {
   await hostKnob('lock', 'off'); await hostKnob('install_fail', 'off'); await hostKnob('reboot_required', 'off')
 })
 
-test('a box that was never checked says so in words and with the right code, and no screen breaks', async ({ page }) => {
+test('a box that was never checked says so in words, with os null and no 4xx, and no screen breaks (D-407)', async ({ page }) => {
   const errors = collectErrors(page)
-  const st = await admin((c) => api<{ error: { code: string; message: string } }>(c, 'GET', '/core/updates/os'))
-  expect(st.status).toBe(409)
-  expect(st.body.error.code).toBe('no_check_yet')
+  const st = await admin((c) => api<{ os: unknown; pending: unknown[] }>(c, 'GET', '/core/updates/os'))
+  expect(st.status).toBe(200)
+  expect([st.body.os, st.body.pending]).toEqual([null, []])
   await open(page)
   await expect(h1(page)).toBeVisible()
-  await expect(page.getByRole('status').filter({ hasText: st.body.error.message }), 'not an error: the box just has not looked yet (#247)').toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'The box has not looked for operating system updates yet. Click Check now.' }), 'not an error: the box just has not looked yet (#247)').toBeVisible()
   await shot(page, 'real', 'os-never-checked')
   await noVietnamese(page, 'updates before the first check')
-  noErrors(errors, /status of 4\d\d/)
+  noErrors(errors, /status of 4\d\d/) // other reads of the page may still answer 4xx here; the API answer above is the D-407 check
 })
 
 // Issue #230 (fixed in #247): the operating system part of Settings -> Updates no longer waits for GET /core/updates (software updates, 501).

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net"
 	"sync"
 
@@ -34,6 +35,16 @@ func exposureService(d deps) *exposure.Service {
 		panic("vedette: " + err.Error())
 	}
 	cfg := exposure.Config{DB: d.DB, Audit: d.Audit, Resolver: net.DefaultResolver, Prober: prober, Runner: scanRunner(d), Log: d.Log, Clock: d.Clock}
+	if d.Auth != nil { // D-473: the first scan of a target records the commitment only for an administrator with two-step sign-in
+		auth := d.Auth
+		cfg.TwoStep = func(ctx context.Context, userID string) (bool, error) {
+			u, err := auth.GetUser(ctx, userID)
+			if err != nil {
+				return false, err
+			}
+			return u.TwofaMethod != "", nil
+		}
+	}
 	if d.Inventory != nil && d.Findings != nil { // D-492; a nil service would only fail at the first read
 		g := exposureGateway{inv: d.Inventory, fnd: d.Findings}
 		if d.HostSocket != "" {

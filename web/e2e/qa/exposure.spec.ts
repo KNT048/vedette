@@ -1,17 +1,34 @@
+import { createHmac } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
 import { DIACRITICS, finishClean, sampleStart, setEgress } from './clean'
 
 // QA module exposure (S-EXP-1): domain = DNS TXT only; public IP = only the IP this box uses to reach the Internet;
-// one commitment checkbox instead of consent documents.
+// D-473: an administrator's first Scan now (two-step sign-in on) is the commitment; no tick box, no consent documents.
 const api = (page: Page, method: string, path: string, body?: unknown) =>
   page.evaluate(async ([m, p, b]) => {
     const r = await fetch(`/api/v1${p as string}`, { method: m as string, headers: { 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined })
     return { status: r.status, body: await r.json().catch(() => null) }
   }, [method, path, body] as const)
 const visible = (page: Page, text: string | RegExp) => page.getByText(text).locator('visible=true').first()
-const ASIS = 'Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.'
-const COMMIT = 'I confirm my company owns this domain/IP and I am authorized to scan it.'
+const ASIS_PART = 'Vedette is provided as is under the Apache-2.0 license'
+const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+/** RFC 6238 code (SHA-1, 6 digits, 30 s) written in the test, like twofa.spec.ts. */
+function totp(secret: string) {
+  let bits = 0, v = 0
+  const key: number[] = []
+  for (const c of secret.toUpperCase()) { const i = B32.indexOf(c); if (i < 0) continue; v = (v << 5) | i; bits += 5; if (bits >= 8) { key.push((v >>> (bits - 8)) & 255); bits -= 8 } }
+  const c = Buffer.alloc(8); c.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000)))
+  const h = createHmac('sha1', Buffer.from(key)).update(c).digest()
+  const o = h[19]! & 15
+  return String((((h[o]! & 127) << 24) | (h[o + 1]! << 16) | (h[o + 2]! << 8) | h[o + 3]!) % 1_000_000).padStart(6, '0')
+}
+/** Turn on two-step sign-in for the signed-in administrator through the account API (an authenticator app). */
+async function turnOnTwoStep(page: Page, password: string) {
+  const start = await api(page, 'POST', '/core/account/2fa/start', { password })
+  expect(start.status).toBe(200)
+  expect((await api(page, 'POST', '/core/account/2fa/confirm', { code: totp(start.body.secret) })).status).toBe(200)
+}
 
 test('clean install: no sample targets, the box finds its two IPs by itself; a domain goes through TXT verification, the commitment, a scan and deletion', async ({ page, isMobile }) => {
   test.setTimeout(120_000)
@@ -63,33 +80,32 @@ test('clean install: no sample targets, the box finds its two IPs by itself; a d
   await page.getByRole('button', { name: 'Check', exact: true }).click()
   await expect(page.getByText(/Verified with a DNS TXT record/)).toBeVisible()
 
-  // Verified but not confirmed: still no scan, in the button and in the API.
+  // Verified but not confirmed, administrator without two-step sign-in: no scan, in the button (with the way to turn it on) and in the API.
   await expect(scan).toBeDisabled()
-  await expect(page.locator('#scan-reason')).toContainText('you have not confirmed')
-  const blocked = await api(page, 'POST', `/exposure/targets/${id}/scan`)
-  expect(blocked.status).toBe(400)
-  expect(blocked.body.error.code).toBe('commitment_required')
+  await expect(page.locator('#scan-reason')).toContainText('Turn on two-step sign-in for your account before the first scan')
+  await expect(page.getByRole('link', { name: 'Turn on two-step sign-in' })).toHaveAttribute('href', '/account#two-step')
+  const blocked = await api(page, 'POST', `/exposure/targets/${id}/scan`, { notice_version: '2026-11-13' })
+  expect(blocked.status).toBe(403)
+  expect(blocked.body.error.code).toBe('twofa_required')
 
-  // Commitment: exact wording, as-is line, needs the tick.
-  await expect(page.getByText(COMMIT)).toBeVisible()
-  await expect(page.getByText(ASIS)).toBeVisible()
-  await page.getByRole('button', { name: 'Confirm and allow scanning' }).click()
-  await expect(page.getByText('Tick the box to confirm.')).toBeVisible()
-  await page.getByRole('checkbox').check()
-  await expect(page.getByText('Tick the box to confirm.')).toHaveCount(0)
+  // With two-step sign-in on, the sentence stands next to the button; there is no tick box. Scan now records it.
+  await turnOnTwoStep(page, 'a-very-long-password-123')
+  await page.reload()
+  const note = page.getByRole('note', { name: 'Pressing Scan now records this confirmation' })
+  await expect(note).toContainText('By choosing Scan now I confirm that my company owns')
+  await expect(note).toContainText(ASIS_PART)
+  await expect(page.getByRole('checkbox')).toHaveCount(0)
   await shot(page, 'exposure', `commitment-${isMobile ? 'mobile' : 'desktop'}`)
-  await page.getByRole('button', { name: 'Confirm and allow scanning' }).click()
-  await expect(page.getByText(/Confirmed by admin@testco\.example on /)).toBeVisible()
-
   await expect(scan).toBeEnabled()
   await scan.click()
+  await expect(page.getByText(/Confirmed by admin@testco\.example on .*, by pressing Scan now\./)).toBeVisible()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/subdomain\(s\), \d+ admin interface\(s\)/)
   await expect(page.getByRole('table', { name: 'Ports open to the Internet' })).toBeVisible()
   await expect(page.getByText('At least two scan days are needed to compare')).toBeVisible()
   await shot(page, 'exposure', `target-results-${isMobile ? 'mobile' : 'desktop'}`)
   await expectAccessible(page, 'target with results')
 
-  // The audit log recorded who ticked and when.
+  // The audit log recorded who confirmed and when.
   const audit = await api(page, 'GET', '/core/audit')
   expect(JSON.stringify(audit.body)).toContain('exposure.commitment')
 
@@ -321,11 +337,10 @@ test('sample: expired IP, expiring IP, missing TXT record and unverified domain 
   await page.getByRole('button', { name: 'Check again' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/old-site\.example is ready for its first scan/)
 
-  // Unverified domain: nothing to scan, commitment refused by the API.
+  // Unverified domain: nothing to scan.
   await page.goto('/exposure/xt-3')
   await expect(page.getByRole('button', { name: 'Scan now' })).toBeDisabled()
   expect((await api(page, 'POST', '/exposure/targets/xt-3/scan')).body.error.code).toBe('not_verified')
-  expect((await api(page, 'POST', '/exposure/targets/xt-3/commitment', { confirm: true })).body.error.code).toBe('not_verified')
 
   // Compare two days and a fresh scan.
   await page.goto('/exposure/xt-1')

@@ -5,7 +5,8 @@ import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
-import { auditStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { auditStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
+import { NOTICE_VERSION } from './contract'
 import { feature } from './index'
 import { portLabel, riskOf } from './services'
 
@@ -201,9 +202,9 @@ describe('exposure: domain ownership = DNS TXT only', () => {
     expect(await screen.findByText(/was not found on acme-demo\.example/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Check' }))
     expect(await screen.findByText(/Verified with a DNS TXT record/)).toBeInTheDocument()
-    // verified but not confirmed: still locked
+    // verified but not confirmed: an administrator without two-step sign-in cannot make the first scan (D-473)
     expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled()
-    expect(screen.getAllByText(/you have not confirmed that your company owns acme-demo\.example/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/before the first scan of acme-demo\.example/).length).toBeGreaterThan(0)
   })
 
   it('a verified domain whose TXT record is gone cannot be scanned, in the UI and in the API', async () => {
@@ -724,45 +725,84 @@ describe('exposure: scan-time check of an IP (D-79 (2), INV-13)', () => {
     const id = (await call('GET', '/exposure/targets')).json.items.find((t: { value: string }) => t.value === '198.51.100.50').id
     setEgress('198.51.100.51')
     advance(6)
-    expect((await call('POST', `/exposure/targets/${id}/scan`)).json.error.code).toBe('commitment_required')
+    expect((await call('POST', `/exposure/targets/${id}/scan`, undefined, 'operator')).json.error.code).toBe('commitment_required')
   })
 })
 
 
-describe('exposure: the commitment replaces signed documents', () => {
-  it('has no consent form, template or file upload', async () => {
-    renderApp('/exposure/xt-3')
+describe("exposure: an administrator's first Scan now is the confirmation (D-473)", () => {
+  const verifiedTarget = async (value: string) => {
+    await call('POST', '/exposure/targets', { value })
+    const id = ((await call('GET', '/exposure/targets')).json.items as { id: string; value: string }[]).find((t) => t.value === value)!.id
+    await call('POST', `/exposure/targets/${id}/verify`); await call('POST', `/exposure/targets/${id}/verify`)
+    return id
+  }
+  const withTwoStep = (on: boolean) => usersStore.update((l) => l.map((x) => (x.id === 'u-admin' ? { ...x, twofa: on } : x)))
+
+  it('has no consent form, template, tick box or file upload', async () => {
+    withTwoStep(true)
+    const id = await verifiedTarget('nobox.acme.example')
+    renderApp(`/exposure/${id}`)
     await screen.findByRole('heading', { level: 1 })
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(screen.queryByText(/template/i)).not.toBeInTheDocument()
     expect(document.querySelector('input[type="file"]')).toBeNull()
   })
 
-  it('needs the tick, shows the as-is line, records who and when, then scanning opens', async () => {
-    await call('POST', '/exposure/targets', { value: 'fresh.acme.example' })
-    const list = (await call('GET', '/exposure/targets')).json.items as { id: string; value: string }[]
-    const id = list.find((t) => t.value === 'fresh.acme.example')!.id
-    await call('POST', `/exposure/targets/${id}/verify`); await call('POST', `/exposure/targets/${id}/verify`)
+  it('the page shows the sentence the API sent next to the button, and pressing it records exactly that', async () => {
+    withTwoStep(true)
+    const id = await verifiedTarget('fresh.acme.example')
+    const sent = (await call('GET', `/exposure/targets/${id}`)).json.commitment_notice as { version: string; text: string }
     renderApp(`/exposure/${id}`)
-    expect(await screen.findByText('I confirm my company owns this domain/IP and I am authorized to scan it.')).toBeInTheDocument()
-    expect(screen.getByText('Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm and allow scanning' }))
-    expect(await screen.findByText('Tick the box to confirm.')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('checkbox'))
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm and allow scanning' }))
-    expect(await screen.findByText(/Confirmed by .+ on /)).toBeInTheDocument()
-    expect(auditStore.get().some((a) => a.action === 'exposure.commitment' && a.target === 'fresh.acme.example')).toBe(true)
-    expect((await call('POST', `/exposure/targets/${id}/scan`)).status).toBe(200)
+    const note = await screen.findByRole('note', { name: 'Pressing Scan now records this confirmation' })
+    expect(within(note).getByText(sent.text)).toBeInTheDocument()
+    expect(sent.text).toContain('fresh.acme.example')
+    await userEvent.click(screen.getByRole('button', { name: 'Scan now' }))
+    expect(await screen.findByText(/Confirmed by .+ on .+, by pressing Scan now\./)).toBeInTheDocument()
+    const c = (await call('GET', `/exposure/targets/${id}`)).json
+    expect(c.commitment).toMatchObject({ by: 'admin@acme.example', version: sent.version, sentence: sent.text })
+    expect(c.commitment_notice).toBeNull()
+    expect(auditStore.get().some((a) => a.action === 'exposure.commitment' && a.target === 'fresh.acme.example' && a.detail?.includes(sent.text))).toBe(true)
   })
 
-  it('API: commitment needs verification and confirm=true; scan is blocked without it', async () => {
-    expect((await call('POST', '/exposure/targets/xt-3/commitment', { confirm: true })).json.error.code).toBe('not_verified')
-    await call('POST', '/exposure/targets', { value: 'blocked.acme.example' })
-    const id = ((await call('GET', '/exposure/targets')).json.items as { id: string; value: string }[]).find((t) => t.value === 'blocked.acme.example')!.id
-    await call('POST', `/exposure/targets/${id}/verify`); await call('POST', `/exposure/targets/${id}/verify`)
-    expect((await call('POST', `/exposure/targets/${id}/scan`)).json.error).toMatchObject({ code: 'commitment_required' })
-    expect((await call('POST', `/exposure/targets/${id}/commitment`, { confirm: false })).status).toBe(400)
-    expect((await call('POST', `/exposure/targets/${id}/commitment`, { confirm: true }, 'operator')).status).toBe(403)
-    expect((await call('POST', `/exposure/targets/${id}/commitment`, { confirm: true })).status).toBe(200)
+  it('an administrator without two-step sign-in cannot press it and is told to turn it on', async () => {
+    withTwoStep(false)
+    const id = await verifiedTarget('notwo.acme.example')
+    renderApp(`/exposure/${id}`)
+    expect(await screen.findByText(/Turn on two-step sign-in for your account before the first scan/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Turn on two-step sign-in' })).toHaveAttribute('href', '/account#two-step')
+    expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled()
+    const r = await call('POST', `/exposure/targets/${id}/scan`, { notice_version: '2026-11-13' })
+    expect(r.status).toBe(403)
+    expect(r.json.error.code).toBe('twofa_required')
+    expect((await call('GET', `/exposure/targets/${id}`)).json.commitment).toBeNull()
+  })
+
+  it('an operator cannot scan an unconfirmed target: the page and the API say an administrator must run the first scan', async () => {
+    const id = await verifiedTarget('op.acme.example')
+    renderApp(`/exposure/${id}`, { role: 'operator' })
+    expect(await screen.findByText(/an administrator must run the first scan of op\.acme\.example/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled()
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+    const r = await call('POST', `/exposure/targets/${id}/scan`, undefined, 'operator')
+    expect(r.json.error).toMatchObject({ code: 'commitment_required' })
+    expect(r.json.error.message).toMatch(/administrator must run the first scan/)
+  })
+
+  it('API: the version must be the current one; a confirmed target is scanned by an operator and never re-recorded', async () => {
+    withTwoStep(true)
+    const id = await verifiedTarget('api.acme.example')
+    expect((await call('POST', `/exposure/targets/${id}/scan`)).json.error.code).toBe('commitment_required') // no version
+    const stale = await call('POST', `/exposure/targets/${id}/scan`, { notice_version: '2020-01-01' })
+    expect([stale.status, stale.json.error.code]).toEqual([409, 'notice_changed'])
+    expect((await call('GET', `/exposure/targets/${id}`)).json.commitment).toBeNull()
+    const ok = await call('POST', `/exposure/targets/${id}/scan`, { notice_version: NOTICE_VERSION })
+    expect(ok.status).toBe(200)
+    const first = (await call('GET', `/exposure/targets/${id}`)).json.commitment
+    expect((await call('POST', `/exposure/targets/${id}/scan`, undefined, 'operator')).status).toBe(200)
+    expect((await call('POST', `/exposure/targets/${id}/scan`, { notice_version: NOTICE_VERSION })).status).toBe(200)
+    expect((await call('GET', `/exposure/targets/${id}`)).json.commitment).toEqual(first)
+    expect(auditStore.get().filter((a) => a.action === 'exposure.commitment' && a.target === 'api.acme.example')).toHaveLength(1)
   })
 })
 

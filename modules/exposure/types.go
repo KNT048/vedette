@@ -70,6 +70,9 @@ type Check struct {
 type Commitment struct {
 	By string `json:"by"`
 	At string `json:"at"`
+	// Version and Sentence: the exact sentence the administrator saw next to Scan now (D-473); nil on a commitment recorded earlier.
+	Version  *string `json:"version"`
+	Sentence *string `json:"sentence"`
 }
 
 // Counts are the numbers of one snapshot (INV-8).
@@ -97,22 +100,25 @@ type Target struct {
 
 // TargetView is the API shape of a target (contract.ts Target), with the derived fields filled in.
 type TargetView struct {
-	ID            string         `json:"id"`
-	Kind          Kind           `json:"kind"`
-	Value         string         `json:"value"`
-	Status        string         `json:"status"`
-	Method        *string        `json:"method"`
-	Token         string         `json:"token"`
-	VerifiedAt    *string        `json:"verified_at"`
-	ExpiresAt     *string        `json:"expires_at"`
-	Validity      *string        `json:"validity"`
-	LastCheck     *Check         `json:"last_check"`
-	Commitment    *Commitment    `json:"commitment"`
-	Scannable     bool           `json:"scannable"`
-	BlockedReason *BlockedReason `json:"blocked_reason"`
-	CreatedAt     string         `json:"created_at"`
-	LastScanAt    *string        `json:"last_scan_at"`
-	Latest        *Counts        `json:"latest"`
+	ID         string      `json:"id"`
+	Kind       Kind        `json:"kind"`
+	Value      string      `json:"value"`
+	Status     string      `json:"status"`
+	Method     *string     `json:"method"`
+	Token      string      `json:"token"`
+	VerifiedAt *string     `json:"verified_at"`
+	ExpiresAt  *string     `json:"expires_at"`
+	Validity   *string     `json:"validity"`
+	LastCheck  *Check      `json:"last_check"`
+	Commitment *Commitment `json:"commitment"`
+	// CommitmentNotice is the sentence an administrator's first Scan now confirms (D-473), with this target's name in it; nil once
+	// the target has a commitment.
+	CommitmentNotice *Notice        `json:"commitment_notice"`
+	Scannable        bool           `json:"scannable"`
+	BlockedReason    *BlockedReason `json:"blocked_reason"`
+	CreatedAt        string         `json:"created_at"`
+	LastScanAt       *string        `json:"last_scan_at"`
+	Latest           *Counts        `json:"latest"`
 	// OpenPorts are the first MaxOpenPorts open ports of the newest snapshot, in its order (Latest.Ports is the total), so
 	// the list page can say what is open (S-EXP-1, D-485); nil when never scanned.
 	OpenPorts []PortRow `json:"open_ports"`

@@ -137,7 +137,6 @@ const (
 	ExposureGetExposureTargetsIDSnapshotsDateOperation      OperationName = "ExposureGetExposureTargetsIDSnapshotsDate"
 	ExposurePostExposureBoxIPVerifyOperation                OperationName = "ExposurePostExposureBoxIPVerify"
 	ExposurePostExposureTargetsOperation                    OperationName = "ExposurePostExposureTargets"
-	ExposurePostExposureTargetsIDCommitmentOperation        OperationName = "ExposurePostExposureTargetsIDCommitment"
 	ExposurePostExposureTargetsIDScanOperation              OperationName = "ExposurePostExposureTargetsIDScan"
 	ExposurePostExposureTargetsIDVerifyOperation            OperationName = "ExposurePostExposureTargetsIDVerify"
 	ExposurePutExposureBoxIPSettingsOperation               OperationName = "ExposurePutExposureBoxIPSettings"

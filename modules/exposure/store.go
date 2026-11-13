@@ -19,7 +19,7 @@ type querier interface {
 
 type scanner interface{ Scan(dest ...any) error }
 
-const targetColumns = `id, kind, value, coalesce(method, ''), token, verified_at, last_check, commitment_by, commitment_at, created_at, last_scan_at`
+const targetColumns = `id, kind, value, coalesce(method, ''), token, verified_at, last_check, commitment_by, commitment_at, commitment_version, commitment_sentence, created_at, last_scan_at`
 
 func parseTS(s string) (time.Time, error) {
 	t, err := time.Parse("2006-01-02T15:04:05.000Z", s)
@@ -45,12 +45,12 @@ func tsOrNil(t time.Time) any {
 
 func scanTarget(s scanner) (Target, error) {
 	var (
-		t                                  Target
-		kind                               string
-		verified, check, by, byAt, scanned sql.NullString
-		created                            string
+		t                                                         Target
+		kind                                                      string
+		verified, check, by, byAt, noticeVer, noticeText, scanned sql.NullString
+		created                                                   string
 	)
-	if err := s.Scan(&t.ID, &kind, &t.Value, &t.Method, &t.Token, &verified, &check, &by, &byAt, &created, &scanned); err != nil {
+	if err := s.Scan(&t.ID, &kind, &t.Value, &t.Method, &t.Token, &verified, &check, &by, &byAt, &noticeVer, &noticeText, &created, &scanned); err != nil {
 		return Target{}, err
 	}
 	t.Kind = Kind(kind)
@@ -72,6 +72,9 @@ func scanTarget(s scanner) (Target, error) {
 	}
 	if by.Valid && byAt.Valid {
 		t.Commitment = &Commitment{By: by.String, At: byAt.String}
+		if noticeVer.Valid && noticeText.Valid {
+			t.Commitment.Version, t.Commitment.Sentence = &noticeVer.String, &noticeText.String
+		}
 	}
 	return t, nil
 }
@@ -219,8 +222,9 @@ func deleteTarget(ctx context.Context, tx *sql.Tx, id string) error {
 	return nil
 }
 
-func setCommitment(ctx context.Context, tx *sql.Tx, id, by string, at time.Time) error {
-	_, err := tx.ExecContext(ctx, `UPDATE exp_target SET commitment_by = ?, commitment_at = ? WHERE id = ?`, by, store.FormatTS(at), id)
+func setCommitment(ctx context.Context, tx *sql.Tx, id, by string, at time.Time, n Notice) error {
+	_, err := tx.ExecContext(ctx, `UPDATE exp_target SET commitment_by = ?, commitment_at = ?, commitment_version = ?, commitment_sentence = ? WHERE id = ?`,
+		by, store.FormatTS(at), n.Version, n.Text, id)
 	if err != nil {
 		return fmt.Errorf("recording the commitment of %s: %w", id, err)
 	}

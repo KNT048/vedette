@@ -20945,11 +20945,27 @@
                                     "type": "string",
                                     "format": "date-time",
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "version": {
+                                    "description": "Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before D-473",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "sentence": {
+                                    "description": "The exact sentence, with the target in it, kept with who and when; null on a commitment recorded before D-473",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
                                   }
                                 },
                                 "required": [
                                   "by",
-                                  "at"
+                                  "at",
+                                  "version",
+                                  "sentence"
                                 ],
                                 "additionalProperties": false
                               },
@@ -20957,7 +20973,31 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "Who ticked \"my company owns it and I am authorized to scan it\", and when"
+                            "description": "Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the exact sentence shown next to the button"
+                          },
+                          "commitment_notice": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "version": {
+                                    "type": "string"
+                                  },
+                                  "text": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "version",
+                                  "text"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment"
                           },
                           "scannable": {
                             "type": "boolean"
@@ -21091,6 +21131,7 @@
                           "validity",
                           "last_check",
                           "commitment",
+                          "commitment_notice",
                           "scannable",
                           "blocked_reason",
                           "created_at",
@@ -21275,11 +21316,27 @@
                                     "type": "string",
                                     "format": "date-time",
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "version": {
+                                    "description": "Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before D-473",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "sentence": {
+                                    "description": "The exact sentence, with the target in it, kept with who and when; null on a commitment recorded before D-473",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
                                   }
                                 },
                                 "required": [
                                   "by",
-                                  "at"
+                                  "at",
+                                  "version",
+                                  "sentence"
                                 ],
                                 "additionalProperties": false
                               },
@@ -21287,7 +21344,31 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "Who ticked \"my company owns it and I am authorized to scan it\", and when"
+                            "description": "Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the exact sentence shown next to the button"
+                          },
+                          "commitment_notice": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "version": {
+                                    "type": "string"
+                                  },
+                                  "text": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "version",
+                                  "text"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment"
                           },
                           "scannable": {
                             "type": "boolean"
@@ -21421,6 +21502,7 @@
                           "validity",
                           "last_check",
                           "commitment",
+                          "commitment_notice",
                           "scannable",
                           "blocked_reason",
                           "created_at",
@@ -21755,11 +21837,27 @@
                               "type": "string",
                               "format": "date-time",
                               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "version": {
+                              "description": "Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before D-473",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "sentence": {
+                              "description": "The exact sentence, with the target in it, kept with who and when; null on a commitment recorded before D-473",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             }
                           },
                           "required": [
                             "by",
-                            "at"
+                            "at",
+                            "version",
+                            "sentence"
                           ],
                           "additionalProperties": false
                         },
@@ -21767,7 +21865,31 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Who ticked \"my company owns it and I am authorized to scan it\", and when"
+                      "description": "Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the exact sentence shown next to the button"
+                    },
+                    "commitment_notice": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string"
+                            },
+                            "text": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "text"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment"
                     },
                     "scannable": {
                       "type": "boolean"
@@ -21901,6 +22023,7 @@
                     "validity",
                     "last_check",
                     "commitment",
+                    "commitment_notice",
                     "scannable",
                     "blocked_reason",
                     "created_at",
@@ -22126,354 +22249,27 @@
                               "type": "string",
                               "format": "date-time",
                               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "version": {
+                              "description": "Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before D-473",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "sentence": {
+                              "description": "The exact sentence, with the target in it, kept with who and when; null on a commitment recorded before D-473",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             }
                           },
                           "required": [
                             "by",
-                            "at"
-                          ],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "Who ticked \"my company owns it and I am authorized to scan it\", and when"
-                    },
-                    "scannable": {
-                      "type": "boolean"
-                    },
-                    "blocked_reason": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "unverified",
-                            "expired",
-                            "txt_missing",
-                            "no_commitment",
-                            "ip_not_current"
-                          ]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
-                    },
-                    "created_at": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "last_scan_at": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "latest": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "subdomains": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "ips": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "ports": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "admin_panels": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "certs_expiring": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            }
-                          },
-                          "required": [
-                            "subdomains",
-                            "ips",
-                            "ports",
-                            "admin_panels",
-                            "certs_expiring"
-                          ],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "open_ports": {
-                      "anyOf": [
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "ip": {
-                                "type": "string"
-                              },
-                              "port": {
-                                "type": "integer",
-                                "minimum": -9007199254740991,
-                                "maximum": 9007199254740991
-                              },
-                              "service": {
-                                "type": "string"
-                              },
-                              "product": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "ip",
-                              "port",
-                              "service"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "kind",
-                    "value",
-                    "status",
-                    "method",
-                    "token",
-                    "verified_at",
-                    "expires_at",
-                    "validity",
-                    "last_check",
-                    "commitment",
-                    "scannable",
-                    "blocked_reason",
-                    "created_at",
-                    "last_scan_at",
-                    "latest",
-                    "open_ports"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/exposure/targets/{id}/commitment": {
-      "post": {
-        "operationId": "exposure_post_exposure_targets_id_commitment",
-        "summary": "Record the commitment: my company owns this domain/IP and I am authorized to scan it (who and when are audited). Only for verified targets",
-        "tags": [
-          "exposure"
-        ],
-        "x-stories": [
-          "S-EXP-1"
-        ],
-        "x-min-role": "admin",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "confirm": {
-                    "type": "boolean",
-                    "const": true
-                  }
-                },
-                "required": [
-                  "confirm"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "enum": [
-                        "domain",
-                        "ip"
-                      ]
-                    },
-                    "value": {
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "unverified",
-                        "verified",
-                        "expired"
-                      ],
-                      "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
-                    },
-                    "method": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "dns_txt",
-                            "box_egress"
-                          ]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "token": {
-                      "type": "string",
-                      "description": "Domain: the token in the TXT record vedette-verify=<token> (not secret, it is public in DNS). IP: empty string"
-                    },
-                    "verified_at": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews it)"
-                    },
-                    "expires_at": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan)"
-                    },
-                    "validity": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "valid",
-                            "expiring",
-                            "expired"
-                          ]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "IPs only: expiring = 5 days or less left"
-                    },
-                    "last_check": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "at": {
-                              "type": "string",
-                              "format": "date-time",
-                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                            },
-                            "ok": {
-                              "type": "boolean"
-                            },
-                            "message": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
                             "at",
-                            "ok",
-                            "message"
-                          ],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "commitment": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "by": {
-                              "type": "string"
-                            },
-                            "at": {
-                              "type": "string",
-                              "format": "date-time",
-                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                            }
-                          },
-                          "required": [
-                            "by",
-                            "at"
+                            "version",
+                            "sentence"
                           ],
                           "additionalProperties": false
                         },
@@ -22481,7 +22277,31 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Who ticked \"my company owns it and I am authorized to scan it\", and when"
+                      "description": "Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the exact sentence shown next to the button"
+                    },
+                    "commitment_notice": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string"
+                            },
+                            "text": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "text"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment"
                     },
                     "scannable": {
                       "type": "boolean"
@@ -22615,6 +22435,7 @@
                     "validity",
                     "last_check",
                     "commitment",
+                    "commitment_notice",
                     "scannable",
                     "blocked_reason",
                     "created_at",
@@ -22831,7 +22652,7 @@
     "/exposure/targets/{id}/scan": {
       "post": {
         "operationId": "exposure_post_exposure_targets_id_scan",
-        "summary": "Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing. After those checks the Vulnerability scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan; 400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes. Nothing is saved then; every attempt is audited",
+        "summary": "Scan now. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation (D-473, amends D-26): it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target that already has a commitment records nothing again. After those checks the Vulnerability scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan; 400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes. Nothing is saved then; every attempt is audited",
         "tags": [
           "exposure"
         ],
@@ -22849,6 +22670,23 @@
             }
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "notice_version": {
+                    "description": "The `commitment_notice.version` the page showed next to Scan now; needed only for the first scan of a target, by an administrator",
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -23548,11 +23386,27 @@
                                   "type": "string",
                                   "format": "date-time",
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "version": {
+                                  "description": "Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before D-473",
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "sentence": {
+                                  "description": "The exact sentence, with the target in it, kept with who and when; null on a commitment recorded before D-473",
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
                                 }
                               },
                               "required": [
                                 "by",
-                                "at"
+                                "at",
+                                "version",
+                                "sentence"
                               ],
                               "additionalProperties": false
                             },
@@ -23560,7 +23414,31 @@
                               "type": "null"
                             }
                           ],
-                          "description": "Who ticked \"my company owns it and I am authorized to scan it\", and when"
+                          "description": "Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the exact sentence shown next to the button"
+                        },
+                        "commitment_notice": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "version": {
+                                  "type": "string"
+                                },
+                                "text": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "version",
+                                "text"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment"
                         },
                         "scannable": {
                           "type": "boolean"
@@ -23694,6 +23572,7 @@
                         "validity",
                         "last_check",
                         "commitment",
+                        "commitment_notice",
                         "scannable",
                         "blocked_reason",
                         "created_at",

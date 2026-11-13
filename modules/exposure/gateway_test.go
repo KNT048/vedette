@@ -106,7 +106,7 @@ func TestHandlers_GatewayInTargetList(t *testing.T) {
 		t.Fatalf("before any scan: %d %v", code, b)
 	}
 	ips := e.detect(ipA)
-	if _, err := e.svc.Commit(e.ctx(), "admin@acme.example", ips[0].ID, true); err != nil {
+	if _, err := e.commit(ips[0].ID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID); err != nil {

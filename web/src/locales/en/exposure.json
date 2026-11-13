@@ -3,8 +3,8 @@
   "titleLoading": "External exposure",
   "title": {
     "none": "No domain or verified public IP yet",
-    "pending_one": "{{count}} item cannot be scanned yet: it needs ownership proof or your confirmation",
-    "pending_other": "{{count}} items cannot be scanned yet: they need ownership proof or your confirmation",
+    "pending_one": "{{count}} item cannot be scanned yet: it needs ownership proof or an administrator's first scan",
+    "pending_other": "{{count}} items cannot be scanned yet: they need ownership proof or an administrator's first scan",
     "admin_one": "{{count}} admin interface is exposed to the Internet",
     "admin_other": "{{count}} admin interfaces are exposed to the Internet",
     "ports_one": "{{count}} port is open to the Internet: {{list}}",
@@ -21,7 +21,7 @@
     "certs_other": "{{count}} certificates are about to expire.",
     "rule": "Only what you have proven you own and confirmed is scanned."
   },
-  "rule": "Scanning your external surface is active scanning, so Vedette sets two conditions. First, you prove ownership: a domain with a DNS TXT record (re-checked right before every scan), a public IP only when this box itself reaches the Internet through it (the box finds it by itself and renews it each time it sees it; 30 days after it last saw it, it expires). Second, you confirm that your company owns it and you are authorized to scan it. Without both, the scan button stays locked. Every verification and scan is written to the audit log.",
+  "rule": "Scanning your external surface is active scanning, so Vedette sets two conditions. First, you prove ownership: a domain with a DNS TXT record (re-checked right before every scan), a public IP only when this box itself reaches the Internet through it (the box finds it by itself and renews it each time it sees it; 30 days after it last saw it, it expires). Second, an administrator with two-step sign-in confirms that your company owns it and that the scan is authorized: the first Scan now of a target records that confirmation, with the exact sentence shown beside the button. Until then the button stays locked for everyone else. Every verification and scan is written to the audit log.",
   "open": {
     "title_one": "{{count}} port open to the Internet",
     "title_other": "{{count}} ports open to the Internet",
@@ -69,18 +69,18 @@
     "expired": "Verification expired",
     "txt_missing": "TXT record missing",
     "ip_not_current": "Paused",
-    "no_commitment": "Needs your confirmation",
+    "no_commitment": "Needs an admin's first scan",
     "reasonLong": {
       "unverified": "Cannot scan yet: {{value}} has no ownership proof. Do step 1 below first.",
       "expired": "Cannot scan yet: the verification of {{value}} has expired. Verify it again in step 1 below.",
       "txt_missing": "Cannot scan yet: Vedette no longer finds the DNS TXT record on {{value}}. Add it back in step 1 below, then check again.",
       "ip_not_current": "Cannot scan right now: the box no longer goes out through {{value}}. Step 1 below says how to check again.",
-      "no_commitment": "Cannot scan yet: you have not confirmed that your company owns {{value}} and you are authorized to scan it. Do step 2 below first."
+      "no_commitment": "Cannot scan yet: an administrator must run the first scan of {{value}}. Pressing Scan now records that your company owns it and that the scan is authorized."
     }
   },
   "targets": {
     "title": "Domains",
-    "description": "Select a name to verify it, confirm your authorization and read scan results.",
+    "description": "Select a name to verify it, run its first scan as an administrator and read scan results.",
     "caption": "Declared domains",
     "col": {
       "target": "Target",
@@ -99,7 +99,7 @@
   "add": {
     "button": "Add domain",
     "title": "Add a domain",
-    "description": "Only enter a domain your company owns. After adding it you will prove ownership with a DNS TXT record and confirm your authorization before any scan.",
+    "description": "Only enter a domain your company owns. After adding it you will prove ownership with a DNS TXT record and an administrator's first Scan now confirms your authorization.",
     "label": "Domain",
     "hint": "For example example.com. Do not type http:// or a path. Public IPs cannot be typed in: the box finds its own, under Public IPs of this box.",
     "empty": "Enter a domain, for example example.com.",
@@ -113,26 +113,30 @@
       "expired": "{{value}} cannot be scanned yet: verification expired",
       "txt_missing": "{{value}} cannot be scanned yet: DNS TXT record missing",
       "ip_not_current": "{{value}} is paused: the box no longer goes out through it",
-      "no_commitment": "{{value}} cannot be scanned yet: needs your confirmation",
+      "no_commitment": "{{value}} cannot be scanned yet: an administrator must run the first scan",
       "result": "{{value}}: {{subs}} subdomain(s), {{admin}} admin interface(s) exposed to the Internet",
       "resultIp": "{{value}}: {{ports}} open port(s), {{admin}} admin interface(s) exposed to the Internet",
       "ready": "{{value}} is ready for its first scan"
     },
     "lastScan": "Last scanned {{time}}",
-    "viewOnly": "You have view-only access. Scanning and re-checking ownership need the operator role; confirming authorization and deleting need admin."
+    "viewOnly": "You have view-only access. Scanning and re-checking ownership need the operator role; the first scan of a target (it confirms authorization) and deleting need admin."
   },
   "scan": {
     "button": "Scan now",
     "running": "Scanning",
     "done": "Scan finished: {{ports}} open port(s), {{admin}} admin interface(s) exposed",
-    "safe": "Non-intrusive scan: no exploitation, no disruption. Aimed only at this target."
+    "safe": "Non-intrusive scan: no exploitation, no disruption. Aimed only at this target.",
+    "noticeTitle": "Pressing Scan now records this confirmation",
+    "noticeWho": "Vedette keeps who confirmed it, when, for which target and this exact sentence.",
+    "needTwoStep": "Turn on two-step sign-in for your account before the first scan of {{value}}: that scan records your confirmation of ownership and authorization.",
+    "needTwoStepLink": "Turn on two-step sign-in"
   },
   "step": {
     "verify": "Step 1. Verify ownership",
     "verifyHintDomain": "Prove the domain is yours with a DNS TXT record, so nobody can enter someone else's domain.",
     "verifyHintIp": "This IP is verified because this box reaches the Internet through it. It stays valid for 30 days after the box last saw it, and every sighting renews it.",
-    "commit": "Step 2. Confirm your authorization",
-    "commitHint": "One confirmation per target. Vedette records who confirmed it and when."
+    "commit": "Authorization record",
+    "commitHint": "Recorded by the first Scan now of an administrator. Vedette keeps who, when and the exact sentence."
   },
   "verify": {
     "okToast": "Verified {{value}}",
@@ -370,14 +374,8 @@
     }
   },
   "commit": {
-    "waitVerify": "Finish step 1 first. You can confirm only after ownership is verified.",
-    "intro": "Before the first scan of {{value}}, confirm that you may scan it.",
-    "checkbox": "I confirm my company owns this domain/IP and I am authorized to scan it.",
-    "asIs": "Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.",
-    "err": "Tick the box to confirm.",
-    "save": "Confirm and allow scanning",
-    "savedToast": "Confirmed. You can scan now.",
-    "doneBody": "Confirmed by {{user}} on {{time}}.",
-    "needAdmin": "Only administrators can confirm."
+    "doneBody": "Confirmed by {{user}} on {{time}}, by pressing Scan now.",
+    "sentence": "The sentence shown next to the button:",
+    "older": "Confirmed with a tick box before the first scan. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it."
   }
 }

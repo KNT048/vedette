@@ -251,8 +251,8 @@ test.describe('domains as an administrator (S-EXP-1, INV-1, INV-6, INV-7, PRE-4)
       await expect(page.locator('input[type="file"]')).toHaveCount(0) // no consent document to upload (D-26)
       // the Check button is there; it is not pressed: it asks real DNS (see the header)
       await expect(verify.getByRole('button', { name: 'Check', exact: true })).toBeEnabled()
-      // step 2 is closed: nothing to tick before the proof
-      await expect(page.locator('#step-commit').getByText('Finish step 1 first. You can confirm only after ownership is verified.')).toBeVisible()
+      // D-473: there is no confirm step: no record panel before the first scan, and nothing to tick
+      await expect(page.locator('#step-commit')).toHaveCount(0)
       await expect(page.getByRole('checkbox')).toHaveCount(0)
       await expect(page.getByText('No scan results yet')).toBeVisible()
       await expectAccessible(page, 'unverified domain')
@@ -268,11 +268,9 @@ test.describe('domains as an administrator (S-EXP-1, INV-1, INV-6, INV-7, PRE-4)
       await expect(row).toContainText('Needs ownership proof')
       await expect(row).toContainText('No result yet')
 
-      // INV-1 / FORBID-1: no scan of an unproven domain, as admin or as operator, and no commitment before the proof (INV-7)
+      // INV-1 / FORBID-1: no scan of an unproven domain, as admin or as operator, (the commitment is only ever recorded by a first scan, INV-17)
       const noProof = `${value} has no ownership proof, so it cannot be scanned. Finish verification first.`
       for (const who of [admin, op]) expect(await api<ApiErr>(who, 'POST', `/exposure/targets/${id}/scan`)).toMatchObject(refused(409, 'not_verified', noProof))
-      const noCommit = 'Verify ownership first; only then can you confirm the commitment for this target.'
-      for (const confirm of [true, false]) expect(await api<ApiErr>(admin, 'POST', `/exposure/targets/${id}/commitment`, { confirm }), `confirm ${confirm}`).toMatchObject(refused(409, 'not_verified', noCommit))
       expect(await api(admin, 'GET', `/exposure/targets/${id}/snapshots`)).toMatchObject({ status: 200, body: { items: [] } })
       expect(JSON.stringify(await target(admin, id)), 'the refusals changed nothing').toBe(stored)
       // an unproven domain cannot be put on the Ignored list either (only an IP can)
@@ -398,7 +396,6 @@ test.describe('roles (PRE-4, PRE-1, PRE-2)', () => {
           const FORBIDDEN = refused(403, 'forbidden', 'Your account is not allowed to do this.')
           const admin_only: [Parameters<typeof api>[1], string, unknown?][] = [
             ['POST', '/exposure/targets', { value: probe }],
-            ['POST', `/exposure/targets/${id}/commitment`, { confirm: true }],
             ['DELETE', `/exposure/targets/${id}`],
             ['DELETE', `/exposure/targets/${id}?ignore=true`],
             ['DELETE', '/exposure/box-ip/ignored/203.0.113.9'],

@@ -359,7 +359,7 @@ func (e *env) committedIP(ip string) TargetView {
 			v = x
 		}
 	}
-	v, err := e.svc.Commit(e.ctx(), "admin@acme.example", v.ID, true)
+	v, err := e.commit(v.ID)
 	if err != nil {
 		e.t.Fatal(err)
 	}

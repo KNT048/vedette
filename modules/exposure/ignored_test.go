@@ -42,7 +42,7 @@ func TestContract_INV14_IgnoredIPIsNeverAddedOrScanned(t *testing.T) {
 	e.svc.SetRunner(&fakeRunner{content: sampleContent()})
 	e.detect(ipA, ipB)
 	b := e.idOfIP(ipB)
-	if _, err := e.svc.Commit(e.ctx(), "admin@acme.example", b, true); err != nil {
+	if _, err := e.commit(b); err != nil {
 		t.Fatal(err)
 	}
 

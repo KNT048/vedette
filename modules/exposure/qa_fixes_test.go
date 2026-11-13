@@ -76,7 +76,7 @@ func TestContract_INV13_DomainIsNeverPaused(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	d := e.addVerifiedDomain()
-	if _, err := e.svc.Commit(e.ctx(), "admin@acme.example", d.ID, true); err != nil {
+	if _, err := e.commit(d.ID); err != nil {
 		t.Fatal(err)
 	}
 	e.detect(ipB)

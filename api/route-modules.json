@@ -197,7 +197,6 @@
   "POST /core/users/{id}/reset-password": "core",
   "POST /exposure/box-ip/verify": "exposure",
   "POST /exposure/targets": "exposure",
-  "POST /exposure/targets/{id}/commitment": "exposure",
   "POST /exposure/targets/{id}/scan": "exposure",
   "POST /exposure/targets/{id}/verify": "exposure",
   "POST /feeds/custom": "feeds",

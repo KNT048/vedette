@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/knt048/vedette/core/api/oas"
+	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/server"
 )
@@ -157,26 +158,15 @@ func (h *ExposureHandlers) ExposurePostExposureTargetsIDVerify(ctx context.Conte
 	return into[oas.ExposurePostExposureTargetsIDVerifyOK](r)
 }
 
-// ExposurePostExposureTargetsIDCommitment implements exposure_post_exposure_targets_id_commitment (admin).
-func (h *ExposureHandlers) ExposurePostExposureTargetsIDCommitment(ctx context.Context, req *oas.ExposurePostExposureTargetsIDCommitmentReq, params oas.ExposurePostExposureTargetsIDCommitmentParams) (*oas.ExposurePostExposureTargetsIDCommitmentOK, error) {
-	user, err := actor(ctx)
-	if err != nil {
-		return nil, err
+// ExposurePostExposureTargetsIDScan implements exposure_post_exposure_targets_id_scan (operator). For the first scan of a target an
+// administrator's press is the D-26 confirmation (D-473): the body carries the notice version the page showed.
+func (h *ExposureHandlers) ExposurePostExposureTargetsIDScan(ctx context.Context, req oas.OptExposurePostExposureTargetsIDScanReq, params oas.ExposurePostExposureTargetsIDScanParams) (*oas.ExposurePostExposureTargetsIDScanOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
 	}
-	v, err := h.svc.Commit(ctx, user, params.ID, req.Confirm)
-	if err != nil {
-		return nil, ToAPIError(err)
-	}
-	return into[oas.ExposurePostExposureTargetsIDCommitmentOK](v)
-}
-
-// ExposurePostExposureTargetsIDScan implements exposure_post_exposure_targets_id_scan (operator).
-func (h *ExposureHandlers) ExposurePostExposureTargetsIDScan(ctx context.Context, params oas.ExposurePostExposureTargetsIDScanParams) (*oas.ExposurePostExposureTargetsIDScanOK, error) {
-	user, err := actor(ctx)
-	if err != nil {
-		return nil, err
-	}
-	s, err := h.svc.Scan(ctx, user, params.ID)
+	who := Actor{ID: p.ID, Email: p.Email, Admin: p.Role == routes.Admin}
+	s, err := h.svc.ScanNow(ctx, who, params.ID, req.Value.NoticeVersion.Value)
 	if err != nil {
 		return nil, ToAPIError(err)
 	}

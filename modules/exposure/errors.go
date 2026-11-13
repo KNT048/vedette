@@ -33,7 +33,6 @@ var (
 	ErrBadDomain      = apiErr(400, "bad_value", "Not a valid domain. Example: example.com.")
 	ErrIPNotAllowed   = apiErr(400, "ip_not_allowed", "Public IPs are not typed in. The box finds its own public IPs: turn on auto-detect or select \"Detect now\" under Public IPs of this box.")
 	ErrTooMany        = apiErr(400, "too_many", "At most %d targets. Delete ones you no longer use.", MaxTargets)
-	ErrNotConfirmed   = apiErr(400, "not_confirmed", "Tick the box to confirm that your company owns this and you are authorized to scan it.")
 	ErrBadInterval    = apiErr(400, "bad_interval", "Choose how often to check: every minute up to every 24 hours (%d minutes).", MaxIntervalMin)
 	ErrUnreachable    = apiErr(502, "unreachable", "%s", msgOffline)
 	ErrDisagree       = apiErr(502, "unreachable", "%s", msgDisagree)

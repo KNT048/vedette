@@ -254,3 +254,16 @@ func str(p *string) string {
 	}
 	return *p
 }
+
+// commit records the commitment the way an administrator's first Scan now does (D-473), without a scan.
+func (e *env) commit(id string) (TargetView, error) {
+	e.t.Helper()
+	t, err := loadTarget(e.ctx(), e.db.Reader(), id)
+	if err != nil {
+		return TargetView{}, err
+	}
+	if err := e.svc.commit(e.ctx(), "admin@acme.example", id, noticeFor(t.Value)); err != nil {
+		return TargetView{}, err
+	}
+	return e.svc.Target(e.ctx(), id)
+}

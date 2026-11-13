@@ -1,0 +1,1 @@
+- [ ] 2026-11-13 — Run the two updated Playwright specs (web/e2e/qa/exposure.spec.ts with the in-test TOTP step, web/e2e-real/exposure.spec.ts) — vì sao để sau: agents do not run Playwright; the lead does — ở đâu: web/e2e/qa/exposure.spec.ts, web/e2e-real/exposure.spec.ts

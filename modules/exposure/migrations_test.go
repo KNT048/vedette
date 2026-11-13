@@ -44,6 +44,8 @@ func TestMigrations_ConstraintsHold(t *testing.T) {
 		{"domain without a 16 character token", `INSERT INTO exp_target (id, kind, value, token, created_at) VALUES ('x1', 'domain', 'a.example', 'abc', '` + ts + `')`},
 		{"IP verified by TXT", `INSERT INTO exp_target (id, kind, value, method, token, created_at) VALUES ('x1', 'ip', '8.8.8.8', 'dns_txt', '', '` + ts + `')`},
 		{"half a commitment", `INSERT INTO exp_target (id, kind, value, token, commitment_by, created_at) VALUES ('x1', 'domain', 'a.example', '0123456789abcdef', 'u', '` + ts + `')`},
+		{"notice version without a commitment", `INSERT INTO exp_target (id, kind, value, token, commitment_version, commitment_sentence, created_at) VALUES ('x1', 'domain', 'a.example', '0123456789abcdef', 'v1', 's', '` + ts + `')`},
+		{"notice version without its sentence", `INSERT INTO exp_target (id, kind, value, token, commitment_by, commitment_at, commitment_version, created_at) VALUES ('x1', 'domain', 'a.example', '0123456789abcdef', 'u', '` + ts + `', 'v1', '` + ts + `')`},
 		{"timestamp without milliseconds", `INSERT INTO exp_target (id, kind, value, token, created_at) VALUES ('x1', 'domain', 'a.example', '0123456789abcdef', '2026-11-09T10:00:00Z')`},
 	}
 	for _, c := range cases {

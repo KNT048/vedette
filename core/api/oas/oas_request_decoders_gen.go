@@ -4238,8 +4238,8 @@ func (s *Server) decodeExposurePostExposureTargetsRequest(r *http.Request) (
 	}
 }
 
-func (s *Server) decodeExposurePostExposureTargetsIDCommitmentRequest(r *http.Request) (
-	req *ExposurePostExposureTargetsIDCommitmentReq,
+func (s *Server) decodeExposurePostExposureTargetsIDScanRequest(r *http.Request) (
+	req OptExposurePostExposureTargetsIDScanReq,
 	rawBody []byte,
 	close func() error,
 	rerr error,
@@ -4259,6 +4259,9 @@ func (s *Server) decodeExposurePostExposureTargetsIDCommitmentRequest(r *http.Re
 			rerr = errors.Join(rerr, close())
 		}
 	}()
+	if _, ok := r.Header["Content-Type"]; !ok && r.ContentLength == 0 {
+		return req, rawBody, close, nil
+	}
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil {
 		return req, rawBody, close, errors.Wrap(err, "parse media type")
@@ -4266,7 +4269,7 @@ func (s *Server) decodeExposurePostExposureTargetsIDCommitmentRequest(r *http.Re
 	switch {
 	case ct == "application/json":
 		if r.ContentLength == 0 {
-			return req, rawBody, close, validate.ErrBodyRequired
+			return req, rawBody, close, nil
 		}
 		buf, err := io.ReadAll(r.Body)
 		defer func() {
@@ -4280,14 +4283,15 @@ func (s *Server) decodeExposurePostExposureTargetsIDCommitmentRequest(r *http.Re
 		r.Body = io.NopCloser(bytes.NewBuffer(buf))
 
 		if len(buf) == 0 {
-			return req, rawBody, close, validate.ErrBodyRequired
+			return req, rawBody, close, nil
 		}
 
 		rawBody = append(rawBody, buf...)
 		d := jx.DecodeBytes(buf)
 
-		var request ExposurePostExposureTargetsIDCommitmentReq
+		var request OptExposurePostExposureTargetsIDScanReq
 		if err := func() error {
+			request.Reset()
 			if err := request.Decode(d); err != nil {
 				return err
 			}
@@ -4303,7 +4307,7 @@ func (s *Server) decodeExposurePostExposureTargetsIDCommitmentRequest(r *http.Re
 			}
 			return req, rawBody, close, err
 		}
-		return &request, rawBody, close, nil
+		return request, rawBody, close, nil
 	default:
 		return req, rawBody, close, validate.InvalidContentType(ct)
 	}

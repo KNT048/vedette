@@ -388,3 +388,49 @@ func TestZaloRotationSurvivesAFailedSave(t *testing.T) {
 		t.Fatalf("refreshes = %v, keys %v: the used refresh token came back", forms, keys)
 	}
 }
+
+// A device deleted in Devices leaves the open new-device incidents (W6-3, D-497): the summary drops it from its list and count and is
+// resolved when none is left; the device's own incident is resolved. A resolved incident keeps its devices.
+func TestDeletedDeviceLeavesTheNewDeviceIncidents(t *testing.T) {
+	e := newEnv(t, func(c *notify.Config) {
+		c.Devices = fakeDevices{"a1": "PC-01", "a2": "NAS-01", "a3": "PRINTER-2", "a9": "LAPTOP-NEW"}
+	})
+	e.write(func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `UPDATE notify_box SET first_run_at = ?`, store.FormatTS(e.clock.Now()))
+		return err
+	})
+	e.svc.Subscribe(e.bus)
+	publish := func(name, id string) {
+		t.Helper()
+		if err := e.bus.Publish(e.ctx(), eventOf(name, inventory.AssetEvent{AssetID: id, Notify: true})); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, id := range []string{"a1", "a2", "a3"} {
+		publish(inventory.EventAssetDiscovered, id)
+	}
+	publish(inventory.EventAssetDeleted, "a2")
+	l, _ := e.svc.Incidents(e.ctx())
+	if len(l) != 1 || l[0].Title != "2 devices found on your network: approve them in Devices" || len(l[0].Devices) != 2 || l[0].Status != notify.StatusNew {
+		t.Fatalf("after deleting a2: %+v", l)
+	}
+	e.clock.Add(37 * time.Hour) // past the first discovery: a new device has its own incident
+	publish(inventory.EventAssetDiscovered, "a9")
+	publish(inventory.EventAssetDeleted, "a9")
+	publish(inventory.EventAssetDeleted, "a1")
+	publish(inventory.EventAssetDeleted, "a3")
+	l, _ = e.svc.Incidents(e.ctx())
+	for _, i := range l {
+		if i.Status != notify.StatusResolved {
+			t.Fatalf("still open after its devices were deleted: %+v", i)
+		}
+	}
+	if len(l) != 2 {
+		t.Fatalf("incidents = %+v", l)
+	}
+	for _, i := range l {
+		if i.Link != "/devices" && (len(i.Devices) != 1 || i.Devices[0].Name != "LAPTOP-NEW") { // the resolved one keeps its device
+			t.Fatalf("resolved device incident = %+v", i)
+		}
+	}
+}

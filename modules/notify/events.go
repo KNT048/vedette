@@ -22,6 +22,7 @@ const (
 	EventFindingCreated       = "findings.finding.created"
 	EventFindingStatusChanged = "findings.finding.status_changed"
 	EventAssetDiscovered      = "inventory.asset.discovered"
+	EventAssetDeleted         = "inventory.asset.deleted"
 	EventNewKEV               = "feeds.vuln.new_kev"
 	EventHoneypotHit          = "honeypot.hit.created"
 	EventLogAnomaly           = "logs.anomaly.detected"
@@ -58,6 +59,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventFindingStatusChanged, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, true) })
 	on(EventNewKEV, s.kevEvent)
 	on(EventAssetDiscovered, s.assetEvent)
+	on(EventAssetDeleted, s.assetDeleted)
 	on(EventHoneypotHit, s.hitEvent)
 	on(EventLogAnomaly, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentLogAnomaly) })
 	on(EventLogBadAddress, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentBadAddress) })
@@ -175,6 +177,78 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 		Action: "Find out whose device it is. Add it to the inventory if it belongs to you, otherwise remove it from the network.",
 		Link:   "/devices/" + e.AssetID, Devices: []Device{{ID: e.AssetID, Name: name}}})
 	return err
+}
+
+// assetDeleted takes a device deleted in Devices off the open new-device incidents (W6-3, D-497): the first-discovery summary drops it
+// from its list and its count (and is resolved when no device is left), and the device's own "new unknown device" incident is
+// resolved, since there is nothing left to approve. Resolved incidents and the other kinds keep the device: they are history.
+func (s *Service) assetDeleted(ctx context.Context, data any) error {
+	var e struct {
+		AssetID string `json:"asset_id"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	if e.AssetID == "" {
+		return nil
+	}
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, `SELECT i.id, i.link, d.name FROM notify_incident i JOIN notify_incident_device d ON d.incident_id = i.id
+			WHERE i.kind = ? AND i.status <> 'resolved' AND d.asset_id = ?`, string(IncidentUnknownDevice), e.AssetID)
+		if err != nil {
+			return fmt.Errorf("notify: find the incidents of a deleted device: %w", err)
+		}
+		type open struct{ id, link, name string }
+		var list []open
+		for rows.Next() {
+			var o open
+			if err := rows.Scan(&o.id, &o.link, &o.name); err != nil {
+				_ = rows.Close()
+				return fmt.Errorf("notify: find the incidents of a deleted device: %w", err)
+			}
+			list = append(list, o)
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return fmt.Errorf("notify: find the incidents of a deleted device: %w", err)
+		}
+		at := store.FormatTS(s.now())
+		resolve := func(id, title, note string) error {
+			if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET status = 'resolved', handled_by = ?, handled_at = ?, note = ? WHERE id = ?`, systemUser, at, note, id); err != nil {
+				return fmt.Errorf("notify: resolve the incident of a deleted device: %w", err)
+			}
+			return s.record(ctx, tx, systemUser, "notify.incident_status", clip(title, 400), "resolved: "+note)
+		}
+		for _, o := range list {
+			if o.link != "/devices" { // the device's own incident: nothing is left to approve
+				if err := resolve(o.id, "A new unknown device appeared: "+o.name, "The device was deleted in Devices."); err != nil {
+					return err
+				}
+				continue
+			}
+			if _, err := tx.ExecContext(ctx, `DELETE FROM notify_incident_device WHERE incident_id = ? AND asset_id = ?`, o.id, e.AssetID); err != nil {
+				return fmt.Errorf("notify: take a deleted device off the summary: %w", err)
+			}
+			var n, count int // count can be above the listed rows: the list stops at maxDiscoveryDevices
+			if err := tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM notify_incident_device WHERE incident_id = ?), count FROM notify_incident WHERE id = ?`, o.id, o.id).Scan(&n, &count); err != nil {
+				return fmt.Errorf("notify: count discovered devices: %w", err)
+			}
+			n = max(n, count-1)
+			if n == 0 {
+				if err := resolve(o.id, "Devices found on your network", "Every device on it was deleted in Devices."); err != nil {
+					return err
+				}
+				continue
+			}
+			title := fmt.Sprintf("%d devices found on your network: approve them in Devices", n)
+			if n == 1 {
+				title = "1 device found on your network: approve it in Devices"
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET title = ?, count = ? WHERE id = ?`, title, n, o.id); err != nil {
+				return fmt.Errorf("notify: name discovered devices: %w", err)
+			}
+		}
+		return nil
+	})
 }
 
 const (

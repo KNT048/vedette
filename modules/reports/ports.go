@@ -43,6 +43,29 @@ type Findings interface {
 	All(ctx context.Context) ([]Finding, error)
 }
 
+// Fix is what NVD's ranges say about the release that closes a finding on its device (findings.FixedIn, D-488). Kind is "fixed"
+// (Fixed is the release; Version the device's), "up_to" (Fixed is the last affected release, no fix named), "distro" (the
+// distribution's security updates carry it; Distro names it) or "branches" (the version is not known).
+type Fix struct{ Kind, Version, Fixed, Distro string }
+
+// Remedies says the Fix of open findings, by finding id; a finding it cannot say anything about is not in the map.
+type Remedies interface {
+	Fixes(ctx context.Context, fs []Finding) (map[string]Fix, error)
+}
+
+// Incident is an incident of notify as the report needs it. Kind is login_accepted, trap, failed_logins, bad_connection or
+// anomaly (the adapter reads it from notify's kind and title; a new-device incident is not here: Devices counts those).
+type Incident struct {
+	Kind, Severity, Title string
+	Count                 int
+	LastSeen              time.Time
+}
+
+// Incidents lists the incidents last seen since the given time. ok is false when notify is off: the report then has no section.
+type Incidents interface {
+	Since(ctx context.Context, since time.Time) (list []Incident, ok bool, err error)
+}
+
 // KEVEntry is one entry of the exploited-vulnerability list.
 type KEVEntry struct {
 	CVE, Vendor, Product string

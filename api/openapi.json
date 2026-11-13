@@ -45344,6 +45344,10 @@
                               "finding_id": {
                                 "type": "string",
                                 "description": "Its worst finding"
+                              },
+                              "action": {
+                                "description": "What to do this week, one sentence naming the device(s) and the fixed version when NVD says (D-490); absent in reports sent before it",
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -45578,6 +45582,10 @@
                                     "type": "integer",
                                     "minimum": -9007199254740991,
                                     "maximum": 9007199254740991
+                                  },
+                                  "text": {
+                                    "description": "Since D-490 the sentence of the top risk action",
+                                    "type": "string"
                                   }
                                 },
                                 "required": [
@@ -45612,6 +45620,9 @@
                                     "type": "integer",
                                     "minimum": -9007199254740991,
                                     "maximum": 9007199254740991
+                                  },
+                                  "text": {
+                                    "type": "string"
                                   }
                                 },
                                 "required": [
@@ -45663,6 +45674,111 @@
                             ]
                           }
                         },
+                        "happened": {
+                          "description": "Absent or null when notify is off, or in reports sent before D-490",
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "traps": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "failed_logins": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "accepted_logins": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "bad_connections": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "other": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "summary": {
+                                  "type": "string",
+                                  "description": "The one sentence the page and the email say"
+                                },
+                                "top": {
+                                  "maxItems": 3,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": [
+                                          "login_accepted",
+                                          "trap",
+                                          "failed_logins",
+                                          "bad_connection",
+                                          "anomaly"
+                                        ]
+                                      },
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "severity": {
+                                        "type": "string",
+                                        "enum": [
+                                          "critical",
+                                          "high",
+                                          "medium",
+                                          "low",
+                                          "info"
+                                        ]
+                                      },
+                                      "count": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991,
+                                        "description": "How many times it repeated"
+                                      },
+                                      "at": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                        "description": "Last seen"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "title",
+                                      "severity",
+                                      "count",
+                                      "at"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "traps",
+                                "failed_logins",
+                                "accepted_logins",
+                                "bad_connections",
+                                "other",
+                                "summary",
+                                "top"
+                              ],
+                              "additionalProperties": false,
+                              "description": "Incidents of the week from notify (D-490): counts per kind and the few that matter"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "sources": {
                           "type": "array",
                           "items": {
@@ -45673,7 +45789,8 @@
                                 "enum": [
                                   "inventory",
                                   "findings",
-                                  "kev"
+                                  "kev",
+                                  "incidents"
                                 ]
                               },
                               "at": {
@@ -45688,7 +45805,7 @@
                             ],
                             "additionalProperties": false
                           },
-                          "description": "Sources of the figures in the report; honeypot hits and anomalous logs are not included because the honeypot/logs modules do not share data yet"
+                          "description": "Sources of the figures in the report; incidents only when notify is on (D-490)"
                         },
                         "ai_summary": {
                           "anyOf": [
@@ -45926,6 +46043,10 @@
                               "finding_id": {
                                 "type": "string",
                                 "description": "Its worst finding"
+                              },
+                              "action": {
+                                "description": "What to do this week, one sentence naming the device(s) and the fixed version when NVD says (D-490); absent in reports sent before it",
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -46160,6 +46281,10 @@
                                     "type": "integer",
                                     "minimum": -9007199254740991,
                                     "maximum": 9007199254740991
+                                  },
+                                  "text": {
+                                    "description": "Since D-490 the sentence of the top risk action",
+                                    "type": "string"
                                   }
                                 },
                                 "required": [
@@ -46194,6 +46319,9 @@
                                     "type": "integer",
                                     "minimum": -9007199254740991,
                                     "maximum": 9007199254740991
+                                  },
+                                  "text": {
+                                    "type": "string"
                                   }
                                 },
                                 "required": [
@@ -46245,6 +46373,111 @@
                             ]
                           }
                         },
+                        "happened": {
+                          "description": "Absent or null when notify is off, or in reports sent before D-490",
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "traps": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "failed_logins": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "accepted_logins": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "bad_connections": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "other": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "summary": {
+                                  "type": "string",
+                                  "description": "The one sentence the page and the email say"
+                                },
+                                "top": {
+                                  "maxItems": 3,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": [
+                                          "login_accepted",
+                                          "trap",
+                                          "failed_logins",
+                                          "bad_connection",
+                                          "anomaly"
+                                        ]
+                                      },
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "severity": {
+                                        "type": "string",
+                                        "enum": [
+                                          "critical",
+                                          "high",
+                                          "medium",
+                                          "low",
+                                          "info"
+                                        ]
+                                      },
+                                      "count": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991,
+                                        "description": "How many times it repeated"
+                                      },
+                                      "at": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                        "description": "Last seen"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "title",
+                                      "severity",
+                                      "count",
+                                      "at"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "traps",
+                                "failed_logins",
+                                "accepted_logins",
+                                "bad_connections",
+                                "other",
+                                "summary",
+                                "top"
+                              ],
+                              "additionalProperties": false,
+                              "description": "Incidents of the week from notify (D-490): counts per kind and the few that matter"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "sources": {
                           "type": "array",
                           "items": {
@@ -46255,7 +46488,8 @@
                                 "enum": [
                                   "inventory",
                                   "findings",
-                                  "kev"
+                                  "kev",
+                                  "incidents"
                                 ]
                               },
                               "at": {
@@ -46270,7 +46504,7 @@
                             ],
                             "additionalProperties": false
                           },
-                          "description": "Sources of the figures in the report; honeypot hits and anomalous logs are not included because the honeypot/logs modules do not share data yet"
+                          "description": "Sources of the figures in the report; incidents only when notify is on (D-490)"
                         },
                         "ai_summary": {
                           "anyOf": [

@@ -101114,6 +101114,142 @@ func (o OptNilLogsGetLogsSourcesOKBoxTLS) Or(d LogsGetLogsSourcesOKBoxTLS) LogsG
 	return d
 }
 
+// NewOptNilReportsGetReportsWeeklyHistoryIDOKReportHappened returns new OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened with value set to v.
+func NewOptNilReportsGetReportsWeeklyHistoryIDOKReportHappened(v ReportsGetReportsWeeklyHistoryIDOKReportHappened) OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened {
+	return OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened is optional nullable ReportsGetReportsWeeklyHistoryIDOKReportHappened.
+type OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened struct {
+	Value ReportsGetReportsWeeklyHistoryIDOKReportHappened
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened was set.
+func (o OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) Reset() {
+	var v ReportsGetReportsWeeklyHistoryIDOKReportHappened
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) SetTo(v ReportsGetReportsWeeklyHistoryIDOKReportHappened) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v ReportsGetReportsWeeklyHistoryIDOKReportHappened
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) Get() (v ReportsGetReportsWeeklyHistoryIDOKReportHappened, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) Or(d ReportsGetReportsWeeklyHistoryIDOKReportHappened) ReportsGetReportsWeeklyHistoryIDOKReportHappened {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilReportsGetReportsWeeklyPreviewOKReportHappened returns new OptNilReportsGetReportsWeeklyPreviewOKReportHappened with value set to v.
+func NewOptNilReportsGetReportsWeeklyPreviewOKReportHappened(v ReportsGetReportsWeeklyPreviewOKReportHappened) OptNilReportsGetReportsWeeklyPreviewOKReportHappened {
+	return OptNilReportsGetReportsWeeklyPreviewOKReportHappened{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilReportsGetReportsWeeklyPreviewOKReportHappened is optional nullable ReportsGetReportsWeeklyPreviewOKReportHappened.
+type OptNilReportsGetReportsWeeklyPreviewOKReportHappened struct {
+	Value ReportsGetReportsWeeklyPreviewOKReportHappened
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilReportsGetReportsWeeklyPreviewOKReportHappened was set.
+func (o OptNilReportsGetReportsWeeklyPreviewOKReportHappened) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilReportsGetReportsWeeklyPreviewOKReportHappened) Reset() {
+	var v ReportsGetReportsWeeklyPreviewOKReportHappened
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilReportsGetReportsWeeklyPreviewOKReportHappened) SetTo(v ReportsGetReportsWeeklyPreviewOKReportHappened) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilReportsGetReportsWeeklyPreviewOKReportHappened) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilReportsGetReportsWeeklyPreviewOKReportHappened) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v ReportsGetReportsWeeklyPreviewOKReportHappened
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilReportsGetReportsWeeklyPreviewOKReportHappened) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilReportsGetReportsWeeklyPreviewOKReportHappened) Get() (v ReportsGetReportsWeeklyPreviewOKReportHappened, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilReportsGetReportsWeeklyPreviewOKReportHappened) Or(d ReportsGetReportsWeeklyPreviewOKReportHappened) ReportsGetReportsWeeklyPreviewOKReportHappened {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptNilString returns new OptNilString with value set to v.
 func NewOptNilString(v string) OptNilString {
 	return OptNilString{
@@ -103537,6 +103673,8 @@ type ReportsGetReportsWeeklyHistoryID1Fix struct {
 	FindingID string    `json:"finding_id"`
 	Kind      string    `json:"kind"`
 	Product   OptString `json:"product"`
+	// Since D-490 the sentence of the top risk action.
+	Text OptString `json:"text"`
 }
 
 // GetCount returns the value of Count.
@@ -103569,6 +103707,11 @@ func (s *ReportsGetReportsWeeklyHistoryID1Fix) GetProduct() OptString {
 	return s.Product
 }
 
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID1Fix) GetText() OptString {
+	return s.Text
+}
+
 // SetCount sets the value of Count.
 func (s *ReportsGetReportsWeeklyHistoryID1Fix) SetCount(val OptInt) {
 	s.Count = val
@@ -103597,6 +103740,11 @@ func (s *ReportsGetReportsWeeklyHistoryID1Fix) SetKind(val string) {
 // SetProduct sets the value of Product.
 func (s *ReportsGetReportsWeeklyHistoryID1Fix) SetProduct(val OptString) {
 	s.Product = val
+}
+
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID1Fix) SetText(val OptString) {
+	s.Text = val
 }
 
 // Ref: #/components/schemas/reports_get_reports_weekly_history_id_1_plan_os
@@ -103659,6 +103807,7 @@ type ReportsGetReportsWeeklyHistoryID1Verify struct {
 	FindingID string    `json:"finding_id"`
 	Kind      string    `json:"kind"`
 	Product   OptString `json:"product"`
+	Text      OptString `json:"text"`
 }
 
 // GetCount returns the value of Count.
@@ -103691,6 +103840,11 @@ func (s *ReportsGetReportsWeeklyHistoryID1Verify) GetProduct() OptString {
 	return s.Product
 }
 
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID1Verify) GetText() OptString {
+	return s.Text
+}
+
 // SetCount sets the value of Count.
 func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetCount(val OptInt) {
 	s.Count = val
@@ -103719,6 +103873,11 @@ func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetKind(val string) {
 // SetProduct sets the value of Product.
 func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetProduct(val OptString) {
 	s.Product = val
+}
+
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyHistoryID1Verify) SetText(val OptString) {
+	s.Text = val
 }
 
 type ReportsGetReportsWeeklyHistoryIDOK struct {
@@ -103802,16 +103961,17 @@ func (s *ReportsGetReportsWeeklyHistoryIDOK) SetTs(val time.Time) {
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReport struct {
-	Actions     []ReportsGetReportsWeeklyHistoryIDOKReportActionsItem     `json:"actions"`
-	AiSummary   NilReportsGetReportsWeeklyHistoryIDOKReportAiSummary      `json:"ai_summary"`
-	Counts      ReportsGetReportsWeeklyHistoryIDOKReportCounts            `json:"counts"`
-	GeneratedAt time.Time                                                 `json:"generated_at"`
+	Actions     []ReportsGetReportsWeeklyHistoryIDOKReportActionsItem `json:"actions"`
+	AiSummary   NilReportsGetReportsWeeklyHistoryIDOKReportAiSummary  `json:"ai_summary"`
+	Counts      ReportsGetReportsWeeklyHistoryIDOKReportCounts        `json:"counts"`
+	GeneratedAt time.Time                                             `json:"generated_at"`
+	// Absent or null when notify is off, or in reports sent before D-490.
+	Happened    OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened    `json:"happened"`
 	NewFindings []ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem `json:"new_findings"`
 	Open        []ReportsGetReportsWeeklyHistoryIDOKReportOpenItem        `json:"open"`
 	Period      ReportsGetReportsWeeklyHistoryIDOKReportPeriod            `json:"period"`
 	Resolved    []ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem    `json:"resolved"`
-	// Sources of the figures in the report; honeypot hits and anomalous logs are not included because the
-	// honeypot/logs modules do not share data yet.
+	// Sources of the figures in the report; incidents only when notify is on (D-490).
 	Sources []ReportsGetReportsWeeklyHistoryIDOKReportSourcesItem `json:"sources"`
 	// The three biggest open risks, by product (D-485); absent in reports sent before it.
 	TopRisks []ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem `json:"top_risks"`
@@ -103835,6 +103995,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetCounts() ReportsGetReports
 // GetGeneratedAt returns the value of GeneratedAt.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetGeneratedAt() time.Time {
 	return s.GeneratedAt
+}
+
+// GetHappened returns the value of Happened.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReport) GetHappened() OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened {
+	return s.Happened
 }
 
 // GetNewFindings returns the value of NewFindings.
@@ -103885,6 +104050,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetCounts(val ReportsGetRepor
 // SetGeneratedAt sets the value of GeneratedAt.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetGeneratedAt(val time.Time) {
 	s.GeneratedAt = val
+}
+
+// SetHappened sets the value of Happened.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReport) SetHappened(val OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) {
+	s.Happened = val
 }
 
 // SetNewFindings sets the value of NewFindings.
@@ -104229,6 +104399,272 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetOpenSuspected(val fl
 // SetResolved sets the value of Resolved.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) SetResolved(val float64) {
 	s.Resolved = val
+}
+
+// Incidents of the week from notify (D-490): counts per kind and the few that matter.
+type ReportsGetReportsWeeklyHistoryIDOKReportHappened struct {
+	AcceptedLogins int `json:"accepted_logins"`
+	BadConnections int `json:"bad_connections"`
+	FailedLogins   int `json:"failed_logins"`
+	Other          int `json:"other"`
+	// The one sentence the page and the email say.
+	Summary string                                                    `json:"summary"`
+	Top     []ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem `json:"top"`
+	Traps   int                                                       `json:"traps"`
+}
+
+// GetAcceptedLogins returns the value of AcceptedLogins.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) GetAcceptedLogins() int {
+	return s.AcceptedLogins
+}
+
+// GetBadConnections returns the value of BadConnections.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) GetBadConnections() int {
+	return s.BadConnections
+}
+
+// GetFailedLogins returns the value of FailedLogins.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) GetFailedLogins() int {
+	return s.FailedLogins
+}
+
+// GetOther returns the value of Other.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) GetOther() int {
+	return s.Other
+}
+
+// GetSummary returns the value of Summary.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) GetSummary() string {
+	return s.Summary
+}
+
+// GetTop returns the value of Top.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) GetTop() []ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem {
+	return s.Top
+}
+
+// GetTraps returns the value of Traps.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) GetTraps() int {
+	return s.Traps
+}
+
+// SetAcceptedLogins sets the value of AcceptedLogins.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) SetAcceptedLogins(val int) {
+	s.AcceptedLogins = val
+}
+
+// SetBadConnections sets the value of BadConnections.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) SetBadConnections(val int) {
+	s.BadConnections = val
+}
+
+// SetFailedLogins sets the value of FailedLogins.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) SetFailedLogins(val int) {
+	s.FailedLogins = val
+}
+
+// SetOther sets the value of Other.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) SetOther(val int) {
+	s.Other = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetTop sets the value of Top.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) SetTop(val []ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) {
+	s.Top = val
+}
+
+// SetTraps sets the value of Traps.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) SetTraps(val int) {
+	s.Traps = val
+}
+
+type ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem struct {
+	// Last seen.
+	At time.Time `json:"at"`
+	// How many times it repeated.
+	Count    int                                                             `json:"count"`
+	Kind     ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind     `json:"kind"`
+	Severity ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity `json:"severity"`
+	Title    string                                                          `json:"title"`
+}
+
+// GetAt returns the value of At.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) GetAt() time.Time {
+	return s.At
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) GetCount() int {
+	return s.Count
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) GetKind() ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind {
+	return s.Kind
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) GetSeverity() ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity {
+	return s.Severity
+}
+
+// GetTitle returns the value of Title.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) GetTitle() string {
+	return s.Title
+}
+
+// SetAt sets the value of At.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) SetCount(val int) {
+	s.Count = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) SetKind(val ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind) {
+	s.Kind = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) SetSeverity(val ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity) {
+	s.Severity = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind string
+
+const (
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindLoginAccepted ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind = "login_accepted"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindTrap          ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind = "trap"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindFailedLogins  ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind = "failed_logins"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindBadConnection ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind = "bad_connection"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindAnomaly       ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind = "anomaly"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind values.
+func (ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind) AllValues() []ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind {
+	return []ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind{
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindLoginAccepted,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindTrap,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindFailedLogins,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindBadConnection,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindAnomaly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindLoginAccepted:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindTrap:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindFailedLogins:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindBadConnection:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindAnomaly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind(data) {
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindLoginAccepted:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindLoginAccepted
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindTrap:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindTrap
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindFailedLogins:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindFailedLogins
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindBadConnection:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindBadConnection
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindAnomaly:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindAnomaly
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity string
+
+const (
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityCritical ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity = "critical"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityHigh     ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity = "high"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityMedium   ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity = "medium"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityLow      ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity = "low"
+	ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityInfo     ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity values.
+func (ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity) AllValues() []ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity {
+	return []ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity{
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityCritical,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityHigh,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityMedium,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityLow,
+		ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity(data) {
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityCritical:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityCritical
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityHigh:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityHigh
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityMedium:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityMedium
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityLow:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityLow
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityInfo:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem struct {
@@ -104989,6 +105425,7 @@ const (
 	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDInventory ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "inventory"
 	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings  ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "findings"
 	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev       ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "kev"
+	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "incidents"
 )
 
 // AllValues returns all ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID values.
@@ -104997,6 +105434,7 @@ func (ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) AllValues() []Repor
 		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDInventory,
 		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings,
 		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev,
+		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents,
 	}
 }
 
@@ -105008,6 +105446,8 @@ func (s ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) MarshalText() ([]
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -105026,12 +105466,18 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) UnmarshalText(da
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev
 		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents
+		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem struct {
+	// What to do this week, one sentence naming the device(s) and the fixed version when NVD says (D-490);
+	// absent in reports sent before it.
+	Action OptString `json:"action"`
 	// Open findings a scan confirmed.
 	Confirmed int    `json:"confirmed"`
 	Cve       string `json:"cve"`
@@ -105045,6 +105491,11 @@ type ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem struct {
 	Product string `json:"product"`
 	// The worst severity.
 	Severity ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity `json:"severity"`
+}
+
+// GetAction returns the value of Action.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetAction() OptString {
+	return s.Action
 }
 
 // GetConfirmed returns the value of Confirmed.
@@ -105085,6 +105536,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetProduct() stri
 // GetSeverity returns the value of Severity.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) GetSeverity() ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItemSeverity {
 	return s.Severity
+}
+
+// SetAction sets the value of Action.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) SetAction(val OptString) {
+	s.Action = val
 }
 
 // SetConfirmed sets the value of Confirmed.
@@ -105447,6 +105903,8 @@ type ReportsGetReportsWeeklyPreview1Fix struct {
 	FindingID string    `json:"finding_id"`
 	Kind      string    `json:"kind"`
 	Product   OptString `json:"product"`
+	// Since D-490 the sentence of the top risk action.
+	Text OptString `json:"text"`
 }
 
 // GetCount returns the value of Count.
@@ -105479,6 +105937,11 @@ func (s *ReportsGetReportsWeeklyPreview1Fix) GetProduct() OptString {
 	return s.Product
 }
 
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyPreview1Fix) GetText() OptString {
+	return s.Text
+}
+
 // SetCount sets the value of Count.
 func (s *ReportsGetReportsWeeklyPreview1Fix) SetCount(val OptInt) {
 	s.Count = val
@@ -105507,6 +105970,11 @@ func (s *ReportsGetReportsWeeklyPreview1Fix) SetKind(val string) {
 // SetProduct sets the value of Product.
 func (s *ReportsGetReportsWeeklyPreview1Fix) SetProduct(val OptString) {
 	s.Product = val
+}
+
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyPreview1Fix) SetText(val OptString) {
+	s.Text = val
 }
 
 // Ref: #/components/schemas/reports_get_reports_weekly_preview_1_plan_os
@@ -105569,6 +106037,7 @@ type ReportsGetReportsWeeklyPreview1Verify struct {
 	FindingID string    `json:"finding_id"`
 	Kind      string    `json:"kind"`
 	Product   OptString `json:"product"`
+	Text      OptString `json:"text"`
 }
 
 // GetCount returns the value of Count.
@@ -105601,6 +106070,11 @@ func (s *ReportsGetReportsWeeklyPreview1Verify) GetProduct() OptString {
 	return s.Product
 }
 
+// GetText returns the value of Text.
+func (s *ReportsGetReportsWeeklyPreview1Verify) GetText() OptString {
+	return s.Text
+}
+
 // SetCount sets the value of Count.
 func (s *ReportsGetReportsWeeklyPreview1Verify) SetCount(val OptInt) {
 	s.Count = val
@@ -105631,6 +106105,11 @@ func (s *ReportsGetReportsWeeklyPreview1Verify) SetProduct(val OptString) {
 	s.Product = val
 }
 
+// SetText sets the value of Text.
+func (s *ReportsGetReportsWeeklyPreview1Verify) SetText(val OptString) {
+	s.Text = val
+}
+
 type ReportsGetReportsWeeklyPreviewOK struct {
 	AiAvailable bool                                   `json:"ai_available"`
 	Report      ReportsGetReportsWeeklyPreviewOKReport `json:"report"`
@@ -105657,16 +106136,17 @@ func (s *ReportsGetReportsWeeklyPreviewOK) SetReport(val ReportsGetReportsWeekly
 }
 
 type ReportsGetReportsWeeklyPreviewOKReport struct {
-	Actions     []ReportsGetReportsWeeklyPreviewOKReportActionsItem     `json:"actions"`
-	AiSummary   NilReportsGetReportsWeeklyPreviewOKReportAiSummary      `json:"ai_summary"`
-	Counts      ReportsGetReportsWeeklyPreviewOKReportCounts            `json:"counts"`
-	GeneratedAt time.Time                                               `json:"generated_at"`
+	Actions     []ReportsGetReportsWeeklyPreviewOKReportActionsItem `json:"actions"`
+	AiSummary   NilReportsGetReportsWeeklyPreviewOKReportAiSummary  `json:"ai_summary"`
+	Counts      ReportsGetReportsWeeklyPreviewOKReportCounts        `json:"counts"`
+	GeneratedAt time.Time                                           `json:"generated_at"`
+	// Absent or null when notify is off, or in reports sent before D-490.
+	Happened    OptNilReportsGetReportsWeeklyPreviewOKReportHappened    `json:"happened"`
 	NewFindings []ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem `json:"new_findings"`
 	Open        []ReportsGetReportsWeeklyPreviewOKReportOpenItem        `json:"open"`
 	Period      ReportsGetReportsWeeklyPreviewOKReportPeriod            `json:"period"`
 	Resolved    []ReportsGetReportsWeeklyPreviewOKReportResolvedItem    `json:"resolved"`
-	// Sources of the figures in the report; honeypot hits and anomalous logs are not included because the
-	// honeypot/logs modules do not share data yet.
+	// Sources of the figures in the report; incidents only when notify is on (D-490).
 	Sources []ReportsGetReportsWeeklyPreviewOKReportSourcesItem `json:"sources"`
 	// The three biggest open risks, by product (D-485); absent in reports sent before it.
 	TopRisks []ReportsGetReportsWeeklyPreviewOKReportTopRisksItem `json:"top_risks"`
@@ -105690,6 +106170,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) GetCounts() ReportsGetReportsWe
 // GetGeneratedAt returns the value of GeneratedAt.
 func (s *ReportsGetReportsWeeklyPreviewOKReport) GetGeneratedAt() time.Time {
 	return s.GeneratedAt
+}
+
+// GetHappened returns the value of Happened.
+func (s *ReportsGetReportsWeeklyPreviewOKReport) GetHappened() OptNilReportsGetReportsWeeklyPreviewOKReportHappened {
+	return s.Happened
 }
 
 // GetNewFindings returns the value of NewFindings.
@@ -105740,6 +106225,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) SetCounts(val ReportsGetReports
 // SetGeneratedAt sets the value of GeneratedAt.
 func (s *ReportsGetReportsWeeklyPreviewOKReport) SetGeneratedAt(val time.Time) {
 	s.GeneratedAt = val
+}
+
+// SetHappened sets the value of Happened.
+func (s *ReportsGetReportsWeeklyPreviewOKReport) SetHappened(val OptNilReportsGetReportsWeeklyPreviewOKReportHappened) {
+	s.Happened = val
 }
 
 // SetNewFindings sets the value of NewFindings.
@@ -106084,6 +106574,272 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetOpenSuspected(val floa
 // SetResolved sets the value of Resolved.
 func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) SetResolved(val float64) {
 	s.Resolved = val
+}
+
+// Incidents of the week from notify (D-490): counts per kind and the few that matter.
+type ReportsGetReportsWeeklyPreviewOKReportHappened struct {
+	AcceptedLogins int `json:"accepted_logins"`
+	BadConnections int `json:"bad_connections"`
+	FailedLogins   int `json:"failed_logins"`
+	Other          int `json:"other"`
+	// The one sentence the page and the email say.
+	Summary string                                                  `json:"summary"`
+	Top     []ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem `json:"top"`
+	Traps   int                                                     `json:"traps"`
+}
+
+// GetAcceptedLogins returns the value of AcceptedLogins.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) GetAcceptedLogins() int {
+	return s.AcceptedLogins
+}
+
+// GetBadConnections returns the value of BadConnections.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) GetBadConnections() int {
+	return s.BadConnections
+}
+
+// GetFailedLogins returns the value of FailedLogins.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) GetFailedLogins() int {
+	return s.FailedLogins
+}
+
+// GetOther returns the value of Other.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) GetOther() int {
+	return s.Other
+}
+
+// GetSummary returns the value of Summary.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) GetSummary() string {
+	return s.Summary
+}
+
+// GetTop returns the value of Top.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) GetTop() []ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem {
+	return s.Top
+}
+
+// GetTraps returns the value of Traps.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) GetTraps() int {
+	return s.Traps
+}
+
+// SetAcceptedLogins sets the value of AcceptedLogins.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) SetAcceptedLogins(val int) {
+	s.AcceptedLogins = val
+}
+
+// SetBadConnections sets the value of BadConnections.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) SetBadConnections(val int) {
+	s.BadConnections = val
+}
+
+// SetFailedLogins sets the value of FailedLogins.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) SetFailedLogins(val int) {
+	s.FailedLogins = val
+}
+
+// SetOther sets the value of Other.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) SetOther(val int) {
+	s.Other = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetTop sets the value of Top.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) SetTop(val []ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) {
+	s.Top = val
+}
+
+// SetTraps sets the value of Traps.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) SetTraps(val int) {
+	s.Traps = val
+}
+
+type ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem struct {
+	// Last seen.
+	At time.Time `json:"at"`
+	// How many times it repeated.
+	Count    int                                                           `json:"count"`
+	Kind     ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind     `json:"kind"`
+	Severity ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity `json:"severity"`
+	Title    string                                                        `json:"title"`
+}
+
+// GetAt returns the value of At.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) GetAt() time.Time {
+	return s.At
+}
+
+// GetCount returns the value of Count.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) GetCount() int {
+	return s.Count
+}
+
+// GetKind returns the value of Kind.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) GetKind() ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind {
+	return s.Kind
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) GetSeverity() ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity {
+	return s.Severity
+}
+
+// GetTitle returns the value of Title.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) GetTitle() string {
+	return s.Title
+}
+
+// SetAt sets the value of At.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetCount sets the value of Count.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) SetCount(val int) {
+	s.Count = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) SetKind(val ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind) {
+	s.Kind = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) SetSeverity(val ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity) {
+	s.Severity = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind string
+
+const (
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindLoginAccepted ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind = "login_accepted"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindTrap          ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind = "trap"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindFailedLogins  ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind = "failed_logins"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindBadConnection ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind = "bad_connection"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindAnomaly       ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind = "anomaly"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind values.
+func (ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind) AllValues() []ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind {
+	return []ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind{
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindLoginAccepted,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindTrap,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindFailedLogins,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindBadConnection,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindAnomaly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindLoginAccepted:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindTrap:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindFailedLogins:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindBadConnection:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindAnomaly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind(data) {
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindLoginAccepted:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindLoginAccepted
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindTrap:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindTrap
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindFailedLogins:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindFailedLogins
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindBadConnection:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindBadConnection
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindAnomaly:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindAnomaly
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity string
+
+const (
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityCritical ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity = "critical"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityHigh     ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity = "high"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityMedium   ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity = "medium"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityLow      ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity = "low"
+	ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityInfo     ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity = "info"
+)
+
+// AllValues returns all ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity values.
+func (ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity) AllValues() []ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity {
+	return []ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity{
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityCritical,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityHigh,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityMedium,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityLow,
+		ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityCritical:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityHigh:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityMedium:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityLow:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity) UnmarshalText(data []byte) error {
+	switch ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity(data) {
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityCritical:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityCritical
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityHigh:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityHigh
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityMedium:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityMedium
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityLow:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityLow
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityInfo:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem struct {
@@ -106844,6 +107600,7 @@ const (
 	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDInventory ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "inventory"
 	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings  ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "findings"
 	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev       ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "kev"
+	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "incidents"
 )
 
 // AllValues returns all ReportsGetReportsWeeklyPreviewOKReportSourcesItemID values.
@@ -106852,6 +107609,7 @@ func (ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) AllValues() []Reports
 		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDInventory,
 		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings,
 		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev,
+		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents,
 	}
 }
 
@@ -106863,6 +107621,8 @@ func (s ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) MarshalText() ([]by
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -106881,12 +107641,18 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) UnmarshalText(data
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev:
 		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev
 		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents:
+		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents
+		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportTopRisksItem struct {
+	// What to do this week, one sentence naming the device(s) and the fixed version when NVD says (D-490);
+	// absent in reports sent before it.
+	Action OptString `json:"action"`
 	// Open findings a scan confirmed.
 	Confirmed int    `json:"confirmed"`
 	Cve       string `json:"cve"`
@@ -106900,6 +107666,11 @@ type ReportsGetReportsWeeklyPreviewOKReportTopRisksItem struct {
 	Product string `json:"product"`
 	// The worst severity.
 	Severity ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity `json:"severity"`
+}
+
+// GetAction returns the value of Action.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetAction() OptString {
+	return s.Action
 }
 
 // GetConfirmed returns the value of Confirmed.
@@ -106940,6 +107711,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetProduct() string
 // GetSeverity returns the value of Severity.
 func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) GetSeverity() ReportsGetReportsWeeklyPreviewOKReportTopRisksItemSeverity {
 	return s.Severity
+}
+
+// SetAction sets the value of Action.
+func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) SetAction(val OptString) {
+	s.Action = val
 }
 
 // SetConfirmed sets the value of Confirmed.

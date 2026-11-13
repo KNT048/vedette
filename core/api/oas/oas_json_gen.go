@@ -186563,6 +186563,104 @@ func (s *OptNilLogsGetLogsSourcesOKBoxTLS) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes ReportsGetReportsWeeklyHistoryIDOKReportHappened as json.
+func (o OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ReportsGetReportsWeeklyHistoryIDOKReportHappened from json.
+func (o *OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v ReportsGetReportsWeeklyHistoryIDOKReportHappened
+		o.Value = v
+		o.Set = true
+		o.Null = true
+		return nil
+	}
+	o.Set = true
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNilReportsGetReportsWeeklyHistoryIDOKReportHappened) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsWeeklyPreviewOKReportHappened as json.
+func (o OptNilReportsGetReportsWeeklyPreviewOKReportHappened) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ReportsGetReportsWeeklyPreviewOKReportHappened from json.
+func (o *OptNilReportsGetReportsWeeklyPreviewOKReportHappened) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNilReportsGetReportsWeeklyPreviewOKReportHappened to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v ReportsGetReportsWeeklyPreviewOKReportHappened
+		o.Value = v
+		o.Set = true
+		o.Null = true
+		return nil
+	}
+	o.Set = true
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNilReportsGetReportsWeeklyPreviewOKReportHappened) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNilReportsGetReportsWeeklyPreviewOKReportHappened) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes string as json.
 func (o OptNilString) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -190453,15 +190551,22 @@ func (s *ReportsGetReportsWeeklyHistoryID1Fix) encodeFields(e *jx.Encoder) {
 			s.Product.Encode(e)
 		}
 	}
+	{
+		if s.Text.Set {
+			e.FieldStart("text")
+			s.Text.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyHistoryID1Fix = [6]string{
+var jsonFieldsNameOfReportsGetReportsWeeklyHistoryID1Fix = [7]string{
 	0: "count",
 	1: "cve",
 	2: "device",
 	3: "finding_id",
 	4: "kind",
 	5: "product",
+	6: "text",
 }
 
 // Decode decodes ReportsGetReportsWeeklyHistoryID1Fix from json.
@@ -190540,6 +190645,16 @@ func (s *ReportsGetReportsWeeklyHistoryID1Fix) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"product\"")
+			}
+		case "text":
+			if err := func() error {
+				s.Text.Reset()
+				if err := s.Text.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"text\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -190860,15 +190975,22 @@ func (s *ReportsGetReportsWeeklyHistoryID1Verify) encodeFields(e *jx.Encoder) {
 			s.Product.Encode(e)
 		}
 	}
+	{
+		if s.Text.Set {
+			e.FieldStart("text")
+			s.Text.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyHistoryID1Verify = [6]string{
+var jsonFieldsNameOfReportsGetReportsWeeklyHistoryID1Verify = [7]string{
 	0: "count",
 	1: "cve",
 	2: "device",
 	3: "finding_id",
 	4: "kind",
 	5: "product",
+	6: "text",
 }
 
 // Decode decodes ReportsGetReportsWeeklyHistoryID1Verify from json.
@@ -190947,6 +191069,16 @@ func (s *ReportsGetReportsWeeklyHistoryID1Verify) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"product\"")
+			}
+		case "text":
+			if err := func() error {
+				s.Text.Reset()
+				if err := s.Text.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"text\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -191238,6 +191370,12 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) encodeFields(e *jx.Encoder) {
 		json.EncodeDateTime(e, s.GeneratedAt)
 	}
 	{
+		if s.Happened.Set {
+			e.FieldStart("happened")
+			s.Happened.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("new_findings")
 		e.ArrStart()
 		for _, elem := range s.NewFindings {
@@ -191285,17 +191423,18 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReport = [10]string{
-	0: "actions",
-	1: "ai_summary",
-	2: "counts",
-	3: "generated_at",
-	4: "new_findings",
-	5: "open",
-	6: "period",
-	7: "resolved",
-	8: "sources",
-	9: "top_risks",
+var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReport = [11]string{
+	0:  "actions",
+	1:  "ai_summary",
+	2:  "counts",
+	3:  "generated_at",
+	4:  "happened",
+	5:  "new_findings",
+	6:  "open",
+	7:  "period",
+	8:  "resolved",
+	9:  "sources",
+	10: "top_risks",
 }
 
 // Decode decodes ReportsGetReportsWeeklyHistoryIDOKReport from json.
@@ -191357,8 +191496,18 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"generated_at\"")
 			}
+		case "happened":
+			if err := func() error {
+				s.Happened.Reset()
+				if err := s.Happened.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"happened\"")
+			}
 		case "new_findings":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.NewFindings = make([]ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -191376,7 +191525,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"new_findings\"")
 			}
 		case "open":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.Open = make([]ReportsGetReportsWeeklyHistoryIDOKReportOpenItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -191394,7 +191543,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"open\"")
 			}
 		case "period":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Period.Decode(d); err != nil {
 					return err
@@ -191404,7 +191553,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"period\"")
 			}
 		case "resolved":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Resolved = make([]ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -191422,7 +191571,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resolved\"")
 			}
 		case "sources":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Sources = make([]ReportsGetReportsWeeklyHistoryIDOKReportSourcesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -191466,8 +191615,8 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReport) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111111,
-		0b00000001,
+		0b11101111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -191551,6 +191700,12 @@ func (s ReportsGetReportsWeeklyHistoryIDOKReportActionsItem) encodeFields(e *jx.
 					s.Product.Encode(e)
 				}
 			}
+			{
+				if s.Text.Set {
+					e.FieldStart("text")
+					s.Text.Encode(e)
+				}
+			}
 		}
 	case ReportsGetReportsWeeklyHistoryID1VerifyReportsGetReportsWeeklyHistoryIDOKReportActionsItem:
 		e.FieldStart("kind")
@@ -191579,6 +191734,12 @@ func (s ReportsGetReportsWeeklyHistoryIDOKReportActionsItem) encodeFields(e *jx.
 				if s.Product.Set {
 					e.FieldStart("product")
 					s.Product.Encode(e)
+				}
+			}
+			{
+				if s.Text.Set {
+					e.FieldStart("text")
+					s.Text.Encode(e)
 				}
 			}
 		}
@@ -192205,6 +192366,466 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) MarshalJSON() ([]byte, 
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportCounts) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("accepted_logins")
+		e.Int(s.AcceptedLogins)
+	}
+	{
+		e.FieldStart("bad_connections")
+		e.Int(s.BadConnections)
+	}
+	{
+		e.FieldStart("failed_logins")
+		e.Int(s.FailedLogins)
+	}
+	{
+		e.FieldStart("other")
+		e.Int(s.Other)
+	}
+	{
+		e.FieldStart("summary")
+		e.Str(s.Summary)
+	}
+	{
+		e.FieldStart("top")
+		e.ArrStart()
+		for _, elem := range s.Top {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("traps")
+		e.Int(s.Traps)
+	}
+}
+
+var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportHappened = [7]string{
+	0: "accepted_logins",
+	1: "bad_connections",
+	2: "failed_logins",
+	3: "other",
+	4: "summary",
+	5: "top",
+	6: "traps",
+}
+
+// Decode decodes ReportsGetReportsWeeklyHistoryIDOKReportHappened from json.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsWeeklyHistoryIDOKReportHappened to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "accepted_logins":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.AcceptedLogins = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accepted_logins\"")
+			}
+		case "bad_connections":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.BadConnections = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bad_connections\"")
+			}
+		case "failed_logins":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.FailedLogins = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"failed_logins\"")
+			}
+		case "other":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Other = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"other\"")
+			}
+		case "summary":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Summary = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"summary\"")
+			}
+		case "top":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				s.Top = make([]ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Top = append(s.Top, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"top\"")
+			}
+		case "traps":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Int()
+				s.Traps = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"traps\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ReportsGetReportsWeeklyHistoryIDOKReportHappened")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b01111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportHappened) {
+					name = jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportHappened[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappened) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("at")
+		json.EncodeDateTime(e, s.At)
+	}
+	{
+		e.FieldStart("count")
+		e.Int(s.Count)
+	}
+	{
+		e.FieldStart("kind")
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("severity")
+		s.Severity.Encode(e)
+	}
+	{
+		e.FieldStart("title")
+		e.Str(s.Title)
+	}
+}
+
+var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem = [5]string{
+	0: "at",
+	1: "count",
+	2: "kind",
+	3: "severity",
+	4: "title",
+}
+
+// Decode decodes ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem from json.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "at":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.At = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"at\"")
+			}
+		case "count":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.Count = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"count\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "severity":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Severity.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"severity\"")
+			}
+		case "title":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Title = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"title\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) {
+					name = jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind as json.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind from json.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind(v) {
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindLoginAccepted:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindLoginAccepted
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindTrap:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindTrap
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindFailedLogins:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindFailedLogins
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindBadConnection:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindBadConnection
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindAnomaly:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKindAnomaly
+	default:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity as json.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity from json.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity(v) {
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityCritical:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityCritical
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityHigh:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityHigh
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityMedium:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityMedium
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityLow:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityLow
+	case ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityInfo:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverityInfo
+	default:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -193424,6 +194045,8 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) Decode(d *jx.Dec
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev
+	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents
 	default:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID(v)
 	}
@@ -193453,6 +194076,12 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) Encode(e *jx.Enco
 
 // encodeFields encodes fields.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) encodeFields(e *jx.Encoder) {
+	{
+		if s.Action.Set {
+			e.FieldStart("action")
+			s.Action.Encode(e)
+		}
+	}
 	{
 		e.FieldStart("confirmed")
 		e.Int(s.Confirmed)
@@ -193487,15 +194116,16 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) encodeFields(e *j
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem = [8]string{
-	0: "confirmed",
-	1: "cve",
-	2: "device",
-	3: "devices",
-	4: "finding_id",
-	5: "open",
-	6: "product",
-	7: "severity",
+var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem = [9]string{
+	0: "action",
+	1: "confirmed",
+	2: "cve",
+	3: "device",
+	4: "devices",
+	5: "finding_id",
+	6: "open",
+	7: "product",
+	8: "severity",
 }
 
 // Decode decodes ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem from json.
@@ -193503,12 +194133,22 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) Decode(d *jx.Deco
 	if s == nil {
 		return errors.New("invalid: unable to decode ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "action":
+			if err := func() error {
+				s.Action.Reset()
+				if err := s.Action.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
 		case "confirmed":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.Confirmed = int(v)
@@ -193520,7 +194160,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"confirmed\"")
 			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Cve = string(v)
@@ -193532,7 +194172,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"cve\"")
 			}
 		case "device":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Device = string(v)
@@ -193544,7 +194184,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"device\"")
 			}
 		case "devices":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.Devices = int(v)
@@ -193556,7 +194196,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"devices\"")
 			}
 		case "finding_id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.FindingID = string(v)
@@ -193568,7 +194208,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"finding_id\"")
 			}
 		case "open":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int()
 				s.Open = int(v)
@@ -193580,7 +194220,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"open\"")
 			}
 		case "product":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -193592,7 +194232,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -193610,8 +194250,9 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportTopRisksItem) Decode(d *jx.Deco
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b11111111,
+	for i, mask := range [2]uint8{
+		0b11111110,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -194195,15 +194836,22 @@ func (s *ReportsGetReportsWeeklyPreview1Fix) encodeFields(e *jx.Encoder) {
 			s.Product.Encode(e)
 		}
 	}
+	{
+		if s.Text.Set {
+			e.FieldStart("text")
+			s.Text.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyPreview1Fix = [6]string{
+var jsonFieldsNameOfReportsGetReportsWeeklyPreview1Fix = [7]string{
 	0: "count",
 	1: "cve",
 	2: "device",
 	3: "finding_id",
 	4: "kind",
 	5: "product",
+	6: "text",
 }
 
 // Decode decodes ReportsGetReportsWeeklyPreview1Fix from json.
@@ -194282,6 +194930,16 @@ func (s *ReportsGetReportsWeeklyPreview1Fix) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"product\"")
+			}
+		case "text":
+			if err := func() error {
+				s.Text.Reset()
+				if err := s.Text.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"text\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -194602,15 +195260,22 @@ func (s *ReportsGetReportsWeeklyPreview1Verify) encodeFields(e *jx.Encoder) {
 			s.Product.Encode(e)
 		}
 	}
+	{
+		if s.Text.Set {
+			e.FieldStart("text")
+			s.Text.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyPreview1Verify = [6]string{
+var jsonFieldsNameOfReportsGetReportsWeeklyPreview1Verify = [7]string{
 	0: "count",
 	1: "cve",
 	2: "device",
 	3: "finding_id",
 	4: "kind",
 	5: "product",
+	6: "text",
 }
 
 // Decode decodes ReportsGetReportsWeeklyPreview1Verify from json.
@@ -194689,6 +195354,16 @@ func (s *ReportsGetReportsWeeklyPreview1Verify) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"product\"")
+			}
+		case "text":
+			if err := func() error {
+				s.Text.Reset()
+				if err := s.Text.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"text\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -194887,6 +195562,12 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) encodeFields(e *jx.Encoder) {
 		json.EncodeDateTime(e, s.GeneratedAt)
 	}
 	{
+		if s.Happened.Set {
+			e.FieldStart("happened")
+			s.Happened.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("new_findings")
 		e.ArrStart()
 		for _, elem := range s.NewFindings {
@@ -194934,17 +195615,18 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReport = [10]string{
-	0: "actions",
-	1: "ai_summary",
-	2: "counts",
-	3: "generated_at",
-	4: "new_findings",
-	5: "open",
-	6: "period",
-	7: "resolved",
-	8: "sources",
-	9: "top_risks",
+var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReport = [11]string{
+	0:  "actions",
+	1:  "ai_summary",
+	2:  "counts",
+	3:  "generated_at",
+	4:  "happened",
+	5:  "new_findings",
+	6:  "open",
+	7:  "period",
+	8:  "resolved",
+	9:  "sources",
+	10: "top_risks",
 }
 
 // Decode decodes ReportsGetReportsWeeklyPreviewOKReport from json.
@@ -195006,8 +195688,18 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"generated_at\"")
 			}
+		case "happened":
+			if err := func() error {
+				s.Happened.Reset()
+				if err := s.Happened.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"happened\"")
+			}
 		case "new_findings":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.NewFindings = make([]ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -195025,7 +195717,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"new_findings\"")
 			}
 		case "open":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.Open = make([]ReportsGetReportsWeeklyPreviewOKReportOpenItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -195043,7 +195735,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"open\"")
 			}
 		case "period":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Period.Decode(d); err != nil {
 					return err
@@ -195053,7 +195745,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"period\"")
 			}
 		case "resolved":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Resolved = make([]ReportsGetReportsWeeklyPreviewOKReportResolvedItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -195071,7 +195763,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resolved\"")
 			}
 		case "sources":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Sources = make([]ReportsGetReportsWeeklyPreviewOKReportSourcesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -195115,8 +195807,8 @@ func (s *ReportsGetReportsWeeklyPreviewOKReport) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111111,
-		0b00000001,
+		0b11101111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -195200,6 +195892,12 @@ func (s ReportsGetReportsWeeklyPreviewOKReportActionsItem) encodeFields(e *jx.En
 					s.Product.Encode(e)
 				}
 			}
+			{
+				if s.Text.Set {
+					e.FieldStart("text")
+					s.Text.Encode(e)
+				}
+			}
 		}
 	case ReportsGetReportsWeeklyPreview1VerifyReportsGetReportsWeeklyPreviewOKReportActionsItem:
 		e.FieldStart("kind")
@@ -195228,6 +195926,12 @@ func (s ReportsGetReportsWeeklyPreviewOKReportActionsItem) encodeFields(e *jx.En
 				if s.Product.Set {
 					e.FieldStart("product")
 					s.Product.Encode(e)
+				}
+			}
+			{
+				if s.Text.Set {
+					e.FieldStart("text")
+					s.Text.Encode(e)
 				}
 			}
 		}
@@ -195854,6 +196558,466 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) MarshalJSON() ([]byte, er
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ReportsGetReportsWeeklyPreviewOKReportCounts) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("accepted_logins")
+		e.Int(s.AcceptedLogins)
+	}
+	{
+		e.FieldStart("bad_connections")
+		e.Int(s.BadConnections)
+	}
+	{
+		e.FieldStart("failed_logins")
+		e.Int(s.FailedLogins)
+	}
+	{
+		e.FieldStart("other")
+		e.Int(s.Other)
+	}
+	{
+		e.FieldStart("summary")
+		e.Str(s.Summary)
+	}
+	{
+		e.FieldStart("top")
+		e.ArrStart()
+		for _, elem := range s.Top {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("traps")
+		e.Int(s.Traps)
+	}
+}
+
+var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportHappened = [7]string{
+	0: "accepted_logins",
+	1: "bad_connections",
+	2: "failed_logins",
+	3: "other",
+	4: "summary",
+	5: "top",
+	6: "traps",
+}
+
+// Decode decodes ReportsGetReportsWeeklyPreviewOKReportHappened from json.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsWeeklyPreviewOKReportHappened to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "accepted_logins":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.AcceptedLogins = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accepted_logins\"")
+			}
+		case "bad_connections":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.BadConnections = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bad_connections\"")
+			}
+		case "failed_logins":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.FailedLogins = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"failed_logins\"")
+			}
+		case "other":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.Other = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"other\"")
+			}
+		case "summary":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Summary = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"summary\"")
+			}
+		case "top":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				s.Top = make([]ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Top = append(s.Top, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"top\"")
+			}
+		case "traps":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Int()
+				s.Traps = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"traps\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ReportsGetReportsWeeklyPreviewOKReportHappened")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b01111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportHappened) {
+					name = jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportHappened[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappened) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("at")
+		json.EncodeDateTime(e, s.At)
+	}
+	{
+		e.FieldStart("count")
+		e.Int(s.Count)
+	}
+	{
+		e.FieldStart("kind")
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("severity")
+		s.Severity.Encode(e)
+	}
+	{
+		e.FieldStart("title")
+		e.Str(s.Title)
+	}
+}
+
+var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportHappenedTopItem = [5]string{
+	0: "at",
+	1: "count",
+	2: "kind",
+	3: "severity",
+	4: "title",
+}
+
+// Decode decodes ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem from json.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "at":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.At = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"at\"")
+			}
+		case "count":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.Count = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"count\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "severity":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Severity.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"severity\"")
+			}
+		case "title":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Title = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"title\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) {
+					name = jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportHappenedTopItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind as json.
+func (s ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind from json.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind(v) {
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindLoginAccepted:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindLoginAccepted
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindTrap:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindTrap
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindFailedLogins:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindFailedLogins
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindBadConnection:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindBadConnection
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindAnomaly:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKindAnomaly
+	default:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity as json.
+func (s ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity from json.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity(v) {
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityCritical:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityCritical
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityHigh:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityHigh
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityMedium:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityMedium
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityLow:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityLow
+	case ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityInfo:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverityInfo
+	default:
+		*s = ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -197073,6 +198237,8 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) Decode(d *jx.Decod
 		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev:
 		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev
+	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents:
+		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents
 	default:
 		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemID(v)
 	}
@@ -197102,6 +198268,12 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) Encode(e *jx.Encode
 
 // encodeFields encodes fields.
 func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) encodeFields(e *jx.Encoder) {
+	{
+		if s.Action.Set {
+			e.FieldStart("action")
+			s.Action.Encode(e)
+		}
+	}
 	{
 		e.FieldStart("confirmed")
 		e.Int(s.Confirmed)
@@ -197136,15 +198308,16 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) encodeFields(e *jx.
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportTopRisksItem = [8]string{
-	0: "confirmed",
-	1: "cve",
-	2: "device",
-	3: "devices",
-	4: "finding_id",
-	5: "open",
-	6: "product",
-	7: "severity",
+var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportTopRisksItem = [9]string{
+	0: "action",
+	1: "confirmed",
+	2: "cve",
+	3: "device",
+	4: "devices",
+	5: "finding_id",
+	6: "open",
+	7: "product",
+	8: "severity",
 }
 
 // Decode decodes ReportsGetReportsWeeklyPreviewOKReportTopRisksItem from json.
@@ -197152,12 +198325,22 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) Decode(d *jx.Decode
 	if s == nil {
 		return errors.New("invalid: unable to decode ReportsGetReportsWeeklyPreviewOKReportTopRisksItem to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "action":
+			if err := func() error {
+				s.Action.Reset()
+				if err := s.Action.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
 		case "confirmed":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.Confirmed = int(v)
@@ -197169,7 +198352,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"confirmed\"")
 			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Cve = string(v)
@@ -197181,7 +198364,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"cve\"")
 			}
 		case "device":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Device = string(v)
@@ -197193,7 +198376,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"device\"")
 			}
 		case "devices":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.Devices = int(v)
@@ -197205,7 +198388,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"devices\"")
 			}
 		case "finding_id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.FindingID = string(v)
@@ -197217,7 +198400,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"finding_id\"")
 			}
 		case "open":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int()
 				s.Open = int(v)
@@ -197229,7 +198412,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"open\"")
 			}
 		case "product":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -197241,7 +198424,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -197259,8 +198442,9 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportTopRisksItem) Decode(d *jx.Decode
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b11111111,
+	for i, mask := range [2]uint8{
+		0b11111110,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

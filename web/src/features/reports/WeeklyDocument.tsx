@@ -26,6 +26,7 @@ function Rows({ rows, caption }: { rows: FindingRow[]; caption: string }) {
 }
 
 export function actionText(a: ActionItem, t: (k: string, o?: Record<string, unknown>) => string) {
+  if ((a.kind === 'fix' || a.kind === 'verify') && a.text) return a.text // the box wrote it, naming the fixed version when NVD says (D-490)
   if (a.kind === 'fix' || a.kind === 'verify') {
     // Since D-485 an action is about one top risk (a product); reports sent before it name one CVE.
     return a.product ? t(`doc.weekly.act.${a.kind}Product`, { product: a.product, device: a.device, count: a.count ?? 1, cve: a.cve }) : t(`doc.weekly.act.${a.kind}`, { cve: a.cve, device: a.device })
@@ -41,6 +42,7 @@ function Risk({ r }: { r: TopRisk }) {
   return (
     <li className="grid gap-0.5">
       <span className="flex flex-wrap items-center gap-2"><span className="font-medium">{r.product}</span><SeverityChip severity={r.severity} /></span>
+      {r.action ? <span>{r.action}</span> : null}
       <span className="text-[13px] text-muted">{t('doc.weekly.risk', { device: r.device, count: r.open, confirmed: r.confirmed, cve: r.cve })}</span>
     </li>
   )
@@ -82,6 +84,16 @@ export function WeeklyDocument({ report: r, org }: { report: WeeklyReport; org: 
             <section aria-labelledby="wk-risks"><h3 id="wk-risks" className="mb-1 font-semibold">{t('doc.weekly.risks')}</h3>
               {r.top_risks.length ? <ol className="ml-5 grid list-decimal gap-2">{r.top_risks.map((x) => <Risk key={x.finding_id} r={x} />)}</ol> : <p className="text-muted">{t('doc.weekly.noneOpen')}</p>}
             </section>
+            {r.happened ? (
+              <section aria-labelledby="wk-hap"><h3 id="wk-hap" className="mb-1 font-semibold">{t('doc.weekly.happened')}</h3>
+                <p>{r.happened.summary}</p>
+                {r.happened.top.length ? (
+                  <ul className="ml-5 mt-1 list-disc">
+                    {r.happened.top.map((h, i) => <li key={i}>{h.title}{h.count > 1 ? ` ${t('doc.weekly.times', { count: h.count })}` : ''} <SeverityChip severity={h.severity} /></li>)}
+                  </ul>
+                ) : null}
+              </section>
+            ) : null}
             <section aria-labelledby="wk-did"><h3 id="wk-did" className="mb-1 font-semibold">{t('doc.weekly.done')}</h3>
               {r.resolved.length ? (
                 <ul className="ml-5 list-disc">
@@ -118,7 +130,7 @@ export function WeeklyDocument({ report: r, org }: { report: WeeklyReport; org: 
       </section>
       <footer className="mt-5 grid gap-0.5 border-t border-rule pt-2 text-[12px] text-muted">
         <p>{t('doc.sources')} {r.sources.map((s) => t(`doc.src.${s.id}`)).join(', ')}.</p>
-        <p>{t('doc.weekly.notIncluded')}</p>
+        {r.happened ? null : <p>{t('doc.weekly.notIncluded')}</p>}
         <p>{t('doc.weekly.footer', { time: fmtDateTime(r.generated_at) })}</p>
       </footer>
     </article>

@@ -30,6 +30,9 @@ type TopRisk struct {
 	Severity  string `json:"severity"`
 	CVE       string `json:"cve"`
 	FindingID string `json:"finding_id"`
+	// Action is what to do this week, one sentence naming the device(s) and, when NVD's ranges say, the fixed version (D-490).
+	// Empty in a report sent before D-490.
+	Action string `json:"action,omitempty"`
 }
 
 // ActionItem is one line of "what is left". Kind is fix, verify, review_devices or plan_os. Since D-485 fix and verify are about
@@ -41,6 +44,28 @@ type ActionItem struct {
 	FindingID string `json:"finding_id,omitempty"`
 	Product   string `json:"product,omitempty"`
 	Count     int    `json:"count,omitempty"`
+	Text      string `json:"text,omitempty"` // fix and verify: the sentence of the top risk's Action (D-490)
+}
+
+// HappenedLine is one incident of the week that matters.
+type HappenedLine struct {
+	Kind     string `json:"kind"` // login_accepted, trap, failed_logins, bad_connection or anomaly
+	Title    string `json:"title"`
+	Severity string `json:"severity"`
+	Count    int    `json:"count"` // how many times it repeated
+	At       string `json:"at"`    // last seen
+}
+
+// Happened is "what happened this week" from the incidents of notify (D-490): counts of incidents seen in the week, per kind,
+// and the few that matter most. Summary is the one sentence the page and the email both say.
+type Happened struct {
+	Traps          int            `json:"traps"`
+	FailedLogins   int            `json:"failed_logins"`
+	AcceptedLogins int            `json:"accepted_logins"`
+	BadConnections int            `json:"bad_connections"`
+	Other          int            `json:"other"`
+	Summary        string         `json:"summary"`
+	Top            []HappenedLine `json:"top"`
 }
 
 // Tokens is what an AI call cost.
@@ -93,6 +118,7 @@ type WeeklyReport struct {
 	Resolved    []FindingRow `json:"resolved"`
 	Open        []FindingRow `json:"open"`
 	Actions     []ActionItem `json:"actions"`
+	Happened    *Happened    `json:"happened"` // nil when notify is off or the report was sent before D-490
 	Sources     []Source     `json:"sources"`
 	AISummary   *AiSummary   `json:"ai_summary"`
 }

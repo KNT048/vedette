@@ -35,6 +35,7 @@ func reportsService(d deps) *reports.Service {
 		return s
 	}
 	cfg := reports.Config{DB: d.DB, Audit: d.Audit, Inventory: reportsInventory{d.Inventory}, Findings: reportsFindings{d.Findings}, KEV: reportsKEV{&d},
+		Remedies: reportsRemedies{d: &d, feed: findingsFeeds{cache: &vulnCache{}}}, Incidents: reportsIncidents{&d},
 		Mail: reportsMailer{newNotify(&d)}, AI: reportsAI{d.AI}, OrgName: d.Core.OrgName, Zone: orgZone(&d), Log: d.Log, Clock: d.Clock}
 	if d.Reg != nil { // a nil *modreg.Registry inside the interface would not compare equal to nil
 		cfg.Modules = d.Reg
@@ -142,7 +143,114 @@ func (a reportsKEV) NewlyExploited(ctx context.Context) (int, int, error) {
 	return fs.NewlyExploited(ctx)
 }
 
+// ---- findings + inventory -> reports ----
+
+// maxFixes bounds how many findings one report asks a fixed release for (a box with more open findings names the fixes of the
+// first ones, which are the worst: Findings.All is newest first and the report only names three risks).
+const maxFixes = 2000
+
+// reportsRemedies says the release that closes each open finding on its device, with findings.FixedInFor, the function behind
+// the "What to do" part of a finding page (D-488, D-490). It informs the text only: a device it cannot read is skipped.
+type reportsRemedies struct {
+	d    *deps
+	feed findingsFeeds // st is set at first use (feeds is built after reports on some paths)
+}
+
+func (a reportsRemedies) Fixes(ctx context.Context, fs []reports.Finding) (map[string]reports.Fix, error) {
+	if a.d.Inventory == nil || (a.d.Reg != nil && !a.d.Reg.Enabled("feeds")) {
+		return nil, nil
+	}
+	svc, err := feedsService(*a.d)
+	if err != nil {
+		return nil, err
+	}
+	feed := a.feed
+	feed.st = svc.Store()
+	vulns, err := feed.Vulns(ctx)
+	if err != nil {
+		return nil, err
+	}
+	byCVE := make(map[string]findings.Vuln, len(vulns))
+	for _, v := range vulns {
+		byCVE[v.CVE] = v
+	}
+	inv := findingsInventory{a.d.Inventory}
+	assets := map[string]*findings.Asset{} // nil: the device cannot be read
+	out := map[string]reports.Fix{}
+	for i, f := range fs {
+		if i == maxFixes {
+			break
+		}
+		v, ok := byCVE[f.CVE]
+		if !ok {
+			continue
+		}
+		as, seen := assets[f.AssetID]
+		if !seen {
+			if m, ok, err := inv.MatchInput(ctx, f.AssetID); err == nil && ok {
+				as = &m
+			}
+			assets[f.AssetID] = as
+		}
+		if as == nil {
+			continue
+		}
+		if fx := findings.FixedInFor(*as, v); fx != nil {
+			out[f.ID] = reports.Fix{Kind: fx.Kind, Version: fx.Version, Fixed: fx.Fixed, Distro: fx.Distro}
+		}
+	}
+	return out, nil
+}
+
 // ---- notify -> reports ----
+
+type reportsIncidents struct{ d *deps }
+
+// Since lists the incidents of notify last seen since the time. The kind a person cares about is read from notify's kind and, for
+// the two log anomalies the failed-login rule raises, from the title it writes (modules/logs/authfail.go; notify keeps no target on
+// the API row): "N failed logins from <address> on <source> in M minutes" and "A login from <address> was ACCEPTED after failed
+// attempts on <source>". New-device incidents are left out: the Devices count says them.
+func (a reportsIncidents) Since(ctx context.Context, since time.Time) ([]reports.Incident, bool, error) {
+	if a.d.Reg != nil && !a.d.Reg.Enabled("notify") {
+		return nil, false, nil
+	}
+	list, err := newNotify(a.d).Incidents(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	var out []reports.Incident
+	for _, in := range list {
+		at, err := time.Parse(time.RFC3339, in.LastSeen)
+		if err != nil || !at.After(since) {
+			continue
+		}
+		kind := incidentKind(in.Kind, in.Title)
+		if kind == "" {
+			continue
+		}
+		out = append(out, reports.Incident{Kind: kind, Severity: string(in.Severity), Title: in.Title, Count: in.Count, LastSeen: at})
+	}
+	return out, true, nil
+}
+
+// incidentKind is the kind reports names an incident by ("" = not in the report).
+func incidentKind(k notify.IncidentKind, title string) string {
+	switch k {
+	case notify.IncidentTrap:
+		return "trap"
+	case notify.IncidentBadAddress:
+		return "bad_connection"
+	case notify.IncidentLogAnomaly:
+		switch {
+		case strings.Contains(title, "was ACCEPTED after failed attempts"):
+			return "login_accepted"
+		case strings.Contains(title, " failed logins from "):
+			return "failed_logins"
+		}
+		return "anomaly"
+	}
+	return ""
+}
 
 type reportsMailer struct{ svc *notify.Service }
 

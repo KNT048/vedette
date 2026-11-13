@@ -40,9 +40,9 @@ type Config struct {
 	// (RFC 1918, unique-local, CGNAT), checked on the resolved address at dial time, and
 	// the environment proxy is not used. This is what makes "internal" more than a label (INV-3).
 	InternalOnly bool
-	// Machine is the machine's addresses (vedette-host, the container's gateway), asked at every connection: no profile reaches
-	// Vedette's own ports there (D-446, Own). nil, or known=false, refuses those ports on every address.
-	Machine func() (addrs []netip.Addr, known bool)
+	// Own is where the addresses of Vedette itself come from, asked at every connection: no profile reaches Vedette itself (D-446,
+	// OwnSources.Own). The zero value knows no machine address, so Vedette's own ports are refused on every address.
+	Own OwnSources
 	// AnthropicVersion overrides the anthropic-version header. Empty = DefaultAnthropicVersion.
 	AnthropicVersion string
 	// Timeout bounds one call. Zero = 60 s. The caller's context can only make it shorter.
@@ -107,7 +107,7 @@ func New(c Config) (Provider, error) {
 	h := &httpClient{
 		base: base, key: c.APIKey, timeout: c.Timeout, maxBody: c.MaxResponseBytes,
 		// Never follow redirects: a custom header such as x-api-key would travel to the new host.
-		c: &http.Client{Transport: newTransport(c.InternalOnly, base, c.Machine), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
+		c: &http.Client{Transport: newTransport(c.InternalOnly, base, c.Own), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 	switch c.Style {
 	case StyleAnthropic:
@@ -311,20 +311,40 @@ var vedettePorts = []uint16{514, 6514, 8443, 8444, 8765}
 // ownMayDialLoopback lets the tests of this package dial httptest servers on loopback. It is unexported and set only from test code.
 var ownMayDialLoopback = false
 
+// OwnSources are where the addresses of Vedette itself come from (D-446), asked at every check.
+type OwnSources struct {
+	// Machine is the machine's addresses (vedette-host, the container's gateway): refused on Vedette's own ports. nil, or
+	// known=false, refuses those ports on every address.
+	Machine func() (addrs []netip.Addr, known bool)
+	// Self lists more addresses that are Vedette itself (the honeypot's decoys): refused on every port. nil: none.
+	Self func() []netip.Addr
+}
+
 // Own reports whether ip at port is Vedette itself (D-446): loopback (in the shipped container, core: a local Ollama is reached at
-// the machine's address, D-226), an address of core's own container on every port, or one of machine on a port of vedettePorts;
-// while the machine's addresses are not known (known false), those ports on every address (no AI server listens on them).
+// the machine's address, D-226), an address of core's own container or of o.Self on every port, or one of o.Machine on a port of
+// vedettePorts; while the machine's addresses are not known, those ports on every address (no AI server listens on them).
 // IPv4-mapped IPv6 is treated as the IPv4 address; the other forms that carry an IPv4 address are Forbidden already.
-func Own(ip netip.Addr, port uint16, machine []netip.Addr, known bool) bool {
+func (o OwnSources) Own(ip netip.Addr, port uint16) bool {
 	ip = ip.Unmap().WithZone("")
 	if ip.IsLoopback() {
 		return !ownMayDialLoopback
 	}
-	if slices.Contains(selfAddrs(), ip) {
-		return true
+	self := selfAddrs()
+	if o.Self != nil {
+		self = append(self, o.Self()...)
+	}
+	for _, s := range self {
+		if s.Unmap().WithZone("") == ip {
+			return true
+		}
 	}
 	if !slices.Contains(vedettePorts, port) {
 		return false
+	}
+	var machine []netip.Addr
+	known := false
+	if o.Machine != nil {
+		machine, known = o.Machine()
 	}
 	if !known {
 		return true
@@ -353,7 +373,7 @@ func selfAddrs() []netip.Addr {
 }
 
 // ownControl wraps a dialer Control with Own, on the resolved address and port (DNS rebinding included).
-func ownControl(machine func() ([]netip.Addr, bool), next func(network, address string, c syscall.RawConn) error) func(network, address string, c syscall.RawConn) error {
+func ownControl(own OwnSources, next func(network, address string, c syscall.RawConn) error) func(network, address string, c syscall.RawConn) error {
 	return func(network, address string, c syscall.RawConn) error {
 		host, port, err := net.SplitHostPort(address)
 		if err != nil {
@@ -361,15 +381,8 @@ func ownControl(machine func() ([]netip.Addr, bool), next func(network, address 
 		}
 		ip, ierr := netip.ParseAddr(host)
 		n, perr := strconv.ParseUint(port, 10, 16)
-		if ierr == nil && perr == nil {
-			var addrs []netip.Addr
-			known := false
-			if machine != nil {
-				addrs, known = machine()
-			}
-			if Own(ip, uint16(n), addrs, known) {
-				return errOwnDestination
-			}
+		if ierr == nil && perr == nil && own.Own(ip, uint16(n)) {
+			return errOwnDestination
 		}
 		return next(network, address, c)
 	}
@@ -461,7 +474,7 @@ func cloudControlFor(proxied bool) func(network, address string, c syscall.RawCo
 // newTransport returns the HTTP transport of one provider. An internal profile gets no proxy and a dialer that refuses public
 // addresses; a cloud profile keeps the environment proxy and a dialer that refuses private ones (unless a proxy is in the way).
 // Both refuse the Forbidden addresses and Vedette itself (Own; behind a proxy the dial goes to the proxy, the operator's).
-func newTransport(internal bool, base *url.URL, machine func() ([]netip.Addr, bool)) *http.Transport {
+func newTransport(internal bool, base *url.URL, own OwnSources) *http.Transport {
 	if !internal {
 		t := http.DefaultTransport.(*http.Transport).Clone() //nolint:forcetypeassert // the default transport is an *http.Transport
 		proxied := false
@@ -472,12 +485,12 @@ func newTransport(internal bool, base *url.URL, machine func() ([]netip.Addr, bo
 		}
 		ctl := cloudControlFor(proxied)
 		if !proxied {
-			ctl = ownControl(machine, ctl)
+			ctl = ownControl(own, ctl)
 		}
 		t.DialContext = (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second, Control: ctl}).DialContext
 		return t
 	}
-	d := &net.Dialer{Timeout: 10 * time.Second, Control: ownControl(machine, internalOnlyControl)}
+	d := &net.Dialer{Timeout: 10 * time.Second, Control: ownControl(own, internalOnlyControl)}
 	return &http.Transport{
 		Proxy: nil, DialContext: d.DialContext, MaxIdleConns: 4, IdleConnTimeout: 30 * time.Second, TLSHandshakeTimeout: 10 * time.Second,
 	}

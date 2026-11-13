@@ -350,3 +350,27 @@ func mustURL(t *testing.T, s string) *url.URL {
 	}
 	return u
 }
+
+// D-446 review: a honeypot decoy (Fetcher.Self) is Vedette itself on every port, on a Vedette port and on another one alike.
+func TestD446_DecoyRefusedOnEveryPort(t *testing.T) {
+	t.Parallel()
+	var dialled atomic.Int32
+	f := Fetcher{Client: newClient(2*time.Second, systemResolver), BoxAddrs: boxOf("10.9.9.9"),
+		Self: func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("10.123.45.200")} },
+		dialOverride: func(context.Context, string, string) (net.Conn, error) {
+			dialled.Add(1)
+			return nil, errors.New("dialled")
+		}}
+	for _, u := range []string{"http://10.123.45.200:8443/x", "http://10.123.45.200/x", "https://10.123.45.200:9000/x"} {
+		if _, err := f.Fetch(context.Background(), Request{URL: u}); !errors.Is(err, ErrOwnAddress) {
+			t.Errorf("%s: %v", u, err)
+		}
+	}
+	if dialled.Load() != 0 {
+		t.Errorf("a decoy was dialled %d times", dialled.Load())
+	}
+	s := &Service{Deps: Deps{Fetcher: f}}
+	if err := CheckDest("http://10.123.45.200/ioc.txt", s.boxAddrs()); err == nil {
+		t.Error("a feed on a decoy was accepted at save")
+	}
+}

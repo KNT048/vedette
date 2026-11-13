@@ -150,3 +150,4 @@ Chưa có caller ngoài test; WP-22 nối vào `Service`. Đổi chữ ký dư�
 - D-191 text and the story criterion come from the Mac session (WP-31 R3).
 - Job `retention` (D-215, `retention.go`): Housekeeping, mỗi giờ; xoá `notify_send`, `notify_incident` đã resolved và `notify_notice` quá 1 năm (không bao giờ incident đang mở, hàng đợi, `notify_kev`); một mục kiểm toán `notify.retention` mỗi lượt có xoá, nhãn trong `web/src/locales/en/core.json`.
 - Nguồn nhật ký `alerts` (`exportalerts.go`): đăng ký trong `registerLogSources`; đọc `notify_send` theo khoảng ngày cho `core/logexport`, không `message`, không `recipient`, không token.
+- D-446 review: `Config.SelfAddrs` → `WebhookConfig.SelfAddrsFunc`, `EmailConfig.SelfAddrsFunc` (the honeypot's decoys, every port); `dialControl(allowLoopback, box, self, failClosed)`: webhooks fail closed while the machine's addresses are unknown, email only refuses Vedette's ports meanwhile.

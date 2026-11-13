@@ -33,12 +33,15 @@ func TestOwnAddresses(t *testing.T) { //nolint:paralleltest // switches ownMayDi
 		{"10.77.0.9", 8443, true, true}, {"10.77.0.9", 514, true, true}, {"::ffff:10.77.0.9", 8765, true, true},
 		{"10.77.0.9", 11434, true, false}, {"10.77.0.9", 18080, false, false}, {"10.77.0.8", 8443, true, false},
 		{"10.77.0.8", 8444, false, true}, // the machine's addresses not known yet: Vedette's ports on every address
+		// Self (core's container address or a decoy, D-446 review): every port
+		{"10.89.0.5", 11434, true, true}, {"10.89.0.5", 8443, true, true}, {"10.89.0.6", 11434, true, false},
 	} {
-		if got := Own(netip.MustParseAddr(c.ip), c.port, machine, c.known); got != c.own {
+		src := OwnSources{Machine: func() ([]netip.Addr, bool) { return machine, c.known }, Self: func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("10.89.0.5")} }}
+		if got := src.Own(netip.MustParseAddr(c.ip), c.port); got != c.own {
 			t.Errorf("Own(%s, %d, known=%v) = %v, want %v", c.ip, c.port, c.known, got, c.own)
 		}
 	}
-	m := func() ([]netip.Addr, bool) { return machine, true }
+	m := OwnSources{Machine: func() ([]netip.Addr, bool) { return machine, true }}
 	next := func(string, string, syscall.RawConn) error { return nil }
 	for addr, own := range map[string]bool{"127.0.0.1:11434": true, "10.77.0.9:8443": true, "10.77.0.9:11434": false, "192.168.1.5:8443": false} {
 		if err := ownControl(m, next)("tcp", addr, nil); errors.Is(err, errOwnDestination) != own {

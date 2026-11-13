@@ -41,9 +41,12 @@ type EmailConfig struct {
 	RootCAs  *x509.CertPool // nil = system roots; tests add their own CA
 	Now      func() time.Time
 	// BoxAddrsFunc lists the machine's addresses, asked at save and at every connection: the server is never on Vedette's own ports
-	// there (D-446), as for a webhook. known=false only leaves that list out (loopback, link-local, multicast and unspecified are refused all the
-	// same): the email channel also carries the two-step sign-in codes, which must not stop while the host has not answered (#157).
+	// there (D-446), as for a webhook. known=false refuses Vedette's own ports on every address and nothing more (loopback, link-local,
+	// multicast and unspecified are refused all the same): the email channel also carries the two-step sign-in codes, which must not
+	// stop while the host has not answered (#157).
 	BoxAddrsFunc func() (addrs []netip.Addr, known bool)
+	// SelfAddrsFunc lists more addresses that are Vedette itself (the honeypot's decoys): refused on every port (D-446). nil: none.
+	SelfAddrsFunc func() []netip.Addr
 	// AllowLoopback is for tests only (the fake SMTP servers of the notify and cmd/vedette tests listen on 127.0.0.1); production
 	// code never sets it: core never runs on the host network, so loopback is core itself.
 	AllowLoopback bool
@@ -60,7 +63,7 @@ type emailSender struct {
 	cfg  EmailConfig
 	addr string
 	tls  *tls.Config
-	box  func() ([]netip.Addr, bool) // always known: see EmailConfig.BoxAddrsFunc
+	box  func() ([]netip.Addr, bool) // EmailConfig.BoxAddrsFunc; unknown refuses only Vedette's ports (ownAddr), never the whole channel
 }
 
 // ParseRecipients splits a "a@x.com, b@y.com" field (commas or semicolons) and validates each address.
@@ -102,13 +105,7 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 	if !validHost(cfg.Host) {
 		return nil, cfgErr("bad_host", "The SMTP server must be a domain name or an IP address, for example smtp.company.com.")
 	}
-	box := func() ([]netip.Addr, bool) {
-		if cfg.BoxAddrsFunc == nil {
-			return nil, true
-		}
-		addrs, _ := cfg.BoxAddrsFunc()
-		return addrs, true
-	}
+	box := cfg.BoxAddrsFunc
 	if cfg.Port < 1 || cfg.Port > 65535 {
 		return nil, cfgErr("bad_port", "The SMTP port is a number from 1 to 65535 (usually 587 or 465).")
 	}
@@ -116,9 +113,8 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 	// link-local, which holds the cloud metadata service (forbiddenAddr). A name that resolves to such an address is refused when
 	// connecting (dialControl).
 	host := strings.TrimSuffix(strings.ToLower(cfg.Host), ".")
-	boxAddrs, _ := box()
 	a, aerr := netip.ParseAddr(host)
-	if (aerr == nil && ownAddr(a, uint16(cfg.Port), cfg.AllowLoopback, boxAddrs)) || (!cfg.AllowLoopback && (host == "localhost" || strings.HasSuffix(host, ".localhost"))) {
+	if (aerr == nil && ownAddr(a, uint16(cfg.Port), cfg.AllowLoopback, ownOf(box, cfg.SelfAddrsFunc))) || (!cfg.AllowLoopback && (host == "localhost" || strings.HasSuffix(host, ".localhost"))) {
 		return nil, cfgErr("bad_host", OwnText)
 	}
 	if (aerr == nil && forbiddenAddr(a, cfg.AllowLoopback)) || metadataName(host) {
@@ -287,7 +283,7 @@ func (e *emailSender) deliver(ctx context.Context, raw []byte) error {
 		return fmt.Errorf("notify: email: %s: %s", stage, transportReason(err, sec))
 	}
 
-	d := net.Dialer{Control: dialControl(e.cfg.AllowLoopback, e.box)} // after name resolution: a name that resolves to a forbidden address is refused too
+	d := net.Dialer{Control: dialControl(e.cfg.AllowLoopback, e.box, e.cfg.SelfAddrsFunc, false)} // after name resolution: a name that resolves to a forbidden address is refused too
 	raw0, err := d.DialContext(ctx, "tcp", e.addr)
 	if err != nil {
 		return fail("connect", err)

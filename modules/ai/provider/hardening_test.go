@@ -246,10 +246,10 @@ func TestInternalDialControl(t *testing.T) {
 			t.Errorf("IsInternalAddr(%s) != %v", s, want)
 		}
 	}
-	if newTransport(true, nil, nil).Proxy != nil {
+	if newTransport(true, nil, OwnSources{}).Proxy != nil {
 		t.Error("an internal profile must not use the environment proxy")
 	}
-	if newTransport(false, nil, nil).Proxy == nil {
+	if newTransport(false, nil, OwnSources{}).Proxy == nil {
 		t.Error("a cloud profile keeps the environment proxy")
 	}
 	// End to end, without touching the network: the dial is refused before any packet is sent.
@@ -264,7 +264,7 @@ func TestInternalDialControl(t *testing.T) {
 		t.Fatal(err)
 	}
 	// net.Dialer.Control is what enforces it: check it is wired on the internal transport.
-	if newTransport(true, nil, nil).DialContext == nil {
+	if newTransport(true, nil, OwnSources{}).DialContext == nil {
 		t.Error("no dialer")
 	}
 }

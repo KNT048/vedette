@@ -60,6 +60,9 @@ type Config struct {
 	// webhook is then 503 host_unreachable and no webhook connection is made (fail closed, #157). nil = only the interfaces,
 	// known (tests, a box without vedette-host).
 	BoxAddrs func() (addrs []netip.Addr, known bool)
+	// SelfAddrs lists more addresses that are Vedette itself (the honeypot's decoys): no webhook or SMTP server there on any port
+	// (D-446). nil: none.
+	SelfAddrs func() []netip.Addr
 	// HTTPClient is given to the Slack, Telegram and Zalo adapters (not to webhooks: their client always checks the
 	// address at connect time). nil = their own clients (no redirects, timeouts). Tests pass a fake. Its Timeout should be 0: the
 	// Telegram listener long-polls longer than any usual total timeout, so it clears Timeout on its own copy and gives every call a

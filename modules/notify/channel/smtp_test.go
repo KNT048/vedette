@@ -388,3 +388,42 @@ func TestD446_SMTPOnTheMachine(t *testing.T) {
 		}
 	}
 }
+
+// D-446 review: a honeypot decoy is Vedette itself on every port (a webhook to a trap would loop: incident, webhook, trap hit), and
+// while the machine's addresses are unknown email refuses Vedette's own ports on every address and nothing else (#157: sign-in codes).
+func TestD446_DecoysAndTheUnknownWindow(t *testing.T) {
+	t.Parallel()
+	decoys := func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("10.123.45.200")} }
+	known := func() ([]netip.Addr, bool) { return nil, true }
+	for _, u := range []string{"https://10.123.45.200:8443/h", "http://10.123.45.200/h", "https://10.123.45.200:9000/h"} {
+		_, err := NewWebhook(WebhookConfig{URL: secrets.NewValue(u), SigningKey: secrets.NewValue(whKey), BoxAddrsFunc: known, SelfAddrsFunc: decoys})
+		var ce *ConfigError
+		if !errors.As(err, &ce) || ce.Code != "blocked_host" || ce.Msg != OwnText {
+			t.Errorf("webhook %s: %v", u, err)
+		}
+	}
+	for addr, refused := range map[string]bool{"10.123.45.200:80": true, "10.123.45.200:8443": true, "10.123.45.201:80": false} {
+		if err := dialControl(false, known, decoys, true)("tcp", addr, nil); errors.Is(err, errOwnDial) != refused {
+			t.Errorf("dial %s: %v", addr, err)
+		}
+	}
+	base := EmailConfig{Host: "10.123.45.200", Port: 587, Security: SecurityStartTLS, Username: "alerts@acme.example", Password: secrets.NewValue("pw-1234"),
+		From: "alerts@acme.example", To: []string{"it@acme.example"}, BoxAddrsFunc: known, SelfAddrsFunc: decoys}
+	if _, err := NewEmail(base); err == nil {
+		t.Error("SMTP on a decoy accepted")
+	}
+	unknown := func() ([]netip.Addr, bool) { return nil, false }
+	base.Host, base.SelfAddrsFunc, base.BoxAddrsFunc = "10.123.45.9", nil, unknown
+	if _, err := NewEmail(base); err != nil {
+		t.Errorf("unknown window, mail port: %v", err)
+	}
+	base.Port, base.Security = 6514, SecuritySSL
+	if _, err := NewEmail(base); err == nil {
+		t.Error("unknown window: Vedette's port 6514 accepted")
+	}
+	for addr, refused := range map[string]bool{"10.123.45.9:8443": true, "10.123.45.9:587": false} {
+		if err := dialControl(false, unknown, nil, false)("tcp", addr, nil); errors.Is(err, errOwnDial) != refused {
+			t.Errorf("email dial %s while unknown: %v", addr, err)
+		}
+	}
+}

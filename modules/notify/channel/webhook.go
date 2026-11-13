@@ -35,6 +35,9 @@ type WebhookConfig struct {
 	// ErrBoxAddrsUnknown and every connection is refused (fail closed, #157). Loopback and the addresses of core's own
 	// container are Vedette itself on every port and are read here (ownAddr).
 	BoxAddrsFunc func() (addrs []netip.Addr, known bool)
+	// SelfAddrsFunc lists more addresses that are Vedette itself (the honeypot's decoys), refused on every port like loopback (D-446).
+	// nil: none.
+	SelfAddrsFunc func() []netip.Addr
 
 	allowLoopback bool         // tests only: the package tests talk to httptest servers on 127.0.0.1
 	Client        *http.Client // nil = a client whose dialer refuses forbidden addresses (see dialControl)
@@ -84,12 +87,34 @@ func forbiddenAddr(a netip.Addr, allowLoopback bool) bool {
 // Same list in feeds, logs and ai.
 var vedettePorts = []uint16{514, 6514, 8443, 8444, 8765}
 
+// ownSet is what ownAddr judges against (D-446).
+type ownSet struct {
+	machine []netip.Addr // the machine's addresses (vedette-host, the container's gateway): refused on vedettePorts
+	known   bool         // false: the machine's addresses are not known yet, so vedettePorts are refused on every address
+	self    []netip.Addr // more addresses that are Vedette itself (the honeypot's decoys): refused on every port
+}
+
+// ownOf reads the sources of an ownSet; nil functions add nothing (box nil: known, empty).
+func ownOf(box func() ([]netip.Addr, bool), self func() []netip.Addr) ownSet {
+	o := ownSet{known: true}
+	if box != nil {
+		o.machine, o.known = box()
+	}
+	if self != nil {
+		o.self = self()
+	}
+	return o
+}
+
 // ownAddr reports whether a at port is Vedette itself (D-446), in any transition form: loopback (unless allowLoopback), an address
-// of core's own container (selfAddrs) on every port, or one of machine (the machine's addresses: vedette-host, the container's
-// gateway) on a port of vedettePorts. Another program on the machine, at its address and its own port, is a normal target.
-func ownAddr(a netip.Addr, port uint16, allowLoopback bool, machine []netip.Addr) bool {
+// of core's own container (selfAddrs) or of own.self on every port, or one of own.machine on a port of vedettePorts (every address
+// while own.known is false). Another program on the machine, at its address and its own port, is a normal target.
+func ownAddr(a netip.Addr, port uint16, allowLoopback bool, own ownSet) bool {
 	self := selfAddrs()
 	vport := slices.Contains(vedettePorts, port)
+	if vport && !own.known {
+		return true
+	}
 	for _, f := range addrForms(a) {
 		if f.IsLoopback() {
 			if !allowLoopback {
@@ -100,8 +125,13 @@ func ownAddr(a netip.Addr, port uint16, allowLoopback bool, machine []netip.Addr
 		if slices.Contains(self, f) {
 			return true
 		}
+		for _, s := range own.self {
+			if s.Unmap().WithZone("") == f {
+				return true
+			}
+		}
 		if vport {
-			for _, m := range machine {
+			for _, m := range own.machine {
 				if m.Unmap().WithZone("") == f {
 					return true
 				}
@@ -348,22 +378,23 @@ var ErrBoxAddrsUnknown = errors.New("notify: webhook: the box's own addresses ar
 
 // dialControl runs after name resolution, on the address about to be dialled,
 // so a DNS name that resolves to a forbidden address (or rebinds to one) is
-// refused too.
-func dialControl(allowLoopback bool, box func() ([]netip.Addr, bool)) func(network, address string, c syscall.RawConn) error {
+// refused too. failClosed (webhooks, #157): while the machine's addresses are not known nothing is dialled; otherwise (email,
+// which carries the sign-in codes) only Vedette's own ports are refused on every address meanwhile (ownAddr).
+func dialControl(allowLoopback bool, box func() ([]netip.Addr, bool), self func() []netip.Addr, failClosed bool) func(network, address string, c syscall.RawConn) error {
 	return func(_, address string, _ syscall.RawConn) error {
 		host, port, err := net.SplitHostPort(address)
 		if err != nil {
 			return errForbiddenDial
 		}
-		addrs, known := box()
-		if !known {
+		own := ownOf(box, self)
+		if !own.known && failClosed {
 			return ErrBoxAddrsUnknown
 		}
 		a, err := netip.ParseAddr(host)
 		switch {
 		case err != nil:
 			return errForbiddenDial
-		case ownAddr(a, portNumber(port, 0), allowLoopback, addrs):
+		case ownAddr(a, portNumber(port, 0), allowLoopback, own):
 			return errOwnDial
 		case forbiddenAddr(a, allowLoopback):
 			return errForbiddenDial
@@ -372,13 +403,13 @@ func dialControl(allowLoopback bool, box func() ([]netip.Addr, bool)) func(netwo
 	}
 }
 
-func webhookClient(allowLoopback bool, box func() ([]netip.Addr, bool)) *http.Client {
+func webhookClient(allowLoopback bool, box func() ([]netip.Addr, bool), self func() []netip.Addr) *http.Client {
 	return &http.Client{
 		Timeout:       defaultTimeout,
 		CheckRedirect: noRedirect,
 		Transport: &http.Transport{
 			Proxy:                 nil, // never an environment proxy: it would see the signed body
-			DialContext:           (&net.Dialer{Timeout: 10 * time.Second, Control: dialControl(allowLoopback, box)}).DialContext,
+			DialContext:           (&net.Dialer{Timeout: 10 * time.Second, Control: dialControl(allowLoopback, box, self, true)}).DialContext,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ResponseHeaderTimeout: defaultTimeout,
 			DisableKeepAlives:     true,
@@ -412,7 +443,7 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 		return append(out, more...), known
 	}
 	blocked := cfgErr("blocked_host", "The webhook cannot point at a link-local or multicast address, a cloud metadata service, or an unspecified address.")
-	own := cfgErr("blocked_host", OwnText)
+	ownErr := cfgErr("blocked_host", OwnText)
 	port := portNumber(u.Port(), 443)
 	if u.Port() == "" && u.Scheme == "http" {
 		port = 80
@@ -423,10 +454,11 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 	}
 	// A forbidden target is named as such before the http rule, so http://169.254.169.254 (cloud metadata) gets the precise
 	// sentence, as loopback does, not "plain http:// is only for internal hosts" (walk 3 G13).
-	box, known := boxFn()
+	own := ownOf(boxFn, cfg.SelfAddrsFunc)
+	known := own.known
 	if a, err := netip.ParseAddr(host); err == nil {
-		if ownAddr(a, port, cfg.allowLoopback, box) {
-			return nil, own
+		if ownAddr(a, port, cfg.allowLoopback, own) {
+			return nil, ownErr
 		}
 		if forbiddenAddr(a, cfg.allowLoopback) {
 			return nil, blocked
@@ -437,7 +469,7 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 			return nil, bad // a number-like host is an IP in disguise
 		}
 		if !cfg.allowLoopback && (host == "localhost" || strings.HasSuffix(host, ".localhost")) {
-			return nil, own
+			return nil, ownErr
 		}
 		if metadataName(host) {
 			return nil, blocked
@@ -461,7 +493,7 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 	}
 	client := cfg.Client
 	if client == nil {
-		client = webhookClient(cfg.allowLoopback, boxFn)
+		client = webhookClient(cfg.allowLoopback, boxFn, cfg.SelfAddrsFunc)
 	}
 	return &webhookSender{url: secrets.NewValue(u.String()), to: u.Scheme + "://" + u.Host, key: cfg.SigningKey, client: clientOrDefault(client), now: now}, nil
 }

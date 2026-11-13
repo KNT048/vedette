@@ -240,10 +240,12 @@ func siemForbidden(ip netip.Addr) bool {
 var vedettePorts = []uint16{514, 6514, 8443, 8444, 8765}
 
 // siemOwn says whether ip at port is Vedette itself (D-446), in any transition form: loopback (unless allowLoopback, tests only), an
-// address of core's own container (selfAddrs) on every port, or one of machine (the machine's addresses: vedette-host, the
-// container's gateway) on a port of vedettePorts. A SIEM on the machine at its own port is a normal destination.
-func siemOwn(ip netip.Addr, port uint16, machine []netip.Addr, allowLoopback bool) bool {
-	self := selfAddrs()
+// address of core's own container (selfAddrs) or of extra (Config.SelfAddrs: the honeypot's decoys) on every port, or one of machine
+// (the machine's addresses: vedette-host, the container's gateway) on a port of vedettePorts. While the machine's addresses are not
+// known the socket refuses every send (errSiemBoxUnknown); 514 and 6514 are every SIEM's ports, so unlike ai and email they are not
+// refused on every address meanwhile. A SIEM on the machine at its own port is a normal destination.
+func siemOwn(ip netip.Addr, port uint16, machine, extra []netip.Addr, allowLoopback bool) bool {
+	self := append(selfAddrs(), extra...)
 	vport := slices.Contains(vedettePorts, port)
 	for _, f := range addrForms(ip) {
 		if f.IsLoopback() {
@@ -252,8 +254,10 @@ func siemOwn(ip netip.Addr, port uint16, machine []netip.Addr, allowLoopback boo
 			}
 			continue
 		}
-		if slices.Contains(self, f) {
-			return true
+		for _, s := range self {
+			if s.Unmap().WithZone("") == f {
+				return true
+			}
 		}
 		if vport {
 			for _, m := range machine {
@@ -305,7 +309,7 @@ func (s *Service) siemControl(privateOnly bool) func(network, address string, c 
 		if !known {
 			return errSiemBoxUnknown // fail closed: until vedette-host has answered, the box's own addresses cannot be excluded
 		}
-		if siemOwn(ip, uint16(n), box, s.allowLoopback) {
+		if siemOwn(ip, uint16(n), box, s.extraSelf(), s.allowLoopback) {
 			return errSiemOwn
 		}
 		if siemForbidden(ip) {

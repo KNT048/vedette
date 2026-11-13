@@ -75,6 +75,8 @@ type Config struct {
 	// save and at every connection (D-446; loopback and core's own interfaces are refused on every port). known=false or nil:
 	// those ports are refused on every address.
 	BoxAddrs func() (addrs []netip.Addr, known bool)
+	// SelfAddrs lists more addresses that are Vedette itself (the honeypot's decoys): no profile there on any port (D-446). nil: none.
+	SelfAddrs func() []netip.Addr
 	// Facts is what the box knows about a CVE and the devices it matches (feeds, findings, inventory), read through the ports of
 	// those modules. nil = explaining a CVE answers 409 ai_unavailable.
 	Facts Facts
@@ -264,6 +266,11 @@ func New(ctx context.Context, cfg Config) (*Service, error) {
 	return s, nil
 }
 
+// own is where the D-446 rule reads the addresses of Vedette itself.
+func (s *Service) own() provider.OwnSources {
+	return provider.OwnSources{Machine: s.cfg.BoxAddrs, Self: s.cfg.SelfAddrs}
+}
+
 // build makes the meter and the router of a snapshot and publishes it.
 func (s *Service) build(sn *snapshot, loc *time.Location) error {
 	meter, err := NewMeter(MeterConfig{Clock: s.cfg.Clock, Location: loc, GlobalCap: sn.cfg.DailyCap, Tier: sn.cfg.Tier})
@@ -272,7 +279,7 @@ func (s *Service) build(sn *snapshot, loc *time.Location) error {
 	}
 	factory := s.cfg.Factory
 	if factory == nil {
-		factory = func(p Profile) (provider.Provider, error) { return p.provider(s.cfg.BoxAddrs) }
+		factory = func(p Profile) (provider.Provider, error) { return p.provider(s.own()) }
 	}
 	router, err := NewRouter(RouterConfig{Profiles: sn.libProfiles(), Assignments: sn.assign, Meter: meter, Factory: factory})
 	if err != nil {

@@ -63,6 +63,8 @@ type Config struct {
 	// and the container's own interfaces are refused on every port, read at every check); known=false means the box does not know them
 	// yet, and then no connection is made (fail closed). Nil: none (tests).
 	BoxAddrs func() (addrs []netip.Addr, known bool)
+	// SelfAddrs lists more addresses that are Vedette itself (the honeypot's decoys): no SIEM there on any port (D-446). nil: none.
+	SelfAddrs func() []netip.Addr
 	// Hostname is the box's name, the HOSTNAME of every syslog record, the dvchost of every CEF record (sent with no syslog header) and
 	// the "box" of every JSON record sent to the SIEM (#471). Wiring passes the OS host name vedette-host reports (core runs in a container, whose own name is not the machine's),
 	// already checked against RFC 1123. Nil or "": "vedette". The formatters still make it a plain token (asciiToken, siemText).

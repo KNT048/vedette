@@ -170,7 +170,7 @@ func checkDuplicateURL(ctx context.Context, tx *sql.Tx, addr, skip string) error
 // boxAddrs is Vedette itself as the pull sees it now (INV-17, D-446): unknown host addresses leave the container's own
 // interfaces and gateway, which are always checked.
 func (s *Service) boxAddrs() ownAddrs {
-	own, _ := (&destGuard{box: s.Fetcher.BoxAddrs, gateway: s.Fetcher.Gateway}).ownAddrs()
+	own, _ := (&destGuard{box: s.Fetcher.BoxAddrs, gateway: s.Fetcher.Gateway, self: s.Fetcher.Self}).ownAddrs()
 	return own
 }
 

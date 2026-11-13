@@ -61,6 +61,10 @@ type Fetcher struct {
 	// Gateway is the container's default gateway, which is the machine too (set by wiring; nil: not asked).
 	Gateway func() (netip.Addr, bool)
 
+	// Self lists addresses that are Vedette itself beyond this process's own interfaces (the honeypot's decoys): refused on every
+	// port, like loopback (D-446). nil: none.
+	Self func() []netip.Addr
+
 	dialOverride func(ctx context.Context, network, addr string) (net.Conn, error) // tests only (unexported)
 
 	allowLoopback bool // tests only (unexported): the httptest servers live on 127.0.0.1
@@ -180,7 +184,7 @@ func (f Fetcher) Fetch(ctx context.Context, req Request) (*Response, error) {
 	if strings.HasPrefix(strings.ToLower(target), "http://") {
 		scheme = "http"
 	}
-	ctx = context.WithValue(context.WithValue(ctx, schemeKey{}, scheme), guardKey{}, &destGuard{box: f.BoxAddrs, gateway: f.Gateway, dial: f.dialOverride, allowLoopback: f.allowLoopback})
+	ctx = context.WithValue(context.WithValue(ctx, schemeKey{}, scheme), guardKey{}, &destGuard{box: f.BoxAddrs, gateway: f.Gateway, self: f.Self, dial: f.dialOverride, allowLoopback: f.allowLoopback})
 	hreq, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return nil, fail(ErrInvalidURL, "Enter a full address such as https://example.com/feed.json.")

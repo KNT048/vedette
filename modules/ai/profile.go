@@ -122,7 +122,7 @@ func (p Profile) Validate() error {
 // (provider.Own: loopback, core's own container, Vedette's own ports on the machine's addresses) or a localhost name is refused. It
 // is not part of Validate, which also checks the saved profiles at start: a profile saved before D-446 stays loaded and its calls are
 // refused by the dialer with the same sentence. Other names are judged on the resolved address at every connection.
-func (p Profile) checkOwn(machine func() ([]netip.Addr, bool)) error {
+func (p Profile) checkOwn(own provider.OwnSources) error {
 	u, err := url.Parse(strings.TrimSpace(p.BaseURL))
 	if err != nil {
 		return nil // Validate refused it already
@@ -141,12 +141,7 @@ func (p Profile) checkOwn(machine func() ([]netip.Addr, bool)) error {
 	} else if u.Scheme == "http" {
 		port = 80
 	}
-	var addrs []netip.Addr
-	known := false
-	if machine != nil {
-		addrs, known = machine()
-	}
-	if provider.Own(ip, port, addrs, known) {
+	if own.Own(ip, port) {
 		return perr("invalid_base_url", provider.OwnText)
 	}
 	return nil
@@ -158,11 +153,11 @@ func (p Profile) Usable() bool { return p.APIKey.IsSet() || p.Location == Locati
 
 // Provider builds the client for this profile. http base URLs are only reachable here for internal profiles
 // because Validate refuses them otherwise. It does not know the machine's addresses, so Vedette's own ports are refused on every
-// address (provider.Own); the service builds its clients with them (Config.BoxAddrs).
-func (p Profile) Provider() (provider.Provider, error) { return p.provider(nil) }
+// address (provider.OwnSources); the service builds its clients with them (Config.BoxAddrs, Config.SelfAddrs).
+func (p Profile) Provider() (provider.Provider, error) { return p.provider(provider.OwnSources{}) }
 
-// provider is Provider with the machine's addresses for the D-446 rule (nil: unknown).
-func (p Profile) provider(machine func() ([]netip.Addr, bool)) (provider.Provider, error) {
+// provider is Provider with the sources of the D-446 rule.
+func (p Profile) provider(own provider.OwnSources) (provider.Provider, error) {
 	style, err := provider.StyleForKind(p.Kind, p.APIStyle)
 	if err != nil {
 		return nil, fmt.Errorf("ai: profile %q: %w", p.Name, err)
@@ -170,7 +165,7 @@ func (p Profile) provider(machine func() ([]netip.Addr, bool)) (provider.Provide
 	pr, err := provider.New(provider.Config{
 		Style: style, BaseURL: p.BaseURL, Model: p.Model, APIKey: p.APIKey,
 		CompatMode: style == provider.StyleOpenAI && p.Kind != "openai", InternalOnly: p.Location == LocationInternal, AnthropicVersion: p.AnthropicVersion,
-		Machine: machine,
+		Own: own,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ai: profile %q: %w", p.Name, err)

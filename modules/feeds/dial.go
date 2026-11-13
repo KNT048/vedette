@@ -41,7 +41,8 @@ var ErrBoxAddrsUnknown = errors.New("feeds: the box's own addresses are not know
 // Same list in notify, logs and ai.
 var vedettePorts = []uint16{514, 6514, 8443, 8444, 8765}
 
-// ownAddrs is Vedette itself (D-446): self, the addresses of core's own container, on every port (loopback is judged apart), and
+// ownAddrs is Vedette itself (D-446): self, the addresses of core's own container and the honeypot's decoys, on every port (loopback
+// is judged apart), and
 // machine, the addresses of the machine it runs on (what vedette-host reports, the container's default gateway), on vedettePorts only:
 // another program on the machine is a normal source. Every address is unmapped and without zone.
 type ownAddrs struct{ self, machine []netip.Addr }
@@ -50,6 +51,7 @@ type ownAddrs struct{ self, machine []netip.Addr }
 type destGuard struct {
 	box           func() ([]netip.Addr, bool)                                       // the machine's addresses (vedette-host); nil: none
 	gateway       func() (netip.Addr, bool)                                         // the container's default gateway: the machine too
+	self          func() []netip.Addr                                               // Vedette itself beyond the interfaces (decoys); nil: none
 	allowLoopback bool                                                              // tests only: Fetcher.allowLoopback is unexported
 	dial          func(ctx context.Context, network, addr string) (net.Conn, error) // tests only: replaces the connect, after every check
 }
@@ -70,6 +72,11 @@ func (g *destGuard) ownAddrs() (out ownAddrs, known bool) {
 		}
 	}
 	out.self = selfAddrs()
+	if g != nil && g.self != nil {
+		for _, a := range g.self() {
+			out.self = append(out.self, a.Unmap().WithZone(""))
+		}
+	}
 	return out, known
 }
 

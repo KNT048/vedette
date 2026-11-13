@@ -200,8 +200,8 @@ func (s *Service) checkHost(host string, port uint16) error {
 	own := apierr.New(400, "blocked_host", ownText)
 	host = strings.TrimSuffix(strings.Trim(host, "[]"), ".")
 	if a, err := netip.ParseAddr(host); err == nil {
-		box, _ := s.boxAddrs()
-		if siemOwn(a, port, box, s.allowLoopback) {
+		box, _ := s.boxAddrs() // unknown: judged with what is known; the socket refuses every send until it is known (siemOwn)
+		if siemOwn(a, port, box, s.extraSelf(), s.allowLoopback) {
 			return own
 		}
 		if siemForbidden(a) {
@@ -217,6 +217,14 @@ func (s *Service) checkHost(host string, port uint16) error {
 		return own
 	}
 	return nil
+}
+
+// extraSelf is Config.SelfAddrs (nil: none).
+func (s *Service) extraSelf() []netip.Addr {
+	if s.cfg.SelfAddrs == nil {
+		return nil
+	}
+	return s.cfg.SelfAddrs()
 }
 
 func (s *Service) boxAddrs() ([]netip.Addr, bool) {

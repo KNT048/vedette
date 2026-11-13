@@ -128,7 +128,7 @@ func TestWebhookBoxAddrsFuncIsAskedAgain(t *testing.T) {
 	var mu sync.Mutex
 	var box []netip.Addr
 	get := func() ([]netip.Addr, bool) { mu.Lock(); defer mu.Unlock(); return box, true }
-	ctl := dialControl(false, get)
+	ctl := dialControl(false, get, nil, true)
 	if err := ctl("tcp", "192.168.10.77:8443", nil); err != nil {
 		t.Fatalf("before: %v", err)
 	}
@@ -182,11 +182,11 @@ func TestWebhookDialGuardRefusesResolvedAddresses(t *testing.T) {
 		"127.0.0.1:443": true, "169.254.169.254:80": true, "0.0.0.0:80": true, "[::1]:443": true, "224.0.0.1:80": true,
 		"192.168.10.2:8443": true, "192.168.10.2:6514": true, "192.168.10.2:443": false, "[fd00:ec2::254]:80": true, "100.100.100.200:443": true, "192.0.0.192:80": true, "[64:ff9b::6464:64c8]:443": true, "[fd20:ce::254]:80": true, "192.168.10.9:443": false, "8.8.8.8:443": false, "not-an-address": true, "example.com:443": true,
 	} {
-		if err := dialControl(false, func() ([]netip.Addr, bool) { return box, true })("tcp", addr, nil); (err != nil) != wantErr {
+		if err := dialControl(false, func() ([]netip.Addr, bool) { return box, true }, nil, true)("tcp", addr, nil); (err != nil) != wantErr {
 			t.Errorf("https %s: err = %v", addr, err)
 		}
 	}
-	if err := dialControl(true, func() ([]netip.Addr, bool) { return nil, true })("tcp", "127.0.0.1:80", nil); err != nil {
+	if err := dialControl(true, func() ([]netip.Addr, bool) { return nil, true }, nil, true)("tcp", "127.0.0.1:80", nil); err != nil {
 		t.Errorf("http loopback: %v", err)
 	}
 	// The default client really dials through the guard: a loopback server is
@@ -201,7 +201,7 @@ func TestWebhookDialGuardRefusesResolvedAddresses(t *testing.T) {
 		t.Errorf("default client, http loopback: %v", err)
 	}
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, srv.URL, nil)
-	if resp, err := webhookClient(false, func() ([]netip.Addr, bool) { return nil, true }).Do(req); err == nil {
+	if resp, err := webhookClient(false, func() ([]netip.Addr, bool) { return nil, true }, nil).Do(req); err == nil {
 		_ = resp.Body.Close()
 		t.Error("https-mode client dialled loopback")
 	}

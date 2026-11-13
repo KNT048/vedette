@@ -88,3 +88,4 @@
 - **Hộp**: một cổng cho UDP và TCP, mọi địa chỉ IPv4. Tường lửa/NAT của hộp phải cho thiết bị tới cổng đó; listener không tự mở gì ngoài socket.
 - **Người gửi lạ (D-421)**: `Stats().UnknownSender` (IP từ socket, `Proto` của lần cuối) là nguồn của `Service.UnknownSenders` → `GET /logs/unknown-senders` → gợi ý trên trang Nguồn. Đổi `UnknownKept` (256) đổi số người gửi được nhớ, không đổi số trả (`UnknownShown` = 10, `contract.ts` `max(10)`: trả hơn 10 thì bộ giải mã sinh từ chối). Bỏ `Proto` thì gợi ý "đã khai với giao thức khác" không còn nói đúng giao thức.
 - **web/features/logs**: trang Nguồn nói thiết bị gửi tới cổng của nguồn (mặc định 514) trong khi hộp có thể nghe ở 5514: GUI chưa biết cổng thật (dòng hoãn của L2, cần tiêu chí story).
+- D-446 review: `Config.SelfAddrs` (cmd/vedette `vedetteSelf`: the honeypot's decoys) is refused on every port at save and on the socket.

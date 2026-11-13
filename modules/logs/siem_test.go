@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -284,12 +285,12 @@ func TestSiemForbiddenTable(t *testing.T) {
 		{"192.168.10.2", 514, true}, {"::ffff:192.168.10.2", 6514, true}, {"fd00::2", 8443, true}, {"64:ff9b::c0a8:a02", 8444, true}, {"2002:c0a8:a02::1", 8765, true},
 		{"192.168.10.2", 1514, false}, {"fd00::2", 443, false}, {"192.168.10.50", 514, false},
 	} {
-		if got := siemOwn(netip.MustParseAddr(c.ip), c.port, box, false); got != c.own {
+		if got := siemOwn(netip.MustParseAddr(c.ip), c.port, box, nil, false); got != c.own {
 			t.Errorf("%s:%d: own=%v, want %v", c.ip, c.port, got, c.own)
 		}
 	}
 	// RFC 6052 /48: 64:ff9b:1:c0a8:a:200:: carries 192.168.10.2 (bytes 6,7,9,10 = c0 a8 0a 02)
-	if !siemOwn(netip.MustParseAddr("64:ff9b:1:c0a8:0a:0200::"), 514, box, false) {
+	if !siemOwn(netip.MustParseAddr("64:ff9b:1:c0a8:0a:0200::"), 514, box, nil, false) {
 		t.Error("the /48 NAT64 form of the box address is not refused")
 	}
 }
@@ -890,6 +891,24 @@ func TestSiemSaveInvalidatesInFlightRecords(t *testing.T) {
 		in.Secret = k
 		if _, err := e.svc.SetSiem(t.Context(), "a@x", in); code(err) != "bad_secret" {
 			t.Errorf("secret %q: %v", k[:16], err)
+		}
+	}
+}
+
+// D-446 review: an address of core's own container (here given as Config.SelfAddrs, as the decoys are) is refused on every port,
+// at save and on the socket, on a Vedette port and on another one alike.
+func TestD446_SiemSelfOnEveryPort(t *testing.T) {
+	e := newSiemEnv(t)
+	e.svc.allowLoopback = false
+	e.svc.cfg.BoxAddrs = func() ([]netip.Addr, bool) { return nil, true }
+	e.svc.cfg.SelfAddrs = func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("10.89.0.5")} }
+	for _, port := range []int{514, 1514} {
+		in := SiemInput{Enabled: true, Format: "syslog", Host: "10.89.0.5", Port: port, Proto: "udp", Events: []string{"findings"}}
+		if _, err := e.svc.SetSiem(t.Context(), "a@x", in); code(err) != "blocked_host" || !strings.Contains(err.Error(), "Vedette itself") {
+			t.Errorf("save on port %d: %v", port, err)
+		}
+		if err := e.svc.siemControl(false)("udp", net.JoinHostPort("10.89.0.5", strconv.Itoa(port)), nil); !errors.Is(err, errSiemOwn) {
+			t.Errorf("socket on port %d: %v", port, err)
 		}
 	}
 }

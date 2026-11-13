@@ -170,7 +170,7 @@ func newNotify(d *deps) *notify.Service {
 		return s
 	}
 	c := notify.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: notifyUsers{d}, Log: d.Log, Clock: d.Clock,
-		Zone: orgZone(d), BaseURL: d.BaseURL, Tokens: notifyTokens{d}, Decisions: responseDecisions{d}, BoxAddrs: machineAddrs(d.HostNet),
+		Zone: orgZone(d), BaseURL: d.BaseURL, Tokens: notifyTokens{d}, Decisions: responseDecisions{d}, BoxAddrs: machineAddrs(d), SelfAddrs: vedetteSelf(d),
 		ApproverLinks: notifyApproverLinks{d}, SMTPLoopback: notifySMTPLoopback} // unknown only while a configured vedette-host has never answered (#157)
 	if d.Inventory != nil {
 		c.Devices = notifyDevices{d.Inventory}
@@ -204,20 +204,6 @@ func notifyBoxAddrs(c *hostNetCache) func() ([]netip.Addr, bool) {
 		var out []netip.Addr
 		for _, p := range ps {
 			out = append(out, p.Addr())
-		}
-		return out, known
-	}
-}
-
-// machineAddrs is the machine's addresses for the D-446 rule of notify, logs and ai (feeds asks procGateway itself): what vedette-host
-// reports (notifyBoxAddrs, with its known flag) plus the container's default gateway, which is the machine on every install. No
-// webhook, SMTP server, SIEM or AI profile reaches Vedette's own ports there.
-func machineAddrs(c *hostNetCache) func() ([]netip.Addr, bool) {
-	host := notifyBoxAddrs(c)
-	return func() ([]netip.Addr, bool) {
-		out, known := host()
-		if g, ok := procGateway(); ok {
-			out = append(out, g)
 		}
 		return out, known
 	}

@@ -163,7 +163,7 @@ func (s *Service) AddProfile(ctx context.Context, who string, in ProfileInput) (
 	if err := p.Validate(); err != nil {
 		return ProfileView{}, mapErr(err)
 	}
-	if err := p.checkOwn(s.cfg.BoxAddrs); err != nil { // D-446
+	if err := p.checkOwn(s.own()); err != nil { // D-446
 		return ProfileView{}, mapErr(err)
 	}
 	if len(cur.profiles) >= MaxProfiles {
@@ -249,7 +249,7 @@ func (s *Service) EditProfile(ctx context.Context, who, id string, in ProfileInp
 	if err := p.Validate(); err != nil {
 		return ProfileView{}, mapErr(err)
 	}
-	if err := p.checkOwn(s.cfg.BoxAddrs); err != nil { // D-446
+	if err := p.checkOwn(s.own()); err != nil { // D-446
 		return ProfileView{}, mapErr(err)
 	}
 	if cur.nameTaken(p.Name, id) {
@@ -451,7 +451,7 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 	if err := p.Validate(); err != nil {
 		return TestResult{}, mapErr(err)
 	}
-	if err := p.checkOwn(s.cfg.BoxAddrs); err != nil { // D-446
+	if err := p.checkOwn(s.own()); err != nil { // D-446
 		return TestResult{}, mapErr(err)
 	}
 	if old, ok := cur.find(in.ID); ok && sameConnection(old.Profile, p) {

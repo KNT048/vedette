@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"slices"
 	"strings"
@@ -70,18 +71,20 @@ func (s *Service) checkFuse(ctx context.Context, job Job) error {
 	}
 	note := !w.noted
 	w.noted = true
+	wait := max(int(math.Ceil(w.start.Add(fuseSpan).Sub(now).Seconds())), 1)
 	s.fuseMu.Unlock()
 	msg := fmt.Sprintf("The AI job %s asked for the AI more than %d times in one minute, which looks like a loop, so Vedette stopped it for the rest of the minute. Nothing was sent. If it keeps happening, the audit log and the box log name the job.", job.Name(), fuseCalls)
 	if note {
 		s.cfg.Log.WarnContext(ctx, "ai: the runaway fuse stopped a job", "job", string(job), "calls_per_minute", fuseCalls)
 		detail := fmt.Sprintf("More than %d calls of %s in one minute: the rest of the minute is refused (runaway fuse, D-531).", fuseCalls, job)
-		if err := s.cfg.DB.Write(context.WithoutCancel(ctx), func(tx *sql.Tx) error {
-			return s.auditTx(ctx, tx, "system", "ai.fuse", string(job), detail)
+		wctx := context.WithoutCancel(ctx) // the caller may be gone; the trip is still recorded
+		if err := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
+			return s.auditTx(wctx, tx, "system", "ai.fuse", string(job), detail)
 		}); err != nil {
 			s.cfg.Log.WarnContext(ctx, "ai: could not write the audit line of the runaway fuse", "error", err)
 		}
 	}
-	return apierr.New(http.StatusTooManyRequests, "rate_limited", msg)
+	return apierr.New(http.StatusTooManyRequests, "rate_limited", msg).With("retry_after", wait)
 }
 
 // BudgetView is this month's use of one budget: the box's shared one or a profile's own.

@@ -124,7 +124,10 @@ function runJob(job: AiJob, tin: number, tout: number, target?: string, act: Act
   }
   if (!pick) {
     const reason = `No AI profile could answer ${JOB_NAME[job]} (${why.join('; ')}). Check the profiles in Settings, AI assistant, or add a fallback.`
-    return capped(reason, why.every((w) => w.endsWith('monthly budget reached')) ? 'capped' : 'failed', fail(409, 'ai_unavailable', reason))
+    // D-531: every profile out of its own monthly budget is the budget's stop (429 budget_reached), as on the box
+    const out = cands.find((p) => profileUsed(p) >= p.monthly_budget)
+    if (out && why.every((w) => w.endsWith('monthly budget reached'))) return capped(reason, 'capped', fail(429, 'budget_reached', `The monthly budget of the AI profile ${out.name} is used up and no other profile could take ${JOB_NAME[job]}, so nothing was sent. An administrator can raise the profile's budget or add a fallback profile in Settings, AI assistant; it renews on ${renewDay()}.`))
+    return capped(reason, 'failed', fail(409, 'ai_unavailable', reason))
   }
   recordAiRun(job, tin, tout, target, pick, idx > 0)
   recordActivity({ job, profile: pick.name, model: pick.model, hooks: act.hooks ?? [], tools: act.tools ?? [], links: act.links, input: act.input ?? `${job}:${target ?? ''}`, output: act.output ?? `${job}:${target ?? ''}:${tin}:${tout}`, summary: act.summary ?? `${JOB_NAME[job]}${target ? ` for ${target}` : ''}`, tokens_in: tin, tokens_out: tout, result: act.result ?? (idx > 0 ? 'fallback_used' : 'ok'), trigger: act.trigger })

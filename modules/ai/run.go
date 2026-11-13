@@ -605,6 +605,13 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		if perr := providerFailure(spec.Job, res); perr != nil {
 			return perr
 		}
+		// D-531: nothing was sent because a profile's own monthly budget is used up and no other profile could take the call. That
+		// is the budget's stop, not "not set up": the same 429 budget_reached as the shared budget, naming the profile, so the caller
+		// (the plan job) stops its run instead of counting it against a finding.
+		if name := profileCappedLast(res); name != "" && notSent(res) == OutcomeCapped {
+			return apierr.New(http.StatusTooManyRequests, "budget_reached", fmt.Sprintf("The monthly budget of the AI profile %s is used up and no other profile could take %s, so nothing was sent. An administrator can raise the profile's budget or add a fallback profile in Settings, AI assistant; it renews on %s.",
+				name, spec.Job.Name(), s.renewDay()))
+		}
 		return s.unavailable(spec.Job, reasons)
 	}
 	return err

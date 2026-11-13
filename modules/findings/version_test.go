@@ -188,7 +188,8 @@ func TestVersionRange_Contains_TailsAtBoundary(t *testing.T) {
 		{"build number older", VersionRange{EndExcl: "7.0.0 build 1300"}, "7.0.0 build 1234", Yes},
 		{"build number same", VersionRange{EndExcl: "7.0.0 build 1234"}, "7.0.0 build 1234", No},
 		{"build number vs plain end incl", VersionRange{EndIncl: "7.0.0"}, "7.0.0 build 1234", Unknown},
-		{"build number vs plain start incl", VersionRange{StartIncl: "7.0.0"}, "7.0.0 build 1234", Unknown},
+		{"build number vs plain start incl", VersionRange{StartIncl: "7.0.0"}, "7.0.0 build 1234", Yes}, // a build of 7.0.0 is "7.0.0 or later" (D-500)
+		{"build number vs plain start excl", VersionRange{StartExcl: "7.0.0"}, "7.0.0 build 1234", Unknown},
 		{"build number below release bound is still decided", VersionRange{EndExcl: "7.0.1"}, "7.0.0 build 1234", Yes},
 		{"date older", VersionRange{EndExcl: "2023-10-13"}, "2023-10-12", Yes},
 		{"date same", VersionRange{EndExcl: "2023-10-12"}, "2023-10-12", No},

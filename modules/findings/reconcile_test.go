@@ -62,7 +62,7 @@ func TestContract_INV9_ReconcileRemovesTheFindingsOfADeviceWhoseDeleteEventWasLo
 func TestContract_INV9_ReconcileTwiceChangesNothing(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	other := Asset{ID: "a-2", Name: "nas02", Software: nas("").Software}
+	other := Asset{ID: "a-2", Name: "nas02", Software: nas("6.1.1").Software}
 	e.inv.match["a-2"] = other
 	e.inv.assets["a-2"] = AssetView{ID: "a-2", IP: "192.168.10.22", Kind: "nas", Display: "Photo Station"}
 	if _, err := e.svc.Reconcile(t.Context()); err != nil {
@@ -123,7 +123,7 @@ func TestReconcileKeepsTheFindingsOfADeviceInventoryStillKnows(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	// a-2 is created after the device list was read: the list lacks it, Assets knows it
-	other := Asset{ID: "a-2", Name: "nas02", Software: nas("").Software}
+	other := Asset{ID: "a-2", Name: "nas02", Software: nas("6.1.1").Software}
 	if _, err := e.svc.UpsertFromMatch(t.Context(), other, e.feeds.vulns); err != nil {
 		t.Fatal(err)
 	}
@@ -290,10 +290,10 @@ func TestContract_INV9_ReconcileAfterALostBaselinePublishesOnlyBacklogMarkedEven
 func TestReconcileOneBadDeviceDoesNotStopTheRun(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.inv.match["a-2"] = Asset{ID: "a-2", Name: "nas02", Software: nas("").Software}
+	e.inv.match["a-2"] = Asset{ID: "a-2", Name: "nas02", Software: nas("6.1.1").Software}
 	e.inv.assets["a-2"] = AssetView{ID: "a-2", IP: "192.168.10.22", Kind: "nas", Display: "Photo Station"}
 	// an orphan: findings for a device inventory no longer has
-	if _, err := e.svc.UpsertFromMatch(t.Context(), Asset{ID: "a-gone", Name: "old", Software: nas("").Software}, e.feeds.vulns); err != nil {
+	if _, err := e.svc.UpsertFromMatch(t.Context(), Asset{ID: "a-gone", Name: "old", Software: nas("6.1.1").Software}, e.feeds.vulns); err != nil {
 		t.Fatal(err)
 	}
 	inv := failingInv{fakeInv: e.inv, matchErr: map[string]error{"a-1": errors.New("inventory hiccup")}}

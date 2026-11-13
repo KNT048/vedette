@@ -50,6 +50,7 @@ Giới hạn free đo 2026-11-06: GitHub Actions không giới hạn cho repo pu
 | nuclei-templates | git log | giờ | MIT | template mới = có check; subset `kev,vkev` vào content pack |
 | GHSA, OSV | git/API | giờ | CC-BY / Apache | PURL cho gói |
 | NVD 2.0 | API key | 2 giờ | free | CPE/CVSS bổ sung (chậm) |
+| **NVD 2.0 `?hasKev` (đang dùng, feed `nvd-kev`, D-500)** | API không key, 100 CVE/request, 6 s/request; lần đầu đủ (~18 request, ~19 MB), sau đó `lastModStartDate` | ngày (và ngay sau CVE KEV mới) | public domain + câu NVD yêu cầu | mục CPE `vulnerable` + khoảng phiên bản của mọi CVE trong KEV → findings so phiên bản |
 | PSIRT: MSRC CSAF, Cisco openVuln, Fortinet RSS, Synology RSS, PAN CSAF, QNAP/Ivanti RSS | poll | giờ | free | "exploited in the wild" sớm hơn KEV |
 | NCSC VN (alert.khonggianmang.vn), chongluadao | HTML, **cần IP VN** | tuần/ngày | — | ngữ cảnh VN |
 | VulnCheck KEV Community | API key của **dự án** | giờ | ⚠ redistribution chưa xác nhận → tạm để hộp tự kéo bằng key khách | sớm hơn CISA, canary, PoC |

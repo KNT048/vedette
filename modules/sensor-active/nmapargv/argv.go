@@ -43,7 +43,16 @@ const (
 	flagTiming      = "-T2"
 	flagHostTimeout = "--host-timeout" // bounds the time one host may take, which --max-rate does not
 	flagXML         = "-oX"
+	flagScript      = "--script"
 )
+
+// Scripts is the exact NSE script list of the normal and versions shapes (D-504): two scripts that send an NTLM NEGOTIATE (type 1)
+// with no credentials and read the CHALLENGE (type 2) the device answers with: its own Windows version and build, and its names.
+// Neither ever sends an AUTHENTICATE (type 3), so nothing logs in. rdp-ntlm-info runs only on an open RDP port, http-ntlm-info only
+// on an open HTTP port, with a GET of "/" (nmap's http library follows a few redirects, only on the same host, port and scheme,
+// never with credentials). A fixed list, never a category or a wildcard; smb-os-discovery is left out because it
+// opens an anonymous, then a guest, SMB session (a logon attempt).
+const Scripts = "rdp-ntlm-info,http-ntlm-info"
 
 // Host time limits (D-84 (7)): a gentle scan is slow by design, a normal one has -sV and -O to finish.
 const (
@@ -67,11 +76,11 @@ func (k Kind) Name() string {
 }
 
 // Flags is the whole flag part of the command line of a kind: the only four shapes nmap is ever run with.
-// -sV makes nmap run the scripts of its "version" category (and nothing else), -O has its own timing; no
-// script flag, no -A and no -sC exists (FORBID-3, FORBID-6). The gentle shape has neither -sV nor -O: on a
-// fragile device even the version scripts are too much (PLC protocol probes). The versions shape is the normal one
-// without -O: OS detection sends malformed probes that are the riskiest part for an OT stack, and a device of unknown
-// kind may be one (D-501).
+// -sV makes nmap run the scripts of its "version" category, -O has its own timing; the only other scripts are the fixed
+// Scripts list of the normal and versions shapes (D-504); no category, no -A and no -sC exists (FORBID-3, FORBID-6). The gentle
+// shape has neither -sV, -O nor a script: on a fragile device even the version scripts are too much (PLC protocol probes). The
+// versions shape is the normal one without -O: OS detection sends malformed probes that are the riskiest part for an OT stack,
+// and a device of unknown kind may be one (D-501).
 func Flags(kind Kind, rate int) ([]string, error) {
 	if rate < 1 || rate > 1000 {
 		return nil, fmt.Errorf("nmapargv: rate %d is outside 1..1000", rate)
@@ -81,11 +90,11 @@ func Flags(kind Kind, rate int) ([]string, error) {
 	case Sweep:
 		return []string{flagPrivileged, "-sn", flagNoDNS, flagMaxRate, r}, nil
 	case Normal:
-		return []string{flagPrivileged, "-sS", "-sV", "-O", flagNoDNS, flagMaxRate, r, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
+		return []string{flagPrivileged, "-sS", "-sV", "-O", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
 	case Gentle:
 		return []string{flagPrivileged, "-sS", flagNoDNS, flagTiming, flagMaxRetries, "1", flagMaxRate, "1", flagHostTimeout, gentleHostTimeout, flagTopPorts, "100"}, nil
 	case Versions:
-		return []string{flagPrivileged, "-sS", "-sV", flagNoDNS, flagMaxRate, r, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
+		return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
 	}
 	return nil, errors.New("nmapargv: unknown scan kind")
 }

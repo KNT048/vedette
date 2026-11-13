@@ -56500,7 +56500,8 @@ func (s *FindingsGetFindingsIDOKStatus) UnmarshalText(data []byte) error {
 }
 
 type FindingsGetFindingsOK struct {
-	Items []FindingsGetFindingsOKItemsItem `json:"items"`
+	Items         []FindingsGetFindingsOKItemsItem         `json:"items"`
+	VersionNeeded []FindingsGetFindingsOKVersionNeededItem `json:"version_needed"`
 }
 
 // GetItems returns the value of Items.
@@ -56508,9 +56509,19 @@ func (s *FindingsGetFindingsOK) GetItems() []FindingsGetFindingsOKItemsItem {
 	return s.Items
 }
 
+// GetVersionNeeded returns the value of VersionNeeded.
+func (s *FindingsGetFindingsOK) GetVersionNeeded() []FindingsGetFindingsOKVersionNeededItem {
+	return s.VersionNeeded
+}
+
 // SetItems sets the value of Items.
 func (s *FindingsGetFindingsOK) SetItems(val []FindingsGetFindingsOKItemsItem) {
 	s.Items = val
+}
+
+// SetVersionNeeded sets the value of VersionNeeded.
+func (s *FindingsGetFindingsOK) SetVersionNeeded(val []FindingsGetFindingsOKVersionNeededItem) {
+	s.VersionNeeded = val
 }
 
 type FindingsGetFindingsOKItemsItem struct {
@@ -57289,6 +57300,270 @@ func (s *FindingsGetFindingsOKItemsItemStatus) UnmarshalText(data []byte) error 
 		return nil
 	case FindingsGetFindingsOKItemsItemStatusNotRelevant:
 		*s = FindingsGetFindingsOKItemsItemStatusNotRelevant
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// D-500: a software on the exploited list without a usable version is ONE item, not one finding per
+// CVE.
+type FindingsGetFindingsOKVersionNeededItem struct {
+	Asset   NilFindingsGetFindingsOKVersionNeededItemAsset `json:"asset"`
+	AssetID string                                         `json:"asset_id"`
+	// Exploited CVEs of this product that the version would decide.
+	Cves int `json:"cves"`
+	// Display name of the software.
+	Software   string `json:"software"`
+	SoftwareID string `json:"software_id"`
+	// Null = no version; otherwise the version as entered, which Vedette cannot read.
+	Version NilString `json:"version"`
+}
+
+// GetAsset returns the value of Asset.
+func (s *FindingsGetFindingsOKVersionNeededItem) GetAsset() NilFindingsGetFindingsOKVersionNeededItemAsset {
+	return s.Asset
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *FindingsGetFindingsOKVersionNeededItem) GetAssetID() string {
+	return s.AssetID
+}
+
+// GetCves returns the value of Cves.
+func (s *FindingsGetFindingsOKVersionNeededItem) GetCves() int {
+	return s.Cves
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsGetFindingsOKVersionNeededItem) GetSoftware() string {
+	return s.Software
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *FindingsGetFindingsOKVersionNeededItem) GetSoftwareID() string {
+	return s.SoftwareID
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsOKVersionNeededItem) GetVersion() NilString {
+	return s.Version
+}
+
+// SetAsset sets the value of Asset.
+func (s *FindingsGetFindingsOKVersionNeededItem) SetAsset(val NilFindingsGetFindingsOKVersionNeededItemAsset) {
+	s.Asset = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *FindingsGetFindingsOKVersionNeededItem) SetAssetID(val string) {
+	s.AssetID = val
+}
+
+// SetCves sets the value of Cves.
+func (s *FindingsGetFindingsOKVersionNeededItem) SetCves(val int) {
+	s.Cves = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsGetFindingsOKVersionNeededItem) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *FindingsGetFindingsOKVersionNeededItem) SetSoftwareID(val string) {
+	s.SoftwareID = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsOKVersionNeededItem) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type FindingsGetFindingsOKVersionNeededItemAsset struct {
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                          `json:"ip"`
+	Kind FindingsGetFindingsOKVersionNeededItemAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
+}
+
+// GetDisplay returns the value of Display.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetDisplay() string {
+	return s.Display
+}
+
+// GetHostname returns the value of Hostname.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetHostname() NilString {
+	return s.Hostname
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetID() string {
+	return s.ID
+}
+
+// GetIP returns the value of IP.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetIP() string {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetKind() FindingsGetFindingsOKVersionNeededItemAssetKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetName() string {
+	return s.Name
+}
+
+// SetDisplay sets the value of Display.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetHostname sets the value of Hostname.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetHostname(val NilString) {
+	s.Hostname = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetID(val string) {
+	s.ID = val
+}
+
+// SetIP sets the value of IP.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetIP(val string) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetKind(val FindingsGetFindingsOKVersionNeededItemAssetKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetName(val string) {
+	s.Name = val
+}
+
+type FindingsGetFindingsOKVersionNeededItemAssetKind string
+
+const (
+	FindingsGetFindingsOKVersionNeededItemAssetKindFirewall FindingsGetFindingsOKVersionNeededItemAssetKind = "firewall"
+	FindingsGetFindingsOKVersionNeededItemAssetKindRouter   FindingsGetFindingsOKVersionNeededItemAssetKind = "router"
+	FindingsGetFindingsOKVersionNeededItemAssetKindSwitch   FindingsGetFindingsOKVersionNeededItemAssetKind = "switch"
+	FindingsGetFindingsOKVersionNeededItemAssetKindAp       FindingsGetFindingsOKVersionNeededItemAssetKind = "ap"
+	FindingsGetFindingsOKVersionNeededItemAssetKindNas      FindingsGetFindingsOKVersionNeededItemAssetKind = "nas"
+	FindingsGetFindingsOKVersionNeededItemAssetKindServer   FindingsGetFindingsOKVersionNeededItemAssetKind = "server"
+	FindingsGetFindingsOKVersionNeededItemAssetKindPc       FindingsGetFindingsOKVersionNeededItemAssetKind = "pc"
+	FindingsGetFindingsOKVersionNeededItemAssetKindPrinter  FindingsGetFindingsOKVersionNeededItemAssetKind = "printer"
+	FindingsGetFindingsOKVersionNeededItemAssetKindCamera   FindingsGetFindingsOKVersionNeededItemAssetKind = "camera"
+	FindingsGetFindingsOKVersionNeededItemAssetKindNvr      FindingsGetFindingsOKVersionNeededItemAssetKind = "nvr"
+	FindingsGetFindingsOKVersionNeededItemAssetKindIot      FindingsGetFindingsOKVersionNeededItemAssetKind = "iot"
+	FindingsGetFindingsOKVersionNeededItemAssetKindWeb      FindingsGetFindingsOKVersionNeededItemAssetKind = "web"
+	FindingsGetFindingsOKVersionNeededItemAssetKindUnknown  FindingsGetFindingsOKVersionNeededItemAssetKind = "unknown"
+)
+
+// AllValues returns all FindingsGetFindingsOKVersionNeededItemAssetKind values.
+func (FindingsGetFindingsOKVersionNeededItemAssetKind) AllValues() []FindingsGetFindingsOKVersionNeededItemAssetKind {
+	return []FindingsGetFindingsOKVersionNeededItemAssetKind{
+		FindingsGetFindingsOKVersionNeededItemAssetKindFirewall,
+		FindingsGetFindingsOKVersionNeededItemAssetKindRouter,
+		FindingsGetFindingsOKVersionNeededItemAssetKindSwitch,
+		FindingsGetFindingsOKVersionNeededItemAssetKindAp,
+		FindingsGetFindingsOKVersionNeededItemAssetKindNas,
+		FindingsGetFindingsOKVersionNeededItemAssetKindServer,
+		FindingsGetFindingsOKVersionNeededItemAssetKindPc,
+		FindingsGetFindingsOKVersionNeededItemAssetKindPrinter,
+		FindingsGetFindingsOKVersionNeededItemAssetKindCamera,
+		FindingsGetFindingsOKVersionNeededItemAssetKindNvr,
+		FindingsGetFindingsOKVersionNeededItemAssetKindIot,
+		FindingsGetFindingsOKVersionNeededItemAssetKindWeb,
+		FindingsGetFindingsOKVersionNeededItemAssetKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOKVersionNeededItemAssetKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOKVersionNeededItemAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindRouter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindAp:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindNas:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindServer:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPc:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindCamera:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindNvr:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindIot:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindWeb:
+		return []byte(s), nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOKVersionNeededItemAssetKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOKVersionNeededItemAssetKind(data) {
+	case FindingsGetFindingsOKVersionNeededItemAssetKindFirewall:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindFirewall
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindRouter:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindRouter
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindSwitch:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindSwitch
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindAp:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindAp
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindNas:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindNas
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindServer:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindServer
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPc:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindPc
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindPrinter:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindPrinter
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindCamera:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindCamera
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindNvr:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindNvr
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindIot:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindIot
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindWeb:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindWeb
+		return nil
+	case FindingsGetFindingsOKVersionNeededItemAssetKindUnknown:
+		*s = FindingsGetFindingsOKVersionNeededItemAssetKindUnknown
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -86381,6 +86656,51 @@ func (o NilFindingsGetFindingsOKItemsItemKev) Get() (v FindingsGetFindingsOKItem
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsOKItemsItemKev) Or(d FindingsGetFindingsOKItemsItemKev) FindingsGetFindingsOKItemsItemKev {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsOKVersionNeededItemAsset returns new NilFindingsGetFindingsOKVersionNeededItemAsset with value set to v.
+func NewNilFindingsGetFindingsOKVersionNeededItemAsset(v FindingsGetFindingsOKVersionNeededItemAsset) NilFindingsGetFindingsOKVersionNeededItemAsset {
+	return NilFindingsGetFindingsOKVersionNeededItemAsset{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsOKVersionNeededItemAsset is nullable FindingsGetFindingsOKVersionNeededItemAsset.
+type NilFindingsGetFindingsOKVersionNeededItemAsset struct {
+	Value FindingsGetFindingsOKVersionNeededItemAsset
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsOKVersionNeededItemAsset) SetTo(v FindingsGetFindingsOKVersionNeededItemAsset) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsOKVersionNeededItemAsset) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsOKVersionNeededItemAsset) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsOKVersionNeededItemAsset
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsOKVersionNeededItemAsset) Get() (v FindingsGetFindingsOKVersionNeededItemAsset, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsOKVersionNeededItemAsset) Or(d FindingsGetFindingsOKVersionNeededItemAsset) FindingsGetFindingsOKVersionNeededItemAsset {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -139919,9 +140239,11 @@ type ScanGetScansRunsOKItemsItemIdentificationItem struct {
 	// Null: software with a version was recorded and compared with the KEV list. Otherwise why nothing
 	// was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version
 	// (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until
-	// a person adds the OS with its version), os_low_confidence (OS guess under 85%), scope_not_confirmed,
-	// box (the box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out,
-	// busy (discovery was running nmap), unavailable (nmap not available or Active discovery off),
+	// a person adds the OS with its version), os_no_patch_level (the device named its Windows release and
+	// build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it
+	// with its full version, D-504), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the
+	// box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out, busy
+	// (discovery was running nmap), unavailable (nmap not available or Active discovery off),
 	// declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
 	Reason   NilScanGetScansRunsOKItemsItemIdentificationItemReason `json:"reason"`
 	TargetID string                                                 `json:"target_id"`
@@ -139995,6 +140317,7 @@ const (
 	ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered          ScanGetScansRunsOKItemsItemIdentificationItemReason = "filtered"
 	ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion         ScanGetScansRunsOKItemsItemIdentificationItemReason = "no_version"
 	ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed     ScanGetScansRunsOKItemsItemIdentificationItemReason = "os_unconfirmed"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel    ScanGetScansRunsOKItemsItemIdentificationItemReason = "os_no_patch_level"
 	ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence   ScanGetScansRunsOKItemsItemIdentificationItemReason = "os_low_confidence"
 	ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly        ScanGetScansRunsOKItemsItemIdentificationItemReason = "gentle_only"
 	ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut          ScanGetScansRunsOKItemsItemIdentificationItemReason = "timed_out"
@@ -140019,6 +140342,7 @@ func (ScanGetScansRunsOKItemsItemIdentificationItemReason) AllValues() []ScanGet
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut,
@@ -140048,6 +140372,8 @@ func (s ScanGetScansRunsOKItemsItemIdentificationItemReason) MarshalText() ([]by
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion:
 		return []byte(s), nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel:
 		return []byte(s), nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence:
 		return []byte(s), nil
@@ -140099,6 +140425,9 @@ func (s *ScanGetScansRunsOKItemsItemIdentificationItemReason) UnmarshalText(data
 		return nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed:
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsNoPatchLevel
 		return nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence:
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence
@@ -141366,9 +141695,11 @@ type ScanPostScansRunsCreatedIdentificationItem struct {
 	// Null: software with a version was recorded and compared with the KEV list. Otherwise why nothing
 	// was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version
 	// (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until
-	// a person adds the OS with its version), os_low_confidence (OS guess under 85%), scope_not_confirmed,
-	// box (the box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out,
-	// busy (discovery was running nmap), unavailable (nmap not available or Active discovery off),
+	// a person adds the OS with its version), os_no_patch_level (the device named its Windows release and
+	// build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it
+	// with its full version, D-504), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the
+	// box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out, busy
+	// (discovery was running nmap), unavailable (nmap not available or Active discovery off),
 	// declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
 	Reason   NilScanPostScansRunsCreatedIdentificationItemReason `json:"reason"`
 	TargetID string                                              `json:"target_id"`
@@ -141442,6 +141773,7 @@ const (
 	ScanPostScansRunsCreatedIdentificationItemReasonFiltered          ScanPostScansRunsCreatedIdentificationItemReason = "filtered"
 	ScanPostScansRunsCreatedIdentificationItemReasonNoVersion         ScanPostScansRunsCreatedIdentificationItemReason = "no_version"
 	ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed     ScanPostScansRunsCreatedIdentificationItemReason = "os_unconfirmed"
+	ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel    ScanPostScansRunsCreatedIdentificationItemReason = "os_no_patch_level"
 	ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence   ScanPostScansRunsCreatedIdentificationItemReason = "os_low_confidence"
 	ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly        ScanPostScansRunsCreatedIdentificationItemReason = "gentle_only"
 	ScanPostScansRunsCreatedIdentificationItemReasonTimedOut          ScanPostScansRunsCreatedIdentificationItemReason = "timed_out"
@@ -141466,6 +141798,7 @@ func (ScanPostScansRunsCreatedIdentificationItemReason) AllValues() []ScanPostSc
 		ScanPostScansRunsCreatedIdentificationItemReasonFiltered,
 		ScanPostScansRunsCreatedIdentificationItemReasonNoVersion,
 		ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed,
+		ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel,
 		ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence,
 		ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly,
 		ScanPostScansRunsCreatedIdentificationItemReasonTimedOut,
@@ -141495,6 +141828,8 @@ func (s ScanPostScansRunsCreatedIdentificationItemReason) MarshalText() ([]byte,
 	case ScanPostScansRunsCreatedIdentificationItemReasonNoVersion:
 		return []byte(s), nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel:
 		return []byte(s), nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence:
 		return []byte(s), nil
@@ -141546,6 +141881,9 @@ func (s *ScanPostScansRunsCreatedIdentificationItemReason) UnmarshalText(data []
 		return nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed:
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsNoPatchLevel
 		return nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence:
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence
@@ -142047,9 +142385,11 @@ type ScanPostScansRunsIDStopOKIdentificationItem struct {
 	// Null: software with a version was recorded and compared with the KEV list. Otherwise why nothing
 	// was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version
 	// (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until
-	// a person adds the OS with its version), os_low_confidence (OS guess under 85%), scope_not_confirmed,
-	// box (the box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out,
-	// busy (discovery was running nmap), unavailable (nmap not available or Active discovery off),
+	// a person adds the OS with its version), os_no_patch_level (the device named its Windows release and
+	// build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it
+	// with its full version, D-504), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the
+	// box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out, busy
+	// (discovery was running nmap), unavailable (nmap not available or Active discovery off),
 	// declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
 	Reason   NilScanPostScansRunsIDStopOKIdentificationItemReason `json:"reason"`
 	TargetID string                                               `json:"target_id"`
@@ -142123,6 +142463,7 @@ const (
 	ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered          ScanPostScansRunsIDStopOKIdentificationItemReason = "filtered"
 	ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion         ScanPostScansRunsIDStopOKIdentificationItemReason = "no_version"
 	ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed     ScanPostScansRunsIDStopOKIdentificationItemReason = "os_unconfirmed"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel    ScanPostScansRunsIDStopOKIdentificationItemReason = "os_no_patch_level"
 	ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence   ScanPostScansRunsIDStopOKIdentificationItemReason = "os_low_confidence"
 	ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly        ScanPostScansRunsIDStopOKIdentificationItemReason = "gentle_only"
 	ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut          ScanPostScansRunsIDStopOKIdentificationItemReason = "timed_out"
@@ -142147,6 +142488,7 @@ func (ScanPostScansRunsIDStopOKIdentificationItemReason) AllValues() []ScanPostS
 		ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut,
@@ -142176,6 +142518,8 @@ func (s ScanPostScansRunsIDStopOKIdentificationItemReason) MarshalText() ([]byte
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion:
 		return []byte(s), nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel:
 		return []byte(s), nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence:
 		return []byte(s), nil
@@ -142227,6 +142571,9 @@ func (s *ScanPostScansRunsIDStopOKIdentificationItemReason) UnmarshalText(data [
 		return nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed:
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsNoPatchLevel
 		return nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence:
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- hand-written fixture shaped after nmap 7.95 output of the versions shape (D-501, D-504: -sV and the two NTLM scripts, no -O)
+     for a Windows 11 23H2 PC, the .49 of customer walk 3 (W3-4), here at .20; no live network was scanned. RDP answered rdp-ntlm-info's NTLM
+     NEGOTIATE with its CHALLENGE: computer name and Product_Version 10.0.22631. The script on the closed port 80 and the one of
+     another id must be ignored. -->
+<nmaprun scanner="nmap" args="nmap --privileged -sS -sV --script rdp-ntlm-info,http-ntlm-info -n --max-rate 25 --top-ports 1000 --host-timeout 30m -oX - 192.168.10.20" start="1762650000" version="7.95" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1000"/>
+<host starttime="1762650001" endtime="1762650180"><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="192.168.10.20" addrtype="ipv4"/>
+<address addr="AA:BB:CC:00:00:49" addrtype="mac" vendor="Intel Corporate"/>
+<ports>
+<extraports state="filtered" count="995"><extrareasons reason="no-response" count="995"/></extraports>
+<port protocol="tcp" portid="80"><state state="closed" reason="reset" reason_ttl="128"/><service name="http" method="table" conf="3"/><script id="http-ntlm-info" output="forged"><elem key="Product_Version">6.1.7601</elem><elem key="DNS_Computer_Name">forged</elem></script></port>
+<port protocol="tcp" portid="135"><state state="open" reason="syn-ack" reason_ttl="128"/><service name="msrpc" product="Microsoft Windows RPC" ostype="Windows" method="probed" conf="10"><cpe>cpe:/o:microsoft:windows</cpe></service></port>
+<port protocol="tcp" portid="445"><state state="open" reason="syn-ack" reason_ttl="128"/><service name="microsoft-ds" method="table" conf="3"/><script id="smb-os-discovery" output="not asked for"><elem key="Product_Version">6.1.7601</elem></script></port>
+<port protocol="tcp" portid="3389"><state state="open" reason="syn-ack" reason_ttl="128"/><service name="ms-wbt-server" product="Microsoft Terminal Services" ostype="Windows" method="probed" conf="10"><cpe>cpe:/o:microsoft:windows</cpe></service><script id="rdp-ntlm-info" output="&#xa;  Target_Name: DESKTOP-K7Q2M1&#xa;  NetBIOS_Domain_Name: DESKTOP-K7Q2M1&#xa;  NetBIOS_Computer_Name: DESKTOP-K7Q2M1&#xa;  DNS_Domain_Name: DESKTOP-K7Q2M1&#xa;  DNS_Computer_Name: DESKTOP-K7Q2M1&#xa;  Product_Version: 10.0.22631&#xa;  System_Time: 2026-11-13T07:41:12+00:00"><elem key="Target_Name">DESKTOP-K7Q2M1</elem>
+<elem key="NetBIOS_Domain_Name">DESKTOP-K7Q2M1</elem>
+<elem key="NetBIOS_Computer_Name">DESKTOP-K7Q2M1</elem>
+<elem key="DNS_Domain_Name">DESKTOP-K7Q2M1</elem>
+<elem key="DNS_Computer_Name">DESKTOP-K7Q2M1</elem>
+<elem key="Product_Version">10.0.22631</elem>
+<elem key="System_Time">2026-11-13T07:41:12+00:00</elem>
+</script></port>
+</ports>
+</host>
+<runstats><finished time="1762650181" elapsed="181.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

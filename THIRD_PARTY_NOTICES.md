@@ -187,7 +187,7 @@ Read on the box, never stored or redistributed as they are: the box keeps only t
 
 | Source | Terms | How it is used |
 |---|---|---|
-| NVD CVE API 2.0 (`services.nvd.nist.gov`) | NVD terms of use; NVD data is in the public domain | data: one record per CVE, no key; the source row carries the notice the terms require: "This product uses the NVD API but is not endorsed or certified by the NVD." |
+| NVD CVE API 2.0 (`services.nvd.nist.gov`) | NVD terms of use; NVD data is in the public domain | data: one record per CVE, no key (CVE news, D-280); and the built-in feed "NVD affected versions" (`nvd-kev`, D-500): the vulnerable CPE match entries of the CISA KEV CVEs (`?hasKev`, 100 per request, 6 s apart as NVD asks of clients without a key), stored on the box and compared with device versions. Both source rows carry the notice the terms require: "This product uses the NVD API but is not endorsed or certified by the NVD." |
 | GitHub REST API, repository search (`api.github.com`) | GitHub Terms of Service (API) | data: names, descriptions, stars and dates of public repositories that name the CVE; no token, no code downloaded |
 | Vendor advisory pages (the 16 hosts in PRIVACY.md flow 8) | each vendor's site terms | data: the visible text of one advisory page the CVE links to, cut to 6000 bytes |
 | Feeds of watchTowr Labs, GreyNoise, SANS Internet Storm Center, Rapid7, Unit 42, Google Project Zero | each site's terms; public RSS/Atom | data: the posts that name the CVE (title, date, link, text around the mention) |

@@ -141,7 +141,7 @@ func TestListFilterAndOrder(t *testing.T) {
 	e.seed()
 	e.advance(1000000000) // 1s later a second device is matched: newest first
 	e.inv.assets["a-2"] = AssetView{ID: "a-2", IP: "192.168.10.22", Kind: "weird", Display: "x"}
-	if _, err := e.svc.UpsertFromMatch(t.Context(), Asset{ID: "a-2", Name: "b", Software: nas("").Software}, e.feeds.vulns); err != nil {
+	if _, err := e.svc.UpsertFromMatch(t.Context(), Asset{ID: "a-2", Name: "b", Software: nas("6.1.1").Software}, e.feeds.vulns); err != nil {
 		t.Fatal(err)
 	}
 	_, b := e.call("GET", "/findings", "viewer", "")

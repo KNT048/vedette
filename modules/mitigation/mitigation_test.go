@@ -161,7 +161,7 @@ func newRig(t *testing.T) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sw := []findings.Software{{ID: "s-1", Display: "Photo Station", Vendor: "QNAP", Product: "Photo Station", KevKeys: []string{"qnap|photo station"}}}
+	sw := []findings.Software{{ID: "s-1", Display: "Photo Station", Vendor: "QNAP", Product: "Photo Station", Version: "6.0.3", KevKeys: []string{"qnap|photo station"}}}
 	vulns := []findings.Vuln{{CVE: qnapCVE, Vendor: "QNAP", Product: "Photo Station"}, {CVE: otherCVE, Vendor: "QNAP", Product: "Photo Station"}}
 	res, err := r.svc.UpsertFromMatch(t.Context(), findings.Asset{ID: "a-1", Name: "nas01", Software: sw}, vulns)
 	if err != nil || len(res.Created) != 2 {

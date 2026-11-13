@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -111,6 +112,15 @@ type env struct {
 	pub  *fakePub
 	mu   sync.Mutex
 	now  time.Time
+
+	waits []time.Duration // the waits of the NVD pull, which never wait for real here (Service.wait)
+}
+
+// waited returns the waits the NVD pull asked for that were not zero.
+func (e *env) waited() []time.Duration {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return slices.Clone(e.waits)
 }
 
 func (e *env) clock() time.Time {
@@ -147,6 +157,14 @@ func newEnvFetcher(t *testing.T, f Fetcher) *env {
 		Fetcher: f})
 	if err != nil {
 		t.Fatal(err)
+	}
+	e.svc.wait = func(ctx context.Context, d time.Duration) error {
+		if d > 0 {
+			e.mu.Lock()
+			e.waits = append(e.waits, d)
+			e.mu.Unlock()
+		}
+		return ctx.Err()
 	}
 	if err := e.svc.Seed(t.Context()); err != nil {
 		t.Fatal(err)
@@ -524,12 +542,12 @@ func TestStatusAndSourcesListing(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	c, b := e.get("/feeds/sources")
-	if c != 200 || at(b, "items", 7, "id") != "hagezi-tif" || at(b, "items", 8) != nil {
+	if c != 200 || at(b, "items", 8, "id") != "hagezi-tif" || at(b, "items", 9) != nil {
 		t.Fatalf("%d %v", c, b)
 	}
 	f := at(b, "items", 0)
 	if at(f, "id") != "cisa-kev" || at(f, "builtin") != true || at(f, "status") != "never" || at(f, "last_fetch") != nil || at(f, "records") != nil || at(f, "parser") != nil ||
-		at(f, "default_url") != at(f, "url") || at(f, "interval_hours") != 1.0 || at(f, "auth", "type") != "none" || at(f, "license") != "CC0" || at(b, "items", 3, "interval_hours") != 6.0 {
+		at(f, "default_url") != at(f, "url") || at(f, "interval_hours") != 1.0 || at(f, "auth", "type") != "none" || at(f, "license") != "CC0" || at(b, "items", 4, "interval_hours") != 6.0 {
 		t.Errorf("feed: %v", f)
 	}
 	_, s := e.get("/feeds/status")

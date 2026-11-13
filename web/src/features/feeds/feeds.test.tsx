@@ -332,6 +332,19 @@ describe('feeds: which address answered the CISA list (D-91)', () => {
     renderApp('/settings/feeds')
     expect(await screen.findByText('Answered by CISA GitHub mirror')).toBeInTheDocument()
   })
+
+  it('W3-1: the NVD versions still loading say how far they got, not "fetched at the next check"; Fetch now shows it as progress', async () => {
+    const line = 'Loading version ranges from NVD: page 8 of 18. NVD was busy (HTTP 503); trying page 8 again in 30 s.'
+    const feed = { id: 'nvd-kev', builtin: true, name: 'NVD affected versions', kind: 'vulnerabilities', format: 'json', url: 'https://services.nvd.nist.gov/rest/json/cves/2.0', default_url: 'https://services.nvd.nist.gov/rest/json/cves/2.0', enabled: true, interval_hours: 24,
+      auth: { type: 'none', header_name: null, username: null, secret_last4: null }, parser: null, last_fetch: null, records: null, status: 'never', error: line, license: null, answered_by: null }
+    server.use(http.get('*/api/v1/feeds/sources', () => HttpResponse.json({ items: [feed] })))
+    server.use(http.post('*/api/v1/feeds/sources/nvd-kev/fetch', () => HttpResponse.json(feed)))
+    renderApp('/settings/feeds')
+    expect((await screen.findAllByText(line)).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Fetched at the next scheduled check/)).toBeNull()
+    await userEvent.click(screen.getAllByRole('button', { name: /Fetch now/ })[0]!)
+    expect(await screen.findByText(`NVD affected versions: ${line}`)).toBeInTheDocument()
+  })
 })
 
 describe('feeds: a custom vulnerability feed does not drive matching (S-FEED-4, D-218)', () => {

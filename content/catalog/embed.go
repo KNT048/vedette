@@ -17,3 +17,8 @@ var Curated []byte
 //
 //go:embed kev-products.json
 var KEVProducts []byte
+
+// NVDCPE is nvd-cpe.json: the NVD CPE products of an inventory vendor|product (D-500), read by findings.
+//
+//go:embed nvd-cpe.json
+var NVDCPE []byte

@@ -55,7 +55,7 @@ func TestHaveScope_OnlyTheDeclaredDeviceIsScoped(t *testing.T) {
 		t.Errorf("the same product on another device was scoped: %s, want %s", got, want)
 	}
 	// With a version the version decides, not the answer on Home.
-	if got := haveScope(nas("6.1"), e.feeds.vulns, MatchAsset(nas("6.1"), e.feeds.vulns, nil, t0), map[string]Have{"a-1": {Key: "qnap|photo station", Since: day("2026-11-01")}}); len(got.New) != 4 {
+	if got := haveScope(nas("6.1"), e.feeds.vulns, MatchAsset(nas("6.1"), e.feeds.vulns, nil, t0), map[string]Have{"a-1": {Key: "qnap|photo station", Since: day("2026-11-01")}}, nil, t0); len(got.New) != 4 {
 		t.Fatalf("with a version: %+v", got.New)
 	}
 }
@@ -123,5 +123,17 @@ func TestRow_DeviceWithoutIPIsNamedNotByItsID(t *testing.T) {
 	row = newRow(r, &AssetView{ID: "a-vft3", Name: "Juniper Networks EX4200-48T", IP: NoIP, Kind: "switch"}, nil)
 	if row.Asset.Name != "Juniper Networks EX4200-48T" || row.Evidence.Summary != "Juniper Networks EX4200-48T runs Juniper Junos 15.1R7.9." {
 		t.Fatalf("asset = %+v, evidence = %q", row.Asset, row.Evidence.Summary)
+	}
+}
+
+// Review LOW of #663: the "I have this" scope keeps the matcher's proofs (D-530): a second row of the declared
+// device with a readable version outside the range still closes its finding.
+func TestHaveScope_KeepsNotAffected(t *testing.T) {
+	t.Parallel()
+	a := Asset{ID: "a-declared", Name: "QNAP", Software: nas("").Software}
+	proof := Match{CVE: "CVE-2022-27593", SoftwareID: "s-2"}
+	got := haveScope(a, nil, MatchResult{NotAffected: []Match{proof}}, map[string]Have{a.ID: {Key: "qnap|photo station", Since: t0}}, nil, t0)
+	if len(got.NotAffected) != 1 || got.NotAffected[0] != proof {
+		t.Fatalf("NotAffected = %+v", got.NotAffected)
 	}
 }

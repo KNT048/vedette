@@ -106,7 +106,8 @@ type Software struct {
 	KevKeys    []string
 	Confidence float64
 	// Guess marks software a sensor only guessed (an OS from nmap's fingerprint, D-501): it is stored and shown, but gets no KEV match
-	// keys, so it raises no finding until a person adds it with its version.
+	// keys, so it raises no finding until a person adds it with its version. A Windows release a device named in its NTLM answer is
+	// one too, with a version but no patch level (D-504).
 	Guess bool
 }
 

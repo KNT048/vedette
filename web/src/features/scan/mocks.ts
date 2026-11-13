@@ -148,20 +148,21 @@ const inTimeRange = (at: string, from: string, to: string) => (hm(from) < hm(to)
 const isoDay = (d: Date) => d.getDay() || 7
 
 /** A slot runs when its window starts on a window day (a window that crosses midnight counts by its start day, so a slot after midnight
- *  belongs to the window of the day before: #164 review M1) and, weekly, on the chosen weekday (the slot's own day). */
-function slotOK(c: ScanConfig, d: Date): boolean {
+ *  belongs to the window of the day before: #164 review M1) and, weekly, on the chosen weekday (the slot's own day). The first
+ *  scheduled run (first: none ran yet) takes the next window of any window day (W3-6; modules/scan slotOK). */
+function slotOK(c: ScanConfig, d: Date, first = false): boolean {
   const start = new Date(d)
   if (hm(c.window.from) > hm(c.window.to) && hm(c.schedule.at) < hm(c.window.to)) start.setDate(start.getDate() - 1)
-  return c.window.days.includes(isoDay(start)) && (c.schedule.frequency === 'daily' || isoDay(d) === c.schedule.weekday)
+  return c.window.days.includes(isoDay(start)) && (first || c.schedule.frequency === 'daily' || isoDay(d) === c.schedule.weekday)
 }
 
-export function nextRun(c: ScanConfig, now = new Date()): string | null {
+export function nextRun(c: ScanConfig, now = new Date(), first = false): string | null {
   if (!c.schedule.enabled) return null
   for (let i = 0; i < 15; i++) {
     const d = new Date(now)
     d.setDate(d.getDate() + i)
     d.setHours(hm(c.schedule.at) / 60 | 0, hm(c.schedule.at) % 60, 0, 0)
-    if (d.getTime() > now.getTime() && slotOK(c, d)) return d.toISOString()
+    if (d.getTime() > now.getTime() && slotOK(c, d, first)) return d.toISOString()
   }
   return null
 }
@@ -215,6 +216,7 @@ const reasonOf = (r: ScanTarget['reason']) => REASON[r ?? 'out_of_scope']
 const IDENT_NOTE: Record<IdentReason | 'identified', string> = {
   identified: 'Recorded on the device page. Software with a version is compared with the CISA list of exploited flaws; an operating system nmap only guessed is not, until you add it with its version there.',
   os_unconfirmed: 'nmap only guessed the operating system and no service gave a version, so nothing is compared with the CISA list yet: a guess would flag every flaw of that system. Add the operating system and its version on the device page to check it.',
+  os_no_patch_level: 'The device named its Windows release and build (shown above) but not its monthly update level, so nothing is compared with the CISA list yet: that would flag every flaw fixed since that release. On the device page, add the system it runs, Windows or Windows Server (winver on the device shows which), with its full version, for example 10.0.17763.6532; or install the osquery agent on it.',
   host_down: 'Did not answer: it may be switched off, asleep (phones often are) or off the network. Scan it again while it is in use.',
   no_open_ports: 'Answered, but every port tried was closed, so no service could be identified. Add its software on the device page, or install the osquery agent on it.',
   filtered: 'Answered, but a firewall dropped the probes (every port tried was filtered), so nothing could be identified. Add its software on the device page, or install the osquery agent on it.',
@@ -244,7 +246,7 @@ function identOne(t: ScanTarget): RunIdentRow {
   if (a.fragile && a.kind !== 'unknown') return identRow(t, [], 'gentle_only')
   const found = [...(a.os ? [`Operating system: ${a.os.value}`] : []), ...(a.kind !== 'unknown' ? [`Type: ${a.kind}`] : []), ...a.software.slice(0, 18).map((s) => `Software: ${s.display}`)]
   if (a.software.some((s) => s.version)) return identRow(t, found, null)
-  return identRow(t, found, !a.services.length ? 'no_open_ports' : a.os ? 'os_unconfirmed' : 'no_version')
+  return identRow(t, found, !a.services.length ? 'no_open_ports' : a.os?.value.includes('(build ') ? 'os_no_patch_level' : a.os ? 'os_unconfirmed' : 'no_version')
 }
 
 // ---- chạy quét ----
@@ -378,7 +380,7 @@ function configResponse(): ScanConfigResponse {
   const block = !sc.commitment ? 'The scan scope commitment is not ticked yet. Do it under Devices, Scope and sensors.' : !up ? SCANNER_DOWN : null
   const zoneDown = !zoneStore.get().readable
   const sched = zoneDown && c.schedule.enabled ? ZONE_DOWN : null
-  return { config: c, next_run: zoneDown ? null : nextRun(c), scope: sc, can_scan: block === null, block_reason: block, dangerous_checks: false, schedule_blocked_reason: sched }
+  return { config: c, next_run: zoneDown ? null : nextRun(c, new Date(), !runs.get().some((r) => r.trigger === 'schedule')), scope: sc, can_scan: block === null, block_reason: block, dangerous_checks: false, schedule_blocked_reason: sched }
 }
 
 // ---- khoá SSH (S-SCAN-5) ----

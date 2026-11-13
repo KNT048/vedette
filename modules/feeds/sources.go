@@ -11,6 +11,7 @@ const (
 	DecoderKEV    Decoder = "kev"    // ParseKEV
 	DecoderEPSS   Decoder = "epss"   // EPSSBatchURLs and ParseEPSS (api.first.org JSON)
 	DecoderNuclei Decoder = "nuclei" // ParseNucleiCVEs
+	DecoderNVD    Decoder = "nvd"    // NVDPageURL and ParseNVD (NVD CVE API 2.0, ?hasKev; D-500)
 )
 
 // Source is a built-in feed (D-36). Built-ins cannot be deleted (INV-4): the
@@ -55,11 +56,16 @@ func linesParser() *Parser {
 	return &p
 }
 
+// nvdNotice is the licence line of the NVD feed: NVD data is public domain, and the NVD terms of use ask for this
+// sentence (https://nvd.nist.gov/developers/terms-of-use).
+const nvdNotice = "Public domain. This product uses the NVD API but is not endorsed or certified by the NVD."
+
 // builtinSources is the default list of sourcesMock.ts. Hosts must match the
 // list in PRIVACY.md (INV-13) except where the report says otherwise.
 var builtinSources = []Source{
 	{ID: "cisa-kev", Name: "CISA KEV", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", License: "CC0", IntervalHours: 1, Decoder: DecoderKEV},
 	{ID: "first-epss", Name: "FIRST EPSS", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://api.first.org/data/v1/epss", License: "Attribution: EPSS by FIRST", IntervalHours: 24, Decoder: DecoderEPSS},
+	{ID: "nvd-kev", Name: "NVD affected versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://services.nvd.nist.gov/rest/json/cves/2.0", License: nvdNotice, IntervalHours: 24, Decoder: DecoderNVD},
 	{ID: "nuclei-templates", Name: "nuclei-templates", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/main/cves.json", License: "MIT", IntervalHours: 24, Decoder: DecoderNuclei},
 	{ID: "ipsum", Name: "IPsum", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt", License: "Unlicense", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Aggregate: true, Upstreams: []string{"et-open", "abusech-feodo"}},
 	{ID: "et-open", Name: "ET Open compromised IPs", Kind: KindIOC, Format: FormatLines, URL: "https://rules.emergingthreats.net/blockrules/compromised-ips.txt", License: "BSD", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser()},

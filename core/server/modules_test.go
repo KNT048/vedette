@@ -363,6 +363,13 @@ var contractRoutes = map[string][]string{
 		"GET /inventory/sensors",
 		"PATCH /inventory/sensors/{id}",
 	},
+	"sensor-active": {
+		"DELETE /inventory/snmp/{id}",
+		"GET /inventory/snmp",
+		"POST /inventory/snmp",
+		"POST /inventory/snmp/{id}/test",
+		"PUT /inventory/snmp/{id}",
+	},
 }
 
 // Every operation of the route table is claimed by exactly one module in contractRoutes, and

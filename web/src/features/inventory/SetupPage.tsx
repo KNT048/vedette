@@ -11,6 +11,7 @@ import { AgentsSection } from './AgentsSection'
 import { useSettings } from './api'
 import { NetworkForm } from './NetworkForm'
 import { SensorsSection } from './SensorsSection'
+import { SnmpSection } from './SnmpSection'
 
 function Body() {
   const { t } = useTranslation('inventory')
@@ -36,6 +37,7 @@ function Body() {
       <PageHeader title={title} stories={['S-INV-1', 'S-INV-4']} meta={<span className="inline-flex flex-wrap items-center gap-2"><SampleDataNote />{t('setup.meta')}</span>} />
       <QueryState query={settings}>{(s) => <NetworkForm key={JSON.stringify(s)} settings={s} />}</QueryState>
       <SensorsSection />
+      <SnmpSection />
       <AgentsSection />
     </>
   )

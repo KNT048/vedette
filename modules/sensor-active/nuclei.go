@@ -199,8 +199,8 @@ func (d *Dispatcher) nucleiOutcome(j *djob) ([]byte, error) {
 	case res.Status == "refused":
 		d.log.Error("sensor_active_worker_refused_job", "reason", res.Reason)
 		return nil, fmt.Errorf("%w (%s)", ErrWorkerRefused, res.Reason)
-	case res.XML() != nil || res.XMLB64 != "":
-		return nil, fmt.Errorf("%w: nmap output on a nuclei job", ErrResultRejected)
+	case res.XML() != nil || res.XMLB64 != "" || len(res.SNMP) > 0:
+		return nil, fmt.Errorf("%w: nmap or snmp output on a nuclei job", ErrResultRejected)
 	case res.Reason == "nuclei_missing":
 		d.mu.Lock()
 		d.nuclei.Present = false // until the next heartbeat says otherwise

@@ -33,6 +33,9 @@ type Decision struct {
 type Asset struct {
 	ID string
 	IP netip.Addr // invalid when the inventory knows no IP
+	// Approved: a person approved the device (or its osquery enrolment did). SNMP credentials go only to approved devices (D-512):
+	// a device nobody vouched for may be a rogue one that collects communities.
+	Approved bool
 }
 
 // Inventory is what this module asks of the inventory (INV-1, INV-2, INV-5). The real implementation is
@@ -101,6 +104,7 @@ type BlockedEvent struct {
 const (
 	KindSweep  = "sweep"
 	KindDevice = "device"
+	KindSNMP   = "snmp" // a Test or the window's round of SNMP reads (D-512)
 
 	StatusRunning = "running"
 	StatusDone    = "done"

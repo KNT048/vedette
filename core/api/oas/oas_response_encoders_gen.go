@@ -2157,6 +2157,12 @@ func encodeInventoryDeleteInventoryDevicesIDSoftwareSidResponse(response *Invent
 	return nil
 }
 
+func encodeInventoryDeleteInventorySnmpIDResponse(response *InventoryDeleteInventorySnmpIDNoContent, w http.ResponseWriter) error {
+	w.WriteHeader(204)
+
+	return nil
+}
+
 func encodeInventoryGetInstallOsqueryFileResponse(response InventoryGetInstallOsqueryFileOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.WriteHeader(200)
@@ -2313,6 +2319,19 @@ func encodeInventoryGetInventorySensorsResponse(response *InventoryGetInventoryS
 }
 
 func encodeInventoryGetInventorySettingsResponse(response *InventoryGetInventorySettingsOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeInventoryGetInventorySnmpResponse(response *InventoryGetInventorySnmpOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 
@@ -2533,6 +2552,32 @@ func encodeInventoryPostInventoryImportResponse(response *InventoryPostInventory
 	return nil
 }
 
+func encodeInventoryPostInventorySnmpResponse(response *InventoryPostInventorySnmpCreated, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(201)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeInventoryPostInventorySnmpIDTestResponse(response *InventoryPostInventorySnmpIDTestOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeInventoryPutInventoryAgentsWazuhResponse(response *InventoryPutInventoryAgentsWazuhOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -2560,6 +2605,19 @@ func encodeInventoryPutInventoryNotifyNewResponse(response *InventoryPutInventor
 }
 
 func encodeInventoryPutInventorySettingsResponse(response *InventoryPutInventorySettingsOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeInventoryPutInventorySnmpIDResponse(response *InventoryPutInventorySnmpIDOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

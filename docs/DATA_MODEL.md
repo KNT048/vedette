@@ -395,7 +395,7 @@ Người dùng và phiên đăng nhập bằng SSO nằm ở `core_user` (cột 
 | **`sa_queue`** (thiết bị chờ quét trong cửa sổ) | `asset_id:id` · `queued_at:ts` · `reason:text` · `attempts:int=0` | PK(asset_id) | Đến khi quét xong, bị chặn hoặc thử lỗi 3 lần | R/W `Service` (`inventory.asset.discovered` xếp hàng) |
 | **`sa_sweep`** (vị trí lượt quét dò, một dòng `id=1`) | `id:int` (=1) · `cursor:text?` (địa chỉ cuối của lô đã xong; NULL = không có lượt đang dở) · `updated_at:ts` | PK(id) | Một dòng | R/W `Service.DiscoverRanges`: cửa sổ cắt giữa lượt thì ngày sau tiếp tục từ `cursor`; hết dải thì xoá `cursor`, lượt sau bắt đầu lại từ địa chỉ đầu |
 
-`asset_id` không có khoá ngoại sang `inv_asset` (rule 3: không FK chéo module); thiết bị đã xoá thì `ScanDevice` trả `ErrNotFound` và dòng bị bỏ. `sa_snmp` chưa tạo.
+`asset_id` không có khoá ngoại sang `inv_asset` (rule 3: không FK chéo module); thiết bị đã xoá thì `ScanDevice` trả `ErrNotFound` và dòng bị bỏ. `sa_snmp` (migration 0003, D-512): thông tin xác thực SNMP không có bí mật (`id`, `name` duy nhất không phân biệt hoa thường, `version` v2c|v3, `username`/`auth`/`priv` của v3, `secret_id` và `priv_secret_id` trỏ `core_secret`, `secret_last4`, `priv_last4`, `scope` mảng JSON IP/CIDR, `created_at`, `updated_at`, `last_answer_at`, `answered`); cùng migration thêm `sa_job.kind = 'snmp'` và `sa_probe.shape = 'snmp'`.
 
 ## 5. Chủ đề chuyên sâu
 
@@ -598,7 +598,7 @@ Chỉ liệt kê chỗ **khác tên** hoặc **thừa/thiếu bảng**; còn l�
 | `scan` | `scan_config`, `scan_result` | `scan_setting`, `results` JSON trong `scan_run` | tách `scan_result` thành bảng nếu cần lọc theo finding |
 | `scan-credentialed` | `scc_target`, `scc_run`, `scc_result` | `scc_target` | hai bảng sau chưa có trong mock |
 | `sensor-passive` | `sp_sensor`, `sp_span_stat`, `sp_seq` | `sp_sensor` | `sp_span_stat`, `sp_seq` chưa có trong mock (D-56) |
-| `sensor-active` | `sa_job`, `sa_probe`, `sa_snmp` | `sa_job`, `sa_probe`, `sa_queue`, `sa_sweep` (mục 4.14) | `sa_snmp` chưa xây (D-84 (3)); `sa_queue` thêm (hàng đợi quét sống qua khởi động lại); `sa_sweep` thêm (con trỏ lượt quét dò) |
+| `sensor-active` | `sa_job`, `sa_probe`, `sa_snmp` | `sa_job`, `sa_probe`, `sa_queue`, `sa_sweep`, `sa_first_pass`, `sa_snmp` (mục 4.14) | `sa_snmp` xây ở D-512 (migration 0003); `sa_queue` thêm (hàng đợi quét sống qua khởi động lại); `sa_sweep` thêm (con trỏ lượt quét dò) |
 | `agent-intake` | `intake_agent_tokens`, `intake_osquery_nodes`, `intake_wazuh` | `intake_agent_tokens`, `intake_osquery_nodes` (lát 2); `intake_wazuh` (lát 4, `0002_wazuh.sql`); `intake_prune_clock` (lát 3, `0003_prune_clock.sql`); cột `created_by`, `reported`, `approved_at` (`0004_first_report.sql`, D-503) | `intake_osquery_nodes` thêm (D-169 (2)); cột `hosts` tính lúc đọc; `intake_prune_clock` thêm (một hàng: lần chạy cuối của `node-prune`) |
 | `feeds` | `feeds_fetch_log` | `feeds_fetch` | đổi tên cho khớp |
 | `response` | `resp_settings`, `resp_plans`, `resp_actions`, `resp_catalog`, `resp_rules`, `resp_allowlist`, `resp_blocklist`, `resp_tokens`, `resp_done`, `resp_ai_notes`, `resp_hints`, `resp_log` | `resp_setting`, `resp_plan`, `resp_action` (+ `_item`, `resp_approval`), `resp_catalog`, `resp_rule`, `resp_allow`, `resp_setting.blocklist`, `resp_approval_token`, `resp_rule_done`, `resp_ai_note`, `resp_hint`, `resp_log` | `resp_actions` ở CONTRACT có `items` lồng; file này tách `resp_action_item`, `resp_approval` |

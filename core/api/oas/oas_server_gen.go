@@ -1154,6 +1154,12 @@ type Handler interface {
 	//
 	// DELETE /inventory/devices/{id}/software/{sid}
 	InventoryDeleteInventoryDevicesIDSoftwareSid(ctx context.Context, params InventoryDeleteInventoryDevicesIDSoftwareSidParams) error
+	// InventoryDeleteInventorySnmpID implements inventory_delete_inventory_snmp_id operation.
+	//
+	// Delete an SNMP credential and its secrets; what devices said stays in the inventory.
+	//
+	// DELETE /inventory/snmp/{id}
+	InventoryDeleteInventorySnmpID(ctx context.Context, params InventoryDeleteInventorySnmpIDParams) error
 	// InventoryGetInstallOsqueryFile implements inventory_get_install_osquery_file operation.
 	//
 	// The official osquery packages and SHA256SUMS the box ships (osquery_-1.linux_amd64.deb,
@@ -1233,6 +1239,13 @@ type Handler interface {
 	//
 	// GET /inventory/settings
 	InventoryGetInventorySettings(ctx context.Context) (*InventoryGetInventorySettingsOK, error)
+	// InventoryGetInventorySnmp implements inventory_get_inventory_snmp operation.
+	//
+	// SNMP credentials (secrets only as their last 4 characters) and whether the scan container can read
+	// SNMP now (D-512).
+	//
+	// GET /inventory/snmp
+	InventoryGetInventorySnmp(ctx context.Context) (*InventoryGetInventorySnmpOK, error)
 	// InventoryPatchInventoryDevicesID implements inventory_patch_inventory_devices_id operation.
 	//
 	// Change the type, mark as fragile, override regular scans or edit the notes of a device.
@@ -1337,6 +1350,20 @@ type Handler interface {
 	//
 	// POST /inventory/import
 	InventoryPostInventoryImport(ctx context.Context, req *InventoryPostInventoryImportReq) (*InventoryPostInventoryImportOK, error)
+	// InventoryPostInventorySnmp implements inventory_post_inventory_snmp operation.
+	//
+	// Add an SNMP credential (v2c community or v3 user); its secrets are stored encrypted. 409 name_taken,
+	// 409 too_many (8 at most).
+	//
+	// POST /inventory/snmp
+	InventoryPostInventorySnmp(ctx context.Context, req *InventoryPostInventorySnmpReq) (*InventoryPostInventorySnmpCreated, error)
+	// InventoryPostInventorySnmpIDTest implements inventory_post_inventory_snmp_id_test operation.
+	//
+	// Read one device with this credential now (read-only GETs from the scan container, logged in the
+	// probe log) and say what it answered, or why not; an answer is recorded in the inventory.
+	//
+	// POST /inventory/snmp/{id}/test
+	InventoryPostInventorySnmpIDTest(ctx context.Context, req *InventoryPostInventorySnmpIDTestReq, params InventoryPostInventorySnmpIDTestParams) (*InventoryPostInventorySnmpIDTestOK, error)
 	// InventoryPutInventoryAgentsWazuh implements inventory_put_inventory_agents_wazuh operation.
 	//
 	// Connect (or edit) a Wazuh server: verify the API login, then save; the password is stored encrypted.
@@ -1355,6 +1382,12 @@ type Handler interface {
 	//
 	// PUT /inventory/settings
 	InventoryPutInventorySettings(ctx context.Context, req *InventoryPutInventorySettingsReq) (*InventoryPutInventorySettingsOK, error)
+	// InventoryPutInventorySnmpID implements inventory_put_inventory_snmp_id operation.
+	//
+	// Edit an SNMP credential; a blank secret keeps the saved one.
+	//
+	// PUT /inventory/snmp/{id}
+	InventoryPutInventorySnmpID(ctx context.Context, req *InventoryPutInventorySnmpIDReq, params InventoryPutInventorySnmpIDParams) (*InventoryPutInventorySnmpIDOK, error)
 	// LogsDeleteLogsSourcesID implements logs_delete_logs_sources_id operation.
 	//
 	// Delete a log source; already received logs are kept until retention expires.

@@ -121,6 +121,9 @@ type ActiveHeartbeat struct {
 	Version string          `json:"version"`
 	Nmap    HeartbeatNmap   `json:"nmap"`
 	Nuclei  HeartbeatNuclei `json:"nuclei"`
+	// SNMP (protocol 5, D-512) says the worker runs snmp jobs. A worker of protocol 4 leaves it out: core then never sends it one,
+	// so the jobs reply such a worker gets keeps the shape of protocol 4.
+	SNMP bool `json:"snmp,omitempty"`
 }
 
 // HeartbeatNmap says whether the worker can run nmap.
@@ -150,10 +153,12 @@ type JobsReply struct {
 	Cancel   []string `json:"cancel"`
 }
 
-// Job kinds (protocol 2). A job that carries no kind is an nmap job: the kind is the only thing protocol 2 added to nmap's.
+// Job kinds (protocol 2; snmp: protocol 5). A job that carries no kind is an nmap job: the kind is the only thing protocol 2 added to
+// nmap's.
 const (
 	KindNmap   = "nmap"
 	KindNuclei = "nuclei"
+	KindSNMP   = "snmp"
 )
 
 // Job is one job of the worker. There is no argv, flag, path or URL on the wire (D-111 (3)): the worker builds the command
@@ -170,6 +175,168 @@ type Job struct {
 	Targets []string // nmap
 
 	Nuclei *NucleiJob // nuclei, nil for the others
+	SNMP   *SNMPJob   // snmp, nil for the others
+}
+
+// SNMPJob is a round of SNMP reads (protocol 5, D-512): for each target, in order, the worker tries the credentials the target
+// names until one gets an answer, with read-only GETs of a fixed list of objects it owns (no object identifier is on the wire, as
+// no argv is: D-111 (3)). Rate is packets a second.
+type SNMPJob struct {
+	Rate        int              `json:"rate"`
+	Credentials []SNMPCredential `json:"credentials"`
+	Targets     []SNMPTarget     `json:"targets"`
+}
+
+// SNMPCredential is one way to sign in to an SNMP agent. Version is "v2c" (Community) or "v3" (User, Auth "sha" or "sha256" with
+// AuthPass, Priv "aes128" with PrivPass, or Priv "" for authNoPriv). It holds secrets: printing or logging it gives "[redacted]";
+// only the JSON of the job carries them, inside the mutual-TLS link.
+type SNMPCredential struct {
+	Version   string `json:"version"`
+	Community string `json:"community,omitempty"`
+	User      string `json:"user,omitempty"`
+	Auth      string `json:"auth,omitempty"`
+	AuthPass  string `json:"auth_pass,omitempty"`
+	Priv      string `json:"priv,omitempty"`
+	PrivPass  string `json:"priv_pass,omitempty"`
+}
+
+// Format implements fmt.Formatter for every verb: the credential never reaches a log line through fmt.
+func (SNMPCredential) Format(f fmt.State, _ rune) { _, _ = f.Write([]byte("[redacted]")) }
+
+// SNMPTarget is one device of an snmp job: its address and the indexes (into SNMPJob.Credentials) of the credentials to try, in order.
+type SNMPTarget struct {
+	IP          string `json:"ip"`
+	Credentials []int  `json:"credentials"`
+}
+
+// The limits of an snmp job (sensor-protocol.md section 9).
+const (
+	MaxSNMPTargets     = 64  // targets of a job, like an nmap batch
+	MaxSNMPCredentials = 8   // credentials of a job
+	MaxSNMPTargetTries = 4   // credentials one target names
+	MaxSNMPValue       = 512 // bytes of one value of an answer (an SNMP DisplayString is at most 255)
+	MaxSNMPSeconds     = 3600
+)
+
+// The per-target statuses of an snmp result.
+const (
+	SNMPStatusOK          = "ok"           // the agent answered
+	SNMPStatusNoAnswer    = "no_answer"    // nothing came back: no agent, a firewall, or a wrong v2c community (an agent drops those silently)
+	SNMPStatusAuthFailed  = "auth_failed"  // v3: the agent said the digest is wrong or it could not decrypt
+	SNMPStatusUnknownUser = "unknown_user" // v3: the agent does not know the user
+	SNMPStatusError       = "error"        // anything else: an error status, a message that does not decode
+)
+
+// The versions and algorithms of an SNMPCredential (D-512: no v1, no MD5, no DES, no noAuthNoPriv).
+const (
+	SNMPv2c        = "v2c"
+	SNMPv3         = "v3"
+	SNMPAuthSHA    = "sha"
+	SNMPAuthSHA256 = "sha256"
+	SNMPPrivAES128 = "aes128"
+)
+
+// SNMPStatuses is the closed set of the per-target statuses of an snmp result.
+var SNMPStatuses = []string{SNMPStatusOK, SNMPStatusNoAnswer, SNMPStatusAuthFailed, SNMPStatusUnknownUser, SNMPStatusError}
+
+// SNMPAnswer is what the worker got from one target: the status of the last credential it tried (Credential, an index into the
+// job's credentials) and, when Status is ok, the values the agent gave. Every value is untrusted text (SYS-6).
+type SNMPAnswer struct {
+	Target     string     `json:"target"`
+	Status     string     `json:"status"`
+	Credential int        `json:"credential"`
+	Values     SNMPValues `json:"values"`
+}
+
+// SNMPValues are the objects the worker reads ("" when the agent has none): MIB-2 system and ENTITY-MIB entPhysical for index 1.
+// EntClass is entPhysicalClass as a decimal number, SysObjectID a dotted object identifier.
+type SNMPValues struct {
+	SysDescr    string `json:"sys_descr"`
+	SysObjectID string `json:"sys_object_id"`
+	SysName     string `json:"sys_name"`
+	EntClass    string `json:"ent_class"`
+	EntModel    string `json:"ent_model"`
+	EntSoftware string `json:"ent_software"`
+	EntSerial   string `json:"ent_serial"`
+}
+
+func (v SNMPValues) all() []string {
+	return []string{v.SysDescr, v.SysObjectID, v.SysName, v.EntClass, v.EntModel, v.EntSoftware, v.EntSerial}
+}
+
+// CheckSNMPJob is the grammar of an snmp job, the same for core before it dispatches and for the worker before it sends anything: a
+// rate of 1..1000, 1..8 credentials of a known shape (a v2c community or a v3 user of 1..64 printable characters, v3 passwords of
+// 8..64), 1..64 unique canonical IPv4 targets (local is checked by the caller with core/localnet, which this package does not import),
+// each naming 1..4 distinct credentials.
+func CheckSNMPJob(j *SNMPJob) error {
+	if j == nil {
+		return invalid("snmp job")
+	}
+	if j.Rate < 1 || j.Rate > 1000 {
+		return invalid("snmp rate")
+	}
+	if len(j.Credentials) < 1 || len(j.Credentials) > MaxSNMPCredentials {
+		return invalid("snmp credentials")
+	}
+	for _, c := range j.Credentials {
+		if err := checkSNMPCredential(c); err != nil {
+			return err
+		}
+	}
+	if len(j.Targets) < 1 || len(j.Targets) > MaxSNMPTargets {
+		return invalid("snmp targets")
+	}
+	seen := map[string]bool{}
+	for _, t := range j.Targets {
+		a, err := netip.ParseAddr(t.IP)
+		if err != nil || !a.Is4() || a.String() != t.IP || seen[t.IP] {
+			return invalid("snmp target")
+		}
+		seen[t.IP] = true
+		if len(t.Credentials) < 1 || len(t.Credentials) > MaxSNMPTargetTries {
+			return invalid("snmp target credentials")
+		}
+		for i, c := range t.Credentials {
+			if c < 0 || c >= len(j.Credentials) || slices.Contains(t.Credentials[:i], c) {
+				return invalid("snmp target credential")
+			}
+		}
+	}
+	return nil
+}
+
+// printable reports whether s is lo..64 bytes of printable ASCII (a community, a v3 user or password).
+func printable(s string, lo int) bool {
+	if len(s) < lo || len(s) > 64 {
+		return false
+	}
+	for _, c := range []byte(s) {
+		if c < 0x20 || c > 0x7e {
+			return false
+		}
+	}
+	return true
+}
+
+func checkSNMPCredential(c SNMPCredential) error {
+	switch c.Version {
+	case SNMPv2c:
+		if !printable(c.Community, 1) || c.User != "" || c.Auth != "" || c.AuthPass != "" || c.Priv != "" || c.PrivPass != "" {
+			return invalid("snmp v2c credential")
+		}
+	case SNMPv3:
+		switch {
+		case c.Community != "" || !printable(c.User, 1):
+			return invalid("snmp v3 user")
+		case c.Auth != SNMPAuthSHA && c.Auth != SNMPAuthSHA256, !printable(c.AuthPass, 8):
+			return invalid("snmp v3 authentication")
+		case c.Priv == "" && c.PrivPass != "", c.Priv != "" && (c.Priv != SNMPPrivAES128 || !printable(c.PrivPass, 8)):
+			return invalid("snmp v3 privacy")
+		}
+	default:
+		return invalid("snmp version")
+	}
+	return nil
 }
 
 // NucleiJob is what a nuclei run is made of (D-125 (1), D-136 (4) and (6)): template ids, never paths; the worker maps them
@@ -211,6 +378,13 @@ type nucleiWire struct {
 	NucleiJob
 }
 
+type snmpWire struct {
+	ID       string `json:"id"`
+	Kind     string `json:"kind"`
+	TimeoutS int    `json:"timeout_s"`
+	SNMPJob
+}
+
 // MarshalJSON writes the job in the shape of its kind.
 func (j Job) MarshalJSON() ([]byte, error) {
 	switch j.Kind {
@@ -221,6 +395,11 @@ func (j Job) MarshalJSON() ([]byte, error) {
 			return nil, errors.New("sensorlink: a nuclei job without its fields")
 		}
 		return json.Marshal(nucleiWire{ID: j.ID, Kind: j.Kind, TimeoutS: j.TimeoutS, NucleiJob: *j.Nuclei})
+	case KindSNMP:
+		if j.SNMP == nil {
+			return nil, errors.New("sensorlink: an snmp job without its fields")
+		}
+		return json.Marshal(snmpWire{ID: j.ID, Kind: j.Kind, TimeoutS: j.TimeoutS, SNMPJob: *j.SNMP})
 	}
 	return json.Marshal(struct {
 		ID   string `json:"id"`
@@ -257,6 +436,13 @@ func (j *Job) UnmarshalJSON(raw []byte) error {
 		}
 		n := w.NucleiJob
 		*j = Job{ID: w.ID, Kind: w.Kind, TimeoutS: w.TimeoutS, Nuclei: &n}
+	case KindSNMP:
+		var w snmpWire
+		if err := strict(&w); err != nil {
+			return err
+		}
+		n := w.SNMPJob
+		*j = Job{ID: w.ID, Kind: w.Kind, TimeoutS: w.TimeoutS, SNMP: &n}
 	default:
 		*j = Job{ID: head.ID, Kind: head.Kind}
 	}
@@ -275,6 +461,8 @@ type JobResult struct {
 	// when stdout holds matches only (scan INV-6, D-165). At most MaxHostErrors entries, one per target, only for targets with
 	// at least one timeout.
 	HostErrors []HostError `json:"host_errors,omitempty"`
+	// SNMP (protocol 5, snmp jobs only, D-512): one answer per target the worker got to, only on a done result.
+	SNMP []SNMPAnswer `json:"snmp,omitempty"`
 
 	xml   []byte // the decoded XMLB64, set by the server's decoder
 	jsonl []byte // the decoded JSONLB64
@@ -448,6 +636,9 @@ func decodeJobResult(raw []byte) (*JobResult, error) {
 	if err := checkHostErrors(&r); err != nil {
 		return nil, err
 	}
+	if err := checkSNMPAnswers(&r); err != nil {
+		return nil, err
+	}
 	var err error
 	if r.xml, err = decodeOutput(&r, r.XMLB64, MaxResultXML, "xml_b64"); err != nil {
 		return nil, err
@@ -474,6 +665,37 @@ func checkHostErrors(r *JobResult) error {
 		for _, p := range r.HostErrors[:i] {
 			if p.Target == h.Target {
 				return invalid("host_errors target twice")
+			}
+		}
+	}
+	return nil
+}
+
+// checkSNMPAnswers checks the shape of snmp: only on a done result without another output, at most one answer per target and
+// MaxSNMPTargets in all, a known status, values of at most MaxSNMPValue bytes and only on an ok answer. Whether a target and a
+// credential index belong to the job is the Dispatcher's check, which knows the job.
+func checkSNMPAnswers(r *JobResult) error {
+	if len(r.SNMP) == 0 {
+		return nil
+	}
+	if r.Status != "done" || len(r.SNMP) > MaxSNMPTargets || r.XMLB64 != "" || r.JSONLB64 != "" || len(r.HostErrors) > 0 {
+		return invalid("snmp")
+	}
+	for i, a := range r.SNMP {
+		if !slices.Contains(SNMPStatuses, a.Status) || a.Credential < 0 || a.Credential >= MaxSNMPCredentials {
+			return invalid("snmp answer")
+		}
+		if ip, err := netip.ParseAddr(a.Target); err != nil || !ip.Is4() || ip.String() != a.Target {
+			return invalid("snmp answer target")
+		}
+		for _, p := range r.SNMP[:i] {
+			if p.Target == a.Target {
+				return invalid("snmp target twice")
+			}
+		}
+		for _, v := range a.Values.all() {
+			if len(v) > MaxSNMPValue || (v != "" && a.Status != SNMPStatusOK) {
+				return invalid("snmp value")
 			}
 		}
 	}

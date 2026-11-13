@@ -14,7 +14,7 @@ Cả hai chạy cùng binary `vedette-sensor` (lệnh con `passive`, `active`, `
 
 Ngoài phạm vi hồ sơ này:
 - sensor đặt ở máy khác, enroll, gia hạn qua mạng, thu hồi bằng tay (D-115; thiết kế cũ ở phụ lục A);
-- syslog và metadata SPAN (`logs` chưa xây), honeypot (đi qua tệp, D-89), osquery (`osquery-intake.md`), SNMP (D-84 (3)), job nuclei của module `scan` (để sau; sẽ là một loại job mới trên cùng kênh `jobs`).
+- syslog và metadata SPAN (`logs` chưa xây), honeypot (đi qua tệp, D-89), osquery (`osquery-intake.md`). (Job nuclei của module `scan` là loại job thứ hai từ bản 2; đọc SNMP là loại thứ ba từ bản 5, D-512, xem khối "D-512" ở §6.5.)
 
 ## 2. Actors và vai
 
@@ -31,7 +31,7 @@ Mô hình tin cậy: sensor là **máy bị tấn công được** (nằm trên 
 
 - HTTPS, JSON (`Content-Type: application/json`), không nén (`Content-Encoding` bất kỳ → `400 invalid_request`). TLS **1.3** tối thiểu; HTTP/2 khi ALPN đề nghị, không bắt buộc.
 - Listener riêng của `core`, bật bằng `-sensor-listen :8444` (trong container) cùng `-sensor-creds <thư mục>` (D-141; rỗng = không nghe), tách khỏi listener UI 8443; `core` mở PKI, ghi hai bó khoá, **rồi mới** nghe, và việc `sensor-cert-renew` hằng ngày gọi `Authority.Renew`; trên appliance chỉ publish `127.0.0.1:8444` (`DEPLOYMENT.md` §6.1). `ClientAuth = RequireAndVerifyClientCert`, pool chỉ chứa CA sensor.
-- Tiền tố `/sensor/v1/`. Mọi request mang `X-Vedette-Proto: 4` (bản 4: `capture_error` trong heartbeat thụ động, D-399; bản 3: `host_errors` của kết quả nuclei, D-165; bản 2: loại job `nuclei`, D-125/D-133). `core` nhận bản của mình và **bản liền trước** (`3`), không bao giờ bản mới hơn (§10, D-459).
+- Tiền tố `/sensor/v1/`. Mọi request mang `X-Vedette-Proto: 5` (bản 5: loại job `snmp`, `snmp` trong heartbeat `active` và trong kết quả, `running` tới 3 id, D-512; bản 4: `capture_error` trong heartbeat thụ động, D-399; bản 3: `host_errors` của kết quả nuclei, D-165; bản 2: loại job `nuclei`, D-125/D-133). `core` nhận bản của mình và **bản liền trước** (`4`), không bao giờ bản mới hơn (§10, D-459). Bản 5 thêm một loại job vào **phản hồi** `jobs`, nhưng `core` chỉ gửi job `snmp` cho worker có heartbeat `"snmp": true` (trường của bản 5), nên worker bản 4 nhận phản hồi đúng dạng bản 4.
 - `ReadHeaderTimeout` 5 s, `WriteTimeout` 35 s (long-poll giữ tối đa 30 s).
 - Thân: `http.MaxBytesReader` theo trần của route (§9) **trước** khi giải mã; giải mã bằng `internal/jsonstrict` (trường lạ, khoá trùng, khoá trùng sau gập chữ, độ sâu > 32 → `400 invalid_request`). Query lạ → `400 invalid_request`.
 - SP-1 (làm rõ): thân POST phải có `Content-Type: application/json` (thiếu hoặc khác → `400 invalid_request`); thân đọc tối đa **10 s** (đồng hồ ổ cắm, không phải seam; `ReadTimeout` toàn yêu cầu 15 s, D-176; 10 s cho 11 MiB tức ~9 Mbit/s, chỉ đúng cho sensor cục bộ, tính lại khi dựng sensor từ xa) và kết nối bị đóng khi thân dừng giữa chừng hoặc vượt trần (net/http không có hạn đọc thân nào mà không làm hỏng long-poll); `IdleTimeout` 2 phút; `MaxHeaderBytes` 16 KiB. `If-None-Match` phải có dạng `"<1…64 ký tự [A-Za-z0-9._:-]>"`, không thì `400`. `wait` là một số nguyên 0…30 (một giá trị, không lặp); `running` là 32 hex hoặc rỗng.
@@ -199,9 +199,9 @@ Heartbeat không có trong 90 s không xoá dữ liệu nào; chỉ đổi trạ
 
 | Trường | Quy tắc |
 |---|---|
-| query `running` | id các job worker đang chạy, cách nhau bằng dấu phẩy: rỗng, một id, hoặc hai id (một nmap, một nuclei; bản 2), mỗi id 32 hex, không trùng; khác → `400` |
-| `jobs` | 0, 1 hoặc 2 phần tử, **tối đa một job mỗi loại** |
-| `jobs[].kind` | `nmap` \| `nuclei` (bản 2). Thiếu `kind` = `nmap`. Loại lạ: giải mã chỉ lấy `id` và `kind`, worker trả `refused` (`invalid_job`) mà không làm hỏng cả poll |
+| query `running` | id các job worker đang chạy, cách nhau bằng dấu phẩy: rỗng, một id, hai hay (bản 5) ba id (một nmap, một nuclei; bản 2; một snmp, bản 5), mỗi id 32 hex, không trùng; khác → `400` |
+| `jobs` | 0 … 3 phần tử, **tối đa một job mỗi loại** |
+| `jobs[].kind` | `nmap` \| `nuclei` (bản 2) \| `snmp` (bản 5, trường của nó ở khối "D-512" §6.5). Thiếu `kind` = `nmap`. Loại lạ: giải mã chỉ lấy `id` và `kind`, worker trả `refused` (`invalid_job`) mà không làm hỏng cả poll |
 | `jobs[].shape` | (nmap) `sweep` \| `normal` \| `gentle` (ba mẫu của D-84 (7)) \| `versions` (`-sV` không `-O`, D-501: lượt chọn tay thiết bị chưa rõ loại; worker cũ không biết mẫu này từ chối job `invalid_job`, nhận dạng báo `unavailable`). `normal` và `versions` mang đúng `--script rdp-ntlm-info,http-ntlm-info` (D-504, `nmapargv.Scripts`: hai script NTLM type 1, không thông tin đăng nhập); tên mẫu không đổi nên không tăng proto: worker của bản cũ dựng hai mẫu đó không script (chỉ trong lúc cập nhật; `sa_probe.flags` khi đó ghi thừa script, không bao giờ thiếu) |
 | `jobs[].rate` | (nmap) 1 … 1000; `gentle` luôn `1` |
 | `jobs[].targets` | (nmap) 1 … 64 IPv4 riêng (RFC 1918 hoặc dải chung RFC 6598 100.64/10, `core/localnet.Addr`, D-461), chính tắc, không trùng (văn phạm `ValidateNmapArgs`) |
@@ -255,6 +255,13 @@ Trên dây **không** có argv, cờ, đường dẫn, URL hay phạm vi (D-111 
 - Giao hạn: nuclei `timeout_s` = min(hạn ctx còn lại, 3600); trần phía `core` `timeout_s` + 30 s như nmap, `Health` của nuclei nói "quá hạn" riêng.
 - Seam cho `scan`: `sensoractive.Scanner` (`Ready(ctx) error`, `RunNuclei(ctx, NucleiRequest) (nucleiout.Outcome, error)`), `*Dispatcher` thoả. `RunNuclei` kiểm văn phạm (như `nucleiargv.Build`) trước khi giao; trả `ErrScannerUnavailable` (và các lỗi bọc nó: `ErrScanWorkerUnavailable`, `ErrNucleiMissing`, `ErrPackMismatch`) khi máy quét không sẵn sàng (503 `scanner_unavailable`); `ErrWorkerLost`, `ErrWorkerRefused`, `ErrResultRejected` (kể cả JSONL bị `nucleiout` từ chối), `ErrOutputTruncated`, `*exec.ExitError` làm lượt chạy `failed`.
 - `core` chỉ tin mã thoát, `truncated` và các byte JSONL; mọi dòng ngoài mẫu hay đích (host:port) của job là cả lượt bị bỏ (D-136 (1), (7)). Một kết quả nuclei có `xml_b64` (hay ngược lại) bị từ chối.
+
+**D-512 (bản 5, đọc SNMP; mã `core/sensorlink/wire.go`, `modules/sensor-active/{snmp_dispatch.go,snmp.go,worker/snmp.go}`).**
+- Heartbeat `active` thêm `"snmp": true` (worker bản 5 luôn gửi: gosnmp nằm trong binary). Thiếu = worker bản 4: `SNMPHealth` nói worker cũ hơn `core`, không job `snmp` nào được tạo.
+- Job: `{ "id", "kind": "snmp", "timeout_s" 1..3600, "rate" 1..1000, "credentials": [ ≤ 8 × {"version": "v2c", "community"} | {"version": "v3", "user", "auth": "sha"|"sha256", "auth_pass", "priv": "aes128"|"" , "priv_pass"} ], "targets": [ ≤ 64 × {"ip", "credentials": [1..4 chỉ số, không trùng]} ] }`. Community 1..64, user 1..64, mật khẩu v3 8..64 ký tự ASCII in được; không v1, MD5, DES, noAuthNoPriv. IP: IPv4 chính tắc, không trùng, local (`core/localnet`). `sensorlink.CheckSNMPJob` là văn phạm chung; `core` kiểm trước khi giao, worker kiểm lại (`refused`/`invalid_job`, không gói nào). **Không có OID trên dây**: worker luôn GET đúng danh sách của nó (sysDescr, sysObjectID, sysName, entPhysicalClass/ModelName/SoftwareRev/SerialNum .1). Bí mật đi trên dây chỉ trong link mTLS này; `SNMPCredential` tự in ra `[redacted]`.
+- Worker: từng đích một, thử các credential của đích theo thứ tự tới khi được trả lời; timeout 2 s, thử lại 1; sau mỗi đích nghỉ `2/rate` giây (một lần đọc v3 là hai gói). Khe thứ ba (`slotSNMP`), job `snmp` thứ hai khi khe bận → `busy`. Hết `timeout_s` → `done` với `reason: "deadline"` và các đích đã xong.
+- Kết quả: `{"status": "done", …, "xml_b64": "", "snmp": [ ≤ 64 × {"target", "status": "ok"|"no_answer"|"auth_failed"|"unknown_user"|"error", "credential" (chỉ số), "values": {"sys_descr", "sys_object_id", "sys_name", "ent_class", "ent_model", "ent_software", "ent_serial"}} ]}`; mỗi giá trị ≤ 512 byte (worker cắt 255, UTF-8 hợp lệ), giá trị chỉ khi `ok`; `snmp` chỉ khi `done`, không cùng `xml_b64`/`jsonl_b64`/`host_errors` (khác → `400`). `core` từ chối câu trả lời cho đích hay credential job không nêu (`ErrResultRejected`) và tự phân tích giá trị (không tin cậy, sensor-active INV-10).
+- `core`: `sensoractive.Service` ghi dòng `sa_probe` (`shape` `snmp`) **trước** khi mở bí mật và giao job; một job snmp một lúc (`snmpMu`).
 
 **SP-3 (làm rõ, mã `modules/sensor-active/{dispatch.go,worker/}`).**
 - `timeout_s` được tính lúc **giao** job (`min(hạn của ngữ cảnh probe còn lại, 7200)`, làm tròn lên), không phải lúc xếp hàng, để job chờ lấy lâu không chạy quá hạn của probe.

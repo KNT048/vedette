@@ -71480,6 +71480,9 @@ type InventoryDeleteInventoryDevicesIDNoContent struct{}
 // InventoryDeleteInventoryDevicesIDSoftwareSidNoContent is response for InventoryDeleteInventoryDevicesIDSoftwareSid operation.
 type InventoryDeleteInventoryDevicesIDSoftwareSidNoContent struct{}
 
+// InventoryDeleteInventorySnmpIDNoContent is response for InventoryDeleteInventorySnmpID operation.
+type InventoryDeleteInventorySnmpIDNoContent struct{}
+
 type InventoryGetInstallOsqueryFileOK struct {
 	Data io.Reader
 }
@@ -76151,6 +76154,319 @@ func (s *InventoryGetInventorySettingsOKRegularScanKindsItem) UnmarshalText(data
 	}
 }
 
+type InventoryGetInventorySnmpOK struct {
+	// In the order they are tried (oldest first), at most 8.
+	Credentials []InventoryGetInventorySnmpOKCredentialsItem `json:"credentials"`
+	// Why not ready.
+	Message NilString `json:"message"`
+	// False while the scan container cannot read SNMP (not reporting, or older than this version).
+	Ready bool `json:"ready"`
+}
+
+// GetCredentials returns the value of Credentials.
+func (s *InventoryGetInventorySnmpOK) GetCredentials() []InventoryGetInventorySnmpOKCredentialsItem {
+	return s.Credentials
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryGetInventorySnmpOK) GetMessage() NilString {
+	return s.Message
+}
+
+// GetReady returns the value of Ready.
+func (s *InventoryGetInventorySnmpOK) GetReady() bool {
+	return s.Ready
+}
+
+// SetCredentials sets the value of Credentials.
+func (s *InventoryGetInventorySnmpOK) SetCredentials(val []InventoryGetInventorySnmpOKCredentialsItem) {
+	s.Credentials = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryGetInventorySnmpOK) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetReady sets the value of Ready.
+func (s *InventoryGetInventorySnmpOK) SetReady(val bool) {
+	s.Ready = val
+}
+
+type InventoryGetInventorySnmpOKCredentialsItem struct {
+	// Devices that answered with it in its latest round in the scan window; a Test that got an answer
+	// makes it at least 1.
+	Answered int `json:"answered"`
+	// Null for v2c.
+	Auth      NilInventoryGetInventorySnmpOKCredentialsItemAuth `json:"auth"`
+	CreatedAt time.Time                                         `json:"created_at"`
+	ID        string                                            `json:"id"`
+	// When a device last answered with it (a round in the scan window, or a Test).
+	LastAnswerAt NilDateTime `json:"last_answer_at"`
+	Name         string      `json:"name"`
+	// Null for v2c.
+	Priv NilInventoryGetInventorySnmpOKCredentialsItemPriv `json:"priv"`
+	// Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8
+	// characters.
+	PrivLast4 string `json:"priv_last4"`
+	// IPv4 addresses and CIDR ranges this credential is sent to; empty = every approved device of the scan
+	// scope.
+	Scope []string `json:"scope"`
+	// Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has
+	// fewer than 8 characters.
+	SecretLast4 string `json:"secret_last4"`
+	// V3 user name; null for v2c.
+	Username NilString `json:"username"`
+	// No SNMPv1 (D-512).
+	Version InventoryGetInventorySnmpOKCredentialsItemVersion `json:"version"`
+}
+
+// GetAnswered returns the value of Answered.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetAnswered() int {
+	return s.Answered
+}
+
+// GetAuth returns the value of Auth.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetAuth() NilInventoryGetInventorySnmpOKCredentialsItemAuth {
+	return s.Auth
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetID() string {
+	return s.ID
+}
+
+// GetLastAnswerAt returns the value of LastAnswerAt.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetLastAnswerAt() NilDateTime {
+	return s.LastAnswerAt
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetName() string {
+	return s.Name
+}
+
+// GetPriv returns the value of Priv.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetPriv() NilInventoryGetInventorySnmpOKCredentialsItemPriv {
+	return s.Priv
+}
+
+// GetPrivLast4 returns the value of PrivLast4.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetPrivLast4() string {
+	return s.PrivLast4
+}
+
+// GetScope returns the value of Scope.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetScope() []string {
+	return s.Scope
+}
+
+// GetSecretLast4 returns the value of SecretLast4.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetSecretLast4() string {
+	return s.SecretLast4
+}
+
+// GetUsername returns the value of Username.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetUsername() NilString {
+	return s.Username
+}
+
+// GetVersion returns the value of Version.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetVersion() InventoryGetInventorySnmpOKCredentialsItemVersion {
+	return s.Version
+}
+
+// SetAnswered sets the value of Answered.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetAnswered(val int) {
+	s.Answered = val
+}
+
+// SetAuth sets the value of Auth.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetAuth(val NilInventoryGetInventorySnmpOKCredentialsItemAuth) {
+	s.Auth = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastAnswerAt sets the value of LastAnswerAt.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetLastAnswerAt(val NilDateTime) {
+	s.LastAnswerAt = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetPriv sets the value of Priv.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetPriv(val NilInventoryGetInventorySnmpOKCredentialsItemPriv) {
+	s.Priv = val
+}
+
+// SetPrivLast4 sets the value of PrivLast4.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetPrivLast4(val string) {
+	s.PrivLast4 = val
+}
+
+// SetScope sets the value of Scope.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetScope(val []string) {
+	s.Scope = val
+}
+
+// SetSecretLast4 sets the value of SecretLast4.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetSecretLast4(val string) {
+	s.SecretLast4 = val
+}
+
+// SetUsername sets the value of Username.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetUsername(val NilString) {
+	s.Username = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetVersion(val InventoryGetInventorySnmpOKCredentialsItemVersion) {
+	s.Version = val
+}
+
+// V3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5).
+type InventoryGetInventorySnmpOKCredentialsItemAuth string
+
+const (
+	InventoryGetInventorySnmpOKCredentialsItemAuthSha    InventoryGetInventorySnmpOKCredentialsItemAuth = "sha"
+	InventoryGetInventorySnmpOKCredentialsItemAuthSHA256 InventoryGetInventorySnmpOKCredentialsItemAuth = "sha256"
+)
+
+// AllValues returns all InventoryGetInventorySnmpOKCredentialsItemAuth values.
+func (InventoryGetInventorySnmpOKCredentialsItemAuth) AllValues() []InventoryGetInventorySnmpOKCredentialsItemAuth {
+	return []InventoryGetInventorySnmpOKCredentialsItemAuth{
+		InventoryGetInventorySnmpOKCredentialsItemAuthSha,
+		InventoryGetInventorySnmpOKCredentialsItemAuthSHA256,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventorySnmpOKCredentialsItemAuth) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventorySnmpOKCredentialsItemAuthSha:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpOKCredentialsItemAuthSHA256:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventorySnmpOKCredentialsItemAuth) UnmarshalText(data []byte) error {
+	switch InventoryGetInventorySnmpOKCredentialsItemAuth(data) {
+	case InventoryGetInventorySnmpOKCredentialsItemAuthSha:
+		*s = InventoryGetInventorySnmpOKCredentialsItemAuthSha
+		return nil
+	case InventoryGetInventorySnmpOKCredentialsItemAuthSHA256:
+		*s = InventoryGetInventorySnmpOKCredentialsItemAuthSHA256
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// V3 privacy: AES-128 (authPriv) or none (authNoPriv); no DES.
+type InventoryGetInventorySnmpOKCredentialsItemPriv string
+
+const (
+	InventoryGetInventorySnmpOKCredentialsItemPrivAes128 InventoryGetInventorySnmpOKCredentialsItemPriv = "aes128"
+	InventoryGetInventorySnmpOKCredentialsItemPrivNone   InventoryGetInventorySnmpOKCredentialsItemPriv = "none"
+)
+
+// AllValues returns all InventoryGetInventorySnmpOKCredentialsItemPriv values.
+func (InventoryGetInventorySnmpOKCredentialsItemPriv) AllValues() []InventoryGetInventorySnmpOKCredentialsItemPriv {
+	return []InventoryGetInventorySnmpOKCredentialsItemPriv{
+		InventoryGetInventorySnmpOKCredentialsItemPrivAes128,
+		InventoryGetInventorySnmpOKCredentialsItemPrivNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventorySnmpOKCredentialsItemPriv) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventorySnmpOKCredentialsItemPrivAes128:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpOKCredentialsItemPrivNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventorySnmpOKCredentialsItemPriv) UnmarshalText(data []byte) error {
+	switch InventoryGetInventorySnmpOKCredentialsItemPriv(data) {
+	case InventoryGetInventorySnmpOKCredentialsItemPrivAes128:
+		*s = InventoryGetInventorySnmpOKCredentialsItemPrivAes128
+		return nil
+	case InventoryGetInventorySnmpOKCredentialsItemPrivNone:
+		*s = InventoryGetInventorySnmpOKCredentialsItemPrivNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// No SNMPv1 (D-512).
+type InventoryGetInventorySnmpOKCredentialsItemVersion string
+
+const (
+	InventoryGetInventorySnmpOKCredentialsItemVersionV2c InventoryGetInventorySnmpOKCredentialsItemVersion = "v2c"
+	InventoryGetInventorySnmpOKCredentialsItemVersionV3  InventoryGetInventorySnmpOKCredentialsItemVersion = "v3"
+)
+
+// AllValues returns all InventoryGetInventorySnmpOKCredentialsItemVersion values.
+func (InventoryGetInventorySnmpOKCredentialsItemVersion) AllValues() []InventoryGetInventorySnmpOKCredentialsItemVersion {
+	return []InventoryGetInventorySnmpOKCredentialsItemVersion{
+		InventoryGetInventorySnmpOKCredentialsItemVersionV2c,
+		InventoryGetInventorySnmpOKCredentialsItemVersionV3,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventorySnmpOKCredentialsItemVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventorySnmpOKCredentialsItemVersionV2c:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpOKCredentialsItemVersionV3:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventorySnmpOKCredentialsItemVersion) UnmarshalText(data []byte) error {
+	switch InventoryGetInventorySnmpOKCredentialsItemVersion(data) {
+	case InventoryGetInventorySnmpOKCredentialsItemVersionV2c:
+		*s = InventoryGetInventorySnmpOKCredentialsItemVersionV2c
+		return nil
+	case InventoryGetInventorySnmpOKCredentialsItemVersionV3:
+		*s = InventoryGetInventorySnmpOKCredentialsItemVersionV3
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryPatchInventoryDevicesIDOK struct {
 	Ok bool `json:"ok"`
 }
@@ -77923,6 +78239,849 @@ func (s *InventoryPostInventoryImportReq) SetText(val string) {
 	s.Text = val
 }
 
+type InventoryPostInventorySnmpCreated struct {
+	// Devices that answered with it in its latest round in the scan window; a Test that got an answer
+	// makes it at least 1.
+	Answered int `json:"answered"`
+	// Null for v2c.
+	Auth      NilInventoryPostInventorySnmpCreatedAuth `json:"auth"`
+	CreatedAt time.Time                                `json:"created_at"`
+	ID        string                                   `json:"id"`
+	// When a device last answered with it (a round in the scan window, or a Test).
+	LastAnswerAt NilDateTime `json:"last_answer_at"`
+	Name         string      `json:"name"`
+	// Null for v2c.
+	Priv NilInventoryPostInventorySnmpCreatedPriv `json:"priv"`
+	// Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8
+	// characters.
+	PrivLast4 string `json:"priv_last4"`
+	// IPv4 addresses and CIDR ranges this credential is sent to; empty = every approved device of the scan
+	// scope.
+	Scope []string `json:"scope"`
+	// Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has
+	// fewer than 8 characters.
+	SecretLast4 string `json:"secret_last4"`
+	// V3 user name; null for v2c.
+	Username NilString `json:"username"`
+	// No SNMPv1 (D-512).
+	Version InventoryPostInventorySnmpCreatedVersion `json:"version"`
+}
+
+// GetAnswered returns the value of Answered.
+func (s *InventoryPostInventorySnmpCreated) GetAnswered() int {
+	return s.Answered
+}
+
+// GetAuth returns the value of Auth.
+func (s *InventoryPostInventorySnmpCreated) GetAuth() NilInventoryPostInventorySnmpCreatedAuth {
+	return s.Auth
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *InventoryPostInventorySnmpCreated) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetID returns the value of ID.
+func (s *InventoryPostInventorySnmpCreated) GetID() string {
+	return s.ID
+}
+
+// GetLastAnswerAt returns the value of LastAnswerAt.
+func (s *InventoryPostInventorySnmpCreated) GetLastAnswerAt() NilDateTime {
+	return s.LastAnswerAt
+}
+
+// GetName returns the value of Name.
+func (s *InventoryPostInventorySnmpCreated) GetName() string {
+	return s.Name
+}
+
+// GetPriv returns the value of Priv.
+func (s *InventoryPostInventorySnmpCreated) GetPriv() NilInventoryPostInventorySnmpCreatedPriv {
+	return s.Priv
+}
+
+// GetPrivLast4 returns the value of PrivLast4.
+func (s *InventoryPostInventorySnmpCreated) GetPrivLast4() string {
+	return s.PrivLast4
+}
+
+// GetScope returns the value of Scope.
+func (s *InventoryPostInventorySnmpCreated) GetScope() []string {
+	return s.Scope
+}
+
+// GetSecretLast4 returns the value of SecretLast4.
+func (s *InventoryPostInventorySnmpCreated) GetSecretLast4() string {
+	return s.SecretLast4
+}
+
+// GetUsername returns the value of Username.
+func (s *InventoryPostInventorySnmpCreated) GetUsername() NilString {
+	return s.Username
+}
+
+// GetVersion returns the value of Version.
+func (s *InventoryPostInventorySnmpCreated) GetVersion() InventoryPostInventorySnmpCreatedVersion {
+	return s.Version
+}
+
+// SetAnswered sets the value of Answered.
+func (s *InventoryPostInventorySnmpCreated) SetAnswered(val int) {
+	s.Answered = val
+}
+
+// SetAuth sets the value of Auth.
+func (s *InventoryPostInventorySnmpCreated) SetAuth(val NilInventoryPostInventorySnmpCreatedAuth) {
+	s.Auth = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *InventoryPostInventorySnmpCreated) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryPostInventorySnmpCreated) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastAnswerAt sets the value of LastAnswerAt.
+func (s *InventoryPostInventorySnmpCreated) SetLastAnswerAt(val NilDateTime) {
+	s.LastAnswerAt = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryPostInventorySnmpCreated) SetName(val string) {
+	s.Name = val
+}
+
+// SetPriv sets the value of Priv.
+func (s *InventoryPostInventorySnmpCreated) SetPriv(val NilInventoryPostInventorySnmpCreatedPriv) {
+	s.Priv = val
+}
+
+// SetPrivLast4 sets the value of PrivLast4.
+func (s *InventoryPostInventorySnmpCreated) SetPrivLast4(val string) {
+	s.PrivLast4 = val
+}
+
+// SetScope sets the value of Scope.
+func (s *InventoryPostInventorySnmpCreated) SetScope(val []string) {
+	s.Scope = val
+}
+
+// SetSecretLast4 sets the value of SecretLast4.
+func (s *InventoryPostInventorySnmpCreated) SetSecretLast4(val string) {
+	s.SecretLast4 = val
+}
+
+// SetUsername sets the value of Username.
+func (s *InventoryPostInventorySnmpCreated) SetUsername(val NilString) {
+	s.Username = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryPostInventorySnmpCreated) SetVersion(val InventoryPostInventorySnmpCreatedVersion) {
+	s.Version = val
+}
+
+// V3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5).
+type InventoryPostInventorySnmpCreatedAuth string
+
+const (
+	InventoryPostInventorySnmpCreatedAuthSha    InventoryPostInventorySnmpCreatedAuth = "sha"
+	InventoryPostInventorySnmpCreatedAuthSHA256 InventoryPostInventorySnmpCreatedAuth = "sha256"
+)
+
+// AllValues returns all InventoryPostInventorySnmpCreatedAuth values.
+func (InventoryPostInventorySnmpCreatedAuth) AllValues() []InventoryPostInventorySnmpCreatedAuth {
+	return []InventoryPostInventorySnmpCreatedAuth{
+		InventoryPostInventorySnmpCreatedAuthSha,
+		InventoryPostInventorySnmpCreatedAuthSHA256,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventorySnmpCreatedAuth) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventorySnmpCreatedAuthSha:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpCreatedAuthSHA256:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventorySnmpCreatedAuth) UnmarshalText(data []byte) error {
+	switch InventoryPostInventorySnmpCreatedAuth(data) {
+	case InventoryPostInventorySnmpCreatedAuthSha:
+		*s = InventoryPostInventorySnmpCreatedAuthSha
+		return nil
+	case InventoryPostInventorySnmpCreatedAuthSHA256:
+		*s = InventoryPostInventorySnmpCreatedAuthSHA256
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// V3 privacy: AES-128 (authPriv) or none (authNoPriv); no DES.
+type InventoryPostInventorySnmpCreatedPriv string
+
+const (
+	InventoryPostInventorySnmpCreatedPrivAes128 InventoryPostInventorySnmpCreatedPriv = "aes128"
+	InventoryPostInventorySnmpCreatedPrivNone   InventoryPostInventorySnmpCreatedPriv = "none"
+)
+
+// AllValues returns all InventoryPostInventorySnmpCreatedPriv values.
+func (InventoryPostInventorySnmpCreatedPriv) AllValues() []InventoryPostInventorySnmpCreatedPriv {
+	return []InventoryPostInventorySnmpCreatedPriv{
+		InventoryPostInventorySnmpCreatedPrivAes128,
+		InventoryPostInventorySnmpCreatedPrivNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventorySnmpCreatedPriv) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventorySnmpCreatedPrivAes128:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpCreatedPrivNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventorySnmpCreatedPriv) UnmarshalText(data []byte) error {
+	switch InventoryPostInventorySnmpCreatedPriv(data) {
+	case InventoryPostInventorySnmpCreatedPrivAes128:
+		*s = InventoryPostInventorySnmpCreatedPrivAes128
+		return nil
+	case InventoryPostInventorySnmpCreatedPrivNone:
+		*s = InventoryPostInventorySnmpCreatedPrivNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// No SNMPv1 (D-512).
+type InventoryPostInventorySnmpCreatedVersion string
+
+const (
+	InventoryPostInventorySnmpCreatedVersionV2c InventoryPostInventorySnmpCreatedVersion = "v2c"
+	InventoryPostInventorySnmpCreatedVersionV3  InventoryPostInventorySnmpCreatedVersion = "v3"
+)
+
+// AllValues returns all InventoryPostInventorySnmpCreatedVersion values.
+func (InventoryPostInventorySnmpCreatedVersion) AllValues() []InventoryPostInventorySnmpCreatedVersion {
+	return []InventoryPostInventorySnmpCreatedVersion{
+		InventoryPostInventorySnmpCreatedVersionV2c,
+		InventoryPostInventorySnmpCreatedVersionV3,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventorySnmpCreatedVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventorySnmpCreatedVersionV2c:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpCreatedVersionV3:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventorySnmpCreatedVersion) UnmarshalText(data []byte) error {
+	switch InventoryPostInventorySnmpCreatedVersion(data) {
+	case InventoryPostInventorySnmpCreatedVersionV2c:
+		*s = InventoryPostInventorySnmpCreatedVersionV2c
+		return nil
+	case InventoryPostInventorySnmpCreatedVersionV3:
+		*s = InventoryPostInventorySnmpCreatedVersionV3
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventorySnmpIDTestOK struct {
+	// What the device said, when it answered; it is also recorded in the inventory with source snmp.
+	Answer NilInventoryPostInventorySnmpIDTestOKAnswer `json:"answer"`
+	// The inventory device at that IP, when there is one.
+	DeviceID NilString `json:"device_id"`
+	// Plain words for the person.
+	Message string                                   `json:"message"`
+	Ok      bool                                     `json:"ok"`
+	Reason  InventoryPostInventorySnmpIDTestOKReason `json:"reason"`
+}
+
+// GetAnswer returns the value of Answer.
+func (s *InventoryPostInventorySnmpIDTestOK) GetAnswer() NilInventoryPostInventorySnmpIDTestOKAnswer {
+	return s.Answer
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryPostInventorySnmpIDTestOK) GetDeviceID() NilString {
+	return s.DeviceID
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryPostInventorySnmpIDTestOK) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *InventoryPostInventorySnmpIDTestOK) GetOk() bool {
+	return s.Ok
+}
+
+// GetReason returns the value of Reason.
+func (s *InventoryPostInventorySnmpIDTestOK) GetReason() InventoryPostInventorySnmpIDTestOKReason {
+	return s.Reason
+}
+
+// SetAnswer sets the value of Answer.
+func (s *InventoryPostInventorySnmpIDTestOK) SetAnswer(val NilInventoryPostInventorySnmpIDTestOKAnswer) {
+	s.Answer = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryPostInventorySnmpIDTestOK) SetDeviceID(val NilString) {
+	s.DeviceID = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryPostInventorySnmpIDTestOK) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *InventoryPostInventorySnmpIDTestOK) SetOk(val bool) {
+	s.Ok = val
+}
+
+// SetReason sets the value of Reason.
+func (s *InventoryPostInventorySnmpIDTestOK) SetReason(val InventoryPostInventorySnmpIDTestOKReason) {
+	s.Reason = val
+}
+
+type InventoryPostInventorySnmpIDTestOKAnswer struct {
+	// ENTITY-MIB chassis firmware text; shown, not stored.
+	Firmware string `json:"firmware"`
+	// A device type id, or empty.
+	Kind  string `json:"kind"`
+	Model string `json:"model"`
+	Os    string `json:"os"`
+	// Product family from sysObjectID, e.g. FortiGate.
+	Product  string `json:"product"`
+	Serial   string `json:"serial"`
+	SysDescr string `json:"sys_descr"`
+	// What the device said, cleaned; empty when it has none.
+	SysName     string `json:"sys_name"`
+	SysObjectID string `json:"sys_object_id"`
+	Vendor      string `json:"vendor"`
+}
+
+// GetFirmware returns the value of Firmware.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) GetFirmware() string {
+	return s.Firmware
+}
+
+// GetKind returns the value of Kind.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) GetKind() string {
+	return s.Kind
+}
+
+// GetModel returns the value of Model.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) GetModel() string {
+	return s.Model
+}
+
+// GetOs returns the value of Os.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) GetOs() string {
+	return s.Os
+}
+
+// GetProduct returns the value of Product.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) GetProduct() string {
+	return s.Product
+}
+
+// GetSerial returns the value of Serial.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) GetSerial() string {
+	return s.Serial
+}
+
+// GetSysDescr returns the value of SysDescr.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) GetSysDescr() string {
+	return s.SysDescr
+}
+
+// GetSysName returns the value of SysName.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) GetSysName() string {
+	return s.SysName
+}
+
+// GetSysObjectID returns the value of SysObjectID.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) GetSysObjectID() string {
+	return s.SysObjectID
+}
+
+// GetVendor returns the value of Vendor.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) GetVendor() string {
+	return s.Vendor
+}
+
+// SetFirmware sets the value of Firmware.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) SetFirmware(val string) {
+	s.Firmware = val
+}
+
+// SetKind sets the value of Kind.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetModel sets the value of Model.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) SetModel(val string) {
+	s.Model = val
+}
+
+// SetOs sets the value of Os.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) SetOs(val string) {
+	s.Os = val
+}
+
+// SetProduct sets the value of Product.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSerial sets the value of Serial.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) SetSerial(val string) {
+	s.Serial = val
+}
+
+// SetSysDescr sets the value of SysDescr.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) SetSysDescr(val string) {
+	s.SysDescr = val
+}
+
+// SetSysName sets the value of SysName.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) SetSysName(val string) {
+	s.SysName = val
+}
+
+// SetSysObjectID sets the value of SysObjectID.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) SetSysObjectID(val string) {
+	s.SysObjectID = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *InventoryPostInventorySnmpIDTestOKAnswer) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type InventoryPostInventorySnmpIDTestOKReason string
+
+const (
+	InventoryPostInventorySnmpIDTestOKReasonOk                   InventoryPostInventorySnmpIDTestOKReason = "ok"
+	InventoryPostInventorySnmpIDTestOKReasonNoAnswer             InventoryPostInventorySnmpIDTestOKReason = "no_answer"
+	InventoryPostInventorySnmpIDTestOKReasonAuthFailed           InventoryPostInventorySnmpIDTestOKReason = "auth_failed"
+	InventoryPostInventorySnmpIDTestOKReasonUnknownUser          InventoryPostInventorySnmpIDTestOKReason = "unknown_user"
+	InventoryPostInventorySnmpIDTestOKReasonError                InventoryPostInventorySnmpIDTestOKReason = "error"
+	InventoryPostInventorySnmpIDTestOKReasonNotInInventory       InventoryPostInventorySnmpIDTestOKReason = "not_in_inventory"
+	InventoryPostInventorySnmpIDTestOKReasonNotApproved          InventoryPostInventorySnmpIDTestOKReason = "not_approved"
+	InventoryPostInventorySnmpIDTestOKReasonOutOfScope           InventoryPostInventorySnmpIDTestOKReason = "out_of_scope"
+	InventoryPostInventorySnmpIDTestOKReasonNotForThisCredential InventoryPostInventorySnmpIDTestOKReason = "not_for_this_credential"
+	InventoryPostInventorySnmpIDTestOKReasonScanningOff          InventoryPostInventorySnmpIDTestOKReason = "scanning_off"
+	InventoryPostInventorySnmpIDTestOKReasonScopeNotConfirmed    InventoryPostInventorySnmpIDTestOKReason = "scope_not_confirmed"
+	InventoryPostInventorySnmpIDTestOKReasonDeclaredByHand       InventoryPostInventorySnmpIDTestOKReason = "declared_by_hand"
+	InventoryPostInventorySnmpIDTestOKReasonBox                  InventoryPostInventorySnmpIDTestOKReason = "box"
+	InventoryPostInventorySnmpIDTestOKReasonRegularScanNever     InventoryPostInventorySnmpIDTestOKReason = "regular_scan_never"
+	InventoryPostInventorySnmpIDTestOKReasonUnavailable          InventoryPostInventorySnmpIDTestOKReason = "unavailable"
+	InventoryPostInventorySnmpIDTestOKReasonBusy                 InventoryPostInventorySnmpIDTestOKReason = "busy"
+)
+
+// AllValues returns all InventoryPostInventorySnmpIDTestOKReason values.
+func (InventoryPostInventorySnmpIDTestOKReason) AllValues() []InventoryPostInventorySnmpIDTestOKReason {
+	return []InventoryPostInventorySnmpIDTestOKReason{
+		InventoryPostInventorySnmpIDTestOKReasonOk,
+		InventoryPostInventorySnmpIDTestOKReasonNoAnswer,
+		InventoryPostInventorySnmpIDTestOKReasonAuthFailed,
+		InventoryPostInventorySnmpIDTestOKReasonUnknownUser,
+		InventoryPostInventorySnmpIDTestOKReasonError,
+		InventoryPostInventorySnmpIDTestOKReasonNotInInventory,
+		InventoryPostInventorySnmpIDTestOKReasonNotApproved,
+		InventoryPostInventorySnmpIDTestOKReasonOutOfScope,
+		InventoryPostInventorySnmpIDTestOKReasonNotForThisCredential,
+		InventoryPostInventorySnmpIDTestOKReasonScanningOff,
+		InventoryPostInventorySnmpIDTestOKReasonScopeNotConfirmed,
+		InventoryPostInventorySnmpIDTestOKReasonDeclaredByHand,
+		InventoryPostInventorySnmpIDTestOKReasonBox,
+		InventoryPostInventorySnmpIDTestOKReasonRegularScanNever,
+		InventoryPostInventorySnmpIDTestOKReasonUnavailable,
+		InventoryPostInventorySnmpIDTestOKReasonBusy,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventorySnmpIDTestOKReason) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventorySnmpIDTestOKReasonOk:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonNoAnswer:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonAuthFailed:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonUnknownUser:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonError:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonNotInInventory:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonNotApproved:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonOutOfScope:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonNotForThisCredential:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonScanningOff:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonScopeNotConfirmed:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonDeclaredByHand:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonBox:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonRegularScanNever:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonUnavailable:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDTestOKReasonBusy:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventorySnmpIDTestOKReason) UnmarshalText(data []byte) error {
+	switch InventoryPostInventorySnmpIDTestOKReason(data) {
+	case InventoryPostInventorySnmpIDTestOKReasonOk:
+		*s = InventoryPostInventorySnmpIDTestOKReasonOk
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonNoAnswer:
+		*s = InventoryPostInventorySnmpIDTestOKReasonNoAnswer
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonAuthFailed:
+		*s = InventoryPostInventorySnmpIDTestOKReasonAuthFailed
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonUnknownUser:
+		*s = InventoryPostInventorySnmpIDTestOKReasonUnknownUser
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonError:
+		*s = InventoryPostInventorySnmpIDTestOKReasonError
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonNotInInventory:
+		*s = InventoryPostInventorySnmpIDTestOKReasonNotInInventory
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonNotApproved:
+		*s = InventoryPostInventorySnmpIDTestOKReasonNotApproved
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonOutOfScope:
+		*s = InventoryPostInventorySnmpIDTestOKReasonOutOfScope
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonNotForThisCredential:
+		*s = InventoryPostInventorySnmpIDTestOKReasonNotForThisCredential
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonScanningOff:
+		*s = InventoryPostInventorySnmpIDTestOKReasonScanningOff
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonScopeNotConfirmed:
+		*s = InventoryPostInventorySnmpIDTestOKReasonScopeNotConfirmed
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonDeclaredByHand:
+		*s = InventoryPostInventorySnmpIDTestOKReasonDeclaredByHand
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonBox:
+		*s = InventoryPostInventorySnmpIDTestOKReasonBox
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonRegularScanNever:
+		*s = InventoryPostInventorySnmpIDTestOKReasonRegularScanNever
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonUnavailable:
+		*s = InventoryPostInventorySnmpIDTestOKReasonUnavailable
+		return nil
+	case InventoryPostInventorySnmpIDTestOKReasonBusy:
+		*s = InventoryPostInventorySnmpIDTestOKReasonBusy
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventorySnmpIDTestReq struct {
+	// IPv4 of a device in the inventory.
+	IP string `json:"ip"`
+}
+
+// GetIP returns the value of IP.
+func (s *InventoryPostInventorySnmpIDTestReq) GetIP() string {
+	return s.IP
+}
+
+// SetIP sets the value of IP.
+func (s *InventoryPostInventorySnmpIDTestReq) SetIP(val string) {
+	s.IP = val
+}
+
+type InventoryPostInventorySnmpReq struct {
+	// V3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5).
+	Auth OptInventoryPostInventorySnmpReqAuth `json:"auth"`
+	// V3: 8 to 64 printable ASCII characters; blank when editing keeps the saved one.
+	AuthPassword OptString `json:"auth_password"`
+	// V2c: 1 to 64 printable ASCII characters; blank when editing keeps the saved one.
+	Community OptString `json:"community"`
+	// 1 to 64 characters, not < >; unique (case does not matter).
+	Name string `json:"name"`
+	// V3; default aes128.
+	Priv OptInventoryPostInventorySnmpReqPriv `json:"priv"`
+	// V3 with aes128: 8 to 64 printable ASCII characters; blank when editing keeps the saved one.
+	PrivPassword OptString `json:"priv_password"`
+	// IPv4 addresses or CIDR ranges of the local network; empty = every approved device of the scan scope.
+	Scope []string `json:"scope"`
+	// V3: letters, digits and . _ @ -.
+	Username OptString `json:"username"`
+	// No SNMPv1 (D-512).
+	Version InventoryPostInventorySnmpReqVersion `json:"version"`
+}
+
+// GetAuth returns the value of Auth.
+func (s *InventoryPostInventorySnmpReq) GetAuth() OptInventoryPostInventorySnmpReqAuth {
+	return s.Auth
+}
+
+// GetAuthPassword returns the value of AuthPassword.
+func (s *InventoryPostInventorySnmpReq) GetAuthPassword() OptString {
+	return s.AuthPassword
+}
+
+// GetCommunity returns the value of Community.
+func (s *InventoryPostInventorySnmpReq) GetCommunity() OptString {
+	return s.Community
+}
+
+// GetName returns the value of Name.
+func (s *InventoryPostInventorySnmpReq) GetName() string {
+	return s.Name
+}
+
+// GetPriv returns the value of Priv.
+func (s *InventoryPostInventorySnmpReq) GetPriv() OptInventoryPostInventorySnmpReqPriv {
+	return s.Priv
+}
+
+// GetPrivPassword returns the value of PrivPassword.
+func (s *InventoryPostInventorySnmpReq) GetPrivPassword() OptString {
+	return s.PrivPassword
+}
+
+// GetScope returns the value of Scope.
+func (s *InventoryPostInventorySnmpReq) GetScope() []string {
+	return s.Scope
+}
+
+// GetUsername returns the value of Username.
+func (s *InventoryPostInventorySnmpReq) GetUsername() OptString {
+	return s.Username
+}
+
+// GetVersion returns the value of Version.
+func (s *InventoryPostInventorySnmpReq) GetVersion() InventoryPostInventorySnmpReqVersion {
+	return s.Version
+}
+
+// SetAuth sets the value of Auth.
+func (s *InventoryPostInventorySnmpReq) SetAuth(val OptInventoryPostInventorySnmpReqAuth) {
+	s.Auth = val
+}
+
+// SetAuthPassword sets the value of AuthPassword.
+func (s *InventoryPostInventorySnmpReq) SetAuthPassword(val OptString) {
+	s.AuthPassword = val
+}
+
+// SetCommunity sets the value of Community.
+func (s *InventoryPostInventorySnmpReq) SetCommunity(val OptString) {
+	s.Community = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryPostInventorySnmpReq) SetName(val string) {
+	s.Name = val
+}
+
+// SetPriv sets the value of Priv.
+func (s *InventoryPostInventorySnmpReq) SetPriv(val OptInventoryPostInventorySnmpReqPriv) {
+	s.Priv = val
+}
+
+// SetPrivPassword sets the value of PrivPassword.
+func (s *InventoryPostInventorySnmpReq) SetPrivPassword(val OptString) {
+	s.PrivPassword = val
+}
+
+// SetScope sets the value of Scope.
+func (s *InventoryPostInventorySnmpReq) SetScope(val []string) {
+	s.Scope = val
+}
+
+// SetUsername sets the value of Username.
+func (s *InventoryPostInventorySnmpReq) SetUsername(val OptString) {
+	s.Username = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryPostInventorySnmpReq) SetVersion(val InventoryPostInventorySnmpReqVersion) {
+	s.Version = val
+}
+
+// V3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5).
+type InventoryPostInventorySnmpReqAuth string
+
+const (
+	InventoryPostInventorySnmpReqAuthSha    InventoryPostInventorySnmpReqAuth = "sha"
+	InventoryPostInventorySnmpReqAuthSHA256 InventoryPostInventorySnmpReqAuth = "sha256"
+)
+
+// AllValues returns all InventoryPostInventorySnmpReqAuth values.
+func (InventoryPostInventorySnmpReqAuth) AllValues() []InventoryPostInventorySnmpReqAuth {
+	return []InventoryPostInventorySnmpReqAuth{
+		InventoryPostInventorySnmpReqAuthSha,
+		InventoryPostInventorySnmpReqAuthSHA256,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventorySnmpReqAuth) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventorySnmpReqAuthSha:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpReqAuthSHA256:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventorySnmpReqAuth) UnmarshalText(data []byte) error {
+	switch InventoryPostInventorySnmpReqAuth(data) {
+	case InventoryPostInventorySnmpReqAuthSha:
+		*s = InventoryPostInventorySnmpReqAuthSha
+		return nil
+	case InventoryPostInventorySnmpReqAuthSHA256:
+		*s = InventoryPostInventorySnmpReqAuthSHA256
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// V3; default aes128.
+type InventoryPostInventorySnmpReqPriv string
+
+const (
+	InventoryPostInventorySnmpReqPrivAes128 InventoryPostInventorySnmpReqPriv = "aes128"
+	InventoryPostInventorySnmpReqPrivNone   InventoryPostInventorySnmpReqPriv = "none"
+)
+
+// AllValues returns all InventoryPostInventorySnmpReqPriv values.
+func (InventoryPostInventorySnmpReqPriv) AllValues() []InventoryPostInventorySnmpReqPriv {
+	return []InventoryPostInventorySnmpReqPriv{
+		InventoryPostInventorySnmpReqPrivAes128,
+		InventoryPostInventorySnmpReqPrivNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventorySnmpReqPriv) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventorySnmpReqPrivAes128:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpReqPrivNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventorySnmpReqPriv) UnmarshalText(data []byte) error {
+	switch InventoryPostInventorySnmpReqPriv(data) {
+	case InventoryPostInventorySnmpReqPrivAes128:
+		*s = InventoryPostInventorySnmpReqPrivAes128
+		return nil
+	case InventoryPostInventorySnmpReqPrivNone:
+		*s = InventoryPostInventorySnmpReqPrivNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// No SNMPv1 (D-512).
+type InventoryPostInventorySnmpReqVersion string
+
+const (
+	InventoryPostInventorySnmpReqVersionV2c InventoryPostInventorySnmpReqVersion = "v2c"
+	InventoryPostInventorySnmpReqVersionV3  InventoryPostInventorySnmpReqVersion = "v3"
+)
+
+// AllValues returns all InventoryPostInventorySnmpReqVersion values.
+func (InventoryPostInventorySnmpReqVersion) AllValues() []InventoryPostInventorySnmpReqVersion {
+	return []InventoryPostInventorySnmpReqVersion{
+		InventoryPostInventorySnmpReqVersionV2c,
+		InventoryPostInventorySnmpReqVersionV3,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventorySnmpReqVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventorySnmpReqVersionV2c:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpReqVersionV3:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventorySnmpReqVersion) UnmarshalText(data []byte) error {
+	switch InventoryPostInventorySnmpReqVersion(data) {
+	case InventoryPostInventorySnmpReqVersionV2c:
+		*s = InventoryPostInventorySnmpReqVersionV2c
+		return nil
+	case InventoryPostInventorySnmpReqVersionV3:
+		*s = InventoryPostInventorySnmpReqVersionV3
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryPutInventoryAgentsWazuhOK struct {
 	Agents          int         `json:"agents"`
 	Error           NilString   `json:"error"`
@@ -78957,6 +80116,517 @@ func (s *InventoryPutInventorySettingsReqRegularScanKindsItem) UnmarshalText(dat
 		return nil
 	case InventoryPutInventorySettingsReqRegularScanKindsItemUnknown:
 		*s = InventoryPutInventorySettingsReqRegularScanKindsItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPutInventorySnmpIDOK struct {
+	// Devices that answered with it in its latest round in the scan window; a Test that got an answer
+	// makes it at least 1.
+	Answered int `json:"answered"`
+	// Null for v2c.
+	Auth      NilInventoryPutInventorySnmpIDOKAuth `json:"auth"`
+	CreatedAt time.Time                            `json:"created_at"`
+	ID        string                               `json:"id"`
+	// When a device last answered with it (a round in the scan window, or a Test).
+	LastAnswerAt NilDateTime `json:"last_answer_at"`
+	Name         string      `json:"name"`
+	// Null for v2c.
+	Priv NilInventoryPutInventorySnmpIDOKPriv `json:"priv"`
+	// Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8
+	// characters.
+	PrivLast4 string `json:"priv_last4"`
+	// IPv4 addresses and CIDR ranges this credential is sent to; empty = every approved device of the scan
+	// scope.
+	Scope []string `json:"scope"`
+	// Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has
+	// fewer than 8 characters.
+	SecretLast4 string `json:"secret_last4"`
+	// V3 user name; null for v2c.
+	Username NilString `json:"username"`
+	// No SNMPv1 (D-512).
+	Version InventoryPutInventorySnmpIDOKVersion `json:"version"`
+}
+
+// GetAnswered returns the value of Answered.
+func (s *InventoryPutInventorySnmpIDOK) GetAnswered() int {
+	return s.Answered
+}
+
+// GetAuth returns the value of Auth.
+func (s *InventoryPutInventorySnmpIDOK) GetAuth() NilInventoryPutInventorySnmpIDOKAuth {
+	return s.Auth
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *InventoryPutInventorySnmpIDOK) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetID returns the value of ID.
+func (s *InventoryPutInventorySnmpIDOK) GetID() string {
+	return s.ID
+}
+
+// GetLastAnswerAt returns the value of LastAnswerAt.
+func (s *InventoryPutInventorySnmpIDOK) GetLastAnswerAt() NilDateTime {
+	return s.LastAnswerAt
+}
+
+// GetName returns the value of Name.
+func (s *InventoryPutInventorySnmpIDOK) GetName() string {
+	return s.Name
+}
+
+// GetPriv returns the value of Priv.
+func (s *InventoryPutInventorySnmpIDOK) GetPriv() NilInventoryPutInventorySnmpIDOKPriv {
+	return s.Priv
+}
+
+// GetPrivLast4 returns the value of PrivLast4.
+func (s *InventoryPutInventorySnmpIDOK) GetPrivLast4() string {
+	return s.PrivLast4
+}
+
+// GetScope returns the value of Scope.
+func (s *InventoryPutInventorySnmpIDOK) GetScope() []string {
+	return s.Scope
+}
+
+// GetSecretLast4 returns the value of SecretLast4.
+func (s *InventoryPutInventorySnmpIDOK) GetSecretLast4() string {
+	return s.SecretLast4
+}
+
+// GetUsername returns the value of Username.
+func (s *InventoryPutInventorySnmpIDOK) GetUsername() NilString {
+	return s.Username
+}
+
+// GetVersion returns the value of Version.
+func (s *InventoryPutInventorySnmpIDOK) GetVersion() InventoryPutInventorySnmpIDOKVersion {
+	return s.Version
+}
+
+// SetAnswered sets the value of Answered.
+func (s *InventoryPutInventorySnmpIDOK) SetAnswered(val int) {
+	s.Answered = val
+}
+
+// SetAuth sets the value of Auth.
+func (s *InventoryPutInventorySnmpIDOK) SetAuth(val NilInventoryPutInventorySnmpIDOKAuth) {
+	s.Auth = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *InventoryPutInventorySnmpIDOK) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryPutInventorySnmpIDOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastAnswerAt sets the value of LastAnswerAt.
+func (s *InventoryPutInventorySnmpIDOK) SetLastAnswerAt(val NilDateTime) {
+	s.LastAnswerAt = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryPutInventorySnmpIDOK) SetName(val string) {
+	s.Name = val
+}
+
+// SetPriv sets the value of Priv.
+func (s *InventoryPutInventorySnmpIDOK) SetPriv(val NilInventoryPutInventorySnmpIDOKPriv) {
+	s.Priv = val
+}
+
+// SetPrivLast4 sets the value of PrivLast4.
+func (s *InventoryPutInventorySnmpIDOK) SetPrivLast4(val string) {
+	s.PrivLast4 = val
+}
+
+// SetScope sets the value of Scope.
+func (s *InventoryPutInventorySnmpIDOK) SetScope(val []string) {
+	s.Scope = val
+}
+
+// SetSecretLast4 sets the value of SecretLast4.
+func (s *InventoryPutInventorySnmpIDOK) SetSecretLast4(val string) {
+	s.SecretLast4 = val
+}
+
+// SetUsername sets the value of Username.
+func (s *InventoryPutInventorySnmpIDOK) SetUsername(val NilString) {
+	s.Username = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryPutInventorySnmpIDOK) SetVersion(val InventoryPutInventorySnmpIDOKVersion) {
+	s.Version = val
+}
+
+// V3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5).
+type InventoryPutInventorySnmpIDOKAuth string
+
+const (
+	InventoryPutInventorySnmpIDOKAuthSha    InventoryPutInventorySnmpIDOKAuth = "sha"
+	InventoryPutInventorySnmpIDOKAuthSHA256 InventoryPutInventorySnmpIDOKAuth = "sha256"
+)
+
+// AllValues returns all InventoryPutInventorySnmpIDOKAuth values.
+func (InventoryPutInventorySnmpIDOKAuth) AllValues() []InventoryPutInventorySnmpIDOKAuth {
+	return []InventoryPutInventorySnmpIDOKAuth{
+		InventoryPutInventorySnmpIDOKAuthSha,
+		InventoryPutInventorySnmpIDOKAuthSHA256,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPutInventorySnmpIDOKAuth) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPutInventorySnmpIDOKAuthSha:
+		return []byte(s), nil
+	case InventoryPutInventorySnmpIDOKAuthSHA256:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPutInventorySnmpIDOKAuth) UnmarshalText(data []byte) error {
+	switch InventoryPutInventorySnmpIDOKAuth(data) {
+	case InventoryPutInventorySnmpIDOKAuthSha:
+		*s = InventoryPutInventorySnmpIDOKAuthSha
+		return nil
+	case InventoryPutInventorySnmpIDOKAuthSHA256:
+		*s = InventoryPutInventorySnmpIDOKAuthSHA256
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// V3 privacy: AES-128 (authPriv) or none (authNoPriv); no DES.
+type InventoryPutInventorySnmpIDOKPriv string
+
+const (
+	InventoryPutInventorySnmpIDOKPrivAes128 InventoryPutInventorySnmpIDOKPriv = "aes128"
+	InventoryPutInventorySnmpIDOKPrivNone   InventoryPutInventorySnmpIDOKPriv = "none"
+)
+
+// AllValues returns all InventoryPutInventorySnmpIDOKPriv values.
+func (InventoryPutInventorySnmpIDOKPriv) AllValues() []InventoryPutInventorySnmpIDOKPriv {
+	return []InventoryPutInventorySnmpIDOKPriv{
+		InventoryPutInventorySnmpIDOKPrivAes128,
+		InventoryPutInventorySnmpIDOKPrivNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPutInventorySnmpIDOKPriv) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPutInventorySnmpIDOKPrivAes128:
+		return []byte(s), nil
+	case InventoryPutInventorySnmpIDOKPrivNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPutInventorySnmpIDOKPriv) UnmarshalText(data []byte) error {
+	switch InventoryPutInventorySnmpIDOKPriv(data) {
+	case InventoryPutInventorySnmpIDOKPrivAes128:
+		*s = InventoryPutInventorySnmpIDOKPrivAes128
+		return nil
+	case InventoryPutInventorySnmpIDOKPrivNone:
+		*s = InventoryPutInventorySnmpIDOKPrivNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// No SNMPv1 (D-512).
+type InventoryPutInventorySnmpIDOKVersion string
+
+const (
+	InventoryPutInventorySnmpIDOKVersionV2c InventoryPutInventorySnmpIDOKVersion = "v2c"
+	InventoryPutInventorySnmpIDOKVersionV3  InventoryPutInventorySnmpIDOKVersion = "v3"
+)
+
+// AllValues returns all InventoryPutInventorySnmpIDOKVersion values.
+func (InventoryPutInventorySnmpIDOKVersion) AllValues() []InventoryPutInventorySnmpIDOKVersion {
+	return []InventoryPutInventorySnmpIDOKVersion{
+		InventoryPutInventorySnmpIDOKVersionV2c,
+		InventoryPutInventorySnmpIDOKVersionV3,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPutInventorySnmpIDOKVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPutInventorySnmpIDOKVersionV2c:
+		return []byte(s), nil
+	case InventoryPutInventorySnmpIDOKVersionV3:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPutInventorySnmpIDOKVersion) UnmarshalText(data []byte) error {
+	switch InventoryPutInventorySnmpIDOKVersion(data) {
+	case InventoryPutInventorySnmpIDOKVersionV2c:
+		*s = InventoryPutInventorySnmpIDOKVersionV2c
+		return nil
+	case InventoryPutInventorySnmpIDOKVersionV3:
+		*s = InventoryPutInventorySnmpIDOKVersionV3
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPutInventorySnmpIDReq struct {
+	// V3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5).
+	Auth OptInventoryPutInventorySnmpIDReqAuth `json:"auth"`
+	// V3: 8 to 64 printable ASCII characters; blank when editing keeps the saved one.
+	AuthPassword OptString `json:"auth_password"`
+	// V2c: 1 to 64 printable ASCII characters; blank when editing keeps the saved one.
+	Community OptString `json:"community"`
+	// 1 to 64 characters, not < >; unique (case does not matter).
+	Name string `json:"name"`
+	// V3; default aes128.
+	Priv OptInventoryPutInventorySnmpIDReqPriv `json:"priv"`
+	// V3 with aes128: 8 to 64 printable ASCII characters; blank when editing keeps the saved one.
+	PrivPassword OptString `json:"priv_password"`
+	// IPv4 addresses or CIDR ranges of the local network; empty = every approved device of the scan scope.
+	Scope []string `json:"scope"`
+	// V3: letters, digits and . _ @ -.
+	Username OptString `json:"username"`
+	// No SNMPv1 (D-512).
+	Version InventoryPutInventorySnmpIDReqVersion `json:"version"`
+}
+
+// GetAuth returns the value of Auth.
+func (s *InventoryPutInventorySnmpIDReq) GetAuth() OptInventoryPutInventorySnmpIDReqAuth {
+	return s.Auth
+}
+
+// GetAuthPassword returns the value of AuthPassword.
+func (s *InventoryPutInventorySnmpIDReq) GetAuthPassword() OptString {
+	return s.AuthPassword
+}
+
+// GetCommunity returns the value of Community.
+func (s *InventoryPutInventorySnmpIDReq) GetCommunity() OptString {
+	return s.Community
+}
+
+// GetName returns the value of Name.
+func (s *InventoryPutInventorySnmpIDReq) GetName() string {
+	return s.Name
+}
+
+// GetPriv returns the value of Priv.
+func (s *InventoryPutInventorySnmpIDReq) GetPriv() OptInventoryPutInventorySnmpIDReqPriv {
+	return s.Priv
+}
+
+// GetPrivPassword returns the value of PrivPassword.
+func (s *InventoryPutInventorySnmpIDReq) GetPrivPassword() OptString {
+	return s.PrivPassword
+}
+
+// GetScope returns the value of Scope.
+func (s *InventoryPutInventorySnmpIDReq) GetScope() []string {
+	return s.Scope
+}
+
+// GetUsername returns the value of Username.
+func (s *InventoryPutInventorySnmpIDReq) GetUsername() OptString {
+	return s.Username
+}
+
+// GetVersion returns the value of Version.
+func (s *InventoryPutInventorySnmpIDReq) GetVersion() InventoryPutInventorySnmpIDReqVersion {
+	return s.Version
+}
+
+// SetAuth sets the value of Auth.
+func (s *InventoryPutInventorySnmpIDReq) SetAuth(val OptInventoryPutInventorySnmpIDReqAuth) {
+	s.Auth = val
+}
+
+// SetAuthPassword sets the value of AuthPassword.
+func (s *InventoryPutInventorySnmpIDReq) SetAuthPassword(val OptString) {
+	s.AuthPassword = val
+}
+
+// SetCommunity sets the value of Community.
+func (s *InventoryPutInventorySnmpIDReq) SetCommunity(val OptString) {
+	s.Community = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryPutInventorySnmpIDReq) SetName(val string) {
+	s.Name = val
+}
+
+// SetPriv sets the value of Priv.
+func (s *InventoryPutInventorySnmpIDReq) SetPriv(val OptInventoryPutInventorySnmpIDReqPriv) {
+	s.Priv = val
+}
+
+// SetPrivPassword sets the value of PrivPassword.
+func (s *InventoryPutInventorySnmpIDReq) SetPrivPassword(val OptString) {
+	s.PrivPassword = val
+}
+
+// SetScope sets the value of Scope.
+func (s *InventoryPutInventorySnmpIDReq) SetScope(val []string) {
+	s.Scope = val
+}
+
+// SetUsername sets the value of Username.
+func (s *InventoryPutInventorySnmpIDReq) SetUsername(val OptString) {
+	s.Username = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryPutInventorySnmpIDReq) SetVersion(val InventoryPutInventorySnmpIDReqVersion) {
+	s.Version = val
+}
+
+// V3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5).
+type InventoryPutInventorySnmpIDReqAuth string
+
+const (
+	InventoryPutInventorySnmpIDReqAuthSha    InventoryPutInventorySnmpIDReqAuth = "sha"
+	InventoryPutInventorySnmpIDReqAuthSHA256 InventoryPutInventorySnmpIDReqAuth = "sha256"
+)
+
+// AllValues returns all InventoryPutInventorySnmpIDReqAuth values.
+func (InventoryPutInventorySnmpIDReqAuth) AllValues() []InventoryPutInventorySnmpIDReqAuth {
+	return []InventoryPutInventorySnmpIDReqAuth{
+		InventoryPutInventorySnmpIDReqAuthSha,
+		InventoryPutInventorySnmpIDReqAuthSHA256,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPutInventorySnmpIDReqAuth) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPutInventorySnmpIDReqAuthSha:
+		return []byte(s), nil
+	case InventoryPutInventorySnmpIDReqAuthSHA256:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPutInventorySnmpIDReqAuth) UnmarshalText(data []byte) error {
+	switch InventoryPutInventorySnmpIDReqAuth(data) {
+	case InventoryPutInventorySnmpIDReqAuthSha:
+		*s = InventoryPutInventorySnmpIDReqAuthSha
+		return nil
+	case InventoryPutInventorySnmpIDReqAuthSHA256:
+		*s = InventoryPutInventorySnmpIDReqAuthSHA256
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// V3; default aes128.
+type InventoryPutInventorySnmpIDReqPriv string
+
+const (
+	InventoryPutInventorySnmpIDReqPrivAes128 InventoryPutInventorySnmpIDReqPriv = "aes128"
+	InventoryPutInventorySnmpIDReqPrivNone   InventoryPutInventorySnmpIDReqPriv = "none"
+)
+
+// AllValues returns all InventoryPutInventorySnmpIDReqPriv values.
+func (InventoryPutInventorySnmpIDReqPriv) AllValues() []InventoryPutInventorySnmpIDReqPriv {
+	return []InventoryPutInventorySnmpIDReqPriv{
+		InventoryPutInventorySnmpIDReqPrivAes128,
+		InventoryPutInventorySnmpIDReqPrivNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPutInventorySnmpIDReqPriv) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPutInventorySnmpIDReqPrivAes128:
+		return []byte(s), nil
+	case InventoryPutInventorySnmpIDReqPrivNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPutInventorySnmpIDReqPriv) UnmarshalText(data []byte) error {
+	switch InventoryPutInventorySnmpIDReqPriv(data) {
+	case InventoryPutInventorySnmpIDReqPrivAes128:
+		*s = InventoryPutInventorySnmpIDReqPrivAes128
+		return nil
+	case InventoryPutInventorySnmpIDReqPrivNone:
+		*s = InventoryPutInventorySnmpIDReqPrivNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// No SNMPv1 (D-512).
+type InventoryPutInventorySnmpIDReqVersion string
+
+const (
+	InventoryPutInventorySnmpIDReqVersionV2c InventoryPutInventorySnmpIDReqVersion = "v2c"
+	InventoryPutInventorySnmpIDReqVersionV3  InventoryPutInventorySnmpIDReqVersion = "v3"
+)
+
+// AllValues returns all InventoryPutInventorySnmpIDReqVersion values.
+func (InventoryPutInventorySnmpIDReqVersion) AllValues() []InventoryPutInventorySnmpIDReqVersion {
+	return []InventoryPutInventorySnmpIDReqVersion{
+		InventoryPutInventorySnmpIDReqVersionV2c,
+		InventoryPutInventorySnmpIDReqVersionV3,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPutInventorySnmpIDReqVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPutInventorySnmpIDReqVersionV2c:
+		return []byte(s), nil
+	case InventoryPutInventorySnmpIDReqVersionV3:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPutInventorySnmpIDReqVersion) UnmarshalText(data []byte) error {
+	switch InventoryPutInventorySnmpIDReqVersion(data) {
+	case InventoryPutInventorySnmpIDReqVersionV2c:
+		*s = InventoryPutInventorySnmpIDReqVersionV2c
+		return nil
+	case InventoryPutInventorySnmpIDReqVersionV3:
+		*s = InventoryPutInventorySnmpIDReqVersionV3
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -92063,6 +93733,96 @@ func (o NilInventoryGetInventorySensorsOKSensorsItemCaptureError) Or(d Inventory
 	return d
 }
 
+// NewNilInventoryGetInventorySnmpOKCredentialsItemAuth returns new NilInventoryGetInventorySnmpOKCredentialsItemAuth with value set to v.
+func NewNilInventoryGetInventorySnmpOKCredentialsItemAuth(v InventoryGetInventorySnmpOKCredentialsItemAuth) NilInventoryGetInventorySnmpOKCredentialsItemAuth {
+	return NilInventoryGetInventorySnmpOKCredentialsItemAuth{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventorySnmpOKCredentialsItemAuth is nullable InventoryGetInventorySnmpOKCredentialsItemAuth.
+type NilInventoryGetInventorySnmpOKCredentialsItemAuth struct {
+	Value InventoryGetInventorySnmpOKCredentialsItemAuth
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventorySnmpOKCredentialsItemAuth) SetTo(v InventoryGetInventorySnmpOKCredentialsItemAuth) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventorySnmpOKCredentialsItemAuth) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventorySnmpOKCredentialsItemAuth) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventorySnmpOKCredentialsItemAuth
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventorySnmpOKCredentialsItemAuth) Get() (v InventoryGetInventorySnmpOKCredentialsItemAuth, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventorySnmpOKCredentialsItemAuth) Or(d InventoryGetInventorySnmpOKCredentialsItemAuth) InventoryGetInventorySnmpOKCredentialsItemAuth {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryGetInventorySnmpOKCredentialsItemPriv returns new NilInventoryGetInventorySnmpOKCredentialsItemPriv with value set to v.
+func NewNilInventoryGetInventorySnmpOKCredentialsItemPriv(v InventoryGetInventorySnmpOKCredentialsItemPriv) NilInventoryGetInventorySnmpOKCredentialsItemPriv {
+	return NilInventoryGetInventorySnmpOKCredentialsItemPriv{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventorySnmpOKCredentialsItemPriv is nullable InventoryGetInventorySnmpOKCredentialsItemPriv.
+type NilInventoryGetInventorySnmpOKCredentialsItemPriv struct {
+	Value InventoryGetInventorySnmpOKCredentialsItemPriv
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventorySnmpOKCredentialsItemPriv) SetTo(v InventoryGetInventorySnmpOKCredentialsItemPriv) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventorySnmpOKCredentialsItemPriv) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventorySnmpOKCredentialsItemPriv) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventorySnmpOKCredentialsItemPriv
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventorySnmpOKCredentialsItemPriv) Get() (v InventoryGetInventorySnmpOKCredentialsItemPriv, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventorySnmpOKCredentialsItemPriv) Or(d InventoryGetInventorySnmpOKCredentialsItemPriv) InventoryGetInventorySnmpOKCredentialsItemPriv {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilInventoryPatchInventorySensorsIDOKCaptureError returns new NilInventoryPatchInventorySensorsIDOKCaptureError with value set to v.
 func NewNilInventoryPatchInventorySensorsIDOKCaptureError(v InventoryPatchInventorySensorsIDOKCaptureError) NilInventoryPatchInventorySensorsIDOKCaptureError {
 	return NilInventoryPatchInventorySensorsIDOKCaptureError{
@@ -92102,6 +93862,231 @@ func (o NilInventoryPatchInventorySensorsIDOKCaptureError) Get() (v InventoryPat
 
 // Or returns value if set, or given parameter if does not.
 func (o NilInventoryPatchInventorySensorsIDOKCaptureError) Or(d InventoryPatchInventorySensorsIDOKCaptureError) InventoryPatchInventorySensorsIDOKCaptureError {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPostInventorySnmpCreatedAuth returns new NilInventoryPostInventorySnmpCreatedAuth with value set to v.
+func NewNilInventoryPostInventorySnmpCreatedAuth(v InventoryPostInventorySnmpCreatedAuth) NilInventoryPostInventorySnmpCreatedAuth {
+	return NilInventoryPostInventorySnmpCreatedAuth{
+		Value: v,
+	}
+}
+
+// NilInventoryPostInventorySnmpCreatedAuth is nullable InventoryPostInventorySnmpCreatedAuth.
+type NilInventoryPostInventorySnmpCreatedAuth struct {
+	Value InventoryPostInventorySnmpCreatedAuth
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPostInventorySnmpCreatedAuth) SetTo(v InventoryPostInventorySnmpCreatedAuth) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPostInventorySnmpCreatedAuth) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPostInventorySnmpCreatedAuth) SetToNull() {
+	o.Null = true
+	var v InventoryPostInventorySnmpCreatedAuth
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPostInventorySnmpCreatedAuth) Get() (v InventoryPostInventorySnmpCreatedAuth, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPostInventorySnmpCreatedAuth) Or(d InventoryPostInventorySnmpCreatedAuth) InventoryPostInventorySnmpCreatedAuth {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPostInventorySnmpCreatedPriv returns new NilInventoryPostInventorySnmpCreatedPriv with value set to v.
+func NewNilInventoryPostInventorySnmpCreatedPriv(v InventoryPostInventorySnmpCreatedPriv) NilInventoryPostInventorySnmpCreatedPriv {
+	return NilInventoryPostInventorySnmpCreatedPriv{
+		Value: v,
+	}
+}
+
+// NilInventoryPostInventorySnmpCreatedPriv is nullable InventoryPostInventorySnmpCreatedPriv.
+type NilInventoryPostInventorySnmpCreatedPriv struct {
+	Value InventoryPostInventorySnmpCreatedPriv
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPostInventorySnmpCreatedPriv) SetTo(v InventoryPostInventorySnmpCreatedPriv) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPostInventorySnmpCreatedPriv) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPostInventorySnmpCreatedPriv) SetToNull() {
+	o.Null = true
+	var v InventoryPostInventorySnmpCreatedPriv
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPostInventorySnmpCreatedPriv) Get() (v InventoryPostInventorySnmpCreatedPriv, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPostInventorySnmpCreatedPriv) Or(d InventoryPostInventorySnmpCreatedPriv) InventoryPostInventorySnmpCreatedPriv {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPostInventorySnmpIDTestOKAnswer returns new NilInventoryPostInventorySnmpIDTestOKAnswer with value set to v.
+func NewNilInventoryPostInventorySnmpIDTestOKAnswer(v InventoryPostInventorySnmpIDTestOKAnswer) NilInventoryPostInventorySnmpIDTestOKAnswer {
+	return NilInventoryPostInventorySnmpIDTestOKAnswer{
+		Value: v,
+	}
+}
+
+// NilInventoryPostInventorySnmpIDTestOKAnswer is nullable InventoryPostInventorySnmpIDTestOKAnswer.
+type NilInventoryPostInventorySnmpIDTestOKAnswer struct {
+	Value InventoryPostInventorySnmpIDTestOKAnswer
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPostInventorySnmpIDTestOKAnswer) SetTo(v InventoryPostInventorySnmpIDTestOKAnswer) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPostInventorySnmpIDTestOKAnswer) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPostInventorySnmpIDTestOKAnswer) SetToNull() {
+	o.Null = true
+	var v InventoryPostInventorySnmpIDTestOKAnswer
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPostInventorySnmpIDTestOKAnswer) Get() (v InventoryPostInventorySnmpIDTestOKAnswer, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPostInventorySnmpIDTestOKAnswer) Or(d InventoryPostInventorySnmpIDTestOKAnswer) InventoryPostInventorySnmpIDTestOKAnswer {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPutInventorySnmpIDOKAuth returns new NilInventoryPutInventorySnmpIDOKAuth with value set to v.
+func NewNilInventoryPutInventorySnmpIDOKAuth(v InventoryPutInventorySnmpIDOKAuth) NilInventoryPutInventorySnmpIDOKAuth {
+	return NilInventoryPutInventorySnmpIDOKAuth{
+		Value: v,
+	}
+}
+
+// NilInventoryPutInventorySnmpIDOKAuth is nullable InventoryPutInventorySnmpIDOKAuth.
+type NilInventoryPutInventorySnmpIDOKAuth struct {
+	Value InventoryPutInventorySnmpIDOKAuth
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPutInventorySnmpIDOKAuth) SetTo(v InventoryPutInventorySnmpIDOKAuth) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPutInventorySnmpIDOKAuth) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPutInventorySnmpIDOKAuth) SetToNull() {
+	o.Null = true
+	var v InventoryPutInventorySnmpIDOKAuth
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPutInventorySnmpIDOKAuth) Get() (v InventoryPutInventorySnmpIDOKAuth, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPutInventorySnmpIDOKAuth) Or(d InventoryPutInventorySnmpIDOKAuth) InventoryPutInventorySnmpIDOKAuth {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPutInventorySnmpIDOKPriv returns new NilInventoryPutInventorySnmpIDOKPriv with value set to v.
+func NewNilInventoryPutInventorySnmpIDOKPriv(v InventoryPutInventorySnmpIDOKPriv) NilInventoryPutInventorySnmpIDOKPriv {
+	return NilInventoryPutInventorySnmpIDOKPriv{
+		Value: v,
+	}
+}
+
+// NilInventoryPutInventorySnmpIDOKPriv is nullable InventoryPutInventorySnmpIDOKPriv.
+type NilInventoryPutInventorySnmpIDOKPriv struct {
+	Value InventoryPutInventorySnmpIDOKPriv
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPutInventorySnmpIDOKPriv) SetTo(v InventoryPutInventorySnmpIDOKPriv) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPutInventorySnmpIDOKPriv) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPutInventorySnmpIDOKPriv) SetToNull() {
+	o.Null = true
+	var v InventoryPutInventorySnmpIDOKPriv
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPutInventorySnmpIDOKPriv) Get() (v InventoryPutInventorySnmpIDOKPriv, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPutInventorySnmpIDOKPriv) Or(d InventoryPutInventorySnmpIDOKPriv) InventoryPutInventorySnmpIDOKPriv {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -104162,6 +106147,190 @@ func (o OptInventoryPostInventoryAgentsTokensReqKind) Get() (v InventoryPostInve
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryPostInventoryAgentsTokensReqKind) Or(d InventoryPostInventoryAgentsTokensReqKind) InventoryPostInventoryAgentsTokensReqKind {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryPostInventorySnmpReqAuth returns new OptInventoryPostInventorySnmpReqAuth with value set to v.
+func NewOptInventoryPostInventorySnmpReqAuth(v InventoryPostInventorySnmpReqAuth) OptInventoryPostInventorySnmpReqAuth {
+	return OptInventoryPostInventorySnmpReqAuth{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryPostInventorySnmpReqAuth is optional InventoryPostInventorySnmpReqAuth.
+type OptInventoryPostInventorySnmpReqAuth struct {
+	Value InventoryPostInventorySnmpReqAuth
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryPostInventorySnmpReqAuth was set.
+func (o OptInventoryPostInventorySnmpReqAuth) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryPostInventorySnmpReqAuth) Reset() {
+	var v InventoryPostInventorySnmpReqAuth
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryPostInventorySnmpReqAuth) SetTo(v InventoryPostInventorySnmpReqAuth) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryPostInventorySnmpReqAuth) Get() (v InventoryPostInventorySnmpReqAuth, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryPostInventorySnmpReqAuth) Or(d InventoryPostInventorySnmpReqAuth) InventoryPostInventorySnmpReqAuth {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryPostInventorySnmpReqPriv returns new OptInventoryPostInventorySnmpReqPriv with value set to v.
+func NewOptInventoryPostInventorySnmpReqPriv(v InventoryPostInventorySnmpReqPriv) OptInventoryPostInventorySnmpReqPriv {
+	return OptInventoryPostInventorySnmpReqPriv{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryPostInventorySnmpReqPriv is optional InventoryPostInventorySnmpReqPriv.
+type OptInventoryPostInventorySnmpReqPriv struct {
+	Value InventoryPostInventorySnmpReqPriv
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryPostInventorySnmpReqPriv was set.
+func (o OptInventoryPostInventorySnmpReqPriv) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryPostInventorySnmpReqPriv) Reset() {
+	var v InventoryPostInventorySnmpReqPriv
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryPostInventorySnmpReqPriv) SetTo(v InventoryPostInventorySnmpReqPriv) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryPostInventorySnmpReqPriv) Get() (v InventoryPostInventorySnmpReqPriv, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryPostInventorySnmpReqPriv) Or(d InventoryPostInventorySnmpReqPriv) InventoryPostInventorySnmpReqPriv {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryPutInventorySnmpIDReqAuth returns new OptInventoryPutInventorySnmpIDReqAuth with value set to v.
+func NewOptInventoryPutInventorySnmpIDReqAuth(v InventoryPutInventorySnmpIDReqAuth) OptInventoryPutInventorySnmpIDReqAuth {
+	return OptInventoryPutInventorySnmpIDReqAuth{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryPutInventorySnmpIDReqAuth is optional InventoryPutInventorySnmpIDReqAuth.
+type OptInventoryPutInventorySnmpIDReqAuth struct {
+	Value InventoryPutInventorySnmpIDReqAuth
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryPutInventorySnmpIDReqAuth was set.
+func (o OptInventoryPutInventorySnmpIDReqAuth) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryPutInventorySnmpIDReqAuth) Reset() {
+	var v InventoryPutInventorySnmpIDReqAuth
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryPutInventorySnmpIDReqAuth) SetTo(v InventoryPutInventorySnmpIDReqAuth) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryPutInventorySnmpIDReqAuth) Get() (v InventoryPutInventorySnmpIDReqAuth, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryPutInventorySnmpIDReqAuth) Or(d InventoryPutInventorySnmpIDReqAuth) InventoryPutInventorySnmpIDReqAuth {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryPutInventorySnmpIDReqPriv returns new OptInventoryPutInventorySnmpIDReqPriv with value set to v.
+func NewOptInventoryPutInventorySnmpIDReqPriv(v InventoryPutInventorySnmpIDReqPriv) OptInventoryPutInventorySnmpIDReqPriv {
+	return OptInventoryPutInventorySnmpIDReqPriv{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryPutInventorySnmpIDReqPriv is optional InventoryPutInventorySnmpIDReqPriv.
+type OptInventoryPutInventorySnmpIDReqPriv struct {
+	Value InventoryPutInventorySnmpIDReqPriv
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryPutInventorySnmpIDReqPriv was set.
+func (o OptInventoryPutInventorySnmpIDReqPriv) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryPutInventorySnmpIDReqPriv) Reset() {
+	var v InventoryPutInventorySnmpIDReqPriv
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryPutInventorySnmpIDReqPriv) SetTo(v InventoryPutInventorySnmpIDReqPriv) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryPutInventorySnmpIDReqPriv) Get() (v InventoryPutInventorySnmpIDReqPriv, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryPutInventorySnmpIDReqPriv) Or(d InventoryPutInventorySnmpIDReqPriv) InventoryPutInventorySnmpIDReqPriv {
 	if v, ok := o.Get(); ok {
 		return v
 	}

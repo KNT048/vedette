@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/observe"
@@ -156,6 +157,38 @@ func TestMatchInputAndDeviceRefs(t *testing.T) {
 	}
 	if refs, _ = e.svc.DeviceRefs(e.ctx(), nil); len(refs) != 0 {
 		t.Errorf("no ids: %v", refs)
+	}
+}
+
+// D-512: the OS a device states over SNMP is its StatedOS for findings, as LLDP's is (D-510), even when nmap's guess wins the OS
+// field; DeviceRefs says whether a device is approved (sensor-active sends SNMP credentials to approved devices only).
+func TestSNMPStatedOSAndApproval(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ip := netip.MustParseAddr("192.168.30.47")
+	at := time.Date(2026, 11, 13, 8, 0, 0, 0, time.UTC)
+	for i, o := range []observe.Observation{
+		{Field: observe.OS, Value: "Juniper JUNOS 10.4R1.9 (EX4200 switch)", Source: observe.Nmap, Confidence: 0.9},
+		{Field: observe.OS, Value: "JUNOS 15.1R7.9", Source: observe.SNMP, Confidence: 0.9},
+		{Field: observe.Model, Value: "EX4200-48T", Source: observe.SNMP, Confidence: 0.9},
+	} {
+		o.AssetHint, o.SeenAt = observe.AssetHint{IP: ip}, at.Add(time.Duration(i)*time.Minute)
+		if err := e.svc.Record(e.ctx(), []observe.Observation{o}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	addrs, err := e.svc.AddressMap(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := addrs[ip.String()]
+	d, ok, err := e.svc.MatchInput(e.ctx(), id)
+	if err != nil || !ok || d.StatedOS != "JUNOS 15.1R7.9" || d.Model != "EX4200-48T" {
+		t.Fatalf("MatchInput: %+v %v %v", d, ok, err)
+	}
+	refs, err := e.svc.DeviceRefs(e.ctx(), []string{id})
+	if err != nil || refs[id].Approved {
+		t.Fatalf("a discovered device is approved: %+v %v", refs, err)
 	}
 }
 

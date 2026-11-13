@@ -38598,6 +38598,829 @@
         }
       }
     },
+    "/inventory/snmp": {
+      "get": {
+        "operationId": "inventory_get_inventory_snmp",
+        "summary": "SNMP credentials (secrets only as their last 4 characters) and whether the scan container can read SNMP now (D-512)",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-1"
+        ],
+        "x-min-role": "admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "credentials": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "string",
+                            "enum": [
+                              "v2c",
+                              "v3"
+                            ],
+                            "description": "No SNMPv1 (D-512)"
+                          },
+                          "username": {
+                            "description": "v3 user name; null for v2c",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "auth": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "sha",
+                                  "sha256"
+                                ],
+                                "description": "v3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5)"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "null for v2c"
+                          },
+                          "priv": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "aes128",
+                                  "none"
+                                ],
+                                "description": "v3 privacy: AES-128 (authPriv) or none (authNoPriv); no DES"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "null for v2c"
+                          },
+                          "secret_last4": {
+                            "type": "string",
+                            "description": "Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has fewer than 8 characters"
+                          },
+                          "priv_last4": {
+                            "type": "string",
+                            "description": "Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8 characters"
+                          },
+                          "scope": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "IPv4 addresses and CIDR ranges this credential is sent to; empty = every approved device of the scan scope"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "last_answer_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "When a device last answered with it (a round in the scan window, or a Test)"
+                          },
+                          "answered": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Devices that answered with it in its latest round in the scan window; a Test that got an answer makes it at least 1"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "version",
+                          "username",
+                          "auth",
+                          "priv",
+                          "secret_last4",
+                          "priv_last4",
+                          "scope",
+                          "created_at",
+                          "last_answer_at",
+                          "answered"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "In the order they are tried (oldest first), at most 8"
+                    },
+                    "ready": {
+                      "type": "boolean",
+                      "description": "false while the scan container cannot read SNMP (not reporting, or older than this version)"
+                    },
+                    "message": {
+                      "description": "Why not ready",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "credentials",
+                    "ready",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "inventory_post_inventory_snmp",
+        "summary": "Add an SNMP credential (v2c community or v3 user); its secrets are stored encrypted. 409 name_taken, 409 too_many (8 at most)",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-1"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "1 to 64 characters, not < >; unique (case does not matter)"
+                  },
+                  "version": {
+                    "type": "string",
+                    "enum": [
+                      "v2c",
+                      "v3"
+                    ],
+                    "description": "No SNMPv1 (D-512)"
+                  },
+                  "community": {
+                    "description": "v2c: 1 to 64 printable ASCII characters; blank when editing keeps the saved one",
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "username": {
+                    "description": "v3: letters, digits and . _ @ -",
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "auth": {
+                    "type": "string",
+                    "enum": [
+                      "sha",
+                      "sha256"
+                    ],
+                    "description": "v3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5)"
+                  },
+                  "auth_password": {
+                    "description": "v3: 8 to 64 printable ASCII characters; blank when editing keeps the saved one",
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "priv": {
+                    "description": "v3; default aes128",
+                    "type": "string",
+                    "enum": [
+                      "aes128",
+                      "none"
+                    ]
+                  },
+                  "priv_password": {
+                    "description": "v3 with aes128: 8 to 64 printable ASCII characters; blank when editing keeps the saved one",
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "scope": {
+                    "maxItems": 16,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "IPv4 addresses or CIDR ranges of the local network; empty = every approved device of the scan scope"
+                  }
+                },
+                "required": [
+                  "name",
+                  "version",
+                  "scope"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string",
+                      "enum": [
+                        "v2c",
+                        "v3"
+                      ],
+                      "description": "No SNMPv1 (D-512)"
+                    },
+                    "username": {
+                      "description": "v3 user name; null for v2c",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "auth": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "sha",
+                            "sha256"
+                          ],
+                          "description": "v3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null for v2c"
+                    },
+                    "priv": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "aes128",
+                            "none"
+                          ],
+                          "description": "v3 privacy: AES-128 (authPriv) or none (authNoPriv); no DES"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null for v2c"
+                    },
+                    "secret_last4": {
+                      "type": "string",
+                      "description": "Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has fewer than 8 characters"
+                    },
+                    "priv_last4": {
+                      "type": "string",
+                      "description": "Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8 characters"
+                    },
+                    "scope": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "IPv4 addresses and CIDR ranges this credential is sent to; empty = every approved device of the scan scope"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "last_answer_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "When a device last answered with it (a round in the scan window, or a Test)"
+                    },
+                    "answered": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Devices that answered with it in its latest round in the scan window; a Test that got an answer makes it at least 1"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "version",
+                    "username",
+                    "auth",
+                    "priv",
+                    "secret_last4",
+                    "priv_last4",
+                    "scope",
+                    "created_at",
+                    "last_answer_at",
+                    "answered"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/snmp/{id}": {
+      "delete": {
+        "operationId": "inventory_delete_inventory_snmp_id",
+        "summary": "Delete an SNMP credential and its secrets; what devices said stays in the inventory",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-1"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done, no content"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "inventory_put_inventory_snmp_id",
+        "summary": "Edit an SNMP credential; a blank secret keeps the saved one",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-1"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "1 to 64 characters, not < >; unique (case does not matter)"
+                  },
+                  "version": {
+                    "type": "string",
+                    "enum": [
+                      "v2c",
+                      "v3"
+                    ],
+                    "description": "No SNMPv1 (D-512)"
+                  },
+                  "community": {
+                    "description": "v2c: 1 to 64 printable ASCII characters; blank when editing keeps the saved one",
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "username": {
+                    "description": "v3: letters, digits and . _ @ -",
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "auth": {
+                    "type": "string",
+                    "enum": [
+                      "sha",
+                      "sha256"
+                    ],
+                    "description": "v3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5)"
+                  },
+                  "auth_password": {
+                    "description": "v3: 8 to 64 printable ASCII characters; blank when editing keeps the saved one",
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "priv": {
+                    "description": "v3; default aes128",
+                    "type": "string",
+                    "enum": [
+                      "aes128",
+                      "none"
+                    ]
+                  },
+                  "priv_password": {
+                    "description": "v3 with aes128: 8 to 64 printable ASCII characters; blank when editing keeps the saved one",
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "scope": {
+                    "maxItems": 16,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "IPv4 addresses or CIDR ranges of the local network; empty = every approved device of the scan scope"
+                  }
+                },
+                "required": [
+                  "name",
+                  "version",
+                  "scope"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string",
+                      "enum": [
+                        "v2c",
+                        "v3"
+                      ],
+                      "description": "No SNMPv1 (D-512)"
+                    },
+                    "username": {
+                      "description": "v3 user name; null for v2c",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "auth": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "sha",
+                            "sha256"
+                          ],
+                          "description": "v3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null for v2c"
+                    },
+                    "priv": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "aes128",
+                            "none"
+                          ],
+                          "description": "v3 privacy: AES-128 (authPriv) or none (authNoPriv); no DES"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null for v2c"
+                    },
+                    "secret_last4": {
+                      "type": "string",
+                      "description": "Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has fewer than 8 characters"
+                    },
+                    "priv_last4": {
+                      "type": "string",
+                      "description": "Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8 characters"
+                    },
+                    "scope": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "IPv4 addresses and CIDR ranges this credential is sent to; empty = every approved device of the scan scope"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "last_answer_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "When a device last answered with it (a round in the scan window, or a Test)"
+                    },
+                    "answered": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Devices that answered with it in its latest round in the scan window; a Test that got an answer makes it at least 1"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "version",
+                    "username",
+                    "auth",
+                    "priv",
+                    "secret_last4",
+                    "priv_last4",
+                    "scope",
+                    "created_at",
+                    "last_answer_at",
+                    "answered"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/snmp/{id}/test": {
+      "post": {
+        "operationId": "inventory_post_inventory_snmp_id_test",
+        "summary": "Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-1"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ip": {
+                    "type": "string",
+                    "maxLength": 15,
+                    "description": "IPv4 of a device in the inventory"
+                  }
+                },
+                "required": [
+                  "ip"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "no_answer",
+                        "auth_failed",
+                        "unknown_user",
+                        "error",
+                        "not_in_inventory",
+                        "not_approved",
+                        "out_of_scope",
+                        "not_for_this_credential",
+                        "scanning_off",
+                        "scope_not_confirmed",
+                        "declared_by_hand",
+                        "box",
+                        "regular_scan_never",
+                        "unavailable",
+                        "busy"
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Plain words for the person"
+                    },
+                    "device_id": {
+                      "description": "The inventory device at that IP, when there is one",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "answer": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "sys_descr": {
+                              "type": "string"
+                            },
+                            "sys_object_id": {
+                              "type": "string"
+                            },
+                            "sys_name": {
+                              "type": "string",
+                              "description": "What the device said, cleaned; empty when it has none"
+                            },
+                            "vendor": {
+                              "type": "string"
+                            },
+                            "product": {
+                              "type": "string",
+                              "description": "Product family from sysObjectID, e.g. FortiGate"
+                            },
+                            "model": {
+                              "type": "string"
+                            },
+                            "os": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "description": "A device type id, or empty"
+                            },
+                            "serial": {
+                              "type": "string"
+                            },
+                            "firmware": {
+                              "type": "string",
+                              "description": "ENTITY-MIB chassis firmware text; shown, not stored"
+                            }
+                          },
+                          "required": [
+                            "sys_descr",
+                            "sys_object_id",
+                            "sys_name",
+                            "vendor",
+                            "product",
+                            "model",
+                            "os",
+                            "kind",
+                            "serial",
+                            "firmware"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "What the device said, when it answered; it is also recorded in the inventory with source snmp"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "reason",
+                    "message",
+                    "device_id",
+                    "answer"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/logs/digest": {
       "get": {
         "operationId": "logs_get_logs_digest",

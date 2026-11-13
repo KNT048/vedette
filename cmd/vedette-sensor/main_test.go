@@ -219,8 +219,9 @@ func TestBinaryDependencies(t *testing.T) {
 		"modules/sensor-passive/capture",
 	}
 	// The only code from outside the standard library and this module: the raw socket of the capture (afpacket_linux.go) uses
-	// one receive-side option that package syscall lacks. It is already pinned in go.mod and imports nothing else.
-	thirdParty := []string{"golang.org/x/sys/unix"}
+	// one receive-side option that package syscall lacks; the worker reads SNMP agents with gosnmp (BSD-2, D-512: SNMPv3 USM is
+	// key localization, HMAC and AES-CFB, not worth writing again). Both are pinned in go.mod and import the standard library only.
+	thirdParty := []string{"golang.org/x/sys/unix", "github.com/gosnmp/gosnmp"}
 	for _, goos := range []string{runtime.GOOS, "linux"} {
 		t.Run(goos, func(t *testing.T) {
 			t.Parallel()

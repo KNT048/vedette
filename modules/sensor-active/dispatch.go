@@ -60,9 +60,9 @@ type DispatcherOptions struct {
 }
 
 // Dispatcher is the Prober that hands a job to the worker, and the sensorlink.Backend of the active role: the
-// listener of core serves Jobs, JobRunning, JobResult and ActiveHeartbeat to it. Create it with NewDispatcher. It has two
-// slots, one for nmap and one for nuclei (D-125 (3)): one job of each kind may run at once, so a "Scan now" does not wait for
-// a two-hour sweep. The rules of a slot (lease, pickup, grace, cancel) are those of SP-3 for both.
+// listener of core serves Jobs, JobRunning, JobResult and ActiveHeartbeat to it. Create it with NewDispatcher. It has three
+// slots, nmap, nuclei (D-125 (3)) and snmp (D-512): one job of each kind may run at once, so a "Scan now" or an SNMP Test does
+// not wait for a two-hour sweep. The rules of a slot (lease, pickup, grace, cancel) are those of SP-3 for all.
 type Dispatcher struct {
 	now       func() time.Time
 	tick      time.Duration
@@ -74,11 +74,13 @@ type Dispatcher struct {
 	wake     chan struct{} // closed and replaced whenever something a long poll looks at changes
 	nmapSlot *slot
 	nucSlot  *slot
+	snmpSlot *slot           // D-512: the SNMP reads, beside nmap and nuclei
 	orphans  map[string]bool // ids the worker reported that core does not know, already answered with a cancel
 	beatAt   time.Time
 	haveBeat bool
 	nmap     sensorlink.HeartbeatNmap
 	nuclei   sensorlink.HeartbeatNuclei
+	snmp     bool // the worker's heartbeat says it runs snmp jobs (protocol 5)
 
 	packInvalid    bool   // the worker found the image's pack damaged (pack_invalid): not trusted until the image holds another pack
 	packInvalidSHA string // the pack hash the heartbeat reported when it happened
@@ -96,7 +98,12 @@ type slot struct {
 	overrun    string // the id of a job that ran past its limit and was given up; until a poll no longer names it
 }
 
-func (d *Dispatcher) slots() [2]*slot { return [2]*slot{d.nmapSlot, d.nucSlot} }
+func (d *Dispatcher) slots() [numSlots]*slot {
+	return [numSlots]*slot{d.nmapSlot, d.nucSlot, d.snmpSlot}
+}
+
+// numSlots is the kinds of job the worker runs at once (sensorlink.MaxRunning).
+const numSlots = sensorlink.MaxRunning
 
 type djob struct {
 	spec      sensorlink.Job
@@ -117,7 +124,8 @@ type djob struct {
 // NewDispatcher returns a Dispatcher with a fresh instance nonce, the one the worker's lease is tied to.
 func NewDispatcher(o DispatcherOptions) *Dispatcher {
 	d := &Dispatcher{now: o.Now, tick: o.Tick, log: o.Log, container: o.ContainerOnly, wake: make(chan struct{}), orphans: map[string]bool{},
-		nmapSlot: &slot{kind: sensorlink.KindNmap, maxSeconds: maxJobSeconds}, nucSlot: &slot{kind: sensorlink.KindNuclei, maxSeconds: maxNucleiSeconds}}
+		nmapSlot: &slot{kind: sensorlink.KindNmap, maxSeconds: maxJobSeconds}, nucSlot: &slot{kind: sensorlink.KindNuclei, maxSeconds: maxNucleiSeconds},
+		snmpSlot: &slot{kind: sensorlink.KindSNMP, maxSeconds: sensorlink.MaxSNMPSeconds}}
 	if d.now == nil {
 		d.now = time.Now
 	}
@@ -379,8 +387,8 @@ func (d *Dispatcher) outcome(j *djob) (Output, error) {
 	case res.Status == "refused":
 		d.log.Error("sensor_active_worker_refused_job", "reason", res.Reason) // core and worker disagree on the grammar, or the worker is not what it should be
 		return Output{}, fmt.Errorf("%w (%s)", ErrWorkerRefused, res.Reason)
-	case res.JSONL() != nil || res.JSONLB64 != "" || len(res.HostErrors) > 0:
-		return Output{}, fmt.Errorf("%w: nuclei output on an nmap job", ErrResultRejected)
+	case res.JSONL() != nil || res.JSONLB64 != "" || len(res.HostErrors) > 0 || len(res.SNMP) > 0:
+		return Output{}, fmt.Errorf("%w: nuclei or snmp output on an nmap job", ErrResultRejected)
 	case res.Reason == "nmap_missing":
 		d.mu.Lock()
 		d.nmap.Present = false // until the next heartbeat says otherwise
@@ -433,7 +441,7 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 		}
 	}
 	answerNow := false
-	var blocked [2]bool // a slot whose kind the worker is not free for: it still names a job core cannot place in the other slot
+	var blocked [numSlots]bool // a slot whose kind the worker is not free for: it still names a job core cannot place in another slot
 	for _, id := range running {
 		var owner *slot
 		justDone := false
@@ -449,12 +457,12 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 		case owner == nil:
 			// The worker runs a job core does not hold: one it gave up (lost, over its limit), or one of a core that restarted.
 			// Nothing is listening for its result and the scope, the window and the settings were checked for a job that is
-			// gone: tell the worker to stop it, at once the first time (INV-3). It cannot be placed in a slot, so it holds both.
+			// gone: tell the worker to stop it, at once the first time (INV-3). It cannot be placed in a slot, so it holds all.
 			rep.Cancel = append(rep.Cancel, id)
 			if !d.orphans[id] {
 				d.orphans[id], ready = true, true
 			}
-			blocked = [2]bool{true, true}
+			blocked = [numSlots]bool{true, true, true}
 		case justDone:
 			// The poll still names the job that has just finished: answer now, once, so the worker polls again with a free
 			// hand and the next job does not wait for a long poll to run out.
@@ -573,6 +581,6 @@ func (d *Dispatcher) JobResultRejected(id string, e *sensorlink.Error) {
 func (d *Dispatcher) ActiveHeartbeat(_ context.Context, hb *sensorlink.ActiveHeartbeat) (string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.beatAt, d.haveBeat, d.nmap, d.nuclei = d.now(), true, hb.Nmap, hb.Nuclei
+	d.beatAt, d.haveBeat, d.nmap, d.nuclei, d.snmp = d.now(), true, hb.Nmap, hb.Nuclei, hb.SNMP
 	return d.instance, nil
 }

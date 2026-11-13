@@ -114,6 +114,7 @@ type fakeInv struct {
 	checked  []netip.Addr
 	// protected is what ProtectedIPs lists (a device by hand, never, fragile after its gentle scan, the box)
 	protected []netip.Addr
+	approved  map[string]bool // Asset.Approved (SNMP, D-512)
 }
 
 func (f *fakeInv) Settings(context.Context) (sa.Settings, error) {
@@ -175,7 +176,7 @@ func (f *fakeInv) Asset(_ context.Context, id string) (sa.Asset, error) {
 	if !ok {
 		return sa.Asset{}, sa.ErrNotFound
 	}
-	return sa.Asset{ID: id, IP: ip}, nil
+	return sa.Asset{ID: id, IP: ip, Approved: f.approved[id]}, nil
 }
 
 func (f *fakeInv) Addresses(context.Context) (map[netip.Addr]string, error) {

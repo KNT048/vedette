@@ -153,14 +153,14 @@ func TestNucleiHeartbeat(t *testing.T) {
 
 func TestRunningQuery(t *testing.T) {
 	t.Parallel()
-	a, b := strings.Repeat("a", 32), strings.Repeat("b", 32)
-	for raw, want := range map[string]int{"": 0, "wait=0": 0, "running=" + a: 1, "running=" + a + "," + b: 2} {
+	a, b, c, d := strings.Repeat("a", 32), strings.Repeat("b", 32), strings.Repeat("c", 32), strings.Repeat("d", 32)
+	for raw, want := range map[string]int{"": 0, "wait=0": 0, "running=" + a: 1, "running=" + a + "," + b: 2, "running=" + a + "," + b + "," + c: 3} {
 		q, err := queryOf(newReq2(raw), rJobs)
 		if err != nil || len(q.running) != want {
 			t.Errorf("%q: %v %v", raw, err, q.running)
 		}
 	}
-	for _, raw := range []string{"running=" + a + "," + b + "," + a, "running=" + a + "," + a, "running=" + a + ",", "running=,", "running=" + a + ";" + b, "running=" + a[:31]} {
+	for _, raw := range []string{"running=" + a + "," + b + "," + a, "running=" + a + "," + b + "," + c + "," + d, "running=" + a + "," + a, "running=" + a + ",", "running=,", "running=" + a + ";" + b, "running=" + a[:31]} {
 		if _, err := queryOf(newReq2(raw), rJobs); err == nil {
 			t.Errorf("%q accepted", raw)
 		}
@@ -169,6 +169,7 @@ func TestRunningQuery(t *testing.T) {
 
 func FuzzJobUnmarshal(f *testing.F) {
 	f.Add([]byte(nucleiJobJSON))
+	f.Add([]byte(snmpJobJSON))
 	f.Add([]byte(`{"id":"c0ffee00c0ffee00c0ffee00c0ffee00","shape":"normal","rate":1,"targets":["192.168.10.1"],"timeout_s":5}`))
 	f.Add([]byte(`{"id":"x","kind":"shell"}`))
 	f.Fuzz(func(t *testing.T, b []byte) {
@@ -177,7 +178,7 @@ func FuzzJobUnmarshal(f *testing.F) {
 			return
 		}
 		for _, j := range rep.Jobs {
-			if (j.Kind == KindNuclei) != (j.Nuclei != nil) {
+			if (j.Kind == KindNuclei) != (j.Nuclei != nil) || (j.Kind == KindSNMP) != (j.SNMP != nil) {
 				t.Fatalf("kind and fields disagree: %+v", j)
 			}
 			if _, err := json.Marshal(j); err != nil {

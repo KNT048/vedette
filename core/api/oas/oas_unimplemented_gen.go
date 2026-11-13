@@ -1681,6 +1681,15 @@ func (UnimplementedHandler) InventoryDeleteInventoryDevicesIDSoftwareSid(ctx con
 	return ht.ErrNotImplemented
 }
 
+// InventoryDeleteInventorySnmpID implements inventory_delete_inventory_snmp_id operation.
+//
+// Delete an SNMP credential and its secrets; what devices said stays in the inventory.
+//
+// DELETE /inventory/snmp/{id}
+func (UnimplementedHandler) InventoryDeleteInventorySnmpID(ctx context.Context, params InventoryDeleteInventorySnmpIDParams) error {
+	return ht.ErrNotImplemented
+}
+
 // InventoryGetInstallOsqueryFile implements inventory_get_install_osquery_file operation.
 //
 // The official osquery packages and SHA256SUMS the box ships (osquery_-1.linux_amd64.deb,
@@ -1793,6 +1802,16 @@ func (UnimplementedHandler) InventoryGetInventorySensors(ctx context.Context) (r
 //
 // GET /inventory/settings
 func (UnimplementedHandler) InventoryGetInventorySettings(ctx context.Context) (r *InventoryGetInventorySettingsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// InventoryGetInventorySnmp implements inventory_get_inventory_snmp operation.
+//
+// SNMP credentials (secrets only as their last 4 characters) and whether the scan container can read
+// SNMP now (D-512).
+//
+// GET /inventory/snmp
+func (UnimplementedHandler) InventoryGetInventorySnmp(ctx context.Context) (r *InventoryGetInventorySnmpOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1948,6 +1967,26 @@ func (UnimplementedHandler) InventoryPostInventoryImport(ctx context.Context, re
 	return r, ht.ErrNotImplemented
 }
 
+// InventoryPostInventorySnmp implements inventory_post_inventory_snmp operation.
+//
+// Add an SNMP credential (v2c community or v3 user); its secrets are stored encrypted. 409 name_taken,
+// 409 too_many (8 at most).
+//
+// POST /inventory/snmp
+func (UnimplementedHandler) InventoryPostInventorySnmp(ctx context.Context, req *InventoryPostInventorySnmpReq) (r *InventoryPostInventorySnmpCreated, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// InventoryPostInventorySnmpIDTest implements inventory_post_inventory_snmp_id_test operation.
+//
+// Read one device with this credential now (read-only GETs from the scan container, logged in the
+// probe log) and say what it answered, or why not; an answer is recorded in the inventory.
+//
+// POST /inventory/snmp/{id}/test
+func (UnimplementedHandler) InventoryPostInventorySnmpIDTest(ctx context.Context, req *InventoryPostInventorySnmpIDTestReq, params InventoryPostInventorySnmpIDTestParams) (r *InventoryPostInventorySnmpIDTestOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // InventoryPutInventoryAgentsWazuh implements inventory_put_inventory_agents_wazuh operation.
 //
 // Connect (or edit) a Wazuh server: verify the API login, then save; the password is stored encrypted.
@@ -1972,6 +2011,15 @@ func (UnimplementedHandler) InventoryPutInventoryNotifyNew(ctx context.Context, 
 //
 // PUT /inventory/settings
 func (UnimplementedHandler) InventoryPutInventorySettings(ctx context.Context, req *InventoryPutInventorySettingsReq) (r *InventoryPutInventorySettingsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// InventoryPutInventorySnmpID implements inventory_put_inventory_snmp_id operation.
+//
+// Edit an SNMP credential; a blank secret keeps the saved one.
+//
+// PUT /inventory/snmp/{id}
+func (UnimplementedHandler) InventoryPutInventorySnmpID(ctx context.Context, req *InventoryPutInventorySnmpIDReq, params InventoryPutInventorySnmpIDParams) (r *InventoryPutInventorySnmpIDOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

@@ -1,0 +1,45 @@
+{
+  "about": "What an SNMP agent's sysObjectID says about the device (D-512): the IANA Private Enterprise Number (1.3.6.1.4.1.<n>) names the vendor, and a documented sub-tree of it a product family. kind only where the family or the vendor makes it clear, and only the inventory's kinds. descr: a case-insensitive phrase of sysDescr that gives the kind when nothing above did. Sources: https://www.iana.org/assignments/enterprise-numbers.txt (2026-11-12), https://oidref.com/1.3.6.1.4.1.12356, https://oidref.com/1.3.6.1.4.1.11.2.3.9, https://oidref.com/1.3.6.1.4.1.2636.1.1.1.2. 8072 (net-snmp) and 311 (Microsoft) are left out: they name the agent's software, not the maker of the device.",
+  "enterprises": [
+    {"number": 9, "vendor": "Cisco"},
+    {"number": 11, "vendor": "HP", "families": [{"prefix": "2.3.9", "product": "JetDirect printer", "kind": "printer"}]},
+    {"number": 47196, "vendor": "HPE"},
+    {"number": 14823, "vendor": "Aruba"},
+    {"number": 2636, "vendor": "Juniper Networks", "families": [{"prefix": "1.1.1", "product": "Junos"}]},
+    {"number": 12356, "vendor": "Fortinet", "families": [
+      {"prefix": "101", "product": "FortiGate", "kind": "firewall"},
+      {"prefix": "106", "product": "FortiSwitch", "kind": "switch"},
+      {"prefix": "120", "product": "FortiAP", "kind": "ap"}
+    ]},
+    {"number": 14988, "vendor": "MikroTik"},
+    {"number": 41112, "vendor": "Ubiquiti"},
+    {"number": 6574, "vendor": "Synology", "kind": "nas"},
+    {"number": 24681, "vendor": "QNAP", "kind": "nas"},
+    {"number": 39165, "vendor": "Hikvision"},
+    {"number": 37496, "vendor": "Dahua"},
+    {"number": 318, "vendor": "APC", "kind": "iot"},
+    {"number": 4526, "vendor": "Netgear"},
+    {"number": 11863, "vendor": "TP-Link"},
+    {"number": 890, "vendor": "Zyxel"},
+    {"number": 2604, "vendor": "Sophos", "kind": "firewall"},
+    {"number": 25461, "vendor": "Palo Alto Networks", "kind": "firewall"},
+    {"number": 2620, "vendor": "Check Point", "kind": "firewall"},
+    {"number": 8741, "vendor": "SonicWall", "kind": "firewall"},
+    {"number": 2011, "vendor": "Huawei"},
+    {"number": 4881, "vendor": "Ruijie"},
+    {"number": 25506, "vendor": "H3C"},
+    {"number": 7367, "vendor": "DrayTek", "kind": "router"},
+    {"number": 2435, "vendor": "Brother", "kind": "printer"},
+    {"number": 253, "vendor": "Xerox", "kind": "printer"},
+    {"number": 1602, "vendor": "Canon", "kind": "printer"},
+    {"number": 1248, "vendor": "Epson", "kind": "printer"},
+    {"number": 367, "vendor": "Ricoh", "kind": "printer"},
+    {"number": 641, "vendor": "Lexmark", "kind": "printer"},
+    {"number": 1347, "vendor": "Kyocera", "kind": "printer"}
+  ],
+  "descr": [
+    {"phrase": "ethernet switch", "kind": "switch"},
+    {"phrase": "jetdirect", "kind": "printer"},
+    {"phrase": "hp ethernet multi-environment", "kind": "printer"}
+  ]
+}

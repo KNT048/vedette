@@ -44,6 +44,19 @@ func sensorActiveService(d deps) (*sensoractive.Service, error) {
 	return s, nil
 }
 
+// snmpService is the sensor-active service for the SNMP credential handlers (D-512): nil, so they answer 501, when it cannot be
+// built (no dispatcher or no inventory, as in some tests); the error is logged where the module's jobs are registered.
+func snmpService(d deps) *sensoractive.Service {
+	if d.SensorDispatcher == nil || d.Inventory == nil {
+		return nil
+	}
+	s, err := sensorActiveService(d)
+	if err != nil {
+		return nil
+	}
+	return s
+}
+
 // newSensorActive builds the service over the real inventory (through sensorInventory and core/observe) and
 // subscribes its reactions on d.Bus. A subscription acts only while the module is on (SYS-5); a handler error is
 // logged by the bus and never reaches the publisher.
@@ -58,7 +71,7 @@ func newSensorActive(d deps, prober sensoractive.Prober) (*sensoractive.Service,
 		return nil, errors.New("sensor-active needs a Prober")
 	}
 	cfg := sensoractive.Config{Prober: prober, DB: d.DB, Inventory: sensorInventory{inv: d.Inventory, hostNet: d.HostNet}, Observe: d.Inventory, Software: d.Inventory, Services: d.Inventory, Clock: d.Clock, Log: d.Log,
-		Location: orgLocation(d)}
+		Location: orgLocation(d), Secrets: d.Secrets, Audit: d.Audit} // SNMP reads go through the same Dispatcher (D-512)
 	if d.Bus != nil {
 		cfg.Events = sensoractive.PublisherFunc(func(ctx context.Context, e sensoractive.Event) error {
 			return d.Bus.Publish(ctx, events.Event{Name: e.Name, Data: e.Data})
@@ -209,7 +222,7 @@ func (a sensorInventory) Asset(ctx context.Context, assetID string) (sensoractiv
 		return sensoractive.Asset{}, sensoractive.ErrNotFound
 	}
 	ip, _ := netip.ParseAddr(r.IP) // "—" (no IP known) gives the zero Addr
-	return sensoractive.Asset{ID: r.ID, IP: ip}, nil
+	return sensoractive.Asset{ID: r.ID, IP: ip, Approved: r.Approved}, nil
 }
 
 func (a sensorInventory) Addresses(ctx context.Context) (map[netip.Addr]string, error) {

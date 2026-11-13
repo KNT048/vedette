@@ -34,6 +34,10 @@ var (
 	descDigit = regexp.MustCompile(`[0-9]`)
 )
 
+// ParseSysDesc is parseSysDesc for sensor-active's SNMP reads (D-512): the LLDP system description is the device's MIB-2 sysDescr,
+// so one set of layouts reads both. The caller cleans the text first (core, SYS-6), as the capture does.
+func ParseSysDesc(desc string) (model, os string) { return parseSysDesc(desc) }
+
 // parseSysDesc returns the model and OS that a known layout of an LLDP system description states; empty strings when
 // the description says neither in a form the box recognises.
 func parseSysDesc(desc string) (model, os string) {

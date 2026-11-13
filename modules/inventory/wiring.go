@@ -22,6 +22,7 @@ type DeviceRef struct {
 	Vendor   string // the current vendor value, "" when none
 	Kind     string
 	Display  string // the first software's display name, else the kind
+	Approved bool   // a person approved it, or osquery enrolment did (sensor-active sends SNMP credentials only to approved devices, D-512)
 }
 
 // DeviceRefs returns the devices with these ids; unknown ids are absent.
@@ -32,7 +33,7 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		for i, id := range chunk {
 			args[i] = id
 		}
-		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.ip, a.mac, a.vendor, a.kind,
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.ip, a.mac, a.vendor, a.kind, a.approved,
 			(SELECT display FROM inv_software WHERE asset_id = a.id ORDER BY display, id LIMIT 1)
 			FROM inv_asset a WHERE a.id IN (?`+strings.Repeat(`, ?`, len(chunk)-1)+`)`, args...)
 		if err != nil {
@@ -41,7 +42,7 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		for rows.Next() {
 			var d DeviceRef
 			var host, ip, mac, vendor, display sql.NullString
-			if err := rows.Scan(&d.ID, &host, &ip, &mac, &vendor, &d.Kind, &display); err != nil {
+			if err := rows.Scan(&d.ID, &host, &ip, &mac, &vendor, &d.Kind, &d.Approved, &display); err != nil {
 				_ = rows.Close()
 				return nil, fmt.Errorf("inventory: read devices: %w", err)
 			}

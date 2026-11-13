@@ -545,17 +545,17 @@ func TestTokenCacheClearDuringAFetch(t *testing.T) {
 	var k [32]byte
 	now := time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)
 	fetches := 0
-	fetch := func(clear bool) func() (secrets.Value, time.Duration, error) {
+	fetch := func(clearFirst bool) func() (secrets.Value, time.Duration, error) {
 		return func() (secrets.Value, time.Duration, error) {
 			fetches++
-			if clear {
+			if clearFirst {
 				c.Clear()
 			}
 			return secrets.NewValue("tok"), time.Hour, nil
 		}
 	}
-	for _, clear := range []bool{true, false, false} {
-		if _, err := c.once(context.Background(), k, now, fetch(clear)); err != nil {
+	for _, clearFirst := range []bool{true, false, false} {
+		if _, err := c.once(context.Background(), k, now, fetch(clearFirst)); err != nil {
 			t.Fatal(err)
 		}
 	}

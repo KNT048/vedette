@@ -185,7 +185,7 @@ func signedInDevice(t *testing.T, e *env, admin string) notify.EmailSignin {
 }
 
 func deviceThatSignsIn(fail func() bool) roundTrip {
-	return func(r *http.Request, form url.Values) (int, string) {
+	return func(r *http.Request, _ url.Values) (int, string) {
 		if r.URL.Path == "/organizations/oauth2/v2.0/devicecode" {
 			return 200, `{"device_code":"dc-1","user_code":"QWER-TYUI","verification_uri":"https://microsoft.com/devicelogin","expires_in":900,"interval":5}`
 		}

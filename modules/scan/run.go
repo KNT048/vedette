@@ -149,9 +149,13 @@ func (s *Service) StartRun(ctx context.Context, user string, ids []string) (RunV
 	if s.liveRun() != "" {
 		return RunView{}, errRunning
 	}
-	all, err := s.Targets(ctx)
+	all, err := s.Targets(ctx) // one batch policy read for every device (D-472)
 	if err != nil {
 		return RunView{}, err
+	}
+	byID := make(map[string]TargetView, len(all))
+	for _, t := range all {
+		byID[t.ID] = t
 	}
 	var chosen, picked []string
 	var first Current
@@ -159,18 +163,18 @@ func (s *Service) StartRun(ctx context.Context, user string, ids []string) (RunV
 		if slices.Contains(chosen, id) {
 			continue
 		}
-		i := slices.IndexFunc(all, func(t TargetView) bool { return t.ID == id })
-		if i < 0 {
+		t, ok := byID[id]
+		if !ok {
 			return RunView{}, unknownTarget(id)
 		}
-		if !all[i].Selectable {
-			return RunView{}, refusal(all[i])
+		if !t.Selectable {
+			return RunView{}, refusal(t)
 		}
 		if len(chosen) == 0 {
-			first = Current{Label: all[i].Label, IP: all[i].IP}
+			first = Current{Label: t.Label, IP: t.IP}
 		}
 		chosen = append(chosen, id)
-		if all[i].PickOnly { // M1: the pick is the consent of this device only, as it stood now
+		if t.PickOnly { // M1: the pick is the consent of this device only, as it stood now
 			picked = append(picked, id)
 		}
 	}

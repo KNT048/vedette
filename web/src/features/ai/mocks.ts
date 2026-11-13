@@ -131,9 +131,7 @@ function runJob(job: AiJob, tin: number, tout: number, target?: string, act: Act
   }
   recordAiRun(job, tin, tout, target, pick, idx > 0)
   recordActivity({ job, profile: pick.name, model: pick.model, hooks: act.hooks ?? [], tools: act.tools ?? [], links: act.links, input: act.input ?? `${job}:${target ?? ''}`, output: act.output ?? `${job}:${target ?? ''}:${tin}:${tout}`, summary: act.summary ?? `${JOB_NAME[job]}${target ? ` for ${target}` : ''}`, tokens_in: tin, tokens_out: tout, result: act.result ?? (idx > 0 ? 'fallback_used' : 'ok'), trigger: act.trigger })
-  // D-531: the budget stops calls at 100 %; it never lowers the level (earlier downgrades stay in the history)
-  const downgraded: { from: AiTier; to: AiTier } | null = null
-  return { error: null, profile: pick, fallback: idx > 0, downgraded }
+  return { error: null, profile: pick, fallback: idx > 0 }
 }
 
 // ---- Hồ sơ
@@ -418,7 +416,7 @@ export const handlers = [
     const at = (step: AskHookHit['step'], hits: HookHit[], tool?: string): AskHookHit[] => hits.map((h) => ({ ...h, step, ...(tool ? { tool } : {}) }))
     const hooks: AskHookHit[] = at('question', pre.hits)
     if (pre.outcome === 'blocked' || pre.outcome === 'held') {
-      const refused: AskResult = { id: newId('ask'), question: pre.hits.some((h) => h.id === 'block-pii') ? '[question hidden: contains personal data]' : q, asked_at: nowIso(), answer: [pre.text], table: null, tool_calls: [], citations: [], model: '', profile: '', tokens: { input: 0, output: 0 }, downgraded: null, hooks, memories_suggested: 0 }
+      const refused: AskResult = { id: newId('ask'), question: pre.hits.some((h) => h.id === 'block-pii') ? '[question hidden: contains personal data]' : q, asked_at: nowIso(), answer: [pre.text], table: null, tool_calls: [], citations: [], model: '', profile: '', tokens: { input: 0, output: 0 }, hooks, memories_suggested: 0 }
       asks.update((l) => [refused, ...l].slice(0, 10))
       recordActivity({ job: 'ask-my-data', profile: '', model: '', hooks: pre.hits.map((h) => h.name), tools: [], input: q, output: pre.text, summary: `Question not sent: ${pre.text}`, tokens_in: 0, tokens_out: 0, result: 'blocked_by_hook' })
       return HttpResponse.json(refused)
@@ -445,7 +443,7 @@ export const handlers = [
     const words = new Set(sent.toLowerCase().split(/[^a-z0-9-]+/).filter((w) => w.length >= 5))
     memoryStore.update((l) => l.map((m) => (m.enabled && m.text.toLowerCase().split(/[^a-z0-9-]+/).some((w) => words.has(w)) ? { ...m, last_used_at: nowIso() } : m)))
     const uniq = hooks.filter((h, i) => hooks.findIndex((x) => x.id === h.id && x.action === h.action && x.when === h.when && x.message === h.message && x.step === h.step && x.tool === h.tool) === i)
-    const res: AskResult = { id: newId('ask'), question: sent, asked_at: nowIso(), ...ans, model: c.profile!.model, profile: c.profile!.name, tokens: { input: tin, output: tout }, downgraded: c.downgraded!, hooks: uniq, memories_suggested: 0 }
+    const res: AskResult = { id: newId('ask'), question: sent, asked_at: nowIso(), ...ans, model: c.profile!.model, profile: c.profile!.name, tokens: { input: tin, output: tout }, hooks: uniq, memories_suggested: 0 }
     asks.update((l) => [res, ...l].slice(0, 10))
     // memory suggestions (S-AI-7, D-225): at most one per answer that used a tool, only while allowed, never the same text twice; history reads back 0
     const fact = 'FW-HQ is the only firewall and the gateway of the office network.'

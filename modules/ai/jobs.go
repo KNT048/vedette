@@ -82,17 +82,6 @@ const (
 // Valid reports whether t is a known level.
 func (t Tier) Valid() bool { return t == TierMin || t == TierMed || t == TierMax }
 
-// Lower returns the next level down: max -> med -> min. min stays min. There is no way up.
-func (t Tier) Lower() Tier {
-	switch t {
-	case TierMax:
-		return TierMed
-	case TierMed:
-		return TierMin
-	}
-	return t
-}
-
 // EstimatePerDay is the rough token use per day shown in the UI (no money, D-6). ok is false for max,
 // which depends on the number of alerts.
 func (t Tier) EstimatePerDay() (tokens int, ok bool) {

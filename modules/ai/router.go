@@ -56,10 +56,9 @@ func (a Attempt) Refused() bool { return errors.Is(a.Err, provider.ErrRefused) }
 type CallResult struct {
 	Response  provider.Response
 	ProfileID string
-	Profile   string // profile name
-	Model     string // model of the profile
-	Fallback  bool   // true when the fallback profile answered
-	Downgrade *Downgrade
+	Profile   string    // profile name
+	Model     string    // model of the profile
+	Fallback  bool      // true when the fallback profile answered
 	Attempts  []Attempt // filled on failure too
 	// Retried is set when the first answer was cut at the output limit and the call was sent once more with a higher limit
 	// (retryLimit) and answered; Response is then the second answer, Usage the tokens of both.
@@ -286,7 +285,7 @@ func (r *Router) Call(ctx context.Context, job Job, req provider.Request) (CallR
 		if err != nil {
 			var pe *provider.Error
 			if errors.As(err, &pe) {
-				res.Downgrade = firstDowngrade(res.Downgrade, hold.Settle(pe.Usage.InputTokens, pe.Usage.OutputTokens))
+				hold.Settle(pe.Usage.InputTokens, pe.Usage.OutputTokens)
 			} else {
 				hold.Cancel()
 			}
@@ -300,7 +299,7 @@ func (r *Router) Call(ctx context.Context, job Job, req provider.Request) (CallR
 		}
 		res.Attempts = append(res.Attempts, Attempt{ProfileID: p.ID, Profile: p.Name, Model: p.Model})
 		res.Response, res.ProfileID, res.Profile, res.Model, res.Fallback = resp, p.ID, p.Name, p.Model, c.fallback
-		res.Downgrade = firstDowngrade(res.Downgrade, hold.Settle(resp.Usage.InputTokens, resp.Usage.OutputTokens))
+		hold.Settle(resp.Usage.InputTokens, resp.Usage.OutputTokens)
 		if resp.Stop == provider.StopMaxTokens {
 			if err := r.retryCut(ctx, &res, cl, p, req, carries); err != nil {
 				return res, err
@@ -342,7 +341,7 @@ func (r *Router) retryCut(ctx context.Context, res *CallResult, cl provider.Prov
 	if err != nil {
 		var pe *provider.Error
 		if errors.As(err, &pe) {
-			res.Downgrade = firstDowngrade(res.Downgrade, hold.Settle(pe.Usage.InputTokens, pe.Usage.OutputTokens))
+			hold.Settle(pe.Usage.InputTokens, pe.Usage.OutputTokens)
 			res.Response.Usage = provider.Usage{InputTokens: first.InputTokens + pe.Usage.InputTokens, OutputTokens: first.OutputTokens + pe.Usage.OutputTokens}
 		} else {
 			hold.Cancel()
@@ -351,23 +350,11 @@ func (r *Router) retryCut(ctx context.Context, res *CallResult, cl provider.Prov
 		res.Attempts = append(res.Attempts, attempt)
 		return err
 	}
-	res.Downgrade = firstDowngrade(res.Downgrade, hold.Settle(resp.Usage.InputTokens, resp.Usage.OutputTokens))
+	hold.Settle(resp.Usage.InputTokens, resp.Usage.OutputTokens)
 	resp.Usage = provider.Usage{InputTokens: first.InputTokens + resp.Usage.InputTokens, OutputTokens: first.OutputTokens + resp.Usage.OutputTokens}
 	res.Response, res.Retried = resp, true
 	res.Attempts = append(res.Attempts, attempt)
 	return nil
-}
-
-// firstDowngrade keeps the earliest record when several attempts of one call each lowered the level.
-func firstDowngrade(a, b *Downgrade) *Downgrade {
-	switch {
-	case a == nil:
-		return b
-	case b == nil:
-		return a
-	}
-	a.To = b.To
-	return a
 }
 
 // current looks the candidate up again in newer settings: it must still be assigned to the job and, with the
@@ -390,21 +377,22 @@ const probeEstimate = 200
 // Probe tests a profile with the tiny prompts of provider.Probe. Like every call it is checked against the caps before any
 // request is sent (ErrCapped, ErrProfileCapped) and counted after (INV-4, PRE-3): the tokens of all three requests, also of those
 // that failed with known usage, are settled together, and the result reports that sum also when the test failed (what the provider
-// bills for the test, not the first request only; the caller writes it to the activity log, which the meter is seeded from). It returns the downgrade if the test lowered the level, so the caller can record it. The prompts hold no
+// bills for the test, not the first request only; the caller writes it to the activity log, which the meter is seeded from). The prompts hold no
 // customer data, so the privacy rule does not apply. p.MonthlyBudget is the cap checked for the profile.
-func (r *Router) Probe(ctx context.Context, p Profile, now func() time.Time) (provider.ProbeResult, *Downgrade, error) {
+func (r *Router) Probe(ctx context.Context, p Profile, now func() time.Time) (provider.ProbeResult, error) {
 	cl, err := r.factory(p)
 	if err != nil {
-		return provider.ProbeResult{}, nil, err
+		return provider.ProbeResult{}, err
 	}
 	hold, err := r.meter.Reserve(p.ID, p.MonthlyBudget, probeEstimate)
 	if err != nil {
-		return provider.ProbeResult{}, nil, err
+		return provider.ProbeResult{}, err
 	}
 	cp := &countingProvider{inner: cl}
 	res, perr := provider.Probe(ctx, cp, now)
 	res.TokensIn, res.TokensOut = cp.in, cp.out
-	return res, hold.Settle(cp.in, cp.out), perr
+	hold.Settle(cp.in, cp.out)
+	return res, perr
 }
 
 // countingProvider adds up the usage of the calls made through it, failed ones with known usage included.

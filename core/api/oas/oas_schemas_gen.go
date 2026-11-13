@@ -703,10 +703,9 @@ func (s *AiGetAiAsksOK) SetItems(val []AiGetAiAsksOKItemsItem) {
 }
 
 type AiGetAiAsksOKItemsItem struct {
-	Answer     []string                              `json:"answer"`
-	AskedAt    time.Time                             `json:"asked_at"`
-	Citations  []AiGetAiAsksOKItemsItemCitationsItem `json:"citations"`
-	Downgraded NilAiGetAiAsksOKItemsItemDowngraded   `json:"downgraded"`
+	Answer    []string                              `json:"answer"`
+	AskedAt   time.Time                             `json:"asked_at"`
+	Citations []AiGetAiAsksOKItemsItemCitationsItem `json:"citations"`
 	// Hooks that acted on this question, a tool call, a tool result or the answer; empty when none did.
 	Hooks []AiGetAiAsksOKItemsItemHooksItem `json:"hooks"`
 	ID    string                            `json:"id"`
@@ -734,11 +733,6 @@ func (s *AiGetAiAsksOKItemsItem) GetAskedAt() time.Time {
 // GetCitations returns the value of Citations.
 func (s *AiGetAiAsksOKItemsItem) GetCitations() []AiGetAiAsksOKItemsItemCitationsItem {
 	return s.Citations
-}
-
-// GetDowngraded returns the value of Downgraded.
-func (s *AiGetAiAsksOKItemsItem) GetDowngraded() NilAiGetAiAsksOKItemsItemDowngraded {
-	return s.Downgraded
 }
 
 // GetHooks returns the value of Hooks.
@@ -799,11 +793,6 @@ func (s *AiGetAiAsksOKItemsItem) SetAskedAt(val time.Time) {
 // SetCitations sets the value of Citations.
 func (s *AiGetAiAsksOKItemsItem) SetCitations(val []AiGetAiAsksOKItemsItemCitationsItem) {
 	s.Citations = val
-}
-
-// SetDowngraded sets the value of Downgraded.
-func (s *AiGetAiAsksOKItemsItem) SetDowngraded(val NilAiGetAiAsksOKItemsItemDowngraded) {
-	s.Downgraded = val
 }
 
 // SetHooks sets the value of Hooks.
@@ -874,127 +863,6 @@ func (s *AiGetAiAsksOKItemsItemCitationsItem) SetTitle(val string) {
 // SetURL sets the value of URL.
 func (s *AiGetAiAsksOKItemsItemCitationsItem) SetURL(val OptString) {
 	s.URL = val
-}
-
-type AiGetAiAsksOKItemsItemDowngraded struct {
-	From AiGetAiAsksOKItemsItemDowngradedFrom `json:"from"`
-	To   AiGetAiAsksOKItemsItemDowngradedTo   `json:"to"`
-}
-
-// GetFrom returns the value of From.
-func (s *AiGetAiAsksOKItemsItemDowngraded) GetFrom() AiGetAiAsksOKItemsItemDowngradedFrom {
-	return s.From
-}
-
-// GetTo returns the value of To.
-func (s *AiGetAiAsksOKItemsItemDowngraded) GetTo() AiGetAiAsksOKItemsItemDowngradedTo {
-	return s.To
-}
-
-// SetFrom sets the value of From.
-func (s *AiGetAiAsksOKItemsItemDowngraded) SetFrom(val AiGetAiAsksOKItemsItemDowngradedFrom) {
-	s.From = val
-}
-
-// SetTo sets the value of To.
-func (s *AiGetAiAsksOKItemsItemDowngraded) SetTo(val AiGetAiAsksOKItemsItemDowngradedTo) {
-	s.To = val
-}
-
-type AiGetAiAsksOKItemsItemDowngradedFrom string
-
-const (
-	AiGetAiAsksOKItemsItemDowngradedFromMin AiGetAiAsksOKItemsItemDowngradedFrom = "min"
-	AiGetAiAsksOKItemsItemDowngradedFromMed AiGetAiAsksOKItemsItemDowngradedFrom = "med"
-	AiGetAiAsksOKItemsItemDowngradedFromMax AiGetAiAsksOKItemsItemDowngradedFrom = "max"
-)
-
-// AllValues returns all AiGetAiAsksOKItemsItemDowngradedFrom values.
-func (AiGetAiAsksOKItemsItemDowngradedFrom) AllValues() []AiGetAiAsksOKItemsItemDowngradedFrom {
-	return []AiGetAiAsksOKItemsItemDowngradedFrom{
-		AiGetAiAsksOKItemsItemDowngradedFromMin,
-		AiGetAiAsksOKItemsItemDowngradedFromMed,
-		AiGetAiAsksOKItemsItemDowngradedFromMax,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiGetAiAsksOKItemsItemDowngradedFrom) MarshalText() ([]byte, error) {
-	switch s {
-	case AiGetAiAsksOKItemsItemDowngradedFromMin:
-		return []byte(s), nil
-	case AiGetAiAsksOKItemsItemDowngradedFromMed:
-		return []byte(s), nil
-	case AiGetAiAsksOKItemsItemDowngradedFromMax:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiGetAiAsksOKItemsItemDowngradedFrom) UnmarshalText(data []byte) error {
-	switch AiGetAiAsksOKItemsItemDowngradedFrom(data) {
-	case AiGetAiAsksOKItemsItemDowngradedFromMin:
-		*s = AiGetAiAsksOKItemsItemDowngradedFromMin
-		return nil
-	case AiGetAiAsksOKItemsItemDowngradedFromMed:
-		*s = AiGetAiAsksOKItemsItemDowngradedFromMed
-		return nil
-	case AiGetAiAsksOKItemsItemDowngradedFromMax:
-		*s = AiGetAiAsksOKItemsItemDowngradedFromMax
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiGetAiAsksOKItemsItemDowngradedTo string
-
-const (
-	AiGetAiAsksOKItemsItemDowngradedToMin AiGetAiAsksOKItemsItemDowngradedTo = "min"
-	AiGetAiAsksOKItemsItemDowngradedToMed AiGetAiAsksOKItemsItemDowngradedTo = "med"
-	AiGetAiAsksOKItemsItemDowngradedToMax AiGetAiAsksOKItemsItemDowngradedTo = "max"
-)
-
-// AllValues returns all AiGetAiAsksOKItemsItemDowngradedTo values.
-func (AiGetAiAsksOKItemsItemDowngradedTo) AllValues() []AiGetAiAsksOKItemsItemDowngradedTo {
-	return []AiGetAiAsksOKItemsItemDowngradedTo{
-		AiGetAiAsksOKItemsItemDowngradedToMin,
-		AiGetAiAsksOKItemsItemDowngradedToMed,
-		AiGetAiAsksOKItemsItemDowngradedToMax,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiGetAiAsksOKItemsItemDowngradedTo) MarshalText() ([]byte, error) {
-	switch s {
-	case AiGetAiAsksOKItemsItemDowngradedToMin:
-		return []byte(s), nil
-	case AiGetAiAsksOKItemsItemDowngradedToMed:
-		return []byte(s), nil
-	case AiGetAiAsksOKItemsItemDowngradedToMax:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiGetAiAsksOKItemsItemDowngradedTo) UnmarshalText(data []byte) error {
-	switch AiGetAiAsksOKItemsItemDowngradedTo(data) {
-	case AiGetAiAsksOKItemsItemDowngradedToMin:
-		*s = AiGetAiAsksOKItemsItemDowngradedToMin
-		return nil
-	case AiGetAiAsksOKItemsItemDowngradedToMed:
-		*s = AiGetAiAsksOKItemsItemDowngradedToMed
-		return nil
-	case AiGetAiAsksOKItemsItemDowngradedToMax:
-		*s = AiGetAiAsksOKItemsItemDowngradedToMax
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 type AiGetAiAsksOKItemsItemHooksItem struct {
@@ -4701,10 +4569,9 @@ func (s *AiGetAiUsageOKToday) SetTotal(val float64) {
 }
 
 type AiPostAiAskOK struct {
-	Answer     []string                     `json:"answer"`
-	AskedAt    time.Time                    `json:"asked_at"`
-	Citations  []AiPostAiAskOKCitationsItem `json:"citations"`
-	Downgraded NilAiPostAiAskOKDowngraded   `json:"downgraded"`
+	Answer    []string                     `json:"answer"`
+	AskedAt   time.Time                    `json:"asked_at"`
+	Citations []AiPostAiAskOKCitationsItem `json:"citations"`
 	// Hooks that acted on this question, a tool call, a tool result or the answer; empty when none did.
 	Hooks []AiPostAiAskOKHooksItem `json:"hooks"`
 	ID    string                   `json:"id"`
@@ -4732,11 +4599,6 @@ func (s *AiPostAiAskOK) GetAskedAt() time.Time {
 // GetCitations returns the value of Citations.
 func (s *AiPostAiAskOK) GetCitations() []AiPostAiAskOKCitationsItem {
 	return s.Citations
-}
-
-// GetDowngraded returns the value of Downgraded.
-func (s *AiPostAiAskOK) GetDowngraded() NilAiPostAiAskOKDowngraded {
-	return s.Downgraded
 }
 
 // GetHooks returns the value of Hooks.
@@ -4797,11 +4659,6 @@ func (s *AiPostAiAskOK) SetAskedAt(val time.Time) {
 // SetCitations sets the value of Citations.
 func (s *AiPostAiAskOK) SetCitations(val []AiPostAiAskOKCitationsItem) {
 	s.Citations = val
-}
-
-// SetDowngraded sets the value of Downgraded.
-func (s *AiPostAiAskOK) SetDowngraded(val NilAiPostAiAskOKDowngraded) {
-	s.Downgraded = val
 }
 
 // SetHooks sets the value of Hooks.
@@ -4872,127 +4729,6 @@ func (s *AiPostAiAskOKCitationsItem) SetTitle(val string) {
 // SetURL sets the value of URL.
 func (s *AiPostAiAskOKCitationsItem) SetURL(val OptString) {
 	s.URL = val
-}
-
-type AiPostAiAskOKDowngraded struct {
-	From AiPostAiAskOKDowngradedFrom `json:"from"`
-	To   AiPostAiAskOKDowngradedTo   `json:"to"`
-}
-
-// GetFrom returns the value of From.
-func (s *AiPostAiAskOKDowngraded) GetFrom() AiPostAiAskOKDowngradedFrom {
-	return s.From
-}
-
-// GetTo returns the value of To.
-func (s *AiPostAiAskOKDowngraded) GetTo() AiPostAiAskOKDowngradedTo {
-	return s.To
-}
-
-// SetFrom sets the value of From.
-func (s *AiPostAiAskOKDowngraded) SetFrom(val AiPostAiAskOKDowngradedFrom) {
-	s.From = val
-}
-
-// SetTo sets the value of To.
-func (s *AiPostAiAskOKDowngraded) SetTo(val AiPostAiAskOKDowngradedTo) {
-	s.To = val
-}
-
-type AiPostAiAskOKDowngradedFrom string
-
-const (
-	AiPostAiAskOKDowngradedFromMin AiPostAiAskOKDowngradedFrom = "min"
-	AiPostAiAskOKDowngradedFromMed AiPostAiAskOKDowngradedFrom = "med"
-	AiPostAiAskOKDowngradedFromMax AiPostAiAskOKDowngradedFrom = "max"
-)
-
-// AllValues returns all AiPostAiAskOKDowngradedFrom values.
-func (AiPostAiAskOKDowngradedFrom) AllValues() []AiPostAiAskOKDowngradedFrom {
-	return []AiPostAiAskOKDowngradedFrom{
-		AiPostAiAskOKDowngradedFromMin,
-		AiPostAiAskOKDowngradedFromMed,
-		AiPostAiAskOKDowngradedFromMax,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPostAiAskOKDowngradedFrom) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPostAiAskOKDowngradedFromMin:
-		return []byte(s), nil
-	case AiPostAiAskOKDowngradedFromMed:
-		return []byte(s), nil
-	case AiPostAiAskOKDowngradedFromMax:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPostAiAskOKDowngradedFrom) UnmarshalText(data []byte) error {
-	switch AiPostAiAskOKDowngradedFrom(data) {
-	case AiPostAiAskOKDowngradedFromMin:
-		*s = AiPostAiAskOKDowngradedFromMin
-		return nil
-	case AiPostAiAskOKDowngradedFromMed:
-		*s = AiPostAiAskOKDowngradedFromMed
-		return nil
-	case AiPostAiAskOKDowngradedFromMax:
-		*s = AiPostAiAskOKDowngradedFromMax
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type AiPostAiAskOKDowngradedTo string
-
-const (
-	AiPostAiAskOKDowngradedToMin AiPostAiAskOKDowngradedTo = "min"
-	AiPostAiAskOKDowngradedToMed AiPostAiAskOKDowngradedTo = "med"
-	AiPostAiAskOKDowngradedToMax AiPostAiAskOKDowngradedTo = "max"
-)
-
-// AllValues returns all AiPostAiAskOKDowngradedTo values.
-func (AiPostAiAskOKDowngradedTo) AllValues() []AiPostAiAskOKDowngradedTo {
-	return []AiPostAiAskOKDowngradedTo{
-		AiPostAiAskOKDowngradedToMin,
-		AiPostAiAskOKDowngradedToMed,
-		AiPostAiAskOKDowngradedToMax,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s AiPostAiAskOKDowngradedTo) MarshalText() ([]byte, error) {
-	switch s {
-	case AiPostAiAskOKDowngradedToMin:
-		return []byte(s), nil
-	case AiPostAiAskOKDowngradedToMed:
-		return []byte(s), nil
-	case AiPostAiAskOKDowngradedToMax:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *AiPostAiAskOKDowngradedTo) UnmarshalText(data []byte) error {
-	switch AiPostAiAskOKDowngradedTo(data) {
-	case AiPostAiAskOKDowngradedToMin:
-		*s = AiPostAiAskOKDowngradedToMin
-		return nil
-	case AiPostAiAskOKDowngradedToMed:
-		*s = AiPostAiAskOKDowngradedToMed
-		return nil
-	case AiPostAiAskOKDowngradedToMax:
-		*s = AiPostAiAskOKDowngradedToMax
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }
 
 type AiPostAiAskOKHooksItem struct {
@@ -82051,51 +81787,6 @@ func (s *LogsPutLogsSourcesIDReqProto) UnmarshalText(data []byte) error {
 	}
 }
 
-// NewNilAiGetAiAsksOKItemsItemDowngraded returns new NilAiGetAiAsksOKItemsItemDowngraded with value set to v.
-func NewNilAiGetAiAsksOKItemsItemDowngraded(v AiGetAiAsksOKItemsItemDowngraded) NilAiGetAiAsksOKItemsItemDowngraded {
-	return NilAiGetAiAsksOKItemsItemDowngraded{
-		Value: v,
-	}
-}
-
-// NilAiGetAiAsksOKItemsItemDowngraded is nullable AiGetAiAsksOKItemsItemDowngraded.
-type NilAiGetAiAsksOKItemsItemDowngraded struct {
-	Value AiGetAiAsksOKItemsItemDowngraded
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilAiGetAiAsksOKItemsItemDowngraded) SetTo(v AiGetAiAsksOKItemsItemDowngraded) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilAiGetAiAsksOKItemsItemDowngraded) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilAiGetAiAsksOKItemsItemDowngraded) SetToNull() {
-	o.Null = true
-	var v AiGetAiAsksOKItemsItemDowngraded
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilAiGetAiAsksOKItemsItemDowngraded) Get() (v AiGetAiAsksOKItemsItemDowngraded, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilAiGetAiAsksOKItemsItemDowngraded) Or(d AiGetAiAsksOKItemsItemDowngraded) AiGetAiAsksOKItemsItemDowngraded {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewNilAiGetAiAsksOKItemsItemTable returns new NilAiGetAiAsksOKItemsItemTable with value set to v.
 func NewNilAiGetAiAsksOKItemsItemTable(v AiGetAiAsksOKItemsItemTable) NilAiGetAiAsksOKItemsItemTable {
 	return NilAiGetAiAsksOKItemsItemTable{
@@ -82315,51 +82006,6 @@ func (o NilAiGetAiProfilesOKItemsItemLastTest) Get() (v AiGetAiProfilesOKItemsIt
 
 // Or returns value if set, or given parameter if does not.
 func (o NilAiGetAiProfilesOKItemsItemLastTest) Or(d AiGetAiProfilesOKItemsItemLastTest) AiGetAiProfilesOKItemsItemLastTest {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilAiPostAiAskOKDowngraded returns new NilAiPostAiAskOKDowngraded with value set to v.
-func NewNilAiPostAiAskOKDowngraded(v AiPostAiAskOKDowngraded) NilAiPostAiAskOKDowngraded {
-	return NilAiPostAiAskOKDowngraded{
-		Value: v,
-	}
-}
-
-// NilAiPostAiAskOKDowngraded is nullable AiPostAiAskOKDowngraded.
-type NilAiPostAiAskOKDowngraded struct {
-	Value AiPostAiAskOKDowngraded
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilAiPostAiAskOKDowngraded) SetTo(v AiPostAiAskOKDowngraded) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilAiPostAiAskOKDowngraded) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilAiPostAiAskOKDowngraded) SetToNull() {
-	o.Null = true
-	var v AiPostAiAskOKDowngraded
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilAiPostAiAskOKDowngraded) Get() (v AiPostAiAskOKDowngraded, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilAiPostAiAskOKDowngraded) Or(d AiPostAiAskOKDowngraded) AiPostAiAskOKDowngraded {
 	if v, ok := o.Get(); ok {
 		return v
 	}

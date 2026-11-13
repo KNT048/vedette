@@ -513,7 +513,7 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 	}
 	pctx, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
-	res, down, probeErr := s.router.Probe(pctx, p, s.cfg.Clock)
+	res, probeErr := s.router.Probe(pctx, p, s.cfg.Clock)
 	if errors.Is(probeErr, ErrBudgetHeld) || errors.Is(probeErr, ErrProfileHeld) {
 		return TestResult{}, s.budgetHeld("") // nothing was sent: busy for a moment, not used up
 	}
@@ -537,11 +537,6 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 	actx, acancel := context.WithTimeout(context.WithoutCancel(ctx), auditTimeout)
 	defer acancel()
 	if err := s.cfg.DB.Write(actx, func(tx *sql.Tx) error {
-		if down != nil {
-			if err := s.writeDowngrade(actx, tx, who, down); err != nil {
-				return err
-			}
-		}
 		// The test is a call to the provider like any other: it is in the activity log and so in the day's usage after a restart.
 		e := ActivityEntry{Job: "connection-test", Profile: name, ProfileID: exceptID, Model: p.Model, Trigger: "user:" + who, InputHash: HashContent("ping"), OutputHash: HashContent(""),
 			Summary: "Connection test of " + name, Result: ResultError, TokensIn: res.TokensIn, TokensOut: res.TokensOut}

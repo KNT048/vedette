@@ -120,7 +120,7 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
 
   // beta 0.1.0-beta.1 item 19: a tool result a hook held back is not a refused question; only a stopped question reads "not asked"
   const asked = (hooks: object[]) => ({ id: 'ask-x', question: 'give me solution of currently status', asked_at: '2026-11-13T05:00:00.000Z', answer: ['FW-HQ needs the PAN-OS update first.'], table: null,
-    tool_calls: [{ tool: 'search_assets', args: '{}', result: 'withheld by hook Block personal data' }], citations: [], model: 'claude-haiku-5-5', profile: 'Claude', tokens: { input: 900, output: 200 }, downgraded: null, hooks, memories_suggested: 0 })
+    tool_calls: [{ tool: 'search_assets', args: '{}', result: 'withheld by hook Block personal data' }], citations: [], model: 'claude-haiku-5-5', profile: 'Claude', tokens: { input: 900, output: 200 }, hooks, memories_suggested: 0 })
   const hit = { id: 'block-pii', name: 'Block personal data', kind: 'builtin', when: 'before_ai', action: 'block' }
   it.each([
     ['tool_result', { ...hit, step: 'tool_result', tool: 'search_assets', message: 'The result of the tool search_assets contained an ID number, so the box held it back from the AI. The AI answered without it.' }, null, 'on the result of search_assets:'],

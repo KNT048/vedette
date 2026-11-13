@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
-	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/chain/chainhead"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/ai/provider"
@@ -58,11 +57,9 @@ type JobResult struct {
 	TokensOut  int
 	Fallback   bool
 	ActivityID string
-	// Hits are the hooks that acted on the answer (after_ai); Blocked is set when one stopped it (AnswerWhenBlocked); Downgrade is the
-	// automatic drop of the token level this call caused, if any.
-	Hits      []HookHit
-	Blocked   bool
-	Downgrade *Downgrade
+	// Hits are the hooks that acted on the answer (after_ai); Blocked is set when one stopped it (AnswerWhenBlocked).
+	Hits    []HookHit
+	Blocked bool
 	// Documents are the file names of the knowledge documents whose pieces went with the call (S-AI-7), for the answer's sources.
 	Documents []string
 }
@@ -393,14 +390,9 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		if err := touchMemory(ctx, tx, mem.ids, store.FormatTS(s.cfg.Clock())); err != nil {
 			return err
 		}
-		if res.Downgrade != nil {
-			if err := s.writeDowngrade(ctx, tx, spec.Actor, res.Downgrade); err != nil {
-				return err
-			}
-		}
 		if bad == nil && spec.Store != nil {
 			if err := spec.Store(ctx, tx, JobResult{Text: text, Model: res.Model, Profile: res.Profile, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Fallback: res.Fallback, ActivityID: id,
-				Hits: after.Hits, Blocked: blocked, Downgrade: res.Downgrade, Documents: know.docs}); err != nil {
+				Hits: after.Hits, Blocked: blocked, Documents: know.docs}); err != nil {
 				storeFailed = true
 				return err
 			}
@@ -420,7 +412,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		return JobResult{}, s.capNote(bad, res)
 	}
 	return JobResult{Text: text, Model: res.Model, Profile: res.Profile, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Fallback: res.Fallback, ActivityID: id,
-		Hits: after.Hits, Blocked: blocked, Downgrade: res.Downgrade, Documents: know.docs}, nil
+		Hits: after.Hits, Blocked: blocked, Documents: know.docs}, nil
 }
 
 // leftOutNote names the memories a hook kept out of the call (ids, never text).
@@ -448,22 +440,6 @@ func (s *Service) touchSent(ctx context.Context, ids []string, res CallResult) {
 	}); err != nil {
 		s.cfg.Log.WarnContext(ctx, "ai: could not record the use of memory", "error", err)
 	}
-}
-
-// recordSpent writes the row of a call that spent tokens and got no answer, with the drop of the level those tokens caused (INV-4:
-// ai_downgrade and the ai.downgrade audit line), in one transaction.
-func (s *Service) recordSpent(ctx context.Context, spec JobSpec, entry ActivityEntry, res CallResult) error {
-	if res.Downgrade == nil {
-		return s.record(ctx, entry)
-	}
-	wctx, cancel := detached(ctx)
-	defer cancel()
-	return s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
-		if _, err := s.appendActivity(wctx, tx, entry); err != nil {
-			return err
-		}
-		return s.writeDowngrade(wctx, tx, spec.Actor, res.Downgrade)
-	})
 }
 
 // spentTokens is what the requests of a call used, all turns of a tool loop together.
@@ -580,7 +556,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 			entry.Summary = "Stopped: the AI kept asking for tools and gave no answer."
 			out = apiBadFormat("The AI kept asking for data and gave no answer. Try again, or use a stronger model for this job.")
 		}
-		if rerr := s.recordSpent(ctx, spec, entry, res); rerr != nil {
+		if rerr := s.record(ctx, entry); rerr != nil {
 			return rerr
 		}
 		return out
@@ -596,7 +572,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		if spentTokens(res) > 0 {
 			s.nameLastProfile(&entry, res)
 			entry.Summary = fmt.Sprintf("Stopped partway through, after %s tokens: other AI calls were holding the rest of this month's AI budget; no answer.", number(spentTokens(res)))
-			if rerr := s.recordSpent(ctx, spec, entry, res); rerr != nil {
+			if rerr := s.record(ctx, entry); rerr != nil {
 				return rerr
 			}
 			return s.budgetHeld(fmt.Sprintf("The AI did not finish: this request used %s tokens", number(spentTokens(res))))
@@ -607,7 +583,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		if spentTokens(res) > 0 {
 			s.nameLastProfile(&entry, res)
 			entry.Summary = fmt.Sprintf("Stopped partway through, after %s tokens: other AI calls were holding the rest of the profile's monthly budget; no answer.", number(spentTokens(res)))
-			if rerr := s.recordSpent(ctx, spec, entry, res); rerr != nil {
+			if rerr := s.record(ctx, entry); rerr != nil {
 				return rerr
 			}
 		}
@@ -618,7 +594,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		s.nameLastProfile(&entry, res)
 		entry.Summary = fmt.Sprintf("Stopped: this month's AI budget ran out partway through, after %s tokens; no answer.", number(spentTokens(res)))
 		entry.Outcome = OutcomeCapped
-		if rerr := s.recordSpent(ctx, spec, entry, res); rerr != nil {
+		if rerr := s.record(ctx, entry); rerr != nil {
 			return rerr
 		}
 		return s.budgetReached(fmt.Sprintf("The AI did not finish: this request used %s tokens before it stopped, so there is no answer, and %s",
@@ -629,7 +605,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		name := profileCappedLast(res)
 		entry.Summary = fmt.Sprintf("Stopped: the profile's own monthly budget ran out partway through, after %s tokens; no answer.", number(spentTokens(res)))
 		entry.Outcome = OutcomeCapped
-		if rerr := s.recordSpent(ctx, spec, entry, res); rerr != nil {
+		if rerr := s.record(ctx, entry); rerr != nil {
 			return rerr
 		}
 		return s.budgetReached(fmt.Sprintf("The AI did not finish: the monthly budget of the profile %s ran out partway through (this request used %s tokens before it stopped), so there is no answer. An administrator can raise the profile's budget or add a fallback profile in Settings, AI assistant; it renews on %s.",
@@ -649,7 +625,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		if out := notSent(res); out != "" { // every profile was skipped: no request left the box
 			entry.Summary, entry.Outcome = "Not sent: no AI profile could take the call: "+strings.Join(reasons, "; "), out
 		}
-		if rerr := s.recordSpent(ctx, spec, entry, res); rerr != nil {
+		if rerr := s.record(ctx, entry); rerr != nil {
 			return rerr
 		}
 		if perr := providerFailure(spec.Job, res); perr != nil {
@@ -712,9 +688,6 @@ func (s *Service) retryFailed(ctx context.Context, spec JobSpec, entry ActivityE
 	if rerr := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
 		if _, err := s.appendActivity(wctx, tx, entry); err != nil {
 			return err
-		}
-		if res.Downgrade != nil {
-			return s.writeDowngrade(wctx, tx, spec.Actor, res.Downgrade)
 		}
 		return nil
 	}); rerr != nil {
@@ -798,13 +771,4 @@ func toolsRefused(res CallResult) bool {
 		}
 	}
 	return sent > 0
-}
-
-// writeDowngrade records an automatic drop of the token level in ai_downgrade and in the audit log (INV-4).
-func (s *Service) writeDowngrade(ctx context.Context, tx *sql.Tx, actor string, d *Downgrade) error {
-	if _, err := tx.ExecContext(ctx, `INSERT INTO ai_downgrade (id, ts, from_tier, to_tier, reason) VALUES (?, ?, ?, ?, ?)`,
-		store.NewID("dg"), FormatTS(d.At), string(d.From), string(d.To), clipRunes(d.Reason, 300)); err != nil {
-		return fmt.Errorf("ai: write downgrade: %w", err)
-	}
-	return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: "ai.downgrade", Target: string(d.From) + "->" + string(d.To), Detail: clipRunes(d.Reason, 300)})
 }

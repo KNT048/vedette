@@ -334,19 +334,18 @@ func (s *Service) converse(ctx context.Context, spec JobSpec, hooks *HookRunner,
 	var (
 		last     CallResult
 		attempts []Attempt
-		down     *Downgrade
 		usage    provider.Usage
 	)
 	merged := func() CallResult {
 		out := last
-		out.Attempts, out.Downgrade = attempts, down
+		out.Attempts = attempts
 		out.Response.Usage = usage
 		return out
 	}
 	for turn := range askMaxTurns {
 		req.Messages = msgs
 		res, err := s.router.Call(lctx, spec.Job, req)
-		attempts, down = append(attempts, res.Attempts...), firstDowngrade(down, res.Downgrade)
+		attempts = append(attempts, res.Attempts...)
 		if err != nil {
 			// a turn cut at the limit whose retry could not be made still spent its tokens
 			usage.InputTokens += res.Response.Usage.InputTokens

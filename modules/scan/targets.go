@@ -37,6 +37,18 @@ type TargetView struct {
 	Selectable bool    `json:"selectable"`
 	PickOnly   bool    `json:"pick_only"` // only a person's tick picks it (D-126 (2)); the GUI never ticks it for them
 	Reason     *string `json:"reason"`
+	// For the picker's search and filters (D-472); nil (false for Approved) on an external target.
+	MAC      *string `json:"mac"`
+	Vendor   *string `json:"vendor"`
+	Approved bool    `json:"approved"`
+	LastSeen *string `json:"last_seen"`
+}
+
+func orNil(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 // reasonText ends the sentence "<label> (<ip>) ..." of a 400 out_of_scope (the mock's REASON).
@@ -95,19 +107,48 @@ func (s *Service) consent(ctx context.Context, st Settings, d Device, explicit b
 	if err != nil {
 		return "", false, fmt.Errorf("scan: reading the scan policy of %s: %w", d.ID, err)
 	}
+	reason, careful = fold(st, d, dec)
+	return reason, careful, nil
+}
+
+// policies reads the D-126 decision of every device in devs in one inventory read (D-472): no read per device. A
+// device deleted since devs was read gets the decision of a gone device, as VulnScanPolicy's adapter gives it.
+func (s *Service) policies(ctx context.Context, devs []Device, explicit bool) (map[string]Decision, error) {
+	if len(devs) == 0 {
+		return map[string]Decision{}, nil
+	}
+	ids := make([]string, len(devs))
+	for i, d := range devs {
+		ids[i] = d.ID
+	}
+	m, err := s.cfg.Inventory.VulnScanPolicies(ctx, ids, explicit)
+	if err != nil {
+		return nil, fmt.Errorf("scan: reading the scan policy of %d devices: %w", len(ids), err)
+	}
+	for _, id := range ids {
+		if _, ok := m[id]; !ok {
+			m[id] = Decision{Reason: ReasonGone}
+		}
+	}
+	return m, nil
+}
+
+// fold is consent once the inventory's decision is read: the decision folded with scan's own rules (approved,
+// scan exclusions) as a scan reason, "" when allowed.
+func fold(st Settings, d Device, dec Decision) (reason string, careful bool) {
 	switch {
 	case dec.Reason == reasonBox || dec.Reason == reasonNever:
-		return dec.Reason, false, nil
+		return dec.Reason, false
 	case !d.Approved:
-		return "unapproved", false, nil // D-84 (2): discovery may look at it, the vulnerability scan does not
+		return "unapproved", false // D-84 (2): discovery may look at it, the vulnerability scan does not
 	case excluded(d.IP, st.Exclusions):
-		return "excluded", false, nil
+		return "excluded", false
 	case !dec.Allowed:
-		return dec.Reason, false, nil
+		return dec.Reason, false
 	case dec.IP != "" && dec.IP != d.IP: // review L1: the inventory decided on another address than the one the job would use
-		return "moved", false, nil
+		return "moved", false
 	}
-	return "", dec.Careful, nil
+	return "", dec.Careful
 }
 
 // targetReason turns a consent reason into the reason of the scan list, which knows fewer of them; a missing
@@ -132,26 +173,30 @@ func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
 	if err != nil {
 		return nil, fmt.Errorf("scan: reading the devices: %w", err)
 	}
+	// Two batch reads for the whole list (D-472): the decision when picked, and the one of an automatic run.
+	picked, err := s.policies(ctx, devs, true)
+	if err != nil {
+		return nil, err
+	}
+	auto, err := s.policies(ctx, devs, false)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]TargetView, 0, len(devs))
 	for _, d := range devs {
-		r, _, err := s.consent(ctx, st, d, true)
-		if err != nil {
-			return nil, err
-		}
+		r, _ := fold(st, d, picked[d.ID])
 		if r == ReasonGone {
 			continue
 		}
-		v := TargetView{ID: d.ID, Kind: "internal", DeviceKind: ptr(d.Kind), Label: d.Label, IP: d.IP, Fragile: d.Fragile || d.Kind == "unknown"}
+		v := TargetView{ID: d.ID, Kind: "internal", DeviceKind: ptr(d.Kind), Label: d.Label, IP: d.IP, Fragile: d.Fragile || d.Kind == "unknown",
+			MAC: orNil(d.MAC), Vendor: orNil(d.Vendor), Approved: d.Approved, LastSeen: orNil(d.LastSeen)}
 		if tr := targetReason(r); tr != "" {
 			v.Reason = ptr(tr)
 		}
 		v.Selectable = v.Reason == nil
 		if v.Selectable { // allowed when picked; would an automatic run be refused? then only a pick may include it
-			auto, _, err := s.consent(ctx, st, d, false)
-			if err != nil {
-				return nil, err
-			}
-			v.PickOnly = auto != ""
+			a, _ := fold(st, d, auto[d.ID])
+			v.PickOnly = a != ""
 		}
 		out = append(out, v)
 	}

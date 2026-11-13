@@ -29,6 +29,9 @@ type Inventory interface {
 	Devices(ctx context.Context) ([]Device, error)
 	// VulnScanPolicy is inventory.VulnScanPolicy (D-126): explicit is true for a device a person picked in Scan now.
 	VulnScanPolicy(ctx context.Context, assetID string, explicit bool) (Decision, error)
+	// VulnScanPolicies is VulnScanPolicy for many devices in one inventory read (D-472). A device that no longer
+	// exists is absent from the map.
+	VulnScanPolicies(ctx context.Context, assetIDs []string, explicit bool) (map[string]Decision, error)
 }
 
 // Config is what NewService needs. Only DB, Audit, Inventory and Log are required.

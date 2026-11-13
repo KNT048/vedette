@@ -64,6 +64,17 @@ func (i *s5Inventory) VulnScanPolicy(context.Context, string, bool) (scan.Decisi
 	return scan.Decision{Allowed: true, Reason: "ok", IP: s5Device.IP}, nil
 }
 
+// VulnScanPolicies is the list's batch read; it is not the consent right before the job, so it is not counted.
+func (*s5Inventory) VulnScanPolicies(_ context.Context, ids []string, _ bool) (map[string]scan.Decision, error) {
+	out := map[string]scan.Decision{}
+	for _, id := range ids {
+		if id == s5Device.ID {
+			out[id] = scan.Decision{Allowed: true, Reason: "ok", IP: s5Device.IP}
+		}
+	}
+	return out, nil
+}
+
 // s5Findings holds one suspected finding of the device; it records each confirmation.
 type s5Findings struct {
 	mu        sync.Mutex

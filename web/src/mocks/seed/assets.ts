@@ -68,3 +68,24 @@ export function seedAssets(): Asset[] {
     a({ id: 'a-unk01', ip: '192.168.10.157', kind: 'unknown', hostname: null, mac: 'da:a1:19:5c:77:01', vendor: o('Device with a randomized MAC', 'passive', 0.3), approved: false, first_seen: D(0, ), last_seen: D(0) }),
   ]
 }
+
+/**
+ * D-472: n generated devices for tests at scale (the scan picker with ~500 devices), 200 per /24 from 192.168.40.0/24.
+ * Deterministic. Every 10th is a printer and every 10th a camera (fragile), every 10th of unknown type, every 7th not approved,
+ * every 50th added by hand; last seen spreads over 45 days.
+ */
+export function manyAssets(n: number): Asset[] {
+  const kinds: AssetKind[] = ['pc', 'pc', 'pc', 'pc', 'printer', 'camera', 'server', 'unknown', 'iot', 'nas']
+  const vendors = ['Dell', 'HP', 'Lenovo', 'Acer', 'Brother', 'Hikvision', 'Supermicro', 'Espressif', 'Tuya', 'Synology']
+  return Array.from({ length: n }, (_, i) => {
+    const k = i % kinds.length
+    const kind = kinds[k]!
+    const num = String(i).padStart(3, '0')
+    return a({
+      id: `a-g${num}`, ip: `192.168.${40 + Math.floor(i / 200)}.${1 + (i % 200)}`, kind, hostname: kind === 'unknown' ? null : `${kind.toUpperCase()}-${num}`,
+      mac: `3c:52:82:${(i >> 8).toString(16).padStart(2, '0')}:${(i & 255).toString(16).padStart(2, '0')}:${k.toString(16).padStart(2, '0')}`,
+      vendor: o(vendors[k]!, 'passive', 0.8), fragile: kind === 'printer' || kind === 'camera',
+      approved: i % 7 !== 3, origin: i % 50 === 9 ? 'manual' : 'discovered', last_seen: D(i % 45),
+    })
+  })
+}

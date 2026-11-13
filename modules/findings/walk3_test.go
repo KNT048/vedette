@@ -137,7 +137,7 @@ func TestGolden_VMwareToolsMultipleProducts(t *testing.T) {
 		strings.Count(l, "findings: reconcile pass done") != 2 || !strings.Contains(l, "closed_multiple_products=3") {
 		t.Errorf("log:\n%s", logged.String())
 	}
-	const want = "Closed by Vedette: CISA lists CVE-2020-3950 for several VMware products; NVD names fusion, horizon client, remote console, not VMware Tools (settled: CISA added it over a year ago). Vedette reopens it if NVD later names VMware Tools."
+	const want = "Closed by Vedette: CISA lists CVE-2020-3950 for several VMware products; NVD names fusion, horizon client, remote console, not VMware Tools (settled: CISA added it over a year ago). Vedette checks it again whenever NVD's data for it changes."
 	for _, c := range all {
 		f, err := loadByPair(t.Context(), e.db.Reader(), dev.ID, c)
 		if err != nil {

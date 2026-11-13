@@ -245,8 +245,8 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				res.Unlisted = append(res.Unlisted, *unlisted)
 				if othersOnly && settled(v, now) {
 					r := *unlisted
-					r.Evidence.Summary = fmt.Sprintf("Closed by Vedette: CISA lists %s for several %s products; NVD names %s, not %s (settled: CISA added it over a year ago). Vedette reopens it if NVD later names %[4]s.",
-						v.CVE, clean(v.Vendor), nvdProducts(v.Vendor, v.Affected), strings.Join(unnamed, ", "))
+					r.Evidence.Summary = fmt.Sprintf("Closed by Vedette: CISA lists %s for several %s products; NVD names %s, not %s (settled: CISA added it over a year ago). Vedette checks it again whenever NVD's data for it changes.",
+						v.CVE, clean(v.Vendor), nvdProducts(v.Vendor, v.Affected), orList(unnamed))
 					res.Retired = append(res.Retired, r)
 				}
 			}
@@ -774,4 +774,12 @@ func widerEnd(a, b VersionRange) bool {
 	}
 	c, ok := compareBound(ea, eb)
 	return ok && c > 0
+}
+
+// orList joins names for a sentence: "A", "A or B", "A, B or C".
+func orList(names []string) string {
+	if len(names) < 2 {
+		return strings.Join(names, "")
+	}
+	return strings.Join(names[:len(names)-1], ", ") + " or " + names[len(names)-1]
 }

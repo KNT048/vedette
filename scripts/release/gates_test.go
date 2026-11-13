@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"debug/buildinfo"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -15,6 +17,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"golang.org/x/mod/modfile"
 )
 
 // arMember is one member of an ar archive (a .deb), with the 60-byte header dpkg and nfpm write.
@@ -66,6 +70,10 @@ type gatesFake struct {
 	rebuilt string // the package make host-deb writes
 	status  string
 	tag     string
+	// files is the filesystem `podman export` writes for the platform image local/arch (name -> body, as tgz takes them)
+	files func(local, arch string) [][2]string
+	ctrs  map[string]string // container name -> image ID, between create and rm
+	t     *testing.T
 }
 
 func (g *gatesFake) fn(argv []string) ([]byte, error) {
@@ -94,6 +102,24 @@ func (g *gatesFake) fn(argv []string) ([]byte, error) {
 	case strings.HasPrefix(a, "podman manifest inspect localhost/vedette-"):
 		l := strings.TrimSuffix(strings.TrimPrefix(argv[3], "localhost/vedette-"), ":0.2.0")
 		return listJSON(both("local " + l)), nil
+	case len(argv) == 6 && a == "podman create --pull=never --name "+argv[4]+" "+argv[5]:
+		if g.ctrs == nil {
+			g.ctrs = map[string]string{}
+		}
+		g.ctrs[argv[4]] = argv[5]
+		return nil, nil
+	case len(argv) == 5 && a == "podman export -o "+argv[3]+" "+argv[4] && g.ctrs[argv[4]] != "":
+		for _, l := range localNames {
+			for _, arch := range []string{"amd64", "arm64"} {
+				if g.ctrs[argv[4]] == "sha256:"+cfgID(l, arch) {
+					return nil, os.WriteFile(argv[3], plainTar(g.t, g.files(l, arch)), 0o600)
+				}
+			}
+		}
+		return nil, fmt.Errorf("export: unknown image %s", g.ctrs[argv[4]])
+	case len(argv) == 4 && a == "podman rm -f "+argv[3]:
+		delete(g.ctrs, argv[3])
+		return nil, nil
 	case strings.HasPrefix(a, "make -C repo --no-print-directory host-deb "):
 		out := strings.TrimPrefix(argv[len(argv)-1], "DEB_OUT=")
 		arch := strings.TrimPrefix(argv[6], "ARCH=")
@@ -104,6 +130,34 @@ func (g *gatesFake) fn(argv []string) ([]byte, error) {
 		return nil, os.WriteFile(filepath.Join(out, "vedette-host_0.2.0_"+arch+".deb"), b, 0o600) //nolint:gosec // test: out is the temporary directory the code under test made
 	}
 	return nil, fmt.Errorf("unexpected %q", a)
+}
+
+// plainTar is an uncompressed tar of entries, as `podman export` writes it (tgz without the gzip).
+func plainTar(t *testing.T, entries [][2]string) []byte {
+	t.Helper()
+	zr, err := gzip.NewReader(bytes.NewReader(tgz(t, entries)))
+	must(t, err)
+	b, err := io.ReadAll(zr)
+	must(t, err)
+	return b
+}
+
+// keyMark stands for the production key lines core must contain (gatesRig's Expect.Keys).
+const keyMark = "RWTESTPRODUCTIONKEYLINE"
+
+// goodFiles are the files of a platform image the file check passes: core's /vedette is bin with the key inside, scan-base has bin as
+// nuclei (module probe, no dependency, built with bin's Go), the pack index of version 2026.11.1, and a folder named nmap (only a
+// file, link or symlink of that name is nmap).
+func goodFiles(bin []byte) func(local, arch string) [][2]string {
+	return func(local, _ string) [][2]string {
+		switch local {
+		case "core":
+			return [][2]string{{"./etc/passwd", "x"}, {"./" + coreBinaryInImage, string(bin) + keyMark}}
+		case "scan-base":
+			return [][2]string{{nucleiInImage, string(bin)}, {packIndexInImage, `{"version": "2026.11.1", "sha256": "` + strings.Repeat("c", 64) + `"}`}}
+		}
+		return nil
+	}
 }
 
 func goodLabels(local, _ string) map[string]string {
@@ -134,8 +188,13 @@ func gatesRig(t *testing.T, bin []byte) (gatesOpts, *gatesFake) {
 			writeSBOM(t, filepath.Join(sbom, local+"-"+arch+".cdx.json"), "sha256:"+cfgID(local, arch))
 		}
 	}
-	return gatesOpts{Version: "0.2.0", MinSequence: "1", PrevIndex: prev, Trust: r.trust, Platforms: allPlatforms, DebDir: dir, Repo: "repo", Out: t.TempDir(), VulnDir: vuln, SBOMDir: sbom},
-		&gatesFake{labels: goodLabels, rebuilt: filepath.Join(dir, "vedette-host_0.2.0_amd64.deb"), tag: "abc"}
+	bi, err := buildinfo.Read(bytes.NewReader(bin))
+	must(t, err)
+	mod, err := modfile.Parse("go.mod", []byte("module probe\n\ngo 1.21\n"), nil)
+	must(t, err)
+	e := imageExpect{Keys: []string{keyMark}, GoVersion: bi.GoVersion, NucleiMod: mod, PackVersion: "2026.11.1", PackSHA256: strings.Repeat("c", 64)}
+	return gatesOpts{Version: "0.2.0", MinSequence: "1", PrevIndex: prev, Trust: r.trust, Platforms: allPlatforms, DebDir: dir, Repo: "repo", Out: t.TempDir(), VulnDir: vuln, SBOMDir: sbom, Expect: e},
+		&gatesFake{labels: goodLabels, rebuilt: filepath.Join(dir, "vedette-host_0.2.0_amd64.deb"), tag: "abc", files: goodFiles(bin), t: t}
 }
 
 func TestGatesPassInOrder(t *testing.T) {
@@ -148,7 +207,8 @@ func TestGatesPassInOrder(t *testing.T) {
 		t.Fatal(err, fr.joined())
 	}
 	got := out.String()
-	for _, want := range []string{"check-binaries -release " + filepath.Join(o.DebDir, "vedette-host_0.2.0_arm64.deb"), "localhost/vedette-core:0.2.0: org.opencontainers.image.version=0.2.0 on linux/amd64, linux/arm64, floor 1", "localhost/vedette-honeypot:0.2.0", "is what this commit builds with MIN_SEQUENCE=1"} {
+	for _, want := range []string{"check-binaries -release " + filepath.Join(o.DebDir, "vedette-host_0.2.0_arm64.deb"), "localhost/vedette-core:0.2.0: org.opencontainers.image.version=0.2.0 on linux/amd64, linux/arm64, floor 1", "localhost/vedette-honeypot:0.2.0", "is what this commit builds with MIN_SEQUENCE=1",
+		"localhost/vedette-core:0.2.0 linux/arm64: /vedette holds the production release keys", "localhost/vedette-scan-base:0.2.0 linux/amd64: nuclei built with " + o.Expect.GoVersion} {
 		if !strings.Contains(got, want) {
 			t.Errorf("output lacks %q:\n%s", want, got)
 		}
@@ -362,6 +422,49 @@ func TestGatesRefuse(t *testing.T) {
 		}, false},
 		{"sbom of another image", `localhost/vedette-scan-base:0.2.0 linux/amd64: SBOM scan-base-amd64.cdx.json is of image`, func(o *gatesOpts, _ *gatesFake) {
 			writeSBOM(t, filepath.Join(o.SBOMDir, "scan-base-amd64.cdx.json"), digestOf("before the rebuild"))
+		}, false},
+		{"core with the throwaway keys", "releasetestkeys", func(_ *gatesOpts, g *gatesFake) {
+			good := g.files
+			g.files = func(l, arch string) [][2]string {
+				if l == "core" && arch == "arm64" {
+					return [][2]string{{coreBinaryInImage, string(testKeys) + keyMark}}
+				}
+				return good(l, arch)
+			}
+		}, false},
+		{"core without the production keys", "does not contain the production release key", func(_ *gatesOpts, g *gatesFake) {
+			good := g.files
+			g.files = func(l, arch string) [][2]string {
+				if l == "core" {
+					return [][2]string{{coreBinaryInImage, string(bin)}}
+				}
+				return good(l, arch)
+			}
+		}, false},
+		{"core binary is a symlink", "is not a regular file", func(_ *gatesOpts, g *gatesFake) {
+			good := g.files
+			g.files = func(l, arch string) [][2]string {
+				if l == "core" {
+					return [][2]string{{coreBinaryInImage, "->/bin/sh"}}
+				}
+				return good(l, arch)
+			}
+		}, false},
+		{"nmap in scan-base", "holds /usr/bin/nmap", func(_ *gatesOpts, g *gatesFake) {
+			good := g.files
+			g.files = func(l, arch string) [][2]string {
+				if l == "scan-base" && arch == "arm64" {
+					return append(good(l, arch), [2]string{"usr/bin/nmap", "->/usr/lib/nmap/nmap"})
+				}
+				return good(l, arch)
+			}
+		}, false},
+		{"nuclei of another Go", "the pinned Go is go1.27.10", func(o *gatesOpts, _ *gatesFake) { o.Expect.GoVersion = "go1.27.10" }, false},
+		{"stale pack", "a stale pack", func(o *gatesOpts, _ *gatesFake) { o.Expect.PackVersion = "2026.12.1" }, false},
+		{"no pack index", "has no /" + packIndexInImage, func(_ *gatesOpts, g *gatesFake) {
+			g.files = func(string, string) [][2]string {
+				return [][2]string{{coreBinaryInImage, string(bin) + keyMark}, {nucleiInImage, string(bin)}}
+			}
 		}, false},
 		{"deb built with another floor", "is not what this commit builds with MIN_SEQUENCE=1", func(_ *gatesOpts, g *gatesFake) { g.rebuilt = other }, true},
 	} {

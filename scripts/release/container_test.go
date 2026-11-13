@@ -319,19 +319,22 @@ func TestSignReleaseContainerAssetRefusals(t *testing.T) {
 	}
 }
 
-// docs/INSTALL-CONTAINER.md hands the customer the public keys to save as vedette.pub and cosign.pub: they must be the keys
+// docs/INSTALL-CONTAINER.md hands the customer the public keys to save as vedette.pub, vedette-backup.pub and cosign.pub: they must be the keys
 // compiled into this build (a key rotation that forgets the guide fails here, not at a customer's first update).
 func TestInstallGuideKeysAreTheEmbeddedOnes(t *testing.T) {
-	active, _, testOnly := release.EmbeddedMinisignKeys()
+	active, backup, testOnly := release.EmbeddedMinisignKeys()
 	if testOnly {
 		t.Skip("a releasetestkeys build")
 	}
 	doc, err := os.ReadFile(filepath.Join("..", "..", "docs", "INSTALL-CONTAINER.md"))
 	must(t, err)
-	k, err := release.ParseMinisignPublicKey(active)
-	must(t, err)
-	if want := `printf 'untrusted comment: minisign public key ` + k.KeyID() + `\n` + active + `\n' > vedette.pub`; !bytes.Contains(doc, []byte(want)) {
-		t.Errorf("the guide does not give the active minisign key as vedette.pub:\n%s", want)
+	// the backup key verifies the files of a rescue release (D-258, D-410)
+	for key, file := range map[string]string{active: "vedette.pub", backup: "vedette-backup.pub"} {
+		k, err := release.ParseMinisignPublicKey(key)
+		must(t, err)
+		if want := `printf 'untrusted comment: minisign public key ` + k.KeyID() + `\n` + key + `\n' > ` + file; !bytes.Contains(doc, []byte(want)) {
+			t.Errorf("the guide does not give the embedded minisign key as %s:\n%s", file, want)
+		}
 	}
 	trust, err := release.Embedded()
 	must(t, err)

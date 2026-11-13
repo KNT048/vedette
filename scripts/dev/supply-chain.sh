@@ -122,7 +122,10 @@ scan_one() { # $1 = label, rest = the trivy scan command
 		say "ok   $label: no fixable HIGH or CRITICAL"
 	else
 		cat "$work/gate.txt"
-		say "FAIL $label: fixable HIGH or CRITICAL (above)"
+		# the report of a red gate keeps its findings for reading but not its name: `release gates` looks for <label>.json, so a hand
+		# run of it after a red vuln-scan finds no report and refuses (D-410)
+		mv -f "$vuln/$label.json" "$vuln/$label.gate-failed.json"
+		say "FAIL $label: fixable HIGH or CRITICAL (above; report dist/vuln/$label.gate-failed.json with RELEASE=1)"
 		bad=1
 	fi
 }

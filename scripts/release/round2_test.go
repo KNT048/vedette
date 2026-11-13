@@ -510,6 +510,7 @@ func TestManifestCommandReadsGit(t *testing.T) {
 		gitT(t, repo, "tag", "v"+tag)
 	}
 	gitT(t, repo, "init", "-q")
+	putProto(t, repo, "4") // D-410: the sensor protocol gate reads it at each tag
 	put("0001_a.sql", "CREATE TABLE a (id INT);")
 	commit("0.1.0")
 	put("0002_a.sql", "DROP TABLE a;")

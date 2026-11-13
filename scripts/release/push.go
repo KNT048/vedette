@@ -577,11 +577,53 @@ type inputsOpts struct {
 	MinUpgradeFrom string
 	DebDir         string
 	Gates          string // gates.json of `release gates`: the .deb and the images must be the ones it checked
+	Repo           string // the git repository: bundled[] is read from pins.env and the pack index at tag v<version>
+}
+
+// bundledOf is bundled[] of the release (D-410): the pinned third-party software inside the signed images, as Settings → Updates →
+// Managed packages lists it, read from git at tag v<version> (what the images were built from): nuclei and the template pack in scan,
+// OpenCanary in honeypot. nmap is never here (D-4): the box installs it from Debian. nuclei has no sha256: it is built from source per
+// platform (D-319), so no one hash names it; the signed image digest does.
+func bundledOf(ctx context.Context, run runFunc, repo, version string) ([]release.Bundled, error) {
+	show := func(p string) ([]byte, error) {
+		ctx, cancel := context.WithTimeout(ctx, time.Minute)
+		defer cancel()
+		return run(ctx, "git", "-C", repo, "show", "v"+version+":"+p)
+	}
+	raw, err := show(pinsFile)
+	if err != nil {
+		return nil, fmt.Errorf("bundled[]: %w", err)
+	}
+	pins, err := parsePins(raw)
+	if err != nil {
+		return nil, err
+	}
+	if raw, err = show(committedPackIndex); err != nil {
+		return nil, fmt.Errorf("bundled[]: %w", err)
+	}
+	pv, sum, err := packLabel(raw, committedPackIndex)
+	if err != nil {
+		return nil, err
+	}
+	if pv != pins["SCAN_PACK_VERSION"] {
+		return nil, fmt.Errorf("bundled[]: %s at v%s is pack %s, pins.env says %q", committedPackIndex, version, pv, pins["SCAN_PACK_VERSION"])
+	}
+	b := []release.Bundled{
+		{Service: "scan", Name: "nuclei", Version: pins["NUCLEI_VERSION"], License: "MIT"},
+		{Service: "scan", Name: "nuclei-templates-pack", Version: pv, SHA256: sum, License: "MIT"},
+		{Service: "honeypot", Name: "opencanary", Version: pins["OPENCANARY_VERSION"], License: "BSD-3-Clause"},
+	}
+	for _, x := range b {
+		if x.Version == "" {
+			return nil, fmt.Errorf("bundled[]: %s at v%s has no version for %s", pinsFile, version, x.Name)
+		}
+	}
+	return b, nil
 }
 
 // BuildInputs writes the release description from what was pushed and built: the images of images.json with their index digests,
-// platforms and local sizes; the two vedette-host packages; install_modes appliance and container (D-451); released_at empty (the
-// builder fills it). Channel and rollback come from the maintainer.
+// platforms and local sizes; the two vedette-host packages; install_modes appliance and container (D-451); bundled[] from the pins at
+// the tag (bundledOf, D-410); released_at empty (the builder fills it). Channel and rollback come from the maintainer.
 func BuildInputs(ctx context.Context, run runFunc, doc *ImagesDoc, o inputsOpts) (Inputs, error) {
 	var in Inputs
 	if _, err := release.CompareVersions(doc.Version, doc.Version); err != nil {
@@ -633,11 +675,15 @@ func BuildInputs(ctx context.Context, run runFunc, doc *ImagesDoc, o inputsOpts)
 	if err != nil {
 		return in, err
 	}
+	bundled, err := bundledOf(ctx, run, o.Repo, doc.Version)
+	if err != nil {
+		return in, err
+	}
 	in = Inputs{
 		Version: doc.Version, Channel: o.Channel, MinUpgradeFrom: o.MinUpgradeFrom,
 		InstallModes: []string{installAppliance, installContainer},
 		Rollback:     release.Rollback{Safe: safe, MinVersion: o.RollbackMin},
-		Content:      []release.Content{}, Bundled: []release.Bundled{},
+		Content:      []release.Content{}, Bundled: bundled,
 	}
 	for _, im := range doc.Images {
 		ii := ImageIn{Service: im.Service, Digest: im.IndexDigest, Size: sizes[im.Service]}
@@ -674,6 +720,7 @@ func cmdInputs(ctx context.Context, args []string, stdout io.Writer) error {
 	fs.StringVar(&o.RollbackMin, "rollback-min-version", "", "rollback.min_version: the oldest release a box may roll back to (required with true)")
 	fs.StringVar(&o.MinUpgradeFrom, "min-upgrade-from", "", "min_upgrade_from (empty: none)")
 	fs.StringVar(&o.DebDir, "deb-dir", "dist", "directory with vedette-host_<version>_<amd64|arm64>.deb")
+	fs.StringVar(&o.Repo, "repo", ".", "repository root: bundled[] is read from deploy/containers/pins.env and the pack index at tag v<version>")
 	fs.StringVar(&o.Gates, "gates", "", "the record of release gates (default gates.json next to -images); refused when missing or when a .deb or image is not the one it checked")
 	if err := fs.Parse(args); err != nil {
 		return err

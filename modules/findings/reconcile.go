@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/knt048/vedette/core/jobs"
@@ -141,14 +142,19 @@ func (s *Service) splitByNews(vulns []Vuln) (backlog, recent []Vuln) {
 }
 
 // upsertSplit matches one device against both lists, one write each, the backlog under the Backlog mark. It returns what
-// both writes did together.
+// both writes did together. Both writes store the "add the version" items of the two lists together: the items are one
+// per software for the whole exploited list (D-500), and each write replaces them (W6-1).
 func (s *Service) upsertSplit(ctx context.Context, a Asset, backlog, recent []Vuln) (UpsertResult, error) {
 	var sum UpsertResult
+	need := MatchAsset(a, slices.Concat(backlog, recent), nil, s.now()).NeedVersion // which findings exist does not change them
+	if need == nil {
+		need = []VersionNeeded{} // not nil: the device has no item, so a write must clear the ones it had
+	}
 	add := func(wctx context.Context, vulns []Vuln) error {
 		if len(vulns) == 0 {
 			return nil
 		}
-		r, err := s.upsertWithin(wctx, a, vulns)
+		r, err := s.upsertWithin(wctx, a, vulns, need)
 		sum.Created = append(sum.Created, r.Created...)
 		sum.Closed += r.Closed
 		sum.Retired += r.Retired
@@ -162,10 +168,10 @@ func (s *Service) upsertSplit(ctx context.Context, a Asset, backlog, recent []Vu
 	return sum, add(ctx, recent)
 }
 
-func (s *Service) upsertWithin(ctx context.Context, a Asset, vulns []Vuln) (UpsertResult, error) {
+func (s *Service) upsertWithin(ctx context.Context, a Asset, vulns []Vuln, need []VersionNeeded) (UpsertResult, error) {
 	ctx, cancel := context.WithTimeout(ctx, eventWriteTimeout)
 	defer cancel()
-	return s.UpsertFromMatch(ctx, a, vulns)
+	return s.upsert(ctx, a, vulns, need)
 }
 
 func (s *Service) deleteWithin(ctx context.Context, id string) (int, error) {

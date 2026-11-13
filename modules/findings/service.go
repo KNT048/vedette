@@ -170,6 +170,13 @@ func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertRes
 // finding the matcher proves not affected is closed, and one Vedette closed that matches again is reopened;
 // a person's closing is never reopened, and a person's reopen is never closed again.
 func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (UpsertResult, error) {
+	return s.upsert(ctx, a, vulns, nil)
+}
+
+// upsert is UpsertFromMatch. need, when not nil, is what the device's "add the version" items become instead of the
+// ones this vulns list gives: Reconcile writes the backlog and the recent entries in two writes, each of which replaces
+// the items, so it passes the items of the whole list (W6-1: the recent write left "checks 1 exploited CVE" of 30).
+func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, need []VersionNeeded) (UpsertResult, error) {
 	var since map[string]Have
 	if s.cfg.HaveSince != nil {
 		var err error
@@ -267,7 +274,10 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 			return err
 		}
 		res.Regraded += n
-		return replaceVersionNeeded(ctx, tx, a.ID, m.NeedVersion, now)
+		if need == nil {
+			need = m.NeedVersion
+		}
+		return replaceVersionNeeded(ctx, tx, a.ID, need, now)
 	})
 	if err != nil {
 		return UpsertResult{}, err

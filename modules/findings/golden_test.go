@@ -33,7 +33,12 @@ type goldenFile struct {
 
 func goldenVulns(t *testing.T) []Vuln {
 	t.Helper()
-	b, err := os.ReadFile("testdata/kev-nvd-golden.json")
+	return loadGolden(t, "testdata/kev-nvd-golden.json")
+}
+
+func loadGolden(t *testing.T, path string) []Vuln {
+	t.Helper()
+	b, err := os.ReadFile(path) //nolint:gosec // a testdata path named by the test itself
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -332,5 +337,28 @@ func TestGolden_DistroRowNeverClosesKernelCVEs(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// W6-1: the 30 Microsoft|Office entries exactly as the N100 stored them (testdata/kev-nvd-office-n22.json). A hand-added
+// "Microsoft Office" without a version must count every one of them in its "add the version" item: NVD names Office (or
+// an edition or app of it) by version for each, so a version decides each one, and none lists every version.
+func TestGolden_OfficeN22WithoutAVersionCountsAllThirty(t *testing.T) {
+	t.Parallel()
+	vulns := loadGolden(t, "testdata/kev-nvd-office-n22.json")
+	sw := Software{ID: "s-office", Display: "Microsoft Office", Vendor: "Microsoft", Product: "Office", KevKeys: []string{"microsoft|office"}}
+	a := Asset{ID: "a", Name: "Microsoft Office", Software: []Software{sw}}
+	in := newSWInfo(sw, "")
+	names := map[outcome]string{outNone: "no", outMatch: "finding", outNeedVersion: "need-version", outRuledOut: "ruled out", outNotAffected: "not affected"}
+	for _, v := range vulns {
+		_, out := matchOne(a, sw, in, v, t0)
+		t.Logf("%s added %s: %s (NVD: %s)", v.CVE, v.DateAdded.Format(time.DateOnly), names[out], nvdProducts(v.Vendor, v.Affected))
+		if out != outNeedVersion {
+			t.Errorf("%s: %s, want need-version", v.CVE, names[out])
+		}
+	}
+	res := MatchAsset(a, vulns, nil, t0)
+	if len(res.New) != 0 || len(res.NeedVersion) != 1 || len(res.NeedVersion[0].CVEs) != 30 {
+		t.Fatalf("new %d, need %+v; want one item of 30 CVEs", len(res.New), res.NeedVersion)
 	}
 }

@@ -206,7 +206,8 @@ func isLoopback(addr string) (bool, error) {
 // CA that ca keeps in core_secret (D-351), so transport runs once the database is open and migrated.
 //
 // The box's own pair also covers the box's name (certBoxName of box: the OS host name vedette-host reports, core's own host name
-// without a host), after localNames so that "vedette" stays the first name (boxBaseURL). Without -hosts the allowlist is the names
+// without a host); links never take a name from the certificate (they carry the Box address, D-465, boxaddr.go), and the renewer adds
+// the Box address to the certificate once it is known (selfSignedRenewer.Check). Without -hosts the allowlist is the names
 // of the box's own pair that pass defaultAllowed (an address, one label, or .local/.lan/.home.arpa/.internal), the box's name among
 // them when it passes: the name may come from DHCP, so a name in a public domain is answered to only through -hosts. It is asked once here (at most boxNameTimeout): vedette-host
 // starts before core, so the name is normally known at the first start and on every later one. It only ever adds to the names of
@@ -234,7 +235,7 @@ func transport(ctx context.Context, o options, ca *boxCAStore, box *boxHostName)
 		dir := filepath.Dir(o.db)
 		certPath, keyPath = filepath.Join(dir, "vedette-selfsigned.crt"), filepath.Join(dir, "vedette-selfsigned.key")
 		certHosts := hosts
-		if name = certBoxName(ctx, box); name != "" { // after localNames: "vedette" stays the first name, the default base URL
+		if name = certBoxName(ctx, box); name != "" {
 			certHosts = append(append(slices.Clone(hosts), localNames()...), name)
 		}
 		if err := ensureCertAt(ctx, ca, certPath, keyPath, certHosts, time.Now, o.log); err != nil {
@@ -348,7 +349,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	sched := jobs.New(log, reg, nil, jobs.WithRecorder(jobs.NewHistory(db))) // before the services: deps.Wake hands them sched.Wake
-	d := deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, BaseURL: boxBaseURL(hosts, o.listen), CertKick: func() { renew.Kick(); warner.Kick() }, Wake: sched.Wake,
+	d := deps{Log: log, DB: db, LogsDB: logsDB, Reg: reg, Secrets: sec, Audit: aud, Clock: time.Now, Bus: events.NewBus(log), Hosts: hosts, CertKick: func() { renew.Kick(); warner.Kick() }, Wake: sched.Wake,
 		HostSocket: o.hostSocket, HostNet: newHostNetCache(hostSocketNet(o.hostSocket, log), time.Now), BoxName: boxName, DataDir: filepath.Dir(o.db), KeyPath: o.key, HoneypotDir: o.honeypotDir,
 		Restart: func() {
 			log.InfoContext(ctx, "the data was purged: stopping so the supervisor starts a fresh box")
@@ -356,7 +357,15 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		}}
 	d.SyslogPort = o.syslogPort // before buildServices: the logs service reads it when it is built
 	d.SyslogTLS = syslogTLS(tlsCfg)
-	d.TrustAnchor, d.HostAllowed, d.OsqueryDir = trustAnchor(o, intakeTrustAnchor(tlsCfg, boxCAs, renew)), server.HostMatcher(hosts, boxOwnAddress(d.HostNet)), o.osqueryDir //nolint:contextcheck // agent-intake reads them when it is built; the Host check runs per request, with no context to pass
+	flagHosts, _ := parseHosts(o.hosts)                      // checked at the start of run
+	wireBoxAddr(&d, o.hostSocket != "", flagHosts, o.listen) //nolint:contextcheck // links are made with no context (notify, response); Host bounds each read (boxAddrTimeout)
+	if renew != nil {
+		renew.addrs = d.BoxAddr.Names
+	}
+	d.SelfSigned = renew != nil                                   // the Box network page says who must put the Box address in the certificate
+	listed := server.HostMatcher(hosts, boxOwnAddress(d.HostNet)) //nolint:contextcheck // the Host check runs per request, with no context to pass
+	hostAllowed := func(h string) bool { return listed(h) || d.BoxAddr.Allows(h) }
+	d.TrustAnchor, d.HostAllowed, d.OsqueryDir = trustAnchor(o, intakeTrustAnchor(tlsCfg, boxCAs, renew)), hostAllowed, o.osqueryDir //nolint:contextcheck // agent-intake reads them when it is built; the Host check runs per request, with no context to pass
 	d.MCPInContainer = inContainer()
 	if d.MCPListen, err = parseMCPListen(o.mcpListen, d.MCPInContainer); err != nil {
 		return err
@@ -364,6 +373,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err := buildServices(ctx, &d); err != nil {
 		return err
 	}
+	d.BoxAddr.Invalidate() //nolint:contextcheck // one bounded read (boxAddrTimeout) before the listener serves: a saved name is answered to from the first request (review L2)
 	defer d.OS.Close()
 	defer d.Response.Close()     // ends the approval requests still being sent before the database closes
 	defer scanService(d).Close() // stop a live scan and wait for it before the database closes (scan review M4)
@@ -410,7 +420,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	srv := &http.Server{
-		Handler:           topHandler(log, api, hosts, hsts, boxOwnAddress(d.HostNet)), //nolint:contextcheck // the Host check runs per request, with no context to pass
+		Handler:           topHandler(log, api, hostAllowed, hsts),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,
 		IdleTimeout:       2 * time.Minute,
@@ -441,15 +451,15 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	return serveUntilDone(ctx, log, srv, ln, link, sched, schedulerStopTimeout)
 }
 
-// topHandler is everything the listener answers. A Host header outside the allowlist is 421 before anything
-// else is routed (DNS rebinding). The Envelope (panic recovery, request id, security
-// headers) wraps the ServeMux too, so the mux's own answers (307 for /api/v1, //, .. and the 404 for
+// topHandler is everything the listener answers. A Host header allowed refuses is 421 before anything else is routed (DNS rebinding):
+// allowed is server.HostMatcher of the allowlist and the box's own addresses, plus the Box address (D-465). The Envelope (panic
+// recovery, request id, security headers) wraps the ServeMux too, so the mux's own answers (307 for /api/v1, //, .. and the 404 for
 // other paths) carry the headers the API's responses do.
-func topHandler(log *slog.Logger, api http.Handler, hosts []string, hsts bool, own func(netip.Addr) bool) http.Handler {
+func topHandler(log *slog.Logger, api http.Handler, allowed func(host string) bool, hsts bool) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle(server.Prefix+"/", api)
 	mux.Handle("/", webui.Handler(webui.FS())) // the interface (D-149): anything that is not the API; paths under /api/ other than the API's are its own 404
-	h := server.HostAllowlistWith(hosts, own, mux)
+	h := server.HostAllowlistFunc(allowed, mux)
 	if hsts {
 		h = strictTransportSecurity(h)
 	}

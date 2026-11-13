@@ -52,7 +52,7 @@ func TestWiringInventoryFindingsCount(t *testing.T) {
 // feat-e2e-real-response-chains:6: the block list address a firewall pulls is the box's full address when the box has a name.
 func TestWiringResponseBlocklistURLIsAbsolute(t *testing.T) {
 	t.Parallel()
-	s := newStackWith(t, func(d *deps) { d.BaseURL = "https://vedette.acme.example:8443" })
+	s := newStackWith(t, func(d *deps) { d.BaseURL = func() string { return "https://vedette.acme.example:8443" } })
 	s.setModule("inventory", true)
 	s.setModule("response", true)
 	c, v := s.do("GET", "/response/blocklist", "admin", "")

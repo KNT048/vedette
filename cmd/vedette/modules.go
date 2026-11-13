@@ -58,9 +58,14 @@ type deps struct {
 	// Argon2 is the password hashing of core/auth (auth.Config.Argon2): zero, the production parameters, in serve. The wiring tests set
 	// authtest.Cheap, a real argon2id that is fast: at 64 MiB and three passes under -race, the build of each stack alone hashed for a while.
 	Argon2 auth.Params
-	// BaseURL is the address people open Vedette at (links in notify messages); empty on loopback, see baseURL.
-	BaseURL string
-	Conn    *conn.Service // connections to devices (core/conn, D-93): core's handlers, response and the Privacy page share it
+	// BaseURL is the address people open Vedette at, https://<Box address>[:port] (D-465: links in notify messages, the block list URL,
+	// URL honey tokens, the agent install commands), read at every use so a save in Settings → Box network applies at once; it answers ""
+	// on loopback and while the box knows no address (see baseURL). nil: no address (tests). BoxAddr is what it reads; nil in tests.
+	BaseURL func() string
+	BoxAddr *boxAddr
+	// SelfSigned: the box serves its own certificate (no -tls-cert), so it adds the Box address itself; the Box network page says so.
+	SelfSigned bool
+	Conn       *conn.Service // connections to devices (core/conn, D-93): core's handlers, response and the Privacy page share it
 	// ConnReader lists and calls the read tools of the connections (core/conn/read, D-93 (3)). The ai module (WP-25) is given this and nothing
 	// else of core/conn: not the *conn.Service and not the writer, which only response gets. nil when there is no Conn.
 	ConnReader *read.Reader

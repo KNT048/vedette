@@ -32,7 +32,7 @@ func TestContract_D530_ProvedNotAffectedClosesAndReopens(t *testing.T) {
 		!strings.HasPrefix(r.ResolutionNote, "Not affected: version 6.2.0 of Photo Station is outside every version range NVD lists for CVE-2022-27593.") {
 		t.Fatalf("finding = %+v", r.Finding)
 	}
-	if ev := e.pub.take(); len(ev) != 1 || ev[0].Name != EventStatusChanged || ev[0].Payload.(StatusChangedEvent).To != StatusNotRelevant {
+	if ev := e.pub.take(); len(ev) != 1 || ev[0].Name != EventStatusChanged || ev[0].Payload != (StatusChangedEvent{FindingID: r.ID, From: StatusSuspected, To: StatusNotRelevant, Reason: ReasonNotAffectedVersion}) {
 		t.Fatalf("events = %+v", ev)
 	}
 	run("6.2.0") // said once
@@ -50,7 +50,7 @@ func TestContract_D530_ProvedNotAffectedClosesAndReopens(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM fnd_finding_history WHERE action = 'matches_again' AND note LIKE '%reopened%'`); n != 1 {
 		t.Fatalf("matches_again rows %d", n)
 	}
-	if ev := e.pub.take(); len(ev) != 1 || ev[0].Payload.(StatusChangedEvent).To != StatusSuspected {
+	if ev := e.pub.take(); len(ev) != 1 || ev[0].Payload != (StatusChangedEvent{FindingID: r.ID, From: StatusNotRelevant, To: StatusSuspected, Reason: ReasonMatchesAgain}) {
 		t.Fatalf("events = %+v", ev)
 	}
 }
@@ -221,7 +221,8 @@ func TestUpsert_SeverityFollowsTheBasis(t *testing.T) {
 	if r.Basis != BasisVersion || r.Severity != SeverityCritical {
 		t.Fatalf("after the ranges: %s %s", r.Basis, r.Severity)
 	}
-	if ev := e.pub.take(); len(ev) != 1 || ev[0].Name != EventStatusChanged || ev[0].Payload.(StatusChangedEvent).Severity != SeverityCritical {
+	if ev := e.pub.take(); len(ev) != 1 || ev[0].Name != EventSeverityRaised || ev[0].Payload.(SeverityRaisedEvent).FromSeverity != SeverityMedium ||
+		ev[0].Payload.(SeverityRaisedEvent).ToSeverity != SeverityCritical {
 		t.Fatalf("events %+v", ev)
 	}
 }

@@ -214,7 +214,7 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.matches_again", Target: r.ID, Detail: r.CVE + ": reopened"}); err != nil {
 					return err
 				}
-				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status})
+				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status, Reason: ReasonMatchesAgain})
 			}
 			r.Finding = r.ApplyMatch(em)
 			r.LastSeen = now
@@ -229,8 +229,9 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 					Detail: fmt.Sprintf("%s: %s to %s, %s", r.CVE, before.Basis, r.Basis, r.Severity)}); err != nil {
 					return err
 				}
-				if r.Severity != before.Severity { // review H2: the bus hears the raise (status unchanged; created is only for new pairs, POST-1)
-					emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: r.Status, To: r.Status, Severity: r.Severity, Basis: r.Basis})
+				if sevRank(r.Severity) > sevRank(before.Severity) { // review H2, M-a: its own event; the status did not change
+					emit(EventSeverityRaised, SeverityRaisedEvent{FindingID: r.ID, AssetID: r.AssetID, CVE: r.CVE,
+						FromSeverity: before.Severity, ToSeverity: r.Severity, Basis: r.Basis})
 				}
 			} else if r.Severity != before.Severity { // W3-3: a product match graded before D-500 takes the product severity, once
 				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.regraded", Target: r.ID,
@@ -373,7 +374,7 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 			Detail: r.CVE + ": " + ReasonNotAffectedVersion}); err != nil {
 			return err
 		}
-		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status})
+		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status, Reason: ReasonNotAffectedVersion})
 	}
 	return nil
 }

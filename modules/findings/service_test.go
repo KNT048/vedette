@@ -232,9 +232,11 @@ func TestContract_INV2_UpsertRaisesBasisOfOpenFindingOnly(t *testing.T) {
 	if got := e.auditActions(); len(got) != 2 || got[1] != "findings.basis_raised" {
 		t.Fatalf("audit = %v", got)
 	}
-	// a repeated match never publishes created (POST-1); the raise to high goes out as status_changed (review H2)
-	if ev := e.pub.take(); len(ev) != 1 || ev[0].Name != EventStatusChanged || ev[0].Payload.(StatusChangedEvent).Severity != SeverityHigh {
-		t.Fatalf("events = %+v", ev)
+	// a repeated match never publishes created (POST-1); the raise to high has its own event and no status_changed
+	// goes out, since the status did not change (review H2, M-a of #663)
+	want := SeverityRaisedEvent{FindingID: id, AssetID: "a-1", CVE: "CVE-2022-27593", FromSeverity: SeverityMedium, ToSeverity: SeverityHigh, Basis: BasisVersion}
+	if ev := e.pub.take(); len(ev) != 1 || ev[0].Name != EventSeverityRaised || ev[0].Payload.(SeverityRaisedEvent) != want {
+		t.Fatalf("events = %+v, want %+v", ev, want)
 	}
 }
 

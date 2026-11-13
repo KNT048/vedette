@@ -76,37 +76,66 @@ func (a notifyDevices) DeviceName(ctx context.Context, assetID string) (string, 
 	return r.Display, true, nil
 }
 
-// deviceVendorMax caps the vendor in a device label: notify refuses an incident title over 200 characters.
-const deviceVendorMax = 48
-
-// DeviceLabel names a newly discovered device for its unknown_device incident (walk 4: "A new unknown device appeared:
-// switch"): the hostname, else the IP or else the MAC followed by the vendor when one is known ("192.168.18.254 (Sichuan
-// AI-Link)"); the kind only when nothing else is known. The values come from the network: plainText cleans them.
-func (a notifyDevices) DeviceLabel(ctx context.Context, assetID string) (string, bool, error) {
-	refs, err := a.inv.DeviceRefs(ctx, []string{assetID})
+// DeviceStates is notify's view of devices for their unknown_device incidents (D-552, W8-2): the name of the Devices page
+// (inventory.Device.Name, the one naming rule of D-471), else the MAC, else the kind; the IP, else the MAC, as the address; whether
+// and when it was approved (notify closes the device's incident on it). The values come from the network: plainText cleans them.
+// One id (notify's handler of inventory.asset.updated, only for a device on an open new-device incident) reads that device; more
+// (the hourly autoclose job) read every device once, never one read per id.
+// ponytail: inventory has no light read that says approved: Device also counts the findings of the whole box
+// (findings.CountByAsset) and AllDevices loads every device's software. Upgrade path: an inventory batch read like DeviceRefs that
+// adds model, origin, approved and approved_at (one query, no findings), used for both (deferred line, Kiên's module).
+func (a notifyDevices) DeviceStates(ctx context.Context, ids []string) (map[string]notify.DeviceState, error) {
+	out := make(map[string]notify.DeviceState, len(ids))
+	switch len(ids) {
+	case 0:
+		return out, nil
+	case 1:
+		d, err := a.inv.Device(ctx, ids[0])
+		if errors.Is(err, inventory.ErrNotFound) {
+			return out, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		out[d.ID] = deviceState(d)
+		return out, nil
+	}
+	want := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		want[id] = true
+	}
+	all, err := a.inv.AllDevices(ctx)
 	if err != nil {
-		return "", false, err
+		return nil, err
 	}
-	r, ok := refs[assetID]
-	if !ok {
-		return "", false, nil
-	}
-	if r.Hostname != nil {
-		if h := plainText(*r.Hostname, 160); h != "" {
-			return h, true, nil
+	for _, d := range all {
+		if want[d.ID] {
+			out[d.ID] = deviceState(d)
 		}
 	}
-	id := r.MAC
-	if _, err := netip.ParseAddr(r.IP); err == nil { // the inventory shows an em dash when the IP is unknown
-		id = r.IP
+	return out, nil
+}
+
+// deviceState is DeviceStates of one device of the inventory.
+func deviceState(d inventory.Device) notify.DeviceState {
+	var mac string
+	if d.MAC != nil {
+		mac = plainText(*d.MAC, 64)
 	}
-	if id == "" {
-		return r.Display, true, nil
+	st := notify.DeviceState{Name: plainText(d.Name(), 160), Address: mac, Approved: d.Approved}
+	if _, err := netip.ParseAddr(d.IP); err == nil { // the inventory shows an em dash when the IP is unknown
+		st.Address = d.IP
 	}
-	if v := plainText(r.Vendor, deviceVendorMax); v != "" {
-		id += " (" + v + ")"
+	if st.Name == "" {
+		st.Name = mac
 	}
-	return id, true, nil
+	if st.Name == "" {
+		st.Name = plainText(d.Kind, 64)
+	}
+	if d.ApprovedAt != nil {
+		st.ApprovedAt, _ = time.Parse(time.RFC3339, *d.ApprovedAt) // unreadable: unknown, as before D-471
+	}
+	return st
 }
 
 // orgZone is notify's Zone: the organization time zone of core's general settings, read at every use so a change

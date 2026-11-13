@@ -408,8 +408,14 @@ func (f fakeDevices) DeviceName(_ context.Context, id string) (string, bool, err
 	return n, ok, nil
 }
 
-func (f fakeDevices) DeviceLabel(ctx context.Context, id string) (string, bool, error) {
-	return f.DeviceName(ctx, id)
+func (f fakeDevices) DeviceStates(_ context.Context, ids []string) (map[string]notify.DeviceState, error) {
+	out := map[string]notify.DeviceState{}
+	for _, id := range ids {
+		if n, ok := f[id]; ok {
+			out[id] = notify.DeviceState{Name: n}
+		}
+	}
+	return out, nil
 }
 
 func TestSubscribeTurnsEventsIntoNoticesAndIncidents(t *testing.T) {

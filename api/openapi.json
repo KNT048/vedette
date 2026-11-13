@@ -31920,8 +31920,22 @@
                               "rdp",
                               "ssh",
                               "mssql",
-                              "http"
-                            ]
+                              "http",
+                              "https",
+                              "ftp",
+                              "telnet",
+                              "mysql",
+                              "mongodb",
+                              "redis",
+                              "vnc",
+                              "git",
+                              "httpproxy",
+                              "tcpbanner",
+                              "tftp",
+                              "ntp",
+                              "sip"
+                            ],
+                            "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                           },
                           "port": {
                             "type": "integer",
@@ -32117,14 +32131,28 @@
                                   "rdp",
                                   "ssh",
                                   "mssql",
-                                  "http"
-                                ]
+                                  "http",
+                                  "https",
+                                  "ftp",
+                                  "telnet",
+                                  "mysql",
+                                  "mongodb",
+                                  "redis",
+                                  "vnc",
+                                  "git",
+                                  "httpproxy",
+                                  "tcpbanner",
+                                  "tftp",
+                                  "ntp",
+                                  "sip"
+                                ],
+                                "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                               },
                               {
                                 "type": "null"
                               }
                             ],
-                            "description": "Set for kind=service on the classic ports; null otherwise"
+                            "description": "Set for kind=service; null otherwise"
                           },
                           "label": {
                             "type": "string",
@@ -32268,14 +32296,28 @@
                             "rdp",
                             "ssh",
                             "mssql",
-                            "http"
-                          ]
+                            "http",
+                            "https",
+                            "ftp",
+                            "telnet",
+                            "mysql",
+                            "mongodb",
+                            "redis",
+                            "vnc",
+                            "git",
+                            "httpproxy",
+                            "tcpbanner",
+                            "tftp",
+                            "ntp",
+                            "sip"
+                          ],
+                          "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                         },
                         {
                           "type": "null"
                         }
                       ],
-                      "description": "Set for kind=service on the classic ports; null otherwise"
+                      "description": "Set for kind=service; null otherwise"
                     },
                     "label": {
                       "type": "string",
@@ -32457,8 +32499,22 @@
                       "rdp",
                       "ssh",
                       "mssql",
-                      "http"
-                    ]
+                      "http",
+                      "https",
+                      "ftp",
+                      "telnet",
+                      "mysql",
+                      "mongodb",
+                      "redis",
+                      "vnc",
+                      "git",
+                      "httpproxy",
+                      "tcpbanner",
+                      "tftp",
+                      "ntp",
+                      "sip"
+                    ],
+                    "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                   }
                 },
                 "required": [
@@ -32503,14 +32559,28 @@
                             "rdp",
                             "ssh",
                             "mssql",
-                            "http"
-                          ]
+                            "http",
+                            "https",
+                            "ftp",
+                            "telnet",
+                            "mysql",
+                            "mongodb",
+                            "redis",
+                            "vnc",
+                            "git",
+                            "httpproxy",
+                            "tcpbanner",
+                            "tftp",
+                            "ntp",
+                            "sip"
+                          ],
+                          "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                         },
                         {
                           "type": "null"
                         }
                       ],
-                      "description": "Set for kind=service on the classic ports; null otherwise"
+                      "description": "Set for kind=service; null otherwise"
                     },
                     "label": {
                       "type": "string",
@@ -32637,14 +32707,28 @@
                             "rdp",
                             "ssh",
                             "mssql",
-                            "http"
-                          ]
+                            "http",
+                            "https",
+                            "ftp",
+                            "telnet",
+                            "mysql",
+                            "mongodb",
+                            "redis",
+                            "vnc",
+                            "git",
+                            "httpproxy",
+                            "tcpbanner",
+                            "tftp",
+                            "ntp",
+                            "sip"
+                          ],
+                          "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                         },
                         {
                           "type": "null"
                         }
                       ],
-                      "description": "Set for kind=service on the classic ports; null otherwise"
+                      "description": "Set for kind=service; null otherwise"
                     },
                     "label": {
                       "type": "string",
@@ -33071,14 +33155,28 @@
                             "rdp",
                             "ssh",
                             "mssql",
-                            "http"
-                          ]
+                            "http",
+                            "https",
+                            "ftp",
+                            "telnet",
+                            "mysql",
+                            "mongodb",
+                            "redis",
+                            "vnc",
+                            "git",
+                            "httpproxy",
+                            "tcpbanner",
+                            "tftp",
+                            "ntp",
+                            "sip"
+                          ],
+                          "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                         },
                         {
                           "type": "null"
                         }
                       ],
-                      "description": "Set for kind=service on the classic ports; null otherwise"
+                      "description": "Set for kind=service; null otherwise"
                     },
                     "label": {
                       "type": "string",
@@ -33242,8 +33340,22 @@
                                 "rdp",
                                 "ssh",
                                 "mssql",
-                                "http"
-                              ]
+                                "http",
+                                "https",
+                                "ftp",
+                                "telnet",
+                                "mysql",
+                                "mongodb",
+                                "redis",
+                                "vnc",
+                                "git",
+                                "httpproxy",
+                                "tcpbanner",
+                                "tftp",
+                                "ntp",
+                                "sip"
+                              ],
+                              "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                             },
                             "description": "The services this address answers on; every other port is closed on it"
                           },
@@ -33326,8 +33438,22 @@
                                 "rdp",
                                 "ssh",
                                 "mssql",
-                                "http"
-                              ]
+                                "http",
+                                "https",
+                                "ftp",
+                                "telnet",
+                                "mysql",
+                                "mongodb",
+                                "redis",
+                                "vnc",
+                                "git",
+                                "httpproxy",
+                                "tcpbanner",
+                                "tftp",
+                                "ntp",
+                                "sip"
+                              ],
+                              "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                             },
                             "description": "Services the address answers on now: its own while it listens; every running service on an older host that cannot keep them apart; none while it does not listen"
                           },
@@ -33529,8 +33655,22 @@
                         "rdp",
                         "ssh",
                         "mssql",
-                        "http"
-                      ]
+                        "http",
+                        "https",
+                        "ftp",
+                        "telnet",
+                        "mysql",
+                        "mongodb",
+                        "redis",
+                        "vnc",
+                        "git",
+                        "httpproxy",
+                        "tcpbanner",
+                        "tftp",
+                        "ntp",
+                        "sip"
+                      ],
+                      "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                     }
                   }
                 },
@@ -33611,8 +33751,22 @@
                           "rdp",
                           "ssh",
                           "mssql",
-                          "http"
-                        ]
+                          "http",
+                          "https",
+                          "ftp",
+                          "telnet",
+                          "mysql",
+                          "mongodb",
+                          "redis",
+                          "vnc",
+                          "git",
+                          "httpproxy",
+                          "tcpbanner",
+                          "tftp",
+                          "ntp",
+                          "sip"
+                        ],
+                        "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                       },
                       "description": "The services this address answers on; every other port is closed on it"
                     },
@@ -33695,8 +33849,22 @@
                           "rdp",
                           "ssh",
                           "mssql",
-                          "http"
-                        ]
+                          "http",
+                          "https",
+                          "ftp",
+                          "telnet",
+                          "mysql",
+                          "mongodb",
+                          "redis",
+                          "vnc",
+                          "git",
+                          "httpproxy",
+                          "tcpbanner",
+                          "tftp",
+                          "ntp",
+                          "sip"
+                        ],
+                        "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                       },
                       "description": "Services the address answers on now: its own while it listens; every running service on an older host that cannot keep them apart; none while it does not listen"
                     },
@@ -33912,8 +34080,22 @@
                           "rdp",
                           "ssh",
                           "mssql",
-                          "http"
-                        ]
+                          "http",
+                          "https",
+                          "ftp",
+                          "telnet",
+                          "mysql",
+                          "mongodb",
+                          "redis",
+                          "vnc",
+                          "git",
+                          "httpproxy",
+                          "tcpbanner",
+                          "tftp",
+                          "ntp",
+                          "sip"
+                        ],
+                        "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                       },
                       "description": "The services this address answers on; every other port is closed on it"
                     },
@@ -33996,8 +34178,22 @@
                           "rdp",
                           "ssh",
                           "mssql",
-                          "http"
-                        ]
+                          "http",
+                          "https",
+                          "ftp",
+                          "telnet",
+                          "mysql",
+                          "mongodb",
+                          "redis",
+                          "vnc",
+                          "git",
+                          "httpproxy",
+                          "tcpbanner",
+                          "tftp",
+                          "ntp",
+                          "sip"
+                        ],
+                        "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                       },
                       "description": "Services the address answers on now: its own while it listens; every running service on an older host that cannot keep them apart; none while it does not listen"
                     },
@@ -34150,8 +34346,22 @@
                         "rdp",
                         "ssh",
                         "mssql",
-                        "http"
-                      ]
+                        "http",
+                        "https",
+                        "ftp",
+                        "telnet",
+                        "mysql",
+                        "mongodb",
+                        "redis",
+                        "vnc",
+                        "git",
+                        "httpproxy",
+                        "tcpbanner",
+                        "tftp",
+                        "ntp",
+                        "sip"
+                      ],
+                      "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                     }
                   }
                 },
@@ -34232,8 +34442,22 @@
                           "rdp",
                           "ssh",
                           "mssql",
-                          "http"
-                        ]
+                          "http",
+                          "https",
+                          "ftp",
+                          "telnet",
+                          "mysql",
+                          "mongodb",
+                          "redis",
+                          "vnc",
+                          "git",
+                          "httpproxy",
+                          "tcpbanner",
+                          "tftp",
+                          "ntp",
+                          "sip"
+                        ],
+                        "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                       },
                       "description": "The services this address answers on; every other port is closed on it"
                     },
@@ -34316,8 +34540,22 @@
                           "rdp",
                           "ssh",
                           "mssql",
-                          "http"
-                        ]
+                          "http",
+                          "https",
+                          "ftp",
+                          "telnet",
+                          "mysql",
+                          "mongodb",
+                          "redis",
+                          "vnc",
+                          "git",
+                          "httpproxy",
+                          "tcpbanner",
+                          "tftp",
+                          "ntp",
+                          "sip"
+                        ],
+                        "description": "A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log"
                       },
                       "description": "Services the address answers on now: its own while it listens; every running service on an older host that cannot keep them apart; none while it does not listen"
                     },

@@ -1,13 +1,13 @@
 id: honeypot           # trùng tên thư mục
 name: { vi: "Bẫy nội bộ", en: "Honeypot" }
-summary: { vi: "Trap IP giống thiết bị thật (tên, MAC theo hãng, dịch vụ riêng SMB/RDP/SSH/MSSQL/HTTP) và honey token: ai chạm vào là biết ngay, chạm hai Trap IP trong một phút là quét.", en: "Trap IPs that look like real devices (name, vendor MAC, their own SMB/RDP/SSH/MSSQL/HTTP services) and honey tokens: any touch is an alert, touching two Trap IPs within a minute is a scan." }
+summary: { vi: "Trap IP giống thiết bị thật (tên, MAC theo hãng, dịch vụ riêng: SMB, RDP, SSH, cơ sở dữ liệu, web, FTP, Telnet, VNC... 18 dịch vụ) và honey token: ai chạm vào là biết ngay, chạm hai Trap IP trong một phút là quét.", en: "Trap IPs that look like real devices (name, vendor MAC, their own services: SMB, RDP, SSH, databases, web, FTP, Telnet, VNC... 18 in all) and honey tokens: any touch is an alert, touching two Trap IPs within a minute is a scan." }
 tier: optional
 needs_host: true      # D-381: chỉ chạy khi có vedette-host (appliance); bản chỉ container không bật được
 default: off
 depends: [core, inventory]
 soft_depends: [notify, response]   # notify: gửi cảnh báo; response: trigger "honeypot" (không có response thì hit vẫn lưu và báo)
-permissions: [net_bind_low, "host:net.decoy_ip"]   # cổng 22/80/445/1433/3389 trong container honeypot; địa chỉ Trap IP và danh sách cổng của từng địa chỉ do vedette-host dựng (D-56, D-466)
-ports: ["tcp/445", "tcp/3389", "tcp/22", "tcp/1433", "tcp/80"]   # chỉ trên Trap IP, mỗi Trap IP chỉ cổng của dịch vụ nó có (D-466); không trên IP quản trị của hộp
+permissions: [net_bind_low, "host:net.decoy_ip"]   # cổng thấp của các dịch vụ trong container honeypot; địa chỉ Trap IP và danh sách cổng của từng địa chỉ do vedette-host dựng (D-56, D-466)
+ports: ["tcp/445", "tcp/3389", "tcp/22", "tcp/1433", "tcp/80", "tcp/443", "tcp/21", "tcp/23", "tcp/3306", "tcp/27017", "tcp/6379", "tcp/5900", "tcp/9418", "tcp/8080", "tcp/25", "udp/69", "udp/123", "udp/5060"]   # chỉ trên Trap IP, mỗi Trap IP chỉ cổng của dịch vụ nó có (D-466, D-467); không trên IP quản trị của hộp
 container: honeypot    # D-55: OpenCanary (BSD-3) trong container riêng, macvlan trên IP phụ; API + bảng nằm trong `core`
 tables_prefix: hp_
 tables: [hp_config, hp_trap_ips, hp_hits, hp_tokens, hp_ignored_day]

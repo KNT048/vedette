@@ -36,9 +36,54 @@ var quietWindows = []struct {
 func heldKind(k IncidentKind) bool { return k == IncidentBadAddress || k == IncidentLogAnomaly }
 
 // runAutoClose is the body of the "autoclose" job: the first-run summary first (an incident held in it may also be quiet), then the
-// quiet incidents.
+// quiet incidents, then the new-device incidents of devices approved or renamed in Devices (D-552).
 func (s *Service) runAutoClose(ctx context.Context) error {
-	return errors.Join(s.firstRunSummary(ctx), s.closeQuiet(ctx))
+	return errors.Join(s.firstRunSummary(ctx), s.closeQuiet(ctx), s.followDevices(ctx))
+}
+
+// followDevices is assetUpdated for every device on an open new-device incident (D-552): a device approved before this version, or
+// while notify was off (events are not replayed), leaves its incidents on the next run, which is also the run at start, and a name
+// Devices learnt since shows. One read of notify, one batch read of the inventory, and one write for the devices with something to
+// change (at most maxAutoClose a run; the next run takes the rest), so devices that stay unapproved never hold the others back.
+func (s *Service) followDevices(ctx context.Context) error {
+	if s.cfg.Devices == nil {
+		return nil
+	}
+	rows, err := s.openDeviceRows(ctx, "")
+	if err != nil || len(rows) == 0 {
+		return err
+	}
+	byAsset := map[string][]openDeviceRow{}
+	var ids []string
+	for _, r := range rows {
+		if _, seen := byAsset[r.asset]; !seen {
+			ids = append(ids, r.asset)
+		}
+		byAsset[r.asset] = append(byAsset[r.asset], r)
+	}
+	states, err := s.cfg.Devices.DeviceStates(ctx, ids)
+	if err != nil {
+		return err
+	}
+	var due []string
+	for _, id := range ids {
+		if st, ok := states[id]; ok && needsFollow(st, byAsset[id]) { // a device the inventory no longer has is INV-20's
+			if due = append(due, id); len(due) == maxAutoClose {
+				break
+			}
+		}
+	}
+	if len(due) == 0 {
+		return nil
+	}
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		for _, id := range due {
+			if err := s.followDevice(ctx, tx, id, states[id]); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // closeBySystem resolves an open incident on Vedette's behalf, like a person's resolve (handled_by system, one audit row

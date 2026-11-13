@@ -321,7 +321,10 @@ func TestFirstTrapPortReadsWhatRenderConfigWrites(t *testing.T) {
 	}{
 		{[]honeypot.ServiceName{honeypot.SMB, honeypot.SSH, honeypot.HTTP}, honeypot.SSH.Port()},
 		{[]honeypot.ServiceName{honeypot.HTTP}, honeypot.HTTP.Port()},
-		{[]honeypot.ServiceName{honeypot.SMB}, 0}, // Samba's, not OpenCanary's
+		{[]honeypot.ServiceName{honeypot.SMB}, 0},                                             // Samba's, not OpenCanary's
+		{[]honeypot.ServiceName{honeypot.TFTP, honeypot.NTP, honeypot.SIP}, 0},                // UDP: nothing to connect to
+		{[]honeypot.ServiceName{honeypot.SIP, honeypot.TCPBanner}, honeypot.TCPBanner.Port()}, // the banner's port key is tcpbanner_1.port
+		{[]honeypot.ServiceName{honeypot.TFTP, honeypot.FTP}, honeypot.FTP.Port()},
 		{nil, 0},
 	} {
 		b, err := honeypot.RenderConfig(honeypot.ConfigInput{Enabled: tc.enabled, LogPath: "/var/lib/vedette/honeypot/log/opencanary.jsonl"})

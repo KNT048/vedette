@@ -207,6 +207,19 @@ func (c *Catalog) keysForCPE(cpe string) []string {
 	return c.byCPE[f[0]+":"+f[1]+":"+f[2]]
 }
 
+// KevKeysByCPE reads the catalog once and returns the lookup from a CPE 2.2 URI as nmap prints it ("cpe:/a:apache:http_server:2.4.49")
+// to the KEV keys of the curated entry that names its product (item 24; exposure compares public services with it). The keys may be
+// ones no KEV entry carries today (an entry without kev_match has vendor|product): the caller keeps only those the list has. When the
+// catalog cannot be read it logs once and the lookup answers nil.
+func (s *Service) KevKeysByCPE(ctx context.Context) func(cpe string) []string {
+	c, err := s.Catalog(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "inventory: the catalog could not be read; a service is compared by the CPE keys of the exploited list only", "error", err)
+		return func(string) []string { return nil }
+	}
+	return c.keysForCPE
+}
+
 func (c *Catalog) sum(keys []string) int {
 	n := 0
 	for _, k := range keys {

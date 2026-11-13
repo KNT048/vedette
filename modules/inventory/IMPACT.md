@@ -61,6 +61,9 @@
 - `RematchCVEExcept(ctx, cve, vendor, product, known)` (D-328): như `RematchCVE` nhưng bỏ thiết bị `known` nói đã khớp; người gọi duy nhất là `cmd/vedette` `rematchUpdated` (sự kiện `feeds.vuln.updated`), với `known` = `findingKnown` (đã có finding, hoặc đã phát cho thiết bị đó trong cùng sự kiện). Đổi payload của `feeds.vuln.updated` (feeds) → `rematchUpdated` đổi theo.
 - `RematchAll`/`RematchCVE`/`RematchMany` phát `inventory.match.changed` cho **findings** (`OnMatchChanged` tính lại cả thiết bị mỗi lần). Từ review H3 (2026-11-13) `RematchAll` và `RematchMany` phát **một lần mỗi thiết bị** (CVE của sự kiện là CVE đầu tiên của thiết bị); người nghe nào cần từng CVE phải đọc lại khớp của thiết bị (hiện chỉ findings nghe, và chỉ dùng `asset_id`). `cmd/vedette` `findingsFeeds.Vulns` giữ danh sách theo `feeds.Store.MatchStamp`.
 
+## Modifying: `Service.KevKeysByCPE` (item 24)
+- Người gọi duy nhất: `exposure` qua `cmd/vedette/exposurematch.go` (`exposureMatcher.catalog`), cộng với khoá lấy từ CPE trong dữ liệu NVD của danh sách KEV. Đổi chữ ký hoặc luật `keysForCPE` = sửa matcher và `TestExposureMatcher_CuratedCatalogKevKeys`. Bỏ `cpe` của Apache, nginx, OpenSSH trong `curated.json` làm dịch vụ công cộng thiếu khoá này (matcher vẫn dùng khoá từ NVD). `cpe` của curated cũng đi qua `ReplaceSoftware` → `keysForCPE` cho phần mềm nmap thấy trên LAN, nên khoá nginx trên LAN chuyển từ `igor sysoev|nginx` sang `f5|nginx`; hiện cả hai chưa có trong KEV.
+
 ## Modifying: `content/catalog/{curated,kev-products}.json`
 - **SPA** (`catalog.ts` nhập cùng hai file), **Go** (`content/catalog` nhúng). Đổi file = chạy lại `UPDATE_GOLDEN=1 pnpm vitest run src/features/inventory/catalog.golden.test.ts` rồi `go test ./modules/inventory -run Catalog`; `make fixtures` ghi `kev-products.json`.
 

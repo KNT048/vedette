@@ -19,10 +19,10 @@ import (
 //
 // A service is looked up by the CPE nmap printed. Its KEV keys come from the NVD configurations of the KEV entries themselves (a
 // KEV entry whose NVD data names cpe:2.3:a:apache:http_server gives that CPE the key "apache|http server"), plus catalog when it
-// is set: inventory's curated CPE to KEV keys (inventory.KevKeysForCPE, not exported yet; the curated catalog names few CPEs).
+// is set: inventory's curated CPE to KEV keys (inventory.Service.KevKeysByCPE). Catalog keys count only when some entry of the list carries them, so a service is never "compared" against a product the list does not have (INV-20).
 type exposureMatcher struct {
 	vulns   func(ctx context.Context) ([]findings.Vuln, error)
-	catalog func(cpe string) []string // nil until inventory exports KevKeysForCPE
+	catalog func(ctx context.Context) func(cpe string) []string // inventory.Service.KevKeysByCPE, read once per Match; nil: the list's own CPEs only
 	now     func() time.Time
 }
 
@@ -48,6 +48,14 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 		return exposure.Matches{}, err
 	}
 	byCPE := kevKeysByCPE(vulns)
+	var lookup func(cpe string) []string
+	var listed map[string]bool // the vendor|product keys the list carries
+	if m.catalog != nil {
+		lookup, listed = m.catalog(ctx), map[string]bool{}
+		for _, v := range vulns {
+			listed[findings.KevKey(v.Vendor, v.Product)] = true
+		}
+	}
 	out := exposure.Matches{Vulns: []exposure.VulnRow{}, Gaps: []exposure.GapRow{}, Listed: len(vulns)}
 	assets := map[string]*findings.Asset{} // one asset per IP, named by the IP: the sentence says "<ip> runs Apache httpd 2.4.49"
 	var order []string
@@ -59,8 +67,9 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 		}
 		base := cpeBase(cpe)
 		keys := byCPE[base]
-		if m.catalog != nil {
-			keys = slices.Concat(keys, m.catalog(s.CPE)) // a new slice: byCPE's lists are shared
+		if lookup != nil {
+			extra := slices.DeleteFunc(slices.Clone(lookup(s.CPE)), func(k string) bool { return !listed[k] }) // a new slice: byCPE's lists are shared
+			keys = slices.Concat(keys, extra)
 		}
 		display := s.Product
 		if display == "" {

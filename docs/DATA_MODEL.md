@@ -166,6 +166,7 @@ UQ `(type, value)`. IX `(type, value)` phục vụ khớp log, `(expires_at)`. G
 | `vendor_obs_id`, `model_obs_id`, `os_obs_id`, `kind_obs_id`, `hostname_obs_id`, `mac_obs_id` | id | có | observation đang thắng; để API trả `{value, source, confidence, seen_at}` (`Observed`) mà không tính lại |
 | `origin` | enum(discovered\|manual) | không | `manual` = khai tay (`origin` của `Asset`) |
 | `approved` | bool | không | 0 khi cảm biến mới thấy; 1 khi khai tay (S-INV-3) |
+| `approved_at` | ts | có | lúc người duyệt thiết bị cảm biến thấy, hoặc lúc osquery đăng ký duyệt nó (INV-25); duyệt lại không dời; NULL = chưa duyệt, khai tay, hoặc duyệt trước migration 0003 (D-471) |
 | `fragile` | bool | không | tính từ `kind` ∈ `inv_setting.fragile_kinds` lúc tạo; sửa tay qua `PATCH` (cờ `fragile_manual`) |
 | `fragile_manual` | bool | không | 0; 1 = người dùng đã ghi đè theo chính sách loại |
 | `regular_scan` | enum(follow\|allow\|never) | không | `follow` (D-45) |

@@ -7,6 +7,7 @@ import { collection, daysAgo, dataMode, newId, nowIso, peek } from '@/mocks/db'
 import { assetsStore, findingsStore, isOn } from '@/mocks/stores'
 import type { Asset, Finding } from '@/lib/types'
 import { BOX_ID, inventorySettingsStore } from '@/features/inventory/mocks'
+import { displayName } from '@/features/inventory/nameOf'
 import { exposureSnapshotsStore, exposureTargetsStore } from '@/features/exposure/mocks'
 import type { CredTarget, IdentReason, ProbeEntry, RescanEvent, RunIdentRow, RunResultRow, ScanConfig, ScanConfigResponse, ScanRun, ScanScope, ScanTarget } from './types'
 
@@ -181,7 +182,7 @@ function targets(): ScanTarget[] {
   const internal = assetsStore.get().map((a: Asset): ScanTarget => {
     const reason = meta[a.id]?.regular_scan === 'never' ? 'regular_scan_never' : !a.approved ? 'unapproved' : !a.ip || a.ip === '—' ? 'no_ip' : c.exclusions.some((e) => inCidr(a.ip, e)) ? 'excluded' : !sc.networks.some((n) => inCidr(a.ip, n)) ? 'out_of_scope' : null
     const box = a.id === BOX_ID
-    return { id: a.id, kind: 'internal', device_kind: a.kind, label: a.hostname ?? ([a.vendor?.value, a.model?.value].filter(Boolean).join(' ') || a.ip), ip: a.ip, fragile: a.fragile || a.kind === 'unknown', findings: open.get(a.id) ?? 0, selectable: reason === null, pick_only: reason === null && (box || a.fragile || a.kind === 'unknown' || a.origin === 'manual'), box, reason,
+    return { id: a.id, kind: 'internal', device_kind: a.kind, label: displayName(a) || a.ip, ip: a.ip, fragile: a.fragile || a.kind === 'unknown', findings: open.get(a.id) ?? 0, selectable: reason === null, pick_only: reason === null && (box || a.fragile || a.kind === 'unknown' || a.origin === 'manual'), box, reason,
       mac: a.mac, vendor: a.vendor?.value ?? null, approved: a.approved, last_seen: a.last_seen }
   })
   // External targets are listed but not scanned by this version yet (the GUI says so); ownership problems are named first, since they are what the user can fix.

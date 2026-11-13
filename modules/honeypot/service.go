@@ -83,6 +83,10 @@ type Service struct {
 	// touchHourStart and touchHourNew count the scan hits made from attempts in this clock hour (guarded by mu; B2 review M2).
 	touchHourStart time.Time
 	touchHourNew   int
+	// adding are the addresses handed to the host whose MAC is not known yet, since when (ExpectedMACs; guarded by mu).
+	adding map[netip.Addr]time.Time
+	// onSince is when Run last started, the module just switched on (TrapIPSince; guarded by mu).
+	onSince time.Time
 }
 
 // New returns the service.
@@ -195,8 +199,9 @@ func (s *Service) saveJSON(ctx context.Context, tx *sql.Tx, key string, v any, a
 
 type trapIPRow struct {
 	TrapIP
-	ip  netip.Addr
-	mac string // hp_trap_ips.mac: the last MAC the host gave the address, "" while unknown
+	ip        netip.Addr
+	mac       string // hp_trap_ips.mac: the last MAC the host gave the address, "" while unknown
+	enabledAt string // hp_trap_ips.enabled_at: when the address last became a Trap IP that is on
 }
 
 func (d trapIPRow) has(svc ServiceName) bool { return slices.Contains(d.Services, svc) }
@@ -213,7 +218,7 @@ func (d trapIPRow) spec() DecoySpec {
 const trapIPCols = `id, name, ip, preset, vendor, services, enabled, created_at`
 
 // loadTrapIPCols are trapIPCols and the remembered MAC (a column no write of the API touches).
-const loadTrapIPCols = trapIPCols + `, ifnull(mac, '')`
+const loadTrapIPCols = trapIPCols + `, ifnull(mac, ''), ifnull(enabled_at, created_at)`
 
 // loadTrapIPs reads the Trap IPs in creation order, the order that decides which one names the SMB share (D-466 (4)).
 func loadTrapIPs(ctx context.Context, q querier) ([]trapIPRow, error) {
@@ -227,7 +232,7 @@ func loadTrapIPs(ctx context.Context, q querier) ([]trapIPRow, error) {
 		var d trapIPRow
 		var vendor sql.NullString
 		var services string
-		if err := rows.Scan(&d.ID, &d.Name, &d.IP, &d.Preset, &vendor, &services, &d.Enabled, &d.CreatedAt, &d.mac); err != nil {
+		if err := rows.Scan(&d.ID, &d.Name, &d.IP, &d.Preset, &vendor, &services, &d.Enabled, &d.CreatedAt, &d.mac, &d.enabledAt); err != nil {
 			return nil, fmt.Errorf("honeypot: read trap IPs: %w", err)
 		}
 		if vendor.Valid {

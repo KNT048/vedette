@@ -139,17 +139,65 @@ func (s *Service) DecoyIPsRead(ctx context.Context) ([]netip.Addr, error) {
 	return out, nil
 }
 
-// DecoyMACs is the MAC of each address the host held at the last Apply (from DecoyLinks, read right after the addresses were
-// added): what the inventory's cached view of the host may not have yet (B2 lab), lower case. nil while unknown.
-func (s *Service) DecoyMACs() map[netip.Addr]string {
-	hv := s.hostView()
-	if len(hv.links) == 0 {
+// addingFor is how long an address handed to the host counts as "being added" while its MAC is not known yet.
+const addingFor = 2 * time.Minute
+
+// ExpectedMACs is, per enabled Trap IP (module on), the MAC its decoy has or will have: the one the host gave it at the last
+// Apply, else the one remembered (hp_trap_ips.mac: the host derives it from the address and the vendor), else "" while the
+// address is being added and its MAC is not known yet (asked of the host within addingFor). An address with none of these is
+// absent. The inventory takes a frame at a Trap IP's address as the box only with no MAC or this one ("" = any while being
+// added): any other MAC is a machine on that address (B2 review round 2, H1). Lower case.
+func (s *Service) ExpectedMACs(ctx context.Context) map[netip.Addr]string {
+	if !s.on() {
 		return nil
 	}
-	out := make(map[netip.Addr]string, len(hv.links))
-	for ip, l := range hv.links {
-		if l.MAC != "" {
-			out[ip] = strings.ToLower(l.MAC)
+	tips, err := loadTrapIPs(ctx, s.db.Reader())
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "honeypot: read the Trap IPs", "error", err)
+		return nil
+	}
+	hv := s.hostView()
+	now := s.now()
+	s.mu.Lock()
+	adding := maps.Clone(s.adding)
+	s.mu.Unlock()
+	out := map[netip.Addr]string{}
+	for _, d := range tips {
+		if !d.Enabled || !d.ip.IsValid() {
+			continue
+		}
+		switch at, being := adding[d.ip]; {
+		case hv.links[d.ip].MAC != "":
+			out[d.ip] = strings.ToLower(hv.links[d.ip].MAC)
+		case d.mac != "":
+			out[d.ip] = d.mac
+		case being && now.Sub(at) < addingFor:
+			out[d.ip] = ""
+		}
+	}
+	return out
+}
+
+// TrapIPSince is, per enabled Trap IP (module on), when its address last became a Trap IP that is on (hp_trap_ips.enabled_at):
+// a device row the inventory made of it later is a ghost of the decoy (inventory ForgetBoxOwned, B2 review round 2, M1).
+func (s *Service) TrapIPSince(ctx context.Context) map[netip.Addr]time.Time {
+	if !s.on() {
+		return nil
+	}
+	tips, err := loadTrapIPs(ctx, s.db.Reader())
+	if err != nil {
+		return nil
+	}
+	s.mu.Lock()
+	on := s.onSince
+	s.mu.Unlock()
+	out := map[netip.Addr]time.Time{}
+	for _, d := range tips {
+		if t, err := time.Parse(time.RFC3339Nano, d.enabledAt); err == nil && d.Enabled && d.ip.IsValid() {
+			if on.After(t) { // a row made while the module was off is no ghost of a decoy that did not exist
+				t = on
+			}
+			out[d.ip] = t
 		}
 	}
 	return out
@@ -177,9 +225,10 @@ func (s *Service) TrapIPAddrs(ctx context.Context) []netip.Addr {
 }
 
 // ghostForgetter is the optional part of the Inventory that deletes the device rows its sensors made of the box's own decoys
-// (inventory ForgetBoxOwned, B2 lab): asked at every Apply, before the state is read, so such a row never holds a Trap IP in conflict.
+// (inventory ForgetBoxOwned, B2 lab): asked at every Apply, before the state is read, with when each Trap IP was switched on (only
+// rows first seen after that go), so such a row never holds a Trap IP in conflict.
 type ghostForgetter interface {
-	ForgetBoxOwned(ctx context.Context) (int, error)
+	ForgetBoxOwned(ctx context.Context, since map[netip.Addr]time.Time) (int, error)
 }
 
 // desired is what the host should look like, from the database and the inventory (D-55: configuration comes from the
@@ -294,7 +343,7 @@ func (s *Service) Apply(ctx context.Context) error {
 		return nil
 	}
 	if g, ok := s.cfg.Inventory.(ghostForgetter); ok {
-		if n, err := g.ForgetBoxOwned(ctx); err != nil {
+		if n, err := g.ForgetBoxOwned(ctx, s.TrapIPSince(ctx)); err != nil {
 			s.cfg.Log.WarnContext(ctx, "honeypot: the inventory could not forget the rows of the box's own decoys", "error", err)
 		} else if n > 0 {
 			s.cfg.Log.InfoContext(ctx, "honeypot: the inventory forgot device rows made of the box's own decoys", "rows", n)
@@ -494,8 +543,35 @@ func (s *Service) rememberMACs(ctx context.Context, w *world, links map[netip.Ad
 	})
 }
 
+// markAdding notes that ip is being handed to the host and its MAC may not be known yet (ExpectedMACs): only while the last
+// Apply did not learn a MAC for it.
+func (s *Service) markAdding(ip netip.Addr) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.host.links[ip].MAC != "" {
+		return
+	}
+	if s.adding == nil {
+		s.adding = map[netip.Addr]time.Time{}
+	}
+	if _, seen := s.adding[ip]; !seen {
+		s.adding[ip] = s.now()
+	}
+	now := s.now()
+	for a, at := range s.adding {
+		if now.Sub(at) >= addingFor {
+			delete(s.adding, a)
+		}
+	}
+}
+
 func (s *Service) setHost(h hostCache) {
 	s.mu.Lock()
+	for ip := range s.adding { // its MAC is known now
+		if h.links[ip].MAC != "" {
+			delete(s.adding, ip)
+		}
+	}
 	s.host = h
 	s.mu.Unlock()
 }
@@ -552,6 +628,7 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, specs map[neti
 			have[ip] = true
 			save()
 		}
+		s.markAdding(ip)
 		if err := s.cfg.Host.AddDecoyIP(ctx, ip, specs[ip]); err != nil {
 			if ctx.Err() != nil || !errors.Is(err, ErrRefused) {
 				// Unknown whether the host took it (cancelled, out of time, busy, an answer lost): keep it on record so
@@ -716,6 +793,7 @@ func (s *Service) Run(ctx context.Context) error {
 	}()
 	s.mu.Lock()
 	s.kickGen++ // the module was just switched on: until this Apply answers, the traps are "starting", not the "module is off" of the last run
+	s.onSince = s.now()
 	s.mu.Unlock()
 	if err := s.Apply(ctx); err != nil && ctx.Err() == nil {
 		if s.due("apply") {

@@ -102,8 +102,8 @@ var touchRuleForms = func() []string {
 	var out []string
 	for _, nf := range []string{"", "meta nfproto ipv4 "} {
 		for _, proto := range []string{"tcp, udp", "6, 17"} {
-			for _, pt := range []string{"meta pkttype host ", "pkttype host ", ""} { // "": the rule of 7712c63f, printed by nft 1.1.6 in the lab
-				out = append(out, nftNorm(nf+"meta l4proto { "+proto+" } "+pt+"ct state new add @touched { ip saddr . ip daddr }"))
+			for _, pt := range []string{"meta pkttype host", "pkttype host"} { // only the current rule: one without pkttype is reloaded
+				out = append(out, nftNorm(nf+"meta l4proto { "+proto+" } "+pt+" ct state new add @touched { ip saddr . ip daddr }"))
 			}
 		}
 	}
@@ -454,13 +454,15 @@ func (o *Ops) applyRuleset(ctx context.Context, list []decoyEntry) error {
 // scan is then seen only by its completed connections. When neither can be proven the touch part is kept and the error stands
 // (the caller decides: undo, close the namespace).
 func (o *Ops) loadProven(ctx context.Context, list []decoyEntry) error {
-	if err := o.loadRuleset(ctx, list); err != nil {
-		return err
+	err := o.loadRuleset(ctx, list)
+	if err == nil {
+		ok, lerr := o.rulesetLoaded(ctx, list)
+		if lerr != nil || ok {
+			return lerr
+		}
 	}
-	ok, err := o.rulesetLoaded(ctx, list)
-	if err != nil || ok {
-		return err
-	}
+	// Not proven, or nft refused the load itself (an older kernel or nft without dynamic sets in the packet path, B2 review
+	// round 2 L2): without the touch part, the rest may still go in.
 	if o.withTouch() {
 		o.touchOff.Store(true)
 		if err := o.loadRuleset(ctx, list); err == nil {
@@ -471,6 +473,9 @@ func (o *Ops) loadProven(ctx context.Context, list []decoyEntry) error {
 			}
 		}
 		o.touchOff.Store(false) // the touch part was not the trouble
+	}
+	if err != nil {
+		return err
 	}
 	return errors.New("ops: the ruleset of vedette-hp is not the one the host loaded")
 }

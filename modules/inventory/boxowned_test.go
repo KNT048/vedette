@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
@@ -142,18 +143,19 @@ func TestContract_INV17_AForeignMACOnADecoyAddressIsADevice(t *testing.T) {
 }
 
 // B2 lab (Ubuntu 26.04): a Trap IP added a second ago answers ARP with its new macvlan MAC before the host lists it; that frame
-// became a device, and the device then held the Trap IP in conflict. With Config.BoxDecoyMACs a foreign MAC at a box-owned address
-// is a device only where the host holds a decoy with another MAC; where it holds none yet, the frame is the box's own link.
+// became a device, and the device then held the Trap IP in conflict. Config.BoxDecoyMACs gives "" for an address being added (any
+// MAC there is the box for that moment) and the expected MAC elsewhere; at a Trap IP the host does not hold (refused, failed) a
+// foreign MAC is a real machine and becomes a device (B2 review round 2, H1).
 func TestContract_INV17_ADecoyComingUpIsNoDevice(t *testing.T) {
 	t.Parallel()
-	coming, held := netip.MustParseAddr("192.168.10.242"), netip.MustParseAddr("192.168.10.240")
+	coming, held, refused := netip.MustParseAddr("192.168.10.242"), netip.MustParseAddr("192.168.10.240"), netip.MustParseAddr("192.168.10.243")
 	e := newEnv(t, func(c *inventory.Config) {
-		c.BoxOwnedIPs = func(context.Context) []netip.Addr { return []netip.Addr{coming, held} }
+		c.BoxOwnedIPs = func(context.Context) []netip.Addr { return []netip.Addr{coming, held, refused} }
 		c.BoxOwnedMACs = func(context.Context, bool) ([]string, error) {
 			return []string{"f8:bc:12:00:02:40", "52:54:00:aa:bb:cc"}, nil
 		}
 		c.BoxDecoyMACs = func(context.Context, bool) (map[netip.Addr]string, error) {
-			return map[netip.Addr]string{held: "f8:bc:12:00:02:40"}, nil // the host does not list .242 yet
+			return map[netip.Addr]string{held: "f8:bc:12:00:02:40", coming: ""}, nil // .242 is being added; .243 the host refused
 		}
 	})
 	at := func(ip netip.Addr, m string) []observe.Observation {
@@ -171,6 +173,13 @@ func TestContract_INV17_ADecoyComingUpIsNoDevice(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM inv_asset WHERE ip = ?`, held.String()); n != 1 {
 		t.Fatalf("a foreign machine on a held decoy address: %d devices", n)
+	}
+	// A laptop already uses the address the customer picked: the host refused it, and the laptop is a device all the same.
+	if err := e.svc.Record(e.ctx(), at(refused, "aa:bb:cc:00:02:43")); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_asset WHERE ip = ?`, refused.String()); n != 1 {
+		t.Fatalf("a real machine at a refused Trap IP is hidden: %d devices", n)
 	}
 }
 
@@ -209,10 +218,16 @@ func TestContract_INV17_TheBoxsOwnDecoysAreForgotten(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM inv_asset`); n != 4 {
 		t.Fatalf("setup: %d devices", n)
 	}
-	// Now the inventory knows: the Trap IPs are the box's and the host holds the decoy.
+	// Now the inventory knows: the Trap IPs are the box's and the host holds the decoy. Rows first seen before a Trap IP was switched
+	// on are real machines and stay (B2 review round 2, M1); here both Trap IPs were switched on before the rows were seen.
 	owned = []netip.Addr{trap, netip.MustParseAddr("192.168.10.241")}
 	decoys[trap] = decoyMAC
-	n, err := e.svc.ForgetBoxOwned(e.ctx())
+	later := map[netip.Addr]time.Time{trap: e.now.Add(time.Second), netip.MustParseAddr("192.168.10.241"): e.now.Add(time.Second)}
+	if n, err := e.svc.ForgetBoxOwned(e.ctx(), later); err != nil || n != 0 {
+		t.Fatalf("rows seen before the Trap IPs were on: forgot %d: %v", n, err)
+	}
+	since := map[netip.Addr]time.Time{trap: e.now.Add(-time.Minute), netip.MustParseAddr("192.168.10.241"): e.now.Add(-time.Minute)}
+	n, err := e.svc.ForgetBoxOwned(e.ctx(), since)
 	if err != nil || n != 2 {
 		t.Fatalf("forgot %d rows: %v", n, err)
 	}

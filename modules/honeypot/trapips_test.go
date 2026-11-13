@@ -550,3 +550,35 @@ func TestAttemptScansHaveTheirOwnBudget(t *testing.T) {
 		t.Fatalf("%d listener hits after the attempt budget ran out", n)
 	}
 }
+
+// B2 review round 2 (H1, M1): while an address is being handed to the host its MAC is not known, and ExpectedMACs says "" for it
+// (any frame there is the box for that moment); once the host gave it a MAC, that MAC; a Trap IP that is off is absent; TrapIPSince
+// is when each was switched on.
+func TestExpectedMACsAndSince(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, func(e *env) { e.cfg.Host = viewHost{fakeHost: e.host, keeps: true} })
+	var during map[netip.Addr]string
+	e.host.onAdd = func() { during = e.svc.ExpectedMACs(e.ctx()) }
+	if _, err := e.svc.AddTrapIP(e.ctx(), "a", honeypot.TrapIPInput{Name: "FILESRV-OLD", IP: "192.168.10.240", Preset: honeypot.FileServer, Vendor: ptr("dell"),
+		Services: []honeypot.ServiceName{honeypot.SMB}}); err != nil {
+		t.Fatal(err)
+	}
+	off := e.addTrapIP("LNX-01", "192.168.10.241", honeypot.Linux, honeypot.SSH)
+	if _, err := e.svc.SetTrapIPEnabled(e.ctx(), "a", off.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if m, ok := during[addr("192.168.10.240")]; !ok || m != "" {
+		t.Fatalf("during the add: %v", during)
+	}
+	after := e.svc.ExpectedMACs(e.ctx())
+	if after[addr("192.168.10.240")] != "f8:bc:12:4f:54:67" || len(after) != 1 {
+		t.Fatalf("after the add: %v", after)
+	}
+	since := e.svc.TrapIPSince(e.ctx())
+	if at := since[addr("192.168.10.240")]; at.IsZero() || at.After(e.now) || len(since) != 1 {
+		t.Fatalf("since %v (now %v)", since, e.now)
+	}
+}

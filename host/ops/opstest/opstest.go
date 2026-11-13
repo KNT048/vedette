@@ -585,6 +585,7 @@ case "$mode:$args" in
     echo "$args" >> "$S/sysctl"; exit 0 ;;
   "host:netns exec vedette-hp /usr/sbin/nft -f -")
     cat > "$S/ruleset.in"
+    if [ -e "$REC/mark.nft-touch-refuse" ] && grep -q '@touched' "$S/ruleset.in"; then echo "Error: syntax error" >&2; exit 1; fi
     [ -e "$REC/mark.nft-noload" ] || cp "$S/ruleset.in" "$S/ruleset"
     exit 0 ;;
   "host:netns exec vedette-hp /usr/sbin/nft list ruleset")

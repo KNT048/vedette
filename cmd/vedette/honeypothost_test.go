@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -760,14 +759,8 @@ func TestHoneypotTrapIPFramesAreNeverDevices(t *testing.T) {
 	for _, d := range ns.Decoys {
 		frame(d.IP, d.MAC)
 	}
-	// A fourth Trap IP the honeypot handed over (on the record) but the host does not list yet: its link coming up.
-	if err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE hp_config SET value = '["192.168.10.240","192.168.10.241","192.168.10.242","192.168.10.243"]' WHERE key = 'applied'`)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	frame("192.168.10.243", "00:50:56:12:34:56")
+	// (A Trap IP whose link is coming up, its MAC not known yet, is covered by TestContract_INV17_ADecoyComingUpIsNoDevice and
+	// TestExpectedMACsAndSince.)
 	if n := devices(); n != before {
 		t.Fatalf("the Trap IPs' own frames made %d device(s)", n-before)
 	}
@@ -814,10 +807,10 @@ func TestHoneypotHostReadsTheAttemptsToTheDecoys(t *testing.T) {
 	}
 }
 
-// B2 lab rerun: a device row made of a Trap IP's address before the honeypot was on (another machine asked for it) is forgotten
-// at the first Apply and does not hold the Trap IP in conflict; while the module is on, the address of a Trap IP not handed over
-// yet and a decoy's MAC with no IPv4 never become devices.
-func TestHoneypotForgetsDevicesMadeOfItsTrapIPs(t *testing.T) {
+// B2 lab rerun and review round 2: the address of a Trap IP not handed over yet and a decoy's MAC with no IPv4 never become
+// devices; a row of a real machine at a Trap IP's address from before the Trap IP was on stays (M1), and so does a foreign MAC at
+// a Trap IP the host does not hold (H1): it is a machine on that address, and the Trap IP shows the conflict.
+func TestHoneypotTrapIPAddressesAndDevices(t *testing.T) {
 	t.Parallel()
 	e := startHPHost(t, false)
 	s := newStackWith(t, func(d *deps) {
@@ -841,34 +834,36 @@ func TestHoneypotForgetsDevicesMadeOfItsTrapIPs(t *testing.T) {
 	before := devices()
 	s.setModule("honeypot", true)
 	s.addTrapIP(t, `{"name":"FILESRV-OLD","ip":"192.168.10.240","preset":"file_server","vendor":"dell","services":["smb","rdp"]}`)
-	s.addTrapIP(t, `{"name":"NAS-ARCHIVE","ip":"192.168.10.241","preset":"nas","vendor":"synology","services":["http","smb"]}`)
-	s.setModule("honeypot", false)
-	frame(netip.MustParseAddr("192.168.10.240"), "", observe.Kind, "unknown") // the honeypot is off: an address like any other
-	if devices() != before+1 {
-		t.Fatal("setup: no ghost row")
+	lnx := s.addTrapIP(t, `{"name":"LNX-01","ip":"192.168.10.242","preset":"linux","vendor":"vmware","services":["ssh"]}`)
+	if code, b := s.do("PATCH", "/honeypot/trap-ips/"+lnx, "admin", `{"enabled":false}`); code != 200 {
+		t.Fatalf("%d %v", code, b)
 	}
-	s.setModule("honeypot", true)
-	frame(netip.MustParseAddr("192.168.10.241"), "", observe.Kind, "unknown") // configured, not handed over yet
+	frame(netip.MustParseAddr("192.168.10.240"), "", observe.Kind, "unknown") // configured, not handed over yet: the box
+	frame(netip.MustParseAddr("192.168.10.242"), "", observe.Kind, "unknown") // a Trap IP that is off: an address like any other
+	if n := devices(); n != before+1 {
+		t.Fatalf("%d new devices, want only the one at the Trap IP that is off", n-before)
+	}
 	if err := s.d.Honeypot.Apply(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if n := devices(); n != before {
-		t.Fatalf("%d device rows of the Trap IPs are left", n-before)
+	if n := devices(); n != before+1 {
+		t.Fatalf("the Apply forgot a row from before its Trap IP was on (%d new devices)", n-before)
+	}
+	if code, b := s.do("PATCH", "/honeypot/trap-ips/"+lnx, "admin", `{"enabled":true}`); code != 409 || field(t, b, "error", "code") != "ip_in_use" {
+		t.Fatalf("switching on a Trap IP where a device was seen: %d %v", code, b)
 	}
 	ns, err := e.h.Client.StateNet(t.Context())
-	if err != nil || len(ns.Decoys) != 2 {
+	if err != nil || len(ns.Decoys) != 1 {
 		t.Fatalf("state/net %+v %v", ns.Decoys, err)
 	}
-	for _, d := range ns.Decoys {
-		frame(netip.Addr{}, d.MAC, observe.MAC, d.MAC) // the decoy's MAC with no IPv4
+	frame(netip.Addr{}, ns.Decoys[0].MAC, observe.MAC, ns.Decoys[0].MAC) // the decoy's MAC with no IPv4
+	if n := devices(); n != before+1 {
+		t.Fatalf("a decoy's MAC became a device (%d new devices)", n-before)
 	}
-	if n := devices(); n != before {
-		t.Fatalf("a decoy's MAC became %d device(s)", n-before)
-	}
-	_, b := s.do("GET", "/honeypot/trap-ips", "viewer", "")
-	for _, it := range field(t, b, "items").([]any) {
-		if m := it.(map[string]any); m["state"] != "listening" || m["device_id"] != nil {
-			t.Fatalf("a Trap IP is not listening: %v", m)
-		}
+	// A third Trap IP the host does not hold (not handed over yet, or refused): a laptop on that address is a device.
+	s.addTrapIP(t, `{"name":"NAS-ARCHIVE","ip":"192.168.10.241","preset":"nas","vendor":"synology","services":["http","smb"]}`)
+	frame(netip.MustParseAddr("192.168.10.241"), "aa:bb:cc:00:02:41", observe.MAC, "aa:bb:cc:00:02:41")
+	if n := devices(); n != before+2 {
+		t.Fatalf("a laptop at a Trap IP the host does not hold is hidden (%d new devices)", n-before)
 	}
 }

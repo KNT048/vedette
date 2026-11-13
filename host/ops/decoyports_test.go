@@ -355,6 +355,12 @@ func TestTheRealTouchedListingsOfUbuntu2604(t *testing.T) {
 		{IP: "192.168.18.241", MAC: "00:11:32:ff:a9:bc", Table: 101, Iface: "enp0s2", Ports: ports("tcp", 80, "tcp", 445)},
 		{IP: "192.168.18.242", MAC: "00:50:56:22:e9:d1", Table: 102, Iface: "enp0s2", Ports: ports("tcp", 22)},
 	}
+	// The capture has the rule of 7712c63f (no pkttype): it is refused, so the host loads the current rule over it; with the
+	// current rule in nft's print style the rest of it is accepted.
+	if rulesetIs(listed, list) {
+		t.Fatal("a ruleset with the old touch rule was taken for the current one")
+	}
+	listed = []byte(strings.Replace(string(listed), "meta l4proto { tcp, udp } ct state new", "meta l4proto { tcp, udp } pkttype host ct state new", 1))
 	if !rulesetIs(listed, list) {
 		t.Fatalf("the effect check refuses the real listing:\n%s", listed)
 	}

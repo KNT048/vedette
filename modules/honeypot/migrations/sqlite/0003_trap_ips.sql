@@ -15,6 +15,9 @@ CREATE TABLE hp_trap_ips (
     -- The last MAC the host gave the address (it derives it from the address and the vendor, so it is the same next time): a device
     -- row carrying it is a ghost of this Trap IP's own frames, never a machine on the address (B2 lab). NULL until the host says.
     mac        TEXT    CHECK (mac IS NULL OR length(mac) = 17),
+    -- When the address last became a Trap IP that is on (added, switched on, moved); NULL = created_at. A device row the inventory
+    -- made at the address or of its MAC after this is a ghost of the decoy and is forgotten; one from before is a real machine.
+    enabled_at TEXT    CHECK (enabled_at IS NULL OR length(enabled_at) = 24),
     created_at TEXT    NOT NULL CHECK (created_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
 ) STRICT;
 

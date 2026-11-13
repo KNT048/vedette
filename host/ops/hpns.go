@@ -128,10 +128,8 @@ func (o *Ops) ensureHP(ctx context.Context, configure bool) (err error) {
 		configure = true
 	}
 	want := o.wantedDecoys()
-	if configure {
-		if err := o.configureHP(ctx, want); err != nil {
-			return err
-		}
+	if configure { // configureHP loads and proves the ruleset (loadProven)
+		return o.configureHP(ctx, want)
 	}
 	ok, err := o.rulesetLoaded(ctx, want)
 	if err != nil {
@@ -184,7 +182,7 @@ func (o *Ops) configureHP(ctx context.Context, want []decoyEntry) error {
 	if err := o.ipRun(ctx, argvLoUp()); err != nil {
 		return err
 	}
-	if err := o.loadRuleset(ctx, want); err != nil {
+	if err := o.loadProven(ctx, want); err != nil { // with the fallback without the touch part (B2 review round 2, L2)
 		return err
 	}
 	o.hpConfigured.Store(true)

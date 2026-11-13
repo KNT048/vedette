@@ -763,7 +763,8 @@ func (o *Ops) reconcile(ctx context.Context, hint *NetplanConfig, ensured bool) 
 		}
 		name := linkName(d.addr())
 		i := slices.IndexFunc(links, func(l nsLink) bool { return l.Name == name })
-		if i >= 0 && d.Iface == m.Iface && links[i].matches(d, m) && o.configureRouting(ctx, d, m) == nil {
+		// linkNoIPv6 too: a decoy built before the B2 lab fix still has IPv6 on (it is idempotent).
+		if i >= 0 && d.Iface == m.Iface && links[i].matches(d, m) && o.linkNoIPv6(ctx, name) == nil && o.configureRouting(ctx, d, m) == nil {
 			keep = append(keep, d)
 			continue
 		}

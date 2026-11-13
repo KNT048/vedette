@@ -55,7 +55,7 @@ func newInventory(d *deps) *inventory.Service {
 			if err != nil || d.Honeypot == nil {
 				return m, err
 			}
-			for ip, mac := range d.Honeypot.DecoyMACs() {
+			for ip, mac := range d.Honeypot.ExpectedMACs(ctx) {
 				if m == nil {
 					m = map[netip.Addr]string{}
 				}

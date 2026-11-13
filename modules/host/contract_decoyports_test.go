@@ -362,3 +362,37 @@ func TestContract_DecoyPorts_AnUnknownTouchFormFallsBackToTheRulesetWithoutIt(t 
 		t.Fatalf("no audit line says the attempts are not recorded: %v", d.auditCodes(t))
 	}
 }
+
+// B2 review round 2, L2: nft refusing the load of the touch part itself (an older kernel or nft) falls back the same way.
+func TestContract_DecoyPorts_ANftThatRefusesTheTouchPartFallsBack(t *testing.T) {
+	t.Parallel()
+	d := startDecoy(t, func(m *opstest.Machine) { m.Mark("nft-touch-refuse", true) })
+	d.addPorts(t, decoyIP1, dports("tcp", 445))
+	if rs := d.m.IPState("ruleset"); strings.Contains(rs, "touched") || !strings.Contains(rs, decoyIP1+" . tcp . 445") {
+		t.Fatalf("the ruleset after the fallback:\n%s", rs)
+	}
+	if len(d.state(t).Decoys) != 1 {
+		t.Fatal("the decoy is not up")
+	}
+}
+
+// B2 review round 2, M2: a decoy built before IPv6 was switched off on decoy links gets it switched off at the next re-apply
+// (here the start), without being rebuilt.
+func TestContract_Decoy_AReapplySwitchesIPv6OffOnAnOlderDecoy(t *testing.T) {
+	t.Parallel()
+	d := startDecoy(t)
+	d.addPorts(t, decoyIP1, dports("tcp", 445))
+	key := "net.ipv6.conf.vdhc0a80164.disable_ipv6"
+	d.m.SetIPState("sysctl", d.m.IPState("sysctl")+"netns exec vedette-hp /usr/sbin/sysctl -w "+key+"=0\n") // as an older host left it
+	n := len(d.ipCalls())
+	d.o.Close()
+	shutdownHost(t, d)
+	d2 := restartHost(t, d.netEnv)
+	got := strings.Join(d2.since(n), "\n")
+	if !strings.Contains(got, "sysctl -w "+key+"=1") || strings.Contains(got, "link add link") {
+		t.Fatalf("the restart did not switch IPv6 off in place:\n%s", got)
+	}
+	if !strings.HasSuffix(strings.TrimSpace(d2.m.IPState("sysctl")), key+"=1") {
+		t.Fatalf("sysctl state:\n%s", d2.m.IPState("sysctl"))
+	}
+}

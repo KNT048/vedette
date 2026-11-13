@@ -231,8 +231,8 @@ func (s *Service) AddTrapIP(ctx context.Context, actor string, in TrapIPInput) (
 		if err := writeChecks(ctx, tx, d, ""); err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO hp_trap_ips (`+trapIPCols+`) VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
-			d.ID, d.Name, d.IP, string(d.Preset), d.Vendor, svc, d.CreatedAt); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO hp_trap_ips (`+trapIPCols+`, enabled_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+			d.ID, d.Name, d.IP, string(d.Preset), d.Vendor, svc, d.CreatedAt, d.CreatedAt); err != nil {
 			if store.IsUniqueViolation(err) {
 				return conflictErr("ip_in_use", fmt.Sprintf("IP %s is already another Trap IP.", d.IP))
 			}
@@ -272,8 +272,9 @@ func (s *Service) EditTrapIP(ctx context.Context, actor, id string, in TrapIPInp
 			return err
 		}
 		r, err := tx.ExecContext(ctx, `UPDATE hp_trap_ips SET name = ?, ip = ?, preset = ?, vendor = ?, services = ?,
-			mac = CASE WHEN ip = ? AND vendor IS ? THEN mac END WHERE id = ?`, // a new address or vendor gets a new MAC: forget the old one
-			d.Name, d.IP, string(d.Preset), d.Vendor, svc, d.IP, d.Vendor, id)
+			mac = CASE WHEN ip = ? AND vendor IS ? THEN mac END, -- a new address or vendor gets a new MAC: forget the old one
+			enabled_at = CASE WHEN ip = ? THEN enabled_at ELSE ? END WHERE id = ?`, // a new address is a Trap IP from now on
+			d.Name, d.IP, string(d.Preset), d.Vendor, svc, d.IP, d.Vendor, d.IP, store.FormatTS(s.now()), id)
 		if err != nil {
 			if store.IsUniqueViolation(err) {
 				return conflictErr("ip_in_use", fmt.Sprintf("IP %s is already another Trap IP.", d.IP))
@@ -317,7 +318,8 @@ func (s *Service) SetTrapIPEnabled(ctx context.Context, actor, id string, enable
 	}
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
 		var ip, name string
-		err := tx.QueryRowContext(ctx, `UPDATE hp_trap_ips SET enabled = ? WHERE id = ? RETURNING ip, name`, enabled, id).Scan(&ip, &name)
+		err := tx.QueryRowContext(ctx, `UPDATE hp_trap_ips SET enabled = ?, enabled_at = CASE WHEN ? AND enabled = 0 THEN ? ELSE enabled_at END WHERE id = ? RETURNING ip, name`,
+			enabled, enabled, store.FormatTS(s.now()), id).Scan(&ip, &name)
 		if errors.Is(err, sql.ErrNoRows) {
 			return notFound("No such Trap IP.")
 		}

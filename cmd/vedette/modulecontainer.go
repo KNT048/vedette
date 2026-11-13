@@ -273,7 +273,7 @@ func addContainerGuards(on, off *modreg.OffGuard, d deps, setupDone func(context
 	if len(all) > 0 && d.Bus != nil {
 		d.Bus.Subscribe(inventory.EventSettingsChanged, func(context.Context, events.Event) error {
 			for id := range all {
-				on.ModuleChanged(id, true) // reads the registry itself: an off module is left alone
+				on.ModuleChanged(id, true) //nolint:contextcheck // the run lives on the guard's own context; the event's ends with the publish. It reads the registry itself: an off module is left alone
 			}
 			return nil
 		})

@@ -11,6 +11,9 @@
     "apps": [
       "kernel"
     ],
+    "facilities": [
+      0
+    ],
     "prefix": "^(?:\\[ *[0-9]{1,10}\\.[0-9]{1,8}\\] ?)?(?P<head>\\[UFW (?:BLOCK|ALLOW|AUDIT|LIMIT BLOCK)\\]|\\[[A-Za-z0-9_-]{1,40}-(?:[0-9]{1,5}|default)-[ADR]\\])",
     "conn_patterns": [
       {

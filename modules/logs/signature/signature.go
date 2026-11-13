@@ -101,8 +101,8 @@ type Rule struct {
 	DestIPField    string   `json:"dest_ip_field,omitempty"`
 	DestHostFields []string `json:"dest_host_fields,omitempty"`
 	ConnPattern    string   `json:"conn_pattern,omitempty"`
-	// ConnPatterns (template) are anchored, whole-line readers for formats with positional or fixed-phrase fields (a pfSense filterlog record, an ASA
-	// "Built outbound" message): each starts with "^", has the named groups "local" and "dest", and says whether the device stopped the connection
+	// ConnPatterns (template) are anchored (the loader wraps each in ^(?:...)), whole-line readers for formats with positional or fixed-phrase fields (a pfSense filterlog record, an ASA
+	// "Built outbound" message): has the named groups "local" and "dest", and says whether the device stopped the connection
 	// (Blocked). The first that matches, exactly once, gives the connection; the "->" and quote guards of ConnPattern do not apply because an
 	// anchored pattern with strict character classes cannot be fed by text that a user wrote further along the line.
 	ConnPatterns []ConnPattern `json:"conn_patterns,omitempty"`
@@ -110,11 +110,14 @@ type Rule struct {
 	// program, or with no program name, is not read by it. A device kind that also sends other programs (a Linux host) needs it so that
 	// text another program wrote at the start of its message is never taken for a firewall record.
 	Apps []string `json:"apps,omitempty"`
+	// Facilities (any type) lists the syslog facilities (0 to 23) the profile reads: kern is 0. A line from another facility, or with no PRI, is not
+	// read. The kernel's firewall log is facility 0; a user process that writes "kernel: [UFW BLOCK] ..." with logger is facility 1 or more.
+	Facilities []int `json:"facilities,omitempty"`
 	// ConnWhen (kv): a line has a connection only when each key listed is written once and holds one of the values (FortiGate: type traffic or utm, not event
 	// lines, whose fields an attacker partly writes). ConnRefuse (template): a line that matches it has none (MikroTik: a connection that is not new).
 	ConnWhen   map[string][]string `json:"conn_when,omitempty"`
 	ConnRefuse string              `json:"conn_refuse,omitempty"`
-	// ConnBlocked (kv): the connection of a line was stopped by the device that logged it (the line records an attempt) only when each key
+	// ConnBlocked (kv): the connection of a line was stopped by the device that logged it (the line records an attempt) when any key
 	// listed is written once and holds one of the values (FortiGate: action deny, dropped, blocked, block, reset). A line it does not settle
 	// is not blocked: "connected" is said unless the format says otherwise, never guessed (D-227).
 	ConnBlocked map[string][]string `json:"conn_blocked,omitempty"`
@@ -152,6 +155,7 @@ type profile struct {
 	conn       *regexp.Regexp
 	connPats   []compiledConn
 	apps       map[string]bool
+	facilities map[int]bool
 	connRefuse *regexp.Regexp
 	connWanted map[string]bool
 	mined      map[string]bool
@@ -391,12 +395,15 @@ func compile(f File) (*profile, error) {
 			return nil, fmt.Errorf("conn_patterns takes at most %d patterns", MaxPatterns)
 		}
 		for _, cp := range r.ConnPatterns {
-			re, err := compileGroup(cp.Pattern, "local")
+			if len(cp.Pattern) > MaxPatternBytes {
+				return nil, fmt.Errorf("a pattern is 1 to %d bytes", MaxPatternBytes)
+			}
+			re, err := compileGroup("^(?:"+cp.Pattern+")", "local") // anchored whatever the pattern says (an alternation cannot escape it)
 			if err != nil {
 				return nil, err
 			}
-			if re.SubexpIndex("dest") < 0 || !strings.HasPrefix(cp.Pattern, "^") {
-				return nil, errors.New("a conn_patterns pattern starts with ^ and has the named groups \"local\" and \"dest\"")
+			if re.SubexpIndex("dest") < 0 {
+				return nil, errors.New("a conn_patterns pattern has the named groups \"local\" and \"dest\"")
 			}
 			p.connPats = append(p.connPats, compiledConn{re, cp.Blocked})
 		}
@@ -447,6 +454,18 @@ func compile(f File) (*profile, error) {
 			p.apps = map[string]bool{}
 		}
 		p.apps[a] = true
+	}
+	if len(r.Facilities) > 24 {
+		return nil, errors.New("facilities takes at most 24 numbers")
+	}
+	for _, n := range r.Facilities {
+		if n < 0 || n > 23 {
+			return nil, fmt.Errorf("facility %d is not 0 to 23", n)
+		}
+		if p.facilities == nil {
+			p.facilities = map[int]bool{}
+		}
+		p.facilities[n] = true
 	}
 	if len(r.RemotePatterns) > MaxPatterns {
 		return nil, fmt.Errorf("remote_patterns takes at most %d patterns", MaxPatterns)
@@ -528,7 +547,7 @@ func (s *Set) Of(kind, line string) Result {
 	env := listen.ParseSyslog(line)
 	msg := env.Msg
 	if p := s.byKind[kind]; p != nil {
-		if r, ok := p.read(msg, env.App); ok {
+		if r, ok := p.read(msg, env.App, env.Facility); ok {
 			if !r.Remote.IsValid() && !p.hasRemote() {
 				r.Remote = genericRemote(msg) // a profile with no rule for it: the layouts that daemons share
 			}
@@ -542,9 +561,9 @@ func (s *Set) Of(kind, line string) Result {
 }
 
 // read applies the rule; ok is false when the line is not in the format of the profile.
-func (p *profile) read(msg, app string) (Result, bool) {
+func (p *profile) read(msg, app string, facility int) (Result, bool) {
 	var r Result
-	if p.apps != nil && !p.apps[strings.ToLower(app)] {
+	if p.apps != nil && !p.apps[strings.ToLower(app)] || p.facilities != nil && !p.facilities[facility] {
 		return r, false
 	}
 	settled := false // the remote address is decided (found, or ambiguous): the patterns do not run

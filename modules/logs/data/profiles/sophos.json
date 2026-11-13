@@ -76,12 +76,20 @@
       "log_type": [
         "Firewall",
         "Content Filtering"
+      ],
+      "log_component": [
+        "Firewall Rule",
+        "HTTP",
+        "DNS"
       ]
     },
     "conn_blocked": {
       "status": [
         "Deny",
         "Drop"
+      ],
+      "log_subtype": [
+        "Denied"
       ]
     }
   },

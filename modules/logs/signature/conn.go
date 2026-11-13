@@ -210,10 +210,9 @@ func (p *profile) connByFields(msg string) Conn {
 	if len(c.Dests) == 0 {
 		return Conn{}
 	}
-	c.Blocked = len(p.Rule.ConnBlocked) > 0
-	for k, blocked := range p.Rule.ConnBlocked {
-		if v, has := vals[k]; !has || !slices.Contains(blocked, v) {
-			c.Blocked = false
+	for k, blocked := range p.Rule.ConnBlocked { // any listed key holding a listed value says blocked (one key, as FortiGate has, is the same as all)
+		if v, has := vals[k]; has && slices.Contains(blocked, v) {
+			c.Blocked = true
 		}
 	}
 	return c

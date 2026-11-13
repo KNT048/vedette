@@ -209,8 +209,10 @@ func parse3164(s string) Envelope {
 		return e
 	}
 	s = s[16:]
-	if host, rest, ok := token(s, maxHost); ok {
-		e.Host, s = host, rest
+	if !startsWithTag(s) { // FreeBSD syslogd (pfSense) sends no hostname: "filterlog[53123]: ..." is the program, not the host
+		if host, rest, ok := token(s, maxHost); ok {
+			e.Host, s = host, rest
+		}
 	}
 	i := 0
 	for i < len(s) && i < maxApp && isTagChar(s[i]) {
@@ -230,6 +232,31 @@ func parse3164(s string) Envelope {
 	}
 	e.Msg = s
 	return e
+}
+
+// startsWithTag says whether s begins with "tag: " or "tag[pid]: " (the tag of tag characters, a pid of at most maxProcID characters): the
+// header has no HOST. A colon that is followed by anything but a space or the end ("fe80::1") is part of an address, not a tag.
+func startsWithTag(s string) bool {
+	i := 0
+	for i < len(s) && i < maxApp && isTagChar(s[i]) {
+		i++
+	}
+	if i == 0 || i >= len(s) {
+		return false
+	}
+	if s[i] == '[' {
+		j := strings.IndexByte(s[i:], ']')
+		if j < 0 || j > maxProcID+1 {
+			return false
+		}
+		i += j + 1
+		if i >= len(s) || s[i] != ':' {
+			return false
+		}
+	} else if s[i] != ':' {
+		return false
+	}
+	return i+1 == len(s) || s[i+1] == ' '
 }
 
 func isTagChar(c byte) bool {

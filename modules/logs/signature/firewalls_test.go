@@ -134,7 +134,7 @@ func TestConnPatternsRules(t *testing.T) {
 		return `{"id":"x","title":"x","kinds":["x"],"rule":` + rule + `,"samples":[{"line":"a b","signature":"a: b"}]}`
 	}
 	for name, rule := range map[string]string{
-		"not anchored":     `{"type":"template","prefix":"^(?P<head>a) ","conn_patterns":[{"pattern":"(?P<local>a)(?P<dest>b)"}]}`,
+		"bad facility":     `{"type":"template","prefix":"^(?P<head>a) ","facilities":[24]}`,
 		"no dest":          `{"type":"template","prefix":"^(?P<head>a) ","conn_patterns":[{"pattern":"^(?P<local>a)"}]}`,
 		"on kv":            `{"type":"kv","fields":["a"],"conn_patterns":[{"pattern":"^(?P<local>a)(?P<dest>b)"}]}`,
 		"an upper app":     `{"type":"template","prefix":"^(?P<head>a) ","apps":["Kernel"]}`,
@@ -146,5 +146,63 @@ func TestConnPatternsRules(t *testing.T) {
 	}
 	if _, err := Load(profileFS(map[string]string{"x.json": line(`{"type":"template","prefix":"^(?P<head>a) ","conn_patterns":[{"pattern":"^(?P<local>a)(?P<dest>b)"}]}`)}), "profiles"); err != nil {
 		t.Errorf("a good rule: %v", err)
+	}
+}
+
+// Review of D-489 (Opus): the cases below each failed before the fix.
+func TestFirewallProfilesReview(t *testing.T) {
+	set := shipped(t)
+	const pfTail = `,in,4,0x0,,64,41237,0,DF,6,tcp,60,192.168.10.113,185.220.101.47,51234,443,0,S,2174350711,,64240,,mss`
+	ufw := ` IN=eth0 OUT=eth1 SRC=192.168.10.113 DST=185.220.101.47 LEN=60 PROTO=TCP SPT=1 DPT=23`
+	sw := `<134>id=firewall sn=0006 time="2026-11-09 10:00:00" fw=1.1.1.1 pri=6 c=1 m=98 msg="Connection Opened" n=1 `
+	good := map[string][2]string{
+		// FreeBSD syslogd (pfSense default) sends no hostname: the first token is the program.
+		"pf no hostname":       {"pfsense", `<134>Nov  9 10:00:00 filterlog[53123]: 5,,,1000000103,igc1,match,pass` + pfTail},
+		"pf no hostname block": {"pfsense", `<134>Nov  9 10:00:00 filterlog: 5,,,1000000103,igc1,match,block` + pfTail},
+		"opnsense 5424":        {"opnsense", `<134>1 2026-11-09T10:00:00+00:00 OPNsense.localdomain filterlog 53123 - [meta sequenceId="5"] 5,,,1000000103,igc1,match,pass` + pfTail},
+		"pf syn with ecn":      {"pfsense", `<134>Nov  9 10:00:00 filterlog[1]: 5,,,1,igc1,match,pass` + strings.Replace(pfTail, ",0,S,", ",0,SEW,", 1)},
+		"pf udp":               {"pfsense", `<134>Nov  9 10:00:00 filterlog[1]: 5,,,1,igc1,match,pass,in,4,0x0,,64,1,0,none,17,udp,76,192.168.10.113,185.220.101.47,51234,53,56`},
+		"kernel 5424":          {"linux-journald", `<4>1 2026-11-09T10:00:00Z host kernel - - - [UFW BLOCK]` + ufw},
+		"sonic single quotes":  {"sonicwall", sw + `app=49177 appName='General HTTPS MGMT' src=192.168.10.113:51234:X0 dst=185.220.101.47:443:X1 proto=tcp/https`},
+		"sophos web denied":    {"sophos", `<30>log_type="Content Filtering" log_component="HTTP" log_subtype="Denied" status="" src_ip=192.168.10.113 dst_ip=185.220.101.47 domain=x.example.com`},
+	}
+	for name, c := range good {
+		if r := set.Of(c[0], c[1]); !r.Conn.Local.IsValid() || r.Conn.Local.String() != "192.168.10.113" || len(r.Conn.Dests) == 0 || r.Conn.Dests[0].Value != "185.220.101.47" {
+			t.Errorf("%s: got %+v (profile %s)", name, r.Conn, r.Profile)
+		}
+	}
+	if !set.Of("sophos", good["sophos web denied"][1]).Conn.Blocked || !set.Of("pfsense", good["pf no hostname block"][1]).Conn.Blocked {
+		t.Error("a denied line is not blocked")
+	}
+	for name, c := range map[string][2]string{
+		// Replies and out-of-state packets are not a device connecting out.
+		"pf SA reply":      {"pfsense", `<134>Nov  9 10:00:00 filterlog[1]: 5,,,1,igc1,match,block,in,4,0x0,,64,0,0,DF,6,tcp,60,192.168.10.5,6.6.6.6,80,51234,0,SA,1,2,64240,,mss`},
+		"pf SA pass":       {"pfsense", `<134>Nov  9 10:00:00 filterlog[1]: 5,,,1,igc1,match,pass,in,4,0x0,,64,0,0,DF,6,tcp,60,192.168.10.5,6.6.6.6,80,51234,0,SA,1,2,64240,,mss`},
+		"pf ack":           {"pfsense", `<134>Nov  9 10:00:00 filterlog[1]: 5,,,1,igc1,match,block,in,4,0x0,,64,0,0,DF,6,tcp,52,192.168.10.5,6.6.6.6,80,51234,0,A,1,2,64240,,`},
+		"pf icmp reply":    {"pfsense", `<134>Nov  9 10:00:00 filterlog[1]: 5,,,1,igc1,match,block,in,4,0x0,,64,0,0,none,1,icmp,84,192.168.10.5,6.6.6.6,reply,1,1`},
+		"sophos invalid":   {"sophos", `<30>device_name="SFW" log_type="Firewall" log_component="Invalid Traffic" log_subtype="Denied" status="Deny" src_ip=192.168.10.5 dst_ip=6.6.6.6 protocol="TCP" src_port=80 dst_port=51234`},
+		"sophos local acl": {"sophos", `<30>log_type="Firewall" log_component="Local ACL" log_subtype="Denied" status="Deny" src_ip=192.168.10.5 dst_ip=6.6.6.6`},
+		"sophos dos":       {"sophos", `<30>log_type="Firewall" log_component="DoS Attack" log_subtype="Denied" status="Deny" src_ip=192.168.10.5 dst_ip=6.6.6.6`},
+		// A process of the host cannot write the kernel's log.
+		"logger -t kernel":     {"linux-rsyslog", `<13>Nov  9 10:00:00 host kernel: [UFW BLOCK]` + ufw},
+		"logger 5424":          {"linux-journald", `<13>1 2026-11-09T10:00:00Z host kernel - - - [UFW ALLOW]` + ufw},
+		"program kernel: text": {"linux-rsyslog", `<4>Nov  9 10:00:00 myapp: kernel: [UFW BLOCK]` + ufw},
+		"no PRI":               {"linux-rsyslog", `Nov  9 10:00:00 host kernel: [UFW BLOCK]` + ufw},
+		// SonicWall: a second src or dst anywhere makes the line ambiguous.
+		"sonic two pairs": {"sonicwall", sw + `usr="a" src=192.168.10.5:1:X0 dst=6.6.6.6:2:X1 b="z" src=192.168.10.113:51234:X0 dst=185.220.101.47:443:X1 proto=tcp`},
+		"sonic six keys":  {"sonicwall", sw + `usr="a" a=1 b=1 c=1 d=1 src=192.168.10.5:1:X0 dst=6.6.6.6:2:X1 e="z" src=192.168.10.113:51234:X0 dst=185.220.101.47:443:X1 proto=tcp`},
+	} {
+		if r := set.Of(c[0], c[1]); r.Conn.Local.IsValid() || len(r.Conn.Dests) != 0 {
+			t.Errorf("%s: got %+v", name, r.Conn)
+		}
+	}
+	// An alternation in a pattern cannot step out of the anchor that the loader adds.
+	bad := `{"id":"x","title":"x","kinds":["x"],"rule":{"type":"template","prefix":"^(?P<head>a) ","conn_patterns":[{"pattern":"zz|(?P<local>[0-9.]+) (?P<dest>[0-9.]+)"}]},"samples":[{"line":"a b","signature":"a: b"}]}`
+	set2, err := Load(profileFS(map[string]string{"x.json": bad}), "profiles")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := set2.Of("x", "a 192.168.10.5 8.8.8.8 and a 192.168.10.5 8.8.4.4"); r.Conn.Local.IsValid() {
+		t.Errorf("an unanchored alternative matched: %+v", r.Conn)
 	}
 }

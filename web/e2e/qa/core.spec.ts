@@ -52,8 +52,7 @@ async function cleanInstall(page: Page, bundle: RegExp = /Small business/) {
   await page.getByLabel('Range 1', { exact: true }).fill('192.168.50.0/24')
   await next(page)
   await page.getByRole('radio', { name: bundle }).click()
-  await next(page)
-  await page.getByRole('button', { name: 'Skip and finish' }).click()
+  await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(h1(page)).toBeVisible()
   await expect(page).toHaveURL(/\/$/)
 }
@@ -170,16 +169,16 @@ test.describe('first-run setup', () => {
     await next(page)
     await page.getByRole('radio', { name: /Mid-size business/ }).click()
     await shot(page, 'core', 'setup-3')
-    await next(page)
-
-    // step 4: incomplete -> errors; skip
-    await expect(page.getByRole('heading', { level: 2, name: 'Where alerts go' })).toBeVisible()
+    // D-462: three steps; Modules is the last one and finishes setup, there is no Alerts step
+    await expect(page.getByRole('list', { name: 'Setup steps' }).getByRole('listitem')).toHaveCount(3)
+    await expect(page.getByRole('button', { name: 'Continue' })).toHaveCount(0)
     await page.getByRole('button', { name: 'Finish setup' }).click()
-    await expect(page.getByText('Fill this in.').first()).toBeVisible()
-    await shot(page, 'core', 'setup-4')
-    await page.getByRole('button', { name: 'Skip and finish' }).click()
     await expect(h1(page)).toBeVisible()
     await expect(page).toHaveURL(/\/$/)
+    // no channel yet: Home says so and links to Settings, Alert channels
+    await expect(page.getByText('No alert channel yet')).toBeVisible()
+    await shot(page, 'core', 'setup-home-no-channel')
+    await expect(page.getByRole('link', { name: 'Set up an alert channel' })).toHaveAttribute('href', '/settings/channels')
 
     // scope reached the inventory module
     const inv = await page.evaluate(async () => (await (await fetch('/api/v1/inventory/settings')).json()) as { lan_ranges: string[]; active: { enabled: boolean } })

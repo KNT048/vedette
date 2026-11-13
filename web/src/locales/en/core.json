@@ -1291,6 +1291,12 @@
     "later_one": "Remind me in {{count}} day",
     "later_other": "Remind me in {{count}} days"
   },
+  "alertChannelPrompt": {
+    "title": "No alert channel yet",
+    "body": "Until an alert channel is set up and switched on, Vedette can only show what it finds here: nobody is told when a device matches an exploited vulnerability. Telegram, Slack, Zalo, email or a webhook all work; have the bot token or mail server details at hand.",
+    "go": "Set up an alert channel",
+    "noAlerts": "Not using alerts? Switch off Notifications in Settings, Modules, and this goes away."
+  },
   "changePassword": {
     "title": "Choose a new password",
     "desc": "An administrator set your current password. Choose your own before you continue: at least {{min}} characters, and not the temporary one.",
@@ -1311,13 +1317,12 @@
   },
   "setup": {
     "title": "First-time Vedette setup",
-    "subtitle": "Four steps, about five minutes. You can change every step later in Settings.",
+    "subtitle": "Three steps, a few minutes. You can change every step later in Settings, and set up alert channels there once setup is done.",
     "steps": "Setup steps",
     "step": {
       "account": "Account",
       "network": "Network",
-      "modules": "Modules",
-      "channel": "Alerts"
+      "modules": "Modules"
     },
     "back": "Back",
     "next": "Continue",
@@ -1391,36 +1396,6 @@
       "customEmpty": "Pick at least one module.",
       "notHere": "Not on this install: {{list}}. They need the appliance install (vedette-host); this container-only install leaves them out.",
       "notHereOne": "Needs the appliance install"
-    },
-    "channel": {
-      "title": "Where alerts go",
-      "desc": "You can skip this. The channel is saved under Settings, Alert channels and switched on.",
-      "type": "Channel type",
-      "secret": {
-        "telegram": "Bot token",
-        "zalo": "Access token",
-        "email": "SMTP password"
-      },
-      "secretHint": "Only the last 4 characters show after saving.",
-      "emailError": "The email does not look right, for example security@example.com.",
-      "later": "You send a test and set quiet hours in Settings, Alert channels.",
-      "skip": "Skip and finish",
-      "field": {
-        "chat_id": "Chat ID to send to",
-        "oa_id": "OA ID",
-        "host": "SMTP server",
-        "port": "SMTP port",
-        "security": "Encryption",
-        "username": "SMTP username",
-        "from": "Sender email",
-        "to": "Recipient emails (comma separated)",
-        "user_id": "Recipient user ID (the follower who receives alerts)"
-      },
-      "required": "Fill this in.",
-      "toError": "A recipient email does not look right. Separate several with commas.",
-      "noEncryption": "No encryption",
-      "saveFailed": "The account was created but the channel was not saved: {{message}} Fix it and press Finish, or skip and set it up later.",
-      "skipDone": "Skip the channel and enter the box"
     },
     "sample": {
       "title": "Just want a look?",

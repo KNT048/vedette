@@ -28,7 +28,7 @@ const user = () => userEvent.setup()
 const NOHASH = { prev_hash: '0'.repeat(64), hash: '0'.repeat(64) } // rows written straight into the store, the chain is not under test here
 
 describe('core: cài đặt ban đầu', () => {
-  it('đi hết 4 bước, tạo quản trị, đặt setup_complete và vào trang chủ', async () => {
+  it('đi hết 3 bước (D-462: không có bước kênh), tạo quản trị, đặt setup_complete và vào trang chủ', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
     expect(await screen.findByRole('heading', { level: 2, name: 'Organization and administrator account' })).toBeInTheDocument()
@@ -82,10 +82,10 @@ describe('core: cài đặt ban đầu', () => {
     await u.click(await screen.findByRole('checkbox', { name: /^Vulnerability scan/ }))
     expect(screen.getByRole('checkbox', { name: /^Inventory/ })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: /^Vulnerability feeds/ })).toBeChecked()
-    await u.click(screen.getByRole('button', { name: 'Continue' }))
-    // bước 4: bỏ qua kênh
-    expect(await screen.findByRole('heading', { level: 2, name: 'Where alerts go' })).toBeInTheDocument()
-    await u.click(screen.getByRole('button', { name: 'Skip and finish' }))
+    // D-462: Modules is the last step; there is no Continue and no Alerts step
+    expect(within(screen.getByRole('list', { name: 'Setup steps' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Account', 'Network', '3Modules'])
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull()
+    await u.click(screen.getByRole('button', { name: 'Finish setup' }))
     expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
     expect(orgStore.get().setup_complete).toBe(true)
     expect(orgStore.get().name).toBe('ABC Company')
@@ -101,7 +101,7 @@ describe('core: cài đặt ban đầu', () => {
     expect(auditStore.get().some((a) => a.action === 'core.setup' && a.detail?.includes('commitment confirmed'))).toBe(true)
   })
 
-  it('bước kênh lưu qua module thông báo; token sai báo lỗi và thử lại được', async () => {
+  it('D-462: xong cài đặt mới (chưa có kênh), Home nhắc "No alert channel yet" và dẫn tới Settings → Alert channels', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
     await u.type(await screen.findByLabelText('Setup code'), MOCK_SETUP_CODE)
@@ -122,22 +122,12 @@ describe('core: cài đặt ban đầu', () => {
     await u.clear(screen.getByLabelText('Range 1'))
     await u.type(screen.getByLabelText('Range 1'), '10.0.0.0/24')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
-    await u.click(await screen.findByRole('button', { name: 'Continue' }))
     await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
-    expect((await screen.findAllByText('Fill this in.')).length).toBe(2)
-    await u.type(screen.getByLabelText('Chat ID to send to'), '-1001234567890')
-    await u.type(screen.getByLabelText('Bot token'), 'token-sai')
-    await u.click(screen.getByRole('button', { name: 'Finish setup' }))
-    expect(await screen.findByText(/The account was created but the channel was not saved/)).toBeInTheDocument()
-    expect(orgStore.get().setup_complete).toBe(true)
-    await u.clear(screen.getByLabelText('Bot token'))
-    await u.type(screen.getByLabelText('Bot token'), '123456789:EXAMPLE_not_a_real_token_0000000000')
-    await u.click(screen.getByRole('button', { name: 'Finish setup' }))
     expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
-    const ch = (await (await fetch(`${location.origin}/api/v1/notify/channels`)).json()) as { channels: { type: string; configured: boolean; enabled: boolean; fields: Record<string, string>; secret_last4: string }[] }
-    const tg = ch.channels.find((c) => c.type === 'telegram')!
-    expect(tg).toMatchObject({ configured: true, enabled: true, secret_last4: '0000' })
-    expect(tg.fields.chat_id).toBe('-1001234567890')
+    expect(orgStore.get().setup_complete).toBe(true)
+    expect(await screen.findByText('No alert channel yet')).toBeInTheDocument()
+    await u.click(screen.getByRole('link', { name: 'Set up an alert channel' }))
+    expect(await screen.findByRole('table', { name: 'Alert channels' })).toBeInTheDocument()
     const inv = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[]; active: { enabled: boolean } }
     expect(inv.lan_ranges).toEqual(['10.0.0.0/24'])
     expect(inv.active.enabled).toBe(false) // không tick xác nhận: chỉ nghe thụ động
@@ -156,8 +146,7 @@ describe('core: cài đặt ban đầu', () => {
     await u.clear(await screen.findByLabelText('Range 1'))
     await u.type(screen.getByLabelText('Range 1'), '10.0.0.0/24')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
-    await u.click(await screen.findByRole('button', { name: 'Continue' }))
-    await u.click(await screen.findByRole('button', { name: 'Skip and finish' }))
+    await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
     expect(await screen.findByRole('heading', { level: 2, name: 'Organization and administrator account' })).toBeInTheDocument()
     expect(screen.getByText(/The setup code is missing or wrong/)).toBeInTheDocument()
     expect(screen.getByLabelText('Setup code')).toHaveAttribute('aria-invalid', 'true')
@@ -169,8 +158,7 @@ describe('core: cài đặt ban đầu', () => {
     await u.type(screen.getByLabelText('Setup code'), MOCK_SETUP_CODE)
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     await u.click(await screen.findByRole('button', { name: 'Continue' }))
-    await u.click(await screen.findByRole('button', { name: 'Continue' }))
-    await u.click(await screen.findByRole('button', { name: 'Skip and finish' }))
+    await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
     expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
     expect(orgStore.get().setup_complete).toBe(true)
   })

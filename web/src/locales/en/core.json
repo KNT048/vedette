@@ -499,6 +499,8 @@
       "inventory.software_expired": "Agent software no longer reported was removed",
       "inventory.software_sync": "Software list synced",
       "network.ntp": "Change time server",
+      "network.box_address": "Change box address",
+      "network.box_address_forget": "Stop answering to an earlier box address",
       "notify.approval_fallback": "Approval request sent without buttons",
       "notify.approval_request": "Send approval request",
       "notify.approval_skipped": "Approval request not sent",
@@ -906,7 +908,7 @@
           "Memories an administrator keeps (up to 100, each up to 300 characters; only the ones switched on, never a suggestion nobody accepted) are sent with every call that carries internal data, as fenced data the model is told never to obey, after the same masking and hooks as the rest; calls on public text only (CVE news, advisory translation) do not carry them.",
           "CVE news: the public exploited-list entry and the public text the box fetched for that CVE (flow 8: the NVD record, a vendor advisory, the GitHub repositories that name it, and blog posts that mention it), cleaned and capped, and nothing of your network.",
           "Documents an administrator adds to the knowledge base (PDF, MD, TXT or DOCX, up to 10 MB and 50 documents) are read and indexed on the box, and adding or indexing a document sends nothing anywhere; only the text kept from them, never the file, is stored. When a call is made for a job the document is assigned to, and the job carries internal data (not CVE news or advisory translation), the few passages of the text that match the question (up to 4 passages, 12,000 characters in all) are sent with that call, as fenced data the model is told never to obey, after the same masking and hooks, passage by passage, as the memories.",
-          "Ask your data (a question an operator types on the AI assistant page): the question and then, in answer to what the model asks for, the results of read-only tools: devices of the inventory (name, IP address, kind, vendor, model, operating system, open ports, software, whether approved), findings (device name and IP, CVE, status, severity, scan evidence summary), the exploited-list entry of a CVE with the devices it matches, whether a feed lists an IP address or a domain the model names, and the text a read tool of a connection you enabled returns from that device or server (never its credential). Each result is capped (12 KB a call, 48 KB a question, 12 calls), goes through the same masking and hooks as the question, result by result, and is sent as fenced data the model is told never to obey; a result a hook stops is not sent. When the privacy rule is on, only a profile inside your network receives these results.",
+          "Ask your data (a question an operator types on the AI assistant page): the question and then, in answer to what the model asks for, the results of read-only tools: devices of the inventory (name, IP address, kind, vendor, model, operating system, open ports, software, whether approved, when it was first and last seen, whether it was found on the network or added by hand, and which source saw it; never its notes), findings (device name and IP, CVE, status, severity, scan evidence summary), the exploited-list entry of a CVE with the devices it matches, whether a feed lists an IP address or a domain the model names, and the text a read tool of a connection you enabled returns from that device or server (never its credential). Each result is capped (12 KB a call, 48 KB a question, 12 calls), goes through the same masking and hooks as the question, result by result, and is sent as fenced data the model is told never to obey; a result a hook stops is not sent. When the privacy rule is on, only a profile inside your network receives these results.",
           "Arguments of read tools: for a read tool of a connection the AI writes the arguments itself; they can contain data the AI saw from the box (masked by the personal-data hook, and checked by your before-tool hooks first), and they are sent to that connection. While the privacy rule is on, only tools of connections whose address is inside your network are offered.",
           "Every call: text from feeds and from devices is sent only as fenced data the model is told never to obey. Every call is written to the AI activity log as hashes only: the text sent and received is not stored. A profile marked as inside your network must use a private address or a name that resolves to one; this is checked at every connection."
         ],
@@ -1632,6 +1634,30 @@
       "saved": "Time servers saved.",
       "privacy": "The operating system keeps its own time sources, so time requests still reach public servers (they see the box's IP address). Servers you enter here are added, not substituted.",
       "privacyLink": "See Privacy, flow 10"
+    },
+    "boxAddress": {
+      "title": "Box address",
+      "desc": "The name or address people and devices on your network use to reach the box. Every link the box sends uses it: alert messages, approval links, sign-in emails, the block list URL, URL honey tokens and agent install commands.",
+      "label": "Host name or IP address",
+      "hint": "Leave it empty to use the management address. Enter a name only if your network's DNS resolves it to the box. No https:// and no port.",
+      "default": "Default: {{address}} (the management address)",
+      "noDefault": "Default: the management address, once the box has one",
+      "links": "Links now start with {{url}}",
+      "noLinks": "The box knows no address yet, so messages carry no links and approval requests cannot be sent.",
+      "saved": "Box address saved. The certificate will include it within a few seconds.",
+      "savedOwnCert": "Box address saved. Your own certificate must include it, or browsers and agents will warn.",
+      "reset": "Box address set back to the management address.",
+      "previousLabel": "Earlier box addresses still answered to",
+      "previous": "Also still answering to {{address}} (agents, firewalls and links set up with it).",
+      "forget": "Stop answering to {{address}}",
+      "forgotten": "The box no longer answers to {{address}}.",
+      "confirm": {
+        "title": "Change the box address?",
+        "body": "Links, install commands and the block list URL will use {{to}} instead of {{from}}.",
+        "bodyDefault": "Links, install commands and the block list URL will use the management address {{def}} instead of {{from}}.",
+        "keeps": "Agents enrolled with {{from}}, firewalls that pull the block list from it and links already sent keep working: the box also keeps answering to {{from}} until you stop it here.",
+        "go": "Change the address"
+      }
     }
   },
   "connections": {

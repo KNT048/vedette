@@ -69,6 +69,16 @@ type JobResult struct {
 
 func apiUnavailable(msg string) error { return apierr.New(http.StatusConflict, "ai_unavailable", msg) }
 
+// The errors of a call that was made, or stopped by a rule, each with its own code so neither the API nor the page calls them "not set
+// up" (ai_unavailable, which stays for: module off, no profile, none assigned, the privacy rule, a skill turned off).
+func apiBlocked(msg string) error   { return apierr.New(http.StatusConflict, "blocked_by_hook", msg) }
+func apiCutOff(msg string) error    { return apierr.New(http.StatusBadGateway, "ai_cut_off", msg) }
+func apiBadFormat(msg string) error { return apierr.New(http.StatusBadGateway, "ai_bad_format", msg) }
+func apiTimeout(msg string) error   { return apierr.New(http.StatusGatewayTimeout, "ai_timeout", msg) }
+
+// hooksHint ends every message about a hook: what the person can do, and who can change the hook.
+const hooksHint = " Rephrase and try again; an administrator can adjust the hooks in Settings, AI assistant, Hooks."
+
 // unavailable says why no profile can run the job, in the words of the mock (INV-3: never a silent switch to cloud).
 func (s *Service) unavailable(job Job, reasons []string) error {
 	sn := s.snap.Load()
@@ -144,9 +154,9 @@ func (s *Service) appendActivity(ctx context.Context, tx *sql.Tx, e ActivityEntr
 		b, _ := json.Marshal(sealed.Links)
 		links = string(b)
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO ai_activity (id, ts, job, profile, profile_id, outcome, model, trigger, hooks, tools, input_hash, output_hash, summary, tokens_in, tokens_out, result, links, prev_hash, hash)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		sealed.ID, sealed.TS, sealed.Job, sealed.Profile, nullable(e.ProfileID), nullable(e.Outcome), sealed.Model, sealed.Trigger, string(hooks), string(tools), sealed.InputHash, sealed.OutputHash, sealed.Summary,
+	if _, err := tx.ExecContext(ctx, `INSERT INTO ai_activity (id, ts, job, profile, profile_id, outcome, stop, retried, model, trigger, hooks, tools, input_hash, output_hash, summary, tokens_in, tokens_out, result, links, prev_hash, hash)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		sealed.ID, sealed.TS, sealed.Job, sealed.Profile, nullable(e.ProfileID), nullable(e.Outcome), nullable(e.Stop), e.Retried, sealed.Model, sealed.Trigger, string(hooks), string(tools), sealed.InputHash, sealed.OutputHash, sealed.Summary,
 		sealed.TokensIn, sealed.TokensOut, string(sealed.Result), links, sealed.PrevHash, sealed.Hash); err != nil {
 		return ActivityEntry{}, fmt.Errorf("ai: write activity: %w", err)
 	}
@@ -176,41 +186,43 @@ func detached(ctx context.Context) (context.Context, context.CancelFunc) {
 }
 
 // guard runs the before_ai hooks on the question and on every data block, separately, so a mask never touches the markers around
-// them. Any block, hold or failed run stops the call (fail closed): nothing is sent.
-func (s *Service) guard(ctx context.Context, hooks *HookRunner, spec JobSpec) (question string, data []DataBlock, names []string, stop string) {
+// them. Any block, hold or failed run stops the call (fail closed): nothing is sent. stop says which part was stopped (the question,
+// or the data from a named source) and why; matched is set when a hook matched it (a rephrase or a change of the hook helps), not
+// when the hooks could not run.
+func (s *Service) guard(ctx context.Context, hooks *HookRunner, spec JobSpec) (question string, data []DataBlock, names []string, stop string, matched bool) {
 	// The same deadline as the after_ai pass, for the whole pass: a hook that cannot finish is a block (fail closed).
 	ctx, cancel := context.WithTimeout(ctx, s.hookTimeout())
 	defer cancel()
-	run := func(text string) (string, bool) {
+	run := func(text, where string) (string, bool) {
 		r, err := hooks.Run(ctx, BeforeAI, text)
 		if errors.Is(err, ErrHookInputTooLarge) {
-			stop = "The text is too long to check against the hooks, so it was not sent."
+			stop = "The text of " + where + " is too long to check against the hooks, so it was not sent."
 			return "", false
 		}
 		if err != nil {
-			stop = "The text could not be checked against the hooks in time, so it was not sent."
+			stop = "The text of " + where + " could not be checked against the hooks in time, so it was not sent. Try again."
 			return "", false
 		}
 		names = append(names, r.Names()...)
 		if r.Outcome == OutcomeBlocked || r.Outcome == OutcomeHeld {
-			stop = r.Text
+			stop, matched = "a hook stopped "+where+". "+r.Text, true
 			return "", false
 		}
 		return r.Text, true
 	}
-	q, ok := run(spec.Question)
+	q, ok := run(spec.Question, "the question")
 	if !ok {
-		return "", nil, dedupe(names), stop
+		return "", nil, dedupe(names), stop, matched
 	}
 	for _, d := range spec.Data {
-		t, ok := run(d.Text)
+		t, ok := run(d.Text, fmt.Sprintf("the data sent with it (%s)", clipRunes(cleanLine(d.Source, 80), 80)))
 		if !ok {
-			return "", nil, dedupe(names), stop
+			return "", nil, dedupe(names), stop, matched
 		}
 		d.Text = t
 		data = append(data, d)
 	}
-	return q, data, dedupe(names), ""
+	return q, data, dedupe(names), "", false
 }
 
 func dedupe(in []string) []string {
@@ -263,7 +275,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		}
 		know = &k
 	}
-	question, data, hookNames, stop := s.guard(ctx, hooks, spec)
+	question, data, hookNames, stop, matched := s.guard(ctx, hooks, spec)
 	entry.Hooks = dedupe(append(append(append(append(hookNames, mem.names...), mem.leftNames...), know.names...), know.leftNames...))
 	if stop == "" && len(know.refs) > 0 {
 		data = append([]DataBlock{know.block}, data...)
@@ -276,7 +288,11 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		if err := s.record(ctx, entry); err != nil {
 			return JobResult{}, err
 		}
-		return JobResult{}, apiUnavailable("The AI was not asked: " + stop)
+		msg := "The AI was not asked: " + stop
+		if matched {
+			msg += hooksHint
+		}
+		return JobResult{}, apiBlocked(msg)
 	}
 	prompt, err := PromptBuilder{}.Build(PromptInput{Job: spec.Job, Task: spec.Task, Rules: har.rules, Question: question, Data: data, WithTools: spec.tools != nil})
 	if err != nil {
@@ -307,6 +323,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		res.Response.Text = unfence(res.Response.Text)
 	}
 	entry.Profile, entry.ProfileID, entry.Model, entry.TokensIn, entry.TokensOut = res.Profile, res.ProfileID, res.Model, res.Response.Usage.InputTokens, res.Response.Usage.OutputTokens
+	entry.Stop, entry.Retried = string(res.Response.Stop), retrySent(res)
 	entry.OutputHash = HashContent(res.Response.Text)
 	entry.Result = ResultOK
 	if res.Fallback {
@@ -315,10 +332,17 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 
 	// The answer is here and the tokens are spent: the checks and the row that follow run even if the caller has gone. The hooks get
 	// their own deadline, so slow hooks cannot use up the time of the activity row (INV-17), which has a fresh one.
-	hctx, hcancel := context.WithTimeout(context.WithoutCancel(ctx), s.hookTimeout())
-	structured := spec.Schema != nil && spec.Check != nil && spec.Check(res.Response.Text) == nil // the format is checked first; a bad answer is refused below
-	after, herr := afterHooks(hctx, hooks, structured, res.Response.Text)
-	hcancel()
+	// An answer cut at the output limit (also after the router's one retry with a higher limit) is half an answer: it is not checked,
+	// not shown and not stored, and it is named as what it is, not as a format error.
+	cut := res.Response.Stop == provider.StopMaxTokens
+	var after HookResult
+	var herr error
+	if !cut {
+		hctx, hcancel := context.WithTimeout(context.WithoutCancel(ctx), s.hookTimeout())
+		structured := spec.Schema != nil && spec.Check != nil && spec.Check(res.Response.Text) == nil // the format is checked first; a bad answer is refused below
+		after, herr = afterHooks(hctx, hooks, structured, res.Response.Text)
+		hcancel()
+	}
 	entry.Hooks = dedupe(append(entry.Hooks, after.Names()...))
 	wctx, wcancel := detached(ctx)
 	defer wcancel()
@@ -326,14 +350,21 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	var bad error
 	blocked := false
 	switch {
+	case cut:
+		limit := spec.MaxTokens
+		if res.Retried {
+			limit = retryLimit(spec.MaxTokens)
+		}
+		entry.Result, entry.Summary = ResultError, fmt.Sprintf("The answer was cut off at the output limit (%s tokens) and was discarded.", number(limit))
+		bad = apiCutOff(fmt.Sprintf("The AI's answer was cut off at the output limit (%s tokens), so it was not used. Try again; if it keeps happening, use a model for %s that writes shorter answers.", number(limit), spec.Job.Name()))
 	case herr != nil:
-		entry.Result, entry.Summary, bad = ResultBlockedByHook, "The answer was not used: it could not be checked against the hooks.", apiUnavailable("The AI answered, but the answer could not be checked, so it was not used.")
+		entry.Result, entry.Summary, bad = ResultBlockedByHook, "The answer was not used: it could not be checked against the hooks.", apiBlocked("The AI answered, but the answer could not be checked against the hooks in time, so it was not used. Try again.")
 	case (after.Outcome == OutcomeBlocked || after.Outcome == OutcomeHeld) && spec.AnswerWhenBlocked:
 		entry.Result, entry.Summary, blocked = ResultBlockedByHook, "The answer was not used: "+after.Text, true
 	case after.Outcome == OutcomeBlocked || after.Outcome == OutcomeHeld:
-		entry.Result, entry.Summary, bad = ResultBlockedByHook, "The answer was not used: "+after.Text, apiUnavailable("The AI answered, but a rule stopped the answer: "+after.Text)
+		entry.Result, entry.Summary, bad = ResultBlockedByHook, "The answer was not used: "+after.Text, apiBlocked("The AI answered, but a hook stopped the answer: "+after.Text+hooksHint)
 	case spec.Check != nil && spec.Check(text) != nil:
-		entry.Result, entry.Summary, bad = ResultError, "The answer did not match the expected format and was discarded.", apiUnavailable("The AI answered, but not in the format Vedette needs, so the answer was discarded. Try again, or use a stronger model for this job.")
+		entry.Result, entry.Summary, bad = ResultError, "The answer did not match the expected format and was discarded.", apiBadFormat("The AI answered, but not in the format Vedette needs, so the answer was discarded. Try again, or use a stronger model for this job.")
 	}
 	var id string
 	storeFailed := false
@@ -448,24 +479,28 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		}
 		return err
 	}
+	// the question's own deadline is what ran out, even when it ran out during the retry of a cut answer
+	if a, ok := failedRetry(res); ok && !errors.Is(err, errAskDeadline) {
+		return s.retryFailed(ctx, spec, entry, res, a)
+	}
 	var ue *UnavailableError
 	switch {
 	case errors.Is(err, errAskDeadline), errors.Is(err, ErrBadOutput) && spec.tools != nil:
 		// the question ran out of time, or the model kept asking for tools and never answered: the calls that were made keep their row
 		s.nameLastProfile(&entry, res)
 		entry.Summary = "Stopped: the question used up its time."
-		msg := "The AI did not finish in time. Try again, or use a faster profile for this job."
+		out := apiTimeout("The AI did not finish in time. Try again, or use a faster profile for this job.")
 		if spec.Job == JobAskMyData {
-			msg = "The AI did not finish in time. Ask a narrower question, or use a faster profile for this job."
+			out = apiTimeout("The AI did not finish in time. Ask a narrower question, or use a faster profile for this job.")
 		}
 		if !errors.Is(err, errAskDeadline) {
 			entry.Summary = "Stopped: the AI kept asking for tools and gave no answer."
-			msg = "The AI kept asking for data and gave no answer. Try again, or use a stronger model for this job."
+			out = apiBadFormat("The AI kept asking for data and gave no answer. Try again, or use a stronger model for this job.")
 		}
 		if rerr := s.record(ctx, entry); rerr != nil {
 			return rerr
 		}
-		return apiUnavailable(msg)
+		return out
 	case spec.tools != nil && errors.As(err, &ue) && toolsRefused(res):
 		entry.Summary = "No profile accepted tool calls: " + strings.Join(attemptReasons(res, ue), "; ")
 		if rerr := s.record(ctx, entry); rerr != nil {
@@ -500,9 +535,113 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		} else if rerr := s.record(ctx, entry); rerr != nil {
 			return rerr
 		}
+		if perr := providerFailure(spec.Job, res); perr != nil {
+			return perr
+		}
 		return s.unavailable(spec.Job, reasons)
 	}
 	return err
+}
+
+// retrySent reports whether a second request of a cut answer reached the provider (ai_activity.retried).
+func retrySent(res CallResult) bool {
+	for _, a := range res.Attempts {
+		if a.Retry && !a.Skipped {
+			return true
+		}
+	}
+	return false
+}
+
+// failedRetry returns the retry of a cut answer when it is the attempt that ended the call with an error.
+func failedRetry(res CallResult) (Attempt, bool) {
+	if n := len(res.Attempts); n > 0 && res.Attempts[n-1].Retry && res.Attempts[n-1].Err != nil {
+		return res.Attempts[n-1], true
+	}
+	return Attempt{}, false
+}
+
+// retryFailed records a call whose answer was cut at the output limit and whose second request, with a higher limit, could not be
+// made (a cap) or failed (the provider), and says that, with the cap's or the provider's own code rather than "cut off".
+func (s *Service) retryFailed(ctx context.Context, spec JobSpec, entry ActivityEntry, res CallResult, a Attempt) error {
+	entry.Profile, entry.ProfileID, entry.Model = a.Profile, a.ProfileID, a.Model
+	entry.TokensIn, entry.TokensOut = res.Response.Usage.InputTokens, res.Response.Usage.OutputTokens
+	entry.Stop, entry.Retried = string(provider.StopMaxTokens), !a.Skipped
+	cut := fmt.Sprintf("The AI's answer was cut off at the output limit (%s tokens)", number(spec.MaxTokens))
+	var out error
+	switch {
+	case errors.Is(a.Err, ErrCapped):
+		entry.Summary = "The answer was cut off at the output limit; today's token cap left no room to ask again."
+		out = apierr.New(http.StatusTooManyRequests, "daily_cap", fmt.Sprintf("%s, and today's %s token cap is used up, so it was not asked again. Raise the cap in Settings, AI assistant, or wait until tomorrow.", cut, number(s.snap.Load().cfg.DailyCap)))
+	case errors.Is(a.Err, ErrProfileCapped):
+		entry.Summary = "The answer was cut off at the output limit; the profile's own daily cap left no room to ask again."
+		out = apierr.New(http.StatusTooManyRequests, "daily_cap", fmt.Sprintf("%s, and the daily token cap of the profile %s is used up, so it was not asked again. Raise the profile's cap in Settings, AI assistant, or wait until tomorrow.", cut, a.Profile))
+	default:
+		entry.Summary = "The answer was cut off at the output limit, and asking again with a higher limit failed."
+		out = providerFailure(spec.Job, CallResult{Attempts: []Attempt{a}})
+	}
+	wctx, cancel := detached(ctx) // the first request was answered: its tokens are spent and the row is written
+	defer cancel()
+	if rerr := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
+		if _, err := s.appendActivity(wctx, tx, entry); err != nil {
+			return err
+		}
+		if res.Downgrade != nil {
+			return s.writeDowngrade(wctx, tx, spec.Actor, res.Downgrade)
+		}
+		return nil
+	}); rerr != nil {
+		return rerr
+	}
+	return out
+}
+
+// providerFailure is the error of a call whose requests reached a provider and got an error back, instead of "no profile could
+// answer": the profile, the kind, the HTTP status and the provider's own message (provider.Error scrubs it of keys and cuts it to 200
+// characters). nil when no request was sent. Every sent request timing out is ai_timeout, every one unreachable is unreachable, any
+// other mix is provider_error.
+func providerFailure(job Job, res CallResult) error {
+	var parts []string
+	sent, timeouts, network := 0, 0, 0
+	for _, a := range res.Attempts {
+		if a.Skipped || a.Err == nil { // an earlier turn of a tool loop that was answered is not a failure
+			continue
+		}
+		sent++
+		var pe *provider.Error
+		if !errors.As(a.Err, &pe) {
+			parts = append(parts, a.Profile+": "+cleanLine(a.Err.Error(), 200))
+			continue
+		}
+		switch {
+		case errors.Is(pe, provider.ErrTimeout):
+			timeouts++
+		case errors.Is(pe, provider.ErrNetwork):
+			network++
+		}
+		p := a.Profile + ": " + pe.Kind.Error()
+		if pe.Status != 0 {
+			p += fmt.Sprintf(" (HTTP %d)", pe.Status)
+		}
+		if pe.Category != "" {
+			p += " (" + pe.Category + ")"
+		}
+		if m := cleanLine(provider.Scrub(pe.Message), 200); m != "" {
+			p += ": " + m
+		}
+		parts = append(parts, p)
+	}
+	if sent == 0 {
+		return nil
+	}
+	detail := strings.Join(parts, "; ")
+	switch {
+	case timeouts == sent:
+		return apiTimeout(fmt.Sprintf("The AI provider did not answer %s in time (%s). Try again, or use a faster profile for this job.", job.Name(), detail))
+	case network == sent:
+		return apierr.New(http.StatusBadGateway, "unreachable", fmt.Sprintf("Could not reach the AI provider for %s (%s). Check the address of the profile, the box's network and the firewall.", job.Name(), detail))
+	}
+	return apierr.New(http.StatusBadGateway, "provider_error", fmt.Sprintf("The AI provider returned an error for %s (%s). Check the profile in Settings, AI assistant; the test there shows what the provider accepts.", job.Name(), detail))
 }
 
 // nameLastProfile fills the profile of the row from the last attempt that sent a request, when no answer did.

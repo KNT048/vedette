@@ -16,7 +16,7 @@ import (
 func TestTopHandlerServesSPAAndKeepsAPI(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
-	h := topHandler(slog.New(slog.DiscardHandler), s.h, []string{"localhost"}, false, nil)
+	h := topHandler(slog.New(slog.DiscardHandler), s.h, server.HostMatcher([]string{"localhost"}, nil), false)
 	get := func(method, target string) *httptest.ResponseRecorder {
 		req := httptest.NewRequestWithContext(t.Context(), method, target, nil)
 		req.Host = "localhost"

@@ -36,7 +36,7 @@ func newHoneypot(d *deps) (*honeypot.Service, error) {
 		}
 		return d.Honeypot.DecoyIPs(ctx)
 	}, box: d.BoxName}, Host: newHoneypotHost(d),
-		Clock: d.Clock, Log: d.Log, Location: orgLocationAt(*d)}
+		Clock: d.Clock, Log: d.Log, Location: orgLocationAt(*d), BoxURL: d.BaseURL} // D-465: URL tokens carry the Box address
 	if d.HoneypotDir != "" { // two folders (D-89, WP-14 review): core writes config/ (the container mounts it read-only), the container writes log/
 		cfg.ConfigDir, cfg.LogDir = filepath.Join(d.HoneypotDir, HoneypotConfigDir), filepath.Join(d.HoneypotDir, HoneypotLogDir)
 	}

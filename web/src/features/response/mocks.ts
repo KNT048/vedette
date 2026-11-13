@@ -6,7 +6,8 @@ import { http, HttpResponse } from 'msw'
 import { API, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, newId, nowIso } from '@/mocks/db'
 import { connectorsStore } from '@/mocks/connectors'
-import { aiAvailable, aiCandidates, assetsStore, boxInfo, findingsStore, recordAiRun, usersStore } from '@/mocks/stores'
+import { aiAvailable, aiCandidates, assetsStore, findingsStore, recordAiRun, usersStore } from '@/mocks/stores'
+import { boxAddress } from '@/mocks/network'
 import type { Finding } from '@/lib/types'
 import { aiState, afterReject, metrics, propose, resume } from './ai'
 import { RISK_PHRASE } from './contract'
@@ -67,7 +68,7 @@ function blockEntries(): BlockEntry[] {
     return isIpv4(ip) ? [{ value: ip, source: a.rule_name ? `Rule: ${a.rule_name}` : a.source === 'ai' ? 'AI request' : 'AI plan', reason: i.change.after.split('Reason: ')[1] ?? a.title, added_at: i.executed_at ?? a.requested_at, expires_at: i.remove_at }] : []
   })).sort((x, y) => y.added_at.localeCompare(x.added_at))
 }
-const blockUrl = (token: string) => `https://${boxInfo().ip ?? '<box ip>'}:8443/api/v1/response/blocklist/${token}.txt`
+const blockUrl = (token: string) => `https://${boxAddress() ?? '<box ip>'}:8443/api/v1/response/blocklist/${token}.txt`
 const blockView = () => ({ url: blockUrl(blockMeta.get().token), token_last4: blockMeta.get().token.slice(-4), entries: blockEntries(), last_fetch: blockMeta.get().last_fetch })
 
 /** The approver of a link is still valid: on the channel's list with that address, the channel ready and one of the approval channels, an active operator or admin, and the person linked that address themselves (D-191). */

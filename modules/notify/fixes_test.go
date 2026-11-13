@@ -63,7 +63,7 @@ func (e *env) critical(id, product, cve string) {
 // ---- BaseURL ----
 
 func TestNoBaseURLMessagesCarryNoInventedLink(t *testing.T) {
-	e := newEnv(t, func(c *notify.Config) { c.BaseURL = "" })
+	e := newEnv(t, func(c *notify.Config) { c.BaseURL = nil })
 	e.telegram(notify.Low)
 	e.plain()
 	if _, _, err := e.svc.OpenIncident(e.ctx(), notify.IncidentInput{Kind: notify.IncidentTrap, Source: "s", Target: "t", Title: "x touched the trap", Severity: notify.Critical, Link: "/honeypot/hits/h1"}); err != nil {
@@ -87,7 +87,7 @@ func TestNoBaseURLMessagesCarryNoInventedLink(t *testing.T) {
 }
 
 func TestContract_PRE4_NoBaseURLNoApprovalRequest(t *testing.T) {
-	e := newEnv(t, func(c *notify.Config) { c.BaseURL = "" })
+	e := newEnv(t, func(c *notify.Config) { c.BaseURL = func() string { return "" } })
 	s := newFakeSMTP(t)
 	e.email(s, func(in *notify.ChannelInput) {
 		in.Approvals = true

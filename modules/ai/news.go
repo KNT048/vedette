@@ -472,7 +472,7 @@ func (s *Service) NewsCVE(ctx context.Context, actor, id string) (NewsResult, er
 		Question:  fmt.Sprintf("What is the latest on %s: is it exploited, is there public exploit code, and what is the workaround?", cve),
 		Data:      data,
 		Schema:    &provider.Schema{Name: "cve_news", JSON: json.RawMessage(newsSchema)},
-		MaxTokens: 2000, // a real answer runs to about 600 tokens; a cut-off answer is not JSON and is discarded
+		MaxTokens: 4000, // a real answer runs to about 600 tokens; the rest is room for thinking (briefMaxTokens)
 		Summary:   fmt.Sprintf("Summarised %d public sources about %s", fetched, cve),
 		Check: func(text string) error {
 			var perr error

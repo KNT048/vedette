@@ -6,7 +6,7 @@ import { API, audit, body, CIDR_RE, currentUser, fail, guard, IPV4_RE } from '@/
 import { assetsStore, boxInfo, installStore, isOn, findingsStore } from '@/mocks/stores'
 import { matchAssetToKev } from '@/mocks/match'
 import { collection, dataMode, daysAgo, newId, nowIso } from '@/mocks/db'
-import { networkStore, spanStatusOf } from '@/mocks/network'
+import { boxAddress, networkStore, spanStatusOf } from '@/mocks/network'
 import type { Asset, AssetKind, ObsSource, Software } from '@/lib/types'
 import { OSQUERY_SCHEDULE } from './agentConfig'
 import { linuxInstallScript, NO_BOX_ADDRESS, OSQUERY_VERSION, windowsInstallScript } from './installScripts'
@@ -20,7 +20,7 @@ import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
 
 // Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
-const serverUrl = () => `https://${boxInfo().ip ?? NO_BOX_ADDRESS}:8443`
+const serverUrl = () => `https://${boxAddress() ?? NO_BOX_ADDRESS}:8443` // D-465: the Box address
 const noBoxAddress = () => fail(404, 'no_box_address', "This box knows no address that other machines can reach, so an install script would point nowhere. Open Vedette at its network address; on a container-only install first set VEDETTE_BIND_IP to this machine's LAN address and VEDETTE_HOSTS to that address or a name for it. Then copy the command again.")
 const FIELD_ORDER: ObsField[] = ['kind', 'hostname', 'mac', 'vendor', 'model', 'os']
 

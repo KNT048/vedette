@@ -388,7 +388,7 @@ func TestContract_PRE4_ApprovalLinks(t *testing.T) {
 		t.Fatalf("ApprovalChannels = %+v, %v", ac, err)
 	}
 	// Without the box address no approval request is sent: a link that approves must point at the real box.
-	e2 := newEnv(t, func(c *notify.Config) { c.BaseURL = "" })
+	e2 := newEnv(t, func(c *notify.Config) { c.BaseURL = nil })
 	if _, err := e2.svc.SendApprovalRequest(e2.ctx(), req); !errors.Is(err, notify.ErrApprovalUnavailable) {
 		t.Fatalf("err = %v", err)
 	}

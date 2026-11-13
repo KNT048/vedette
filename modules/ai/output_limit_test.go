@@ -1,0 +1,262 @@
+package ai_test
+
+import (
+	"context"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/knt048/vedette/modules/ai"
+	"github.com/knt048/vedette/modules/ai/provider"
+)
+
+// stops reads the stop column of ai_activity, oldest first ("" for NULL).
+func (a *api) stops() []string {
+	a.t.Helper()
+	rows, err := a.db.Reader().QueryContext(a.ctx(), `SELECT COALESCE(stop, '') FROM ai_activity ORDER BY seq`)
+	if err != nil {
+		a.t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			a.t.Fatal(err)
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+// jobLimits returns the output limits of the requests the provider got that carried a schema other than the probe's.
+func (a *api) jobLimits() []int {
+	var out []int
+	for _, r := range a.fake.askRequests() {
+		if r.Schema != nil && r.Schema.Name != "probe" {
+			out = append(out, r.MaxTokens)
+		}
+	}
+	return out
+}
+
+// Beta 0.1.0-beta.1: Claude Haiku 5.5 spent the 1,000-token limit (thinking included) and every explanation was cut. A cut answer is asked
+// again once with twice the limit; the second, whole answer is used and both are counted.
+func TestACutAnswerIsAskedAgainWithAHigherLimit(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.cutNext(1)
+	got := a.explain("CVE-2022-27593", 200, "")
+	if got["why"] == nil {
+		t.Fatalf("explanation = %v", got)
+	}
+	if l := a.jobLimits(); len(l) != 2 || l[0] != 6000 || l[1] != 12000 {
+		t.Fatalf("limits sent = %v, want [6000 12000]", l)
+	}
+	rows := a.activity()
+	last := rows[len(rows)-1]
+	if last.Result != ai.ResultOK || last.TokensOut != 6000+3 {
+		t.Fatalf("row = %+v, want ok with the tokens of both answers", last.ActivityEntry)
+	}
+	if s := a.stops(); s[len(s)-1] != "end" {
+		t.Fatalf("stop = %v", s)
+	}
+}
+
+// Cut twice: one true message, not "the format", not "no profile"; the row says why and keeps every token.
+func TestAnAnswerCutTwiceSaysItWasCutOff(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.cutNext(2)
+	m := a.explain("CVE-2022-27593", 502, "ai_cut_off")
+	msg := m["error"].(map[string]any)["message"].(string)
+	if !strings.Contains(msg, "The AI's answer was cut off at the output limit (12,000 tokens)") || strings.Contains(msg, "format") || strings.Contains(msg, "profile is assigned") {
+		t.Fatalf("message = %q", msg)
+	}
+	rows := a.activity()
+	last := rows[len(rows)-1]
+	if last.Result != ai.ResultError || !strings.Contains(last.Summary, "cut off at the output limit") || last.TokensOut != 6000+12000 {
+		t.Fatalf("row = %+v", last.ActivityEntry)
+	}
+	if s := a.stops(); s[len(s)-1] != "max_tokens" {
+		t.Fatalf("stop = %v", s)
+	}
+	if l := a.jobLimits(); len(l) != 2 {
+		t.Fatalf("limits sent = %v, want one retry only", l)
+	}
+	// nothing was stored: the next call asks again
+	a.explain("CVE-2022-27593", 200, "")
+}
+
+// A whole answer in the wrong format is a format error with its own code, and the row records that the model finished.
+func TestAWrongFormatIsNotCalledCutOff(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.setAnswer(`{"why":1}`)
+	m := a.explain("CVE-2022-27593", 502, "ai_bad_format")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "not in the format") || strings.Contains(msg, "cut off") {
+		t.Fatalf("message = %q", msg)
+	}
+	if s := a.stops(); s[len(s)-1] != "end" {
+		t.Fatalf("stop = %v", s)
+	}
+	if l := a.jobLimits(); len(l) != 1 {
+		t.Fatalf("limits sent = %v: a whole answer is not asked again", l)
+	}
+}
+
+// A turn of the tool loop cut at the limit runs none of its (perhaps half-written) tool calls; cut again after the retry, the
+// question ends with the cut-off message.
+func TestAskACutTurnRunsNoTool(t *testing.T) {
+	a := newAskAPI(t)
+	a.fake.mu.Lock()
+	a.fake.script = func(_ context.Context, _ ai.Profile, req provider.Request) (provider.Response, error) {
+		return provider.Response{ToolCalls: []provider.ToolCall{call("search_assets", `{"te`)}, Stop: provider.StopMaxTokens, Usage: provider.Usage{InputTokens: 5, OutputTokens: req.MaxTokens}}, nil
+	}
+	a.fake.mu.Unlock()
+	a.ask("Which machines still expose RDP?", 502, "ai_cut_off")
+	if a.data.readCount() != 0 {
+		t.Fatal("a tool of a cut turn ran")
+	}
+	reqs := a.fake.askRequests()
+	if len(reqs) != 2 || reqs[0].MaxTokens != 6000 || reqs[1].MaxTokens != 12000 {
+		t.Fatalf("requests = %d", len(reqs))
+	}
+}
+
+// A provider error names the profile, the HTTP status and the provider's words, scrubbed of anything key-shaped.
+func TestAProviderErrorSaysWhatTheProviderSaid(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.failWith("Claude", &provider.Error{Kind: provider.ErrRequest, Status: 400, Message: "max_tokens: 64000 > 32000, which is the maximum for this model (key sk-ant-api03-abcdefgh)"})
+	m := a.explain("CVE-2022-27593", 502, "provider_error")
+	msg := m["error"].(map[string]any)["message"].(string)
+	if !strings.Contains(msg, "Claude: provider refused the request (HTTP 400): max_tokens: 64000 > 32000") || strings.Contains(msg, "sk-ant") {
+		t.Fatalf("message = %q", msg)
+	}
+}
+
+// retried reads the retried column of ai_activity, oldest first.
+func (a *api) retried() []bool {
+	a.t.Helper()
+	rows, err := a.db.Reader().QueryContext(a.ctx(), `SELECT retried FROM ai_activity ORDER BY seq`)
+	if err != nil {
+		a.t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []bool
+	for rows.Next() {
+		var r bool
+		if err := rows.Scan(&r); err != nil {
+			a.t.Fatal(err)
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
+func lastOf[T any](s []T) T { return s[len(s)-1] }
+
+// The row of a call whose cut answer was asked again says so, answered or cut twice; one that was whole the first time does not.
+func TestTheRowSaysTheAnswerWasAskedAgain(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.explain("CVE-2022-27593", 200, "")
+	if lastOf(a.retried()) {
+		t.Fatal("a whole answer reads as retried")
+	}
+	a.clock.Add(time.Minute)
+	a.facts.mu.Lock()
+	a.facts.assets["CVE-2022-27593"][0].Name = "NAS-2" // a new input: not the stored explanation
+	a.facts.mu.Unlock()
+	a.fake.cutNext(1)
+	a.explain("CVE-2022-27593", 200, "")
+	if !lastOf(a.retried()) {
+		t.Fatal("the retry is not on the row")
+	}
+}
+
+// The shared daily cap leaves no room for the second request of a cut answer: the person reads the cap, not "cut off", and the row
+// keeps the tokens of the first request.
+func TestARetryTheSharedCapStopsSaysTheCap(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.want("PUT", "/ai/config", "admin", `{"tier":"min","daily_cap":1000,"redact_pii":true}`, 200, "")
+	a.fake.cutNext(1) // the cut answer reports 6,000 tokens out: the cap is used up when the retry asks for its share
+	m := a.explain("CVE-2022-27593", 429, "daily_cap")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "cut off at the output limit (6,000 tokens), and today's 1,000 token cap is used up") {
+		t.Fatalf("message = %q", msg)
+	}
+	if l := a.jobLimits(); len(l) != 1 {
+		t.Fatalf("limits sent = %v: the retry must not be sent", l)
+	}
+	last := lastOf(a.activity())
+	if last.TokensOut != 6000 || !strings.Contains(last.Summary, "token cap left no room") || lastOf(a.stops()) != "max_tokens" || lastOf(a.retried()) {
+		t.Fatalf("row = %+v", last.ActivityEntry)
+	}
+}
+
+// The profile's own cap leaves no room for the retry: the same, with the profile named.
+func TestARetryTheProfileCapStopsSaysTheProfileCap(t *testing.T) {
+	a := newAPI(t)
+	a.addProfile(strings.Replace(cloudBody("Claude", keyA), `"daily_cap":60000`, `"daily_cap":1000`, 1))
+	a.fake.setAnswer(goodExplain)
+	a.fake.cutNext(1)
+	m := a.explain("CVE-2022-27593", 429, "daily_cap")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "the daily token cap of the profile Claude is used up") {
+		t.Fatalf("message = %q", msg)
+	}
+	if l := a.jobLimits(); len(l) != 1 {
+		t.Fatalf("limits sent = %v", l)
+	}
+}
+
+// The provider fails the retry: its own code and words, the row marked retried with the tokens of both requests.
+func TestARetryTheProviderFailsSaysWhatTheProviderSaid(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.cutNext(1)
+	a.fake.setOnCall(func() { // runs under the fake's lock: the second job request fails
+		n := 0
+		for _, r := range a.fake.reqs {
+			if r.Schema != nil && r.Schema.Name != "probe" {
+				n++
+			}
+		}
+		if n == 2 {
+			a.fake.fail["Claude"] = &provider.Error{Kind: provider.ErrServer, Status: 529, Message: "Overloaded"}
+		}
+	})
+	m := a.explain("CVE-2022-27593", 502, "provider_error")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "Claude: provider server error (HTTP 529): Overloaded") || strings.Contains(msg, "cut off") {
+		t.Fatalf("message = %q", msg)
+	}
+	last := lastOf(a.activity())
+	if !strings.Contains(last.Summary, "asking again with a higher limit failed") || !lastOf(a.retried()) || lastOf(a.stops()) != "max_tokens" || last.TokensOut != 6000 {
+		t.Fatalf("row = %+v", last.ActivityEntry)
+	}
+}
+
+// Ask's own deadline runs out while a cut turn is asked again: the person reads that the question ran out of time, not that the
+// provider did.
+func TestAskDeadlineDuringARetrySaysTheQuestionRanOut(t *testing.T) {
+	a := newAskAPI(t)
+	a.askTimeout = 150 * time.Millisecond
+	b := newAPIOver(a.env)
+	b.fake.mu.Lock()
+	b.fake.script = func(ctx context.Context, _ ai.Profile, req provider.Request) (provider.Response, error) {
+		if req.MaxTokens == 6000 { // the first request is cut at the limit
+			return provider.Response{Text: "half", Stop: provider.StopMaxTokens, Usage: provider.Usage{InputTokens: 14, OutputTokens: 6000}}, nil
+		}
+		<-ctx.Done() // the retry never answers
+		return provider.Response{}, &provider.Error{Kind: provider.ErrTimeout}
+	}
+	b.fake.mu.Unlock()
+	m := b.ask("Which machines still expose RDP?", 504, "ai_timeout")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "Ask a narrower question") || strings.Contains(msg, "provider") {
+		t.Fatalf("message = %q", msg)
+	}
+	if rows := b.activity(); len(rows) != 1 || !strings.Contains(rows[0].Summary, "used up its time") {
+		t.Fatalf("rows = %+v", rows)
+	}
+}

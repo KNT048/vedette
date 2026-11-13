@@ -331,12 +331,175 @@ func isIDSep(b byte) bool {
 // first (blankIPs), so they are left alone and never join a digit run; dotted digits that are not an address are ID-shaped. (A list of numbers that happens to be nine digits in groups, such as three 3-digit ports with
 // spaces between them, is blocked too; the person can rephrase.)
 func findIDNumbers(s string) []span {
+	// A number written after an ID label (CCCD 079201234567, CMND:123456789, passport C1234567) is an ID number whatever it sits in
+	// or next to: a link, a hash, letters. Read first, from the text as it is, so no blanking below can hide it.
+	labelled := labelledIDs(blankUUIDs(blankIPs(s, false, false)))
+	// The forms the box's own data is full of (a CVE id, a record id, a timestamp, a link, a hash) are blanked next: a digit run inside
+	// them is part of that form, not an ID number (beta 0.1.0-beta.1, item 19: a tool result was held back as "an ID number").
+	s = blankForms(s)
 	// Two readings, and an ID in either is an ID: one with every address blanked (an address is never part of a digit run), and one
 	// that keeps the addresses whose first or last group is only digits touching other digits (123 456 789::1, ::123 456 789: the
 	// group may be the ID's own).
 	out := append(idRuns(blankIPs(s, false, false)), idRuns(blankIPs(s, false, true))...)
 	sort.Slice(out, func(i, j int) bool { return out[i].start < out[j].start })
-	return dropInside(out, findPhones(s))
+	out = append(dropInside(out, findPhones(s)), labelled...)
+	sort.Slice(out, func(i, j int) bool { return out[i].start < out[j].start })
+	return out
+}
+
+// The labels that say the number after them is a person's ID, with or without diacritics. A strong label (citizen ID, old ID card,
+// personal identification number, passport) never stands before a hash or a part number, so its number is read even glued to letters
+// on either side (CMND AS201234567, CCCD deadbeef079201234567, CMND 123456789abcdef0). The weak label "ID" does stand before record
+// ids and hashes: its number must end at a boundary. Only a whole word is a label ("asset_id", "android" are not). Up to four
+// separator characters (spaces, : . # = _ quotes / @ -) and an optional "số"/"no." may stand between a label and its number.
+const (
+	strongIDLabels = `cccd|cmnd|căn cước(?: công dân)?|can cuoc(?: cong dan)?|chứng minh(?: nhân dân| thư)?|chung minh(?: nhan dan| thu)?|số định danh(?: cá nhân)?|so dinh danh(?: ca nhan)?|passport|hộ chiếu|ho chieu`
+	labelLead      = `(?i)(?:^|[^\p{L}\p{N}_])`
+	labelSep       = `(?:[\s:.#=_"'/@\-]{0,4}(?:số|so|no\.?|number)?)?[\s:.#=_"'/@\-]{0,4}`
+	idDigits       = `(\d+(?:[ .\-]{1,3}\d+)*)`
+	wordEnd        = `(?:$|[^\p{L}\p{N}_])`
+)
+
+var (
+	strongIDRE = regexp.MustCompile(labelLead + `(?:` + strongIDLabels + `)` + labelSep + `[A-Za-z]{0,16}` + idDigits)
+	weakIDRE   = regexp.MustCompile(labelLead + `id` + labelSep + idDigits + wordEnd)
+	// passportRE: a Vietnamese passport number (one letter and seven digits, C1234567) right after a passport label. Without the label
+	// the shape is too common (model numbers, part numbers) to block.
+	passportRE = regexp.MustCompile(labelLead + `(?:passport|hộ chiếu|ho chieu)` + labelSep + `([A-Za-z]\d{7})` + wordEnd)
+	uuidRE     = regexp.MustCompile(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b`)
+)
+
+// labelledIDs finds the ID numbers written after a label: 9 or 12 digits in all, in one group or in groups of three or more (the rule
+// of idRuns: build id 10.0.19045.3693 is a version, not an ID), and a passport number after a passport label. The caller blanks
+// addresses and UUIDs first: a record id after "Request ID" is not a person's ID.
+func labelledIDs(s string) []span {
+	var out []span
+	for _, re := range []*regexp.Regexp{strongIDRE, weakIDRE} {
+		for _, m := range re.FindAllStringSubmatchIndex(s, -1) {
+			if idShaped(s[m[2]:m[3]]) {
+				out = append(out, span{m[2], m[3]})
+			}
+		}
+	}
+	return append(out, findAll(passportRE, s, 1)...)
+}
+
+// idShaped reports whether a run of digit groups is ID-shaped: 9 or 12 digits, and every group of three or more when there are several.
+func idShaped(run string) bool {
+	digits, groups, minGroup, g := 0, 0, math.MaxInt, 0
+	for i := 0; i <= len(run); i++ {
+		if i < len(run) && isDigitByte(run[i]) {
+			g++
+			continue
+		}
+		if g > 0 {
+			digits, groups, minGroup = digits+g, groups+1, min(minGroup, g)
+			g = 0
+		}
+	}
+	return (digits == 9 || digits == 12) && (groups == 1 || minGroup >= 3)
+}
+
+// blankUUIDs replaces every UUID with letters, keeping offsets.
+func blankUUIDs(s string) string {
+	return uuidRE.ReplaceAllStringFunc(s, func(m string) string { return strings.Repeat("x", len(m)) })
+}
+
+// notIDForms are the written forms whose digits are never an ID number. Each match is blanked (blankForms) before the digit runs are
+// read; a number after an ID label is found before that (labelledIDs). An all-digit dotted 0790.1234.5678 stays ID-shaped (a Cisco
+// MAC address in that form has a letter in nearly every case, and then it is blanked), and so does a bare 2023-36844: only a CVE id
+// written with "CVE-" is blanked.
+var notIDForms = []*regexp.Regexp{
+	linkRE, // a link: its scheme, host and path segments (blankLink); never userinfo, a query, a fragment or an ID-shaped segment
+	uuidRE, // a UUID
+	regexp.MustCompile(`\b[a-z][a-z0-9]{0,31}-[a-z2-7]{26}\b`),                                                        // a record id of this box (store.NewID: dev-…, fnd-…)
+	regexp.MustCompile(`(?i)\bcve-(?:19|20)\d{2}-\d{4,7}\b`),                                                          // a CVE id
+	regexp.MustCompile(`\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:[.,]\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})?)?\b`), // a date or a timestamp
+	hexRE,                                  // a hash or a long hex id (with a letter a-f; not one that starts with "cccd")
+	ciscoMAC,                               // a Cisco MAC address (kept when all digits: see above)
+	regexp.MustCompile(`\bASN?\d{1,10}\b`), // an autonomous system number written as one word (AS13335, ASN401234567)
+}
+
+var (
+	linkRE   = regexp.MustCompile(`(?i)\b(?:https?|ftp)://[^\s"'<>\\?#,;]+`)
+	hexRE    = regexp.MustCompile(`(?i)\b[0-9a-f]{16,}\b`)
+	ciscoMAC = regexp.MustCompile(`(?i)\b[0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4}\b`)
+)
+
+// keepForm reports whether a match of a form must not be blanked: a hex run or a Cisco MAC with no letter a-f is only digits, and a
+// hex run that starts with the label "cccd" is a label glued to its number (CCCD079201234567).
+func keepForm(re *regexp.Regexp, m string) bool {
+	switch re {
+	case hexRE:
+		return !hasHexLetter(m) || strings.HasPrefix(strings.ToLower(m), "cccd")
+	case ciscoMAC:
+		return !hasHexLetter(m)
+	}
+	return false
+}
+
+// blankLink blanks the parts of a link (linkRE) whose digits are never a person's ID: the scheme, the host and every path segment
+// except one that is only 9 or 12 digits (https://x.vn/u/079201234567 names a person). Userinfo is kept (http://u:079201234567@h/),
+// and linkRE already stops before a query or a fragment. b is the text being blanked; m the bounds of the match.
+func blankLink(b []byte, s string, m []int) {
+	link := s[m[0]:m[1]]
+	rest := strings.Index(link, "://") + 3
+	authEnd := len(link)
+	if k := strings.IndexByte(link[rest:], '/'); k >= 0 {
+		authEnd = rest + k
+	}
+	host := rest
+	if k := strings.LastIndexByte(link[rest:authEnd], '@'); k >= 0 {
+		host = rest + k + 1 // userinfo stays as it is
+	}
+	fill := func(a, z int) {
+		for k := m[0] + a; k < m[0]+z; k++ {
+			b[k] = 'x'
+		}
+	}
+	fill(0, rest-3) // the scheme; "://" stays: it never joins digits
+	fill(host, authEnd)
+	for i := authEnd; i < len(link); {
+		j := i + 1
+		for j < len(link) && link[j] != '/' {
+			j++
+		}
+		if seg := link[i+1 : j]; !allDigits(seg) || (len(seg) != 9 && len(seg) != 12) {
+			fill(i+1, j)
+		}
+		i = j
+	}
+}
+
+func hasHexLetter(s string) bool {
+	return strings.IndexFunc(s, func(r rune) bool { return (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F') }) >= 0
+}
+
+// blankForms replaces every match of notIDForms with letters, so offsets stay and a blanked form never joins a digit run.
+func blankForms(s string) string {
+	var b []byte
+	for _, re := range notIDForms {
+		for _, m := range re.FindAllStringIndex(s, -1) {
+			if keepForm(re, s[m[0]:m[1]]) {
+				continue
+			}
+			if b == nil {
+				b = []byte(s)
+			}
+			if re == linkRE {
+				blankLink(b, s, m)
+				continue
+			}
+			for k := m[0]; k < m[1]; k++ {
+				b[k] = 'x'
+			}
+		}
+		if b != nil {
+			s = string(b)
+			b = nil
+		}
+	}
+	return s
 }
 
 func idRuns(s string) []span {

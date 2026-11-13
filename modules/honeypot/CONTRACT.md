@@ -41,7 +41,7 @@
 - **POST-1** Kết nối thật đầu tiên của một nguồn vào bẫy đang `listening` trong cửa sổ 10 phút: sinh đúng một `hp_hits` (kind=service), phát `honeypot.hit.created`, và trong ≤ 60 s `notify` có cảnh báo kèm IP nguồn, thiết bị nguồn, 1 giờ sự kiện quanh đó (S-HP-1). Các kết nối sau của cùng nguồn/dịch vụ/IP bẫy trong cửa sổ đó vào cùng hit (INV-17).
 - **POST-2** Chạm honey token / quét cổng tới IP bẫy: sinh hit kind=token / scan với `label` nêu cái bị chạm (S-HP-2).
 - **POST-3** Hit thật là nguồn của trigger `honeypot` trong `response` (D-50): trường `source_ip`, `source_device`, `decoy`, `kind`.
-- **POST-4** Tạo token loại `file` với `ext` (docx|xlsx) trả `value` là tên tệp để rải; `plant_at` do chủ hộp ghi.
+- **POST-4** Tạo token loại `file` với `ext` (docx|xlsx) trả `value` là tên tệp để rải; `plant_at` do chủ hộp ghi. Token loại `url` (D-465): `value` = `Config.BoxURL()` (Box address, hỏi lúc tạo) + `/t/<10 ký tự>`; không có thì `https://<IP hộp của kho>:8443/t/…`; không biết cả hai → 409 `no_box_address`, không ghi gì. **Không bao giờ** dùng tên máy của hộp (trước D-465: `https://<hostname>:8443`, thường là `vedette`, không phân giải được).
 - **POST-5** Xoá decoy → IP bẫy ngừng nghe; xoá token → ngừng cảnh báo; không xoá `hp_hits` cũ.
 
 ## Forbidden (không bao giờ)

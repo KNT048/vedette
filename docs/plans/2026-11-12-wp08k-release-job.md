@@ -18,12 +18,12 @@ has none.
 |---|---|---|---|---|---|
 | 0 | `git tag -s v<v>` on the release commit, `git push origin v<v>` | **kien, by hand** | | tag | git signing key (optional), GitHub push |
 | 1 | `make images IMAGE_TAG=<v> IMAGE_VERSION=<v> RELEASE_PREV_INDEX=<prev>` (or `MIN_SEQUENCE=0` for the very first) | maintainer | tree at the tag, `pins.env` | 4 local podman manifest lists `localhost/vedette-{core,sensor,scan-base,honeypot}:<v>`, amd64 + arm64 | none |
-| 2 | `make host-deb VERSION=<v> ARCH=amd64` and `ARCH=arm64` (same `RELEASE_PREV_INDEX`), then **[A]** `make release-deb-name VERSION=<v>` (a prerelease: nfpm's `~` name → SemVer; a plain `<v>` needs nothing) | maintainer | tree | `dist/vedette-host_<v>_<arch>.deb` | none |
+| 2 | **only after step 0, at the tag**: `make host-deb VERSION=<v> ARCH=amd64` and `ARCH=arm64` (same `RELEASE_PREV_INDEX`); a `.deb` built before the tag carries another commit and version, and step 3 rebuilds it at the tag and refuses the difference (v0.1.0-beta.1 had to rebuild it); then **[A]** `make release-deb-name VERSION=<v>` (a prerelease: nfpm's `~` name → SemVer; a plain `<v>` needs nothing) | maintainer | tree | `dist/vedette-host_<v>_<arch>.deb` | none |
 | 3 | **[B]** `make release-gates VERSION=<v> RELEASE_PREV_INDEX=<prev>` (or `MIN_SEQUENCE=0` for the very first): `make vuln-scan`, `sbom`, `notices-check`, `check-binaries -release`, image version label = `<v>`, `MIN_SEQUENCE` floor (D-401) | maintainer | lists, `.deb`, `<prev>` | `dist/sbom`, `dist/vuln` (RELEASE=1); `dist/release/gates.json` (only when all passed) | none |
 | 4 | **`make release-push VERSION=<v>`** | maintainer | the 4 local lists, `gates.json` | ghcr.io: `vedette-{core,sensor,scan,honeypot}` by digest (+ tag `<v>`); `dist/release/images.json` | **ghcr token** (`podman login ghcr.io`, `write:packages`) |
 | 5 | **`make release-in RELEASE_CHANNEL=stable RELEASE_ROLLBACK_SAFE=false`** (+ `RELEASE_ROLLBACK_MIN`, `RELEASE_MIN_UPGRADE_FROM` when wanted), then write the notes into `release.in.json` | maintainer | `images.json`, `gates.json`, the two `.deb`, local lists (sizes) | `release.in.json` | none |
 | 6 | **[C]** `make release-cosign-plan COSIGN_KEY=…` (sign lines + `cosign attest --type cyclonedx` lines from `images.json`; each SBOM's trivy `ImageID` must be the platform's `config` in `images.json`) | maintainer | `release.in.json`, `images.json`, `dist/sbom` | printed commands | none |
-| 7 | run the printed cosign commands | **kien** | | `dist/release/cosign/<service>.{payload.json,sig}`; attestations in ghcr | **cosign key** + `COSIGN_PASSWORD`, ghcr token (attest uploads) |
+| 7 | run the printed cosign commands through `scripts/release/cosign-auth.sh sh -eu dist/cosign-plan.sh` (cosign reads the Docker login, `~/.docker/config.json` first; the script points `DOCKER_CONFIG` at a temporary folder linking podman's `auth.json`, so the attest uploads use the `podman login ghcr.io` of step 4; nothing printed, folder removed after) | **kien** | | `dist/release/cosign/<service>.{payload.json,sig}`; attestations in ghcr | **cosign key** + `COSIGN_PASSWORD`, ghcr token (attest uploads) |
 | 8 | `make release-manifest RELEASE_PREV_INDEX=<prev>` | maintainer | `release.in.json`, `gates.json` (the `.deb` hashes), cosign files, git at `v<v>`, `<prev>` | `release-manifest.json`, `index.json` (unsigned) | none |
 | 9 | `make release-container-assets` | maintainer | git at `v<v>`, `release.in.json` | the four container-only files | none |
 | 10 | **[A]** `make release-bake-install MINISIGN_KEY=…` (active; the backup key only for a rescue) | maintainer | `install.sh` at the tag, `release-manifest.json`, the `.deb` | `dist/release/install.sh` (3 baked lines), `install.sh.minisig` with the trusted comment `file:install.sh version:<v>` | **minisign active key** |
@@ -227,13 +227,22 @@ that every asset of `v<v>` has the SHA-256 of `dist/release/` (`gh release view 
 
 1. A GitHub token for `gh` with `repo` scope; a ghcr token (classic PAT `write:packages`, or `gh auth token` with that scope) for
    `podman login ghcr.io -u kiennt048`. Neither goes into the repo or argv; podman and gh keep them.
+   - [ ] `gh` can also list the packages: `gh auth refresh -s read:packages` (without it `gh api /orgs/KNT048/packages?package_type=container` is refused).
+   - [ ] The GitHub organization allows public packages: KNT048 → Settings → Packages → package creation, **Public** allowed
+     (otherwise step 3 below has no Public choice).
 2. Create the fixed release `index` once (it creates the lightweight tag `index`, which only kien may do):
    `gh release create index --repo KNT048/vedette --title "Update index" --notes "Signed update index (D-150). Do not delete." --latest=false`.
    The first `release-publish PUBLISH=1 FIRST_RELEASE=1` uploads the first `index.json` + `.minisig`; `release-publish` refuses until the
    release exists.
 3. **After the first push, make the four ghcr packages public** (GitHub → Packages → `vedette-core`, `-sensor`, `-scan`, `-honeypot` →
    Package settings → Change visibility → Public) and link them to the repository. New packages are private; boxes pull anonymously,
-   and `release-publish` refuses until they are pullable that way.
+   and `release-publish` refuses until they are pullable that way. Checklist, once per package (between steps 4 and 13 of §1):
+   - [ ] `vedette-core` Public + Connect repository `KNT048/vedette`
+   - [ ] `vedette-sensor` Public + linked
+   - [ ] `vedette-scan` Public + linked
+   - [ ] `vedette-honeypot` Public + linked
+   - [ ] check: `gh api '/orgs/KNT048/packages?package_type=container' --jq '.[] | "\(.name) \(.visibility) \(.repository.full_name)"'`
+     lists all four `public KNT048/vedette` (needs `read:packages`, step 1).
 4. Leave GitHub **immutable releases off** for this repository: they would also lock the fixed release `index`, which must be replaced
    every week (D-150). The tool keeps version releases unchanged instead (§2).
 5. `release-bake-install` (part A) signs `install.sh.minisig` with the trusted comment exactly `file:install.sh version:<v>`: give it

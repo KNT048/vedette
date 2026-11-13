@@ -14,7 +14,7 @@ export const Channel = z.object({
   type: ChannelType,
   configured: z.boolean(),
   enabled: z.boolean(),
-  fields: z.record(z.string(), z.string()).describe('Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) · email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)'),
+  fields: z.record(z.string(), z.string()).describe('Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) · email provider (preset, D-449: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)'),
   secret_last4: z.string().nullable().describe('Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4)'),
   min_severity: RouteSeverity,
   last_test: TestResult.nullable(),
@@ -25,13 +25,32 @@ export const Channel = z.object({
 export const ChannelInput = z.object({
   enabled: z.boolean(),
   fields: z.record(z.string(), z.string()),
-  secret: z.string().optional().describe('Leave blank to keep the saved secret'),
+  secret: z.string().optional().describe('Leave blank to keep the saved secret (email: only while the sign-in method of the provider stays the same). Email: password, app password or API key; the Microsoft 365 client secret; the Google Workspace service account key file (JSON)'),
   min_severity: RouteSeverity,
   approvals: z.boolean().optional().describe('Slack, Telegram, Email and Zalo personal only; Zalo OA and webhook reject it'),
   approvers: z.array(Approver).optional().describe('Required (at least one) when approvals is on'),
   app_token: z.string().optional().describe('Slack app-level token (xapp-…) for Socket Mode; leave blank to keep the saved one'),
   bot_token: z.string().optional().describe('Slack bot token (xoxb-…); leave blank to keep the saved one'),
   zalo_login: z.boolean().optional().describe('Zalo personal: save the session of your finished QR sign-in (D-447); without it the saved session is kept. The session is never sent by the client'),
+  signin: z.string().optional().describe('Email user sign-in (D-480): the id of a finished sign-in of the same admin; its refresh token becomes the secret and its mailbox the username'),
+})
+export const EmailSigninStart = z.object({
+  provider: z.enum(['microsoft365-user', 'outlook', 'gmail-oauth']),
+  tenant_id: z.string().optional().describe('Microsoft: Directory (tenant) ID, a domain, organizations, or consumers (Outlook.com)'),
+  client_id: z.string().describe("The customer's own app registration (Microsoft, public client flows on) or Desktop OAuth client (Google)"),
+  client_secret: z.string().optional().describe('Google Desktop client secret; never returned'),
+})
+export const EmailSignin = z.object({
+  id: z.string(),
+  provider: z.enum(['microsoft365-user', 'outlook', 'gmail-oauth']),
+  flow: z.enum(['device', 'paste']).describe('device: Microsoft device code, the box polls; paste: Google consent, the admin pastes the loopback address back'),
+  status: z.enum(['waiting', 'signed_in', 'expired', 'declined']),
+  user_code: z.string().optional(),
+  verification_uri: z.string().optional(),
+  interval: z.number().int().optional().describe('Seconds between checks of a device sign-in'),
+  consent_url: z.string().optional(),
+  expires_at: iso,
+  mailbox: z.string().optional().describe('The account that signed in'),
 })
 export const Quiet = z.object({ enabled: z.boolean(), from: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), to: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), allow_critical: z.boolean() })
 export const Grouping = z.object({ enabled: z.boolean(), window_min: z.union([z.literal(15), z.literal(60), z.literal(240)]) })
@@ -106,6 +125,8 @@ export const endpoints = defineEndpoints([
   { method: 'put', path: '/notify/channels/{type}', summary: 'Save the configuration of one channel (Telegram, Slack, Zalo OA, Zalo personal, Email, Webhook), including approvals (switch + approvers list) per channel; the email channel also carries two-step sign-in codes', stories: ['S-NOT-1', 'S-NOT-2', 'S-RESP-2'], role: 'admin', params: type, body: ChannelInput, response: Channel },
   { method: 'delete', path: '/notify/channels/{type}', summary: 'Delete the saved configuration and secret of a channel', stories: ['S-NOT-1'], role: 'admin', params: type, response: null },
   { method: 'post', path: '/notify/channels/{type}/test', summary: 'Send a test message through the saved channel', stories: ['S-NOT-1'], role: 'admin', params: type, response: TestResult },
+  { method: 'post', path: '/notify/email-signin', summary: 'Start a user sign-in for the email channel (D-480): a Microsoft device code, or a Google consent address to open and paste back', stories: ['S-NOT-1'], role: 'admin', body: EmailSigninStart, response: EmailSignin },
+  { method: 'post', path: '/notify/email-signin/{id}', summary: 'Check a user sign-in: ask Microsoft once when the interval has passed, or finish a Google sign-in with the pasted address', stories: ['S-NOT-1'], role: 'admin', params: id, body: z.object({ url: z.string().max(4096).optional().describe('Google: the whole address the browser showed after approving') }), response: EmailSignin },
   { method: 'post', path: '/notify/zalo/login', summary: 'Start a Zalo personal QR sign-in for the signed-in administrator (one at a time per box; at most one start in 30 s and five an hour)', stories: ['S-NOT-1'], role: 'admin', response: ZaloLogin },
   { method: 'get', path: '/notify/zalo/login', summary: 'State of your Zalo QR sign-in: waiting, scanned, signed in, expired, declined or failed', stories: ['S-NOT-1'], role: 'admin', response: ZaloLogin },
   { method: 'delete', path: '/notify/zalo/login', summary: 'Cancel your Zalo QR sign-in (a finished one is dropped unsaved)', stories: ['S-NOT-1'], role: 'admin', response: null },

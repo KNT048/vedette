@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { FindingNotices, HistoryItem, HistoryResponse, IncidentDetail, IncidentsResponse, IncidentStatus, Channel, ChannelInput, ChannelsResponse, ChannelType, Grouping, Quiet, TestResult, ZaloApprover, ZaloApprovers, ZaloContacts, ZaloFound, ZaloLogin } from './types'
+import type { EmailSignin, EmailSigninStart, FindingNotices, HistoryItem, HistoryResponse, IncidentDetail, IncidentsResponse, IncidentStatus, Channel, ChannelInput, ChannelsResponse, ChannelType, Grouping, Quiet, TestResult, ZaloApprover, ZaloApprovers, ZaloContacts, ZaloFound, ZaloLogin } from './types'
 
 export const useIncidents = () => useQuery({ queryKey: ['notify', 'incidents'], queryFn: () => api.get<IncidentsResponse>('/notify/incidents') })
 export const useIncident = (id: string) => useQuery({ queryKey: ['notify', 'incident', id], queryFn: () => api.get<IncidentDetail>(`/notify/incidents/${encodeURIComponent(id)}`), retry: false })
@@ -19,6 +19,9 @@ export const useResend = () => useInvalidating((id: string) => api.post<HistoryI
 export const useSaveChannel = () => useInvalidating(({ type, ...v }: ChannelInput & { type: ChannelType }) => api.put<Channel>(`/notify/channels/${type}`, v))
 export const useRemoveChannel = () => useInvalidating((type: ChannelType) => api.del<void>(`/notify/channels/${type}`))
 export const useTestChannel = () => useInvalidating((type: ChannelType) => api.post<TestResult>(`/notify/channels/${type}/test`))
+// D-480: a user sign-in of the email channel; nothing is cached (each answer is the state of that sign-in)
+export const useStartEmailSignin = () => useMutation({ mutationFn: (v: EmailSigninStart) => api.post<EmailSignin>('/notify/email-signin', v) })
+export const useCheckEmailSignin = () => useMutation({ mutationFn: ({ id, url }: { id: string; url?: string }) => api.post<EmailSignin>(`/notify/email-signin/${encodeURIComponent(id)}`, url === undefined ? {} : { url }) })
 export const useSaveRules = () => useInvalidating((v: { quiet: Quiet; grouping: Grouping }) => api.put<{ quiet: Quiet; grouping: Grouping }>('/notify/rules', v))
 
 

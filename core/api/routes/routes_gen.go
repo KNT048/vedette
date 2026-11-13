@@ -248,6 +248,8 @@ var Operations = map[string]Operation{
 	"notify_get_notify_zalo_login":                          {Method: "GET", Path: "/notify/zalo/login", MinRole: Admin, Tag: "notify"},
 	"notify_patch_notify_incidents_id":                      {Method: "PATCH", Path: "/notify/incidents/{id}", MinRole: Operator, Tag: "notify"},
 	"notify_post_notify_channels_type_test":                 {Method: "POST", Path: "/notify/channels/{type}/test", MinRole: Admin, Tag: "notify"},
+	"notify_post_notify_email_signin":                       {Method: "POST", Path: "/notify/email-signin", MinRole: Admin, Tag: "notify"},
+	"notify_post_notify_email_signin_id":                    {Method: "POST", Path: "/notify/email-signin/{id}", MinRole: Admin, Tag: "notify"},
 	"notify_post_notify_history_id_resend":                  {Method: "POST", Path: "/notify/history/{id}/resend", MinRole: Operator, Tag: "notify"},
 	"notify_post_notify_zalo_approvers_user_id_code":        {Method: "POST", Path: "/notify/zalo/approvers/{user_id}/code", MinRole: Admin, Tag: "notify"},
 	"notify_post_notify_zalo_login":                         {Method: "POST", Path: "/notify/zalo/login", MinRole: Admin, Tag: "notify"},

@@ -57,6 +57,7 @@ type ChannelInput struct {
 	Approvers   []Approver
 	AppToken    string
 	BotToken    string
+	Signin      string // email: a finished user sign-in whose refresh token becomes the secret (D-480)
 	// ZaloLogin (Zalo personal, D-447): the session of the saving administrator's finished QR sign-in becomes the channel's secret.
 	ZaloLogin bool
 }

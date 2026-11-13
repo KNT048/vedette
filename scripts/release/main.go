@@ -11,12 +11,13 @@
 //	go run ./scripts/release index       ... -revoke-key <key id> -revoke-reason TEXT   (a key revocation; it counts only in an index the backup key signs)
 //	go run ./scripts/release min-sequence -prev-index DIR [-keys-dir DIR]   (prints the sequence of the published index: the MIN_SEQUENCE of vedette-host; index -min-sequence N refuses a sequence not above it)
 //	go run ./scripts/release check-binaries BINARY...   (preflight: refuses a binary built with -tags releasetestkeys, the throwaway release keys)
+//	go run ./scripts/release check-image -image localhost/vedette-scan-base:check -kind scan-base [-container podman|docker] [-repo .]   (D-410: the files the gates check inside core and scan-base, on one local image; make images-check)
 //	go run ./scripts/release sign        -dir dist/release -key ~/keys/minisign.key -minisign /abs/minisign [-slot backup | -slot rescue -prev-index DIR -keys-dir DIR] [-passphrase-stdin]
 //	go run ./scripts/release verify      -dir dist/release [-prev-index DIR] [-keys-dir DIR]
 //	go run ./scripts/release packs       -dir content/mitigation/packs -version 2026.12.2.1 -key ~/keys/minisign.key -minisign /abs/minisign [-keys-dir DIR] [-passphrase-stdin]
 //	go run ./scripts/release push        -version 0.2.0 [-registry ghcr.io/knt048] [-platforms linux/amd64,linux/arm64] -out dist/release [-gates dist/release/gates.json]   (D-457: the lists of make images the gates checked, by digest; writes images.json)
 //	go run ./scripts/release in          -images dist/release/images.json -channel stable -rollback-safe false [-rollback-min-version V] [-min-upgrade-from V] [-deb-dir dist] [-gates dist/release/gates.json] -out release.in.json
-//	go run ./scripts/release gates       -version 0.2.0 -min-sequence N [-platforms ...] [-deb-dir dist] [-out dist/release] [-preflight]   (D-457 step 3, D-401: check-binaries -release inside each .deb, image labels, the .deb rebuilt with the floor; writes gates.json when all passed)
+//	go run ./scripts/release gates       -version 0.2.0 -min-sequence N [-platforms ...] [-deb-dir dist] [-out dist/release] [-preflight]   (D-457 step 3, D-401: check-binaries -release inside each .deb, image labels, the files inside core and scan-base (D-410), the .deb rebuilt with the floor; writes gates.json when all passed)
 //	go run ./scripts/release publish     -dir dist/release -in release.in.json [-prev-index DIR | -first-release] [-keys-dir DIR] [-run]   (prints, or runs, the gh release commands; the index last)
 //	go run ./scripts/release deb-name    -version 1.0.0-beta.1 [-dir dist]   (part A: nfpm's vedette-host_1.0.0~beta.1_<arch>.deb to the SemVer name, before in)
 //	go run ./scripts/release bake-install -dir dist/release -in release.in.json -key ~/keys/minisign.key -minisign /abs/minisign [-ref v<version>] [-keys-dir DIR] [-passphrase-stdin]   (part A: install.sh at the tag with its three lines baked from the manifest, signed "file:install.sh version:<v>")
@@ -50,7 +51,7 @@ func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		say(stderr, "usage: release cosign-plan|manifest|container-assets|index|min-sequence|check-binaries|sign|verify|packs|push|in|gates|publish|deb-name|bake-install [flags]")
+		say(stderr, "usage: release cosign-plan|manifest|container-assets|index|min-sequence|check-binaries|check-image|sign|verify|packs|push|in|gates|publish|deb-name|bake-install [flags]")
 		return 2
 	}
 	var err error
@@ -73,6 +74,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdMinSequence(args[1:], stdout)
 	case "check-binaries":
 		err = cmdCheckBinaries(args[1:], stdout)
+	case "check-image":
+		err = cmdCheckImage(ctx, args[1:], stdout)
 	case "sign":
 		err = cmdSign(ctx, args[1:], stdin, stdout)
 	case "verify":
@@ -233,6 +236,21 @@ func cmdManifest(ctx context.Context, args []string, stdout, stderr io.Writer) e
 	}
 	if env.CurTree, err = GitTree(ctx, *repo, *ref); err != nil {
 		return fmt.Errorf("migrations of %s: %w", *ref, err)
+	}
+	// D-410: no box may update straight from a release whose sensors core no longer accepts (sensor-protocol.md §10)
+	proto, accepts, err := sensorProtoAt(ctx, *repo, *ref, true)
+	if err != nil {
+		return err
+	}
+	earlier, err := earlierProtos(ctx, *repo, inputs.Version)
+	if err != nil {
+		return err
+	}
+	if err := checkTagsCover(inputs.Version, earlier, env.PrevIndex); err != nil {
+		return err
+	}
+	if err := checkSensorProto(inputs.Version, inputs.MinUpgradeFrom, proto, accepts, earlier); err != nil {
+		return err
 	}
 	if mv := inputs.Rollback.MinVersion; mv != "" {
 		if *baseRef == "" {

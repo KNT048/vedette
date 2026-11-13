@@ -10,10 +10,6 @@ ver=${IMAGE_VERSION:-9.8.7}
 tag=check
 # shellcheck disable=SC1091
 set -a; . deploy/containers/pins.env; set +a
-# nuclei is built from source (D-319): the check is what the binary carries, its Go version and the patched module versions in its build info.
-want_go=${GOLANG_IMAGE#*golang:}; want_go=${want_go%%-*}
-want_net=$(awk '$1 == "golang.org/x/net" {print $2; exit}' deploy/containers/scan-base/nuclei/go.mod)
-[ -n "$want_go" ] && [ -n "$want_net" ] || { echo "images-check: FAIL cannot read the Go version of GOLANG_IMAGE or x/net of scan-base/nuclei/go.mod" >&2; exit 1; }
 cleanup() { $c rmi -f "localhost/vedette-sensor:$tag" "localhost/vedette-scan-base:$tag" "localhost/vedette-scan-nmap:$tag" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 fail() { echo "images-check: FAIL $*" >&2; exit 1; }
@@ -33,9 +29,11 @@ mk scan-base-image
 got=$($c run --rm "localhost/vedette-scan-base:$tag" -version)
 [ "$got" = "$ver" ] || fail "scan-base -version printed '$got', want '$ver'"
 ok "scan-base: /vedette-sensor -version prints $got"
-$c run --rm --entrypoint grep "localhost/vedette-scan-base:$tag" -aq "go$want_go" /usr/local/bin/nuclei || fail "nuclei was not built with the pinned Go $want_go"
-$c run --rm --entrypoint grep "localhost/vedette-scan-base:$tag" -aq "golang.org/x/net.$want_net" /usr/local/bin/nuclei || fail "nuclei does not carry the patched golang.org/x/net $want_net"
-ok "scan-base: /usr/local/bin/nuclei is built with Go $want_go and the patched golang.org/x/net $want_net"
+# nuclei is built from source (D-319): its build information must name exactly the Go of GOLANG_IMAGE and every module at the version the
+# patched go.mod requires (no substring match), the pack must be SCAN_PACK_VERSION and no file may be named nmap: the same file check
+# make release-gates runs on the platform images it records (D-410), read from the exported image, nothing run.
+GOFLAGS='' go run ./scripts/release check-image -container "$c" -kind scan-base -image "localhost/vedette-scan-base:$tag" || fail "scan-base: the file check of the release gates (above)"
+ok "scan-base: nuclei's Go and modules are exactly the pinned ones, the pack is $SCAN_PACK_VERSION, no nmap (release check-image)"
 out=$($c run --rm --network none --read-only --tmpfs /tmp --env HOME=/tmp/h --entrypoint /usr/local/bin/nuclei "localhost/vedette-scan-base:$tag" -version -duc 2>&1) || fail "nuclei -version -duc exited non-zero offline: $out"
 echo "$out" | grep -q "Nuclei Engine Version: v$NUCLEI_VERSION" || fail "nuclei version line: $out"
 ok "scan-base: nuclei -version -duc exits 0 offline on an empty tmpfs HOME: $(echo "$out" | grep 'Engine Version' | sed 's/\x1b\[[0-9;]*m//g')"

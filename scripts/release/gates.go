@@ -49,10 +49,11 @@ type gatesOpts struct {
 	DebDir      string        // where make host-deb wrote the two packages
 	Repo        string        // git repository root
 	Rules       BinaryRules
-	Preflight   bool   // only the version, floor and tree checks (make runs them before the long scans); writes nothing
-	Out         string // where the final run writes gates.json, the record push and in compare with (dist/release)
-	VulnDir     string // where make vuln-scan RELEASE=1 wrote the trivy reports <local>-<arch>.json (dist/vuln)
-	SBOMDir     string // where make sbom RELEASE=1 wrote <local>-<arch>.cdx.json (dist/sbom)
+	Preflight   bool        // only the version, floor and tree checks (make runs them before the long scans); writes nothing
+	Out         string      // where the final run writes gates.json, the record push and in compare with (dist/release)
+	VulnDir     string      // where make vuln-scan RELEASE=1 wrote the trivy reports <local>-<arch>.json (dist/vuln)
+	SBOMDir     string      // where make sbom RELEASE=1 wrote <local>-<arch>.cdx.json (dist/sbom)
+	Expect      imageExpect // what the files inside core and scan-base must be (D-410); Expect.Keys are Rules.Keys
 }
 
 // checkVulnReport refuses a trivy JSON report (rel, inside dir) that is missing, not a regular file reached without a symlink, or not
@@ -84,6 +85,23 @@ func checkVulnReport(dir, rel, config string) error {
 	}
 	if rep.Metadata.ImageID != config {
 		return fmt.Errorf("vulnerability report %s is of image %q, not %s", p, rep.Metadata.ImageID, config)
+	}
+	return nil
+}
+
+// checkSourceReport refuses when the source tree's report is not there as a regular file: vuln-scan gives it its name only after the
+// gate of the source was green.
+func checkSourceReport(dir string) error {
+	const rel = "source.json"
+	if err := noSymlinks(dir, rel); err != nil {
+		return fmt.Errorf("vulnerability report %s: %w", rel, err)
+	}
+	fi, err := os.Lstat(filepath.Join(dir, rel))
+	if err != nil {
+		return fmt.Errorf("vulnerability report of the source: %w (make vuln-scan RELEASE=1 IMAGE_TAG=<version> writes it when the source passed)", err)
+	}
+	if !fi.Mode().IsRegular() {
+		return fmt.Errorf("vulnerability report %s is not a regular file", rel)
 	}
 	return nil
 }
@@ -161,7 +179,8 @@ func gatesPreflight(ctx context.Context, run runFunc, o gatesOpts) error {
 }
 
 // Gates runs, in order and stopping at the first failure: check-binaries -release on the vedette-host inside each .deb; the
-// version label of every platform of the four local lists (and core's floor label); the floor of each .deb, by building it again
+// version label of every platform of the four local lists (and core's floor label), and the files inside core and scan-base
+// (checkImageFiles: core's /vedette holds the production keys, scan-base's nuclei, pack and no nmap; D-410); the floor of each .deb, by building it again
 // from this tree with MinSequence and comparing the bytes (the .deb is reproducible: SOURCE_DATE_EPOCH, -trimpath). Only when all
 // passed does it write <Out>/gates.json (GatesDoc); a record left by an earlier run is removed first, so a failed run leaves none.
 func Gates(ctx context.Context, run runFunc, o gatesOpts, stdout io.Writer) error {
@@ -179,6 +198,10 @@ func Gates(ctx context.Context, run runFunc, o gatesOpts, stdout io.Writer) erro
 	if o.Preflight {
 		say(stdout, "ok: %s is a release version, the floor is %s and the tree is the clean tag v%s", o.Version, o.MinSequence, o.Version)
 		return nil
+	}
+	// vuln-scan names a report <label>.json only when that target's gate was green (D-410): the source's too, which no image names
+	if err := checkSourceReport(o.VulnDir); err != nil {
+		return err
 	}
 	rec := &GatesDoc{Version: o.Version, MinSequence: o.MinSequence}
 	debs := make([]string, len(debArchs))
@@ -219,6 +242,13 @@ func Gates(ctx context.Context, run runFunc, o gatesOpts, stdout io.Writer) erro
 			}
 			if err := checkSBOM(o.SBOMDir, base+".cdx.json", p.Config); err != nil {
 				return fmt.Errorf("%s %s: %w; run make release-gates again (the images changed during the scans?)", name, p.Platform, err)
+			}
+			// the files inside, of the very platform image recorded (its config digest): what push publishes and cosign signs (D-410)
+			if imageKinds[im.local] {
+				if err := checkImageFiles(ctx, run, "podman", p.Config, im.local, o.Expect); err != nil {
+					return fmt.Errorf("%s %s: %w", name, p.Platform, err)
+				}
+				say(stdout, "ok: %s %s: %s", name, p.Platform, imageOK(im.local, o.Expect))
 			}
 		}
 		rec.Images = append(rec.Images, gi)
@@ -577,6 +607,11 @@ func cmdGates(ctx context.Context, args []string, stdout io.Writer) error {
 			return errors.New("this checker was built with the throwaway keys or none: run it with GOFLAGS= and without -tags")
 		}
 		o.Rules = BinaryRules{Release: true, Keys: []string{active, backup}}
+	}
+	// read in the preflight too, so a stale pack or an unreadable pin stops the run before the long scans
+	var err error
+	if o.Expect, err = loadImageExpect(*repo, o.Rules.Keys); err != nil {
+		return err
 	}
 	return Gates(ctx, execRun, o, stdout)
 }

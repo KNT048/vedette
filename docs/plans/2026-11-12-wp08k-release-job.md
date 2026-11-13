@@ -41,7 +41,14 @@ index, after the same live-index check; then archive the new index as the next `
 **`release-gates`** (D-401; `release gates` after three make targets). Stops at the first failure: VERSION SemVer and not `-test.`, the
 tree clean and HEAD = tag `v<v>`; `make vuln-scan` and `make sbom` of the lists tagged `<v>` with `RELEASE=1` (dist/vuln, dist/sbom for
 part C); `make notices-check`; `check-binaries -release` on the `vedette-host` read out of each `.deb`; the version label of every platform
-of the four lists, and core's `io.github.knt048.vedette.min-sequence` label = the floor; each `.deb` built again with
+of the four lists, and core's `io.github.knt048.vedette.min-sequence` label = the floor; the **files inside** core and scan-base, read
+from each platform image by its config digest (`podman create --pull=never` + `podman export`, nothing run, so the other architecture
+needs no emulation; D-410): core's `/vedette` has no `-tags releasetestkeys` and holds both production minisign keys (the image build
+context has no `.git`, so no VCS state to check; the labels and the config digest tie it to the tree), scan-base's
+`/usr/local/bin/nuclei` names exactly the Go of `GOLANG_IMAGE`, the module of the patched `go.mod` and every linked module at exactly
+the version it requires, its pack index is `SCAN_PACK_VERSION` with the `sha256` label of the committed copy, and no file, link or
+symlink named `nmap` exists anywhere in it (the same check is `release check-image`, which `make images-check` runs on its dev build);
+each `.deb` built again with
 `make host-deb … MIN_SEQUENCE=<floor>` into a temporary directory and compared byte for byte (the package is reproducible; a stripped
 binary does not show its floor). The floor is the verified sequence of `RELEASE_PREV_INDEX` (checked by the Go step too, since an
 environment `MIN_SEQUENCE` would win in make), so images and packages must have been
@@ -53,7 +60,7 @@ floor, per `.deb` arch its file name, SHA-256 and size (of the bytes compared wi
 **config digest** (podman's image ID) of the platform image it read. The config digest is the identity the rest of the chain already
 uses (push compares it with a list already in the registry, `images.json` records it, part C requires each SBOM's trivy `ImageID` to
 equal it); a re-read of the same list gives the same one, any rebuild another (a bit-for-bit identical rebuild is the same image).
-Before writing it, the run also requires the trivy report `dist/vuln/<local>-<arch>.json` (`Metadata.ImageID`) and the SBOM
+Before writing it, the run also requires `dist/vuln/source.json` and the trivy report `dist/vuln/<local>-<arch>.json` (`Metadata.ImageID`; vuln-scan gives a report that name only once that target's gate is green, else `<label>.gate-failed.json`, or `<label>.unchecked.json` for a run stopped before its gate, D-410) and the SBOM
 `dist/sbom/<local>-<arch>.cdx.json` (`aquasecurity:trivy:ImageID`) of every platform to be of that same config digest, so a
 `make images` during the scans is refused rather than recorded. The first line of `make release-gates` removes an earlier
 `gates.json` (and the Go step does too), so a run that fails at any step, the scans included, never leaves a previous pass;
@@ -120,7 +127,9 @@ the compiled-in ones) and its comment read back. On any failure neither `install
 file is refused), and writes `release.in.json`: images (`digest` = index digest, `platforms`, `size` = the largest unpacked size among
 the platforms of the local list, used by the box only for its free-space check, D-104), host = the two
 `<deb-dir>/vedette-host_<v>_<amd64|arm64>.deb` (checked by the same `buildHostPart` the manifest uses), `install_modes`
-`["appliance","container"]` (D-451), `released_at` empty, `content`/`bundled` empty, `sbom` null. It reads `gates.json` (`-gates`,
+`["appliance","container"]` (D-451), `released_at` empty, `content` empty, `bundled` from `deploy/containers/pins.env` and the
+committed pack index read from git at `v<v>` (`-repo`; nuclei and the template pack in `scan` with licence MIT, the pack with the
+`sha256` label of its index, OpenCanary in `honeypot` with BSD-3-Clause; D-410), `sbom` null. It reads `gates.json` (`-gates`,
 default next to `-images`) and refuses another version, a `.deb` whose SHA-256 or size is not the recorded one, and a platform config
 digest, in `images.json` or in the local lists it takes the sizes from, that is not the recorded one. `channel` and `rollback.safe` must
 be given (`stable|beta`, `true|false`); `rollback.min_version` and `min_upgrade_from` only when given. It refuses to overwrite an
@@ -237,8 +246,10 @@ that every asset of `v<v>` has the SHA-256 of `dist/release/` (`gh release view 
 - Prerelease `.deb` names: nfpm writes `~` for a SemVer prerelease (`1.0.0~beta.1`); `release-in` needs the SemVer spelling, so for a
   prerelease the rename (part A) must happen **before** step 5, not after. A plain `1.0.0` needs no rename. Done by
   `make release-deb-name` in step 2; `release-in` still refuses a `~` name.
-- `sbom` of the manifest stays null; the SBOMs travel as cosign attestations (part C). `bundled` (nuclei, OpenCanary versions for the
-  Managed packages view) stays empty; filling it from `pins.env` is a follow-up if the GUI should show it for v1.
+- `sbom` of the manifest stays null; the SBOMs travel as cosign attestations (part C). `bundled` is filled by `release-in` (D-410).
+- `release-manifest` (step 8) refuses a release whose sensor protocol (`ProtoVersion` of `core/sensorlink/limits.go` at the tag) is
+  more than one above that of an earlier release tag (`v<SemVer>`, not `-test.`) that `min_upgrade_from` still lets a box update from:
+  core accepts only N and N-1 (D-459), so set `min_upgrade_from` to the first release after the last one below N-1 (D-410).
 - Release notes: written by hand into `release.in.json` after step 5 (they are signed in the manifest and reused as the GitHub notes).
 - Only a loopback registry, a fake registry (`httptest`) and fakes of `gh` were used: the first real ghcr push and publish are kien's
   (`.ai/deferred/feat-release-push.md`).

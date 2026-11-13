@@ -32025,6 +32025,8 @@ func (s FindingsGetFindingsIDOKStatus) Validate() error {
 		return nil
 	case "not_relevant":
 		return nil
+	case "risk_accepted":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -32374,6 +32376,8 @@ func (s FindingsGetFindingsOKItemsItemStatus) Validate() error {
 	case "false_positive":
 		return nil
 	case "not_relevant":
+		return nil
+	case "risk_accepted":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -33566,6 +33570,8 @@ func (s FindingsPostFindingsIDAiOKStatus) Validate() error {
 		return nil
 	case "not_relevant":
 		return nil
+	case "risk_accepted":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -34683,6 +34689,8 @@ func (s FindingsPostFindingsIDAppliedOKStatus) Validate() error {
 	case "false_positive":
 		return nil
 	case "not_relevant":
+		return nil
+	case "risk_accepted":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -35808,6 +35816,8 @@ func (s FindingsPostFindingsIDStatusOKStatus) Validate() error {
 		return nil
 	case "not_relevant":
 		return nil
+	case "risk_accepted":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -35868,6 +35878,8 @@ func (s FindingsPostFindingsIDStatusReqAction) Validate() error {
 	case "false_positive":
 		return nil
 	case "not_relevant":
+		return nil
+	case "accept_risk":
 		return nil
 	case "reopen":
 		return nil
@@ -36033,6 +36045,8 @@ func (s FindingsPostFindingsStatusReqAction) Validate() error {
 	case "false_positive":
 		return nil
 	case "not_relevant":
+		return nil
+	case "accept_risk":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

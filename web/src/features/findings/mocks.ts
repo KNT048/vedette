@@ -6,6 +6,7 @@ import { collection, nowIso } from '@/mocks/db'
 import { aiAvailable, aiCandidates, assetsStore, findingsStore, recordAiRun, type AiJob } from '@/mocks/stores'
 import { versionNeeded } from '@/mocks/match'
 import type { Asset, Finding } from '@/lib/types'
+import { untilOk } from './accept'
 import { compromise, packs } from './packs'
 import type { AiResult, ApplyItem, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, MitigationPack, StatusAction } from './types'
 import { fmtDate } from '@/lib/format'
@@ -16,9 +17,12 @@ const vulns = (kev as { vulns: Vuln[] }).vulns
 
 // Gói giảm thiểu và dấu hiệu khai thác là nội dung ký của dự án Vedette (content pack), không phải dữ liệu người dùng: đọc từ packs.ts.
 const aiOutputs = collection<Record<string, AiResult>>('mit_ai_outputs', () => ({}))
+// D-498: accepted risks, finding id → last day. The shared store keeps them as not_relevant (closed for every other mock);
+// the findings API answers risk_accepted with accepted_until, and the day after it they reopen by themselves.
+const accepted = collection<Record<string, string>>('fnd_risk_accepted', () => ({}))
 
 const APPLY_ITEMS: ApplyItem[] = ['patch', 'workaround', 'fortigate', 'mikrotik', 'generic']
-const ACTIONS: StatusAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant', 'reopen']
+const ACTIONS: StatusAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk', 'reopen']
 const MAX_BULK = 500
 
 const DISPLAY: Record<string, string> = {
@@ -44,7 +48,23 @@ function assetView(a: Asset | undefined): FindingAsset | null {
 }
 
 function row(f: Finding): FindingRow {
-  return { ...f, asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve) }
+  const until = accepted.get()[f.id] ?? null
+  return { ...f, status: until ? 'risk_accepted' : f.status, accepted_until: until, asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve) }
+}
+
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+const clearAccepted = (id: string) => accepted.update((m) => { const n = { ...m }; delete n[id]; return n })
+
+/** INV-13: an acceptance whose day has passed reopens, by the system user (the box does it in its hourly pass). */
+function expireAccepted() {
+  for (const [id, until] of Object.entries(accepted.get())) {
+    if (until >= today()) continue
+    const f = find(id)
+    clearAccepted(id)
+    if (!f) continue
+    patch(id, (x) => ({ ...x, status: x.basis === 'scan' ? 'confirmed' : 'suspected', resolved_at: null, resolved_by: null, resolution_note: null,
+      history: [...x.history, { ts: nowIso(), user: 'system', action: 'reopened', note: `Risk acceptance expired (accepted by ${f.resolved_by ?? 'someone'} until ${fmtDate(until)}).` }] }))
+  }
 }
 
 const fill = (s: string, ip: string, host: string) => s.replaceAll('{IP}', ip).replaceAll('{HOST}', host)
@@ -153,6 +173,7 @@ function aiResult(f: Finding, skill: AiResult['skill']): AiResult {
 export const handlers = [
   http.get(`${API}/findings`, ({ request }) => {
     const denied = guard('viewer'); if (denied) return denied
+    expireAccepted()
     const asset = new URL(request.url).searchParams.get('asset')
     const list = findingsStore.get().filter((f) => !asset || f.asset_id === asset)
     const version_needed = versionNeeded(asset).map(({ asset: a, software: s, cves }) => ({
@@ -163,6 +184,7 @@ export const handlers = [
 
   http.get(`${API}/findings/:id`, ({ params }) => {
     const denied = guard('viewer'); if (denied) return denied
+    expireAccepted()
     const f = find(params.id)
     return f ? HttpResponse.json(detail(f)) : fail(404, 'not_found', 'No such finding. It may have been removed when the sample data was restored.')
   }),
@@ -172,14 +194,20 @@ export const handlers = [
     const denied = guard('operator'); if (denied) return denied
     const f = find(params.id)
     if (!f) return fail(404, 'not_found', 'No such finding.')
-    const b = await body<{ action: StatusAction; note: string }>(request)
-    if (!b.action || !ACTIONS.includes(b.action)) return fail(400, 'bad_action', 'Choose one of: patched, mitigated, false positive, not relevant, or reopen.')
+    const b = await body<{ action: StatusAction; note: string; until?: string }>(request)
+    if (!b.action || !ACTIONS.includes(b.action)) return fail(400, 'bad_action', 'Choose one of: patched, mitigated, false positive, not relevant, accept risk, or reopen.')
     const note = typeof b.note === 'string' ? b.note.trim() : ''
     if (note.length > 500) return fail(400, 'note_too_long', 'The note can be at most 500 characters. Shorten it.')
-    if ((b.action === 'false_positive' || b.action === 'not_relevant') && note.length < 3) return fail(400, 'note_required', 'Write why this is a false positive or not relevant (at least 3 characters) so the next person understands.')
+    if ((b.action === 'false_positive' || b.action === 'not_relevant' || b.action === 'accept_risk') && note.length < 3) return fail(400, 'note_required', 'Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands.')
+    if (b.action === 'accept_risk' ? !untilOk(String(b.until ?? '')) : b.until !== undefined) return fail(400, 'bad_until', 'Accept the risk until a date from tomorrow up to one year from today.')
     const ts = nowIso()
     const user = who()
-    if (b.action === 'reopen') {
+    clearAccepted(f.id)
+    if (b.action === 'accept_risk') {
+      const until = String(b.until)
+      patch(f.id, (x) => ({ ...x, status: 'not_relevant', resolved_by: user, resolved_at: ts, resolution_note: note, history: [...x.history, { ts, user, action: 'risk_accepted', note: `${note} (until ${fmtDate(until)})` }] }))
+      accepted.update((m) => ({ ...m, [f.id]: until }))
+    } else if (b.action === 'reopen') {
       if (f.status === 'confirmed' || f.status === 'suspected') return fail(409, 'already_open', 'This finding is already open.')
       patch(f.id, (x) => ({ ...x, status: x.basis === 'scan' ? 'confirmed' : 'suspected', resolved_by: null, resolved_at: null, resolution_note: null, history: [...x.history, { ts, user, action: 'reopened', note: note || undefined }] }))
     } else {
@@ -192,13 +220,14 @@ export const handlers = [
   // Một hành động, một ghi chú cho các phát hiện đang mở (W1-12, INV-10): tất cả hoặc không gì; mỗi phát hiện một dòng lịch sử và kiểm toán; phát hiện đã đóng được đếm và bỏ qua.
   http.post(`${API}/findings/status`, async ({ request }) => {
     const denied = guard('operator'); if (denied) return denied
-    const b = await body<{ ids: string[]; action: StatusAction; note: string }>(request)
+    const b = await body<{ ids: string[]; action: StatusAction; note: string; until?: string }>(request)
     const ids = [...new Set(Array.isArray(b.ids) ? b.ids.map(String) : [])]
     if (ids.length === 0 || ids.length > MAX_BULK) return fail(400, 'invalid', `Select between 1 and ${MAX_BULK} findings.`)
-    if (!b.action || b.action === 'reopen' || !ACTIONS.includes(b.action)) return fail(400, 'bad_action', 'Choose one of: patched, mitigated, false positive, or not relevant.')
+    if (!b.action || b.action === 'reopen' || !ACTIONS.includes(b.action)) return fail(400, 'bad_action', 'Choose one of: patched, mitigated, false positive, not relevant, or accept risk.')
     const note = typeof b.note === 'string' ? b.note.trim() : ''
     if (note.length > 500) return fail(400, 'note_too_long', 'The note can be at most 500 characters. Shorten it.')
-    if ((b.action === 'false_positive' || b.action === 'not_relevant') && note.length < 3) return fail(400, 'note_required', 'Write why this is a false positive or not relevant (at least 3 characters) so the next person understands.')
+    if ((b.action === 'false_positive' || b.action === 'not_relevant' || b.action === 'accept_risk') && note.length < 3) return fail(400, 'note_required', 'Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands.')
+    if (b.action === 'accept_risk' ? !untilOk(String(b.until ?? '')) : b.until !== undefined) return fail(400, 'bad_until', 'Accept the risk until a date from tomorrow up to one year from today.')
     if (ids.some((id) => !find(id))) return fail(404, 'not_found', 'No such finding.')
     const ts = nowIso()
     const user = who()
@@ -206,7 +235,13 @@ export const handlers = [
     for (const id of ids) {
       const f = find(id)!
       if (f.status !== 'confirmed' && f.status !== 'suspected') { skipped++; continue } // a closed finding keeps its reason
-      patch(id, (x) => ({ ...x, status: b.action as Finding['status'], resolved_by: user, resolved_at: ts, resolution_note: note || null, history: [...x.history, { ts, user, action: b.action as string, note: note || undefined }] }))
+      if (b.action === 'accept_risk') {
+        const until = String(b.until)
+        patch(id, (x) => ({ ...x, status: 'not_relevant', resolved_by: user, resolved_at: ts, resolution_note: note, history: [...x.history, { ts, user, action: 'risk_accepted', note: `${note} (until ${fmtDate(until)})` }] }))
+        accepted.update((m) => ({ ...m, [id]: until }))
+      } else {
+        patch(id, (x) => ({ ...x, status: b.action as Finding['status'], resolved_by: user, resolved_at: ts, resolution_note: note || null, history: [...x.history, { ts, user, action: b.action as string, note: note || undefined }] }))
+      }
       audit('findings.status', id, `${f.cve} → ${b.action}${note ? `: ${note}` : ''}`)
     }
     return HttpResponse.json({ updated: ids.length - skipped, skipped })

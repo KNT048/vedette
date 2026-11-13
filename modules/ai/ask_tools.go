@@ -77,7 +77,7 @@ var (
 	cveArgRE   = regexp.MustCompile(`(?i)^CVE-\d{4}-\d{4,}$`)
 	idArgRE    = regexp.MustCompile(`^[A-Za-z0-9_-]{1,96}$`)
 	kindArgRE  = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
-	statusEnum = []string{"open", "any", "confirmed", "suspected", "mitigated", "patched", "false_positive", "not_relevant"}
+	statusEnum = []string{"open", "any", "confirmed", "suspected", "mitigated", "patched", "false_positive", "not_relevant", "risk_accepted"}
 	sevEnum    = []string{"critical", "high", "medium", "low", "info"}
 )
 
@@ -232,7 +232,7 @@ const (
 
 const (
 	searchAssetsSchema = `{"type":"object","properties":{"text":{"type":"string","maxLength":80},"kind":{"type":"string","maxLength":32},"port":{"type":"integer","minimum":1,"maximum":65535},"approved":{"type":"boolean"},"os_contains":{"type":"string","maxLength":40},"limit":{"type":"integer","minimum":1,"maximum":50},"detail":{"type":"boolean"}},"additionalProperties":false}`
-	listFindingsSchema = `{"type":"object","properties":{"status":{"type":"string","enum":["open","any","confirmed","suspected","mitigated","patched","false_positive","not_relevant"]},"severity":{"type":"string","enum":["critical","high","medium","low","info"]},"cve":{"type":"string","maxLength":24},"asset_id":{"type":"string","maxLength":96},"limit":{"type":"integer","minimum":1,"maximum":50}},"additionalProperties":false}`
+	listFindingsSchema = `{"type":"object","properties":{"status":{"type":"string","enum":["open","any","confirmed","suspected","mitigated","patched","false_positive","not_relevant","risk_accepted"]},"severity":{"type":"string","enum":["critical","high","medium","low","info"]},"cve":{"type":"string","maxLength":24},"asset_id":{"type":"string","maxLength":96},"limit":{"type":"integer","minimum":1,"maximum":50}},"additionalProperties":false}`
 	getFindingSchema   = `{"type":"object","properties":{"id":{"type":"string","maxLength":96}},"required":["id"],"additionalProperties":false}`
 	lookupCVESchema    = `{"type":"object","properties":{"cve":{"type":"string","maxLength":24}},"required":["cve"],"additionalProperties":false}`
 	lookupIOCSchema    = `{"type":"object","properties":{"kind":{"type":"string","enum":["ip","domain"]},"value":{"type":"string","maxLength":253}},"required":["kind","value"],"additionalProperties":false}`

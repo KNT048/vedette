@@ -13,17 +13,18 @@ import (
 
 var regexMap = map[string]ogenregex.Regexp{
 	"^(25[0-5]|2[0-4]\\d|1?\\d?\\d)(\\.(25[0-5]|2[0-4]\\d|1?\\d?\\d)){3}$": ogenregex.MustCompile("^(25[0-5]|2[0-4]\\d|1?\\d?\\d)(\\.(25[0-5]|2[0-4]\\d|1?\\d?\\d)){3}$"),
-	"^([01]\\d|2[0-3]):[0-5]\\d$":                                          ogenregex.MustCompile("^([01]\\d|2[0-3]):[0-5]\\d$"),
-	"^CVE-\\d{4}-\\d{4,}$":                                                 ogenregex.MustCompile("^CVE-\\d{4}-\\d{4,}$"),
-	"^[0-9a-f]{64}$":                                                       ogenregex.MustCompile("^[0-9a-f]{64}$"),
-	"^[A-Za-z0-9_-]{1,64}$":                                                ogenregex.MustCompile("^[A-Za-z0-9_-]{1,64}$"),
-	"^[\\w.-]{1,96}$":                                                      ogenregex.MustCompile("^[\\w.-]{1,96}$"),
-	"^[^\\s:\\p{Cc}\\p{Cf}]{1,64}$":                                        ogenregex.MustCompile("^[^\\s:\\p{Cc}\\p{Cf}]{1,64}$"),
-	"^[a-z-]{1,20}$":                                                       ogenregex.MustCompile("^[a-z-]{1,20}$"),
-	"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$":                                    ogenregex.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"),
-	"^[a-z_][a-z0-9_-]{0,31}$":                                             ogenregex.MustCompile("^[a-z_][a-z0-9_-]{0,31}$"),
-	"^\\d{4}-\\d{2}-\\d{2}$":                                               ogenregex.MustCompile("^\\d{4}-\\d{2}-\\d{2}$"),
-	"^https?:\\/\\/":                                                       ogenregex.MustCompile("^https?:\\/\\/"),
+	"^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$": ogenregex.MustCompile("^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"),
+	"^([01]\\d|2[0-3]):[0-5]\\d$":       ogenregex.MustCompile("^([01]\\d|2[0-3]):[0-5]\\d$"),
+	"^CVE-\\d{4}-\\d{4,}$":              ogenregex.MustCompile("^CVE-\\d{4}-\\d{4,}$"),
+	"^[0-9a-f]{64}$":                    ogenregex.MustCompile("^[0-9a-f]{64}$"),
+	"^[A-Za-z0-9_-]{1,64}$":             ogenregex.MustCompile("^[A-Za-z0-9_-]{1,64}$"),
+	"^[\\w.-]{1,96}$":                   ogenregex.MustCompile("^[\\w.-]{1,96}$"),
+	"^[^\\s:\\p{Cc}\\p{Cf}]{1,64}$":     ogenregex.MustCompile("^[^\\s:\\p{Cc}\\p{Cf}]{1,64}$"),
+	"^[a-z-]{1,20}$":                    ogenregex.MustCompile("^[a-z-]{1,20}$"),
+	"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$": ogenregex.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"),
+	"^[a-z_][a-z0-9_-]{0,31}$":          ogenregex.MustCompile("^[a-z_][a-z0-9_-]{0,31}$"),
+	"^\\d{4}-\\d{2}-\\d{2}$":            ogenregex.MustCompile("^\\d{4}-\\d{2}-\\d{2}$"),
+	"^https?:\\/\\/":                    ogenregex.MustCompile("^https?:\\/\\/"),
 }
 
 type (

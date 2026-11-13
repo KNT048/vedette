@@ -51,7 +51,7 @@ type Tool struct {
 var (
 	cveRE   = regexp.MustCompile(`^(?i)cve-\d{4}-\d{4,7}$`)
 	idRE    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$`)
-	statusE = []string{"open", "all", "confirmed", "suspected", "mitigated", "patched", "false_positive", "not_relevant"}
+	statusE = []string{"open", "all", "confirmed", "suspected", "mitigated", "patched", "false_positive", "not_relevant", "risk_accepted"}
 )
 
 // Schemas. Kept as literal JSON so tools/list sends exactly what is written here; tools_test.go checks every answer against them.
@@ -75,12 +75,12 @@ const (
 
 	findingRowSchema = `{"type":"object","additionalProperties":false,"required":["id","asset_id","cve","status","severity","confidence","basis","first_seen","last_seen","resolved_at"],"properties":{` +
 		`"id":{"type":"string"},"asset_id":{"type":"string"},"cve":{"type":"string"},` +
-		`"status":{"type":"string","enum":["confirmed","suspected","mitigated","patched","false_positive","not_relevant"]},` +
+		`"status":{"type":"string","enum":["confirmed","suspected","mitigated","patched","false_positive","not_relevant","risk_accepted"]},` +
 		`"severity":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1},"basis":{"type":"string"},` +
 		`"first_seen":{"type":"string","format":"date-time"},"last_seen":{"type":"string","format":"date-time"},"resolved_at":{"type":["string","null"],"format":"date-time"}}}`
 	findingSchema = `{"type":"object","additionalProperties":false,"required":["id","asset_id","cve","status","severity","confidence","basis","first_seen","last_seen","resolved_at","evidence","history"],"properties":{` +
 		`"id":{"type":"string"},"asset_id":{"type":"string"},"cve":{"type":"string"},` +
-		`"status":{"type":"string","enum":["confirmed","suspected","mitigated","patched","false_positive","not_relevant"]},` +
+		`"status":{"type":"string","enum":["confirmed","suspected","mitigated","patched","false_positive","not_relevant","risk_accepted"]},` +
 		`"severity":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1},"basis":{"type":"string"},` +
 		`"first_seen":{"type":"string","format":"date-time"},"last_seen":{"type":"string","format":"date-time"},"resolved_at":{"type":["string","null"],"format":"date-time"},` +
 		`"evidence":{"type":["object","null"],"additionalProperties":false,"required":["template","checked_at"],"properties":{"template":{"type":"string","description":"The scan check that confirmed it."},"checked_at":{"type":"string","format":"date-time"}}},` +
@@ -119,7 +119,7 @@ var Tools = []Tool{
 	{
 		Name: "list_findings", Title: "List findings", Scope: ScopeFindings,
 		Description: "List exploited vulnerabilities matched to devices (findings), newest first. status: open (confirmed or suspected, the default), all, or one status. Filter by asset_id or cve. Paged with offset and limit.",
-		Input:       json.RawMessage(`{"type":"object","additionalProperties":false,"properties":{"status":{"type":"string","enum":["open","all","confirmed","suspected","mitigated","patched","false_positive","not_relevant"],"default":"open"},"asset_id":{"type":"string","maxLength":96},"cve":{"type":"string","pattern":"^[Cc][Vv][Ee]-[0-9]{4}-[0-9]{4,7}$"},` + pageProps + `}}`),
+		Input:       json.RawMessage(`{"type":"object","additionalProperties":false,"properties":{"status":{"type":"string","enum":["open","all","confirmed","suspected","mitigated","patched","false_positive","not_relevant","risk_accepted"],"default":"open"},"asset_id":{"type":"string","maxLength":96},"cve":{"type":"string","pattern":"^[Cc][Vv][Ee]-[0-9]{4}-[0-9]{4,7}$"},` + pageProps + `}}`),
 		Output:      page(findingRowSchema),
 		run:         listFindings,
 	},

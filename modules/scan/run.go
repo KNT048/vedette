@@ -569,10 +569,10 @@ func (s *Service) plan(ctx context.Context, d Device, onlyCVEs []string) (checks
 	return checks, rows, nil
 }
 
-// dismissed is a finding a person closed (false positive, not relevant, patched): its CVE is not probed again (review
-// L3). Mitigated findings are rescanned: a match shows the mitigation did not hold; no match changes nothing (D-133 (5)).
+// dismissed is a finding a person closed (false positive, not relevant, patched, risk accepted until a day, D-498): its
+// CVE is not probed again (review L3). Mitigated findings are rescanned: a match shows the mitigation did not hold; no match changes nothing (D-133 (5)).
 func dismissed(status string) bool {
-	return status == "false_positive" || status == "not_relevant" || status == "patched"
+	return status == "false_positive" || status == "not_relevant" || status == "patched" || status == "risk_accepted"
 }
 
 // endpoints are where nuclei sends requests on a device: its known web services first, then its other TCP ports

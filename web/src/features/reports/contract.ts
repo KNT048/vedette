@@ -6,7 +6,7 @@ const iso = z.iso.datetime()
 const email = z.string().max(120)
 export const FindingRow = z.object({
   id: z.string(), cve: z.string(), device: z.string(), asset_id: z.string(), product: z.string(),
-  status: z.enum(['confirmed', 'suspected', 'mitigated', 'patched', 'false_positive', 'not_relevant']),
+  status: z.enum(['confirmed', 'suspected', 'mitigated', 'patched', 'false_positive', 'not_relevant', 'risk_accepted']),
   severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), since: iso,
   by: z.string().optional().describe('Who closed it (rows of what was done)'),
 })

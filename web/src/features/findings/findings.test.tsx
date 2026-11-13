@@ -11,6 +11,7 @@ import { makeQueryClient } from '@/app/App'
 import { aiConfigStore, aiRunsStore, assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { feature } from './index'
 import { FixedInNote } from './Recommendation'
+import { dayAfter, untilBounds, untilOk } from './accept'
 import type { FindingDetail } from './types'
 
 const FORTI = 'show firewall vip | grep -f 192.168.10.21'
@@ -438,5 +439,34 @@ describe('findings: customer walk 1 (D-484)', () => {
     expect(screen.getAllByText('No IP address').length).toBeGreaterThan(0)
     expect(screen.queryByRole('link', { name: 'Rescan this device' })).not.toBeInTheDocument()
     expect(screen.queryByText(/a-web01/)).not.toBeInTheDocument()
+  })
+})
+
+describe('findings: accept risk until a day (D-498, S-MIT-1)', () => {
+  it('the day runs from tomorrow to a year ahead, on the local calendar', () => {
+    const today = new Date(2026, 10, 13, 23, 30)
+    expect(untilBounds(today)).toEqual({ min: '2026-11-14', max: '2027-11-13' })
+    expect(dayAfter(new Date(2026, 1, 28), 1)).toBe('2026-03-01')
+    for (const [d, ok] of [['2026-11-13', false], ['2026-11-14', true], ['2027-11-13', true], ['2027-11-14', false], ['', false], ['14/11/2026', false]] as const) expect([d, untilOk(d, today)]).toEqual([d, ok])
+  })
+
+  it('needs a note and a day; a preset fills the day; the page says until when and by whom', async () => {
+    renderApp('/findings/f-2')
+    await userEvent.click(await screen.findByRole('button', { name: 'Mark as handled' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Mark as handled' })
+    await userEvent.click(within(dlg).getByRole('radio', { name: /Accept risk until/ }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save status' }))
+    expect(await within(dlg).findByText('Say why you accept the risk (at least 3 characters).')).toBeInTheDocument()
+    expect(within(dlg).getByText('Choose a date from tomorrow up to one year from today.')).toBeInTheDocument()
+    const date = within(dlg).getByLabelText('Accept until')
+    expect(date).toHaveAttribute('min', untilBounds().min)
+    expect(date).toHaveAttribute('max', untilBounds().max)
+    await userEvent.click(within(dlg).getByRole('button', { name: '90 days' }))
+    expect(date).toHaveValue(dayAfter(new Date(), 90))
+    await userEvent.type(within(dlg).getByLabelText('Note: why (required)'), 'No patch window before March')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save status' }))
+    expect(await screen.findByRole('heading', { level: 1, name: /risk accepted until/ })).toBeInTheDocument()
+    expect(screen.getByText(/^Risk accepted until .* by admin@acme\.example\. No patch window before March$/)).toBeInTheDocument()
+    expect(findingsStore.get().find((x) => x.id === 'f-2')!.history.at(-1)?.action).toBe('risk_accepted')
   })
 })

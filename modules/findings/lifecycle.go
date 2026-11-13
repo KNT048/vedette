@@ -20,6 +20,8 @@ const (
 	StatusPatched       Status = "patched"
 	StatusFalsePositive Status = "false_positive"
 	StatusNotRelevant   Status = "not_relevant"
+	// StatusRiskAccepted is closed by a person until Finding.AcceptedUntil; it reopens by itself after that day (D-498).
+	StatusRiskAccepted Status = "risk_accepted"
 )
 
 // Open reports whether the finding still needs attention (confirmed, suspected).
@@ -27,7 +29,7 @@ func (s Status) Open() bool { return s == StatusConfirmed || s == StatusSuspecte
 
 func (s Status) valid() bool {
 	switch s {
-	case StatusConfirmed, StatusSuspected, StatusMitigated, StatusPatched, StatusFalsePositive, StatusNotRelevant:
+	case StatusConfirmed, StatusSuspected, StatusMitigated, StatusPatched, StatusFalsePositive, StatusNotRelevant, StatusRiskAccepted:
 		return true
 	}
 	return false
@@ -43,13 +45,17 @@ const (
 	ActionFalsePositive Action = "false_positive"
 	ActionNotRelevant   Action = "not_relevant"
 	ActionReopen        Action = "reopen"
+	// ActionAcceptRisk needs a note and an until date (Finding.AcceptRisk, D-498).
+	ActionAcceptRisk Action = "accept_risk"
 )
 
 const (
 	// MaxNote is the longest note, counted in UTF-16 code units like the GUI.
 	MaxNote = 500
-	// MinReasonNote is the shortest note for false_positive and not_relevant.
+	// MinReasonNote is the shortest note for false_positive, not_relevant and accept_risk.
 	MinReasonNote = 3
+	// MaxAcceptDays is how far ahead a risk can be accepted (D-498).
+	MaxAcceptDays = 365
 	// SystemUser is the history user for automatic events.
 	SystemUser = "system"
 
@@ -71,6 +77,36 @@ type Finding struct {
 	// ResolutionReason is set only when Vedette closed the finding by itself (D-530): ReasonNotAffectedVersion. A
 	// person's action, a reopen or a scan clears it.
 	ResolutionReason string
+	// AcceptedUntil is the last day (00:00 UTC) of a risk acceptance; set only while the status is risk_accepted (D-498).
+	AcceptedUntil time.Time
+}
+
+// ReasonRiskExpired is the StatusChangedEvent reason of a finding whose risk acceptance ran out (D-498, INV-13).
+const ReasonRiskExpired = "risk_acceptance_expired"
+
+// dayOf is the UTC day of t, at 00:00.
+func dayOf(t time.Time) time.Time {
+	y, m, d := t.UTC().Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+}
+
+// FmtDay is how a day is written in history notes: "12 Feb 2027", like the GUI.
+func FmtDay(t time.Time) string { return t.UTC().Format("2 Jan 2006") }
+
+// ExpireAcceptance reopens a risk_accepted finding once its last day has passed (D-498, INV-13): to the open status a
+// fresh match would give (confirmed with a scan basis, else suspected), with a history row by the system user that names
+// who accepted it and until when. ok is false for anything else.
+func (f Finding) ExpireAcceptance(now time.Time) (Finding, HistoryEntry, bool) {
+	if f.Status != StatusRiskAccepted || !dayOf(now).After(f.AcceptedUntil) {
+		return f, HistoryEntry{}, false
+	}
+	note := "Risk acceptance expired (accepted by " + f.ResolvedBy + " until " + FmtDay(f.AcceptedUntil) + ")."
+	f.Status = StatusSuspected
+	if f.Basis == BasisScan {
+		f.Status = StatusConfirmed
+	}
+	f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = "", time.Time{}, "", "", time.Time{}
+	return f, HistoryEntry{TS: now, User: SystemUser, Action: "reopened", Note: note}, true
 }
 
 // ReasonNotAffectedVersion closes a suspected finding whose version the matcher proved outside every range (D-530).
@@ -89,7 +125,7 @@ func (f Finding) AutoResolve(note string, now time.Time) (Finding, HistoryEntry,
 		return f, HistoryEntry{}, false
 	}
 	note = clipRunes(note, MaxNote)
-	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = StatusNotRelevant, SystemUser, now, note, ReasonNotAffectedVersion
+	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = StatusNotRelevant, SystemUser, now, note, ReasonNotAffectedVersion, time.Time{}
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusNotRelevant), Note: note}, true
 }
 
@@ -137,7 +173,7 @@ func clipRunes(s string, n int) string {
 type HistoryEntry struct {
 	TS     time.Time
 	User   string
-	Action string // created, confirmed, rescanned, rescan_clear, no_longer_matches, matches_again, reopened, patched, mitigated, false_positive, not_relevant
+	Action string // created, confirmed, rescanned, rescan_clear, no_longer_matches, matches_again, reopened, patched, mitigated, false_positive, not_relevant, risk_accepted
 	Note   string
 }
 
@@ -161,6 +197,9 @@ func (f Finding) Validate() error {
 	}
 	if f.Status == StatusSuspected && f.Basis == BasisScan {
 		return fmt.Errorf("findings: validating finding: suspected cannot have basis scan")
+	}
+	if (f.Status == StatusRiskAccepted) == f.AcceptedUntil.IsZero() {
+		return fmt.Errorf("findings: validating finding: an until date goes with risk_accepted and only with it")
 	}
 	return nil
 }
@@ -224,12 +263,39 @@ func sevRank(s Severity) int {
 }
 
 // Apply performs a status action by a person (INV-3). Checks run in the order
-// the API reports them: action, note length, note required, already open. On
+// the API reports them: action, note length, note required, until, already open. On
 // error the finding is unchanged. The note is trimmed and measured like the GUI
-// does (JavaScript trim and UTF-16 length).
+// does (JavaScript trim and UTF-16 length). accept_risk needs a date: use AcceptRisk.
 func (f Finding) Apply(action Action, note, user string, now time.Time) (Finding, HistoryEntry, error) {
+	return f.apply(action, note, user, time.Time{}, now)
+}
+
+// AcceptRisk closes the finding as risk_accepted until the end of the UTC day until (D-498): a note of at least
+// MinReasonNote and a day from tomorrow to MaxAcceptDays ahead, with one day of slack on each side so a person's local
+// "tomorrow" and "a year from today" always pass (ErrBadUntil otherwise).
+func (f Finding) AcceptRisk(note, user string, until, now time.Time) (Finding, HistoryEntry, error) {
+	return f.apply(ActionAcceptRisk, note, user, until, now)
+}
+
+// ValidUntil checks the until day of accept_risk against now (D-498): it must be set only with accept_risk, and fall
+// between today and MaxAcceptDays+1 days ahead in UTC (tomorrow and MaxAcceptDays in any time zone).
+func ValidUntil(action Action, until, now time.Time) error {
+	if action != ActionAcceptRisk {
+		if !until.IsZero() {
+			return fmt.Errorf("findings: applying action %q with a date: %w", action, ErrBadUntil)
+		}
+		return nil
+	}
+	today := dayOf(now)
+	if until.IsZero() || !until.Equal(dayOf(until)) || until.Before(today) || until.After(today.AddDate(0, 0, MaxAcceptDays+1)) {
+		return fmt.Errorf("findings: accepting the risk until %s: %w", until.Format(time.DateOnly), ErrBadUntil)
+	}
+	return nil
+}
+
+func (f Finding) apply(action Action, note, user string, until, now time.Time) (Finding, HistoryEntry, error) {
 	switch action {
-	case ActionPatched, ActionMitigated, ActionFalsePositive, ActionNotRelevant, ActionReopen:
+	case ActionPatched, ActionMitigated, ActionFalsePositive, ActionNotRelevant, ActionReopen, ActionAcceptRisk:
 	default:
 		return f, HistoryEntry{}, fmt.Errorf("findings: applying action %q: %w", action, ErrBadAction)
 	}
@@ -238,8 +304,11 @@ func (f Finding) Apply(action Action, note, user string, now time.Time) (Finding
 	if n > MaxNote {
 		return f, HistoryEntry{}, fmt.Errorf("findings: applying action %q: %w", action, ErrNoteTooLong)
 	}
-	if (action == ActionFalsePositive || action == ActionNotRelevant) && n < MinReasonNote {
+	if (action == ActionFalsePositive || action == ActionNotRelevant || action == ActionAcceptRisk) && n < MinReasonNote {
 		return f, HistoryEntry{}, fmt.Errorf("findings: applying action %q: %w", action, ErrNoteRequired)
+	}
+	if err := ValidUntil(action, until, now); err != nil {
+		return f, HistoryEntry{}, err
 	}
 	if action == ActionReopen {
 		if f.Status.Open() {
@@ -249,11 +318,15 @@ func (f Finding) Apply(action Action, note, user string, now time.Time) (Finding
 		if f.Basis == BasisScan {
 			f.Status = StatusConfirmed
 		}
-		f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = "", time.Time{}, "", ""
+		f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = "", time.Time{}, "", "", time.Time{}
 		return f, HistoryEntry{TS: now, User: user, Action: "reopened", Note: note}, nil
 	}
+	f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = user, now, note, "", time.Time{}
+	if action == ActionAcceptRisk {
+		f.Status, f.AcceptedUntil = StatusRiskAccepted, until
+		return f, HistoryEntry{TS: now, User: user, Action: string(StatusRiskAccepted), Note: note + " (until " + FmtDay(until) + ")"}, nil
+	}
 	f.Status = Status(action)
-	f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = user, now, note, ""
 	return f, HistoryEntry{TS: now, User: user, Action: string(action), Note: note}, nil
 }
 
@@ -272,7 +345,7 @@ type ScanOutcome struct {
 // rejected, so a real confirmation is never lost. Open findings become
 // confirmed with basis scan and confidence at least ConfScan.
 //
-// false_positive and not_relevant are never reopened by a scan. The first time a
+// false_positive, not_relevant and risk_accepted are never reopened by a scan. The first time a
 // scan template matches such a finding, its evidence is recorded (basis scan, a
 // "rescanned" row) and Notify is true so a person can decide; the same template
 // again changes nothing and does not notify. patched and mitigated become
@@ -285,7 +358,7 @@ func (f Finding) ConfirmFromScan(ev Evidence, now time.Time) (ScanOutcome, error
 	ev.Summary, ev.Request, ev.Response = truncate(ev.Summary), truncate(ev.Request), truncate(ev.Response)
 	was := f.Status
 	auto := f.AutoResolved() // closed by Vedette, not a person (D-530): a scan reopens it like patched
-	closedByPerson := (was == StatusFalsePositive || was == StatusNotRelevant) && !auto
+	closedByPerson := (was == StatusFalsePositive || was == StatusNotRelevant || was == StatusRiskAccepted) && !auto
 	if closedByPerson && f.Basis == BasisScan && f.Evidence != nil && f.Evidence.Template == ev.Template {
 		return ScanOutcome{Finding: f}, nil // this match was already signalled
 	}
@@ -303,7 +376,7 @@ func (f Finding) ConfirmFromScan(ev Evidence, now time.Time) (ScanOutcome, error
 		h.Action, h.Note = "reopened", "scan: "+ev.Template
 	}
 	f.Status = StatusConfirmed
-	f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = "", time.Time{}, "", ""
+	f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason, f.AcceptedUntil = "", time.Time{}, "", "", time.Time{}
 	return ScanOutcome{Finding: f, History: []HistoryEntry{h}, Notify: was != StatusConfirmed}, nil
 }
 

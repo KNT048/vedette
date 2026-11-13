@@ -42,7 +42,7 @@ type FindingRow struct {
 	Asset      string // name of the device
 	AssetIP    string
 	CVE        string
-	Status     string // confirmed, suspected, mitigated, patched, false_positive, not_relevant
+	Status     string // confirmed, suspected, mitigated, patched, false_positive, not_relevant, risk_accepted
 	Severity   string
 	Basis      string // version, product, scan
 	Confidence float64

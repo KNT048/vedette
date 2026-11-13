@@ -13082,7 +13082,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = FindingsPostFindingsIDStatusOperation
-										r.summary = "Change status (patched, mitigated, false positive, not relevant, reopen) with a note"
+										r.summary = "Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen) with a note"
 										r.operationID = "findings_post_findings_id_status"
 										r.operationGroup = ""
 										r.pathPattern = "/findings/{id}/status"

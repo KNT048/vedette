@@ -1496,7 +1496,8 @@ func (UnimplementedHandler) FindingsPostFindingsIDApplied(ctx context.Context, r
 
 // FindingsPostFindingsIDStatus implements findings_post_findings_id_status operation.
 //
-// Change status (patched, mitigated, false positive, not relevant, reopen) with a note.
+// Change status (patched, mitigated, false positive, not relevant, accept risk until a day, reopen)
+// with a note.
 //
 // POST /findings/{id}/status
 func (UnimplementedHandler) FindingsPostFindingsIDStatus(ctx context.Context, req *FindingsPostFindingsIDStatusReq, params FindingsPostFindingsIDStatusParams) (r *FindingsPostFindingsIDStatusOK, _ error) {

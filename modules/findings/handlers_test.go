@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/server/servertest"
@@ -257,5 +258,24 @@ func TestFindingDetail_FixedIn(t *testing.T) {
 	f, _ := b["fixed_in"].(map[string]any)
 	if f["kind"] != "fixed" || f["version"] != "6.1.1" || f["fixed"] != "6.1.2" || f["source"] != "NVD affected versions" {
 		t.Fatalf("fixed_in = %v", b["fixed_in"])
+	}
+}
+
+// D-498: accept_risk goes through the API with its day: a bad day is 400 bad_until, a good one answers the finding with
+// accepted_until.
+func TestAcceptRiskEndpoint(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	id := e.seed()
+	day := func(d int) string { return dayOf(t0).AddDate(0, 0, d).Format(time.DateOnly) }
+	if code, b := e.call("POST", "/findings/"+id+"/status", "operator", `{"action":"accept_risk","note":"March window","until":"`+day(-1)+`"}`); code != 400 || errCode(b) != "bad_until" {
+		t.Fatalf("yesterday: %d %v", code, b)
+	}
+	if code, b := e.call("POST", "/findings/status", "operator", `{"ids":["`+id+`"],"action":"accept_risk","note":"March window"}`); code != 400 || errCode(b) != "bad_until" {
+		t.Fatalf("bulk without a day: %d %v", code, b)
+	}
+	code, b := e.call("POST", "/findings/"+id+"/status", "operator", `{"action":"accept_risk","note":"March window","until":"`+day(90)+`"}`)
+	if code != 200 || b["status"] != "risk_accepted" || b["accepted_until"] != day(90) || b["resolution_note"] != "March window" {
+		t.Fatalf("accept: %d %v", code, b)
 	}
 }

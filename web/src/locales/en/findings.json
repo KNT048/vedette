@@ -14,6 +14,7 @@
     "open": "Unresolved",
     "confirmed": "Confirmed",
     "suspected": "Suspected",
+    "accepted": "Risk accepted",
     "resolved": "Resolved",
     "all": "All"
   },
@@ -54,7 +55,8 @@
     "mitigated": "{{device}}: {{cve}} is mitigated, patching is still needed to remove it",
     "patched": "{{device}}: {{cve}} is patched",
     "false_positive": "{{device}}: {{cve}} marked as false positive",
-    "not_relevant": "{{device}}: {{cve}} marked as not relevant"
+    "not_relevant": "{{device}}: {{cve}} marked as not relevant",
+    "risk_accepted": "{{device}}: {{cve}} risk accepted until {{date}}"
   },
   "meta": {
     "ransomware": "Used by ransomware",
@@ -86,7 +88,9 @@
     "false_positive": "False positive",
     "false_positiveHint": "The device is not affected; Vedette matched it wrongly.",
     "not_relevant": "Not relevant",
-    "not_relevantHint": "Affected, but no action needed (for example a device being retired, not on the network)."
+    "not_relevantHint": "Affected, but no action needed (for example a device being retired, not on the network).",
+    "accept_risk": "Accept risk until…",
+    "accept_riskHint": "Known and not fixed yet, for a reason (for example no patch window before March). The finding reopens by itself after the date."
   },
   "evidence": {
     "title": "Evidence",
@@ -196,7 +200,8 @@
       "fortigate": "FortiGate configuration",
       "mikrotik": "MikroTik configuration",
       "generic": "general guidance"
-    }
+    },
+    "risk_accepted": "Risk accepted"
   },
   "explain": {
     "title": "Explain in plain language",
@@ -245,5 +250,18 @@
     "done_other": "Status saved for {{count}} findings",
     "skipped_one": "{{count}} was already closed and kept its status.",
     "skipped_other": "{{count}} were already closed and kept their status."
+  },
+  "accept": {
+    "presets": "Accept for",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "until": "Accept until",
+    "untilHint": "From tomorrow up to one year. The finding reopens by itself the day after.",
+    "noteRequired": "Say why you accept the risk (at least 3 characters).",
+    "untilRequired": "Choose a date from tomorrow up to one year from today.",
+    "chip": "Risk accepted",
+    "chipUntil": "Until {{date}}",
+    "rowUntil": "until {{date}}",
+    "line": "Risk accepted until {{date}} by {{who}}."
   }
 }

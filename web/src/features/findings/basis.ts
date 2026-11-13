@@ -1,8 +1,9 @@
 import type { Finding } from '@/lib/types'
+import type { FindingRow } from './types'
 
 /** Khoá i18n cho "cơ sở" của phát hiện: quét xác nhận / theo phiên bản / chỉ khớp sản phẩm. */
 export const basisKey = (b: Finding['basis']) => `basis.${b}`
-export const isOpen = (s: Finding['status']) => s === 'confirmed' || s === 'suspected'
+export const isOpen = (s: FindingRow['status']) => s === 'confirmed' || s === 'suspected'
 /** Tên thiết bị như trang Devices (D-484): `name` do API cấp; không bao giờ là id nội bộ. */
 export const deviceName = (a: { name: string } | null, fallback: string) => a?.name || fallback
 /** Thiết bị khai tay hoặc chỉ thấy qua LLDP không có IP; API ghi "—". */

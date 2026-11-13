@@ -82,7 +82,7 @@ var exportPolicy = map[string]tablePolicy{
 	"feeds_template":         {export: "cve"},
 	"feeds_vuln":             {export: "cve vendor product product_key name description required_action date_added due_date ransomware epss epss_7d_ago has_template source_id updated_at kev_announced_at", json: "links"},
 	"feeds_weekly_answer":    {export: "key answer user_id answered_at device_added device_id have_since"},
-	"fnd_finding":            {export: "id asset_id cve status severity confidence basis first_seen last_seen resolved_by resolved_at resolution_note resolution_reason", json: "evidence"},
+	"fnd_finding":            {export: "id asset_id cve status severity confidence basis first_seen last_seen resolved_by resolved_at resolution_note resolution_reason accepted_until", json: "evidence"}, // accepted_until: D-498
 	"fnd_finding_history":    {export: "id finding_id ts user action note"},
 	"fnd_version_needed":     {export: "asset_id software_id software version cves updated_at"}, // D-500
 	"hp_config":              {export: "key updated_at updated_by", json: "value"},

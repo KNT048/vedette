@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { AiBlock } from '@/components/common/AiBlock'
-import { SeverityChip, StatusChip } from '@/components/common/StatusChip'
+import { SeverityChip } from '@/components/common/StatusChip'
+import { FindingStatusChip } from '@/features/findings/AcceptRisk'
 import { fmtDate, fmtDateTime } from '@/lib/format'
 import { Scroll } from './parts'
 import type { ActionItem, FindingRow, TopRisk, WeeklyReport } from './types'
@@ -17,7 +18,7 @@ function Rows({ rows, caption }: { rows: FindingRow[]; caption: string }) {
         </tr></thead>
         <tbody>{rows.map((r) => (
           <tr key={r.id} className="border-b border-rule last:border-b-0">
-            <td className="py-1 pr-3">{r.device}</td><td className="py-1 pr-3">{r.cve}</td><td className="py-1 pr-3">{r.product}</td><td className="py-1 pr-3"><StatusChip status={r.status} /></td><td className="py-1">{fmtDate(r.since)}</td>
+            <td className="py-1 pr-3">{r.device}</td><td className="py-1 pr-3">{r.cve}</td><td className="py-1 pr-3">{r.product}</td><td className="py-1 pr-3"><FindingStatusChip f={r} /></td><td className="py-1">{fmtDate(r.since)}</td>
           </tr>
         ))}</tbody>
       </table>
